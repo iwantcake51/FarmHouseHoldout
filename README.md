@@ -137,11 +137,11 @@ Shared state:
 | Hold right click | Aim down the sights (scoped rifles look through the scope) |
 | 1 2 3 4 | Melee, sidearm, long gun, automatic |
 | R | Reload |
-| H | Apply a bandage |
+| G | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |
 | Hold F | Board up the door or window you are standing at |
 | Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
-| G | Underbarrel grenade, once you have one |
+| H | Underbarrel grenade, once you have one |
 | V | Switch fire mode on guns with a burst or fanning mod |
 | Wheel, + and − | Zoom in and out |
 | T | Start the run (also from the death screen), or the next wave early |

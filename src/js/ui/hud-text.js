@@ -5,7 +5,14 @@ const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id
 const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
 let toastT = 0, annT = 0;
 function toast(t) { $('toast').textContent = t; $('toast').style.opacity = 1; toastT = 2.4; }
-function announce(a, b) { $('annBig').textContent = a; $('annSmall').textContent = b; $('announce').style.opacity = 1; annT = 2.6; }
+// the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
+// kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
+function announce(a, b, opt) {
+  const o = opt || {}, el = $('announce');
+  $('annEye').textContent = o.eye || ''; $('annBig').textContent = a; $('annSmall').textContent = b;
+  el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
+  el.style.opacity = 1; annT = 2.8;
+}
 function renderSlots() {
   const k = SLOTS.map(s => (W8.slot[s] || '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
@@ -56,5 +63,5 @@ function stepFloats(rdt) {
 // toast and wave announcement timers
 function tickMessages(rdt) {
   if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (annT > 0) { annT -= rdt; if (annT <= 0) $('announce').style.opacity = 0; }
+  if (annT > 0) { annT -= rdt; if (annT <= 0) { $('announce').style.opacity = 0; $('announce').classList.remove('show'); } }
 }

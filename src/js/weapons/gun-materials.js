@@ -9,6 +9,6 @@ const GM = {
   dot: basic(0xeae4cc), dotR: basic(0xff5a2a), glass: lam(0x2c5468), holoGlass: new THREE.MeshBasicMaterial({ color: 0x7ab8c8, transparent: true, opacity: 0.35, depthWrite: false }), tan: lam(0x9a8460), filterD: lam(0x9a4e1c)
 };
 const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.wood2, GM.poly, GM.park, GM.blued, GM.walnut, GM.olive];
-const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {};
+const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {};
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });
 gunMeshes.melee.position.set(0, 0, 0.5);

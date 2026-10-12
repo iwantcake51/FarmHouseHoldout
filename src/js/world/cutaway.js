@@ -25,6 +25,14 @@ function updateCutaway(rdt) {
     roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.98; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
     roof.g.traverse(o => { if (o.isMesh) o.castShadow = roof.op > 0.5; });
   }
+  // porch roof: off while you stand on the porch or just inside the door, where it would cover you
+  {
+    const pr = porchRoof, near = state !== 'title' && Math.abs(P.x - pr.x) < 2.8 && P.z > pr.z - 3.6 && P.z < pr.z + 2.2;
+    const want = near ? 0 : 1; pr.op += (want - pr.op) * Math.min(1, rdt * 7); if (Math.abs(want - pr.op) < 0.004) pr.op = want;
+    pr.g.visible = pr.op > 0.01;
+    const lv = Math.max(amb[0], amb[1], amb[2]);
+    pr.mats.forEach(m => { m.opacity = pr.op; m.depthWrite = pr.op > 0.98; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
+  }
   for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(P.x, 1.0, P.z).project(cam);
   LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);

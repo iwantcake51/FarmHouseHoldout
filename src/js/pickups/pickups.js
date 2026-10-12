@@ -65,7 +65,8 @@ function updatePickups(dt) {
     p.ring.scale.setScalar((p.kind === 'supply' ? 1.8 : 1) * (0.92 + pulse * 0.16)); p.ringMat.opacity = 0.45 + pulse * 0.4;
     const blink = p.t > 4 || Math.sin(p.t * 14) > 0;
     p.om.opacity = blink ? 0.95 : 0.2; p.xr.rim.opacity = (blink ? 0.55 + 0.35 * pulse : 0.15);
-    p.g.visible = visAt(p.x, p.z) > 0.2;
+    // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
+    const seen = visAt(p.x, p.z); p.g.visible = true; p.ringMat.opacity *= 0.55 + 0.45 * seen;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies; it never heals you on the spot
@@ -77,7 +78,7 @@ function updatePickups(dt) {
       else if (p.kind === 'med') { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); ft = '+1 bandage'; popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount; SFX.scrap(); }
       else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); S.planks += 4; S.scrap += 6; const nb = Math.min(2, BAND_MAX - (P.band || 0)); P.band = (P.band || 0) + nb; feed('planks', 4, 'planks'); feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
-      else { const opts = ammoTypes(), a = p.ammoType || pick(opts); if (a) { const amt = ammoAmt(a); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); ft = '+' + amt + ' ' + AMMO_NAME[a]; } else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; } SFX.pick(); }
+      else { const opts = ammoTypes(), a = p.ammoType || pick(opts); if (a) { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); ft = '+' + amt + ' ' + AMMO_NAME[a]; } else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; } SFX.pick(); }
       floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { scene.remove(p.g); pickups.splice(k, 1); }

@@ -16,7 +16,7 @@ const RECIPES = {
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   med: [
-    { ic: 'med', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${BAND_MAX}). Press H to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < BAND_MAX ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+    { ic: 'med', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${BAND_MAX}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < BAND_MAX ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
     { ic: 'med', cost: 10, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
     ...['hands', 'dress', 'tonic'].map(medUpgrade)
   ],

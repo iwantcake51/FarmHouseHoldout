@@ -31,7 +31,10 @@ function ejectCasing(ammo, n, mode, sideSign) {
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
     else if (mode === 'pump' || mode === 'bolt') { side = rr(1.6, 2.4); up = rr(1.6, 2.6); back = rr(0.0, 0.6); }
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
-    else { side = rr(-0.5, 0.5); up = rr(0.2, 0.8); back = rr(-0.3, 0.4); c.g.position.y -= 0.12; }
+    else {   // dump: the whole cylinder's worth tumbles out together, each case falling its own way
+      side = rr(-1.1, 0.3); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
+      c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
+    }
     c.vx = rx * side - fx * back + P.vx * 0.8 + rr(-0.3, 0.3); c.vz = rz * side - fz * back + P.vz * 0.8 + rr(-0.3, 0.3); c.vy = up;
     c.spin = rr(9, 17) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-6, 6);
   }

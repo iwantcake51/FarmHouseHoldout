@@ -25,7 +25,13 @@ function updateCrosshair(rdt, D) {
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
     }
     if (D.melee) { const rd = 1 - clamp(W8.cd / ((D.rate || 0.5) * 1.3), 0, 1), L = 2 * Math.PI * 19; $('xhSwing').setAttribute('stroke-dasharray', `${(rd * L).toFixed(1)} 999`); $('xhSwing').style.opacity = rd >= 1 ? 0.35 : 1; }
-    if (D.melee && cache.aw) { cache.aw = ''; $('ammoWarn').hidden = true; }
+    // healing ring: fills while the bandage goes on, then drains as the healing runs out
+    { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : P.heal > 0 ? P.heal / Math.max(P.heal, P.healMax || 1) : 0, on = band || P.heal > 0;
+      const hk = (on ? (band ? 'a' : 'r') + Math.round(hp * 200) : '');
+      if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.setAttribute('class', band ? 'heal' : 'heal regen'); el.style.opacity = on ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
+    if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); aw.innerHTML = '<span class="aw">' + t + '</span>'; } }
+    else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
+    if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
     xhAmmo.style.display = xhAmmoBg.style.display = D.melee ? 'none' : '';
     bloom *= Math.exp(-rdt * 9);
     const mz = muzzle();
@@ -44,6 +50,7 @@ function updateCrosshair(rdt, D) {
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
       const n = magSize(id), have = W8.mag[id] || 0, key = n + ':' + have;
+      const healing = P.bandT > 0;
       if (cache.ammoKey !== key) { cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg); }
       xh.classList.toggle('lowammo', have <= Math.max(1, n * 0.25));
       // yellow under a quarter, red and asking for a reload when empty
@@ -51,9 +58,9 @@ function updateCrosshair(rdt, D) {
       // while reloading the same spot reads "Reloading", or counts the shells going in
       const mode = W8.reloading ? 'loading' : have === 0 ? (res > 0 ? 'reload' : 'none') : have <= Math.max(1, Math.floor(n * 0.25)) ? 'low' : '';
       const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? 'Reload <kbd>R</kbd>' : mode === 'none' ? 'No ammo' : '';
-      if (cache.aw !== mode + txt) {
+      if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;
-        aw.classList.remove('low', 'out', 'loading'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
+        aw.classList.remove('low', 'out', 'loading', 'heal'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
         aw.innerHTML = '<span class="aw">' + txt + '</span>';
       }
     }

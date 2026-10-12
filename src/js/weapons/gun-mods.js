@@ -23,7 +23,7 @@ const GUN_MODS = {
   ported: { w: 'smg', r: 'c', name: 'Ported barrel', text: 'Machine pistol spread down 40%.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   integral: { w: 'sub', r: 'u', name: 'Integral suppressor', text: 'SMG damage +20% and much quieter.', vis: 'A fat suppressed barrel', stat: D => { D.dmg *= 1.2; D.quiet = true; } },
   stack: { w: 'sub', r: 'c', name: 'Double-stack mag', text: 'The SMG magazine holds twice as much.', vis: 'A long magazine', stat: D => { D.mag *= 2; } },
-  gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G lobs a grenade. Recharges in 6 seconds.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; } },
+  gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'H lobs a grenade. Recharges in 6 seconds.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Rifle damage +25%, spread down 30%.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
   belt: { w: 'lmg', r: 'u', name: 'Belt box', text: 'The LMG holds 100 more rounds.', vis: 'A bigger ammo box', stat: D => { D.mag += 100; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Standing still, the LMG has almost no spread.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } }

@@ -16,14 +16,14 @@ function startBandage() {
   if (!(P.band > 0)) { toast('No bandages. Buy them at the medicine cabinet.'); return; }
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('You are not hurt.'); return; }
   exitScope(); W8.reloading = null; W8.burstLeft = 0; W8.swing = 0;
-  P.bandT = bandTime(); SFX.rip();
+  P.bandT = P.bandMax = bandTime(); SFX.rip();
 }
 function tickBandage(dt) {
   if (P.bandT > 0) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; feed('med', h, 'health over time'); popEl('bands'); }
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.healMax = P.heal; P.bleed = 0; feed('med', h, 'health over time'); popEl('bands'); }
   }
   if (P.heal > 0 && !P.dead) { const r = healRate(), h = Math.min(P.heal, dt * r, S.maxHp - P.hp); P.hp += h; P.heal -= Math.max(h, dt * r * (P.hp >= S.maxHp ? 1 : 0)); if (P.heal < 0.01) P.heal = 0; }
 }

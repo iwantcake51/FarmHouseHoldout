@@ -31,7 +31,7 @@ function newRun() {
   zoomT = 1; hurtFx = 0; flowDirty = true; timeScale = 1; hitStop = 0;
   $('feed').innerHTML = ''; feedItems.length = 0;
   setState('play'); beginBreak(20);
-  announce('Night 1', 'Board up the windows');
+  announce('Night 1', 'Board up the windows', { eye: 'Kessler Farm' });
 }
 $('startBtn').onclick = newRun;
 $('againBtn').onclick = newRun;

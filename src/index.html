@@ -31,6 +31,8 @@
     <circle id="xhAmmo" class="ammo" r="30" transform="rotate(-42)"></circle>
     <circle id="xhReload" class="reload" r="30" transform="rotate(-42)" stroke-dasharray="0 999"></circle>
     <circle id="xhGl" class="gl" r="36" transform="rotate(138)" stroke-dasharray="0 999"></circle>
+    <circle id="xhHealBg" class="healBg" r="23"></circle>
+    <circle id="xhHeal" class="heal" r="23" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
     <g id="xhTicks">
       <g id="tk0"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
       <g id="tk1"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
@@ -68,6 +70,7 @@
     <div class="lbl">Wave</div>
     <div class="big" id="wNum">01</div>
     <div id="wSub"></div>
+    <div id="wBar"><i id="wBarFill"></i></div>
     <div class="lbl" id="clock"></div>
   </div>
 </div>
@@ -79,7 +82,7 @@
   <div class="res">
     <span title="Planks"><svg viewBox="0 0 24 24"><path d="M3 8l17-4 1 4-17 4zM3 15l17-4 1 4-17 4z"></path></svg><b id="planks">6</b></span>
     <span title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="scrap">0</b></span>
-    <span title="Bandages (H to use)" class="bandRes"><svg viewBox="0 0 24 24"><path d="M5 15l10-10a3 3 0 0 1 4 4L9 19a3 3 0 0 1-4-4zM10 10l4 4M9 13l1 1M12 9l1 1M11 12l1 1"></path></svg><b id="bands">0</b></span>
+    <span title="Bandages (G to use)" class="bandRes"><svg viewBox="0 0 24 24"><path d="M5 15l10-10a3 3 0 0 1 4 4L9 19a3 3 0 0 1-4-4zM10 10l4 4M9 13l1 1M12 9l1 1M11 12l1 1"></path></svg><b id="bands">0</b></span>
     <span title="Kills"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.4 4 2.5 4.8V18h9v-3.2C17.6 14 19 12.6 19 10a7 7 0 0 0-7-7zM9.5 11h.01M14.5 11h.01M10 18v3M14 18v3"></path></svg><b id="kills">0</b></span>
   </div>
 </div>
@@ -99,7 +102,7 @@
 </div>
 <div class="hud" id="prompt" hidden><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast" style="opacity:0"></div>
-<div class="hud" id="announce" style="opacity:0"><div id="annBig"></div><div id="annSmall"></div></div>
+<div class="hud" id="announce" style="opacity:0"><div id="annEye"></div><div id="annBig"></div><div class="annRule"><i></i></div><div id="annSmall"></div></div>
 
 <div id="touch" hidden>
   <div class="stick" id="stickL" hidden><i></i></div>
@@ -128,12 +131,12 @@
       <kbd>Mouse</kbd><span>Aim, hold the left button to fire</span>
       <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
       <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
-      <kbd>H</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
+      <kbd>G</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
       <kbd>Hold F</kbd><span>Board up a door or window you are standing at</span>
       <kbd>Space</kbd><span>Climb through an open window or hop a fence; anywhere else, shove zombies back</span>
       <kbd>E</kbd><span>Use the workbench, sawhorse, medicine cabinet or radio</span>
       <kbd>Hold right click</kbd><span>Aim down the sights: half the spread, but you move slower. Scoped rifles look through the scope instead</span>
-      <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
+      <kbd>H</kbd><span>Underbarrel grenade, once you have one</span>
       <kbd>Wheel</kbd><span>Zoom in and out</span>
       <kbd>T</kbd><span>Start the run, or the next wave early</span>
       <kbd>Esc</kbd><span>Pause</span>

@@ -139,12 +139,22 @@ function animatePlayer(dt, rdt) {
     if (sl && sl.length) {
       ANIM.slideT += rdt; const st = ANIM.slideT, id = curId();
       let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07);
-      if (sl[0].cyc) off = cy ? Math.sin(clamp((cy.t - cy.delay) / cy.dur, 0, 1) * Math.PI) : 0;
+      if (sl[0].cyc) off = EJECT[id] === 'bolt' && W8.reloading === 'shell' ? 1 : cy ? Math.sin(clamp((cy.t - cy.delay) / cy.dur, 0, 1) * Math.PI) : 0;   // the rifle's bolt stays open while you feed it
       else if (sl[0].lock && (W8.mag[id] || 0) <= 0 && W8.reloading !== 'mag') off = 1;
       else if (sl[0].lock && W8.reloading === 'mag') off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0;
       sl.forEach(q => { q.m.position.z = q.z0 - q.travel * off; });
     }
     urx -= ANIM.recoil * (heavy ? 0.06 : 0.03);
+    // the magazine on the model: it slides out as the reload starts, is gone while the old one falls, and a fresh one rises back in
+    const mgs = MAGG[W8.cur] || [];
+    if (mgs.length) {
+      let md = 0, show = true;
+      if (W8.reloading === 'mag') { const p = 1 - W8.reloadT / W8.reloadMax, tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (p < tOut) md = smooth(p / tOut) * 0.12; else if (p < 0.6) show = false; else md = 0.22 * (1 - smooth(clamp((p - 0.6) / 0.25, 0, 1))); }
+      mgs.forEach(m => { m.visible = show; m.position.y = -md; });
+    }
+    // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
+    const cr = CRANE[W8.cur] || [];
+    if (cr.length) { const want = W8.reloading === 'shell' ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = ANIM.crane * 1.25; }); }
   }
   if (P.bandT > 0) {
     ANIM.sw = Math.max(ANIM.sw, 0.85);

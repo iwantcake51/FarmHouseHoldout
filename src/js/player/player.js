@@ -11,3 +11,5 @@ box(PM.upper, 0.36, 0.16, 0.14, lam(0x7a6a4a), 0, 0.66, -0.26);
 const armorG = new THREE.Group();
 PM.upper.add(armorG);
 const pBlob = blobShadow(1.15, 0.38);
+// a faint light rim round your own character so you never lose yourself in the dark or in a crowd
+const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.016); pOutline.opacity = 0.32;

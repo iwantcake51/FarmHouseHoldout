@@ -1,7 +1,7 @@
 /* Bottom-left health: number, ECG, health bar, stamina bar, healing, resources. */
 #vitals{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px;display:grid;gap:8px;width:min(260px,44vw)}
 .hpRow{display:flex;align-items:flex-end;gap:12px}
-#hpTxt{font-size:46px;min-width:2.1ch}
+#hpTxt{font-size:46px;min-width:2.1ch;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #ecg{flex:1;height:34px;min-width:0}
 #ecg polyline{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(236,230,216,.35))}
 #vitals.low #ecg polyline{stroke:#e0402c;filter:drop-shadow(0 0 4px rgba(224,64,44,.6))}
@@ -14,7 +14,7 @@
 #xh .stBg{fill:none;stroke:rgba(236,230,216,.14);stroke-width:3}
 #xh .st{fill:none;stroke:#a8dcb4;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
-.bar i{position:absolute;inset:0 auto 0 0;width:100%;background:var(--ink);transition:width .12s}
+.bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
 #hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:0 0 6px rgba(92,160,255,.45);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
 @keyframes healGlow{50%{background:rgba(120,180,255,.36)}}
 .bandRes kbd{font-size:10px;margin-left:2px}
