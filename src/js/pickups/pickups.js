@@ -47,9 +47,11 @@ function dropPickup(x, z, kind, amount, ammoType) {
   const ring = new THREE.Mesh(ringGeo, ringMat), disc = new THREE.Mesh(discGeo, discMat);
   ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.y = 0.035; disc.position.y = 0.033; ring.renderOrder = disc.renderOrder = 2;
   if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); }
-  root.add(disc, ring);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+  glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
+  root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, kind, ammoType, x, z, t: kind === 'supply' ? 60 : 25, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, t: kind === 'supply' ? 60 : 25, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
 // drops: bob, glow, magnet scrap, and collecting them
 function updatePickups(dt) {
@@ -66,7 +68,8 @@ function updatePickups(dt) {
     const blink = p.t > 4 || Math.sin(p.t * 14) > 0;
     p.om.opacity = blink ? 0.95 : 0.2; p.xr.rim.opacity = (blink ? 0.55 + 0.35 * pulse : 0.15);
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
-    const seen = visAt(p.x, p.z); p.g.visible = true; p.ringMat.opacity *= 0.55 + 0.45 * seen;
+    const seen = visAt(p.x, p.z); p.g.visible = true;
+    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (blink ? 1 : 0.3); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies; it never heals you on the spot
