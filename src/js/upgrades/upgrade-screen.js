@@ -18,13 +18,16 @@ function dealCards() {
     const info = upgradeInfo(u, c), stats = u.stats && !info.fx.length;
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
-    b.innerHTML = `<div class="k"><span></span><span>${i + 1}</span></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
+    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
     b.querySelector('.k span').textContent = c.tag; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = f.good ? 'up' : 'down'; s.textContent = (f.good ? '▲ ' : '▼ ') + f.t; b.querySelector('.fx').appendChild(s); });
     if (info.use) b.querySelector('.use').textContent = info.use;
     if (stats) b.querySelector('.s').textContent = u.stats();
     if (c.vis) b.querySelector('.v').textContent = c.vis;
+    // the card leans toward the cursor as you move over it
+    b.addEventListener('pointermove', e => { const r = b.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5; b.style.setProperty('--ry', (px * 14).toFixed(1) + 'deg'); b.style.setProperty('--rx', (-py * 12).toFixed(1) + 'deg'); b.style.setProperty('--gx', ((px + 0.5) * 100).toFixed(0) + '%'); b.style.setProperty('--gy', ((py + 0.5) * 100).toFixed(0) + '%'); });
+    b.addEventListener('pointerleave', () => { b.style.setProperty('--rx', '0deg'); b.style.setProperty('--ry', '0deg'); });
     b.addEventListener('pointerdown', () => { if (cardsArmed) b.dataset.down = '1'; });
     b.addEventListener('click', e => { if (e.detail === 0 || b.dataset.down === '1') pickCard(i); });
     wrap.appendChild(b);
@@ -60,7 +63,11 @@ function pickCard(i) {
   { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm);
     if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1 }); }
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
-  const el = $('upgrade'); el.classList.remove('armed', 'show');
+  // the pick: your card pops forward and gets stamped, the others fall away, then the screen fades out
+  const el = $('upgrade'), cards = [...$('cards').children];
+  el.classList.remove('armed'); el.classList.add('picking');
+  cards.forEach((b, k) => b.classList.add(k === i ? 'picked' : 'gone'));
   state = 'leaving';
-  setTimeout(() => { setState('play'); beginBreak(15); }, 380);
+  setTimeout(() => { el.classList.remove('show'); }, 520);
+  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(15); }, 900);
 }

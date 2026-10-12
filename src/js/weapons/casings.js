@@ -13,13 +13,18 @@ for (let k = 0; k < 90; k++) {
   casings.push({ g, body, head, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.02, bounces: 0, kind: 'p9' });
 }
 let cIdx = 0, tinkT = 0;
-const _cv = new V3();
-// mode: 'fire' flicks it out to the right, 'pump'/'bolt' a softer toss, 'breach' pops shells up and back, 'dump' drops them at your feet
+const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
+// mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' a softer toss the same way,
+// 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
 function ejectCasing(ammo, n, mode, sideSign) {
-  const K = CASE_KIND[ammo] || CASE_KIND.p9, fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = Math.cos(P.aim), rz = -Math.sin(P.aim);
-  const D = W(curId()), ak = D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38);
+  const K = CASE_KIND[ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38), right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
-  _cv.set(ak + 0.04, GUN_Y + 0.05, port); PM.upper.localToWorld(_cv);
+  const h = holdOf(W8.cur, side);
+  // the gun's own axes in the world: the shooter's right is the gun's -x (the hand holding it is the rig's left)
+  _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
+  _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, port); h.localToWorld(_cv);
+  if (right) smoke(_cv.x, _cv.y, _cv.z, _cR.x * 0.5, 0.3, _cR.z * 0.5, 0.04, 0.2, rr(0.6, 0.9), 0.22, 0xb8b0a4);   // a breath of smoke from the port
   for (let k = 0; k < n; k++) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
@@ -32,13 +37,35 @@ function ejectCasing(ammo, n, mode, sideSign) {
     else if (mode === 'pump' || mode === 'bolt') { side = rr(1.6, 2.4); up = rr(1.6, 2.6); back = rr(0.0, 0.6); }
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
     else {   // dump: the whole cylinder's worth tumbles out together, each case falling its own way
-      side = rr(-1.1, 0.3); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
+      side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
       c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
     }
-    c.vx = rx * side - fx * back + P.vx * 0.8 + rr(-0.3, 0.3); c.vz = rz * side - fz * back + P.vz * 0.8 + rr(-0.3, 0.3); c.vy = up;
+    // right is toward the shooter's right for every mode; the breach and dump modes keep their old feel through their own numbers
+    const sx = right ? side : -side;
+    c.vx = _cR.x * sx + _cU.x * up * 0.15 - _cF.x * back + P.vx * 0.8 + rr(-0.3, 0.3); c.vz = _cR.z * sx + _cU.z * up * 0.15 - _cF.z * back + P.vz * 0.8 + rr(-0.3, 0.3); c.vy = up;
     c.spin = rr(9, 17) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-6, 6);
+    c.age = 0; c.hot = right || mode === 'breach' ? 1 : 0.4;   // freshly fired brass: a glowing trail and a thread of smoke for a moment
   }
 }
+// a hot casing leaves a short glowing streak and a thread of smoke for its first moments in the air
+// (made on first use: the glow texture is built in effects/textures.js, which loads after this file)
+let caseGlows = null, cgIdx = 0;
+function stepCaseTrails(dt) {
+  if (!caseGlows) { caseGlows = []; const mat = new THREE.SpriteMaterial({ map: TEX_CORE, color: 0xffb860, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); for (let k = 0; k < 110; k++) { const s = new THREE.Sprite(mat.clone()); s.visible = false; scene.add(s); caseGlows.push({ s, t: 0, max: 0.2 }); } }
+  for (const c of casings) {
+    if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag') continue;
+    c.age += dt; if (c.bounces >= 1 || dt <= 0) continue;
+    const g = caseGlows[cgIdx = (cgIdx + 1) % caseGlows.length], p = c.g.position, heat = c.hot * (1 - c.age / 0.45);
+    g.s.position.copy(p); g.s.visible = true; g.t = g.max = 0.16 + 0.1 * heat; g.a = 0.55 * heat; g.sc = (c.kind === 'shells' ? 0.11 : 0.075) * (0.6 + heat * 0.6);
+    if (c.wisp === undefined || c.age > c.wisp) { c.wisp = c.age + 0.07; smoke(p.x, p.y, p.z, c.vx * 0.05, 0.12, c.vz * 0.05, 0.02, 0.09, rr(0.45, 0.7), 0.16 * heat + 0.04, 0xc8c0b2); }
+  }
+  for (const g of caseGlows) {
+    if (g.t <= 0) continue; g.t -= dt;
+    if (g.t <= 0) { g.s.visible = false; continue; }
+    const k = g.t / g.max; g.s.material.opacity = g.a * k; g.s.scale.setScalar(g.sc * (0.5 + 0.5 * k));
+  }
+}
+function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepCaseTrails(dt); }
 const mags = [];
 for (let k = 0; k < 10; k++) { const g = new THREE.Group(); g.visible = false; scene.add(g); const body = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = true; g.add(body); mags.push({ g, body, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' }); }
 let mIdx = 0;
@@ -62,7 +89,6 @@ function dropMag(id) {
   c.vx = P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vz = P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vy = rr(-0.2, 0.6);
   c.spin = rr(3, 7) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-4, 4); c.bounces = 0; c.life = 14; c.kind = 'mag';
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); }
 function stepDebris(list, dt) {
   tinkT -= dt;
   for (const c of list) {
@@ -103,6 +129,6 @@ function tickCycle(dt) {
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }
   c.t += dt; const p = (c.t - c.delay) / c.dur;
-  if (!c.done && p >= 0.45) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); if (c.bolt) SFX.bolt(); else SFX.pump(); }
+  if (!c.done && p >= 0.45) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); if (c.bolt) SFX.bolt(); else SFX.pump(); reloadJolt(0.14); }
   if (p >= 1) W8.cyc = null;
 }

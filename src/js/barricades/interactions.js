@@ -11,20 +11,22 @@ function updateInteractions(dt) {
   if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * S.boardSpeed; if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
   else boardT = 0;
   const fv = !o && !P.vault && fenceTarget();
-  if ((o || st || fv) && !P.vault && !openSt) {
-    $('prompt').hidden = false;
-    const rows = [];
-    if (st) rows.push(`<div><kbd>E</kbd>Use the ${st.name.toLowerCase()}</div>`);
-    if (fv) rows.push('<div><kbd>Space</kbd>Hop the fence</div>');
+  // the prompt eases in and out (the 'on' class); its rows stay put while it fades so it never blinks empty
+  const showPrompt = !!(o || st || fv) && !P.vault && !openSt;
+  if (showPrompt) {
+    const rows = [], row = (k, t, extra) => `<div class="pr"><kbd>${k}</kbd><span>${t}</span>${extra || ''}</div>`;
+    if (st) rows.push(row('E', `Use the ${st.name.toLowerCase()}`));
+    if (fv) rows.push(row('Space', 'Hop the fence'));
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';
-      if (vaultTarget(o)) rows.push('<div><kbd>Space</kbd>Climb through the window</div>');
-      if (o.boards.length >= 3) rows.push(`<div class="off">The ${what} is fully boarded</div>`);
-      else if (S.planks <= 0) rows.push('<div class="off">No planks left. Cut some at the sawhorse.</div>');
-      else rows.push(`<div><kbd>F</kbd>Hold to board up the ${what} · ${o.boards.length}/3</div>`);
+      if (vaultTarget(o)) rows.push(row('Space', 'Climb through the window'));
+      if (o.boards.length >= 3) rows.push(`<div class="pr off"><span>The ${what} is fully boarded</span></div>`);
+      else if (S.planks <= 0) rows.push('<div class="pr off"><span>No planks left. Cut some at the sawhorse.</span></div>');
+      else rows.push(row('Hold F', `Board up the ${what}`, `<em>${o.boards.length}/3</em>`));
     }
     setH('pRows', rows.join(''));
-    $('promptBar').firstElementChild.style.width = (boardT / 0.6 * 100) + '%';
-  } else $('prompt').hidden = true;
+  }
+  if (cache.promptOn !== showPrompt) { cache.promptOn = showPrompt; $('prompt').classList.toggle('on', showPrompt); }
+  { const bar = $('promptBar'), on = showPrompt && boardT > 0; bar.classList.toggle('on', on); if (on) bar.firstElementChild.style.width = (boardT / 0.6 * 100) + '%'; }
   if (openSt) renderStation();
 }

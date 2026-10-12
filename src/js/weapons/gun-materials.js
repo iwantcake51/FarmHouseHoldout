@@ -10,5 +10,6 @@ const GM = {
 };
 const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.wood2, GM.poly, GM.park, GM.blued, GM.walnut, GM.olive];
 const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {};
+let stowDirty = true;
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });
 gunMeshes.melee.position.set(0, 0, 0.5);

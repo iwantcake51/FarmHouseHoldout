@@ -53,4 +53,5 @@ function buildGuns() {
   if (pr) mods.push('Pierce ' + pr);
   if (S.att.fire) mods.push('Incendiary'); if (S.att.bayonet) mods.push('Bayonet'); if (S.att.stock) mods.push('Stock');
   cache.modsGeneral = mods;
+  stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
 }

@@ -82,7 +82,7 @@ function gunFire(id, D) {
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
-  const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0), sp = scoped ? 0 : spreadOf(id);
+  const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0), sp = scoped ? 0 : spreadOf(id) * (scopeAim() ? 0.25 : 1);
   for (let p = 0; p < pellets; p++) {
     const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (rand() - 0.5) * 2 * sp, dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
@@ -107,8 +107,8 @@ function gunFire(id, D) {
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
     else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
-      burst(ix, ey, iz, 2, 'dust', -dx, -dz, 1.5); burst(ix, ey, iz, rand() < 0.5 ? 3 : 2, 'spark', -dx, -dz, 3.5);
-      if (p < 3) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.35, 0x9a8a72);
+      if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
+      if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     }
   }
   if (anyHit) run.hits++;

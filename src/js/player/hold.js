@@ -212,7 +212,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the firing hand: works the bolt on a bolt gun's cycle (both points are on the gun, so it never lags behind it)
   if (cy && cy.bolt && sl) {
     const q = sl.find(e => e.cyc);
-    if (q) { gunPt(_p1, s, 'R', q.m.position.x + 0.032, q.m.position.y - 0.006, q.m.position.z); const w = smooth(clamp(cq / 0.22, 0, 1)) * (1 - smooth(clamp((cq - 0.78) / 0.22, 0, 1))); _hR.lerp(_p1, w); }
+    if (q) { gunPt(_p1, s, 'R', q.m.position.x - 0.032, q.m.position.y - 0.006, q.m.position.z); const w = smooth(clamp(cq / 0.22, 0, 1)) * (1 - smooth(clamp((cq - 0.78) / 0.22, 0, 1))); _hR.lerp(_p1, w); }
   }
   handTarget(_fR, 'R', _hR, null, 0, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time

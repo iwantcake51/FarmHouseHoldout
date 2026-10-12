@@ -32,5 +32,5 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); mouseDown = false; if (state === 'play' && !P.dead) setState('paused'); });
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (e.button === 0) mouseDown = true; if (e.button === 2 && state === 'play') { if (hasScope()) enterScope(); else startAim(); } });
+cv.addEventListener('mousedown', e => { audioInit(); if (e.button === 0) mouseDown = true; if (e.button === 2 && state === 'play') startAim(); });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { exitScope(); aiming = false; } });

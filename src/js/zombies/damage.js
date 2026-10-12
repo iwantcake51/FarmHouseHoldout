@@ -27,7 +27,7 @@ function sever(z, part, dx, dz) {
   }
 }
 function pickPart(z, rel, side, D) {
-  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0) + (T('sight') >= 3 && D.slot !== 'side' ? 0.1 : 0) + (scoped ? 0.3 : 0));
+  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0) + (T('sight') >= 3 && D.slot !== 'side' ? 0.1 : 0) + (scoped || scopeAim() ? 0.3 : 0));
   let p;
   if (Math.abs(rel) > 0.6) p = side > 0 ? 'armR' : 'armL';
   else { const r = rand(); p = r < head ? 'head' : r < head + 0.22 ? (side > 0 ? 'legR' : 'legL') : 'torso'; }
@@ -47,7 +47,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   // brutes shrug hits off: no stagger, no knockback
   if (z.type !== 'brute') { z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18; z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
-  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2);
+  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
   xhHit = 1; xhHead = part === 'head';
   dmgNumber(z, dealt, part === 'head', y);

@@ -13,6 +13,11 @@ function fireCam(pw, aim) {
   c.vr += sg * pw * rr(0.5, 0.75); c.vp += pw * 2.1; c.vz += pw * 1.1;
   if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
 }
+// reloading: a small, smooth jolt on each beat (mag out, mag seated, a shell in, the rack), much softer than a shot
+function reloadJolt(s) {
+  const c = camRec; c.dx = -Math.sin(P.aim) * 0.6; c.dz = -Math.cos(P.aim) * 0.6;
+  c.vr += (rand() < 0.5 ? -1 : 1) * s * 0.3; c.vp += s * 0.9; c.vz -= s * 0.35;
+}
 function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
 function vaultCam(rdt) {
   const v = P.vault, c = camVault;
@@ -43,14 +48,16 @@ function updateCamera(rdt) {
     const vd = CAM_OFF.clone().normalize(), k = 0.85 / vd.y;
     // aiming down the sights leans the view a little toward where you're looking
     let px = 0, pz = 0; const ads = ANIM.ads || 0;
-    if (ads > 0.01) { px = (aimPt.x - P.x) * 0.42; pz = (aimPt.z - P.z) * 0.42; const pl = Math.hypot(px, pz); if (pl > 5.5) { px *= 5.5 / pl; pz *= 5.5 / pl; } px *= ads; pz *= ads; }
+    // a scoped rifle leans the view further out toward the aim (and zooms in more, below)
+    if (ads > 0.01) { const sk = ANIM.scopeK || 0, lean = 0.42 + 0.2 * sk, cap = 5.5 + 3 * sk; px = (aimPt.x - P.x) * lean; pz = (aimPt.z - P.z) * lean; const pl = Math.hypot(px, pz); if (pl > cap) { px *= cap / pl; pz *= cap / pl; } px *= ads; pz *= ads; }
     const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
     camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6);
   }
   zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);
-  cam.zoom = state === 'title' ? 0.8 : zoom * (1 + 0.13 * ANIM.ads);
+  ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? (curId() === 'hunting' && hasMod('hpscope') ? 1.35 : 1) : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
+  cam.zoom = state === 'title' ? 0.8 : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK);
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
   shake = Math.max(0, shake - rdt * 1.6);
   const sh = shake * shake * 1.2;

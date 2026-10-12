@@ -19,23 +19,23 @@ function startReload() {
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out
-  if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) ejectCasing(D.ammo, n, 'dump'); else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
+  if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   if (D.perShell) {
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
     W8.reloadT = D.perShell * S.reloadMul + (id === 'revolver' ? 0.3 : 0.12); W8.reloadMax = W8.reloadT;
-  } else { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; SFX.magOut(); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) dropMag(id); }, 140); }
+  } else { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); reloadJolt(0.08); } }, 140); }
 }
 function tickReload(dt) {
   if (!W8.reloading) return;
   W8.reloadT -= dt; if (W8.reloadT > 0) return;
   const id = curId(), D = W(id);
   if (W8.reloading === 'shell') {
-    W8.mag[id] = (W8.mag[id] || 0) + 1; W8.reserve[D.ammo]--; W8.shellsIn++; SFX.shell();
+    W8.mag[id] = (W8.mag[id] || 0) + 1; W8.reserve[D.ammo]--; W8.shellsIn++; SFX.shell(); reloadJolt(0.09);
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul;
-    else { W8.reloading = null; SFX.rack(); W8.cd = Math.max(W8.cd, 0.25); }
+    else { W8.reloading = null; SFX.rack(); reloadJolt(0.22); W8.cd = Math.max(W8.cd, 0.25); }
   } else {
     const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);
     W8.mag[id] = (W8.mag[id] || 0) + take; W8.reserve[D.ammo] -= take;
-    W8.reloading = null; SFX.magIn();
+    W8.reloading = null; SFX.magIn(); reloadJolt(0.26);   // the fresh mag slapped home
   }
 }

@@ -11,7 +11,7 @@ function setState(s) {
   ['waveBox', 'vitals', 'arms', 'moodles'].forEach(id => $(id).hidden = s === 'title');
   $('scrim').style.opacity = s === 'title' ? 0.4 : 1;
   document.body.classList.toggle('playing', s === 'play');
-  if (s !== 'play') closeStation();
+  if (s !== 'play') { closeStation(); $('prompt').classList.remove('on'); cache.promptOn = false; }
   if (s === 'paused') renderHistory('pHist', 'pHistN');
   if (s === 'upgrade') renderHistory('upHist', 'upHistN');
   if (s === 'play') { last = performance.now(); cv.focus({ preventScroll: true }); }

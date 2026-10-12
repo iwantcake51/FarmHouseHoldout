@@ -28,17 +28,22 @@ function updatePlayer(dt) {
       const l = Math.hypot(mx, my), sx = mx / l, sy = my / l;
       const wx = RIGHT.x * sx + FWD.x * -sy, wz = RIGHT.z * sx + FWD.z * -sy;
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.3 : 1) * (D0.slow || 1) * (scoped ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
-      tvx = wx * sp; tvz = wz * sp;
+      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.3 : 1) * (D0.slow || 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
+      // walking where you look is full speed; sideways about 87%, straight backwards about 76%
+      const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = 0.76 + 0.24 * smooth(ahead);
+      tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;
     }
-    const acc = (tvx || tvz) ? 16 : 20, k = Math.min(1, dt * acc);
+    // a quick but soft start, a short glide when you let go, and a firmer push when you reverse; frame-rate independent
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
     P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k;
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);
     if (dt > 0) { P.vx = (P.x - ox) / dt * 0.6 + P.vx * 0.4; P.vz = (P.z - oz) / dt * 0.6 + P.vz * 0.4; }
     const spd = Math.hypot(P.vx, P.vz);
     P.moving = spd > 0.35;
-    P.phase += dt * (5 + spd * 1.6);
+    const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6);
+    // a soft footstep each time a foot comes down (twice a stride), a little brighter on the farmhouse boards
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(Math.min(1, spd / 4.1), P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1);
   }
   P.still = P.moving ? 0 : P.still + dt;
 

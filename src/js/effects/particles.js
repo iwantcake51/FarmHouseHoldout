@@ -5,13 +5,21 @@ const PG = new THREE.BoxGeometry(0.07, 0.07, 0.07);
 const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836) };
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
 let pIdx = 0;
+// dust, sparks, smoke and embers are soft sprites now (effects/puffs.js); blood and grit stay as little tumbling bits
 function burst(x, y, z, n, kind, dirx, dirz, force) {
+  if (kind === 'dust') return dustBurst(x, y, z, n, dirx, dirz, force);
+  if (kind === 'spark') return sparkBurst(x, y, z, n, dirx, dirz, force);
+  if (kind === 'smoke') { for (let k = 0; k < n; k++) fx('smoke', x + rr(-0.3, 0.3), y + rr(0, 0.3), z + rr(-0.3, 0.3), rr(-0.8, 0.8), rr(0.3, 1.2), rr(-0.8, 0.8), rr(0.3, 0.5), rr(1.2, 2), rr(1.4, 2.4), rr(0.3, 0.45)); return; }
+  if (kind === 'ember') { for (let k = 0; k < n; k++) fx('ember', x + rr(-0.15, 0.15), y, z + rr(-0.15, 0.15), (dirx || 0) * (force || 1) + rr(-1.2, 1.2), rr(0.5, 2.6), (dirz || 0) * (force || 1) + rr(-1.2, 1.2), rr(0.06, 0.12), 0.02, rr(0.5, 1.2), 0.9); return; }
+  cubeBurst(x, y, z, n, kind, dirx, dirz, force);
+}
+function cubeBurst(x, y, z, n, kind, dirx, dirz, force, scl) {
   for (let k = 0; k < n; k++) {
     const p = parts[pIdx = (pIdx + 1) % parts.length];
     const isBlood = kind === 'blood';
     p.kind = kind; p.landed = false;
     p.m.material = isBlood ? (rand() < .5 ? PMAT.blood : PMAT.blood2) : PMAT[kind]; p.m.visible = true; p.m.position.set(x, y, z);
-    p.m.scale.setScalar(isBlood ? rr(.4, 1.3) : rr(.6, 1.6));
+    p.m.scale.setScalar((isBlood ? rr(.4, 1.3) : rr(.6, 1.6)) * (scl || 1));
     p.vx = (dirx || 0) * (force || 2) * rr(.3, 1.2) + rr(-1.1, 1.1); p.vz = (dirz || 0) * (force || 2) * rr(.3, 1.2) + rr(-1.1, 1.1); p.vy = rr(0.8, 3.6);
     p.life = rr(1.2, 2.2);
     if (kind === 'spark') { p.life = rr(0.08, 0.24); p.m.scale.setScalar(rr(0.25, 0.5)); p.vx *= 1.6; p.vz *= 1.6; p.vy = rr(0.5, 3); }

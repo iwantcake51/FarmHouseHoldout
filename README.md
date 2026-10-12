@@ -85,6 +85,8 @@ Every source file starts with a one-line comment saying what is in it.
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
+| Weapons carried on your body (thigh holster, slung on the pack, melee in the straps) and the planks on your pack | `src/js/player/stow.js` |
+| Dust clouds, spark streaks, impact flashes, blood mist, embers | `src/js/effects/puffs.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours | `src/js/lighting/day-night.js` |
@@ -137,7 +139,7 @@ Shared state:
 | --- | --- |
 | W A S D | Walk in eight directions |
 | Mouse | Aim; hold the left button to fire or swing |
-| Hold right click | Aim down the sights (scoped rifles look through the scope) |
+| Hold right click | Aim down the sights (scoped rifles zoom in further and steady right down) |
 | 1 2 3 4 | Melee, sidearm, long gun, automatic |
 | R | Reload |
 | G | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |

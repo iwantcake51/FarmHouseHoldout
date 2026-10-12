@@ -107,6 +107,7 @@ function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead; });
+  updateStow(rdt);
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.004); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
   for (const m of charBlood) m.visible = (P.blood || 0) > m.userData.th;

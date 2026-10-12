@@ -47,9 +47,9 @@ function tryVault() {
   nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
 }
 // push off (the camera's tilt follows the jump on its own, see vaultCam in game/camera.js)
-function vaultTakeoff(v) { SFX.vault(); }
+function vaultTakeoff(v) { SFX.vault(); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
 // touch down: a thump, dust, the knees soak it up and the camera dips and settles on a spring
 function vaultLand(v) {
-  SFX.thud(); burst(P.x, 0.1, P.z, 7, 'dust', v.dx, v.dz, 1.6); ANIM.land = 1;
+  SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1;
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vp += 0.9; camVault.dx = v.dx; camVault.dz = v.dz;
 }

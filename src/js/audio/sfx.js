@@ -41,6 +41,7 @@ const SFX = {
   pant() { nz(0.32, 'bandpass', 900, 500, 0.12, 1.2); setTimeout(() => nz(0.25, 'bandpass', 700, 420, 0.08, 1.2), 300); },
   rip() { nz(0.22, 'highpass', 2600, 1800, 0.22, 1); nz(0.12, 'bandpass', 3400, 2200, 0.14, 2); },
   wrap() { nz(0.16, 'bandpass', 1600, 900, 0.08, 1.4); },
+  step(v, wood) { const a = (0.035 + 0.04 * v) * rr(0.8, 1.15); if (wood) { tn(0.05, 'sine', rr(150, 180), 80, a * 1.1); nz(0.04, 'bandpass', rr(900, 1200), 500, a * 0.8, 2); } else { nz(0.07, 'lowpass', rr(420, 560), 140, a * 1.4); tn(0.05, 'sine', 95, 55, a * 0.6); } },
   vault() { nz(0.25, 'bandpass', 400, 1200, 0.25, 1.5); tn(0.1, 'sine', 140, 90, 0.2); },
   hurt() { tn(0.28, 'sawtooth', 190, 70, 0.22); nz(0.1, 'lowpass', 600, 150, 0.3); },
   pick() { tn(0.06, 'sine', 700, 700, 0.14); setTimeout(() => tn(0.1, 'sine', 1050, 1050, 0.12), 60); },

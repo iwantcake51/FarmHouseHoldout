@@ -25,7 +25,7 @@ const GUN_MODELS = {
     const sl = box(g, 0.072, 0.058, 0.3, GM.metal, X, 1.137, 0.68);             // slide; details ride on it
     hi(sl, 0.05, 0.27, 0, 0.03, 0);
     for (let k = 0; k < 5; k++) box(sl, 0.074, 0.04, 0.007, GM.poly, 0, -0.002, -0.135 + k * 0.014);
-    box(sl, 0.01, 0.026, 0.07, GM.steel, 0.034, 0.012, 0.03);                   // barrel hood in the ejection port
+    box(sl, 0.01, 0.026, 0.07, GM.steel, -0.034, 0.012, 0.03);                  // barrel hood in the ejection port (shooter's right)
     box(sl, 0.012, 0.016, 0.012, GM.metal, 0, 0.036, 0.135); box(sl, 0.005, 0.005, 0.004, GM.dot, 0, 0.041, 0.142);
     box(sl, 0.032, 0.016, 0.012, GM.metal, 0, 0.036, -0.135); box(sl, 0.005, 0.005, 0.004, GM.dot, -0.01, 0.041, -0.128); box(sl, 0.005, 0.005, 0.004, GM.dot, 0.01, 0.041, -0.128);
     cyl(g, 0.013, 0.02, GM.steel, X, 1.142, 0.833);
@@ -63,7 +63,7 @@ const GUN_MODELS = {
     const sl = box(g, 0.086, 0.08, 0.4, GM.steel, X, 1.15, 0.7);
     box(sl, 0.032, 0.022, 0.38, GM.steel, 0, 0.048, 0); hi(sl, 0.024, 0.36, 0, 0.06, 0);   // the polygonal barrel rib
     for (let k = 0; k < 6; k++) box(sl, 0.088, 0.05, 0.007, GM.metal2, 0, -0.006, -0.17 + k * 0.014);
-    box(sl, 0.01, 0.034, 0.08, GM.metal, 0.042, 0.012, 0.03);
+    box(sl, 0.01, 0.034, 0.08, GM.metal, -0.042, 0.012, 0.03);
     box(sl, 0.012, 0.018, 0.012, GM.metal, 0, 0.068, 0.18); box(sl, 0.034, 0.016, 0.012, GM.metal, 0, 0.066, -0.18);
     cyl(g, 0.02, 0.02, GM.metal2, X, 1.16, 0.905);
     cyl(g, 0.022, 0.38, GM.steel, X, 1.16, 0.71); box(g, 0.044, 0.03, 0.1, GM.steel, X, 1.16, 0.56);   // barrel and chamber under the slide
@@ -75,7 +75,7 @@ const GUN_MODELS = {
   },
   pump(g, m) {
     box(g, 0.074, 0.1, 0.27, GM.metal, X, 1.11, 0.62); hi(g, 0.05, 0.25, X, 1.163, 0.62);
-    box(g, 0.01, 0.034, 0.08, GM.steel, X + 0.037, 1.125, 0.64);                 // ejection port
+    box(g, 0.01, 0.034, 0.08, GM.steel, X - 0.037, 1.125, 0.64);                 // ejection port (shooter's right)
     guard(g, 1.045, 0.54, 0.64, GM.metal);
     cyl(g, 0.023, 0.64, GM.blued, X, 1.15, 1.07); box(g, 0.012, 0.01, 0.6, GM.metal2, X, 1.174, 1.07);   // barrel and vent rib
     box(g, 0.01, 0.01, 0.01, GM.dot, X, 1.183, 1.37);                            // bead sight
@@ -117,7 +117,7 @@ const GUN_MODELS = {
     [-0.062, 0.062].forEach(o => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.008, 4, 22), GM.metal); r.rotation.y = Math.PI / 2; r.position.set(X + o, 0.93, 0.66); mg.add(r); });
     if (m.flech) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.03, 18), GM.shellY); s.rotation.z = Math.PI / 2; s.position.set(X, 0.93, 0.66); mg.add(s); }
     const sl = box(g, 0.03, 0.035, 0.08, GM.steel, X + 0.062, 1.15, 0.6);
-    const bc = box(g, 0.012, 0.05, 0.1, GM.blued, X + 0.046, 1.12, 0.74);
+    const bc = box(g, 0.012, 0.05, 0.1, GM.blued, X - 0.046, 1.12, 0.74);
     return { front: 1.3, y: 1.13, slide: sl, bolts: [bc], travel: 0.1, lock: true, mz: 0.66, top: 1.19, sz: 0.62 };
   },
   hunting(g, m) {
@@ -128,8 +128,8 @@ const GUN_MODELS = {
     cyl(g, 0.028, 0.27, GM.blued, X, 1.135, 0.64); hi(g, 0.02, 0.25, X, 1.164, 0.64);
     guard(g, 1.03, 0.56, 0.66, GM.metal);
     taper(g, 0.022, 0.015, 0.72, GM.blued, X, 1.14, 1.12);
-    const bh = box(g, 0.06, 0.013, 0.013, m.bolt ? GM.steel : GM.metal, X + 0.05, 1.14, 0.56);   // bolt handle
-    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), m.bolt ? GM.steel : GM.metal); knob.position.set(0.032, -0.006, 0); bh.add(knob);
+    const bh = box(g, 0.06, 0.013, 0.013, m.bolt ? GM.steel : GM.metal, X - 0.05, 1.14, 0.56);   // bolt handle, on the shooter's right
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), m.bolt ? GM.steel : GM.metal); knob.position.set(-0.032, -0.006, 0); bh.add(knob);
     const big = !!m.hpscope, sr = big ? 0.03 : 0.022, sy = big ? 1.27 : 1.225, ob = big ? 0.048 : 0.034;
     cyl(g, sr, big ? 0.4 : 0.3, GM.metal, X, sy, 0.66); hi(g, sr, big ? 0.38 : 0.28, X, sy + sr, 0.66);
     taper(g, sr, ob, 0.08, GM.metal, X, sy, big ? 0.9 : 0.85); taper(g, sr * 1.15, sr, 0.05, GM.metal, X, sy, big ? 0.44 : 0.49);
@@ -147,7 +147,7 @@ const GUN_MODELS = {
     ring(g, 0.026, 0.03, GM.metal, X, 1.12, 0.895); cyl(g, 0.013, 0.04, GM.steel, X, 1.12, 0.92);
     box(g, 0.012, 0.018, 0.012, GM.metal, X, 1.18, 0.86); box(g, 0.026, 0.018, 0.012, GM.metal, X, 1.18, 0.54);
     box(g, 0.012, 0.012, 0.2, GM.metal2, X - 0.028, 1.07, 0.48); box(g, 0.012, 0.012, 0.2, GM.metal2, X + 0.028, 1.07, 0.48); box(g, 0.068, 0.05, 0.012, GM.metal2, X, 1.07, 0.38);   // folded stock
-    const sl = box(g, 0.022, 0.024, 0.04, GM.steel, X, 1.185, 0.74), bc = box(g, 0.01, 0.04, 0.08, GM.steel, X + 0.032, 1.13, 0.78);
+    const sl = box(g, 0.022, 0.024, 0.04, GM.steel, X, 1.185, 0.74), bc = box(g, 0.01, 0.04, 0.08, GM.steel, X - 0.032, 1.13, 0.78);
     if (m.ported) { box(g, 0.06, 0.06, 0.1, GM.metal2, X, 1.12, 0.98); for (let k = 0; k < 3; k++) box(g, 0.04, 0.008, 0.012, GM.poly, X, 1.152, 0.95 + k * 0.025); }
     return { front: m.ported ? 1.03 : 0.94, y: 1.12, magZ: 0.66, magY: 1.0, baseMag: 0.22, slide: sl, bolts: [bc], travel: 0.08, lock: true, top: 1.18, sz: 0.68 };
   },
@@ -158,7 +158,7 @@ const GUN_MODELS = {
     box(g, 0.054, 0.14, 0.065, GM.poly, X, 0.99, 0.49).rotation.x = 0.3; guard(g, 1.04, 0.52, 0.62, GM.poly);
     box(g, 0.02, 0.05, 0.03, GM.metal, X, 1.21, 0.48); ring(g, 0.024, 0.012, GM.metal, X, 1.2, 0.48);   // rear drum sight
     box(g, 0.018, 0.022, 0.025, GM.poly, X, 1.08, 0.24); [-0.028, 0.028].forEach(o => box(g, 0.012, 0.012, 0.32, GM.metal2, X + o, 1.12, 0.3)); box(g, 0.07, 0.1, 0.02, GM.rubber, X, 1.09, 0.14);   // retractable stock
-    let front = 1.12; const sl = box(g, 0.018, 0.018, 0.05, GM.steel, X - 0.03, 1.165, 1.0), bc = box(g, 0.01, 0.04, 0.09, GM.steel, X + 0.032, 1.125, 0.72);
+    let front = 1.12; const sl = box(g, 0.018, 0.018, 0.05, GM.steel, X - 0.03, 1.165, 1.0), bc = box(g, 0.01, 0.04, 0.09, GM.steel, X - 0.032, 1.125, 0.72);
     if (m.integral) { cyl(g, 0.05, 0.36, GM.metal, X, 1.12, 1.12); ring(g, 0.053, 0.02, GM.metal2, X, 1.12, 0.95); ring(g, 0.053, 0.02, GM.metal2, X, 1.12, 1.29); front = 1.3; }
     else { cyl(g, 0.014, 0.12, GM.steel, X, 1.12, 1.08); ring(g, 0.026, 0.025, GM.metal, X, 1.165, 1.1); box(g, 0.01, 0.03, 0.01, GM.metal, X, 1.19, 1.1); }
     return { front, y: 1.12, magZ: 0.78, magY: 1.07, baseMag: m.stack ? 0.4 : 0.24, slide: sl, bolts: [bc], travel: 0.08, lock: true, top: 1.17, sz: 0.66 };
@@ -167,7 +167,7 @@ const GUN_MODELS = {
     box(g, 0.074, 0.08, 0.38, GM.metal, X, 1.14, 0.63);                           // upper
     box(g, 0.068, 0.07, 0.3, GM.park, X, 1.075, 0.62);                            // lower
     box(g, 0.05, 0.016, 0.38, GM.metal, X, 1.188, 0.64); for (let k = 0; k < 11; k++) box(g, 0.052, 0.006, 0.012, GM.poly, X, 1.196, 0.47 + k * 0.034);   // top rail
-    box(g, 0.012, 0.034, 0.07, GM.steel, X + 0.037, 1.14, 0.6); cyl(g, 0.012, 0.03, GM.metal2, X + 0.04, 1.155, 0.52);   // ejection port, forward assist
+    box(g, 0.012, 0.034, 0.07, GM.steel, X - 0.037, 1.14, 0.6); cyl(g, 0.012, 0.03, GM.metal2, X - 0.04, 1.155, 0.52);   // ejection port, forward assist (shooter's right)
     box(g, 0.08, 0.08, 0.38, GM.olive, X, 1.13, 1.01); hi(g, 0.05, 0.36, X, 1.172, 1.01);
     for (let k = 0; k < 5; k++) [-1, 1].forEach(sd => box(g, 0.004, 0.02, 0.045, GM.poly, X + sd * 0.041, 1.13, 0.87 + k * 0.068));   // M-LOK slots
     const bl = m.heavy ? 0.022 : 0.015; cyl(g, bl, 0.3, GM.blued, X, 1.13, 1.35);
@@ -185,7 +185,7 @@ const GUN_MODELS = {
       box(mg, 0.064, 0.016, 0.1, GM.poly, X, ly - 0.055, lz + 0.022).rotation.x = -0.38;
     }
     const sl = box(g, 0.05, 0.016, 0.03, GM.steel, X, 1.17, 0.46);                // charging handle
-    const bc = box(g, 0.01, 0.03, 0.065, GM.blued, X + 0.039, 1.14, 0.6);          // bolt carrier showing in the port
+    const bc = box(g, 0.01, 0.03, 0.065, GM.blued, X - 0.039, 1.14, 0.6);          // bolt carrier showing in the port
     if (m.gl) { cyl(g, 0.048, 0.34, GM.olive, X, 1.0, 1.03); ring(g, 0.05, 0.03, GM.metal, X, 1.0, 1.2); box(g, 0.04, 0.08, 0.06, GM.metal, X, 0.96, 0.86); box(g, 0.034, 0.05, 0.12, GM.metal, X, 1.07, 1.0); }
     return { front: 1.525, y: 1.13, magZ: T('mag') >= 2 ? 0.72 : 0, magY: 1.04, drumOnly: true, slide: sl, bolts: [bc], travel: 0.08, lock: true, mz: 0.72, top: 1.196, sz: 0.6 };
   },
@@ -202,7 +202,7 @@ const GUN_MODELS = {
     box(mg, 0.02, 0.006, s * 0.6, GM.metal, X + 0.02 - s / 2 - 0.004, 1.02 - s * 0.3, 0.62);
     for (let k = 0; k < 4; k++) box(g, 0.034, 0.016, 0.012, GM.brass, X + 0.05, 1.08 + k * 0.022, 0.6).rotation.z = 0.2;   // belt feeding in
     if (m.bipod) { [-0.04, 0.04].forEach(o => box(g, 0.016, 0.016, 0.3, GM.metal2, X + o, 1.06, 1.3).rotation.set(-0.5, o > 0 ? -0.15 : 0.15, 0)); ring(g, 0.03, 0.03, GM.metal, X, 1.11, 1.18); }
-    box(g, 0.02, 0.03, 0.05, GM.metal2, X + 0.055, 1.1, 0.42); const sl = box(g, 0.022, 0.034, 0.08, GM.steel, X + 0.058, 1.14, 0.52), bc = box(g, 0.012, 0.05, 0.1, GM.blued, X + 0.046, 1.11, 0.7);
+    box(g, 0.02, 0.03, 0.05, GM.metal2, X + 0.055, 1.1, 0.42); const sl = box(g, 0.022, 0.034, 0.08, GM.steel, X + 0.058, 1.14, 0.52), bc = box(g, 0.012, 0.05, 0.1, GM.blued, X - 0.046, 1.11, 0.7);
     return { front: 1.535, y: 1.13, slide: sl, bolts: [bc], travel: 0.1, lock: true, mz: 0.62, top: 1.205, sz: 0.52 };
   }
 };
