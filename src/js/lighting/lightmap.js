@@ -39,7 +39,7 @@ function computeLight() {
   const nv = on ? S.nightVis * dark : 0, a0 = amb[0] + nv * 0.26, a1 = amb[1] + nv * 0.31, a2 = amb[2] + nv * 0.25;
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = a0; lmTgt[k * 3 + 1] = a1; lmTgt[k * 3 + 2] = a2; }
   if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone); }); }
-  const fl = 0.85 + Math.sin(performance.now() / 90) * 0.08 + rand() * 0.07;
+  const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   STATIC_LIGHTS.forEach(L => {
     if (L.spill) { const b = L.spill.boards.length; if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);

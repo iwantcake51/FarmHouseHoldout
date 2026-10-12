@@ -1,11 +1,14 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
+// how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,
+// the hunting rifle and shotguns up to about 1.2 (a double barrel firing both)
+const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Math.pow(shots, 0.6) / 130, 0.08, 1.25);
 // which hand's gun just fired: akimbo alternates (akSide flips before each shot), everything else is the right hand
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 function spreadOf(id) {
-  // walking doubles the spread (+50% while aiming down the sights), and holding the trigger opens it up further
+  // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
   if (D.ammo === 'shells' && T('choke')) s *= T('choke') === 2 ? 0.49 : 0.7;
   if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
@@ -112,8 +115,8 @@ function gunFire(id, D) {
   const quiet = suppressed(D);
   if (quiet) SFX.supp(D.ammo === 'shells'); else SFX[GUN_SFX[id]]();
   const st = S.att.stock && D.slot === 'side' ? 0.55 : 1;
-  shake = Math.max(shake, (0.07 + D.shake * 0.85) * st); bloom = Math.min(18, bloom + D.shake * 34 * st);
-  const kick = (0.05 + D.shake * 0.32) * st; camKick.x -= Math.sin(P.aim) * kick; camKick.z -= Math.cos(P.aim) * kick;
+  const pw = gunPower(D, shots) * st;
+  fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
   if (!quiet) {
     // flash parented to the gun so it sits on the real muzzle, wherever the animation has the gun
@@ -129,8 +132,8 @@ function gunFire(id, D) {
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3)); W8.sprayT = 0;
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; ANIM.kick[sd] = Math.min(1.4, ANIM.kick[sd] + (D.shake > 0.2 ? 1.2 : 0.7)); }
-  ANIM.recoil = Math.min(1.4, ANIM.recoil + (D.shake > 0.2 ? 1.2 : 0.7) * (D.akimbo ? 0.6 : 1));
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind); }
+  ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];
   if (ej === 'fire') ejectCasing(D.ammo, shots, 'fire', W8.akSide);
   else if (ej === 'pump' || ej === 'bolt') startCycle(id);

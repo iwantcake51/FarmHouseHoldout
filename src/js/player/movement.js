@@ -28,7 +28,7 @@ function updatePlayer(dt) {
       const l = Math.hypot(mx, my), sx = mx / l, sy = my / l;
       const wx = RIGHT.x * sx + FWD.x * -sy, wz = RIGHT.z * sx + FWD.z * -sy;
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.3 : 1) * (D0.slow || 1) * (scoped ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1);
+      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.3 : 1) * (D0.slow || 1) * (scoped ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
       tvx = wx * sp; tvz = wz * sp;
     }
     const acc = (tvx || tvz) ? 16 : 20, k = Math.min(1, dt * acc);

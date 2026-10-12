@@ -18,6 +18,13 @@
 .card .t{font-size:21px;margin:8px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--rule);line-height:1.1}
 .card .d{font-size:14px;line-height:24px}
 .card .v{font-size:12px;line-height:24px;color:#7a3a2c}
+/* effect chips: what you get in numbers */
+.card .fx{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 4px}
+.card .fx span{font-family:var(--f-ui);font-weight:600;font-size:11px;line-height:1.35;letter-spacing:.02em;padding:3px 7px 2px;border:1.5px solid currentColor;border-radius:2px}
+.card .fx .up{color:#2f6b37;background:rgba(63,122,70,.1)}
+.card .fx .down{color:#9a3a2a;background:rgba(154,58,42,.08)}
+/* what the attachment or upgrade is for */
+.card .use{font-size:12px;line-height:17px;margin:8px 0 2px;padding:6px 9px 5px;background:rgba(40,35,30,.07);border-left:3px solid var(--rc)}
 .card .s{font-family:var(--f-ui);font-size:11px;line-height:24px;color:#4a443c;letter-spacing:.02em}
 .card .stamp{position:absolute;right:12px;bottom:12px;font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--rc);border:2px solid var(--rc);padding:2px 7px;transform:rotate(-8deg);opacity:.85}
 .histBox{width:min(720px,100%);color:var(--dim);opacity:0;transition:opacity .3s}

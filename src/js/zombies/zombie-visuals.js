@@ -7,7 +7,7 @@ function updateZombieVisuals(dt, rdt) {
     const v = state === 'title' ? 1 : visAt(z.x, z.z);
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = true;
     if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.xr) { z.xr.rim.opacity = z.vis; if (z.xr.sil) z.xr.sil.opacity = z.vis * 0.38; } if (z.blob) z.blob.material.opacity = 0.36; if (z.dm) z.dm.userData.u.value = 1; }
-    if (z.redOl) z.redOl.opacity = 0.55 + Math.sin(performance.now() / 160) * 0.3;
+    if (z.redOl) z.redOl.opacity = 0.55 + Math.sin(worldT * 6.25) * 0.3;
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
     const r = ragdolls[k]; stepRagdoll(r, dt);

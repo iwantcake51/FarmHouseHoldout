@@ -1,8 +1,8 @@
 // Player animation: walk, turn, limp, swings, recoil, reloads, death; and the per-frame player visuals.
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
-// kick and slideT are per hand (R, L) so akimbo guns kick and cycle on their own shots
-const ANIM = { down: 0, downT: 0, slideT: { R: 1, L: 1 }, kick: { R: 0, L: 0 }, yaw: Math.PI, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
+// slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
+const ANIM = { down: 0, downT: 0, slideT: { R: 1, L: 1 }, yaw: Math.PI, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
 // swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
@@ -23,12 +23,12 @@ function animateDeath(dt) {
   pm.g.position.set(P.x, -0.18 * kn * (1 - fall) + 0.15 * f2, P.z); pm.g.rotation.set(rx, ANIM.yaw, ANIM.deathTwist * fall);
   pm.lower.rotation.y = 0; pm.lower.position.y = 0; pm.upper.position.y = 0;
   pm.legL.rotation.x = 0.55 * kn * (1 - fall * 0.6); pm.legR.rotation.x = 0.25 * kn * (1 - fall * 0.4);
-  const flail = Math.sin(t * 9) * 0.25 * (1 - fall);
+  const flail = Math.sin(t * 9) * 0.1 * (1 - fall);
   pm.armL.position.set(-0.33, 1.08, 0); pm.armR.position.set(0.33, 1.08, 0); pm.armL.scale.set(1, 1, 1); pm.armR.scale.set(1, 1, 1);
   pm.armL.rotation.set(sg > 0 ? -1.2 * kn - 0.9 * fall + flail : -0.4 * kn - 2.2 * fall + flail, 0.5 * fall, -0.5 * fall);
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
-  pm.upper.rotation.set(sg * 0.15 * kn, 0.2 * fall * Math.sign(ANIM.deathTwist || 1), 0);
-  pm.head.rotation.set(-sg * 0.35 * fall, 0, 0.5 * fall * Math.sign(ANIM.deathTwist || 1));
+  pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
+  pm.head.rotation.set(-sg * 0.3 * fall, 0, 0.2 * fall * Math.sign(ANIM.deathTwist || 1));
   // a slowly spreading pool under you
   if (t > 0.9 && ANIM.deathPool < 5 && t > 0.9 + ANIM.deathPool * 0.45) { ANIM.deathPool++; splat(P.x + Math.sin(ANIM.yaw) * sg * 0.6 + rr(-.25, .25), P.z + Math.cos(ANIM.yaw) * sg * 0.6 + rr(-.25, .25), 'pool', 0.5 + ANIM.deathPool * 0.22, undefined, 1.6); }
   const d = ANIM.dropped;
@@ -117,5 +117,5 @@ function updatePlayerVisuals(dt, rdt) {
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
   glowMats.forEach(m => m.emissive.setRGB(gl * 0.55, gl * 0.4, gl * 0.18));
-  flames.forEach((f, k) => { f.scale.set(1 + Math.sin(performance.now() / (60 + k * 20)) * 0.15, 0.8 + rand() * 0.4, 1); });
+  if (worldK > 0) flames.forEach((f, k) => { f.scale.set(1 + Math.sin(worldT * 1000 / (60 + k * 20)) * 0.15, 0.8 + rand() * 0.4, 1); });   // the flames freeze with the world
 }

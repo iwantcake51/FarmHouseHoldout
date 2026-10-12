@@ -67,5 +67,5 @@ for (const id in WEAP) {
 }
 for (const mid in MODS) {
   const m = MODS[mid];
-  UPG.push({ r: m.r, tag: WEAP[m.w].short + ' only', name: m.name, text: m.text, vis: m.vis, w: 2.4, can: () => held(m.w) && !hasMod(mid) && (!m.need || hasMod(m.need)), ap: () => { (W8.mods[m.w] = W8.mods[m.w] || []).push(mid); } });
+  UPG.push({ r: m.r, tag: WEAP[m.w].short + ' only', name: m.name, text: m.text, vis: m.vis, w: 2.4, modOf: mid, can: () => held(m.w) && !hasMod(mid) && (!m.need || hasMod(m.need)), ap: () => { (W8.mods[m.w] = W8.mods[m.w] || []).push(mid); } });
 }

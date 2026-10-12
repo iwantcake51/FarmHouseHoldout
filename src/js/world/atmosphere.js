@@ -24,8 +24,8 @@ const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
-function stepAtmos(rdt) {
-  const t = performance.now() / 1000, day = 1 - curDark;
+function stepAtmos(realDt) {
+  const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
   WIND.value = t * 1.6;
   motes.m.opacity = state === 'title' ? 0.35 : 0.5 * Math.max(0, day - 0.15);
   if (motes.m.opacity > 0.01) {

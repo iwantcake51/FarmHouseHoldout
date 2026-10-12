@@ -42,12 +42,13 @@ $('startBtn').onclick = newRun;
 $('againBtn').onclick = newRun;
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
-  resetRun(); setState('title');
+  resetRun(); setState('title'); $('title').scrollTop = 0;
   // the HUD stops updating on the title, so clear the dying screen effects by hand
   cv.style.filter = ''; cache.grey = null; ['hurt', 'slowmo', 'healVig', 'conc'].forEach(id => { $(id).style.opacity = 0; });
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
 }
 $('menuBtn').onclick = backToMenu;
+$('pMenuBtn').onclick = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } backToMenu(); };
 $('resumeBtn').onclick = () => setState('play');
 $('quitBtn').onclick = () => die();
 document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !P.dead) setState('paused'); });
@@ -56,7 +57,7 @@ function startDeath() {
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
-  ANIM.deathTwist = rr(-0.25, 0.25); ANIM.deathPool = 0;
+  ANIM.deathTwist = rr(-0.1, 0.1); ANIM.deathPool = 0;
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, 1.8); hitStop = 0;
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands
@@ -67,7 +68,7 @@ function startDeath() {
     inner.position.copy(ctr).negate(); inner.rotation.set(0, 0, 0); inner.visible = true; c.add(inner);
     const wq = new THREE.Quaternion(), ws = new V3(); gg.matrixWorld.decompose(new V3(), wq, ws);
     c.position.copy(ctr).applyMatrix4(gg.matrixWorld); c.quaternion.copy(wq); c.rotation.order = 'YXZ'; scene.add(c);
-    ANIM.dropped = { g: c, vx: Math.sin(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vz: Math.cos(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vy: 1.2, spin: rr(-6, 6), landed: false, melee: !!(W(curId()) || {}).melee };
+    ANIM.dropped = { g: c, vx: Math.sin(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vz: Math.cos(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vy: 1.2, spin: rr(-2.2, 2.2), landed: false, melee: !!(W(curId()) || {}).melee };
   }
   document.body.classList.add('dying');
   SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); SFX.wave();

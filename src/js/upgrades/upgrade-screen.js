@@ -15,11 +15,15 @@ function dealCards() {
   dealt.forEach((u, i) => {
     const c = u.card ? u.card() : { r: u.r, tag: u.tag, name: u.name, text: u.text, vis: typeof u.vis === 'function' ? u.vis() : u.vis };
     u.shown = c;
+    const info = upgradeInfo(u, c), stats = u.stats && !info.fx.length;
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
-    b.innerHTML = `<div class="k"><span></span><span>${i + 1}</span></div><div class="t"></div><div class="d"></div>${u.stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
+    b.innerHTML = `<div class="k"><span></span><span>${i + 1}</span></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
     b.querySelector('.k span').textContent = c.tag; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
-    if (u.stats) b.querySelector('.s').textContent = u.stats();
+    // what you get, in numbers: before → after, green when it's better
+    info.fx.forEach(f => { const s = document.createElement('span'); s.className = f.good ? 'up' : 'down'; s.textContent = (f.good ? '▲ ' : '▼ ') + f.t; b.querySelector('.fx').appendChild(s); });
+    if (info.use) b.querySelector('.use').textContent = info.use;
+    if (stats) b.querySelector('.s').textContent = u.stats();
     if (c.vis) b.querySelector('.v').textContent = c.vis;
     b.addEventListener('pointerdown', () => { if (cardsArmed) b.dataset.down = '1'; });
     b.addEventListener('click', e => { if (e.detail === 0 || b.dataset.down === '1') pickCard(i); });

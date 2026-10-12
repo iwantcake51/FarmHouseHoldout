@@ -26,6 +26,20 @@ const HOLD = {
 const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight
 const AK_PULL = 0.1;
+// each gun's recoil: a spring per hand for muzzle flip (p), drive back (z) and a little roll (r); pistols flip, long guns
+// shove back into the shoulder, and the spring overshoots a touch on the way back so it settles rather than snaps
+const RK = { R: { p: 0, vp: 0, z: 0, vz: 0, r: 0, vr: 0 }, L: { p: 0, vp: 0, z: 0, vz: 0, r: 0, vr: 0 } };
+function gunKick(side, pw, kind) {
+  const k = RK[side], hand = kind === 'hand';
+  k.vp -= pw * (hand ? 9.5 : 4.2); k.vz -= pw * (hand ? 1.4 : 2.6); k.vr += (rand() < 0.5 ? -1 : 1) * pw * (hand ? 2.2 : 1.4);
+}
+function stepKick(k, dt) {
+  for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
+    k.vp += (-380 * k.p - 26 * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
+    k.vz += (-380 * k.z - 26 * k.vz) * h; k.z += k.vz * h;
+    k.vr += (-300 * k.r - 22 * k.vr) * h; k.r += k.vr * h;
+  }
+}
 const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
 const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
@@ -80,7 +94,7 @@ function shovePose() {
 // arms, hands and weapon for this frame; up is the upper-body rotation, which this adds lean and twist to
 function poseHands(D, up, ph, runF, rdt, now) {
   const pm = PM, s = W8.cur;
-  ANIM.kick.R = Math.max(0, ANIM.kick.R - rdt * 11); ANIM.kick.L = Math.max(0, ANIM.kick.L - rdt * 11);
+  stepKick(RK.R, rdt); stepKick(RK.L, rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
   if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = 0; ANIM.relEnv = 0; }   // a fresh weapon starts with both hands on it
@@ -150,8 +164,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const sides = ak ? ['R', 'L'] : ['R'];
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
-    const k = ANIM.kick[side] * (heavy ? 1 : 0.8), g = H.grip, sg = side === 'R' ? 1 : -1;
-    let hx = -0.22 * k, hz = 0, hox = h.userData.x0 || 0, hoy = 0, hoz = -0.07 * k;
+    const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
+    let hx = k.p, hz = k.r, hox = h.userData.x0 || 0, hoy = 0, hoz = k.z;
     if (ak && re > 0.001 && rk === 'mag') {
       // flick both mags out, drop the guns to the hip pouches to seat fresh ones, bring them back up
       const flick = Math.sin(clamp(rp / 0.2, 0, 1) * Math.PI), dip = Math.sin(clamp((rp - 0.22) / 0.6, 0, 1) * Math.PI);
@@ -167,10 +181,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (sl && sl.length) {
     for (const q of sl) {
       const st = ANIM.slideT[q.side || 'R'];
-      let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07);
-      if (q.cyc) off = EJECT[id] === 'bolt' && rel === 'shell' ? 1 : cy ? Math.sin(cq * Math.PI) : 0;   // the rifle's bolt stays open while you feed it
-      else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') off = 1;
-      else if (q.lock && rel === 'mag') off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0;
+      let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07), held = false;
+      if (q.cyc) { const open = EJECT[id] === 'bolt' && rel === 'shell'; off = open ? 1 : cy ? Math.sin(cq * Math.PI) : 0; held = open; }   // the rifle's bolt stays open while you feed it
+      else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
+      else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
+      // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
+      if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
       q.m.position.z = q.z0 - q.travel * off; q.m.updateMatrix();
     }
   }

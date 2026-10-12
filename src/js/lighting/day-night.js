@@ -37,15 +37,15 @@ function updateDayNight(rdt) {
   }
   stepAtmos(rdt);
   // fireflies
-  fireflies.m.opacity = Math.max(0, curDark - 0.4) * 1.3 * (0.75 + Math.sin(performance.now() / 300) * 0.25);
+  fireflies.m.opacity = Math.max(0, curDark - 0.4) * 1.3 * (0.75 + Math.sin(worldT * 3.33) * 0.25);
   if (fireflies.m.opacity > 0.01) {
-    const t = performance.now() / 1000;
+    const t = worldT;
     fireflies.seed.forEach((s, k) => { fireflies.pos[k * 3] = s.x + Math.sin(t * s.s + s.p) * 1.2; fireflies.pos[k * 3 + 1] = s.y + Math.sin(t * s.s * 1.7 + s.p) * 0.3; fireflies.pos[k * 3 + 2] = s.z + Math.cos(t * s.s * 0.8 + s.p) * 1.2; });
     fireflies.pts.geometry.attributes.position.needsUpdate = true;
   }
   moths.m.opacity = clamp((curDark - 0.3) * 1.8, 0, 0.9);
   if (moths.m.opacity > 0.01) {
-    const t = performance.now() / 1000;
+    const t = worldT;
     moths.seed.forEach((s, k) => {
       const a = s.p + t * s.s, wob = 1 + 0.35 * Math.sin(t * s.w + s.p);
       moths.pos[k * 3] = s.c[0] + Math.cos(a) * s.r * wob + Math.sin(t * 11 + k) * 0.03;

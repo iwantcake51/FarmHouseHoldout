@@ -76,6 +76,8 @@ Every source file starts with a one-line comment saying what is in it.
 | Zombie behaviour | `src/js/zombies/ai.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
 | Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
+| What the upgrade cards show (before → after chips, what an attachment is for) | `src/js/upgrades/upgrade-info.js` |
+| How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | What each station sells, and the prices | `src/js/stations/recipes.js` |
 | Bandage count, time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |

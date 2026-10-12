@@ -5,6 +5,14 @@ function equip(s) {
   exitScope(); ANIM.sw = 1; W8.swing = 0;
   W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.15); SFX.click();
 }
+// reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
+// (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half)
+function reloadSlow() {
+  if (!W8.reloading) return 1;
+  const id = curId(), D = W(id); if (!D || D.melee) return 1;
+  const base = D.slot === 'side' ? 0.12 : D.slot === 'long' ? 0.2 : 0.17;
+  return 1 - Math.min(0.48, base + Math.min(0.28, magSize(id) / 360));
+}
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
   const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0) return;   // hands are busy with the bandage

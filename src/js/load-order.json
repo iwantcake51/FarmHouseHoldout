@@ -66,6 +66,7 @@
   "player/bandages.js",
   "waves/waves.js",
   "upgrades/upgrades.js",
+  "upgrades/upgrade-info.js",
   "upgrades/upgrade-screen.js",
   "ui/screens.js",
   "ui/hud-text.js",
