@@ -45,10 +45,11 @@ function floatText(x, z, text, color) {
 function stepFloats(rdt) {
   // floating pickup labels
   for (let k = floats.length - 1; k >= 0; k--) {
-    const f = floats[k]; f.t += rdt; projV.set(f.x, 1.2 + f.t * 1.2, f.z).project(cam);
-    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%,-50%) scale(${(1 + Math.max(0, 0.2 - f.t) * 2).toFixed(2)})`;
-    f.el.style.opacity = clamp(1.6 - f.t * 1.6, 0, 1);
-    if (f.t > 1) { f.el.remove(); floats.splice(k, 1); }
+    const f = floats[k]; f.t += rdt; projV.set(f.x, (f.y0 !== undefined ? f.y0 : 1.2) + f.t * (f.dmg ? 0.9 : 1.2), f.z).project(cam);
+    const life = f.dmg ? 0.75 : 1;
+    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%,-50%) scale(${(1 + Math.max(0, 0.2 - f.t) * (f.dmg ? 3 : 2)).toFixed(2)})`;
+    f.el.style.opacity = clamp((1.6 - f.t * 1.6 / life) * (f.dmg && P.dead ? 0 : 1), 0, 1);
+    if (f.t > life) { f.el.remove(); floats.splice(k, 1); }
   }
   tickFeed();
 }

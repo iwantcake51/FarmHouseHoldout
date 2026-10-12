@@ -15,7 +15,7 @@ function spawnZombie(type) {
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) fm.add(o.material); }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });
-  const xr = xray(m.g);
+  const xr = xray(m.g, 0xff3322, false, true);
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11, hp = T_.hp * hpMul;
   zombies.push({ type, T: Object.assign({}, T_, { scale: sc }), m, x: cxw(gi) + rr(-.3, .3), z: cxw(gj) + rr(-.3, .3), hp, maxHp: hp, vx: 0, vz: 0, face: 0, phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,

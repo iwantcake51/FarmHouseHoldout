@@ -5,7 +5,7 @@ function updateZombieVisuals(dt, rdt) {
   for (const z of zombies) {
     const v = state === 'title' ? 1 : visAt(z.x, z.z);
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = z.vis > 0.02 || !!z.redOl;
-    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.97; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.xr) z.xr.rim.opacity = z.vis * 0.95; if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis * z.vis; }
+    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.97; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.xr) { z.xr.rim.opacity = z.vis; if (z.xr.sil) z.xr.sil.opacity = z.vis * 0.38; } if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis * z.vis; }
     if (z.redOl) z.redOl.opacity = 0.55 + Math.sin(performance.now() / 160) * 0.3;
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {

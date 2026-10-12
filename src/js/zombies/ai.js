@@ -116,8 +116,9 @@ function updateZombies(dt) {
       m.upper.rotation.x = 0.12 + z.lunge * 0.25 - sq * 0.25; m.upper.rotation.z = Math.sin(z.phase * 0.5) * 0.06;
     }
     z.flash = Math.max(0, z.flash - dt);
-    const e = z.flash > 0 ? 0xa04030 : z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000;
-    m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e);
+    // a hit flashes the body white-hot, cooling through red as the flash runs out
+    if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of [m.mats.skin, m.mats.shirt, m.mats.pants]) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
+    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
   if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); hurtFx = 1; shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }

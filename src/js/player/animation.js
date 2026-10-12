@@ -38,7 +38,7 @@ function animateDeath(dt) {
 }
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
-  if (P.dead) { animateDeath(dt); return; }
+  if (P.dead) { animateDeath(P.deathDt || 0); return; }
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : 16;   // ease back round to your aim after a vault
   ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim, ANIM.yaw) * Math.min(1, rdt * turnRate);
@@ -153,6 +153,15 @@ function animatePlayer(dt, rdt) {
     pm.armR.rotation.set(0.55 + Math.sin(bt * 9) * 0.18, -0.6 + Math.cos(bt * 9) * 0.25, 0);
     urx += 0.18; pm.head.rotation.x = 0.35;
   }
+  // shove: lean in and drive both arms (and whatever is in them) straight out
+  ANIM.shove = Math.max(0, (ANIM.shove || 0) - rdt * 3.6);
+  if (ANIM.shove > 0 && !P.bandT) {
+    const k = Math.sin((1 - ANIM.shove) * Math.PI), q = Math.min(1, k * 1.6);
+    pm.armL.rotation.set(pm.armL.rotation.x * (1 - q) - 0.08 * q, pm.armL.rotation.y * (1 - q) + 0.12 * q, 0); pm.armL.position.z = 0.16 * k;
+    pm.armR.rotation.set(pm.armR.rotation.x * (1 - q) - 0.08 * q, pm.armR.rotation.y * (1 - q) - 0.12 * q, 0); pm.armR.position.z = 0.16 * k;
+    const gg = gunMeshes[W8.cur]; if (gg && !D.melee) gg.position.z += 0.16 * k;
+    urx += 0.32 * k; ury *= 1 - q;
+  } else pm.armR.position.z = 0;
   pm.upper.rotation.set(urx, ury, urz);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel

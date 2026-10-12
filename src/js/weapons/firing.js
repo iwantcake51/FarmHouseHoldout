@@ -1,9 +1,9 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
 function spreadOf(id) {
-  // moving opens the spread up: +45% at a run, only +25% while aiming down the sights
+  // walking doubles the spread (+50% while aiming down the sights), and holding the trigger opens it up further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1) * (1 + mv * (aiming ? 0.25 : 0.45));
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
   if (D.ammo === 'shells' && T('choke')) s *= T('choke') === 2 ? 0.49 : 0.7;
   if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
@@ -124,6 +124,8 @@ function gunFire(id, D) {
   const puffs = quiet ? 1 : D.ammo === 'shells' ? 4 : D.ammo === 'rifle' || D.dmg > 60 ? 3 : 2;
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
+  // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
+  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3)); W8.sprayT = 0;
   ANIM.slideT = 0;
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (D.shake > 0.2 ? 1.2 : 0.7));
   const ej = EJECT[id];

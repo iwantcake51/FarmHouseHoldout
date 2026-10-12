@@ -15,15 +15,22 @@ const XRAY_CLIP = [new THREE.Plane(new V3(0, 1, 0), -0.14)];
 R.localClippingEnabled = true;
 const RIM_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp };
 const rimMat = col => new THREE.MeshBasicMaterial(Object.assign({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 }, RIM_STENCIL));
-// drawn only where something solid stands between the camera and the zombie: a red rim over a dark fill
-function xray(g, col, noClip) {
+// drawn only where something solid stands between the camera and the zombie: a red rim over a dark fill,
+// and for zombies a tinted silhouette of the whole body so you can read them through the wall at a glance
+function xray(g, col, noClip, withSil) {
   // clipped just above the ground so feet sinking into the dirt or a porch board never light up
   const rim = new THREE.MeshBasicMaterial(Object.assign({ color: col || 0xff3322, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: noClip ? null : XRAY_CLIP }, RIM_STENCIL));
   const fill = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilFail: THREE.ReplaceStencilOp });
   const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline) list.push(o); });
   list.forEach(o => { const f = new THREE.Mesh(o.geometry, fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f); });
-  outline(g, 0, 0, 0.04, rim); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
-  return { rim, fill };
+  outline(g, 0, 0, withSil ? 0.055 : 0.04, rim); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
+  if (!withSil) return { rim, fill };
+  // the silhouette marks each pixel with stencil 2 as it draws, so overlapping limbs don't stack up darker
+  const sil = new THREE.MeshBasicMaterial({ color: 0xd8382a, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: XRAY_CLIP,
+    stencilWrite: true, stencilRef: 2, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp });
+  const body = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline) body.push(o); });
+  body.forEach(o => { const m = new THREE.Mesh(o.geometry, sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m); });
+  return { rim, fill, sil };
 }
 // a zombie's shadow dissolves with it: its shadow-map depth is dithered away as it fades
 function fadeDepthMat() {

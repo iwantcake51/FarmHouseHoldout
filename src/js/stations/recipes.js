@@ -7,7 +7,8 @@ const RECIPES = {
     { ic: 'ammo', cost: 4, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${ammoAmt(gunAmmo()) * 2} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const a = gunAmmo(); W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); } },
     { ic: 'ammo', get cost() { return Math.max(4, 4 * SLOTS.filter(s => W8.slot[s] && W(W8.slot[s]).ammo).length); }, title: () => 'Ammo for everything', desc: () => ammoTypes().length ? ammoTypes().map(a => `+${ammoAmt(a) * 2} ${AMMO_NAME[a]}`).join(' · ') : 'Every gun you carry', why: () => ammoTypes().length ? '' : 'No guns that use ammo', make: () => ammoTypes().forEach(a => { W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); }) },
     { ic: 'gear', cost: 18, title: () => curId() && !W(curId()).melee ? `Tinker a ${W(curId()).short} mod` : 'Tinker a mod', desc: () => 'A random mod for the weapon in your hands', why: () => modsFor(curId()).length ? '' : 'Nothing left to fit on this one', make: () => { const m = pick(modsFor(curId())); (W8.mods[MODS[m].w] = W8.mods[MODS[m].w] || []).push(m); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); } },
-    { ic: 'gear', cost: 12, title: () => 'Tune and sharpen', desc: () => '+8% damage on everything. Stacks.', why: () => '', make: () => { S.dmgMul *= 1.08; S.meleeMul *= 1.08; gunGlow = 1; feed('gear', 8, '% damage'); } }
+    // tuning works on the weapon in your hands only, and each time you tune the same weapon it costs half as much again
+    { ic: 'gear', get cost() { return Math.round(12 * Math.pow(1.5, W8.tune[curId()] || 0)); }, title: () => `Tune and sharpen the ${W(curId()).short}`, desc: () => `+8% damage on this weapon only${W8.tune[curId()] ? ` (tuned ${W8.tune[curId()]}×, +${Math.round((Math.pow(1.08, W8.tune[curId()]) - 1) * 100)}% so far)` : ''}. Costs more each time`, why: () => '', make: () => { const id = curId(); W8.tune[id] = (W8.tune[id] || 0) + 1; recomputeEff(); gunGlow = 1; feed('gear', 8, '% ' + W(id).short + ' damage'); } }
   ],
   saw: [
     { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => 'Enough for one more board', why: () => '', make: () => { S.planks += 2; feed('planks', 2, 'planks'); popEl('planks'); } },
@@ -15,10 +16,17 @@ const RECIPES = {
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   med: [
-    { ic: 'med', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${BAND_MAX}). Press H to use: +25 health over time, stops bleeding`, why: () => (P.band || 0) < BAND_MAX ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
-    { ic: 'med', cost: 10, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } }
+    { ic: 'med', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${BAND_MAX}). Press H to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < BAND_MAX ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+    { ic: 'med', cost: 10, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
+    ...['hands', 'dress', 'tonic'].map(medUpgrade)
   ],
   radio: [
-    { ic: 'supply', cost: 20, title: () => supplyT > 0 ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and meds lands in the yard', why: () => supplyT > 0 ? 'Already called' : '', make: () => { supplyT = 9; feed('supply', 0, 'Supply drop called'); } }
+    { ic: 'supply', cost: 20, title: () => supplyT > 0 ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and bandages lands in the yard', why: () => supplyT > 0 ? 'Already called' : '', make: () => { supplyT = 9; feed('supply', 0, 'Supply drop called'); } }
   ]
 };
+// a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)
+function medUpgrade(k) {
+  const U = () => MED_UP[k], lv = () => medT(k), done = () => lv() >= U().max, num = n => ' ' + 'I'.repeat(n);
+  return { ic: 'med', get cost() { return U().cost[Math.min(lv(), U().max - 1)]; }, title: () => U().name + (done() ? '' : num(lv() + 1)), desc: () => done() ? 'Fully upgraded' : U().desc(lv()), why: () => done() ? 'Fully upgraded' : '',
+    make: () => { S.med[k] = lv() + 1; feed('med', 0, U().name + num(S.med[k])); } };
+}

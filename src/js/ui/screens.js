@@ -44,7 +44,7 @@ function startDeath() {
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.25, 0.25); ANIM.deathPool = 0;
-  timeScale = 0.3; zoomT = Math.min(zoomT * 1.3, 1.8);
+  timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, 1.8); hitStop = 0;
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands
     gg.updateMatrixWorld(true);
@@ -57,7 +57,15 @@ function startDeath() {
     ANIM.dropped = { g: c, vx: Math.sin(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vz: Math.cos(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vy: 1.2, spin: rr(-6, 6), landed: false, melee: !!(W(curId()) || {}).melee };
   }
   document.body.classList.add('dying');
-  SFX.hurt(); setTimeout(() => SFX.thump(), 500); SFX.wave();
+  SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); SFX.wave();
+}
+// dying plays out in slow motion on its own clock: the world winds down and stops dead the moment your body
+// hits the ground, so nothing keeps closing in, while the fall, the dropped weapon and the blood pool finish
+const DEATH_RATE = 0.55, DEATH_GROUND = 0.86, DEATH_SLOW = 0.6;
+function tickDeath(rdt) {
+  P.deathDt = rdt * DEATH_RATE; P.deathT += P.deathDt;
+  timeScale = DEATH_SLOW * Math.pow(1 - clamp(P.deathT / DEATH_GROUND, 0, 1), 1.6);
+  if (P.deathT > 1.2 && performance.now() - P.deathAt > 3800 && state === 'play') die();
 }
 function die() {
   if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} }

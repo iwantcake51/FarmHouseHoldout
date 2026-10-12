@@ -68,15 +68,19 @@ function updatePickups(dt) {
     p.g.visible = visAt(p.x, p.z) > 0.2;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
-    if (d < 0.9) {
+    // a full bandage bag leaves the bandage where it lies; it never heals you on the spot
+    const bagFull = (P.band || 0) >= BAND_MAX;
+    if (p.kind === 'med' && bagFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Your bandage bag is full (' + BAND_MAX + '/' + BAND_MAX + ').'); } }
+    else if (d < 0.9) {
       let ft = '';
       if (p.kind === 'planks') { const n = 1 + (rand() < 0.4 ? 1 : 0); S.planks += n; feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }
-      else if (p.kind === 'med') { if ((P.band || 0) < BAND_MAX) { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); ft = '+1 bandage'; popEl('bands'); } else { P.heal = (P.heal || 0) + 20; feed('med', 20, 'health over time'); ft = '+20'; } SFX.pick(); }
+      else if (p.kind === 'med') { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); ft = '+1 bandage'; popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount; SFX.scrap(); }
-      else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); S.planks += 4; S.scrap += 6; const h = Math.round(Math.min(40, S.maxHp - P.hp)); P.hp += h; feed('planks', 4, 'planks'); feed('scrap', 6, 'scrap'); if (h) feed('med', h, 'health'); feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
+      else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); S.planks += 4; S.scrap += 6; const nb = Math.min(2, BAND_MAX - (P.band || 0)); P.band = (P.band || 0) + nb; feed('planks', 4, 'planks'); feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
       else { const opts = ammoTypes(), a = p.ammoType || pick(opts); if (a) { const amt = ammoAmt(a); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); ft = '+' + amt + ' ' + AMMO_NAME[a]; } else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; } SFX.pick(); }
       floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { scene.remove(p.g); pickups.splice(k, 1); }
+    else if (d > 1.3) p.warned = false;
   }
 }

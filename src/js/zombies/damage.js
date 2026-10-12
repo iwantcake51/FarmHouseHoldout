@@ -42,12 +42,15 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
   if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.8;
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
-  z.hp -= dmg * partMult(part); z.flash = 0.09; z.squash = 1; z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18;
-  z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale;
+  const dealt = dmg * partMult(part);
+  z.hp -= dealt; z.flash = 0.14; z.squash = 1;
+  // brutes shrug hits off: no stagger, no knockback
+  if (z.type !== 'brute') { z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18; z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2);
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
   xhHit = 1; xhHead = part === 'head';
+  dmgNumber(z, dealt, part === 'head', y);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
     z.lhp[part] -= dmg * mul;
@@ -58,12 +61,12 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
     if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, 0.08 + (D.sever ? 0.04 : 0));
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
   if (z.hp <= 0) { killZombie(z, dx, dz, wId, part, -z.hp); return true; }
-  SFX.tick();
+  SFX.tick(); if (part === 'head') SFX.headHit();
   return false;
 }
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; }
+  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
@@ -82,8 +85,23 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   SFX.kill();
   if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * S.scrapMul);
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
+    // ammo is scarce: about half the ammo rolls come up empty
     const r = rand(), opts = ammoTypes(), curA = gunAmmo();
-    if (r < 0.55 && opts.length) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts));
+    if (r < 0.55) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5)) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts)); }
     else dropPickup(z.x, z.z, r < 0.8 ? 'planks' : 'med');
   }
+}
+// a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
+function dmgNumber(z, dmg, head, y) {
+  const now = performance.now();
+  if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
+    z.dn.amt += dmg; z.dn.t0 = now; z.dn.el.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
+    if (head) z.dn.el.classList.add('head');
+    z.dn.el.classList.remove('bump'); void z.dn.el.offsetWidth; z.dn.el.classList.add('bump');
+    return;
+  }
+  const el = document.createElement('div'); el.className = 'float dmg' + (head ? ' head' : ''); el.textContent = Math.round(dmg);
+  document.body.appendChild(el);
+  const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
+  floats.push(f); z.dn = { el, f, amt: dmg, t0: now };
 }

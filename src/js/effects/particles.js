@@ -33,7 +33,8 @@ function stepParticles(dt) {
     if (p.life < 0.4) m.scale.setScalar(Math.max(0.01, p.life / 0.4) * (p.kind === 'smoke' ? 3 : 1));
     if (p.life <= 0) m.visible = false;
   }
-  for (const d of decals) if (d.m.visible && d.t < d.dur) { d.t += dt; const k = Math.min(1, d.t / d.dur), e = 1 - Math.pow(1 - k, 3); d.m.scale.set(d.s * (0.25 + 0.75 * e), d.s * (0.25 + 0.75 * e), 1); }
+  const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but your own blood pool keeps spreading
+  for (const d of decals) if (d.m.visible && d.t < d.dur) { d.t += gdt; const k = Math.min(1, d.t / d.dur), e = 1 - Math.pow(1 - k, 3); d.m.scale.set(d.s * (0.25 + 0.75 * e), d.s * (0.25 + 0.75 * e), 1); }
   for (let k = gibs.length - 1; k >= 0; k--) {
     const g = gibs[k]; g.life -= dt;
     if (!g.landed) {

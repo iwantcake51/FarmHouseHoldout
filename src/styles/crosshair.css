@@ -31,6 +31,8 @@
 #ammoWarn kbd{font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:0;background:var(--aw);color:#140c06;padding:0 5px;text-shadow:none}
 #ammoWarn.low::before,#ammoWarn.low::after,#ammoWarn.low .aw{animation:awPulse 1.4s cubic-bezier(.45,0,.55,1) infinite}
 #ammoWarn.out{--aw:#e2412c}
+#ammoWarn.loading{--aw:var(--orange)}
+#ammoWarn.loading::before,#ammoWarn.loading::after{display:none}
 #ammoWarn.out::before,#ammoWarn.out::after,#ammoWarn.out .aw{animation:awGlow 1.05s cubic-bezier(.45,0,.55,1) infinite}
 #ammoWarn.kick{animation:awKick .25s}
 @keyframes awPulse{50%{opacity:.55}}

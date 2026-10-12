@@ -48,11 +48,13 @@ function updateCrosshair(rdt, D) {
       xh.classList.toggle('lowammo', have <= Math.max(1, n * 0.25));
       // yellow under a quarter, red and asking for a reload when empty
       const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn');
-      const mode = W8.reloading ? '' : have === 0 ? (res > 0 ? 'reload' : 'none') : have <= Math.max(1, Math.floor(n * 0.25)) ? 'low' : '';
-      if (cache.aw !== mode) {
-        cache.aw = mode; aw.hidden = !mode;
-        aw.classList.remove('low', 'out'); if (mode) aw.classList.add(mode === 'low' ? 'low' : 'out');
-        aw.innerHTML = '<span class="aw">' + (mode === 'low' ? 'Low ammo' : mode === 'reload' ? 'Reload <kbd>R</kbd>' : mode === 'none' ? 'No ammo' : '') + '</span>';
+      // while reloading the same spot reads "Reloading", or counts the shells going in
+      const mode = W8.reloading ? 'loading' : have === 0 ? (res > 0 ? 'reload' : 'none') : have <= Math.max(1, Math.floor(n * 0.25)) ? 'low' : '';
+      const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? 'Reload <kbd>R</kbd>' : mode === 'none' ? 'No ammo' : '';
+      if (cache.aw !== mode + txt) {
+        cache.aw = mode + txt; aw.hidden = !mode;
+        aw.classList.remove('low', 'out', 'loading'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
+        aw.innerHTML = '<span class="aw">' + txt + '</span>';
       }
     }
     let rp = 0;

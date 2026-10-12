@@ -26,7 +26,7 @@ function updateWaves(dt) {
 
   if (phase === 'break') {
     breakT -= dt;
-    setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>Enter</kbd> to start now`);
+    setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
     if (breakT <= 0) startWave();
   } else if (phase === 'wave') {
     spawnT -= dt;

@@ -95,7 +95,7 @@
 <div class="hud" id="station" hidden>
   <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="stScrap">0</b></div></div>
   <div id="stRows"></div>
-  <div class="note">Press 1–4 or click a card · E to step away</div>
+  <div class="note" id="stNote">Press 1–4 or click a card · E to step away</div>
 </div>
 <div class="hud" id="prompt" hidden><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast" style="opacity:0"></div>
@@ -130,15 +130,15 @@
       <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
       <kbd>H</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
       <kbd>Hold F</kbd><span>Board up a door or window you are standing at</span>
-      <kbd>Space</kbd><span>Climb through an open window</span>
+      <kbd>Space</kbd><span>Climb through an open window or hop a fence; anywhere else, shove zombies back</span>
       <kbd>E</kbd><span>Use the workbench, sawhorse, medicine cabinet or radio</span>
       <kbd>Hold right click</kbd><span>Aim down the sights: half the spread, but you move slower. Scoped rifles look through the scope instead</span>
       <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
       <kbd>Wheel</kbd><span>Zoom in and out</span>
-      <kbd>Enter</kbd><span>Start the next wave early</span>
+      <kbd>T</kbd><span>Start the run, or the next wave early</span>
       <kbd>Esc</kbd><span>Pause</span>
     </div>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run</button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
   </div>
 </div>
 
@@ -167,7 +167,7 @@
     <div class="eyebrow">The house fell</div>
     <h2 id="deadTitle">Dead on wave 1</h2>
     <div class="tally" id="deadStats"></div>
-    <div class="btns"><button class="btn" id="againBtn" type="button">New run</button><span class="note" id="deadBest"></span></div>
+    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
 <script src="./vendor/three.min.js"></script>

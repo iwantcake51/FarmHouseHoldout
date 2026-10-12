@@ -62,6 +62,7 @@
   "weapons/reload.js",
   "weapons/firing.js",
   "melee/melee.js",
+  "player/shove.js",
   "player/bandages.js",
   "waves/waves.js",
   "upgrades/upgrades.js",
