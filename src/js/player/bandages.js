@@ -23,7 +23,7 @@ function tickBandage(dt) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.healMax = P.heal; P.bleed = 0; feed('med', h, 'health over time'); popEl('bands'); }
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; feed('med', h, 'health over time'); popEl('bands'); }
   }
   if (P.heal > 0 && !P.dead) { const r = healRate(), h = Math.min(P.heal, dt * r, S.maxHp - P.hp); P.hp += h; P.heal -= Math.max(h, dt * r * (P.hp >= S.maxHp ? 1 : 0)); if (P.heal < 0.01) P.heal = 0; }
 }

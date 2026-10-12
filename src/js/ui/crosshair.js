@@ -25,10 +25,10 @@ function updateCrosshair(rdt, D) {
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
     }
     if (D.melee) { const rd = 1 - clamp(W8.cd / ((D.rate || 0.5) * 1.3), 0, 1), L = 2 * Math.PI * 19; $('xhSwing').setAttribute('stroke-dasharray', `${(rd * L).toFixed(1)} 999`); $('xhSwing').style.opacity = rd >= 1 ? 0.35 : 1; }
-    // healing ring: fills while the bandage goes on, then drains as the healing runs out
-    { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : P.heal > 0 ? P.heal / Math.max(P.heal, P.healMax || 1) : 0, on = band || P.heal > 0;
-      const hk = (on ? (band ? 'a' : 'r') + Math.round(hp * 200) : '');
-      if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.setAttribute('class', band ? 'heal' : 'heal regen'); el.style.opacity = on ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
+    // bandage ring: shown only while a bandage is going on, filling as it does
+    { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
+      const hk = band ? String(Math.round(hp * 200)) : '';
+      if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.style.opacity = band ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
     if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); aw.innerHTML = '<span class="aw">' + t + '</span>'; } }
     else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
     if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
