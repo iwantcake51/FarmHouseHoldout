@@ -91,7 +91,10 @@ Every source file starts with a one-line comment saying what is in it.
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
+| Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
+| The survivor's look (face, cap, clothes, boots, backpack) | `src/js/player/player.js` |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
+| The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 
 ### Adding a new gun
 
@@ -132,6 +135,7 @@ Shared state:
 - **Light map instead of real lights.** Lamps, fires and muzzle flashes are painted into one small light texture each frame instead of using many three.js lights (`lighting/lightmap.js`).
 - **Pooling and instancing.** Particles, casings, tracers and blood decals reuse fixed pools, and trees, grass, bushes, rocks and fence posts are instanced meshes, so long fights don't create garbage or extra draw calls.
 - **Cached geometry.** Box shapes are shared through a cache instead of being created per part (`core/geometry.js`).
+- **Merged detail.** The small pieces of the survivor, the furniture and the stations are merged into a few meshes each, with their colours baked into the vertices, so all that detail costs only a few extra draw calls (`mergeInto` in `core/geometry.js`).
 
 ## Controls
 

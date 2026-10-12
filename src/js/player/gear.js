@@ -9,6 +9,7 @@ function buildGear() {
   gearParts.forEach(m => m.parent && m.parent.remove(m)); gearParts.length = 0;
   // footwear: boots, then running shoes, then trail runners; thick soles grow the sole
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
+  PBOOT.forEach(m => { m.visible = !(bt || thick); });
   if (bt || thick) {
     const upper = [GEAR.dark, GEAR.leather, GEAR.white, GEAR.blue][bt], sole = [GEAR.sole, GEAR.sole, GEAR.red, GEAR.amber][bt];
     [PM.legL, PM.legR].forEach(l => {
@@ -33,9 +34,9 @@ function buildGear() {
   const hm = T('hammer');
   if (hm === 1 || hm === 2) { const L = hm === 2 ? 0.34 : 0.26; gearAdd(PM.upper, 0.03, L, 0.03, GEAR.wood, 0.29, 0.6, 0.04); gearAdd(PM.upper, 0.05, 0.05, hm === 2 ? 0.16 : 0.12, GEAR.steel, 0.29, 0.6 + L / 2, 0.04); }
   if (hm === 3) { gearAdd(PM.upper, 0.07, 0.16, 0.22, GEAR.orange, 0.3, 0.62, 0.02); gearAdd(PM.upper, 0.04, 0.1, 0.04, GEAR.dark, 0.3, 0.52, -0.04); }
-  if (S.healOnKill) gearCyl(PM.upper, 0.06, 0.16, GEAR.olive, -0.29, 0.62, 0.02);                                         // canteen
+  if (S.healOnKill) gearCyl(PM.upper, 0.06, 0.16, GEAR.olive, 0.285, 0.62, -0.15);                                         // canteen
   if (S.regen) gearCyl(PM.upper, 0.03, 0.07, GEAR.orange, 0.12, 1.02, 0.17);                                              // pill bottle in the chest strap
-  if (S.adrenaline) gearAdd(PM.armL, 0.16, 0.06, 0.16, GEAR.red, 0, 0, 0.1);                                             // red armband
+  if (S.adrenaline) gearAdd(PM.armL, 0.166, 0.166, 0.05, GEAR.red, 0, 0, 0.22);                                             // red armband
   if (S.secondWind) gearAdd(PM.upper, 0.36, 0.07, 0.34, GEAR.red, 0, 1.15, 0);                                           // bandana
   if (S.slowRes >= 0.85) { gearAdd(PM.head, 0.4, 0.14, 0.42, GEAR.olive, 0, 0.2, 0); gearAdd(PM.head, 0.42, 0.03, 0.1, GEAR.olive, 0, 0.13, 0.2); } // helmet for Stubborn
   if (S.speedMul > 1.3) gearAdd(PM.upper, 0.06, 0.06, 0.06, GEAR.white, -0.25, 0.86, 0.17);                             // stopwatch clip

@@ -13,10 +13,12 @@ function fireCam(pw, aim) {
   c.vr += sg * pw * rr(0.5, 0.75); c.vp += pw * 2.1; c.vz += pw * 1.1;
   if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
 }
-// reloading: a small, smooth jolt on each beat (mag out, mag seated, a shell in, the rack), much softer than a shot
+// reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
+// one way and settles, with only a whisper of push; seating a mag tips it the other way from pulling one
+let reloadRockSide = 1;
 function reloadJolt(s) {
-  const c = camRec; c.dx = -Math.sin(P.aim) * 0.6; c.dz = -Math.cos(P.aim) * 0.6;
-  c.vr += (rand() < 0.5 ? -1 : 1) * s * 0.3; c.vp += s * 0.9; c.vz -= s * 0.35;
+  const c = camRec; reloadRockSide = -reloadRockSide;
+  c.vr += reloadRockSide * s * rr(0.85, 1.1); c.vp += s * 0.15;
 }
 function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
 function vaultCam(rdt) {

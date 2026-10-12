@@ -4,6 +4,9 @@
 #wMods{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);min-height:12px;text-wrap:balance}
 .ammoRow{display:flex;align-items:baseline;gap:6px}
 #ammo{font-size:76px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#meleeArt{height:auto;max-width:46vw;margin:8px 0 6px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(0,0,0,.35))}
+#meleeArt.in{animation:maIn .35s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes maIn{from{opacity:0;transform:translateX(18px) rotate(-4deg)}}
 #ammoRes{font-family:var(--f-num);font-weight:600;font-size:26px;color:var(--dim)}
 #rounds{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:260px;min-height:14px}
 #rounds i{display:block;width:4px;height:12px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:1.5px 1.5px 0 0}

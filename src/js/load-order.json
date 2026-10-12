@@ -91,6 +91,7 @@
   "ui/vitals.js",
   "ui/moodles.js",
   "ui/rounds.js",
+  "ui/melee-art.js",
   "player/animation.js",
   "player/hold.js",
   "player/stow.js",
