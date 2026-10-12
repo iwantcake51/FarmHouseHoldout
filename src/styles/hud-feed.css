@@ -1,0 +1,16 @@
+/* HUD scale, death fade, the pickup feed and floating labels. */
+#waveBox,#moodles,#vitals,#arms,#feed{zoom:1.12}
+#xh svg{transform:scale(1.08)}
+body.dying .hud,body.dying #xh,body.dying #ammoWarn,body.dying #scrim{opacity:0!important;transition:opacity 1.4s ease!important}
+body.dying #c{cursor:default}
+#dead:not([hidden]){animation:deadIn 1.6s ease both}
+@keyframes deadIn{from{opacity:0}}
+#feed{left:20px;bottom:calc(158px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-shadow:none}
+.fd{display:flex;align-items:center;gap:9px;min-width:170px;padding:5px 14px 5px 8px;background:linear-gradient(90deg,rgba(10,12,13,.85) 60%,rgba(10,12,13,0));border-left:3px solid var(--fc,#a39e90);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);animation:fdIn .28s cubic-bezier(.2,.9,.3,1.2);transition:opacity .5s,transform .5s}
+.fd svg{width:18px;height:18px;flex:none;stroke:var(--fc);fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.fd b{font-family:var(--f-num);font-weight:800;font-size:22px;letter-spacing:0;color:var(--ink);line-height:1;min-width:2.2ch}
+.fd.bump b{animation:pop .28s ease-out}
+.fd.out{opacity:0;transform:translateX(-14px)}
+@keyframes fdIn{from{opacity:0;transform:translateX(-24px)}}
+.fd.scrap{--fc:#8fa3b8}.fd.planks{--fc:#c08a52}.fd.ammo{--fc:#d4b25c}.fd.med{--fc:#d0432c}.fd.supply{--fc:#d8692c}.fd.gear{--fc:#f0bf4c}
+.float{position:fixed;left:0;top:0;z-index:2;pointer-events:none;font-family:var(--f-num);font-weight:800;font-size:18px;color:var(--ink);text-shadow:0 1px 2px #000;white-space:nowrap;will-change:transform,opacity}

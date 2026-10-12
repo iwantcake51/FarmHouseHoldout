@@ -1,0 +1,12 @@
+// Zombie types and body-part tables.
+
+const ZT = {
+  walker: { hp: 55, speed: 1.25, dmg: 29, bdps: 13, r: 0.32, scale: 1, shirts: [0x5b4a44, 0x4a5560, 0x6b5a3a, 0x3f4a3a, 0x6a6458, 0x7a6e60, 0x3a3f52] },
+  runner: { hp: 30, speed: 3.75, dmg: 21, bdps: 8, r: 0.3, scale: 0.92, shirts: [0x6b2f2a, 0x7a4a2a, 0x2f4a5a] },
+  brute: { hp: 240, speed: 0.95, dmg: 58, bdps: 42, r: 0.48, scale: 1.45, shirts: [0x34322e, 0x4a3a2a] }
+};
+const PART_Y = { head: 1.35, torso: 0.95, armL: 1.05, armR: 1.05, legL: 0.35, legR: 0.35 };
+const partMult = p => p === 'head' ? S.headMul : p === 'torso' ? 1 : p === 'armL' || p === 'armR' ? 0.5 : 0.7;
+const STUMP = { head: [0, 1.18, 0], armL: [-0.33, 1.08, 0], armR: [0.33, 1.08, 0], legL: [-0.13, 0.55, 0], legR: [0.13, 0.55, 0] };
+const zombies = [];
+const HAIR = [0x2a2018, 0x5a4630, 0x8a8478, 0x1a1a1a];

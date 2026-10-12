@@ -1,0 +1,55 @@
+// Day/night cycle colours and the sun.
+
+const DAY = [
+  [0, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25], [4.5, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25], [6.5, 0xffad78, 0.6, 0.6, 0x3c4448, 0xe0c0b0, 0.7],
+  [9, 0xffe6cc, 0.95, 0.64, 0x6a777b, 0xffffff, 1.0], [15, 0xffe6cc, 0.95, 0.64, 0x6a777b, 0xffffff, 1.0], [18, 0xffa060, 0.75, 0.6, 0x3e3538, 0xf2c8a8, 0.78],
+  [20, 0x9ab0d8, 0.32, 0.75, 0x10141a, 0x6a7ea8, 0.27], [24, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25]
+];
+const _c1 = new THREE.Color(), _c2 = new THREE.Color(), amb = [1, 1, 1];
+let curDark = 0;
+function lightAt(h) {
+  let k = 0; while (k < DAY.length - 2 && DAY[k + 1][0] <= h) k++;
+  const a = DAY[k], b = DAY[k + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1), lerp = (u, v) => u + (v - u) * t;
+  _c1.setHex(a[1]).lerp(_c2.setHex(b[1]), t); sun.color.copy(_c1);
+  sun.intensity = lerp(a[2], b[2]); hemi.intensity = lerp(a[3], b[3]);
+  _c1.setHex(a[4]).lerp(_c2.setHex(b[4]), t); scene.background.copy(_c1); scene.fog.color.copy(_c1);
+  _c1.setHex(a[5]).lerp(_c2.setHex(b[5]), t); const lv = lerp(a[6], b[6]);
+  amb[0] = _c1.r * lv; amb[1] = _c1.g * lv; amb[2] = _c1.b * lv;
+  return 1 - clamp((lv - 0.25) / (1 - 0.25), 0, 1);
+}
+// time of day: sun, ambient, window glow, the clock, bugs and mist
+function updateDayNight(rdt) {
+  const h = state === 'title' ? 18.2 : tod;
+  curDark = lightAt(h);
+  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(camTarget.x - Math.cos(a) * 20, 6 + el * 18, camTarget.z + 8); }
+  else sun.position.set(camTarget.x + 10, 22, camTarget.z - 6);
+  sun.target.position.copy(camTarget);
+  LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? S.nightVis * curDark * 0.16 : 0));
+  openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
+  paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });
+  if (state !== 'title') {
+    const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10;
+    setT('clock', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${curDark > 0.6 ? 'Night' : tod > 4 && tod < 12 ? 'Morning' : curDark > 0.15 ? 'Dusk' : 'Day'}`);
+    $('dialHand').setAttribute('transform', `rotate(${(tod / 24 * 360 - 180).toFixed(1)})`);
+    $('dialOrb').style.fill = curDark > 0.5 ? '#cfd8ea' : '#f0bf4c';
+  }
+  stepAtmos(rdt);
+  // fireflies
+  fireflies.m.opacity = Math.max(0, curDark - 0.4) * 1.3 * (0.75 + Math.sin(performance.now() / 300) * 0.25);
+  if (fireflies.m.opacity > 0.01) {
+    const t = performance.now() / 1000;
+    fireflies.seed.forEach((s, k) => { fireflies.pos[k * 3] = s.x + Math.sin(t * s.s + s.p) * 1.2; fireflies.pos[k * 3 + 1] = s.y + Math.sin(t * s.s * 1.7 + s.p) * 0.3; fireflies.pos[k * 3 + 2] = s.z + Math.cos(t * s.s * 0.8 + s.p) * 1.2; });
+    fireflies.pts.geometry.attributes.position.needsUpdate = true;
+  }
+  moths.m.opacity = clamp((curDark - 0.3) * 1.8, 0, 0.9);
+  if (moths.m.opacity > 0.01) {
+    const t = performance.now() / 1000;
+    moths.seed.forEach((s, k) => {
+      const a = s.p + t * s.s, wob = 1 + 0.35 * Math.sin(t * s.w + s.p);
+      moths.pos[k * 3] = s.c[0] + Math.cos(a) * s.r * wob + Math.sin(t * 11 + k) * 0.03;
+      moths.pos[k * 3 + 1] = s.c[1] + s.y + Math.sin(t * s.w * 1.3 + k) * 0.12;
+      moths.pos[k * 3 + 2] = s.c[2] + Math.sin(a) * s.r * wob + Math.cos(t * 13 + k) * 0.03;
+    });
+    moths.pts.geometry.attributes.position.needsUpdate = true;
+  }
+}

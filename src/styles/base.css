@@ -1,0 +1,18 @@
+/* Colour tokens, fonts, page and canvas basics. */
+/* Layout: full-bleed 3D field, HUD set straight on the picture in the four corners, paper index cards for upgrades */
+:root{
+  --ink:#ece6d8; --dim:#a39e90; --orange:#d8692c; --blood:#a3281c; --night:#15191b; --gold:#f0bf4c;
+  --card:#e6decb; --card-ink:#28231e; --rule:#b4473a;
+  --f-num:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
+  --f-ui:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --f-type:"Special Elite","Courier New",Courier,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--f-ui);font-size:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
+body.playing #c{cursor:none}
+.hud{position:fixed;z-index:2;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.5)}
+.lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.big{font-family:var(--f-num);font-weight:800;line-height:.85;font-variant-numeric:tabular-nums}

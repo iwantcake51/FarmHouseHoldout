@@ -1,0 +1,7 @@
+// Game state shared by every system: screen state, wave phase, timers, camera kick, time of day.
+
+let state = 'title', phase = 'break';
+let camRoll = 0, slowHold = 0, slowIn = 0, slowTo = 1;
+const camKick = { x: 0, z: 0 };
+let breakT = 0, clearT = 0, spawnQ = [], spawnT = 0, flowT = 0, boardT = 0, groanT = 3, shake = 0, hurtFx = 0, bloom = 0, gunGlow = 0, lmT = 0;
+let tod = 15;

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kessler Farm</title>
+<meta name="description" content="Farmhouse Holdout: an isometric zombie survival roguelike. Board up the Kessler farmhouse and survive as long as you can.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Saira+Extra+Condensed:wght@600;800&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="./game.css">
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="Game view"></canvas>
+<div id="hurt"></div><div id="conc"></div><div id="filmVig"></div><div id="healVig"></div><div id="adsVig"></div><div id="slowmo"></div>
+
+<div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
+  <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
+    <line class="rt" x1="-100" y1="0" x2="-34" y2="0"></line><line class="rt" x1="34" y1="0" x2="100" y2="0"></line><line class="rt" x1="0" y1="34" x2="0" y2="100"></line>
+    <line class="rl" x1="-34" y1="0" x2="-3" y2="0"></line><line class="rl" x1="3" y1="0" x2="34" y2="0"></line><line class="rl" x1="0" y1="-100" x2="0" y2="-3"></line><line class="rl" x1="0" y1="3" x2="0" y2="34"></line>
+    <circle class="rd" cx="-12" cy="0" r="0.9"></circle><circle class="rd" cx="-24" cy="0" r="0.9"></circle><circle class="rd" cx="12" cy="0" r="0.9"></circle><circle class="rd" cx="24" cy="0" r="0.9"></circle>
+    <circle class="rd" cx="0" cy="12" r="0.9"></circle><circle class="rd" cx="0" cy="24" r="0.9"></circle>
+    <circle class="rc" r="0.9"></circle>
+    <text id="scopeRng" class="rng" x="40" y="-6"></text>
+  </svg>
+</div>
+<div id="xh" hidden>
+  <svg width="160" height="160" viewBox="-80 -80 160 160" aria-hidden="true">
+    <circle id="xhSpread" class="spread" r="12"></circle>
+    <circle id="xhAmmoBg" class="ammoBg" r="30" transform="rotate(-42)"></circle>
+    <circle id="xhAmmo" class="ammo" r="30" transform="rotate(-42)"></circle>
+    <circle id="xhReload" class="reload" r="30" transform="rotate(-42)" stroke-dasharray="0 999"></circle>
+    <circle id="xhGl" class="gl" r="36" transform="rotate(138)" stroke-dasharray="0 999"></circle>
+    <g id="xhTicks">
+      <g id="tk0"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
+      <g id="tk1"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
+      <g id="tk2"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
+      <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
+    </g>
+    <g id="xhMelee" hidden>
+      <circle class="mShade" r="13"></circle>
+      <circle class="mRing" r="13" stroke-dasharray="14.4 6"></circle>
+      <circle id="xhSwing" class="mReady" r="19" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
+      <path id="xhChev" class="mChev" d="M-5 -24 L0 -19 L5 -24"></path>
+      <circle class="mDot" r="2.8"></circle>
+      <circle id="xhStamBg" class="stBg" r="30" transform="rotate(138)"></circle>
+      <circle id="xhStam" class="st" r="30" transform="rotate(138)"></circle>
+    </g>
+    <circle id="xhDot" class="dot" r="1.7"></circle>
+    <g id="xhHit" opacity="0">
+      <line class="hit" x1="-7" y1="-7" x2="-14" y2="-14"></line><line class="hit" x1="7" y1="-7" x2="14" y2="-14"></line>
+      <line class="hit" x1="-7" y1="7" x2="-14" y2="14"></line><line class="hit" x1="7" y1="7" x2="14" y2="14"></line>
+    </g>
+  </svg>
+  <div id="ammoWarn" hidden onanimationend="if(event.animationName==='awKick')this.classList.remove('kick')"></div>
+</div>
+
+<div id="scrim"></div>
+<div class="hud" id="waveBox" hidden>
+  <svg id="dial" width="66" height="66" viewBox="-33 -33 66 66" aria-hidden="true">
+    <circle class="rim" r="30"></circle>
+    <path id="dialDay" class="day"></path><path id="dialNight" class="night"></path>
+    <g id="dialTicks"></g>
+    <g id="dialHand"><line class="hand" x1="0" y1="0" x2="0" y2="-19"></line><circle id="dialOrb" class="orb" cx="0" cy="-23" r="3.2"></circle></g>
+    <circle r="2" fill="#ece6d8"></circle>
+  </svg>
+  <div class="wv">
+    <div class="lbl">Wave</div>
+    <div class="big" id="wNum">01</div>
+    <div id="wSub"></div>
+    <div class="lbl" id="clock"></div>
+  </div>
+</div>
+<div class="hud" id="moodles" hidden></div>
+<div class="hud" id="vitals" hidden>
+  <div class="hpRow"><span class="big" id="hpTxt">100</span><svg id="ecg" viewBox="0 0 150 34" preserveAspectRatio="none" aria-hidden="true"><polyline id="ecgLine" points=""></polyline></svg></div>
+  <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
+  <div id="stamBar"><i id="stamFill"></i></div>
+  <div class="res">
+    <span title="Planks"><svg viewBox="0 0 24 24"><path d="M3 8l17-4 1 4-17 4zM3 15l17-4 1 4-17 4z"></path></svg><b id="planks">6</b></span>
+    <span title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="scrap">0</b></span>
+    <span title="Bandages (H to use)" class="bandRes"><svg viewBox="0 0 24 24"><path d="M5 15l10-10a3 3 0 0 1 4 4L9 19a3 3 0 0 1-4-4zM10 10l4 4M9 13l1 1M12 9l1 1M11 12l1 1"></path></svg><b id="bands">0</b></span>
+    <span title="Kills"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.4 4 2.5 4.8V18h9v-3.2C17.6 14 19 12.6 19 10a7 7 0 0 0-7-7zM9.5 11h.01M14.5 11h.01M10 18v3M14 18v3"></path></svg><b id="kills">0</b></span>
+  </div>
+</div>
+<div class="hud" id="arms" hidden>
+  <div id="reloadTag"></div>
+  <div id="wMods"></div>
+  <div id="wName">9mm pistol</div>
+  <div class="ammoRow"><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div id="rounds"></div>
+  <div class="slots" id="slots"></div>
+</div>
+<div class="hud" id="feed"></div>
+<div class="hud" id="station" hidden>
+  <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="stScrap">0</b></div></div>
+  <div id="stRows"></div>
+  <div class="note">Press 1–4 or click a card · E to step away</div>
+</div>
+<div class="hud" id="prompt" hidden><div id="pRows"></div><div id="promptBar"><i></i></div></div>
+<div class="hud" id="toast" style="opacity:0"></div>
+<div class="hud" id="announce" style="opacity:0"><div id="annBig"></div><div id="annSmall"></div></div>
+
+<div id="touch" hidden>
+  <div class="stick" id="stickL" hidden><i></i></div>
+  <div class="stick" id="stickR" hidden><i></i></div>
+  <div class="tbtns">
+    <button type="button" id="tbClimb">Climb</button>
+    <button type="button" id="tbBoard">Board</button>
+    <button type="button" id="tbReload">Reload</button>
+    <button type="button" id="tbAlt">Grenade</button>
+    <button type="button" id="tbSwap">Swap</button>
+    <button type="button" id="tbWave">Start wave</button>
+  </div>
+</div>
+
+<div class="screen" id="title">
+  <div class="inner">
+    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky · Night 1</div>
+    <h1>Kessler Farm</h1>
+    <div class="story">
+      <p>Forty acres of soybean and rust off Route 9, three miles outside Ashby Hollow, Kentucky. The radio stopped making sense on Tuesday. By Thursday the Kesslers were gone, and the people who used to wave from passing trucks had started walking the fence line instead.</p>
+      <p>Board up. Prepare for the horde. Survive as long as you can.</p>
+    </div>
+    <p class="brief">Zombies drop scrap; the workbench turns it into ammo and mods. Survive a wave and you take one find: a better gun, a mod for what you carry, or something to keep you breathing. When you die, the farm is theirs.</p>
+    <div class="ctrls">
+      <kbd>W A S D</kbd><span>Walk in eight directions</span>
+      <kbd>Mouse</kbd><span>Aim, hold the left button to fire</span>
+      <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
+      <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
+      <kbd>H</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
+      <kbd>Hold F</kbd><span>Board up a door or window you are standing at</span>
+      <kbd>Space</kbd><span>Climb through an open window</span>
+      <kbd>E</kbd><span>Use the workbench, sawhorse, medicine cabinet or radio</span>
+      <kbd>Hold right click</kbd><span>Aim down the sights: half the spread, but you move slower. Scoped rifles look through the scope instead</span>
+      <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
+      <kbd>Wheel</kbd><span>Zoom in and out</span>
+      <kbd>Enter</kbd><span>Start the next wave early</span>
+      <kbd>Esc</kbd><span>Pause</span>
+    </div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run</button><span class="note" id="best"></span></div>
+  </div>
+</div>
+
+<div class="screen" id="upgrade" hidden>
+  <div class="wrap">
+    <div class="eyebrow" id="upEyebrow">Wave cleared</div>
+    <h3>Take one</h3>
+    <div id="cards"></div>
+    <div class="note" id="upNote">Click a card or press 1, 2 or 3</div>
+    <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
+  </div>
+</div>
+
+<div class="screen" id="paused" hidden>
+  <div class="inner">
+    <div class="eyebrow">Paused</div>
+    <h2>Catch your breath</h2>
+    <div class="histHead"><span>Your upgrades</span><b id="pHistN">0</b></div>
+    <div class="hist" id="pHist"></div>
+    <div class="btns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
+  </div>
+</div>
+
+<div class="screen" id="dead" hidden>
+  <div class="inner">
+    <div class="eyebrow">The house fell</div>
+    <h2 id="deadTitle">Dead on wave 1</h2>
+    <div class="tally" id="deadStats"></div>
+    <div class="btns"><button class="btn" id="againBtn" type="button">New run</button><span class="note" id="deadBest"></span></div>
+  </div>
+</div>
+<script src="./vendor/three.min.js"></script>
+<script src="./game.js"></script>
+</body>
+</html>

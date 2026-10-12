@@ -1,0 +1,32 @@
+// Fading wall faces and the roof so you can see inside.
+
+const SQ = Math.SQRT1_2, latOf = (x, z) => SQ * (x - z);
+const HLAT = [latOf(HOUSE.x0, HOUSE.z1), latOf(HOUSE.x1, HOUSE.z0)];
+function faceCut() {
+  // a wall face fades only if the line from you toward the camera actually passes through it
+  const c = { N: false, S: false, E: false, W: false };
+  if (state === 'title') return c;
+  const d = SQ, m = 0.7, maxT = 7.5;
+  const hitX = xw => { const t = (xw - P.x) / d; if (t < 0.05 || t > maxT) return false; const z = P.z + d * t; return z > HOUSE.z0 - m && z < HOUSE.z1 + m; };
+  const hitZ = zw => { const t = (zw - P.z) / d; if (t < 0.05 || t > maxT) return false; const x = P.x + d * t; return x > HOUSE.x0 - m && x < HOUSE.x1 + m; };
+  c.E = hitX(HOUSE.xE); c.W = hitX(HOUSE.xW); c.S = hitZ(HOUSE.zS); c.N = hitZ(HOUSE.zN);
+  return c;
+}
+// roof and wall-face fading so you can see inside
+function updateCutaway(rdt) {
+  const fc = faceCut();
+  // roof: off when you're indoors or tucked behind the house, back on outside
+  {
+    const inside = P.x > HOUSE.x0 + 0.35 && P.x < HOUSE.x1 - 0.35 && P.z > HOUSE.z0 + 0.35 && P.z < HOUSE.z1 - 0.35;
+    const want = state === 'title' ? 1 : inside || fc.N || fc.W ? 0 : 1;
+    roof.op += (want - roof.op) * Math.min(1, rdt * 7); if (Math.abs(want - roof.op) < 0.004) roof.op = want;
+    roof.g.visible = roof.op > 0.01;
+    const lv = Math.max(amb[0], amb[1], amb[2]);
+    roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.98; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
+    roof.g.traverse(o => { if (o.isMesh) o.castShadow = roof.op > 0.5; });
+  }
+  for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
+  projV.set(P.x, 1.0, P.z).project(cam);
+  LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);
+  LMU.uRad.value = 150 * zoom * renderScale;
+}

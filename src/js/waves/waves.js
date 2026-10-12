@@ -1,0 +1,44 @@
+// Wave building, spawning schedule, breaks and wave clear.
+
+function buildWave(n) {
+  const count = 5 + Math.round(n * 3.4), list = [];
+  for (let k = 0; k < count; k++) {
+    const r = rand(); let t = 'walker';
+    if (n >= 3 && r < Math.min(0.32, 0.1 + n * 0.025)) t = 'runner';
+    else if (n >= 5 && r > 1 - Math.min(0.14, 0.03 + n * 0.011)) t = 'brute';
+    list.push(t);
+  }
+  if (n % 5 === 0) list.push('brute', 'brute');
+  return list;
+}
+function startWave() {
+  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false;
+  closeStation();
+  const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
+  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' in the dark'));
+  SFX.wave();
+}
+function beginBreak(t) { phase = 'break'; breakT = t; }
+function waveCleared() { phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn = 0.4; slowHold = 1.0; announce('Wave ' + run.wave + ' cleared', 'Grab what they dropped'); SFX.cleared(); }
+// zombie path field, break timer, spawning and wave clear. Returns true when the upgrade screen opens
+function updateWaves(dt) {
+  flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
+
+  if (phase === 'break') {
+    breakT -= dt;
+    setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>Enter</kbd> to start now`);
+    if (breakT <= 0) startWave();
+  } else if (phase === 'wave') {
+    spawnT -= dt;
+    if (spawnQ.length && spawnT <= 0 && zombies.length < 40) { spawnZombie(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4); }
+    const left = spawnQ.length + zombies.length;
+    setH('wSub', left + (left === 1 ? ' zombie left' : ' zombies left'));
+    if (!spawnQ.length && !zombies.length && !P.dead) waveCleared();
+  } else if (phase === 'cleared') {
+    setH('wSub', 'Wave cleared');
+    clearT -= dt / Math.max(timeScale, 0.3);
+    if (clearT <= 0) { openUpgrade(); return true; }
+  }
+
+  return false;
+}

@@ -1,0 +1,149 @@
+# Farmhouse Holdout
+
+An isometric zombie survival roguelike that runs in the browser, built with three.js.
+
+*Kessler Farm. Board up. Prepare for the horde. Survive as long as you can.*
+
+## Quick start
+
+You need [Node.js](https://nodejs.org) 18 or newer.
+
+```bash
+npm install
+npm run dev      # plays at http://localhost:5173 and rebuilds every time you save a file
+npm run build    # production build into dist/
+```
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Readable build plus a local server. Save any file in `src/` and refresh the browser. |
+| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`. |
+| `npm run build:dev` | Same files as `build`, but not minified and with a `// ==== path` banner before each source file, so errors point at the right file. |
+
+Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection.
+
+## Deploying to Netlify
+
+1. In Netlify, choose **Add new site → Import an existing project** and pick this repository.
+2. Leave the settings as they are. `netlify.toml` already sets the build command (`npm run build`), the publish folder (`dist`) and Node 20.
+3. Every push to `main` deploys automatically.
+
+## Where everything lives
+
+```
+src/
+  index.html          page markup: HUD, menus, station panel, touch buttons
+  styles/             CSS, one file per part of the screen (index.css imports them all)
+  js/
+    load-order.json   the order the game files are joined in (see "How the code fits together")
+    core/             renderer, camera, shader patch, maths and geometry helpers
+    world/            the map: grid, ground, house, fence, trees, props, collision, wall cut-away
+    lighting/         light map, day/night cycle, fixed lights, fog of war
+    characters/       the blocky human rig the player and zombies share
+    player/           player state, movement, aiming, vaulting, bandages, gear, animation
+    weapons/          guns: stats, models, attachments, mods, firing, reloading, casings, explosives
+    melee/            melee weapons: stats, models, mods, swinging, stamina, swing trail
+    zombies/          zombie types, spawning, AI, pathfinding, damage, death falls
+    waves/            how each wave is built and scheduled
+    upgrades/         upgrade cards, gun and character tiers, the pick-a-card screen
+    stations/         workbench, sawhorse, medicine cabinet, radio, supply drops
+    barricades/       boarding doors and windows
+    pickups/          ammo, scrap, medkits and other drops
+    effects/          blood, particles, smoke, tracers, muzzle flash, outlines
+    ui/               HUD, crosshair, health line, status icons, rounds display, menus
+    audio/            every sound, synthesized with Web Audio (there are no sound files)
+    input/            keyboard, mouse and touch controls
+    game/             shared state, the update and draw order, camera, main loop
+tools/build.mjs       the build script
+netlify.toml          Netlify settings
+```
+
+Every source file starts with a one-line comment saying what is in it.
+
+## Where to change things
+
+| To change | Edit |
+| --- | --- |
+| Gun damage, fire rate, magazine, reload, spread, recoil, starting ammo | `src/js/weapons/gun-stats.js` |
+| Damage drop-off with range, ammo drop amounts | `src/js/weapons/ammo.js` |
+| Gun 3D models | `src/js/weapons/gun-models.js` |
+| Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
+| Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
+| Melee damage, swing speed, reach, knockback | `src/js/melee/melee-stats.js` |
+| Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
+| Stamina cost and swing slowdown | `src/js/melee/melee.js` |
+| Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
+| Zombie behaviour | `src/js/zombies/ai.js` |
+| How many zombies come each wave, and which types | `src/js/waves/waves.js` |
+| Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
+| Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
+| What each station sells, and the prices | `src/js/stations/recipes.js` |
+| Bandage count, time and healing | `src/js/player/bandages.js` |
+| Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
+| Aiming down sights and zoom | `src/js/player/aiming.js` |
+| Sounds | `src/js/audio/sfx.js` |
+| Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
+| Day length and night colours | `src/js/lighting/day-night.js` |
+| House layout | `src/js/world/house.js` |
+| HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
+
+### Adding a new gun
+
+1. Add its stats to `GUN_WEAPONS` in `weapons/gun-stats.js`. Give it a `rar` (`'c'` common, `'u'` uncommon, `'r'` rare, `'e'` epic, `'l'` legendary) and a `desc`, and it appears as an upgrade card automatically.
+2. Add a model builder with the same id to `GUN_MODELS` in `weapons/gun-models.js`. Copying the closest existing gun is the easiest start.
+3. Optional: give it a range drop-off in `FALLOFF` (`weapons/ammo.js`) and an ejection style in `EJECT` (`weapons/casings.js`).
+4. Optional: add mods for it in `weapons/gun-mods.js` with `w: '<your gun id>'`.
+
+Adding a melee weapon works the same way, using `melee/melee-stats.js` and `melee/melee-models.js`.
+
+## How the code fits together
+
+The game is plain browser JavaScript with no framework. The build joins every file listed in `src/js/load-order.json`, in that order, and wraps them in one function. So:
+
+- All files share one scope. Any file can use a function or constant from any other file without importing it.
+- Function declarations work from anywhere, whatever the order.
+- Order matters only for code that runs straight away at the top level, such as building the world or creating a material that another file uses at load time. If you see `Cannot access 'X' before initialization`, move the file that defines `X` higher in `load-order.json`.
+- A new `.js` file must be added to `load-order.json`. The build stops with a message naming any file you forgot.
+
+Each frame, `game/loop.js` calls `update(dt)` in `game/update.js` (the simulation, one system after another) and then `visuals(dt)` in `game/visuals.js` (animation, camera, lighting, effects and HUD). Those two files list every system in the order it runs, so they are a good place to start reading.
+
+Shared state:
+
+| Name | Holds | Defined in |
+| --- | --- | --- |
+| `P` | the player | `player/player.js` |
+| `S` | your character's upgrade stats | `game/run-state.js` |
+| `W8` | weapons you carry, ammo, mods, per-gun tiers | `game/run-state.js` |
+| `run` | the current run: wave, score, time | `game/run-state.js` |
+| `zombies`, `ragdolls` | live zombies, and bodies that are falling | `zombies/zombie-types.js`, `zombies/deaths.js` |
+| `state`, `phase` | which screen is showing, wave or break | `game/state.js` |
+
+## Performance
+
+- **One bundle.** The production build is a single minified `game.js` (about 180 KB) and one `game.css`. three.js ships as its own file and is cached for a year.
+- **Adaptive resolution.** The game measures frame time and lowers or raises the render resolution between 1× and your screen's pixel ratio to keep the frame rate smooth (`game/loop.js`).
+- **Vision caching.** Line of sight is recomputed only when you move, turn far enough or a board changes, and at most every 0.6 seconds otherwise (`lighting/vision.js`).
+- **Light map instead of real lights.** Lamps, fires and muzzle flashes are painted into one small light texture each frame instead of using many three.js lights (`lighting/lightmap.js`).
+- **Pooling and instancing.** Particles, casings, tracers and blood decals reuse fixed pools, and trees, grass, bushes, rocks and fence posts are instanced meshes, so long fights don't create garbage or extra draw calls.
+- **Cached geometry.** Box shapes are shared through a cache instead of being created per part (`core/geometry.js`).
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| W A S D | Walk in eight directions |
+| Mouse | Aim; hold the left button to fire or swing |
+| Hold right click | Aim down the sights (scoped rifles look through the scope) |
+| 1 2 3 4 | Melee, sidearm, long gun, automatic |
+| R | Reload |
+| H | Apply a bandage |
+| Hold F | Board up the door or window you are standing at |
+| Space | Climb through an open window or hop a fence |
+| E | Use the workbench, sawhorse, medicine cabinet or radio |
+| G | Underbarrel grenade, once you have one |
+| V | Switch fire mode on guns with a burst or fanning mod |
+| Wheel, + and − | Zoom in and out |
+| Enter | Start the next wave early |
+| Esc or P | Pause |
+
+Touch screens get twin sticks and on-screen buttons.

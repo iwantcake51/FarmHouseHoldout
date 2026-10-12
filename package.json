@@ -1,0 +1,21 @@
+{
+  "name": "farmhouse-holdout",
+  "version": "1.0.0",
+  "description": "An isometric zombie survival roguelike in the browser. Board up the Kessler farmhouse and survive as long as you can.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/build.mjs --serve",
+    "build": "node tools/build.mjs",
+    "build:dev": "node tools/build.mjs --dev"
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.23.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
