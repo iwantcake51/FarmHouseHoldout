@@ -10,6 +10,7 @@ addEventListener('keydown', e => {
   if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') setState('paused'); else if (state === 'paused') setState('play'); return; }
   // T starts the run from the title, a new run from the death screen, and the next wave during a break
   if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { newRun(); return; }
+  if (k === 'm' && !e.repeat && state === 'dead') { backToMenu(); return; }
   if (state !== 'play') return;
   if (e.repeat && k !== 'f') return;
   keys.add(k);
@@ -21,7 +22,7 @@ addEventListener('keydown', e => {
   if (k === 'h') throwGrenade();
   if (k === 'v' && state === 'play') {
     const id = curId(), fm = (W8.mods[id] || []).map(m => MODS[m]).find(m => m.fm);
-    if (fm) { W8.semi[id] = !W8.semi[id]; W8.burstLeft = 0; recomputeEff(); SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(W8.semi[id] ? (id === 'revolver' ? 'Aimed shots' : 'Single shots') : fm.fm); }
+    if (fm) { W8.semi[id] = !W8.semi[id]; W8.burstLeft = 0; recomputeEff(); SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(W8.semi[id] ? (id === 'revolver' ? 'Aimed shots' : 'Single shots') : fm.fm, { kind: 'info', icon: 'gear', sub: 'Fire mode · V to switch' }); }
   }
   if (['1', '2', '3', '4'].includes(k)) equip(SLOTS[+k - 1]);
   if (k === 't' && phase === 'break') breakT = 0;

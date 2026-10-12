@@ -10,7 +10,7 @@ const SFX = {
   swing() { nz(0.2, 'bandpass', 500, 2600, 0.3, 2); },
   tick() { tn(0.035, 'square', 2300, 1900, 0.07); nz(0.05, 'lowpass', 900, 200, 0.26); tn(0.06, 'sine', 160, 70, 0.2); },
   headHit() { tn(0.05, 'triangle', 1700, 1100, 0.09); nz(0.04, 'bandpass', 2600, 1400, 0.14, 3); },
-  shove() { nz(0.14, 'bandpass', 420, 1500, 0.3, 1.3); },
+  shove(stab) { nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
   kill() { tn(0.16, 'sine', 120, 40, 0.55); nz(0.12, 'lowpass', 1400, 160, 0.4); tn(0.05, 'square', 1500, 900, 0.05); },
   sever() { nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },

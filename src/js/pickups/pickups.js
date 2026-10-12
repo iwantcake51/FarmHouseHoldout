@@ -71,7 +71,7 @@ function updatePickups(dt) {
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies; it never heals you on the spot
     const bagFull = (P.band || 0) >= BAND_MAX;
-    if (p.kind === 'med' && bagFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Your bandage bag is full (' + BAND_MAX + '/' + BAND_MAX + ').'); } }
+    if (p.kind === 'med' && bagFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Bandage bag full', { kind: 'warn', icon: 'med', sub: BAND_MAX + '/' + BAND_MAX + ' · press G to use one' }); } }
     else if (d < 0.9) {
       let ft = '';
       if (p.kind === 'planks') { const n = 1 + (rand() < 0.4 ? 1 : 0); S.planks += n; feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }

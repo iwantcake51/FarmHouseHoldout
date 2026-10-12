@@ -62,10 +62,17 @@ function animatePlayer(dt, rdt) {
   }
   pm.lower.rotation.y = ANIM.legYaw;
   const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF);
+  ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 4);
   if (P.vault) {
-    const t = Math.min(1, P.vault.t), hop = Math.sin(t * Math.PI);
-    pm.g.position.y = hop * 0.75; pm.g.rotation.x = -hop * 0.45;
-    pm.legL.rotation.x = -hop * 1.3; pm.legR.rotation.x = -hop * 0.7; pm.lower.rotation.y = 0;
+    const v = P.vault, t = Math.min(1, v.t), hop = Math.sin(t * Math.PI), c = v.t > 0 ? 0 : smooth(clamp(v.pre / v.preDur, 0, 1));
+    // crouch and lean in to load the jump (c), then the hop tucks the legs up and over (hop)
+    pm.g.position.y = hop * 0.78 - c * 0.16; pm.g.rotation.x = -hop * 0.45 + c * 0.32;
+    pm.legL.rotation.x = -hop * 1.3 - c * 0.7; pm.legR.rotation.x = -hop * 0.7 + c * 0.5; pm.lower.rotation.y = 0;
+  } else if (ANIM.land > 0) {
+    // landing: knees give and the body dips forward, then springs back up
+    const k = Math.sin(ANIM.land * Math.PI * 0.5);
+    pm.g.position.y = -k * 0.13; pm.g.rotation.x = k * 0.22;
+    pm.legL.rotation.x = -k * 0.55; pm.legR.rotation.x = k * 0.35; pm.lower.rotation.y = ANIM.legYaw;
   } else {
     pm.legL.rotation.x = ANIM.legDir * s * stride;
     pm.legR.rotation.x = -ANIM.legDir * s * stride * (1 - limp * 0.7);   // the bad leg hardly swings
@@ -163,14 +170,21 @@ function animatePlayer(dt, rdt) {
     pm.armR.rotation.set(0.55 + Math.sin(bt * 9) * 0.18, -0.6 + Math.cos(bt * 9) * 0.25, 0);
     urx += 0.18; pm.head.rotation.x = 0.35;
   }
-  // shove: lean in and drive both arms (and whatever is in them) straight out
-  ANIM.shove = Math.max(0, (ANIM.shove || 0) - rdt * 3.6);
-  if (ANIM.shove > 0 && !P.bandT) {
-    const k = Math.sin((1 - ANIM.shove) * Math.PI), q = Math.min(1, k * 1.6);
-    pm.armL.rotation.set(pm.armL.rotation.x * (1 - q) - 0.08 * q, pm.armL.rotation.y * (1 - q) + 0.12 * q, 0); pm.armL.position.z = 0.16 * k;
-    pm.armR.rotation.set(pm.armR.rotation.x * (1 - q) - 0.08 * q, pm.armR.rotation.y * (1 - q) - 0.12 * q, 0); pm.armR.position.z = 0.16 * k;
-    const gg = gunMeshes[W8.cur]; if (gg && !D.melee) gg.position.z += 0.16 * k;
-    urx += 0.32 * k; ury *= 1 - q;
+  // shove: load up (pull the arms in, twist back), drive out hard with a half step, then ease back to the guard
+  const sv = P.shove && !P.bandT ? P.shove : null;
+  ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
+  if (sv) {
+    const p = clamp(sv.t / SHOVE_DUR, 0, 1), WP = [0.38, -0.1, -0.2, 0.28], SP = [-0.14, 0.26, 0.46, -0.14];
+    let pose, q;
+    if (p < 0.2) { const w = smooth(p / 0.2); pose = WP.map(v => v * w); q = w; }
+    else if (p < 0.36) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.16, 3); pose = WP.map((v, i) => v + (SP[i] - v) * e); q = 1; }
+    else { const r = 1 - smooth((p - 0.36) / 0.64); pose = SP.map(v => v * r); q = r; }
+    const [ax, pz, lean, tw] = pose, jolt = ANIM.shoveHit * 0.08;
+    pm.armL.rotation.set(pm.armL.rotation.x * (1 - q) + ax * q, pm.armL.rotation.y * (1 - q) + 0.14 * q, 0); pm.armL.position.z = pz + jolt;
+    pm.armR.rotation.set(pm.armR.rotation.x * (1 - q) + ax * q, pm.armR.rotation.y * (1 - q) - 0.14 * q, 0); pm.armR.position.z = pz + jolt;
+    const gg = gunMeshes[W8.cur]; if (gg && !D.melee) gg.position.z += pz + jolt;
+    urx += lean - jolt; ury = ury * (1 - q) + tw;
+    const step = Math.max(0, lean) / 0.46; pm.legL.rotation.x -= 0.45 * step; pm.legR.rotation.x += 0.3 * step;
   } else pm.armR.position.z = 0;
   pm.upper.rotation.set(urx, ury, urz);
 }
@@ -182,6 +196,7 @@ function updatePlayerVisuals(dt, rdt) {
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.004); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
   for (const m of charBlood) m.visible = (P.blood || 0) > m.userData.th;
+  bandRolls.forEach((m, k) => { m.visible = k < (P.band || 0); });
   { const g = gunMeshes[W8.cur]; if (g && g.userData.blood) { const lv = W8.bloodW[g.userData.bloodId] || 0; for (const m of g.userData.blood) m.visible = lv > m.userData.th; } }
   flashT -= rdt; if (flashT <= 0) flash.visible = false;
   else { const k = flashT / 0.055, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.42 * s1); flashStar.scale.setScalar(0.7 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.16 * s1, 1, 0.55 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }

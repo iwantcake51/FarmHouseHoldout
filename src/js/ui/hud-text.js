@@ -4,7 +4,12 @@ const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textConten
 const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
 const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
 let toastT = 0, annT = 0;
-function toast(t) { $('toast').textContent = t; $('toast').style.opacity = 1; toastT = 2.4; }
+// a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)
+function toast(t, opt) {
+  const o = opt || {}, el = $('toast');
+  $('toastT').textContent = t; $('toastS').textContent = o.sub || ''; $('toastIc').innerHTML = FEED_ICON[o.icon] || FEED_ICON.gear;
+  el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
+}
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
 // kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
 function announce(a, b, opt) {
@@ -62,6 +67,6 @@ function stepFloats(rdt) {
 }
 // toast and wave announcement timers
 function tickMessages(rdt) {
-  if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').style.opacity = 0; }
+  if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').classList.remove('show'); }
   if (annT > 0) { annT -= rdt; if (annT <= 0) { $('announce').style.opacity = 0; $('announce').classList.remove('show'); } }
 }

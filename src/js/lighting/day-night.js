@@ -1,9 +1,11 @@
 // Day/night cycle colours and the sun.
 
+// [hour, sun colour, sun strength, sky strength, background/fog, ambient colour, ambient level]
+// graded warm on purpose: honey afternoons, a long amber dusk, and nights that sit in plum and ember rather than cold blue
 const DAY = [
-  [0, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25], [4.5, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25], [6.5, 0xffad78, 0.6, 0.6, 0x3c4448, 0xe0c0b0, 0.7],
-  [9, 0xffe6cc, 0.95, 0.64, 0x6a777b, 0xffffff, 1.0], [15, 0xffe6cc, 0.95, 0.64, 0x6a777b, 0xffffff, 1.0], [18, 0xffa060, 0.75, 0.6, 0x3e3538, 0xf2c8a8, 0.78],
-  [20, 0x9ab0d8, 0.32, 0.75, 0x10141a, 0x6a7ea8, 0.27], [24, 0x9ab0d8, 0.3, 0.75, 0x0b0e12, 0x6a7ea8, 0.25]
+  [0, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27], [4.5, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27], [6.5, 0xffa070, 0.62, 0.6, 0x4a3a38, 0xf2c0a0, 0.72],
+  [9, 0xffdcae, 0.95, 0.64, 0x786e60, 0xfff0da, 1.0], [15, 0xffd6a4, 0.95, 0.64, 0x786a5c, 0xffeed4, 1.0], [18, 0xff8846, 0.8, 0.6, 0x4a302c, 0xffb48a, 0.8],
+  [20, 0xc4b2d6, 0.32, 0.75, 0x17100f, 0x8a7690, 0.29], [24, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27]
 ];
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), amb = [1, 1, 1];
 let curDark = 0;

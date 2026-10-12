@@ -42,7 +42,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
   if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.8;
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
-  const dealt = dmg * partMult(part);
+  const dealt = dmg * (part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   // brutes shrug hits off: no stagger, no knockback
   if (z.type !== 'brute') { z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18; z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }
@@ -95,13 +95,14 @@ function killZombie(z, dx, dz, wId, part, overkill) {
 function dmgNumber(z, dmg, head, y) {
   const now = performance.now();
   if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
-    z.dn.amt += dmg; z.dn.t0 = now; z.dn.el.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
+    z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
     if (head) z.dn.el.classList.add('head');
-    z.dn.el.classList.remove('bump'); void z.dn.el.offsetWidth; z.dn.el.classList.add('bump');
+    // the pop scales the inner number only: scaling the positioned element would scale its screen position too
+    z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
     return;
   }
-  const el = document.createElement('div'); el.className = 'float dmg' + (head ? ' head' : ''); el.textContent = Math.round(dmg);
+  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : ''); num.textContent = Math.round(dmg); el.appendChild(num);
   document.body.appendChild(el);
   const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
-  floats.push(f); z.dn = { el, f, amt: dmg, t0: now };
+  floats.push(f); z.dn = { el, num, f, amt: dmg, t0: now };
 }

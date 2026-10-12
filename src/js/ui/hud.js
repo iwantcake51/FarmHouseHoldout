@@ -20,12 +20,12 @@ function updateHUD(rdt, D) {
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
     setT('wNum', String(Math.max(1, run.wave)).padStart(2, '0'));
-    setT('hpTxt', String(Math.ceil(P.hp)));
+    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
     { const inc = Math.min(1 - hpF, (P.heal || 0) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     { const hv = Math.round(Math.min(1, (P.bandT > 0 ? 0.7 : 0) + Math.min(1, (P.heal || 0) / 12)) * 40) / 40; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
-    setT('bands', String(P.band || 0));
+    setT('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
     setT('planks', String(S.planks)); setT('kills', String(run.kills)); setT('scrap', String(S.scrap));
     // heartbeat: faster when hurt or pinned, flat when dead

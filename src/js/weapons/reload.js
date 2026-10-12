@@ -7,9 +7,9 @@ function equip(s) {
 }
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
-  const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault) return;
+  const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0) return;   // hands are busy with the bandage
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
-  if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left. Craft some at the workbench.'); return; }
+  if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) ejectCasing(D.ammo, n, 'dump'); else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   if (D.perShell) {

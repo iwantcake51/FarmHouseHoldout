@@ -10,8 +10,8 @@ R.setPixelRatio(renderScale);
 R.shadowMap.enabled = true;
 R.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1b2022);
-scene.fog = new THREE.Fog(0x1b2022, 42, 78);
+scene.background = new THREE.Color(0x1e1716);
+scene.fog = new THREE.Fog(0x1e1716, 42, 78);
 const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const VIEW = 9, YAW = Math.PI / 4, EL = 0.66, CAM_D = 40;
 const CAM_OFF = new V3(Math.sin(YAW) * Math.cos(EL) * CAM_D, Math.sin(EL) * CAM_D, Math.cos(YAW) * Math.cos(EL) * CAM_D);
@@ -26,7 +26,7 @@ function resize() {
 }
 addEventListener('resize', resize);
 resize();
-const hemi = new THREE.HemisphereLight(0xb9c3c8, 0x3b3426, 0.62);
+const hemi = new THREE.HemisphereLight(0xd8c8b0, 0x4a3426, 0.62);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffc89c, 0.85);
 sun.castShadow = true;

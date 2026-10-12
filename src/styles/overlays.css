@@ -5,8 +5,21 @@
 #prompt .off{color:var(--dim)}
 #promptBar{width:140px;height:3px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden}
 #promptBar i{display:block;height:100%;width:0;background:var(--orange);box-shadow:0 0 6px var(--orange)}
-#toast{left:50%;top:calc(14% + env(safe-area-inset-top,0px));transform:translateX(-50%);font-size:14px;letter-spacing:.06em;transition:opacity .4s;white-space:nowrap;
-  padding:6px 22px 5px;border-left:3px solid var(--orange);background:linear-gradient(90deg,rgba(10,12,13,.82),rgba(10,12,13,.62) 80%,transparent)}
+/* notification card: slides down into place, a coloured icon tile, title and hint, and a bar that runs out with it */
+#toast{--tc:#7f9cc9;left:50%;top:calc(13% + env(safe-area-inset-top,0px));transform:translate(-50%,-10px);opacity:0;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.9,.3,1.2);
+  display:flex;align-items:center;gap:12px;padding:8px 18px 9px 8px;min-width:230px;white-space:nowrap;overflow:hidden;text-shadow:none;
+  background:linear-gradient(90deg,rgba(14,15,16,.94),rgba(14,15,16,.86));border:1px solid rgba(236,230,216,.12);border-left:3px solid var(--tc);box-shadow:0 10px 28px -12px rgba(0,0,0,.9)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{--tc:#e2412c}#toast.warn{--tc:#e8b84a}#toast.good{--tc:#7fae5a}#toast.info{--tc:#7fa8d8}
+#toast .tIc{display:grid;place-items:center;width:32px;height:32px;flex:none;background:color-mix(in srgb,var(--tc) 18%,transparent);border:1px solid var(--tc)}
+#toast .tIc svg{width:18px;height:18px;fill:none;stroke:var(--tc);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+#toast .tTx{display:grid;gap:2px}
+#toast b{font-family:var(--f-num);font-weight:800;font-size:20px;letter-spacing:.05em;text-transform:uppercase;line-height:1;color:var(--ink)}
+#toast em{font-style:normal;font-size:11px;letter-spacing:.06em;color:var(--dim)}
+#toast em:empty{display:none}
+#toast .tBar{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--tc);opacity:.7;transform-origin:left center}
+#toast.show .tBar{animation:tBar 2.6s linear both}
+@keyframes tBar{to{transform:scaleX(0)}}
 
 /* wave card: eyebrow, a headline with a warm metallic fill, a rule that draws out from a diamond, and a subtitle ribbon */
 #announce{--ac:var(--orange);left:0;right:0;top:calc(19% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:6px;text-align:center;transition:opacity .7s ease,transform .7s ease;transform:translateY(-10px)}
@@ -34,7 +47,9 @@
 
 #slowmo{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at center,transparent 50%,rgba(20,32,44,.55) 100%)}
 #slowmo::before,#slowmo::after{content:"";position:absolute;left:0;right:0;height:calc(5.5vh * var(--bar,0));background:rgba(5,7,9,.85)}#slowmo::before{top:0}#slowmo::after{bottom:0}
-#filmVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 85% 80% at center,transparent 58%,rgba(8,9,10,.22) 100%)}
+#filmVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 85% 80% at center,transparent 58%,rgba(24,12,8,.3) 100%)}
+/* a soft warm grade over the whole picture: honey in the middle, a little ember at the edges */
+#warmGrade{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;background:radial-gradient(ellipse 90% 85% at 50% 45%,rgba(255,176,96,.32),rgba(255,140,70,.18) 55%,rgba(120,50,30,.32) 100%)}
 #adsVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 78% 72% at center,transparent 62%,rgba(6,7,8,.1) 80%,rgba(6,7,8,.26) 100%);opacity:0}
 #conc{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,250,235,.55),rgba(255,240,215,.2) 50%,rgba(40,30,25,.55) 100%);opacity:0}
 #conc.on{animation:concFx 2.8s ease-out}

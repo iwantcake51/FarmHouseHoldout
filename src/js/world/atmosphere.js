@@ -21,7 +21,9 @@ const motes = (() => {
 })();
 // low banks of mist that creep across the yard at night
 const mists = [];
-for (let k = 0; k < 16; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0x9fb0c0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6 }; scene.add(sp); mists.push(sp); }
+for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
+// the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
+const fogW = { lv: 0.3, to: 0.3, t: 20 };
 function stepAtmos(rdt) {
   const t = performance.now() / 1000, day = 1 - curDark;
   WIND.value = t * 1.6;
@@ -35,13 +37,20 @@ function stepAtmos(rdt) {
     }
     motes.pts.geometry.attributes.position.needsUpdate = true;
   }
-  const mo = state === 'title' ? 0.06 : Math.max(0, curDark - 0.35) * 0.16;
+  fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
+  fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
+  // thick fog pulls the distance haze in close and tints it with the sky
+  scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
+  const mo = state === 'title' ? 0.06 : (Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35));
   for (const sp of mists) {
     const u = sp.userData; sp.position.x += u.vx * rdt; sp.position.z += u.vz * rdt;
+    // each patch lives a while: it thickens out of nothing, hangs, thins away, and comes back somewhere else
+    u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(18, 34); sp.position.set(camTarget.x + rr(-20, 20), rr(0.25, 0.6), camTarget.z + rr(-20, 20)); }
+    const env = Math.sin(Math.PI * u.life / u.max);
     if (sp.position.x - camTarget.x > 22) sp.position.x -= 44; if (sp.position.x - camTarget.x < -22) sp.position.x += 44;
     if (sp.position.z - camTarget.z > 22) sp.position.z -= 44; if (sp.position.z - camTarget.z < -22) sp.position.z += 44;
     const inside = sp.position.x > HOUSE.x0 - 1 && sp.position.x < HOUSE.x1 + 1 && sp.position.z > HOUSE.z0 - 1 && sp.position.z < HOUSE.z1 + 1;
-    sp.material.opacity = inside ? 0 : mo * (0.7 + 0.3 * Math.sin(t * 0.2 + u.ph));
+    sp.material.opacity = inside ? 0 : mo * env * (0.7 + 0.3 * Math.sin(t * 0.2 + u.ph));
     sp.visible = sp.material.opacity > 0.005;
   }
 }

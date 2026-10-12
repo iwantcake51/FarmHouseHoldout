@@ -139,12 +139,13 @@ Shared state:
 | R | Reload |
 | G | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |
 | Hold F | Board up the door or window you are standing at |
-| Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you |
+| Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you (stabs with a bayonet fitted) |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
 | H | Underbarrel grenade, once you have one |
 | V | Switch fire mode on guns with a burst or fanning mod |
 | Wheel, + and − | Zoom in and out |
 | T | Start the run (also from the death screen), or the next wave early |
 | Esc or P | Pause |
+| M | Back to the main menu from the death screen |
 
 Touch screens get twin sticks and on-screen buttons.

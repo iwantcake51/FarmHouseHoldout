@@ -1,5 +1,6 @@
 // Fading wall faces and the roof so you can see inside.
 
+const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };   // flat direction from the scene toward the camera
 const SQ = Math.SQRT1_2, latOf = (x, z) => SQ * (x - z);
 const HLAT = [latOf(HOUSE.x0, HOUSE.z1), latOf(HOUSE.x1, HOUSE.z0)];
 function faceCut() {
@@ -36,5 +37,16 @@ function updateCutaway(rdt) {
   for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(P.x, 1.0, P.z).project(cam);
   LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);
+  LMU.uPZ.value = projV.z * 0.5 + 0.5 - 0.0015;   // your depth on screen, a little toward the camera so your own spot never cuts
+  // trees: fade in the cut while any pine stands between you and the camera
+  {
+    let want = 0;
+    if (state !== 'title') for (const t of TREES) {
+      const vx = t.x - P.x, vz = t.z - P.z, along = vx * TOWARD_CAM.x + vz * TOWARD_CAM.z;
+      if (along < -0.4 || along > 5.2 * t.s) continue;
+      if (Math.abs(vx * TOWARD_CAM.z - vz * TOWARD_CAM.x) < 1.25 * t.s) { want = 1; break; }
+    }
+    TREE_CUT.value += (want - TREE_CUT.value) * Math.min(1, rdt * 6); if (Math.abs(want - TREE_CUT.value) < 0.003) TREE_CUT.value = want;
+  }
   LMU.uRad.value = 150 * zoom * renderScale;
 }
