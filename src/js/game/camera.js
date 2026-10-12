@@ -1,6 +1,23 @@
 // Camera follow, aim pan, scope view, shake and roll.
 
 const camTarget = new V3(P.x, 0, P.z);
+// the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
+// the jump's progress, so the view leans and settles smoothly instead of snapping or jittering
+const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, push: 0, vp: 0, dx: 0, dz: 0 };
+function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
+function vaultCam(rdt) {
+  const v = P.vault, c = camVault;
+  let roll = 0, bob = 0, push = 0;
+  if (v) {
+    c.dx = v.dx; c.dz = v.dz;
+    if (v.t <= 0) { const k = smooth(clamp(v.pre / v.preDur, 0, 1)); roll = v.side * 0.02 * k; bob = -0.04 * k; }   // settle back the other way as you load the jump
+    else { const h = Math.sin(Math.min(1, v.t) * Math.PI); roll = -v.side * 0.065 * h; bob = 0.05 * h; push = 0.16 * Math.min(1, v.t); }   // tip into the jump and back level by the landing
+  }
+  // small fixed steps so the springs stay smooth however long the frame was
+  for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
+    springTo(c, 'roll', 'vr', roll, 70, 11, dt); springTo(c, 'bob', 'vb', bob, 80, 10, dt); springTo(c, 'push', 'vp', push, 40, 11, dt);
+  }
+}
 let titleSpin = 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
 function updateCamera(rdt) {
@@ -29,6 +46,8 @@ function updateCamera(rdt) {
   const sh = shake * shake * 1.2;
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(performance.now() / 420) * 0.05 * cc : 0;
-  cam.position.set(camTarget.x + camKick.x + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + rr(-sh, sh), camTarget.z + camKick.z + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + camKick.x, 0, camTarget.z + camKick.z); cam.rotateZ(camRoll + wob); cam.updateProjectionMatrix();
+  vaultCam(rdt);
+  const cv = camVault, vx = camKick.x + cv.dx * cv.push, vz = camKick.z + cv.dz * cv.push;
+  cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
+  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll); cam.updateProjectionMatrix();
 }
