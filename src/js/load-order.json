@@ -90,6 +90,7 @@
   "ui/moodles.js",
   "ui/rounds.js",
   "player/animation.js",
+  "player/hold.js",
   "zombies/zombie-visuals.js",
   "ui/hud.js",
   "game/visuals.js",

@@ -82,6 +82,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Shove range, push and cooldown | `src/js/player/shove.js` |
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
+| How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours | `src/js/lighting/day-night.js` |
