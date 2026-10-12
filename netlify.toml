@@ -5,7 +5,8 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# the bundle and three.js never change without a new deploy
+# index.html asks for game.js and game.css by content hash (?v=...), so a new deploy is picked up straight away;
+# three.js never changes
 [[headers]]
   for = "/*.js"
   [headers.values]
