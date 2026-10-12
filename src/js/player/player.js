@@ -23,5 +23,5 @@ const bandRolls = [];
     m.visible = false; bandRolls.push(m);
   });
 }
-// a faint light rim round your own character so you never lose yourself in the dark or in a crowd
-const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.016); pOutline.opacity = 0.32;
+// a barely-there light rim round your own character, just enough to pick yourself out in the dark or in a crowd
+const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.01); pOutline.opacity = 0.1; pOutline.depthWrite = false;
