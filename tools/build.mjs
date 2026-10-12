@@ -10,6 +10,7 @@
 // top-level statements that run immediately (building the world, creating materials, and so on).
 import { build as esbuild, transform } from 'esbuild';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -47,9 +48,13 @@ async function buildOnce() {
   fs.writeFileSync(path.join(OUT, 'game.css'), cssText);
   // three.js r128, self-hosted
   fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
-  // pages
+  // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
+  // fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay the same)
   const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
-  fs.writeFileSync(path.join(OUT, 'index.html'), html);
+  const ver = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
+  fs.writeFileSync(path.join(OUT, 'index.html'), html
+    .replace('href="./game.css"', `href="./game.css?v=${ver(cssText)}"`)
+    .replace('src="./game.js"', `src="./game.js?v=${ver(js)}"`));
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
