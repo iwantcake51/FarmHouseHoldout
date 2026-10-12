@@ -15,9 +15,11 @@ function spawnZombie(type) {
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) fm.add(o.material); }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });
-  const xr = xray(m.g);
+  const xr = xray(m.g, 0xff3322, false, true);
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11, hp = T_.hp * hpMul;
   zombies.push({ type, T: Object.assign({}, T_, { scale: sc }), m, x: cxw(gi) + rr(-.3, .3), z: cxw(gj) + rr(-.3, .3), hp, maxHp: hp, vx: 0, vz: 0, face: 0, phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
-    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], speed: T_.speed * rr(.9, 1.1) });
+    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : 1) });
 }
+// sprinters show up on wave 3 at about two thirds of their top speed and work up to full pace by wave 11
+const runnerPace = () => Math.min(1, 0.62 + Math.max(0, run.wave - 3) * 0.0475);

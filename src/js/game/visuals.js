@@ -10,7 +10,7 @@ function visuals(dt, rdt) {
   updateZombieVisuals(dt, rdt);
   updateCutaway(rdt);
   updateLaser(D);
-  stepTracers(rdt); stepSmoke(dt); stepTrail(rdt); stepCasings(dt);
+  stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt);
   stepParticles(dt);
   stepFloats(rdt);
   updateHUD(rdt, D);

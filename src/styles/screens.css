@@ -16,6 +16,7 @@
 .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .btn{font-family:var(--f-num);font-weight:800;font-size:26px;letter-spacing:.04em;text-transform:uppercase;padding:8px 22px 6px;background:var(--orange);color:#140c06;border:0;cursor:pointer}
 .btn.ghost{background:transparent;color:var(--ink);outline:1px solid rgba(236,230,216,.35)}
+.btn kbd{font-family:var(--f-ui);font-weight:600;font-size:13px;letter-spacing:0;vertical-align:middle;margin-left:6px;padding:1px 6px;border:1px solid currentColor;opacity:.75}
 .btn:hover{filter:brightness(1.08)}
 .btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 .note{font-size:11px;color:var(--dim);letter-spacing:.08em}

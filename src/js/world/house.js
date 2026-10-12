@@ -81,3 +81,20 @@ const roof = (() => {
   box(p, 1.2, 0.06, 0.4, M.deck, 0, 0.03, 0.85);
   [[-1.6, 0.55], [1.6, 0.55]].forEach(([a, b]) => box(p, 0.1, 2.3, 0.1, M.doorFrame, a, 1.15, b));
 }
+// ---- porch roof on the two posts: a shallow shed roof off the front wall; it fades like the main roof when it would hide you ----
+const porchRoof = (() => {
+  const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); scene.add(g);
+  const mats = [], mk = c => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
+  const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), trimM = mk(0x4a392d), beamM = mk(0x3e2f25);
+  const z0 = -0.6, z1 = 0.85, y0 = 2.66, y1 = 2.38, th = Math.atan2(y0 - y1, z1 - z0), len = Math.hypot(z1 - z0, y0 - y1);
+  const slope = new THREE.Group(); slope.position.set(0, (y0 + y1) / 2, (z0 + z1) / 2); slope.rotation.x = th; g.add(slope);
+  box(slope, 3.8, 0.08, len, shingle, 0, 0, 0);
+  for (let k = 1; k < 4; k++) box(slope, 3.82, 0.025, 0.05, ridgeM, 0, 0.05, -len / 2 + k * len / 4);   // shingle rows
+  box(slope, 3.86, 0.12, 0.08, trimM, 0, -0.02, len / 2);                                              // fascia
+  for (let k = -3; k <= 3; k++) box(slope, 0.06, 0.08, len - 0.1, beamM, k * 0.6, -0.08, 0);         // rafters underneath
+  box(g, 3.4, 0.14, 0.14, beamM, 0, 2.37, 0.55);                                                       // header beam across the posts
+  box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
+  [-1.6, 1.6].forEach(a => { const sd = -Math.sign(a), br = box(g, 0.42, 0.07, 0.07, beamM, a + sd * 0.17, 2.14, 0.55); br.rotation.z = sd * 0.78; });   // knee braces post to header
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
+})();

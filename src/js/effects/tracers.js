@@ -29,3 +29,31 @@ function stepTracers(rdt) {
     if (t.t <= 0 && t.fade <= 0) t.core.visible = t.trail.visible = false;
   }
 }
+// ---- smoke trails: heavy rounds leave a thin grey line through the air that widens, drifts up and thins out ----
+const TRAIL_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = 32; c.height = 128; const x = c.getContext('2d'), im = x.createImageData(32, 128);
+  for (let v = 0; v < 128; v++) for (let u = 0; u < 32; u++) {
+    const across = Math.pow(Math.sin(Math.PI * (u + 0.5) / 32), 2), ends = Math.min(1, v / 12, (127 - v) / 30), n = 0.7 + 0.3 * Math.sin(v * 0.37 + Math.sin(v * 0.11) * 3);
+    const i = (v * 32 + u) * 4; im.data[i] = im.data[i + 1] = im.data[i + 2] = 255; im.data[i + 3] = 255 * across * ends * n;
+  }
+  x.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); return t;
+})();
+const TRAIL_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
+const trails = [];
+for (let k = 0; k < 24; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0 }); }
+// strength 0..1: how thick and how long it hangs (a hunting rifle 1, a revolver a bit less, rifle-calibre automatics about half)
+function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
+  const L = Math.hypot(x1 - x0, z1 - z0); if (L < 0.6 || !strength) return;
+  const t = trails.reduce((a, b) => b.life < a.life ? b : a);
+  t.m.position.set(x0, (y0 + y1) / 2, z0); t.m.rotation.set(0, Math.atan2(x1 - x0, z1 - z0), 0); t.m.scale.set(0.05, 1, L); t.m.visible = true;
+  t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.18 + 0.2 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2;
+}
+function stepTrails(dt) {
+  for (const t of trails) {
+    if (t.life <= 0) continue; t.life -= dt; if (t.life <= 0) { t.m.visible = false; continue; }
+    const k = 1 - t.life / t.max;
+    t.m.scale.x = t.w0 + k * 0.32; t.m.position.y += dt * 0.12;
+    t.m.material.opacity = t.a * Math.min(1, k * 14) * Math.pow(1 - k, 1.4);
+    t.m.material.color.setHex(0xc9c4ba).multiplyScalar(Math.min(1.1, 0.14 + lightLevelAt(t.mx, t.mz) * 0.85));
+  }
+}

@@ -39,6 +39,21 @@ function tryVault() {
   const t = vaultTarget(nearestOpening()) || fenceTarget(); if (!t) return;
   closeStation();
   exitScope();
-  P.vault = { t: 0, dur: 0.55 * S.vaultMul, x0: P.x, z0: P.z, x1: t.x1, z1: t.z1, face: Math.atan2(t.x1 - P.x, t.z1 - P.z) };
-  W8.reloading = null; W8.reloadT = 0; SFX.vault();
+  // a short crouch to load the jump, then the hop itself
+  P.vault = { t: 0, pre: 0, preDur: 0.16 * S.vaultMul, dur: 0.5 * S.vaultMul, x0: P.x, z0: P.z, x1: t.x1, z1: t.z1, face: Math.atan2(t.x1 - P.x, t.z1 - P.z) };
+  W8.reloading = null; W8.reloadT = 0; P.shove = null;
+  nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
+}
+// push off: the view tips toward where you're jumping and gives a little
+function vaultTakeoff(v) {
+  SFX.vault();
+  const dx = v.x1 - v.x0, dz = v.z1 - v.z0, side = Math.sign(dx * RIGHT.x + dz * RIGHT.z) || 1;
+  camRoll = clamp(camRoll - side * 0.07, -0.12, 0.12); shake = Math.max(shake, 0.12);
+  camKick.x -= dx * 0.06; camKick.z -= dz * 0.06;
+}
+// touch down: a thump, dust, the knees soak it up and the camera settles with a jolt
+function vaultLand(v) {
+  const dx = v.x1 - v.x0, dz = v.z1 - v.z0;
+  SFX.thud(); shake = Math.max(shake, 0.2); camKick.x += dx * 0.12; camKick.z += dz * 0.12; camRoll *= -0.5;
+  burst(P.x, 0.1, P.z, 7, 'dust', dx, dz, 1.6); ANIM.land = 1;
 }

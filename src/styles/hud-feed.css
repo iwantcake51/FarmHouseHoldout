@@ -14,3 +14,10 @@ body.dying #c{cursor:default}
 @keyframes fdIn{from{opacity:0;transform:translateX(-24px)}}
 .fd.scrap{--fc:#8fa3b8}.fd.planks{--fc:#c08a52}.fd.ammo{--fc:#d4b25c}.fd.med{--fc:#d0432c}.fd.supply{--fc:#d8692c}.fd.gear{--fc:#f0bf4c}
 .float{position:fixed;left:0;top:0;z-index:2;pointer-events:none;font-family:var(--f-num);font-weight:800;font-size:18px;color:var(--ink);text-shadow:0 1px 2px #000;white-space:nowrap;will-change:transform,opacity}
+/* damage numbers popping off zombies: white body hits, gold headshots, red on the killing blow */
+.float.dmg{font-size:17px;color:#f2ece0;text-shadow:0 0 3px #000,0 1px 2px #000;letter-spacing:.02em}
+.float.dmg.head{color:var(--gold);font-size:21px}
+.float.dmg.kill{color:#ff5a3c;font-size:23px}
+.float.dmg span{display:inline-block}
+.float.dmg span.bump{animation:dmgBump .16s ease-out}
+@keyframes dmgBump{from{transform:scale(1.45)}}

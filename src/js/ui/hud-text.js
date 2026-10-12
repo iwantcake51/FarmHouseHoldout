@@ -4,8 +4,20 @@ const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textConten
 const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
 const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
 let toastT = 0, annT = 0;
-function toast(t) { $('toast').textContent = t; $('toast').style.opacity = 1; toastT = 2.4; }
-function announce(a, b) { $('annBig').textContent = a; $('annSmall').textContent = b; $('announce').style.opacity = 1; annT = 2.6; }
+// a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)
+function toast(t, opt) {
+  const o = opt || {}, el = $('toast');
+  $('toastT').textContent = t; $('toastS').textContent = o.sub || ''; $('toastIc').innerHTML = FEED_ICON[o.icon] || FEED_ICON.gear;
+  el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
+}
+// the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
+// kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
+function announce(a, b, opt) {
+  const o = opt || {}, el = $('announce');
+  $('annEye').textContent = o.eye || ''; $('annBig').textContent = a; $('annSmall').textContent = b;
+  el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
+  el.style.opacity = 1; annT = 2.8;
+}
 function renderSlots() {
   const k = SLOTS.map(s => (W8.slot[s] || '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
@@ -45,15 +57,16 @@ function floatText(x, z, text, color) {
 function stepFloats(rdt) {
   // floating pickup labels
   for (let k = floats.length - 1; k >= 0; k--) {
-    const f = floats[k]; f.t += rdt; projV.set(f.x, 1.2 + f.t * 1.2, f.z).project(cam);
-    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%,-50%) scale(${(1 + Math.max(0, 0.2 - f.t) * 2).toFixed(2)})`;
-    f.el.style.opacity = clamp(1.6 - f.t * 1.6, 0, 1);
-    if (f.t > 1) { f.el.remove(); floats.splice(k, 1); }
+    const f = floats[k]; f.t += rdt; projV.set(f.x, (f.y0 !== undefined ? f.y0 : 1.2) + f.t * (f.dmg ? 0.9 : 1.2), f.z).project(cam);
+    const life = f.dmg ? 0.75 : 1;
+    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%,-50%) scale(${(1 + Math.max(0, 0.2 - f.t) * (f.dmg ? 3 : 2)).toFixed(2)})`;
+    f.el.style.opacity = clamp((1.6 - f.t * 1.6 / life) * (f.dmg && P.dead ? 0 : 1), 0, 1);
+    if (f.t > life) { f.el.remove(); floats.splice(k, 1); }
   }
   tickFeed();
 }
 // toast and wave announcement timers
 function tickMessages(rdt) {
-  if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').style.opacity = 0; }
-  if (annT > 0) { annT -= rdt; if (annT <= 0) $('announce').style.opacity = 0; }
+  if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').classList.remove('show'); }
+  if (annT > 0) { annT -= rdt; if (annT <= 0) { $('announce').style.opacity = 0; $('announce').classList.remove('show'); } }
 }

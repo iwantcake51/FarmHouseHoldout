@@ -40,7 +40,7 @@ src/
     world/            the map: grid, ground, house, fence, trees, props, collision, wall cut-away
     lighting/         light map, day/night cycle, fixed lights, fog of war
     characters/       the blocky human rig the player and zombies share
-    player/           player state, movement, aiming, vaulting, bandages, gear, animation
+    player/           player state, movement, aiming, vaulting, shoving, bandages, gear, animation
     weapons/          guns: stats, models, attachments, mods, firing, reloading, casings, explosives
     melee/            melee weapons: stats, models, mods, swinging, stamina, swing trail
     zombies/          zombie types, spawning, AI, pathfinding, damage, death falls
@@ -78,9 +78,11 @@ Every source file starts with a one-line comment saying what is in it.
 | Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | What each station sells, and the prices | `src/js/stations/recipes.js` |
-| Bandage count, time and healing | `src/js/player/bandages.js` |
+| Bandage count, time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
+| Shove range, push and cooldown | `src/js/player/shove.js` |
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
+| How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours | `src/js/lighting/day-night.js` |
@@ -136,14 +138,15 @@ Shared state:
 | Hold right click | Aim down the sights (scoped rifles look through the scope) |
 | 1 2 3 4 | Melee, sidearm, long gun, automatic |
 | R | Reload |
-| H | Apply a bandage |
+| G | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |
 | Hold F | Board up the door or window you are standing at |
-| Space | Climb through an open window or hop a fence |
+| Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you (stabs with a bayonet fitted) |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
-| G | Underbarrel grenade, once you have one |
+| H | Underbarrel grenade, once you have one |
 | V | Switch fire mode on guns with a burst or fanning mod |
 | Wheel, + and − | Zoom in and out |
-| Enter | Start the next wave early |
+| T | Start the run (also from the death screen), or the next wave early |
 | Esc or P | Pause |
+| M | Back to the main menu from the death screen |
 
 Touch screens get twin sticks and on-screen buttons.

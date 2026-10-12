@@ -1,8 +1,8 @@
 // Outlines: inverted-hull rims, x-ray rims through walls, and fading shadows.
 
-function outline(g, col, scl, thick, mat) {
+function outline(g, col, scl, thick, mat, keep) {
   const om = mat || new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 });
-  const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline) list.push(o); });
+  const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline && (!keep || keep(o))) list.push(o); });
   list.forEach(o => {
     const s = new THREE.Mesh(o.geometry, om); s.userData.isOutline = true;
     if (thick) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox, sx = b.max.x - b.min.x || 0.01, sy = b.max.y - b.min.y || 0.01, sz = b.max.z - b.min.z || 0.01; s.scale.set((sx + thick * 2) / sx, (sy + thick * 2) / sy, (sz + thick * 2) / sz); }
@@ -15,16 +15,29 @@ const XRAY_CLIP = [new THREE.Plane(new V3(0, 1, 0), -0.14)];
 R.localClippingEnabled = true;
 const RIM_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp };
 const rimMat = col => new THREE.MeshBasicMaterial(Object.assign({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 }, RIM_STENCIL));
-// drawn only where something solid stands between the camera and the zombie: a red rim over a dark fill
-function xray(g, col, noClip) {
+// drawn only where something solid stands between the camera and the zombie: a red rim over a dark fill,
+// and for zombies a tinted silhouette of the whole body so you can read them through the wall at a glance.
+// withSil: true for the red zombie silhouette, or a colour; keep(mesh) can leave meshes out;
+// bias (world units) ignores occluders closer than that, so a gun held against the body never counts as a wall
+function xray(g, col, noClip, withSil, keep, bias) {
   // clipped just above the ground so feet sinking into the dirt or a porch board never light up
   const rim = new THREE.MeshBasicMaterial(Object.assign({ color: col || 0xff3322, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: noClip ? null : XRAY_CLIP }, RIM_STENCIL));
   const fill = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilFail: THREE.ReplaceStencilOp });
-  const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline) list.push(o); });
+  const ok = o => o.isMesh && !o.userData.isOutline && (!keep || keep(o));
+  const list = []; g.traverse(o => { if (ok(o)) list.push(o); });
   list.forEach(o => { const f = new THREE.Mesh(o.geometry, fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f); });
-  outline(g, 0, 0, 0.04, rim); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
-  return { rim, fill };
+  outline(g, 0, 0, withSil ? 0.055 : 0.04, rim, keep); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
+  if (bias) rim.onBeforeCompile = biasDepth(bias);
+  if (!withSil) return { rim, fill };
+  // the silhouette marks each pixel with stencil 2 as it draws, so overlapping limbs don't stack up darker
+  const sil = new THREE.MeshBasicMaterial({ color: withSil === true ? 0xd8382a : withSil, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: XRAY_CLIP,
+    stencilWrite: true, stencilRef: 2, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp });
+  if (bias) sil.onBeforeCompile = biasDepth(bias);
+  list.forEach(o => { const m = new THREE.Mesh(o.geometry, sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m); });
+  return { rim, fill, sil };
 }
+// pull a material's depth toward the camera by d world units (the camera is orthographic, so this is a flat shift)
+const biasDepth = d => sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>\n  gl_Position.z -= ${(d * 2 / (cam.far - cam.near)).toFixed(5)} * gl_Position.w;`); };
 // a zombie's shadow dissolves with it: its shadow-map depth is dithered away as it fades
 function fadeDepthMat() {
   const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), u = { value: 1 };
@@ -35,3 +48,7 @@ function fadeDepthMat() {
   };
   return m;
 }
+// you, seen through trees, walls and anything else in the way: a soft grey rim and a faint pale fill
+// (blood spots and bandage rolls left out; the bias keeps your own gun from counting as cover)
+const pXray = xray(PM.g, 0xe6e2da, false, 0xcfcac0, o => !charBlood.includes(o) && !bandRolls.includes(o) && !(o.parent && bandRolls.includes(o.parent)), 1.0);
+pXray.rim.opacity = 0.75; pXray.sil.opacity = 0.2;

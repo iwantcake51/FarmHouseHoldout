@@ -1,6 +1,6 @@
 // The light-map shader patch every lit material uses (light, vision, wall cut-away) and foliage wind.
 
-const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 } };
+const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 } };
 const VERT_DECL = 'varying vec2 vLmUv;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
 const VERT_BODY = `
   vec4 lmW = vec4(transformed, 1.0);
@@ -16,7 +16,7 @@ const FRAG_BODY = `
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
   lmC *= mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
   float lmG = dot(lmC, vec3(0.299, 0.587, 0.114));
-  gl_FragColor.rgb = mix(vec3(lmG), lmC, mix(mix(0.12, 0.4, lmS.a), 1.0, lmL));`;
+  gl_FragColor.rgb = mix(vec3(lmG) * vec3(1.04, 0.98, 0.92), lmC, mix(mix(0.3, 0.62, lmS.a), 1.0, lmL));   // shadowed areas keep some colour and lean warm`;
 const CUT_DECL = 'uniform float uCut;\nuniform vec2 uPScr;\nuniform float uRad;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const CUT_BODY = `
   if (uCut > 0.001) {
@@ -26,25 +26,39 @@ const CUT_BODY = `
     if (th >= keep) discard;
   }
   #include <clipping_planes_fragment>`;
+// trees: only the parts standing between the camera and you (nearer than you in depth) dither away, in a soft hole round you
+const TREE_CUT = { value: 0 };
+const TREE_DECL = 'uniform float uTreeCut;\nuniform vec2 uPScr;\nuniform float uRad;\nuniform float uPZ;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
+const TREE_BODY = `
+  if (uTreeCut > 0.001 && gl_FragCoord.z < uPZ) {
+    float hole = smoothstep(uRad * 0.3, uRad * 0.75, distance(gl_FragCoord.xy, uPScr));
+    float keep = mix(1.0, mix(0.1, 1.0, hole), uTreeCut);
+    float th = bayer2(0.5 * gl_FragCoord.xy) * 0.25 + bayer2(gl_FragCoord.xy);
+    if (th >= keep) discard;
+  }
+  #include <clipping_planes_fragment>`;
 function lit(mat, cut) {
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>');
-    if (cut) {
+    if (cut === 'tree') {
+      Object.assign(sh.uniforms, { uTreeCut: TREE_CUT, uPScr: LMU.uPScr, uRad: LMU.uRad, uPZ: LMU.uPZ });
+      f = TREE_DECL + f.replace('#include <clipping_planes_fragment>', TREE_BODY);
+    } else if (cut) {
       Object.assign(sh.uniforms, { uCut: mat.userData.cut, uPScr: LMU.uPScr, uRad: LMU.uRad });
       f = CUT_DECL + f.replace('#include <clipping_planes_fragment>', CUT_BODY);
     }
     sh.fragmentShader = f;
   };
-  mat.customProgramCacheKey = () => cut ? 'lit-cut' : 'lit';
+  mat.customProgramCacheKey = () => cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit';
   return mat;
 }
 const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
 const WIND = { value: 0 };
 // instanced foliage sways in the wind; the higher up a vertex sits the more it moves
 function windy(mat, amp) {
-  const base = mat.onBeforeCompile;
+  const base = mat.onBeforeCompile, baseKey = mat.customProgramCacheKey;
   mat.onBeforeCompile = (sh, r) => {
     base(sh, r); sh.uniforms.uWind = WIND;
     sh.vertexShader = 'uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -56,7 +70,7 @@ function windy(mat, amp) {
   transformed.z += cos(ph * 0.8) * ${(amp * 0.5).toFixed(4)} * hh * gust;
 #endif`);
   };
-  mat.customProgramCacheKey = () => 'lit-wind-' + amp;
+  mat.customProgramCacheKey = () => baseKey() + '-wind-' + amp;
   return mat;
 }
 const basic = c => new THREE.MeshBasicMaterial({ color: c });

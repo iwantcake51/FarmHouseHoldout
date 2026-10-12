@@ -20,12 +20,12 @@ function updateHUD(rdt, D) {
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
     setT('wNum', String(Math.max(1, run.wave)).padStart(2, '0'));
-    setT('hpTxt', String(Math.ceil(P.hp)));
+    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
     { const inc = Math.min(1 - hpF, (P.heal || 0) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     { const hv = Math.round(Math.min(1, (P.bandT > 0 ? 0.7 : 0) + Math.min(1, (P.heal || 0) / 12)) * 40) / 40; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
-    setT('bands', String(P.band || 0));
+    setT('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
     setT('planks', String(S.planks)); setT('kills', String(run.kills)); setT('scrap', String(S.scrap));
     // heartbeat: faster when hurt or pinned, flat when dead
@@ -42,7 +42,9 @@ function updateHUD(rdt, D) {
     { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
     setT('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
-    setT('reloadTag', W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : W8.reloading ? 'Reloading' : (!D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
+    // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
+    const xhShown = hasMouse && !usingTouch && !scoped;
+    setT('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;

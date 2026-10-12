@@ -21,6 +21,7 @@ function meleeHit() {
       const weak = W8.tired ? 0.55 : 1;
       hurtZombie(z, D.dmg * S.meleeMul * weak, dx / (d || 1), dz / (d || 1), D.kb * weak, id, part); hit = true;
     }
-    if (hit) { shake = Math.max(shake, 0.15 + (D.kb > 5 ? 0.15 : 0) + (D.style === 'chop' ? 0.12 : 0)); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); hitStop = Math.max(hitStop, D.style === 'chop' ? 0.06 : 0.03); }
+    // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side
+    if (hit) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += Math.sin(P.aim) * 0.12; camKick.z += Math.cos(P.aim) * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); hitStop = Math.max(hitStop, D.style === 'chop' ? 0.06 : 0.03); }
   }
 }

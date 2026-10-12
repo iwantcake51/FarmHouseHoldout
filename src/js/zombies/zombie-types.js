@@ -10,3 +10,6 @@ const partMult = p => p === 'head' ? S.headMul : p === 'torso' ? 1 : p === 'armL
 const STUMP = { head: [0, 1.18, 0], armL: [-0.33, 1.08, 0], armR: [0.33, 1.08, 0], legL: [-0.13, 0.55, 0], legR: [0.13, 0.55, 0] };
 const zombies = [];
 const HAIR = [0x2a2018, 0x5a4630, 0x8a8478, 0x1a1a1a];
+// headshots pay off most with heavy rounds: 9mm only gets about half the head bonus, buckshot pellets about two thirds
+const HEAD_CAL = { p9: 0.5, shells: 0.65, magnum: 1, rifle: 1 };
+const headMulFor = D => 1 + (S.headMul - 1) * (D && D.ammo ? HEAD_CAL[D.ammo] : 1);

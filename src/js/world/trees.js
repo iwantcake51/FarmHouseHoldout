@@ -1,6 +1,6 @@
 // Forest placement, instanced pines with shade pools, bushes and rocks.
 
-const treeCells = [];
+const treeCells = [], TREES = [];
 for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   if (cell[idx(i, j)]) continue;
   const d = Math.min(i, j, N - 1 - i, N - 1 - j);
@@ -18,6 +18,7 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   treeCells.forEach(([i, j], k) => {
     const s = rr(0.85, 1.4), x = cxw(i) + rr(-.2, .2), z = cxw(j) + rr(-.2, .2), r = rand() * 6;
     dm.rotation.set(rr(-.04, .04), r, rr(-.04, .04)); dm.scale.setScalar(s);
+    TREES.push({ x, z, s });
     dm.position.set(x, 0.7 * s, z); dm.updateMatrix(); trunk.setMatrixAt(k, dm.matrix);
     dm.position.set(x, 1.9 * s, z); dm.updateMatrix(); c1.setMatrixAt(k, dm.matrix);
     dm.position.set(x, 2.8 * s, z); dm.updateMatrix(); c2.setMatrixAt(k, dm.matrix);

@@ -18,7 +18,7 @@ function buildGear() {
     });
   }
   if (S.vaultMul < 1) [PM.legL, PM.legR].forEach(l => gearAdd(l, 0.21, 0.12, 0.06, GEAR.dark, 0, -0.27, 0.12));          // knee pads
-  if (S.reloadMul < 1) [PM.armL, PM.armR].forEach(a => gearAdd(a, 0.16, 0.16, 0.12, GEAR.dark, 0, 0, 0.48));             // shooting gloves
+  if (S.reloadMul < 1) [PM.armL, PM.armR].forEach(a => gearAdd(a, 0.16, 0.16, 0.13, GEAR.dark, 0, 0, 0.49));             // shooting gloves, a hair past the fist so no face is shared
   // eyes: shooting glasses, then night-vision goggles
   if (T('night')) {
     gearAdd(PM.head, 0.34, 0.05, 0.04, GEAR.dark, 0, 0.1, 0.17);

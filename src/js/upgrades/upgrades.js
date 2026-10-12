@@ -15,7 +15,7 @@ const UPG = [
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Every kill gives you a burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
-  { r: 'u', tag: 'Attachment', name: 'Bayonet', text: 'Zombies that hit you take 25 damage back.', vis: 'A blade under the long guns', can: () => !S.att.bayonet, ap: () => S.att.bayonet = true },
+  { r: 'u', tag: 'Attachment', name: 'Bayonet', text: 'Shoving (Space) with a long gun or automatic stabs for 45 damage.', vis: 'A blade under the long guns', can: () => !S.att.bayonet, ap: () => S.att.bayonet = true },
   { r: 'u', tag: 'Attachment', name: 'Shoulder stock', text: 'Less spread and kick on sidearms.', vis: 'A wooden stock on your sidearm', can: () => !S.att.stock, ap: () => S.att.stock = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, dropping below 25% health heals you 50.', can: () => !S.secondWind, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Slowly regenerate 1 health a second.', can: () => S.regen < 3, ap: () => S.regen += 1 },

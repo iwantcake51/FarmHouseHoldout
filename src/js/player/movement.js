@@ -3,20 +3,24 @@
 // status effects, walking, vaulting and aiming
 function updatePlayer(dt) {
   P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt);
-  W8.glCd = Math.max(0, W8.glCd - dt);
+  W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
   if (S.regen && P.hp < S.maxHp) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
   let mx = 0, my = 0;
   if (keys.has('w') || keys.has('arrowup')) my -= 1;
   if (keys.has('s') || keys.has('arrowdown')) my += 1;
   if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
   if (keys.has('d') || keys.has('arrowright')) mx += 1;
-  if (P.dead) { mx = my = 0; P.deathT += dt; if (P.deathT > 1.2 && performance.now() - P.deathAt > 3400 && state === 'play') die(); }
+  if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
   if (P.vault) {
-    const v = P.vault; v.t += dt / v.dur; const t = Math.min(1, v.t), e = t * t * (3 - 2 * t);
-    P.x = v.x0 + (v.x1 - v.x0) * e; P.z = v.z0 + (v.z1 - v.z0) * e;
-    if (v.t >= 1) { P.vault = null; burst(P.x, 0.1, P.z, 4, 'dust'); }
+    const v = P.vault;
+    if (v.pre < v.preDur) { v.pre += dt; if (v.pre >= v.preDur) vaultTakeoff(v); }
+    else {
+      v.t += dt / v.dur; const t = Math.min(1, v.t), e = t * t * (3 - 2 * t);
+      P.x = v.x0 + (v.x1 - v.x0) * e; P.z = v.z0 + (v.z1 - v.z0) * e;
+      if (v.t >= 1) { P.vault = null; vaultLand(v); }
+    }
     P.moving = false; P.vx = P.vz = 0;
   } else {
     let tvx = 0, tvz = 0;

@@ -18,6 +18,7 @@ function renderStation() {
     </button>`;
   }).join('');
   setH('stRows', tiles);
+  setT('stNote', `Press 1–${RECIPES[openSt.id].length} or click a card · E to step away`);
 }
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) craft(+b.dataset.i); });
 function craft(i) {

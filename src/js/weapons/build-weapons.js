@@ -23,22 +23,28 @@ function buildGuns() {
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = true);
-    SLIDES[s] = []; MAGPOS[s] = null; tierCtx = id;
+    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; tierCtx = id;
     const build = parent => {
+      // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
+      const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
       const info = GUNS[id](parent, mods);
-      if (info && info.slide) SLIDES[s].push({ m: info.slide, z0: info.slide.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc });
+      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }));
+      if (info && info.crane) CRANE[s].push(info.crane);
       if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
       if (D.melee) return 0;
       let front = info.front; const y = info.y;
-      if (info.baseMag) { if (magT >= 2) drum(parent, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(parent, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
-      else if (info.magZ) { if (magT >= 2) drum(parent, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(parent, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
+      if (info.baseMag) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
+      else if (info.magZ) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
       if (pr) { cyl(parent, 0.02, 0.09 * pr, GM.blued, X, y, front + 0.045 * pr); ring(parent, 0.024, 0.012, GM.metal, X, y, front + 0.09 * pr - 0.006); front += 0.09 * pr; }
       return fitAttachments(parent, D, front, y, info) + 0.02;
     };
     const g = gunMeshes[s];
-    if (D.akimbo) { const a = new THREE.Group(), b = new THREE.Group(); a.position.x = AKX - X; b.position.x = -AKX - X; g.add(a, b); MUZ[s] = build(a); build(b); }
-    else MUZ[s] = build(g);
-    g.userData.blood = bloodWeapon(g, !!D.melee); g.userData.bloodId = id;
+    // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
+    const hold = (x0, side) => { const h = new THREE.Group(); h.position.x = x0; h.userData.x0 = x0; h.userData.side = side; g.add(h); return h; };
+    if (D.melee) MUZ[s] = build(g);
+    else if (D.akimbo) { const a = hold(AKX - X, 'R'), b = hold(-AKX - X, 'L'); MUZ[s] = build(a); build(b); HOLDS[s] = { R: a, L: b }; }
+    else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
+    g.userData.blood = bloodWeapon(D.melee ? g : HOLDS[s].R, !!D.melee); g.userData.bloodId = id;
     tierCtx = null;
   }
   const mods = [];

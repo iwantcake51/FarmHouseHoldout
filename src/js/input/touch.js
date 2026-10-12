@@ -21,7 +21,7 @@ cv.addEventListener('pointercancel', endTouch);
 let touchBoard = false;
 $('tbBoard').addEventListener('pointerdown', () => touchBoard = true);
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('tbBoard').addEventListener(ev, () => touchBoard = false));
-$('tbClimb').onclick = () => { const s = nearestStation(); if (s && !vaultTarget(nearestOpening())) { openSt ? closeStation() : openStation(s); } else tryVault(); };
+$('tbClimb').onclick = () => { const s = nearestStation(); if (s && !vaultTarget(nearestOpening())) { openSt ? closeStation() : openStation(s); } else spaceAction(); };
 $('tbReload').onclick = () => startReload();
 $('tbAlt').onclick = () => throwGrenade();
 $('tbSwap').onclick = () => { const owned = SLOTS.filter(s => W8.slot[s]); equip(owned[(owned.indexOf(W8.cur) + 1) % owned.length]); };

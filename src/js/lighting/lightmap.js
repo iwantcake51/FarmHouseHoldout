@@ -50,13 +50,13 @@ function computeLight() {
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark), [1, 0.5, 0.15]);
   }
-  computeVision(on);
+  computeVision(on && !P.dead);   // as you die the fog of war lifts and every zombie fades into view
 }
 // blend the light/vision map toward its target and upload it
 function updateLightmap(rdt) {
   for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); lmT = 0; } }
   lmT -= rdt; if (lmT <= 0) { computeLight(); lmT = 0.07; }
-  const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * 9);
+  const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead ? 1.1 : 9));
   for (let k = 0; k < FNN; k++) {
     for (let c = 0; c < 3; c++) { const i = k * 3 + c, t = lmTgt[i], cur = lmCur[i]; const n = lmCur[i] = cur + (t - cur) * (t > cur ? up : down); lmData[k * 4 + c] = n >= 2 ? 255 : n * 127.5; }
     const v = visCur[k] += (visTgt[k] - visCur[k]) * vk; lmData[k * 4 + 3] = v * 255;

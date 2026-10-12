@@ -14,7 +14,7 @@ let flashSize = 1, flashLen = 1;
 // where the visible muzzle is right now, following the gun through recoil and aim-down
 const _mz = new V3();
 function muzzleWorld(sideSign) {
-  const D = W(curId()), gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
-  _mz.set(D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, GUN_Y + 0.03, (MUZ[W8.cur] || 0.9) + 0.02); gg.localToWorld(_mz); return _mz;
+  const D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R'; PM.g.updateMatrixWorld(true);
+  _mz.set(X, GUN_Y + 0.03, (MUZ[W8.cur] || 0.9) + 0.02); holdOf(W8.cur, side).localToWorld(_mz); return _mz;
 }
 let flashT = 0;

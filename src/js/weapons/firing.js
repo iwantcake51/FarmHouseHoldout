@@ -1,9 +1,11 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
+// which hand's gun just fired: akimbo alternates (akSide flips before each shot), everything else is the right hand
+const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 function spreadOf(id) {
-  // moving opens the spread up: +45% at a run, only +25% while aiming down the sights
+  // walking doubles the spread (+50% while aiming down the sights), and holding the trigger opens it up further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1) * (1 + mv * (aiming ? 0.25 : 0.45));
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
   if (D.ammo === 'shells' && T('choke')) s *= T('choke') === 2 ? 0.49 : 0.7;
   if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
@@ -98,6 +100,7 @@ function gunFire(id, D) {
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : ANIM.down > 0.5 ? 0.35 : GUN_Y;
     if (p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.ammo === 'rifle' || D.dmg > 60);
+    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, (D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' ? 0.85 : 0) * (suppressed(D) ? 0.5 : 1));   // big calibres leave smoke in the air
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
     else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
@@ -114,9 +117,9 @@ function gunFire(id, D) {
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
   if (!quiet) {
     // flash parented to the gun so it sits on the real muzzle, wherever the animation has the gun
-    const gg = gunMeshes[W8.cur]; gg.add(flash);
+    holdOf(W8.cur, fireSide(D)).add(flash);
     flash.visible = true; flashT = 0.055; flashSize = big * (1 + T('ammo') * 0.15) * rr(0.85, 1.15); flashLen = D.ammo === 'shells' ? rr(1.1, 1.5) : rr(0.7, 1.2);
-    flash.position.set(D.akimbo ? AKX * W8.akSide : X, GUN_Y + 0.03, MUZ[W8.cur] + 0.03); flash.rotation.set(0, 0, rand() * 6.28);
+    flash.position.set(X, GUN_Y + 0.03, MUZ[W8.cur] + 0.03); flash.rotation.set(0, 0, rand() * 6.28);
     flashStar.material.rotation = rand() * 6.28;
     flashes.push({ x: ox, z: oz, r: D.ammo === 'shells' ? 7 : 5.5, int: 1.5, col: [1, 0.78, 0.45], t: 0.07, max: 0.07 }); lmT = 0;
   } else { flashes.push({ x: ox, z: oz, r: 2.5, int: 0.12, col: [1, 0.8, 0.5], t: 0.05, max: 0.05 }); lmT = 0; }
@@ -124,8 +127,10 @@ function gunFire(id, D) {
   const puffs = quiet ? 1 : D.ammo === 'shells' ? 4 : D.ammo === 'rifle' || D.dmg > 60 ? 3 : 2;
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
-  ANIM.slideT = 0;
-  ANIM.recoil = Math.min(1.4, ANIM.recoil + (D.shake > 0.2 ? 1.2 : 0.7));
+  // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
+  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3)); W8.sprayT = 0;
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; ANIM.kick[sd] = Math.min(1.4, ANIM.kick[sd] + (D.shake > 0.2 ? 1.2 : 0.7)); }
+  ANIM.recoil = Math.min(1.4, ANIM.recoil + (D.shake > 0.2 ? 1.2 : 0.7) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];
   if (ej === 'fire') ejectCasing(D.ammo, shots, 'fire', W8.akSide);
   else if (ej === 'pump' || ej === 'bolt') startCycle(id);

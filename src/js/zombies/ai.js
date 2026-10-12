@@ -34,7 +34,7 @@ function updateZombies(dt) {
       if (bi >= 0) { tx = cxw(bi); tz = cxw(bj); const op = openAt[idx(bi, bj)]; if (op && op.boards.length && Math.hypot(tx - z.x, tz - z.z) < 0.95 + z.T.r) attackingBoard = op; }
     }
     const arms = (z.limbs.armL ? 1 : 0) + (z.limbs.armR ? 1 : 0), armMul = arms === 2 ? 1 : arms === 1 ? 0.7 : 0.4;
-    z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8);
+    z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
     z.atkBoard = attackingBoard;
     if (attackingBoard) {
       z.face = Math.atan2(tx - z.x, tz - z.z);
@@ -46,7 +46,7 @@ function updateZombies(dt) {
     } else {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6) && !(P.dead && dp < 2.4)) {
-        const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (inWin ? 0.4 : 1) * (z.crawl ? 0.32 : 1);
+        const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (inWin ? 0.4 : 1) * (z.crawl ? 0.32 : 1) * (z.pushSlow > 0 ? 0.45 + 0.55 * (1 - z.pushSlow / SHOVE_SLOW) : 1);   // still reeling from a shove
         moveCircle(z, ax / al * sp, az / al * sp, z.T.r);
         z.phase += dt * z.speed * (z.crawl ? 2.5 : z.type === 'runner' ? 3.6 : 4.5);
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
@@ -64,7 +64,6 @@ function updateZombies(dt) {
           burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
         } else if (rand() < (z.crawl ? 0.5 : 0.35)) { P.bleed = Math.min(14, (P.bleed || 0) + 6); }
         P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes) * (z.crawl ? 0.6 : 1)); P.stun = 0.22 * (1 - S.slowRes);
-        if (S.att.bayonet) hurtZombie(z, 25, -dxp / (dp || 1), -dzp / (dp || 1), 1.5, 'pistol', 'torso');
         if (z.dead) continue;
       }
     }
@@ -115,9 +114,12 @@ function updateZombies(dt) {
       else { m.armL.rotation.x = -0.2 + Math.sin(z.phase * 0.5) * 0.12 - z.lunge * 0.5; m.armR.rotation.x = -0.15 - Math.sin(z.phase * 0.5) * 0.12 - z.lunge * 0.5; }
       m.upper.rotation.x = 0.12 + z.lunge * 0.25 - sq * 0.25; m.upper.rotation.z = Math.sin(z.phase * 0.5) * 0.06;
     }
+    // thrown back by a shove: rocked onto the heels with the arms flung up, easing out
+    if (z.shoved > 0 && !z.crawl) { const k = Math.sin(Math.min(1, z.shoved) * Math.PI * 0.5); m.g.rotation.x -= k * 0.22; m.upper.rotation.x -= k * 0.55; m.head.rotation.x = -k * 0.35; m.armL.rotation.x -= k * 0.7; m.armR.rotation.x -= k * 0.55; }
     z.flash = Math.max(0, z.flash - dt);
-    const e = z.flash > 0 ? 0xa04030 : z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000;
-    m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e);
+    // a hit flashes the body white-hot, cooling through red as the flash runs out
+    if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of [m.mats.skin, m.mats.shirt, m.mats.pants]) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
+    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
   if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); hurtFx = 1; shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }
