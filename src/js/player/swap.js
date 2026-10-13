@@ -1,14 +1,14 @@
 // Swapping weapons. The right hand carries the one you're holding back to where it rides (the thigh holster, the sling
 // across the pack, the pack straps), crosses to where the next one is carried, draws it and brings it up into the hold,
 // and the left hand comes back onto it last. Meanwhile the upper body and head ease from the old hold to the new one
-// instead of snapping. The whole swap takes under half a second.
+// instead of snapping. The whole swap takes half a second.
 //
 // It runs every frame of a swap after the normal pose (player/animation.js, player/hold.js) and the stowed copies
 // (player/stow.js) are placed, and moves the weapons and arms on from there; weapon frames are worked in the
 // character's own frame so they travel with you as you move and turn.
 
-const SWAP_T = { put: 0.13, cross: 0.2, end: 0.42 };   // the old weapon is away, the hand is at the new one, it's up
-const SWAP_FIRE = 0.3;                                  // how soon you can use the weapon you're drawing
+const SWAP_T = { put: 0.16, cross: 0.25, end: 0.5 };   // the old weapon is away, the hand is at the new one, it's up
+const SWAP_FIRE = 0.34;                                 // how soon you can use the weapon you're drawing
 const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
 let swapSt = null;
 const _sw = { m: new THREE.Matrix4(), toUp: new THREE.Matrix4(), a: new THREE.Matrix4(), b: new THREE.Matrix4(), c: new THREE.Matrix4(),
@@ -100,7 +100,7 @@ function updateSwap(dt, rdt) {
     armTo(pm.armL, 'L', st.oldW ? SWAP_REST_L : _sw.t2.copy(st.lFist).lerp(SWAP_REST_L, k), newMelee);
   } else if (stowNew) {
     // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch
-    const u = clamp((t - T.cross) / (T.end - T.cross), 0, 1), k = 1 - Math.pow(1 - u, 2.4);
+    const u = clamp((t - T.cross) / (T.end - T.cross), 0, 1), k = 1 - Math.pow(1 - smooth(u), 1.7);   // out quick, settling gently
     const f = blendFrame(new THREE.Matrix4(), stowNew, live, k);
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);

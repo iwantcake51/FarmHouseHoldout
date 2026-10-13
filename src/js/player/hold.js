@@ -72,10 +72,12 @@ function walkPath(out, keys, p) {
   const a = keys[k], b = keys[k + 1]; return out.copy(a[1]).lerp(b[1], smooth(clamp((p - a[0]) / ((b[0] - a[0]) || 1), 0, 1)));
 }
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
+// (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt) {
   const h = HAND[side];
   if (free) h.free.copy(free);
-  h.w += (wt - h.w) * Math.min(1, rdt * 16); if (Math.abs(wt - h.w) < 0.002) h.w = wt;
+  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) { h.vw = (h.vw || 0) + (-420 * (h.w - wt) - 41 * (h.vw || 0)) * dt; h.w = clamp(h.w + h.vw * dt, 0, 1); }
+  if (Math.abs(wt - h.w) < 0.002 && Math.abs(h.vw || 0) < 0.02) { h.w = wt; h.vw = 0; }
   return out.copy(onGun).lerp(h.free, h.w);
 }
 
@@ -95,9 +97,10 @@ function shovePose() {
 function poseHands(D, up, ph, runF, rdt, now) {
   const pm = PM, s = W8.cur;
   stepKick(RK.R, rdt); stepKick(RK.L, rdt);
+  ANIM.bandK = (ANIM.bandK || 0) + ((P.bandT > 0 ? 1 : 0) - (ANIM.bandK || 0)) * Math.min(1, rdt * 9);   // how far into the bandaging pose
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
-  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = 0; ANIM.relEnv = 0; }   // a fresh weapon starts with both hands on it
+  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = 0; ANIM.relEnv = 0; }   // a fresh weapon starts with both hands on it
   const sh = shovePose();
   if (sh) {
     up.x += sh.lean - ANIM.shoveHit * 0.08; up.y = up.y * (1 - sh.q) + sh.tw;
@@ -114,7 +117,8 @@ const MELEE_EQ = 0.5;
 function meleeFlourish(D, rdt, swinging) {
   if (ANIM.meleeEqT === undefined || ANIM.meleeEqT >= MELEE_EQ) return null;
   const t0 = ANIM.meleeEqT; ANIM.meleeEqT += rdt;
-  if (swinging) { ANIM.meleeEqT = MELEE_EQ; return null; }   // a swing straight away cuts it short
+  ANIM.flCut = false;
+  if (swinging) { ANIM.meleeEqT = MELEE_EQ; ANIM.flCut = t0 >= 0; return null; }   // a swing straight away cuts it short (and it fades out)
   if (t0 < 0) return null;
   const k = clamp(t0 / MELEE_EQ, 0, 1), a = Math.sin(Math.PI * k);
   if (t0 < 0.22 && ANIM.meleeEqT >= 0.22) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
@@ -122,18 +126,29 @@ function meleeFlourish(D, rdt, swinging) {
   if (D.style === 'slash') { const f = Math.sin(Math.PI * Math.min(1, k * 1.4)); return { arx: -0.25 * a, hrx: -0.9 * f + 0.25 * Math.sin(Math.PI * 2 * k), uy: -0.18 * a, ux: 0 }; }   // the flick
   return { arx: -0.75 * a, hrx: 0.95 * a, uy: 0.2 * a, ux: -0.08 * a };                                          // the heft
 }
+// what the swing and flourish added to the pose last frame, so one that's cut off (a swing interrupted by a bandage,
+// a flourish by a swing) fades out over a moment instead of jumping
+const MCUT = { v: [0, 0, 0, 0, 0], t: 1, last: [0, 0, 0, 0, 0], lastP: 0 };
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, mh = gunMeshes.melee;
   const keys = SWING[D.style || 'swing'], p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0;
   let [, uy, ux, arx, ary, hrx] = sampleSwing(keys, p);
   const fl = meleeFlourish(D, rdt, p > 0 || !!sh);
   if (fl) { arx += fl.arx; hrx += fl.hrx; uy += fl.uy; ux += fl.ux; }
+  {
+    const k0 = keys[0], now5 = [uy - k0[1], ux - k0[2], arx - k0[3], ary - k0[4], hrx - k0[5]];
+    const cut = (MCUT.lastP > 0 && MCUT.lastP < 0.93 && p === 0) || (ANIM.flPrev && !fl && ANIM.meleeEqT >= MELEE_EQ && ANIM.flCut);
+    if (cut) { MCUT.v = MCUT.last.slice(); MCUT.t = 0; }
+    if (MCUT.t < 1) { MCUT.t = Math.min(1, MCUT.t + rdt / 0.16); const w = 1 - smooth(MCUT.t); uy += MCUT.v[0] * w; ux += MCUT.v[1] * w; arx += MCUT.v[2] * w; ary += MCUT.v[3] * w; hrx += MCUT.v[4] * w; }
+    MCUT.last = now5; MCUT.lastP = p; ANIM.flPrev = !!fl;
+  }
   const walk = Math.sin(ph) * 0.06 * Math.min(1, runF) * (p ? 0 : 1);
   up.y += uy; up.x += ux;
   // the weapon rides in the right fist on its keyframes
   armRest(pm.armR, 'R', arx + walk, ary);
   mh.rotation.set(hrx, 0, D.style === 'chop' ? 0 : 0.15);
-  if (P.bandT > 0) {   // weapon held low in the right hand, the left wraps the bandage round you; a bash drives the right hand out on its own
+  const bk = smooth(ANIM.bandK || 0);
+  if (bk > 0.999) {   // weapon held low in the right hand, the left wraps the bandage round you; a bash drives the right hand out on its own
     pm.armR.rotation.x = 0.55; const bt = now;
     if (sh) { const w = sh.q; _fR.set(0.14, 1.04, 0.28 + sh.push + ANIM.shoveHit * 0.06); const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(0.55 * (1 - w) + rxR * w, ryR * w, 0); }
     reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(bt * 9) * 0.07, 0.9 + Math.sin(bt * 9) * 0.05, 0.26), 0, true);
@@ -156,13 +171,21 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
       a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz * (1 - w));
       a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
     }
+    // easing into (or out of) the bandaging pose: the weapon hand drops, the other goes to the wrap
+    if (bk > 0.001) {
+      const r = pm.armR; r.rotation.set(r.rotation.x + (0.55 - r.rotation.x) * bk, r.rotation.y * (1 - bk), r.rotation.z * (1 - bk));
+      const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
+      reach(a, 'L', _fL.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26), 0, true);
+      a.rotation.set(rx + (a.rotation.x - rx) * bk, ry + (a.rotation.y - ry) * bk, rz * (1 - bk));
+      a.position.set(px + (a.position.x - px) * bk, py + (a.position.y - py) * bk, pz + (a.position.z - pz) * bk); a.scale.z = sz + (a.scale.z - sz) * bk;
+    }
   }
 }
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
-  const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60, band = P.bandT > 0;
-  if (band) ANIM.sw = Math.max(ANIM.sw, 0.85);
+  const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60, band = P.bandT > 0, bk = smooth(ANIM.bandK || 0);
+  if (band) ANIM.sw += (0.85 - ANIM.sw) * Math.min(1, rdt * 9);
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
   ANIM.pitch = (ANIM.pitch || 0) + ((ANIM.pitchT || 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF);
@@ -187,7 +210,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   if (cy && cy.bolt) roll -= 0.14 * ck;                                                    // the rifle rolls a little as the bolt is worked
   if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg; oy += 0.02 * cg; oz -= 0.03 * cg; }       // canted over to reach the charging handle
-  if (band) { pitch += 0.35; ox += 0.06; }                                                 // hangs at your side while you wrap up
+  pitch += 0.35 * bk; ox += 0.06 * bk;                                                     // hangs at your side while you wrap up
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
@@ -273,7 +296,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   reach(pm.armR, 'R', _fR);
   if (ak && band) reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26));
   else reach(pm.armL, 'L', _fL);
-  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1 + (band ? 0.35 : 0);
+  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1 + 0.35 * bk;
   pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
-  up.x += ANIM.pitch * 0.4 + ads * 0.05 + (band ? 0.18 : 0);
+  up.x += ANIM.pitch * 0.4 + ads * 0.05 + 0.18 * bk;
 }
