@@ -19,7 +19,7 @@ function fitAttachments(g, D, front, y, info) {
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
-      cyl(g, r, L, GM.metal, X, y, front + L / 2); hi(g, r * 1.1, L * 0.9, X, y + r, front + L / 2);
+      cyl(g, r, L, GM.metal, X, y, front + L / 2, 20);
       ring(g, r + 0.004, 0.026, GM.metal2, X, y, front + 0.016); ring(g, r + 0.004, 0.02, GM.metal2, X, y, front + L - 0.012); cyl(g, r * 0.35, 0.006, GM.poly, X, y, front + L + 0.002);
       if (s === 3) for (let i = 0; i < 5; i++) ring(g, r + 0.003, 0.01, GM.metal2, X, y, front + 0.07 + i * 0.05);
       front += L;
@@ -33,7 +33,7 @@ function fitAttachments(g, D, front, y, info) {
   // lasers hang right under the gun at the mount point (found from the model, so they touch whatever is there:
   // a pistol's rail under the dust cover, a shotgun's barrel or forend); the beam starts from an emitter at the lens (weapons/laser.js).
   // On sidearms they sit flush under the frame with no riser; long guns tape or rail them under the barrel.
-  if (T('laser')) {
+  if (T('laser') && !info.noLaser) {
     // a sidearm's goes just behind the front of its frame (the rail), found by stepping back from the muzzle until the
     // underside drops from the slide to the frame
     let lz = side ? front - 0.08 : front - 0.22;
@@ -58,7 +58,7 @@ function fitAttachments(g, D, front, y, info) {
     }
     g.add(em); g.userData.laserEm = em;
   }
-  if (T('light')) {
+  if (T('light') && !info.noLight) {
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, front - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, front - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, front - 0.163); [-0.28, -0.22].forEach(o => ring(g, 0.025, 0.022, GM.tape, X + 0.06, y - 0.02, front + o)); }
     else { box(g, 0.02, 0.03, 0.05, GM.metal, X + 0.045, y - 0.02, front - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, front - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, front - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, front - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, front - 0.36); }
   }
@@ -69,9 +69,9 @@ function fitAttachments(g, D, front, y, info) {
     if (sight === 3 && !side) {   // variable scope in rings
       const sy = by + 0.075;
       [-0.06, 0.08].forEach(o => { box(p, 0.04, 0.012, 0.03, GM.metal, sx, by + 0.006, bz + o); box(p, 0.014, sy - by, 0.02, GM.metal, sx, by + (sy - by) / 2, bz + o); ring(p, 0.03, 0.022, GM.metal, sx, sy, bz + o); });
-      cyl(p, 0.025, 0.3, GM.metal, sx, sy, bz + 0.01); hi(p, 0.025, 0.28, sx, sy + 0.025, bz + 0.01);
+      cyl(p, 0.025, 0.3, GM.metal, sx, sy, bz + 0.01, 18);
       taper(p, 0.025, 0.04, 0.08, GM.metal, sx, sy, bz + 0.2); taper(p, 0.03, 0.025, 0.05, GM.metal, sx, sy, bz - 0.16);
-      box(p, 0.062, 0.062, 0.005, GM.glass, sx, sy, bz + 0.242); box(p, 0.046, 0.046, 0.005, GM.glass, sx, sy, bz - 0.186);
+      cyl(p, 0.037, 0.005, GM.glass, sx, sy, bz + 0.242, 24); cyl(p, 0.026, 0.005, GM.glass, sx, sy, bz - 0.186, 20);   // round lenses at both ends
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.032, 8), GM.metal2); tt.position.set(sx, sy + 0.036, bz + 0.01); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.032, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036, sy, bz + 0.01); p.add(st);
     } else if (sight >= 2) {   // holographic sight: a hooded window with a glowing ring reticle
@@ -83,7 +83,7 @@ function fitAttachments(g, D, front, y, info) {
     } else {   // micro red dot
       box(p, 0.034, 0.012, 0.05, GM.metal, sx, by + 0.006, bz);
       cyl(p, 0.019, 0.055, GM.metal, sx, by + 0.032, bz); ring(p, 0.021, 0.01, GM.metal2, sx, by + 0.032, bz + 0.028);
-      box(p, 0.028, 0.028, 0.003, GM.glass, sx, by + 0.032, bz + 0.03); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.025);
+      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.03, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.025);
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), GM.metal2); tt.position.set(sx, by + 0.055, bz); p.add(tt);
     }
   }
