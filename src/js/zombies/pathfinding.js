@@ -21,7 +21,9 @@ function flowInto(dist, big) {
       const cost = enterCost(ni, nj, big); if (cost === Infinity) continue;
       const diag = di && dj; if (diag && !diagOk(i, j, di, dj)) continue;
       const nd = d + cost * (diag ? 1.414 : 1), n = idx(ni, nj);
-      if (nd < dist[n]) { dist[n] = nd; hpush(n, nd); }
+      // queue the value as stored: the field is 32-bit, and queuing the unrounded one made the pop below skip any cell
+      // whose distance rounded down, so the search never went on from it and most of the farm went unmapped
+      if (nd < dist[n]) { dist[n] = nd; hpush(n, dist[n]); }
     }
   }
 }
