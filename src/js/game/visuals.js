@@ -13,7 +13,7 @@ function visuals(dt, rdt) {
   stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt);
   stepParticles(dt); stepFx(dt);
   stepFloats(rdt);
-  updateHUD(rdt, D);
+  updateHUD(rdt, D); updateDropMarker();
   updateCrosshair(rdt, D);
   tickMessages(rdt);
 }

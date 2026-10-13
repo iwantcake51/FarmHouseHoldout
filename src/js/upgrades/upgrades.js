@@ -11,7 +11,6 @@ const UPG = [
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'Three full cans of ammo for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast, for half the stamina.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
-  { r: 'u', tag: 'Ammo', name: 'Through and through', text: 'Bullets pass through one more zombie.', vis: 'Longer barrels', can: () => S.pierce < 2, ap: () => S.pierce++ },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
@@ -25,7 +24,6 @@ const UPG = [
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
     card() { this.target = pick(gunsHeld().filter(smithable)); const nm = WEAP[this.target].name.toLowerCase(); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm} gets two of its ammo, trigger and magazine upgrades raised a tier (the two furthest behind), and any of the three it has none of fitted at tier 1.`, vis: 'Changes two or three at once' }; },
     ap() { const id = this.target; if (!id) return; W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
-  { r: 'l', tag: 'Ammo', name: 'Incendiary rounds', text: 'Every bullet sets zombies on fire for 3 seconds.', vis: 'A hot orange band on every gun', can: () => !S.att.fire, ap: () => S.att.fire = true },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health and you barely slow down when hit.', can: () => S.slowRes < 0.85, ap: () => { S.maxHp += 50; P.hp += 50; S.slowRes = Math.max(S.slowRes, 0.85); } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Kills sometimes slow the world for a moment.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
   { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, everything you do hits 60% harder.', can: () => !S.lastStand, ap: () => S.lastStand = true }
@@ -64,10 +62,32 @@ function giveWeapon(id) {
   W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
   equip(s, true);
 }
+// weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you
+// can scrape together early (a better melee weapon, a revolver, a machine pistol), 2 real guns (the shotguns, the SMG,
+// the .50, the axe and sledgehammer), 3 heavy ones (the assault rifle, the hunting rifle, the katana) and 4 the top of
+// the pile (the drum shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
+// band above it is open it turns up less and less. A weapon better than the one in its slot turns up more, one no
+// better turns up less
+const WEAP_POW = { bat: 0.5, pistol: 1, crowbar: 1, wrench: 1, machete: 1, revolver: 1, smg: 1, dbl: 2, pump: 2, sub: 2, deagle: 2, axe: 2, sledge: 2, ar: 3, hunting: 3, katana: 3, auto12: 4, lmg: 4 };
+const WEAP_OPEN = [0, 1, 5, 8, 11];
+const weapPow = id => id ? WEAP_POW[id] || 1 : 0;
+function weapWeight(id) {
+  const p = weapPow(id), w = run.wave, open = WEAP_OPEN[p];
+  if (w < open) return 0;
+  const inK = Math.min(1, (w - open + 1) / 3), next = WEAP_OPEN[p + 1], fade = next && w >= next ? Math.max(0.2, 1 - (w - next + 1) * 0.2) : 1;
+  const cur = weapPow(W8.slot[WEAP[id].slot]), better = p > cur ? 1.1 + 0.4 * (p - cur) : p === cur ? 0.5 : 0.2;
+  return inK * fade * better;
+}
+// and a run never stalls on weak guns: from each GUN_DUE wave on, while the best long gun or automatic you carry is
+// below its band, one card at the end of every wave is a long gun or automatic of that band (dealCards,
+// upgrades/upgrade-screen.js), until you take one
+const GUN_DUE = [[6, 2], [10, 3]];
+const bestGun = () => Math.max(weapPow(W8.slot.long), weapPow(W8.slot.auto));
+function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= w && bestGun() < b) band = b; return band; }
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: 1.6, can: () => !held(id), ap: () => giveWeapon(id) });
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons

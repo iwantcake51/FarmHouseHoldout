@@ -20,6 +20,14 @@ function reloadJolt(s) {
   const c = camRec; reloadRockSide = -reloadRockSide;
   c.vr += reloadRockSide * s * rr(0.85, 1.1); c.vpx -= Math.sin(P.aim) * s * 0.15; c.vpz -= Math.cos(P.aim) * s * 0.15;
 }
+// working a pump or a bolt: a looser, slower sway than a shot's kick, so the view rides the rack and settles after it
+// instead of snapping (weapons/casings.js knocks it on each beat): roll, a push along the aim (back toward you as the
+// action's torn back, forward as it slams home) and a little zoom; it pushes less through a scope
+const camRack = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
+function rackCam(roll, push, zm) {
+  const c = camRack, k = 1 - 0.6 * (ANIM.scopeK || 0);
+  c.vr += roll * rr(0.85, 1.15); c.vpx += Math.sin(P.aim) * push * k; c.vpz += Math.cos(P.aim) * push * k; c.vz += zm;
+}
 function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
 function vaultCam(rdt) {
   const v = P.vault, c = camVault;
@@ -34,6 +42,8 @@ function vaultCam(rdt) {
     springTo(c, 'px', 'vpx', v ? v.dx * push : 0, 40, 11, dt); springTo(c, 'pz', 'vpz', v ? v.dz * push : 0, 40, 11, dt);
     springTo(camRec, 'roll', 'vr', 0, 110, 12, dt); springTo(camRec, 'zoom', 'vz', 0, 140, 14, dt);
     springTo(camRec, 'px', 'vpx', 0, 150, 15, dt); springTo(camRec, 'pz', 'vpz', 0, 150, 15, dt);
+    springTo(camRack, 'roll', 'vr', 0, 55, 6.5, dt); springTo(camRack, 'zoom', 'vz', 0, 70, 7, dt);
+    springTo(camRack, 'px', 'vpx', 0, 60, 7.5, dt); springTo(camRack, 'pz', 'vpz', 0, 60, 7.5, dt);
   }
 }
 let titleSpin = 0;
@@ -78,8 +88,8 @@ function updateCamera(rdt) {
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt);
-  const cv = camVault, cr = camRec, vx = camKick.x + cv.px + cr.px, vz = camKick.z + cv.pz + cr.pz;
-  cam.zoom *= 1 + cr.zoom * 0.35;
+  const cv = camVault, cr = camRec, ck = camRack, vx = camKick.x + cv.px + cr.px + ck.px, vz = camKick.z + cv.pz + cr.pz + ck.pz;
+  cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom;
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + introRoll()); cam.updateProjectionMatrix();
+  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + introRoll()); cam.updateProjectionMatrix();
 }

@@ -24,8 +24,14 @@ const SFX = {
   chargeSlam() { nz(0.05, 'bandpass', 1100, 500, 0.32, 2); tn(0.05, 'triangle', 420, 180, 0.2); },
   rack() { nz(0.06, 'bandpass', 1400, 800, 0.3, 2); setTimeout(() => nz(0.07, 'bandpass', 900, 500, 0.32, 2), 110); },
   tink(hull, v) { if (hull) { tn(0.05, 'triangle', rr(520, 640), 300, 0.05 * v); nz(0.04, 'bandpass', 1400, 900, 0.06 * v, 3); } else { const f = rr(3800, 5200); tn(0.06, 'sine', f, f * 0.97, 0.035 * v); tn(0.04, 'sine', f * 1.5, f * 1.48, 0.015 * v); } },
-  pump() { nz(0.05, 'bandpass', 1100, 700, 0.26, 2); tn(0.03, 'square', 420, 300, 0.06); setTimeout(() => { nz(0.06, 'bandpass', 1500, 900, 0.3, 2); tn(0.03, 'square', 520, 380, 0.07); }, 150); },
-  bolt() { tn(0.03, 'square', 900, 700, 0.07); nz(0.05, 'bandpass', 2400, 1400, 0.2, 3); setTimeout(() => { nz(0.06, 'bandpass', 1800, 1000, 0.22, 3); tn(0.04, 'square', 700, 500, 0.08); }, 190); },
+  // working a pump: the forend yanked back to its stop (a rasp and a clack), then shoved home (a heavier slam)
+  pumpBack() { nz(0.07, 'bandpass', 1300, 650, 0.3, 2); tn(0.04, 'square', 440, 280, 0.08); tn(0.05, 'sine', 180, 90, 0.12); },
+  pumpHome() { nz(0.08, 'bandpass', 1700, 800, 0.36, 2); tn(0.04, 'square', 560, 360, 0.1); tn(0.07, 'sine', 150, 70, 0.2); },
+  // working a bolt: the handle snapped up, the bolt drawn back hard, driven home, and the handle slapped down to lock
+  boltUp() { tn(0.025, 'square', 1100, 850, 0.06); nz(0.03, 'bandpass', 2800, 2000, 0.14, 3); },
+  boltBack() { nz(0.09, 'bandpass', 2200, 1100, 0.24, 3); tn(0.04, 'square', 760, 520, 0.08); tn(0.05, 'sine', 200, 110, 0.1); },
+  boltHome() { nz(0.07, 'bandpass', 1600, 900, 0.22, 3); tn(0.03, 'square', 620, 460, 0.07); },
+  boltLock() { tn(0.04, 'square', 820, 560, 0.1); nz(0.04, 'bandpass', 2600, 1500, 0.2, 3); tn(0.05, 'sine', 170, 90, 0.12); },
   swingBlunt(two) { nz(two ? 0.26 : 0.2, 'bandpass', 260, 1300, 0.34, 1.4); tn(0.12, 'sine', 90, 60, 0.05); },
   swingBlade(chop) { nz(chop ? 0.2 : 0.15, 'bandpass', chop ? 900 : 1700, chop ? 3200 : 5600, 0.28, 3.5); tn(0.1, 'sine', 1500, 2700, 0.025); },
   hitBlunt(big) { tn(big ? 0.18 : 0.13, 'sine', big ? 85 : 110, 38, 0.62); nz(0.1, 'lowpass', 800, 140, 0.5); nz(0.045, 'bandpass', 1900, 800, 0.26, 2); setTimeout(() => nz(0.05, 'bandpass', 1300, 600, 0.14, 2.5), 30); },

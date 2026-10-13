@@ -10,13 +10,22 @@ function cardFor(u, c) {
   return FOR_TAG[c.tag.split(' ')[0]] || 'For you';
 }
 function rarWeight(r) { const w = run.wave; return { c: 60, u: 26 + w * 1.5, r: 9 + w * 1.4, e: 3 + w * 1.0, l: 0.8 + w * 0.5 }[r]; }
+// pick one from a pool by weight, and take it out of the pool
+function drawCard(pool, wt) {
+  const tot = pool.reduce((a, u) => a + wt(u), 0); let r = rand() * tot, k = 0;
+  for (; k < pool.length - 1; k++) { r -= wt(pool[k]); if (r <= 0) break; }
+  return pool.splice(k, 1)[0];
+}
 function dealCards() {
   const pool = UPG.filter(u => !u.can || u.can()); dealt = [];
-  while (dealt.length < 3 && pool.length) {
-    const wt = u => rarWeight(u.r) * (u.w || 1);
-    const tot = pool.reduce((a, u) => a + wt(u), 0); let r = rand() * tot, k = 0;
-    for (; k < pool.length - 1; k++) { r -= wt(pool[k]); if (r <= 0) break; }
-    dealt.push(pool.splice(k, 1)[0]);
+  const wt = u => rarWeight(u.r) * (typeof u.w === 'function' ? u.w() : u.w || 1);
+  while (dealt.length < 3 && pool.length) dealt.push(drawCard(pool, wt));
+  // a gun you're owed (gunDue, upgrades/upgrades.js): if none of the three is a long gun or automatic of that band or
+  // better, the last card becomes one
+  const due = gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
+  if (due && !dealt.some(isDue)) {
+    const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf));
+    if (owed.length) dealt[dealt.length - 1] = drawCard(owed, u => rarWeight(u.r));
   }
   const wrap = $('cards'); wrap.innerHTML = '';
   const rots = [-1.6, 0.8, -0.4];

@@ -4,11 +4,18 @@
 //
 // It's painted on the GPU: each splash is a quad drawn into the map with a little shader that shapes it (a pool, a
 // spray thrown one way, a drop with its spatter) and MAX blending, so splashes build on each other without ever
-// lightening what's there. Red is blood, green how high the splash went, blue soot. Pools spread over a second or two
-// by drawing their quad again a little bigger each frame. Old blood very slowly soaks away.
+// lightening what's there. Red is blood, green how high the splash went, blue soot, and alpha how fresh it is. Pools
+// spread over a few seconds by drawing their quad again a little bigger each frame.
+//
+// Blood stays put for a few waves and then soaks away: each wave that starts takes BM_AGE off every stain's freshness,
+// so blood spilled in one wave is still there two waves later and starts to fade at the start of the third, slowly
+// (over about BM_FADE seconds), from its thin edges in. A splash on top of old blood makes it fresh again. Fading reads
+// the map, so it's drawn into a second copy (ping-pong) and the two swap.
 
-const BM_RES = 1024;
-const bmTarget = new THREE.WebGLRenderTarget(BM_RES, BM_RES, { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false });
+const BM_RES = 1024, BM_AGE = 0.4, BM_FADE = 80;
+const bmOpts = { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false };
+const bmTargets = [new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts), new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts)];
+let bmTarget = bmTargets[0];
 BMU.uBloodMap.value = bmTarget.texture;
 // smooth tiling value noise for the stains' edges (here and in the shaders)
 BMU.uBloodNoise.value = (() => {
@@ -45,7 +52,7 @@ void main() {
     a = max(a, smoothstep(0.66, 0.74, bn(vUv * 2.6 + uSeed * 3.1)) * smoothstep(1.0, 0.55, r));
   }
   a *= uStr;
-  gl_FragColor = vec4(a * uR, a * uH * uR, a * uSoot, 1.0);
+  gl_FragColor = vec4(a * uR, a * uH * uR, a * uSoot, a);   // alpha: fresh
 }`;
 const BM_QUAD = new THREE.PlaneGeometry(2, 2);
 const bmMat = () => new THREE.ShaderMaterial({ vertexShader: BM_VERT, fragmentShader: BM_FRAG, depthTest: false, depthWrite: false, transparent: true,
@@ -71,25 +78,37 @@ function splat(x, z, kind, size, ang, grow, h) {
 // a spray thrown from (x, z) along (dx, dz)
 function spray(x, z, dx, dz, size, h) { splat(x + dx * size * 0.35, z + dz * size * 0.35, 'spray', size, Math.atan2(dz, dx), 0, h); }
 // wipe the farm clean for a new run
-function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmCleared = false; bmDirty = true; }
-// soaking away: a little taken off everything every few seconds (gone in about six minutes)
-const bmDryM = new THREE.Mesh(BM_QUAD, new THREE.MeshBasicMaterial({ color: new THREE.Color(2 / 255, 2 / 255, 1 / 255), depthTest: false, depthWrite: false, transparent: true,
-  blending: THREE.CustomBlending, blendEquation: THREE.ReverseSubtractEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor }));
-bmDryM.scale.setScalar(HALF); bmDryM.frustumCulled = false; bmDryM.visible = false; bmScene.add(bmDryM);
+function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmCleared = false; bmDirty = true; bmAgeDue = 0; }
+// a wave starting ages every stain (waves/waves.js)
+let bmAgeDue = 0;
+function bloodAge() { bmAgeDue += BM_AGE; bmDry = 99; }
+// the aging pass: the map copied into the other target, freshness taken down by uAge, and blood with none left faded
+// by uFade; then the two swap
+const bmAgeScene = new THREE.Scene(), bmAgeM = new THREE.Mesh(BM_QUAD, new THREE.ShaderMaterial({ vertexShader: BM_VERT, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
+  uniforms: { uSrc: { value: null }, uAge: { value: 0 }, uFade: { value: 0 } },
+  fragmentShader: `uniform sampler2D uSrc; uniform float uAge, uFade; varying vec2 vUv;
+void main() { vec4 c = texture2D(uSrc, vUv); float fresh = max(0.0, c.a - uAge); gl_FragColor = vec4(max(c.rgb - (fresh > 0.0 ? 0.0 : uFade), 0.0), fresh); }` }));
+bmAgeM.scale.setScalar(HALF); bmAgeM.frustumCulled = false; bmAgeScene.add(bmAgeM);
 const _bmCol = new THREE.Color();
 // each frame: spread the pools still spreading and draw whatever's new into the map
 function stepBloodMap(dt) {
-  bmDry += dt; if (bmDry > 3) { bmDry = 0; bmDryM.visible = true; bmDirty = true; }
+  bmDry += dt;
   for (const q of bmQuads) {
     if (!q.busy || !q.dur) continue;
     q.t += dt; const e = 1 - Math.pow(1 - Math.min(1, q.t / q.dur), 3); q.m.scale.setScalar(q.s * (0.25 + 0.75 * e)); bmDirty = true;
   }
-  if (!bmDirty) return;
+  if (!bmDirty && bmDry <= 3) return;
   const at = R.getRenderTarget(), ac = R.autoClear; R.getClearColor(_bmCol); const aa = R.getClearAlpha();
-  R.setRenderTarget(bmTarget); R.autoClear = false;
-  if (!bmCleared) { R.setClearColor(0x000000, 1); R.clear(true, false, false); bmCleared = true; }
-  R.render(bmScene, bmCam);
+  R.autoClear = false;
+  if (!bmCleared) { R.setClearColor(0x000000, 0); bmTargets.forEach(t => { R.setRenderTarget(t); R.clear(true, false, false); }); bmCleared = true; }
+  // every few seconds (and straight away when a wave starts): age the stains into the other copy and swap
+  if (bmDry > 3) {
+    const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms;
+    u.uSrc.value = bmTarget.texture; u.uAge.value = bmAgeDue; u.uFade.value = Math.min(bmDry, 6) / BM_FADE; bmAgeDue = 0; bmDry = 0;
+    R.setRenderTarget(dst); R.render(bmAgeScene, bmCam); bmTarget = dst; BMU.uBloodMap.value = dst.texture;
+  }
+  R.setRenderTarget(bmTarget); R.render(bmScene, bmCam);
   R.setRenderTarget(at); R.autoClear = ac; R.setClearColor(_bmCol, aa);
-  bmDryM.visible = false; bmDirty = false;
+  bmDirty = false;
   for (const q of bmQuads) if (q.busy && (!q.dur || q.t >= q.dur)) { q.busy = false; q.m.visible = false; }
 }

@@ -85,3 +85,16 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 @keyframes introUp{from{opacity:0;translate:0 16px}}
 @keyframes introFade{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){body.intro #introVeil,body.intro #waveBox,body.intro #moodles,body.intro #vitals,body.intro #arms,body.intro #xh{animation-duration:.01s;animation-delay:0s}}
+/* the supply crate's marker (stations/supply-drop.js): a pin over the crate with its icon and distance, or, while the
+   crate is off screen, the same pin held at the edge with an arrow pointing out toward it */
+.dropMark{left:0;top:0;z-index:3;will-change:transform}
+.dropMark .dmPin{position:absolute;left:0;top:0;transform:translate(-50%,calc(-100% - 8px));display:flex;align-items:center;gap:5px;padding:4px 9px 3px 6px;background:rgba(20,14,10,.8);border:1.5px solid #f08a4a;border-radius:3px;color:#ffd9b8;font-family:var(--f-num);font-weight:700;font-size:15px;letter-spacing:.02em;white-space:nowrap;box-shadow:0 0 16px rgba(240,138,74,.45);animation:dmBob 1.6s ease-in-out infinite}
+.dropMark .dmPin::after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top:7px solid #f08a4a;border-bottom:0}
+.dropMark svg{width:20px;height:20px;fill:#f08a4a}
+.dropMark.falling .dmPin{border-style:dashed;animation:dmBob 1.6s ease-in-out infinite,dmBlink 0.8s steps(2) infinite}
+.dropMark .dmArrow{display:none}
+.dropMark.off .dmPin{transform:translate(-50%,-50%);animation:none}
+.dropMark.off .dmPin::after{display:none}
+.dropMark.off .dmArrow{display:block;position:absolute;left:-10px;top:-11px;width:0;height:0;border-left:20px solid #f08a4a;border-top:11px solid transparent;border-bottom:11px solid transparent;transform-origin:10px 11px;transform:rotate(var(--a)) translateX(44px);filter:drop-shadow(0 0 6px rgba(240,138,74,.7))}
+@keyframes dmBob{50%{margin-top:-5px}}
+@keyframes dmBlink{50%{opacity:.55}}

@@ -84,10 +84,12 @@ Every source file starts with a one-line comment saying what is in it.
 | Where zombies come in from: how far out in the fog they start and how soon they show (`FOG_IN`) | `spawnZombie` in `src/js/zombies/spawn.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
 | The cards after a wave (skills, perks, aid and new weapons; which is which is `findKind`) and how rare they are. Weapon upgrades are bought at the workbench instead | `src/js/upgrades/upgrades.js` |
+| Which weapons turn up after a wave: each weapon's firepower band (`WEAP_POW`), the wave each band opens (`WEAP_OPEN`), how a band comes in and fades out and favours an upgrade over what you carry (`weapWeight`), and the long gun you're owed if you're still under-gunned by a wave in `GUN_DUE` (dealt in `dealCards`, `src/js/upgrades/upgrade-screen.js`) | `src/js/upgrades/upgrades.js` |
 | Who each card is for ("For your 9mm pistol", "For you") | `cardFor` in `src/js/upgrades/upgrade-screen.js`, `forYour` in `src/js/stations/recipes.js` |
 | What the cards show (before → after chips, what a tier is for, running totals for ones that stack) | `src/js/upgrades/upgrade-info.js` |
-| How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
+| How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick (a spring per hand, randomized each shot: thrown up and back, then a strong gun is hauled back down past the aim before it settles) | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
+| The supply crate's marker (over it, or at the edge of the screen pointing to it) and the light beam over a landed crate | `updateDropMarker` in `src/js/stations/supply-drop.js`, `dropBeam` in `src/js/pickups/pickups.js` |
 | What each station sells, and the prices (ammo by the gun, `AMMO_COST`; a gun's ammo, trigger and magazine upgrades, `TIER_COST`). Everything for the weapon in your hands sits in one group, Attachments / Upgrades (`gearGroup`), and each card's green and red chips come from `src/js/upgrades/upgrade-info.js` (`tierFx`, `modFx`, `improveFx`, `tuneFx`) | `src/js/stations/recipes.js` |
 | Speed loaders: the revolver's reload with one (`REV_LOAD`) and how long each go of shells takes (`LOADER_T`); the revolver's loader moves are in `src/js/player/hold.js` (`SLM`) | `src/js/game/run-state.js`, `SL_IN` and the rest in `src/js/weapons/reload.js` |
 | The shotgun pattern (`pelletOff`), what a round keeps through each zombie (`PIERCE_KEEP`), and scopes (`scopeSpread`, `SCOPE_HEAD`) | `src/js/weapons/firing.js` |
@@ -98,9 +100,13 @@ Every source file starts with a one-line comment saying what is in it.
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
+| Working the pump and the bolt: the ways each is worked, one picked at random each time (`RACKS`: the beats, timing, how the gun leans, where the hand takes the knob, and the knocks to the gun and the camera at each stop), how far the action is back (`cyclePose`), the sounds on each beat (`cycleFx`), and the rack that chambers a round (`chamberCycle`): a pump or bolt gun can't fire again till a rack drives a round home (`needsRack`), and a rack cut short by a reload or a swap is done again once your hands are free. The gun rides a loose spring through it (`RACK_K`, `RACK_D` in `src/js/player/hold.js`, along with how far the bolt handle turns, `BOLT_TURN`), and so does the camera (`camRack` in `src/js/game/camera.js`) | `src/js/weapons/casings.js` |
 | Weapons carried on your body (hip holster, strapped flat across the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers, and dragon's breath (`dragonBreath`) | `src/js/effects/puffs.js` |
+| Bullet tracers: how hard each round hits as far as its tracer goes (`tracerPower`), the colours for plain, +P and dragon's breath rounds (`TR_STYLE`), and the slug, its head, the line it leaves, the heat haze and the light a big round throws on the ground | `src/js/effects/tracers.js` |
 | Bullet holes in the house walls | `src/js/effects/bullet-holes.js` |
+| Blood on the farm: how long it stays (each wave ages it by `BM_AGE`, so it starts to fade at the third wave start) and how slowly it fades (`BM_FADE`) | `src/js/effects/blood-map.js` |
+| The pool a body bleeds out into where it lands | `src/js/zombies/deaths.js` |
 | The zombies' eye glow and the streaks behind it (`EYE_GLOW`, `EYE_HALO`, `EYE_STREAK`) | `src/js/effects/eye-glow.js` |
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Sounds | `src/js/audio/sfx.js` |
