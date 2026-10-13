@@ -3,7 +3,7 @@
 // force: draw it again even if it's the slot in your hands (a new weapon just went into it)
 function equip(s, force) {
   if (!W8.slot[s] || (W8.cur === s && !force)) return;
-  exitScope(); ANIM.sw = 0.35; W8.swing = 0;
+  exitScope(); ANIM.sw = 0.35; W8.swing = 0; W8.boltOpen = false;
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
   if ((W(W8.slot[s]) || {}).melee) ANIM.meleeEqT = -(SWAP_T.end - 0.06);   // a flourish once it's drawn (player/hold.js)
   W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE); SFX.click();
@@ -24,7 +24,11 @@ function startReload() {
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   if (D.perShell) {
-    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id)); W8.dry = !(W8.mag[id] > 0);
+    // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js), and the
+    // rifle's bolt is opened to feed it
+    if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
+    if (EJECT[id] === 'bolt') { W8.open[id] = true; W8.boltOpen = true; }
+    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
     W8.reloadT = D.perShell * S.reloadMul + (id === 'revolver' ? 0.3 : 0.12); W8.reloadMax = W8.reloadT;
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.click(); reloadJolt(0.12); }   // the cylinder swings out
   else { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); reloadJolt(0.08); } }, 140); }
@@ -57,8 +61,9 @@ function tickReload(dt) {
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
     W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); if (n > 1) setTimeout(() => SFX.shell(), 55); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul;
-    // done: rack a pump that was run dry, close the rifle's bolt (weapons/casings.js); anything else just snaps shut
-    else if (EJECT[id] === 'bolt' || (EJECT[id] === 'pump' && W8.dry)) { W8.reloading = null; chamberCycle(id); W8.cd = Math.max(W8.cd, EJECT[id] === 'bolt' ? 0.5 : 0.42); }
+    // done: a pump or bolt gun that's open is racked next (weapons/casings.js), one that's chambered is ready as it is;
+    // anything else snaps shut
+    else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); }
     else { W8.reloading = null; SFX.rack(); reloadJolt(0.22); shake = Math.max(shake, 0.12); W8.cd = Math.max(W8.cd, 0.25); }
   } else {
     const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);

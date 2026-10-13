@@ -248,12 +248,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     else { roll -= 0.45 * re; pitch -= 0.08 * re; oy -= 0.03 * re; oz -= 0.04 * re; }      // tipped to show the loading port
   }
   {
-    // working the action: the rifle stays shouldered but rolls over to bring the handle up and dips as the bolt is torn
-    // back; the pump's muzzle dips and the gun cants as the forend comes back. The gun follows on its loose spring, and
-    // the stops knock it (CYC_FX in weapons/casings.js); the torso twists and rocks with it
+    // working the action: the gun leans the way this rack works it (RACKS in weapons/casings.js) and follows on its
+    // loose spring, and the stops knock it; the torso twists and rocks with it
     const t = _rackT; t.p = t.r = t.y = t.z = t.h = t.w = 0;
-    if (cp && cy.bolt) { t.r = -0.13 * cp.grab - 0.05 * cp.lift; t.p = 0.04 * cp.off; t.y = 0.03 * cp.grab; t.z = -0.018 * cp.off; t.h = -0.012 * cp.grab; t.w = 0.04 * cp.off; }
-    else if (cp) { t.r = 0.07 * cp.off; t.p = 0.06 * cp.off; t.z = -0.015 * cp.off; t.h = -0.012 * cp.off; t.w = -0.05 * cp.off; }
+    if (cp) for (const src in cy.v.lean) { const L = cy.v.lean[src], k = cp[src]; for (const a in L) t[a] += L[a] * k; }   // this way of working it (RACKS)
     stepRack(rdt, t);
     pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
     up.y += RACK.w; up.x += 0.3 * RACK.p;
@@ -289,7 +287,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       if (q.cyc) {
         // the rifle's bolt stays open, handle up, while you feed it; otherwise the action follows the cycle
         const bolt = EJECT[id] === 'bolt', open = bolt && rel === 'shell';
-        off = open ? 1 : cp ? cp.off : 0; held = open;
+        off = open ? 1 : cp ? cp.off : 0; held = open || !cp;   // eased when nothing's working it (a rack cut short closes, not snaps)
         if (bolt) { q.lift = (q.lift || 0) + ((open ? 1 : cp ? cp.lift : 0) - (q.lift || 0)) * (cp && !open ? 1 : Math.min(1, rdt * 14)); q.m.rotation.z = -BOLT_TURN * q.lift; }
       }
       else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
@@ -325,7 +323,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // behind it), coming up over the wrist on the way there and back
   if (cp && cy.bolt && sl) {
     const q = sl.find(e => e.cyc);
-    if (q) { _p1.set(BOLT_KNOB[0] - 0.012, BOLT_KNOB[1] - 0.004, BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, cp.grab); _hR.y += Math.sin(Math.PI * cp.grab) * 0.02 * (cq < 0.5 ? 1 : 0.6); }
+    if (q) { const hd = cy.v.hand; _p1.set(BOLT_KNOB[0] + hd[0], BOLT_KNOB[1] + hd[1], BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, cp.grab); _hR.y += Math.sin(Math.PI * cp.grab) * 0.02 * (cq < 0.5 ? 1 : 0.6); }
   }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back
