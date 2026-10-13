@@ -40,6 +40,9 @@ function stepAtmos(realDt) {
     }
     motes.pts.geometry.attributes.position.needsUpdate = true;
   }
+  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
+  LMU.uCloud.value.x += rdt * 0.0042; LMU.uCloud.value.y += rdt * 0.0017;
+  LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
   // thick fog pulls the distance haze in close and tints it with the sky
@@ -67,3 +70,9 @@ const fireflies = (() => {
   const pts = new THREE.Points(g, m); scene.add(pts);
   return { pts, pos, seed, m };
 })();
+// the film grain's noise tile (styles/overlays.css jitters it)
+{
+  const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d'), d = x.createImageData(160, 160);
+  for (let k = 0; k < d.data.length; k += 4) { const v = 70 + rand() * 115; d.data[k] = d.data[k + 1] = d.data[k + 2] = v; d.data[k + 3] = 255; }
+  x.putImageData(d, 0, 0); $('grain').style.backgroundImage = `url(${c.toDataURL()})`;
+}
