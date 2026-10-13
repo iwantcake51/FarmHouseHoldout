@@ -11,6 +11,7 @@ function buildGear() {
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
+  LOOK.g.hat.visible = !(S.slowRes >= 0.85);   // the helmet goes on instead of your hat
   if (bt || thick) {
     const upper = [GEAR.dark, GEAR.leather, GEAR.white, GEAR.blue][bt], sole = [GEAR.sole, GEAR.sole, GEAR.red, GEAR.amber][bt];
     [PM.legL, PM.legR].forEach(l => {
@@ -30,7 +31,7 @@ function buildGear() {
   } else if (T('eyes')) {
     gearAdd(PM.head, 0.3, 0.06, 0.02, GEAR.lens, 0, 0.04, 0.17); gearAdd(PM.head, 0.02, 0.03, 0.3, GEAR.dark, -0.165, 0.05, 0.02); gearAdd(PM.head, 0.02, 0.03, 0.3, GEAR.dark, 0.165, 0.05, 0.02);
   }
-  if (T('eyes') >= 3) gearAdd(PM.head, 0.06, 0.04, 0.02, GEAR.steel, 0.16, 0.214, -0.12);                                    // a little rear-view mirror on the cap
+  if (T('eyes') >= 3) gearAdd(PM.head, 0.06, 0.04, 0.02, GEAR.steel, 0.16, LOOK.mirrorY, -0.12);                            // a little rear-view mirror on your hat (or hair)
   // hammer line hangs on the belt: claw hammer, framing hammer, then a nail gun on the hip
   const hm = T('hammer');
   if (hm === 1 || hm === 2) { const L = hm === 2 ? 0.34 : 0.26; gearAdd(PM.upper, 0.03, L, 0.03, GEAR.wood, 0.29, 0.6, 0.04); gearAdd(PM.upper, 0.05, 0.05, hm === 2 ? 0.16 : 0.12, GEAR.steel, 0.29, 0.6 + L / 2, 0.04); }

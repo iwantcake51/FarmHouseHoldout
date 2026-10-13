@@ -16,8 +16,7 @@ function buildGuns() {
   // body armour by tier
   while (armorG.children.length) armorG.remove(armorG.children[0]);
   const ar = T('armor');
-  PM.mats.shirt.color.setHex(ar >= 1 ? 0x7a6a4a : 0x4e5a3c);
-  PM.mats.shirtDk.color.setHex(ar >= 1 ? 0x5e5036 : 0x3e4830);
+  shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)
   if (ar >= 2) { box(armorG, 0.56, 0.48, 0.36, lam(0x3a3f2c), 0, 0.9, 0.01); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), -0.12, 0.85, 0.19); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), 0.12, 0.85, 0.19); }
   if (ar >= 3) { box(armorG, 0.44, 0.36, 0.06, GM.metal2, 0, 0.95, 0.21); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), -0.32, 1.125, 0); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), 0.32, 1.125, 0); for (let k = 0; k < 3; k++) box(armorG, 0.1, 0.12, 0.06, lam(0x2c3022), -0.12 + k * 0.12, 0.72, 0.22); }
   const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
@@ -51,12 +50,19 @@ function buildGuns() {
     g.userData.blood = bloodWeapon(D.melee ? g : HOLDS[s].R, !!D.melee); g.userData.bloodId = id;
     tierCtx = null;
   }
-  const mods = [];
   buildGear();
   { const only = new Set(gearParts); armorG.traverse(o => { if (o.isMesh) only.add(o); }); unfight(PM.g, { only }); }
-  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) if (T(k)) mods.push(TIERS[k].t[T(k) - 1].name);
-  if (pr) mods.push('Pierce ' + pr);
-  if (S.att.fire) mods.push('Incendiary'); if (S.att.bayonet) mods.push('Bayonet'); if (S.att.stock) mods.push('Stock');
-  cache.modsGeneral = mods;
   stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
+}
+// what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
+// actually fit it (the bayonet goes on long guns, the stock on sidearms)
+function gunExtras(id) {
+  const D = WEAP[id], out = [];
+  if (!D || D.melee) return out;
+  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
+  if (S.pierce) out.push('Pierce ' + S.pierce);
+  if (S.att.fire) out.push('Incendiary');
+  if (S.att.bayonet && D.slot === 'long') out.push('Bayonet');
+  if (S.att.stock && D.slot === 'side') out.push('Stock');
+  return out;
 }

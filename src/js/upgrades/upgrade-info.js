@@ -10,7 +10,7 @@ const TIER_USE = {
   night: 'Senses · you see in the dark', feed: 'Body · you heal when you kill'
 };
 const UPG_USE = {
-  'Bayonet': 'Attachment · a blade under your long guns and automatics: shove (Space) to stab',
+  'Bayonet': 'Attachment · a blade under your long gun: shove (Space) to stab',
   'Shoulder stock': 'Attachment · steadies your sidearm: tighter aim and less kick',
   'Incendiary rounds': 'Ammo · every hit sets zombies burning for 3 seconds',
   'Through and through': 'Ammo · each bullet keeps going through one more zombie'

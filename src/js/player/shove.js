@@ -7,7 +7,7 @@ const SHOVE_BAND = 1.65;
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // Space climbs a window or fence when you are at one, and shoves otherwise
 function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
-const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && !D.melee && D.slot !== 'side'); };
+const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && D.slot === 'long'); };   // long guns only
 function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
   const tired = P.exh || P.stam < SHOVE_COST * 0.5;

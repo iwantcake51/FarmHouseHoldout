@@ -20,7 +20,7 @@ function fitAttachments(g, D, front, y, info) {
       front += L;
     }
   }
-  if (S.att.bayonet && !side) {
+  if (S.att.bayonet && D.slot === 'long') {   // long guns only, not the automatics
     ring(g, 0.024, 0.03, GM.metal, X, y, front - 0.03); box(g, 0.03, 0.045, 0.07, GM.poly, X, y - 0.05, front - 0.08);
     const bl = box(g, 0.01, 0.04, 0.26, GM.blade, X, y - 0.055, front + 0.08); box(bl, 0.011, 0.008, 0.2, GM.steel, 0, 0.006, -0.02);
     const tip = box(g, 0.01, 0.03, 0.04, GM.blade, X, y - 0.06, front + 0.215); tip.rotation.x = 0.5;

@@ -94,7 +94,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Day length and night colours | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
-| The survivor's look (face, cap, clothes, boots, backpack) | `src/js/player/player.js` |
+| The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 

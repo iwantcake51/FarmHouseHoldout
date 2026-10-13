@@ -37,7 +37,7 @@ function updateHUD(rdt, D) {
     const id = curId();
     setT('wName', D.name);
     const own = (W8.mods[id] || []).map(modName);
-    setT('wMods', D.melee ? own.join(' · ') : own.concat(cache.modsGeneral || []).join(' · '));
+    setT('wMods', own.concat(gunExtras(id)).join(' · '));
     setT('ammo', D.melee ? '—' : String(W8.mag[id] || 0));
     { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
     setT('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);

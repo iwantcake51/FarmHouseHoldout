@@ -18,6 +18,7 @@
   "zombies/fence-climb.js",
   "characters/rig.js",
   "player/player.js",
+  "player/look.js",
   "effects/body-blood.js",
   "weapons/slots.js",
   "melee/melee-stats.js",
