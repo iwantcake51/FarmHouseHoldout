@@ -69,7 +69,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Gun 3D models | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
-| What tinkering at the workbench does to a mod at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
+| What tinkering at the workbench does to a mod at levels II and III, and the fire modes B steps through | `src/js/weapons/mod-levels.js` |
 | Melee damage, swing speed, reach, knockback | `src/js/melee/melee-stats.js` |
 | Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
 | Stamina cost and swing slowdown | `src/js/melee/melee.js` |
@@ -88,6 +88,10 @@ Every source file starts with a one-line comment saying what is in it.
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
 | Weapons carried on your body (thigh holster, slung on the pack, melee in the straps) and the planks on your pack | `src/js/player/stow.js` |
+| Swapping weapons: putting one away, drawing the next, and how long it takes | `src/js/player/swap.js` |
+| Blood on the farm (pools, sprays and drops painted into one map that the ground, walls, fences and trees read) | `src/js/effects/blood-map.js`, and how surfaces show it in `src/js/core/shaders.js` |
+| Blood on you, zombies and your weapons (a stain shader that builds up with hits), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
+| The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers | `src/js/effects/puffs.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
@@ -131,11 +135,12 @@ Shared state:
 
 ## Performance
 
-- **One bundle.** The production build is a single minified `game.js` (about 200 KB) and one `game.css`. The page asks for both by a hash of their contents (`game.js?v=…`), so a new deploy reaches players straight away instead of waiting out the browser cache. three.js ships as its own file and is cached for a year.
+- **One bundle.** The production build is a single minified `game.js` (about 330 KB) and one `game.css`. The page asks for both by a hash of their contents (`game.js?v=…`), so a new deploy reaches players straight away instead of waiting out the browser cache. three.js ships as its own file and is cached for a year.
 - **Adaptive resolution.** The game measures frame time and lowers or raises the render resolution between 1× and your screen's pixel ratio to keep the frame rate smooth (`game/loop.js`).
 - **Vision caching.** Line of sight is recomputed only when you move, turn far enough or a board changes, and at most every 0.6 seconds otherwise (`lighting/vision.js`).
 - **Light map instead of real lights.** Lamps, fires and muzzle flashes are painted into one small light texture each frame instead of using many three.js lights (`lighting/lightmap.js`).
-- **Pooling and instancing.** Particles, casings, tracers and blood decals reuse fixed pools, and trees, grass, bushes, rocks and fence posts are instanced meshes, so long fights don't create garbage or extra draw calls.
+- **Pooling and instancing.** Particles, blood droplets, casings and tracers reuse fixed pools, and trees, grass, bushes, rocks and fence posts are instanced meshes, so long fights don't create garbage or extra draw calls.
+- **Blood in one texture.** Blood on the farm isn't separate decals: every splash is drawn into one map on the GPU, and the ground, walls, fences and trees read it in their shader, so a farm covered in blood costs no more to draw than a clean one (`effects/blood-map.js`).
 - **Cached geometry.** Box shapes are shared through a cache instead of being created per part (`core/geometry.js`).
 - **No z-fighting.** As models are built, faces of different pieces that would sit exactly on top of each other are pulled apart by 0.6 mm (`unfight` in `core/geometry.js`).
 - **Merged detail.** The small pieces of the survivor, the furniture and the stations are merged into a few meshes each, with their colours baked into the vertices, so all that detail costs only a few extra draw calls (`mergeInto` in `core/geometry.js`).
@@ -155,7 +160,7 @@ Shared state:
 | Space | Climb through an open window or hop a fence (costs stamina, more if you chain them) |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
 | G | Underbarrel grenade, once you have one |
-| B | Switch fire mode on guns with a burst, full-auto or fanning mod (single → burst → full auto) |
+| B | Switch fire mode on guns with a burst, full-auto or fanning mod (single shots and the mod's mode; the auto sear replaces the burst switch) |
 | Wheel, + and − | Zoom in and out |
 | T | Start the run (also from the death screen), or the next wave early |
 | Esc or P | Pause |

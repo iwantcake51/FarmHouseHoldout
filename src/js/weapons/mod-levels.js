@@ -1,5 +1,5 @@
 // Mod levels and fire modes. Tinkering at the workbench can improve a mod you already have, up to level III;
-// each level adds its step below on top of the mod itself. Mods with a fire mode (fm) are picked with V.
+// each level adds its step below on top of the mod itself. Mods with a fire mode (fm) are picked with B.
 
 const MOD_MAX = 3;
 const MOD_UP = {
