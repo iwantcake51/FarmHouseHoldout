@@ -107,10 +107,27 @@ function poseHands(D, up, ph, runF, rdt, now) {
   else poseGun(D, up, ph, runF, rdt, now, sh);
 }
 
+// a melee weapon, just drawn (player/swap.js draws it, weapons/reload.js starts this): a one-hander is spun once
+// round in the hand, the katana's blade is flicked out and back, and the heavy two-handers are hefted up toward the
+// shoulder and brought down into the ready
+const MELEE_EQ = 0.5;
+function meleeFlourish(D, rdt, swinging) {
+  if (ANIM.meleeEqT === undefined || ANIM.meleeEqT >= MELEE_EQ) return null;
+  const t0 = ANIM.meleeEqT; ANIM.meleeEqT += rdt;
+  if (swinging) { ANIM.meleeEqT = MELEE_EQ; return null; }   // a swing straight away cuts it short
+  if (t0 < 0) return null;
+  const k = clamp(t0 / MELEE_EQ, 0, 1), a = Math.sin(Math.PI * k);
+  if (t0 < 0.22 && ANIM.meleeEqT >= 0.22) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
+  if (!D.two) return { arx: -0.35 * a, hrx: Math.PI * 2 * smooth(k), uy: 0.12 * a, ux: 0 };              // the twirl
+  if (D.style === 'slash') { const f = Math.sin(Math.PI * Math.min(1, k * 1.4)); return { arx: -0.25 * a, hrx: -0.9 * f + 0.25 * Math.sin(Math.PI * 2 * k), uy: -0.18 * a, ux: 0 }; }   // the flick
+  return { arx: -0.75 * a, hrx: 0.95 * a, uy: 0.2 * a, ux: -0.08 * a };                                          // the heft
+}
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, mh = gunMeshes.melee;
   const keys = SWING[D.style || 'swing'], p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0;
-  const [, uy, ux, arx, ary, hrx] = sampleSwing(keys, p);
+  let [, uy, ux, arx, ary, hrx] = sampleSwing(keys, p);
+  const fl = meleeFlourish(D, rdt, p > 0 || !!sh);
+  if (fl) { arx += fl.arx; hrx += fl.hrx; uy += fl.uy; ux += fl.ux; }
   const walk = Math.sin(ph) * 0.06 * Math.min(1, runF) * (p ? 0 : 1);
   up.y += uy; up.x += ux;
   // the weapon rides in the right fist on its keyframes

@@ -5,6 +5,7 @@ function equip(s, force) {
   if (!W8.slot[s] || (W8.cur === s && !force)) return;
   exitScope(); ANIM.sw = 0.35; W8.swing = 0;
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
+  if ((W(W8.slot[s]) || {}).melee) ANIM.meleeEqT = -(SWAP_T.end - 0.06);   // a flourish once it's drawn (player/hold.js)
   W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE); SFX.click();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
