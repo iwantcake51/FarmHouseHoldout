@@ -93,6 +93,7 @@ function buildBoots(bt, thick) {
 }
 function buildGear() {
   gearParts.forEach(m => m.parent && m.parent.remove(m)); gearParts.length = 0;
+  charBloodDirty = true;   // the blood on you is laid again on the new gear next frame (effects/body-blood.js)
   buildArmor(T('armor'));
   // footwear (the look's own shoes hide under it)
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;

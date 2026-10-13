@@ -51,7 +51,7 @@ const TIERS = {
     { r: 'r', name: 'Night eyes', text: 'You see far more at night.', ap: () => S.nightVis = 1 },
     { r: 'e', name: 'Cat eyes', text: 'Nights look like dusk. You see almost everything.', ap: () => S.nightVis = 2.2 }] },
   feed: { tag: 'Body', t: [
-    { r: 'r', name: 'Iron stomach', text: 'Heal 3 health for every kill.', ap: () => S.healOnKill = 3 },
-    { r: 'e', name: 'Bloodthirst', text: 'Heal 6 health for every kill.', ap: () => S.healOnKill = 6 },
-    { r: 'l', name: 'Vampire', text: 'Heal 10 for every kill, 20 for headshot kills.', ap: () => { S.healOnKill = 10; S.vampire = true; } }] }
+    { r: 'r', name: 'Iron stomach', text: 'Heal 1 health for every kill, 2 for a headshot kill.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
+    { r: 'e', name: 'Bloodthirst', text: 'Heal 6 health for every kill.', ap: () => { S.healOnKill = 6; S.headHeal = false; } },
+    { r: 'l', name: 'Vampire', text: 'Heal 10 for every kill, 20 for headshot kills.', ap: () => { S.healOnKill = 10; S.vampire = S.headHeal = true; } }] }
 };

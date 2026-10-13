@@ -30,7 +30,11 @@ const hemi = new THREE.HemisphereLight(0xd8c8b0, 0x4a3426, 0.62);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffc89c, 0.85);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 70 });
-sun.shadow.bias = -0.0008;
+// the sun's shadows cover the whole farm, edge to edge and the tree line round it, from wherever it is in the sky
+// (lighting/day-night.js keeps it aimed at the middle of the map): everything on screen casts its shadow however far
+// out you zoom or wherever you stand. A bigger map keeps them as sharp as the old one round you was.
+const SUN_R = 34, SUN_D = 52;
+sun.shadow.mapSize.setScalar(R.capabilities.maxTextureSize >= 8192 ? 4096 : 2048);
+Object.assign(sun.shadow.camera, { left: -SUN_R, right: SUN_R, top: SUN_R, bottom: -SUN_R, near: 1, far: SUN_D * 2 });
+sun.shadow.bias = -0.0006;
 scene.add(sun, sun.target);

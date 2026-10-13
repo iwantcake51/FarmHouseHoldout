@@ -39,7 +39,7 @@ function newRun(soft) {
   audioInit(); resetRun(soft);
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   R.compile(scene, cam);
-  setState('play'); beginBreak(20);
+  setState('play'); beginBreak(10);
   startIntro(soft);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
 }
 // back to the title from the death screen, with the farm reset behind it

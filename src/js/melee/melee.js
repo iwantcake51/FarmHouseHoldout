@@ -28,5 +28,8 @@ function meleeHit() {
     if (hit) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR)); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side
     if (hit) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += Math.sin(P.aim) * 0.12; camKick.z += Math.cos(P.aim) * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
+    // a swing through open air: the weight carries on past where it would have landed, so the view follows it through a
+    // little and leans with it, softer than a hit and with no shake (heavier weapons pull it further)
+    else { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += Math.sin(P.aim) * 0.07 * w; camKick.z += Math.cos(P.aim) * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1); }
   }
 }

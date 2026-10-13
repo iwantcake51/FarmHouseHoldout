@@ -69,5 +69,5 @@ function pickCard(i) {
   cards.forEach((b, k) => b.classList.add(k === i ? 'picked' : 'gone'));
   state = 'leaving';
   setTimeout(() => { el.classList.remove('show'); }, 520);
-  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(15); }, 900);
+  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(25); }, 900);
 }

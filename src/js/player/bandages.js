@@ -24,7 +24,7 @@ function startBandage() {
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
   P.bandT = 0; SFX.click();
-  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · G to start again' });
+  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
 }
 function tickBandage(dt) {
   if (P.bandT > 0) {

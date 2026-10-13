@@ -1,20 +1,6 @@
 // Blood that builds up on you and your weapons.
 
-// ---- blood that builds up on you and your weapons: each splotch shows once the blood level passes its threshold ----
-const BLOOD_M = [lam(0x6e1510), lam(0x4e0e0b), lam(0x5c120e)], UBOX = new THREE.BoxGeometry(1, 1, 1);
-function bloodSpot(parent, x, y, z, nx, ny, nz, sz) {
-  const m = new THREE.Mesh(UBOX, pick(BLOOD_M)), w = sz * rr(0.6, 1.4), h = sz * rr(0.6, 1.4), t = 0.01;
-  m.scale.set(nx ? t : w, ny ? t : h, nz ? t : (nx ? w : h)); m.position.set(x + nx * 0.004, y + ny * 0.004, z + nz * 0.004);
-  m.visible = false; m.userData.th = rand(); parent.add(m); return m;
-}
-const charBlood = [];
-for (let k = 0; k < 9; k++) charBlood.push(bloodSpot(PM.torso, rr(-0.2, 0.2), rr(-0.25, 0.25), 0.151, 0, 0, 1, rr(0.07, 0.15)));
-for (let k = 0; k < 3; k++) charBlood.push(bloodSpot(PM.torso, rr(-0.2, 0.2), 0.301, rr(-0.1, 0.12), 0, 1, 0, rr(0.06, 0.12)));
-for (let k = 0; k < 2; k++) charBlood.push(bloodSpot(PM.torso, k ? 0.251 : -0.251, rr(-0.2, 0.2), rr(-0.1, 0.1), k ? 1 : -1, 0, 0, rr(0.06, 0.12)));
-[PM.armL, PM.armR].forEach(a => { for (let k = 0; k < 4; k++) charBlood.push(bloodSpot(a, rr(-0.04, 0.04), 0.071, rr(0.12, 0.52), 0, 1, 0, rr(0.05, 0.09))); charBlood.push(bloodSpot(a, 0, 0, 0.541, 0, 0, 1, 0.08)); });
-[PM.legL, PM.legR].forEach(l => { for (let k = 0; k < 3; k++) charBlood.push(bloodSpot(l, rr(-0.06, 0.06), rr(-0.5, -0.08), 0.111, 0, 0, 1, rr(0.06, 0.11))); });
-for (let k = 0; k < 2; k++) charBlood.push(bloodSpot(PM.head, rr(-0.1, 0.1), rr(-0.12, 0.02), 0.161, 0, 0, 1, rr(0.04, 0.08)));
-charBlood.sort((a, b) => a.userData.th - b.userData.th).forEach((m, k, arr) => { m.userData.th = (k + 0.5) / arr.length; });
+const BLOOD_M = [lam(0x6e1510), lam(0x4e0e0b), lam(0x5c120e)];
 // spatter a built weapon: melee weapons get it on the head of the weapon, guns towards the muzzle. Either way the splats
 // are found by casting rays at the weapon's real surface, so they sit on the steel and the wood, never out in the air
 // round its bounding box.
@@ -28,13 +14,16 @@ function bloodWeapon(g, melee) {
 // the solid parts blood can land on (not outlines, the muzzle flash or see-through glass and beams)
 const bloodable = o => o.isMesh && !o.userData.isOutline && !o.userData.isFlash && !(o.material && o.material.transparent);
 const BLOOD_FRESH = lam(0x8a1a12), DISC = new THREE.CylinderGeometry(1, 1, 1, 12), _bY = new V3(0, 1, 0);
-// rays at a weapon's surface and flat blood discs laid on it, in the weapon's own frame (local)
-function bloodKit(g, inv) {
-  const meshes = [], rc = new THREE.Raycaster(), t = new V3(), x = new V3(), mx = new THREE.Matrix4(), nInv = new THREE.Matrix3().getNormalMatrix(inv), wo = new V3(), wd = new V3();
-  g.traverse(m => { if (bloodable(m)) meshes.push(m); });
-  // one flat disc lying on the surface at p, facing nn; stretched along the surface's downhill line for a drip
-  const disc = (list, p, nn, w, len, lift, mat, slide) => {
-    t.copy(_bY).negate().addScaledVector(nn, nn.y); if (t.lengthSq() < 0.02) t.set(0, 0, 1).addScaledVector(nn, -nn.z); t.normalize();
+// rays at a weapon's surface and flat blood discs laid on it, in the weapon's own frame (local); list, when given, is
+// the surfaces to use instead of everything under g
+function bloodKit(g, inv, list) {
+  const meshes = list || [], rc = new THREE.Raycaster(), t = new V3(), x = new V3(), mx = new THREE.Matrix4(), nInv = new THREE.Matrix3().getNormalMatrix(inv), wo = new V3(), wd = new V3();
+  if (!list) g.traverse(m => { if (bloodable(m)) meshes.push(m); });
+  // one flat disc lying on the surface at p, facing nn; stretched along the surface's downhill line for a drip, or
+  // along tan when it's given
+  const disc = (list, p, nn, w, len, lift, mat, slide, tan) => {
+    if (tan) t.copy(tan).addScaledVector(nn, -nn.dot(tan)); else t.copy(_bY).negate().addScaledVector(nn, nn.y);
+    if (t.lengthSq() < 0.02) t.set(0, 0, 1).addScaledVector(nn, -nn.z); t.normalize();
     x.crossVectors(nn, t); mx.makeBasis(x, nn, t);
     const m = new THREE.Mesh(DISC, mat); m.quaternion.setFromRotationMatrix(mx); m.scale.set(w, 0.0016, len);
     m.position.copy(p).addScaledVector(nn, 0.0012 + lift).addScaledVector(t, slide || 0); m.visible = false; g.add(m); list.push(m); return m;
@@ -68,7 +57,28 @@ function bloodKit(g, inv) {
     }
     return list;
   };
-  return { cast, splat };
+  // a spray: an elongated blob thrown along ang (an angle on the surface), with droplets flung on past it that get
+  // smaller the further they go, and sometimes a run down the face. It reads as splashed on rather than painted round.
+  const _sd = new V3(), _su = new V3(), _sv = new V3();
+  const spray = (p, nn, r, ang, drip) => {
+    const list = [];
+    _sd.crossVectors(nn, _bY); if (_sd.lengthSq() < 0.01) _sd.set(1, 0, 0); _sd.normalize(); _su.crossVectors(_sd, nn).normalize();
+    const dir = new V3().copy(_sd).multiplyScalar(Math.cos(ang)).addScaledVector(_su, Math.sin(ang)), perp = new V3().crossVectors(nn, dir).normalize();
+    disc(list, p, nn, r * rr(0.55, 0.85), r * rr(1.3, 2.1), 0, pick(BLOOD_M), 0, dir);
+    disc(list, p, nn, r * 0.38, r * 0.7, 0.0004, BLOOD_FRESH, -r * 0.25, dir);
+    for (let s = 0, ns = 3 + (rand() * 4 | 0); s < ns; s++) {
+      const f = rr(1.2, 3.3), q = _sv.copy(p).addScaledVector(dir, r * f).addScaledVector(perp, r * rr(-0.5, 0.5) * f * 0.45).clone();
+      const rs = r * rr(0.12, 0.3) * Math.max(0.35, 1.3 - f * 0.25);
+      if (onSurf(q, nn)) disc(list, q, nn, rs, rs * rr(1, 1.9), 0.0002 * (s + 1), pick(BLOOD_M), 0, dir);
+    }
+    if (drip && rand() < 0.4 && Math.abs(nn.y) < 0.35) {
+      const dl = r * rr(1.4, 3), m = disc(list, p, nn, r * rr(0.16, 0.24), dl, 0.0006, pick(BLOOD_M), dl * 0.75);
+      const run = m.position.clone().sub(p); run.addScaledVector(nn, -nn.dot(run)).normalize();
+      if (!onSurf(p.clone().addScaledVector(run, dl * 1.7), nn)) { m.parent.remove(m); list.pop(); }
+    }
+    return list;
+  };
+  return { cast, splat, spray };
 }
 // spots sorted into the order they show as the blood builds up (lowest threshold first)
 function bloodOrder(clusters) {
@@ -107,6 +117,106 @@ function bloodMelee(g, bb, inv) {
   return bloodOrder(clusters);
 }
 function addBlood(char, wId, wAmt) {
-  P.blood = Math.min(1, (P.blood || 0) + char);
+  P.blood = Math.min(1, (P.blood || 0) + char * 1.3);
   if (wId && wAmt) W8.bloodW[wId] = Math.min(1, (W8.bloodW[wId] || 0) + wAmt);
+}
+
+// ---- blood on you: not pieces stuck on, but a stain worked into every surface you have on (skin, shirt, jacket, vest
+// or plate carrier, the pack, boots, hat) by a shader. Smooth 3D noise is read in the space of the body part each
+// surface rides on, so the stain runs on unbroken across skin, cloth and gear, moves with the limbs, and comes in with
+// soft wet edges. As you get bloodier the stain spreads out from where blood lands first (the front of the chest, the
+// forearms and fists, the shins) to the face, the sides and last the back; fresh blood is bright and wet and darkens
+// as it dries. Each run gets its own pattern.
+//
+// Every surface on you gets its own copy of its material carrying the shader (the originals are shared with the rest of
+// the farm), kept in step with the original's colour each frame. They're made again whenever your gear or look changes.
+const BLOOD_U = { uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3() } };
+const charBlood = [];   // [original material, the copy on you]
+let charBloodDirty = true, bloodShown = 0, bloodWas = 0;
+const BLOOD_NOISE = `
+vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 bmod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec4 bperm(vec4 x) { return bmod289(((x * 34.0) + 1.0) * x); }
+// 3D simplex noise (Ashima Arts / Stefan Gustavson), -1..1
+float bsnoise(vec3 v) {
+  const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0); const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i = floor(v + dot(v, C.yyy)); vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g = step(x0.yzx, x0.xyz); vec3 l = 1.0 - g; vec3 i1 = min(g.xyz, l.zxy); vec3 i2 = max(g.xyz, l.zxy);
+  vec3 x1 = x0 - i1 + C.xxx; vec3 x2 = x0 - i2 + C.yyy; vec3 x3 = x0 - D.yyy;
+  i = bmod289(i);
+  vec4 p = bperm(bperm(bperm(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  vec3 ns = 0.142857142857 * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z); vec4 x_ = floor(j * ns.z); vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x = x_ * ns.x + ns.yyyy; vec4 y = y_ * ns.x + ns.yyyy; vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy); vec4 b1 = vec4(x.zw, y.zw); vec4 s0 = floor(b0) * 2.0 + 1.0; vec4 s1 = floor(b1) * 2.0 + 1.0; vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy; vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x); vec3 p1 = vec3(a0.zw, h.y); vec3 p2 = vec3(a1.xy, h.z); vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = inversesqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3))); p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0); m = m * m;
+  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}`;
+// where on each part blood lands first (higher = sooner), from the position in that part's own frame:
+// 0 chest and everything on the upper body, 1 / 2 the arms, 3 / 4 the legs, 5 the head
+const BLOOD_FRAG = `
+  {
+    vec3 bp = vBloodP; float pri;
+    if (uZone < 0.5) pri = 0.3 + 0.42 * smoothstep(-0.05, 0.16, bp.z) - 0.18 * smoothstep(0.05, 0.3, bp.y) * step(0.0, bp.z) - 0.22 * smoothstep(-0.02, -0.25, bp.z);
+    else if (uZone < 2.5) pri = 0.22 + 0.48 * smoothstep(0.12, 0.5, bp.z) + 0.08 * step(0.0, bp.y);
+    else if (uZone < 4.5) pri = 0.12 + 0.3 * smoothstep(-0.06, 0.1, bp.z) + 0.24 * smoothstep(-0.12, -0.5, bp.y);
+    else pri = 0.04 + 0.3 * smoothstep(0.0, 0.15, bp.z) - 0.1 * smoothstep(0.05, 0.16, bp.y);
+    vec3 q = bp * 7.5 + uSeed + vec3(uZone * 13.7, uZone * 5.3, uZone * 9.1);
+    float n = 0.5 + 0.5 * (bsnoise(q) * 0.62 + bsnoise(q * 2.3 + 4.1) * 0.28 + bsnoise(q * 5.7 + 9.7) * 0.1);
+    float v = n * 0.7 + pri * 0.45 + bsnoise(bp * 31.0 + uSeed) * 0.035;
+    float th = 0.98 - uBlood * 0.48;   // a few spots at first; even soaked, the back and the face are only patchy
+    float a = smoothstep(th, th + 0.05, v) * smoothstep(0.0, 0.04, uBlood);
+    if (a > 0.001) {
+      float core = smoothstep(th + 0.03, th + 0.16, v);   // thicker, darker where it's pooled
+      vec3 fresh = mix(vec3(0.45, 0.05, 0.035), vec3(0.3, 0.025, 0.02), core);
+      vec3 dried = mix(vec3(0.24, 0.05, 0.035), vec3(0.15, 0.03, 0.022), core);
+      vec3 bc = mix(dried, fresh, uFresh);
+      diffuseColor.rgb = mix(diffuseColor.rgb, bc, a * mix(0.72, 0.95, core));
+    }
+  }`;
+// a copy of a surface's material that carries the stain; part is the body part it rides on (its frame), zone which one
+function bloodMat(orig, mesh, part, zone) {
+  const m = orig.clone(), baseC = orig.onBeforeCompile, baseKey = orig.customProgramCacheKey;
+  const u = { uPart: { value: new THREE.Matrix4().copy(part.matrixWorld).invert().multiply(mesh.matrixWorld) }, uZone: { value: zone } };
+  m.onBeforeCompile = (sh, r) => {
+    if (baseC) baseC.call(m, sh, r);
+    Object.assign(sh.uniforms, BLOOD_U, u);
+    sh.vertexShader = 'uniform mat4 uPart;\nvarying vec3 vBloodP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBloodP = (uPart * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform float uBlood;\nuniform float uFresh;\nuniform vec3 uSeed;\nuniform float uZone;\nvarying vec3 vBloodP;\n' + BLOOD_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + BLOOD_FRAG);
+  };
+  m.customProgramCacheKey = () => (baseKey ? baseKey.call(orig) : '') + '-blood';
+  m.userData.bloodOf = orig;
+  return m;
+}
+function buildCharBlood() {
+  charBloodDirty = false;
+  charBlood.forEach(([, m]) => m.dispose()); charBlood.length = 0;
+  PM.g.updateMatrixWorld(true);
+  BLOOD_U.uSeed.value.set(rr(0, 40), rr(0, 40), rr(0, 40));
+  const held = new Set(Object.values(gunMeshes)), zones = new Map([[PM.torso, 0], [PM.upper, 0], [PM.lower, 3], [PM.armL, 1], [PM.armR, 2], [PM.legL, 3], [PM.legR, 4], [PM.head, 5]]);
+  const walk = (o, part, zone) => {
+    if (held.has(o) || o.userData.slot !== undefined || o.userData.isOutline) return;
+    if (zones.has(o) && o !== PM.upper && o !== PM.lower) { part = o; zone = zones.get(o); }
+    if (o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent) {
+      const orig = o.material.userData.bloodOf || o.material, m = bloodMat(orig, o, part, zone);
+      o.material = m; charBlood.push([orig, m]);
+    }
+    o.children.forEach(c => walk(c, part, zone));
+  };
+  // the upper body's own pieces (vest, pack, pouches) stain in the chest's frame, the hips' in the left leg's
+  PM.upper.children.forEach(c => walk(c, PM.torso, 0)); PM.lower.children.forEach(c => walk(c, PM.legL, 3));
+}
+// each frame: the stain eases out to how bloody you are (so a hit spreads it rather than popping it on), fresh blood
+// brightens it, and the copies keep the colour their originals have now (your shirt, skin and pack are re-dyed each run)
+function updateCharBlood(rdt) {
+  if (charBloodDirty) buildCharBlood();
+  const b = P.blood || 0;
+  if (b > bloodWas + 0.001) BLOOD_U.uFresh.value = 1; else BLOOD_U.uFresh.value = Math.max(0, BLOOD_U.uFresh.value - rdt / 40);
+  bloodWas = b;
+  bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : 0.6));
+  BLOOD_U.uBlood.value = bloodShown;
+  for (const [o, m] of charBlood) { if (!m.color.equals(o.color)) m.color.copy(o.color); if (o.emissive && !m.emissive.equals(o.emissive)) m.emissive.copy(o.emissive); }
 }

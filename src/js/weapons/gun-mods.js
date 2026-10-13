@@ -4,7 +4,8 @@
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Pistol damage +35%.', vis: 'A longer, heavier slide', stat: D => { D.dmg *= 1.35; } },
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Each trigger pull fires a fast three-round burst. B switches fire modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
-  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', name: 'Auto sear', text: 'A third notch on the selector: hold the trigger and the pistol empties itself. B cycles single, burst and full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
+  // the auto sear takes the burst conversion's place once that's at level II: B switches between single shots and full auto
+  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, replaces: 'burst', name: 'Auto sear', text: 'Replaces the burst conversion: hold the trigger and the pistol empties itself. B switches between single shots and full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: nearly twice the fire rate and ammo.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; } },
   speedloader: { w: 'revolver', r: 'u', name: 'Speedloader', text: 'Reload all six rounds at once, fast.', vis: 'A brass speedloader on the frame', stat: D => { D.perShell = 0; D.reload = 0.9; } },
   longbarrel: { w: 'revolver', r: 'c', name: 'Eight-inch barrel', text: 'Revolver damage +30% and one more pierce.', vis: 'A much longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; } },
@@ -25,7 +26,7 @@ const GUN_MODS = {
   ported: { w: 'smg', r: 'c', name: 'Ported barrel', text: 'Machine pistol spread down 40%.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   integral: { w: 'sub', r: 'u', name: 'Integral suppressor', text: 'SMG damage +20% and much quieter.', vis: 'A fat suppressed barrel', stat: D => { D.dmg *= 1.2; D.quiet = true; } },
   stack: { w: 'sub', r: 'c', name: 'Double-stack mag', text: 'The SMG magazine holds twice as much.', vis: 'A long magazine', stat: D => { D.mag *= 2; } },
-  gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'H lobs a grenade. Recharges in 6 seconds.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
+  gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G lobs a grenade. Recharges in 6 seconds.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Rifle damage +25%, spread down 30%.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
   belt: { w: 'lmg', r: 'u', name: 'Belt box', text: 'The LMG holds 100 more rounds.', vis: 'A bigger ammo box', stat: D => { D.mag += 100; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Standing still, the LMG has almost no spread.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } }

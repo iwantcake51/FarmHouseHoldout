@@ -17,6 +17,7 @@ function updateCrosshair(rdt, D) {
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${mouseX}px,${mouseY}px)`;
+    xh.classList.toggle('healing', P.bandT > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
     $('xhTicks').style.display = D.melee ? 'none' : ''; $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
     if (D.melee) {

@@ -187,12 +187,14 @@ function animatePlayer(dt, rdt) {
 function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
+  // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
+  { const k = 1 - titleBlend(); if (pXray.rim.opacity !== 0.75 * k) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * k; } }
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && !P.vault; });   // put away while you vault (it rides on your body, player/stow.js)
   updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
   // blood dries off slowly
-  if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.004); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
-  for (const m of charBlood) m.visible = (P.blood || 0) > m.userData.th;
+  if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.003); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
+  updateCharBlood(rdt);   // the stain on you (effects/body-blood.js)
   bandRolls.forEach((m, k) => { m.visible = k < (P.band || 0); });
   { const g = gunMeshes[W8.cur]; if (g && g.userData.blood) { const lv = W8.bloodW[g.userData.bloodId] || 0; for (const m of g.userData.blood) m.visible = lv > m.userData.th; } }
   flashT -= rdt; if (flashT <= 0) flash.visible = false;

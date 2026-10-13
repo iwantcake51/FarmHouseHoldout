@@ -4,8 +4,8 @@
 const MOD_MAX = 3;
 const MOD_UP = {
   match: { t: '+12% damage', up: D => { D.dmg *= 1.12; } },
-  burst: { t: '+1 round a burst', up: D => { D.burst += 1; } },
-  auto: { t: 'Fires 12% faster', up: D => { D.rate *= 0.88; } },
+  burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
+  auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
   akimbo: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
   speedloader: { t: 'Reloads 20% faster', up: D => { D.reload *= 0.8; } },
   longbarrel: { t: '+12% damage', up: D => { D.dmg *= 1.12; } },
@@ -45,8 +45,17 @@ const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
 const modName = m => MODS[m].name + (modLv(m) > 1 ? ' ' + roman(modLv(m)) : '');
 // the weapon's mods that tinkering could still improve
 const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < MOD_MAX) : [];
-// fit a mod; one with a fire mode becomes the weapon's mode straight away
-function addMod(id, m) { (W8.mods[id] = W8.mods[id] || []).push(m); if (MODS[m].fm) W8.fm[id] = m; recomputeEff(); }
+// whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
+// level it asks for) fitted
+const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && hasMod(k));
+const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1)));
+// fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
+function addMod(id, m) {
+  const r = MODS[m].replaces;
+  W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
+  if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
+  recomputeEff();
+}
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
 function fireModes(id) { return [null, ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }

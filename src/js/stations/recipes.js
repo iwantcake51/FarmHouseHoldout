@@ -1,10 +1,11 @@
 // What every station can make.
 
-const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && !hasMod(m) && (!MODS[m].need || hasMod(MODS[m].need))) : [];
+const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && modOffer(m)) : [];
 const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // attachments for the gun in your hands, bought and fitted at the workbench: only the ones that fit it show, one card per
 // line (the next tier up); a suppressor and a choke rule each other out on shotguns, the scope only fits long guns
-const ATT_COST = { supp: [12, 20, 30], choke: [10, 18], sight: [10, 18, 28], laser: [10, 20], light: [8, 16] };
+// priced by how much each step does for you: the night-only light is cheapest, the cans and the scope dearest
+const ATT_COST = { supp: [10, 17, 25], choke: [8, 14], sight: [8, 14, 22], laser: [8, 15], light: [6, 11] };
 function attachmentCards() {
   // the gun in your hands, or your first gun if you walked up with a blade out
   const cur = curId(), id = cur && !WEAP[cur].melee ? cur : gunsHeld()[0], D = id && WEAP[id]; if (!D) return [];
@@ -15,8 +16,8 @@ function attachmentCards() {
     out.push({ ic: 'gear', group, cost: ATT_COST[k][n], title: () => st.name, desc: () => st.text + (n ? ` Replaces the ${L.t[n - 1].name.toLowerCase()}.` : ''), why: () => '',
       make: () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, st.name); toast(st.name, { kind: 'good', icon: 'gear', sub: 'Fitted to your ' + D.name.toLowerCase() }); } });
   }
-  if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'gear', group, cost: 16, title: () => 'Bayonet', desc: () => 'A blade under your long guns: shoving (V) stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); toast('Bayonet', { kind: 'good', icon: 'gear', sub: 'Fitted to your long guns · V to stab' }); } });
-  if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'gear', group, cost: 14, title: () => 'Shoulder stock', desc: () => 'Steadies every sidearm: spread −25%, kick −45%', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); toast('Shoulder stock', { kind: 'good', icon: 'gear', sub: 'Fitted to your sidearms' }); } });
+  if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'gear', group, cost: 14, title: () => 'Bayonet', desc: () => 'A blade under your long guns: shoving (V) stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); toast('Bayonet', { kind: 'good', icon: 'gear', sub: 'Fitted to your long guns · V to stab' }); } });
+  if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'gear', group, cost: 12, title: () => 'Shoulder stock', desc: () => 'Steadies every sidearm: spread −25%, kick −45%', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); toast('Shoulder stock', { kind: 'good', icon: 'gear', sub: 'Fitted to your sidearms' }); } });
   return out;
 }
 const BENCH = [
@@ -26,16 +27,18 @@ const BENCH = [
     { ic: 'gear', get cost() { return Math.round(12 * Math.pow(1.5, W8.tune[curId()] || 0)); }, title: () => `Tune and sharpen the ${W(curId()).short}`, desc: () => `+8% damage on this weapon only${W8.tune[curId()] ? ` (tuned ${W8.tune[curId()]}×, +${Math.round((Math.pow(1.08, W8.tune[curId()]) - 1) * 100)}% so far)` : ''}. Costs more each time`, why: () => '', make: () => { const id = curId(); W8.tune[id] = (W8.tune[id] || 0) + 1; recomputeEff(); gunGlow = 1; feed('gear', 8, '% ' + W(id).short + ' damage'); } }
 ];
 // tinkering: one card for each mod the weapon in your hands could take, and for each one it has that could be made
-// better (up to level III), so you pick which you get
-const TINKER_COST = 18;
+// better (up to level III), so you pick which you get. A new mod costs more the rarer it is; improving one costs 10 for
+// level II and 13 for level III
+const TINKER_NEW = { c: 10, u: 12, r: 14, e: 16, l: 18 }, TINKER_UP = [0, 10, 13];
+const tinkerNew = m => TINKER_NEW[MODS[m].r] || 14, tinkerUp = m => TINKER_UP[modLv(m)] || 14;
 function tinkerCards() {
   const id = curId(), D = id && W(id); if (!D) return [];
   const group = 'Tinker · ' + D.name, out = [];
-  modsFor(id).forEach(m => out.push({ ic: 'gear', group, cost: TINKER_COST, title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text, why: () => '',
+  modsFor(id).forEach(m => out.push({ ic: 'gear', group, cost: tinkerNew(m), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text, why: () => '',
     make: () => { addMod(id, m); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); toast(MODS[m].name, { kind: 'good', icon: 'gear', sub: 'New mod · ' + MODS[m].text }); } }));
-  modUps(id).forEach(m => out.push({ ic: 'gear', group, cost: TINKER_COST, title: () => MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t, why: () => '',
+  modUps(id).forEach(m => out.push({ ic: 'gear', group, get cost() { return tinkerUp(m); }, title: () => MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t, why: () => '',
     make: () => { improveMod(m); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); toast(modName(m), { kind: 'good', icon: 'gear', sub: 'Mod improved · ' + MOD_UP[m].t }); } }));
-  if (!out.length) out.push({ ic: 'gear', group, cost: TINKER_COST, title: () => 'Tinker', desc: () => 'A new mod, or a better one', why: () => 'Nothing left to fit or improve', make: () => {} });
+  if (!out.length) out.push({ ic: 'gear', group, cost: 10, title: () => 'Tinker', desc: () => 'A new mod, or a better one', why: () => 'Nothing left to fit or improve', make: () => {} });
   return out;
 }
 const RECIPES = {

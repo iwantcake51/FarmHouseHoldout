@@ -93,7 +93,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
   xhKill = true; xhHit = 1.4; shake = Math.max(shake, 0.16);
   popEl('kills');
-  if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.vampire && part === 'head' ? 2 : 1));
+  if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.headHeal && part === 'head' ? 2 : 1));
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
   if (S.bulletTime && timeScale > 0.6 && rand() < 0.35) { slowTo = 0.45; slowIn = 0.22; slowHold = 0.15; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';

@@ -23,9 +23,10 @@ function lightAt(h) {
 function updateDayNight(rdt) {
   const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
   curDark = lightAt(h);
-  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(camTarget.x - Math.cos(a) * 20, 6 + el * 18, camTarget.z + 8); }
-  else sun.position.set(camTarget.x + 10, 22, camTarget.z - 6);
-  sun.target.position.copy(camTarget);
+  // the sun's way across the sky, aimed at the middle of the farm from far enough out that its shadows take in all of it
+  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(-Math.cos(a) * 20, 6 + el * 18, 8); }
+  else sun.position.set(10, 22, -6);
+  sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? S.nightVis * curDark * 0.16 : 0));
   openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
   paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });

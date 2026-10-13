@@ -52,7 +52,7 @@ function fitAttachments(g, D, front, y, info) {
       if (!side) box(g, 0.03, 0.014, 0.06, GM.metal, X, u - 0.006, lz);
       box(g, 0.042, h, len, GM.tan, X, top - h / 2, cz);
       const fz = cz + len / 2 + 0.001, ey = top - h / 2 - 0.001;
-      box(g, 0.012, 0.012, 0.004, GM.red, X - 0.01, ey, fz); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, ey, fz);
+      box(g, 0.012, 0.012, 0.004, GM.laserG, X - 0.01, ey, fz); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, ey, fz);   // a green laser
       if (!side) box(g, 0.012, 0.006, 0.02, GM.metal2, X, top + 0.001, lz - 0.02);
       em.position.set(X - 0.01, ey, fz + 0.003);
     }

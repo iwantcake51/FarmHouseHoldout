@@ -35,6 +35,9 @@
 #ammoWarn.heal{--aw:#7fb6ff}
 #ammoWarn.loading::before,#ammoWarn.loading::after,#ammoWarn.heal::before,#ammoWarn.heal::after{display:none}
 /* healing ring round the cursor: bright while the bandage goes on, a thin draining arc while it heals */
+/* bandaging: the reticle fades out and only the bandage ring shows, then it all comes back */
+#xh svg>:not(.heal):not(.healBg){transition:opacity .18s}
+#xh.healing svg>:not(.heal):not(.healBg){opacity:0!important}
 #xh .healBg{fill:none;stroke:rgba(0,0,0,.45);stroke-width:4.5;transition:opacity .2s}
 #xh .heal{fill:none;stroke:#7fb6ff;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 3px rgba(92,160,255,.7));transition:opacity .25s,stroke-width .25s}
 #ammoWarn.out::before,#ammoWarn.out::after,#ammoWarn.out .aw{animation:awGlow 1.05s cubic-bezier(.45,0,.55,1) infinite}

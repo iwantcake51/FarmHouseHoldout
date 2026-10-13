@@ -1,14 +1,17 @@
 // Laser sight beam: from the laser's lens on the gun to the point the bullets go, at the height you're aiming at.
+// The taped-on pointer is red; the mounted laser sight (tier 2) is a brighter green.
 
 const laser = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 1).translate(0, 0, 0.5), new THREE.MeshBasicMaterial({ color: 0xff3a24, transparent: true, opacity: 0.55, depthWrite: false }));
 const laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), basic(0xff5a3a));
 laser.visible = laserDot.visible = false;
 scene.add(laser, laserDot);
-const _lsA = new V3(), _lsB = new V3();
+const _lsA = new V3(), _lsB = new V3(), LASER_COL = { 1: [0xff3a24, 0xff5a3a], 2: [0x3cff5a, 0x7dff8e] };
 function updateLaser(D) {
-  const gunOut = !scoped && state === 'play' && T('laser') > 0 && !D.melee && !P.vault && !W8.reloading && !swapSt;
+  const gunOut = !scoped && state === 'play' && !P.dead && T('laser') > 0 && !D.melee && !P.vault && !W8.reloading && !swapSt;
   laser.visible = laserDot.visible = gunOut;
   if (!gunOut) return;
+  const col = LASER_COL[T('laser')] || LASER_COL[1];
+  if (laser.material.color.getHex() !== col[0]) { laser.material.color.setHex(col[0]); laserDot.material.color.setHex(col[1]); }
   // the far end: along the bullets' line, as far as they'd go, at the height of what's under the crosshair
   const mz = muzzle(D.akimbo ? 1 : 0), dx = Math.sin(mz.a), dz = Math.cos(mz.a), L = aimRay(mz.ox, mz.oz, mz.a, 18).L;
   _lsB.set(mz.ox + dx * L, Math.min(GUN_Y, ANIM.aimY || GUN_Y), mz.oz + dz * L);
