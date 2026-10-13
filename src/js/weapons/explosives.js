@@ -12,7 +12,7 @@ function explode(x, z, r, dmg, self) {
     if (d < r * 0.5) ['armL', 'armR', 'legL', 'legR'].forEach(p => { if (rand() < 0.45) sever(zb, p, nx, nz); });
     hurtZombie(zb, dmg * (0.4 + 0.6 * f), nx, nz, 6 * f, 'boom', rand() < 0.3 ? 'head' : 'torso');
   }
-  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hurtFx = 1; } }
+  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hurtFx = 1; interruptBandage(); } }
 }
 EFF.boom = { dmg: 100, kick: 6 };
 EFF.fire = {};
@@ -20,7 +20,7 @@ EFF.bleed = {};
 const grenades = [];
 function throwGrenade() {
   const D = W(curId()); if (!D || !D.gl || W8.glCd > 0 || P.vault) return;
-  W8.glCd = 6; SFX.thump();
+  W8.glCd = D.glRecharge || 6; SFX.thump();
   const dx = aimPt.x - P.x, dz = aimPt.z - P.z, d = Math.min(14, Math.hypot(dx, dz));
   const a = Math.atan2(dx, dz), x1 = P.x + Math.sin(a) * d, z1 = P.z + Math.cos(a) * d;
   const m = box(scene, 0.12, 0.12, 0.18, GM.olive, P.x, GUN_Y, P.z);

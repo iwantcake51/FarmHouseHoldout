@@ -54,7 +54,7 @@ function updateZombies(dt) {
       if (P.dead) { /* they lose interest in a body */
       } else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !P.vault) {
         P.hitFrom = z.face;
-        z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.6 : 1) * S.dmgTaken; hitMe = true;
+        z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.6 : 1) * S.dmgTaken; hitMe = true; interruptBandage();
         // tilt the view toward whoever hit you
         const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);
         camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;

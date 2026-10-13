@@ -21,8 +21,8 @@ addEventListener('keydown', e => {
   if (k === ' ') spaceAction();
   if (k === 'h') throwGrenade();
   if (k === 'v' && state === 'play') {
-    const id = curId(), fm = (W8.mods[id] || []).map(m => MODS[m]).find(m => m.fm);
-    if (fm) { W8.semi[id] = !W8.semi[id]; W8.burstLeft = 0; recomputeEff(); SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(W8.semi[id] ? (id === 'revolver' ? 'Aimed shots' : 'Single shots') : fm.fm, { kind: 'info', icon: 'gear', sub: 'Fire mode · V to switch' }); }
+    const id = curId(), mode = cycleFireMode(id);
+    if (mode) { SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(mode, { kind: 'info', icon: 'gear', sub: 'Fire mode · V to switch' }); }
   }
   if (['1', '2', '3', '4'].includes(k)) equip(SLOTS[+k - 1]);
   if (k === 't' && phase === 'break') breakT = 0;

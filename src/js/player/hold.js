@@ -81,9 +81,9 @@ function handTarget(out, side, onGun, free, wt, rdt) {
 
 // the shove's shape, shared by guns and melee: q how far into it, push how far the hands drive out, lean and twist of the torso
 function shovePose() {
-  const sv = P.shove && !(P.bandT > 0) ? P.shove : null;
+  const sv = P.shove;
   if (!sv) return null;
-  const p = clamp(sv.t / SHOVE_DUR, 0, 1), WP = [-0.1, -0.2, 0.28], SP = [0.26, 0.46, -0.14];
+  const p = clamp(sv.t / sv.dur, 0, 1), WP = [-0.1, -0.2, 0.28], SP = [0.26, 0.46, -0.14];
   let pose, q;
   if (p < 0.2) { const w = smooth(p / 0.2); pose = WP.map(v => v * w); q = w; }
   else if (p < 0.36) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.16, 3); pose = WP.map((v, i) => v + (SP[i] - v) * e); q = 1; }
@@ -116,8 +116,9 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // the weapon rides in the right fist on its keyframes
   armRest(pm.armR, 'R', arx + walk, ary);
   mh.rotation.set(hrx, 0, D.style === 'chop' ? 0 : 0.15);
-  if (P.bandT > 0) {   // weapon held low in the right hand, the left wraps the bandage round you
+  if (P.bandT > 0) {   // weapon held low in the right hand, the left wraps the bandage round you; a bash drives the right hand out on its own
     pm.armR.rotation.x = 0.55; const bt = now;
+    if (sh) { const w = sh.q; _fR.set(0.14, 1.04, 0.28 + sh.push + ANIM.shoveHit * 0.06); const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(0.55 * (1 - w) + rxR * w, ryR * w, 0); }
     reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(bt * 9) * 0.07, 0.9 + Math.sin(bt * 9) * 0.05, 0.26), 0, true);
   } else if (sh) {
     // both hands drive straight out from the chest

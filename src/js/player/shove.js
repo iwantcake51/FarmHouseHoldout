@@ -2,16 +2,19 @@
 
 // the shove has a shape: a quick wind-up, a hard strike with a half step forward, then the recovery
 const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
+// while you wrap a bandage you can still bash one-handed, but slower: a longer wind-up and a longer wait before the next
+const SHOVE_BAND = 1.65;
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // Space climbs a window or fence when you are at one, and shoves otherwise
 function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
 const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && !D.melee && D.slot !== 'side'); };
 function shove() {
-  if (P.dead || P.vault || openSt || P.bandT > 0 || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
+  if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
   const tired = P.exh || P.stam < SHOVE_COST * 0.5;
   P.stam = Math.max(0, P.stam - SHOVE_COST); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
-  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1);
-  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet() };
+  const band = P.bandT > 0, slow = band ? SHOVE_BAND : 1;
+  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow;
+  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow, band };
   exitScope(); W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();
 }
@@ -19,10 +22,10 @@ function shove() {
 function tickShove(dt) {
   const s = P.shove; if (!s) return;
   s.t += dt;
-  const p = s.t / SHOVE_DUR;
+  const p = s.t / s.dur;
   // half a step into it during the strike
   if (p > 0.18 && p < 0.42 && !P.vault) moveCircle(P, Math.sin(P.aim) * 2.2 * dt * s.power, Math.cos(P.aim) * 2.2 * dt * s.power, 0.3, true);
-  if (!s.hit && s.t >= SHOVE_HIT) { s.hit = true; landShove(s); }
+  if (!s.hit && s.t >= s.hitT) { s.hit = true; landShove(s); }
   if (p >= 1) P.shove = null;
 }
 function landShove(s) {

@@ -18,8 +18,8 @@ function buildGuns() {
   const ar = T('armor');
   PM.mats.shirt.color.setHex(ar >= 1 ? 0x7a6a4a : 0x4e5a3c);
   PM.mats.shirtDk.color.setHex(ar >= 1 ? 0x5e5036 : 0x3e4830);
-  if (ar >= 2) { box(armorG, 0.56, 0.48, 0.36, lam(0x3a3f2c), 0, 0.9, 0.01); box(armorG, 0.2, 0.12, 0.05, lam(0x2c3022), -0.12, 0.85, 0.19); box(armorG, 0.2, 0.12, 0.05, lam(0x2c3022), 0.12, 0.85, 0.19); }
-  if (ar >= 3) { box(armorG, 0.44, 0.36, 0.06, GM.metal2, 0, 0.95, 0.21); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), -0.32, 1.12, 0); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), 0.32, 1.12, 0); for (let k = 0; k < 3; k++) box(armorG, 0.1, 0.12, 0.06, lam(0x2c3022), -0.12 + k * 0.12, 0.72, 0.22); }
+  if (ar >= 2) { box(armorG, 0.56, 0.48, 0.36, lam(0x3a3f2c), 0, 0.9, 0.01); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), -0.12, 0.85, 0.19); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), 0.12, 0.85, 0.19); }
+  if (ar >= 3) { box(armorG, 0.44, 0.36, 0.06, GM.metal2, 0, 0.95, 0.21); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), -0.32, 1.125, 0); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), 0.32, 1.125, 0); for (let k = 0; k < 3; k++) box(armorG, 0.1, 0.12, 0.06, lam(0x2c3022), -0.12 + k * 0.12, 0.72, 0.22); }
   const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
@@ -29,15 +29,18 @@ function buildGuns() {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
       const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
       const info = GUNS[id](parent, mods);
-      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }));
       if (info && info.crane) CRANE[s].push(info.crane);
       if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
-      if (D.melee) return 0;
+      if (D.melee) { unfight(parent); return 0; }
       let front = info.front; const y = info.y;
       if (info.baseMag) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
       else if (info.magZ) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
       if (pr) { cyl(parent, 0.02, 0.09 * pr, GM.blued, X, y, front + 0.045 * pr); ring(parent, 0.024, 0.012, GM.metal, X, y, front + 0.09 * pr - 0.006); front += 0.09 * pr; }
-      return fitAttachments(parent, D, front, y, info) + 0.02;
+      const muz = fitAttachments(parent, D, front, y, info) + 0.02;
+      // pull apart faces that would z-fight, then let the slides and bolts note their rest positions
+      unfight(parent);
+      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }));
+      return muz;
     };
     const g = gunMeshes[s];
     // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
@@ -50,6 +53,7 @@ function buildGuns() {
   }
   const mods = [];
   buildGear();
+  { const only = new Set(gearParts); armorG.traverse(o => { if (o.isMesh) only.add(o); }); unfight(PM.g, { only }); }
   for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) if (T(k)) mods.push(TIERS[k].t[T(k) - 1].name);
   if (pr) mods.push('Pierce ' + pr);
   if (S.att.fire) mods.push('Incendiary'); if (S.att.bayonet) mods.push('Bayonet'); if (S.att.stock) mods.push('Stock');

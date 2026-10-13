@@ -54,3 +54,80 @@ function finePieces(g, stop) {
   const out = []; (function walk(o) { o.children.forEach(c => { if (stop && stop.has(c)) return; if (c.isMesh && !c.userData.sil && !c.userData.fine) out.push(c); walk(c); }); })(g);
   return out;
 }
+// Pull apart faces that sit exactly on top of each other (z-fighting). Every pair of triangles under root that
+// lies in the same plane, faces the same way, overlaps and belongs to meshes of different materials is a fight;
+// the thinner of the two pieces is pulled back 0.6 mm on that face: a box loses a sliver off that side, a
+// cylinder off its end cap, or a hair of its radius for its flat sides. Three passes catch pieces with more than one.
+// opt.fixed: meshes never to resize (the rig); opt.only: only these may be resized, and only pairs with one of them count.
+const _ufV = new THREE.Vector3(), _ufN = new THREE.Vector3(), _ufE1 = new THREE.Vector3(), _ufE2 = new THREE.Vector3();
+function unfight(root, opt, pass) {
+  const fixed = (opt && opt.fixed) || null, only = (opt && opt.only) || null, gap = 0.0006, T = [];
+  root.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4();
+  root.traverse(o => {
+    if (!o.isMesh || o.userData.isOutline || o.userData.isFlash || o.userData.fine || !o.visible) return;
+    const m = o.material; if (!m || m.transparent || m.side !== THREE.FrontSide || m.colorWrite === false) return;
+    const type = o.geometry.type; if (type !== 'BoxGeometry' && type !== 'CylinderGeometry') return;
+    const g = o.geometry, pos = g.attributes.position, idx = g.index; M.multiplyMatrices(inv, o.matrixWorld);
+    const n = idx ? idx.count : pos.count, at = k => idx ? idx.getX(k) : k;
+    for (let k = 0; k < n; k += 3) {
+      const l = [0, 1, 2].map(q => new THREE.Vector3().fromBufferAttribute(pos, at(k + q)));
+      _ufE1.subVectors(l[1], l[0]); _ufE2.subVectors(l[2], l[0]); const ln = new THREE.Vector3().crossVectors(_ufE1, _ufE2);
+      if (ln.lengthSq() < 1e-14) continue; ln.normalize();
+      const v = l.map(p => p.applyMatrix4(M)); _ufE1.subVectors(v[1], v[0]); _ufE2.subVectors(v[2], v[0]);
+      const wn = new THREE.Vector3().crossVectors(_ufE1, _ufE2); if (wn.lengthSq() < 1e-14) continue; wn.normalize();
+      // which face of the piece this triangle belongs to, in the piece's own terms
+      let face;
+      if (type === 'BoxGeometry') { const a = [ln.x, ln.y, ln.z].map(Math.abs), c = a.indexOf(Math.max(...a)); face = { c, side: Math.sign([ln.x, ln.y, ln.z][c]) }; }
+      else face = Math.abs(ln.y) > 0.99 ? { c: 1, side: Math.sign(ln.y) } : { radial: true };
+      T.push({ o, v, n: wn, d: wn.dot(v[0]), face });
+    }
+  });
+  // bucket by direction, then sweep by plane offset
+  const B = new Map();
+  T.forEach(t => { const k = Math.round(t.n.x * 40) + ',' + Math.round(t.n.y * 40) + ',' + Math.round(t.n.z * 40); (B.get(k) || B.set(k, []).get(k)).push(t); });
+  const todo = new Map(), tol = 3e-4;
+  const clip = (poly, a, b) => { const r = []; for (let i = 0; i < poly.length; i++) { const p = poly[i], q = poly[(i + 1) % poly.length], sp = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]), sq = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]); if (sp >= 0) r.push(p); if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); r.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); } } return r; };
+  const area = p => { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; } return s / 2; };
+  const thick = (o, f) => {
+    const b = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+    if (f.radial) return (b.max.x - b.min.x) * Math.abs(o.scale.x);
+    return ([b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z][f.c]) * Math.abs(o.scale[['x', 'y', 'z'][f.c]]);
+  };
+  const may = o => !(fixed && fixed.has(o)) && (!only || only.has(o));
+  B.forEach(list => {
+    list.sort((a, b) => a.d - b.d);
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length && list[j].d - list[i].d < 0.02; j++) {
+      const A = list[i], C = list[j];
+      if (A.o === C.o || A.o.material === C.o.material || A.n.dot(C.n) < 0.9999) continue;
+      if (only && !only.has(A.o) && !only.has(C.o)) continue;
+      if (C.v.some(p => Math.abs(A.n.dot(p) - A.d) > tol)) continue;
+      // overlap in the plane
+      const u = Math.abs(A.n.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0); u.sub(_ufN.copy(A.n).multiplyScalar(u.dot(A.n))).normalize();
+      const w = new THREE.Vector3().crossVectors(A.n, u), O = A.v[0], P = t => t.v.map(p => [_ufV.subVectors(p, O).dot(u), _ufV.dot(w)]);
+      let pa = P(A), pc = P(C); if (area(pa) < 0) pa.reverse(); if (area(pc) < 0) pc.reverse();
+      let poly = pc; for (let k = 0; k < 3 && poly.length; k++) poly = clip(poly, pa[k], pa[(k + 1) % 3]);
+      if (poly.length < 3 || Math.abs(area(poly)) < 1e-6) continue;
+      // the thinner piece gives way (or the one that's allowed to)
+      let pickA = thick(A.o, A.face) <= thick(C.o, C.face);
+      if (pickA && !may(A.o)) pickA = false; else if (!pickA && !may(C.o)) pickA = true;
+      const E = pickA ? A : C; if (!may(E.o)) continue;
+      const key = E.o.uuid + (E.face.radial ? ':r' : ':' + E.face.c + ':' + E.face.side);
+      if (!todo.has(key)) todo.set(key, E);
+    }
+  });
+  todo.forEach(E => {
+    if (E.face.radial) { const b = E.o.geometry.boundingBox, r = (b.max.x - b.min.x) / 2 * Math.abs(E.o.scale.x); if (r > gap * 3) { const f = 1 - gap / r; E.o.scale.x *= f; E.o.scale.z *= f; E.o.updateMatrixWorld(true); } }
+    else shrinkFace(E.o, E.face.c, E.face.side, gap);
+  });
+  return todo.size && (pass || 0) < 2 ? todo.size + unfight(root, opt, (pass || 0) + 1) : todo.size;
+}
+// move one face of a mesh inward by d, keeping the opposite face where it is
+function shrinkFace(o, c, side, d) {
+  if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+  const b = o.geometry.boundingBox, mn = [b.min.x, b.min.y, b.min.z][c], mx = [b.max.x, b.max.y, b.max.z][c];
+  const s = ['x', 'y', 'z'][c], S0 = o.scale[s], ext = (mx - mn) * Math.abs(S0); if (ext <= d * 3) return;
+  const f = 1 - d / ext;
+  _ufV.set(0, 0, 0); _ufV[s] = (side > 0 ? mn : mx) * S0 * (1 - f); _ufV.applyQuaternion(o.quaternion);
+  o.scale[s] = S0 * f; o.position.add(_ufV); o.updateMatrixWorld(true);
+}

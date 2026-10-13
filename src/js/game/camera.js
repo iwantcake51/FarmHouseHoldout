@@ -2,15 +2,15 @@
 
 const camTarget = new V3(P.x, 0, P.z);
 // the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
-// the jump's progress, so the view leans and settles smoothly instead of snapping or jittering
-const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, push: 0, vp: 0, dx: 0, dz: 0 };
+// the jump's progress, so the view leans and settles smoothly instead of snapping or jittering. The push is a 2D spring
+// (px, pz), so a new vault that starts before the last one has settled turns it round smoothly instead of flipping it
+const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
 // firing: each shot kicks three springs, the view tipping (mostly one way, like a gun climbing), pushing back against
 // the aim and punching in a touch; their size follows the gun's power, so a 9mm barely nudges and a rifle thumps
-const camRec = { roll: 0, vr: 0, push: 0, vp: 0, zoom: 0, vz: 0, dx: 0, dz: 0 };
+const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
 function fireCam(pw, aim) {
   const c = camRec, sg = rand() < 0.7 ? 1 : -1;
-  c.dx = -Math.sin(aim); c.dz = -Math.cos(aim);
-  c.vr += sg * pw * rr(0.5, 0.75); c.vp += pw * 2.1; c.vz += pw * 1.1;
+  c.vr += sg * pw * rr(0.5, 0.75); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
   if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
@@ -18,21 +18,22 @@ function fireCam(pw, aim) {
 let reloadRockSide = 1;
 function reloadJolt(s) {
   const c = camRec; reloadRockSide = -reloadRockSide;
-  c.vr += reloadRockSide * s * rr(0.85, 1.1); c.vp += s * 0.15;
+  c.vr += reloadRockSide * s * rr(0.85, 1.1); c.vpx -= Math.sin(P.aim) * s * 0.15; c.vpz -= Math.cos(P.aim) * s * 0.15;
 }
 function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
 function vaultCam(rdt) {
   const v = P.vault, c = camVault;
   let roll = 0, bob = 0, push = 0;
   if (v) {
-    c.dx = v.dx; c.dz = v.dz;
     if (v.t <= 0) { const k = smooth(clamp(v.pre / v.preDur, 0, 1)); roll = v.side * 0.02 * k; bob = -0.04 * k; }   // settle back the other way as you load the jump
     else { const h = Math.sin(Math.min(1, v.t) * Math.PI); roll = -v.side * 0.065 * h; bob = 0.05 * h; push = 0.16 * Math.min(1, v.t); }   // tip into the jump and back level by the landing
   }
   // small fixed steps so the springs stay smooth however long the frame was
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
-    springTo(c, 'roll', 'vr', roll, 70, 11, dt); springTo(c, 'bob', 'vb', bob, 80, 10, dt); springTo(c, 'push', 'vp', push, 40, 11, dt);
-    springTo(camRec, 'roll', 'vr', 0, 110, 12, dt); springTo(camRec, 'push', 'vp', 0, 150, 15, dt); springTo(camRec, 'zoom', 'vz', 0, 140, 14, dt);
+    springTo(c, 'roll', 'vr', roll, 70, 11, dt); springTo(c, 'bob', 'vb', bob, 80, 10, dt);
+    springTo(c, 'px', 'vpx', v ? v.dx * push : 0, 40, 11, dt); springTo(c, 'pz', 'vpz', v ? v.dz * push : 0, 40, 11, dt);
+    springTo(camRec, 'roll', 'vr', 0, 110, 12, dt); springTo(camRec, 'zoom', 'vz', 0, 140, 14, dt);
+    springTo(camRec, 'px', 'vpx', 0, 150, 15, dt); springTo(camRec, 'pz', 'vpz', 0, 150, 15, dt);
   }
 }
 let titleSpin = 0;
@@ -53,9 +54,11 @@ function updateCamera(rdt) {
     // a scoped rifle leans the view further out toward the aim (and zooms in more, below)
     if (ads > 0.01) { const sk = ANIM.scopeK || 0, lean = 0.42 + 0.2 * sk, cap = 5.5 + 3 * sk; px = (aimPt.x - P.x) * lean; pz = (aimPt.z - P.z) * lean; const pl = Math.hypot(px, pz); if (pl > cap) { px *= cap / pl; pz *= cap / pl; } px *= ads; pz *= ads; }
     const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
-    camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6);
+    if (state === 'play') tickIntro(rdt);
+    if (introCamOn()) introCam(gx, gz);   // the glide in at the start of a run (game/intro.js)
+    else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }
   }
-  zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
+  if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? (curId() === 'hunting' && hasMod('hpscope') ? 1.35 : 1) : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
@@ -66,8 +69,8 @@ function updateCamera(rdt) {
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt);
-  const cv = camVault, cr = camRec, vx = camKick.x + cv.dx * cv.push + cr.dx * cr.push, vz = camKick.z + cv.dz * cv.push + cr.dz * cr.push;
+  const cv = camVault, cr = camRec, vx = camKick.x + cv.px + cr.px, vz = camKick.z + cv.pz + cr.pz;
   cam.zoom *= 1 + cr.zoom * 0.35;
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll); cam.updateProjectionMatrix();
+  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + introRoll()); cam.updateProjectionMatrix();
 }

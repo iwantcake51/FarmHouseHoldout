@@ -71,7 +71,7 @@ function updateCrosshair(rdt, D) {
     xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
     const glArc = 2 * Math.PI * 36 * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';
-    if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / 6)).toFixed(1) + ' 999');
+    if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / (D.glRecharge || 6))).toFixed(1) + ' 999');
     xhHit = Math.max(0, xhHit - rdt * 5);
     xhHitEl.setAttribute('opacity', Math.min(1, xhHit).toFixed(2));
     xhHitEl.setAttribute('transform', `scale(${(1 + Math.max(0, xhHit - 0.4) * 0.7).toFixed(2)})`);

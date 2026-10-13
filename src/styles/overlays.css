@@ -65,3 +65,16 @@
 #conc.on{animation:concFx 2.8s ease-out}
 @keyframes concFx{0%{opacity:1}12%{opacity:.75}100%{opacity:0}}
 #hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(120,10,6,.75) 100%);opacity:0}
+/* the start of a run (game/intro.js): the screen lifts out of the dark, then the HUD slides in a piece at a time */
+#introVeil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse 70% 65% at center,rgba(12,8,6,.55),#0b0807 100%)}
+body.intro #introVeil{animation:introVeil 1.5s cubic-bezier(.3,.1,.3,1) both}
+@keyframes introVeil{0%{opacity:1}100%{opacity:0}}
+body.intro #waveBox{animation:introIn .7s 1.05s cubic-bezier(.2,.9,.3,1.1) both}
+body.intro #moodles{animation:introIn .7s 1.2s cubic-bezier(.2,.9,.3,1.1) both}
+body.intro #vitals{animation:introUp .7s 1.35s cubic-bezier(.2,.9,.3,1.1) both}
+body.intro #arms{animation:introUp .7s 1.5s cubic-bezier(.2,.9,.3,1.1) both}
+body.intro #xh{animation:introFade .6s 1.6s ease-out both}
+@keyframes introIn{from{opacity:0;translate:0 -14px}}
+@keyframes introUp{from{opacity:0;translate:0 16px}}
+@keyframes introFade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){body.intro #introVeil,body.intro #waveBox,body.intro #moodles,body.intro #vitals,body.intro #arms,body.intro #xh{animation-duration:.01s;animation-delay:0s}}

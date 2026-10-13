@@ -12,8 +12,7 @@ function buildWave(n) {
   return list;
 }
 function startWave() {
-  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false;
-  closeStation();
+  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false;   // an open station menu stays open
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
   run.waveTotal = spawnQ.length;
   const brutes = run.wave === 5 || run.wave % 5 === 0;

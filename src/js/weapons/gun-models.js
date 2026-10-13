@@ -34,6 +34,7 @@ const GUN_MODELS = {
     gripMag(g, 1.0, 0.565, 0.22, 0.05, 0.17, 0.06);
     let front = 0.845;
     if (m.match) { cyl(g, 0.022, 0.11, GM.metal2, X, 1.142, 0.9); ring(g, 0.024, 0.012, GM.steel, X, 1.142, 0.95); box(g, 0.004, 0.01, 0.05, GM.poly, X, 1.165, 0.9); front = 0.955; }
+    if (m.auto) box(sl, 0.008, 0.016, 0.07, GM.orange, 0.04, -0.004, -0.128);   // the auto sear's longer selector lever
     if (m.burst) { box(sl, 0.06, 0.062, 0.022, GM.metal2, 0, 0.004, -0.158); box(sl, 0.014, 0.024, 0.034, GM.orange, 0.026, 0.018, -0.166).rotation.y = 0.35; }
     return { front, y: 1.142, magZ: 0.575, magY: 0.93, slide: sl, travel: 0.075, lock: true, top: 1.166, sz: 0.64 };
   },

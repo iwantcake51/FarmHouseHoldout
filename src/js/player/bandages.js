@@ -1,6 +1,8 @@
 // Carrying and applying bandages, healing over time.
 
-const BAND_MAX = 5, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
+const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
+// how many bandages you can carry: 3 in the pouch on your side, 2 more with the Med pouch upgrade's second pouch
+const bandMax = () => BAND_BASE + (S.pouch ? 2 : 0);
 // medicine cabinet upgrades: steadier hands wrap faster, better dressings heal more, a tonic heals quicker
 const MED_UP = {
   hands: { max: 3, cost: [8, 14, 22], name: 'Steady hands', desc: n => `Bandages go on ${Math.round((1 - 0.78) * 100)}% faster (${bandTime(n).toFixed(1)}s → ${bandTime(n + 1).toFixed(1)}s)` },
@@ -17,6 +19,12 @@ function startBandage() {
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); W8.reloading = null; W8.burstLeft = 0; W8.swing = 0;
   P.bandT = P.bandMax = bandTime(); SFX.rip();
+}
+// a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
+function interruptBandage() {
+  if (!(P.bandT > 0)) return;
+  P.bandT = 0; SFX.click();
+  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · G to start again' });
 }
 function tickBandage(dt) {
   if (P.bandT > 0) {

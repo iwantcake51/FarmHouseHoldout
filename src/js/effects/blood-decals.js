@@ -32,8 +32,9 @@ function splat(x, z, kind, size, ang, grow) {
   if (Math.abs(x) > HALF || Math.abs(z) > HALF) return;
   const d = decals[dIdx = (dIdx + 1) % decals.length], m = d.m, set = SPLAT[kind];
   m.material = set[(rand() * set.length) | 0];
-  m.position.set(x, 0.026 + (dIdx % 50) * 0.0003, z);
+  m.position.set(x, surfaceY(x, z) + 0.026 + (dIdx % 50) * 0.0003, z);
   m.rotation.set(-Math.PI / 2, 0, ang === undefined ? rand() * 6.28 : Math.atan2(-Math.sin(ang), Math.cos(ang)));
-  m.renderOrder = 1; d.s = size; d.t = 0; d.dur = grow || 0.12; m.scale.set(0.01, 0.01, 1); m.visible = true;
+  // drawn first of the see-through things, so a fading roof is laid over the blood rather than the blood over the roof
+  m.renderOrder = -1; d.s = size; d.t = 0; d.dur = grow || 0.12; m.scale.set(0.01, 0.01, 1); m.visible = true;
 }
 function spray(x, z, dx, dz, size) { splat(x + dx * size * 0.35, z + dz * size * 0.35, 'spray', size, Math.atan2(dz, dx), 0.08); }

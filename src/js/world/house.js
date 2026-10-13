@@ -115,3 +115,12 @@ const porchRoof = (() => {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
 })();
+// how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt,
+// so blood and brass land on top of them instead of under the boards
+function surfaceY(x, z) {
+  const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
+  if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
+  if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
+  if (ci(x) === 21 && ci(z) === HZ1) return 0.22;
+  return 0;
+}

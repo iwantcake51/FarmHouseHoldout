@@ -7,6 +7,7 @@ const UPG = [
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', ap: () => S.planks += 7 },
   { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap right now.', ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Patch yourself up to full health.', can: () => P.hp < S.maxHp * 0.75, ap: () => P.hp = S.maxHp },
+  { r: 'u', tag: 'Med', name: 'Med pouch', text: 'A second pouch on your belt: carry 5 bandages instead of 3. It comes with two in it.', vis: 'A pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'A full can for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 40% harder.', ap: () => S.meleeMul *= 1.4 },
   { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
@@ -67,5 +68,5 @@ for (const id in WEAP) {
 }
 for (const mid in MODS) {
   const m = MODS[mid];
-  UPG.push({ r: m.r, tag: WEAP[m.w].short + ' only', name: m.name, text: m.text, vis: m.vis, w: 2.4, modOf: mid, can: () => held(m.w) && !hasMod(mid) && (!m.need || hasMod(m.need)), ap: () => { (W8.mods[m.w] = W8.mods[m.w] || []).push(mid); } });
+  UPG.push({ r: m.r, tag: WEAP[m.w].short + ' only', name: m.name, text: m.text, vis: m.vis, w: 2.4, modOf: mid, can: () => held(m.w) && !hasMod(mid) && (!m.need || hasMod(m.need)), ap: () => addMod(m.w, mid) });
 }

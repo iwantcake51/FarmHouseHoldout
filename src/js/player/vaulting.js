@@ -51,5 +51,5 @@ function vaultTakeoff(v) { SFX.vault(); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz)
 // touch down: a thump, dust, the knees soak it up and the camera dips and settles on a spring
 function vaultLand(v) {
   SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1;
-  camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vp += 0.9; camVault.dx = v.dx; camVault.dz = v.dz;
+  camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;
 }

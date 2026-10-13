@@ -99,14 +99,15 @@ function stepDebris(list, dt) {
       const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
       if (bulletBlocked(nx, nz)) { c.vx *= -0.35; c.vz *= -0.35; } else { g.position.x = nx; g.position.z = nz; }
       g.position.y += c.vy * dt; g.rotation.x += c.spin * dt; g.rotation.z += c.roll * dt;
-      if (g.position.y < c.r && c.vy < 0) {
-        g.position.y = c.r; c.bounces++;
+      const fy = surfaceY(g.position.x, g.position.z);
+      if (g.position.y < fy + c.r && c.vy < 0) {
+        g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
         else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5)); tinkT = 0.035; }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little
-          if (c.rest) { c.rest(g); g.position.y = c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = c.r; }
+          if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
           c.vx *= 0.6; c.vz *= 0.6;
         }
       }

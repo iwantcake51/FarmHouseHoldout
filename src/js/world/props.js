@@ -59,7 +59,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
   // two chairs pulled up to it, one with a cushion
   chair(t, -0.3, 0.88, 0.12); chair(t, -0.25, -0.86, Math.PI - 0.2);
   box(t, 0.36, 0.04, 0.34, HM.red, -0.3 + 0.0, 0.495, 0.88).rotation.y = 0.12;
-  mergeInto(t, finePieces(t));
+  unfight(t); mergeInto(t, finePieces(t));
   obstacle(24, 20); obstacle(25, 20);
 
   // ---- the pantry shelf on the west wall: open front, two bays, three shelves of stores and a few things on top ----
@@ -94,7 +94,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
   box(s, 0.34, 0.22, 0.3, HM.kraft, 0.0, 1.32, 0.08); box(s, 0.342, 0.03, 0.06, HM.cream, 0.0, 1.4, 0.08);
   [-1, 1].forEach(d => { const f = box(s, 0.34, 0.005, 0.14, HM.kraft, 0.0, 1.44, 0.08 + d * 0.2); f.rotation.x = d * 0.6; });
   torus(s, 0.1, 0.028, HM.rope, 0.03, 1.24, 0.62).rotation.x = Math.PI / 2; torus(s, 0.08, 0.026, HM.rope, 0.04, 1.29, 0.6).rotation.x = Math.PI / 2;
-  mergeInto(s, finePieces(s));
+  unfight(s); mergeInto(s, finePieces(s));
   obstacle(17, 23); obstacle(17, 24);
 
   // ---- the bed in the north-east corner: a turned-post frame, mattress, patchwork quilt, pillow, a suitcase under it, boots beside it ----
@@ -119,7 +119,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
     if (tip) { b.rotation.z = Math.PI / 2; b.position.y = 0.045; }
     box(b, 0.09, 0.03, 0.22, HM.leatherDk, 0, 0.015, 0.02); box(b, 0.085, 0.16, 0.1, HM.leather, 0, 0.11, -0.03); box(b, 0.085, 0.06, 0.12, HM.leather, 0, 0.06, 0.07);
   });
-  mergeInto(bed, finePieces(bed));
+  unfight(bed); mergeInto(bed, finePieces(bed));
   obstacle(26, 18); obstacle(26, 19);
 
   // ---- on the walls you can see from inside (north and west): a painting, a clock, antlers over the bed, coat hooks, a calendar ----
@@ -146,7 +146,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
   for (let k = 0; k < 4; k++) box(wd, 0.012, 0.004, 0.24, HM.ink, xW + 0.007, 1.33 + k * 0.06, cxw(22.2));
   for (let k = 0; k < 5; k++) box(wd, 0.012, 0.22, 0.004, HM.ink, xW + 0.007, 1.42, cxw(22.2) - 0.1 + k * 0.05);
   box(wd, 0.014, 0.05, 0.05, HM.inkR, xW + 0.009, 1.42, cxw(22.2) + 0.05).rotation.x = 0.785;
-  mergeInto(wd, finePieces(wd));
+  unfight(wd); mergeInto(wd, finePieces(wd));
 }
 function car(i0, j0, along) {
   const g = new THREE.Group(); scene.add(g);
@@ -180,5 +180,5 @@ HANG.forEach(([x, z]) => {
   ycyl(g, 0.055, 0.22, 0.14, lam(0x3a4a3a, { side: THREE.DoubleSide }), 0, 2.02, 0, 16, true);
   torus(g, 0.22, 0.01, HM.iron, 0, 1.95, 0).rotation.x = Math.PI / 2;
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), basic(0xffd59a)); bulb.position.y = 1.97; g.add(bulb);
-  mergeInto(g, finePieces(g));
+  unfight(g); mergeInto(g, finePieces(g));
 });

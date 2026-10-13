@@ -38,7 +38,7 @@ const plankStack = [];
     for (let n = 0; n < 2; n++) box(p, 0.012, 0.125, 0.045, M.metal, -0.22 + n * 0.44, 0, 0);   // nails at the ends
     p.visible = false; plankStack.push(p);
   });
-  plankStack.strap = box(g, 0.05, 0.42, 0.06, STRAP_M, 0.16, 0.94, -0.02); plankStack.strap.visible = false;
+  plankStack.strap = box(g, 0.05, 0.42, 0.063, STRAP_M, 0.16, 0.94, -0.02); plankStack.strap.visible = false;
 }
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {

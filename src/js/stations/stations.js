@@ -55,7 +55,7 @@ const STATIONS = [];
   // a tally of the nights you've lasted, pinned up in the corner
   box(g, 0.16, 0.2, 0.004, HM.paper, -0.12, 1.83, -0.336); for (let k = 0; k < 4; k++) box(g, 0.008, 0.07, 0.005, HM.ink, -0.17 + k * 0.025, 1.84, -0.333);
   box(g, 0.11, 0.008, 0.005, HM.ink, -0.13, 1.84, -0.332).rotation.z = 0.5; ycyl(g, 0.01, 0.01, 0.01, HM.inkR, -0.12, 1.92, -0.33, 6).rotation.x = Math.PI / 2;
-  mergeInto(g, finePieces(g));
+  unfight(g); mergeInto(g, finePieces(g));
   obstacle(21, 18); obstacle(22, 18);
   STATIONS.push({ g, id: 'bench', name: 'Workbench', x: g.position.x, z: cxw(18) + 0.95 });
 
@@ -76,7 +76,7 @@ const STATIONS = [];
   const dust = lam(0xc8aa78);
   [[0.32, 0.15, 0.04, 0.14, 0.04], [0.42, 0.15, -0.06, 0.08, 0.025], [0.3, 0, -0.28, 0.16, 0.03]].forEach(([x, y, z, r, h]) => ycyl(g, 0.01, r, h, dust, x, y + h / 2, z, 9));
   box(g, 0.22, 0.05, 0.16, HM.pine, 0.82, 0.025, -0.3).rotation.y = 0.5;
-  mergeInto(g, finePieces(g));
+  unfight(g); mergeInto(g, finePieces(g));
   obstacle(18, 25); obstacle(19, 25);
   STATIONS.push({ g, id: 'saw', name: 'Sawhorse', x: g.position.x, z: cxw(25) - 0.95 });
 
@@ -102,7 +102,7 @@ const STATIONS = [];
   ycyl(g, 0.035, 0.035, 0.12, HM.glassA, 0.08, 1.75, 0.18, 10); ycyl(g, 0.015, 0.025, 0.04, HM.glassA, 0.08, 1.83, 0.18, 8); ycyl(g, 0.017, 0.017, 0.02, HM.iron, 0.08, 1.86, 0.18, 8);
   ycyl(g, 0.025, 0.025, 0.07, lam(0xc87a2a), 0.12, 1.725, -0.0, 8); ycyl(g, 0.027, 0.027, 0.02, HM.enamel, 0.12, 1.77, 0.0, 8);
   xcyl(g, 0.04, 0.07, HM.cream, -0.1, 1.73, 0.2, 10); xcyl(g, 0.04, 0.07, HM.cream, -0.06, 1.8, 0.19, 10);
-  mergeInto(g, finePieces(g));
+  unfight(g); mergeInto(g, finePieces(g));
   obstacle(26, 24);
   STATIONS.push({ g, id: 'med', name: 'Medicine cabinet', x: cxw(26) - 0.95, z: cxw(24) });
 
@@ -135,7 +135,7 @@ const STATIONS = [];
   const np = box(g, 0.13, 0.006, 0.17, HM.paper, 0.27, 0.793, -0.2); np.rotation.y = 0.3;
   for (let k = 0; k < 4; k++) box(np, 0.09, 0.002, 0.006, HM.ink, -0.01, 0.004, -0.05 + k * 0.03);
   box(g, 0.008, 0.008, 0.13, HM.yellow, 0.35, 0.8, -0.2).rotation.y = -0.2;
-  mergeInto(g, finePieces(g));
+  unfight(g); mergeInto(g, finePieces(g));
   obstacle(24, 25);
   STATIONS.push({ g, id: 'radio', name: 'Ham radio', x: cxw(24), z: cxw(25) - 0.95 });
 }

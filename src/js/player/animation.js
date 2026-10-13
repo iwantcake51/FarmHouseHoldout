@@ -99,8 +99,10 @@ function animatePlayer(dt, rdt) {
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02, 0, -sway * 0.6);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };
+  if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
   poseHands(D, up, ph, runF, rdt, now);
   pm.upper.rotation.set(up.x, up.y, up.z);
+  introLook(pm);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel
 function updatePlayerVisuals(dt, rdt) {

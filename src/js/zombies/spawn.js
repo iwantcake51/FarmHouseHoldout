@@ -8,7 +8,7 @@ function spawnZombie(type) {
   m.g.scale.setScalar(sc);
   m.armL.rotation.x = m.armR.rotation.x = -0.15; m.head.rotation.z = rr(-.25, .25);
   m.extras = [];
-  if (rand() < 0.6) m.extras.push(box(m.head, 0.34, 0.08, 0.34, lam(pick(HAIR)), 0, 0.17, -0.01));
+  if (rand() < 0.6) m.extras.push(box(m.head, 0.34, 0.08, 0.34, lam(pick(HAIR)), 0, 0.17, -0.012));
   if (rand() < 0.5) m.extras.push(box(m.torso, 0.18, 0.16, 0.02, lam(0x5a1a14), rr(-.12, .12), rr(-.15, .15), 0.155));
   if (rand() < 0.4) m.extras.push(box(m.torso, 0.52, 0.12, 0.32, lam(0x2a2620), 0, -0.24, 0));
   box(m.head, 0.06, 0.04, 0.02, basic(0xd8d0a0), -0.07, 0.03, 0.165); box(m.head, 0.06, 0.04, 0.02, basic(0xd8d0a0), 0.07, 0.03, 0.165);

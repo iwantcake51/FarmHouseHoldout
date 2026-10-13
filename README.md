@@ -69,6 +69,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Gun 3D models | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
+| What tinkering at the workbench does to a mod at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
 | Melee damage, swing speed, reach, knockback | `src/js/melee/melee-stats.js` |
 | Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
 | Stamina cost and swing slowdown | `src/js/melee/melee.js` |
@@ -80,8 +81,9 @@ Every source file starts with a one-line comment saying what is in it.
 | How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | What each station sells, and the prices | `src/js/stations/recipes.js` |
-| Bandage count, time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
-| Shove range, push and cooldown | `src/js/player/shove.js` |
+| Bandage count (3, or 5 with the Med pouch), time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
+| The start of a run: the camera glide, getting up off one knee, the HUD sliding in | `src/js/game/intro.js` |
+| Shove range, push and cooldown (slower while you bandage) | `src/js/player/shove.js` |
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
@@ -135,6 +137,7 @@ Shared state:
 - **Light map instead of real lights.** Lamps, fires and muzzle flashes are painted into one small light texture each frame instead of using many three.js lights (`lighting/lightmap.js`).
 - **Pooling and instancing.** Particles, casings, tracers and blood decals reuse fixed pools, and trees, grass, bushes, rocks and fence posts are instanced meshes, so long fights don't create garbage or extra draw calls.
 - **Cached geometry.** Box shapes are shared through a cache instead of being created per part (`core/geometry.js`).
+- **No z-fighting.** As models are built, faces of different pieces that would sit exactly on top of each other are pulled apart by 0.6 mm (`unfight` in `core/geometry.js`).
 - **Merged detail.** The small pieces of the survivor, the furniture and the stations are merged into a few meshes each, with their colours baked into the vertices, so all that detail costs only a few extra draw calls (`mergeInto` in `core/geometry.js`).
 
 ## Controls
@@ -151,7 +154,7 @@ Shared state:
 | Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you (stabs with a bayonet fitted) |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
 | H | Underbarrel grenade, once you have one |
-| V | Switch fire mode on guns with a burst or fanning mod |
+| V | Switch fire mode on guns with a burst, full-auto or fanning mod (single → burst → full auto) |
 | Wheel, + and − | Zoom in and out |
 | T | Start the run (also from the death screen), or the next wave early |
 | Esc or P | Pause |
