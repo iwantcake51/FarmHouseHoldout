@@ -2,7 +2,7 @@
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-const ANIM = { down: 0, downT: 0, slideT: { R: 1, L: 1 }, yaw: Math.PI, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
+const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
 // swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
@@ -67,7 +67,7 @@ function animatePlayer(dt, rdt) {
   if (P.vault) {
     const v = P.vault, t = Math.min(1, v.t), hop = Math.sin(t * Math.PI), c = v.t > 0 ? 0 : smooth(clamp(v.pre / v.preDur, 0, 1));
     // crouch and lean in to load the jump (c), then the hop tucks the legs up and over (hop)
-    pm.g.position.y = hop * 0.78 - c * 0.16; pm.g.rotation.x = -hop * 0.45 + c * 0.32;
+    pm.g.position.y = hop * 0.78 * (v.hop || 1) - c * 0.16;   // a tired scramble barely leaves the sill pm.g.rotation.x = -hop * 0.45 + c * 0.32;
     pm.legL.rotation.x = -hop * 1.3 - c * 0.7; pm.legR.rotation.x = -hop * 0.7 + c * 0.5; pm.lower.rotation.y = 0;
   } else if (ANIM.land > 0) {
     // landing: knees give and the body dips forward, then springs back up

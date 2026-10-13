@@ -25,14 +25,19 @@ function fitAttachments(g, D, front, y, info) {
     const bl = box(g, 0.01, 0.04, 0.26, GM.blade, X, y - 0.055, front + 0.08); box(bl, 0.011, 0.008, 0.2, GM.steel, 0, 0.006, -0.02);
     const tip = box(g, 0.01, 0.03, 0.04, GM.blade, X, y - 0.06, front + 0.215); tip.rotation.x = 0.5;
   }
-  const rail = y - 0.06;
-  if (T('laser') === 1) {   // a pointer taped under the barrel
-    cyl(g, 0.013, 0.1, GM.metal2, X - 0.05, y - 0.035, front - 0.26); ring(g, 0.016, 0.02, GM.tape, X - 0.05, y - 0.035, front - 0.29); ring(g, 0.016, 0.02, GM.tape, X - 0.05, y - 0.035, front - 0.23);
-    box(g, 0.008, 0.008, 0.004, GM.red, X - 0.05, y - 0.035, front - 0.208);
-  }
-  if (T('laser') === 2) {   // rail-mounted laser module with two windows
-    box(g, 0.03, 0.012, 0.06, GM.metal, X, rail + 0.02, front - 0.2); box(g, 0.042, 0.04, 0.12, GM.tan, X, rail - 0.006, front - 0.2);
-    box(g, 0.012, 0.012, 0.004, GM.red, X - 0.01, rail - 0.006, front - 0.139); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, rail - 0.006, front - 0.139); box(g, 0.012, 0.006, 0.02, GM.metal2, X, rail + 0.016, front - 0.22);
+  // lasers hang right under the gun at the mount point (found from the model, so they touch whatever is there:
+  // a pistol's dust cover, a shotgun's barrel or forend); the beam starts from an emitter at the lens (weapons/laser.js)
+  if (T('laser')) {
+    const lz = side ? front - 0.1 : front - 0.22, u = undersideAt(g, X, lz, y), em = new THREE.Object3D();
+    if (T('laser') === 1) {   // a pointer taped under the barrel
+      cyl(g, 0.012, 0.1, GM.metal2, X, u - 0.012, lz); [-0.03, 0.03].forEach(o => box(g, 0.03, 0.03 + (y - u) * 0.6, 0.016, GM.tape, X, u - 0.012 + (0.03 + (y - u) * 0.6) / 2 - 0.015, lz + o));
+      box(g, 0.008, 0.008, 0.004, GM.red, X, u - 0.012, lz + 0.052); em.position.set(X, u - 0.012, lz + 0.055);
+    } else {   // rail-mounted laser module with two windows
+      box(g, 0.03, 0.014, 0.06, GM.metal, X, u - 0.006, lz); box(g, 0.042, 0.04, 0.12, GM.tan, X, u - 0.033, lz);
+      box(g, 0.012, 0.012, 0.004, GM.red, X - 0.01, u - 0.033, lz + 0.061); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, u - 0.033, lz + 0.061); box(g, 0.012, 0.006, 0.02, GM.metal2, X, u - 0.011, lz - 0.02);
+      em.position.set(X - 0.01, u - 0.033, lz + 0.064);
+    }
+    g.add(em); g.userData.laserEm = em;
   }
   if (T('light')) {
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, front - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, front - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, front - 0.163); [-0.28, -0.22].forEach(o => ring(g, 0.025, 0.022, GM.tape, X + 0.06, y - 0.02, front + o)); }
@@ -68,4 +73,18 @@ function fitAttachments(g, D, front, y, info) {
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;
+}
+// the lowest point of the gun's body at (x, z), among the pieces that reach up to the barrel's height: where an
+// under-barrel attachment has to sit to touch it
+const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4();
+function undersideAt(g, x, z, yAxis) {
+  g.updateMatrixWorld(true); _ubM.copy(g.matrixWorld).invert();
+  let low = Infinity;
+  g.traverse(o => {
+    if (!o.isMesh || o.userData.isFlash || !o.visible) return;
+    _ub.setFromObject(o).applyMatrix4(_ubM);
+    if (x < _ub.min.x - 0.004 || x > _ub.max.x + 0.004 || z < _ub.min.z || z > _ub.max.z || _ub.max.y < yAxis - 0.03 || _ub.min.y > yAxis) return;
+    low = Math.min(low, _ub.min.y);
+  });
+  return low === Infinity ? yAxis - 0.03 : low;
 }

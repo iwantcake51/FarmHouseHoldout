@@ -1,11 +1,11 @@
-// Shoving zombies away with Space when there is nothing to climb, and the bayonet stab that rides on it.
+// Shoving zombies away with F, and the bayonet stab that rides on it.
 
 // the shove has a shape: a quick wind-up, a hard strike with a half step forward, then the recovery
 const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
 // while you wrap a bandage you can still bash one-handed, but slower: a longer wind-up and a longer wait before the next
 const SHOVE_BAND = 1.65;
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
-// Space climbs a window or fence when you are at one, and shoves otherwise
+// the touch button climbs a window or fence when you are at one, and shoves otherwise
 function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
 const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && D.slot === 'long'); };   // long guns only
 function shove() {
@@ -48,7 +48,7 @@ function landShove(s) {
   }
   if (hit) {
     SFX.hitBlunt(true); if (s.stab) SFX.hitBlade(false);
-    shake = Math.max(shake, brute ? 0.2 : 0.3); hitStop = Math.max(hitStop, 0.07);
+    shake = Math.max(shake, brute ? 0.2 : 0.3);
     camKick.x += Math.sin(P.aim) * 0.22; camKick.z += Math.cos(P.aim) * 0.22; camRoll = clamp(camRoll + (rand() < 0.5 ? -1 : 1) * 0.04, -0.1, 0.1);
     xhHit = 1.2; ANIM.shoveHit = 1;
   } else { camKick.x += Math.sin(P.aim) * 0.08; camKick.z += Math.cos(P.aim) * 0.08; }

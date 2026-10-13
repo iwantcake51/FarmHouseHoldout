@@ -14,6 +14,7 @@ const MOD_UP = {
   comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
   dragon: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   slug: { t: '+15% damage', up: D => { D.dmg *= 1.15; } },
+  slam: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
   tube: { t: '+2 shells', up: D => { D.mag += 2; } },
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },

@@ -13,6 +13,7 @@ const GUN_MODS = {
   comp: { w: 'deagle', r: 'u', name: 'Ported compensator', text: 'Halves hand cannon spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Pump shells set every zombie they hit on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },
   slug: { w: 'pump', r: 'u', name: 'Slug rounds', text: 'One heavy slug per shell that goes through three zombies.', vis: 'Yellow slugs in the side saddle', stat: D => { D.pellets = 1; D.dmg = 125; D.pierce = 2; D.spread = 0.012; } },
+  slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Each shell goes off as the action slams shut, so the pump fires 50% faster. Spread up 15%.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.15; } },
   tube: { w: 'pump', r: 'c', name: 'Tube extension', text: 'The pump holds four more shells.', vis: 'A longer magazine tube', stat: D => { D.mag += 4; } },
   sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets, wider spread, faster reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },

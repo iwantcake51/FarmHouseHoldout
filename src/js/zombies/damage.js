@@ -70,7 +70,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
-  xhKill = true; xhHit = 1.4; hitStop = Math.max(hitStop, 0.045); shake = Math.max(shake, 0.16);
+  xhKill = true; xhHit = 1.4; shake = Math.max(shake, 0.16);
   popEl('kills');
   if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.vampire && part === 'head' ? 2 : 1));
   if (S.adrenaline) P.adr = 2.5;

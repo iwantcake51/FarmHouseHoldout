@@ -59,19 +59,25 @@
 
 <div id="scrim"></div>
 <div class="hud" id="waveBox" hidden>
-  <svg id="dial" width="66" height="66" viewBox="-33 -33 66 66" aria-hidden="true">
-    <circle class="rim" r="30"></circle>
-    <path id="dialDay" class="day"></path><path id="dialNight" class="night"></path>
-    <g id="dialTicks"></g>
-    <g id="dialHand"><line class="hand" x1="0" y1="0" x2="0" y2="-19"></line><circle id="dialOrb" class="orb" cx="0" cy="-23" r="3.2"></circle></g>
-    <circle r="2" fill="#ece6d8"></circle>
-  </svg>
+  <div id="clockBox">
+    <svg id="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
+      <circle class="face" r="42"></circle>
+      <path id="dialNight" class="night"></path><path id="dialDay" class="day"></path>
+      <g id="dialTicks"></g>
+      <g id="dialHand">
+        <line class="hand" x1="0" y1="-27" x2="0" y2="-31"></line>
+        <g id="dialSun" transform="translate(0 -35)"><g class="rays"></g><circle class="sun" r="4.4"></circle></g>
+        <g id="dialMoon" transform="translate(0 -35)"><circle class="moon" r="4.4"></circle><circle class="bite" r="3.7" cx="2.2" cy="-1.5"></circle></g>
+      </g>
+    </svg>
+    <div id="clockTime">15:00</div>
+    <div id="clockPhase">Afternoon</div>
+  </div>
   <div class="wv">
     <div class="lbl">Wave</div>
     <div class="big" id="wNum">01</div>
     <div id="wSub"></div>
     <div id="wBar"><i id="wBarFill"></i></div>
-    <div class="lbl" id="clock"></div>
   </div>
 </div>
 <div class="hud" id="moodles" hidden></div>
@@ -132,8 +138,8 @@
       <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
       <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
       <kbd>G</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
-      <kbd>Hold F</kbd><span>Board up a door or window you are standing at</span>
-      <kbd>Space</kbd><span>Climb through an open window or hop a fence; anywhere else, shove zombies back</span>
+      <kbd>F</kbd><span>Shove zombies back (stabs with a bayonet fitted); hold it at a door or window to board it up</span>
+      <kbd>Space</kbd><span>Climb through an open window or hop a fence (costs stamina)</span>
       <kbd>E</kbd><span>Use the workbench, sawhorse, medicine cabinet or radio</span>
       <kbd>Hold right click</kbd><span>Aim down the sights: far tighter than firing from the hip, but you move slower. Scoped rifles zoom in further</span>
       <kbd>H</kbd><span>Underbarrel grenade, once you have one</span>

@@ -30,10 +30,14 @@ function updateDayNight(rdt) {
   openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
   paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });
   if (state !== 'title') {
-    const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10;
-    setT('clock', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${curDark > 0.6 ? 'Night' : tod > 4 && tod < 12 ? 'Morning' : curDark > 0.15 ? 'Dusk' : 'Day'}`);
-    $('dialHand').setAttribute('transform', `rotate(${(tod / 24 * 360 - 180).toFixed(1)})`);
-    $('dialOrb').style.fill = curDark > 0.5 ? '#cfd8ea' : '#f0bf4c';
+    // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
+    const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
+    setT('clockTime', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    setT('clockPhase', stopped ? 'Clock stopped' : dayPart(tod));
+    const rot = (tod / 24 * 360 - 180).toFixed(1), night = tod >= 19.5 || tod < 5.5;
+    if (cache.dialRot !== rot) { cache.dialRot = rot; $('dialHand').setAttribute('transform', `rotate(${rot})`); }
+    if (cache.dialNight !== night) { cache.dialNight = night; $('dialSun').style.display = night ? 'none' : ''; $('dialMoon').style.display = night ? '' : 'none'; }
+    if (cache.clockStop !== stopped) { cache.clockStop = stopped; $('clockBox').classList.toggle('paused', stopped); }
   }
   stepAtmos(rdt);
   // fireflies

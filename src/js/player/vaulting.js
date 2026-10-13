@@ -34,15 +34,24 @@ function fenceTarget() {
   };
   return (Math.abs(lat) > 0.15 && tryLand(lat)) || tryLand(0);
 }
+// vaulting takes it out of you: 20% stamina through a window, 14% over a fence, and every vault you chain on within
+// a few seconds of the last costs another 10% (vaultHeat cools off over 3 s). Without the breath for it you
+// scramble over instead: slower and lower, panting, and you stumble when you land. Light feet halves the cost.
+const VAULT_COST = 0.2, FENCE_COST = 0.14, VAULT_CHAIN = 0.1, VAULT_COOL = 3;
 function tryVault() {
   if (P.vault) return;
-  const t = vaultTarget(nearestOpening()) || fenceTarget(); if (!t) return;
+  const win = vaultTarget(nearestOpening()), t = win || fenceTarget(); if (!t) return;
+  const cost = ((win ? VAULT_COST : FENCE_COST) + VAULT_CHAIN * (P.vaultHeat || 0)) * (S.vaultMul < 1 ? 0.5 : 1);
+  const scramble = P.exh || P.stam < cost * 0.6;
+  P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
+  P.vaultHeat = (P.vaultHeat || 0) + 1;
+  if (scramble) SFX.pant();
   closeStation();
   exitScope();
   // a short crouch to load the jump, then the hop itself
   const dx = t.x1 - P.x, dz = t.z1 - P.z, dl = Math.hypot(dx, dz) || 1;
   // side: how much the jump runs across the screen (-1 left .. 1 right), which is how far the view tips with it
-  P.vault = { t: 0, pre: 0, preDur: 0.16 * S.vaultMul, dur: 0.5 * S.vaultMul, x0: P.x, z0: P.z, x1: t.x1, z1: t.z1, face: Math.atan2(dx, dz), dx: dx / dl, dz: dz / dl, side: clamp((dx * RIGHT.x + dz * RIGHT.z) / dl, -1, 1) };
+  P.vault = { t: 0, pre: 0, preDur: 0.16 * S.vaultMul * (scramble ? 1.8 : 1), dur: 0.5 * S.vaultMul * (scramble ? 1.55 : 1), scramble, hop: scramble ? 0.55 : 1, x0: P.x, z0: P.z, x1: t.x1, z1: t.z1, face: Math.atan2(dx, dz), dx: dx / dl, dz: dz / dl, side: clamp((dx * RIGHT.x + dz * RIGHT.z) / dl, -1, 1) };
   W8.reloading = null; W8.reloadT = 0; P.shove = null;
   nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
 }
@@ -52,4 +61,5 @@ function vaultTakeoff(v) { SFX.vault(); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz)
 function vaultLand(v) {
   SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1;
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;
+  if (v.scramble) { P.slow = Math.min(1, P.slow + 0.35); P.stun = Math.max(P.stun || 0, 0.25); camVault.vb -= 0.6; SFX.pant(); }   // a heavy, tired landing
 }

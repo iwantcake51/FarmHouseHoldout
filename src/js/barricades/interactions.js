@@ -1,5 +1,7 @@
 // Boarding, station prompts and the on-screen hint.
 
+// an opening you could board up right now (holding F boards it; anywhere else F shoves)
+function boardable(o) { return !!(o && o.boards.length < 3 && S.planks > 0 && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault); }
 // door/window boarding, station prompts and the on-screen hint
 function updateInteractions(dt) {
   // doors, windows and stations
@@ -7,7 +9,7 @@ function updateInteractions(dt) {
   openings.forEach(q => { q.hl.visible = q === o && !P.vault && !openSt && (o.boards.length < 3 || !!vaultTarget(o)); if (q.hl.visible) q.hm.opacity = 0.55 + Math.sin(performance.now() / 150) * 0.35; });
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();
-  const canBoard = o && o.boards.length < 3 && S.planks > 0 && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault;
+  const canBoard = boardable(o);
   if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * S.boardSpeed; if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
   else boardT = 0;
   const fv = !o && !P.vault && fenceTarget();

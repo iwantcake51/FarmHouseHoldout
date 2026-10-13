@@ -39,7 +39,11 @@ function updateWaves(dt) {
     if (breakT <= 0) startWave();
   } else if (phase === 'wave') {
     spawnT -= dt;
-    if (spawnQ.length && spawnT <= 0 && zombies.length < 40) { spawnZombie(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4); }
+    if (spawnQ.length && spawnT <= 0 && zombies.length < 40) {
+      // sprinters mostly come out after dark: by day most of them shamble in as walkers instead
+      let t = spawnQ.shift(); if (t === 'runner' && rand() < 0.65 * (1 - curDark)) t = 'walker';
+      spawnZombie(t); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4);
+    }
     const left = spawnQ.length + zombies.length;
     setH('wSub', `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left'));
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');

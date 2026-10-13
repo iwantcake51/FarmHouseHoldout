@@ -65,11 +65,15 @@ function updatePickups(dt) {
     p.item.rotation.y += dt * 1.3;
     const pulse = 0.5 + 0.5 * Math.sin(p.ph * 1.4);
     p.ring.scale.setScalar((p.kind === 'supply' ? 1.8 : 1) * (0.92 + pulse * 0.16)); p.ringMat.opacity = 0.45 + pulse * 0.4;
-    const blink = p.t > 4 || Math.sin(p.t * 14) > 0;
-    p.om.opacity = blink ? 0.95 : 0.2; p.xr.rim.opacity = (blink ? 0.55 + 0.35 * pulse : 0.15);
+    // the last 10 seconds: it pulses, slowly at first and faster and faster, then shrinks away in the last moment
+    const warn = clamp(1 - p.t / 10, 0, 1);
+    p.wph = (p.wph || 0) + dt * Math.PI * 2 * (0.9 + 9 * warn * warn);
+    const beat = 0.5 + 0.5 * Math.cos(p.wph), lit = warn > 0 ? 1 - Math.min(1, warn * 2) * (1 - beat) : 1, gone = clamp(p.t / 0.35, 0, 1);
+    p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
+    p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
     const seen = visAt(p.x, p.z); p.g.visible = true;
-    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (blink ? 1 : 0.3); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
+    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone; p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies; it never heals you on the spot

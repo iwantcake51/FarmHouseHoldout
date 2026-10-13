@@ -150,8 +150,8 @@ Shared state:
 | 1 2 3 4 | Melee, sidearm, long gun, automatic |
 | R | Reload |
 | G | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |
-| Hold F | Board up the door or window you are standing at |
-| Space | Climb through an open window or hop a fence; anywhere else, shove the zombies in front of you (stabs with a bayonet fitted) |
+| F | Shove the zombies in front of you (stabs with a bayonet fitted); held at a door or window, board it up |
+| Space | Climb through an open window or hop a fence (costs stamina, more if you chain them) |
 | E | Use the workbench, sawhorse, medicine cabinet or radio |
 | H | Underbarrel grenade, once you have one |
 | V | Switch fire mode on guns with a burst, full-auto or fanning mod (single → burst → full auto) |

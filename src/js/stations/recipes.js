@@ -2,8 +2,24 @@
 
 const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && !hasMod(m) && (!MODS[m].need || hasMod(MODS[m].need))) : [];
 const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
-const RECIPES = {
-  bench: [
+// attachments for the gun in your hands, bought and fitted at the workbench: only the ones that fit it show, one card per
+// line (the next tier up); a suppressor and a choke rule each other out on shotguns, the scope only fits long guns
+const ATT_COST = { supp: [12, 20, 30], choke: [10, 18], sight: [10, 18, 28], laser: [10, 20], light: [8, 16] };
+function attachmentCards() {
+  // the gun in your hands, or your first gun if you walked up with a blade out
+  const cur = curId(), id = cur && !WEAP[cur].melee ? cur : gunsHeld()[0], D = id && WEAP[id]; if (!D) return [];
+  const out = [], group = 'Attachments · ' + D.name;
+  for (const k of ['supp', 'choke', 'sight', 'laser', 'light']) {
+    if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
+    const L = TIERS[k], n = gunTier(id, k), st = L.t[n];
+    out.push({ ic: 'gear', group, cost: ATT_COST[k][n], title: () => st.name, desc: () => st.text + (n ? ` Replaces the ${L.t[n - 1].name.toLowerCase()}.` : ''), why: () => '',
+      make: () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, st.name); toast(st.name, { kind: 'good', icon: 'gear', sub: 'Fitted to your ' + D.name.toLowerCase() }); } });
+  }
+  if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'gear', group, cost: 16, title: () => 'Bayonet', desc: () => 'A blade under your long guns: shoving (F) stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); toast('Bayonet', { kind: 'good', icon: 'gear', sub: 'Fitted to your long guns · F to stab' }); } });
+  if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'gear', group, cost: 14, title: () => 'Shoulder stock', desc: () => 'Steadies every sidearm: spread −25%, kick −45%', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); toast('Shoulder stock', { kind: 'good', icon: 'gear', sub: 'Fitted to your sidearms' }); } });
+  return out;
+}
+const BENCH = [
     { ic: 'ammo', cost: 4, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${ammoAmt(gunAmmo()) * 2} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const a = gunAmmo(); W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); } },
     { ic: 'ammo', get cost() { return Math.max(4, 4 * SLOTS.filter(s => W8.slot[s] && W(W8.slot[s]).ammo).length); }, title: () => 'Ammo for everything', desc: () => ammoTypes().length ? ammoTypes().map(a => `+${ammoAmt(a) * 2} ${AMMO_NAME[a]}`).join(' · ') : 'Every gun you carry', why: () => ammoTypes().length ? '' : 'No guns that use ammo', make: () => ammoTypes().forEach(a => { W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); }) },
     // tinkering fits a new mod or improves one the weapon already has (each up to level III), picked at random
@@ -18,7 +34,9 @@ const RECIPES = {
       } },
     // tuning works on the weapon in your hands only, and each time you tune the same weapon it costs half as much again
     { ic: 'gear', get cost() { return Math.round(12 * Math.pow(1.5, W8.tune[curId()] || 0)); }, title: () => `Tune and sharpen the ${W(curId()).short}`, desc: () => `+8% damage on this weapon only${W8.tune[curId()] ? ` (tuned ${W8.tune[curId()]}×, +${Math.round((Math.pow(1.08, W8.tune[curId()]) - 1) * 100)}% so far)` : ''}. Costs more each time`, why: () => '', make: () => { const id = curId(); W8.tune[id] = (W8.tune[id] || 0) + 1; recomputeEff(); gunGlow = 1; feed('gear', 8, '% ' + W(id).short + ' damage'); } }
-  ],
+];
+const RECIPES = {
+  get bench() { return BENCH.concat(attachmentCards()); },
   saw: [
     { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => 'Enough for one more board', why: () => '', make: () => { S.planks += 2; feed('planks', 2, 'planks'); popEl('planks'); } },
     { ic: 'planks', cost: 8, title: () => 'Cut 6 planks', desc: () => 'Board up two whole windows', why: () => '', make: () => { S.planks += 6; feed('planks', 6, 'planks'); popEl('planks'); } },

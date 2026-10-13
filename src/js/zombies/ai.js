@@ -45,14 +45,14 @@ function updateZombies(dt) {
       z.phase += dt * 2;
     } else {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
-      if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6) && !(P.dead && dp < 2.4)) {
+      if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
         const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (inWin ? 0.4 : 1) * (z.crawl ? 0.32 : 1) * (z.pushSlow > 0 ? 0.45 + 0.55 * (1 - z.pushSlow / SHOVE_SLOW) : 1);   // still reeling from a shove
         moveCircle(z, ax / al * sp, az / al * sp, z.T.r);
         z.phase += dt * z.speed * (z.crawl ? 2.5 : z.type === 'runner' ? 3.6 : 4.5);
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       } else z.face += angDiff(Math.atan2(dxp, dzp), z.face) * Math.min(1, dt * 8);
-      if (P.dead) { /* they lose interest in a body */
-      } else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !P.vault) {
+      if (P.dead) { if (dp < z.T.r + 0.6 && z.atk <= 0 && z.stagger <= 0) { z.atk = rr(0.8, 1.2); z.lunge = 1; } }   // and claw at you once they reach you
+      else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !P.vault) {
         P.hitFrom = z.face;
         z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.6 : 1) * S.dmgTaken; hitMe = true; interruptBandage();
         // tilt the view toward whoever hit you
@@ -60,7 +60,7 @@ function updateZombies(dt) {
         camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;
         if (z.type === 'brute') {   // concussed: knocked back, ears ringing, the world swims
           P.conc = 1; P.kbx = dxp / (dp || 1) * 7.5; P.kbz = dzp / (dp || 1) * 7.5; P.stun = 0.7; P.slow = Math.min(1, P.slow + 0.4);
-          SFX.concuss(); shake = Math.max(shake, 0.6); camRoll = clamp(camRoll - side * 0.06, -0.14, 0.14); hitStop = Math.max(hitStop, 0.07);
+          SFX.concuss(); shake = Math.max(shake, 0.6); camRoll = clamp(camRoll - side * 0.06, -0.14, 0.14);
           burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
         } else if (rand() < (z.crawl ? 0.5 : 0.35)) { P.bleed = Math.min(14, (P.bleed || 0) + 6); }
         P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes) * (z.crawl ? 0.6 : 1)); P.stun = 0.22 * (1 - S.slowRes);

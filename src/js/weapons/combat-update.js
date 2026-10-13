@@ -1,6 +1,7 @@
 // Per-frame weapon handling: trigger, swings, reloads, bursts, stamina, bleeding, smoke wisps.
 
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
+const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
@@ -17,12 +18,23 @@ function updateCombat(dt) {
   if (P.exh) P.fatigued = true; else if (P.stam >= 0.75) P.fatigued = false;
   const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / 0.75, 0, 1) : 1;
   P.spdF = (P.spdF || 1) + (spT - (P.spdF || 1)) * Math.min(1, dt * (spT < (P.spdF || 1) ? 4 : 0.9));
-  // look and point down at a crawler under the crosshair
-  ANIM.downT = 0;
+  // point the gun (and your eyes) at what's under the cursor: the part of a zombie you're over, a crawler down on the
+  // ground, or over open ground a point at waist height where the cursor is. It only ever tips down, never up at a roof
+  ANIM.pitchT = 0; ANIM.aimY = GUN_Y;
   if (!P.dead && !W(curId()).melee) {
-    const ar = aimRay(P.x, P.z, P.aim, 12);
-    if (ar.z && ar.z.crawl) ANIM.downT = 1;
-    else for (const z of zombies) { if (!z.crawl) continue; const [bx, bz] = bodyOf(z); if (Math.hypot(aimPt.x - bx, aimPt.z - bz) < 1.1) { ANIM.downT = 1; break; } }
+    let ty = null, tx = aimPt.x, tz = aimPt.z;
+    const ct = cursorTarget();
+    if (ct) { ty = ct.y; tx = ct.x; tz = ct.zz; }
+    else {
+      const ar = aimRay(P.x, P.z, P.aim, 12);
+      if (ar.z && ar.z.crawl) { ty = 0.3; [tx, tz] = bodyOf(ar.z); }
+      else for (const z of zombies) { if (!z.crawl) continue; const [bx, bz] = bodyOf(z); if (Math.hypot(aimPt.x - bx, aimPt.z - bz) < 1.1) { ty = 0.3; tx = bx; tz = bz; break; } }
+    }
+    if (ty === null && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { ty = 0.85; tx = _gp.x; tz = _gp.z; }
+    if (ty !== null) {
+      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.8, Math.hypot(tx - P.x, tz - P.z))), 0, 0.7);
+      ANIM.aimY = Math.min(GUN_Y, ty);
+    }
   }
   if (P.kbx || P.kbz) { moveCircle(P, P.kbx * dt, P.kbz * dt, 0.3, true); const f = Math.exp(-dt * 7); P.kbx *= f; P.kbz *= f; if (Math.abs(P.kbx) + Math.abs(P.kbz) < 0.05) P.kbx = P.kbz = 0; }
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
