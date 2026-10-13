@@ -33,8 +33,8 @@ const TIERS = {
     { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter, slugs tighter still.', vis: 'A longer choke', ap: () => {} }] },
   armor: { tag: 'Body', t: [
     { r: 'c', name: 'Canvas jacket', text: '+25 max health. Heals 25 now.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
-    { r: 'r', name: 'Kevlar vest', text: 'Take 25% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.75 },
-    { r: 'e', name: 'Plate carrier', text: 'Another 30% less damage and +25 max health.', vis: 'Steel plates and pouches', ap: () => { S.dmgTaken *= 0.7; S.maxHp += 25; P.hp += 25; } }] },
+    { r: 'r', name: 'Kevlar vest', text: 'Take 20% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.8 },
+    { r: 'e', name: 'Plate carrier', text: 'Another 25% less damage and +25 max health.', vis: 'Steel plates and pouches', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp += 25; } }] },
   boots: { tag: 'Body', t: [
     { r: 'c', name: 'Good boots', text: 'Walk 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Walk another 10% faster.', ap: () => S.speedMul *= 1.1 },
@@ -51,7 +51,7 @@ const TIERS = {
     { r: 'r', name: 'Night eyes', text: 'You see far more at night.', ap: () => S.nightVis = 1 },
     { r: 'e', name: 'Cat eyes', text: 'Nights look like dusk. You see almost everything.', ap: () => S.nightVis = 2.2 }] },
   feed: { tag: 'Body', t: [
-    { r: 'r', name: 'Iron stomach', text: 'Heal 1 health for every kill, 2 for a headshot kill.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
-    { r: 'e', name: 'Bloodthirst', text: 'Heal 6 health for every kill.', ap: () => { S.healOnKill = 6; S.headHeal = false; } },
-    { r: 'l', name: 'Vampire', text: 'Heal 10 for every kill, 20 for headshot kills.', ap: () => { S.healOnKill = 10; S.vampire = S.headHeal = true; } }] }
+    { r: 'r', name: 'Iron stomach', text: 'Heal 2 health for every kill, 4 for a headshot kill.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
+    { r: 'e', name: 'Bloodthirst', text: 'Heal 4 health for every kill, 8 for a headshot kill.', ap: () => { S.healOnKill = 4; S.headHeal = true; } },
+    { r: 'l', name: 'Vampire', text: 'Heal 6 for every kill, 12 for headshot kills.', ap: () => { S.healOnKill = 6; S.vampire = S.headHeal = true; } }] }
 };

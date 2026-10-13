@@ -1,16 +1,33 @@
-// Zombies and corpses fading with your vision.
+// Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
 // zombies and corpses fading in and out of your vision. Their shadows go with them: the shadow-map depth is dithered
 // away as they fade (fadeDepthMat, effects/outlines.js) and the soft blob under them fades too, so nothing you can't
 // see gives itself away by its shadow
 const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826);
+// with a melee weapon out, the zombies your next swing would land on get a thin green rim that fades in as they come
+// into reach and out as they leave it: everyone in the arc for a two-hander that cleaves, only the nearest for a
+// one-hander (melee/melee.js). It fades with them, so it never shows a zombie you can't see.
+const REACH_COL = 0x62e070, REACH_A = 0.6;
+function markReach() {
+  if (state !== 'play' || P.dead || P.vault || openSt || P.bandT > 0) return;
+  const D = W(curId()); if (!D || !D.melee) return;
+  for (const t of meleeTargets(D)) t.z.inReach = true;
+}
 function updateZombieVisuals(dt, rdt) {
+  markReach();
   for (const z of zombies) {
     updateZombieStain(z.stain, rdt);
     const v = state === 'title' ? 1 : visAt(z.x, z.z);
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = true;
     if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.xr) { z.xr.rim.opacity = z.vis; if (z.xr.sil) z.xr.sil.opacity = z.vis * 0.38; } if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
-    if (z.redOl) z.redOl.opacity = 0.55 + Math.sin(worldT * 6.25) * 0.3;
+    if (z.inReach || z.reachA > 0) {
+      const on = !!z.inReach; z.inReach = false;
+      z.reachA = (z.reachA || 0) + ((on ? 1 : 0) - (z.reachA || 0)) * Math.min(1, rdt * (on ? 9 : 5)); if (!on && z.reachA < 0.01) z.reachA = 0;
+      if (!z.reachOl) z.reachOl = outline(z.m.g, 0, 0, 0.03, rimMat(REACH_COL));
+      z.reachOl.opacity = z.reachA * REACH_A * z.vis; z.reachOl.visible = z.reachA > 0;
+      if (z.om) z.om.opacity = z.vis * 0.5 * (1 - z.reachA);   // the pale crawler rim steps back while the green one shows
+    }
+    if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * (z.reachA || 0));
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
     const r = ragdolls[k]; stepRagdoll(r, dt); updateZombieStain(r.stain, rdt);

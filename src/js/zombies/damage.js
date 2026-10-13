@@ -88,7 +88,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
-  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.8;
+  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   const dealt = dmg * (part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
@@ -133,7 +133,7 @@ function blowApart(z, dx, dz) {
 }
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);

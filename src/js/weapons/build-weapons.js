@@ -56,7 +56,9 @@ function buildGuns() {
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)
 function gunExtras(id) {
   const D = WEAP[id], out = [];
-  if (!D || D.melee) return out;
+  if (!D) return out;
+  if (W8.tune && W8.tune[id]) out.push('Tuned');
+  if (D.melee) return out;
   for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
   if (S.pierce) out.push('Pierce ' + S.pierce);
   if (S.att.fire) out.push('Incendiary');

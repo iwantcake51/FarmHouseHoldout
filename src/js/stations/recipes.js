@@ -4,8 +4,9 @@ const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && mod
 const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // attachments for the gun in your hands, bought and fitted at the workbench: only the ones that fit it show, one card per
 // line (the next tier up); a suppressor and a choke rule each other out on shotguns, the scope only fits long guns
-// priced by how much each step does for you: the night-only light is cheapest, the cans and the scope dearest
-const ATT_COST = { supp: [10, 17, 25], choke: [8, 14], sight: [8, 14, 22], laser: [8, 15], light: [6, 11] };
+// priced in the same band as a new mod (10 to 18 scrap): by how much each step does for you, the night-only light
+// cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
+const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18], laser: [10, 14], light: [8, 12] };
 function attachmentCards() {
   // the gun in your hands, or your first gun if you walked up with a blade out
   const cur = curId(), id = cur && !WEAP[cur].melee ? cur : gunsHeld()[0], D = id && WEAP[id]; if (!D) return [];
@@ -20,15 +21,22 @@ function attachmentCards() {
   if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'gear', group, cost: 12, title: () => 'Shoulder stock', desc: () => 'Steadies every sidearm: spread −25%, kick −45%', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); toast('Shoulder stock', { kind: 'good', icon: 'gear', sub: 'Fitted to your sidearms' }); } });
   return out;
 }
+// a tune-up is the dearest thing on the bench, and the card spells out what it does
+const TUNE_COST = 30;
+const tuneText = D => D.melee ? `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster swings, +${TUNE.reach} m reach, ${pctUp(TUNE.kb)}% more knockback`
+  : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, +${pctUp(TUNE.mag)}% magazine, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread`;
+const pctUp = m => Math.round((m - 1) * 100), pctDown = m => Math.round((1 - m) * 100);
 const BENCH = [
     { ic: 'ammo', cost: 4, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${ammoAmt(gunAmmo()) * 2} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const a = gunAmmo(); W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); } },
     { ic: 'ammo', get cost() { return Math.max(4, 4 * SLOTS.filter(s => W8.slot[s] && W(W8.slot[s]).ammo).length); }, title: () => 'Ammo for everything', desc: () => ammoTypes().length ? ammoTypes().map(a => `+${ammoAmt(a) * 2} ${AMMO_NAME[a]}`).join(' · ') : 'Every gun you carry', why: () => ammoTypes().length ? '' : 'No guns that use ammo', make: () => ammoTypes().forEach(a => { W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); }) },
-    // tuning works on the weapon in your hands only, and each time you tune the same weapon it costs half as much again
-    { ic: 'gear', get cost() { return Math.round(12 * Math.pow(1.5, W8.tune[curId()] || 0)); }, title: () => `Tune and sharpen the ${W(curId()).short}`, desc: () => `+8% damage on this weapon only${W8.tune[curId()] ? ` (tuned ${W8.tune[curId()]}×, +${Math.round((Math.pow(1.08, W8.tune[curId()]) - 1) * 100)}% so far)` : ''}. Costs more each time`, why: () => '', make: () => { const id = curId(); W8.tune[id] = (W8.tune[id] || 0) + 1; recomputeEff(); gunGlow = 1; feed('gear', 8, '% ' + W(id).short + ' damage'); } }
+    // tuning: one full going-over of the weapon in your hands, once per weapon and dear. It makes it a little better at
+    // everything (TUNE in game/run-state.js) without turning it into a different weapon
+    { ic: 'gear', cost: TUNE_COST, title: () => (W8.tune[curId()] ? 'Tuned: ' : 'Tune up the ') + W(curId()).short, desc: () => tuneText(W(curId())) + ' · Once per weapon', why: () => W8.tune[curId()] ? 'Already tuned' : '',
+      make: () => { const id = curId(); W8.tune[id] = 1; recomputeEff(); gunGlow = 1; feed('gear', 0, W(id).short + ' tuned'); toast(W(id).name + ' tuned', { kind: 'good', icon: 'gear', sub: tuneText(W(id)) }); } }
 ];
 // tinkering: one card for each mod the weapon in your hands could take, and for each one it has that could be made
-// better (up to level III), so you pick which you get. A new mod costs more the rarer it is; improving one costs 10 for
-// level II and 13 for level III
+// better (up to level III), so you pick which you get. A new mod costs more the rarer it is, from 10 to 18 scrap (the
+// same band as the attachments above); improving one costs 10 for level II and 13 for level III
 const TINKER_NEW = { c: 10, u: 12, r: 14, e: 16, l: 18 }, TINKER_UP = [0, 10, 13];
 const tinkerNew = m => TINKER_NEW[MODS[m].r] || 14, tinkerUp = m => TINKER_UP[modLv(m)] || 14;
 function tinkerCards() {
@@ -50,7 +58,7 @@ const RECIPES = {
   ],
   med: [
     { ic: 'med', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${bandMax()}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
-    { ic: 'med', cost: 10, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
+    { ic: 'med', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
     ...['hands', 'dress', 'tonic'].map(medUpgrade)
   ],
   radio: [

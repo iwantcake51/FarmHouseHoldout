@@ -70,9 +70,10 @@ Every source file starts with a one-line comment saying what is in it.
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
 | What tinkering at the workbench does to a mod at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
-| Melee damage, swing speed, reach, knockback | `src/js/melee/melee-stats.js` |
+| Melee damage, swing speed, reach, knockback, and how many zombies a swing hits (`cleave`; without it a swing hits only the nearest) | `src/js/melee/melee-stats.js` |
 | Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
-| Stamina cost and swing slowdown | `src/js/melee/melee.js` |
+| Stamina cost and swing slowdown, and which zombies a swing lands on | `src/js/melee/melee.js` |
+| The green rim on zombies your melee swing would hit | `REACH_COL` in `src/js/zombies/zombie-visuals.js` |
 | Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
 | Zombie behaviour | `src/js/zombies/ai.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
@@ -81,6 +82,7 @@ Every source file starts with a one-line comment saying what is in it.
 | How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | What each station sells, and the prices | `src/js/stations/recipes.js` |
+| What a workbench tune-up does to a weapon | `TUNE` in `src/js/game/run-state.js` |
 | Bandage count (3, or 5 with the Med pouch), time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
 | The start of a run: the camera glide, getting up off one knee, the HUD sliding in | `src/js/game/intro.js` |
 | Shove range, push and cooldown (slower while you bandage) | `src/js/player/shove.js` |

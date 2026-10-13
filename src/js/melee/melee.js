@@ -8,19 +8,34 @@ const stamCost = D => stamUse(D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 
 const SWING_AIR = 0.55;
 // Iron lungs: a bigger tank, so everything costs less of it
 function stamUse(c) { return c / (S.lungs ? 1.4 : 1); }
+// who a swing would land on right now: every zombie in reach and in front of you (or through the gaps in a boarded
+// opening you're standing at), nearest first. The big two-handers cleave through up to D.cleave of them; everything
+// else connects with the nearest one only. The swing and the green reach rim (zombies/zombie-visuals.js) both use it.
+const _mtPool = [], _mt = [];
+function meleeTargets(D) {
+  let bo = null, bd = 1.7; for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (o.boards.length && d < bd) { bd = d; bo = o; } }
+  _mt.length = 0;
+  for (const z of zombies) {
+    if (z.dead) continue;
+    const [bx, bz] = bodyOf(z), dx = bx - P.x, dz = bz - P.z, d = Math.hypot(dx, dz) - (z.crawl ? 0.2 : 0);
+    let thru = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.6 ? 0.9 : 0;   // swinging through the gaps in your own boards
+    if (!thru && bo && Math.hypot(z.x - bo.x, z.z - bo.z) < 2.2 && ((z.x - bo.x) * bo.nx + (z.z - bo.z) * bo.nz) * ((P.x - bo.x) * bo.nx + (P.z - bo.z) * bo.nz) < 0) thru = 0.9;
+    if (d > D.range + z.T.r + thru) continue;
+    if (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + (thru ? 0.25 : 0) && d > 0.6) continue;
+    const t = _mtPool[_mt.length] || (_mtPool[_mt.length] = {});
+    t.z = z; t.d = d; t.dx = dx; t.dz = dz; _mt.push(t);
+  }
+  _mt.sort((a, b) => a.d - b.d);
+  if (_mt.length > (D.cleave || 1)) _mt.length = D.cleave || 1;
+  return _mt;
+}
 function meleeHit() {
   const id = curId(), D = W(id); if (!D || !D.melee) return;
   {
     const blade = !D.blunt;
-    let bo = null, bd = 1.7; for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (o.boards.length && d < bd) { bd = d; bo = o; } }
     if (blade) SFX.swingBlade(D.style === 'chop'); else SFX.swingBlunt(D.two);
     let hit = false;
-    for (const z of zombies.slice()) {
-      const [bx, bz] = bodyOf(z), dx = bx - P.x, dz = bz - P.z, d = Math.hypot(dx, dz) - (z.crawl ? 0.2 : 0);
-      let thru = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.6 ? 0.9 : 0;   // swinging through the gaps in your own boards
-      if (!thru && bo && Math.hypot(z.x - bo.x, z.z - bo.z) < 2.2 && ((z.x - bo.x) * bo.nx + (z.z - bo.z) * bo.nz) * ((P.x - bo.x) * bo.nx + (P.z - bo.z) * bo.nz) < 0) thru = 0.9;
-      if (d > D.range + z.T.r + thru) continue;
-      if (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + (thru ? 0.25 : 0) && d > 0.6) continue;
+    for (const { z, d, dx, dz } of meleeTargets(D).slice()) {
       const r = rand(), part = r < (D.style === 'chop' ? 0.38 : 0.22) + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
       const weak = W8.tired ? 0.55 : 1;
       hurtZombie(z, D.dmg * S.meleeMul * weak, dx / (d || 1), dz / (d || 1), D.kb * weak, id, part); hit = true;

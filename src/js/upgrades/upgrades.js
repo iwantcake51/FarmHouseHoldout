@@ -3,29 +3,29 @@
 const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
 const UPG = [
-  { r: 'c', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.45, ap: () => S.reloadMul *= 0.75 },
+  { r: 'c', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', ap: () => S.planks += 7 },
   { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap right now.', ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Patch yourself up to full health.', can: () => P.hp < S.maxHp * 0.75, ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'A second pouch on your belt: carry 5 bandages instead of 3. It comes with two in it.', vis: 'A pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'Three full cans of ammo for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
-  { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 40% harder.', ap: () => S.meleeMul *= 1.4 },
+  { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast, for half the stamina.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
-  { r: 'u', tag: 'Ammo', name: 'Through and through', text: 'Bullets pass through one more zombie.', vis: 'Longer barrels', can: () => S.pierce < 3, ap: () => S.pierce++ },
-  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 3, ap: () => S.dropMul *= 1.5 },
+  { r: 'u', tag: 'Ammo', name: 'Through and through', text: 'Bullets pass through one more zombie.', vis: 'Longer barrels', can: () => S.pierce < 2, ap: () => S.pierce++ },
+  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: '40% more stamina. It starts coming back twice as soon after you use it, and refills 50% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed (at most once every 4 seconds).', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, dropping below 25% health heals you 50.', can: () => !S.secondWind, ap: () => S.secondWind = true },
-  { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Slowly regenerate 1 health a second.', can: () => S.regen < 3, ap: () => S.regen += 1 },
-  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots deal three times damage instead of double.', can: () => S.headMul < 3, ap: () => S.headMul = 3.2 },
+  { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Slowly regenerate 1 health a second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
+  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots deal three times damage instead of 2.2 times.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
-  { r: 'e', tag: 'Gun', name: 'Gunsmith', text: 'One of your guns gets its ammo, trigger and magazine upgrades all raised a tier.', vis: 'Changes all three at once', can: () => gunsHeld().some(g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g))), ap: () => { const id = pick(gunsHeld().filter(g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g)))); W8.gt[id] = W8.gt[id] || {}; ['ammo', 'trigger', 'mag'].forEach(k => { if (tierFits(k, id)) W8.gt[id][k] = (W8.gt[id][k] || 0) + 1; }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
+  { r: 'e', tag: 'Gun', name: 'Gunsmith', text: 'One of your guns gets two of its ammo, trigger and magazine upgrades raised a tier: the two furthest behind.', vis: 'Changes two at once', can: () => gunsHeld().some(g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g))), ap: () => { const id = pick(gunsHeld().filter(g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g)))); W8.gt[id] = W8.gt[id] || {}; ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)).sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
   { r: 'l', tag: 'Ammo', name: 'Incendiary rounds', text: 'Every bullet sets zombies on fire for 3 seconds.', vis: 'A hot orange band on every gun', can: () => !S.att.fire, ap: () => S.att.fire = true },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health and you barely slow down when hit.', can: () => S.slowRes < 0.85, ap: () => { S.maxHp += 50; P.hp += 50; S.slowRes = Math.max(S.slowRes, 0.85); } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Kills sometimes slow the world for a moment.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
-  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, everything you do hits 80% harder.', can: () => !S.lastStand, ap: () => S.lastStand = true }
+  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, everything you do hits 60% harder.', can: () => !S.lastStand, ap: () => S.lastStand = true }
 ];
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 function tierFits(k, id) {

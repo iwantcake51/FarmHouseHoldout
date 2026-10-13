@@ -18,22 +18,22 @@ const UPG_USE = {
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Bandages 3 → 5', '+2 bandages'],
-  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +40%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
+  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +40%', 'Recovers 2× sooner', 'Refills 50% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
-  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 3.2×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Ammo, trigger and mag +1 tier'],
+  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health', 'Slowdown when hit −85%'], 'Bullet time': ['Kills can slow time'],
-  'Last stand': ['+80% damage below 30% health'],
-  'Canvas jacket': ['+25 max health', 'Heal 25'], 'Kevlar vest': ['Damage taken −25%'], 'Plate carrier': ['Damage taken −30%', '+25 max health'],
+  'Last stand': ['+60% damage below 30% health'],
+  'Canvas jacket': ['+25 max health', 'Heal 25'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
   'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%', 'Slowdown when hit −20%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +25%'], 'Peripheral vision': ['View cone wider', 'Sense 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night eyes': ['See far more at night'], 'Cat eyes': ['Nights look like dusk'],
-  'Iron stomach': ['+3 health per kill'], 'Bloodthirst': ['+6 health per kill'], 'Vampire': ['+10 health per kill', '+20 for headshot kills']
+  'Iron stomach': ['+2 health per kill', '+4 for headshot kills'], 'Bloodthirst': ['+4 health per kill', '+8 for headshot kills'], 'Vampire': ['+6 health per kill', '+12 for headshot kills']
 };
 // a gun's headline numbers, as the card compares them
 function gunStats(id, D) {
-  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag: D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul)), spread: D.spread || 0, head: D.headBonus || 0, range: D.range || 0 };
+  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag: D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul)), spread: D.spread || 0, head: D.headBonus || 0, range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change
 function chip(label, a, b, higherIsBetter, fmt) {
@@ -70,8 +70,8 @@ function weaponFx(id) {
   const D = W(id), cur = W8.slot[D.slot], b = gunStats(id, D);
   if (D.melee) {
     const a = cur ? gunStats(cur, W(cur)) : null;
-    if (!a) return [{ t: 'DMG ' + Math.round(b.dmg), good: true }, { t: fmt1(b.rate) + ' swings/s', good: true }];
-    return [dmgChip(a, b), chip('SWINGS', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('REACH', a.range, b.range, true, v => v.toFixed(2) + ' m')].filter(Boolean);
+    if (!a) return [{ t: 'DMG ' + Math.round(b.dmg), good: true }, { t: fmt1(b.rate) + ' swings/s', good: true }, { t: b.hits > 1 ? `Hits up to ${b.hits} at once` : 'Hits the nearest one', good: true }];
+    return [dmgChip(a, b), chip('SWINGS', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('REACH', a.range, b.range, true, v => v.toFixed(2) + ' m'), chip('TARGETS', a.hits, b.hits, true, fmt0)].filter(Boolean);
   }
   if (!cur) return [{ t: 'DMG ' + fmtDmg(b), good: true }, { t: 'RATE ' + fmt1(b.rate) + '/s', good: true }, { t: 'MAG ' + b.mag, good: true }];
   return compareFx(gunStats(cur, W(cur)), b);
@@ -83,6 +83,7 @@ function modFx(mid) {
   const fx = compareFx(gunStats(m.w, D0), gunStats(m.w, D1));
   for (const k in MOD_FEATURE) if (D1[k] && D1[k] !== D0[k]) fx.push({ t: MOD_FEATURE[k], good: true });
   if (D1.range > (D0.range || 0)) fx.push({ t: `REACH ${(D0.range || 0).toFixed(2)} → ${D1.range.toFixed(2)} m`, good: true });
+  if (D0.melee) { const t = chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
   return fx;
 }
 // everything the card shows besides its text: chips and a "what it's for" line

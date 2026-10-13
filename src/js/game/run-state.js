@@ -21,7 +21,8 @@ function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= [1, 1.25, 1.5, 1.875][ammo] * Math.pow(1.08, (W8.tune && W8.tune[id]) || 0);   // workbench tuning, per weapon
+    D.dmg *= [1, 1.25, 1.5, 1.875][ammo];
+    if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     D.headBonus = (D.headBonus || 0) + (ammo >= 3 ? 0.1 : 0) + [0, 0.04, 0.1, 0.1][sight];
     // a scope (the hunting rifle's own, or one fitted to a long gun) only lands crits: a quarter of the hits through it
     // do double damage; the high-power scope (its stat, weapons/gun-mods.js) does better
@@ -34,6 +35,17 @@ function recomputeEff() {
   }
 }
 const W = id => EFF[id];
+// a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
+// fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
+const TUNE = { dmg: 1.1, rate: 1 / 1.1, mag: 1.15, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };
+function tuneUp(D) {
+  D.dmg *= TUNE.dmg; D.rate *= TUNE.rate;
+  if (D.melee) { D.range += TUNE.reach; D.kb *= TUNE.kb; return; }
+  if (D.mag) D.mag *= TUNE.mag;
+  if (D.reload) D.reload *= TUNE.reload;
+  if (D.perShell) D.perShell *= TUNE.reload;
+  D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too
+}
 const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke']);
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
