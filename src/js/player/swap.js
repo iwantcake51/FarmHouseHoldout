@@ -20,11 +20,14 @@ const fistOf = (arm, out) => out.set(0, 0, FIST * arm.scale.z).applyQuaternion(a
 const toBody = (mw, out) => out.copy(PM.g.matrixWorld).invert().multiply(mw);
 const isMelee = s => { const id = W8.slot[s]; return !!(id && WEAP[id] && WEAP[id].melee); };
 
+// from is null when there's nothing to put away (the weapon in your hands was just replaced): it's only drawn
 function startSwap(from, to) {
+  if (!gunMeshes[to]) return;
+  if (!gunMeshes[from] || from === to) from = null;
   PM.g.updateMatrixWorld(true);
   const s = swapSt = { from, to, t: 0, upQ: PM.upper.quaternion.clone(), headQ: PM.head.quaternion.clone(), oldW: null, lFist: fistOf(PM.armL, new V3()), rFist: fistOf(PM.armR, new V3()) };
-  const og = gunMeshes[from];
-  if (W8.slot[from] && og && og.visible && STOW[from]) s.oldW = toBody(og.matrixWorld, new THREE.Matrix4());
+  const og = from && gunMeshes[from];
+  if (og && W8.slot[from] && og.visible && STOW[from]) s.oldW = toBody(og.matrixWorld, new THREE.Matrix4());
 }
 function endSwap() {
   if (!swapSt) return;
@@ -75,7 +78,7 @@ function updateSwap(dt, rdt) {
   const stowNew = stowFrame(st.to, _sw.b);
   // what shows where: the old weapon in the hand until it's put away, the new one on you until it's drawn
   const putting = t < T.put && st.oldW, drawing = t >= T.cross;
-  gunMeshes[st.from].visible = !!putting; if (STOW[st.from]) STOW[st.from].visible = !putting && !P.dead;
+  if (st.from) { gunMeshes[st.from].visible = !!putting; if (STOW[st.from]) STOW[st.from].visible = !putting && !P.dead; }
   gunMeshes[st.to].visible = drawing; if (STOW[st.to]) STOW[st.to].visible = !drawing && !P.dead;
   if (putting) {
     // the right hand carries the old weapon back to where it rides; the left lets go

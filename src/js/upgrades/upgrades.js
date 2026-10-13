@@ -59,7 +59,7 @@ function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.roun
 function giveWeapon(id) {
   const D = WEAP[id], s = D.slot;
   W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
-  W8.cur = null; equip(s);
+  equip(s, true);
 }
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
