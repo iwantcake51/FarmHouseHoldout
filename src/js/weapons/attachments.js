@@ -67,19 +67,28 @@ function fitAttachments(g, D, front, y, info) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy, bz = sz + oz;
     if (sight === 3 && !side) {   // variable scope in rings
-      const sy = by + 0.075;
+      const sy = by + (info.scopeH || 0.075);
       [-0.06, 0.08].forEach(o => { box(p, 0.04, 0.012, 0.03, GM.metal, sx, by + 0.006, bz + o); box(p, 0.014, sy - by, 0.02, GM.metal, sx, by + (sy - by) / 2, bz + o); ring(p, 0.03, 0.022, GM.metal, sx, sy, bz + o); });
       cyl(p, 0.025, 0.3, GM.metal, sx, sy, bz + 0.01, 18);
       taper(p, 0.025, 0.04, 0.08, GM.metal, sx, sy, bz + 0.2); taper(p, 0.03, 0.025, 0.05, GM.metal, sx, sy, bz - 0.16);
       cyl(p, 0.037, 0.005, GM.glass, sx, sy, bz + 0.242, 24); cyl(p, 0.026, 0.005, GM.glass, sx, sy, bz - 0.186, 20);   // round lenses at both ends
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.032, 8), GM.metal2); tt.position.set(sx, sy + 0.036, bz + 0.01); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.032, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036, sy, bz + 0.01); p.add(st);
-    } else if (sight >= 2) {   // holographic sight: a hooded window with a glowing ring reticle
-      box(p, 0.05, 0.014, 0.1, GM.metal, sx, by + 0.007, bz); box(p, 0.052, 0.03, 0.05, GM.metal, sx, by + 0.028, bz - 0.025);
-      box(p, 0.058, 0.008, 0.07, GM.metal, sx, by + 0.085, bz + 0.01); box(p, 0.008, 0.07, 0.07, GM.metal, sx - 0.027, by + 0.05, bz + 0.01); box(p, 0.008, 0.07, 0.07, GM.metal, sx + 0.027, by + 0.05, bz + 0.01);
-      box(p, 0.046, 0.05, 0.003, GM.holoGlass, sx, by + 0.055, bz + 0.03);
-      const rt = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.0022, 4, 16), GM.red); rt.position.set(sx, by + 0.057, bz + 0.026); p.add(rt);
-      box(p, 0.003, 0.003, 0.002, GM.red, sx, by + 0.057, bz + 0.026);
+    } else if (sight >= 2) {
+      // holographic sight, after an EOTech XPS: a quick-detach base with its lever, the hood at the back with its window
+      // looking straight down the gun at you (the angled glass and the ring reticle inside it), and the battery housing
+      // reaching forward under the window line, rounded over at the front, with its knurled cap on the left
+      box(p, 0.044, 0.008, 0.096, GM.metal, sx, by + 0.004, bz + 0.002); box(p, 0.008, 0.008, 0.026, GM.metal2, sx + 0.025, by + 0.006, bz + 0.024);
+      const fr = new THREE.Shape(), w = 0.025, y1 = by + 0.008, y2 = by + 0.067, cr = 0.011;
+      fr.moveTo(sx - w, y1); fr.lineTo(sx + w, y1); fr.lineTo(sx + w, y2 - cr); fr.quadraticCurveTo(sx + w, y2, sx + w - cr, y2); fr.lineTo(sx - w + cr, y2); fr.quadraticCurveTo(sx - w, y2, sx - w, y2 - cr); fr.closePath();
+      fr.holes.push(rrect(sx - 0.0175, by + 0.023, sx + 0.0175, by + 0.058, 0.006));
+      xsec(p, fr, bz - 0.046, bz + 0.012, GM.metal, 0.0025);                                                 // the hood
+      profile(p, shp([[bz + 0.012, by + 0.008], [bz + 0.054, by + 0.008], [bz + 0.06, by + 0.016], [bz + 0.058, by + 0.026], [bz + 0.048, by + 0.031], [bz + 0.012, by + 0.031]]), 0.046, GM.metal, sx, 0.003);   // battery housing, rounded at the front
+      { const cap = cyl(p, 0.0115, 0.008, GM.metal2, sx + 0.026, by + 0.02, bz + 0.04, 18); cap.rotation.set(0, 0, Math.PI / 2); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, kb = box(p, 0.009, 0.0025, 0.0025, GM.metal, sx + 0.026, by + 0.02 + Math.cos(a) * 0.0115, bz + 0.04 + Math.sin(a) * 0.0115); kb.rotation.x = a; } }
+      [-0.008, 0.008].forEach(o => box(p, 0.011, 0.008, 0.003, GM.rubber, sx + o, by + 0.0155, bz - 0.0475));   // the buttons under the window, at the back
+      const gl = box(p, 0.035, 0.035, 0.002, GM.holoGlass, sx, by + 0.0405, bz + 0.004); gl.rotation.x = -0.1;
+      const rt = new THREE.Mesh(new THREE.TorusGeometry(0.0095, 0.002, 4, 22), GM.red); rt.position.set(sx, by + 0.0405, bz - 0.002); p.add(rt);
+      box(p, 0.0026, 0.0026, 0.002, GM.red, sx, by + 0.0405, bz - 0.002);
     } else {   // micro red dot
       box(p, 0.034, 0.012, 0.05, GM.metal, sx, by + 0.006, bz);
       cyl(p, 0.019, 0.055, GM.metal, sx, by + 0.032, bz); ring(p, 0.021, 0.01, GM.metal2, sx, by + 0.032, bz + 0.028);
