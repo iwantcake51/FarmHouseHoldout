@@ -75,25 +75,33 @@ const PBOOT = [];
 const armorG = new THREE.Group();
 PM.upper.add(armorG);
 const pBlob = blobShadow(1.15, 0.38);
-// bandage rolls clipped in pouches, one per bandage in the bag: three in the pouch at your left side, and two more in
-// the second pouch on the front of your belt that comes with the Med pouch upgrade (player/gear.js shows it)
+// bandage rolls standing in pouches, one per bandage in the bag, their tops showing: three in the pouch at your left side,
+// and two more in the second pouch on the front of your belt that comes with the Med pouch upgrade (player/gear.js shows it).
+// Each pouch has a plain red cross on its outer face.
 const bandRolls = [], bandPouch2 = new THREE.Group();
 {
-  const roll = new THREE.CylinderGeometry(0.048, 0.048, 0.07, 10), white = lam(0xeae4d6), cross = lam(0xb3261c), canvas = lam(0x3a3226), flap = lam(0x2e281e);
-  const addRoll = (g, x, y, z, along) => {
-    const m = new THREE.Mesh(roll, white); if (along === 'z') m.rotation.x = Math.PI / 2; else m.rotation.z = Math.PI / 2;
-    m.position.set(x, y, z); m.castShadow = true; g.add(m);
-    box(m, 0.03, 0.072, 0.008, cross, 0, 0, 0); box(m, 0.008, 0.072, 0.03, cross, 0, 0, 0);   // a little red cross on each end
+  const roll = new THREE.CylinderGeometry(0.036, 0.036, 0.07, 10), white = lam(0xeae4d6), red = lam(0xb3261c), canvas = lam(0x6a5a40), seam = lam(0x4a3e2c), redX = lam(0xd2301f);
+  const addRoll = (g, x, y, z) => {
+    const m = new THREE.Mesh(roll, white); m.position.set(x, y, z); m.castShadow = true; g.add(m);
+    box(m, 0.024, 0.072, 0.007, red, 0, 0, 0); box(m, 0.007, 0.072, 0.024, red, 0, 0, 0);   // a little red cross on the top
     m.visible = false; bandRolls.push(m);
+  };
+  // a red cross laid on a face: n is the face's outward axis ('x' or 'z'), s its sign, at is where the face is
+  const crossOn = (g, n, sg, at, y, c) => {
+    const p = at + sg * 0.003;
+    if (n === 'x') { box(g, 0.006, 0.086, 0.028, redX, p, y, c); box(g, 0.006, 0.028, 0.086, redX, p, y, c); }
+    else { box(g, 0.028, 0.086, 0.006, redX, c, y, p); box(g, 0.086, 0.028, 0.006, redX, c, y, p); }
   };
   // on the torso, so it stays in one spot on your left side rather than turning with your hips
   const pouch = new THREE.Group(); pouch.position.set(-0.275, 0.64, 0.02); PM.upper.add(pouch);
-  box(pouch, 0.05, 0.11, 0.3, canvas, 0.012, 0.012, 0);   // strap and backing
-  [0.1, 0, -0.1].forEach(z => addRoll(pouch, -0.03, 0.03, z));
-  // the second pouch rides on the belt buckle's right, the rolls' ends facing out
+  box(pouch, 0.074, 0.12, 0.254, canvas, -0.009, -0.01, 0); box(pouch, 0.078, 0.014, 0.258, seam, -0.009, 0.046, 0);   // the pouch and its rim
+  crossOn(pouch, 'x', -1, -0.046, -0.012, 0);
+  [0.08, 0, -0.08].forEach(z => addRoll(pouch, -0.009, 0.06, z));
+  // the second pouch rides on the belt to the right of the buckle, cross facing out
   bandPouch2.position.set(0.13, 0.6, 0.175); bandPouch2.visible = false; PM.upper.add(bandPouch2);
-  box(bandPouch2, 0.17, 0.11, 0.035, canvas, 0, 0, 0); box(bandPouch2, 0.18, 0.026, 0.06, flap, 0, 0.062, 0.012);
-  [-0.045, 0.045].forEach(x => addRoll(bandPouch2, x, -0.004, 0.047, 'z'));
+  box(bandPouch2, 0.17, 0.11, 0.078, canvas, 0, -0.01, 0.012); box(bandPouch2, 0.174, 0.014, 0.082, seam, 0, 0.041, 0.012);
+  crossOn(bandPouch2, 'z', 1, 0.051, -0.014, 0);
+  [-0.045, 0.045].forEach(x => addRoll(bandPouch2, x, 0.055, 0.012));
 }
 // a barely-there light rim round your own character, just enough to pick yourself out in the dark or in a crowd
 rollLook();
