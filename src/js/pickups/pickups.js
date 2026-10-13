@@ -60,10 +60,10 @@ function dropPickup(x, z, kind, amount, ammoType) {
   if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
   pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
-// a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey, and eases
-// back into colour as soon as you have room for it
+// a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
+// its ring and glow dimmed, so it's plain you can't grab it; it eases back into colour as soon as you have room
 const _gc = new THREE.Color(), _gl = new THREE.Color();
-const greyOf = (c, k, out) => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return out.copy(c).lerp(_gl.setRGB(l, l, l), k); };
+const greyOf = (c, k, out) => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return out.copy(c).lerp(_gl.setRGB(l, l, l), k).multiplyScalar(1 - k * 0.9); };
 function greyDrop(p, dt) {
   const full = p.kind === 'planks' ? !plankRoom() : p.kind === 'med' ? (P.band || 0) >= bandMax() : false;
   p.grey += ((full ? 0.5 : 0) - p.grey) * Math.min(1, dt * 3);
@@ -91,9 +91,10 @@ function updatePickups(dt) {
     const beat = 0.5 + 0.5 * Math.cos(p.wph), lit = warn > 0 ? 1 - Math.min(1, warn * 2) * (1 - beat) : 1, gone = clamp(p.t / 0.35, 0, 1);
     p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
     p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
+    if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
     const seen = visAt(p.x, p.z); p.g.visible = true;
-    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone; p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
+    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank stack

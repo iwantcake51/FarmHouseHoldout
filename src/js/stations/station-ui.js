@@ -51,9 +51,9 @@ function renderStation() {
     const b = btns[i]; if (!b) return;
     if (b._tx !== txs[i]) { b._tx = txs[i]; b.querySelector('.tx').innerHTML = txs[i]; }
     if (b._cost !== r.cost) { b._cost = r.cost; b.querySelector('.cost b').textContent = r.cost; }
-    const why = r.why(), short = S.scrap < r.cost, ok = !why && !short, status = why ? why : short ? `Need ${r.cost - S.scrap} more scrap` : 'Ready', k = (ok ? 1 : why ? 2 : 3) + status;
+    const why = r.why(), short = S.scrap < r.cost, ok = !why && !short, full = !!(r.full && r.full()), status = why ? why : short ? `Need ${r.cost - S.scrap} more scrap` : 'Ready', k = (ok ? 1 : why ? 2 : 3) + status + full;
     if (b._st === k) return; b._st = k;
-    b.classList.toggle('ok', ok); b.classList.toggle('no', !ok);
+    b.classList.toggle('ok', ok); b.classList.toggle('no', !ok); b.classList.toggle('full', full);
     if (ok) b.removeAttribute('aria-disabled'); else b.setAttribute('aria-disabled', 'true');
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);

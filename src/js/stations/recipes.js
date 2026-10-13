@@ -83,9 +83,12 @@ const TIER_LINE = { ammo: 'Ammo', trigger: 'Trigger', mag: 'Magazine' };
 // the sawhorse's cards say so when your stack is close to full (PLANK_MAX, barricades/planks.js)
 const plankDesc = (n, text) => plankRoom() && plankRoom() < n ? `Only room for ${plankRoom()} more (you carry ${PLANK_MAX} at most)` : text;
 const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX}`;
+// full: a card you can't take because you already carry as many as you can (a full bandage bag, a full plank stack)
+// is darkened at the station, so it's plain it can't be had right now (stations/station-ui.js)
+const bagFull = () => (P.band || 0) >= bandMax(), stackFull = () => !plankRoom();
 // the medicine cabinet: bandages, a stitch-up, and its three upgrades
 const MED = [
-  { ic: 'med', for: () => 'For you', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${bandMax()}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+  { ic: 'med', for: () => 'For you', full: bagFull, cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${bandMax()}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
   { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
   ...['hands', 'dress', 'tonic'].map(medUpgrade)
 ];
@@ -94,8 +97,8 @@ const shown = list => list.filter(r => !(r.gone && r.gone()));
 const RECIPES = {
   get bench() { return shown(BENCH).concat(gunTierCards(), tinkerCards(), attachmentCards()); },
   saw: [
-    { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
-    { ic: 'planks', cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
+    { ic: 'planks', full: stackFull, cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
+    { ic: 'planks', full: stackFull, cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   get med() { return shown(MED); },
