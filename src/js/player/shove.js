@@ -50,6 +50,6 @@ function landShove(s) {
     SFX.hitBlunt(true); if (s.stab) SFX.hitBlade(false);
     shake = Math.max(shake, brute ? 0.2 : 0.3);
     camKick.x += Math.sin(P.aim) * 0.22; camKick.z += Math.cos(P.aim) * 0.22; camRoll = clamp(camRoll + (rand() < 0.5 ? -1 : 1) * 0.04, -0.1, 0.1);
-    xhHit = 1.2; ANIM.shoveHit = 1;
+    ANIM.shoveHit = 1;
   } else { camKick.x += Math.sin(P.aim) * 0.08; camKick.z += Math.cos(P.aim) * 0.08; }
 }

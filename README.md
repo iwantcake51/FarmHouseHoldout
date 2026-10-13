@@ -65,7 +65,7 @@ Every source file starts with a one-line comment saying what is in it.
 | To change | Edit |
 | --- | --- |
 | Gun damage, fire rate, magazine, reload, spread, recoil, starting ammo | `src/js/weapons/gun-stats.js` |
-| Damage drop-off with range, ammo drop amounts | `src/js/weapons/ammo.js` |
+| Damage drop-off with range (and how a longer barrel's `reach` stretches it), ammo drop amounts | `src/js/weapons/ammo.js` |
 | What zombies drop and how often (more ammo for melee kills) | `killZombie` in `src/js/zombies/damage.js` |
 | How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
 | How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
@@ -79,6 +79,7 @@ Every source file starts with a one-line comment saying what is in it.
 | The green rim on zombies your melee swing would hit | `REACH_COL` in `src/js/zombies/zombie-visuals.js` |
 | Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
 | Zombie behaviour | `src/js/zombies/ai.js` |
+| How a burning zombie chars (the look; how fast it chars is in `zombies/ai.js` and `zombies/deaths.js`) | `STAIN_FRAG` in `src/js/effects/body-blood.js` |
 | Where zombies come in from: how far out in the fog they start and how soon they show (`FOG_IN`) | `spawnZombie` in `src/js/zombies/spawn.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
 | Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |

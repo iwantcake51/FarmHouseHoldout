@@ -103,14 +103,17 @@ function fitAttachments(g, D, front, y, info) {
   return front;
 }
 // the lowest point of the gun's body at (x, z): followed down from the barrel through every piece that touches the one
-// above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack
-const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4();
+// above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack. Each
+// piece is measured in the gun's own frame from its own shape, so however the gun happens to be held while it's built
+// (turned, tilted, mid-swing), a grip or a magazine never seems to reach in under the barrel and drag the mount down
+const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4(), _ubR = new THREE.Matrix4();
 function undersideAt(g, x, z, yAxis) {
   g.updateMatrixWorld(true); _ubM.copy(g.matrixWorld).invert();
   const boxes = [];
   g.traverse(o => {
     if (!o.isMesh || o.userData.isFlash || !o.visible) return;
-    _ub.setFromObject(o).applyMatrix4(_ubM);
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    _ub.copy(o.geometry.boundingBox).applyMatrix4(_ubR.multiplyMatrices(_ubM, o.matrixWorld));
     if (x < _ub.min.x - 0.004 || x > _ub.max.x + 0.004 || z < _ub.min.z || z > _ub.max.z || _ub.min.y > yAxis) return;
     boxes.push([_ub.min.y, _ub.max.y]);
   });

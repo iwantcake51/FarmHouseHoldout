@@ -28,7 +28,10 @@ function updateEyes(dt) {
   for (const z of eyeOwners()) {
     if (e >= EYE_MAX) break;
     const dead = z.eyeGlow !== undefined, eyes = dead ? z.eyes : z.m.eyes;
-    if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head)) { z.eyeH = null; continue; }
+    // only what you can see right now glows: the view cone as it is this moment, not the body's slower fade, so no eyes
+    // or streaks hang about once a zombie is out of sight (and none come back trailing from where it was)
+    const seen = smooth(clamp((Math.min(z.vis, visAt(z.x, z.z)) - 0.35) / 0.55, 0, 1));
+    if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head) || seen < 0.01) { z.eyeH = null; continue; }
     const H = z.eyeH || (z.eyeH = [[], []]);
     for (let s = 0; s < 2; s++, e++) {
       eyes[s].getWorldPosition(_ew);
@@ -36,7 +39,7 @@ function updateEyes(dt) {
       const h = H[s], cur = [_ew.x, _ew.y, _ew.z, now];
       if (h.length < 2 || now - h[1][3] >= 0.026) h.unshift(cur); else h[0] = cur;
       while (h.length > EYE_PTS || (h.length > 2 && now - h[h.length - 1][3] > EYE_TRAIL_T)) h.pop();
-      const k0 = e * EYE_PTS * 2, v = Math.min(1, z.vis * 1.6) * glow * (dead ? z.eyeGlow : 1);
+      const k0 = e * EYE_PTS * 2, v = seen * glow * (dead ? z.eyeGlow : 1);
       // halo
       F.hp[e * 3] = _ew.x; F.hp[e * 3 + 1] = _ew.y; F.hp[e * 3 + 2] = _ew.z; F.hc[e * 3] = EYE_GLOW.r * v * 0.9; F.hc[e * 3 + 1] = EYE_GLOW.g * v * 0.9; F.hc[e * 3 + 2] = EYE_GLOW.b * v * 0.9;
       // ribbon: thick and bright at the eye, thinning and fading toward the tail; it faces the camera

@@ -60,6 +60,23 @@ const STAIN_FRAG = `
       vec3 dried = mix(vec3(0.24, 0.05, 0.035), vec3(0.15, 0.03, 0.022), core);
       diffuseColor.rgb = mix(diffuseColor.rgb, mix(dried, fresh, uFresh), a * mix(0.72, 0.95, core));
     }
+    // burnt (a zombie set on fire, zombies/ai.js): char creeps over the body in patches as it burns, a scorched brown
+    // edge running ahead of it, until the whole thing is a blackened corpse. While it's still alight the burning edge
+    // and the cracks in the char glow like embers
+    if (uChar > 0.001) {
+      vec3 cq = bp * 6.0 + uSeed * 0.7;
+      float cn = 0.5 + 0.5 * (bsnoise(cq) * 0.6 + bsnoise(cq * 2.7 + 3.3) * 0.3 + bsnoise(cq * 7.1 + 1.1) * 0.1);
+      float ct = 1.02 - uChar * 1.2;
+      float burnt = smoothstep(ct, ct + 0.1, cn), scorch = smoothstep(ct - 0.2, ct, cn) * (1.0 - burnt);
+      vec3 charC = mix(vec3(0.045, 0.036, 0.03), vec3(0.12, 0.085, 0.06), 0.5 + 0.5 * bsnoise(cq * 3.9 + 5.2));
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.5, 0.33, 0.2), scorch * 0.85);
+      diffuseColor.rgb = mix(diffuseColor.rgb, charC, burnt);
+      if (uEmber > 0.001) {
+        float front = smoothstep(ct - 0.012, ct + 0.012, cn) * (1.0 - smoothstep(ct + 0.025, ct + 0.05, cn));
+        float crack = smoothstep(0.74, 0.92, 0.5 + 0.5 * bsnoise(cq * 5.3 + 1.7)) * burnt;
+        totalEmissiveRadiance += vec3(1.0, 0.32, 0.05) * uEmber * (front * 0.75 + crack * 0.4);
+      }
+    }
   }`;
 // a copy of a surface's material that carries the stain: frame is what it rides on, su the stain's own uniforms
 // (shared by everything on you, or by one weapon)
@@ -71,13 +88,13 @@ function stainMat(orig, mesh, frame, su, mode, zone) {
     if (baseC) baseC.call(m, sh, r);
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'uniform mat4 uPart;\nvarying vec3 vBloodP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBloodP = (uPart * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'uniform float uBlood;\nuniform float uFresh;\nuniform vec3 uSeed;\nuniform float uZone;\nuniform float uMode;\nuniform float uFreq;\nuniform vec3 uLo;\nuniform vec3 uHi;\nvarying vec3 vBloodP;\n' + BLOOD_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + STAIN_FRAG);
+    sh.fragmentShader = 'uniform float uChar;\nuniform float uEmber;\nuniform float uBlood;\nuniform float uFresh;\nuniform vec3 uSeed;\nuniform float uZone;\nuniform float uMode;\nuniform float uFreq;\nuniform vec3 uLo;\nuniform vec3 uHi;\nvarying vec3 vBloodP;\n' + BLOOD_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + STAIN_FRAG);
   };
   m.customProgramCacheKey = () => (baseKey ? baseKey.call(orig) : '') + '-stain';
   return m;
 }
 const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent && !o.userData.isOutline && !o.userData.isFlash;
-const stainU = freq => ({ uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
+const stainU = freq => ({ uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
 
 // ---- on you ----
 const BLOOD_U = stainU(7.5);
@@ -127,7 +144,7 @@ function stainZombie(m) {
     o.children.forEach(c => walk(c, part, zone));
   };
   m.upper.children.forEach(c => walk(c, m.torso, 0)); m.lower.children.forEach(c => walk(c, m.legL, 3));
-  return { u, list, b: rr(0.08, 0.32), shown: 0, was: 0 };
+  return { u, list, b: rr(0.08, 0.32), shown: 0, was: 0, char: 0, burn: 0, glow: 0 };
 }
 // more blood on a zombie (0..1)
 function bloodZombie(z, amt) { if (z && z.stain) z.stain.b = Math.min(1, z.stain.b + amt); }
@@ -135,6 +152,9 @@ function updateZombieStain(st, rdt) {
   if (!st) return;
   if (st.b > st.was + 0.001) st.u.uFresh.value = 1; else st.u.uFresh.value = Math.max(0, st.u.uFresh.value - rdt / 30);
   st.was = st.b; st.shown += (st.b - st.shown) * Math.min(1, rdt * (st.b > st.shown ? 3 : 0.6)); st.u.uBlood.value = st.shown;
+  // how burnt it is (st.char, grown while it burns: zombies/ai.js, zombies/deaths.js), and the embers while it's alight
+  st.glow += ((st.burn > 0 ? 1 : 0) - st.glow) * Math.min(1, rdt * 2.5);
+  st.u.uChar.value = st.char; st.u.uEmber.value = st.glow * (0.8 + 0.2 * Math.sin(worldT * 9.3) * Math.sin(worldT * 5.1 + 1));
   syncStains(st.list);
 }
 

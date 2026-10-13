@@ -8,7 +8,8 @@ function updateZombies(dt) {
     if (z.vx || z.vz) { moveCircle(z, z.vx * dt, z.vz * dt, z.T.r); const f = Math.exp(-9 * dt); z.vx *= f; z.vz *= f; if (Math.abs(z.vx) + Math.abs(z.vz) < 0.02) z.vx = z.vz = 0; }
     const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
     if (dp < nearest) nearest = dp;
-    if (z.burn > 0) { z.burn -= dt; if (rand() < dt * 14) burst(z.x + rr(-.2, .2), rr(0.6, 1.5) * z.T.scale * (z.crawl ? 0.4 : 1), z.z + rr(-.2, .2), 1, 'ember', 0, 0, 0.2); z.hp -= 14 * dt; if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); continue; } }
+    if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
+    if (z.burn > 0) { z.burn -= dt; if (z.vis > 0.3 && rand() < dt * 14) burst(z.x + rr(-.2, .2), rr(0.6, 1.5) * z.T.scale * (z.crawl ? 0.4 : 1), z.z + rr(-.2, .2), 1, 'ember', 0, 0, 0.2); z.hp -= 14 * dt; if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); continue; } }
     if (z.bleed > 0) { z.bleed -= dt; z.hp -= 8 * dt; if (rand() < dt * 3) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }
@@ -141,7 +142,8 @@ function updateZombies(dt) {
     z.flash = Math.max(0, z.flash - dt);
     // a hit flashes the body white-hot, cooling through red as the flash runs out
     if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of [m.mats.skin, m.mats.shirt, m.mats.pants]) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
-    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
+    // burning, just a flicker of warmth: the char's embers do the glowing (effects/body-blood.js)
+    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x2c1003 : 0x1c0902) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
   if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); hurtFx = 1; shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }

@@ -90,7 +90,9 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
   if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
-  const dealt = dmg * (part === 'head' ? headMulFor(D) : partMult(part));
+  // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
+  // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
+  const dealt = dmg * (D.melee ? 1 : part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
@@ -99,8 +101,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
-  xhHit = 1; xhHead = part === 'head';
-  dmgNumber(z, dealt, part === 'head', y, crit);
+  dmgNumber(z, dealt, part === 'head' && !D.melee, y, crit);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
     z.lhp[part] -= dmg * mul;
@@ -138,7 +139,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
-  xhKill = true; xhHit = 1.4; shake = Math.max(shake, 0.16);
+  shake = Math.max(shake, 0.16);
   popEl('kills');
   if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.headHeal && part === 'head' ? 2 : 1));
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
@@ -152,13 +153,15 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   SFX.kill();
-  if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * S.scrapMul);
+  // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
+  const big = z.type === 'brute' ? 2 : 1;
+  if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * S.scrapMul);
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
     // rounds pays you back a little). Planks are the rarest roll
     const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
-    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts)); }
-    else dropPickup(z.x, z.z, r < 0.78 ? 'planks' : 'med');
+    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
+    else dropPickup(z.x, z.z, r < 0.78 ? 'planks' : 'med', big);
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number

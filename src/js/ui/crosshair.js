@@ -1,7 +1,7 @@
 // The crosshair.
 
 const projV = new V3();
-const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhHitEl = $('xhHit'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
+const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
 // the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
 // wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
@@ -20,7 +20,7 @@ function ammoDash(n, filled) {
   const fg = filled ? Array(filled).fill(d + ' ' + g).join(' ') + ' 0 999' : '0 999';
   return [fg, Array(n).fill(d + ' ' + g).join(' ') + ' 0 999'];
 }
-// the crosshair: spread ticks, ammo arc, reload ring, hit markers, melee ring, stamina arc
+// the crosshair: spread ticks, ammo arc, reload ring, melee ring, stamina arc
 function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
@@ -87,10 +87,5 @@ function updateCrosshair(rdt, D) {
     const glArc = 2 * Math.PI * 36 * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';
     if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / (D.glRecharge || 6))).toFixed(1) + ' 999');
-    xhHit = Math.max(0, xhHit - rdt * 5);
-    xhHitEl.setAttribute('opacity', Math.min(1, xhHit).toFixed(2));
-    xhHitEl.setAttribute('transform', `scale(${(1 + Math.max(0, xhHit - 0.4) * 0.7).toFixed(2)})`);
-    xh.classList.toggle('kill', xhKill && xhHit > 0); xh.classList.toggle('head', xhHead && !xhKill && xhHit > 0);
-    if (xhHit <= 0) { xhKill = false; xhHead = false; }
   }
 }

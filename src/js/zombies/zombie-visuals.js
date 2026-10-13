@@ -16,6 +16,7 @@ function markReach() {
 function updateZombieVisuals(dt, rdt) {
   markReach();
   for (const z of zombies) {
+    if (z.stain) z.stain.burn = z.burn;
     updateZombieStain(z.stain, rdt);
     const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = true;
@@ -30,7 +31,7 @@ function updateZombieVisuals(dt, rdt) {
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * (z.reachA || 0));
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
-    const r = ragdolls[k]; stepRagdoll(r, dt); updateZombieStain(r.stain, rdt);
+    const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);
     // the killing hit's flash cools off (it used to stay lit and leave the body glowing pale), and the eyes go out:
     // their glow fades over a second and a half and they dull to a dead grey
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;

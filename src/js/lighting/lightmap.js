@@ -52,7 +52,7 @@ function computeLight() {
     if (nv > 0.05) addField(lightField(P.x, P.z, 9 + S.nightVis * 3, { dir: P.aim, half: S.cone }), nv * 0.42, [0.82, 1, 0.84]);
     if (T('light') && dark > 0.05) addField(lightField(P.x, P.z, T('light') === 2 ? 18 : 13, { dir: P.aim, half: T('light') === 2 ? 0.62 : 0.42 }), (T('light') === 2 ? 1.9 : 1.2) * dark, [1, 0.95, 0.85]);
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
-    for (const z of zombies) if (z.burn > 0) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark), [1, 0.5, 0.15]);
+    for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
   }
   computeVision(on && !P.dead);   // as you die the fog of war lifts and every zombie fades into view
 }
