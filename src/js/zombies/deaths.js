@@ -71,7 +71,10 @@ function stepRagdoll(r, dt) {
   if (!r.pooled && k >= 1) {
     r.pooled = true;
     const hx = r.x - Math.sin(r.face) * r.dir * 0.6 * r.s, hz = r.z - Math.cos(r.face) * r.dir * 0.6 * r.s;
-    splat(r.x, r.z, 'pool', rr(1.1, 1.6) * r.s, undefined, 3.5); burst(hx, 0.15, hz, 5, 'blood', 0, 0, 0.6); burst(r.x, 0.1, r.z, 4, 'dust');
+    // it bleeds out where it lies: a pool that spreads out from under the body for several seconds, and another
+    // welling up at the end it bled from
+    splat(r.x, r.z, 'pool', rr(1.6, 2.2) * r.s, undefined, rr(7, 10)); splat(hx * 0.6 + r.x * 0.4, hz * 0.6 + r.z * 0.4, 'pool', rr(1.0, 1.4) * r.s, undefined, rr(4, 6));
+    burst(hx, 0.15, hz, 5, 'blood', 0, 0, 0.6); burst(r.x, 0.1, r.z, 4, 'dust');
     if (Math.hypot(r.x - P.x, r.z - P.z) < 12) SFX.thud();
   }
   if (r.burn > 0 && r.stain) r.stain.char = Math.min(1, r.stain.char + dt * 0.3);   // a body that went down burning smoulders on until it's black

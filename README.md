@@ -88,6 +88,7 @@ Every source file starts with a one-line comment saying what is in it.
 | What the cards show (before → after chips, what a tier is for, running totals for ones that stack) | `src/js/upgrades/upgrade-info.js` |
 | How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
+| The supply crate's marker (over it, or at the edge of the screen pointing to it) and the light beam over a landed crate | `updateDropMarker` in `src/js/stations/supply-drop.js`, `dropBeam` in `src/js/pickups/pickups.js` |
 | What each station sells, and the prices (ammo by the gun, `AMMO_COST`; a gun's ammo, trigger and magazine upgrades, `TIER_COST`). Everything for the weapon in your hands sits in one group, Attachments / Upgrades (`gearGroup`), and each card's green and red chips come from `src/js/upgrades/upgrade-info.js` (`tierFx`, `modFx`, `improveFx`, `tuneFx`) | `src/js/stations/recipes.js` |
 | Speed loaders: the revolver's reload with one (`REV_LOAD`) and how long each go of shells takes (`LOADER_T`); the revolver's loader moves are in `src/js/player/hold.js` (`SLM`) | `src/js/game/run-state.js`, `SL_IN` and the rest in `src/js/weapons/reload.js` |
 | The shotgun pattern (`pelletOff`), what a round keeps through each zombie (`PIERCE_KEEP`), and scopes (`scopeSpread`, `SCOPE_HEAD`) | `src/js/weapons/firing.js` |
@@ -101,6 +102,8 @@ Every source file starts with a one-line comment saying what is in it.
 | Weapons carried on your body (hip holster, strapped flat across the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers, and dragon's breath (`dragonBreath`) | `src/js/effects/puffs.js` |
 | Bullet holes in the house walls | `src/js/effects/bullet-holes.js` |
+| Blood on the farm: how long it stays (each wave ages it by `BM_AGE`, so it starts to fade at the third wave start) and how slowly it fades (`BM_FADE`) | `src/js/effects/blood-map.js` |
+| The pool a body bleeds out into where it lands | `src/js/zombies/deaths.js` |
 | The zombies' eye glow and the streaks behind it (`EYE_GLOW`, `EYE_HALO`, `EYE_STREAK`) | `src/js/effects/eye-glow.js` |
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Sounds | `src/js/audio/sfx.js` |

@@ -16,6 +16,14 @@ function cartridge(g, x, y, z, len, r, lying, tipMat) {
   if (lying) { tip.rotation.z = -Math.PI / 2; tip.position.set(x + len / 2 + len * 0.17, y, z); } else tip.position.set(x, y + len / 2 + len * 0.17, z);
   g.add(tip); return c;
 }
+// a tall, soft shaft of orange light standing up out of a supply crate, fading toward the top, so it stands out across
+// the yard and through the dark
+const BEAM_TEX = glowTex(4, 64, x => { const g = x.createLinearGradient(0, 64, 0, 0); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 4, 64); });
+const BEAM_GEO = new THREE.CylinderGeometry(0.1, 0.26, 7, 14, 1, true).translate(0, 3.5, 0);
+function dropBeam() {
+  const m = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ map: BEAM_TEX, color: 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
+}
 function dropPickup(x, z, kind, amount, ammoType) {
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
@@ -52,7 +60,7 @@ function dropPickup(x, z, kind, amount, ammoType) {
   const discMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
   const ring = new THREE.Mesh(ringGeo, ringMat), disc = new THREE.Mesh(discGeo, discMat);
   ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.y = 0.035; disc.position.y = 0.033; ring.renderOrder = disc.renderOrder = 2;
-  if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); }
+  if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); root.add(dropBeam()); }
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);

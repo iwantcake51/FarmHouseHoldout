@@ -11,7 +11,6 @@ const UPG = [
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'Three full cans of ammo for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast, for half the stamina.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
-  { r: 'u', tag: 'Ammo', name: 'Through and through', text: 'Bullets pass through one more zombie.', vis: 'Longer barrels', can: () => S.pierce < 2, ap: () => S.pierce++ },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
@@ -25,7 +24,6 @@ const UPG = [
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
     card() { this.target = pick(gunsHeld().filter(smithable)); const nm = WEAP[this.target].name.toLowerCase(); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm} gets two of its ammo, trigger and magazine upgrades raised a tier (the two furthest behind), and any of the three it has none of fitted at tier 1.`, vis: 'Changes two or three at once' }; },
     ap() { const id = this.target; if (!id) return; W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
-  { r: 'l', tag: 'Ammo', name: 'Incendiary rounds', text: 'Every bullet sets zombies on fire for 3 seconds.', vis: 'A hot orange band on every gun', can: () => !S.att.fire, ap: () => S.att.fire = true },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health and you barely slow down when hit.', can: () => S.slowRes < 0.85, ap: () => { S.maxHp += 50; P.hp += 50; S.slowRes = Math.max(S.slowRes, 0.85); } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Kills sometimes slow the world for a moment.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
   { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, everything you do hits 60% harder.', can: () => !S.lastStand, ap: () => S.lastStand = true }
