@@ -7,8 +7,8 @@
 .stScrap svg{width:16px;height:16px;fill:#8fa3b8}
 .stScrap b{font-family:var(--f-num);font-weight:800;font-size:20px;line-height:1}
 #station.wide{width:min(820px,calc(100vw - 32px))}
-#stRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px;overflow-y:auto;overscroll-behavior:contain}
-#stRows button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;gap:6px 10px;padding:10px;background:rgba(236,230,216,.04);border:1px solid rgba(236,230,216,.12);transition:border-color .12s,background .12s,transform .12s}
+#stRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));align-items:start;gap:8px;overflow-y:auto;overscroll-behavior:contain}   /* each card its own height, not stretched to the tallest in its row */
+#stRows button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;gap:6px 10px;padding:10px;background:rgba(236,230,216,.04);border:1px solid rgba(236,230,216,.12);transition:border-color .12s,background .12s,transform .12s,opacity .5s ease}
 #stRows button.ok:hover,#stRows button:focus-visible{border-color:var(--ic);background:rgba(236,230,216,.08)}
 #stRows button.no{opacity:.55;cursor:default}
 #stRows button.made{transform:scale(.97);background:rgba(240,191,76,.18)}
@@ -29,6 +29,7 @@
 #stRows .ft{display:flex;align-items:center;gap:8px;font-size:11px}
 #stRows kbd{font-family:var(--f-ui);font-weight:600;background:var(--ink);color:#111;padding:0 5px}
 #stRows .cost{display:flex;align-items:center;gap:3px;color:#c8d2dc;font-weight:600}
+#stRows .cost b{font-weight:600}
 #stRows .cost svg{width:13px;height:13px;fill:#8fa3b8}
 #stRows .cost.short{color:#e0604c}
 #stRows .st{margin-left:auto;color:#7fae5a;letter-spacing:.06em;text-transform:uppercase;font-size:10px}

@@ -40,7 +40,7 @@ const BENCH = [
     { ic: 'ammo', for: () => ammoGuns().length > 1 ? `For all ${ammoGuns().length} of your guns` : 'For every gun you carry', get cost() { return Math.max(AMMO_COST, AMMO_COST * ammoGuns().length); }, title: () => 'Ammo for everything', desc: () => ammoGuns().length ? allAmmo().map(([a, n]) => `+${n} ${AMMO_NAME[a]}`).join(' · ') + (ammoGuns().length > 1 ? ` · one load for each of your ${ammoGuns().length} guns` : '') : 'Every gun you carry', why: () => ammoGuns().length ? '' : 'No guns that use ammo', make: () => allAmmo().forEach(([a, n]) => { W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); }) },
     // tuning: one full going-over of the weapon in your hands, once per weapon and dear. It makes it a little better at
     // everything (TUNE in game/run-state.js) without turning it into a different weapon
-    { ic: 'gear', for: () => forYour(curId()), fx: () => tuneFx(curId()), cost: TUNE_COST, title: () => (W8.tune[curId()] ? 'Tuned: ' : 'Tune up the ') + W(curId()).short, desc: () => tuneText(W(curId())) + ' · Once per weapon', why: () => W8.tune[curId()] ? 'Already tuned' : '',
+    { ic: 'gear', for: () => forYour(curId()), fx: () => tuneFx(curId()), gone: () => !!W8.tune[curId()], cost: TUNE_COST, title: () => (W8.tune[curId()] ? 'Tuned: ' : 'Tune up the ') + W(curId()).short, desc: () => tuneText(W(curId())) + ' · Once per weapon', why: () => W8.tune[curId()] ? 'Already tuned' : '',
       make: () => { const id = curId(); W8.tune[id] = 1; recomputeEff(); gunGlow = 1; feed('gear', 0, W(id).short + ' tuned'); toast(W(id).name + ' tuned', { kind: 'good', icon: 'gear', sub: tuneText(W(id)) }); } }
 ];
 // upgrades for the weapon in your hands, in one group after its ammo, trigger and magazine lines (gunTierCards): one
@@ -63,7 +63,6 @@ function tinkerCards() {
     make: () => { addMod(id, m); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); toast(MODS[m].name, { kind: 'good', icon: 'gear', sub: 'New mod · ' + MODS[m].text }); } }));
   modUps(id).forEach(m => out.push({ ic: 'gear', group, for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m); }, title: () => MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { improveMod(m); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); toast(modName(m), { kind: 'good', icon: 'gear', sub: 'Mod improved · ' + MOD_UP[m].t }); } }));
-  if (!out.length && !gunTierCards().length) out.push({ ic: 'gear', group, for: () => forYour(id), cost: 10, title: () => 'Upgrades', desc: () => 'A new mod, or a better one', why: () => 'Nothing left to upgrade', make: () => {} });
   return out;
 }
 // a gun's own upgrades, one card per line (the next tier up) for the gun in your hands: better rounds, a lighter
@@ -84,18 +83,22 @@ const TIER_LINE = { ammo: 'Ammo', trigger: 'Trigger', mag: 'Magazine' };
 // the sawhorse's cards say so when your stack is close to full (PLANK_MAX, barricades/planks.js)
 const plankDesc = (n, text) => plankRoom() && plankRoom() < n ? `Only room for ${plankRoom()} more (you carry ${PLANK_MAX} at most)` : text;
 const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX}`;
+// the medicine cabinet: bandages, a stitch-up, and its three upgrades
+const MED = [
+  { ic: 'med', for: () => 'For you', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${bandMax()}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+  { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
+  ...['hands', 'dress', 'tonic'].map(medUpgrade)
+];
+// an upgrade you can't take any more of (gone: tuned already, a cabinet upgrade at its top level) isn't shown at all
+const shown = list => list.filter(r => !(r.gone && r.gone()));
 const RECIPES = {
-  get bench() { return BENCH.concat(gunTierCards(), tinkerCards(), attachmentCards()); },
+  get bench() { return shown(BENCH).concat(gunTierCards(), tinkerCards(), attachmentCards()); },
   saw: [
     { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
     { ic: 'planks', cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
-  med: [
-    { ic: 'med', for: () => 'For you', cost: 4, title: () => 'Bandage', desc: () => `Into your bag (${P.band || 0}/${bandMax()}). Press G to use: +${bandHeal()} health over time, stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
-    { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and shakes off the slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
-    ...['hands', 'dress', 'tonic'].map(medUpgrade)
-  ],
+  get med() { return shown(MED); },
   radio: [
     { ic: 'supply', cost: 20, title: () => supplyT > 0 ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and bandages lands in the yard', why: () => supplyT > 0 ? 'Already called' : '', make: () => { supplyT = 9; feed('supply', 0, 'Supply drop called'); } }
   ]
@@ -103,6 +106,6 @@ const RECIPES = {
 // a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)
 function medUpgrade(k) {
   const U = () => MED_UP[k], lv = () => medT(k), done = () => lv() >= U().max, num = n => ' ' + 'I'.repeat(n);
-  return { ic: 'med', get cost() { return U().cost[Math.min(lv(), U().max - 1)]; }, title: () => U().name + (done() ? '' : num(lv() + 1)), desc: () => done() ? 'Fully upgraded' : U().desc(lv()), why: () => done() ? 'Fully upgraded' : '',
+  return { ic: 'med', for: () => 'For you', gone: done, get cost() { return U().cost[Math.min(lv(), U().max - 1)]; }, title: () => U().name + (done() ? '' : num(lv() + 1)), desc: () => done() ? 'Fully upgraded' : U().desc(lv()), why: () => done() ? 'Fully upgraded' : '',
     make: () => { S.med[k] = lv() + 1; feed('med', 0, U().name + num(S.med[k])); } };
 }

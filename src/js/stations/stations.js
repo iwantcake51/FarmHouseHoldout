@@ -57,7 +57,8 @@ const STATIONS = [];
   box(g, 0.11, 0.008, 0.005, HM.ink, -0.13, 1.84, -0.332).rotation.z = 0.5; ycyl(g, 0.01, 0.01, 0.01, HM.inkR, -0.12, 1.92, -0.33, 6).rotation.x = Math.PI / 2;
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(21, 18, true); obstacle(22, 18, true);   // waist high: you shoot and see over it, you can't walk through it
-  STATIONS.push({ g, id: 'bench', name: 'Workbench', x: g.position.x, z: cxw(18) + 0.95 });
+  // usable from the front or either end: you only need to be near the bench itself (its top's footprint, `foot`)
+  STATIONS.push({ g, id: 'bench', name: 'Workbench', x: g.position.x, z: cxw(18) + 0.95, foot: [g.position.x, g.position.z, 0.97, 0.38] });
 
   // ---- sawhorses by the south-west corner: a board across them with a saw left in the cut, sawdust, and lumber stacked underneath ----
   g = new THREE.Group(); g.position.set((cxw(18) + cxw(19)) / 2, 0, cxw(25)); scene.add(g);

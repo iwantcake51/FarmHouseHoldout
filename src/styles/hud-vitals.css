@@ -31,7 +31,8 @@
 .res{display:flex;gap:16px;align-items:center}
 .res>span{display:flex;align-items:center;gap:6px}
 .res svg{width:17px;height:17px;fill:var(--dim)}
-.res b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);line-height:1;transform-origin:left bottom}
+.res b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);line-height:1;transform-origin:left bottom;transition:color .5s ease}
+.res b.full{color:#4f9a5c}   /* a full plank stack reads dark green */
 .res b.pop{animation:pop .28s ease-out}
-.res b.full::after{content:"max";margin-left:3px;font-family:var(--f-ui);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);vertical-align:top}
+.res b.full::after{content:"max";margin-left:3px;font-family:var(--f-ui);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4f9a5c;vertical-align:top}
 @keyframes pop{0%{transform:scale(1.45);color:var(--orange)}100%{transform:scale(1)}}

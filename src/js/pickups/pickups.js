@@ -42,6 +42,10 @@ function dropPickup(x, z, kind, amount, ammoType) {
     cartridge(g, 0.05, 0.22, 0.15, 0.2, 0.022, true);
   }
   const col = PICK_COL[kind === 'ammo' ? ammoType : kind];
+  // planks and bandages can be left lying when you're full: they get their own copies of their materials so they can
+  // go half grey on their own (greyDrop, below)
+  const mats = [];
+  if (kind === 'planks' || kind === 'med') g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.c0 = o.material.color.clone(); mats.push(o.material); } });
   const om = outline(g, col);
   const xr = xray(g, col, true);
   const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -54,12 +58,25 @@ function dropPickup(x, z, kind, amount, ammoType) {
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
   if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+}
+// a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey, and eases
+// back into colour as soon as you have room for it
+const _gc = new THREE.Color(), _gl = new THREE.Color();
+const greyOf = (c, k, out) => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return out.copy(c).lerp(_gl.setRGB(l, l, l), k); };
+function greyDrop(p, dt) {
+  const full = p.kind === 'planks' ? !plankRoom() : p.kind === 'med' ? (P.band || 0) >= bandMax() : false;
+  p.grey += ((full ? 0.5 : 0) - p.grey) * Math.min(1, dt * 3);
+  if (Math.abs(p.grey - p.greyShown) < 0.004) return;
+  p.greyShown = p.grey;
+  p.mats.forEach(m => greyOf(m.userData.c0, p.grey, m.color));
+  greyOf(p.col, p.grey, _gc); p.ringMat.color.copy(_gc); p.discMat.color.copy(_gc); p.glow.material.color.copy(_gc); p.om.color.copy(_gc); p.xr.rim.color.copy(_gc);
 }
 // drops: bob, glow, magnet scrap, and collecting them
 function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
+    if (p.mats.length) greyDrop(p, dt);
     // tossed out of the body, then a slow bob and spin over a pulsing ring
     const a = Math.min(1, p.age / 0.32), pop = 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);
     p.item.scale.setScalar(Math.max(0.01, pop));
