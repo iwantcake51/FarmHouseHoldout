@@ -24,7 +24,7 @@ function startReload() {
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   if (D.perShell) {
-    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
+    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id)); W8.dry = !(W8.mag[id] > 0);
     W8.reloadT = D.perShell * S.reloadMul + (id === 'revolver' ? 0.3 : 0.12); W8.reloadMax = W8.reloadT;
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.click(); reloadJolt(0.12); }   // the cylinder swings out
   else { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); reloadJolt(0.08); } }, 140); }
@@ -57,6 +57,8 @@ function tickReload(dt) {
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
     W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); if (n > 1) setTimeout(() => SFX.shell(), 55); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul;
+    // done: rack a pump that was run dry, close the rifle's bolt (weapons/casings.js); anything else just snaps shut
+    else if (EJECT[id] === 'bolt' || (EJECT[id] === 'pump' && W8.dry)) { W8.reloading = null; chamberCycle(id); W8.cd = Math.max(W8.cd, EJECT[id] === 'bolt' ? 0.5 : 0.42); }
     else { W8.reloading = null; SFX.rack(); reloadJolt(0.22); shake = Math.max(shake, 0.12); W8.cd = Math.max(W8.cd, 0.25); }
   } else {
     const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);

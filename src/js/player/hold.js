@@ -26,6 +26,18 @@ const HOLD = {
 const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight
 const AK_PULL = 0.1;
+// how far the hunting rifle's bolt handle turns up to unlock (radians)
+const BOLT_TURN = 1.05;
+// the gun riding a rack: a loose spring per axis (muzzle pitch, roll, yaw, back into the shoulder, down, and the
+// torso's twist) chasing where working the action pulls it, knocked again at each stop (rackKick, from
+// weapons/casings.js), so it lags behind the hand, overshoots and settles instead of moving in lockstep with the action
+const RACK = { p: 0, vp: 0, r: 0, vr: 0, y: 0, vy: 0, z: 0, vz: 0, h: 0, vh: 0, w: 0, vw: 0 }, RACK_K = 130, RACK_D = 10;
+function rackKick(p, r, z) { RACK.vp += p; RACK.vr += r * rr(0.85, 1.15); RACK.vz += z; }
+function stepRack(rdt, t) {
+  for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++)
+    for (const a of ['p', 'r', 'y', 'z', 'h', 'w']) springTo(RACK, a, 'v' + a, t[a], a === 'z' ? RACK_K * 1.3 : a === 'w' ? RACK_K * 0.6 : RACK_K, RACK_D, dt);
+}
+const _rackT = { p: 0, r: 0, y: 0, z: 0, h: 0, w: 0 };
 // each gun's recoil: a spring per hand for muzzle flip (p), drive back (z) and a little roll (r); pistols flip, long guns
 // shove back into the shoulder, and the spring overshoots a touch on the way back so it settles rather than snaps
 const RK = { R: { p: 0, vp: 0, z: 0, vz: 0, r: 0, vr: 0 }, L: { p: 0, vp: 0, z: 0, vz: 0, r: 0, vr: 0 } };
@@ -223,7 +235,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (rel) ANIM.relKind = rel;
   ANIM.relEnv += ((rel === 'mag' ? (rpm < 0.86 ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
   const re = ANIM.relEnv, rk = ANIM.relKind;
-  const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, ck = cy ? Math.sin(cq * Math.PI) : 0;
+  // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
+  const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6);
   let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
@@ -234,7 +247,17 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     else if (id === 'revolver') { pitch -= 0.25 * re; roll += 0.35 * re; oz -= 0.06 * re; } // canted so the open cylinder faces up
     else { roll -= 0.45 * re; pitch -= 0.08 * re; oy -= 0.03 * re; oz -= 0.04 * re; }      // tipped to show the loading port
   }
-  if (cy && cy.bolt) roll -= 0.14 * ck;                                                    // the rifle rolls a little as the bolt is worked
+  {
+    // working the action: the rifle stays shouldered but rolls over to bring the handle up and dips as the bolt is torn
+    // back; the pump's muzzle dips and the gun cants as the forend comes back. The gun follows on its loose spring, and
+    // the stops knock it (CYC_FX in weapons/casings.js); the torso twists and rocks with it
+    const t = _rackT; t.p = t.r = t.y = t.z = t.h = t.w = 0;
+    if (cp && cy.bolt) { t.r = -0.13 * cp.grab - 0.05 * cp.lift; t.p = 0.04 * cp.off; t.y = 0.03 * cp.grab; t.z = -0.018 * cp.off; t.h = -0.012 * cp.grab; t.w = 0.04 * cp.off; }
+    else if (cp) { t.r = 0.07 * cp.off; t.p = 0.06 * cp.off; t.z = -0.015 * cp.off; t.h = -0.012 * cp.off; t.w = -0.05 * cp.off; }
+    stepRack(rdt, t);
+    pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
+    up.y += RACK.w; up.x += 0.3 * RACK.p;
+  }
   if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg + 0.05 * slamK; oy += 0.02 * cg; oz -= 0.03 * cg + 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   pitch += 0.35 * bk; ox += 0.06 * bk;                                                     // hangs at your side while you wrap up
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
@@ -263,7 +286,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     for (const q of sl) {
       const st = ANIM.slideT[q.side || 'R'];
       let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07), held = false;
-      if (q.cyc) { const open = EJECT[id] === 'bolt' && rel === 'shell'; off = open ? 1 : cy ? Math.sin(cq * Math.PI) : 0; held = open; }   // the rifle's bolt stays open while you feed it
+      if (q.cyc) {
+        // the rifle's bolt stays open, handle up, while you feed it; otherwise the action follows the cycle
+        const bolt = EJECT[id] === 'bolt', open = bolt && rel === 'shell';
+        off = open ? 1 : cp ? cp.off : 0; held = open;
+        if (bolt) { q.lift = (q.lift || 0) + ((open ? 1 : cp ? cp.lift : 0) - (q.lift || 0)) * (cp && !open ? 1 : Math.min(1, rdt * 14)); q.m.rotation.z = -BOLT_TURN * q.lift; }
+      }
       else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
       else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
       else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
@@ -293,10 +321,11 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (H.foreOnSlide && sl) { const q = sl.find(e => e.cyc); if (q) fz += q.m.position.z - q.z0; }   // the support hand rides the pump
     gunPt(_hL, s, 'R', H.fore[0], H.fore[1], fz);
   }
-  // the firing hand: works the bolt on a bolt gun's cycle (both points are on the gun, so it never lags behind it)
-  if (cy && cy.bolt && sl) {
+  // the firing hand: works the bolt by its knob on a bolt gun's cycle (both points are on the gun, so it never lags
+  // behind it), coming up over the wrist on the way there and back
+  if (cp && cy.bolt && sl) {
     const q = sl.find(e => e.cyc);
-    if (q) { gunPt(_p1, s, 'R', q.m.position.x - 0.032, q.m.position.y - 0.006, q.m.position.z); const w = smooth(clamp(cq / 0.22, 0, 1)) * (1 - smooth(clamp((cq - 0.78) / 0.22, 0, 1))); _hR.lerp(_p1, w); }
+    if (q) { _p1.set(BOLT_KNOB[0] - 0.012, BOLT_KNOB[1] - 0.004, BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, cp.grab); _hR.y += Math.sin(Math.PI * cp.grab) * 0.02 * (cq < 0.5 ? 1 : 0.6); }
   }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back

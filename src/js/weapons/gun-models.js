@@ -1,6 +1,8 @@
 // Part helpers and the model builder for every gun.
 
 // the right fist; melee models are built handle-down along +y
+// where the hunting rifle's bolt knob sits on its bolt (the firing hand works the bolt by it in player/hold.js)
+const BOLT_KNOB = [-0.082, -0.006, 0];
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight
 const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, seg); m.position.set(x, y, z); g.add(m); return m; };
 const ring = (g, r, w, mat, x, y, z) => cyl(g, r, w, mat, x, y, z, 14);
@@ -183,8 +185,12 @@ const GUN_MODELS = {
     cyl(g, 0.028, 0.27, GM.blued, X, 1.135, 0.64); hi(g, 0.02, 0.25, X, 1.164, 0.64);
     guard(g, 1.03, 0.56, 0.66, GM.metal);
     taper(g, 0.022, 0.015, 0.72, GM.blued, X, 1.14, 1.12);
-    const bh = box(g, 0.06, 0.013, 0.013, m.bolt ? GM.steel : GM.metal, X - 0.05, 1.14, 0.56);   // bolt handle, on the shooter's right
-    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), m.bolt ? GM.steel : GM.metal); knob.position.set(-0.032, -0.006, 0); bh.add(knob);
+    // the bolt turns about the bore and runs back and forward in the receiver (player/hold.js): a polished body, the
+    // shroud and cocking piece out the back, and the handle out to the shooter's right with its knob (at BOLT_KNOB)
+    const bh = new THREE.Group(); bh.position.set(X, 1.14, 0.56); g.add(bh);
+    cyl(bh, 0.016, 0.13, GM.steel, 0, 0, -0.02); cyl(bh, 0.019, 0.035, GM.blued, 0, 0, -0.1); box(bh, 0.012, 0.022, 0.02, GM.blued, 0, 0.014, -0.115);
+    box(bh, 0.06, 0.013, 0.013, m.bolt ? GM.steel : GM.metal, -0.05, 0, 0);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), m.bolt ? GM.steel : GM.metal); knob.position.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]); knob.castShadow = true; bh.add(knob);
     // it comes with plain iron sights; a scope goes on with the high-power scope mod (the big one) or a scope from the
     // bench, and a red dot or holo sits on the receiver like on any long gun
     const big = !!m.hpscope, scope = big || T('sight') >= 3;

@@ -99,8 +99,10 @@ Every source file starts with a one-line comment saying what is in it.
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
+| Working the pump and the bolt: the beats of the cycle (`PUMP_BEAT`, `BOLT_BEAT`), how far the action is back (`cyclePose`), the sound and the knocks to the gun and the camera on each beat (`CYC_FX`), and the rack that chambers a round after a load (`chamberCycle`). The gun rides a loose spring through it (`RACK_K`, `RACK_D` in `src/js/player/hold.js`, along with how far the bolt handle turns, `BOLT_TURN`), and so does the camera (`camRack` in `src/js/game/camera.js`) | `src/js/weapons/casings.js` |
 | Weapons carried on your body (hip holster, strapped flat across the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers, and dragon's breath (`dragonBreath`) | `src/js/effects/puffs.js` |
+| Bullet tracers: how hard each round hits as far as its tracer goes (`tracerPower`), the colours for plain, +P and dragon's breath rounds (`TR_STYLE`), and the slug, its head, the line it leaves, the heat haze and the light a big round throws on the ground | `src/js/effects/tracers.js` |
 | Bullet holes in the house walls | `src/js/effects/bullet-holes.js` |
 | Blood on the farm: how long it stays (each wave ages it by `BM_AGE`, so it starts to fade at the third wave start) and how slowly it fades (`BM_FADE`) | `src/js/effects/blood-map.js` |
 | The pool a body bleeds out into where it lands | `src/js/zombies/deaths.js` |

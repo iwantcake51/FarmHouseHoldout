@@ -14,7 +14,7 @@ for (let k = 0; k < 90; k++) {
 }
 let cIdx = 0, tinkT = 0;
 const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
-// mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' a softer toss the same way,
+// mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
 // 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
 function ejectCasing(ammo, n, mode, sideSign) {
   const K = CASE_KIND[ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
@@ -34,7 +34,7 @@ function ejectCasing(ammo, n, mode, sideSign) {
     c.g.rotation.set(rr(0, 3), P.aim + rr(-0.5, 0.5), rr(0, 3));
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
-    else if (mode === 'pump' || mode === 'bolt') { side = rr(1.6, 2.4); up = rr(1.6, 2.6); back = rr(0.0, 0.6); }
+    else if (mode === 'pump' || mode === 'bolt') { side = rr(2.3, 3.3); up = rr(2.2, 3.2); back = rr(0.2, 0.8); }   // racked out hard
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
     else {   // dump: the whole cylinder's worth tumbles out together, each case falling its own way
       side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
@@ -120,20 +120,70 @@ function stepDebris(list, dt) {
     if (c.life <= 0) g.visible = false;
   }
 }
-// pump and bolt guns cycle after the shot; the spent case comes out mid-cycle
+// pump and bolt guns cycle after the shot, worked hard. The beats, as fractions of the cycle: a pump is yanked back to
+// its stop (back), bounces there a hair (fwd), is shoved forward and slams home (home), and the gun settles. For a bolt
+// the hand goes up to the handle (reach), snaps it up (lift), draws the bolt back hard (back), a hair's rest (fwd),
+// drives it forward (home), slaps the handle down to lock it (lock) and goes back to the grip. The spent case flies out
+// as the action hits its rear stop
+const PUMP_BEAT = { back: 0.3, fwd: 0.42, home: 0.7 }, BOLT_BEAT = { reach: 0.12, lift: 0.23, back: 0.43, fwd: 0.51, home: 0.69, lock: 0.77 };
+// where the action is at q through the cycle: off how far back (0 home, 1 at the stop), lift how far the bolt handle
+// is turned up, and grab how much the firing hand is on the bolt. A chambering cycle (chamberCycle) starts part way
+// through with the bolt already open
+function cyclePose(c, q) {
+  const o = { off: 0, lift: 0, grab: 0 };
+  const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
+  if (!c.bolt) {
+    const B = PUMP_BEAT;
+    if (q < B.back) o.off = run(0, B.back, v => Math.pow(v, 1.35));                                   // yanked back, quickest as it hits the stop
+    else if (q < B.fwd) o.off = run(B.back, B.fwd, v => 1 - 0.08 * Math.sin(v * Math.PI) * (1 - v));  // a little bounce off it
+    else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, 1.6));                       // shoved forward, slamming home
+    else o.off = run(B.home, 1, v => 0.05 * Math.sin(Math.min(1, v * 2.5) * Math.PI) * (1 - v));     // and a bounce off the front
+    return o;
+  }
+  const B = BOLT_BEAT, q0 = c.q0 || 0;
+  o.grab = smooth(clamp((q - q0) / B.reach, 0, 1)) * (1 - smooth(clamp((q - B.lock - 0.02) / (1 - B.lock - 0.02), 0, 1)));
+  if (c.q0 && q < B.fwd) { o.lift = o.off = 1; return o; }                                             // already open
+  if (q < B.reach) o.lift = 0;
+  else if (q < B.lift) o.lift = run(B.reach, B.lift, v => 1 - (1 - v) * (1 - v));                    // snapped up
+  else if (q < B.home) o.lift = 1;
+  else if (q < B.lock) o.lift = run(B.home, B.lock, v => 1 - Math.pow(v, 1.5));                       // slapped down
+  else o.lift = 0.1 * Math.sin(run(B.lock, B.lock + 0.12, v => v) * Math.PI);                         // and it bounces off the stock
+  if (q < B.lift) o.off = 0;
+  else if (q < B.back) o.off = run(B.lift, B.back, v => Math.pow(v, 1.3));
+  else if (q < B.fwd) o.off = run(B.back, B.fwd, v => 1 - 0.07 * Math.sin(v * Math.PI) * (1 - v));
+  else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, 1.5));
+  return o;
+}
 function startCycle(id) {
   if (W8.cyc && !W8.cyc.done) ejectCasing(W(W8.cyc.id).ammo, 1, EJECT[W8.cyc.id]);
   const bolt = EJECT[id] === 'bolt';
-  // the cycle fits inside the gun's fire rate, so a fast bolt or a slam-firing pump still racks fully between shots. A
-  // bolt is worked deliberately: lift, draw back, push home, lock down
-  const dur = bolt ? 0.82 : 0.42, delay = bolt ? 0.2 : 0.1;
+  // the cycle fits inside the gun's fire rate, so a fast bolt or a slam-firing pump still racks fully between shots
+  const dur = bolt ? 0.9 : 0.44, delay = bolt ? 0.15 : 0.08;
   const r = W(id).rate / S.rateMul, k = Math.min(1, r / (dur + delay) * 0.92);
-  W8.cyc = { id, t: 0, dur: dur * k, delay: delay * k, done: false, bolt };
+  W8.cyc = { id, t: 0, dur: dur * k, delay: delay * k, done: false, beat: 0, bolt };
+}
+// on each beat: the sound, a knock to the gun's loose spring (rackKick: pitch, roll, back; player/hold.js) and to the
+// camera's (rackCam: roll, push, zoom; game/camera.js). [where, what]
+const CYC_FX = {
+  pump: [[PUMP_BEAT.back, () => { SFX.pumpBack(); rackKick(1.3, 0.45, -0.45); rackCam(0.14, -0.55, -0.12); }],
+    [PUMP_BEAT.home, () => { SFX.pumpHome(); rackKick(-1.7, -0.5, 0.55); rackCam(-0.2, 0.8, 0.3); }]],
+  bolt: [[BOLT_BEAT.reach + 0.02, () => { SFX.boltUp(); rackKick(0, -0.35, 0); rackCam(0.05, 0, 0); }],
+    [BOLT_BEAT.back, () => { SFX.boltBack(); rackKick(0.8, 0.2, -0.4); rackCam(0.11, -0.5, -0.1); }],
+    [BOLT_BEAT.home, () => { SFX.boltHome(); rackKick(-0.3, 0, 0.3); rackCam(-0.05, 0.35, 0.08); }],
+    [BOLT_BEAT.lock, () => { SFX.boltLock(); rackKick(-1.0, 0.7, 0.1); rackCam(-0.14, 0.2, 0.16); }]]
+};
+// after a load: a pump that was run dry is racked to chamber a round, and the rifle's bolt, open while it was fed, is
+// driven home and locked. No case comes out
+function chamberCycle(id) {
+  startCycle(id); const c = W8.cyc; c.done = true; c.delay = 0.04;
+  if (c.bolt) { c.q0 = BOLT_BEAT.fwd - BOLT_BEAT.reach; c.t = c.delay + c.q0 * c.dur; const fx = CYC_FX.bolt; while (c.beat < fx.length && fx[c.beat][0] < BOLT_BEAT.fwd) c.beat++; }
 }
 function tickCycle(dt) {
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }
-  c.t += dt; const p = (c.t - c.delay) / c.dur;
-  if (!c.done && p >= 0.45) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); if (c.bolt) SFX.bolt(); else SFX.pump(); reloadJolt(0.14); }
+  c.t += dt; const p = (c.t - c.delay) / c.dur, fx = CYC_FX[c.bolt ? 'bolt' : 'pump'];
+  // the case flies out as the action hits its rear stop
+  if (!c.done && p >= (c.bolt ? BOLT_BEAT : PUMP_BEAT).back) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); }
+  while (c.beat < fx.length && p >= fx[c.beat][0]) fx[c.beat++][1]();
   if (p >= 1) W8.cyc = null;
 }
