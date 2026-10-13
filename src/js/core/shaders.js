@@ -2,6 +2,8 @@
 // and foliage wind.
 
 const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 },
+  // how far your eyes have got used to the dark (lighting/day-night.js): it lifts the black-and-white dark a little
+  uAdapt: { value: 0 },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 14) } };
@@ -19,7 +21,7 @@ const VERT_BODY = `
   lmN = mat3(instanceMatrix) * lmN;
   #endif
   vWn = normalize(mat3(modelMatrix) * lmN);`;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\n';
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\n';
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -58,7 +60,7 @@ const FRAG_BODY = `
   vec3 lmC = gl_FragColor.rgb * lmS.rgb * 2.0;
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
   lmC *= mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
-  float lmG = dot(lmC, vec3(0.299, 0.587, 0.114));
+  float lmG = dot(lmC, vec3(0.299, 0.587, 0.114)) * (1.0 + uAdapt) + uAdapt * 0.016;   // eyes used to the dark see a bit more of it
   gl_FragColor.rgb = mix(vec3(lmG), lmC, lmL);   // colour only where there's light: the dark goes black and white
   // clouds passing over: their shade drifts across the farm by day (not indoors)
   if (uCloud.z > 0.001) {
@@ -95,7 +97,7 @@ const TREE_BODY = `
 function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }

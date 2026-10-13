@@ -23,7 +23,7 @@ function renderMoodles() {
   if (S.lastStand && hp < 0.3) list.push(['good', 'fire', 'Last stand']);
   if (S.secondWind && !S.windUsed) list.push(['good', 'wind', 'Second wind ready']);
   const D = W(curId()); if (D && D.slow) list.push(['warn', 'heavy', 'Heavy load']);
-  if (curDark > 0.6) list.push(['info', 'night', 'Dark']);
+  if (curDark > 0.6) list.push(['info', 'night', P.adapt > 0.9 ? 'Eyes adjusted' : P.adapt > 0.15 ? 'Eyes adjusting' : 'Dark']);
   const key = list.map(l => l[0] + l[2]).join('|');
   if (cache.mood === key) return; cache.mood = key;
   $('moodles').innerHTML = list.map(([c, i, t]) => `<div class="mood ${c}"><span>${t}</span><i><svg viewBox="0 0 24 24">${MOOD_ICON[i]}</svg></i></div>`).join('');

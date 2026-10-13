@@ -28,7 +28,7 @@ function updateHUD(rdt, D) {
     { const hv = Math.round(Math.min(1, (P.bandT > 0 ? 0.7 : 0) + Math.min(1, (P.heal || 0) / 12)) * 40) / 40; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
     setT('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
-    setT('planks', String(S.planks)); setT('kills', String(run.kills)); setT('scrap', String(S.scrap));
+    setT('planks', String(S.planks)); if (cache.plFull !== (S.planks >= PLANK_MAX)) { cache.plFull = S.planks >= PLANK_MAX; $('planks').classList.toggle('full', cache.plFull); } setT('kills', String(run.kills)); setT('scrap', String(S.scrap));
     // heartbeat: faster when hurt or pinned, flat when dead
     const bpm = P.hp <= 0 ? 0 : 66 + (1 - hpF) * 90 + P.slow * 30 + (P.adr > 0 ? 25 : 0);
     ecgPhase = (ecgPhase + rdt * bpm / 60) % 1; ecgAcc += rdt * 46;

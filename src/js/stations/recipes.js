@@ -49,11 +49,14 @@ function tinkerCards() {
   if (!out.length) out.push({ ic: 'gear', group, cost: 10, title: () => 'Tinker', desc: () => 'A new mod, or a better one', why: () => 'Nothing left to fit or improve', make: () => {} });
   return out;
 }
+// the sawhorse's cards say so when your stack is close to full (PLANK_MAX, barricades/planks.js)
+const plankDesc = (n, text) => plankRoom() && plankRoom() < n ? `Only room for ${plankRoom()} more (you carry ${PLANK_MAX} at most)` : text;
+const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX}`;
 const RECIPES = {
   get bench() { return BENCH.concat(tinkerCards(), attachmentCards()); },
   saw: [
-    { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => 'Enough for one more board', why: () => '', make: () => { S.planks += 2; feed('planks', 2, 'planks'); popEl('planks'); } },
-    { ic: 'planks', cost: 8, title: () => 'Cut 6 planks', desc: () => 'Board up two whole windows', why: () => '', make: () => { S.planks += 6; feed('planks', 6, 'planks'); popEl('planks'); } },
+    { ic: 'planks', cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
+    { ic: 'planks', cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   med: [

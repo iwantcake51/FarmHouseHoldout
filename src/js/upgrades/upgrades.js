@@ -4,7 +4,7 @@ const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
 const UPG = [
   { r: 'c', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
-  { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', ap: () => S.planks += 7 },
+  { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, ap: () => addPlanks(7) },
   { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap right now.', ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Patch yourself up to full health.', can: () => P.hp < S.maxHp * 0.75, ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'A second pouch on your belt: carry 5 bandages instead of 3. It comes with two in it.', vis: 'A pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },

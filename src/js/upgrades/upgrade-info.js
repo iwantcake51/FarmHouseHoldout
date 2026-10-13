@@ -31,6 +31,26 @@ const UPG_FX = {
   'Night eyes': ['See far more at night'], 'Cat eyes': ['Nights look like dusk'],
   'Iron stomach': ['+2 health per kill', '+4 for headshot kills'], 'Bloodthirst': ['+4 health per kill', '+8 for headshot kills'], 'Vampire': ['+6 health per kill', '+12 for headshot kills']
 };
+// upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same
+// line: once you have some, the card's first chip shows your total before and after (Melee +25% → +56%) instead of
+// just the step, and the upgrade history says what it all adds up to. v reads the stat, next is what one more pick
+// makes it (the same sums as the card's ap), val writes a total out
+const xTimes = v => (Math.round(v * 10) / 10) + '×';
+const stackOf = (label, base, v, next, val) => ({ label, base, v, next, val });
+const speedStack = m => stackOf('Speed', 1, () => S.speedMul, v => v * m, v => '+' + pctUp(v) + '%');
+const STACKS = {
+  'Quick hands': stackOf('Reload time', 1, () => S.reloadMul, v => v * 0.75, v => '−' + pctDown(v) + '%'),
+  'Strong arms': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
+  'Through and through': stackOf('Pierce', 0, () => S.pierce, v => v + 1, v => '+' + v),
+  'Scavenger': stackOf('Drops', 1, () => S.dropMul, v => v * 1.5, v => '+' + pctUp(v) + '%'),
+  'Painkillers': stackOf('Regen', 0, () => S.regen, v => v + 1, v => v + ' health/s'),
+  'Running shoes': speedStack(1.1), 'Trail runners': speedStack(1.1),
+  'Plate carrier': stackOf('Damage taken', 1, () => S.dmgTaken, v => v * 0.75, v => '−' + pctDown(v) + '%'),
+  'Framing hammer': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 1.5, xTimes),
+  'Nail gun': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 2, xTimes)
+};
+// what a stacking upgrade adds up to once taken, for the history ('' when it doesn't stack on anything yet)
+const stackTotal = (name, before) => { const st = STACKS[name]; return st && Math.abs(before - st.base) > 1e-6 ? `${st.label} ${st.val(st.v())} in all` : ''; };
 // a gun's headline numbers, as the card compares them
 function gunStats(id, D) {
   return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag: D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul)), spread: D.spread || 0, head: D.headBonus || 0, range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0 };
@@ -94,5 +114,8 @@ function upgradeInfo(u, c) {
   else if (u.weaponOf) fx = weaponFx(u.weaponOf);
   else if (u.modOf) fx = modFx(u.modOf);
   else { fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true })); use = UPG_USE[c.name] || ''; }
+  // stacking on what you already have: the first chip shows the total going up
+  const st = !u.weaponOf && !u.modOf && STACKS[c.name], v = st && st.v();
+  if (st && Math.abs(v - st.base) > 1e-6) fx[0] = { t: `${st.label} ${st.val(v)} → ${st.val(st.next(v))}`, good: true };
   return { fx, use };
 }

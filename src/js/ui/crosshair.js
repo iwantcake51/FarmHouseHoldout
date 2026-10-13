@@ -2,7 +2,16 @@
 
 const projV = new V3();
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhHitEl = $('xhHit'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
-const tks = [0, 1, 2, 3].map(k => $('tk' + k));
+const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
+// the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
+// wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
+// even a tight spread reads as four brackets round the dot, never a whole circle. The dark under-stroke's arcs run a
+// little longer so it outlines each arc's ends
+function sgRing(r) {
+  const seg = 2 * Math.PI * r / 4, g = seg - Math.max(3, seg * 0.38), gs = Math.max(0.5, g - 2.4);
+  const dash = (el, gap) => { el.setAttribute('r', r); el.setAttribute('stroke-dasharray', `${(seg - gap).toFixed(2)} ${gap.toFixed(2)}`); el.setAttribute('stroke-dashoffset', (seg - gap / 2).toFixed(2)); };
+  dash(xhSgSh, gs); dash(xhSgR, g);
+}
 let gapCur = 10, lastGap = -1;
 const ARC = 2 * Math.PI * 30 * (84 / 360), M_ARC = 2 * Math.PI * 22 * (64 / 360);   // the gun's ammo arc; the melee stamina arc
 function ammoDash(n, filled) {
@@ -19,7 +28,9 @@ function updateCrosshair(rdt, D) {
     xh.style.transform = `translate(${mouseX}px,${mouseY}px)`;
     xh.classList.toggle('healing', P.bandT > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
-    $('xhTicks').style.display = D.melee ? 'none' : ''; $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
+    // shotguns get a ring the width of their spread; other guns four ticks
+    const sg = !D.melee && D.ammo === 'shells';
+    $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', !sg); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
     if (D.melee) {
       const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st';
       st.setAttribute('stroke-dasharray', `${(sd * M_ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC.toFixed(2)} 999`);
@@ -46,8 +57,8 @@ function updateCrosshair(rdt, D) {
     const target = clamp(5 + Math.tan(D.melee ? 0 : spreadOf(id)) * dpx + bloom, 5, 56);
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2;
-    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); }
-    xhSpread.style.opacity = gap > 9 ? 1 : 0;
+    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
+    xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
     let tgt = false;
     if (!D.melee) tgt = !!aimRay(mz.ox, mz.oz, mz.a, 22).z;
     else tgt = zombies.some(z => { const th = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.5 ? 0.75 : 0; return Math.hypot(z.x - P.x, z.z - P.z) < D.range + z.T.r + th && Math.abs(angDiff(Math.atan2(z.x - P.x, z.z - P.z), P.aim)) < D.arc + (th ? 0.25 : 0); });

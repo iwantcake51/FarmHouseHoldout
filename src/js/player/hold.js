@@ -188,7 +188,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (band) ANIM.sw += (0.85 - ANIM.sw) * Math.min(1, rdt * 9);
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
   ANIM.pitch = (ANIM.pitch || 0) + ((ANIM.pitchT || 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
-  const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF);
+  const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
@@ -201,7 +201,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, ck = cy ? Math.sin(cq * Math.PI) : 0;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6);
-  let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF), oz = sh ? sh.push : 0;
+  let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   if (!ak && re > 0.001) {
     if (rk === 'mag') { roll -= 0.5 * re; pitch -= 0.12 * re; yaw += 0.12 * re; oy += 0.04 * re; oz -= 0.08 * re; }
     else if (id === 'dbl') { pitch += 0.55 * re; oz -= 0.05 * re; }                       // broken open, muzzles down

@@ -41,7 +41,7 @@ function renderHistory(list, countEl) {
     const r = document.createElement('div'); r.className = 'hrow r-' + h.r;
     r.innerHTML = '<span class="hn"></span><span class="ht"></span><span class="hw"></span><span class="hd"></span>';
     r.querySelector('.hn').textContent = h.name; if (h.n > 1) { const i = document.createElement('i'); i.textContent = '\u00d7' + h.n; r.querySelector('.hn').appendChild(i); }
-    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r]; r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text;
+    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r]; r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
     el.appendChild(r);
   });
 }
@@ -59,9 +59,10 @@ function openUpgrade() {
 function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
   const u = dealt[i], c = u.shown; cardsArmed = false;
+  const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); gunGlow = 1; SFX.upgrade();
-  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm);
-    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1 }); }
+  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm), total = st ? stackTotal(c.name, before) : '';
+    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; prev.total = total; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1, total }); }
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out

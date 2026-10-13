@@ -154,10 +154,11 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   SFX.kill();
   if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * S.scrapMul);
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
-    // ammo is scarce: about half the ammo rolls come up empty
-    const r = rand(), opts = ammoTypes(), curA = gunAmmo();
-    if (r < 0.55) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5)) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts)); }
-    else dropPickup(z.x, z.z, r < 0.8 ? 'planks' : 'med');
+    // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
+    // rounds pays you back a little). Planks are the rarest roll
+    const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
+    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts)); }
+    else dropPickup(z.x, z.z, r < 0.78 ? 'planks' : 'med');
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number

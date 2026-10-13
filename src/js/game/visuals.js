@@ -5,7 +5,7 @@ function visuals(dt, rdt) {
   const D = W(curId()) || W('pistol');
   updatePlayerVisuals(dt, rdt);
   updateCamera(rdt);
-  updateDayNight(rdt);
+  updateDayNight(rdt); updateDarkEyes(dt);
   updateLightmap(rdt);
   updateZombieVisuals(dt, rdt); updateEyes(dt);
   updateCutaway(rdt);

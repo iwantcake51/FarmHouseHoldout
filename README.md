@@ -66,6 +66,9 @@ Every source file starts with a one-line comment saying what is in it.
 | --- | --- |
 | Gun damage, fire rate, magazine, reload, spread, recoil, starting ammo | `src/js/weapons/gun-stats.js` |
 | Damage drop-off with range, ammo drop amounts | `src/js/weapons/ammo.js` |
+| What zombies drop and how often (more ammo for melee kills) | `killZombie` in `src/js/zombies/damage.js` |
+| How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
+| How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
 | Gun 3D models | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
@@ -78,7 +81,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Zombie behaviour | `src/js/zombies/ai.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
 | Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
-| What the upgrade cards show (before → after chips, what an attachment is for) | `src/js/upgrades/upgrade-info.js` |
+| What the upgrade cards show (before → after chips, what an attachment is for, running totals for upgrades that stack) | `src/js/upgrades/upgrade-info.js` |
 | How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | What each station sells, and the prices | `src/js/stations/recipes.js` |
@@ -89,11 +92,11 @@ Every source file starts with a one-line comment saying what is in it.
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
-| Weapons carried on your body (thigh holster, slung on the pack, melee in the straps) and the planks on your pack | `src/js/player/stow.js` |
+| Weapons carried on your body (thigh holster, slung on the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers | `src/js/effects/puffs.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
-| Day length and night colours | `src/js/lighting/day-night.js` |
+| Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
