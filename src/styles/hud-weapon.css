@@ -9,12 +9,13 @@
 @keyframes maIn{from{opacity:0;transform:translateX(18px) rotate(-4deg)}}
 #ammoRes{font-family:var(--f-num);font-weight:600;font-size:26px;color:var(--dim)}
 /* rolling counters (ui/hud-text.js): each digit a drum spinning behind a window its own size. The window is clipped,
-   not overflow-hidden, so the digits keep their text baseline; --rh is the counter's line height */
+   not overflow-hidden, so the digits keep their text baseline; --rh is the counter's line height. The selectors are
+   doubled up so a broad rule like `.res span` on the counter's container can't reach in and lay the strip out */
 .rn{white-space:nowrap}
-.rc{display:inline-block;position:relative;clip-path:inset(0 -0.3em);font-variant-numeric:tabular-nums;line-height:var(--rh,1em);vertical-align:baseline}
-.rp{visibility:hidden}
-.rs{position:absolute;left:0;right:0;top:0;transform:translateY(calc(var(--p,0) * var(--rh,1em)))}
-.rs>span{display:block;height:var(--rh,1em);line-height:var(--rh,1em);text-align:center}
+.rn .rc{display:inline-block;position:relative;clip-path:inset(0 -0.3em);font-variant-numeric:tabular-nums;line-height:var(--rh,1em);vertical-align:baseline}
+.rc>.rp{display:inline;visibility:hidden}
+.rc>.rs{display:block;position:absolute;left:0;right:0;top:0;transform:translateY(calc(var(--p,0) * var(--rh,1em)))}
+.rc>.rs>span{display:block;height:var(--rh,1em);line-height:var(--rh,1em);text-align:center}
 #ammo{--rh:.85em}
 #rounds{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:260px;min-height:14px}
 #rounds i{display:block;width:4px;height:12px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:1.5px 1.5px 0 0}

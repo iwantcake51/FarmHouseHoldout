@@ -24,7 +24,7 @@
 .bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(5% - 1px),rgba(8,8,8,.9) calc(5% - 1px) 5%)}
 #vitals.low .bar i{background:var(--blood)}
 .res{display:flex;gap:16px;align-items:center}
-.res span{display:flex;align-items:center;gap:6px}
+.res>span{display:flex;align-items:center;gap:6px}
 .res svg{width:16px;height:16px;stroke:var(--dim);fill:none;stroke-width:1.6;stroke-linejoin:round}
 .res b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);line-height:1;transform-origin:left bottom}
 .res b.pop{animation:pop .28s ease-out}
