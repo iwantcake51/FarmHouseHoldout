@@ -2,8 +2,9 @@
 
 function equip(s) {
   if (!W8.slot[s] || W8.cur === s) return;
-  exitScope(); ANIM.sw = 1; W8.swing = 0;
-  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.15); SFX.click();
+  exitScope(); ANIM.sw = 0.35; W8.swing = 0;
+  startSwap(W8.cur, s);   // put the old one away and draw this one (player/swap.js)
+  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE); SFX.click();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
 // (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half)
@@ -15,7 +16,7 @@ function reloadSlow() {
 }
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
-  const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0) return;   // hands are busy with the bandage
+  const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;   // hands are busy with the bandage, or still drawing
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out

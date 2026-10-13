@@ -6,7 +6,7 @@ laser.visible = laserDot.visible = false;
 scene.add(laser, laserDot);
 const _lsA = new V3(), _lsB = new V3();
 function updateLaser(D) {
-  const gunOut = !scoped && state === 'play' && T('laser') > 0 && !D.melee && !P.vault && !W8.reloading;
+  const gunOut = !scoped && state === 'play' && T('laser') > 0 && !D.melee && !P.vault && !W8.reloading && !swapSt;
   laser.visible = laserDot.visible = gunOut;
   if (!gunOut) return;
   // the far end: along the bullets' line, as far as they'd go, at the height of what's under the crosshair

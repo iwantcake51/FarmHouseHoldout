@@ -170,7 +170,7 @@ const flames = [];
   const g = new THREE.Group(); g.position.set(cxw(14), 0, cxw(16)); scene.add(g);
   const b = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12, 1, true), M.barrel); b.position.y = 0.45; b.castShadow = true; g.add(b);
   [[0xff8a2a, 0.22, 0], [0xffc45a, 0.14, 0.05]].forEach(([c, r, o]) => { const f = new THREE.Mesh(new THREE.ConeGeometry(r, 0.6, 6), basic(c)); f.position.set(o, 1.1, -o); g.add(f); flames.push(f); });
-  obstacle(14, 16);
+  obstacle(14, 16, true);   // waist high, like the crates: you see and shoot over it
 }
 // ---- hanging bulbs in the house ----
 const HANG = [[cxw(19), cxw(20.5)], [cxw(23.5), cxw(23)], [cxw(21.5), cxw(19.6)]];

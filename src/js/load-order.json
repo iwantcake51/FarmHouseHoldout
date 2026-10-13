@@ -99,6 +99,7 @@
   "player/animation.js",
   "player/hold.js",
   "player/stow.js",
+  "player/swap.js",
   "effects/eye-glow.js",
   "zombies/zombie-visuals.js",
   "ui/hud.js",
