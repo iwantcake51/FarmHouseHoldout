@@ -71,9 +71,15 @@ function updateZombies(dt) {
         if (z.dead) continue;
       }
     }
+    // crowding: the one further back along the way in gives way to the one ahead of it (a fixed rank settles a tie), so
+    // two arriving at a doorway side by side don't hold each other off it forever
     for (const o2 of zombies) {
       if (o2 === z) continue; const sx = z.x - o2.x, sz = z.z - o2.z, sd = Math.hypot(sx, sz), md = z.T.r + o2.T.r;
-      if (sd < md && sd > 0.001) moveCircle(z, sx / sd * (md - sd) * 0.5, sz / sd * (md - sd) * 0.5, z.T.r);
+      if (sd < md && sd > 0.001) {
+        const oi = ci(o2.x), oj = ci(o2.z), there = inb(oi, oj) ? fl[idx(oi, oj)] : 1e9;
+        const ahead = there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
+        moveCircle(z, sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), sz / sd * (md - sd) * (ahead ? 0.9 : 0.1), z.T.r);
+      }
     }
     if (!P.vault && dp < z.T.r + 0.3 && dp > 0.001) { const push = (z.T.r + 0.3 - dp) * 0.5; moveCircle(P, dxp / dp * push, dzp / dp * push, 0.3, true); }
     if (z.hp < z.maxHp * 0.5) { z.drip -= dt; if (z.drip <= 0) { z.drip = rr(0.4, 0.9); splat(z.x + rr(-.15, .15), z.z + rr(-.15, .15), 'drop', rr(0.15, 0.3)); } }
