@@ -71,11 +71,13 @@ function tryVault() {
     twistSide = postLeft || np === cu ? 1 : -1;
   }
   const L = [-dz, dx], kind = win ? 'window' : 'fence';
-  const s0 = win ? -0.95 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1);
+  // a window starts from a short crouch back off the sill: the legs are straight, so they can only tuck up out of the
+  // wall's way while the hips are still well short of it
+  const s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1);
   // where the left hand goes down (L points to your left): on the sill's near edge, or the top rail where you cross
-  const latX = lat0 + (lat1 - lat0) * 0.3, plant = win ? new V3(C[0] + dx * -0.36 + L[0] * 0.16, 1.05, C[1] + dz * -0.36 + L[1] * 0.16) : new V3(C[0] + L[0] * (latX + 0.16), 0.8, C[1] + L[1] * (latX + 0.16));
+  const latX = lat0 + (lat1 - lat0) * 0.3, plant = win ? new V3(C[0] + dx * -0.46 + L[0] * 0.16, 1.05, C[1] + dz * -0.46 + L[1] * 0.16) : new V3(C[0] + L[0] * (latX + 0.16), 0.8, C[1] + L[1] * (latX + 0.16));
   // side: how much the jump runs across the screen (-1 left .. 1 right), which is how far the view tips with it
-  P.vault = { t: 0, pre: 0, preDur: 0.16 * S.vaultMul * (scramble ? 1.8 : 1), dur: (win ? 0.9 : 0.55) * mul, scramble, kind, fence: !win,
+  P.vault = { t: 0, pre: 0, preDur: (win ? 0.24 : 0.16) * S.vaultMul * (scramble ? 1.8 : 1), dur: (win ? 0.85 : 0.55) * mul, scramble, kind, fence: !win,
     C, L, s0, s1, lat0, lat1, twistSide, sx: P.x, sz: P.z, obs: vaultObstacle(kind, false), plant, ground: new V3(C[0] + dx * (s1 + 0.15) + L[0] * 0.14, 0.04, C[1] + dz * (s1 + 0.15) + L[1] * 0.14),
     x0: P.x, z0: P.z, x1: C[0] + dx * s1 + L[0] * lat1, z1: C[1] + dz * s1 + L[1] * lat1, face: Math.atan2(dx, dz), dx, dz, side: clamp(dx * RIGHT.x + dz * RIGHT.z, -1, 1) };
   buildVaultPlan(P.vault);

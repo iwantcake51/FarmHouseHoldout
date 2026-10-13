@@ -8,7 +8,7 @@ const VB = { hip: 0.6, torso: 0.9, front: 0.16, back: 0.36, leg: 0.56, legR: 0.1
 const VAULT_N = 48;
 // the obstacle in the side view: boxes [s0, y0, s1, y1]
 function vaultObstacle(kind, postNear) {
-  if (kind === 'window') return [[-0.52, -1, 0.52, 1.04], [-0.52, 1.86, 0.52, 9]];
+  if (kind === 'window') return [[-0.52, -1, 0.52, 1.04]];   // the sill wall; the frame overhead may be brushed by the head
   return [[-0.07, -1, 0.07, postNear ? 1.12 : 0.82]];
 }
 // is any part of the body, with its thickness, inside the obstacle or below the ground?
@@ -66,26 +66,27 @@ const VAULT_STYLE = {
     twist: [[0, 0], [0.14, 0.25], [0.3, 0.58], [0.55, 0.62], [0.75, 0.35], [0.9, 0.08], [1, 0]],
     legL: [[0, -0.13], [0.14, -0.6], [0.3, -1.35], [0.55, -1.4], [0.75, -0.75], [0.9, -0.2], [1, 0]],
     legR: [[0, 0.87], [0.14, 0.45], [0.3, -1.0], [0.55, -1.25], [0.75, -0.6], [0.9, -0.15], [1, 0]] },
-  // winded, over a fence: belly-first over the top rail with the legs dragging behind, then they drop down after you
-  fenceS: { sAbs: [[0, 0], [0.2, 0.25], [0.45, 0.8], [0.65, 1.22], [0.85, 1.6], [1, 0]],
-    y: [[0, 0.5], [0.2, 0.85], [0.4, 1.0], [0.6, 1.02], [0.8, 0.86], [0.92, 0.68], [1, 0.6]],
-    lean: [[0, 0.62], [0.2, 0.95], [0.45, 1.15], [0.65, 1.0], [0.85, 0.3], [1, 0]],
-    legL: [[0, -0.13], [0.2, 0.4], [0.45, 1.2], [0.65, 1.35], [0.85, 0.5], [1, 0]],
-    legR: [[0, 0.87], [0.2, 0.95], [0.45, 1.3], [0.65, 1.4], [0.85, 0.6], [1, 0]] },
-  // through a window: up onto the sill, a low dive along it with the legs trailing, hands down beyond the wall,
-  // then the legs swing through and you come up standing
+  // winded, over a fence: the same speed vault, just slower, lower and heavier, the hips barely turning
+  fenceS: { sAbs: [[0, 0], [0.14, 0.1], [0.28, 0.3], [0.52, 0.85], [0.76, 1.4], [1, 0]],
+    y: [[0, 0.5], [0.14, 0.82], [0.28, 1.04], [0.52, 1.08], [0.74, 0.94], [0.9, 0.68], [1, 0.6]],
+    lean: [[0, 0.5], [0.15, 0.55], [0.35, 0.45], [0.6, 0.3], [0.85, 0.05], [1, 0]],
+    twist: [[0, 0], [0.14, 0.18], [0.3, 0.42], [0.55, 0.45], [0.75, 0.25], [0.9, 0.06], [1, 0]],
+    legL: [[0, -0.13], [0.14, -0.5], [0.3, -1.25], [0.55, -1.35], [0.76, -0.7], [0.9, -0.2], [1, 0]],
+    legR: [[0, 0.87], [0.14, 0.5], [0.3, -0.9], [0.55, -1.2], [0.76, -0.55], [0.9, -0.15], [1, 0]] },
   // (window paths give s in metres, from S0 to S1, since the climb has to fit the wall)
-  window: { sAbs: [[0, 0], [0.1, 0.05], [0.18, 0.15], [0.26, 0.35], [0.42, 0.85], [0.6, 1.5], [0.76, 2.05], [1, 0]],
-    y: [[0, 0.53], [0.1, 0.82], [0.18, 1.1], [0.26, 1.25], [0.6, 1.27], [0.7, 1.2], [0.8, 1.0], [0.92, 0.7], [1, 0.6]],
-    lean: [[0, 0.25], [0.1, 0.45], [0.18, 0.95], [0.26, 1.2], [0.42, 1.42], [0.6, 1.5], [0.74, 1.9], [0.9, 0.8], [1, 0]],
-    legL: [[0, -0.3], [0.1, 0.1], [0.18, 0.5], [0.26, 0.95], [0.42, 1.45], [0.6, 1.55], [0.74, 1.95], [0.94, 0.45], [1, 0]],
-    legR: [[0, 0.7], [0.1, 0.8], [0.18, 1.0], [0.26, 1.15], [0.42, 1.5], [0.6, 1.58], [0.74, 2.0], [0.94, 0.35], [1, 0]] },
-  // winded, through a window: the same climb but slower and lower, a crawl along the sill, then a slide off the far edge
-  windowS: { sAbs: [[0, 0], [0.12, 0.05], [0.22, 0.15], [0.32, 0.35], [0.5, 0.85], [0.68, 1.5], [0.82, 2.05], [1, 0]],
-    y: [[0, 0.53], [0.12, 0.82], [0.22, 1.1], [0.32, 1.23], [0.68, 1.25], [0.76, 1.18], [0.85, 0.98], [0.95, 0.7], [1, 0.6]],
-    lean: [[0, 0.35], [0.12, 0.5], [0.22, 0.95], [0.32, 1.18], [0.5, 1.36], [0.68, 1.45], [0.8, 1.88], [0.94, 0.75], [1, 0]],
-    legL: [[0, -0.2], [0.12, 0.15], [0.22, 0.5], [0.32, 0.95], [0.5, 1.42], [0.68, 1.52], [0.8, 1.95], [0.96, 0.4], [1, 0]],
-    legR: [[0, 0.7], [0.12, 0.85], [0.22, 1.0], [0.32, 1.15], [0.5, 1.48], [0.68, 1.56], [0.8, 2.0], [0.96, 0.3], [1, 0]] }
+  // through a window: a hand on the sill, a jump straight up, knees tucked to the chest, through the frame feet first
+  // and down onto your feet on the far side
+  window: { sAbs: [[0, 0], [0.12, 0.02], [0.26, 0.08], [0.44, 0.72], [0.62, 1.7], [0.78, 2.35], [1, 0]],
+    y: [[0, 0.53], [0.12, 0.88], [0.26, 1.18], [0.44, 1.21], [0.62, 1.2], [0.78, 0.98], [0.9, 0.72], [1, 0.6]],
+    lean: [[0, 0.3], [0.12, 0.4], [0.26, 0.8], [0.44, 0.95], [0.62, 0.9], [0.78, 0.5], [0.9, 0.15], [1, 0]],
+    legL: [[0, -0.2], [0.12, -0.5], [0.26, -1.35], [0.44, -1.5], [0.62, -1.45], [0.78, -0.8], [0.9, -0.25], [1, 0]],
+    legR: [[0, 0.6], [0.12, 0.0], [0.26, -1.2], [0.44, -1.4], [0.62, -1.4], [0.78, -0.7], [0.9, -0.2], [1, 0]] },
+  // winded, through a window: the same climb, slower and lower, with a heavier drop on the far side
+  windowS: { sAbs: [[0, 0], [0.14, 0.02], [0.3, 0.08], [0.5, 0.72], [0.7, 1.7], [0.85, 2.35], [1, 0]],
+    y: [[0, 0.53], [0.14, 0.86], [0.3, 1.16], [0.5, 1.19], [0.7, 1.18], [0.85, 0.96], [0.95, 0.7], [1, 0.6]],
+    lean: [[0, 0.4], [0.14, 0.48], [0.3, 0.9], [0.5, 1.1], [0.7, 1.05], [0.85, 0.55], [0.95, 0.2], [1, 0]],
+    legL: [[0, -0.2], [0.14, -0.5], [0.3, -1.3], [0.5, -1.45], [0.7, -1.4], [0.85, -0.75], [0.95, -0.25], [1, 0]],
+    legR: [[0, 0.6], [0.14, 0.0], [0.3, -1.15], [0.5, -1.35], [0.7, -1.35], [0.85, -0.65], [0.95, -0.2], [1, 0]] }
 };
 // one angle for the next sample: from where it was, step toward its target as far as it can go without hitting
 // anything (at most `step`), so a leg that can't get past the rail yet waits tucked, then swings through; only if the
@@ -93,7 +94,8 @@ const VAULT_STYLE = {
 function stepClear(prev, target, ok, step) {
   const d = target - prev, m = Math.min(Math.abs(d), step) * Math.sign(d);
   for (let k = 4; k >= 0; k--) { const c = prev + m * k / 4; if (ok(c)) return c; }
-  const n = nearestClear(prev, ok, 0.6); return n !== null ? n : nearestClear(target, ok, 1.2);
+  // never jump to get clear: look only close by, and otherwise carry on and accept a slight overlap
+  const n = nearestClear(prev, ok, 0.2); return n !== null ? n : prev + m;
 }
 // build the plan: v.plan holds VAULT_N + 1 samples of { s, y, lean, legL, legR }
 function buildVaultPlan(v) {
@@ -125,10 +127,9 @@ function buildVaultPlan(v) {
       const q = sm[i];
       if (bodyHits(obs, q.s, q.y, q.lean, [q.legL, q.legR], null, q.twist)) {
         // keep the smoothing but lift and bend just enough again
-        const ln = nearestClear(q.lean, a => !bodyHits(obs, q.s, q.y, a, [], 'torso'), 0.6);
+        const ln = nearestClear(q.lean, a => !bodyHits(obs, q.s, q.y, a, [], 'torso'), 0.16);
         if (ln !== null) q.lean = ln;
-        for (const k of ['legL', 'legR']) { const p = nearestClear(q[k], x => !bodyHits(obs, q.s, q.y, q.lean, [x], 'legs', q.twist, k === 'legL' ? 'L' : 'R'), 0.8); if (p !== null) q[k] = p; }
-        if (bodyHits(obs, q.s, q.y, q.lean, [q.legL, q.legR], null, q.twist)) sm[i] = out[i];
+        for (const k of ['legL', 'legR']) { const p = nearestClear(q[k], x => !bodyHits(obs, q.s, q.y, q.lean, [x], 'legs', q.twist, k === 'legL' ? 'L' : 'R'), 0.16); if (p !== null) q[k] = p; }
       }
     }
     for (let i = 0; i <= VAULT_N; i++) out[i] = sm[i];

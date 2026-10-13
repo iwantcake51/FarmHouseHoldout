@@ -65,8 +65,7 @@ function vaultUpper(v, up) {
   up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
   PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat
 }
-// the left hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over; through
-// a window it then reaches down for the ground beyond the wall to come out of the dive
+// the left hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over
 const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
 function vaultReach(pm, arm, side, pt, w) {
   if (w <= 0.001) return;
@@ -78,7 +77,7 @@ function vaultReach(pm, arm, side, pt, w) {
 }
 function vaultHands(pm, v) {
   const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
-  const w1 = air ? 1 - vk(t, win ? 0.32 : 0.42, win ? 0.48 : 0.66) : vk(c, 0.3, 1), w2 = win && air ? vk(t, 0.5, 0.64) * (1 - vk(t, 0.82, 0.95)) : 0;
+  const w1 = air ? 1 - vk(t, win ? 0.4 : 0.42, win ? 0.58 : 0.66) : vk(c, 0.3, 1), w2 = 0;
   if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
   const lat = [v.L[0], v.L[1]];   // to your left
