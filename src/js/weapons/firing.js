@@ -9,7 +9,8 @@ function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
   const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
-  if (D.ammo === 'shells' && T('choke')) s *= T('choke') === 2 ? 0.49 : 0.7;
+  // a choke squeezes the pellets together, and steadies a slug even more
+  if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
   return s;

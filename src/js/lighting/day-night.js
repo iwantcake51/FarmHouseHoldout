@@ -21,7 +21,7 @@ function lightAt(h) {
 }
 // time of day: sun, ambient, window glow, the clock, bugs and mist
 function updateDayNight(rdt) {
-  const h = state === 'title' ? 18.2 : tod;
+  const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
   curDark = lightAt(h);
   if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(camTarget.x - Math.cos(a) * 20, 6 + el * 18, camTarget.z + 8); }
   else sun.position.set(camTarget.x + 10, 22, camTarget.z - 6);

@@ -29,7 +29,8 @@ const fogW = { lv: 0.3, to: 0.3, t: 20 };
 function stepAtmos(realDt) {
   const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
   WIND.value = t * 1.6;
-  motes.m.opacity = state === 'title' ? 0.35 : 0.5 * Math.max(0, day - 0.15);
+  const tb = titleBlend();
+  motes.m.opacity = mix(0.5 * Math.max(0, day - 0.15), 0.35, tb);
   if (motes.m.opacity > 0.01) {
     for (let k = 0; k < motes.seed.length; k++) {
       const q = motes.seed[k]; q.x += (0.25 + Math.sin(t * 0.3 + q.p) * 0.15) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * 0.05 * rdt; q.z += Math.cos(t * 0.4 + q.p) * 0.12 * rdt;
@@ -43,7 +44,7 @@ function stepAtmos(realDt) {
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
   // thick fog pulls the distance haze in close and tints it with the sky
   scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
-  const mo = state === 'title' ? 0.06 : (Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35));
+  const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   for (const sp of mists) {
     const u = sp.userData; sp.position.x += u.vx * rdt; sp.position.z += u.vz * rdt;
     // each patch lives a while: it thickens out of nothing, hangs, thins away, and comes back somewhere else

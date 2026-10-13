@@ -13,12 +13,9 @@ function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y
 function buildGuns() {
   recomputeEff();
   SLOTS.forEach(s => { const g = gunMeshes[s]; while (g.children.length) g.remove(g.children[0]); });
-  // body armour by tier
-  while (armorG.children.length) armorG.remove(armorG.children[0]);
+  // body armour by tier: a canvas jacket, then a vest over it, then a plate carrier (player/gear.js builds them)
   const ar = T('armor');
   shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)
-  if (ar >= 2) { box(armorG, 0.56, 0.48, 0.36, lam(0x3a3f2c), 0, 0.9, 0.01); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), -0.12, 0.85, 0.19); box(armorG, 0.19, 0.12, 0.05, lam(0x2c3022), 0.12, 0.85, 0.19); }
-  if (ar >= 3) { box(armorG, 0.44, 0.36, 0.06, GM.metal2, 0, 0.95, 0.21); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), -0.32, 1.125, 0); box(armorG, 0.16, 0.08, 0.2, lam(0x2c3022), 0.32, 1.125, 0); for (let k = 0; k < 3; k++) box(armorG, 0.1, 0.12, 0.06, lam(0x2c3022), -0.12 + k * 0.12, 0.72, 0.22); }
   const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
@@ -51,7 +48,6 @@ function buildGuns() {
     tierCtx = null;
   }
   buildGear();
-  { const only = new Set(gearParts); armorG.traverse(o => { if (o.isMesh) only.add(o); }); unfight(PM.g, { only }); }
   stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that

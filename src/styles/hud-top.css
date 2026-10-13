@@ -43,3 +43,4 @@
 .mood svg{width:18px;height:18px;stroke:var(--mc);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .mood.good{--mc:#7fae5a}.mood.warn{--mc:#d8a24a}.mood.bad{--mc:#d0432c}.mood.info{--mc:#7f9cc9}
 @keyframes moodIn{from{opacity:0;transform:translateX(10px)}}
+#scrim{transition:opacity 1.4s ease}

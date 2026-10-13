@@ -18,7 +18,7 @@ function setState(s) {
   keys.clear(); mouseDown = false;
 }
 // wipe the farm back to a fresh run: bodies, drops, debris, boards, stats, your character
-function resetRun() {
+function resetRun(keepLook) {
   zombies.forEach(z => { scene.remove(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
   ragdolls.forEach(r => { scene.remove(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0;
   gibs.forEach(g => scene.remove(g.m)); gibs.length = 0;
@@ -26,34 +26,66 @@ function resetRun() {
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } supplyT = 0;
   decals.forEach(d => { d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
-  resetBoards(); freshRun(); rollLook(); buildGuns();   // a new look for every run (player/look.js)
+  resetBoards(); freshRun(); if (!keepLook) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.stam = 1; P.exh = false; P.stamT = 9; P.spdF = 1; P.fatigued = false; P.band = 0; P.bandT = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
-  P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0;
+  P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1;
   zoomT = 1; hurtFx = 0; flowDirty = true; timeScale = 1;
   $('feed').innerHTML = ''; feedItems.length = 0;
   floats.forEach(f => f.el.remove()); floats.length = 0;
 }
-function newRun() {
-  audioInit(); resetRun();
+// soft: straight off the title, where the farm is already fresh and the survivor you see is the one you play, so the
+// camera glides down from the title shot without a cut
+function newRun(soft) {
+  audioInit(); resetRun(soft);
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   R.compile(scene, cam);
   setState('play'); beginBreak(20);
-  startIntro();   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
+  startIntro(soft);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
 }
-$('startBtn').onclick = newRun;
-$('againBtn').onclick = newRun;
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
   resetRun(); setState('title'); $('title').scrollTop = 0;
   // the HUD stops updating on the title, so clear the dying screen effects by hand
-  cv.style.filter = ''; cache.grey = null; ['hurt', 'slowmo', 'healVig', 'conc'].forEach(id => { $(id).style.opacity = 0; });
+  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'healVig', 'conc'].forEach(id => { $(id).style.opacity = 0; }); cache.redTint = null;
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
 }
-$('menuBtn').onclick = backToMenu;
-$('pMenuBtn').onclick = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } backToMenu(); };
-$('resumeBtn').onclick = () => setState('play');
+// Moving between the title and a run is never a cut: the screen you're on slides away, and wherever the farm has to be
+// reset behind your back it happens under a dip to black (#fadeVeil) that lifts once the new scene has drawn.
+let switching = false;
+const SWITCH_MS = 480;
+function veil(on) { $('fadeVeil').classList.toggle('on', on); }
+function switchScreens(dark, fn) {
+  if (switching) return; switching = true;
+  const from = $(state); if (from) from.classList.add('leaving');
+  $('title').classList.remove('arrive');
+  if (dark) veil(true);
+  setTimeout(() => {
+    if (from) from.classList.remove('leaving');
+    fn();
+    // two frames, so the new view has been drawn once before the dark lifts
+    requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); switching = false; }));
+  }, SWITCH_MS);
+}
+const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
+// start a run: off the title the menu slides away and the camera swoops down onto you; after a death it dips to black
+function enterRun() { audioInit(); const soft = state === 'title'; switchScreens(!soft, () => newRun(soft)); }
+// to the title: a dip to black, and the menu comes in piece by piece as it lifts
+function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').classList.add('arrive'); }); }
+// the pause screen fades in and out instead of snapping
+function pauseRun() { if (state !== 'play' || P.dead || switching) return; setState('paused'); }
+function resumeRun() {
+  const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
+  el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
+}
+$('startBtn').onclick = enterRun;
+$('againBtn').onclick = enterRun;
+$('menuBtn').onclick = leaveToMenu;
+$('pMenuBtn').onclick = () => { saveBest(); leaveToMenu(); };
+$('resumeBtn').onclick = resumeRun;
 $('quitBtn').onclick = () => die();
-document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !P.dead) setState('paused'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseRun(); });
+// the first look at the farm comes up out of the dark too
+requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title').classList.add('arrive'); }));
 // the run ends PZ-style: you go down where you stand, the HUD drains away, they close in, then the tally
 function startDeath() {
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;

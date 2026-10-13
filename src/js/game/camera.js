@@ -37,6 +37,7 @@ function vaultCam(rdt) {
   }
 }
 let titleSpin = 0;
+const TITLE_ZOOM = 0.8;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
 function updateCamera(rdt) {
   if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
@@ -62,7 +63,7 @@ function updateCamera(rdt) {
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? (curId() === 'hunting' && hasMod('hpscope') ? 1.35 : 1) : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
-  cam.zoom = state === 'title' ? 0.8 : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK);
+  cam.zoom = state === 'title' ? TITLE_ZOOM : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK);
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
   shake = Math.max(0, shake - rdt * 1.6);
   const sh = shake * shake * 1.2;

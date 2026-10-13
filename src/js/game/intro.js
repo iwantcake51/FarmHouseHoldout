@@ -1,12 +1,14 @@
 // The start of a run: the view glides down from the title shot onto the survivor, who gets up off one knee,
 // shakes it off and looks around, while the screen lifts out of the dark and the HUD slides in piece by piece.
 
-const INTRO = { t: -1, cam: 2.1, rise: [0.5, 1.35], look: [1.5, 2.7], fx: 0, fz: 0, z0: 0.5, told: false, stood: false };   // t < 0: not running
+const INTRO = { t: -1, cam: 2.1, rise: [0.5, 1.35], look: [1.5, 2.7], fx: 0, fz: 0, z0: 0.5, zs: 0.5, soft: false, told: false, stood: false };   // t < 0: not running
 const easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-function startIntro() {
-  // it starts pulled well back (under the dark veil, so the jump from the title view never shows)
-  Object.assign(INTRO, { t: 0, fx: camTarget.x, fz: camTarget.z, told: false, stood: false });
-  zoom = INTRO.z0;
+// soft: straight off the title, the glide starts from the title shot itself (same spot, same zoom, no tilt) and
+// there's no dark veil to come out of; otherwise it starts pulled well back under the veil, so the jump never shows
+function startIntro(soft) {
+  Object.assign(INTRO, { t: 0, fx: camTarget.x, fz: camTarget.z, told: false, stood: false, soft: !!soft, zs: soft ? TITLE_ZOOM : INTRO.z0 });
+  zoom = INTRO.zs;
+  document.body.classList.toggle('introSoft', !!soft);
   document.body.classList.remove('intro'); void document.body.offsetWidth; document.body.classList.add('intro');
   setTimeout(() => document.body.classList.remove('intro'), 3400);
 }
@@ -18,13 +20,16 @@ function tickIntro(rdt) {
   if (INTRO.t > INTRO.look[1]) INTRO.t = -1;
 }
 const introCamOn = () => INTRO.t >= 0 && INTRO.t < INTRO.cam;
-// a slight tilt that levels out as the camera arrives
-const introRoll = () => introCamOn() ? 0.07 * Math.pow(1 - clamp(INTRO.t / INTRO.cam, 0, 1), 2) : 0;
+// how much the title's look (its dusk light, motes and mist) still holds: all of it on the title, easing off over the
+// glide when a run starts straight from it, so the light comes round to the afternoon instead of snapping
+function titleBlend() { return state === 'title' ? 1 : INTRO.soft && introCamOn() ? 1 - easeIO(clamp(INTRO.t / INTRO.cam, 0, 1)) : 0; }
+// a slight tilt that levels out as the camera arrives (off the title it leans in and back out, so it never jumps)
+const introRoll = () => !introCamOn() ? 0 : INTRO.soft ? 0.05 * Math.sin(Math.PI * clamp(INTRO.t / INTRO.cam, 0, 1)) * (1 - clamp(INTRO.t / INTRO.cam, 0, 1)) : 0.07 * Math.pow(1 - clamp(INTRO.t / INTRO.cam, 0, 1), 2);
 // gx, gz is where the camera would normally follow to; by the end of the glide the two meet, so it hands over seamlessly
 function introCam(gx, gz) {
   const e = easeIO(clamp(INTRO.t / INTRO.cam, 0, 1));
   camTarget.x = INTRO.fx + (gx - INTRO.fx) * e; camTarget.z = INTRO.fz + (gz - INTRO.fz) * e;
-  zoom = INTRO.z0 + (zoomT - INTRO.z0) * e;
+  zoom = INTRO.zs + (zoomT - INTRO.zs) * e;
 }
 // how far down on one knee you still are (1 kneeling .. 0 standing); walking off hurries you up
 function introKneel(spd) {

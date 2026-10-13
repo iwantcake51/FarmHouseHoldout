@@ -29,8 +29,8 @@ const TIERS = {
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A much brighter, wider beam.', vis: 'A mounted light', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
-    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter. A choked shotgun cannot take a suppressor.', vis: 'A choke ring', ap: () => {} },
-    { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter.', vis: 'A longer choke', ap: () => {} }] },
+    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. A choked shotgun cannot take a suppressor.', vis: 'A choke ring', ap: () => {} },
+    { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter, slugs tighter still.', vis: 'A longer choke', ap: () => {} }] },
   armor: { tag: 'Body', t: [
     { r: 'c', name: 'Canvas jacket', text: '+25 max health. Heals 25 now.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
     { r: 'r', name: 'Kevlar vest', text: 'Take 25% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.75 },

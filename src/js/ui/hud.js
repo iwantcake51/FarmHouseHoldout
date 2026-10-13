@@ -8,14 +8,15 @@ function updateHUD(rdt, D) {
     if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`; sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
-    const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.45 + Math.sin(performance.now() / 260) * 0.12 : 0;
+    const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
-    // the world drains of colour as you bleed out
+    // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
     const grey = Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
+    { const rt = Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, fk = grey + ':' + blur + ':' + slow;
     if (cache.grey !== fk) {
       cache.grey = fk;
-      cv.style.filter = (grey ? `grayscale(${grey}) contrast(${(1 + grey * 0.18).toFixed(2)}) brightness(${(1 - grey * 0.12).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
+      cv.style.filter = (grey ? `grayscale(${(grey * 0.85).toFixed(2)}) contrast(${(1 + grey * 0.08).toFixed(2)}) brightness(${(1 + grey * 0.1).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
       $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }

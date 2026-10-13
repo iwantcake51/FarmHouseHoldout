@@ -16,7 +16,7 @@ const FRAG_BODY = `
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
   lmC *= mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
   float lmG = dot(lmC, vec3(0.299, 0.587, 0.114));
-  gl_FragColor.rgb = mix(vec3(lmG) * vec3(1.04, 0.98, 0.92), lmC, mix(mix(0.3, 0.62, lmS.a), 1.0, lmL));   // shadowed areas keep some colour and lean warm`;
+  gl_FragColor.rgb = mix(vec3(lmG), lmC, lmL);   // colour only where there's light: the dark goes black and white`;
 const CUT_DECL = 'uniform float uCut;\nuniform vec2 uPScr;\nuniform float uRad;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const CUT_BODY = `
   if (uCut > 0.001) {

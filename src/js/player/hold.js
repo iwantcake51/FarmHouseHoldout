@@ -120,18 +120,26 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
     pm.armR.rotation.x = 0.55; const bt = now;
     if (sh) { const w = sh.q; _fR.set(0.14, 1.04, 0.28 + sh.push + ANIM.shoveHit * 0.06); const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(0.55 * (1 - w) + rxR * w, ryR * w, 0); }
     reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(bt * 9) * 0.07, 0.9 + Math.sin(bt * 9) * 0.05, 0.26), 0, true);
-  } else if (sh) {
-    // both hands drive straight out from the chest
-    const w = sh.q, j = ANIM.shoveHit * 0.06;
-    _fR.set(0.14, 1.04, 0.28 + sh.push + j); _fL.set(-0.14, 1.04, 0.28 + sh.push + j);
-    const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(pm.armR.rotation.x * (1 - w) + rxR * w, pm.armR.rotation.y * (1 - w) + ryR * w, 0);
-    reach(pm.armL, 'L', _fL, 0, true);
-  } else if (D.two) {
-    // two-handed: the left fist closes on the handle just above the right, wherever the swing takes it
-    pm.armR.updateMatrix(); mh.updateMatrix();
-    _fL.set(0, 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
-    reach(pm.armL, 'L', _fL, 0, true);
-  } else armRest(pm.armL, 'L', 0.25 - walk * 2, 0.25);
+  } else {
+    // the left arm's own pose first: two-handed, the fist closes on the handle just above the right, wherever the
+    // swing takes it; one-handed, it hangs loose
+    if (D.two) {
+      pm.armR.updateMatrix(); mh.updateMatrix();
+      _fL.set(0, 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+      reach(pm.armL, 'L', _fL, 0, true);
+    } else armRest(pm.armL, 'L', 0.25 - walk * 2, 0.25);
+    if (sh) {
+      // a shove: both hands drive straight out from the chest, each blended in from (and back out to) where it was,
+      // so the left hand leaves the handle and comes back to it rather than jumping
+      const w = sh.q, j = ANIM.shoveHit * 0.06;
+      _fR.set(0.14, 1.04, 0.28 + sh.push + j); _fL.set(-0.14, 1.04, 0.28 + sh.push + j);
+      const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(pm.armR.rotation.x * (1 - w) + rxR * w, pm.armR.rotation.y * (1 - w) + ryR * w, pm.armR.rotation.z * (1 - w));
+      const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
+      reach(a, 'L', _fL, 0, true);
+      a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz * (1 - w));
+      a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
+    }
+  }
 }
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {

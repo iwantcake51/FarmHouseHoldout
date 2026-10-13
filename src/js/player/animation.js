@@ -160,6 +160,7 @@ function animatePlayer(dt, rdt) {
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
+  else if (state === 'title') introPose(pm, up, 1);         // and on the title you wait down on that knee
   poseHands(D, up, ph, runF, rdt, now);
   if (P.vault) vaultUpper(P.vault, up);
   pm.upper.rotation.set(up.x, up.y, up.z);

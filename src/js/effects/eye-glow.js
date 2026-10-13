@@ -16,16 +16,19 @@ const eyeFx = (() => {
   halo.frustumCulled = false; halo.renderOrder = 5; scene.add(halo);
   return { trail, pos, col, halo, hp, hc };
 })();
-const _ew = new V3(), _ev = new V3(), _et = new V3(), _en = new V3();
+const _ew = new V3(), _ev = new V3(), _et = new V3(), _en = new V3(), _eo = [];
+const eyeOwners = () => { _eo.length = 0; for (const z of zombies) _eo.push(z); for (const r of ragdolls) if (r.eyeGlow > 0.01) _eo.push(r); return _eo; };
 function updateEyes(dt) {
   const F = eyeFx, now = worldT, glow = 0.55 + 0.45 * curDark;   // brighter in the dark
   cam.getWorldDirection(_ev);
   // the halo is sized in pixels (the camera is orthographic): about 30 cm across in the world
   F.halo.material.size = 0.3 * R.domElement.height / ((cam.top - cam.bottom) / cam.zoom);
   let e = 0;
-  for (const z of zombies) {
+  // the living, and the freshly dead whose eyes are still going out (eyeGlow, zombies/zombie-visuals.js)
+  for (const z of eyeOwners()) {
     if (e >= EYE_MAX) break;
-    const eyes = z.m.eyes; if (!eyes || !z.limbs.head) { z.eyeH = null; continue; }
+    const dead = z.eyeGlow !== undefined, eyes = dead ? z.eyes : z.m.eyes;
+    if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head)) { z.eyeH = null; continue; }
     const H = z.eyeH || (z.eyeH = [[], []]);
     for (let s = 0; s < 2; s++, e++) {
       eyes[s].getWorldPosition(_ew);
@@ -33,7 +36,7 @@ function updateEyes(dt) {
       const h = H[s], cur = [_ew.x, _ew.y, _ew.z, now];
       if (h.length < 2 || now - h[1][3] >= 0.026) h.unshift(cur); else h[0] = cur;
       while (h.length > EYE_PTS || (h.length > 2 && now - h[h.length - 1][3] > EYE_TRAIL_T)) h.pop();
-      const k0 = e * EYE_PTS * 2, v = Math.min(1, z.vis * 1.6) * glow;
+      const k0 = e * EYE_PTS * 2, v = Math.min(1, z.vis * 1.6) * glow * (dead ? z.eyeGlow : 1);
       // halo
       F.hp[e * 3] = _ew.x; F.hp[e * 3 + 1] = _ew.y; F.hp[e * 3 + 2] = _ew.z; F.hc[e * 3] = EYE_GLOW.r * v * 0.9; F.hc[e * 3 + 1] = EYE_GLOW.g * v * 0.9; F.hc[e * 3 + 2] = EYE_GLOW.b * v * 0.9;
       // ribbon: thick and bright at the eye, thinning and fading toward the tail; it faces the camera

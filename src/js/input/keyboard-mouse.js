@@ -7,10 +7,10 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === ' ' || k.startsWith('arrow') || k === 'tab') e.preventDefault();
   if (state === 'upgrade' && ['1', '2', '3'].includes(k)) { pickCard(+k - 1); return; }
-  if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') setState('paused'); else if (state === 'paused') setState('play'); return; }
+  if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused') resumeRun(); return; }
   // T starts the run from the title, a new run from the death screen, and the next wave during a break
-  if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { newRun(); return; }
-  if (k === 'm' && !e.repeat && state === 'dead') { backToMenu(); return; }
+  if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
+  if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
   if (state !== 'play') return;
   if (e.repeat && k !== 'f') return;
   keys.add(k);
@@ -31,7 +31,7 @@ addEventListener('keydown', e => {
   if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, 0.6, 1.8);
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-addEventListener('blur', () => { keys.clear(); mouseDown = false; if (state === 'play' && !P.dead) setState('paused'); });
+addEventListener('blur', () => { keys.clear(); mouseDown = false; pauseRun(); });
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit(); if (e.button === 0) mouseDown = true; if (e.button === 2 && state === 'play') startAim(); });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { exitScope(); aiming = false; } });
