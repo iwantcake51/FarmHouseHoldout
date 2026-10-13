@@ -56,7 +56,7 @@ function updateCamera(rdt) {
     if (ads > 0.01) { const sk = ANIM.scopeK || 0, lean = 0.42 + 0.2 * sk, cap = 5.5 + 3 * sk; px = (aimPt.x - P.x) * lean; pz = (aimPt.z - P.z) * lean; const pl = Math.hypot(px, pz); if (pl > cap) { px *= cap / pl; pz *= cap / pl; } px *= ads; pz *= ads; }
     const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
     if (state === 'play') tickIntro(rdt);
-    if (introCamOn()) introCam(gx, gz);   // the glide in at the start of a run (game/intro.js)
+    if (introCamOn()) introCam(gx, gz, rdt);   // the glide in at the start of a run (game/intro.js)
     else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }
   }
   if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);

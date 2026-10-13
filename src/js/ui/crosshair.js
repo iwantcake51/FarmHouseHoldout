@@ -20,6 +20,12 @@ function ammoDash(n, filled) {
   const fg = filled ? Array(filled).fill(d + ' ' + g).join(' ') + ' 0 999' : '0 999';
   return [fg, Array(n).fill(d + ' ' + g).join(' ') + ' 0 999'];
 }
+// the warning under the crosshair: its numbers ("Loading 3/6", "Bandaging 40%") roll like the HUD's counters
+// (ui/hud-text.js); text with a key cap in it is just written
+function awText(aw, t) {
+  let sp = aw.firstElementChild; if (!sp || !sp.classList.contains('aw')) { aw.innerHTML = '<span class="aw"></span>'; sp = aw.firstElementChild; }
+  if (t.includes('<')) { sp._rt = sp._roll = null; sp.innerHTML = t; } else rollText(sp, t);
+}
 // the crosshair: spread ticks, ammo arc, reload ring, melee ring, stamina arc
 function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
@@ -45,7 +51,7 @@ function updateCrosshair(rdt, D) {
     { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
       const hk = band ? String(Math.round(hp * 200)) : '';
       if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.style.opacity = band ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
-    if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); aw.innerHTML = '<span class="aw">' + t + '</span>'; } }
+    if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); awText(aw, t); } }
     else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
     if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
     xhAmmo.style.display = xhAmmoBg.style.display = D.melee ? 'none' : '';
@@ -76,7 +82,7 @@ function updateCrosshair(rdt, D) {
       if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;
         aw.classList.remove('low', 'out', 'loading', 'heal'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
-        aw.innerHTML = '<span class="aw">' + txt + '</span>';
+        awText(aw, txt);
       }
     }
     let rp = 0;

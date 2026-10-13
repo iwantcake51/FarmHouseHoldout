@@ -9,7 +9,13 @@ function updateZombies(dt) {
     const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
     if (dp < nearest) nearest = dp;
     if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
-    if (z.burn > 0) { z.burn -= dt; if (z.vis > 0.3 && rand() < dt * 14) burst(z.x + rr(-.2, .2), rr(0.6, 1.5) * z.T.scale * (z.crawl ? 0.4 : 1), z.z + rr(-.2, .2), 1, 'ember', 0, 0, 0.2); z.hp -= 14 * dt; if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); continue; } }
+    // on fire (dragon's breath, incendiary rounds): flames on it while you can see it, and the fire hurts in ticks, every
+    // half second, each shown as an orange damage number like any other hit
+    if (z.burn > 0) {
+      z.burn -= dt; z.burnT = (z.burnT || 0) + dt;
+      if (z.vis > 0.3) { const s = z.T.scale; burnFx(z.x, z.z, (z.crawl ? 0.1 : 0.45) * s, (z.crawl ? 0.5 : 1.5) * s, 0.2 * s, dt); }
+      if (z.burnT >= BURN_TICK) { z.burnT -= BURN_TICK; if (burnHurt(z)) continue; }
+    } else z.burnT = 0;
     if (z.bleed > 0) { z.bleed -= dt; z.hp -= 8 * dt; if (rand() < dt * 3) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }

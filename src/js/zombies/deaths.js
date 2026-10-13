@@ -75,5 +75,5 @@ function stepRagdoll(r, dt) {
     if (Math.hypot(r.x - P.x, r.z - P.z) < 12) SFX.thud();
   }
   if (r.burn > 0 && r.stain) r.stain.char = Math.min(1, r.stain.char + dt * 0.3);   // a body that went down burning smoulders on until it's black
-  if (r.burn > 0) { r.burn -= dt; if (r.vis > 0.3 && rand() < dt * 10) burst(r.x, 0.3, r.z, 1, 'ember', 0, 0, 0.2); }
+  if (r.burn > 0) { r.burn -= dt; if (r.vis > 0.3 && r.t > 0.4) burnFx(r.x, r.z, 0.05, 0.45, 0.45 * r.s, dt * Math.min(1, r.burn)); }   // the fire dies down on the body
 }

@@ -1,6 +1,8 @@
 // Motion-blur ribbon behind melee swings.
 
 const TRAIL_N = 16, MLEN = { bat: 0.95, crowbar: 0.82, wrench: 0.72, katana: 1.08, sledge: 0.98, machete: 0.78, axe: 0.92 };
+// a blade grown by its mod's level (melee/melee-models.js) leaves a trail as long as it is
+const meleeLen = id => (MLEN[id] || 0.85) + (id === 'machete' && hasMod('longblade') ? 0.66 * (MACHETE_S[modLv('longblade')] - 1) : id === 'katana' && hasMod('folded') ? KATANA_L[modLv('folded')] - KATANA_L[0] : 0);
 const trailGeo = new THREE.BufferGeometry(), tPos = new Float32Array(TRAIL_N * 6), tAl = new Float32Array(TRAIL_N * 2);
 trailGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3));
 trailGeo.setAttribute('alpha', new THREE.BufferAttribute(tAl, 1));
@@ -23,7 +25,7 @@ function stepTrail(rdt) {
   if (D && D.melee && W8.swing > 0 && !P.dead) {
     const p = 1 - W8.swing / W8.swingDur;
     if (p > 0.12 && p < 0.75) {   // only the fast part of the swing smears
-      const g = gunMeshes.melee, L = MLEN[id] || 0.85; PM.g.updateMatrixWorld(true);
+      const g = gunMeshes.melee, L = meleeLen(id); PM.g.updateMatrixWorld(true);
       const b = (trailS.length >= TRAIL_N ? trailS.shift().b : new V3()).set(0, L * 0.4, 0), t = new V3(0, L, 0); g.localToWorld(b); g.localToWorld(t);
       trailS.push({ b, t, age: 0 }); if (trailS.length > TRAIL_N) trailS.shift();
       trailMat.uniforms.uCol.value.setHex(D.blunt ? 0xd8d2c6 : 0xeef3f6);

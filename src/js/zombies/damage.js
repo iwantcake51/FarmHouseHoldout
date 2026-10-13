@@ -82,6 +82,16 @@ function pickPart(z, rel, side, D) {
 }
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
 let critNext = false;
+// fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
+const BURN_TICK = 0.5, BURN_DMG = 7;
+function burnHurt(z) {
+  if (z.dead) return true;
+  const dmg = BURN_DMG * (S.lastStand && P.hp < S.maxHp * 0.3 ? 1.6 : 1);
+  z.hp -= dmg; z.flash = Math.max(z.flash, 0.05);
+  dmgNumber(z, dmg, false, 1.2 * z.T.scale * (z.crawl ? 0.4 : 1), false, 'burn');
+  if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); return true; }
+  return false;
+}
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   const crit = critNext; critNext = false;
   if (z.dead) return false;
@@ -134,7 +144,7 @@ function blowApart(z, dx, dz) {
 }
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
@@ -165,7 +175,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
-function dmgNumber(z, dmg, head, y, crit) {
+function dmgNumber(z, dmg, head, y, crit, kind) {
   const now = performance.now();
   if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
     z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
@@ -175,7 +185,7 @@ function dmgNumber(z, dmg, head, y, crit) {
     z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
     return;
   }
-  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : ''); num.textContent = Math.round(dmg); el.appendChild(num);
+  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : '') + (kind ? ' ' + kind : ''); num.textContent = Math.round(dmg); el.appendChild(num);
   document.body.appendChild(el);
   const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
   floats.push(f); z.dn = { el, num, f, amt: dmg, t0: now };

@@ -37,11 +37,10 @@ function recomputeEff() {
 const W = id => EFF[id];
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
 // fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
-const TUNE = { dmg: 1.1, rate: 1 / 1.1, mag: 1.15, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };
+const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };
 function tuneUp(D) {
   D.dmg *= TUNE.dmg; D.rate *= TUNE.rate;
   if (D.melee) { D.range += TUNE.reach; D.kb *= TUNE.kb; return; }
-  if (D.mag) D.mag *= TUNE.mag;
   if (D.reload) D.reload *= TUNE.reload;
   if (D.perShell) D.perShell *= TUNE.reload;
   D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too

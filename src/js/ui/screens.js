@@ -29,7 +29,7 @@ function resetRun(keepLook) {
   resetBoards(); freshRun(); if (!keepLook) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.stam = 1; P.exh = false; P.stamT = 9; P.spdF = 1; P.fatigued = false; P.band = 0; P.bandT = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1;
-  zoomT = 1; hurtFx = 0; flowDirty = true; timeScale = 1;
+  zoomT = ZOOM_MAX; hurtFx = 0; flowDirty = true; timeScale = 1;   // the intro glides in all the way to the closest zoom
   $('feed').innerHTML = ''; feedItems.length = 0;
   floats.forEach(f => f.el.remove()); floats.length = 0;
 }
@@ -92,7 +92,7 @@ function startDeath() {
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1); ANIM.deathPool = 0;
-  timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, 1.8);
+  timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands
     gg.updateMatrixWorld(true);

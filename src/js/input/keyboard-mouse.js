@@ -27,8 +27,8 @@ addEventListener('keydown', e => {
   }
   if (['1', '2', '3', '4'].includes(k)) equip(SLOTS[+k - 1]);
   if (k === 't' && phase === 'break') breakT = 0;
-  if (k === '=' || k === '+') zoomT = clamp(zoomT * 1.15, 0.6, 1.8);
-  if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, 0.6, 1.8);
+  if (k === '=' || k === '+') zoomT = clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX);
+  if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX);
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); mouseDown = false; aimHeld = false; pauseRun(); });

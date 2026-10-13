@@ -74,7 +74,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
 | What tinkering at the workbench does to a mod at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
 | Melee damage, swing speed, reach, knockback, and how many zombies a swing hits (`cleave`; without it a swing hits only the nearest) | `src/js/melee/melee-stats.js` |
-| Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
+| Melee models and mods (and how much each mod's part grows per level, `lvAt`) | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
 | Stamina cost and swing slowdown, and which zombies a swing lands on | `src/js/melee/melee.js` |
 | The green rim on zombies your melee swing would hit | `REACH_COL` in `src/js/zombies/zombie-visuals.js` |
 | Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
@@ -105,6 +105,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
+| The rolling digit counters (ammo, reserve, bandages, planks, scrap, kills, the reload text) | `rollText` / `setRoll` in `src/js/ui/hud-text.js` |
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 
 ### Adding a new gun

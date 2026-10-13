@@ -19,7 +19,8 @@ function buildGuns() {
   const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
-    const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = true);
+    // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
+    const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; tierCtx = id;
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in

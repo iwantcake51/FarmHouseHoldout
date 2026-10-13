@@ -8,8 +8,8 @@ const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
 const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18], laser: [10, 14], light: [8, 12] };
 function attachmentCards() {
-  // the gun in your hands, or your first gun if you walked up with a blade out
-  const cur = curId(), id = cur && !WEAP[cur].melee ? cur : gunsHeld()[0], D = id && WEAP[id]; if (!D) return [];
+  // the gun in your hands; with a melee weapon out the bench shows no gun upgrades at all
+  const id = curId(), D = id && WEAP[id]; if (!D || D.melee) return [];
   const out = [], group = 'Attachments · ' + D.name;
   for (const k of ['supp', 'choke', 'sight', 'laser', 'light']) {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
@@ -24,7 +24,7 @@ function attachmentCards() {
 // a tune-up is the dearest thing on the bench, and the card spells out what it does
 const TUNE_COST = 30;
 const tuneText = D => D.melee ? `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster swings, +${TUNE.reach} m reach, ${pctUp(TUNE.kb)}% more knockback`
-  : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, +${pctUp(TUNE.mag)}% magazine, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread`;
+  : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread`;
 const pctUp = m => Math.round((m - 1) * 100), pctDown = m => Math.round((1 - m) * 100);
 const BENCH = [
     { ic: 'ammo', cost: 4, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${ammoAmt(gunAmmo()) * 2} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const a = gunAmmo(); W8.reserve[a] += ammoAmt(a) * 2; feed('ammo', ammoAmt(a) * 2, AMMO_NAME[a]); } },

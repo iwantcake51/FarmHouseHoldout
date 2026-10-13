@@ -23,4 +23,4 @@ function moveScope(dx, dy) {
   if (d > max) { scopePt.x = P.x + vx / d * max; scopePt.z = P.z + vz / d * max; }
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomT = clamp(zoomT * Math.exp(-e.deltaY * 0.0012), 0.6, 1.8); }, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomT = clamp(zoomT * Math.exp(-e.deltaY * 0.0012), ZOOM_MIN, ZOOM_MAX); }, { passive: false });

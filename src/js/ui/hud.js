@@ -26,9 +26,9 @@ function updateHUD(rdt, D) {
     { const inc = Math.min(1 - hpF, (P.heal || 0) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     { const hv = Math.round(Math.min(1, (P.bandT > 0 ? 0.7 : 0) + Math.min(1, (P.heal || 0) / 12)) * 40) / 40; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
-    setT('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
+    setRoll('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
-    setT('planks', String(S.planks)); if (cache.plFull !== (S.planks >= PLANK_MAX)) { cache.plFull = S.planks >= PLANK_MAX; $('planks').classList.toggle('full', cache.plFull); } setT('kills', String(run.kills)); setT('scrap', String(S.scrap));
+    setRoll('planks', String(S.planks)); if (cache.plFull !== (S.planks >= PLANK_MAX)) { cache.plFull = S.planks >= PLANK_MAX; $('planks').classList.toggle('full', cache.plFull); } setRoll('kills', String(run.kills)); setRoll('scrap', String(S.scrap));
     // heartbeat: faster when hurt or pinned, flat when dead
     const bpm = P.hp <= 0 ? 0 : 66 + (1 - hpF) * 90 + P.slow * 30 + (P.adr > 0 ? 25 : 0);
     ecgPhase = (ecgPhase + rdt * bpm / 60) % 1; ecgAcc += rdt * 46;
@@ -39,14 +39,14 @@ function updateHUD(rdt, D) {
     setT('wName', D.name);
     const own = (W8.mods[id] || []).map(modName);
     setT('wMods', own.concat(gunExtras(id)).join(' · '));
-    setT('ammo', D.melee ? '—' : String(W8.mag[id] || 0));
+    setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0));
     { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
-    setT('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
+    setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;
-    setT('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
+    setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;
