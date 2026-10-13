@@ -16,11 +16,16 @@ function updatePlayer(dt) {
   const D0 = W(curId());
   if (P.vault) {
     const v = P.vault;
-    if (v.pre < v.preDur) { v.pre += dt; if (v.pre >= v.preDur) vaultTakeoff(v); }
-    else {
-      // eased out of the push but still moving at the end, so the landing carries on into a walk (vaultLand)
-      v.t += dt / v.dur; const t = Math.min(1, v.t), e = 0.55 * t * t * (3 - 2 * t) + 0.45 * t;
-      P.x = v.x0 + (v.x1 - v.x0) * e; P.z = v.z0 + (v.z1 - v.z0) * e;
+    if (v.pre < v.preDur) {
+      // the crouch: slide onto the jump's line at its starting spot
+      v.pre += dt; const k = smooth(clamp(v.pre / v.preDur, 0, 1)), q = v.plan[0];
+      const tx = v.C[0] + v.dx * q.s + v.L[0] * v.lat0, tz = v.C[1] + v.dz * q.s + v.L[1] * v.lat0;
+      P.x = v.sx + (tx - v.sx) * k; P.z = v.sz + (tz - v.sz) * k;
+      if (v.pre >= v.preDur) vaultTakeoff(v);
+    } else {
+      // the jump follows its plan (player/vault-plan.js), still moving at the end so the landing carries on into a walk
+      v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
+      P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
       if (v.t >= 1) { P.vault = null; vaultLand(v); }
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }

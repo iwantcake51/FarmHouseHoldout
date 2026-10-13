@@ -54,6 +54,7 @@
   "weapons/explosives.js",
   "barricades/planks.js",
   "player/vaulting.js",
+  "player/vault-plan.js",
   "stations/recipes.js",
   "stations/station-ui.js",
   "audio/audio.js",

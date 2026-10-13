@@ -43,56 +43,50 @@ function animateDeath(dt) {
 // how far through a stage: vk(t, a, b) eases from 0 to 1 as t goes from a to b
 const vk = (t, a, b) => smooth(clamp((t - a) / (b - a), 0, 1));
 function vaultPhase(v) { return { c: v.t > 0 ? 1 : smooth(clamp(v.pre / v.preDur, 0, 1)), t: Math.min(1, v.t), air: v.t > 0 }; }
-// eased keyframes [t, value] (the same easing the hands use)
-function vKeys(keys, t) { let k = 0; while (k < keys.length - 2 && keys[k + 1][0] <= t) k++; const [t0, a] = keys[k], [t1, b] = keys[k + 1]; return a + (b - a) * smooth(clamp((t - t0) / ((t1 - t0) || 1), 0, 1)); }
-// every curve starts where the crouch left off and ends at a plain standing pose, so neither the push-off nor the
-// landing (ANIM.land) jumps; a scramble keeps the body flatter, belly over the top, legs dragging behind
-const V_LEAN = [[0, 0.42], [0.18, 0.55], [0.55, 0.2], [0.8, -0.2], [1, 0]], V_LEAN_S = [[0, 0.62], [0.22, 1.0], [0.6, 0.9], [0.86, 0.15], [1, 0]];
-const V_LEGL = [[0, -0.55], [0.25, -1.45], [0.55, -1.5], [0.8, -0.55], [1, 0]], V_LEGL_S = [[0, -0.55], [0.3, -0.85], [0.62, -1.0], [0.86, -0.3], [1, 0]];
-const V_LEGR = [[0, 0.45], [0.15, 0.6], [0.4, -1.1], [0.6, -1.2], [0.85, -0.2], [1, 0]], V_LEGR_S = [[0, 0.45], [0.25, 0.75], [0.5, 0.3], [0.76, -0.55], [1, 0]];
-const HIP_Y = 0.62;   // the body tips about the hips, not the feet, so leaning over a sill lifts the legs instead of sinking the chest
+// the body's pose read off the vault's plan (player/vault-plan.js): the hips, the lean and each leg's angle. Through the
+// crouch it eases from standing into the plan's first pose. The body tips about the hips, not the feet.
 function vaultPose(pm, v) {
-  const { c, t, air } = vaultPhase(v), sc = v.scramble ? 1 : 0, fence = v.fence ? 1 : 0;
-  // height: up fast off the push, a hang over the top, and down to meet the ground; a scramble still clears the rail
-  const arc = air ? Math.sin(Math.PI * (t + 0.18 * t * (1 - t))) : 0, H = sc ? (fence ? 0.34 : 0.4) : (fence ? 0.5 : 0.62);
-  const y = arc * H - 0.1 * (air ? 1 - vk(t, 0, 0.15) : c);
-  const lean = air ? vKeys(sc ? V_LEAN_S : V_LEAN, t) : (sc ? 0.62 : 0.42) * c;
-  pm.g.rotation.x = lean;
-  // the legs swing out to one side over the sill and back under you (the hips roll with them), less over a low fence
-  const sw = air ? Math.sin(Math.PI * vk(t, 0.08, 0.92)) : 0, side = v.legSide || (v.legSide = 1);   // the legs go over to the right of the planted left hand
-  pm.lower.rotation.y = side * sw * (0.95 - fence * 0.35) * (1 - sc * 0.5);
-  pm.lower.rotation.z = side * sw * (0.42 - fence * 0.12) * (1 - sc * 0.4);
-  // knees: a split stance in the crouch, both tucked tight over the top, then down under you for the landing
-  pm.legL.rotation.x = air ? vKeys(sc ? V_LEGL_S : V_LEGL, t) : -0.55 * c;
-  pm.legR.rotation.x = air ? vKeys(sc ? V_LEGR_S : V_LEGR, t) : 0.45 * c;
-  pm.legL.rotation.z = -side * sw * 0.12; pm.legR.rotation.z = -side * sw * 0.12;
-  pm.lower.position.y = 0;
-  // keep the hips where they are as the body tips: lift and pull back the feet end
+  const { c, t, air } = vaultPhase(v), p0 = v.plan[0];
+  const q = air ? vaultAt(v, t) : { y: VB.hip + (p0.y - VB.hip) * c, lean: p0.lean * c, legL: p0.legL * c, legR: p0.legR * c };
+  pm.g.rotation.x = q.lean;
+  pm.legL.rotation.x = q.legL - q.lean; pm.legR.rotation.x = q.legR - q.lean;
+  // the hips turn so the legs swing over a fence side by side (the plan's twist); through a window there's no room
+  pm.lower.rotation.y = q.twist || 0;   // already turned to the side away from the post pm.lower.rotation.z = 0; pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.position.y = 0;
   const yw = ANIM.yaw;
-  pm.g.position.y = y + HIP_Y * (1 - Math.cos(lean));
-  pm.g.position.x -= Math.sin(yw) * HIP_Y * Math.sin(lean); pm.g.position.z -= Math.cos(yw) * HIP_Y * Math.sin(lean);
+  pm.g.position.y = q.y - VB.hip + VB.hip * (1 - Math.cos(q.lean));
+  pm.g.position.x -= Math.sin(yw) * VB.hip * Math.sin(q.lean); pm.g.position.z -= Math.cos(yw) * VB.hip * Math.sin(q.lean);
 }
-// the chest stays turned toward where you're going while the legs swing away, and the head looks for the landing
+// the chest stays turned toward where you're going while the legs swing away, and the head keeps looking ahead
 function vaultUpper(v, up) {
-  const { c, t, air } = vaultPhase(v), sw = air ? Math.sin(Math.PI * vk(t, 0.08, 0.92)) : 0;
-  up.y += -(v.legSide || 1) * sw * 0.55; up.x += air ? 0.12 * (1 - vk(t, 0.4, 0.8)) : 0.15 * c;
-  PM.head.rotation.x += air ? 0.35 * (1 - vk(t, 0.3, 0.9)) : 0.3 * c;
+  const { c, t, air } = vaultPhase(v), lean = air ? vaultAt(v, t).lean : v.plan[0].lean * c;
+  const sw = air ? vaultAt(v, t).twist || 0 : 0;
+  // the plan places the whole body, so the upper body's own lean (aiming, walking, a flinch) is held off through the jump
+  const hold = air ? 1 - vk(t, 0.88, 1) : c; up.x *= 1 - hold; up.z *= 1 - hold;
+  up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
+  PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat
 }
-// a hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over, then lets go
-const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler();
-function vaultHands(pm, v) {
-  const { c, t, air } = vaultPhase(v), w = air ? 1 - vk(t, 0.42, 0.66) : vk(c, 0.3, 1);
+// the left hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over; through
+// a window it then reaches down for the ground beyond the wall to come out of the dive
+const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
+function vaultReach(pm, arm, side, pt, w) {
   if (w <= 0.001) return;
+  pm.upper.worldToLocal(_vs.copy(pt));
+  _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
+  reach(arm, side, _vs, 0, false);
+  arm.rotation.set(_vr.x + (arm.rotation.x - _vr.x) * w, _vr.y + (arm.rotation.y - _vr.y) * w, _vr.z * (1 - w)); arm.scale.z = sc0 + (arm.scale.z - sc0) * w;
+  arm.position.lerpVectors(_vp, arm.position, w);
+}
+function vaultHands(pm, v) {
+  const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
+  const w1 = air ? 1 - vk(t, win ? 0.32 : 0.42, win ? 0.48 : 0.66) : vk(c, 0.3, 1), w2 = win && air ? vk(t, 0.5, 0.64) * (1 - vk(t, 0.82, 0.95)) : 0;
+  if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
-  const lat = new V3(v.dz, 0, -v.dx);   // to your right as you go over
-  [['L', pm.armL, -1], ['R', pm.armR, 1]].forEach(([s, arm, sd]) => {
+  const lat = [v.L[0], v.L[1]];   // to your left
+  [['L', pm.armL, 1], ['R', pm.armR, -1]].forEach(([s, arm, sd]) => {
     if (s === 'R' && !v.scramble) return;   // the gun hand stays on the gun unless you're clawing your way over
-    _vw.copy(v.plant).addScaledVector(lat, sd * (v.scramble ? 0.2 : 0.16)); _vw.y += 0.03;
-    pm.upper.worldToLocal(_vs.copy(_vw));
-    _vr.copy(arm.rotation); const sc0 = arm.scale.z, p0 = arm.position.clone();
-    reach(arm, s, _vs, 0, false);
-    arm.rotation.set(_vr.x + (arm.rotation.x - _vr.x) * w, _vr.y + (arm.rotation.y - _vr.y) * w, _vr.z * (1 - w)); arm.scale.z = sc0 + (arm.scale.z - sc0) * w;
-    arm.position.lerpVectors(p0, arm.position, w);
+    const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;   // the left hand is already set 0.16 to the left
+    _vw.copy(v.plant); _vw.x += lat[0] * dL; _vw.z += lat[1] * dL; _vw.y += 0.03; vaultReach(pm, arm, s, _vw, w1);
+    _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
   });
 }
 function animatePlayer(dt, rdt) {
