@@ -220,11 +220,11 @@ const GUN_MODELS = {
     return { front, y: 1.12, magZ: 0.78, magY: 1.07, baseMag: m.stack ? 0.4 : 0.24, slide: sl, bolts: [bc], travel: 0.08, lock: true, top: 1.17, sz: 0.66 };
   },
   // assault rifle: an M4A1, measured off side and three-quarter renders of a detailed model. The upper is slim and sits
-  // on the bore: straight sides closing in under a Picatinny rail, a round nose into the barrel nut, the forward
+  // on the bore: straight sides closing in under a Picatinny rail and running right up to the delta ring, the forward
   // assist, brass deflector and open ejection port on the shooter's right. The lower, a shade apart and split from it
   // by a seam, has its rear tower round the buffer tube, a magwell standing proud with a flared mouth, the trigger
   // guard open under the trigger, and the A2 grip with its finger rest. The stock is a round housing on the tube over
-  // a thin web, ending in a teardrop butt with a rubber pad. The delta ring meets the upper's nose; the handguard
+  // a thin web, ending in a teardrop butt with a rubber pad. The delta ring meets the upper's front; the handguard
   // (wrap-round ribs, full in the middle, tapering forward, vent holes along its belly, its top level with the rail)
   // runs to the A-frame front sight, a short barrel and an A2 birdcage. Without an optic a detachable carry handle sits
   // on the rail; with one the handle comes off and the optic sits low on the rail with a folded backup sight behind it.
@@ -249,33 +249,32 @@ const GUN_MODELS = {
     cyl(g, 0.026, 0.142, L, X, y0, 0.481, 24); ring(g, 0.031, 0.01, GM.metal2, X, y0, 0.551);                 // buffer tube and castle nut
     // ---- lower receiver (its own shade): the rear tower, the body, the front pivot lug; its magwell and flared mouth; the
     // boss round the fire-control pins; the trigger guard and trigger
-    profile(g, shp([[0.548, 1.156], [0.562, 1.156], [0.562, UB], [0.848, UB], [0.85, 1.086], [0.84, 1.072], [0.75, 1.062], [0.646, 1.062], [0.636, 1.04], [0.62, 1.03], [0.572, 1.03], [0.552, 1.045], [0.548, 1.07]]), 0.054, L, X, 0.0015);
-    profile(g, shp([[0.751, 1.075], [0.751, 1.032], [0.755, 1.025], [0.838, 1.025], [0.842, 1.032], [0.846, 1.075]]), 0.06, L, X, 0.0015);
-    profile(g, shp([[0.752, 1.036], [0.752, 1.022], [0.841, 1.022], [0.844, 1.036]]), 0.066, L, X, 0.0012);
+    profile(g, shp([[0.548, 1.156], [0.562, 1.156], [0.562, UB], [0.848, UB], [0.85, 1.086], [0.84, 1.074], [0.825, 1.068], [0.731, 1.062], [0.646, 1.062], [0.636, 1.04], [0.62, 1.03], [0.572, 1.03], [0.552, 1.045], [0.548, 1.07]]), 0.054, L, X, 0.0015);
+    profile(g, shp([[0.731, 1.075], [0.731, 1.032], [0.735, 1.025], [0.816, 1.025], [0.82, 1.032], [0.826, 1.075]]), 0.06, L, X, 0.0015);
+    profile(g, shp([[0.732, 1.036], [0.732, 1.022], [0.819, 1.022], [0.822, 1.036]]), 0.066, L, X, 0.0012);
     profile(g, shp([[0.585, 1.096], [0.668, 1.096], [0.668, 1.066], [0.585, 1.066]]), 0.0575, L, X, 0.0008);
     box(g, 0.0595, 0.0028, 0.29, GM.rubber, X, UB, 0.705);                                                    // the seam between upper and lower
     [[0.555, 1.124], [0.844, 1.088]].forEach(([z, yy]) => cyl(g, 0.0058, 0.06, GM.metal2, X, yy, z, 12).rotation.set(0, 0, Math.PI / 2));   // takedown and pivot pins
     [[0.61, 1.08], [0.652, 1.08]].forEach(([z, yy]) => cyl(g, 0.0036, 0.0595, GM.metal2, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // hammer and trigger pins
     { const sb = cyl(g, 0.009, 0.005, GM.metal2, X + 0.0295, 1.083, 0.596, 14); sb.rotation.set(0, 0, Math.PI / 2); box(g, 0.004, 0.008, 0.03, GM.metal2, X + 0.032, 1.083, 0.596).rotation.x = -0.55; }   // selector
-    box(g, 0.005, 0.028, 0.014, GM.metal2, X + 0.031, 1.074, 0.748);                                          // bolt catch
-    { const mr = cyl(g, 0.0075, 0.006, GM.metal2, X - 0.031, 1.07, 0.765, 14); mr.rotation.set(0, 0, Math.PI / 2); profile(g, shp([[0.75, 1.085], [0.78, 1.085], [0.78, 1.055], [0.75, 1.055]], [rrect(0.754, 1.059, 0.776, 1.081, 0.006)]), 0.005, L, X - 0.03, 0); }   // mag release and its fence
-    profile(g, shp([[0.644, 1.064], [0.644, 1.026], [0.652, 1.018], [0.742, 1.018], [0.75, 1.026], [0.75, 1.064]], [shp([[0.652, 1.06], [0.652, 1.027], [0.742, 1.027], [0.742, 1.06]])]), 0.012, L, X, 0.001);
-    profile(g, shp([[0.686, 1.062], [0.693, 1.062], [0.699, 1.046], [0.697, 1.034], [0.69, 1.03], [0.691, 1.044], [0.686, 1.056]]), 0.008, GM.steelDk, X, 0.0008);
+    box(g, 0.005, 0.028, 0.014, GM.metal2, X + 0.031, 1.074, 0.729);                                          // bolt catch
+    { const mr = cyl(g, 0.0075, 0.006, GM.metal2, X - 0.031, 1.07, 0.745, 14); mr.rotation.set(0, 0, Math.PI / 2); profile(g, shp([[0.73, 1.085], [0.76, 1.085], [0.76, 1.055], [0.73, 1.055]], [rrect(0.734, 1.059, 0.756, 1.081, 0.006)]), 0.005, L, X - 0.03, 0); }   // mag release and its fence
+    profile(g, shp([[0.644, 1.064], [0.644, 1.03], [0.651, 1.024], [0.71, 1.024], [0.717, 1.03], [0.717, 1.064]], [shp([[0.651, 1.06], [0.651, 1.031], [0.71, 1.031], [0.71, 1.06]])]), 0.011, L, X, 0.001);
+    profile(g, shp([[0.673, 1.062], [0.679, 1.062], [0.684, 1.049], [0.682, 1.039], [0.676, 1.036], [0.677, 1.047], [0.673, 1.056]]), 0.007, GM.steelDk, X, 0.0008);
     // ---- the A2 grip, swept back, with its finger rest, checkered sides and the cap on its base
     profile(g, shp([[0.566, 1.032], [0.646, 1.032], [0.642, 1.0], [0.632, 0.98], [0.638, 0.97], [0.626, 0.958], [0.606, 0.915], [0.594, 0.9], [0.555, 0.895], [0.528, 0.905], [0.54, 0.95], [0.556, 0.99]]), 0.044, F, X, 0.004);
     for (let k = 0; k < 4; k++) [-1, 1].forEach(sd => box(g, 0.003, 0.05, 0.004, GM.rubber, X + sd * 0.0252, 0.952, 0.565 + k * 0.012).rotation.x = 0.36);
     { const cp = box(g, 0.036, 0.006, 0.05, GM.metal2, X, 0.896, 0.562); cp.rotation.x = 0.2; }
-    // ---- the upper: slim, its sides closing in at the shoulders under the rail, a round nose into the barrel nut
-    profile(g, shp([[0.562, UB], [0.562, 1.148], [0.808, 1.148], [0.808, 1.112], [0.796, UB]]), 0.054, A, X, 0.0015);
-    xsec(g, shp([[X - 0.027, 1.146], [X + 0.027, 1.146], [X + 0.019, RB + 0.001], [X - 0.019, RB + 0.001]]), 0.564, 0.806, A, 0.001);
+    // ---- the upper: slim, its sides closing in at the shoulders under the rail, running up to the delta ring
+    profile(g, shp([[0.562, UB], [0.562, 1.148], [0.851, 1.148], [0.851, 1.112], [0.84, UB]]), 0.054, A, X, 0.0015);
+    xsec(g, shp([[X - 0.027, 1.146], [X + 0.027, 1.146], [X + 0.019, RB + 0.001], [X - 0.019, RB + 0.001]]), 0.564, 0.849, A, 0.001);
     [-1, 1].forEach(sd => box(g, 0.0014, 0.0035, 0.24, A, X + sd * 0.0278, 1.144, 0.685));                   // the ridge where the sides turn in
-    cyl(g, 0.031, 0.046, A, X, y0, 0.828, 24); cyl(g, 0.0335, 0.007, A, X, y0, 0.809, 24);                   // the nose and its step
-    xsec(g, shp([[X - 0.013, RB - 0.001], [X + 0.013, RB - 0.001], [X + 0.0165, RB + 0.004], [X + 0.0165, RB + 0.006], [X + 0.0145, RT], [X - 0.0145, RT], [X - 0.0165, RB + 0.006], [X - 0.0165, RB + 0.004]]), 0.566, 0.806, GM.rail, 0.0006);
-    for (let k = 0; k < 15; k++) box(g, 0.034, 0.0034, 0.007, GM.rubber, X, RT - 0.0011, 0.575 + k * 0.0165);   // the rail's cross slots
+    xsec(g, shp([[X - 0.013, RB - 0.001], [X + 0.013, RB - 0.001], [X + 0.0165, RB + 0.004], [X + 0.0165, RB + 0.006], [X + 0.0145, RT], [X - 0.0145, RT], [X - 0.0165, RB + 0.006], [X - 0.0165, RB + 0.004]]), 0.566, 0.848, GM.rail, 0.0006);
+    for (let k = 0; k < 17; k++) box(g, 0.034, 0.0034, 0.007, GM.rubber, X, RT - 0.0011, 0.575 + k * 0.0165);   // the rail's cross slots
     // charging handle and latch; the raised band round the port, the port with the bolt carrier in it, the dust cover
     // swung down, the brass deflector and the forward assist
     box(g, 0.05, 0.009, 0.026, GM.metal2, X, RB + 0.004, 0.556); box(g, 0.011, 0.008, 0.018, GM.metal2, X + 0.028, RB + 0.004, 0.562);
-    profile(g, shp([[0.652, 1.146], [0.77, 1.146], [0.77, 1.106], [0.652, 1.106]]), 0.0565, A, X, 0.0008);
+    profile(g, shp([[0.652, 1.146], [0.77, 1.146], [0.77, 1.106], [0.652, 1.106]]), 0.006, A, X - 0.0262, 0.0008);   // the raised band round the port, on its side only
     box(g, 0.0024, 0.03, 0.106, GM.rubber, X - 0.0293, 1.128, 0.71);
     const bc = box(g, 0.0026, 0.02, 0.082, GM.steel, X - 0.0303, 1.128, 0.708);
     box(g, 0.003, 0.011, 0.1, A, X - 0.032, 1.1065, 0.71).rotation.z = -0.9;
@@ -300,7 +299,7 @@ const GUN_MODELS = {
       // with an optic, a folded backup sight at the back of the rail
       box(g, 0.03, 0.007, 0.034, A, X, RT + 0.0035, 0.578); box(g, 0.024, 0.005, 0.028, GM.metal2, X, RT + 0.0095, 0.576).rotation.x = -0.08;
     }
-    // ---- the delta ring against the upper's nose; the handguard: full in the middle, tapering forward, shallow crisp ribs
+    // ---- the delta ring against the upper; the handguard: full in the middle, tapering forward, shallow crisp ribs
     // wrapped round it and vent holes along its belly; its cap
     cyl(g, HR + 0.0015, 0.026, A, X, hy, 0.863, 28); ring(g, HR - 0.0005, 0.005, GM.metal2, X, hy, 0.8785).geometry = new THREE.CylinderGeometry(HR - 0.0005, HR - 0.0005, 0.005, 28);
     { const z0 = 0.876, z1 = 1.12, n = 13, base = z => { const t = (z - z0) / (z1 - z0); return HR - 0.0012 - 0.004 * t + 0.0025 * Math.sin(Math.PI * t); }, rib = 0.0015, pts = [[0.02, z0], [base(z0), z0]];
@@ -333,7 +332,7 @@ const GUN_MODELS = {
     // ---- the magazine (in the mag group, so the reload can drop it): a 30-round STANAG, straight under the well and then
     // curving forward with its stamped ribs following; a 40-round polymer mag, longer and more curved, with waffle
     // panels; or a drum lying along the gun (bigger for the top tier)
-    const mz = 0.7945, mtop = 1.024;
+    const mz = 0.7755, mtop = 1.024;
     if (mt <= 1) {
       const ext = mt === 1, d = 0.087, w = 0.048, R = ext ? 0.48 : 0.4, M = bentMag(mz, mtop, ext ? 0.04 : 0.045, ext ? 0.17 : 0.115, R), Ln = M.len;
       profile(mg, M.shape(R - d / 2, R + d / 2, 0, Ln, 0.06), w, ext ? F : GM.magAl, X, 0.003);
