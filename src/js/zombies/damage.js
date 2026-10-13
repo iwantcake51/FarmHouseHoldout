@@ -15,7 +15,9 @@ function sever(z, part, dx, dz, blast) {
   z.limbs[part] = false;
   const mesh = z.m[part], wp = new V3(), wq = new THREE.Quaternion(), ws = new V3();
   mesh.getWorldPosition(wp); mesh.getWorldQuaternion(wq); mesh.getWorldScale(ws);
-  mesh.parent.remove(mesh); mesh.children.filter(c => c.userData.isOutline).forEach(c => mesh.remove(c)); mesh.material = relit(mesh.material); mesh.material.opacity = 1; mesh.material.transparent = false; scene.add(mesh); mesh.traverse(o => { o.customDepthMaterial = undefined; });
+  mesh.parent.remove(mesh); mesh.children.filter(c => c.userData.isOutline).forEach(c => mesh.remove(c));
+  mesh.traverse(o => { if (!o.isMesh || o.userData.isOutline) return; o.customDepthMaterial = undefined; if (z.fade) z.fade = z.fade.filter(mt => mt !== o.material); if (o.material.userData.bloodOf) { o.material.opacity = 1; o.material.transparent = false; o.material.depthWrite = true; o.material.colorWrite = true; } else { o.material = relit(o.material); o.material.opacity = 1; o.material.transparent = false; } });
+  bloodZombie(z, 0.12); scene.add(mesh);
   mesh.position.copy(wp); mesh.quaternion.copy(wq); mesh.scale.copy(ws);
   gibs.push({ m: mesh, vx: dx * rr(2, 4.5) + rr(-1.2, 1.2), vy: rr(2.5, 4.5), vz: dz * rr(2, 4.5) + rr(-1.2, 1.2), spin: rr(6, 14), life: 9, landed: false });
   z.spurts.push({ part, t: 1.4 });
@@ -31,6 +33,7 @@ function sever(z, part, dx, dz, blast) {
 // down the middle by clamping its corners to the cut) falls away to its own side with the raw face of the cut showing,
 // and the body goes down without it
 const CUT_M = [lam(0x7a1410), lam(0x4e0b08), lam(0xc9b8a0)], DEAD_EYE = lam(0x2e1612);
+CUT_M.concat(DEAD_EYE).forEach(m => { m.userData.mobile = true; });
 function splitHead(z, dx, dz) {
   const head = z.m.head; if (!head || !z.limbs.head) return false;
   z.limbs.head = false;
@@ -47,8 +50,12 @@ function splitHead(z, dx, dz) {
       for (let i = 0; i < a.length; i += 3) { if (a[i] * sd > 0.0005) any = true; a[i] = sd > 0 ? Math.max(0.001, a[i]) : Math.min(-0.001, a[i]); }
       if (!any) { g.dispose(); return; }
       g.computeVertexNormals();
-      const om = o.material, mt = o.material.isMeshBasicMaterial ? DEAD_EYE : mats.get(om) || (mats.set(om, relit(om)), mats.get(om));
-      mt.opacity = 1; mt.transparent = false;
+      const om = o.material, st = om.userData.bloodOf && z.stain;
+      let mt;
+      if (om.isMeshBasicMaterial) mt = DEAD_EYE;
+      else if (st) { mt = stainMat(om.userData.bloodOf, head, head, z.stain.u, 0, 5); z.stain.list.push([om.userData.bloodOf, mt]); }   // the pieces are in the head's own frame now
+      else mt = mats.get(om) || (mats.set(om, relit(om)), mats.get(om));
+      mt.opacity = 1; mt.transparent = false; mt.userData.mobile = true;
       const m = new THREE.Mesh(g, mt); m.castShadow = true; half.add(m);
     });
     // the cut face: raw red, darker in the middle, a pale rim of skull round it
@@ -56,7 +63,7 @@ function splitHead(z, dx, dz) {
     scene.add(half);
     gibs.push({ m: half, vx: across.x * sd * rr(1.1, 1.8) + dx * rr(0.6, 1.4), vy: rr(1.6, 2.6), vz: across.z * sd * rr(1.1, 1.8) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
   });
-  head.parent.remove(head);
+  head.parent.remove(head); bloodZombie(z, 0.25);
   z.spurts.push({ part: 'head', t: 1.8 });
   burst(wp.x, wp.y, wp.z, 18, 'blood', dx, dz, 3.6); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', across.x, across.z, 2.4); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', -across.x, -across.z, 2.4);
   spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7)); splat(wp.x, wp.z, 'pool', 0.9);
@@ -85,6 +92,8 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   const dealt = dmg * (part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
+  bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
+  for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
   // brutes shrug hits off: no stagger, no knockback
   if (z.type !== 'brute') { z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18; z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
@@ -125,6 +134,7 @@ function blowApart(z, dx, dz) {
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);

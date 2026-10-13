@@ -41,7 +41,7 @@
   "effects/muzzle-flash.js",
   "effects/smoke.js",
   "effects/tracers.js",
-  "effects/blood-decals.js",
+  "effects/blood-map.js",
   "effects/particles.js",
   "effects/puffs.js",
   "pickups/pickups.js",

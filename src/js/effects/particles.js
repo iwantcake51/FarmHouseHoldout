@@ -5,8 +5,45 @@ const PG = new THREE.BoxGeometry(0.07, 0.07, 0.07);
 const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836) };
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
 let pIdx = 0;
-// dust, sparks, smoke and embers are soft sprites now (effects/puffs.js); blood and grit stay as little tumbling bits
+Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
+// blood droplets: smooth beads in a few sizes (a few heavy drops among a fine spray), drawn out along the way they're
+// flying and slowed by the air (the fine ones more), shrinking a little as they go. Where one comes down it leaves its
+// stain in the farm's blood map (effects/blood-map.js): a drop and its spatter on the ground, or partway up a wall,
+// a fence post or a trunk if it hits that first.
+const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_M = [lam(0x6e0f0a), lam(0x521009), lam(0x84160f)], _dz = new V3(0, 0, 1), _dv = new V3();
+DROP_M.forEach(m => { m.userData.mobile = true; });
+const drops = [];
+for (let k = 0; k < 380; k++) { const m = new THREE.Mesh(DROP_G, DROP_M[k % 3]); m.visible = false; scene.add(m); drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
+let dropIdx = 0;
+function bloodDrops(x, y, z, n, dirx, dirz, force) {
+  for (let k = 0, c = Math.max(1, Math.round(n * 1.8)); k < c; k++) {
+    const d = drops[dropIdx = (dropIdx + 1) % drops.length], big = rand() < 0.22, f = (force || 2) * (big ? rr(0.3, 0.9) : rr(0.5, 1.45));
+    d.r = big ? rr(0.02, 0.036) : rr(0.007, 0.017);
+    d.vx = (dirx || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vz = (dirz || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vy = rr(0.5, 3.1) * (big ? 0.8 : 1);
+    d.life = 2.6; d.m.position.set(x + rr(-0.05, 0.05), y + rr(-0.05, 0.05), z + rr(-0.05, 0.05)); d.m.scale.setScalar(d.r); d.m.visible = true;
+  }
+}
+function stepDrops(dt) {
+  if (dt <= 0) return;
+  for (const d of drops) {
+    if (d.life <= 0) continue; d.life -= dt;
+    const m = d.m, drag = Math.exp(-dt * (0.012 / d.r) * 0.9);
+    d.vx *= drag; d.vz *= drag; d.vy = d.vy * drag - 13 * dt;
+    m.position.x += d.vx * dt; m.position.y += d.vy * dt; m.position.z += d.vz * dt;
+    const p = m.position, sp = Math.hypot(d.vx, d.vy, d.vz);
+    // into a wall, a post or a trunk on the way: it splashes there, as high as it was
+    if (p.y < 2.4 && bulletBlocked(p.x, p.z)) { splat(p.x - d.vx * dt, p.z - d.vz * dt, 'drop', 0.08 + d.r * 7, undefined, 0, p.y + 0.15); d.life = 0; }
+    else if (p.y <= 0.015) { if (d.r > 0.012 || rand() < 0.5) splat(p.x, p.z, 'drop', 0.06 + d.r * 7); d.life = 0; }
+    if (d.life <= 0) { m.visible = false; continue; }
+    if (sp > 0.05) { _dv.set(d.vx / sp, d.vy / sp, d.vz / sp); m.quaternion.setFromUnitVectors(_dz, _dv); }
+    const sh = Math.max(0.55, Math.min(1, d.life / 1.2)) * d.r;
+    m.scale.set(sh, sh, sh * (1 + Math.min(2.2, sp * 0.16)));
+  }
+}
+// dust, sparks, smoke and embers are soft sprites (effects/puffs.js), blood comes out as droplets, and grit stays as
+// little tumbling bits
 function burst(x, y, z, n, kind, dirx, dirz, force) {
+  if (kind === 'blood') return bloodDrops(x, y, z, n, dirx, dirz, force);
   if (kind === 'dust') return dustBurst(x, y, z, n, dirx, dirz, force);
   if (kind === 'spark') return sparkBurst(x, y, z, n, dirx, dirz, force);
   if (kind === 'smoke') { for (let k = 0; k < n; k++) fx('smoke', x + rr(-0.3, 0.3), y + rr(0, 0.3), z + rr(-0.3, 0.3), rr(-0.8, 0.8), rr(0.3, 1.2), rr(-0.8, 0.8), rr(0.3, 0.5), rr(1.2, 2), rr(1.4, 2.4), rr(0.3, 0.45)); return; }
@@ -41,8 +78,9 @@ function stepParticles(dt) {
     if (p.life < 0.4) m.scale.setScalar(Math.max(0.01, p.life / 0.4) * (p.kind === 'smoke' ? 3 : 1));
     if (p.life <= 0) m.visible = false;
   }
+  stepDrops(dt);
   const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but your own blood pool keeps spreading
-  for (const d of decals) if (d.m.visible && d.t < d.dur) { d.t += gdt; const k = Math.min(1, d.t / d.dur), e = 1 - Math.pow(1 - k, 3); d.m.scale.set(d.s * (0.25 + 0.75 * e), d.s * (0.25 + 0.75 * e), 1); }
+  stepBloodMap(gdt);   // new splashes into the farm's blood map, pools spreading (effects/blood-map.js)
   for (let k = gibs.length - 1; k >= 0; k--) {
     const g = gibs[k]; g.life -= dt;
     if (!g.landed) {

@@ -44,7 +44,8 @@ function buildGuns() {
     if (D.melee) MUZ[s] = build(g);
     else if (D.akimbo) { const a = hold(AKX - X, 'R'), b = hold(-AKX - X, 'L'); MUZ[s] = build(a); build(b); HOLDS[s] = { R: a, L: b }; }
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
-    g.userData.blood = bloodWeapon(D.melee ? g : HOLDS[s].R, !!D.melee); g.userData.bloodId = id;
+    g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
+    stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
   buildGear();
