@@ -67,21 +67,14 @@ function renderSlots() {
   $('slots').innerHTML = SLOTS.map((s, i) => `<span class="${W8.cur === s ? 'on' : ''} ${W8.slot[s] ? '' : 'lock'}"><em>${i + 1}</em>${W8.slot[s] ? WEAP[W8.slot[s]].short : '—'}</span>`).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts
-const FEED_ICON = {
-  scrap: '<path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><circle cx="12" cy="12" r="3.2"/>',
-  planks: '<path d="M3 8l17-4 1 4-17 4zM3 15l17-4 1 4-17 4z"/>',
-  ammo: '<path d="M7 21V10l2.5-6L12 10v11zM13 21V10l2.5-6L18 10v11z"/>',
-  med: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
-  supply: '<path d="M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8"/>',
-  gear: '<path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 14.4 7.2 16.9l.9-5.4L4.2 7.7l5.4-.8z"/>'
-};
+const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
 const feedItems = [];
 function feed(kind, amount, label) {
   const now = performance.now();
   const ex = feedItems.find(f => f.kind === kind && f.label === label && now - f.t < 2600 && amount);
   if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; ex.el.classList.remove('bump'); void ex.el.offsetWidth; ex.el.classList.add('bump'); return; }
   const el = document.createElement('div'); el.className = 'fd ' + kind;
-  el.innerHTML = `<svg viewBox="0 0 24 24">${FEED_ICON[kind] || FEED_ICON.gear}</svg>${amount ? '<b></b>' : ''}<span></span>`;
+  el.innerHTML = `<svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg>${amount ? '<b></b>' : ''}<span></span>`;
   if (amount) el.querySelector('b').textContent = '+' + amount;
   el.querySelector('span').textContent = label;
   $('feed').appendChild(el); feedItems.push({ kind, label, amount, t: now, el });

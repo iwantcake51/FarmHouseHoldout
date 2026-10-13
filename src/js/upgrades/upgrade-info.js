@@ -19,7 +19,7 @@ const UPG_USE = {
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Bandages 3 → 5', '+2 bandages'],
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +40%', 'Recovers 2× sooner', 'Refills 50% faster'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier', 'Any missing ones at tier 1'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health', 'Slowdown when hit −85%'], 'Bullet time': ['Kills can slow time'],
@@ -53,18 +53,21 @@ const STACKS = {
 const stackTotal = (name, before) => { const st = STACKS[name]; return st && Math.abs(before - st.base) > 1e-6 ? `${st.label} ${st.val(st.v())} in all` : ''; };
 // a gun's headline numbers, as the card compares them
 function gunStats(id, D) {
-  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag: D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul)), spread: D.spread || 0, head: D.headBonus || 0, range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0 };
+  const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
+  // a reload from empty: shell by shell (two or three a go with a speed loader), or one mag change
+  const reload = D.melee ? 0 : (D.perShell ? Math.ceil(mag / (D.loadN || 1)) * D.perShell + 0.12 : D.reload || 0) * S.reloadMul;
+  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: D.spread || 0, head: D.headBonus || 0, range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change
 function chip(label, a, b, higherIsBetter, fmt) {
   if (Math.abs(a - b) < 1e-6) return null;
   return { t: `${label} ${fmt(a)} → ${fmt(b)}`, good: (b > a) === higherIsBetter };
 }
-const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => (v * 57.3).toFixed(1) + '°';
+const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => { const d = v * 57.3; return d.toFixed(d < 2 ? 2 : 1) + '°'; };
 // damage is judged per shot (pellets included) but written per hit, e.g. 15×8 → 17×9
 function dmgChip(a, b) { const ta = a.dmg * a.pel, tb = b.dmg * b.pel; return Math.abs(ta - tb) < 1e-6 ? null : { t: `DMG ${fmtDmg(a)} → ${fmtDmg(b)}`, good: tb > ta }; }
 function compareFx(a, b) {
-  return [dmgChip(a, b), chip('RATE', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('MAG', a.mag, b.mag, true, fmt0),
+  return [dmgChip(a, b), chip(a.mag ? 'RATE' : 'SWINGS', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('MAG', a.mag, b.mag, true, fmt0), chip('RELOAD', a.reload, b.reload, false, v => fmt1(v) + ' s'),
     chip('SPREAD', a.spread, b.spread, false, fmtDeg), chip('HEADSHOTS', a.head * 100, b.head * 100, true, v => '+' + Math.round(v) + '%')].filter(Boolean);
 }
 // mods that add a feature rather than a number
@@ -83,6 +86,8 @@ function tierFx(id, k) {
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
+  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : `${n + 2} shells a go`, good: true });
+  if (k === 'sight' && n === 2) fx.push({ t: 'Zooms in, crits at range', good: true });
   return fx;
 }
 // a new weapon against the one it would replace in that slot
@@ -96,16 +101,40 @@ function weaponFx(id) {
   if (!cur) return [{ t: 'DMG ' + fmtDmg(b), good: true }, { t: 'RATE ' + fmt1(b.rate) + '/s', good: true }, { t: 'MAG ' + b.mag, good: true }];
   return compareFx(gunStats(cur, W(cur)), b);
 }
+// a melee weapon that only hit the nearest zombie and now sweeps through more (reachCleave, melee/melee-stats.js)
+const multiHit = (D0, D1) => (D0.cleave || 1) < 2 && (D1.cleave || 1) >= 2 ? { t: `+ Multi-hit: ${D1.cleave} at once`, good: true } : null;
 // a mod applied to a copy of the gun's current numbers
 function modFx(mid) {
   const m = MODS[mid], D0 = W(m.w); if (!D0) return [];
-  const D1 = Object.assign({}, D0); m.stat(D1);
+  const D1 = Object.assign({}, D0); m.stat(D1); reachCleave(D1);
   const fx = compareFx(gunStats(m.w, D0), gunStats(m.w, D1));
   for (const k in MOD_FEATURE) if (D1[k] && D1[k] !== D0[k]) fx.push({ t: MOD_FEATURE[k], good: true });
   if (D1.range > (D0.range || 0)) fx.push({ t: `REACH ${(D0.range || 0).toFixed(2)} → ${D1.range.toFixed(2)} m`, good: true });
-  if (D0.melee) { const t = chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
+  if (D0.melee) { const t = multiHit(D0, D1) || chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
   // a longer barrel: how far out it keeps its full damage (weapons/ammo.js)
   const F = FALLOFF[m.w]; if (F && (D1.reach || 1) !== (D0.reach || 1)) fx.push(chip('FULL DMG TO', F[0] * (D0.reach || 1), F[0] * D1.reach, true, v => v.toFixed(1) + ' m'));
+  return fx;
+}
+// a mod you have, made one level better (weapons/mod-levels.js), against how it is now
+function improveFx(id, m) {
+  const D0 = W(id), D1 = Object.assign({}, D0); MOD_UP[m].up(D1); reachCleave(D1);
+  const fx = compareFx(gunStats(id, D0), gunStats(id, D1));
+  if (D1.range > (D0.range || 0)) fx.push({ t: `REACH ${(D0.range || 0).toFixed(2)} → ${D1.range.toFixed(2)} m`, good: true });
+  if (D0.melee) { const t = multiHit(D0, D1) || chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
+  if ((D1.burst || 0) > (D0.burst || 0)) fx.push({ t: `BURST ${D0.burst} → ${D1.burst}`, good: true });
+  if ((D1.pierce || 0) > (D0.pierce || 0)) fx.push({ t: `PIERCE ${D0.pierce || 0} → ${D1.pierce}`, good: true });
+  if ((D1.critC || 0) > (D0.critC || 0)) fx.push({ t: `CRITS ${Math.round(D0.critC * 100)}% → ${Math.round(D1.critC * 100)}%`, good: true });
+  if ((D1.explode || 0) > (D0.explode || 0)) fx.push({ t: 'Bigger blasts', good: true });
+  if ((D1.glRecharge || 0) && D1.glRecharge < D0.glRecharge) fx.push({ t: `GRENADE ${fmt1(D0.glRecharge)} → ${fmt1(D1.glRecharge)} s`, good: true });
+  const F = FALLOFF[id]; if (F && (D1.reach || 1) !== (D0.reach || 1)) fx.push(chip('FULL DMG TO', F[0] * (D0.reach || 1), F[0] * D1.reach, true, v => v.toFixed(1) + ' m'));
+  return fx;
+}
+// a workbench tune-up (TUNE, game/run-state.js) against the weapon as it is
+function tuneFx(id) {
+  if (W8.tune[id]) return [];
+  W8.tune[id] = 1; recomputeEff(); const b = gunStats(id, W(id)), Rb = W(id).range; W8.tune[id] = 0; recomputeEff();
+  const D0 = W(id), fx = compareFx(gunStats(id, D0), b);
+  if (D0.melee && Rb > D0.range) fx.push({ t: `REACH ${D0.range.toFixed(2)} → ${Rb.toFixed(2)} m`, good: true });
   return fx;
 }
 // everything the card shows besides its text: chips and a "what it's for" line

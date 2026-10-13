@@ -3,7 +3,7 @@
 // ---- scope: hold right click with a scoped rifle ----
 let scoped = false, zoomBeforeScope = 1;
 const scopePt = new V3();
-function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && (id === 'hunting' || ((D.slot === 'long' || D.slot === 'auto') && T('sight') >= 3)); }
+function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && (D.slot === 'long' || D.slot === 'auto') && (T('sight') >= 3 || (id === 'hunting' && hasMod('hpscope'))); }
 function enterScope() {
   if (scoped || P.vault || state !== 'play') return;
   scoped = true; zoomBeforeScope = zoomT; zoomT = curId() === 'hunting' && hasMod('hpscope') ? 3.1 : 2.4;

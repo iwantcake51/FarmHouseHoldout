@@ -7,7 +7,9 @@ const stamCost = D => stamUse(D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 
 // a swing that meets nothing costs only part of that (charged as it starts); the rest is paid when it lands on something
 const SWING_AIR = 0.55;
 // Iron lungs: a bigger tank, so everything costs less of it
-function stamUse(c) { return c / (S.lungs ? 1.4 : 1); }
+function stamUse(c) { return c / (S.lungs ? LUNGS.tank : 1); }
+// Iron lungs: how much bigger the tank, the breather before it comes back (seconds) and how much faster it refills
+const LUNGS = { tank: 1.25, wait: 0.4, refill: 1.25 };
 // who a swing would land on right now: every zombie in reach and in front of you (or through the gaps in a boarded
 // opening you're standing at), nearest first. The big two-handers cleave through up to D.cleave of them; everything
 // else connects with the nearest one only. The swing and the green reach rim (zombies/zombie-visuals.js) both use it.
@@ -37,8 +39,8 @@ function meleeHit() {
     let hit = false;
     for (const { z, d, dx, dz } of meleeTargets(D).slice()) {
       const r = rand(), part = r < (D.style === 'chop' ? 0.38 : 0.22) + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
-      const weak = W8.tired ? 0.55 : 1;
-      hurtZombie(z, D.dmg * S.meleeMul * weak, dx / (d || 1), dz / (d || 1), D.kb * weak, id, part); hit = true;
+      // winded, a swing is slower and shoves them back less, but it hits just as hard
+      hurtZombie(z, D.dmg * S.meleeMul, dx / (d || 1), dz / (d || 1), D.kb * (W8.tired ? 0.55 : 1), id, part); hit = true;
     }
     if (hit) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR)); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side

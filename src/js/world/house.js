@@ -66,7 +66,7 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     });
     [0.62, -0.62].forEach(y => box(leaf, 0.035, 0.12, 0.06, dm.brass, -0.41, y, 0));   // hinges
     unfight(g);   // pull apart the trim's flush faces
-    walls.push({ faces, cut });
+    walls.push({ faces, cut, k: idx(i, j) });
   } else {
     if (!kind) { box(g, 1, 2.3, 1, mats.wall, 0, 1.25, 0); clap(0.22, 2.4); }
     else {
@@ -81,7 +81,7 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
       box(g, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(1.9, 2.4); box(g, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
     }
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
-    walls.push({ faces, cut });
+    walls.push({ faces, cut, k: idx(i, j) });
   }
   cell[idx(i, j)] = kind ? OPEN : WALL;
   if (kind) {

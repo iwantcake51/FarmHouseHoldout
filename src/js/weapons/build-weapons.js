@@ -60,7 +60,7 @@ function gunExtras(id) {
   if (!D) return out;
   if (W8.tune && W8.tune[id]) out.push('Tuned');
   if (D.melee) return out;
-  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
+  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
   if (S.pierce) out.push('Pierce ' + S.pierce);
   if (S.att.fire) out.push('Incendiary');
   if (S.att.bayonet && D.slot === 'long') out.push('Bayonet');

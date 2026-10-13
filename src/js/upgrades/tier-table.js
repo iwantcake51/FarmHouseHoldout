@@ -15,21 +15,26 @@ const TIERS = {
     { r: 'r', name: 'Drum magazines', text: 'Twice the stock capacity.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', text: 'Close to three times stock capacity.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Oil-filter can', text: 'A homemade can: quieter, +10% damage. Not on choked shotguns.', vis: 'An oil filter on the muzzle', ap: () => {} },
+    { r: 'u', name: 'Oil-filter can', text: 'A homemade can: quieter, +10% damage. It takes the muzzle: no choke, compensator or ported barrel with it.', vis: 'An oil filter on the muzzle', ap: () => {} },
     { r: 'r', name: 'Suppressor', text: 'A proper can: +20% damage, very quiet.', vis: 'A long steel can', ap: () => {} },
     { r: 'e', name: 'Heavy-duty suppressor', text: '+30% damage and bullets go through one more zombie.', vis: 'A thick, long can', ap: () => S.pierce++ }] },
   sight: { tag: 'Attachment', t: [
     { r: 'c', name: 'Red dot', text: 'Spread down 15% and a few more headshots.', vis: 'A red dot sight', ap: () => { S.spreadMul *= 0.85; S.headBonus += 0.04; } },
     { r: 'u', name: 'Holographic sight', text: 'Spread down another 20%, more headshots.', vis: 'A holo sight', ap: () => { S.spreadMul *= 0.8; S.headBonus += 0.06; } },
-    { r: 'r', name: 'Scope', text: 'Aimed through it, 25% of hits crit for double damage. Wild up close, dead on from 10 m out.', vis: 'A scope on long guns', ap: () => {} }] },
+    { r: 'r', name: 'Scope', text: 'Aimed through it, 25% of hits crit for double damage and headshots do 25% more. Dead on from 10 m out.', vis: 'A scope on long guns', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'A thin beam to aim with. Spread down 15%.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
     { r: 'r', name: 'Laser sight', text: 'A bright mounted beam. Spread down another 30%.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },
   light: { tag: 'Attachment', t: [
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A much brighter, wider beam.', vis: 'A mounted light', ap: () => {} }] },
+  // a speed loader: on a shotgun it feeds two shells at a go (three at level II), each go a little quicker; on the
+  // revolver all six rounds go in at once from a loader you then drop (weapons/reload.js)
+  loader: { tag: 'Attachment', t: [
+    { r: 'u', name: 'Speed loader', text: D => D.ammo === 'shells' ? 'Load two shells at a time, each go a little quicker.' : 'All six rounds go in at once from a speed loader, then it drops.', vis: 'A loader at hand', ap: () => {} },
+    { r: 'r', name: 'Speed loader II', text: () => 'Load three shells at a time, quicker again.', vis: 'A bigger loader', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
-    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. A choked shotgun cannot take a suppressor.', vis: 'A choke ring', ap: () => {} },
+    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. It takes the muzzle: no suppressor with it.', vis: 'A choke ring', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter, slugs tighter still.', vis: 'A longer choke', ap: () => {} }] },
   armor: { tag: 'Body', t: [
     { r: 'c', name: 'Canvas jacket', text: '+25 max health. Heals 25 now.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },

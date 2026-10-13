@@ -7,7 +7,6 @@ const MOD_UP = {
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
   akimbo: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
-  speedloader: { t: 'Reloads 20% faster', up: D => { D.reload *= 0.8; } },
   longbarrel: { t: '+12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
   fan: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
   boom: { t: 'Bigger blasts', up: D => { D.explode += 0.35; } },
@@ -48,7 +47,9 @@ const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) 
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
 // level it asks for) fitted
 const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && hasMod(k));
-const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1)));
+const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && muzzleTaken(MODS[m].w));
+// one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
+const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
 function addMod(id, m) {
   const r = MODS[m].replaces;

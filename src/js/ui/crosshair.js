@@ -37,10 +37,13 @@ function updateCrosshair(rdt, D) {
     // shotguns get a ring the width of their spread; other guns four ticks
     const sg = !D.melee && D.ammo === 'shells';
     $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', !sg); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
-    if (D.melee) {
-      const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st';
-      st.setAttribute('stroke-dasharray', `${(sd * M_ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC.toFixed(2)} 999`);
+    // stamina under the reticle, with any weapon: it shows as soon as you use some (a swing, a shove, a vault) and fades
+    // away once it's full again
+    {
+      const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
+      if (on || cache.xhSt !== false) { st.setAttribute('stroke-dasharray', `${(sd * M_ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC.toFixed(2)} 999`); }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
+      if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
     // the brackets pinch in and dim through the swing's recovery, then spring back out when it's ready again
     if (D.melee) {
@@ -60,7 +63,7 @@ function updateCrosshair(rdt, D) {
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
     const dpx = Math.hypot(mouseX - px, mouseY - py);
-    const target = clamp(5 + Math.tan(D.melee ? 0 : spreadOf(id)) * dpx + bloom, 5, 56);
+    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, 56);   // through a scope it tightens with range
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2;
     if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }

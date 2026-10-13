@@ -211,6 +211,6 @@ function updatePlayerVisuals(dt, rdt) {
   else { const k = flashT / 0.055, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.42 * s1); flashStar.scale.setScalar(0.7 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.16 * s1, 1, 0.55 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
-  glowMats.forEach(m => m.emissive.setRGB(gl * 0.55, gl * 0.4, gl * 0.18));
+  glowMats.forEach(m => m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2));   // a soft, pale yellow pulse
   if (worldK > 0) flames.forEach((f, k) => { f.scale.set(1 + Math.sin(worldT * 1000 / (60 + k * 20)) * 0.15, 0.8 + rand() * 0.4, 1); });   // the flames freeze with the world
 }

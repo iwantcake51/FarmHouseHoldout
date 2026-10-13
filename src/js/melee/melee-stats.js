@@ -12,3 +12,11 @@ const MELEE_WEAPONS = {
   machete: { slot: 'melee', name: 'Machete', short: 'Machete', melee: true, style: 'slash', dmg: 66, rate: 0.4, range: 1.7, arc: 0.95, sever: 0.8, kb: 3, rar: 'u', desc: 'Fast, and it takes limbs off, one zombie at a time.' },
   axe: { slot: 'melee', name: 'Fire axe', short: 'Axe', melee: true, two: true, style: 'chop', dmg: 115, rate: 0.85, range: 1.95, arc: 1.0, sever: 1.2, kb: 6, cleave: 3, rar: 'r', desc: 'A slow swing that splits up to three zombies at once.' }
 };
+// reach makes a one-hander sweep: made long enough (a long blade, folded steel, a tune-up) its swing carries on past the
+// nearest zombie, catching two from 2 m of reach and three from 2.4 m. Never fewer than the weapon already catches
+const REACH_CLEAVE = [[2.4, 3], [2.0, 2]];
+function reachCleave(D) {
+  if (!D.melee) return;
+  const r = REACH_CLEAVE.find(([m]) => D.range >= m - 1e-6);
+  if (r && (D.cleave || 1) < r[1]) D.cleave = r[1];
+}

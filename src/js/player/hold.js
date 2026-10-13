@@ -44,7 +44,7 @@ const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body s
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
 const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
 const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3();
-const _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3();
+const _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
 function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
@@ -91,6 +91,26 @@ function shovePose() {
   else if (p < 0.36) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.16, 3); pose = WP.map((v, i) => v + (SP[i] - v) * e); q = 1; }
   else { const r = 1 - smooth((p - 0.36) / 0.64); pose = SP.map(v => v * r); q = r; }
   return { q, push: pose[0], lean: pose[1], tw: pose[2] };
+}
+
+// the revolver's speed loader in the left hand (weapons/reload.js has the marks): six rounds held in a dark ring with a
+// knurled knob behind, fetched from the pouch, pushed into the open cylinder, twisted to let go of the rounds and
+// dropped. It lives in upper-body space beside the gun, so it follows the hand exactly
+const SLM = new THREE.Group(), SL_RND = new THREE.Group();
+{ cyl(SLM, 0.042, 0.026, GM.metal, 0, 0, 0, 16); cyl(SLM, 0.013, 0.03, GM.metal2, 0, 0, -0.026, 10); ring(SLM, 0.0435, 0.006, GM.metal2, 0, 0, 0.008);
+  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, x = Math.cos(a) * 0.026, y = Math.sin(a) * 0.026; cyl(SL_RND, 0.0085, 0.04, GM.brass, x, y, 0.032, 8); cyl(SL_RND, 0.006, 0.012, GM.copper, x, y, 0.057, 8); }
+  SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM); }   // (slot: kept out of your clothes' blood, effects/body-blood.js)
+const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3();
+// the empty loader, let go of: it falls out of the hand, bounces and lies there a while (the casings' debris, weapons/casings.js)
+function dropLoader() {
+  if (!SLM.visible) return;
+  SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.visible = false;
+  const c = mags[mIdx = (mIdx + 1) % mags.length];
+  c.body.geometry = DRUM_G; c.body.material = GM.metal; c.body.scale.set(0.042, 0.026, 0.042); c.body.rotation.set(Math.PI / 2, 0, 0);
+  c.r = 0.03; c.restY = 0.013; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); };
+  c.g.position.copy(_slW); c.g.rotation.set(0, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
+  c.vx = P.vx * 0.6 + rr(-0.4, 0.4); c.vz = P.vz * 0.6 + rr(-0.4, 0.4); c.vy = rr(-0.6, 0.2);
+  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14; c.kind = 'mag';
 }
 
 // arms, hands and weapon for this frame; up is the upper-body rotation, which this adds lean and twist to
@@ -194,7 +214,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
   const CH = rel === 'mag' && CHARGE[s], rpm = CH ? Math.min(1, rp / CH_MAG) : rp;
-  const cg = CH ? smooth(clamp((rp - 0.74) / 0.07, 0, 1)) * (1 - smooth(clamp((rp - 0.92) / 0.07, 0, 1))) : 0, pull = CH && rp < CH_SLAM ? smooth(clamp((rp - 0.8) / (CH_PULL - 0.8), 0, 1)) : 0;
+  // the hand reaches up over the receiver (cg rises), draws the handle back hard and fast, slowing as its spring
+  // tightens (drawn), lets go at CH_SLAM so the handle snaps home in a blink (pull eases back to 0), waits a beat
+  // where it let go and comes back down to the grip
+  const cg = CH ? smooth(clamp((rp - 0.72) / 0.09, 0, 1)) * (1 - smooth(clamp((rp - 0.915) / 0.085, 0, 1))) : 0;
+  const drawn = CH ? 1 - Math.pow(1 - clamp((rp - 0.8) / (CH_PULL - 0.8), 0, 1), 3) : 0, home = CH ? clamp((rp - CH_SLAM) / 0.02, 0, 1) : 0, pull = drawn * (1 - home * home);
+  const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
   if (rel) ANIM.relKind = rel;
   ANIM.relEnv += ((rel === 'mag' ? (rpm < 0.86 ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
   const re = ANIM.relEnv, rk = ANIM.relKind;
@@ -203,13 +228,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6);
   let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   if (!ak && re > 0.001) {
-    if (rk === 'mag') { roll -= 0.5 * re; pitch -= 0.12 * re; yaw += 0.12 * re; oy += 0.04 * re; oz -= 0.08 * re; }
+    if (rk === 'mag' && id === 'revolver') { pitch -= 0.3 * re; roll += 0.35 * re; oz -= 0.07 * re; oy += 0.02 * re; }   // the speed loader: canted, open cylinder up, muzzle down a touch
+    else if (rk === 'mag') { roll -= 0.5 * re; pitch -= 0.12 * re; yaw += 0.12 * re; oy += 0.04 * re; oz -= 0.08 * re; }
     else if (id === 'dbl') { pitch += 0.55 * re; oz -= 0.05 * re; }                       // broken open, muzzles down
     else if (id === 'revolver') { pitch -= 0.25 * re; roll += 0.35 * re; oz -= 0.06 * re; } // canted so the open cylinder faces up
     else { roll -= 0.45 * re; pitch -= 0.08 * re; oy -= 0.03 * re; oz -= 0.04 * re; }      // tipped to show the loading port
   }
   if (cy && cy.bolt) roll -= 0.14 * ck;                                                    // the rifle rolls a little as the bolt is worked
-  if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg; oy += 0.02 * cg; oz -= 0.03 * cg; }       // canted over to reach the charging handle
+  if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg + 0.05 * slamK; oy += 0.02 * cg; oz -= 0.03 * cg + 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   pitch += 0.35 * bk; ox += 0.06 * bk;                                                     // hangs at your side while you wrap up
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
@@ -258,7 +284,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -0.065 * pull; c.updateMatrix(); }
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
-  if (cr.length) { const want = rel === 'shell' ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = ANIM.crane * 1.25; c.updateMatrix(); }); }
+  if (cr.length) { const want = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = ANIM.crane * 1.25; c.updateMatrix(); }); }
   // ---- hands: start from their places on the gun
   gunPt(_hR, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
   if (ak) gunPt(_hL, s, 'L', H.grip[0], H.grip[1], H.grip[2]);
@@ -274,12 +300,23 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back
-  if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : 1; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - 0.065 * hp); _hR.lerp(_p1, cg); }   // the hand stays back where it let go
+  if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - 0.065 * hp); _hR.lerp(_p1, cg); _hR.y += Math.sin(Math.PI * cg) * 0.035; }   // over the top of the receiver on the way, and it stays back where it let go
   handTarget(_fR, 'R', _hR, null, 0, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;
     if (band) { free = _p4.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26); wt = 1; }
+    else if (rel === 'mag' && D.speedload && cr.length) {
+      // the back of the open cylinder and the gun's forward axis, in upper-body space
+      const hq = holdOf(s, 'R');
+      _p1.set(0.035, 0.045, -0.06).applyMatrix4(cr[0].matrix).applyMatrix4(hq.matrix).applyMatrix4(gg.matrix);
+      _slQ.copy(gg.quaternion).multiply(hq.quaternion); _slAx.set(0, 0, 1).applyQuaternion(_slQ);
+      _p2.copy(_p1).addScaledVector(_slAx, -0.1);                              // the fist, loader pushed home
+      _p3.copy(_p1).addScaledVector(_slAx, -0.24); _p3.y -= 0.07;              // lining it up behind the cylinder
+      _p5.copy(_p2); _p5.y -= 0.16; _p5.x -= 0.05;                             // let go: the hand drops away
+      _p6.copy(_p1).addScaledVector(_slAx, 0.04); _p6.x -= 0.05;               // the palm flicks the cylinder shut
+      free = walkPath(_p4, [[0, _hL], [0.08, _hL], [0.26, POUCH], [0.42, _p3], [SL_IN, _p2], [SL_DROP - 0.02, _p2], [0.77, _p5], [SL_SHUT - 0.01, _p6], [0.9, _p6], [1, _hL]], rp); wt = 1;
+    }
     else if (rel === 'mag') {
       const mp = MAGPOS[s]; gunPt(_p1, s, 'R', mp ? mp[0] : H.grip[0], mp ? mp[1] + 0.03 : H.grip[1] - 0.14, mp ? mp[2] : H.grip[2] + 0.05);   // the bottom of the mag well
       _p2.copy(_p1); _p2.y -= 0.16; _p3.copy(_p1); _p3.y -= 0.22;
@@ -291,6 +328,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); wt = 1;
     }
     handTarget(_fL, 'L', _hL, free, wt, rdt);
+    // the loader rides in front of the left fist from the pouch until it's let go, rounds pointing into the cylinder,
+    // and is twisted a sixth of a turn once they're in
+    const slOn = rel === 'mag' && D.speedload && rp > 0.25 && rp < SL_DROP;
+    if (slOn) {
+      SLM.visible = true; SL_RND.visible = true;
+      SLM.position.copy(_fL).addScaledVector(_slAx, 0.07); SLM.quaternion.copy(_slQ);
+      SLM.rotateZ(smooth(clamp((rp - SL_IN - 0.02) / 0.08, 0, 1)) * Math.PI / 3);
+    } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
   } else handTarget(_fL, 'L', _hL, null, 0, rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   reach(pm.armR, 'R', _fR);

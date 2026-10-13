@@ -26,7 +26,7 @@ function updatePlayer(dt) {
       // the jump follows its plan (player/vault-plan.js), still moving at the end so the landing carries on into a walk
       v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
       P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
-      if (v.t >= 1) { P.vault = null; vaultLand(v); }
+      if (v.t >= 1) { P.vault = null; vaultLand(v); if (aimHeld) startAim(); }   // still holding aim (or pressed it on the way through): back down the sights
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {

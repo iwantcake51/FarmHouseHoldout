@@ -5,6 +5,17 @@ function nearestStation() { let best = null, bd = 1.3; for (const s of STATIONS)
 function openStation(s) { openSt = s; $('station').hidden = false; cache.hstRows = null; renderStation(); SFX.click(); }
 function closeStation() { if (!openSt) return; openSt = null; $('station').hidden = true; }
 const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
+// what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
+// They're worked out once per card until the weapon in your hands changes
+const chipCache = new Map(); let chipKey = '';
+function cardChips(r) {
+  if (!r.fx) return '';
+  const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], S.att, S.magMul, S.reloadMul]);
+  if (key !== chipKey) { chipKey = key; chipCache.clear(); }
+  const ck = r.title();
+  if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${f.good ? 'up' : 'down'}">${f.good ? '▲' : '▼'} ${f.t}</i>`).join(''));
+  const h = chipCache.get(ck); return h ? `<span class="fx">${h}</span>` : '';
+}
 function renderStation() {
   if (!openSt) return;
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
@@ -15,9 +26,9 @@ function renderStation() {
     const why = r.why(), short = S.scrap < r.cost, ok = !why && !short;
     const status = why ? why : short ? `Need ${r.cost - S.scrap} more scrap` : 'Ready';
     return head + `<button type="button" data-i="${i}" class="${ok ? 'ok' : 'no'}" ${ok ? '' : 'aria-disabled="true"'} style="--ic:${ST_ICON_COL[r.ic]}">
-      <span class="ic"><svg viewBox="0 0 24 24">${FEED_ICON[r.ic]}</svg></span>
-      <span class="tx"><b>${r.title()}</b><em>${r.desc()}</em></span>
-      <span class="ft"><kbd>${(i + 1) % 10}</kbd><span class="cost${short ? ' short' : ''}"><svg viewBox="0 0 24 24">${FEED_ICON.scrap}</svg>${r.cost}</span><span class="st${ok ? '' : ' bad'}">${status}</span></span>
+      <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic]}</svg></span>
+      <span class="tx">${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}</b><em>${r.desc()}</em>${cardChips(r)}</span>
+      <span class="ft">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}<span class="cost${short ? ' short' : ''}"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>${r.cost}</span><span class="st${ok ? '' : ' bad'}">${status}</span></span>
     </button>`;
   }).join('');
   setH('stRows', tiles);

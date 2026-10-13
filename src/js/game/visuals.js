@@ -8,7 +8,7 @@ function visuals(dt, rdt) {
   updateDayNight(rdt); updateDarkEyes(dt);
   updateLightmap(rdt);
   updateZombieVisuals(dt, rdt); updateEyes(dt);
-  updateCutaway(rdt);
+  updateCutaway(rdt); updateHoles();
   updateLaser(D);
   stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt);
   stepParticles(dt); stepFx(dt);
