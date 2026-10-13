@@ -15,6 +15,7 @@ const UPG = [
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 3, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
+  { r: 'u', tag: 'Body', name: 'Iron lungs', text: '40% more stamina. It starts coming back twice as soon after you use it, and refills 50% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Every kill gives you a burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, dropping below 25% health heals you 50.', can: () => !S.secondWind, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Slowly regenerate 1 health a second.', can: () => S.regen < 3, ap: () => S.regen += 1 },

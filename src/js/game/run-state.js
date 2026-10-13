@@ -5,7 +5,7 @@ let S, W8, run, EFF = {};
 function freshRun() {
   S = { dmgMul: 1, rateMul: 1, magMul: 1, reloadMul: 1, speedMul: 1, maxHp: 100, pierce: 0, dropMul: 1, boardMul: 1, meleeMul: 1, planks: 6, scrap: 4,
     spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
-    cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, scrapMul: 1, bulletTime: false, lastStand: false,
+    cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, lungs: false, scrapMul: 1, bulletTime: false, lastStand: false,
     att: { bayonet: false, fire: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
   Object.keys(TIERS).forEach(k => S.tier[k] = 0);
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },

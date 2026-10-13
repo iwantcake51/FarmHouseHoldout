@@ -1,10 +1,12 @@
 // Moths, pollen motes, night mist and fireflies.
 
+// inside the house's walls (plus a margin): the bugs and motes keep out
+const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m;
 // moths that circle the lamps and the fire after dark
 const moths = (() => {
   const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], [cxw(14), 1.4, cxw(16)]];   // outdoor lights only
   const seed = [];
-  centres.forEach((c, i) => { const n = i === 1 ? 16 : 9; for (let k = 0; k < n; k++) seed.push({ c, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
+  centres.forEach((c, i) => { const n = i === 1 ? 16 : 9; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
   const pos = new Float32Array(seed.length * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const m = new THREE.PointsMaterial({ color: 0xf4e8cc, size: 2.2 * DPR, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts);
@@ -33,7 +35,7 @@ function stepAtmos(realDt) {
       const q = motes.seed[k]; q.x += (0.25 + Math.sin(t * 0.3 + q.p) * 0.15) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * 0.05 * rdt; q.z += Math.cos(t * 0.4 + q.p) * 0.12 * rdt;
       let rx = q.x - camTarget.x, rz = q.z - camTarget.z;   // wrap round the view so there are always some about
       if (rx > 14) q.x -= 28; if (rx < -14) q.x += 28; if (rz > 14) q.z -= 28; if (rz < -14) q.z += 28;
-      motes.pos[k * 3] = q.x; motes.pos[k * 3 + 1] = q.y + Math.sin(t * q.s * 3 + q.p) * 0.15; motes.pos[k * 3 + 2] = q.z;
+      motes.pos[k * 3] = q.x; motes.pos[k * 3 + 1] = inHouse(q.x, q.z, 0.3) ? -50 : q.y + Math.sin(t * q.s * 3 + q.p) * 0.15; motes.pos[k * 3 + 2] = q.z;   // none indoors
     }
     motes.pts.geometry.attributes.position.needsUpdate = true;
   }
@@ -57,7 +59,8 @@ function stepAtmos(realDt) {
 // fireflies at night
 const fireflies = (() => {
   const n = 46, pos = new Float32Array(n * 3), seed = [];
-  for (let k = 0; k < n; k++) { seed.push({ x: rr(cxw(FX0), cxw(FX1)), z: rr(cxw(FZ0), cxw(FZ1)), y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }
+  // they drift up to 1.2 m either way, so none is seeded within that of the house and none wanders in
+  while (seed.length < n) { const x = rr(cxw(FX0), cxw(FX1)), z = rr(cxw(FZ0), cxw(FZ1)); if (!inHouse(x, z, 1.4)) seed.push({ x, z, y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const m = new THREE.PointsMaterial({ color: 0xdff59a, size: 3.2 * DPR, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   const pts = new THREE.Points(g, m); scene.add(pts);

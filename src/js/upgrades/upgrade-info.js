@@ -19,7 +19,7 @@ const UPG_USE = {
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Bandages 3 → 5', '+2 bandages'],
   'Ammo can': ['+1 can of every ammo'], 'Strong arms': ['Melee +40%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['Speed burst on every kill'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['Speed burst on every kill'], 'Iron lungs': ['Stamina +40%', 'Recovers 2× sooner', 'Refills 50% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 3.2×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Ammo, trigger and mag +1 tier'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health', 'Slowdown when hit −85%'], 'Bullet time': ['Kills can slow time'],

@@ -1,7 +1,8 @@
 // Blocking rules for zombies, the player and bullets, and circle-vs-grid movement.
 
 const blockArr = new Uint8Array(N * N);
-for (let k = 0; k < N * N; k++) blockArr[k] = cell[k] === WALL || cell[k] === OBST ? 1 : 0;
+// what stops bullets and sight: walls and tall props, not the crates and hay bales you can see over
+for (let k = 0; k < N * N; k++) blockArr[k] = cell[k] === WALL || (cell[k] === OBST && !lowObst.has(k)) ? 1 : 0;
 const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && openAt[idx(i, j)].boards.length > 0); };
 const playerBlocked = (i, j) => { if (hardBlocked(i, j)) return true; const o = openAt[idx(i, j)]; return !!(o && o.kind === 'window'); };
 const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) return true; return blockArr[idx(i, j)] === 1; };

@@ -40,13 +40,15 @@
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
     <g id="xhMelee" hidden>
-      <circle class="mShade" r="13"></circle>
-      <circle class="mRing" r="13" stroke-dasharray="14.4 6"></circle>
-      <circle id="xhSwing" class="mReady" r="19" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
-      <path id="xhChev" class="mChev" d="M-5 -24 L0 -19 L5 -24"></path>
-      <circle class="mDot" r="2.8"></circle>
-      <circle id="xhStamBg" class="stBg" r="30" transform="rotate(138)"></circle>
-      <circle id="xhStam" class="st" r="30" transform="rotate(138)"></circle>
+      <!-- two curved brackets round a dot: they close in while you recover from a swing and snap open when you can swing again -->
+      <g id="xhBr">
+        <path class="mShade" d="M-10.7 9 A14 14 0 0 1 -10.7 -9 M10.7 -9 A14 14 0 0 1 10.7 9"></path>
+        <path class="mBr" d="M-10.7 9 A14 14 0 0 1 -10.7 -9 M10.7 -9 A14 14 0 0 1 10.7 9"></path>
+      </g>
+      <circle class="mDotSh" r="3.4"></circle><circle class="mDot" r="2"></circle>
+      <!-- stamina: a short arc under the reticle -->
+      <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
+      <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
     <g id="xhHit" opacity="0">
@@ -62,7 +64,7 @@
   <div id="clockBox">
     <svg id="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
       <circle class="face" r="42"></circle>
-      <path id="dialNight" class="night"></path><path id="dialDay" class="day"></path>
+      <g id="dialRing" class="ring"></g>
       <g id="dialTicks"></g>
       <g id="dialHand">
         <line class="hand" x1="0" y1="-27" x2="0" y2="-31"></line>

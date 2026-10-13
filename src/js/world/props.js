@@ -1,6 +1,8 @@
 // House furniture (table, pantry shelf, bed, hanging lamps) and yard props (cars, crates, hay bales, burn barrel).
 
-function obstacle(i, j) { if (inb(i, j)) cell[idx(i, j)] = OBST; }
+// low ones (crates, hay bales) stop feet but not eyes or bullets: you see and shoot over them (world/collision.js)
+const lowObst = new Set();
+function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
 const HM = {
   oak: lam(0x7a5434), oakDk: lam(0x5a3e28), oakLt: lam(0x8e6640), pine: lam(0xa2784b), pine2: lam(0x8d6840),
@@ -159,9 +161,9 @@ function car(i0, j0, along) {
 }
 car(8, 29, 'z');
 car(32, 9, 'x');
-function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45, cxw(j)); c.rotation.y = rr(-.2, .2); box(c, 0.92, 0.08, 0.92, M.wood, 0, 0.3, 0); box(c, 0.92, 0.08, 0.92, M.wood, 0, -0.3, 0); obstacle(i, j); }
+function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45, cxw(j)); c.rotation.y = rr(-.2, .2); box(c, 0.92, 0.08, 0.92, M.wood, 0, 0.3, 0); box(c, 0.92, 0.08, 0.92, M.wood, 0, -0.3, 0); obstacle(i, j, true); }
 [[12, 14], [13, 14], [12, 15], [31, 31], [6, 21], [35, 24], [36, 24]].forEach(p => crate(...p));
-function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1, 12), M.hay); m.rotation.z = Math.PI / 2; m.rotation.y = rr(-.4, .4); m.position.set(cxw(i), 0.48, cxw(j)); m.castShadow = m.receiveShadow = true; scene.add(m); obstacle(i, j); }
+function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1, 12), M.hay); m.rotation.z = Math.PI / 2; m.rotation.y = rr(-.4, .4); m.position.set(cxw(i), 0.48, cxw(j)); m.castShadow = m.receiveShadow = true; scene.add(m); obstacle(i, j, true); }
 [[28, 34], [29, 34], [14, 8], [26, 10]].forEach(p => hay(...p));
 const flames = [];
 {

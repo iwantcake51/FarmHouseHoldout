@@ -10,8 +10,8 @@ function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) try
 const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && D.slot === 'long'); };   // long guns only
 function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
-  const tired = P.exh || P.stam < SHOVE_COST * 0.5;
-  P.stam = Math.max(0, P.stam - SHOVE_COST); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
+  const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
+  P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
   const band = P.bandT > 0, slow = band ? SHOVE_BAND : 1;
   P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow;
   P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow, band };

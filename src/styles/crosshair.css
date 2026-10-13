@@ -14,14 +14,14 @@
 #xh.kill .hit{stroke:#e0402c;stroke-width:3}
 #xh.head .hit{stroke:var(--gold);stroke-width:3}
 #xh .gl{fill:none;stroke:var(--gold);stroke-width:2}
-/* melee reticle: broken ring with a dark under-stroke, readiness arc, aim chevron */
-#xh .mShade{fill:none;stroke:rgba(0,0,0,.6);stroke-width:5}
-#xh .mRing{fill:none;stroke:var(--ink);stroke-width:2.2;transform:rotate(-45deg);transition:stroke .08s}
-#xh .mReady{fill:none;stroke:rgba(236,230,216,.85);stroke-width:2.6;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.95))}
-#xh .mChev{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.95))}
-#xh .mDot{fill:var(--ink);stroke:rgba(0,0,0,.8);stroke-width:1.6}
-#xh.tgt .mRing,#xh.tgt .mChev{stroke:var(--orange)}
+/* melee reticle: a dot between two curved brackets (with a dark under-stroke so they read on any ground) */
+#xh .mShade{fill:none;stroke:rgba(0,0,0,.6);stroke-width:5.6;stroke-linecap:round}
+#xh .mBr{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round;transition:stroke .08s}
+#xh .mDotSh{fill:rgba(0,0,0,.6)}
+#xh .mDot{fill:var(--ink);transition:fill .08s}
+#xh.tgt .mBr{stroke:var(--orange)}
 #xh.tgt .mDot{fill:var(--orange)}
+#xh.tgt #xhBr{filter:drop-shadow(0 0 3px rgba(232,120,60,.55))}
 /* ammo warning under the crosshair */
 #ammoWarn{position:absolute;left:50%;top:118px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:2px 9px 1px;white-space:nowrap;
   font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--aw);text-shadow:0 1px 2px rgba(0,0,0,.9);

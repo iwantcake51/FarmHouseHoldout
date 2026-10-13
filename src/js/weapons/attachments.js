@@ -26,16 +26,30 @@ function fitAttachments(g, D, front, y, info) {
     const tip = box(g, 0.01, 0.03, 0.04, GM.blade, X, y - 0.06, front + 0.215); tip.rotation.x = 0.5;
   }
   // lasers hang right under the gun at the mount point (found from the model, so they touch whatever is there:
-  // a pistol's dust cover, a shotgun's barrel or forend); the beam starts from an emitter at the lens (weapons/laser.js)
+  // a pistol's rail under the dust cover, a shotgun's barrel or forend); the beam starts from an emitter at the lens (weapons/laser.js).
+  // On sidearms they sit flush under the frame with no riser; long guns tape or rail them under the barrel.
   if (T('laser')) {
-    const lz = side ? front - 0.1 : front - 0.22, u = undersideAt(g, X, lz, y), em = new THREE.Object3D();
-    if (T('laser') === 1) {   // a pointer taped under the barrel
+    // a sidearm's goes just behind the front of its frame (the rail), found by stepping back from the muzzle until the
+    // underside drops from the slide to the frame
+    let lz = side ? front - 0.08 : front - 0.22;
+    if (side) { const u0 = undersideAt(g, X, front - 0.03, y); for (let z = front - 0.03; z > front - 0.26; z -= 0.01) if (undersideAt(g, X, z, y) < u0 - 0.012) { lz = z - 0.03; break; } }
+    const u = undersideAt(g, X, lz, y), em = new THREE.Object3D();
+    if (T('laser') === 1 && side) {   // a compact pointer clamped straight onto the rail
+      box(g, 0.034, 0.012, 0.064, GM.metal, X, u - 0.006, lz - 0.004);
+      cyl(g, 0.013, 0.09, GM.metal2, X, u - 0.022, lz); ring(g, 0.0145, 0.012, GM.metal, X, u - 0.022, lz + 0.04);
+      box(g, 0.008, 0.008, 0.004, GM.red, X, u - 0.022, lz + 0.046); em.position.set(X, u - 0.022, lz + 0.049);
+    } else if (T('laser') === 1) {   // a pointer taped under the barrel
       cyl(g, 0.012, 0.1, GM.metal2, X, u - 0.012, lz); [-0.03, 0.03].forEach(o => box(g, 0.03, 0.03 + (y - u) * 0.6, 0.016, GM.tape, X, u - 0.012 + (0.03 + (y - u) * 0.6) / 2 - 0.015, lz + o));
       box(g, 0.008, 0.008, 0.004, GM.red, X, u - 0.012, lz + 0.052); em.position.set(X, u - 0.012, lz + 0.055);
-    } else {   // rail-mounted laser module with two windows
-      box(g, 0.03, 0.014, 0.06, GM.metal, X, u - 0.006, lz); box(g, 0.042, 0.04, 0.12, GM.tan, X, u - 0.033, lz);
-      box(g, 0.012, 0.012, 0.004, GM.red, X - 0.01, u - 0.033, lz + 0.061); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, u - 0.033, lz + 0.061); box(g, 0.012, 0.006, 0.02, GM.metal2, X, u - 0.011, lz - 0.02);
-      em.position.set(X - 0.01, u - 0.033, lz + 0.064);
+    } else {   // a laser module with two windows: on a rail mount under a long gun, straight onto a sidearm's rail
+      // a sidearm's is a compact unit that stops short of the trigger guard
+      const top = side ? u : u - 0.012, len = side ? 0.08 : 0.12, h = side ? 0.034 : 0.04, cz = side ? lz + 0.012 : lz;
+      if (!side) box(g, 0.03, 0.014, 0.06, GM.metal, X, u - 0.006, lz);
+      box(g, 0.042, h, len, GM.tan, X, top - h / 2, cz);
+      const fz = cz + len / 2 + 0.001, ey = top - h / 2 - 0.001;
+      box(g, 0.012, 0.012, 0.004, GM.red, X - 0.01, ey, fz); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, ey, fz);
+      if (!side) box(g, 0.012, 0.006, 0.02, GM.metal2, X, top + 0.001, lz - 0.02);
+      em.position.set(X - 0.01, ey, fz + 0.003);
     }
     g.add(em); g.userData.laserEm = em;
   }
@@ -74,17 +88,19 @@ function fitAttachments(g, D, front, y, info) {
   }
   return front;
 }
-// the lowest point of the gun's body at (x, z), among the pieces that reach up to the barrel's height: where an
-// under-barrel attachment has to sit to touch it
+// the lowest point of the gun's body at (x, z): followed down from the barrel through every piece that touches the one
+// above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack
 const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4();
 function undersideAt(g, x, z, yAxis) {
   g.updateMatrixWorld(true); _ubM.copy(g.matrixWorld).invert();
-  let low = Infinity;
+  const boxes = [];
   g.traverse(o => {
     if (!o.isMesh || o.userData.isFlash || !o.visible) return;
     _ub.setFromObject(o).applyMatrix4(_ubM);
-    if (x < _ub.min.x - 0.004 || x > _ub.max.x + 0.004 || z < _ub.min.z || z > _ub.max.z || _ub.max.y < yAxis - 0.03 || _ub.min.y > yAxis) return;
-    low = Math.min(low, _ub.min.y);
+    if (x < _ub.min.x - 0.004 || x > _ub.max.x + 0.004 || z < _ub.min.z || z > _ub.max.z || _ub.min.y > yAxis) return;
+    boxes.push([_ub.min.y, _ub.max.y]);
   });
-  return low === Infinity ? yAxis - 0.03 : low;
+  let low = yAxis;
+  for (let moved = true, n = 0; moved && n < 12; n++) { moved = false; for (const [a, b] of boxes) if (b >= low - 0.006 && a < low - 0.0005) { low = a; moved = true; } }
+  return low === yAxis ? yAxis - 0.03 : low;
 }

@@ -12,7 +12,8 @@ function updateCombat(dt) {
   if (!wantFire) W8.trigLock = false;
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
   P.stamT = (P.stamT || 0) + dt;
-  if (P.stamT > 0.55) P.stam = Math.min(1, P.stam + dt * (P.exh ? 0.26 : 0.38) * (P.moving ? 0.75 : 1));
+  // stamina comes back after a short breather; Iron lungs makes the breather shorter and the recovery quicker
+  if (P.stamT > (S.lungs ? 0.25 : 0.55)) P.stam = Math.min(1, P.stam + dt * (P.exh ? 0.26 : 0.38) * (P.moving ? 0.75 : 1) * (S.lungs ? 1.5 : 1));
   if (P.exh && P.stam >= 0.34) P.exh = false;
   // emptying the tank leaves you sluggish; speed creeps back as the stamina does
   if (P.exh) P.fatigued = true; else if (P.stam >= 0.75) P.fatigued = false;

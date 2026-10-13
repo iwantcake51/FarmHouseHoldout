@@ -37,6 +37,54 @@ function animateDeath(dt) {
     if (d.g.position.y < 0.06) { d.g.position.y = 0.06; d.landed = true; const yaw = rr(0, 6.28); if (d.melee) d.g.rotation.set(Math.PI / 2, yaw, 0, 'YXZ'); else d.g.rotation.set(0, yaw, Math.PI / 2 * (rand() < 0.5 ? 1 : -1), 'YXZ'); SFX.thud(); burst(d.g.position.x, 0.1, d.g.position.z, 3, 'dust'); }
   }
 }
+// ---- vaulting: a crouch and a reach for the sill, the push-off with a hand planted on it, the legs tucked and swung
+// over to one side, then reaching down for the ground. A winded scramble goes over belly-first on both hands, low and
+// slow, the legs dragging. The landing itself (knees giving, the dip) is ANIM.land below.
+// how far through a stage: vk(t, a, b) eases from 0 to 1 as t goes from a to b
+const vk = (t, a, b) => smooth(clamp((t - a) / (b - a), 0, 1));
+function vaultPhase(v) { return { c: v.t > 0 ? 1 : smooth(clamp(v.pre / v.preDur, 0, 1)), t: Math.min(1, v.t), air: v.t > 0 }; }
+function vaultPose(pm, v) {
+  const { c, t, air } = vaultPhase(v), sc = v.scramble ? 1 : 0, fence = v.fence ? 1 : 0;
+  // height: up fast off the push, a hang over the top, and down to meet the ground
+  const arc = air ? Math.pow(Math.sin(Math.PI * Math.pow(t, 0.85)), 0.8) : 0;
+  pm.g.position.y = arc * (0.66 - fence * 0.12) * (v.hop || 1) - (air ? 0 : c * 0.2) - (air ? (1 - vk(t, 0, 0.15)) * 0.2 : 0);
+  // lean: well forward to reach the sill, rising through the top, and back a little to brace for the landing
+  const lean = air ? 0.55 * (1 - vk(t, 0.2, 0.62)) + 0.18 * vk(t, 0.2, 0.62) - 0.32 * vk(t, 0.66, 0.95) : 0.42 * c;
+  pm.g.rotation.x = lean * (1 + sc * 0.7) + (air ? sc * 0.4 * Math.sin(Math.PI * t) : 0);
+  // the legs swing out to one side over the sill and back under you (the hips roll with them), less over a low fence
+  const sw = air ? Math.sin(Math.PI * vk(t, 0.08, 0.92)) : 0, side = v.legSide || (v.legSide = 1);   // the legs go over to the right of the planted left hand
+  pm.lower.rotation.y = side * sw * (0.95 - fence * 0.35) * (1 - sc * 0.5);
+  pm.lower.rotation.z = side * sw * (0.42 - fence * 0.12) * (1 - sc * 0.4);
+  // knees: loaded in the crouch, both tucked tight over the top, then the lead leg reaches for the ground first
+  const tuck = air ? Math.sin(Math.PI * vk(t, 0, 0.82)) : 0, reachF = vk(t, 0.62, 0.92) * (1 - vk(t, 0.92, 1));
+  pm.legL.rotation.x = (air ? -tuck * (1.55 - sc * 0.6) - reachF * 0.55 : -c * 0.75);
+  pm.legR.rotation.x = (air ? -tuck * (1.2 - sc * 0.5) + reachF * 0.25 + (1 - vk(t, 0, 0.2)) * 0.4 : c * 0.45);   // the push leg trails off the ground
+  pm.legL.rotation.z = -side * sw * 0.12; pm.legR.rotation.z = -side * sw * 0.12;
+  pm.lower.position.y = 0;
+}
+// the chest stays turned toward where you're going while the legs swing away, and the head looks for the landing
+function vaultUpper(v, up) {
+  const { c, t, air } = vaultPhase(v), sw = air ? Math.sin(Math.PI * vk(t, 0.08, 0.92)) : 0;
+  up.y += -(v.legSide || 1) * sw * 0.55; up.x += air ? 0.12 * (1 - vk(t, 0.4, 0.8)) : 0.15 * c;
+  PM.head.rotation.x += air ? 0.35 * (1 - vk(t, 0.3, 0.9)) : 0.3 * c;
+}
+// a hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over, then lets go
+const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler();
+function vaultHands(pm, v) {
+  const { c, t, air } = vaultPhase(v), w = air ? 1 - vk(t, 0.42, 0.66) : vk(c, 0.3, 1);
+  if (w <= 0.001) return;
+  pm.g.updateMatrixWorld(true);
+  const lat = new V3(v.dz, 0, -v.dx);   // to your right as you go over
+  [['L', pm.armL, -1], ['R', pm.armR, 1]].forEach(([s, arm, sd]) => {
+    if (s === 'R' && !v.scramble) return;   // the gun hand stays on the gun unless you're clawing your way over
+    _vw.copy(v.plant).addScaledVector(lat, sd * (v.scramble ? 0.2 : 0.16)); _vw.y += 0.03;
+    pm.upper.worldToLocal(_vs.copy(_vw));
+    _vr.copy(arm.rotation); const sc0 = arm.scale.z, p0 = arm.position.clone();
+    reach(arm, s, _vs, 0, false);
+    arm.rotation.set(_vr.x + (arm.rotation.x - _vr.x) * w, _vr.y + (arm.rotation.y - _vr.y) * w, _vr.z * (1 - w)); arm.scale.z = sc0 + (arm.scale.z - sc0) * w;
+    arm.position.lerpVectors(p0, arm.position, w);
+  });
+}
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) { animateDeath(P.deathDt || 0); return; }
@@ -65,10 +113,7 @@ function animatePlayer(dt, rdt) {
   const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF);
   ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 4);
   if (P.vault) {
-    const v = P.vault, t = Math.min(1, v.t), hop = Math.sin(t * Math.PI), c = v.t > 0 ? 0 : smooth(clamp(v.pre / v.preDur, 0, 1));
-    // crouch and lean in to load the jump (c), then the hop tucks the legs up and over (hop)
-    pm.g.position.y = hop * 0.78 * (v.hop || 1) - c * 0.16;   // a tired scramble barely leaves the sill pm.g.rotation.x = -hop * 0.45 + c * 0.32;
-    pm.legL.rotation.x = -hop * 1.3 - c * 0.7; pm.legR.rotation.x = -hop * 0.7 + c * 0.5; pm.lower.rotation.y = 0;
+    vaultPose(pm, P.vault);
   } else if (ANIM.land > 0) {
     // landing: knees give and the body dips forward, then springs back up
     const k = Math.sin(ANIM.land * Math.PI * 0.5);
@@ -101,7 +146,9 @@ function animatePlayer(dt, rdt) {
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
   poseHands(D, up, ph, runF, rdt, now);
+  if (P.vault) vaultUpper(P.vault, up);
   pm.upper.rotation.set(up.x, up.y, up.z);
+  if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel

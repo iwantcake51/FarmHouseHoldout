@@ -29,16 +29,18 @@ function buildStow() {
     outer.userData.slot = s; STOW[s] = outer;
   }
 }
-// planks strapped flat across the back of the pack: none, one, two, or a stack of three once you carry 3 or more
+// planks strapped flat across the back of the pack, one for each you carry up to five: three side by side against the
+// pack, then two more laid crosswise over them under a second strap
 const plankStack = [];
 {
   const g = new THREE.Group(); g.position.set(0, 0, -0.355); PM.upper.add(g);
-  [[0.8, 0.04, M.board], [0.935, -0.05, M.board2], [1.07, 0.03, M.board]].forEach(([y, tilt, mat], k) => {
-    const p = box(g, 0.6, 0.12, 0.04, mat, k === 1 ? 0.03 : -0.02, y, -0.005 * k); p.rotation.z = tilt;
+  [[0.8, 0.04, M.board, 0, -0.02], [0.935, -0.05, M.board2, 0, 0.03], [1.07, 0.03, M.board, 0, -0.02], [0.87, -0.11, M.board2, 1, 0.01], [1.0, 0.09, M.board, 1, -0.01]].forEach(([y, tilt, mat, layer, x], k) => {
+    const p = box(g, 0.6 - layer * 0.04, 0.12, 0.04, mat, x, y, -0.005 * (k % 3) - layer * 0.046); p.rotation.z = tilt;
     for (let n = 0; n < 2; n++) box(p, 0.012, 0.125, 0.045, M.metal, -0.22 + n * 0.44, 0, 0);   // nails at the ends
     p.visible = false; plankStack.push(p);
   });
   plankStack.strap = box(g, 0.05, 0.42, 0.063, STRAP_M, 0.16, 0.94, -0.02); plankStack.strap.visible = false;
+  plankStack.strap2 = box(g, 0.05, 0.34, 0.028, STRAP_M, -0.15, 0.94, -0.08); plankStack.strap2.visible = false;
 }
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
@@ -57,7 +59,7 @@ function updateStow(rdt) {
     if (s === 'side') o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the thigh and rocks fore and aft
     else o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8);                            // slung guns and the melee weapon swing about the straps
   }
-  const n = Math.min(3, S.planks | 0);
-  plankStack.forEach((p, k) => { p.visible = k < n; }); plankStack.strap.visible = n > 0;
+  const n = Math.min(plankStack.length, S.planks | 0);
+  plankStack.forEach((p, k) => { p.visible = k < n; }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
   plankStack[0].parent.rotation.set(stowSw.x * 0.15, 0, stowSw.z * 0.2);
 }

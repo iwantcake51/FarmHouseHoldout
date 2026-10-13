@@ -5,7 +5,7 @@ function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
   { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, key = Math.round(ANIM.stamD * 400) + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
-    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`; sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
+    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`; sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
     const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.45 + Math.sin(performance.now() / 260) * 0.12 : 0;

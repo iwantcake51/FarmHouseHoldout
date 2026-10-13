@@ -11,7 +11,8 @@ function spawnZombie(type) {
   if (rand() < 0.6) m.extras.push(box(m.head, 0.34, 0.08, 0.34, lam(pick(HAIR)), 0, 0.17, -0.012));
   if (rand() < 0.5) m.extras.push(box(m.torso, 0.18, 0.16, 0.02, lam(0x5a1a14), rr(-.12, .12), rr(-.15, .15), 0.155));
   if (rand() < 0.4) m.extras.push(box(m.torso, 0.52, 0.12, 0.32, lam(0x2a2620), 0, -0.24, 0));
-  box(m.head, 0.06, 0.04, 0.02, basic(0xd8d0a0), -0.07, 0.03, 0.165); box(m.head, 0.06, 0.04, 0.02, basic(0xd8d0a0), 0.07, 0.03, 0.165);
+  // glowing eyes; effects/eye-glow.js gives them a halo and a light trail
+  m.eyes = [-0.07, 0.07].map(x => box(m.head, 0.06, 0.04, 0.02, basic(EYE_COL), x, 0.03, 0.165));
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) fm.add(o.material); }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });

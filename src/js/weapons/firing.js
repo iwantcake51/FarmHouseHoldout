@@ -59,7 +59,7 @@ function fire() {
   const id = curId(), D = W(id);
   if (D.melee) {
     const cost = stamCost(D), tired = P.exh || P.stam < cost * 0.5;
-    P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) { P.exh = true; }
+    P.stam = Math.max(0, P.stam - cost * SWING_AIR); P.stamT = 0; if (P.stam <= 0.001) { P.exh = true; }
     W8.tired = tired; const slow = tired ? 1.6 : 1;
     W8.cd = D.rate * 1.3 / Math.max(1, S.rateMul * 0.5 + 0.5) * slow; W8.swingDur = W8.swing = Math.min(D.rate * 1.2, D.style === 'chop' ? 0.98 : 0.64) * (tired ? 1.45 : 1); W8.hitDone = false; W8.swingSide = -W8.swingSide || 1;
     if (tired) SFX.pant();

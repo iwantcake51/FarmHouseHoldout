@@ -34,9 +34,13 @@ function updateDayNight(rdt) {
     const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
     setT('clockTime', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
     setT('clockPhase', stopped ? 'Clock stopped' : dayPart(tod));
-    const rot = (tod / 24 * 360 - 180).toFixed(1), night = tod >= 19.5 || tod < 5.5;
+    // the sun sinks into the moon over dusk and the moon fades back into the sun over dawn
+    const rot = (tod / 24 * 360 - 180).toFixed(1), night = dialNight(tod).toFixed(2);
     if (cache.dialRot !== rot) { cache.dialRot = rot; $('dialHand').setAttribute('transform', `rotate(${rot})`); }
-    if (cache.dialNight !== night) { cache.dialNight = night; $('dialSun').style.display = night ? 'none' : ''; $('dialMoon').style.display = night ? '' : 'none'; }
+    if (cache.dialNight !== night) {
+      cache.dialNight = night; const n = +night, sun = $('dialSun'), moon = $('dialMoon');
+      sun.style.opacity = 1 - n; moon.style.opacity = n; sun.style.display = n > 0.99 ? 'none' : ''; moon.style.display = n < 0.01 ? 'none' : '';
+    }
     if (cache.clockStop !== stopped) { cache.clockStop = stopped; $('clockBox').classList.toggle('paused', stopped); }
   }
   stepAtmos(rdt);
@@ -54,7 +58,8 @@ function updateDayNight(rdt) {
       const a = s.p + t * s.s, wob = 1 + 0.35 * Math.sin(t * s.w + s.p);
       moths.pos[k * 3] = s.c[0] + Math.cos(a) * s.r * wob + Math.sin(t * 11 + k) * 0.03;
       moths.pos[k * 3 + 1] = s.c[1] + s.y + Math.sin(t * s.w * 1.3 + k) * 0.12;
-      moths.pos[k * 3 + 2] = s.c[2] + Math.sin(a) * s.r * wob + Math.cos(t * 13 + k) * 0.03;
+      // the porch lamp's moths loop out in front of it, never back through the wall into the house
+      moths.pos[k * 3 + 2] = s.c[2] + (s.wall ? 0.12 + Math.abs(Math.sin(a)) : Math.sin(a)) * s.r * wob + Math.cos(t * 13 + k) * 0.03;
     });
     moths.pts.geometry.attributes.position.needsUpdate = true;
   }

@@ -11,8 +11,7 @@
 #clockBox{position:relative;flex:none;width:88px;height:88px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7))}
 #dial{position:absolute;inset:0;overflow:visible}
 #dial .face{fill:rgba(10,12,13,.66);stroke:rgba(236,230,216,.22);stroke-width:1}
-#dial .day{fill:none;stroke:#e2a64e;stroke-width:5;stroke-linecap:round;opacity:.8}
-#dial .night{fill:none;stroke:#566ea8;stroke-width:5;stroke-linecap:round;opacity:.9}
+#dial .ring path{fill:none;stroke-width:5;opacity:.88}
 #dial .tick{stroke:rgba(236,230,216,.38);stroke-width:1}
 #dial .tick.major{stroke:rgba(236,230,216,.9);stroke-width:1.6}
 #dial .hand{stroke:var(--ink);stroke-width:2;stroke-linecap:round}

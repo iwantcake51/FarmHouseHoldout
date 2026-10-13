@@ -4,7 +4,7 @@ const projV = new V3();
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhHitEl = $('xhHit'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 const tks = [0, 1, 2, 3].map(k => $('tk' + k));
 let gapCur = 10, lastGap = -1;
-const ARC = 2 * Math.PI * 30 * (84 / 360);
+const ARC = 2 * Math.PI * 30 * (84 / 360), M_ARC = 2 * Math.PI * 22 * (64 / 360);   // the gun's ammo arc; the melee stamina arc
 function ammoDash(n, filled) {
   if (n > 40) return [`${(ARC * filled / n).toFixed(2)} 999`, `${ARC.toFixed(2)} 999`];
   const seg = ARC / n, d = (seg * 0.7).toFixed(2), g = (seg * 0.3).toFixed(2);
@@ -21,10 +21,14 @@ function updateCrosshair(rdt, D) {
     $('xhTicks').style.display = D.melee ? 'none' : ''; $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
     if (D.melee) {
       const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st';
-      st.setAttribute('stroke-dasharray', `${(sd * ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${ARC.toFixed(2)} 999`);
+      st.setAttribute('stroke-dasharray', `${(sd * M_ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC.toFixed(2)} 999`);
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
     }
-    if (D.melee) { const rd = 1 - clamp(W8.cd / ((D.rate || 0.5) * 1.3), 0, 1), L = 2 * Math.PI * 19; $('xhSwing').setAttribute('stroke-dasharray', `${(rd * L).toFixed(1)} 999`); $('xhSwing').style.opacity = rd >= 1 ? 0.35 : 1; }
+    // the brackets pinch in and dim through the swing's recovery, then spring back out when it's ready again
+    if (D.melee) {
+      const rd = 1 - clamp(W8.cd / ((D.rate || 0.5) * 1.3), 0, 1), e = rd >= 1 ? 1 : 0.62 + 0.3 * rd * rd, k = (e * 100 | 0) + ':' + (rd >= 1);
+      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `scale(${e.toFixed(2)})`); b.style.opacity = rd >= 1 ? 1 : 0.45 + 0.35 * rd; }
+    }
     // bandage ring: shown only while a bandage is going on, filling as it does
     { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
       const hk = band ? String(Math.round(hp * 200)) : '';
@@ -38,7 +42,6 @@ function updateCrosshair(rdt, D) {
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
     const dpx = Math.hypot(mouseX - px, mouseY - py);
-    if (D.melee) $('xhChev').setAttribute('transform', `rotate(${(Math.atan2(mouseY - py, mouseX - px) * 180 / Math.PI + 90).toFixed(1)})`);
     const target = clamp(5 + Math.tan(D.melee ? 0 : spreadOf(id)) * dpx + bloom, 5, 56);
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2;

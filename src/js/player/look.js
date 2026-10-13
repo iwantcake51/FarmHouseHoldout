@@ -29,6 +29,15 @@ const LOOKS = {
   pack: [0x5a4a34, 0x4a5236, 0x55585a, 0x34405a, 0x5e3e2a], roll: [0x7a3a2a, 0x3a5a3a, 0x5a5a6a, 0x8a6a3a, 0x6a2a3a]
 };
 const shade = (c, k) => new THREE.Color(c).multiplyScalar(k).getHex();
+const hsl = (h, s, l) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l).getHex();
+// a top in any colour: half the time one of the stock colours for that top, otherwise a fresh, slightly worn-looking shade
+const rollTopCol = top => rand() < 0.45 ? pick(LOOKS.topCol[top]) : hsl(rand(), rr(0.18, top === 'tee' ? 0.62 : 0.5), rr(0.2, top === 'tee' ? 0.62 : 0.44));
+// sneakers: an upper in any colour (white, grey and black come up often), a sole, and a stripe that stands out from the upper
+function rollSneak() {
+  const h = rand(), plain = rand() < 0.35, up = plain ? hsl(0, 0, pick([0.12, 0.45, 0.85])) : hsl(h, rr(0.35, 0.8), rr(0.28, 0.62));
+  const stripe = hsl(h + rr(0.3, 0.7), rr(0.55, 0.85), rr(0.38, 0.6));
+  return [up, pick([0xe8e4dc, 0xd8d2c4, 0xb08a5a, 0x2a2a2a]), stripe];
+}
 const lookMats = {}, lm = c => lookMats[c] || (lookMats[c] = lam(c));
 // deal a look: anything in opt is kept as given (handy for testing), the rest is random
 function dealLook(opt) {
@@ -37,9 +46,9 @@ function dealLook(opt) {
   L.beard = o.beard ?? pick(LOOKS.beard); L.eyes = o.eyes ?? pick(LOOKS.eyes);
   L.beardCol = L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9);
   L.hat = o.hat ?? pick(LOOKS.hat); L.hatCol = o.hatCol ?? (L.hat === 'none' ? 0 : pick(LOOKS.hatCol[L.hat]));
-  L.top = o.top ?? pick(LOOKS.top); L.topCol = o.topCol ?? pick(LOOKS.topCol[L.top]); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
+  L.top = o.top ?? pick(LOOKS.top); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
   L.pants = o.pants ?? pick(LOOKS.pants); L.shoes = o.shoes ?? pick(LOOKS.shoes);
-  L.sneak = o.sneak ?? [pick([0xd8d4cc, 0x8a8a8a, 0x2a2a2a, 0x8a2a22, 0x2e4a7a]), pick([0xe8e4dc, 0xb08a5a]), pick([0xa83a2a, 0x3a6aa0, 0xc8a040, 0x2a2a2a])];
+  L.sneak = o.sneak ?? rollSneak();
   L.pack = o.pack ?? pick(LOOKS.pack); L.roll = o.roll ?? pick(LOOKS.roll);
   return L;
 }

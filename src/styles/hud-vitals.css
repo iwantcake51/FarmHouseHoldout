@@ -9,10 +9,11 @@
 .bar{position:relative;height:6px;background:rgba(0,0,0,.5)}
 #stamBar{position:relative;height:3px;margin-top:-4px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;opacity:0;transition:opacity .4s ease}
 #stamBar i{position:absolute;inset:0;transform-origin:left center;border-radius:2px;background:linear-gradient(90deg,var(--sc1,#5f9e78),var(--sc2,#a8dcb4));box-shadow:0 0 6px var(--sc2,#a8dcb4)}
+#stamBar.big{height:4px}
 #stamBar.tired i{--sc1:#b0782c;--sc2:#e8b84a}
 #stamBar.exh i{--sc1:#8a2a1e;--sc2:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes stPulse{50%{opacity:.5}}
-#xh .stBg{fill:none;stroke:rgba(236,230,216,.14);stroke-width:3}
+#xh .stBg{fill:none;stroke:rgba(0,0,0,.5);stroke-width:3.4;stroke-linecap:round}
 #xh .st{fill:none;stroke:#a8dcb4;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
