@@ -124,9 +124,11 @@ function stepDebris(list, dt) {
 function startCycle(id) {
   if (W8.cyc && !W8.cyc.done) ejectCasing(W(W8.cyc.id).ammo, 1, EJECT[W8.cyc.id]);
   const bolt = EJECT[id] === 'bolt';
-  // the cycle fits inside the gun's fire rate, so a fast bolt or a slam-firing pump still racks fully between shots
-  const r = W(id).rate / S.rateMul, k = Math.min(1, r / ((bolt ? 0.62 : 0.42) + (bolt ? 0.16 : 0.1)) * 0.92);
-  W8.cyc = { id, t: 0, dur: (bolt ? 0.62 : 0.42) * k, delay: (bolt ? 0.16 : 0.1) * k, done: false, bolt };
+  // the cycle fits inside the gun's fire rate, so a fast bolt or a slam-firing pump still racks fully between shots. A
+  // bolt is worked deliberately: lift, draw back, push home, lock down
+  const dur = bolt ? 0.82 : 0.42, delay = bolt ? 0.2 : 0.1;
+  const r = W(id).rate / S.rateMul, k = Math.min(1, r / (dur + delay) * 0.92);
+  W8.cyc = { id, t: 0, dur: dur * k, delay: delay * k, done: false, bolt };
 }
 function tickCycle(dt) {
   const c = W8.cyc; if (!c) return;

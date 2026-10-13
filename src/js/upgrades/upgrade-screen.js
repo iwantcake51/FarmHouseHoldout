@@ -1,6 +1,14 @@
 // Dealing, showing and picking upgrade cards, and the upgrade history.
 
 let dealt = [], cardsArmed = false, armTimer = 0;
+// who a card is for, in plain words at the top of it: a weapon of yours, all your guns, or you
+const FOR_TAG = { Gun: 'For all your guns', Ammo: 'For all your guns', Melee: 'For your melee weapons' };
+function cardFor(u, c) {
+  if (u.weaponOf) return 'A new weapon for your ' + SLOT_NAME[WEAP[u.weaponOf].slot].toLowerCase() + ' slot';
+  if (u.modOf) return 'For your ' + WEAP[MODS[u.modOf].w].name.toLowerCase();
+  if (u.target) return 'For your ' + WEAP[u.target].name.toLowerCase();
+  return FOR_TAG[c.tag.split(' ')[0]] || 'For you';
+}
 function rarWeight(r) { const w = run.wave; return { c: 60, u: 26 + w * 1.5, r: 9 + w * 1.4, e: 3 + w * 1.0, l: 0.8 + w * 0.5 }[r]; }
 function dealCards() {
   const pool = UPG.filter(u => !u.can || u.can()); dealt = [];
@@ -14,12 +22,13 @@ function dealCards() {
   const rots = [-1.6, 0.8, -0.4];
   dealt.forEach((u, i) => {
     const c = u.card ? u.card() : { r: u.r, tag: u.tag, name: u.name, text: u.text, vis: typeof u.vis === 'function' ? u.vis() : u.vis };
+    c.for = cardFor(u, c); c.tag = kindTag(u, c);   // who it's for (read from its old tag), then a skill, a perk, aid or a weapon
     u.shown = c;
     const info = upgradeInfo(u, c), stats = u.stats && !info.fx.length;
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
-    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
-    b.querySelector('.k span').textContent = c.tag; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
+    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
+    b.querySelector('.k span').textContent = c.tag; b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = f.good ? 'up' : 'down'; s.textContent = (f.good ? '▲ ' : '▼ ') + f.t; b.querySelector('.fx').appendChild(s); });
     if (info.use) b.querySelector('.use').textContent = info.use;
@@ -36,12 +45,12 @@ function dealCards() {
 // the list of upgrades taken this run, newest first, with what each one does
 function renderHistory(list, countEl) {
   const el = $(list); el.innerHTML = ''; $(countEl).textContent = run.taken.length;
-  if (!run.taken.length) { el.innerHTML = '<div class="none">Nothing yet. Clear a wave to pick your first upgrade.</div>'; return; }
+  if (!run.taken.length) { el.innerHTML = '<div class="none">Nothing yet. Clear a wave to pick your first skill, perk or aid.</div>'; return; }
   run.taken.slice().reverse().forEach(h => {
     const r = document.createElement('div'); r.className = 'hrow r-' + h.r;
     r.innerHTML = '<span class="hn"></span><span class="ht"></span><span class="hw"></span><span class="hd"></span>';
     r.querySelector('.hn').textContent = h.name; if (h.n > 1) { const i = document.createElement('i'); i.textContent = '\u00d7' + h.n; r.querySelector('.hn').appendChild(i); }
-    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r]; r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text;
+    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r]; r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
     el.appendChild(r);
   });
 }
@@ -59,9 +68,10 @@ function openUpgrade() {
 function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
   const u = dealt[i], c = u.shown; cardsArmed = false;
+  const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); gunGlow = 1; SFX.upgrade();
-  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm);
-    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1 }); }
+  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm), total = st ? stackTotal(c.name, before) : '';
+    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; prev.total = total; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1, total }); }
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out

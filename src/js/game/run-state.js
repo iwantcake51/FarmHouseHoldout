@@ -21,11 +21,16 @@ function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= [1, 1.25, 1.5, 1.875][ammo] * Math.pow(1.08, (W8.tune && W8.tune[id]) || 0);   // workbench tuning, per weapon
+    D.dmg *= [1, 1.25, 1.5, 1.875][ammo];
+    const loader = g.loader || 0;
+    if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
+    else if (loader && D.perShell) { D.loadN = 1 + loader; D.perShell *= LOADER_T[loader]; }         // two or three shells a go
+    if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
+    reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
     D.headBonus = (D.headBonus || 0) + (ammo >= 3 ? 0.1 : 0) + [0, 0.04, 0.1, 0.1][sight];
-    // a scope (the hunting rifle's own, or one fitted to a long gun) only lands crits: a quarter of the hits through it
-    // do double damage; the high-power scope (its stat, weapons/gun-mods.js) does better
-    if (id === 'hunting' || (sight >= 3 && D.slot !== 'side')) { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
+    // a scope fitted to a long gun lands crits: a quarter of the hits through it do double damage; the hunting rifle's
+    // high-power scope (its stat, weapons/gun-mods.js) does better
+    if (sight >= 3 && D.slot !== 'side') { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
     if (D.mag) D.mag *= [1, 1.4, 2.0, 2.7][mag];
     D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];
@@ -34,7 +39,20 @@ function recomputeEff() {
   }
 }
 const W = id => EFF[id];
-const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke']);
+// a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
+// fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
+const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };
+function tuneUp(D) {
+  D.dmg *= TUNE.dmg; D.rate *= TUNE.rate;
+  if (D.melee) { D.range += TUNE.reach; D.kb *= TUNE.kb; return; }
+  if (D.reload) D.reload *= TUNE.reload;
+  if (D.perShell) D.perShell *= TUNE.reload;
+  D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too
+}
+const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
+// a speed loader: the revolver's reload with one (seconds), and how long each go of two or three shells takes against
+// a single shell (longer, but each shell is in quicker: about 1.6 and 2.2 times as fast overall)
+const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;

@@ -1,4 +1,4 @@
-// Swapping weapons. The right hand carries the one you're holding back to where it rides (the thigh holster, the sling
+// Swapping weapons. The right hand carries the one you're holding back to where it rides (the hip holster, the sling
 // across the pack, the pack straps), crosses to where the next one is carried, draws it and brings it up into the hold,
 // and the left hand comes back onto it last. Meanwhile the upper body and head ease from the old hold to the new one
 // instead of snapping. The whole swap takes half a second.

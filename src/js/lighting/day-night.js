@@ -19,6 +19,18 @@ function lightAt(h) {
   amb[0] = _c1.r * lv; amb[1] = _c1.g * lv; amb[2] = _c1.b * lv;
   return 1 - clamp((lv - 0.25) / (1 - 0.25), 0, 1);
 }
+// your eyes getting used to the dark, no upgrade needed: out of the light they slowly adjust (about 40 seconds to get
+// all the way), and the dark lifts a little, still in black and white (uAdapt in the light-map shader, core/shaders.js).
+// A couple of seconds in lamplight or daylight and it's gone, so the dark outside is as black as ever when you step
+// back out into it. litHere is the light where you stand (lighting/lightmap.js): night ambient is about 0.13 and a lit
+// room well over 0.3
+let litHere = 1;
+const DARK_EYES = { dark: 0.2, lit: 0.3, adjust: 40, lose: 2, lift: 0.7 };
+function updateDarkEyes(dt) {
+  const want = state === 'title' ? 0 : clamp((DARK_EYES.lit - litHere) / (DARK_EYES.lit - DARK_EYES.dark), 0, 1), a = P.adapt || 0;
+  P.adapt = a < want ? Math.min(want, a + dt / DARK_EYES.adjust) : Math.max(want, a - dt / DARK_EYES.lose);
+  LMU.uAdapt.value = smooth(P.adapt) * DARK_EYES.lift;
+}
 // time of day: sun, ambient, window glow, the clock, bugs and mist
 function updateDayNight(rdt) {
   const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk

@@ -45,7 +45,7 @@ src/
     melee/            melee weapons: stats, models, mods, swinging, stamina, swing trail
     zombies/          zombie types, spawning, AI, pathfinding, damage, death falls
     waves/            how each wave is built and scheduled
-    upgrades/         upgrade cards, gun and character tiers, the pick-a-card screen
+    upgrades/         the skills, perks and aid you pick after a wave, gun and character tiers
     stations/         workbench, sawhorse, medicine cabinet, radio, supply drops
     barricades/       boarding doors and windows
     pickups/          ammo, scrap, medkits and other drops
@@ -65,45 +65,63 @@ Every source file starts with a one-line comment saying what is in it.
 | To change | Edit |
 | --- | --- |
 | Gun damage, fire rate, magazine, reload, spread, recoil, starting ammo | `src/js/weapons/gun-stats.js` |
-| Damage drop-off with range, ammo drop amounts | `src/js/weapons/ammo.js` |
+| Damage drop-off with range (and how a longer barrel's `reach` stretches it), ammo drop amounts | `src/js/weapons/ammo.js` |
+| What zombies drop and how often (more ammo for melee kills) | `killZombie` in `src/js/zombies/damage.js` |
+| How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
+| How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
 | Gun 3D models | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
-| Gun mods offered as upgrades (burst switch, second pistol...) | `src/js/weapons/gun-mods.js` |
-| What tinkering at the workbench does to a mod at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
-| Melee damage, swing speed, reach, knockback | `src/js/melee/melee-stats.js` |
-| Melee models and mods | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
-| Stamina cost and swing slowdown | `src/js/melee/melee.js` |
+| Gun mods bought as upgrades at the workbench (burst switch, second pistol...), and which ones take the muzzle (`muzzle`: one can, choke or muzzle device per gun, `muzzleTaken` in `weapons/mod-levels.js`) | `src/js/weapons/gun-mods.js` |
+| What improving a mod at the workbench does at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
+| Melee damage, swing speed, reach, knockback, and how many zombies a swing hits (`cleave`; without it a swing hits only the nearest, unless its reach is long enough: `REACH_CLEAVE`) | `src/js/melee/melee-stats.js` |
+| Melee models and mods (and how much each mod's part grows per level, `lvAt`) | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
+| Stamina cost and swing slowdown, Iron lungs (`LUNGS`), and which zombies a swing lands on | `src/js/melee/melee.js` |
+| How stamina comes back (the wait after a vault, `VAULT_BREATH`) and how far down the arms point a gun (`PITCH_MAX`) | `src/js/weapons/combat-update.js` |
+| The green rim on zombies your melee swing would hit | `REACH_COL` in `src/js/zombies/zombie-visuals.js` |
 | Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
 | Zombie behaviour | `src/js/zombies/ai.js` |
+| How a burning zombie chars (the look; how fast it chars is in `zombies/ai.js` and `zombies/deaths.js`) | `STAIN_FRAG` in `src/js/effects/body-blood.js` |
+| Where zombies come in from: how far out in the fog they start and how soon they show (`FOG_IN`) | `spawnZombie` in `src/js/zombies/spawn.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
-| Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
-| What the upgrade cards show (before → after chips, what an attachment is for) | `src/js/upgrades/upgrade-info.js` |
+| The cards after a wave (skills, perks, aid and new weapons; which is which is `findKind`) and how rare they are. Weapon upgrades are bought at the workbench instead | `src/js/upgrades/upgrades.js` |
+| Who each card is for ("For your 9mm pistol", "For you") | `cardFor` in `src/js/upgrades/upgrade-screen.js`, `forYour` in `src/js/stations/recipes.js` |
+| What the cards show (before → after chips, what a tier is for, running totals for ones that stack) | `src/js/upgrades/upgrade-info.js` |
 | How hard each shot hits back: camera tilt, push and zoom punch; the gun's own kick | `gunPower` in `src/js/weapons/firing.js`, `fireCam` in `src/js/game/camera.js`, `gunKick` in `src/js/player/hold.js` |
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
-| What each station sells, and the prices | `src/js/stations/recipes.js` |
+| What each station sells, and the prices (ammo by the gun, `AMMO_COST`; a gun's ammo, trigger and magazine upgrades, `TIER_COST`). Everything for the weapon in your hands sits in one group, Attachments / Upgrades (`gearGroup`), and each card's green and red chips come from `src/js/upgrades/upgrade-info.js` (`tierFx`, `modFx`, `improveFx`, `tuneFx`) | `src/js/stations/recipes.js` |
+| Speed loaders: the revolver's reload with one (`REV_LOAD`) and how long each go of shells takes (`LOADER_T`); the revolver's loader moves are in `src/js/player/hold.js` (`SLM`) | `src/js/game/run-state.js`, `SL_IN` and the rest in `src/js/weapons/reload.js` |
+| The shotgun pattern (`pelletOff`), what a round keeps through each zombie (`PIERCE_KEEP`), and scopes (`scopeSpread`, `SCOPE_HEAD`) | `src/js/weapons/firing.js` |
+| What a workbench tune-up does to a weapon | `TUNE` in `src/js/game/run-state.js` |
 | Bandage count (3, or 5 with the Med pouch), time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
 | The start of a run: the camera glide, getting up off one knee, the HUD sliding in | `src/js/game/intro.js` |
 | Shove range, push and cooldown (slower while you bandage) | `src/js/player/shove.js` |
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
-| Weapons carried on your body (thigh holster, slung on the pack, melee in the straps) and the planks on your pack | `src/js/player/stow.js` |
-| Dust clouds, spark streaks, impact flashes, blood mist, embers | `src/js/effects/puffs.js` |
+| Weapons carried on your body (hip holster, strapped flat across the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
+| Dust clouds, spark streaks, impact flashes, blood mist, embers, and dragon's breath (`dragonBreath`) | `src/js/effects/puffs.js` |
+| Bullet holes in the house walls | `src/js/effects/bullet-holes.js` |
+| The zombies' eye glow and the streaks behind it (`EYE_GLOW`, `EYE_HALO`, `EYE_STREAK`) | `src/js/effects/eye-glow.js` |
+| How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
-| Day length and night colours | `src/js/lighting/day-night.js` |
+| Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
+| The drive out front and the main road it meets in the fog, and the ground and grass past the farm's edge | `ROAD` and the end of `src/js/world/ground.js` |
+| The haze and drifting fog banks past the farm's edge, and the fog lying on the road | `EDGE_BODY` and `uEdge` in `src/js/core/shaders.js`, `roadFog` in `src/js/world/atmosphere.js` |
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
+| The rolling digit counters (ammo, reserve, bandages, planks, scrap, kills, the reload text) | `rollText` / `setRoll` in `src/js/ui/hud-text.js` |
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
+| The icons (HUD, pickups, stations, status icons) | `src/js/ui/game-icons.js` |
 
 ### Adding a new gun
 
-1. Add its stats to `GUN_WEAPONS` in `weapons/gun-stats.js`. Give it a `rar` (`'c'` common, `'u'` uncommon, `'r'` rare, `'e'` epic, `'l'` legendary) and a `desc`, and it appears as an upgrade card automatically.
+1. Add its stats to `GUN_WEAPONS` in `weapons/gun-stats.js`. Give it a `rar` (`'c'` common, `'u'` uncommon, `'r'` rare, `'e'` epic, `'l'` legendary) and a `desc`, and it appears as a card after a wave automatically.
 2. Add a model builder with the same id to `GUN_MODELS` in `weapons/gun-models.js`. Copying the closest existing gun is the easiest start.
 3. Optional: give it a range drop-off in `FALLOFF` (`weapons/ammo.js`) and an ejection style in `EJECT` (`weapons/casings.js`).
-4. Optional: add mods for it in `weapons/gun-mods.js` with `w: '<your gun id>'`.
+4. Optional: add mods for it in `weapons/gun-mods.js` with `w: '<your gun id>'`. They show up under Upgrades at the workbench while you hold it.
 
 Adding a melee weapon works the same way, using `melee/melee-stats.js` and `melee/melee-models.js`.
 
@@ -162,3 +180,7 @@ Shared state:
 | M | Back to the main menu from the death screen |
 
 Touch screens get twin sticks and on-screen buttons.
+
+## Credits
+
+The icons are from [game-icons.net](https://game-icons.net), by Lorc, Delapouite, sbed and Zeromancer, under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).

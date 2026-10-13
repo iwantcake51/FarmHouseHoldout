@@ -8,17 +8,35 @@ function updateZombies(dt) {
     if (z.vx || z.vz) { moveCircle(z, z.vx * dt, z.vz * dt, z.T.r); const f = Math.exp(-9 * dt); z.vx *= f; z.vz *= f; if (Math.abs(z.vx) + Math.abs(z.vz) < 0.02) z.vx = z.vz = 0; }
     const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
     if (dp < nearest) nearest = dp;
-    if (z.burn > 0) { z.burn -= dt; if (rand() < dt * 14) burst(z.x + rr(-.2, .2), rr(0.6, 1.5) * z.T.scale * (z.crawl ? 0.4 : 1), z.z + rr(-.2, .2), 1, 'ember', 0, 0, 0.2); z.hp -= 14 * dt; if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); continue; } }
+    if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
+    // on fire (dragon's breath, incendiary rounds): flames on it while you can see it, and the fire hurts in ticks, every
+    // half second, each shown as an orange damage number like any other hit
+    if (z.burn > 0) {
+      z.burn -= dt; z.burnT = (z.burnT || 0) + dt;
+      if (z.vis > 0.3) { const s = z.T.scale; burnFx(z.x, z.z, (z.crawl ? 0.1 : 0.45) * s, (z.crawl ? 0.5 : 1.5) * s, 0.2 * s, dt); }
+      if (z.burnT >= BURN_TICK) { z.burnT -= BURN_TICK; if (burnHurt(z)) continue; }
+    } else z.burnT = 0;
     if (z.bleed > 0) { z.bleed -= dt; z.hp -= 8 * dt; if (rand() < dt * 3) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }
       if (rand() < 0.5) { const v = new V3(...STUMP[sp.part]); m.g.localToWorld(v); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     if (z.vault) { stepZVault(z, dt); continue; }
+    // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
+    // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
+    if (z.out) {
+      const ax = z.gx - z.x, az = z.gz - z.z, al = Math.hypot(ax, az);
+      if (al < 0.2) z.out = false;
+      else {
+        const sp = Math.min(al, z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : 1));
+        z.x += ax / al * sp; z.z += az / al * sp;
+        z.phase += dt * z.speed * (z.crawl ? 2.5 : z.type === 'runner' ? 3.6 : 4.5); z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
+      }
+    }
     const fl = z.type === 'brute' ? distB : dist, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
     const inWin = inb(i, j) && openAt[idx(i, j)] && openAt[idx(i, j)].kind === 'window';
     let tx = P.x, tz = P.z, attackingBoard = null;
-    if (here > 1.6) {
+    if (here > 1.6 && !z.out) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
@@ -43,7 +61,7 @@ function updateZombies(dt) {
       if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dp / 18, 0, 1)); }
       if (attackingBoard.boards[top] <= 0) breakBoard(attackingBoard);
       z.phase += dt * 2;
-    } else {
+    } else if (!z.out) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
         const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (inWin ? 0.4 : 1) * (z.crawl ? 0.32 : 1) * (z.pushSlow > 0 ? 0.45 + 0.55 * (1 - z.pushSlow / SHOVE_SLOW) : 1);   // still reeling from a shove
@@ -78,7 +96,8 @@ function updateZombies(dt) {
       if (sd < md && sd > 0.001) {
         const oi = ci(o2.x), oj = ci(o2.z), there = inb(oi, oj) ? fl[idx(oi, oj)] : 1e9;
         const ahead = there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
-        moveCircle(z, sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), sz / sd * (md - sd) * (ahead ? 0.9 : 0.1), z.T.r);
+        const px = sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), pz = sz / sd * (md - sd) * (ahead ? 0.9 : 0.1);
+        if (z.out) { z.x += px; z.z += pz; } else moveCircle(z, px, pz, z.T.r);   // out in the fog there's nothing to bump into
       }
     }
     if (!P.vault && dp < z.T.r + 0.3 && dp > 0.001) { const push = (z.T.r + 0.3 - dp) * 0.5; moveCircle(P, dxp / dp * push, dzp / dp * push, 0.3, true); }
@@ -129,7 +148,8 @@ function updateZombies(dt) {
     z.flash = Math.max(0, z.flash - dt);
     // a hit flashes the body white-hot, cooling through red as the flash runs out
     if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of [m.mats.skin, m.mats.shirt, m.mats.pants]) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
-    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x8a3a08 : 0x5a2004) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
+    // burning, just a flicker of warmth: the char's embers do the glowing (effects/body-blood.js)
+    else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x2c1003 : 0x1c0902) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
   if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); hurtFx = 1; shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }

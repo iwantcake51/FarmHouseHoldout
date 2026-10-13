@@ -1,5 +1,6 @@
 [
   "core/dom.js",
+  "ui/game-icons.js",
   "core/renderer.js",
   "core/math.js",
   "core/shaders.js",
@@ -44,6 +45,7 @@
   "effects/blood-map.js",
   "effects/particles.js",
   "effects/puffs.js",
+  "effects/bullet-holes.js",
   "pickups/pickups.js",
   "zombies/deaths.js",
   "zombies/zombie-types.js",

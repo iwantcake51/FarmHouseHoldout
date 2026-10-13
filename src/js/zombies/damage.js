@@ -82,15 +82,27 @@ function pickPart(z, rel, side, D) {
 }
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
 let critNext = false;
+// fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
+const BURN_TICK = 0.5, BURN_DMG = 7;
+function burnHurt(z) {
+  if (z.dead) return true;
+  const dmg = BURN_DMG * (S.lastStand && P.hp < S.maxHp * 0.3 ? 1.6 : 1);
+  z.hp -= dmg; z.flash = Math.max(z.flash, 0.05);
+  dmgNumber(z, dmg, false, 1.2 * z.T.scale * (z.crawl ? 0.4 : 1), false, 'burn');
+  if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); return true; }
+  return false;
+}
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   const crit = critNext; critNext = false;
   if (z.dead) return false;
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
-  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.8;
+  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
-  const dealt = dmg * (part === 'head' ? headMulFor(D) : partMult(part));
+  // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
+  // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
+  const dealt = dmg * (D.melee ? 1 : part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
@@ -99,8 +111,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
-  xhHit = 1; xhHead = part === 'head';
-  dmgNumber(z, dealt, part === 'head', y, crit);
+  dmgNumber(z, dealt, part === 'head' && !D.melee, y, crit);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
     z.lhp[part] -= dmg * mul;
@@ -133,12 +144,12 @@ function blowApart(z, dx, dz) {
 }
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
   spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
-  xhKill = true; xhHit = 1.4; shake = Math.max(shake, 0.16);
+  shake = Math.max(shake, 0.16);
   popEl('kills');
   if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.headHeal && part === 'head' ? 2 : 1));
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
@@ -152,16 +163,19 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   SFX.kill();
-  if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * S.scrapMul);
+  // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
+  const big = z.type === 'brute' ? 2 : 1;
+  if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * S.scrapMul);
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
-    // ammo is scarce: about half the ammo rolls come up empty
-    const r = rand(), opts = ammoTypes(), curA = gunAmmo();
-    if (r < 0.55) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5)) dropPickup(z.x, z.z, 'ammo', 1, curA && rand() < 0.6 ? curA : pick(opts)); }
-    else dropPickup(z.x, z.z, r < 0.8 ? 'planks' : 'med');
+    // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
+    // rounds pays you back a little). Planks are the rarest roll
+    const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
+    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
+    else dropPickup(z.x, z.z, r < 0.78 ? 'planks' : 'med', big);
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
-function dmgNumber(z, dmg, head, y, crit) {
+function dmgNumber(z, dmg, head, y, crit, kind) {
   const now = performance.now();
   if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
     z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
@@ -171,7 +185,7 @@ function dmgNumber(z, dmg, head, y, crit) {
     z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
     return;
   }
-  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : ''); num.textContent = Math.round(dmg); el.appendChild(num);
+  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : '') + (kind ? ' ' + kind : ''); num.textContent = Math.round(dmg); el.appendChild(num);
   document.body.appendChild(el);
   const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
   floats.push(f); z.dn = { el, num, f, amt: dmg, t0: now };

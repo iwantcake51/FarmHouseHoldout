@@ -19,7 +19,8 @@ function buildGuns() {
   const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
-    const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = true);
+    // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
+    const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; tierCtx = id;
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
@@ -56,8 +57,10 @@ function buildGuns() {
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)
 function gunExtras(id) {
   const D = WEAP[id], out = [];
-  if (!D || D.melee) return out;
-  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
+  if (!D) return out;
+  if (W8.tune && W8.tune[id]) out.push('Tuned');
+  if (D.melee) return out;
+  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push(TIERS[k].t[n - 1].name); }
   if (S.pierce) out.push('Pierce ' + S.pierce);
   if (S.att.fire) out.push('Incendiary');
   if (S.att.bayonet && D.slot === 'long') out.push('Bayonet');

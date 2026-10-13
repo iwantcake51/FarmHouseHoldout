@@ -1,4 +1,10 @@
-// Board models and adding/breaking boards on doors and windows.
+// Board models and adding/breaking boards on doors and windows, and how many planks you can carry.
+
+// you carry at most PLANK_MAX planks; everything that hands you planks goes through addPlanks, which stops at the cap
+// and returns how many it actually added
+const PLANK_MAX = 15;
+const plankRoom = () => Math.max(0, PLANK_MAX - S.planks);
+function addPlanks(n) { const got = Math.min(n, plankRoom()); S.planks += got; return got; }
 
 // ---- barricade planks: grained, colour-varied boards with nail heads and split ends ----
 const plankTex = (() => {

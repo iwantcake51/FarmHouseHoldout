@@ -1,4 +1,4 @@
-// Camera follow, aim pan, scope view, shake and roll.
+// Camera follow, aim pan, edge pan, scope view, shake and roll.
 
 const camTarget = new V3(P.x, 0, P.z);
 // the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
@@ -38,6 +38,10 @@ function vaultCam(rdt) {
 }
 let titleSpin = 0;
 const TITLE_ZOOM = 0.8;
+// the cursor near an edge of the screen eases the view a little that way, so you can see a bit further where you're
+// looking: from EDGE_IN of the way in from an edge, up to EDGE_PAN of the screen's height at the very edge
+const EDGE_IN = 0.14, EDGE_PAN = 0.09, camEdge = { x: 0, y: 0 };
+const edgeK = t => t < EDGE_IN ? -smooth(1 - t / EDGE_IN) : t > 1 - EDGE_IN ? smooth((t - 1 + EDGE_IN) / EDGE_IN) : 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
 function updateCamera(rdt) {
   if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
@@ -54,9 +58,13 @@ function updateCamera(rdt) {
     let px = 0, pz = 0; const ads = ANIM.ads || 0;
     // a scoped rifle leans the view further out toward the aim (and zooms in more, below)
     if (ads > 0.01) { const sk = ANIM.scopeK || 0, lean = 0.42 + 0.2 * sk, cap = 5.5 + 3 * sk; px = (aimPt.x - P.x) * lean; pz = (aimPt.z - P.z) * lean; const pl = Math.hypot(px, pz); if (pl > cap) { px *= cap / pl; pz *= cap / pl; } px *= ads; pz *= ads; }
+    { const on = state === 'play' && hasMouse && !usingTouch && !P.dead && !introCamOn(), ex = on ? edgeK(clamp(mouseX / innerWidth, 0, 1)) : 0, ey = on ? edgeK(clamp(mouseY / innerHeight, 0, 1)) : 0;
+      camEdge.x += (ex - camEdge.x) * Math.min(1, rdt * 3); camEdge.y += (ey - camEdge.y) * Math.min(1, rdt * 3);
+      const m = EDGE_PAN * 2 * VIEW / zoom;   // screen right is RIGHT on the ground; screen down is back toward the camera, stretched by the tilt
+      px += (RIGHT.x * camEdge.x - FWD.x * camEdge.y / Math.sin(EL)) * m; pz += (RIGHT.z * camEdge.x - FWD.z * camEdge.y / Math.sin(EL)) * m; }
     const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
     if (state === 'play') tickIntro(rdt);
-    if (introCamOn()) introCam(gx, gz);   // the glide in at the start of a run (game/intro.js)
+    if (introCamOn()) introCam(gx, gz, rdt);   // the glide in at the start of a run (game/intro.js)
     else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }
   }
   if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);

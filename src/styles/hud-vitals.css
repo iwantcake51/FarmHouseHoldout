@@ -7,14 +7,19 @@
 #ecg polyline{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(236,230,216,.35))}
 #vitals.low #ecg polyline{stroke:#e0402c;filter:drop-shadow(0 0 4px rgba(224,64,44,.6))}
 .bar{position:relative;height:6px;background:rgba(0,0,0,.5)}
+@property --sc1{syntax:'<color>';inherits:true;initial-value:#5f9e78}
+@property --sc2{syntax:'<color>';inherits:true;initial-value:#a8dcb4}
 #stamBar{position:relative;height:3px;margin-top:-4px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;opacity:0;transition:opacity .4s ease}
-#stamBar i{position:absolute;inset:0;transform-origin:left center;border-radius:2px;background:linear-gradient(90deg,var(--sc1,#5f9e78),var(--sc2,#a8dcb4));box-shadow:0 0 6px var(--sc2,#a8dcb4)}
+#stamBar i{position:absolute;inset:0;transform-origin:left center;border-radius:2px;background:linear-gradient(90deg,var(--sc1,#5f9e78),var(--sc2,#a8dcb4));box-shadow:0 0 6px var(--sc2,#a8dcb4);transition:--sc1 .5s ease,--sc2 .5s ease}
 #stamBar.big{height:4px}
 #stamBar.tired i{--sc1:#b0782c;--sc2:#e8b84a}
 #stamBar.exh i{--sc1:#8a2a1e;--sc2:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes stPulse{50%{opacity:.5}}
 #xh .stBg{fill:none;stroke:rgba(0,0,0,.5);stroke-width:3.4;stroke-linecap:round}
-#xh .st{fill:none;stroke:#a8dcb4;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
+#xh .st{fill:none;stroke:#a8dcb4;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9));transition:stroke .5s ease}
+/* the stamina arc fades in when you use some and back out a moment after it's full */
+#xhStamG{opacity:0;transition:opacity .6s ease .35s}
+#xhStamG.on{opacity:1;transition:opacity .15s ease}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
 #hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:0 0 6px rgba(92,160,255,.45);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
@@ -24,8 +29,10 @@
 .bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(5% - 1px),rgba(8,8,8,.9) calc(5% - 1px) 5%)}
 #vitals.low .bar i{background:var(--blood)}
 .res{display:flex;gap:16px;align-items:center}
-.res span{display:flex;align-items:center;gap:6px}
-.res svg{width:16px;height:16px;stroke:var(--dim);fill:none;stroke-width:1.6;stroke-linejoin:round}
-.res b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);line-height:1;transform-origin:left bottom}
+.res>span{display:flex;align-items:center;gap:6px}
+.res svg{width:17px;height:17px;fill:var(--dim)}
+.res b{font-family:var(--f-num);font-weight:800;font-size:24px;color:var(--ink);line-height:1;transform-origin:left bottom;transition:color .5s ease}
+.res b.full{color:#4f9a5c}   /* a full plank stack reads dark green */
 .res b.pop{animation:pop .28s ease-out}
+.res b.full::after{content:"max";margin-left:3px;font-family:var(--f-ui);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4f9a5c;vertical-align:top}
 @keyframes pop{0%{transform:scale(1.45);color:var(--orange)}100%{transform:scale(1)}}

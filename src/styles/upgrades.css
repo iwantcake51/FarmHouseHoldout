@@ -5,6 +5,8 @@
 #upgrade .wrap{display:grid;gap:22px;justify-items:center;width:min(1000px,100%)}
 #upgrade h3{margin:0;font-family:var(--f-num);font-weight:800;font-size:44px;text-transform:uppercase;letter-spacing:.02em;transform:translateY(10px);opacity:0;transition:all .4s ease .1s}
 #upgrade.show h3{transform:none;opacity:1}
+#upgrade .kinds{margin-top:-14px;font-family:var(--f-ui);font-weight:600;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);opacity:0;transition:opacity .4s ease .2s}
+#upgrade.show .kinds{opacity:1}
 #cards{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;pointer-events:none;perspective:1100px}
 #upgrade.armed #cards{pointer-events:auto}
 .card{all:unset;box-sizing:border-box;position:relative;cursor:pointer;width:260px;min-height:190px;padding:14px 18px 46px;background:var(--card);color:var(--card-ink);font-family:var(--f-type);box-shadow:0 10px 30px rgba(0,0,0,.5);border-top:7px solid var(--rc,#6d665b);
@@ -40,6 +42,8 @@
 @keyframes ashUp{0%{opacity:0;transform:translate(0,0) rotate(0)}12%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(.6)}}
 .card:focus-visible{outline:2px solid var(--orange);outline-offset:4px}
 .card .k{display:flex;justify-content:space-between;gap:8px;font-size:12px;opacity:.7}
+/* who it's for, in a band in the card's rarity colour: your 9mm pistol, all your guns, you */
+.card .for{display:inline-block;margin-top:8px;padding:3px 8px 2px;font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--card);background:var(--rc,#6d665b);border-radius:2px}
 .card .t{font-size:21px;margin:8px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--rule);line-height:1.1}
 .card .d{font-size:14px;line-height:24px}
 .card .v{font-size:12px;line-height:24px;color:#7a3a2c}

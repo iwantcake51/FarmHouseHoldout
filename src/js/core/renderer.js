@@ -15,6 +15,8 @@ scene.fog = new THREE.Fog(0x1e1716, 42, 78);
 const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
 const VIEW = 9, YAW = Math.PI / 4, EL = 0.66, CAM_D = 40;
 const CAM_OFF = new V3(Math.sin(YAW) * Math.cos(EL) * CAM_D, Math.sin(EL) * CAM_D, Math.cos(YAW) * Math.cos(EL) * CAM_D);
+// how far you can zoom out and in (cam.zoom, so bigger is closer)
+const ZOOM_MIN = 0.6, ZOOM_MAX = 1.8;
 let zoom = 1, zoomT = 1;
 const FWD = { x: -Math.sin(YAW), z: -Math.cos(YAW) };
 const RIGHT = { x: Math.cos(YAW), z: -Math.sin(YAW) };

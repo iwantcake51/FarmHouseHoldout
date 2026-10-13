@@ -62,6 +62,13 @@ function fitAttachments(g, D, front, y, info) {
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, front - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, front - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, front - 0.163); [-0.28, -0.22].forEach(o => ring(g, 0.025, 0.022, GM.tape, X + 0.06, y - 0.02, front + o)); }
     else { box(g, 0.02, 0.03, 0.05, GM.metal, X + 0.045, y - 0.02, front - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, front - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, front - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, front - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, front - 0.36); }
   }
+  // a shotgun's speed loader: a polymer clip on the left of the stock with the next two or three shells lying in it
+  // ready (on a sawn-off, on the forend)
+  if (T('loader') && isShell && D.perShell) {
+    const n = 1 + T('loader'), at = info.loaderAt || [X - 0.042, 1.03, 0.3];
+    box(g, 0.012, 0.024 * n + 0.012, 0.07, GM.poly, at[0] + 0.004, at[1] + 0.012 * (n - 1), at[2]);
+    for (let k = 0; k < n; k++) { const sy = at[1] + k * 0.024; cyl(g, 0.0105, 0.05, GM.shell, at[0] - 0.008, sy, at[2] + 0.006, 8); cyl(g, 0.011, 0.014, GM.brass, at[0] - 0.008, sy, at[2] - 0.026, 8); }
+  }
   const sight = T('sight');
   if (sight && !info.noSight) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
@@ -103,14 +110,17 @@ function fitAttachments(g, D, front, y, info) {
   return front;
 }
 // the lowest point of the gun's body at (x, z): followed down from the barrel through every piece that touches the one
-// above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack
-const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4();
+// above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack. Each
+// piece is measured in the gun's own frame from its own shape, so however the gun happens to be held while it's built
+// (turned, tilted, mid-swing), a grip or a magazine never seems to reach in under the barrel and drag the mount down
+const _ub = new THREE.Box3(), _ubM = new THREE.Matrix4(), _ubR = new THREE.Matrix4();
 function undersideAt(g, x, z, yAxis) {
   g.updateMatrixWorld(true); _ubM.copy(g.matrixWorld).invert();
   const boxes = [];
   g.traverse(o => {
     if (!o.isMesh || o.userData.isFlash || !o.visible) return;
-    _ub.setFromObject(o).applyMatrix4(_ubM);
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    _ub.copy(o.geometry.boundingBox).applyMatrix4(_ubR.multiplyMatrices(_ubM, o.matrixWorld));
     if (x < _ub.min.x - 0.004 || x > _ub.max.x + 0.004 || z < _ub.min.z || z > _ub.max.z || _ub.min.y > yAxis) return;
     boxes.push([_ub.min.y, _ub.max.y]);
   });

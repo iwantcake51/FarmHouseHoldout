@@ -1,6 +1,8 @@
 // Drops: their models, outlines and collection.
 
 const pickups = [];
+// how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
+const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 const PICK_COL = { scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0xf08a4a, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
 const AM = {
@@ -40,6 +42,10 @@ function dropPickup(x, z, kind, amount, ammoType) {
     cartridge(g, 0.05, 0.22, 0.15, 0.2, 0.022, true);
   }
   const col = PICK_COL[kind === 'ammo' ? ammoType : kind];
+  // planks and bandages can be left lying when you're full: they get their own copies of their materials so they can
+  // go half grey on their own (greyDrop, below)
+  const mats = [];
+  if (kind === 'planks' || kind === 'med') g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.c0 = o.material.color.clone(); mats.push(o.material); } });
   const om = outline(g, col);
   const xr = xray(g, col, true);
   const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -51,12 +57,26 @@ function dropPickup(x, z, kind, amount, ammoType) {
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, t: kind === 'supply' ? 60 : 25, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
+  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+}
+// a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
+// its ring and glow dimmed, so it's plain you can't grab it; it eases back into colour as soon as you have room
+const _gc = new THREE.Color(), _gl = new THREE.Color();
+const greyOf = (c, k, out) => { const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; return out.copy(c).lerp(_gl.setRGB(l, l, l), k).multiplyScalar(1 - k * 0.9); };
+function greyDrop(p, dt) {
+  const full = p.kind === 'planks' ? !plankRoom() : p.kind === 'med' ? (P.band || 0) >= bandMax() : false;
+  p.grey += ((full ? 0.5 : 0) - p.grey) * Math.min(1, dt * 3);
+  if (Math.abs(p.grey - p.greyShown) < 0.004) return;
+  p.greyShown = p.grey;
+  p.mats.forEach(m => greyOf(m.userData.c0, p.grey, m.color));
+  greyOf(p.col, p.grey, _gc); p.ringMat.color.copy(_gc); p.discMat.color.copy(_gc); p.glow.material.color.copy(_gc); p.om.color.copy(_gc); p.xr.rim.color.copy(_gc);
 }
 // drops: bob, glow, magnet scrap, and collecting them
 function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
+    if (p.mats.length) greyDrop(p, dt);
     // tossed out of the body, then a slow bob and spin over a pulsing ring
     const a = Math.min(1, p.age / 0.32), pop = 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);
     p.item.scale.setScalar(Math.max(0.01, pop));
@@ -71,21 +91,29 @@ function updatePickups(dt) {
     const beat = 0.5 + 0.5 * Math.cos(p.wph), lit = warn > 0 ? 1 - Math.min(1, warn * 2) * (1 - beat) : 1, gone = clamp(p.t / 0.35, 0, 1);
     p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
     p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
+    if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
     const seen = visAt(p.x, p.z); p.g.visible = true;
-    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone; p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
+    p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
     const d = Math.hypot(p.x - P.x, p.z - P.z);
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
-    // a full bandage bag leaves the bandage where it lies; it never heals you on the spot
-    const bagFull = (P.band || 0) >= bandMax();
+    // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank stack
+    const bagFull = (P.band || 0) >= bandMax(), planksFull = !plankRoom();
     if (p.kind === 'med' && bagFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Bandage bag full', { kind: 'warn', icon: 'med', sub: bandMax() + '/' + bandMax() + ' · press G to use one' }); } }
+    else if (p.kind === 'planks' && planksFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Can\'t carry more planks', { kind: 'warn', icon: 'planks', sub: PLANK_MAX + ' is all your pack holds · board something up' }); } }
     else if (d < 0.9) {
       let ft = '';
-      if (p.kind === 'planks') { const n = 1 + (rand() < 0.4 ? 1 : 0); S.planks += n; feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }
-      else if (p.kind === 'med') { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); ft = '+1 bandage'; popEl('bands'); SFX.pick(); }
+      if (p.kind === 'planks') { const n = addPlanks((rand() < 0.2 ? 2 : 1) * p.amount); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }
+      else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount; SFX.scrap(); }
-      else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); S.planks += 4; S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; feed('planks', 4, 'planks'); feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
-      else { const opts = ammoTypes(), a = p.ammoType || pick(opts); if (a) { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); ft = '+' + amt + ' ' + AMMO_NAME[a]; } else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; } SFX.pick(); }
+      else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
+      else {
+        // an ammo box has rounds for every gun you carry, whichever kind it looks like
+        const opts = ammoTypes();
+        opts.forEach(a => { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL * p.amount)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); if (!ft) ft = '+' + amt + ' ' + AMMO_NAME[a]; });
+        if (opts.length > 1) ft = '+Ammo for every gun'; else if (!opts.length) { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; }
+        SFX.pick();
+      }
       floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { scene.remove(p.g); pickups.splice(k, 1); }

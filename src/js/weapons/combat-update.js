@@ -1,5 +1,8 @@
 // Per-frame weapon handling: trigger, swings, reloads, bursts, stamina, bleeding, smoke wisps.
 
+const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
+const PITCH_MAX = 1.0;    // how far down (radians) the arms will point a gun
+
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
@@ -12,8 +15,10 @@ function updateCombat(dt) {
   if (!wantFire) W8.trigLock = false;
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
   P.stamT = (P.stamT || 0) + dt;
-  // stamina comes back after a short breather; Iron lungs makes the breather shorter and the recovery quicker
-  if (P.stamT > (S.lungs ? 0.25 : 0.55)) P.stam = Math.min(1, P.stam + dt * (P.exh ? 0.26 : 0.38) * (P.moving ? 0.75 : 1) * (S.lungs ? 1.5 : 1));
+  // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
+  // second after you've climbed through or over something
+  if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
+  if (P.stamT > (S.lungs ? LUNGS.wait : 0.55) && !(P.stamWait > 0)) P.stam = Math.min(1, P.stam + dt * (P.exh ? 0.26 : 0.38) * (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1));
   if (P.exh && P.stam >= 0.34) P.exh = false;
   // emptying the tank leaves you sluggish; speed creeps back as the stamina does
   if (P.exh) P.fatigued = true; else if (P.stam >= 0.75) P.fatigued = false;
@@ -31,9 +36,11 @@ function updateCombat(dt) {
       if (ar.z && ar.z.crawl) { ty = 0.3; [tx, tz] = bodyOf(ar.z); }
       else for (const z of zombies) { if (!z.crawl) continue; const [bx, bz] = bodyOf(z); if (Math.hypot(aimPt.x - bx, aimPt.z - bz) < 1.1) { ty = 0.3; tx = bx; tz = bz; break; } }
     }
-    if (ty === null && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { ty = 0.85; tx = _gp.x; tz = _gp.z; }
+    // over open ground: waist height out in the yard, closer to the ground the nearer you aim, so the arms can point
+    // well down at the dirt by your feet
+    if (ty === null && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { const d = Math.hypot(_gp.x - P.x, _gp.z - P.z); ty = 0.85 - 0.55 * (1 - smooth(clamp((d - 0.8) / 2.6, 0, 1))); tx = _gp.x; tz = _gp.z; }
     if (ty !== null) {
-      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.8, Math.hypot(tx - P.x, tz - P.z))), 0, 0.7);
+      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), 0, PITCH_MAX);
       ANIM.aimY = Math.min(GUN_Y, ty);
     }
   }

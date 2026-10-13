@@ -3,7 +3,7 @@
 // ---- scope: hold right click with a scoped rifle ----
 let scoped = false, zoomBeforeScope = 1;
 const scopePt = new V3();
-function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && (id === 'hunting' || ((D.slot === 'long' || D.slot === 'auto') && T('sight') >= 3)); }
+function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && (D.slot === 'long' || D.slot === 'auto') && (T('sight') >= 3 || (id === 'hunting' && hasMod('hpscope'))); }
 function enterScope() {
   if (scoped || P.vault || state !== 'play') return;
   scoped = true; zoomBeforeScope = zoomT; zoomT = curId() === 'hunting' && hasMod('hpscope') ? 3.1 : 2.4;
@@ -23,4 +23,4 @@ function moveScope(dx, dy) {
   if (d > max) { scopePt.x = P.x + vx / d * max; scopePt.z = P.z + vz / d * max; }
 }
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('wheel', e => { e.preventDefault(); zoomT = clamp(zoomT * Math.exp(-e.deltaY * 0.0012), 0.6, 1.8); }, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); zoomT = clamp(zoomT * Math.exp(-e.deltaY * 0.0012), ZOOM_MIN, ZOOM_MAX); }, { passive: false });

@@ -39,6 +39,11 @@
       <g id="tk2"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
+    <!-- shotguns: four arcs of a ring as wide as the pellet spread, on the diagonals, in place of the four ticks -->
+    <g id="xhSg" hidden>
+      <circle id="xhSgSh" class="sgSh" r="12"></circle>
+      <circle id="xhSgR" class="sg" r="12"></circle>
+    </g>
     <g id="xhMelee" hidden>
       <!-- two curved brackets round a dot: they close in while you recover from a swing and snap open when you can swing again -->
       <g id="xhBr">
@@ -46,15 +51,13 @@
         <path class="mBr" d="M-10.7 9 A14 14 0 0 1 -10.7 -9 M10.7 -9 A14 14 0 0 1 10.7 9"></path>
       </g>
       <circle class="mDotSh" r="3.4"></circle><circle class="mDot" r="2"></circle>
-      <!-- stamina: a short arc under the reticle -->
+    </g>
+    <!-- stamina: a short arc under the reticle, with any weapon, while it's being used and until it's full again -->
+    <g id="xhStamG">
       <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
-    <g id="xhHit" opacity="0">
-      <line class="hit" x1="-7" y1="-7" x2="-14" y2="-14"></line><line class="hit" x1="7" y1="-7" x2="14" y2="-14"></line>
-      <line class="hit" x1="-7" y1="7" x2="-14" y2="14"></line><line class="hit" x1="7" y1="7" x2="14" y2="14"></line>
-    </g>
   </svg>
   <div id="ammoWarn" hidden onanimationend="if(event.animationName==='awKick')this.classList.remove('kick')"></div>
 </div>
@@ -88,13 +91,13 @@
   <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
   <div id="stamBar"><i id="stamFill"></i></div>
   <div class="res">
-    <span title="Planks"><svg viewBox="0 0 24 24"><path d="M3 8l17-4 1 4-17 4zM3 15l17-4 1 4-17 4z"></path></svg><b id="planks">6</b></span>
-    <span title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="scrap">0</b></span>
-    <span title="Kills"><svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7c0 2.6 1.4 4 2.5 4.8V18h9v-3.2C17.6 14 19 12.6 19 10a7 7 0 0 0-7-7zM9.5 11h.01M14.5 11h.01M10 18v3M14 18v3"></path></svg><b id="kills">0</b></span>
+    <span title="Planks"><svg data-gi="planks"></svg><b id="planks">6</b></span>
+    <span title="Scrap"><svg data-gi="scrap"></svg><b id="scrap">0</b></span>
+    <span title="Kills"><svg data-gi="kills"></svg><b id="kills">0</b></span>
   </div>
 </div>
 <div class="hud" id="arms" hidden>
-  <div id="bandBox" title="Bandages (Q to use)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg><b id="bands">0</b><kbd>Q</kbd></div>
+  <div id="bandBox" title="Bandages (Q to use)"><svg data-gi="bandage" aria-hidden="true"></svg><b id="bands">0</b><kbd>Q</kbd></div>
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
@@ -104,12 +107,12 @@
 </div>
 <div class="hud" id="feed"></div>
 <div class="hud" id="station" hidden>
-  <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"></path><circle cx="12" cy="12" r="3.2"></circle></svg><b id="stScrap">0</b></div></div>
+  <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div></div>
   <div id="stRows"></div>
   <div class="note" id="stNote">Press 1–4 or click a card · E to step away</div>
 </div>
 <div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
-<div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 24 24" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
+<div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 512 512" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
 <div class="hud" id="announce" style="opacity:0"><div id="annEye"></div><div id="annBig"></div><div class="annRule"><i></i></div><div id="annSmall"></div></div>
 
 <div id="touch" hidden>
@@ -134,7 +137,7 @@
       <p>Forty acres of soybean and rust off Route 9, three miles outside Ashby Hollow, Kentucky. The radio stopped making sense on Tuesday. By Thursday the Kesslers were gone, and the people who used to wave from passing trucks had started walking the fence line instead.</p>
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
-    <p class="brief">Zombies drop scrap; the workbench turns it into ammo and mods. Survive a wave and you take one find: a better gun, a mod for what you carry, or something to keep you breathing. When you die, the farm is theirs.</p>
+    <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
     <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
    </div>
     <div class="ctrls">
@@ -162,6 +165,7 @@
   <div class="wrap">
     <div class="eyebrow" id="upEyebrow">Wave cleared</div>
     <h3>Take one</h3>
+    <div class="kinds">Skills · Perks · Aid</div>
     <div id="cards"></div>
     <div class="note" id="upNote">Click a card or press 1, 2 or 3</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
@@ -172,7 +176,7 @@
   <div class="inner">
     <div class="eyebrow">Paused</div>
     <h2>Catch your breath</h2>
-    <div class="histHead"><span>Your upgrades</span><b id="pHistN">0</b></div>
+    <div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div>
     <div class="hist" id="pHist"></div>
     <div class="btns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
   </div>
@@ -180,7 +184,7 @@
 
 <div class="screen" id="dead" hidden>
   <div class="inner">
-    <div class="eyebrow">The house fell</div>
+    <div class="eyebrow">The house fell to the dead.</div>
     <h2 id="deadTitle">Dead on wave 1</h2>
     <div class="tally" id="deadStats"></div>
     <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>

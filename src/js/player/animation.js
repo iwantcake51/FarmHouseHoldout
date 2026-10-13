@@ -105,10 +105,12 @@ function animatePlayer(dt, rdt) {
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / 4.1, 0, 1.3);
   const hpF = P.hp / S.maxHp, limp = hpF < 0.4 ? (0.4 - hpF) / 0.4 : 0;
   ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5); ANIM.stumble = Math.max(0, (ANIM.stumble || 0) - rdt * 2.2);
-  // hips turn toward the direction you walk; walking away from your aim plays the stride backwards
-  let legYaw = 0;
+  // hips turn toward the direction you walk; walking away from your aim plays the stride backwards. Down the sights
+  // they stay squarer to the aim and the legs side-step the rest of the way (ANIM.r2, below)
+  const ads = ANIM.ads || 0;
+  let legYaw = 0, mvRel = 0;
   if (spd > 0.3 || P.vault) {
-    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } legYaw = clamp(rel, -1.15, 1.15); }
+    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } mvRel = rel; const lim = 1.15 - 0.7 * ads; legYaw = clamp(rel, -lim, lim); }
     ANIM.legYaw += (legYaw - ANIM.legYaw) * Math.min(1, rdt * (ANIM.postVault > 0 ? 4 : 10));   // the hips come round gently out of a vault
     ANIM.feet = ANIM.yaw + ANIM.legYaw; ANIM.stepping = false;
   } else {
@@ -120,7 +122,9 @@ function animatePlayer(dt, rdt) {
     ANIM.legYaw = angDiff(ANIM.feet, ANIM.yaw);
   }
   pm.lower.rotation.y = ANIM.legYaw;
-  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF);
+  // how far off the hips' facing you're actually going: the legs swing along that line, partly as a side step
+  ANIM.r2 = (ANIM.r2 || 0) + ((spd > 0.3 && !P.vault ? clamp(angDiff(mvRel, ANIM.legYaw), -1.3, 1.3) : 0) - (ANIM.r2 || 0)) * Math.min(1, rdt * 10);
+  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF) * (1 - 0.2 * ads);
   ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 2.4);   // 0.42 s to soak up a landing
   if (P.vault) {
     vaultPose(pm, P.vault);
@@ -132,10 +136,15 @@ function animatePlayer(dt, rdt) {
     pm.legL.rotation.x = ANIM.legDir * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDir * s * stride * back * (1 - limp * 0.7) + k * 0.32;
     pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
-    pm.legL.rotation.x = ANIM.legDir * s * stride;
-    pm.legR.rotation.x = -ANIM.legDir * s * stride * (1 - limp * 0.7);   // the bad leg hardly swings
+    // the stride runs along the line you're going: fore and aft as far as the hips face it, and the rest a side step,
+    // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
+    // a little and the steps shorten
+    const st = ANIM.legDir * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * 0.7, splay = 0.045 * ads;
+    pm.legL.rotation.x = st * sc;
+    pm.legR.rotation.x = -st * sc * bad;   // the bad leg hardly swings
+    const zl = -st * sn * 0.5, zr = st * sn * 0.5 * bad;
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
-    pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = spd <= 0.3 ? ANIM.legYaw * 0.035 : 0;
+    pm.legL.rotation.z = (zl > 0 ? zl * 0.35 : zl) - splay; pm.legR.rotation.z = (zr < 0 ? zr * 0.35 : zr) + splay; pm.lower.rotation.z = spd <= 0.3 ? ANIM.legYaw * 0.035 : 0;
     if (ANIM.stepping && spd <= 0.3) {
       const q = Math.sin(ANIM.stepT * 12), lift = Math.min(1, Math.abs(ANIM.legYaw) * 1.6 + 0.3);
       pm.legL.rotation.x = q * 0.13 * lift; pm.legR.rotation.x = -q * 0.13 * lift;
@@ -146,9 +155,10 @@ function animatePlayer(dt, rdt) {
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
   if (stq) { pm.g.rotation.z += (ANIM.stumbleSide || 1) * stq * 0.2; pm.g.rotation.x += stq * 0.12; pm.g.position.y -= stq * 0.07; pm.legL.rotation.x += stq * 0.45; pm.legR.rotation.x -= stq * 0.3; }
-  // bob twice per stride, dip onto the bad leg when limping, breathe when still
-  const run1 = Math.min(1, runF), still = 1 - run1, ads = ANIM.ads || 0;
-  const bob = Math.abs(Math.cos(ph)) * 0.045 * run1 + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
+  // bob twice per stride, dip onto the bad leg when limping, breathe when still. Down the sights you roll heel to toe
+  // and glide: half the bob, and the chest held steady over the hips (below) so the gun stays on target
+  const run1 = Math.min(1, runF), still = 1 - run1;
+  const bob = Math.abs(Math.cos(ph)) * 0.045 * run1 * (1 - 0.5 * ads) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
   const breathe = Math.sin(now * 1.7) * 0.01 * still;
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
@@ -156,19 +166,19 @@ function animatePlayer(dt, rdt) {
   // the chest rides the hips' bob on a spring: it lags them a little and settles just past each footfall
   if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
   pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy + breathe;
-  pm.lower.position.x = shift; pm.upper.position.x = shift * 0.75;
+  pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads);
   // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
   if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1;
   // lean into movement relative to where you face, sway with the stride, rock back when hit
   const md = Math.atan2(P.vx, P.vz), rel = spd > 0.2 ? angDiff(md, ANIM.yaw) : 0;
-  const lxT = Math.cos(rel) * 0.1 * run1, lzT = -Math.sin(rel) * 0.09 * run1;
+  const lxT = Math.cos(rel) * 0.1 * run1 * (1 - 0.75 * ads), lzT = -Math.sin(rel) * 0.09 * run1 * (1 - 0.75 * ads);
   ANIM.lx += (lxT - ANIM.lx) * Math.min(1, rdt * 8); ANIM.lz += (lzT - ANIM.lz) * Math.min(1, rdt * 8);
   // and into changes of speed: pitch forward setting off, rock back pulling up, lean into a sudden cut sideways
   if (P.vault || ANIM.pvx === undefined) { ANIM.pvx = P.vx; ANIM.pvz = P.vz; ANIM.ax = ANIM.az = 0; }
   else if (dt > 0) { const k = Math.min(1, dt * 7); ANIM.ax += (clamp((P.vx - ANIM.pvx) / dt, -30, 30) - ANIM.ax) * k; ANIM.az += (clamp((P.vz - ANIM.pvz) / dt, -30, 30) - ANIM.az) * k; ANIM.pvx = P.vx; ANIM.pvz = P.vz; }
   const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), aF = ANIM.ax * sy + ANIM.az * cy, aS = ANIM.ax * cy - ANIM.az * sy;
-  const alx = clamp(aF * 0.0042, -0.09, 0.1), alz = clamp(-aS * 0.003, -0.07, 0.07);
-  const sway = s * 0.04 * run1 + limp * Math.max(0, s) * 0.14 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;
+  const alx = clamp(aF * 0.0042, -0.09, 0.1) * (1 - 0.6 * ads), alz = clamp(-aS * 0.003, -0.07, 0.07) * (1 - 0.6 * ads);
+  const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + limp * Math.max(0, s) * 0.14 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;
   // breathing lifts the chest a touch
   let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8, ury = -s * 0.03 * run1 * (1 - ads * 0.7), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
@@ -190,7 +200,7 @@ function updatePlayerVisuals(dt, rdt) {
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   { const k = 1 - titleBlend(); if (pXray.rim.opacity !== 0.75 * k) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * k; } }
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && !P.vault; });   // put away while you vault (it rides on your body, player/stow.js)
-  updateStow(rdt);
+  updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.003); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
@@ -201,6 +211,6 @@ function updatePlayerVisuals(dt, rdt) {
   else { const k = flashT / 0.055, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.42 * s1); flashStar.scale.setScalar(0.7 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.16 * s1, 1, 0.55 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
-  glowMats.forEach(m => m.emissive.setRGB(gl * 0.55, gl * 0.4, gl * 0.18));
+  glowMats.forEach(m => m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2));   // a soft, pale yellow pulse
   if (worldK > 0) flames.forEach((f, k) => { f.scale.set(1 + Math.sin(worldT * 1000 / (60 + k * 20)) * 0.15, 0.8 + rand() * 0.4, 1); });   // the flames freeze with the world
 }

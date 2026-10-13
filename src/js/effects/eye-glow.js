@@ -1,7 +1,8 @@
 // Zombie eyes: a soft glow round each eye (the game has no bloom pass, so an additive halo stands in for it) and a short
 // streak of light that trails behind them as they move, fading out over a fraction of a second.
 
-const EYE_COL = 0xffe6a8, EYE_GLOW = new THREE.Color(0xffb04a), EYE_TRAIL_T = 0.26, EYE_PTS = 10, EYE_MAX = 48 * 2;
+// the glow is a pale, washed-out yellow and kept soft (EYE_HALO, EYE_STREAK), so eyes read in the dark without blazing
+const EYE_COL = 0xffe6a8, EYE_GLOW = new THREE.Color(0xfff0b4), EYE_HALO = 0.5, EYE_STREAK = 0.7, EYE_TRAIL_T = 0.26, EYE_PTS = 10, EYE_MAX = 48 * 2;
 const eyeFx = (() => {
   // the trails: one ribbon of EYE_PTS points per eye, all in one mesh
   const nv = EYE_MAX * EYE_PTS * 2, pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), idx = [];
@@ -28,7 +29,10 @@ function updateEyes(dt) {
   for (const z of eyeOwners()) {
     if (e >= EYE_MAX) break;
     const dead = z.eyeGlow !== undefined, eyes = dead ? z.eyes : z.m.eyes;
-    if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head)) { z.eyeH = null; continue; }
+    // only what you can see right now glows: the view cone as it is this moment, not the body's slower fade, so no eyes
+    // or streaks hang about once a zombie is out of sight (and none come back trailing from where it was)
+    const seen = smooth(clamp((Math.min(z.vis, visAt(z.x, z.z)) - 0.35) / 0.55, 0, 1));
+    if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head) || seen < 0.01) { z.eyeH = null; continue; }
     const H = z.eyeH || (z.eyeH = [[], []]);
     for (let s = 0; s < 2; s++, e++) {
       eyes[s].getWorldPosition(_ew);
@@ -36,16 +40,16 @@ function updateEyes(dt) {
       const h = H[s], cur = [_ew.x, _ew.y, _ew.z, now];
       if (h.length < 2 || now - h[1][3] >= 0.026) h.unshift(cur); else h[0] = cur;
       while (h.length > EYE_PTS || (h.length > 2 && now - h[h.length - 1][3] > EYE_TRAIL_T)) h.pop();
-      const k0 = e * EYE_PTS * 2, v = Math.min(1, z.vis * 1.6) * glow * (dead ? z.eyeGlow : 1);
+      const k0 = e * EYE_PTS * 2, v = seen * glow * (dead ? z.eyeGlow : 1);
       // halo
-      F.hp[e * 3] = _ew.x; F.hp[e * 3 + 1] = _ew.y; F.hp[e * 3 + 2] = _ew.z; F.hc[e * 3] = EYE_GLOW.r * v * 0.9; F.hc[e * 3 + 1] = EYE_GLOW.g * v * 0.9; F.hc[e * 3 + 2] = EYE_GLOW.b * v * 0.9;
+      F.hp[e * 3] = _ew.x; F.hp[e * 3 + 1] = _ew.y; F.hp[e * 3 + 2] = _ew.z; F.hc[e * 3] = EYE_GLOW.r * v * EYE_HALO; F.hc[e * 3 + 1] = EYE_GLOW.g * v * EYE_HALO; F.hc[e * 3 + 2] = EYE_GLOW.b * v * EYE_HALO;
       // ribbon: thick and bright at the eye, thinning and fading toward the tail; it faces the camera
       for (let k = 0; k < EYE_PTS; k++) {
         const n1 = h.length - 1, p = h[Math.min(k, n1)], q = h[Math.min(k + 1, n1)], r = h[Math.min(Math.max(0, k - 1), n1)];
         _et.set(q[0] - r[0], q[1] - r[1], q[2] - r[2]); _en.crossVectors(_et, _ev); const l = _en.length();
         const age = clamp((now - p[3]) / EYE_TRAIL_T, 0, 1), f = (1 - age) * (1 - k / (EYE_PTS - 1)), w = 0.026 * (0.3 + 0.7 * f);
         if (l > 1e-5) _en.multiplyScalar(w / l); else _en.set(0, 0, 0);
-        const a = (k0 + k * 2) * 3, c = v * f * (0.4 + 0.6 * f) * 1.2;
+        const a = (k0 + k * 2) * 3, c = v * f * (0.4 + 0.6 * f) * EYE_STREAK;
         F.pos[a] = p[0] + _en.x; F.pos[a + 1] = p[1] + _en.y; F.pos[a + 2] = p[2] + _en.z;
         F.pos[a + 3] = p[0] - _en.x; F.pos[a + 4] = p[1] - _en.y; F.pos[a + 5] = p[2] - _en.z;
         F.col[a] = F.col[a + 3] = EYE_GLOW.r * c; F.col[a + 1] = F.col[a + 4] = EYE_GLOW.g * c; F.col[a + 2] = F.col[a + 5] = EYE_GLOW.b * c;

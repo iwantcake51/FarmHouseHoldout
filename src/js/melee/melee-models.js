@@ -10,6 +10,11 @@ const MM = {
 };
 // a cylinder standing along +y (radius at its top, radius at its bottom), centred at height y
 function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, seg || 10), mat); m.position.set(x || 0, y, z || 0); m.castShadow = true; g.add(m); return m; }
+// a mod's level on this model (0 without it) picked out of a table indexed by level: improving a mod at the workbench
+// grows the part it adds (a longer blade, more nails, a bigger jaw), so level III looks bigger than level II
+const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0)];
+// the machete's blade length by long-blade level (also what its swing trail stretches by, melee/swing-trail.js)
+const MACHETE_S = [1, 1.36, 1.55, 1.74], KATANA_L = [0.78, 0.92, 1.0, 1.08];
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
@@ -30,14 +35,14 @@ const MELEE_MODELS = {
     const barrel = vcyl(g, 0.068, 0.059, 0.3, MM.ash, 0.72, 14);
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.068, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), MM.ash); cap.scale.y = 0.45; cap.position.y = 0.87; cap.castShadow = true; g.add(cap);
     vcyl(g, 0.0645, 0.0635, 0.025, MM.grain, 0.66, 14); vcyl(g, 0.0665, 0.0655, 0.01, MM.grain, 0.79, 14);   // burnt-in maker's band
-    if (m.nails) for (let k = 0; k < 14; k++) {   // nails driven through the barrel, heads and points out
+    for (let k = 0, n = lvAt(m, 'nails', [0, 14, 20, 26]); k < n; k++) {   // nails driven through the barrel, heads and points out; more with each level
       const a = k * 2.39, y = 0.6 + (k % 5) * 0.055, nl = new THREE.Group(); nl.position.set(0, y - 0.72, 0); nl.rotation.y = -a; barrel.add(nl);
       box(nl, 0.12, 0.008, 0.008, GM.nail, 0.075, 0, 0); box(nl, 0.012, 0.018, 0.018, MM.iron, 0.02, 0, 0);
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.005, 0.025, 4), GM.nail); tip.rotation.z = -Math.PI / 2; tip.position.x = 0.145; nl.add(tip);
     }
-    if (m.wire) for (let k = 0; k < 4; k++) {     // barbed wire coiled round the barrel, barbs sticking out
-      const t = new THREE.Mesh(new THREE.TorusGeometry(0.071, 0.006, 4, 18), GM.wire); t.rotation.set(Math.PI / 2 + 0.18 * (k % 2 ? 1 : -1), 0, 0); t.position.y = 0.6 + k * 0.075; g.add(t);
-      for (let b = 0; b < 4; b++) { const a = b * Math.PI / 2 + k; box(g, 0.03, 0.006, 0.006, GM.wire, Math.cos(a) * 0.074, 0.6 + k * 0.075, Math.sin(a) * 0.074).rotation.set(0.6, -a, 0.6); }
+    for (let k = 0, n = lvAt(m, 'wire', [0, 4, 5, 6]), sp = 0.3 / Math.max(1, n); k < n; k++) {     // barbed wire coiled round the barrel, barbs sticking out; more coils with each level
+      const t = new THREE.Mesh(new THREE.TorusGeometry(0.071, 0.006, 4, 18), GM.wire); t.rotation.set(Math.PI / 2 + 0.18 * (k % 2 ? 1 : -1), 0, 0); t.position.y = 0.6 + k * sp; g.add(t);
+      for (let b = 0; b < 4; b++) { const a = b * Math.PI / 2 + k; box(g, 0.03, 0.006, 0.006, GM.wire, Math.cos(a) * 0.074, 0.6 + k * sp, Math.sin(a) * 0.074).rotation.set(0.6, -a, 0.6); }
     }
   },
   // crowbar: red-painted hex bar, a gooseneck claw over the top and a flattened pry end below the fist, steel worn bright at both ends
@@ -49,7 +54,7 @@ const MELEE_MODELS = {
     const claw = new THREE.Group(); claw.position.set(0, 0.6, 0.135); claw.rotation.x = 0.35; g.add(claw);
     box(claw, 0.034, 0.05, 0.014, MM.wornSteel, 0, -0.02, 0); box(claw, 0.012, 0.04, 0.014, MM.wornSteel, -0.011, -0.06, 0); box(claw, 0.012, 0.04, 0.014, MM.wornSteel, 0.011, -0.06, 0);
     box(g, 0.036, 0.04, 0.036, MM.redDark, 0, 0.56, 0);                      // forged shoulder below the bend
-    if (m.tape) gripWrap(g, 0.023, -0.08, 0.15, 7);
+    if (m.tape) { const lv = lvAt(m, 'tape', [0, 1, 2, 3]); gripWrap(g, 0.021 + 0.002 * lv, -0.08, 0.08 + 0.07 * lv, 5 + 2 * lv); }   // longer and thicker with each level
   },
   // pipe wrench, after a heavy-duty cast one: a red I-beam handle (raised rims round a recessed web, a solid end with a
   // hanging slot), the housing it flares into with a hump over the nut pocket, a steel heel jaw riveted on top, the
@@ -59,7 +64,7 @@ const MELEE_MODELS = {
   // the hook and its bite bigger.
   wrench(g0, m) {
     const g = new THREE.Group(); g.rotation.y = -Math.PI / 2; g0.add(g);
-    const k = m.jaw ? 1.18 : 1, y0 = -0.115, hb = 0.025, ht = 0.033, yF = 0.45, S = 1.22;
+    const k = lvAt(m, 'jaw', [1, 1.18, 1.26, 1.34]), y0 = -0.115, hb = 0.025, ht = 0.033, yF = 0.45, S = 1.22;
     const edge = y => hb + (ht - hb) * clamp((y - y0 - hb) / (yF - y0 - hb), 0, 1);   // the handle's half width at y
     const slot = (cy, l, w) => { const h = new THREE.Path(); h.moveTo(w, cy - l + w); h.lineTo(w, cy + l - w); h.absarc(0, cy + l - w, w, 0, Math.PI, false); h.lineTo(-w, cy - l + w); h.absarc(0, cy - l + w, w, Math.PI, Math.PI * 2, false); return h; };
     // the handle: raised rims round a recessed web, and a solid end with the hanging slot through it
@@ -117,7 +122,7 @@ const MELEE_MODELS = {
     box(g, 0.012, 0.03, 0.012, MM.gold, 0, 0.03, 0.021);                     // menuki
     const tsuba = vcyl(g, 0.052, 0.052, 0.012, MM.iron, 0.162, 14); vcyl(tsuba, 0.046, 0.046, 0.014, GM.brass, 0, 14).scale.set(1, 0.3, 1);
     box(g, 0.016, 0.03, 0.05, GM.brass, 0, 0.185, 0.004);                    // habaki
-    const L = m.folded ? 0.92 : 0.78, n = 6, seg = L / n, steel = m.folded ? MM.hamon : GM.blade;
+    const L = lvAt(m, 'folded', KATANA_L), n = 6, seg = L / n, steel = m.folded ? MM.hamon : GM.blade;
     let p = new THREE.Group(); p.position.set(0, 0.2, 0.004); g.add(p);
     for (let k = 0; k < n; k++) {
       const w = 0.044 - k * 0.002;
@@ -140,8 +145,9 @@ const MELEE_MODELS = {
     box(head, 0.105, 0.105, 0.04, MM.wornSteel, 0, 0, 0.145); box(head, 0.105, 0.105, 0.04, MM.wornSteel, 0, 0, -0.145);   // striking faces
     box(head, 0.126, 0.02, 0.2, GM.metal2, 0, 0.05, 0); box(head, 0.126, 0.02, 0.2, GM.metal2, 0, -0.05, 0);              // chamfer bands
     box(head, 0.04, 0.02, 0.05, GM.metal2, 0, 0.068, 0);                     // wedge in the eye
+    const spL = lvAt(m, 'spikes', [0, 1, 1.25, 1.5]);   // the spikes stand out further with each level
     if (m.spikes) [[0.075, 0, 0, -Math.PI / 2], [-0.075, 0, 0, Math.PI / 2], [0, 0.075, 0, 0], [0, 0.04, 0.06, 0]].forEach(([x, y, z, rz]) => {
-      const sp = new THREE.Group(); sp.position.set(x, y, z); sp.rotation.z = rz; head.add(sp);
+      const sp = new THREE.Group(); sp.position.set(x, y, z); sp.rotation.z = rz; sp.scale.set(1, spL, 1); head.add(sp);
       box(sp, 0.022, 0.08, 0.022, MM.rust, 0, 0.04, 0); box(sp, 0.04, 0.012, 0.03, MM.rust, 0, 0.01, 0);   // railroad spike, welded on by its head
       const t = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 4), MM.rust); t.position.y = 0.095; sp.add(t);
     });
@@ -153,7 +159,7 @@ const MELEE_MODELS = {
     [-0.06, 0.0, 0.06].forEach(y => [-1, 1].forEach(sd => vcyl(g, 0.007, 0.007, 0.004, MM.rivet, y, 8, sd * 0.022, 0).rotation.z = Math.PI / 2));
     const pom = box(g, 0.044, 0.05, 0.06, MM.scale, 0, -0.115, -0.012); pom.rotation.x = -0.45;   // bird's-head pommel
     box(g, 0.012, 0.018, 0.08, MM.iron, 0, 0.11, 0.012);                      // finger guard
-    const s = m.longblade ? 1.36 : 1, b = new THREE.Group(); b.position.set(0, 0.12, 0.012); b.scale.set(1, s, 1); g.add(b);
+    const s = lvAt(m, 'longblade', MACHETE_S), b = new THREE.Group(); b.position.set(0, 0.12, 0.012); b.scale.set(1, s, 1); g.add(b);
     const parts = [[0.16, 0.07, 0.08], [0.2, 0.092, 0.26], [0.14, 0.098, 0.43]];
     parts.forEach(([h, w, y]) => {
       box(b, 0.011, h, w, GM.blade, 0, y, w / 2 - 0.035);
@@ -162,14 +168,14 @@ const MELEE_MODELS = {
     });
     const tip = box(b, 0.011, 0.07, 0.07, GM.blade, 0, 0.52, 0.03); tip.rotation.x = 0.7;     // clipped point
     box(b, 0.007, 0.07, 0.01, MM.edge, 0, 0.515, 0.06).rotation.x = 0.7;
-    if (m.serrated) for (let k = 0; k < 9; k++) box(b, 0.014, 0.022, 0.022, GM.steel, 0, 0.06 + k * 0.045, -0.04).rotation.x = 0.78;   // saw teeth on the spine
+    if (m.serrated) { const ts = lvAt(m, 'serrated', [1, 1, 1.25, 1.5]); for (let k = 0; k < 9; k++) { const t = box(b, 0.014, 0.022 * ts, 0.022 * ts, GM.steel, 0, 0.06 + k * 0.045, -0.04); t.rotation.x = 0.78; } }   // saw teeth on the spine, bigger with each level
   },
   // fire axe: a wooden handle with a flared, taped grip; a red head whose cheeks flare out to a bright bevelled bit, and a pick behind
   axe(g, m) {
     vcyl(g, 0.026, 0.032, 0.98, MM.hickory, 0.37, 10);
     vcyl(g, 0.038, 0.03, 0.05, MM.hickory, -0.12, 10);                        // flared end of the grip
     gripWrap(g, 0.034, -0.09, 0.13, 6);
-    const hw = m.weighted ? 1.3 : 1, head = new THREE.Group(); head.position.y = 0.8; head.scale.setScalar(hw); g.add(head);
+    const hw = lvAt(m, 'weighted', [1, 1.3, 1.38, 1.46]), head = new THREE.Group(); head.position.y = 0.8; head.scale.setScalar(hw); g.add(head);
     box(head, 0.06, 0.11, 0.08, MM.redPaint, 0, 0, 0);                        // eye
     box(head, 0.048, 0.14, 0.08, MM.redPaint, 0, 0, 0.07);                    // cheeks, flaring toward the bit
     box(head, 0.036, 0.19, 0.06, MM.redPaint, 0, 0, 0.13);

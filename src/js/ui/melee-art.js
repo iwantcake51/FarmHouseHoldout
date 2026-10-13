@@ -4,9 +4,9 @@ const meleeArtCache = {}, MELEE_ART_MAT = new THREE.MeshBasicMaterial({ color: 0
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
 // render the model once per weapon and set of mods into an offscreen target, and keep the picture
 function meleeArt(id, mods) {
-  const key = id + ':' + mods.join(',');
+  const key = id + ':' + mods.map(k => k + modLv(k)).join(',');   // a mod improved at the bench grows the model, so it's a new picture
   if (meleeArtCache[key]) return meleeArtCache[key];
-  const sc = new THREE.Scene(), g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = true; });
+  const sc = new THREE.Scene(), g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = modLv(k); });
   GUNS[id](g, flags);
   // lay it on its side: tip to the left, edge down, the flat of the blade facing you
   // (the wrench is turned the other way up, so its jaw opens on top)
@@ -35,7 +35,7 @@ function renderMeleeArt(id, D) {
   const el = $('meleeArt'), on = !!D.melee;
   if (el.hidden === on) { el.hidden = !on; $('ammo').hidden = on; }
   if (!on) return;
-  const k = id + ':' + (W8.mods[id] || []).join(',');
+  const k = id + ':' + (W8.mods[id] || []).map(m => m + modLv(m)).join(',');
   if (cache.meleeArt === k) return; cache.meleeArt = k;
   const a = meleeArt(id, W8.mods[id] || []);
   el.src = a.url; el.style.width = a.w.toFixed(0) + 'px';

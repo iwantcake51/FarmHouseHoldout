@@ -15,15 +15,22 @@ function spreadOf(id) {
   if (D.bipod && P.still > 0.3) s *= 0.12;
   return s;
 }
-// a scope trades the close fight for the long one: through it anything near is a blur you can barely hold on (a wide
-// spread up close), and from about ten metres out the shot goes exactly where it's laid. Pellets still spread as
-// they would without it; the scope only adds to it up close.
+// a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
+// aim), and from there it tightens until, about ten metres out, the shot goes exactly where it's laid. Pellets still
+// spread as they would without it
 const SCOPE_NEAR = 3, SCOPE_FAR = 10;
 const scopeUse = () => scoped || scopeAim();
 function scopeSpread(id, d) {
-  const D = W(id), k = 1 - smooth(clamp((d - SCOPE_NEAR) / (SCOPE_FAR - SCOPE_NEAR), 0, 1));
-  return ((D.pellets || 1) > 1 ? spreadOf(id) : 0) + (Math.min(D.spread * S.spreadMul, 0.04) * 3 + 0.15) * k;
+  const D = W(id), k = smooth(clamp((d - SCOPE_NEAR) / (SCOPE_FAR - SCOPE_NEAR), 0, 1));
+  return (D.pellets || 1) > 1 ? spreadOf(id) : spreadOf(id) * (1 - k);
 }
+// a scope's magnification also lands more head hits harder: a headshot through one does 25% more
+const SCOPE_HEAD = 1.25;
+// where a pellet goes inside the spread: bunched toward the middle like a real pattern (the sum of three draws), out to
+// the full spread at the edges, so close up most of a shell lands on what you aimed at
+const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
+// each zombie a round goes through takes a quarter off what it does to the next
+const PIERCE_KEEP = 0.75;
 // how far off the thing you're looking at through the scope is
 const scopeDist = () => scoped ? Math.hypot(scopePt.x - P.x, scopePt.z - P.z) : Math.hypot(aimPt.x - P.x, aimPt.z - P.z);
 // muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair
@@ -32,9 +39,11 @@ function muzzle(sideSign) {
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = Math.cos(P.aim), rz = -Math.sin(P.aim);
   let ox = P.x + fx * m + rx * sx, oz = P.z + fz * m + rz * sx;
   if (bulletBlocked(ox, oz) || !los(P.x, P.z, ox, oz)) { ox = P.x + fx * 0.3; oz = P.z + fz * 0.3; }
+  // turned onto the cursor from the muzzle, eased in only once the cursor is well out past the muzzle: with the cursor
+  // near you (closer than a long gun's muzzle) the angle from the muzzle would swing wildly with every small move
   let a = P.aim;
-  const tx = aimPt.x - ox, tz = aimPt.z - oz;
-  if (hasMouse && !tStick.R && Math.hypot(tx, tz) > 0.5 && Math.abs(angDiff(Math.atan2(tx, tz), P.aim)) < 0.7) a = Math.atan2(tx, tz);
+  const tx = aimPt.x - ox, tz = aimPt.z - oz, past = Math.hypot(aimPt.x - P.x, aimPt.z - P.z) - m;
+  if (hasMouse && !tStick.R && past > 0.4) { const d = angDiff(Math.atan2(tx, tz), P.aim); if (Math.abs(d) < 0.7) a = P.aim + d * smooth(clamp((past - 0.4) / 1.2, 0, 1)); }
   return { ox, oz, a };
 }
 const partRay = new THREE.Raycaster(), _pn = new THREE.Vector2();
@@ -96,10 +105,9 @@ function gunFire(id, D) {
   let anyHit = false;
   // looking through a scope: the spread depends on the range, and each hit can land a crit
   const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = scopeOn ? D.critC || 0 : 0;
-  if (scopeOn && sp > 0.004 && (D.pellets || 1) === 1) tgt = null;   // up close it can't hold the crosshair on a body
   const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0);
   for (let p = 0; p < pellets; p++) {
-    const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (rand() - 0.5) * 2 * sp, dx = Math.sin(a), dz = Math.cos(a);
+    const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
     const hits = [];
@@ -113,7 +121,7 @@ function gunFire(id, D) {
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
       const crit = critC > 0 && rand() < critC; critNext = crit;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * (k ? 0.75 : 1) * falloff(id, hits[k].t) * (crit ? D.critM : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? D.critM : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
@@ -124,6 +132,7 @@ function gunFire(id, D) {
     else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
+      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : 0.09);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     }
   }
@@ -142,6 +151,7 @@ function gunFire(id, D) {
     flashStar.material.rotation = rand() * 6.28;
     flashes.push({ x: ox, z: oz, r: D.ammo === 'shells' ? 7 : 5.5, int: 1.5, col: [1, 0.78, 0.45], t: 0.07, max: 0.07 }); lmT = 0;
   } else { flashes.push({ x: ox, z: oz, r: 2.5, int: 0.12, col: [1, 0.8, 0.5], t: 0.05, max: 0.05 }); lmT = 0; }
+  if (D.ignite) dragonBreath(mw.x, mw.y, mw.z, base, sp);   // dragon's breath: a jet of fire and burning pellets (effects/puffs.js)
   // smoke: a forward billow from the muzzle, a lazy cloud that hangs, more for shotguns, a thin wisp for suppressed guns
   const puffs = quiet ? 1 : D.ammo === 'shells' ? 4 : D.ammo === 'rifle' || D.dmg > 60 ? 3 : 2;
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
