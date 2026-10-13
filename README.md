@@ -79,6 +79,7 @@ Every source file starts with a one-line comment saying what is in it.
 | The green rim on zombies your melee swing would hit | `REACH_COL` in `src/js/zombies/zombie-visuals.js` |
 | Zombie health, speed and damage per type | `src/js/zombies/zombie-types.js` |
 | Zombie behaviour | `src/js/zombies/ai.js` |
+| Where zombies come in from: how far out in the fog they start and how soon they show (`FOG_IN`) | `spawnZombie` in `src/js/zombies/spawn.js` |
 | How many zombies come each wave, and which types | `src/js/waves/waves.js` |
 | Upgrade cards and how rare they are | `src/js/upgrades/upgrades.js` |
 | What the upgrade cards show (before → after chips, what an attachment is for, running totals for upgrades that stack) | `src/js/upgrades/upgrade-info.js` |
@@ -99,6 +100,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
 | The drive out front and the main road it meets in the fog, and the ground and grass past the farm's edge | `ROAD` and the end of `src/js/world/ground.js` |
+| The haze and drifting fog banks past the farm's edge, and the fog lying on the road | `EDGE_BODY` and `uEdge` in `src/js/core/shaders.js`, `roadFog` in `src/js/world/atmosphere.js` |
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |

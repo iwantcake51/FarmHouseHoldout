@@ -6,7 +6,7 @@ const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { valu
   uAdapt: { value: 0 },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
-  uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 14) } };
+  uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) } };
 const VERT_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
 const VERT_BODY = `
   vec4 lmW = vec4(transformed, 1.0);
@@ -69,10 +69,16 @@ const FRAG_BODY = `
     float inH = step(uHouse.x, vWp.x) * step(vWp.x, uHouse.z) * step(uHouse.y, vWp.z) * step(vWp.z, uHouse.w);
     gl_FragColor.rgb *= 1.0 - uCloud.z * smoothstep(0.46, 0.72, cs) * (1.0 - inH);
   }`;
-// past the edge of the farm everything thins into the haze, so the woods go on into the distance instead of stopping
+// past the edge of the farm everything thins into the haze, so the woods go on into the distance instead of stopping.
+// Banks of thicker fog drift through out there too (the same slow drift as the cloud shade), over the woods and the
+// road, so the road is never quite clear and what comes in from out there comes out of the fog
 const EDGE_BODY = `
   #ifdef USE_FOG
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 0.9, smoothstep(uEdge.x, uEdge.y, max(abs(vWp.x), abs(vWp.z))) * 0.9);
+  float edD = max(abs(vWp.x), abs(vWp.z));
+  vec2 fgQ = vWp.xz * 0.05 + uCloud.xy * 6.0;
+  float fgN = texture2D(uBloodNoise, fgQ).r * 0.6 + texture2D(uBloodNoise, fgQ * 2.1 + 0.37).r * 0.4;
+  float haze = smoothstep(uEdge.x, uEdge.y, edD) * 0.9 + smoothstep(uEdge.x, uEdge.x + 5.0, edD) * smoothstep(0.38, 0.72, fgN) * 0.5;
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 0.9, min(haze, 0.94));
   #endif`;
 const CUT_DECL = 'uniform float uCut;\nuniform vec2 uPScr;\nuniform float uRad;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const CUT_BODY = `

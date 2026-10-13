@@ -24,6 +24,14 @@ const motes = (() => {
 // low banks of mist that creep across the yard at night
 const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
+// fog lying over the main road out front (world/ground.js): soft banks drifting along it day and night, thicker with the
+// weather, so the road is never quite clear and the zombies crossing it come out of them
+const roadFog = [];
+const placeRoadFog = (sp, x) => { sp.position.set(x, rr(0.5, 1.1), ROAD.z + rr(-3.5, 3.5)); const sc = rr(7, 12); sp.scale.set(sc, sc * rr(0.35, 0.5), 1); };
+for (let k = 0; k < 14; k++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, fog: false }));
+  placeRoadFog(sp, rr(-26, 26)); sp.userData = { vx: rr(0.25, 0.6) * (rand() < 0.5 ? -1 : 1), ph: rand() * 6, life: rr(0, 40), max: rr(24, 44) }; scene.add(sp); roadFog.push(sp);
+}
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
 function stepAtmos(realDt) {
@@ -48,6 +56,15 @@ function stepAtmos(realDt) {
   // thick fog pulls the distance haze in close and tints it with the sky
   scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
+  const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
+  for (const sp of roadFog) {
+    const u = sp.userData; sp.position.x += u.vx * rdt;
+    u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(24, 44); placeRoadFog(sp, camTarget.x + rr(-26, 26)); }
+    if (sp.position.x - camTarget.x > 26) sp.position.x -= 52; if (sp.position.x - camTarget.x < -26) sp.position.x += 52;
+    sp.material.color.copy(scene.fog.color).multiplyScalar(0.9);
+    sp.material.opacity = rf * Math.sin(Math.PI * u.life / u.max) * (0.75 + 0.25 * Math.sin(t * 0.25 + u.ph));
+    sp.visible = sp.material.opacity > 0.005;
+  }
   for (const sp of mists) {
     const u = sp.userData; sp.position.x += u.vx * rdt; sp.position.z += u.vz * rdt;
     // each patch lives a while: it thickens out of nothing, hangs, thins away, and comes back somewhere else

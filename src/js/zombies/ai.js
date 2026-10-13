@@ -15,10 +15,21 @@ function updateZombies(dt) {
       if (rand() < 0.5) { const v = new V3(...STUMP[sp.part]); m.g.localToWorld(v); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     if (z.vault) { stepZVault(z, dt); continue; }
+    // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
+    // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
+    if (z.out) {
+      const ax = z.gx - z.x, az = z.gz - z.z, al = Math.hypot(ax, az);
+      if (al < 0.2) z.out = false;
+      else {
+        const sp = Math.min(al, z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : 1));
+        z.x += ax / al * sp; z.z += az / al * sp;
+        z.phase += dt * z.speed * (z.crawl ? 2.5 : z.type === 'runner' ? 3.6 : 4.5); z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
+      }
+    }
     const fl = z.type === 'brute' ? distB : dist, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
     const inWin = inb(i, j) && openAt[idx(i, j)] && openAt[idx(i, j)].kind === 'window';
     let tx = P.x, tz = P.z, attackingBoard = null;
-    if (here > 1.6) {
+    if (here > 1.6 && !z.out) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
@@ -43,7 +54,7 @@ function updateZombies(dt) {
       if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dp / 18, 0, 1)); }
       if (attackingBoard.boards[top] <= 0) breakBoard(attackingBoard);
       z.phase += dt * 2;
-    } else {
+    } else if (!z.out) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
         const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (inWin ? 0.4 : 1) * (z.crawl ? 0.32 : 1) * (z.pushSlow > 0 ? 0.45 + 0.55 * (1 - z.pushSlow / SHOVE_SLOW) : 1);   // still reeling from a shove
@@ -78,7 +89,8 @@ function updateZombies(dt) {
       if (sd < md && sd > 0.001) {
         const oi = ci(o2.x), oj = ci(o2.z), there = inb(oi, oj) ? fl[idx(oi, oj)] : 1e9;
         const ahead = there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
-        moveCircle(z, sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), sz / sd * (md - sd) * (ahead ? 0.9 : 0.1), z.T.r);
+        const px = sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), pz = sz / sd * (md - sd) * (ahead ? 0.9 : 0.1);
+        if (z.out) { z.x += px; z.z += pz; } else moveCircle(z, px, pz, z.T.r);   // out in the fog there's nothing to bump into
       }
     }
     if (!P.vault && dp < z.T.r + 0.3 && dp > 0.001) { const push = (z.T.r + 0.3 - dp) * 0.5; moveCircle(P, dxp / dp * push, dzp / dp * push, 0.3, true); }

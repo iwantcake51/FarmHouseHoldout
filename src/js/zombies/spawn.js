@@ -1,7 +1,14 @@
-// Spawning a zombie: model, outfit, fade materials, x-ray, shadow.
+// Spawning a zombie: model, outfit, fade materials, x-ray, shadow, and where it comes in from.
 
+// zombies come out of the fog: each starts 6.5 to 9 m out past the edge of the farm, on the cleared trail in front of
+// one of the gaps in the trees, and walks in along it (z.out, zombies/ai.js). Out there it only shows as it comes clear
+// of the fog: fogSee is how much of it does, none of it FOG_IN metres out and all of it at the edge
+const FOG_IN = 7;
+const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
 function spawnZombie(type) {
   const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
+  const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = rr(6.5, 9), lat = rr(-0.6, 0.6);
+  const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);
   const skin = type === 'runner' ? 0x9aa486 : pick([0x8b977a, 0x93977e, 0x7f8c70, 0x9a9a84]);
   const m = human(skin, pick(T_.shirts), pick([0x33353a, 0x3a3428, 0x2c3440, 0x4a4438]));
   const sc = T_.scale * rr(0.94, 1.06);
@@ -20,7 +27,7 @@ function spawnZombie(type) {
   const xr = xray(m.g, 0xff3322, false, true);
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11, hp = T_.hp * hpMul;
-  zombies.push({ type, T: Object.assign({}, T_, { scale: sc }), m, x: cxw(gi) + rr(-.3, .3), z: cxw(gj) + rr(-.3, .3), hp, maxHp: hp, vx: 0, vz: 0, face: 0, phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
+  zombies.push({ type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
     fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], rank: rand(), stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : 1) });
 }
 // sprinters show up on wave 3 at about two thirds of their top speed and work up to full pace by wave 11
