@@ -7,6 +7,7 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   let p = d === 0 ? (nearGap(i, j, 1) ? 0 : 1) : d === 1 ? (nearGap(i, j, 2) ? 0 : .6) : d === 2 ? (nearGap(i, j, 3) ? 0 : .22) : 0;
   const inYard = i >= FX0 - 1 && i <= FX1 + 1 && j >= FZ0 - 1 && j <= FZ1 + 1;
   if (d > 2 && !inYard) p = 0.05;
+  if (onRoad(cxw(i), cxw(j), 1.2)) p = 0;   // the drive out to the road stays clear, canopies and all (world/ground.js)
   if (rand() < p) { obstacle(i, j); treeCells.push([i, j]); }
 }
 {
@@ -35,6 +36,7 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   for (let k = 0; k < 400 && (nb < 60 || nr < 40); k++) {
     const i = (rand() * N) | 0, j = (rand() * N) | 0; if (cell[idx(i, j)] !== EMPTY) continue;
     if (i >= HX0 - 1 && i <= HX1 + 1 && j >= HZ0 - 1 && j <= HZ1 + 2) continue;   // keep the house, its walls and the porch clear
+    if (onRoad(cxw(i), cxw(j), 0.3)) continue;   // and the drive
     const nearFence = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => inb(i + a, j + b) && (cell[idx(i + a, j + b)] === FENCE || cell[idx(i + a, j + b)] === WALL));
     if (nearFence && nb < 60 && rand() < 0.5) { dm.position.set(cxw(i) + rr(-.3, .3), 0.2, cxw(j) + rr(-.3, .3)); dm.rotation.set(rand(), rand() * 6, rand()); dm.scale.set(rr(.8, 1.4), rr(.6, 1), rr(.8, 1.4)); dm.updateMatrix(); bushes.setMatrixAt(nb++, dm.matrix); }
     else if (nr < 40 && rand() < 0.3) { dm.position.set(cxw(i) + rr(-.4, .4), 0.08, cxw(j) + rr(-.4, .4)); dm.rotation.set(rand(), rand() * 6, rand()); dm.scale.set(rr(.6, 1.4), rr(.4, .8), rr(.6, 1.4)); dm.updateMatrix(); rocks.setMatrixAt(nr++, dm.matrix); }
@@ -44,13 +46,15 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
 }
 
 // the woods go on past the edge of the farm: a ring of pines thinning out as it goes, with the trails the zombies come
-// in by left clear in front of the gaps, fading into the haze (core/shaders.js) so the farm never just stops
+// in by left clear in front of the gaps, and the drive and the main road cut through it (world/ground.js), fading into
+// the haze (core/shaders.js) so the farm never just stops
 {
   const R = 15, out = [], gapDir = GAPS.map(([i, j]) => ({ x: cxw(i), z: cxw(j), ax: i === 0 ? -1 : i === N - 1 ? 1 : 0, az: j === 0 ? -1 : j === N - 1 ? 1 : 0 }));
   const onTrail = (x, z) => gapDir.some(g => g.ax ? Math.sign(x - g.x) === g.ax && Math.abs(z - g.z) < 1.7 : Math.sign(z - g.z) === g.az && Math.abs(x - g.x) < 1.7);
   for (let z = -HALF - R; z < HALF + R; z += 1.05) for (let x = -HALF - R; x < HALF + R; x += 1.05) {
     const px = x + rr(-0.4, 0.4), pz = z + rr(-0.4, 0.4), d = Math.max(Math.abs(px), Math.abs(pz)) - HALF - 0.3;
-    if (d < 0 || onTrail(px, pz)) continue;
+    // nothing on the far side of the road either: that strip is nearer the camera, and its trees would stand in front of it
+    if (d < 0 || onTrail(px, pz) || onRoad(px, pz, 1.6) || pz > ROAD.z) continue;
     if (rand() < 0.62 * Math.pow(1 - d / R, 0.5) + 0.12) out.push([px, pz, rr(0.85, 1.5)]);
   }
   const n = out.length, dm = new THREE.Object3D();

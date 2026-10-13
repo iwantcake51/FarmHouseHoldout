@@ -98,6 +98,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | House layout | `src/js/world/house.js` |
+| The drive out front and the main road it meets in the fog, and the ground and grass past the farm's edge | `ROAD` and the end of `src/js/world/ground.js` |
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
