@@ -21,7 +21,7 @@ const TIERS = {
   sight: { tag: 'Attachment', t: [
     { r: 'c', name: 'Red dot', text: 'Spread down 15% and a few more headshots.', vis: 'A red dot sight', ap: () => { S.spreadMul *= 0.85; S.headBonus += 0.04; } },
     { r: 'u', name: 'Holographic sight', text: 'Spread down another 20%, more headshots.', vis: 'A holo sight', ap: () => { S.spreadMul *= 0.8; S.headBonus += 0.06; } },
-    { r: 'r', name: 'Scope', text: 'Long guns find the head much more often.', vis: 'A scope on long guns', ap: () => S.headBonus += 0.12 }] },
+    { r: 'r', name: 'Scope', text: 'Aimed through it, 25% of hits crit for double damage. Wild up close, dead on from 10 m out.', vis: 'A scope on long guns', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'A thin beam to aim with. Spread down 15%.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
     { r: 'r', name: 'Laser sight', text: 'A bright mounted beam. Spread down another 30%.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },
@@ -29,8 +29,8 @@ const TIERS = {
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A much brighter, wider beam.', vis: 'A mounted light', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
-    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter. A choked shotgun cannot take a suppressor.', vis: 'A choke ring', ap: () => {} },
-    { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter.', vis: 'A longer choke', ap: () => {} }] },
+    { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. A choked shotgun cannot take a suppressor.', vis: 'A choke ring', ap: () => {} },
+    { r: 'r', name: 'Full choke', text: 'Pellets another 30% tighter, slugs tighter still.', vis: 'A longer choke', ap: () => {} }] },
   armor: { tag: 'Body', t: [
     { r: 'c', name: 'Canvas jacket', text: '+25 max health. Heals 25 now.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
     { r: 'r', name: 'Kevlar vest', text: 'Take 25% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.75 },
@@ -51,7 +51,7 @@ const TIERS = {
     { r: 'r', name: 'Night eyes', text: 'You see far more at night.', ap: () => S.nightVis = 1 },
     { r: 'e', name: 'Cat eyes', text: 'Nights look like dusk. You see almost everything.', ap: () => S.nightVis = 2.2 }] },
   feed: { tag: 'Body', t: [
-    { r: 'r', name: 'Iron stomach', text: 'Heal 3 health for every kill.', ap: () => S.healOnKill = 3 },
-    { r: 'e', name: 'Bloodthirst', text: 'Heal 6 health for every kill.', ap: () => S.healOnKill = 6 },
-    { r: 'l', name: 'Vampire', text: 'Heal 10 for every kill, 20 for headshot kills.', ap: () => { S.healOnKill = 10; S.vampire = true; } }] }
+    { r: 'r', name: 'Iron stomach', text: 'Heal 1 health for every kill, 2 for a headshot kill.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
+    { r: 'e', name: 'Bloodthirst', text: 'Heal 6 health for every kill.', ap: () => { S.healOnKill = 6; S.headHeal = false; } },
+    { r: 'l', name: 'Vampire', text: 'Heal 10 for every kill, 20 for headshot kills.', ap: () => { S.healOnKill = 10; S.vampire = S.headHeal = true; } }] }
 };

@@ -50,5 +50,14 @@ function fadeDepthMat() {
 }
 // you, seen through trees, walls and anything else in the way: a soft grey rim and a faint pale fill
 // (blood spots and bandage rolls left out; the bias keeps your own gun from counting as cover)
-const pXray = xray(PM.g, 0xe6e2da, false, 0xcfcac0, o => !charBlood.includes(o) && !bandRolls.includes(o) && !(o.parent && bandRolls.includes(o.parent)), 1.0);
+const pXray = xray(PM.g, 0xe6e2da, false, 0xcfcac0, o => !o.userData.fine && !bandRolls.includes(o) && !(o.parent && bandRolls.includes(o.parent)), 1.0);
 pXray.rim.opacity = 0.75; pXray.sil.opacity = 0.2;
+// pieces added later (each run's hat, player/look.js) get the same see-through fill, silhouette and rim as the rest of you
+function xrayAttach(list) {
+  list.forEach(o => {
+    const f = new THREE.Mesh(o.geometry, pXray.fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f);
+    const m = new THREE.Mesh(o.geometry, pXray.sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m);
+    outline(o, 0, 0, 0.055, pXray.rim); o.children.forEach(c => { if (c.material === pXray.rim) c.renderOrder = -2; });
+  });
+}
+LOOK.xrayReady = true;

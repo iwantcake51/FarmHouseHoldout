@@ -21,36 +21,46 @@ function lightAt(h) {
 }
 // time of day: sun, ambient, window glow, the clock, bugs and mist
 function updateDayNight(rdt) {
-  const h = state === 'title' ? 18.2 : tod;
+  const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
   curDark = lightAt(h);
-  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(camTarget.x - Math.cos(a) * 20, 6 + el * 18, camTarget.z + 8); }
-  else sun.position.set(camTarget.x + 10, 22, camTarget.z - 6);
-  sun.target.position.copy(camTarget);
+  // the sun's way across the sky, aimed at the middle of the farm from far enough out that its shadows take in all of it
+  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(-Math.cos(a) * 20, 6 + el * 18, 8); }
+  else sun.position.set(10, 22, -6);
+  sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? S.nightVis * curDark * 0.16 : 0));
   openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
   paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });
   if (state !== 'title') {
-    const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10;
-    setT('clock', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${curDark > 0.6 ? 'Night' : tod > 4 && tod < 12 ? 'Morning' : curDark > 0.15 ? 'Dusk' : 'Day'}`);
-    $('dialHand').setAttribute('transform', `rotate(${(tod / 24 * 360 - 180).toFixed(1)})`);
-    $('dialOrb').style.fill = curDark > 0.5 ? '#cfd8ea' : '#f0bf4c';
+    // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
+    const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
+    setT('clockTime', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    setT('clockPhase', stopped ? 'Time stopped' : dayPart(tod));
+    // the sun sinks into the moon over dusk and the moon fades back into the sun over dawn
+    const rot = (tod / 24 * 360 - 180).toFixed(1), night = dialNight(tod).toFixed(2);
+    if (cache.dialRot !== rot) { cache.dialRot = rot; $('dialHand').setAttribute('transform', `rotate(${rot})`); }
+    if (cache.dialNight !== night) {
+      cache.dialNight = night; const n = +night, sun = $('dialSun'), moon = $('dialMoon');
+      sun.style.opacity = 1 - n; moon.style.opacity = n; sun.style.display = n > 0.99 ? 'none' : ''; moon.style.display = n < 0.01 ? 'none' : '';
+    }
+    if (cache.clockStop !== stopped) { cache.clockStop = stopped; $('clockBox').classList.toggle('paused', stopped); }
   }
   stepAtmos(rdt);
   // fireflies
-  fireflies.m.opacity = Math.max(0, curDark - 0.4) * 1.3 * (0.75 + Math.sin(performance.now() / 300) * 0.25);
+  fireflies.m.opacity = Math.max(0, curDark - 0.4) * 1.3 * (0.75 + Math.sin(worldT * 3.33) * 0.25);
   if (fireflies.m.opacity > 0.01) {
-    const t = performance.now() / 1000;
+    const t = worldT;
     fireflies.seed.forEach((s, k) => { fireflies.pos[k * 3] = s.x + Math.sin(t * s.s + s.p) * 1.2; fireflies.pos[k * 3 + 1] = s.y + Math.sin(t * s.s * 1.7 + s.p) * 0.3; fireflies.pos[k * 3 + 2] = s.z + Math.cos(t * s.s * 0.8 + s.p) * 1.2; });
     fireflies.pts.geometry.attributes.position.needsUpdate = true;
   }
   moths.m.opacity = clamp((curDark - 0.3) * 1.8, 0, 0.9);
   if (moths.m.opacity > 0.01) {
-    const t = performance.now() / 1000;
+    const t = worldT;
     moths.seed.forEach((s, k) => {
       const a = s.p + t * s.s, wob = 1 + 0.35 * Math.sin(t * s.w + s.p);
       moths.pos[k * 3] = s.c[0] + Math.cos(a) * s.r * wob + Math.sin(t * 11 + k) * 0.03;
       moths.pos[k * 3 + 1] = s.c[1] + s.y + Math.sin(t * s.w * 1.3 + k) * 0.12;
-      moths.pos[k * 3 + 2] = s.c[2] + Math.sin(a) * s.r * wob + Math.cos(t * 13 + k) * 0.03;
+      // the porch lamp's moths loop out in front of it, never back through the wall into the house
+      moths.pos[k * 3 + 2] = s.c[2] + (s.wall ? 0.12 + Math.abs(Math.sin(a)) : Math.sin(a)) * s.r * wob + Math.cos(t * 13 + k) * 0.03;
     });
     moths.pts.geometry.attributes.position.needsUpdate = true;
   }

@@ -42,3 +42,22 @@ for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   bushes.count = nb; rocks.count = nr;
   [bushes, rocks].forEach(m => { m.castShadow = true; m.receiveShadow = true; scene.add(m); });
 }
+
+// the woods go on past the edge of the farm: a ring of pines thinning out as it goes, with the trails the zombies come
+// in by left clear in front of the gaps, fading into the haze (core/shaders.js) so the farm never just stops
+{
+  const R = 15, out = [], gapDir = GAPS.map(([i, j]) => ({ x: cxw(i), z: cxw(j), ax: i === 0 ? -1 : i === N - 1 ? 1 : 0, az: j === 0 ? -1 : j === N - 1 ? 1 : 0 }));
+  const onTrail = (x, z) => gapDir.some(g => g.ax ? Math.sign(x - g.x) === g.ax && Math.abs(z - g.z) < 1.7 : Math.sign(z - g.z) === g.az && Math.abs(x - g.x) < 1.7);
+  for (let z = -HALF - R; z < HALF + R; z += 1.05) for (let x = -HALF - R; x < HALF + R; x += 1.05) {
+    const px = x + rr(-0.4, 0.4), pz = z + rr(-0.4, 0.4), d = Math.max(Math.abs(px), Math.abs(pz)) - HALF - 0.3;
+    if (d < 0 || onTrail(px, pz)) continue;
+    if (rand() < 0.62 * Math.pow(1 - d / R, 0.5) + 0.12) out.push([px, pz, rr(0.85, 1.5)]);
+  }
+  const n = out.length, dm = new THREE.Object3D();
+  const parts = [[new THREE.CylinderGeometry(0.12, 0.18, 1.4, 6), M.trunk, 0.7], [new THREE.ConeGeometry(1.05, 2.0, 7), M.leaf, 1.9], [new THREE.ConeGeometry(0.75, 1.6, 7), M.leaf2, 2.8], [new THREE.ConeGeometry(0.45, 1.1, 6), M.leaf, 3.6]];
+  parts.forEach(([geo, mat, y]) => {
+    const im = new THREE.InstancedMesh(flat(geo), mat, n);
+    out.forEach(([x, z, sc], k) => { dm.position.set(x, y * sc, z); dm.rotation.set(rr(-.04, .04), (x * 7.3 + z * 3.1) % 6.28, rr(-.04, .04)); dm.scale.setScalar(sc); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix); });
+    im.receiveShadow = true; scene.add(im);
+  });
+}

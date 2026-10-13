@@ -1,27 +1,72 @@
-// Player state (P), the player model, backpack and cap.
+// Player state (P) and the parts of the player model that never change: the belt, the backpack and the bandage pouches.
+// The survivor's look (face, hair, hat, clothes, shoes) is dealt fresh each run in player/look.js.
 
 const P = { stam: 1, exh: false, stamT: 9, x: cxw(21), z: cxw(22), hp: 100, aim: Math.PI, phase: 0, moving: false, vault: null, slow: 0, stun: 0, adr: 0, still: 0, vx: 0, vz: 0 };
 const PM = human(0xd2a07c, 0x4e5a3c, 0x2f3238);
 scene.add(PM.g);
-box(PM.head, 0.36, 0.1, 0.38, lam(0xc4612a), 0, 0.17, 0.02);
-box(PM.head, 0.3, 0.04, 0.16, lam(0xc4612a), 0, 0.13, 0.24);
-box(PM.upper, 0.4, 0.42, 0.18, lam(0x5a4a34), 0, 0.92, -0.24);
-box(PM.upper, 0.34, 0.12, 0.2, lam(0x4a3c2a), 0, 1.17, -0.24);
-box(PM.upper, 0.36, 0.16, 0.14, lam(0x7a6a4a), 0, 0.66, -0.26);
+const SURV = { belt: lam(0x2e241a), brass: lam(0xb08a3a), sole: lam(0x1e1a16) };
+PM.mats.shirtDk = lam(0x3e4830);   // seams, collar and cuffs; coloured with the shirt (player/look.js, and build-weapons.js for the jacket)
+PM.mats.skinDk = lam(0xb88762);    // ears and nose, a shade darker than the skin
+// the backpack's cloth and bedroll, recoloured with each run's look
+const PACK = { canvas: lam(0x5a4a34), canvasDk: lam(0x463928), canvasLt: lam(0x6e5c40), roll: lam(0x7a3a2a) };
+{
+  const sil = m => { m.userData.sil = true; return m; }, TO = PM.torso, xc = (g, r, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), mat); m.rotation.z = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+  // the belt and its brass buckle
+  box(TO, 0.52, 0.07, 0.32, SURV.belt, 0, -0.27, 0); box(TO, 0.08, 0.06, 0.02, SURV.brass, 0, -0.27, 0.165); box(TO, 0.04, 0.03, 0.022, SURV.belt, 0, -0.27, 0.167);
+  // the backpack: canvas body, a lid with buckled straps, side pockets with a bottle, a bottom pouch,
+  // a bedroll on top and shoulder straps over the front. The back face stays at z -0.33, where the planks and slung guns ride.
+  const U = PM.upper, { canvas, canvasDk, canvasLt, roll } = PACK, web = lam(0x2c2620), steel = lam(0x8a8d90);
+  sil(box(U, 0.42, 0.44, 0.18, canvas, 0, 0.93, -0.24));
+  sil(box(U, 0.44, 0.08, 0.21, canvasDk, 0, 1.15, -0.245));
+  box(U, 0.32, 0.13, 0.02, canvasDk, 0, 1.06, -0.343);
+  [-1, 1].forEach(s => {
+    box(U, 0.04, 0.24, 0.012, web, s * 0.1, 1.04, -0.352); box(U, 0.05, 0.04, 0.019, SURV.brass, s * 0.1, 0.96, -0.354);
+    box(U, 0.05, 0.2, 0.11, canvasLt, s * 0.235, 0.84, -0.245); if (s < 0) box(U, 0.058, 0.045, 0.118, canvasDk, s * 0.236, 0.95, -0.245);
+    box(U, 0.061, 0.02, 0.33, web, s * 0.15, 1.17, -0.005);
+    box(U, 0.065, 0.4, 0.02, web, s * 0.15, 0.97, 0.158); box(U, 0.05, 0.035, 0.026, SURV.brass, s * 0.15, 0.79, 0.16);
+    xc(U, 0.075, 0.03, web, s * 0.13, 1.255, -0.25);
+  });
+  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 10), steel); bottle.position.set(0.235, 0.96, -0.245); bottle.castShadow = true; U.add(bottle);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.03, 8), web); cap.position.y = 0.09; bottle.add(cap);
+  box(U, 0.25, 0.03, 0.014, web, 0, 1.02, 0.164); box(U, 0.058, 0.042, 0.02, SURV.sole, 0, 1.02, 0.166);
+  sil(box(U, 0.38, 0.15, 0.15, canvasLt, 0, 0.64, -0.25)); box(U, 0.3, 0.012, 0.01, web, 0, 0.67, -0.327); box(U, 0.02, 0.04, 0.012, SURV.brass, 0.12, 0.65, -0.329);
+  sil(xc(U, 0.07, 0.4, roll, 0, 1.255, -0.25)); xc(U, 0.03, 0.41, canvasDk, 0, 1.255, -0.25);
+  // fold the small pieces into one mesh per material on the torso and upper body
+  const rig = new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR]);
+  unfight(PM.g, { fixed: rig });
+  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, ...Object.values(PACK)]) };   // recoloured at runtime, so kept out of the baked colours
+  [TO, U].forEach(p => mergeInto(p, finePieces(p, rig), live));
+}
 const armorG = new THREE.Group();
 PM.upper.add(armorG);
 const pBlob = blobShadow(1.15, 0.38);
-// bandage rolls clipped in a pouch on your left hip, one per bandage in the bag
-const bandRolls = [];
+// bandage rolls standing in pouches, one per bandage in the bag, their tops showing: three in the pouch at your left side,
+// and two more in the second pouch on the front of your belt that comes with the Med pouch upgrade (player/gear.js shows it).
+// Each pouch has a plain red cross on its outer face.
+const bandRolls = [], bandPouch2 = new THREE.Group();
 {
-  const pouch = new THREE.Group(); pouch.position.set(-0.29, 0.66, 0); PM.lower.add(pouch);
-  box(pouch, 0.05, 0.16, 0.3, lam(0x3a3226), 0.012, -0.02, 0);   // strap and backing
-  const roll = new THREE.CylinderGeometry(0.048, 0.048, 0.07, 10), white = lam(0xeae4d6), cross = lam(0xb3261c);
-  [[0, 0.03, 0.1], [0, 0.03, 0], [0, 0.03, -0.1], [-0.005, -0.065, 0.05], [-0.005, -0.065, -0.05]].forEach(([x, y, z]) => {
-    const m = new THREE.Mesh(roll, white); m.rotation.z = Math.PI / 2; m.position.set(x - 0.03, y, z); m.castShadow = true; pouch.add(m);
-    box(m, 0.03, 0.072, 0.008, cross, 0, 0, 0); box(m, 0.008, 0.072, 0.03, cross, 0, 0, 0);   // a little red cross on the end
+  const roll = new THREE.CylinderGeometry(0.036, 0.036, 0.07, 10), white = lam(0xeae4d6), red = lam(0xb3261c), canvas = lam(0x6a5a40), seam = lam(0x4a3e2c), redX = lam(0xd2301f);
+  const addRoll = (g, x, y, z) => {
+    const m = new THREE.Mesh(roll, white); m.position.set(x, y, z); m.castShadow = true; g.add(m);
+    box(m, 0.024, 0.072, 0.007, red, 0, 0, 0); box(m, 0.007, 0.072, 0.024, red, 0, 0, 0);   // a little red cross on the top
     m.visible = false; bandRolls.push(m);
-  });
+  };
+  // a red cross laid on a face: n is the face's outward axis ('x' or 'z'), s its sign, at is where the face is
+  const crossOn = (g, n, sg, at, y, c) => {
+    const p = at + sg * 0.003;
+    if (n === 'x') { box(g, 0.006, 0.086, 0.028, redX, p, y, c); box(g, 0.006, 0.028, 0.086, redX, p, y, c); }
+    else { box(g, 0.028, 0.086, 0.006, redX, c, y, p); box(g, 0.086, 0.028, 0.006, redX, c, y, p); }
+  };
+  // on the torso, so it stays in one spot on your left side rather than turning with your hips
+  const pouch = new THREE.Group(); pouch.position.set(-0.275, 0.64, 0.02); PM.upper.add(pouch);
+  box(pouch, 0.074, 0.12, 0.254, canvas, -0.009, -0.01, 0); box(pouch, 0.078, 0.014, 0.258, seam, -0.009, 0.046, 0);   // the pouch and its rim
+  crossOn(pouch, 'x', -1, -0.046, -0.012, 0);
+  [0.08, 0, -0.08].forEach(z => addRoll(pouch, -0.009, 0.06, z));
+  // the second pouch rides on the belt to the right of the buckle, cross facing out
+  bandPouch2.position.set(0.13, 0.6, 0.175); bandPouch2.visible = false; PM.upper.add(bandPouch2);
+  box(bandPouch2, 0.17, 0.11, 0.078, canvas, 0, -0.01, 0.012); box(bandPouch2, 0.174, 0.014, 0.082, seam, 0, 0.041, 0.012);
+  crossOn(bandPouch2, 'z', 1, 0.051, -0.014, 0);
+  [-0.045, 0.045].forEach(x => addRoll(bandPouch2, x, 0.055, 0.012));
 }
-// a faint light rim round your own character so you never lose yourself in the dark or in a crowd
-const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.016); pOutline.opacity = 0.32;
+// a barely-there light rim round your own character, just enough to pick yourself out in the dark or in a crowd
+const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.01, null, o => !o.userData.fine); pOutline.opacity = 0.1; pOutline.depthWrite = false;

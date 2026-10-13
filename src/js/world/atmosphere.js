@@ -1,10 +1,12 @@
 // Moths, pollen motes, night mist and fireflies.
 
+// inside the house's walls (plus a margin): the bugs and motes keep out
+const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m;
 // moths that circle the lamps and the fire after dark
 const moths = (() => {
   const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], [cxw(14), 1.4, cxw(16)]];   // outdoor lights only
   const seed = [];
-  centres.forEach((c, i) => { const n = i === 1 ? 16 : 9; for (let k = 0; k < n; k++) seed.push({ c, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
+  centres.forEach((c, i) => { const n = i === 1 ? 16 : 9; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
   const pos = new Float32Array(seed.length * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const m = new THREE.PointsMaterial({ color: 0xf4e8cc, size: 2.2 * DPR, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts);
@@ -24,24 +26,28 @@ const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
-function stepAtmos(rdt) {
-  const t = performance.now() / 1000, day = 1 - curDark;
+function stepAtmos(realDt) {
+  const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
   WIND.value = t * 1.6;
-  motes.m.opacity = state === 'title' ? 0.35 : 0.5 * Math.max(0, day - 0.15);
+  const tb = titleBlend();
+  motes.m.opacity = mix(0.5 * Math.max(0, day - 0.15), 0.35, tb);
   if (motes.m.opacity > 0.01) {
     for (let k = 0; k < motes.seed.length; k++) {
       const q = motes.seed[k]; q.x += (0.25 + Math.sin(t * 0.3 + q.p) * 0.15) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * 0.05 * rdt; q.z += Math.cos(t * 0.4 + q.p) * 0.12 * rdt;
       let rx = q.x - camTarget.x, rz = q.z - camTarget.z;   // wrap round the view so there are always some about
       if (rx > 14) q.x -= 28; if (rx < -14) q.x += 28; if (rz > 14) q.z -= 28; if (rz < -14) q.z += 28;
-      motes.pos[k * 3] = q.x; motes.pos[k * 3 + 1] = q.y + Math.sin(t * q.s * 3 + q.p) * 0.15; motes.pos[k * 3 + 2] = q.z;
+      motes.pos[k * 3] = q.x; motes.pos[k * 3 + 1] = inHouse(q.x, q.z, 0.3) ? -50 : q.y + Math.sin(t * q.s * 3 + q.p) * 0.15; motes.pos[k * 3 + 2] = q.z;   // none indoors
     }
     motes.pts.geometry.attributes.position.needsUpdate = true;
   }
+  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
+  LMU.uCloud.value.x += rdt * 0.0042; LMU.uCloud.value.y += rdt * 0.0017;
+  LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
   // thick fog pulls the distance haze in close and tints it with the sky
   scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
-  const mo = state === 'title' ? 0.06 : (Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35));
+  const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   for (const sp of mists) {
     const u = sp.userData; sp.position.x += u.vx * rdt; sp.position.z += u.vz * rdt;
     // each patch lives a while: it thickens out of nothing, hangs, thins away, and comes back somewhere else
@@ -57,9 +63,16 @@ function stepAtmos(rdt) {
 // fireflies at night
 const fireflies = (() => {
   const n = 46, pos = new Float32Array(n * 3), seed = [];
-  for (let k = 0; k < n; k++) { seed.push({ x: rr(cxw(FX0), cxw(FX1)), z: rr(cxw(FZ0), cxw(FZ1)), y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }
+  // they drift up to 1.2 m either way, so none is seeded within that of the house and none wanders in
+  while (seed.length < n) { const x = rr(cxw(FX0), cxw(FX1)), z = rr(cxw(FZ0), cxw(FZ1)); if (!inHouse(x, z, 1.4)) seed.push({ x, z, y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const m = new THREE.PointsMaterial({ color: 0xdff59a, size: 3.2 * DPR, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   const pts = new THREE.Points(g, m); scene.add(pts);
   return { pts, pos, seed, m };
 })();
+// the film grain's noise tile (styles/overlays.css jitters it)
+{
+  const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d'), d = x.createImageData(160, 160);
+  for (let k = 0; k < d.data.length; k += 4) { const v = 70 + rand() * 115; d.data[k] = d.data[k + 1] = d.data[k + 2] = v; d.data[k + 3] = 255; }
+  x.putImageData(d, 0, 0); $('grain').style.backgroundImage = `url(${c.toDataURL()})`;
+}

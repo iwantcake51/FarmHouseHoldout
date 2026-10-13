@@ -16,13 +16,14 @@ function loop(now) {
   let simDt = 0;
   if (state === 'play' || (state === 'dead' && P.dead)) {
     if (P.dead) tickDeath(rdt);
-    if (hitStop > 0) hitStop -= rdt;
-    else { simDt = rdt * timeScale; if (simDt > 0) update(simDt); }
+    simDt = rdt * timeScale; if (simDt > 0) update(simDt);
     if (P.dead) { /* tickDeath owns the time scale */ }
     else if (slowIn > 0) { slowIn -= rdt; timeScale += (slowTo - timeScale) * Math.min(1, rdt * 9); }
     else if (slowHold > 0) { slowHold -= rdt; timeScale += (slowTo - timeScale) * Math.min(1, rdt * 9); }
     else timeScale += (1 - timeScale) * Math.min(1, rdt * 0.95);
   }
+  worldK = state === 'title' || state === 'leaving' ? 1 : state === 'play' || state === 'dead' ? (P.dead ? clamp(timeScale / DEATH_SLOW, 0, 1) : 1) : 0;
+  worldT += rdt * worldK;
   visuals(state === 'play' || state === 'dead' ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);
   R.render(scene, cam);
   requestAnimationFrame(loop);

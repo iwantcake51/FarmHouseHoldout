@@ -7,11 +7,11 @@ function visuals(dt, rdt) {
   updateCamera(rdt);
   updateDayNight(rdt);
   updateLightmap(rdt);
-  updateZombieVisuals(dt, rdt);
+  updateZombieVisuals(dt, rdt); updateEyes(dt);
   updateCutaway(rdt);
   updateLaser(D);
   stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt);
-  stepParticles(dt);
+  stepParticles(dt); stepFx(dt);
   stepFloats(rdt);
   updateHUD(rdt, D);
   updateCrosshair(rdt, D);

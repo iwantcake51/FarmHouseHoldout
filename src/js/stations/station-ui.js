@@ -8,22 +8,25 @@ const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', planks: '#c08a52', med: 
 function renderStation() {
   if (!openSt) return;
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
+  let group = null;
   const tiles = RECIPES[openSt.id].map((r, i) => {
+    // a heading above the first card of each group (the bench's attachments for the gun in your hands)
+    const head = r.group && r.group !== group ? `<div class="stGroup">${r.group}</div>` : ''; group = r.group || null;
     const why = r.why(), short = S.scrap < r.cost, ok = !why && !short;
     const status = why ? why : short ? `Need ${r.cost - S.scrap} more scrap` : 'Ready';
-    return `<button type="button" data-i="${i}" class="${ok ? 'ok' : 'no'}" ${ok ? '' : 'aria-disabled="true"'} style="--ic:${ST_ICON_COL[r.ic]}">
+    return head + `<button type="button" data-i="${i}" class="${ok ? 'ok' : 'no'}" ${ok ? '' : 'aria-disabled="true"'} style="--ic:${ST_ICON_COL[r.ic]}">
       <span class="ic"><svg viewBox="0 0 24 24">${FEED_ICON[r.ic]}</svg></span>
       <span class="tx"><b>${r.title()}</b><em>${r.desc()}</em></span>
-      <span class="ft"><kbd>${i + 1}</kbd><span class="cost${short ? ' short' : ''}"><svg viewBox="0 0 24 24">${FEED_ICON.scrap}</svg>${r.cost}</span><span class="st${ok ? '' : ' bad'}">${status}</span></span>
+      <span class="ft"><kbd>${(i + 1) % 10}</kbd><span class="cost${short ? ' short' : ''}"><svg viewBox="0 0 24 24">${FEED_ICON.scrap}</svg>${r.cost}</span><span class="st${ok ? '' : ' bad'}">${status}</span></span>
     </button>`;
   }).join('');
   setH('stRows', tiles);
-  setT('stNote', `Press 1–${RECIPES[openSt.id].length} or click a card · E to step away`);
+  { const n = RECIPES[openSt.id].length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) craft(+b.dataset.i); });
 function craft(i) {
   if (!openSt) return; const r = RECIPES[openSt.id][i]; if (!r) return;
-  if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').children[i]; if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
+  if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.board(); cache.hstRows = null; renderStation();
-  const b = $('stRows').children[i]; if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
+  const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
 }

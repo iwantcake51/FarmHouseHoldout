@@ -41,7 +41,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   }
   if (z.crawl) { fin.ll = p0.ll; fin.lr = p0.lr; }
   const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, x: z.x, z: z.z, vx, vz, spin, t: 0, s, dir, kind, p0, mid, tMid, fin, delay, dur, face: f,
-    pooled: false, vis: z.vis, burn: z.burn, bounce: 0 };
+    pooled: false, stain: z.stain, vis: z.vis, burn: z.burn, bounce: 0, flash: z.flash || 0, eyes: m.eyes, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
   m.g.scale.setScalar(s);
   ragdolls.push(r);
 }

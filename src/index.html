@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="conc"></div><div id="filmVig"></div><div id="warmGrade"></div><div id="healVig"></div><div id="adsVig"></div><div id="slowmo"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -40,13 +40,15 @@
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
     <g id="xhMelee" hidden>
-      <circle class="mShade" r="13"></circle>
-      <circle class="mRing" r="13" stroke-dasharray="14.4 6"></circle>
-      <circle id="xhSwing" class="mReady" r="19" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
-      <path id="xhChev" class="mChev" d="M-5 -24 L0 -19 L5 -24"></path>
-      <circle class="mDot" r="2.8"></circle>
-      <circle id="xhStamBg" class="stBg" r="30" transform="rotate(138)"></circle>
-      <circle id="xhStam" class="st" r="30" transform="rotate(138)"></circle>
+      <!-- two curved brackets round a dot: they close in while you recover from a swing and snap open when you can swing again -->
+      <g id="xhBr">
+        <path class="mShade" d="M-10.7 9 A14 14 0 0 1 -10.7 -9 M10.7 -9 A14 14 0 0 1 10.7 9"></path>
+        <path class="mBr" d="M-10.7 9 A14 14 0 0 1 -10.7 -9 M10.7 -9 A14 14 0 0 1 10.7 9"></path>
+      </g>
+      <circle class="mDotSh" r="3.4"></circle><circle class="mDot" r="2"></circle>
+      <!-- stamina: a short arc under the reticle -->
+      <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
+      <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
     <g id="xhHit" opacity="0">
@@ -59,19 +61,25 @@
 
 <div id="scrim"></div>
 <div class="hud" id="waveBox" hidden>
-  <svg id="dial" width="66" height="66" viewBox="-33 -33 66 66" aria-hidden="true">
-    <circle class="rim" r="30"></circle>
-    <path id="dialDay" class="day"></path><path id="dialNight" class="night"></path>
-    <g id="dialTicks"></g>
-    <g id="dialHand"><line class="hand" x1="0" y1="0" x2="0" y2="-19"></line><circle id="dialOrb" class="orb" cx="0" cy="-23" r="3.2"></circle></g>
-    <circle r="2" fill="#ece6d8"></circle>
-  </svg>
+  <div id="clockBox">
+    <svg id="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
+      <circle class="face" r="42"></circle>
+      <g id="dialRing" class="ring"></g>
+      <g id="dialTicks"></g>
+      <g id="dialHand">
+        <line class="hand" x1="0" y1="-27" x2="0" y2="-31"></line>
+        <g id="dialSun" transform="translate(0 -35)"><g class="rays"></g><circle class="sun" r="4.4"></circle></g>
+        <g id="dialMoon" transform="translate(0 -35)"><circle class="moon" r="4.4"></circle><circle class="bite" r="3.7" cx="2.2" cy="-1.5"></circle></g>
+      </g>
+    </svg>
+    <div id="clockTime">15:00</div>
+    <div id="clockPhase">Afternoon</div>
+  </div>
   <div class="wv">
     <div class="lbl">Wave</div>
     <div class="big" id="wNum">01</div>
     <div id="wSub"></div>
     <div id="wBar"><i id="wBarFill"></i></div>
-    <div class="lbl" id="clock"></div>
   </div>
 </div>
 <div class="hud" id="moodles" hidden></div>
@@ -86,11 +94,11 @@
   </div>
 </div>
 <div class="hud" id="arms" hidden>
-  <div id="bandBox" title="Bandages (G to use)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg><b id="bands">0</b><kbd>G</kbd></div>
+  <div id="bandBox" title="Bandages (Q to use)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"></path></svg><b id="bands">0</b><kbd>Q</kbd></div>
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
-  <div class="ammoRow"><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div class="ammoRow"><img id="meleeArt" alt="" hidden><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
   <div id="rounds"></div>
   <div class="slots" id="slots"></div>
 </div>
@@ -100,7 +108,7 @@
   <div id="stRows"></div>
   <div class="note" id="stNote">Press 1–4 or click a card · E to step away</div>
 </div>
-<div class="hud" id="prompt" hidden><div id="pRows"></div><div id="promptBar"><i></i></div></div>
+<div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 24 24" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
 <div class="hud" id="announce" style="opacity:0"><div id="annEye"></div><div id="annBig"></div><div class="annRule"><i></i></div><div id="annSmall"></div></div>
 
@@ -119,6 +127,7 @@
 
 <div class="screen" id="title">
   <div class="inner">
+   <div class="lead">
     <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky · Night 1</div>
     <h1>Kessler Farm</h1>
     <div class="story">
@@ -126,22 +135,26 @@
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and mods. Survive a wave and you take one find: a better gun, a mod for what you carry, or something to keep you breathing. When you die, the farm is theirs.</p>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
+   </div>
     <div class="ctrls">
-      <kbd>W A S D</kbd><span>Walk in eight directions</span>
-      <kbd>Mouse</kbd><span>Aim, hold the left button to fire</span>
+      <div class="ctrlHead">Controls</div>
+      <kbd>W A S D</kbd><span>Walk</span>
+      <kbd>Mouse</kbd><span>Aim; hold the left button to fire</span>
+      <kbd>Right click</kbd><span>Hold to aim down the sights: tighter, but slower</span>
       <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
       <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
-      <kbd>G</kbd><span>Bandage yourself (buy them at the medicine cabinet): slow, then heals over time</span>
-      <kbd>Hold F</kbd><span>Board up a door or window you are standing at</span>
-      <kbd>Space</kbd><span>Climb through an open window or hop a fence; anywhere else, shove zombies back</span>
-      <kbd>E</kbd><span>Use the workbench, sawhorse, medicine cabinet or radio</span>
-      <kbd>Hold right click</kbd><span>Aim down the sights: half the spread, but you move slower. Scoped rifles look through the scope instead</span>
-      <kbd>H</kbd><span>Underbarrel grenade, once you have one</span>
+      <kbd>Q</kbd><span>Bandage yourself: slow, then heals over time</span>
+      <kbd>V</kbd><span>Shove zombies back (stabs with a bayonet)</span>
+      <kbd>Hold F</kbd><span>Board up a door or window</span>
+      <kbd>Space</kbd><span>Climb through a window or hop a fence</span>
+      <kbd>E</kbd><span>Workbench, sawhorse, medicine cabinet, radio</span>
+      <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
+      <kbd>B</kbd><span>Switch fire mode</span>
       <kbd>Wheel</kbd><span>Zoom in and out</span>
       <kbd>T</kbd><span>Start the run, or the next wave early</span>
       <kbd>Esc</kbd><span>Pause</span>
     </div>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
   </div>
 </div>
 
@@ -161,7 +174,7 @@
     <h2>Catch your breath</h2>
     <div class="histHead"><span>Your upgrades</span><b id="pHistN">0</b></div>
     <div class="hist" id="pHist"></div>
-    <div class="btns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
+    <div class="btns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
   </div>
 </div>
 
@@ -173,6 +186,7 @@
     <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
+<div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>
 </body>

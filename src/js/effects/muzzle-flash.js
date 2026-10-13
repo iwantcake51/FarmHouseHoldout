@@ -8,7 +8,7 @@ const tongueG = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateX(Math.
 // grows along +z from the muzzle
 const tongueA = new THREE.Mesh(tongueG, addMat(TEX_TONGUE)), tongueB = new THREE.Mesh(tongueG, addMat(TEX_TONGUE));
 tongueB.rotation.z = Math.PI / 2;
-flash.add(flashCore, flashStar, tongueA, tongueB);
+flash.add(flashCore, flashStar, tongueA, tongueB); flash.userData.isFlash = true;
 PM.upper.add(flash);
 let flashSize = 1, flashLen = 1;
 // where the visible muzzle is right now, following the gun through recoil and aim-down
