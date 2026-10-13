@@ -26,7 +26,7 @@ function tickShove(dt) {
   // half a step into it during the strike
   if (p > 0.18 && p < 0.42 && !P.vault) moveCircle(P, Math.sin(P.aim) * 2.2 * dt * s.power, Math.cos(P.aim) * 2.2 * dt * s.power, 0.3, true);
   if (!s.hit && s.t >= s.hitT) { s.hit = true; landShove(s); }
-  if (p >= 1) P.shove = null;
+  if (p >= 1) { P.shove = null; if (aimHeld) startAim(); }   // still holding aim: back down the sights
 }
 function landShove(s) {
   SFX.shove(s.stab);

@@ -28,7 +28,7 @@ function sever(z, part, dx, dz, blast) {
   }
 }
 function pickPart(z, rel, side, D) {
-  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0) + (T('sight') >= 3 && D.slot !== 'side' ? 0.1 : 0) + (scoped || scopeAim() ? 0.3 : 0));
+  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0));
   let p;
   if (Math.abs(rel) > 0.6) p = side > 0 ? 'armR' : 'armL';
   else { const r = rand(); p = r < head ? 'head' : r < head + 0.22 ? (side > 0 ? 'legR' : 'legL') : 'torso'; }
@@ -36,7 +36,10 @@ function pickPart(z, rel, side, D) {
   if (!z.limbs[p]) p = 'torso';
   return p;
 }
+// set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
+let critNext = false;
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
+  const crit = critNext; critNext = false;
   if (z.dead) return false;
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
@@ -51,7 +54,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
   xhHit = 1; xhHead = part === 'head';
-  dmgNumber(z, dealt, part === 'head', y);
+  dmgNumber(z, dealt, part === 'head', y, crit);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
     z.lhp[part] -= dmg * mul;
@@ -110,16 +113,17 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
-function dmgNumber(z, dmg, head, y) {
+function dmgNumber(z, dmg, head, y, crit) {
   const now = performance.now();
   if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
     z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
     if (head) z.dn.el.classList.add('head');
+    if (crit) z.dn.el.classList.add('crit');
     // the pop scales the inner number only: scaling the positioned element would scale its screen position too
     z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
     return;
   }
-  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : ''); num.textContent = Math.round(dmg); el.appendChild(num);
+  const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : ''); num.textContent = Math.round(dmg); el.appendChild(num);
   document.body.appendChild(el);
   const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
   floats.push(f); z.dn = { el, num, f, amt: dmg, t0: now };

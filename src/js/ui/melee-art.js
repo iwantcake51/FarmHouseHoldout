@@ -9,8 +9,8 @@ function meleeArt(id, mods) {
   const sc = new THREE.Scene(), g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = true; });
   GUNS[id](g, flags);
   // lay it on its side: tip to the left, edge down, the flat of the blade facing you
-  // (the wrench's jaw opens sideways rather than along the edge, so it's turned to show the jaw on top)
-  g.setRotationFromMatrix(id === 'wrench' ? new THREE.Matrix4().makeBasis(new V3(0, 1, 0), new V3(-1, 0, 0), new V3(0, 0, 1))
+  // (the wrench is turned the other way up, so its jaw opens on top)
+  g.setRotationFromMatrix(id === 'wrench' ? new THREE.Matrix4().makeBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0))
     : new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(-1, 0, 0), new V3(0, -1, 0)));
   sc.add(g); sc.overrideMaterial = MELEE_ART_MAT; g.updateMatrixWorld(true);
   const bb = new THREE.Box3().setFromObject(g), pad = 0.02, ss = 2;

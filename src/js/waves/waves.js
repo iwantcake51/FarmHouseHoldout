@@ -27,7 +27,7 @@ function waveBar(frac, mode) {
   if (cache.wBar === k) return; cache.wBar = k;
   $('wBarFill').style.transform = `scaleX(${clamp(frac, 0, 1).toFixed(3)})`; $('waveBox').dataset.ph = mode;
 }
-function waveCleared() { phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn = 0.4; slowHold = 1.0; announce('Wave ' + run.wave, 'Cleared · grab what they dropped', { eye: 'Survived', kind: 'gold' }); SFX.cleared(); }
+function waveCleared() { phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn = 0.4; slowHold = 1.0; announce('Wave ' + run.wave, 'Cleared · Prepare for the next wave', { eye: 'Survived', kind: 'gold' }); SFX.cleared(); }
 // zombie path field, break timer, spawning and wave clear. Returns true when the upgrade screen opens
 function updateWaves(dt) {
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }

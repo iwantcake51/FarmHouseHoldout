@@ -147,16 +147,32 @@ function animatePlayer(dt, rdt) {
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
   if (stq) { pm.g.rotation.z += (ANIM.stumbleSide || 1) * stq * 0.2; pm.g.rotation.x += stq * 0.12; pm.g.position.y -= stq * 0.07; pm.legL.rotation.x += stq * 0.45; pm.legR.rotation.x -= stq * 0.3; }
   // bob twice per stride, dip onto the bad leg when limping, breathe when still
-  const bob = Math.abs(Math.cos(ph)) * 0.045 * Math.min(1, runF) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
-  const breathe = Math.sin(now * 1.7) * 0.01 * (1 - Math.min(1, runF));
-  pm.lower.position.y = bob * 0.4; pm.upper.position.y = bob + breathe;
+  const run1 = Math.min(1, runF), still = 1 - run1, ads = ANIM.ads || 0;
+  const bob = Math.abs(Math.cos(ph)) * 0.045 * run1 + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
+  const breathe = Math.sin(now * 1.7) * 0.01 * still;
+  // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
+  // the feet land closer to the line), and standing still you drift slowly from foot to foot
+  const shift = P.vault ? 0 : -ANIM.legDir * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
+  // the chest rides the hips' bob on a spring: it lags them a little and settles just past each footfall
+  if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
+  pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy + breathe;
+  pm.lower.position.x = shift; pm.upper.position.x = shift * 0.75;
+  // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
+  if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1;
   // lean into movement relative to where you face, sway with the stride, rock back when hit
   const md = Math.atan2(P.vx, P.vz), rel = spd > 0.2 ? angDiff(md, ANIM.yaw) : 0;
-  const lxT = Math.cos(rel) * 0.1 * Math.min(1, runF), lzT = -Math.sin(rel) * 0.09 * Math.min(1, runF);
+  const lxT = Math.cos(rel) * 0.1 * run1, lzT = -Math.sin(rel) * 0.09 * run1;
   ANIM.lx += (lxT - ANIM.lx) * Math.min(1, rdt * 8); ANIM.lz += (lzT - ANIM.lz) * Math.min(1, rdt * 8);
-  const sway = s * 0.04 * Math.min(1, runF) + limp * Math.max(0, s) * 0.14;
-  let urx = ANIM.lx - ANIM.flinch * 0.32 + stq * 0.25, ury = 0, urz = ANIM.lz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
-  pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02, 0, -sway * 0.6);
+  // and into changes of speed: pitch forward setting off, rock back pulling up, lean into a sudden cut sideways
+  if (P.vault || ANIM.pvx === undefined) { ANIM.pvx = P.vx; ANIM.pvz = P.vz; ANIM.ax = ANIM.az = 0; }
+  else if (dt > 0) { const k = Math.min(1, dt * 7); ANIM.ax += (clamp((P.vx - ANIM.pvx) / dt, -30, 30) - ANIM.ax) * k; ANIM.az += (clamp((P.vz - ANIM.pvz) / dt, -30, 30) - ANIM.az) * k; ANIM.pvx = P.vx; ANIM.pvz = P.vz; }
+  const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), aF = ANIM.ax * sy + ANIM.az * cy, aS = ANIM.ax * cy - ANIM.az * sy;
+  const alx = clamp(aF * 0.0042, -0.09, 0.1), alz = clamp(-aS * 0.003, -0.07, 0.07);
+  const sway = s * 0.04 * run1 + limp * Math.max(0, s) * 0.14 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;
+  // breathing lifts the chest a touch
+  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8, ury = -s * 0.03 * run1 * (1 - ads * 0.7), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
+  // the head steadies itself against the sway and nods a little as the chest settles onto each step
+  pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)

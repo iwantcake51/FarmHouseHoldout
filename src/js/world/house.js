@@ -122,6 +122,9 @@ const roof = (() => {
   [HOUSE.x0 + 0.02, HOUSE.x1 - 0.02].forEach(x => { const m = new THREE.Mesh(tg, gable); m.rotation.y = Math.PI / 2; m.position.set(x, base, cz); m.castShadow = true; g.add(m); });
   box(g, 0.6, 1.6, 0.6, brick, cx + 3.2, ridgeY - 0.2, cz - 1.6);
   box(g, 0.7, 0.1, 0.7, ridgeM, cx + 3.2, ridgeY + 0.62, cz - 1.6);
+  // the roof's materials stay transparent so it can fade, which would draw it after the see-through outlines and leave
+  // zombies behind it unmarked: drawn first among the see-through things, its depth is there for them to test against
+  g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });
   return { g, mats, op: 1 };
 })();
 // porch deck and steps
@@ -146,7 +149,7 @@ const porchRoof = (() => {
   box(g, 3.4, 0.14, 0.14, beamM, 0, 2.37, 0.55);                                                       // header beam across the posts
   box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
   [-1.6, 1.6].forEach(a => { const sd = -Math.sign(a), br = box(g, 0.42, 0.07, 0.07, beamM, a + sd * 0.17, 2.14, 0.55); br.rotation.z = sd * 0.78; });   // knee braces post to header
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.renderOrder = -10; } });   // drawn before the outlines, like the main roof
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
 })();
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt,

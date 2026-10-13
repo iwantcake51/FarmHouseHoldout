@@ -166,6 +166,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   if (cy && cy.bolt) roll -= 0.14 * ck;                                                    // the rifle rolls a little as the bolt is worked
   if (band) { pitch += 0.35; ox += 0.06; }                                                 // hangs at your side while you wrap up
+  oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
@@ -244,6 +245,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   reach(pm.armR, 'R', _fR);
   if (ak && band) reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26));
   else reach(pm.armL, 'L', _fL);
-  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.12 + (band ? 0.35 : 0);
+  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1 + (band ? 0.35 : 0);
+  pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
   up.x += ANIM.pitch * 0.4 + ads * 0.05 + (band ? 0.18 : 0);
 }

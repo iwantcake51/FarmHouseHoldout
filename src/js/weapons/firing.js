@@ -15,6 +15,17 @@ function spreadOf(id) {
   if (D.bipod && P.still > 0.3) s *= 0.12;
   return s;
 }
+// a scope trades the close fight for the long one: through it anything near is a blur you can barely hold on (a wide
+// spread up close), and from about ten metres out the shot goes exactly where it's laid. Pellets still spread as
+// they would without it; the scope only adds to it up close.
+const SCOPE_NEAR = 3, SCOPE_FAR = 10;
+const scopeUse = () => scoped || scopeAim();
+function scopeSpread(id, d) {
+  const D = W(id), k = 1 - smooth(clamp((d - SCOPE_NEAR) / (SCOPE_FAR - SCOPE_NEAR), 0, 1));
+  return ((D.pellets || 1) > 1 ? spreadOf(id) : 0) + (Math.min(D.spread * S.spreadMul, 0.04) * 3 + 0.15) * k;
+}
+// how far off the thing you're looking at through the scope is
+const scopeDist = () => scoped ? Math.hypot(scopePt.x - P.x, scopePt.z - P.z) : Math.hypot(aimPt.x - P.x, aimPt.z - P.z);
 // muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair
 function muzzle(sideSign) {
   const D = W(curId()), sx = D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, m = MUZ[W8.cur] || 0.9;
@@ -83,7 +94,10 @@ function gunFire(id, D) {
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
-  const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0), sp = scoped ? 0 : spreadOf(id) * (scopeAim() ? 0.25 : 1);
+  // looking through a scope: the spread depends on the range, and each hit can land a crit
+  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = scopeOn ? D.critC || 0 : 0;
+  if (scopeOn && sp > 0.004 && (D.pellets || 1) === 1) tgt = null;   // up close it can't hold the crosshair on a body
+  const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0);
   for (let p = 0; p < pellets; p++) {
     const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (rand() - 0.5) * 2 * sp, dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
@@ -98,7 +112,8 @@ function gunFire(id, D) {
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * (k ? 0.75 : 1) * falloff(id, hits[k].t), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      const crit = critC > 0 && rand() < critC; critNext = crit;
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * (k ? 0.75 : 1) * falloff(id, hits[k].t) * (crit ? D.critM : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;

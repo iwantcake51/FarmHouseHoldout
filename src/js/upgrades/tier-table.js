@@ -21,7 +21,7 @@ const TIERS = {
   sight: { tag: 'Attachment', t: [
     { r: 'c', name: 'Red dot', text: 'Spread down 15% and a few more headshots.', vis: 'A red dot sight', ap: () => { S.spreadMul *= 0.85; S.headBonus += 0.04; } },
     { r: 'u', name: 'Holographic sight', text: 'Spread down another 20%, more headshots.', vis: 'A holo sight', ap: () => { S.spreadMul *= 0.8; S.headBonus += 0.06; } },
-    { r: 'r', name: 'Scope', text: 'Long guns find the head much more often.', vis: 'A scope on long guns', ap: () => S.headBonus += 0.12 }] },
+    { r: 'r', name: 'Scope', text: 'Aimed through it, 25% of hits crit for double damage. Wild up close, dead on from 10 m out.', vis: 'A scope on long guns', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'A thin beam to aim with. Spread down 15%.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
     { r: 'r', name: 'Laser sight', text: 'A bright mounted beam. Spread down another 30%.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },

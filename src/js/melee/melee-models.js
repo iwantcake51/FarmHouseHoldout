@@ -5,12 +5,21 @@
 const MM = {
   ash: lam(0xb08a5c), ashDark: lam(0x8a6a44), hickory: lam(0x9a7448), grain: lam(0x6e5234), tapeBlk: lam(0x1c1b1a), tapeRib: lam(0x2c2a28),
   redPaint: lam(0x9e2a1e), redDark: lam(0x6e1c14), wornSteel: lam(0x9aa0a4), edge: lam(0xe4e8eb), iron: lam(0x34363a), rust: lam(0x7a4228),
+  wrenchRed: lam(0xc2261a), forged: lam(0x2a2c30), jawSteel: lam(0xb2b6ba), nut: lam(0x1c1d20), label: lam(0xd8b070), labelRed: lam(0xb8301e),
   ito: lam(0x1e2430), samegawa: lam(0xd8d2c0), gold: lam(0xc8a24a), hamon: lam(0xf2f4f6), saya: lam(0x2a1a14), scale: lam(0x5a3a22), rivet: lam(0xc0a060)
 };
 // a cylinder standing along +y (radius at its top, radius at its bottom), centred at height y
 function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, seg || 10), mat); m.position.set(x || 0, y, z || 0); m.castShadow = true; g.add(m); return m; }
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
+// a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
+function slab(g, shape, d, mat, z0, bev) {
+  const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: d, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 1, curveSegments: 10 } : { depth: d, bevelEnabled: false, curveSegments: 10 });
+  geo.translate(0, 0, (z0 || 0) - d / 2); const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
+}
+const DISC_M = new THREE.CylinderGeometry(1, 1, 1, 16);
+// a knurled nut's outline: a ring of fine ribs (radius 0.025), to be extruded along the nut's axis
+const NUT_KNURL = (() => { const s = new THREE.Shape(), n = 30; for (let i = 0; i <= n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, r = i % 2 ? 0.0236 : 0.0256; i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r); } return s; })();
 const MELEE_MODELS = {
   // ash baseball bat: a taped handle and knob, a long taper into a fat barrel with a rounded end and a burnt-in band
   bat(g, m) {
@@ -42,21 +51,62 @@ const MELEE_MODELS = {
     box(g, 0.036, 0.04, 0.036, MM.redDark, 0, 0.56, 0);                      // forged shoulder below the bend
     if (m.tape) gripWrap(g, 0.023, -0.08, 0.15, 7);
   },
-  // pipe wrench: a red I-beam handle with a hanging hole, a knurled adjusting nut, a toothed heel jaw and a hook jaw up top
-  wrench(g, m) {
-    const k = m.jaw ? 1.3 : 1;
-    box(g, 0.022, 0.52, 0.03, MM.redPaint, 0, 0.16, 0);
-    box(g, 0.05, 0.52, 0.01, MM.redPaint, 0, 0.16, 0.018); box(g, 0.05, 0.52, 0.01, MM.redPaint, 0, 0.16, -0.018);   // I-beam flanges
-    const hole = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.006, 6, 12), MM.iron); hole.position.set(0, -0.06, 0.024); g.add(hole);
-    box(g, 0.056, 0.05, 0.05, MM.iron, 0, 0.44, 0);                          // the frame where the jaws meet the handle
-    const jaw = new THREE.Group(); jaw.position.set(0.012, 0.46, 0); jaw.scale.setScalar(k); g.add(jaw);
-    box(jaw, 0.1, 0.045, 0.05, GM.steel, 0.03, 0.04, 0);                     // heel jaw
-    for (let t = 0; t < 5; t++) box(jaw, 0.012, 0.012, 0.052, MM.iron, -0.005 + t * 0.016, 0.068, 0);   // teeth facing up
-    const nut = vcyl(jaw, 0.03, 0.03, 0.05, GM.metal2, 0.11, 8, -0.02, 0); for (let r = 0; r < 4; r++) vcyl(nut, 0.033, 0.033, 0.006, MM.iron, -0.02 + r * 0.013, 8);   // knurled nut
-    box(jaw, 0.035, 0.2, 0.042, GM.steel, -0.02, 0.14, 0);                   // the hook's shank
-    box(jaw, 0.12, 0.05, 0.05, GM.steel, 0.025, 0.24, 0);                    // hook jaw
-    for (let t = 0; t < 5; t++) box(jaw, 0.012, 0.012, 0.052, MM.iron, 0.005 + t * 0.016, 0.212, 0);   // teeth facing down
-    box(jaw, 0.02, 0.06, 0.03, MM.iron, 0.075, 0.22, 0);
+  // pipe wrench, after a heavy-duty cast one: a red I-beam handle (raised rims round a recessed web, a solid end with a
+  // hanging slot), the housing it flares into with a hump over the nut pocket, a steel heel jaw riveted on top, the
+  // forged black hook jaw coming up through it with a steel insert, and the knurled nut on the threaded shank.
+  // It's drawn in the x-y plane with its jaws opening toward +x, then turned a quarter so the jaws face +z like every
+  // other weapon's leading edge: it sits straight in the fist and leads the swing with the hook. The heavy jaw mod makes
+  // the hook and its bite bigger.
+  wrench(g0, m) {
+    const g = new THREE.Group(); g.rotation.y = -Math.PI / 2; g0.add(g);
+    const k = m.jaw ? 1.18 : 1, y0 = -0.115, hb = 0.025, ht = 0.033, yF = 0.45, S = 1.22;
+    const edge = y => hb + (ht - hb) * clamp((y - y0 - hb) / (yF - y0 - hb), 0, 1);   // the handle's half width at y
+    const slot = (cy, l, w) => { const h = new THREE.Path(); h.moveTo(w, cy - l + w); h.lineTo(w, cy + l - w); h.absarc(0, cy + l - w, w, 0, Math.PI, false); h.lineTo(-w, cy - l + w); h.absarc(0, cy - l + w, w, Math.PI, Math.PI * 2, false); return h; };
+    // the handle: raised rims round a recessed web, and a solid end with the hanging slot through it
+    const yb = y0 + 0.085, yt = 0.43, rim = 0.006, recess = grow => {
+      const wb = edge(yb) - rim + grow, wt = edge(yt) - rim + grow, r = new THREE.Shape();
+      r.moveTo(-wb, yb + wb); r.absarc(0, yb + wb, wb, Math.PI, Math.PI * 2, false); r.lineTo(wt, yt - wt); r.absarc(0, yt - wt, wt, 0, Math.PI, false); r.lineTo(-wb, yb + wb); return r;
+    };
+    const hdl = new THREE.Shape();
+    hdl.moveTo(-hb, y0 + hb); hdl.absarc(0, y0 + hb, hb, Math.PI, Math.PI * 2, false); hdl.lineTo(ht, yF + 0.01); hdl.lineTo(-ht, yF + 0.01); hdl.lineTo(-hb, y0 + hb);
+    hdl.holes.push(slot(y0 + 0.042, 0.021, 0.0085), new THREE.Path(recess(0).getPoints(12)));
+    slab(g, hdl, 0.03, MM.wrenchRed, 0, 0.0015);
+    slab(g, recess(0.0012), 0.012, MM.wrenchRed, 0);   // the web
+    // raised lettering down the web on both faces, and the maker's oval sticker under the housing
+    [[0.27, 6], [0.15, 9], [0.06, 3]].forEach(([yy, n]) => { for (let i = 0; i < n; i++) for (const zs of [1, -1]) box(g, 0.018, 0.0075, 0.003, MM.wrenchRed, 0, yy + (n / 2 - i) * 0.011, zs * 0.0068); });
+    { const st = new THREE.Mesh(DISC_M, MM.label); st.rotation.x = Math.PI / 2; st.scale.set(0.017, 0.001, 0.011); st.position.set(0, 0.392, 0.0068); g.add(st);
+      const st2 = new THREE.Mesh(DISC_M, MM.labelRed); st2.rotation.x = Math.PI / 2; st2.scale.set(0.012, 0.001, 0.0065); st2.position.set(0, 0.392, 0.0075); g.add(st2); }
+    // the head, a size up and a little thicker than the handle: built round (0, yF) in its own units
+    const hd = new THREE.Group(); hd.position.y = yF; hd.scale.setScalar(S); g.add(hd);
+    // the housing the handle flares into, with a hump over the nut pocket on the shank side
+    const hs = new THREE.Shape(), b0 = ht / S;
+    hs.moveTo(-b0, -0.012); hs.lineTo(b0, -0.012); hs.lineTo(b0, 0); hs.lineTo(0.052, 0.08); hs.lineTo(0.056, 0.11); hs.lineTo(-0.014, 0.112);
+    hs.lineTo(-0.024, 0.134); hs.quadraticCurveTo(-0.046, 0.15, -0.066, 0.133); hs.quadraticCurveTo(-0.076, 0.12, -0.072, 0.095);
+    hs.lineTo(-0.066, 0.058); hs.lineTo(-0.017, 0.056); hs.lineTo(-0.017, 0.017); hs.lineTo(-b0, 0.011); hs.lineTo(-b0, -0.012);
+    slab(hd, hs, 0.03, MM.wrenchRed, 0, 0.0015);
+    // the heel jaw: a steel insert across the top of the housing, its teeth raking toward the opening, and its rivet
+    const heel = new THREE.Shape(), p = 0.0082 * k; heel.moveTo(-0.016, 0.085); heel.lineTo(0.058, 0.085); heel.lineTo(0.058, 0.118);
+    for (let x = 0.058; x - p >= -0.0162; x -= p) { heel.lineTo(x - p * 0.3, 0.118 + 0.008 * k); heel.lineTo(x - p, 0.118); }
+    heel.lineTo(-0.016, 0.118); heel.lineTo(-0.016, 0.085);
+    slab(hd, heel, 0.035, MM.jawSteel, 0);
+    vcyl(hd, 0.0048, 0.0048, 0.038, MM.wornSteel, 0.095, 10, 0.04, 0).rotation.x = Math.PI / 2;
+    // the hook jaw, forged: the shank up the back through the nut, bending over into the jaw arm. Its pivot is the nut,
+    // so the heavy jaw grows from there
+    const hook = new THREE.Group(); hook.position.set(-0.045, 0.037, 0); hook.scale.setScalar(k); hd.add(hook);
+    const H = (x, y) => [x + 0.045, y - 0.037], hk = new THREE.Shape(), mv = (f, x, y) => hk[f](...H(x, y));
+    mv('moveTo', -0.056, -0.04); mv('lineTo', -0.034, -0.04); mv('lineTo', -0.034, 0.148); mv('lineTo', -0.024, 0.167); mv('lineTo', 0.054, 0.167); mv('lineTo', 0.063, 0.175); mv('lineTo', 0.063, 0.191);
+    hk.quadraticCurveTo(...H(0.061, 0.202), ...H(0.05, 0.203)); mv('lineTo', -0.03, 0.207); hk.quadraticCurveTo(...H(-0.059, 0.208), ...H(-0.058, 0.178)); mv('lineTo', -0.056, -0.04);
+    slab(hook, hk, 0.024, MM.forged, 0, 0.0015);
+    const ins = new THREE.Shape(); ins.moveTo(...H(-0.022, 0.172)); ins.lineTo(...H(0.06, 0.172)); ins.lineTo(...H(0.06, 0.161));
+    for (let x = 0.06; x - 0.0082 >= -0.0222; x -= 0.0082) { ins.lineTo(...H(x - 0.0082 * 0.3, 0.153)); ins.lineTo(...H(x - 0.0082, 0.161)); }
+    ins.lineTo(...H(-0.022, 0.161)); ins.lineTo(...H(-0.022, 0.172));
+    slab(hook, ins, 0.029, MM.jawSteel, 0);
+    // the threaded length of the shank below the nut: bright machined steel with its rack of teeth down the back
+    box(hook, 0.0255, 0.06, 0.0275, MM.wornSteel, 0, -0.047, 0);
+    for (let t = 0; t < 6; t++) box(hook, 0.005, 0.0045, 0.025, MM.jawSteel, -0.0148, -0.072 + t * 0.0094, 0);
+    // the knurled nut: two ribbed bands with a groove between, sitting in the pocket round the shank
+    for (const [yy, h] of [[0.02, 0.0145], [0.0385, 0.0145]]) { const n = slab(hd, NUT_KNURL, h, MM.nut, 0); n.rotation.x = -Math.PI / 2; n.position.set(-0.045, yy + h / 2, 0); }
+    vcyl(hd, 0.0215, 0.0215, 0.0045, MM.iron, 0.0368, 16, -0.045, 0);
   },
   // katana: a wrapped handle with diamond ito and a gold menuki, a round tsuba and brass habaki, then a curved blade
   // built from short segments, each with a dark spine, a bright hamon and an edge, ending in a sharp kissaki

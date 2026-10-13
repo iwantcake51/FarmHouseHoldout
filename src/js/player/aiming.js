@@ -11,7 +11,7 @@ function enterScope() {
   $('scope').classList.add('on'); SFX.click(); nz(0.12, 'bandpass', 900, 400, 0.15, 2);
 }
 // ---- aiming down the sights: hold right click on any gun; with a scope the view zooms in further, no overlay ----
-let aiming = false;
+let aiming = false, aimHeld = false;   // aimHeld: the aim button is down, so anything that drops you out of the sights can put you back
 const scopeAim = () => aiming && hasScope();
 function startAim() { const D = W(curId()); if (!D || D.melee || P.vault || state !== 'play' || P.dead) return; if (!aiming) { aiming = true; nz(0.06, 'bandpass', 1200, 700, 0.08, 2); } }
 function exitScope() { aiming = false; if (!scoped) return; scoped = false; zoomT = zoomBeforeScope; $('scope').classList.remove('on'); }

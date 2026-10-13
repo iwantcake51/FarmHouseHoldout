@@ -22,7 +22,10 @@ function recomputeEff() {
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
     D.dmg *= [1, 1.25, 1.5, 1.875][ammo] * Math.pow(1.08, (W8.tune && W8.tune[id]) || 0);   // workbench tuning, per weapon
-    D.headBonus = (D.headBonus || 0) + (ammo >= 3 ? 0.1 : 0) + [0, 0.04, 0.1, 0.22][sight];
+    D.headBonus = (D.headBonus || 0) + (ammo >= 3 ? 0.1 : 0) + [0, 0.04, 0.1, 0.1][sight];
+    // a scope (the hunting rifle's own, or one fitted to a long gun) only lands crits: a quarter of the hits through it
+    // do double damage; the high-power scope (its stat, weapons/gun-mods.js) does better
+    if (id === 'hunting' || (sight >= 3 && D.slot !== 'side')) { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
     if (D.mag) D.mag *= [1, 1.4, 2.0, 2.7][mag];
     D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];

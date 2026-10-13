@@ -20,7 +20,7 @@ const MOD_UP = {
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   flech: { t: 'Pierce +1', up: D => { D.pierce = (D.pierce || 0) + 1; } },
   bolt: { t: 'Bolt works 12% faster', up: D => { D.rate *= 0.88; } },
-  hpscope: { t: 'Headshots +10%', up: D => { D.headBonus = (D.headBonus || 0) + 0.1; } },
+  hpscope: { t: 'Crit chance +10%, crits +0.25×', up: D => { D.critC += 0.1; D.critM += 0.25; } },
   expand: { t: '+12% damage', up: D => { D.dmg *= 1.12; } },
   akimbo2: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
