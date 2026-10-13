@@ -40,5 +40,15 @@ const curId = () => W8.slot[W8.cur];
 const hasMod = m => (W8.mods[MODS[m].w] || []).includes(m);
 const held = id => W8.slot[WEAP[id].slot] === id;
 const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
+// how the weapon in your hands sets your pace: a blade or a bat is lighter than nothing much (the two-handers less so);
+// primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't count.
+function carryMul(id) {
+  const D = id && W(id); if (!D) return 1;
+  if (D.melee) return D.two ? 1.03 : 1.07;
+  if (D.slot !== 'long' && D.slot !== 'auto') return 1;
+  const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (S.att.bayonet && D.slot === 'long' ? 1 : 0);
+  const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, magSize(id) / 30 * 0.03);
+  return clamp(1 - cal - mag - att * 0.008, 0.8, 1);
+}
 const suppressed = D => !!D.quiet || (T('supp') > 0 && !(D.ammo === 'shells' && T('choke') > 0));
 const suppMul = D => D.quiet ? 1 : suppressed(D) ? [1, 1.1, 1.2, 1.3][T('supp')] : 1;

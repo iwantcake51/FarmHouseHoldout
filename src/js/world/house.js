@@ -26,26 +26,60 @@ const walls = [], openings = [];
   rugP(mat, sq(1.0, 0.56), 0x3e2e22, 0.021); rugP(mat, sq(0.9, 0.46), 0x8a6a3a, 0.0225); [-0.12, 0, 0.12].forEach(z => rugP(mat, sq(0.8, 0.02), 0x6a4e2c, 0.024, 0, z));
   mergeInto(mat, finePieces(mat));
 }
+// the door's paint, panels, threshold and brass
+const DOOR_M = { paint: lam(0x7a2e24), panel: lam(0x5e221b), sill: lam(0x7a5434), brass: lam(0xb08a3a) };
 const openSpec = { [idx(21, HZ1)]: 'door', [idx(19, HZ0)]: 'window', [idx(24, HZ0)]: 'window', [idx(HX0, 21)]: 'window', [idx(HX1, 22)]: 'window' };
 for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   if (!(i === HX0 || i === HX1 || j === HZ0 || j === HZ1)) continue;
   const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); scene.add(g);
   const kind = openSpec[idx(i, j)];
   const faces = []; if (j === HZ0) faces.push('N'); if (j === HZ1) faces.push('S'); if (i === HX0) faces.push('W'); if (i === HX1) faces.push('E');
+  // every cell's pieces fade with its wall faces when you're behind them (world/cutaway.js), the door's included
+  const cut = { value: 0 };
+  const mk = base => { const m = base.clone(); m.userData.cut = cut; return lit(m, true); };
+  const mats = { wall: mk(M.wall), found: mk(M.found), trim: mk(M.trim) };
+  box(g, 1.02, 0.22, 1.02, mats.found, 0, 0.11, 0);
+  // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
+  const clap = (y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(g, 1.015, 0.025, 1.015, mats.trim, 0, y, 0); } };
   if (kind === 'door') {
-    box(g, 1.02, 0.22, 1.02, M.found, 0, 0.11, 0);
-    box(g, 0.12, 2.1, 0.5, M.doorFrame, -0.46, 1.05, 0); box(g, 0.12, 2.1, 0.5, M.doorFrame, 0.46, 1.05, 0);
-    box(g, 1.02, 0.4, 0.5, M.doorFrame, 0, 2.25, 0);
+    // a full-depth frame flush with the walls: jambs, an oak threshold, the sided wall over the head, and cased
+    // trim on both faces with a drip cap outside. The door itself stands open, swung right round against the inside wall.
+    const dm = { frame: mk(M.doorFrame), sill: mk(DOOR_M.sill), paint: mk(DOOR_M.paint), panel: mk(DOOR_M.panel), brass: mk(DOOR_M.brass) };
+    [-1, 1].forEach(sd => box(g, 0.1, 1.83, 1.0, dm.frame, sd * 0.45, 1.135, 0));
+    box(g, 0.8, 0.05, 1.0, dm.sill, 0, 0.245, 0); box(g, 0.82, 0.03, 0.08, dm.sill, 0, 0.235, 0.52);   // threshold and its nosing
+    box(g, 1, 0.35, 1, mats.wall, 0, 2.225, 0); clap(2.05, 2.4);
+    [-1, 1].forEach(f => {
+      const z = f * 0.512;
+      [-1, 1].forEach(sd => box(g, 0.13, 1.95, 0.025, dm.frame, sd * 0.43, 1.2, z));   // side casings
+      box(g, 1.02, 0.15, 0.025, dm.frame, 0, 2.13, z);                                   // head casing
+    });
+    box(g, 1.06, 0.04, 0.07, mats.trim, 0, 2.225, 0.53); box(g, 1.02, 0.025, 0.04, dm.frame, 0, 2.2, 0.52);   // drip cap
+    // the door: four raised panels on each face, a lock rail, a brass knob and plate
+    const hinge = new THREE.Group(); hinge.position.set(-0.4, 0, -0.5); hinge.rotation.y = Math.PI * 0.97; g.add(hinge);
+    const leaf = new THREE.Group(); leaf.position.set(0.4, 1.14, 0.03); hinge.add(leaf);
+    box(leaf, 0.8, 1.8, 0.045, dm.paint, 0, 0, 0);
+    [-1, 1].forEach(f => {
+      [[-0.19, 0.42], [0.19, 0.42], [-0.19, -0.38], [0.19, -0.38]].forEach(([x, y]) => { box(leaf, 0.28, y > 0 ? 0.62 : 0.72, 0.012, dm.panel, x, y, f * 0.028); box(leaf, 0.22, y > 0 ? 0.56 : 0.66, 0.008, dm.paint, x, y, f * 0.036); });
+      box(leaf, 0.06, 0.12, 0.01, dm.brass, 0.33, 0.02, f * 0.028);                                        // escutcheon plate
+      const kb = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), dm.brass); kb.position.set(0.33, 0, f * 0.06); leaf.add(kb);
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 8), dm.brass); st.rotation.x = Math.PI / 2; st.position.set(0.33, 0, f * 0.04); leaf.add(st);
+    });
+    [0.62, -0.62].forEach(y => box(leaf, 0.035, 0.12, 0.06, dm.brass, -0.41, y, 0));   // hinges
+    unfight(g);   // pull apart the trim's flush faces
+    walls.push({ faces, cut });
   } else {
-    const cut = { value: 0 };
-    const mk = base => { const m = base.clone(); m.userData.cut = cut; return lit(m, true); };
-    const mats = { wall: mk(M.wall), found: mk(M.found), trim: mk(M.trim) };
-    box(g, 1.02, 0.22, 1.02, mats.found, 0, 0.11, 0);
-    if (!kind) {
-      box(g, 1, 2.3, 1, mats.wall, 0, 1.25, 0);
-      // clapboard lines on the outside faces
-      for (let k = 0; k < 6; k++) box(g, 1.015, 0.025, 1.015, mats.trim, 0, 0.45 + k * 0.33, 0);
-    } else { box(g, 1, 0.75, 1, mats.wall, 0, 0.6, 0); box(g, 1.06, 0.06, 1.08, mats.trim, 0, 0.99, 0); box(g, 1, 0.5, 1, mats.wall, 0, 2.15, 0); box(g, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0); }
+    if (!kind) { box(g, 1, 2.3, 1, mats.wall, 0, 1.25, 0); clap(0.22, 2.4); }
+    else {
+      // a window: wall under the sill and over the head, sided like the rest, with a sill, an apron under it outside
+      // and cased jambs on both faces
+      box(g, 1, 0.75, 1, mats.wall, 0, 0.6, 0); clap(0.22, 0.975); box(g, 1.06, 0.06, 1.08, mats.trim, 0, 0.99, 0);
+      const alongX = j === HZ0 || j === HZ1, ox = alongX ? 0 : (i === HX0 ? -1 : 1), oz = alongX ? (j === HZ0 ? -1 : 1) : 0;
+      // a trim piece u along the wall, on the outer face (f 1) or the inner one (f -1)
+      const at = (u, y, f, w, h, d) => box(g, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
+      at(0, 0.925, 1, 0.9, 0.08, 0.03);                                                      // apron under the sill, outside
+      [-1, 1].forEach(f => [-1, 1].forEach(sd => at(sd * 0.46, 1.445, f, 0.08, 0.86, 0.022)));   // jamb casings on both faces
+      box(g, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(1.9, 2.4); box(g, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
+    }
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
     walls.push({ faces, cut });
   }

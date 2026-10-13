@@ -33,7 +33,7 @@ function updateDayNight(rdt) {
     // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
     const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
     setT('clockTime', `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-    setT('clockPhase', stopped ? 'Clock stopped' : dayPart(tod));
+    setT('clockPhase', stopped ? 'Time stopped' : dayPart(tod));
     // the sun sinks into the moon over dusk and the moon fades back into the sun over dawn
     const rot = (tod / 24 * 360 - 180).toFixed(1), night = dialNight(tod).toFixed(2);
     if (cache.dialRot !== rot) { cache.dialRot = rot; $('dialHand').setAttribute('transform', `rotate(${rot})`); }

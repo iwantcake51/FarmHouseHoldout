@@ -48,7 +48,7 @@ const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) 
 // fit a mod; one with a fire mode becomes the weapon's mode straight away
 function addMod(id, m) { (W8.mods[id] = W8.mods[id] || []).push(m); if (MODS[m].fm) W8.fm[id] = m; recomputeEff(); }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
-// V steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
+// B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
 function fireModes(id) { return [null, ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;

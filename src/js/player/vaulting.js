@@ -59,7 +59,9 @@ function tryVault() {
 function vaultTakeoff(v) { SFX.vault(); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
 // touch down: a thump, dust, the knees soak it up and the camera dips and settles on a spring
 function vaultLand(v) {
-  SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1;
+  SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1; ANIM.landHeavy = !!v.scramble;
+  // carry the vault's momentum out of it (movement.js ends the jump still moving), so you run on instead of stopping dead
+  const sp = 0.45 * Math.hypot(v.x1 - v.x0, v.z1 - v.z0) / v.dur; P.vx = v.dx * sp; P.vz = v.dz * sp;
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;
-  if (v.scramble) { P.slow = Math.min(1, P.slow + 0.35); P.stun = Math.max(P.stun || 0, 0.25); camVault.vb -= 0.6; SFX.pant(); }   // a heavy, tired landing
+  if (v.scramble) { P.slow = Math.min(1, P.slow + 0.35); camVault.vb -= 0.6; SFX.pant(); }   // a heavy, tired landing: slowed, but never frozen in place
 }

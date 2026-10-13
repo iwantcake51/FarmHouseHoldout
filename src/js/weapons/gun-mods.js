@@ -3,12 +3,12 @@
 // Gun mods: each belongs to one gun (w), has a rarity (r), card text, a visual note, and a stat change.
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Pistol damage +35%.', vis: 'A longer, heavier slide', stat: D => { D.dmg *= 1.35; } },
-  burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Each trigger pull fires a fast three-round burst. V switches fire modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
-  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', name: 'Auto sear', text: 'A third notch on the selector: hold the trigger and the pistol empties itself. V cycles single, burst and full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
+  burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Each trigger pull fires a fast three-round burst. B switches fire modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
+  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', name: 'Auto sear', text: 'A third notch on the selector: hold the trigger and the pistol empties itself. B cycles single, burst and full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: nearly twice the fire rate and ammo.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; } },
   speedloader: { w: 'revolver', r: 'u', name: 'Speedloader', text: 'Reload all six rounds at once, fast.', vis: 'A brass speedloader on the frame', stat: D => { D.perShell = 0; D.reload = 0.9; } },
   longbarrel: { w: 'revolver', r: 'c', name: 'Eight-inch barrel', text: 'Revolver damage +30% and one more pierce.', vis: 'A much longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; } },
-  fan: { w: 'revolver', r: 'r', fm: 'Fanning', name: 'Fan the hammer', text: 'Fire the revolver almost three times as fast, with more spread. V switches back to aimed shots.', vis: 'A filed-down hammer', stat: D => { D.rate = 0.15; D.spread *= 2.6; } },
+  fan: { w: 'revolver', r: 'r', fm: 'Fanning', name: 'Fan the hammer', text: 'Fire the revolver almost three times as fast, with more spread. B switches back to aimed shots.', vis: 'A filed-down hammer', stat: D => { D.rate = 0.15; D.spread *= 2.6; } },
   boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every hand cannon round explodes on impact.', vis: 'Red-tipped rounds', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', r: 'u', name: 'Ported compensator', text: 'Halves hand cannon spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Pump shells set every zombie they hit on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },

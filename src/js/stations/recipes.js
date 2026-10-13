@@ -15,7 +15,7 @@ function attachmentCards() {
     out.push({ ic: 'gear', group, cost: ATT_COST[k][n], title: () => st.name, desc: () => st.text + (n ? ` Replaces the ${L.t[n - 1].name.toLowerCase()}.` : ''), why: () => '',
       make: () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, st.name); toast(st.name, { kind: 'good', icon: 'gear', sub: 'Fitted to your ' + D.name.toLowerCase() }); } });
   }
-  if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'gear', group, cost: 16, title: () => 'Bayonet', desc: () => 'A blade under your long guns: shoving (F) stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); toast('Bayonet', { kind: 'good', icon: 'gear', sub: 'Fitted to your long guns · F to stab' }); } });
+  if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'gear', group, cost: 16, title: () => 'Bayonet', desc: () => 'A blade under your long guns: shoving (V) stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); toast('Bayonet', { kind: 'good', icon: 'gear', sub: 'Fitted to your long guns · V to stab' }); } });
   if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'gear', group, cost: 14, title: () => 'Shoulder stock', desc: () => 'Steadies every sidearm: spread −25%, kick −45%', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); toast('Shoulder stock', { kind: 'good', icon: 'gear', sub: 'Fitted to your sidearms' }); } });
   return out;
 }

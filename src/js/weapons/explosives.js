@@ -1,16 +1,26 @@
 // Explosions, the underbarrel grenade launcher and grenades in flight.
 
 const flashes = [];
+// a blast: a white-hot flash, a fireball that balloons and burns out in a blink, sparks and shrapnel, a ring of dust
+// and dirt thrown out along the ground, then a column of smoke that hangs. Zombies near the middle that it kills
+// are blown apart (blowApart in zombies/damage.js); further out they lose limbs and are thrown.
 function explode(x, z, r, dmg, self) {
-  SFX.boom(); shake = Math.max(shake, 0.5);
-  burst(x, 0.4, z, 14, 'ember', 0, 0, 0); burst(x, 0.4, z, 10, 'smoke', 0, 0, 0); burst(x, 0.3, z, 8, 'dust', 0, 0, 0);
-  splat(x, z, 'scorch', r * 1.1, undefined, 0.15);
-  flashes.push({ x, z, r: r * 3, int: 2.4, col: [1, 0.7, 0.35], t: 0.25, max: 0.25 }); lmT = 0;
+  SFX.boom(); shake = Math.max(shake, 0.8);
+  fx('flash', x, 0.7, z, 0, 0, 0, 0.8, r * 1.5, 0.16, 1);
+  for (let k = 0; k < 9; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2); fx('ember', x + Math.sin(a) * 0.2, rr(0.3, 0.8), z + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(1.2, 3.4), Math.cos(a) * sp, rr(0.35, 0.5), rr(0.9, 1.5), rr(0.22, 0.38), 0.95); }
+  sparkBurst(x, 0.4, z, 18, 0, 0, 8);
+  burst(x, 0.5, z, 10, 'ember', 0, 0, 6);
+  groundDust(x, z, 2.4, 0, 0); cubeBurst(x, 0.15, z, 12, 'dust', 0, 0, 5, 0.6);
+  for (let k = 0; k < 12; k++) fx('smoke', x + rr(-0.5, 0.5), rr(0.3, 1.1), z + rr(-0.5, 0.5), rr(-0.7, 0.7), rr(0.7, 1.8), rr(-0.7, 0.7), rr(0.5, 0.8), rr(2.2, 3.4), rr(2.4, 3.8), rr(0.65, 0.8));
+  splat(x, z, 'scorch', r * 0.9, undefined, 0.12);
+  flashes.push({ x, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
   for (const zb of zombies.slice()) {
     const dx = zb.x - x, dz = zb.z - z, d = Math.hypot(dx, dz); if (d > r) continue;
     const f = 1 - d / r, nx = dx / (d || 1), nz = dz / (d || 1);
+    zb.gib = d < r * 0.6;   // if this kills it, it comes apart
     if (d < r * 0.5) ['armL', 'armR', 'legL', 'legR'].forEach(p => { if (rand() < 0.45) sever(zb, p, nx, nz); });
     hurtZombie(zb, dmg * (0.4 + 0.6 * f), nx, nz, 6 * f, 'boom', rand() < 0.3 ? 'head' : 'torso');
+    zb.gib = false;
   }
   if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hurtFx = 1; interruptBandage(); } }
 }

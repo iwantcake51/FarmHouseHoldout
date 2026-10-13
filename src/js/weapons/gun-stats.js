@@ -12,7 +12,7 @@ const GUN_WEAPONS = {
   smg: { slot: 'auto', ammo: 'p9', name: 'Machine pistol', short: 'Auto', dmg: 17, rate: 0.085, mag: 30, reload: 1.5, spread: 0.08, kick: 0.7, shake: 0.06, start: 90, rar: 'u', desc: 'Fully automatic. Sprays more than it aims.' },
   sub: { slot: 'auto', ammo: 'p9', name: 'Submachine gun', short: 'SMG', dmg: 23, rate: 0.075, mag: 32, reload: 1.7, spread: 0.05, kick: 0.9, shake: 0.06, start: 120, rar: 'r', desc: 'Accurate automatic fire with a folding stock.' },
   ar: { slot: 'auto', ammo: 'rifle', name: 'Assault rifle', short: 'AR', dmg: 36, rate: 0.1, mag: 30, reload: 2.0, spread: 0.035, kick: 1.4, shake: 0.08, pierce: 1, start: 90, rar: 'r', desc: 'Rifle rounds on full auto.' },
-  lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.07, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.82, rar: 'l', desc: 'A hundred-round belt. You walk slower carrying it.' }
+  lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.07, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.9, rar: 'l', desc: 'A hundred-round belt. You walk slower carrying it.' }
 };
 // every weapon in the game, melee first, keyed by id
 const WEAP = Object.assign({}, MELEE_WEAPONS, GUN_WEAPONS);

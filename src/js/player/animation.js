@@ -43,24 +43,34 @@ function animateDeath(dt) {
 // how far through a stage: vk(t, a, b) eases from 0 to 1 as t goes from a to b
 const vk = (t, a, b) => smooth(clamp((t - a) / (b - a), 0, 1));
 function vaultPhase(v) { return { c: v.t > 0 ? 1 : smooth(clamp(v.pre / v.preDur, 0, 1)), t: Math.min(1, v.t), air: v.t > 0 }; }
+// eased keyframes [t, value] (the same easing the hands use)
+function vKeys(keys, t) { let k = 0; while (k < keys.length - 2 && keys[k + 1][0] <= t) k++; const [t0, a] = keys[k], [t1, b] = keys[k + 1]; return a + (b - a) * smooth(clamp((t - t0) / ((t1 - t0) || 1), 0, 1)); }
+// every curve starts where the crouch left off and ends at a plain standing pose, so neither the push-off nor the
+// landing (ANIM.land) jumps; a scramble keeps the body flatter, belly over the top, legs dragging behind
+const V_LEAN = [[0, 0.42], [0.18, 0.55], [0.55, 0.2], [0.8, -0.2], [1, 0]], V_LEAN_S = [[0, 0.62], [0.22, 1.0], [0.6, 0.9], [0.86, 0.15], [1, 0]];
+const V_LEGL = [[0, -0.55], [0.25, -1.45], [0.55, -1.5], [0.8, -0.55], [1, 0]], V_LEGL_S = [[0, -0.55], [0.3, -0.85], [0.62, -1.0], [0.86, -0.3], [1, 0]];
+const V_LEGR = [[0, 0.45], [0.15, 0.6], [0.4, -1.1], [0.6, -1.2], [0.85, -0.2], [1, 0]], V_LEGR_S = [[0, 0.45], [0.25, 0.75], [0.5, 0.3], [0.76, -0.55], [1, 0]];
+const HIP_Y = 0.62;   // the body tips about the hips, not the feet, so leaning over a sill lifts the legs instead of sinking the chest
 function vaultPose(pm, v) {
   const { c, t, air } = vaultPhase(v), sc = v.scramble ? 1 : 0, fence = v.fence ? 1 : 0;
-  // height: up fast off the push, a hang over the top, and down to meet the ground
-  const arc = air ? Math.pow(Math.sin(Math.PI * Math.pow(t, 0.85)), 0.8) : 0;
-  pm.g.position.y = arc * (0.66 - fence * 0.12) * (v.hop || 1) - (air ? 0 : c * 0.2) - (air ? (1 - vk(t, 0, 0.15)) * 0.2 : 0);
-  // lean: well forward to reach the sill, rising through the top, and back a little to brace for the landing
-  const lean = air ? 0.55 * (1 - vk(t, 0.2, 0.62)) + 0.18 * vk(t, 0.2, 0.62) - 0.32 * vk(t, 0.66, 0.95) : 0.42 * c;
-  pm.g.rotation.x = lean * (1 + sc * 0.7) + (air ? sc * 0.4 * Math.sin(Math.PI * t) : 0);
+  // height: up fast off the push, a hang over the top, and down to meet the ground; a scramble still clears the rail
+  const arc = air ? Math.sin(Math.PI * (t + 0.18 * t * (1 - t))) : 0, H = sc ? (fence ? 0.34 : 0.4) : (fence ? 0.5 : 0.62);
+  const y = arc * H - 0.1 * (air ? 1 - vk(t, 0, 0.15) : c);
+  const lean = air ? vKeys(sc ? V_LEAN_S : V_LEAN, t) : (sc ? 0.62 : 0.42) * c;
+  pm.g.rotation.x = lean;
   // the legs swing out to one side over the sill and back under you (the hips roll with them), less over a low fence
   const sw = air ? Math.sin(Math.PI * vk(t, 0.08, 0.92)) : 0, side = v.legSide || (v.legSide = 1);   // the legs go over to the right of the planted left hand
   pm.lower.rotation.y = side * sw * (0.95 - fence * 0.35) * (1 - sc * 0.5);
   pm.lower.rotation.z = side * sw * (0.42 - fence * 0.12) * (1 - sc * 0.4);
-  // knees: loaded in the crouch, both tucked tight over the top, then the lead leg reaches for the ground first
-  const tuck = air ? Math.sin(Math.PI * vk(t, 0, 0.82)) : 0, reachF = vk(t, 0.62, 0.92) * (1 - vk(t, 0.92, 1));
-  pm.legL.rotation.x = (air ? -tuck * (1.55 - sc * 0.6) - reachF * 0.55 : -c * 0.75);
-  pm.legR.rotation.x = (air ? -tuck * (1.2 - sc * 0.5) + reachF * 0.25 + (1 - vk(t, 0, 0.2)) * 0.4 : c * 0.45);   // the push leg trails off the ground
+  // knees: a split stance in the crouch, both tucked tight over the top, then down under you for the landing
+  pm.legL.rotation.x = air ? vKeys(sc ? V_LEGL_S : V_LEGL, t) : -0.55 * c;
+  pm.legR.rotation.x = air ? vKeys(sc ? V_LEGR_S : V_LEGR, t) : 0.45 * c;
   pm.legL.rotation.z = -side * sw * 0.12; pm.legR.rotation.z = -side * sw * 0.12;
   pm.lower.position.y = 0;
+  // keep the hips where they are as the body tips: lift and pull back the feet end
+  const yw = ANIM.yaw;
+  pm.g.position.y = y + HIP_Y * (1 - Math.cos(lean));
+  pm.g.position.x -= Math.sin(yw) * HIP_Y * Math.sin(lean); pm.g.position.z -= Math.cos(yw) * HIP_Y * Math.sin(lean);
 }
 // the chest stays turned toward where you're going while the legs swing away, and the head looks for the landing
 function vaultUpper(v, up) {
@@ -94,12 +104,12 @@ function animatePlayer(dt, rdt) {
   pm.g.position.set(P.x, 0, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, 0.02, P.z); pBlob.scale.setScalar(1.15 - Math.min(0.4, pm.g.position.y * 0.5));
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / 4.1, 0, 1.3);
   const hpF = P.hp / S.maxHp, limp = hpF < 0.4 ? (0.4 - hpF) / 0.4 : 0;
-  ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5);
+  ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5); ANIM.stumble = Math.max(0, (ANIM.stumble || 0) - rdt * 2.2);
   // hips turn toward the direction you walk; walking away from your aim plays the stride backwards
   let legYaw = 0;
   if (spd > 0.3 || P.vault) {
     if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } legYaw = clamp(rel, -1.15, 1.15); }
-    ANIM.legYaw += (legYaw - ANIM.legYaw) * Math.min(1, rdt * 10);
+    ANIM.legYaw += (legYaw - ANIM.legYaw) * Math.min(1, rdt * (ANIM.postVault > 0 ? 4 : 10));   // the hips come round gently out of a vault
     ANIM.feet = ANIM.yaw + ANIM.legYaw; ANIM.stepping = false;
   } else {
     // standing still the torso turns on its own; when the twist gets too big the feet shuffle round to catch up
@@ -111,14 +121,16 @@ function animatePlayer(dt, rdt) {
   }
   pm.lower.rotation.y = ANIM.legYaw;
   const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF);
-  ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 4);
+  ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 2.4);   // 0.42 s to soak up a landing
   if (P.vault) {
     vaultPose(pm, P.vault);
   } else if (ANIM.land > 0) {
-    // landing: knees give and the body dips forward, then springs back up
-    const k = Math.sin(ANIM.land * Math.PI * 0.5);
-    pm.g.position.y = -k * 0.13; pm.g.rotation.x = k * 0.22;
-    pm.legL.rotation.x = -k * 0.55; pm.legR.rotation.x = k * 0.35; pm.lower.rotation.y = ANIM.legYaw;
+    // landing: from a plain stance the knees give and the body dips forward, then rises back up as the stride
+    // comes back in, so you walk straight out of it (a winded landing sinks deeper)
+    const p = 1 - ANIM.land, k = Math.sin(Math.PI * p) * (ANIM.landHeavy ? 1.45 : 1), back = smooth(p);
+    pm.g.position.y = -k * 0.1; pm.g.rotation.x = k * 0.2;
+    pm.legL.rotation.x = ANIM.legDir * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDir * s * stride * back * (1 - limp * 0.7) + k * 0.32;
+    pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
     pm.legL.rotation.x = ANIM.legDir * s * stride;
     pm.legR.rotation.x = -ANIM.legDir * s * stride * (1 - limp * 0.7);   // the bad leg hardly swings
@@ -131,6 +143,9 @@ function animatePlayer(dt, rdt) {
       pm.lower.position.y = Math.abs(q) * 0.016 * lift; pm.lower.rotation.z += q * 0.035 * lift;
     }
   }
+  // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
+  const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
+  if (stq) { pm.g.rotation.z += (ANIM.stumbleSide || 1) * stq * 0.2; pm.g.rotation.x += stq * 0.12; pm.g.position.y -= stq * 0.07; pm.legL.rotation.x += stq * 0.45; pm.legR.rotation.x -= stq * 0.3; }
   // bob twice per stride, dip onto the bad leg when limping, breathe when still
   const bob = Math.abs(Math.cos(ph)) * 0.045 * Math.min(1, runF) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
   const breathe = Math.sin(now * 1.7) * 0.01 * (1 - Math.min(1, runF));
@@ -140,7 +155,7 @@ function animatePlayer(dt, rdt) {
   const lxT = Math.cos(rel) * 0.1 * Math.min(1, runF), lzT = -Math.sin(rel) * 0.09 * Math.min(1, runF);
   ANIM.lx += (lxT - ANIM.lx) * Math.min(1, rdt * 8); ANIM.lz += (lzT - ANIM.lz) * Math.min(1, rdt * 8);
   const sway = s * 0.04 * Math.min(1, runF) + limp * Math.max(0, s) * 0.14;
-  let urx = ANIM.lx - ANIM.flinch * 0.32, ury = 0, urz = ANIM.lz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
+  let urx = ANIM.lx - ANIM.flinch * 0.32 + stq * 0.25, ury = 0, urz = ANIM.lz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02, 0, -sway * 0.6);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };

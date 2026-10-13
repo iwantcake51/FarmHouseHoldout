@@ -2,7 +2,7 @@
 
 // status effects, walking, vaulting and aiming
 function updatePlayer(dt) {
-  P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt);
+  P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt); P.adrCd = Math.max(0, (P.adrCd || 0) - dt);
   W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down
   if (S.regen && P.hp < S.maxHp) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
@@ -18,18 +18,19 @@ function updatePlayer(dt) {
     const v = P.vault;
     if (v.pre < v.preDur) { v.pre += dt; if (v.pre >= v.preDur) vaultTakeoff(v); }
     else {
-      v.t += dt / v.dur; const t = Math.min(1, v.t), e = t * t * (3 - 2 * t);
+      // eased out of the push but still moving at the end, so the landing carries on into a walk (vaultLand)
+      v.t += dt / v.dur; const t = Math.min(1, v.t), e = 0.55 * t * t * (3 - 2 * t) + 0.45 * t;
       P.x = v.x0 + (v.x1 - v.x0) * e; P.z = v.z0 + (v.z1 - v.z0) * e;
       if (v.t >= 1) { P.vault = null; vaultLand(v); }
     }
-    P.moving = false; P.vx = P.vz = 0;
+    if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0) {
       const l = Math.hypot(mx, my), sx = mx / l, sy = my / l;
       const wx = RIGHT.x * sx + FWD.x * -sy, wz = RIGHT.z * sx + FWD.z * -sy;
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.3 : 1) * (D0.slow || 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
+      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
       const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = 0.76 + 0.24 * smooth(ahead);
       tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;

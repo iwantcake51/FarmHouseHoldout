@@ -15,7 +15,7 @@ function updateZombies(dt) {
       if (rand() < 0.5) { const v = new V3(...STUMP[sp.part]); m.g.localToWorld(v); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     if (z.vault) { stepZVault(z, dt); continue; }
-    const i = ci(z.x), j = ci(z.z), here = inb(i, j) ? dist[idx(i, j)] : 1e9;
+    const fl = z.type === 'brute' ? distB : dist, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
     const inWin = inb(i, j) && openAt[idx(i, j)] && openAt[idx(i, j)].kind === 'window';
     let tx = P.x, tz = P.z, attackingBoard = null;
     if (here > 1.6) {
@@ -23,12 +23,12 @@ function updateZombies(dt) {
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
         if (di && dj && !diagOk(i, j, di, dj)) continue;
-        const d = dist[idx(ni, nj)]; if (d < bestD) { bestD = d; bi = ni; bj = nj; }
+        const d = fl[idx(ni, nj)]; if (d < bestD) { bestD = d; bi = ni; bj = nj; }
       }
       if (bi >= 0 && cell[idx(bi, bj)] === FENCE && Math.hypot(cxw(bi) - z.x, cxw(bj) - z.z) < 0.85 + z.T.r) {
         // climb over: pick the cell on the far side the flow wants next
         let ei = -1, ej = -1, ed = 1e9;
-        for (const [di, dj] of DIRS) { const ni = bi + di, nj = bj + dj; if (!inb(ni, nj) || hardBlocked(ni, nj) || (ni === i && nj === j)) continue; const d = dist[idx(ni, nj)]; if (d < ed) { ed = d; ei = ni; ej = nj; } }
+        for (const [di, dj] of DIRS) { const ni = bi + di, nj = bj + dj; if (!inb(ni, nj) || hardBlocked(ni, nj) || (ni === i && nj === j)) continue; const d = fl[idx(ni, nj)]; if (d < ed) { ed = d; ei = ni; ej = nj; } }
         if (ei >= 0) { z.vault = { t: 0, x0: z.x, z0: z.z, fx: cxw(bi), fz: cxw(bj), x1: cxw(ei), z1: cxw(ej), dur: (z.crawl ? 2.6 : z.type === 'runner' ? 1.25 : z.type === 'brute' ? 2.4 : 1.9) * rr(0.9, 1.1), landed: false }; z.face = Math.atan2(cxw(ei) - z.x, cxw(ej) - z.z); if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.fenceClimb(); }
       }
       if (bi >= 0) { tx = cxw(bi); tz = cxw(bj); const op = openAt[idx(bi, bj)]; if (op && op.boards.length && Math.hypot(tx - z.x, tz - z.z) < 0.95 + z.T.r) attackingBoard = op; }
@@ -54,7 +54,7 @@ function updateZombies(dt) {
       if (P.dead) { if (dp < z.T.r + 0.6 && z.atk <= 0 && z.stagger <= 0) { z.atk = rr(0.8, 1.2); z.lunge = 1; } }   // and claw at you once they reach you
       else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !P.vault) {
         P.hitFrom = z.face;
-        z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.6 : 1) * S.dmgTaken; hitMe = true; interruptBandage();
+        z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken;   // a crawler only gets a weak swipe in, but it trips you hitMe = true; interruptBandage();
         // tilt the view toward whoever hit you
         const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);
         camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;
@@ -62,8 +62,12 @@ function updateZombies(dt) {
           P.conc = 1; P.kbx = dxp / (dp || 1) * 7.5; P.kbz = dzp / (dp || 1) * 7.5; P.stun = 0.7; P.slow = Math.min(1, P.slow + 0.4);
           SFX.concuss(); shake = Math.max(shake, 0.6); camRoll = clamp(camRoll - side * 0.06, -0.14, 0.14);
           burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
-        } else if (rand() < (z.crawl ? 0.5 : 0.35)) { P.bleed = Math.min(14, (P.bleed || 0) + 6); }
-        P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes) * (z.crawl ? 0.6 : 1)); P.stun = 0.22 * (1 - S.slowRes);
+        } else if (z.crawl) {   // a crawler grabs at your ankles: you stumble, but it can't bite deep enough to make you bleed
+          const k = 1 - S.slowRes; P.slow = Math.min(1, P.slow + 0.85 * k); P.stun = 0.45 * k;
+          P.kbx = -dzp / (dp || 1) * side * 2.2 + dxp / (dp || 1) * 1.2; P.kbz = dxp / (dp || 1) * side * 2.2 + dzp / (dp || 1) * 1.2;
+          ANIM.stumble = 1; ANIM.stumbleSide = side; camRoll = clamp(camRoll - side * 0.07, -0.14, 0.14); shake = Math.max(shake, 0.3);
+        } else if (rand() < 0.35) { P.bleed = Math.min(14, (P.bleed || 0) + 6); }
+        if (!z.crawl) { P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes)); P.stun = 0.22 * (1 - S.slowRes); }
         if (z.dead) continue;
       }
     }

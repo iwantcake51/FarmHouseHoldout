@@ -8,10 +8,15 @@ function fitAttachments(g, D, front, y, info) {
     for (let i = 0; i < (T('choke') === 2 ? 3 : 1); i++) ring(g, 0.033, 0.006, GM.poly, X, y, front + 0.02 + i * 0.03); front += L;
   } else if (suppressed(D) && !D.quiet) {
     const s = T('supp');
-    if (s === 1) {   // an oil filter on a threaded adapter, with a hose clamp
-      cyl(g, 0.018 * k, 0.03, GM.metal, X, y, front + 0.015); cyl(g, 0.056 * k, 0.15, GM.filter, X, y, front + 0.105);
-      for (let i = 0; i < 6; i++) box(g, 0.006, 0.112 * k, 0.12, GM.filterD, X + Math.cos(i * 1.05) * 0.054 * k, y + Math.sin(i * 1.05) * 0.054 * k, front + 0.105).rotation.z = i * 1.05;
-      ring(g, 0.058 * k, 0.014, GM.steel, X, y, front + 0.06); ring(g, 0.05 * k, 0.012, GM.metal, X, y, front + 0.183); front += 0.19;
+    if (s === 1) {   // a blue spin-on oil filter screwed onto a threaded adapter: a smooth can with a rolled lip, a printed band, and a hose clamp
+      const r = 0.056 * k, L = 0.15, c = front + 0.03 + L / 2;
+      cyl(g, 0.018 * k, 0.03, GM.metal, X, y, front + 0.015);                                    // threaded adapter
+      cyl(g, r * 0.92, 0.012, GM.steel, X, y, front + 0.036, 20);                                // base plate
+      cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24);                                       // the can
+      cyl(g, r * 1.03, 0.012, GM.filterB, X, y, front + 0.042, 24);                               // rolled seam at the base
+      cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
+      cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
+      ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
       cyl(g, r, L, GM.metal, X, y, front + L / 2); hi(g, r * 1.1, L * 0.9, X, y + r, front + L / 2);

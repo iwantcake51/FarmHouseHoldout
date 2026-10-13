@@ -9,8 +9,9 @@ function canSever(wId) {
   if (D.blunt) return false;
   return true;
 }
-function sever(z, part, dx, dz) {
-  if (!z.limbs[part]) return;
+function sever(z, part, dx, dz, blast) {
+  if (part !== 'torso' && !z.limbs[part]) return;
+  if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
   z.limbs[part] = false;
   const mesh = z.m[part], wp = new V3(), wq = new THREE.Quaternion(), ws = new V3();
   mesh.getWorldPosition(wp); mesh.getWorldQuaternion(wq); mesh.getWorldScale(ws);
@@ -19,8 +20,8 @@ function sever(z, part, dx, dz) {
   gibs.push({ m: mesh, vx: dx * rr(2, 4.5) + rr(-1.2, 1.2), vy: rr(2.5, 4.5), vz: dz * rr(2, 4.5) + rr(-1.2, 1.2), spin: rr(6, 14), life: 9, landed: false });
   z.spurts.push({ part, t: 1.4 });
   burst(wp.x, wp.y, wp.z, 10, 'blood', dx, dz, 3); spray(wp.x, wp.z, dx, dz, rr(0.8, 1.3));
-  run.limbs++; SFX.sever();
-  if ((part === 'legL' || part === 'legR') && !z.crawl) {
+  if (part !== 'torso') run.limbs++; if (!blast) SFX.sever();   // a blast plays one sound for the lot
+  if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) {
     // the leg goes and they buckle and fall forward onto their hands
     z.crawl = true; z.crawlT = 0; z.stagger = Math.max(z.stagger, 0.85); z.trail = 0;
     z.om = outline(z.m.g, 0, 0, 0.026, rimMat(0xe8dcc0)); z.om.opacity = z.vis * 0.5; z.lastVis = undefined;
@@ -64,6 +65,23 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   SFX.tick(); if (part === 'head') SFX.headHit();
   return false;
 }
+// a zombie caught right in a blast comes apart: head, arms, legs and torso all thrown out and tumbling, a burst of
+// blood and a red mist where it stood, and the ground round it painted
+function blowApart(z, dx, dz) {
+  const x = z.x, zz = z.z, y = 0.9 * z.T.scale;
+  for (const part of ['head', 'armL', 'armR', 'legL', 'legR', 'torso']) {
+    const a = Math.atan2(dx, dz) + rr(-1.4, 1.4), n0 = gibs.length;
+    sever(z, part, Math.sin(a), Math.cos(a), true);
+    for (let k = n0; k < gibs.length; k++) { const g = gibs[k]; g.vx *= 1.7; g.vz *= 1.7; g.vy += rr(1.5, 3.5); g.spin *= 1.5; }
+  }
+  for (let k = 0; k < 7; k++) { const a = rand() * 6.28; burst(x, y, zz, 5, 'blood', Math.sin(a), Math.cos(a), rr(4, 7)); }
+  for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
+  splat(x, zz, 'pool', 1.5 * z.T.scale, undefined, 0.5);
+  for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
+  for (let k = 0; k < 8; k++) splat(x + rr(-2.2, 2.2), zz + rr(-2.2, 2.2), 'drop', rr(0.3, 0.6));
+  scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
+  SFX.sever();
+}
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
@@ -73,14 +91,14 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   xhKill = true; xhHit = 1.4; shake = Math.max(shake, 0.16);
   popEl('kills');
   if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.vampire && part === 'head' ? 2 : 1));
-  if (S.adrenaline) P.adr = 2.5;
+  if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
   if (S.bulletTime && timeScale > 0.6 && rand() < 0.35) { slowTo = 0.45; slowIn = 0.22; slowHold = 0.15; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
   if (part === 'head' && z.limbs.head && canSever(wId)) { const c = shells ? 0.95 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : heavy ? 0.8 : overkill > 15 ? 0.55 : 0.3; if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; } }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
   for (let k = 0; k < extra; k++) { const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p]); if (opts.length) sever(z, pick(opts), dx, dz); }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
-  makeRagdoll(z, dx, dz, part, force, wId);
+  if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   SFX.kill();
   if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * S.scrapMul);

@@ -17,13 +17,13 @@ addEventListener('keydown', e => {
   if (k === 'e') { if (openSt) closeStation(); else { const s = nearestStation(); if (s) openStation(s); } return; }
   if (openSt && /^[0-9]$/.test(k)) { craft(k === '0' ? 9 : +k - 1); return; }
   if (k === 'r') startReload();
-  if (k === 'g' && state === 'play') startBandage();
+  if (k === 'q' && state === 'play') startBandage();
   if (k === ' ' && state === 'play') tryVault();                                    // Space climbs through windows and hops fences
-  if (k === 'f' && !e.repeat && state === 'play' && !boardable(nearestOpening())) shove();   // F shoves (or, held at an opening, boards it up)
-  if (k === 'h') throwGrenade();
-  if (k === 'v' && state === 'play') {
+  if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
+  if (k === 'g') throwGrenade();
+  if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
-    if (mode) { SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(mode, { kind: 'info', icon: 'gear', sub: 'Fire mode · V to switch' }); }
+    if (mode) { SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(mode, { kind: 'info', icon: 'gear', sub: 'Fire mode · B to switch' }); }
   }
   if (['1', '2', '3', '4'].includes(k)) equip(SLOTS[+k - 1]);
   if (k === 't' && phase === 'break') breakT = 0;

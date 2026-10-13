@@ -1,6 +1,6 @@
 // Boarding, station prompts and the on-screen hint.
 
-// an opening you could board up right now (holding F boards it; anywhere else F shoves)
+// an opening you could board up right now (holding F boards it)
 function boardable(o) { return !!(o && o.boards.length < 3 && S.planks > 0 && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault); }
 // door/window boarding, station prompts and the on-screen hint
 function updateInteractions(dt) {

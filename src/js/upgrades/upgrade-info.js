@@ -10,7 +10,7 @@ const TIER_USE = {
   night: 'Senses · you see in the dark', feed: 'Body · you heal when you kill'
 };
 const UPG_USE = {
-  'Bayonet': 'Attachment · a blade under your long gun: shove (F) to stab',
+  'Bayonet': 'Attachment · a blade under your long gun: shove (V) to stab',
   'Shoulder stock': 'Attachment · steadies your sidearm: tighter aim and less kick',
   'Incendiary rounds': 'Ammo · every hit sets zombies burning for 3 seconds',
   'Through and through': 'Ammo · each bullet keeps going through one more zombie'
@@ -18,8 +18,8 @@ const UPG_USE = {
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Bandages 3 → 5', '+2 bandages'],
-  'Ammo can': ['+1 can of every ammo'], 'Strong arms': ['Melee +40%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['Speed burst on every kill'], 'Iron lungs': ['Stamina +40%', 'Recovers 2× sooner', 'Refills 50% faster'],
+  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +40%'], 'Light feet': ['Vaulting 2× faster', 'Vaulting costs half the stamina'], 'Through and through': ['Pierce +1'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['Scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +40%', 'Recovers 2× sooner', 'Refills 50% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 3.2×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Ammo, trigger and mag +1 tier'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health', 'Slowdown when hit −85%'], 'Bullet time': ['Kills can slow time'],
@@ -48,7 +48,7 @@ function compareFx(a, b) {
     chip('SPREAD', a.spread, b.spread, false, fmtDeg), chip('HEADSHOTS', a.head * 100, b.head * 100, true, v => '+' + Math.round(v) + '%')].filter(Boolean);
 }
 // mods that add a feature rather than a number
-const MOD_FEATURE = { akimbo: 'A gun in each hand', gl: 'Grenade on H, every 6 s', burst: 'Burst fire (V to switch)', fullAuto: 'Full auto (V cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
+const MOD_FEATURE = { akimbo: 'A gun in each hand', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
   ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', pierce: 'Goes through zombies' };
 // try a gun's next tier for real, read its numbers, then put it back
 function tierFx(id, k) {
