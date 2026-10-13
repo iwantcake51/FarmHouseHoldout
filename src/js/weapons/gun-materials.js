@@ -9,7 +9,7 @@ const GM = {
   dot: basic(0xeae4cc), dotR: basic(0xff5a2a), glass: lam(0x2c5468), holoGlass: new THREE.MeshBasicMaterial({ color: 0x7ab8c8, transparent: true, opacity: 0.35, depthWrite: false }), tan: lam(0x9a8460), filterD: lam(0x14335f), odTape: lam(0x52563a), ano: lam(0x34373c), anoL: lam(0x303236), furn: lam(0x404042), hgPoly: lam(0x3b3c3f), rail: lam(0x3e4146), steelDk: lam(0x56595e), magAl: lam(0x3a3c40)
 };
 const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.wood2, GM.poly, GM.park, GM.blued, GM.walnut, GM.olive, GM.ano, GM.furn, GM.anoL, GM.hgPoly, GM.rail];
-const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {};
+const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {}, CHARGE = {};
 let stowDirty = true;
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });
 gunMeshes.melee.position.set(0, 0, 0.5);

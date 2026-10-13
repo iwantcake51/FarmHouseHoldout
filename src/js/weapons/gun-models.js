@@ -273,7 +273,8 @@ const GUN_MODELS = {
     for (let k = 0; k < 17; k++) box(g, 0.034, 0.0034, 0.007, GM.rubber, X, RT - 0.0011, 0.575 + k * 0.0165);   // the rail's cross slots
     // charging handle and latch; the raised band round the port, the port with the bolt carrier in it, the dust cover
     // swung down, the brass deflector and the forward assist
-    box(g, 0.05, 0.009, 0.026, GM.metal2, X, RB + 0.004, 0.556); box(g, 0.011, 0.008, 0.018, GM.metal2, X + 0.028, RB + 0.004, 0.562);
+    // (the handle is its own group: the reload pulls it back to charge the rifle, weapons/reload.js)
+    const ch = new THREE.Group(); g.add(ch); box(ch, 0.05, 0.009, 0.026, GM.metal2, X, RB + 0.004, 0.556); box(ch, 0.011, 0.008, 0.018, GM.metal2, X + 0.028, RB + 0.004, 0.562);
     profile(g, shp([[0.652, 1.146], [0.77, 1.146], [0.77, 1.106], [0.652, 1.106]]), 0.006, A, X - 0.0262, 0.0008);   // the raised band round the port, on its side only
     box(g, 0.0024, 0.03, 0.106, GM.rubber, X - 0.0293, 1.128, 0.71);
     const bc = box(g, 0.0026, 0.02, 0.082, GM.steel, X - 0.0303, 1.128, 0.708);
@@ -394,7 +395,7 @@ const GUN_MODELS = {
       box(g, 0.028, 0.026, 0.24, A, X, hy - HR - 0.011, 1.0); cyl(g, 0.034, 0.25, A, X, hy - HR - 0.058, 1.0); ring(g, 0.036, 0.012, GM.metal2, X, hy - HR - 0.058, 1.125);
       box(g, 0.046, 0.046, 0.07, A, X, hy - HR - 0.04, 0.85); box(g, 0.011, 0.028, 0.011, GM.metal2, X, hy - HR - 0.072, 0.85);
     }
-    return { front, y: y0, magZ: 0, magY: mtop, slide: bc, bolts: [], travel: 0.045, lock: true, mz, top, sz, scopeH: 0.05, noSight: sight === 1, noLaser: true, noLight: true };
+    return { front, y: y0, magZ: 0, magY: mtop, slide: bc, bolts: [], travel: 0.045, lock: true, mz, top, sz, scopeH: 0.05, noSight: sight === 1, noLaser: true, noLight: true, charge: ch, chargeAt: [X + 0.026, RB + 0.01, 0.552] };
   },
   lmg(g, m) {
     box(g, 0.1, 0.13, 0.5, GM.park, X, 1.1, 0.6); hi(g, 0.07, 0.48, X, 1.17, 0.6);

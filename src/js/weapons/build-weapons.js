@@ -20,12 +20,13 @@ function buildGuns() {
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = true);
-    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; tierCtx = id;
+    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; tierCtx = id;
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
       const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
       const info = GUNS[id](parent, mods);
       if (info && info.crane) CRANE[s].push(info.crane);
+      if (info && info.charge && !CHARGE[s]) CHARGE[s] = { m: info.charge, at: info.chargeAt };
       if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
       if (D.melee) { unfight(parent); return 0; }
       let front = info.front; const y = info.y;

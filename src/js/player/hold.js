@@ -151,8 +151,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF);
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
+  // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
+  // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
+  const CH = rel === 'mag' && CHARGE[s], rpm = CH ? Math.min(1, rp / CH_MAG) : rp;
+  const cg = CH ? smooth(clamp((rp - 0.74) / 0.07, 0, 1)) * (1 - smooth(clamp((rp - 0.92) / 0.07, 0, 1))) : 0, pull = CH && rp < CH_SLAM ? smooth(clamp((rp - 0.8) / (CH_PULL - 0.8), 0, 1)) : 0;
   if (rel) ANIM.relKind = rel;
-  ANIM.relEnv += ((rel === 'mag' ? (rp < 0.86 ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
+  ANIM.relEnv += ((rel === 'mag' ? (rpm < 0.86 ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
   const re = ANIM.relEnv, rk = ANIM.relKind;
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, ck = cy ? Math.sin(cq * Math.PI) : 0;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
@@ -165,6 +169,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     else { roll -= 0.45 * re; pitch -= 0.08 * re; oy -= 0.03 * re; oz -= 0.04 * re; }      // tipped to show the loading port
   }
   if (cy && cy.bolt) roll -= 0.14 * ck;                                                    // the rifle rolls a little as the bolt is worked
+  if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg; oy += 0.02 * cg; oz -= 0.03 * cg; }       // canted over to reach the charging handle
   if (band) { pitch += 0.35; ox += 0.06; }                                                 // hangs at your side while you wrap up
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
@@ -194,6 +199,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07), held = false;
       if (q.cyc) { const open = EJECT[id] === 'bolt' && rel === 'shell'; off = open ? 1 : cy ? Math.sin(cq * Math.PI) : 0; held = open; }   // the rifle's bolt stays open while you feed it
       else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
+      else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
       else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
@@ -204,10 +210,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const mgs = MAGG[s] || [];
   if (mgs.length) {
     let md = 0, show = true;
-    if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rp < tOut) md = smooth(rp / tOut) * 0.12; else if (rp < 0.6) show = false; else md = 0.22 * (1 - smooth(clamp((rp - 0.6) / 0.25, 0, 1))); }
+    if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rpm < tOut) md = smooth(rpm / tOut) * 0.12; else if (rpm < 0.6) show = false; else md = 0.22 * (1 - smooth(clamp((rpm - 0.6) / 0.25, 0, 1))); }
     mgs.forEach(m => { m.visible = show; m.position.y = -md; });
     ANIM.magDrop = show ? md : 0.22;
   }
+  // the charging handle: drawn back by the right hand and let go
+  if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -0.065 * pull; c.updateMatrix(); }
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
   if (cr.length) { const want = rel === 'shell' ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = ANIM.crane * 1.25; c.updateMatrix(); }); }
@@ -224,6 +232,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const q = sl.find(e => e.cyc);
     if (q) { gunPt(_p1, s, 'R', q.m.position.x - 0.032, q.m.position.y - 0.006, q.m.position.z); const w = smooth(clamp(cq / 0.22, 0, 1)) * (1 - smooth(clamp((cq - 0.78) / 0.22, 0, 1))); _hR.lerp(_p1, w); }
   }
+  // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
+  // comes back
+  if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : 1; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - 0.065 * hp); _hR.lerp(_p1, cg); }   // the hand stays back where it let go
   handTarget(_fR, 'R', _hR, null, 0, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
@@ -232,7 +243,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     else if (rel === 'mag') {
       const mp = MAGPOS[s]; gunPt(_p1, s, 'R', mp ? mp[0] : H.grip[0], mp ? mp[1] + 0.03 : H.grip[1] - 0.14, mp ? mp[2] : H.grip[2] + 0.05);   // the bottom of the mag well
       _p2.copy(_p1); _p2.y -= 0.16; _p3.copy(_p1); _p3.y -= 0.22;
-      free = walkPath(_p4, [[0, _hL], [0.12, _p1], [0.22, _p2], [0.42, POUCH], [0.6, _p3], [0.8, _p1], [0.9, _p1], [1, _hL]], rp); wt = 1;
+      free = walkPath(_p4, [[0, _hL], [0.12, _p1], [0.22, _p2], [0.42, POUCH], [0.6, _p3], [0.8, _p1], [0.9, _p1], [1, _hL]], rpm); wt = 1;
     } else if (rel === 'shell') {
       if (id === 'revolver' && cr.length) _p1.set(0.035, 0.045, -0.07).applyMatrix4(cr[0].matrix).applyMatrix4(holdOf(s, 'R').matrix).applyMatrix4(gg.matrix);   // the back of the open cylinder
       else { const pt = H.port || H.grip; gunPt(_p1, s, 'R', pt[0], pt[1], pt[2]); }
