@@ -27,6 +27,43 @@ function sever(z, part, dx, dz, blast) {
     z.om = outline(z.m.g, 0, 0, 0.026, rimMat(0xe8dcc0)); z.om.opacity = z.vis * 0.5; z.lastVis = undefined;
   }
 }
+// the fire axe coming down on a skull splits it in two: each half (everything on the head, hair, eyes and all, cut flat
+// down the middle by clamping its corners to the cut) falls away to its own side with the raw face of the cut showing,
+// and the body goes down without it
+const CUT_M = [lam(0x7a1410), lam(0x4e0b08), lam(0xc9b8a0)], DEAD_EYE = lam(0x2e1612);
+function splitHead(z, dx, dz) {
+  const head = z.m.head; if (!head || !z.limbs.head) return false;
+  z.limbs.head = false;
+  head.updateWorldMatrix(true, true);
+  const inv = head.matrixWorld.clone().invert(), wp = new V3(), wq = new THREE.Quaternion(), ws = new V3(), rel = new THREE.Matrix4(), mats = new Map();
+  head.matrixWorld.decompose(wp, wq, ws);
+  const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && o.visible) pieces.push(o); });
+  const across = new V3(1, 0, 0).applyQuaternion(wq);   // the cut runs front to back down the middle
+  [-1, 1].forEach(sd => {
+    const half = new THREE.Group(); half.position.copy(wp); half.quaternion.copy(wq); half.scale.copy(ws);
+    pieces.forEach(o => {
+      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(rel.multiplyMatrices(inv, o.matrixWorld));
+      const a = g.attributes.position.array; let any = false;
+      for (let i = 0; i < a.length; i += 3) { if (a[i] * sd > 0.0005) any = true; a[i] = sd > 0 ? Math.max(0.001, a[i]) : Math.min(-0.001, a[i]); }
+      if (!any) { g.dispose(); return; }
+      g.computeVertexNormals();
+      const om = o.material, mt = o.material.isMeshBasicMaterial ? DEAD_EYE : mats.get(om) || (mats.set(om, relit(om)), mats.get(om));
+      mt.opacity = 1; mt.transparent = false;
+      const m = new THREE.Mesh(g, mt); m.castShadow = true; half.add(m);
+    });
+    // the cut face: raw red, darker in the middle, a pale rim of skull round it
+    box(half, 0.004, 0.3, 0.3, CUT_M[2], sd * 0.0015, 0, 0); box(half, 0.005, 0.27, 0.27, CUT_M[0], sd * 0.002, -0.004, 0); box(half, 0.006, 0.15, 0.17, CUT_M[1], sd * 0.0025, 0.01, 0.01);
+    scene.add(half);
+    gibs.push({ m: half, vx: across.x * sd * rr(1.1, 1.8) + dx * rr(0.6, 1.4), vy: rr(1.6, 2.6), vz: across.z * sd * rr(1.1, 1.8) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
+  });
+  head.parent.remove(head);
+  z.spurts.push({ part: 'head', t: 1.8 });
+  burst(wp.x, wp.y, wp.z, 18, 'blood', dx, dz, 3.6); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', across.x, across.z, 2.4); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', -across.x, -across.z, 2.4);
+  spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7)); splat(wp.x, wp.z, 'pool', 0.9);
+  SFX.sever(); SFX.hitBlade(true); shake = Math.max(shake, 0.32);
+  run.heads++; run.limbs++;
+  return true;
+}
 function pickPart(z, rel, side, D) {
   const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0));
   let p;
@@ -97,7 +134,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
   if (S.bulletTime && timeScale > 0.6 && rand() < 0.35) { slowTo = 0.45; slowIn = 0.22; slowHold = 0.15; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
-  if (part === 'head' && z.limbs.head && canSever(wId)) { const c = shells ? 0.95 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : heavy ? 0.8 : overkill > 15 ? 0.55 : 0.3; if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; } }
+  if (part === 'head' && z.limbs.head && wId === 'axe' && rand() < 0.85) splitHead(z, dx, dz);
+  else if (part === 'head' && z.limbs.head && canSever(wId)) { const c = shells ? 0.95 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : heavy ? 0.8 : overkill > 15 ? 0.55 : 0.3; if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; } }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
   for (let k = 0; k < extra; k++) { const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p]); if (opts.length) sever(z, pick(opts), dx, dz); }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;

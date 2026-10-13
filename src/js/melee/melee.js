@@ -21,7 +21,7 @@ function meleeHit() {
       if (!thru && bo && Math.hypot(z.x - bo.x, z.z - bo.z) < 2.2 && ((z.x - bo.x) * bo.nx + (z.z - bo.z) * bo.nz) * ((P.x - bo.x) * bo.nx + (P.z - bo.z) * bo.nz) < 0) thru = 0.9;
       if (d > D.range + z.T.r + thru) continue;
       if (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + (thru ? 0.25 : 0) && d > 0.6) continue;
-      const r = rand(), part = r < 0.22 + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
+      const r = rand(), part = r < (D.style === 'chop' ? 0.38 : 0.22) + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
       const weak = W8.tired ? 0.55 : 1;
       hurtZombie(z, D.dmg * S.meleeMul * weak, dx / (d || 1), dz / (d || 1), D.kb * weak, id, part); hit = true;
     }

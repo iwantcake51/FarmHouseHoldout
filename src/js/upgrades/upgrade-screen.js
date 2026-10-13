@@ -63,11 +63,12 @@ function pickCard(i) {
   { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm);
     if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1 }); }
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
-  // the pick: your card pops forward and gets stamped, the others fall away, then the screen fades out
+  // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
+  // screen fades out
   const el = $('upgrade'), cards = [...$('cards').children];
   el.classList.remove('armed'); el.classList.add('picking');
-  cards.forEach((b, k) => b.classList.add(k === i ? 'picked' : 'gone'));
+  cards[i].classList.add('picked'); burnCards(cards.filter((b, k) => k !== i));
   state = 'leaving';
-  setTimeout(() => { el.classList.remove('show'); }, 520);
-  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(25); }, 900);
+  setTimeout(() => { el.classList.remove('show'); }, 1250);
+  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(25); }, 1650);
 }
