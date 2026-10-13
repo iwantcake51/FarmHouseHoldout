@@ -34,10 +34,10 @@ function fenceTarget() {
   };
   return (Math.abs(lat) > 0.15 && tryLand(lat)) || tryLand(0);
 }
-// vaulting takes it out of you: 20% stamina through a window, 14% over a fence, and every vault you chain on within
-// a few seconds of the last costs another 10% (vaultHeat cools off over 3 s). Without the breath for it you
+// vaulting takes a little out of you: 8% stamina through a window, 6% over a fence, and every vault you chain on within
+// a few seconds of the last costs another 4% (vaultHeat cools off over 3 s). Without the breath for it you
 // scramble over instead: slower and lower, panting, and you stumble when you land. Light feet halves the cost.
-const VAULT_COST = 0.2, FENCE_COST = 0.14, VAULT_CHAIN = 0.1, VAULT_COOL = 3;
+const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
 function tryVault() {
   if (P.vault) return;
   const win = vaultTarget(nearestOpening()), t = win || fenceTarget(); if (!t) return;

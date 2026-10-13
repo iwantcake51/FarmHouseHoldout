@@ -65,7 +65,7 @@ function vaultUpper(v, up) {
   up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
   PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat
 }
-// the left hand (both on a scramble) goes down on the sill or rail and stays put on it while your body goes over
+// both hands go down on the sill or rail (the weapon is put away) and stay put on it while your body goes over
 const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
 function vaultReach(pm, arm, side, pt, w) {
   if (w <= 0.001) return;
@@ -77,12 +77,19 @@ function vaultReach(pm, arm, side, pt, w) {
 }
 function vaultHands(pm, v) {
   const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
+  // once the hands let go they swing out loose for balance (the weapon's put away), and come back to it for the landing
+  const wb = air ? vk(t, 0.35, 0.55) * (1 - vk(t, 0.86, 1)) : 0;
+  if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].forEach(([s, arm, sd]) => {
+    _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
+    armRest(arm, s, 0.9 + Math.sin(t * 9 + sd) * 0.08, sd * 0.5);
+    arm.rotation.set(_vr.x + (arm.rotation.x - _vr.x) * wb, _vr.y + (arm.rotation.y - _vr.y) * wb, _vr.z * (1 - wb)); arm.scale.z = sc0 + (arm.scale.z - sc0) * wb;
+    arm.position.lerpVectors(_vp, arm.position, wb);
+  });
   const w1 = air ? 1 - vk(t, win ? 0.4 : 0.42, win ? 0.58 : 0.66) : vk(c, 0.3, 1), w2 = 0;
   if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
   const lat = [v.L[0], v.L[1]];   // to your left
   [['L', pm.armL, 1], ['R', pm.armR, -1]].forEach(([s, arm, sd]) => {
-    if (s === 'R' && !v.scramble) return;   // the gun hand stays on the gun unless you're clawing your way over
     const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;   // the left hand is already set 0.16 to the left
     _vw.copy(v.plant); _vw.x += lat[0] * dL; _vw.z += lat[1] * dL; _vw.y += 0.03; vaultReach(pm, arm, s, _vw, w1);
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
@@ -163,7 +170,7 @@ function animatePlayer(dt, rdt) {
 function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
-  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead; });
+  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && !P.vault; });   // put away while you vault (it rides on your body, player/stow.js)
   updateStow(rdt);
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.004); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }

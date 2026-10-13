@@ -54,7 +54,7 @@ function updateStow(rdt) {
     stowSw.vz += (-60 * (stowSw.z - tz) - 5 * stowSw.vz) * dt; stowSw.z += stowSw.vz * dt;
   }
   for (const s in STOW) {
-    const o = STOW[s]; o.visible = s !== held && !P.dead;
+    const o = STOW[s]; o.visible = (s !== held || !!P.vault) && !P.dead;   // the weapon in your hands goes back on you while you vault
     if (!o.visible) continue;
     if (s === 'side') o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the thigh and rocks fore and aft
     else o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8);                            // slung guns and the melee weapon swing about the straps
