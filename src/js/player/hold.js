@@ -122,6 +122,12 @@ const SLM = new THREE.Group(), SL_RND = new THREE.Group();
   for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, x = Math.cos(a) * C, y = Math.sin(a) * C; cyl(SL_RND, 0.0052, 0.028, GM.brass, x, y, 0.022, 10); cyl(SL_RND, 0.0038, 0.008, GM.copper, x, y, 0.039, 10); }
   SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM); }   // (slot: kept out of your clothes' blood, effects/body-blood.js)
 const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3();
+// a round in the support hand while it's fed in by hand: two shotgun shells side by side (one shows, or both with a
+// speed loader feeding a pair) or a rifle cartridge; carried from the pouch and pushed home along the bore
+const HSH = new THREE.Group(), HSH_S = [0, 1].map(k => { const g = new THREE.Group(); g.position.x = k * 0.026; cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
+const HSH_R = new THREE.Group(); cyl(HSH_R, 0.0055, 0.056, GM.brass, 0, 0, 0, 10); cyl(HSH_R, 0.0035, 0.016, GM.copper, 0, 0, 0.034, 10); HSH.add(HSH_R);
+HSH.visible = false; HSH.userData.slot = 'loader'; PM.upper.add(HSH);
+const _bq = new THREE.Quaternion();
 // the empty loader, let go of: it falls out of the hand, bounces and lies there a while (the casings' debris, weapons/casings.js)
 function dropLoader() {
   if (!SLM.visible) return;
@@ -331,6 +337,16 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   // the charging handle: drawn back by the right hand and let go
   if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -0.065 * pull; c.updateMatrix(); }
+  // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and snaps
+  // shut after; the brass of each loaded shell shows in its chamber, the one being pushed home as soon as it's in
+  const brkG = BRK[s];
+  if (brkG) {
+    const open = rel === 'shell' ? 1 : 0;
+    ANIM.brk = (ANIM.brk || 0) + (open - (ANIM.brk || 0)) * Math.min(1, rdt * (open ? 11 : 24));
+    brkG.g.rotation.x = 0.62 * smooth(clamp(ANIM.brk, 0, 1)); brkG.g.updateMatrix();
+    const loaded = (W8.mag[id] || 0) + (rel === 'shell' && rp >= 0.7 ? Math.min(D.loadN || 1, 2 - (W8.mag[id] || 0)) : 0);
+    brkG.rims.forEach((r, k) => { r.visible = k < loaded; });
+  }
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
   if (cr.length) { const want = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = -ANIM.crane * 1.3; c.updateMatrix(); }); }   // out to the left
@@ -385,11 +401,28 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       }
     } else if (rel === 'shell') {
       if (id === 'revolver' && cr.length) _p1.set(0.035, 0.045, -0.07).applyMatrix4(cr[0].matrix).applyMatrix4(holdOf(s, 'R').matrix).applyMatrix4(gg.matrix);   // the back of the open cylinder
+      else if (brkG && brkG.rims.length) {
+        // the next empty chamber of the open barrels, and the line back along its bore the shell comes in on
+        const r = brkG.rims[Math.min(brkG.rims.length - 1, W8.mag[id] || 0)], hq = holdOf(s, 'R');
+        _p1.copy(r.position).applyMatrix4(brkG.g.matrix).applyMatrix4(hq.matrix).applyMatrix4(gg.matrix);
+        _bq.copy(gg.quaternion).multiply(hq.quaternion).multiply(brkG.g.quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq);
+        _p1.addScaledVector(_slAx, -0.03);
+      }
       else { const pt = H.port || H.grip; gunPt(_p1, s, 'R', pt[0], pt[1], pt[2]); }
-      _p2.copy(_p1); _p2.y -= 0.1; _p2.x -= 0.05;
+      if (brkG && brkG.rims.length) { _p2.copy(_p1).addScaledVector(_slAx, -0.09); _p2.y += 0.03; }   // lined up behind the chamber
+      else { _p2.copy(_p1); _p2.y -= 0.1; _p2.x -= 0.05; }
       free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); wt = 1;
     }
     handTarget(_fL, 'L', _hL, free, wt, rdt);
+    // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges)
+    const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
+    HSH.visible = feed;
+    if (feed) {
+      const rifle = D.ammo === 'rifle', two = !rifle && (D.loadN || 1) >= 2 && !!brkG;
+      HSH_R.visible = rifle; HSH_S[0].visible = !rifle; HSH_S[1].visible = two;
+      if (!(brkG && brkG.rims.length)) { _bq.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq); }
+      HSH.quaternion.copy(_bq); HSH.position.copy(_fL).addScaledVector(_slAx, 0.04);
+    }
     // the loader rides in front of the left fist from the pouch until it's let go, rounds pointing into the cylinder,
     // and is twisted a sixth of a turn once they're in
     const slOn = rel === 'mag' && D.speedload && rp > 0.25 && rp < SL_DROP;
