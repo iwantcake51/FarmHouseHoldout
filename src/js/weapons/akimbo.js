@@ -32,10 +32,24 @@ const akBusy = s => W8.reloading === 'mag' && !!W8.akRel && W8.akRel.side === s;
 const akU = s => akBusy(s) ? clamp(W8.akRel.t / W8.akRel.dur, 0, 1) : 0;
 // a gun's slide sits locked back once it's run dry, until its reload drops it
 function akSlideBack(id, s) {
-  if (akBusy(s) && W8.akRel.empty) return W8.akRel.t / W8.akRel.dur < AK_SLIDE;
+  if (akBusy(s) && W8.akRel.empty) return W8.akRel.t / W8.akRel.dur < akRelAt(id);
   return akMags(id)[s] <= 0;
 }
 const akDur = (D, empty) => D.reload * S.reloadMul * (empty ? AK_EMPTY : AK_TAC);
+// a pair of machine pistols has charging handles, not slide stops: one run dry is charged two-handed once its fresh
+// mag is in. The other gun goes flat across your chest (neither can fire till it's back up), its hand reaches over, draws
+// the empty one's handle back and lets it go at AK_CH.rel, then takes its own gun back up. Each stretch is [in from,
+// in by, out from, out by] of the empty gun's turn (player/hold.js poses it on the same marks)
+const AK_CH = { chest: [0.44, 0.66, 0.86, 1.0], hold: [0.58, 0.7, 0.88, 1.0], reach: [0.6, 0.72, 0.86, 0.95], pull: [0.76, 0.83], rel: 0.84 };
+const akHasCharge = id => { const D = W(id); return !!(D && D.akimbo && CHARGE[D.slot]); };
+const akRelAt = id => akHasCharge(id) ? AK_CH.rel : AK_SLIDE;   // when an empty gun's slide or bolt goes home
+function akChargeState(id) {
+  const r = W8.akRel; if (W8.reloading !== 'mag' || !r || !r.side || !r.empty || !akHasCharge(id)) return null;
+  const u = clamp(r.t / r.dur, 0, 1), env = k => smooth(clamp((u - k[0]) / (k[1] - k[0]), 0, 1)) * (1 - smooth(clamp((u - k[2]) / (k[3] - k[2]), 0, 1)));
+  return { side: r.side, other: r.side === 'L' ? 'R' : 'L', u, chest: env(AK_CH.chest), hold: env(AK_CH.hold), reach: env(AK_CH.reach),
+    pull: u < AK_CH.rel ? smooth(clamp((u - AK_CH.pull[0]) / (AK_CH.pull[1] - AK_CH.pull[0]), 0, 1)) : 0, slam: Math.sin(clamp((u - AK_CH.rel) / 0.07, 0, 1) * Math.PI) };
+}
+const akCharging = id => { const c = akChargeState(id); return (!!c && c.u >= AK_CH.chest[0]) || (ANIM.akCh || 0) > 0.3; };   // (and till it's most of the way back up)
 // R: every gun that's short of a full mag is reloaded in turn, the emptier first (the right if they're even). Only one
 // fired, only that one is reloaded, so it's quicker
 function akStartReload(id, D) {
@@ -69,7 +83,10 @@ function akTickReload(dt, id, D) {
     const m = akMags(id), take = Math.min(akPer(id) - m[s], W8.reserve[D.ammo]);
     m[s] += take; W8.mag[id] += take; W8.reserve[D.ammo] -= take;
   }
-  if (r.ev === 2 && r.empty && u >= AK_SLIDE) { r.ev++; SFX.slideDrop(); reloadJolt(0.16); shake = Math.max(shake, 0.06); }
+  if (akHasCharge(id)) {   // a machine pistol: its handle drawn back, then let go
+    if (r.ev === 2 && r.empty && u >= AK_CH.pull[0]) { r.ev++; SFX.chargePull(); reloadJolt(0.06); }
+    if (r.ev === 3 && u >= AK_CH.rel) { r.ev++; SFX.chargeSlam(); reloadJolt(0.18); shake = Math.max(shake, 0.07); }
+  } else if (r.ev === 2 && r.empty && u >= AK_SLIDE) { r.ev++; SFX.slideDrop(); reloadJolt(0.16); shake = Math.max(shake, 0.06); }
   if (u >= 1) { r.done[s] = true; akNextGun(id, D); if (!W8.reloading) return; }
   akRing(id, D);
 }
@@ -80,6 +97,7 @@ function akTriggers(dt, id, D, want) {
   // vaulting (Run and gun) the left hand's on the sill, its gun put away till it's drawn again after (player/hold.js),
   // so either button fires the right gun
   if (P.vault || ANIM.akIn) { want = { L: false, R: want.L || want.R || want.any, any: false }; }
+  if (akCharging(id)) want = { L: false, R: false, any: false };   // one gun on your chest, a hand on the other's charging handle
   for (const s of AK_SIDES) {
     W8.akCd[s] -= dt;
     if (!want[s] && !want.any) { W8.akLock[s] = false; W8.akBurst[s] = 0; }

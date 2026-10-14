@@ -6,7 +6,11 @@ const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { valu
   uAdapt: { value: 0 },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
-  uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) } };
+  uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
+  // the flashlight, drawn here per pixel rather than baked into the light map (lighting/lightmap.js, flashUniforms):
+  // each beam's origin and direction (x, z, dx, dz), up to two for an akimbo pair, and (reach, half-angle, strength,
+  // how many beams)
+  uFl: { value: [new THREE.Vector4(), new THREE.Vector4()] }, uFlK: { value: new THREE.Vector4() } };
 const VERT_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
 const VERT_BODY = `
   vec4 lmW = vec4(transformed, 1.0);
@@ -21,7 +25,20 @@ const VERT_BODY = `
   lmN = mat3(instanceMatrix) * lmN;
   #endif
   vWn = normalize(mat3(modelMatrix) * lmN);`;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\n';
+// one flashlight beam's light on a point: a soft-rimmed cone, brightest down its middle, falling off with distance (as
+// the baked light map did, but per pixel, so the rim is a smooth curve and it swings round with you every frame). Close
+// to the lens it spills a little all round. What you can't see (round a corner, behind a wall) it can't reach either,
+// so the caller multiplies it by the vision map
+const FL_FN = `
+float flCone(vec4 f, vec2 p) {
+  vec2 d = p - f.xy; float r = length(d);
+  float a = acos(clamp(dot(d / max(r, 1e-3), f.zw), -1.0, 1.0));
+  float cone = (1.0 - smoothstep(uFlK.y - 0.2, uFlK.y + 0.05, a)) * (1.0 + 0.5 * (1.0 - smoothstep(0.0, uFlK.y * 0.6, a)));
+  float fall = 1.0 - clamp(r / uFlK.x, 0.0, 1.0);
+  return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall;
+}
+`;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform vec4 uFl[2];\nuniform vec4 uFlK;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -57,6 +74,10 @@ const WB_BODY = `
   }`;
 const FRAG_BODY = `
   vec4 lmS = texture2D(uLightMap, vLmUv);
+  if (uFlK.z > 0.001) {
+    float fl = flCone(uFl[0], vWp.xz) + (uFlK.w > 1.5 ? flCone(uFl[1], vWp.xz) : 0.0);
+    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * uFlK.z * 0.5 * smoothstep(0.05, 0.6, lmS.a), vec3(1.0));
+  }
   vec3 lmC = gl_FragColor.rgb * lmS.rgb * 2.0;
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
   lmC *= mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
@@ -103,7 +124,7 @@ const TREE_BODY = `
 function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uFl: LMU.uFl, uFlK: LMU.uFlK });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }

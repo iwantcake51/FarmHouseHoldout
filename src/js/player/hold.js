@@ -125,7 +125,7 @@ function stepKick(k, dt) {
 const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
 const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
-const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3();
+const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3(), _akH = new V3();
 const _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
@@ -134,6 +134,19 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   g.position.set(px - _v.x + ox, py - _v.y + oy, pz - _v.z + oz); g.quaternion.copy(_q);
   if (yaw0) { _qy.setFromAxisAngle(Y_AX, yaw0); g.position.applyQuaternion(_qy); g.quaternion.premultiply(_qy); }
   g.updateMatrix();
+}
+// one of a pair laid flat across the chest as if it hung on a sling, while its hand charges the other: the muzzle
+// across the body to the other side, dipping AK_SLING.dip, a flat side to the chest, the grip at AK_SLING's x, y, z
+// (upper-body space, x out to its own side). c blends it there from the hold just posed (ox, oy, oz its offsets)
+const AK_SLING = { x: 0.09, y: 0.8, z: 0.305, dip: 0.25, k: 160, d: 25 }, _akSQ = new THREE.Quaternion(), _akSM = new THREE.Matrix4(), _akSG = new V3(), _akSX = new V3(), _akSU = new V3(), _akSD = new V3();
+function akSling(h, g, sg, c, ox, oy, oz) {
+  const a = AK_SLING.dip;
+  _akSD.set(-sg * Math.cos(a), -Math.sin(a), 0); _akSU.set(-sg * Math.sin(a), Math.cos(a), 0); _akSX.crossVectors(_akSU, _akSD);
+  _akSQ.setFromRotationMatrix(_akSM.makeBasis(_akSX, _akSU, _akSD));
+  _akSG.set(g[0] + ox, g[1] + oy, g[2] + oz).lerp(_v.set(sg * AK_SLING.x, AK_SLING.y, AK_SLING.z), c);
+  h.quaternion.slerp(_akSQ, c);
+  h.position.copy(_akSG).sub(_v.set(g[0], g[1], g[2]).applyQuaternion(h.quaternion));
+  h.updateMatrix();
 }
 // the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch when they must
 function armAim(side, t, rest) {
@@ -415,7 +428,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
-  const CH = rel === 'mag' && CHARGE[s];
+  const CH = rel === 'mag' && CHARGE[s] && !D.akimbo;   // (a pair charges its own way: weapons/akimbo.js, akChargeState)
   // an empty pistol's reload: the mag change in the first PS_MAG of it, then the support hand drops the slide (rr is how
   // far through that, relU when it lets go)
   const PS = rel === 'mag' && W8.relEmpty && !CH && !D.akimbo, rpm = CH ? Math.min(1, rp / CH_MAG) : PS ? Math.min(1, rp / PS_MAG) : rp;
@@ -509,7 +522,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   else if (!ak) ANIM.akIn = false;
   else if (ANIM.akIn) { ANIM.akDraw += rdt / AK_DRAW; if (ANIM.akDraw >= 1) ANIM.akIn = false; }
   ANIM.akHolstered = !!ANIM.akIn && (!!P.vault || ANIM.akDraw < AK_GRAB);
-  const sides = ak ? ['R', 'L'] : ['R'];
+  const sides = ak ? ['R', 'L'] : ['R'], akC = ak ? akChargeState(id) : null;
+  // the other gun of a pair being charged goes flat on the chest (akSling), eased on and off on a spring, so it's
+  // still settling back up onto the aim as the reload ends
+  if (akC) ANIM.akChSide = akC.other;
+  ANIM.akCh = ANIM.akCh || 0; ANIM.akChV = ANIM.akChV || 0;
+  if (ak) { springTo(ANIM, 'akCh', 'akChV', akC ? akC.chest : 0, AK_SLING.k, AK_SLING.d, rdt); ANIM.akCh = clamp(ANIM.akCh, 0, 1); }
+  else ANIM.akCh = ANIM.akChV = 0;
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
@@ -531,10 +550,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       // to its hip pouch and driven onto a fresh one, and back up with a snap as it seats; one that ran dry gets its
       // slide stop thumbed on the way up, a twist of the wrist as the slide slams home
       const flick = Math.sin(clamp(u / 0.14, 0, 1) * Math.PI), dip = Math.sin(clamp((u - 0.12) / 0.62, 0, 1) * Math.PI), seat = Math.sin(clamp((u - 0.5) / 0.14, 0, 1) * Math.PI);
-      const thumb = W8.akRel.empty ? Math.sin(clamp((u - AK_SLIDE + 0.05) / 0.12, 0, 1) * Math.PI) : 0;
+      const thumb = W8.akRel.empty && !akHasCharge(id) ? Math.sin(clamp((u - AK_SLIDE + 0.05) / 0.12, 0, 1) * Math.PI) : 0;
       hx += -0.4 * flick + 1.15 * dip - 0.25 * seat - 0.1 * thumb; hz += sg * (0.4 * flick + 0.16 * thumb); hoy -= 0.26 * dip; hoz -= 0.16 * dip; hox -= sg * 0.05 * dip;
     }
+    // a machine pistol charged two-handed (akChargeState): the empty one held up in front, canted so its handle's in
+    // reach and knocked as the bolt slams home; the other laid flat across your chest while its hand's away (akSling)
+    if (akC && side === akC.side) { hox -= sg * 0.1 * akC.hold; hoy -= 0.04 * akC.hold; hoz -= 0.1 * akC.hold; hz += sg * 0.45 * akC.hold; hx -= 0.06 * akC.hold + 0.1 * akC.slam; }
     posePivot(h, hx, hy, hz, g[0], g[1], g[2], hox, hoy, hoz);
+    if (ak && side === ANIM.akChSide && ANIM.akCh > 0.001) akSling(h, g, sg, ANIM.akCh, hox, hoy, hoz);
   }
   up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
   ANIM.recoil = Math.max(0, ANIM.recoil - rdt * 11);
@@ -590,7 +613,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     ANIM.magDrop = show ? md : 0.22;
   }
   // the charging handle: drawn back by the right hand and let go
-  if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
+  if (CHARGE[s] && !ak) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
+  else if (ak && HOLDS[s]) for (const sd of ['R', 'L']) { const c = HOLDS[s][sd] && HOLDS[s][sd].userData.charge; if (c) { c.m.position.z = akC && akC.side === sd ? -c.tr * akC.pull : 0; c.m.updateMatrix(); } }   // a pair's: the one being charged
   // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and snaps
   // shut after; the brass of each loaded shell shows in its chamber, the one being pushed home as soon as it's in
   const brkG = BRK[s];
@@ -639,7 +663,11 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back
   if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - CHARGE[s].tr * hp); _hR.lerp(_p1, cg); _hR.y += Math.sin(Math.PI * cg) * 0.035; }   // over the top of the receiver on the way, and it stays back where it let go
-  handTarget(_fR, 'R', _hR, null, 0, rdt);
+  // the other hand of a pair charging a machine pistol: over to the empty one's handle, drawing it back with it
+  let akFree = null;
+  if (akC && akC.reach > 0.001) { const hc = HOLDS[s][akC.side] && HOLDS[s][akC.side].userData.charge; if (hc) akFree = gunPt(_akH, s, akC.side, hc.at[0], hc.at[1] + 0.012, hc.at[2] - hc.tr * akC.pull); }
+  const akOff = sd => akFree && akC.other === sd ? akC.reach : 0;
+  handTarget(_fR, 'R', _hR, akOff('R') ? akFree : null, akOff('R'), rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;
@@ -714,7 +742,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       SLM.position.copy(_fL).addScaledVector(_slAx, 0.07); SLM.quaternion.copy(_slQ);
       SLM.rotateZ(smooth(clamp((rp - SL_IN - 0.02) / 0.08, 0, 1)) * Math.PI / 3);
     } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
-  } else handTarget(_fL, 'L', _hL, null, 0, rdt);
+  } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   const hr = HAND_ROLL[H.kind] || HAND_ROLL.hand;
   reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w)); reach(pm.armL, 'L', _fL, ak ? -hr.R * (1 - HAND.L.w) : hr.L * (1 - HAND.L.w));   // (turned back straight while a hand's off the gun)

@@ -28,6 +28,7 @@ function buildGuns() {
       const info = GUNS[id](parent, mods);
       if (info && info.crane) CRANE[s].push(info.crane);
       if (info && info.charge && !CHARGE[s]) CHARGE[s] = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
+      parent.userData.charge = info && info.charge ? { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 } : null;   // each gun of a pair its own
       if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
       if (D.melee) { unfight(parent); return 0; }
       let front = info.front; const y = info.y;

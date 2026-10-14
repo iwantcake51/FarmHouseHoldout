@@ -658,12 +658,16 @@ const GUN_MODELS = {
     profile(g, shp(inset([[0.5923, 0.9148], [0.66, 0.911], ...GF, [0.6886, 1.0267], [0.6897, 1.0288], [0.6897, 1.065], [0.6885, 1.07], [0.5539, 1.07], [0.5508, 1.0676], [0.5503, 1.063], [0.5522, 1.0605], [0.5762, 1.056], [0.5946, 1.0489], ...GBk.slice().reverse()], 0.003)), 0.036, P, X, 0.003);
     for (let k = 0; k < 11; k++) { const y = 0.928 + k * 0.0068; [-1, 1].forEach(sd => { const f = zAt(GF, y); box(g, 0.0012, 0.0018, 0.014, GM.rubber, X + sd * 0.0211, y, f - 0.011); if (y < 1.012) { const b = zAt(GBk, y); box(g, 0.0012, 0.0018, 0.016, GM.rubber, X + sd * 0.0211, y, b + 0.012); } }); }
     cyl(g, 0.0058, 0.044, K, X, 1.041, 0.6727, 14).rotation.set(0, 0, Math.PI / 2);   // the safety button through the grip
-    // ---- the stock, out: the flat bar, the butt leaning back at its toe, the pin through it
-    profile(g, shp([[0.452, 1.1095], [0.262, 1.1095], [0.262, 1.0822], [0.357, 1.0835], [0.4327, 1.0873], [0.452, 1.0873]]), 0.012, K, X, 0.001);
-    profile(g, shp([[0.4327, 1.0873], [0.4471, 1.0873], [0.4471, 1.1107], [0.4327, 1.1107]]), 0.026, K, X, 0.0015);   // its knuckle on the hinge
-    box(g, 0.0135, 0.0025, 0.16, GM.rubber, X, 1.0985, 0.355);   // the groove down the bar
-    profile(g, shp(inset([[0.185, 0.9272], [0.2017, 0.9283], [0.2068, 0.933], [0.2277, 1.0321], [0.2239, 1.0446], [0.224, 1.0523], [0.2299, 1.0606], [0.2381, 1.0645], [0.2485, 1.074], [0.2688, 1.0822], [0.2695, 1.1068], [0.2676, 1.1103], [0.1965, 1.1084], [0.1906, 1.1066], [0.188, 1.1037], [0.1864, 1.0696], [0.1837, 1.0617], [0.1811, 0.9729], [0.1782, 0.9363], [0.1794, 0.9309]], 0.003)), 0.024, P, X, 0.003);
-    cyl(g, 0.0042, 0.032, GM.steel, X, 0.997, 0.2015, 12).rotation.set(0, 0, Math.PI / 2);
+    // ---- the stock, out: the flat bar, the butt leaning back at its toe, the pin through it. One of a pair has it
+    // folded, swung round its hinge flat along the right of the receiver with the butt beside the guard (so a gun
+    // tucked against the chest for a two-handed reload doesn't jab its stock up into the chin)
+    let sk = g;
+    if (m.akimbo2) { const H = [X - 0.017, 0, 0.447], f = new THREE.Group(); f.position.set(H[0], 0, H[2]); f.rotation.y = Math.PI; g.add(f); sk = new THREE.Group(); sk.position.set(-H[0], 0, -H[2]); f.add(sk); }
+    profile(sk, shp([[0.452, 1.1095], [0.262, 1.1095], [0.262, 1.0822], [0.357, 1.0835], [0.4327, 1.0873], [0.452, 1.0873]]), 0.012, K, X, 0.001);
+    profile(sk, shp([[0.4327, 1.0873], [0.4471, 1.0873], [0.4471, 1.1107], [0.4327, 1.1107]]), 0.026, K, X, 0.0015);   // its knuckle on the hinge
+    box(sk, 0.0135, 0.0025, 0.16, GM.rubber, X, 1.0985, 0.355);   // the groove down the bar
+    profile(sk, shp(inset([[0.185, 0.9272], [0.2017, 0.9283], [0.2068, 0.933], [0.2277, 1.0321], [0.2239, 1.0446], [0.224, 1.0523], [0.2299, 1.0606], [0.2381, 1.0645], [0.2485, 1.074], [0.2688, 1.0822], [0.2695, 1.1068], [0.2676, 1.1103], [0.1965, 1.1084], [0.1906, 1.1066], [0.188, 1.1037], [0.1864, 1.0696], [0.1837, 1.0617], [0.1811, 0.9729], [0.1782, 0.9363], [0.1794, 0.9309]], 0.003)), 0.024, P, X, 0.003);
+    cyl(sk, 0.0042, 0.032, GM.steel, X, 0.997, 0.2015, 12).rotation.set(0, 0, Math.PI / 2);
     // ---- the magazine: its top up in the grip, a stick longer each tier with its count windows, or a drum at the top
     box(mg, 0.026, 0.15, 0.056, K, X, 0.995, 0.629);
     if (mt < 3) {

@@ -50,19 +50,36 @@ function computeLight() {
     litHere = lmTgt[i] * 0.299 + lmTgt[i + 1] * 0.587 + lmTgt[i + 2] * 0.114 - nv * 0.288; }
   if (on) {
     if (nv > 0.05) addField(lightField(P.x, P.z, 9 + S.nightVis * 3, { dir: P.aim, half: S.cone }), nv * 0.42, [0.82, 1, 0.84]);
-    if (T('light') && dark > 0.05) {
-      // the flashlight; an akimbo pair has one on each gun, each a cone of its own from that gun, a bit dimmer apiece
-      const D = W(curId()), lr = T('light') === 2 ? 18 : 13, half = T('light') === 2 ? 0.62 : 0.42, li = (T('light') === 2 ? 1.9 : 1.2) * dark;
-      if (D && D.akimbo && !P.vault) for (const sg of [-1, 1]) { const mz = muzzle(sg); addField(lightField(mz.ox, mz.oz, lr, { dir: mz.a, half: half * 0.9 }), li * 0.62, [1, 0.95, 0.85]); }
-      else addField(lightField(P.x, P.z, lr, { dir: P.aim, half }), li, [1, 0.95, 0.85]);
-    }
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
   }
   computeVision(on && !P.dead);   // as you die the fog of war lifts and every zombie fades into view
 }
+// the flashlight isn't in the light map: the lit shader draws it per pixel (core/shaders.js, flCone), set here every
+// frame so it swings round with you smoothly. An akimbo pair has one on each gun, each a cone of its own from that gun,
+// a bit dimmer apiece. FLASH: each tier's reach, half-angle and strength
+const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
+function flashUniforms() {
+  const K = LMU.uFlK.value, F = FLASH[T('light')], D = W(curId());
+  if (!F || state === 'title' || curDark <= 0.05 || !D || D.melee) { K.z = 0; return; }
+  const [lr, half, k] = F, li = k * curDark;
+  if (D.akimbo && !P.vault) { [-1, 1].forEach((sg, i) => { const mz = muzzle(sg); LMU.uFl.value[i].set(mz.ox, mz.oz, Math.sin(mz.a), Math.cos(mz.a)); }); K.set(lr, half * 0.9, li * 0.62, 2); }
+  else { LMU.uFl.value[0].set(P.x, P.z, Math.sin(P.aim), Math.cos(P.aim)); K.set(lr, half, li, 1); }
+}
+// how much of the flashlight falls at a point (for what isn't drawn by the lit shader, like smoke): the same cone
+function flashAt(x, z) {
+  const K = LMU.uFlK.value; if (K.z <= 0.001) return 0;
+  let s = 0;
+  for (let i = 0; i < K.w; i++) {
+    const f = LMU.uFl.value[i], dx = x - f.x, dz = z - f.y, r = Math.hypot(dx, dz), a = Math.acos(clamp((dx * f.z + dz * f.w) / Math.max(r, 1e-3), -1, 1));
+    const cone = (1 - smooth(clamp((a - K.y + 0.2) / 0.25, 0, 1))) * (1 + 0.5 * (1 - smooth(clamp(a / (K.y * 0.6), 0, 1)))), fall = 1 - clamp(r / K.x, 0, 1);
+    s += mix(0.3, cone, smooth(clamp((r - 0.15) / 0.75, 0, 1))) * fall * fall;
+  }
+  return s * K.z;
+}
 // blend the light/vision map toward its target and upload it
 function updateLightmap(rdt) {
+  flashUniforms();
   for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); lmT = 0; } }
   lmT -= rdt; if (lmT <= 0) { computeLight(); lmT = 0.07; }
   const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead ? 1.1 : 9));

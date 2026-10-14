@@ -36,7 +36,10 @@ function fitAttachments(g, D, front, y, info) {
   // guard, the revolver under its barrel lug, the MP9 on its right-hand rail, the MP5 under its handguard. A railed gun
   // takes a compact pointer clamped on, then a compact laser module; the others are found from the model and get a
   // pointer taped under the barrel, then a module on a rail mount
-  if (T('laser') && !info.noLaser) {
+  // a sidearm with its rail free under the dust cover takes the second light tier as a weapon light clamped there, and
+  // any laser goes in the same unit (weaponLight) rather than on its own
+  const wl = side && T('light') === 2 && !info.noLight && info.laser && !info.laser.side;
+  if (T('laser') && !info.noLaser && !wl) {
     const L = info.laser, rail = side || !!L, em = new THREE.Object3D();
     let lg = g, lx = X, u, lz;
     if (L && L.side) { lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); lx = 0; u = 0; lz = L.z; }   // its top against the side rail
@@ -61,9 +64,15 @@ function fitAttachments(g, D, front, y, info) {
     }
     em.userData.isLaser = true; lg.add(em); g.userData.laserEm = em;   // (isLaser: found again on the copy you carry, weapons/laser.js)
   }
-  if (T('light') && !info.noLight) {
+  if (wl) weaponLight(g, info.laser, muzzle, info.noLaser ? 0 : T('laser'));
+  else if (T('light') && !info.noLight) {
     const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
+    else if (D.slot === 'auto' && D.ammo === 'p9') {   // a submachine gun's: a bigger flashlight, zip-tied on alongside
+      const lx = X + 0.066, ly = y - 0.02, lz = mz - 0.27;
+      cyl(g, 0.025, 0.15, GM.metal2, lx, ly, lz); ring(g, 0.031, 0.032, GM.metal, lx, ly, lz + 0.086); cyl(g, 0.027, 0.004, GM.lens, lx, ly, lz + 0.103); ring(g, 0.019, 0.016, GM.rubber, lx, ly, lz - 0.083);   // body, head, lens, tail cap
+      [-0.045, 0.035].forEach(o => zipTie(g, X, y, lz + o, br, lx, ly, 0.025));
+    }
     else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
   }
   // a shotgun's speed loader: a polymer clip on the left of the stock with the next two or three shells lying in it
@@ -112,6 +121,35 @@ function fitAttachments(g, D, front, y, info) {
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;
+}
+// a sidearm's weapon light (the second light tier), after an Olight Baldr or a Streamlight TLR: clamped onto the rail
+// under the dust cover (at: the rail's underside y, and the middle z a laser would have there), a squared-off body with
+// its switch paddles hanging at the back, flaring into a bigger head round the lens, its front no further out than the
+// muzzle (mz). With a laser on the gun too (laserT, its tier) it's all one unit, deeper, the laser's window under the
+// lens (red for the pointer, green for the module), and the beam starts there (weapons/laser.js)
+function weaponLight(g, at, mz, laserT) {
+  const u = at.y - 0.002, L = 0.094, z1 = Math.min(at.z + 0.063, mz - 0.004), z0 = z1 - L, w = 0.036, h = laserT ? 0.046 : 0.034;
+  const rr = (x0, y0, x1, y1, r) => shp(rrect(x0, y0, x1, y1, r).getPoints().map(p => [p.x, p.y]));
+  box(g, 0.026, 0.006, 0.04, GM.metal2, X, u - 0.001, z0 + 0.032);                                                   // the clamp, up on the rail
+  xsec(g, rr(X - w / 2, u - h, X + w / 2, u - 0.004, 0.008), z0, z1 - 0.024, GM.metal, 0.0015);                       // the body
+  xsec(g, rr(X - w / 2 - 0.003, u - h - 0.003, X + w / 2 + 0.003, u - 0.002, 0.01), z1 - 0.024, z1 - 0.002, GM.metal, 0.0015);   // the head
+  const ly = laserT ? u - 0.02 : u - 0.019;
+  ring(g, 0.0165, 0.004, GM.metal2, X, ly, z1 - 0.0005); cyl(g, 0.014, 0.002, GM.lens, X, ly, z1 + 0.0018, 24);      // the bezel and the lens, just proud of it
+  [-1, 1].forEach(s => { box(g, 0.004, 0.02, 0.014, GM.rubber, X + s * (w / 2 + 0.002), u - h + 0.006, z0 + 0.008).rotation.x = 0.4; });   // the paddles
+  if (!laserT) return;
+  const ey = u - 0.0405, em = new THREE.Object3D();
+  box(g, 0.012, 0.007, 0.003, laserT === 2 ? GM.laserG : GM.red, X, ey, z1 + 0.0008); em.position.set(X, ey, z1 + 0.003);
+  em.userData.isLaser = true; g.add(em); g.userData.laserEm = em;
+}
+// a zip tie cinched round the barrel (x, y, its radius r) and a light lying alongside it (tx, ty, radius tr): a thin
+// black band round each, the strap running between them over the top and under the bottom, and the tie's square head
+function zipTie(g, x, y, z, r, tx, ty, tr) {
+  ring(g, r + 0.0012, 0.005, GM.rubber, x, y, z); ring(g, tr + 0.0012, 0.005, GM.rubber, tx, ty, z);
+  for (const s of [-1, 1]) {
+    const ay = y + s * (r + 0.0012), by = ty + s * (tr + 0.0012), len = Math.hypot(tx - x, by - ay);
+    box(g, len, 0.0024, 0.005, GM.rubber, (x + tx) / 2, (ay + by) / 2, z).rotation.z = Math.atan2(by - ay, tx - x);
+  }
+  box(g, 0.008, 0.007, 0.009, GM.rubber, x + (tx - x) * 0.7, y + r + (ty + tr - y - r) * 0.7 + 0.004, z);   // the head
 }
 // the lowest point of the gun's body at (x, z): followed down from the barrel through every piece that touches the one
 // above it (barrel, slide, frame...), so an under-barrel attachment sits right against the bottom of that stack. Each

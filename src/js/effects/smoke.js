@@ -23,4 +23,4 @@ function stepSmoke(dt) {
     p.m.material.opacity = p.a * Math.min(1, k * 8) * (1 - k) * (1 - k * 0.3);
   }
 }
-const lightLevelAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1), k = (b * FN + a) * 3; return (lmCur[k] + lmCur[k + 1] + lmCur[k + 2]) / 3; };
+const lightLevelAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1), k = (b * FN + a) * 3; return (lmCur[k] + lmCur[k + 1] + lmCur[k + 2]) / 3 + flashAt(x, z) * visCur[k / 3]; };   // (the flashlight's drawn per pixel, so it's added here: lighting/lightmap.js)

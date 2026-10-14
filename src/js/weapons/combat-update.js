@@ -19,6 +19,8 @@ function updateCombat(dt) {
   tickBandage(dt);
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
   P.stamT = (P.stamT || 0) + dt;
+  // how much you're moving, for the spread: up at once as you move, settling over about a third of a second after you stop
+  { const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1); P.mvS = (P.mvS || 0) + (mv - (P.mvS || 0)) * Math.min(1, dt * (mv > (P.mvS || 0) ? 10 : 3)); }
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
   // second after you've climbed through or over something
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;

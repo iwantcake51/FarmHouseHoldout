@@ -10,10 +10,14 @@ const semiAuto = id => { const m = fireModeOf(id); return !!m && m.k === 'semi';
 // a revolver with its hammer filed down for fanning (Fan the hammer) is fanned whenever it's fired from the hip
 const fanning = D => !!(D && D.fan) && !aiming;
 const fireRate = D => fanning(D) ? D.fan.rate : D.rate;   // seconds between shots
+// running and gunning from the hip costs you: moving opens the spread up to RUN_SPREAD more (and it takes a moment
+// to settle after you stop, P.mvS), and a shot fired on the move only sometimes goes exactly where the crosshair sits
+// on a body (RUN_MISS of them at a full run don't, and fly with the spread instead). Aiming down the sights is steady
+const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
 function spreadOf(id) {
-  // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
-  const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
+  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming), holding the trigger opens it further
+  const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : RUN_SPREAD)) * (1 + (W8.spray || 0) * 1.3);
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') s *= 0.75;
@@ -111,8 +115,10 @@ function gunFire(id, D, side) {
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
-  // the first round goes exactly where the crosshair sits on a body, and hits that part
+  // the first round goes exactly where the crosshair sits on a body, and hits that part (only sometimes on the run
+  // from the hip: RUN_MISS)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
+  if (tgt && !aiming && !scoped && rand() < RUN_MISS * (P.mvS || 0)) tgt = null;
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
   // looking through a scope: the spread depends on the range, and each hit can land a crit
