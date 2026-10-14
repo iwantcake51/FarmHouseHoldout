@@ -589,7 +589,7 @@ const GUN_MODELS = {
   // to a hooded front sight on its ramp, a notch rear sight on the receiver ring; the guard loop and its floorplate.
   // The bolt handle sweeps out and down to its knob, the way a Model 70's does
   hunting(g, m) {
-    const W = GM.walnut, B = GM.blued;
+    const W = GM.walnut, B = GM.blued, sight = T('sight');
     // ---- stock (traced off the photo: the straight comb, the wrist rising into the tang, the pistol grip, the long
     // forend), slimmer through the wrist and toward the tip; the black pad; checkering on the grip and the forend, cut
     // to the stock's own outline; the swivels
@@ -614,7 +614,7 @@ const GUN_MODELS = {
     // ---- barrel, tapering to the muzzle, and its sights
     taper(g, 0.0118, 0.0078, 0.552, B, X, 1.14, 1.204);
     profile(g, shp([[1.39, 1.144], [1.415, 1.149], [1.468, 1.151], [1.468, 1.144]]), 0.012, B, X, 0.001);
-    if (!(m.hpscope || T('sight') >= 3)) {
+    if (sight < 3) {   // iron sights till a scope goes on
       profile(g, shp([[1.42, 1.15], [1.452, 1.15], [1.452, 1.153], [1.42, 1.153]]), 0.024, B, X, 0);
       { const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, true, -Math.PI / 2, Math.PI), B); hood.rotation.x = Math.PI / 2; hood.position.set(X, 1.155, 1.44); g.add(hood); hood.material.side = THREE.DoubleSide; }
       box(g, 0.003, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
@@ -628,8 +628,17 @@ const GUN_MODELS = {
     box(bh, 0.005, 0.01, 0.016, GM.steel, 0, 0.015, -0.032);
     { const arm = box(bh, 0.009, 0.06, 0.012, m.bolt ? GM.steel : GM.metal2, -0.03, -0.025, -0.004); arm.rotation.z = -0.87; }
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 10, 8), m.bolt ? GM.steel : GM.metal2); knob.scale.set(1, 0.95, 1.25); knob.position.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]); knob.castShadow = true; bh.add(knob);
-    // ---- scopes: the plain one off the bench, or the big high-power one (the mod), in rings on two bases
-    const big = !!m.hpscope, scope = big || T('sight') >= 3;
+    // ---- scopes off the bench: the plain one, or the big high-power one, in rings on two bases; the ACOG on a one-piece
+    // picatinny base along the receiver, stepped down over its lower rear bridge (weapons/attachments.js puts it on)
+    const big = sight >= 5, scope = sight === 3 || big;
+    let top = 1.152;
+    if (sight === 4) {
+      const z0 = 0.63, z1 = 0.915, b0 = 1.156, RT = b0 + 0.0105;
+      profile(g, shp([[z0, 1.1405], [0.762, 1.1405], [0.768, 1.1478], [z1, 1.1478], [z1, b0 + 0.001], [z0, b0 + 0.001]]), 0.022, B, X, 0.0008);
+      xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), z0, z1, GM.rail, 0.0006);
+      for (let z = z0 + 0.012; z < z1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // its cross slots
+      top = RT;
+    }
     if (scope) {
       const sr = big ? 0.0215 : 0.019, sy = big ? 1.212 : 1.198, ob = big ? 0.036 : 0.03, oc = big ? 0.026 : 0.024, z0 = big ? 0.6 : 0.63, z1 = big ? 0.97 : 0.93;
       cyl(g, sr, z1 - z0 - 0.12, GM.metal, X, sy, (z0 + z1) / 2, 20);
@@ -641,7 +650,7 @@ const GUN_MODELS = {
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
     if (m.expand) box(g, 0.05, 0.03, 0.08, GM.copper, X + 0.06, 1.02, 0.7);
-    return { front: 1.48, y: 1.14, noSight: scope, top: 1.152, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
+    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the

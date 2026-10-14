@@ -3,6 +3,9 @@
 // tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
 // what each step of the feeding line gives: health a feed, the odds a kill (a headshot kill) feeds you, the most a wave
 const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 0.5, cap: 35 }, { h: 6, p: 0.5, ph: 1, cap: 50 }];
+// what a sight step does for your aimed shots, against the step before: how much tighter, and how much of the spread
+// moving adds to them it takes away
+const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
 const TIERS = {
   ammo: { tag: 'Ammo', t: [
     { r: 'c', name: 'Hollow points', text: '+25% damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
@@ -23,9 +26,13 @@ const TIERS = {
     { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
     { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => {} }] },
   sight: { tag: 'Attachment', t: [
-    { r: 'c', name: 'Red dot', text: 'Shots aimed down the sights 25% tighter. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => {} },
-    { r: 'u', name: 'Holographic sight', text: 'Shots aimed down the sights 20% tighter again. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => {} },
-    { r: 'r', name: 'Scope', text: 'Rifles and the revolver only. While aiming: 1 in 4 hits does double damage, headshot multiplier ×1.25, dead accurate past 10 m.', vis: 'A scope in rings', ap: () => {} }] },
+    // every sight only tightens your aimed shots, standing and on the move (SIGHT_AIM, SIGHT_MOVE in game/run-state.js);
+    // on a sniper it also raises the headshot multiplier, and through a scope its headshots crit (SCOPES)
+    { r: 'c', name: 'Red dot', text: D => sightText(1, D) + (D && D.sniper ? ' Headshot multiplier +0.15×.' : ''), vis: 'A red dot sight', ap: () => {} },
+    { r: 'u', name: 'Holographic sight', text: D => sightText(2, D) + (D && D.sniper ? ' Headshot multiplier +0.15× more.' : ''), vis: 'A holo sight', ap: () => {} },
+    { r: 'r', name: 'Scope', text: D => 'Rifles and the revolver only. Zooms in when you aim. ' + sightText(3, D) + ' Dead accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
+    { r: 'e', name: 'ACOG', text: D => 'Rifles only. Zooms in further. ' + sightText(4, D) + (D && D.sniper ? ' Headshot crits do 2.25×.' : ''), vis: 'A 4× ACOG, its fibre optic glowing red on top', ap: () => {} },
+    { r: 'l', name: 'High-power scope', text: D => 'Hunting rifle only. Zooms in furthest. ' + sightText(5, D) + ' Headshot crits do 2.5×.', vis: 'A big scope', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'Shows where your shots go. Shots from the hip 20% tighter.', vis: 'A taped-on laser', ap: () => {} },
     { r: 'r', name: 'Laser sight', text: 'A brighter beam. Shots from the hip 25% tighter again.', vis: 'A mounted laser', ap: () => {} }] },

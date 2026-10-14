@@ -19,9 +19,10 @@ const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
 const STOCK = { kick: 0.55, spray: 0.6 };
 const stocked = D => !!(S.att.stock && D && D.slot === 'side');
 function spreadOf(id) {
-  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming), holding the trigger opens it further
+  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
+  // less with a sight: D.aimMove), holding the trigger opens it further
   const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
@@ -37,8 +38,6 @@ function scopeSpread(id, d) {
   const D = W(id), k = smooth(clamp((d - SCOPE_NEAR) / (SCOPE_FAR - SCOPE_NEAR), 0, 1));
   return (D.pellets || 1) > 1 ? spreadOf(id) : spreadOf(id) * (1 - k);
 }
-// a scope's magnification also lands more head hits harder: a headshot through one does 25% more
-const SCOPE_HEAD = 1.25;
 // where a pellet goes inside the spread: bunched toward the middle like a real pattern (the sum of three draws), out to
 // the full spread at the edges, so close up most of a shell lands on what you aimed at
 const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
@@ -124,8 +123,8 @@ function gunFire(id, D, side) {
   if (tgt && !aiming && !scoped && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
-  // looking through a scope: the spread depends on the range, and each hit can land a crit
-  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (scopeOn ? D.critC || 0 : 0) + (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
+  // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
+  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
   const pellets = (D.pellets || 1) * shots, pierce = skillPierce(id) + (D.pierce || 0);
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
@@ -144,10 +143,10 @@ function gunFire(id, D, side) {
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
-      // a crit: through a scope, a tuned gun's own (D.critT), the revolver's aimed Dead-eye (D.aimCrit), or Lucky shot's
-      // 1 in 12 on any bullet hit
-      const crit = (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the revolver's
+      // aimed Dead-eye (D.aimCrit), or Lucky shot's 1 in 12 on any bullet hit
+      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;

@@ -34,6 +34,9 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; aimHeld = false; pauseRun(); });
+// right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
+// page has no text to copy or fields to paste into)
+addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)

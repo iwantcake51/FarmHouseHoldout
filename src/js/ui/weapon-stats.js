@@ -17,6 +17,7 @@ function wsNumbers(id) {
   const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, hipK: D.hipK || 1, aimK: D.aimK || 1, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
   r.hipSp = r.spread * 1.3 * r.hipK; r.aimSp = r.spread * 0.5 * r.aimK;   // from the hip (a laser) and down the sights (a sight)
+  r.aimMv = r.aimSp * (1 + 0.5 * (D.aimMove ?? 1));   // down the sights at a walk (a sight steadies that too: weapons/firing.js, spreadOf)
   // reloads, every kind this gun has
   if (D.perShell) { r.shell = D.perShell * S.reloadMul; r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + (id === 'revolver' ? 0.3 : 0.12); }
   else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
@@ -30,8 +31,8 @@ function wsNumbers(id) {
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
 // numbers read, and put back. A source is listed against each number it moves, with how much
 // each stat a source can move, its name, which way is better, and how a better one reads (a shorter reload is "faster")
-const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['hipSp', 'Hip spread', -1], ['aimSp', 'Aimed spread', -1], ['pierce', 'Pierce', 1], ['head', 'Headshots', 1]];
-const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter', 'Hip spread': p => Math.round(-p) + '% tighter', 'Aimed spread': p => Math.round(-p) + '% tighter', Headshots: p => '+' + Math.round(p) + '% damage' };
+const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['hipSp', 'Hip spread', -1], ['aimSp', 'Aimed spread', -1], ['aimMv', 'Aimed on the move', -1], ['pierce', 'Pierce', 1], ['head', 'Headshots', 1]];
+const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter', 'Hip spread': p => Math.round(-p) + '% tighter', 'Aimed spread': p => Math.round(-p) + '% tighter', 'Aimed on the move': p => Math.round(-p) + '% tighter', Headshots: p => '+' + Math.round(p) + '% damage' };
 function wsSources(id) {
   const D = W(id), out = []; if (!D || D.melee) return out;
   const full = wsNumbers(id), g = W8.gt[id] = W8.gt[id] || {}, diff = (name, undo) => {
@@ -42,8 +43,9 @@ function wsSources(id) {
       const pct = k === 'pierce' ? (b - a) : (b / a - 1) * 100, good = (b > a) === (dir > 0);
       fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : good && WS_GOOD[label] ? WS_GOOD[label](pct) : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
     }
-    // a change to both spreads alike (a skill, a mod) reads as one: Spread
-    const hs = fx.find(f => f.label === 'Hip spread'), as = fx.find(f => f.label === 'Aimed spread');
+    // a change to every spread alike (a skill, a mod) reads as one: Spread
+    const hs = fx.find(f => f.label === 'Hip spread'), as = fx.find(f => f.label === 'Aimed spread'), ms = fx.find(f => f.label === 'Aimed on the move');
+    if (as && ms && as.t === ms.t) fx.splice(fx.indexOf(ms), 1);
     if (hs && as && hs.t === as.t) { fx.splice(fx.indexOf(as), 1); hs.label = 'Spread'; }
     if (fx.length) out.push({ name, fx });
   };
@@ -106,11 +108,13 @@ function wsHTML(id) {
   else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`, r.akTac, s.akTac ?? sRel, -1);
   else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
   if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
-  h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
+  h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed, ${wsDeg(r.aimMv)} aimed on the move` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
   h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
-  // crits a gun lands without a scope: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
+  // a sniper's headshots through a scope: every one a crit
+  if (D.headCrit) h += row('Scoped', 'Crits', `every headshot while aiming · ×${wsF(r.critX, 2)} damage`);
+  // crits a gun lands by chance: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
   if (r.crit || r.aimCrit) h += row('Crits', Math.round((r.crit + r.aimCrit) * 100) + '%', (r.aimCrit ? 'aimed shots' + (r.crit ? `, ${Math.round(r.crit * 100)}% from the hip` : '') : 'any shot') + ` · ×${wsF(r.critX, 2)} damage`, r.crit + r.aimCrit, (s.crit || 0) + (s.aimCrit || 0));
   h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread, D.mobile, r.hipK, r.aimK);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);

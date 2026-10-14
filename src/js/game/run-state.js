@@ -28,11 +28,10 @@ function recomputeEff() {
     else if (loader && D.perShell) { D.loadN = 1 + loader; D.perShell *= LOADER_T[loader]; }         // two or three shells a go
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
-    D.headX = (D.headX || 0) + (ammo >= 3 ? HEAD_UP.ammo : 0) + HEAD_UP.sight[sight];   // a bigger headshot multiplier (zombies/zombie-types.js)
-    // a scope lands crits: a quarter of the hits through it do double damage (on the revolver, on top of its aimed
-    // Dead-eye crits, D.aimCrit); the hunting rifle's
-    // high-power scope (its stat, weapons/gun-mods.js) does better
-    if (sight >= 3 && SCOPE_GUNS.has(id)) { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
+    // a bigger headshot multiplier (zombies/zombie-types.js): match-grade rounds on any gun, a sight only on a sniper
+    D.headX = (D.headX || 0) + (ammo >= 3 ? HEAD_UP.ammo : 0) + (D.sniper ? HEAD_UP.sight[sight] : 0);
+    // a sniper looking through a scope: every headshot is a crit, harder with each scope (SCOPES; weapons/firing.js)
+    if (D.sniper && sight >= 3) { D.headCrit = true; D.critM = Math.max(D.critM || 0, SCOPES[sight].crit); }
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
     if (D.mag) D.mag *= (MAG_UP[id] || MAG_UP.all)[mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
@@ -40,7 +39,7 @@ function recomputeEff() {
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
     if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
     if (D.akimbo) D.reload *= AK_ONE;
-    D.aimK = SIGHT_AIM[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, a laser the hip (weapons/firing.js: spreadOf)
+    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
     if ((g.supp || 0) >= 3) D.pierce = (D.pierce || 0) + 1;   // the heavy-duty can: bullets go through one more zombie
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     EFF[id] = D;
@@ -59,13 +58,16 @@ const MAG_SLOW = 0.3, AK_ONE = 1;
 const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5] };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
-// each attachment does its own job, none of them the same thing twice: a sight tightens the shots you aim down the
-// sights (and raises the headshot multiplier, HEAD_UP), a laser tightens the ones from the hip (and shows where they
-// go), the shoulder stock only steadies the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a
-// choke squeezes the pellets, a light lights. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted
-const SIGHT_AIM = [1, 0.75, 0.6, 0.6], LASER_HIP = [1, 0.8, 0.6];
-// what match-grade rounds and each sight add to a gun's headshot multiplier (on top of S.headMul's 2.2×)
-const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3] };
+// each attachment does its own job, none of them the same thing twice: a sight (red dot, holo, then the scopes)
+// tightens only the shots you aim down the sights, and takes some of the spread that moving adds to them (a scope
+// zooms in too; on a sniper a sight also raises the headshot multiplier, HEAD_UP, and through a scope every headshot
+// crits, SCOPES), a laser tightens the ones from the hip (and shows where they go), the shoulder stock only steadies
+// the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a choke squeezes the pellets, a light
+// lights. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
+// moving adds to an aimed shot is left with each sight
+const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
+// what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)
+const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3, 0.3, 0.3] };
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
 // fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench. A
 // tuned gun also lands crits: TUNE.crit of its hits on any shot (D.critT, scoped or not), and every crit it lands, a
@@ -80,9 +82,13 @@ function tuneUp(D) {
   D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too
 }
 const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
-// the only guns a real scope (the third sight tier) goes on: the two rifles, and the revolver (a handgun scope, on the
-// rail it gets with any optic: weapons/gun-models.js)
-const SCOPE_GUNS = new Set(['hunting', 'ar', 'revolver']);
+// the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
+// scope (on the rail it gets with any optic: weapons/gun-models.js), the assault rifle the ACOG, the hunting rifle the
+// high-power scope
+const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+// each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
+// zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
+const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };
 // a speed loader: the revolver's reload with one (seconds), and how long each go of two or three shells takes against
 // a single shell (longer, but each shell is in quicker: about 1.6 and 2.2 times as fast overall)
 const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];

@@ -86,7 +86,8 @@ function fitAttachments(g, D, front, y, info) {
   if (sight && !info.noSight) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy - 0.002, bz = sz + oz;   // mounts sit 2 mm down into the rail or receiver they clamp
-    if (sight === 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
+    if (sight === 4) acog(p, sx, by, bz);
+    else if (sight >= 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
       // a gun can have a smaller one, further along (the revolver's handgun scope): its lengths by scopeK, its
       // thickness by scopeR, centred at scopeZ
       const sy = by + (info.scopeH || 0.075), lk = info.scopeK || 1, rk = info.scopeR || 1, cz = info.scopeZ !== undefined ? info.scopeZ + oz : bz;
@@ -123,6 +124,52 @@ function fitAttachments(g, D, front, y, info) {
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;
+}
+// the ACOG (the fourth sight step): a Trijicon TA31 on its flat-top mount, traced off a side-on photo with the
+// trace-photo skill (.claude/skills/trace-photo) at its true size, z along it from its middle and y up from the rail's
+// top (solid keeps each traced outline to its size, rounding its edges inside it). Its mount clamped on the rail with two cross bolts through it and the thumb nut on the right; the forged housing
+// (narrower behind, full width at the hood) rising to the hood's lip, the red fibre optic strip down its top between
+// two lips and the objective set in the hood's sloping face; the round body behind it with the elevation cap on top
+// and the windage cap on the right; the square block with its four screws, and the rubber eyepiece at the back
+const ACOG = {
+  base: [[0.1005, 0.00009], [0.00301, 0.00013], [-0.01534, 0.00028], [-0.01585, 0.00046], [-0.01605, 0.00117], [-0.01617, 0.01251], [-0.016, 0.01612], [-0.01612, 0.0164], [-0.0164, 0.01659], [-0.01789, 0.01663], [-0.01863, 0.01683], [-0.01886, 0.01732], [-0.01898, 0.0186], [0.09845, 0.01863], [0.09901, 0.0182], [0.09986, 0.01785], [0.10015, 0.01755], [0.10088, 0.01633], [0.10111, 0.0152], [0.1014, 0.01137], [0.10119, 0.00166], [0.101, 0.0005]],
+  housing: [[0.0988, 0.0183], [-0.01896, 0.01831], [-0.01918, 0.0276], [-0.01941, 0.03015], [-0.01941, 0.03504], [-0.01374, 0.04495], [-0.00808, 0.06911], [-0.00354, 0.08208], [-0.00202, 0.08259], [0.00025, 0.08383], [0.0147, 0.08778], [0.02568, 0.09017], [0.04325, 0.09353], [0.05239, 0.09487], [0.07124, 0.09683], [0.08165, 0.0991], [0.0881, 0.10015], [0.08987, 0.10008], [0.09139, 0.09972], [0.09604, 0.09755], [0.09753, 0.09617], [0.09821, 0.09476], [0.0986, 0.09313], [0.09858, 0.09129], [0.09796, 0.08895], [0.09701, 0.08697], [0.09626, 0.08583], [0.0956, 0.08194], [0.09446, 0.07818], [0.09304, 0.07457], [0.09017, 0.06833], [0.08569, 0.06003], [0.08116, 0.05228], [0.07301, 0.03965], [0.07215, 0.03759], [0.07191, 0.03511], [0.07282, 0.03256], [0.07769, 0.03212], [0.0796, 0.03177], [0.0825, 0.03033], [0.08548, 0.02701], [0.08619, 0.02664], [0.09391, 0.02573], [0.09646, 0.02478], [0.09802, 0.02359], [0.0986, 0.02214], [0.09849, 0.01909]],
+  block: [[-0.0441, 0.03277], [-0.05537, 0.03278], [-0.05657, 0.0331], [-0.05764, 0.03403], [-0.05969, 0.03389], [-0.06118, 0.03409], [-0.06159, 0.03454], [-0.06181, 0.03567], [-0.06175, 0.0407], [-0.06217, 0.04102], [-0.06333, 0.04106], [-0.06333, 0.08144], [-0.06153, 0.08158], [-0.0604, 0.08176], [-0.05997, 0.08086], [-0.05817, 0.08321], [-0.05798, 0.08442], [-0.0577, 0.08605], [-0.0569, 0.08683], [-0.05601, 0.08717], [-0.05161, 0.08766], [-0.04864, 0.08778], [-0.04545, 0.08743], [-0.04077, 0.08719], [-0.0395, 0.08699], [-0.03878, 0.08661], [-0.03803, 0.08527], [-0.03744, 0.08293], [-0.03709, 0.08251], [-0.03636, 0.08208], [-0.03643, 0.03851], [-0.03692, 0.03688], [-0.03759, 0.03608], [-0.03922, 0.0355], [-0.04021, 0.03489], [-0.04173, 0.03362], [-0.04269, 0.03305]],
+  eye: [[0.00321, -0.10139], [0.00965, -0.10096], [0.01264, -0.10054], [0.01535, -0.09997], [0.0174, -0.09926], [0.01843, -0.09869], [0.01956, -0.09784], [0.02035, -0.09671], [0.0207, -0.09501], [0.0208, -0.09303], [0.02062, -0.09218], [0.01961, -0.08991], [0.01944, -0.08566], [0.01952, -0.08268], [0.01991, -0.08141], [0.02009, -0.07985], [0.02027, -0.07276], [0.02029, -0.06327]],   // [r, z]
+  turret: { z: -0.01805, rz: [[0.01316, 0.081], [0.01316, 0.08389], [0.01289, 0.08545], [0.01275, 0.0887], [0.01287, 0.08941], [0.01349, 0.09069], [0.01355, 0.09125], [0.0134, 0.09196], [0.01279, 0.09253], [0.01265, 0.09281], [0.01333, 0.09366], [0.01353, 0.09409], [0.01364, 0.09508], [0.01351, 0.09593], [0.01325, 0.09636], [0.01209, 0.09678], [0.0121, 0.09735], [0.01149, 0.0982], [0.00944, 0.09876], [0.006, 0.09919]] },   // [r, y], up the cap
+  axis: 0.06131, tube: 0.0208, wind: [-0.02027, 0.05428, 0.01467], bolts: [[0.00251, 0.00723, 0.00415], [0.08281, 0.00682, 0.00367]],
+  fibre: [[0.00025, 0.08383], [0.02568, 0.09017], [0.0612, 0.0958]], lens: [0.0909, 0.07, 0.021, 0.424]
+};
+function acog(p, sx, by, cz) {
+  const A = GM.ano, at = pts => pts.map(([z, y]) => [cz + z, by + y]), ay = by + ACOG.axis;
+  // ---- the mount's clamp on the rail and its cross bolts, the thumb nut on the right
+  solid(p, at(ACOG.base), 0.042, A, sx, 0.0015);
+  ACOG.bolts.forEach(([z, y, r]) => cyl(p, r, 0.0445, GM.metal2, sx, by + y, cz + z, 12).rotation.set(0, 0, Math.PI / 2));
+  cyl(p, 0.0058, 0.008, A, sx - 0.0255, by + 0.0262, cz + 0.088, 14).rotation.set(0, 0, Math.PI / 2);
+  // ---- the housing: its traced outline, full width at the hood and narrowing back toward the body
+  const hg = new THREE.Group(); p.add(hg);
+  solid(hg, at(ACOG.housing), 0.058, A, sx, 0.003);
+  taperX(hg, pw([[cz - 0.02, 0.68], [cz + 0.004, 0.72], [cz + 0.045, 1]]));
+  // the fibre optic down its top between two lips, following the top's rise
+  for (let k = 0; k < ACOG.fibre.length - 1; k++) {
+    const [za, ya] = ACOG.fibre[k], [zb, yb] = ACOG.fibre[k + 1], l = Math.hypot(zb - za, yb - ya), a = Math.atan2(yb - ya, zb - za), zc = cz + (za + zb) / 2, yc = by + (ya + yb) / 2;
+    box(p, 0.009, 0.0022, l, GM.fiber, sx, yc + 0.0005, zc).rotation.x = -a;
+    [-1, 1].forEach(sd => { box(p, 0.0035, 0.0036, l, A, sx + sd * 0.0063, yc + 0.001, zc).rotation.x = -a; });
+  }
+  // the objective in the hood's sloping face
+  { const [z, y, r, t] = ACOG.lens;
+    cyl(p, r + 0.0025, 0.003, GM.rubber, sx, by + y, cz + z, 24).rotation.x = Math.PI / 2 + t;
+    cyl(p, r, 0.003, GM.glass, sx, by + y + 0.0006, cz + z + 0.0013, 24).rotation.x = Math.PI / 2 + t; }
+  // ---- the round body behind the hood, the elevation cap on top, the windage cap on the right
+  cyl(p, ACOG.tube, 0.068, A, sx, ay, cz - 0.03, 24);
+  { const pts = ACOG.turret.rz.map(([r, y]) => new THREE.Vector2(r, y)); pts.unshift(new THREE.Vector2(0, pts[0].y)); pts.push(new THREE.Vector2(0, pts[pts.length - 1].y));
+    const t = new THREE.Mesh(new THREE.LatheGeometry(pts, 24), A); t.position.set(sx, by, cz + ACOG.turret.z); t.castShadow = true; p.add(t); }
+  { const [z, y, r] = ACOG.wind; cyl(p, r * 0.9, 0.006, A, sx - ACOG.tube - 0.001, by + y, cz + z, 20).rotation.set(0, 0, Math.PI / 2); cyl(p, r, 0.006, A, sx - ACOG.tube - 0.006, by + y, cz + z, 24).rotation.set(0, 0, Math.PI / 2); }
+  // ---- the square block with a screw in each corner, and the rubber eyepiece with its lens
+  solid(p, at(ACOG.block), 0.05, A, sx, 0.003);
+  [-1, 1].forEach(a => [-1, 1].forEach(b => cyl(p, 0.0022, 0.002, GM.metal2, sx + a * 0.017, ay + b * 0.019, cz - 0.0638, 8)));
+  lathe(p, ACOG.eye.map(([r, z]) => [r, cz + z]), GM.rubber, sx, ay, 24);
+  cyl(p, 0.0135, 0.002, GM.glass, sx, ay, cz - 0.1006, 20);
 }
 // a sidearm's weapon light (the second light tier), after an Olight Baldr or a Streamlight TLR: clamped onto the rail
 // under the dust cover (at: the rail's underside y, and the middle z a laser would have there), a squared-off body with

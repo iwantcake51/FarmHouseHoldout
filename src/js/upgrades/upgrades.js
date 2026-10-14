@@ -64,7 +64,7 @@ function tierFits(k, id) {
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
   if (k === 'loader') return id === 'revolver' ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader; shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
-  if (k === 'sight' && n === 2) return SCOPE_GUNS.has(id);   // a real scope only goes on the rifles and the revolver
+  if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];
   return true;
 }

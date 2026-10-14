@@ -26,7 +26,6 @@ const GUN_MODS = {
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
   flech: { w: 'auto12', r: 'r', name: 'Flechettes', text: 'Pellets go through 2 more zombies.', vis: 'A striped drum', stat: D => { D.pierce = (D.pierce || 0) + 2; } },
   bolt: { w: 'hunting', r: 'c', name: 'Straight-pull bolt', text: 'Fires faster: 0.8 s between shots instead of 1.3 s.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.6; } },
-  hpscope: { w: 'hunting', r: 'u', name: 'High-power scope', text: 'While aiming: 2 in 5 hits do 2.5× damage, headshot multiplier ×1.25.', vis: 'A big scope', stat: D => { D.critC = 0.4; D.critM = 2.5; } },
   expand: { w: 'hunting', r: 'e', name: 'Expanding rounds', text: 'Every limb you hit comes off.', vis: 'Copper-tipped rounds', stat: D => { D.alwaysSever = true; } },
   akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. Double the ammo and fire rate. Can\'t aim down sights, slightly more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: '40% tighter aim.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },

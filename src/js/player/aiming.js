@@ -3,10 +3,10 @@
 // ---- scope: hold right click with a scoped gun (the rifles, the revolver) ----
 let scoped = false, zoomBeforeScope = 1;
 const scopePt = new V3();
-function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && ((SCOPE_GUNS.has(id) && T('sight') >= 3) || (id === 'hunting' && hasMod('hpscope'))); }
+function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && SCOPE_GUNS.has(id) && T('sight') >= 3; }
 function enterScope() {
   if (scoped || P.vault || state !== 'play') return;
-  scoped = true; zoomBeforeScope = zoomT; zoomT = curId() === 'hunting' && hasMod('hpscope') ? 3.1 : 2.4;
+  scoped = true; zoomBeforeScope = zoomT; zoomT = SCOPES[T('sight')].zoom;
   scopePt.set(aimPt.x, GUN_Y, aimPt.z);
   $('scope').classList.add('on'); SFX.click(); nz(0.12, 'bandpass', 900, 400, 0.15, 2);
 }
@@ -23,5 +23,4 @@ function moveScope(dx, dy) {
   const vx = scopePt.x - P.x, vz = scopePt.z - P.z, d = Math.hypot(vx, vz), max = 24;
   if (d > max) { scopePt.x = P.x + vx / d * max; scopePt.z = P.z + vz / d * max; }
 }
-cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => { e.preventDefault(); zoomT = clamp(zoomT * Math.exp(-e.deltaY * 0.0012), ZOOM_MIN, ZOOM_MAX); }, { passive: false });

@@ -65,7 +65,7 @@ function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
   // a reload from empty: shell by shell (two or three a go with a speed loader), or one mag change
   const reload = D.melee ? 0 : (D.perShell ? Math.ceil(mag / (D.loadN || 1)) * D.perShell + 0.12 : D.reload || 0) * S.reloadMul;
-  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
+  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), aimMv: (D.spread || 0) * 0.5 * (D.aimK || 1) * (1 + 0.5 * (D.aimMove ?? 1)), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change. (A chip
 // whose good is null is a plain stat, shown grey: chipCls)
@@ -80,7 +80,9 @@ const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = 
 function spreadChips(a, b) {
   const kh = a.spread ? b.spread / a.spread : 1, ka = a.aim ? b.aim / a.aim : 1;
   if (Math.abs(kh - ka) < 1e-6) return [chip('SPREAD', a.spread, b.spread, false, fmtDeg)];
-  return [chip('HIP SPREAD', a.spread, b.spread, false, fmtDeg), chip('AIMED SPREAD', a.aim, b.aim, false, fmtDeg)];
+  // a sight steadies aimed shots on the move as well as standing: its own chip when that changes by a different amount
+  const km = a.aimMv ? b.aimMv / a.aimMv : 1;
+  return [chip('HIP SPREAD', a.spread, b.spread, false, fmtDeg), chip('AIMED SPREAD', a.aim, b.aim, false, fmtDeg), Math.abs(km - ka) > 1e-6 ? chip('AIMED, MOVING', a.aimMv, b.aimMv, false, fmtDeg) : null];
 }
 // damage is judged per shot (pellets included) but written per hit, e.g. 15×8 → 17×9
 function dmgChip(a, b) { const ta = a.dmg * a.pel, tb = b.dmg * b.pel; return Math.abs(ta - tb) < 1e-6 ? null : { t: `DMG ${fmtDmg(a)} → ${fmtDmg(b)}`, good: tb > ta }; }
@@ -105,7 +107,8 @@ function tierFx(id, k) {
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
   if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : `${n + 2} shells a go`, good: true });
-  if (k === 'sight' && n === 2) fx.push({ t: 'Zooms in, crits at range', good: true });
+  if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
+  if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
   return fx;
 }
 // a new weapon against the one it would replace in that slot
