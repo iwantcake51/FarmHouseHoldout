@@ -7,6 +7,9 @@ const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Ma
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 // a semi-automatic fires once a pull of the trigger: the handguns in single shots (not fanning, a burst or the auto sear)
 const semiAuto = id => { const m = fireModeOf(id); return !!m && m.k === 'semi'; };
+// a revolver with its hammer filed down for fanning (Fan the hammer) is fanned whenever it's fired from the hip
+const fanning = D => !!(D && D.fan) && !aiming;
+const fireRate = D => fanning(D) ? D.fan.rate : D.rate;   // seconds between shots
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
@@ -15,6 +18,7 @@ function spreadOf(id) {
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
+  if (fanning(D)) s *= D.fan.spread;
   return s;
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
@@ -101,7 +105,7 @@ function gunFire(id, D, side) {
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
   if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
-  W8.mag[id] -= shots; W8.cd = D.rate / S.rateMul; run.shots++;
+  W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++;
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
   else if (!W8.inBurst && semiAuto(id)) W8.trigLock = true;   // one shot a pull
   }
@@ -170,7 +174,7 @@ function gunFire(id, D, side) {
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3)); W8.sprayT = 0;
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, D.rate < 0.15); }
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16); }
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1)); ANIM.shotAt = performance.now() / 1000;   // (a shotgun comes up off low ready: player/hold.js)
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too

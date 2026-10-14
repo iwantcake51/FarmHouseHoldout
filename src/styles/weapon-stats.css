@@ -1,15 +1,41 @@
-/* The weapon stats sheet (ui/weapon-stats.js): a compact panel on the left, beside the workbench while it's open (the
-   bench moves over to make room: #station.withStats) or anywhere with I. */
-#wStats{left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:252px;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
-  pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.93);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.5);text-shadow:none;animation:stRise .25s cubic-bezier(.2,.8,.3,1)}
-#station.withStats{left:calc(50% + 134px);width:min(820px,calc(100vw - 32px - 280px))}
+/* The weapon stats sheet (ui/weapon-stats.js): a compact panel, docked against the workbench's left side while it's
+   open (the two centred together: #wStats.docked, #station.withStats) or on the left with I. A little see-through,
+   like the bench. It slides out from behind the bench as that unrolls and tucks back in as it rolls up; anywhere else
+   it comes in from the left */
+:root{--wsW:252px;--wsGap:10px;--stDockW:min(820px,calc(100vw - 32px - var(--wsW) - var(--wsGap)))}
+#wStats{left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wsW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
+  pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.45);text-shadow:none}
+#wStats.docked{left:calc(50% - (var(--wsW) + var(--wsGap)) / 2 - var(--stDockW) / 2)}
+#station.withStats{left:calc(50% + (var(--wsW) + var(--wsGap)) / 2);width:var(--stDockW)}
+#wStats.opening{animation:wsIn .28s cubic-bezier(.2,.8,.3,1) backwards}
+#wStats.docked.opening{animation-name:wsDockIn;animation-duration:.32s;animation-delay:.1s}
+#wStats.closing{animation:wsOut .18s cubic-bezier(.55,0,.8,.2) forwards;pointer-events:none}
+#wStats.docked.closing{animation-name:wsDockOut}
+@keyframes wsIn{from{opacity:0;translate:-24px 0}}
+@keyframes wsOut{to{opacity:0;translate:-24px 0}}
+@keyframes wsDockIn{from{opacity:0;translate:36px 0;clip-path:inset(0 0 0 100%)}to{clip-path:inset(0 0 0 0)}}
+@keyframes wsDockOut{from{clip-path:inset(0 0 0 0)}to{opacity:0;translate:36px 0;clip-path:inset(0 0 0 100%)}}
+@media (prefers-reduced-motion:reduce){#wStats.opening,#wStats.closing{animation-name:wsFade!important;animation-delay:0s!important}}
+@keyframes wsFade{from{opacity:0}}
+@media (prefers-reduced-transparency:reduce){#wStats{background:rgba(12,14,15,.95);-webkit-backdrop-filter:none;backdrop-filter:none}}
+/* a key to the boxes: stock, better, worse */
+.wsLegend{display:flex;gap:10px;margin:-2px 0 8px;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.wsLegend span::before{content:"";display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px;background:rgba(236,230,216,.08);border:1px solid rgba(236,230,216,.22)}
+.wsLegend span.up::before{background:rgba(120,190,80,.2);border-color:rgba(159,211,122,.7)}
+.wsLegend span.down::before{background:rgba(226,113,90,.18);border-color:rgba(226,113,90,.7)}
 .wsHead{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
 .wsHead b{font-family:var(--f-num);font-weight:800;font-size:24px;text-transform:uppercase;line-height:1}
 .wsHead span{color:var(--dim);font-size:11px}
-.wsGrid{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:3px 8px}
+.wsGrid{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:4px 8px}
 .wsGrid .l{color:var(--dim);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
-.wsGrid b{font-family:var(--f-num);font-weight:800;font-size:17px;line-height:1;text-align:right;font-variant-numeric:tabular-nums}
-.wsGrid em{font-style:normal;color:var(--dim);font-size:10.5px;line-height:1.2}
+/* each number in a box: grey as the gun comes, green made better, red made worse */
+.wsGrid b{display:block;min-width:50px;padding:4px 6px 3px;font-family:var(--f-num);font-weight:800;font-size:16px;line-height:1;text-align:center;font-variant-numeric:tabular-nums;
+  background:rgba(236,230,216,.07);border:1px solid rgba(236,230,216,.16);border-radius:2px}
+.wsGrid b.up{color:#cdeeb2;background:rgba(120,190,80,.18);border-color:rgba(159,211,122,.65)}
+.wsGrid b.down{color:#f4ab97;background:rgba(226,113,90,.16);border-color:rgba(226,113,90,.6)}
+.wsGrid em{font-style:normal;color:var(--dim);font-size:10.5px;line-height:1.25}
+.wsGrid em i.d{font-style:normal;font-weight:700;margin-right:5px}
+.wsGrid em i.d.up{color:#9fd37a}.wsGrid em i.d.down{color:#e2715a}
 .wsSub{margin:10px 0 3px;color:var(--orange);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
 .wsCone,.wsFall{display:block;width:100%;height:auto;background:rgba(236,230,216,.03);border:1px solid rgba(236,230,216,.08)}
 .wsFall text{fill:var(--dim);font-size:8px;font-family:var(--f-ui);text-anchor:middle}

@@ -43,11 +43,11 @@ const _rv = new V3();
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight. Each is reloaded on its own
 // turn (akU in weapons/akimbo.js says how far through it is), the other kept up on the aim
 const AK_PULL = 0.1;
-// shotguns at rest sit at low ready: the stock in the shoulder pocket and the muzzle down (p), a little lower and
-// further in (y, z), canted (r) and turned across the body (yaw). They come up to the shoulder the moment you fire,
-// aim or hold the trigger, and settle back down MOUNT_HOLD seconds after the last shot (ANIM.mount). The double barrel
-// rests lowest and most canted, hunter style
-const LOW_READY = { pump: { p: 0.3, y: -0.035, z: -0.05, r: 0.06, yaw: -0.05 }, auto12: { p: 0.24, y: -0.03, z: -0.04, r: 0.05, yaw: -0.04 }, dbl: { p: 0.44, y: -0.07, z: -0.07, r: 0.17, yaw: -0.12 } }, MOUNT_HOLD = 1.5;
+// the pump and the auto shotgun at rest sit at low ready: the stock in the shoulder pocket and the muzzle down (p), a
+// little lower and further in (y, z), canted (r) and turned across the body (yaw). They come up to the shoulder the
+// moment you fire, aim or hold the trigger, and settle back down MOUNT_HOLD seconds after the last shot (ANIM.mount).
+// The double barrel stays up at the shoulder
+const LOW_READY = { pump: { p: 0.3, y: -0.035, z: -0.05, r: 0.06, yaw: -0.05 }, auto12: { p: 0.24, y: -0.03, z: -0.04, r: 0.05, yaw: -0.04 } }, MOUNT_HOLD = 1.5;
 const REL_JIT0 = { k: 1, dx: 0, dy: 0, seed: 0 };
 // and no one holds two guns the same: the right a touch higher and further out, the left lower, drawn back and in, each
 // canted over toward the middle (the left more, a little gangster) and toed in, and each drifting on its own (f: how
@@ -100,6 +100,7 @@ const _rackT = { p: 0, r: 0, y: 0, z: 0, h: 0, w: 0 };
 const ACT = { p: 0, vp: 0, r: 0, vr: 0, y: 0, vy: 0, h: 0, vh: 0, z: 0, vz: 0, hp: 0, vhp: 0, hy: 0, vhy: 0, tw: 0, vtw: 0 }, ACT_K = 260, ACT_D = 26;
 const ACT_AX = ['p', 'r', 'y', 'h', 'z', 'hp', 'hy', 'tw'], _actT = { p: 0, r: 0, y: 0, h: 0, z: 0, hp: 0, hy: 0, tw: 0 };
 function relKnock(p, r, h, z) { ACT.vp += p; ACT.vr += r * rr(0.85, 1.15); ACT.vh += h || 0; ACT.vz += z || 0; }
+const REV_OPEN = 0.06, REV_SWING = 1.75, REV_OUT = [0.012, 0.01];   // the revolver's cylinder: how soon it's out, how far it swings (radians) and is carried out and down (m)
 const bump = (t, a, b) => Math.sin(Math.PI * clamp((t - a) / (b - a), 0, 1));   // 0, up to 1 and back to 0 between a and b
 // each gun's recoil, a spring per hand: muzzle flip (p, up is negative), drive back (z), lift (h), roll (r) and a kick
 // to the side (y). A shot throws the gun up and back; a beat later the hands haul it back down (drop), so a strong gun
@@ -618,7 +619,20 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (belt) { const n = rel === 'mag' && rpm >= 0.6 ? belt.length : Math.min(belt.length, W8.mag[id] || 0); belt.forEach((r, k) => { r.visible = k < n; }); beltJiggle(belt, holdOf(s, 'R'), rdt); } else BJ.on = false;
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
-  if (cr.length) { const want = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = -ANIM.crane * 1.3; c.updateMatrix(); }); }   // out to the left
+  // revolver: a beat after the reload starts (REV_OPEN, the thumb on the release) the cylinder's flicked out to the left
+  // on its crane, well clear of the frame (REV_SWING, and carried out and down a touch, REV_OUT), and bounces off its
+  // stop; when it's done it's snapped shut. On a spring, so it swings rather than slides
+  if (cr.length) {
+    const open = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT);
+    ANIM.craneT = open ? (ANIM.craneT || 0) + rdt : 0; ANIM.crane = ANIM.crane || 0; ANIM.vcrane = ANIM.vcrane || 0;
+    const want = open && ANIM.craneT >= REV_OPEN ? 1 : 0;
+    for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {
+      springTo(ANIM, 'crane', 'vcrane', want, want ? 520 : 900, want ? 22 : 56, h);
+      if (ANIM.crane < 0) { ANIM.crane = 0; ANIM.vcrane = 0; }   // shut against the frame
+      if (ANIM.crane > 1.12) { ANIM.crane = 1.12; ANIM.vcrane = -Math.abs(ANIM.vcrane) * 0.3; }   // and out against its stop
+    }
+    cr.forEach(c => { const p0 = c.userData.p0 || (c.userData.p0 = c.position.clone()), o = ANIM.crane; c.rotation.z = -o * REV_SWING; c.position.set(p0.x + REV_OUT[0] * o, p0.y - REV_OUT[1] * o, p0.z); c.updateMatrix(); });
+  }
   // ---- hands: start from their places on the gun
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand;
   gunPt(_hR, s, 'R', H.grip[0] + hd.out, H.grip[1] - hd.grip, H.grip[2]);

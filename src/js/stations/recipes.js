@@ -76,7 +76,7 @@ function tinkerCards() {
   const group = gearGroup(D), out = [];
   modsFor(id).forEach(m => out.push({ ic: 'gear', group, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
     make: () => { const fx0 = modFx(m); addMod(id, m); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text, fx: fx0 }); } }));
-  modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m); }, title: () => MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
+  modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { const fx0 = improveFx(id, m); improveMod(m); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.', fx: fx0 }); } }));
   return out;
 }

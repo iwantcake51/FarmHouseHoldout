@@ -17,12 +17,14 @@ function openStation(s) {
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
   openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();
+  updateWeaponStats();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
   if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
 }
 function closeStation() {
   if (!openSt) return; openSt = null;
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
+  updateWeaponStats();   // the stats slide back in behind it as it rolls up
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue

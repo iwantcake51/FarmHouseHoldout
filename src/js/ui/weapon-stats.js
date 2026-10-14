@@ -1,6 +1,8 @@
 // The weapon stats panel: everything about the weapon in your hands in one compact sheet (damage, fire rate,
 // magazine, each kind of reload, the pump or bolt, spread and drop-off as small charts) and what is changing each
-// number. It sits beside the workbench while that's open, and I shows or hides it anywhere.
+// number. Each number sits in a box: grey as the gun comes, green where something you've fitted or learned has made
+// it better, red where something's made it worse, with how much. It's docked against the workbench's left side while
+// that's open (sliding out from behind it as it unrolls), and I shows or hides it anywhere.
 
 // shown at the workbench unless you hide it there (wsBench), and elsewhere only once you ask for it (wsOn)
 let wsOn = false, wsBench = true, wsKey = '';
@@ -48,6 +50,15 @@ function wsSources(id) {
   diff('Your skills', () => { ks.forEach(k => { S[k] = 1; }); S.pierce = 0; return () => { ks.forEach((k, i) => { S[k] = keep[i]; }); S.pierce = pk; }; });
   return out;
 }
+// the gun as it comes: every tier, mod, tune-up and skill taken away at once, the numbers read, and all put back
+function wsStock(id) {
+  const g = W8.gt[id] = W8.gt[id] || {}, keys = [...GUN_TIERS], tiers = keys.map(k => g[k] || 0), mods = (W8.mods[id] || []).slice(), tune = W8.tune[id];
+  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]), pk = S.pierce;
+  keys.forEach(k => { g[k] = 0; }); if (W8.mods[id]) W8.mods[id].length = 0; if (tune) W8.tune[id] = 0; ks.forEach(k => { S[k] = 1; }); S.pierce = 0;
+  recomputeEff(); const r = wsNumbers(id);
+  keys.forEach((k, i) => { g[k] = tiers[i]; }); if (W8.mods[id]) W8.mods[id].push(...mods); if (tune) W8.tune[id] = tune; ks.forEach((k, i) => { S[k] = keep[i]; }); S.pierce = pk;
+  recomputeEff(); return r;
+}
 const wsF = (v, d = 1) => v.toFixed(d), wsDeg = v => { const x = v * 57.3; return x.toFixed(x < 2 ? 2 : 1) + '°'; };
 // a cone for each way you're firing: hip, moving and aimed (firing.js: spreadOf)
 function wsCone(sp) {
@@ -68,29 +79,50 @@ function wsFall(id, r) {
 }
 function wsHTML(id) {
   const D = W(id), r = wsNumbers(id); if (!r) return '';
-  const row = (l, v, sub) => `<span class="l">${l}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : '<em></em>'}`;
-  let h = `<div class="wsHead"><b>${D.short || D.name}</b><span>${D.name}${r.ak ? ' · a pair' : ''}</span></div><div class="wsGrid">`;
-  if (r.melee) return h + row('Damage', Math.round(r.dmg)) + row('Swings', wsF(r.rate) + '/s') + row('Reach', wsF(r.reach, 2) + ' m') + row('Hits', r.hits > 1 ? 'up to ' + r.hits : 'one') + '</div>';
-  h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '');
-  h += row('Fire rate', wsF(r.rate) + '/s', r.ak ? wsF(r.rate / 2) + '/s each gun' : '');
-  h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag));
-  if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty');
-  else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`);
-  else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.tac !== undefined ? wsF(r.reload) + ' s empty (slide)' : (D.speedload ? 'speed loader' : ''));
-  if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots');
-  if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through');
-  h += row('Headshots', '×' + wsF(r.head, 2));
+  // a row: the number in its box, set against the stock gun's (v and was; dir says which way is better), and the
+  // change, then any note
+  const row = (l, txt, sub, v, was, dir = 1) => {
+    let k = '', d = '';
+    if (v !== undefined && was !== undefined && Math.abs(v - was) > Math.max(1e-6, Math.abs(was) * 0.005)) {
+      k = (v > was) === (dir > 0) ? 'up' : 'down';
+      d = `<i class="d ${k}">${was ? (v > was ? '+' : '') + Math.round((v / was - 1) * 100) + '%' : '+' + wsF(v, 0)}</i>`;
+    }
+    return `<span class="l">${l}</span><b class="v ${k}">${txt}</b><em>${d}${sub || ''}</em>`;
+  };
+  let h = `<div class="wsHead"><b>${D.short || D.name}</b><span>${D.name}${r.ak ? ' · a pair' : ''}</span></div>`;
+  if (r.melee) return h + '<div class="wsGrid">' + row('Damage', Math.round(r.dmg)) + row('Swings', wsF(r.rate) + '/s') + row('Reach', wsF(r.reach, 2) + ' m') + row('Hits', r.hits > 1 ? 'up to ' + r.hits : 'one') + '</div>';
+  const s = wsStock(id) || {}, sRel = s.tac ?? s.reload;
+  h += '<div class="wsLegend"><span>Stock</span><span class="up">Better</span><span class="down">Worse</span></div><div class="wsGrid">';
+  h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '', r.dmg, s.dmg);
+  h += row('Fire rate', wsF(r.rate) + '/s', r.ak ? wsF(r.rate / 2) + '/s each gun' : D.fan ? wsF(S.rateMul / D.fan.rate) + '/s fanned from the hip' : '', r.rate, s.rate);
+  h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag), '', r.mag, s.mag);
+  if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty', r.shell, s.shell, -1);
+  else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`, r.akTac, s.akTac ?? sRel, -1);
+  else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.tac !== undefined ? wsF(r.reload) + ' s empty (slide)' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
+  if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
+  h += row('Spread', wsDeg(r.spread * 1.3), D.fan ? wsDeg(r.spread * 1.3 * D.fan.spread) + ' fanning' : 'from the hip', r.spread, s.spread, -1);
+  if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
+  if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
+  h += row('Headshots', '×' + wsF(r.head, 2), '', r.head, s.head);
   h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
   const src = wsSources(id);
   h += '<div class="wsSub">What\'s changing it</div>' + (src.length ? '<div class="wsSrc">' + src.map(s => `<div><span>${s.name}</span>${s.fx.map(f => `<i class="${f.good ? 'up' : 'down'}">${f.label} ${f.t}</i>`).join('')}</div>`).join('') + '</div>' : '<div class="wsNone">Stock: nothing fitted or learned yet</div>');
   return h;
 }
-// every frame: shown or hidden, beside the workbench while it's open, and rebuilt only when something it shows changes
+// every frame: shown or hidden, docked against the workbench while it's open, and rebuilt only when something it
+// shows changes. It comes in and goes out with a slide and a fade (styles/weapon-stats.css): docked, out from behind
+// the bench as it unrolls and back in as it rolls up, the bench keeping its place till it's gone so neither jumps
+let wsCloseT = 0;
 function updateWeaponStats() {
-  const el = $('wStats'), on = wsShown() && !!curId(), id = curId();
-  if (el.hidden === on) el.hidden = !on;
-  $('station').classList.toggle('withStats', on && wsAtBench());
+  const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
+  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); if (on) el.classList.toggle('docked', dock); }
+  if (on && (el.hidden || el.classList.contains('closing'))) {
+    clearTimeout(wsCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; void el.offsetWidth; el.classList.add('opening');
+  } else if (!on && !el.hidden && !el.classList.contains('closing')) {
+    el.classList.remove('opening'); el.classList.add('closing');
+    clearTimeout(wsCloseT); wsCloseT = setTimeout(() => { el.classList.remove('closing'); el.hidden = true; }, 200);
+  }
   if (!on) return;
   const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.pierce, S.headMul, S.att]);
   if (key !== wsKey) { wsKey = key; el.innerHTML = wsHTML(id); }

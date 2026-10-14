@@ -86,6 +86,9 @@ function greyDrop(p, dt) {
 function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
+    // a gun you put down lies there for two rounds (GUN_KEEP): when the round after those starts it gives its 10-second
+    // warning and is gone
+    if (p.kind === 'gun' && p.t === Infinity && run.wave >= p.cargo.until) p.t = 10;
     if (p.mats.length) greyDrop(p, dt);
     // tossed out of the body, then a slow bob and spin over a pulsing ring
     const a = Math.min(1, p.age / 0.32), pop = 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);
@@ -150,6 +153,7 @@ function nearestTake() {
   return best;
 }
 // put a weapon down where you stand: a copy of it as you carry it, lying on its side, to pick back up
+const GUN_KEEP = 2;   // rounds a gun you've put down stays on the ground
 function gunDrop(id) {
   const s = WEAP[id].slot, src = gunMeshes[s]; if (!src) return;
   const copy = src.clone(true);
@@ -159,7 +163,9 @@ function gunDrop(id) {
   copy.updateMatrixWorld(true); const c = new THREE.Box3().setFromObject(copy).getCenter(new V3());
   const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
   const a = rr(0, Math.PI * 2);
-  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: lay, mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null });
+  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
+  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
+  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: lay, mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until });
 }
 function takeIt(p) {
   const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];
