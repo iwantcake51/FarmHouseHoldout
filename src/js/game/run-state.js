@@ -39,7 +39,7 @@ function recomputeEff() {
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
     if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
     if (D.akimbo) D.reload *= AK_ONE;
-    D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];
+    D.aimK = SIGHT_AIM[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, a laser the hip (weapons/firing.js: spreadOf)
     if ((g.supp || 0) >= 3) D.pierce = (D.pierce || 0) + 1;   // the heavy-duty can: bullets go through one more zombie
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     EFF[id] = D;
@@ -58,6 +58,11 @@ const MAG_SLOW = 0.3, AK_ONE = 1;
 const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5] };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
+// each attachment does its own job, none of them the same thing twice: a sight tightens the shots you aim down the
+// sights (and raises the headshot multiplier, HEAD_UP), a laser tightens the ones from the hip (and shows where they
+// go), the shoulder stock only steadies the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a
+// choke squeezes the pellets, a light lights. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted
+const SIGHT_AIM = [1, 0.75, 0.6, 0.6], LASER_HIP = [1, 0.8, 0.6];
 // what match-grade rounds and each sight add to a gun's headshot multiplier (on top of S.headMul's 2.2×)
 const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3] };
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a

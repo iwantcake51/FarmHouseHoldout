@@ -14,13 +14,16 @@ const fireRate = D => fanning(D) ? D.fan.rate : D.rate;   // seconds between sho
 // to settle after you stop, P.mvS), and a shot fired on the move only sometimes goes exactly where the crosshair sits
 // on a body (RUN_MISS of them at a full run don't, and fly with the spread instead). Aiming down the sights is steady
 const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
+// the shoulder stock on a sidearm steadies its kick, and only that (its aim is the sights' and laser's job): the view
+// and the bloom kick back STOCK.kick as hard, and quick shots open the spread STOCK.spray as fast
+const STOCK = { kick: 0.55, spray: 0.6 };
+const stocked = D => !!(S.att.stock && D && D.slot === 'side');
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming), holding the trigger opens it further
   const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
-  if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   return s;
@@ -162,7 +165,7 @@ function gunFire(id, D, side) {
   if (anyHit) run.hits++;
   const quiet = suppressed(D);
   if (quiet) SFX.supp(D.ammo === 'shells'); else SFX[GUN_SFX[id]]();
-  const st = S.att.stock && D.slot === 'side' ? 0.55 : 1;
+  const st = stocked(D) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st;
   fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
@@ -180,7 +183,7 @@ function gunFire(id, D, side) {
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
-  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
+  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(D) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16); }
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];

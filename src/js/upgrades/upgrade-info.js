@@ -3,15 +3,15 @@
 // what each upgrade line is for, shown under the card text
 const TIER_USE = {
   ammo: 'Ammo · each bullet hits harder', trigger: 'Trigger · the gun fires faster', mag: 'Magazine · more shots before you reload',
-  supp: 'Muzzle can · harder hits, much quieter shots, a smaller muzzle flash', sight: 'Sight · tighter aim and a bigger headshot multiplier',
-  laser: 'Laser · a beam shows exactly where your shots land, and tightens your aim', light: 'Light · lights up the ground ahead of you at night',
+  supp: 'Muzzle can · harder hits, much quieter shots, a smaller muzzle flash', sight: 'Sight · tighter shots down the sights, and a bigger headshot multiplier',
+  laser: 'Laser · a beam shows exactly where your shots land, and tightens your shots from the hip', light: 'Light · lights up the ground ahead of you at night',
   choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
   boots: 'Footwear · you move faster', hammer: 'Tool · faster, tougher boarding', eyes: 'Senses · you see more around you',
   night: 'Senses · you see in the dark', feed: 'Body · you heal when you kill'
 };
 const UPG_USE = {
   'Bayonet': 'Attachment · a blade under your long gun: shove (V) to stab',
-  'Shoulder stock': 'Attachment · steadies your sidearm: tighter aim and less kick',
+  'Shoulder stock': 'Attachment · steadies your sidearm\'s kick',
   'Incendiary rounds': 'Ammo · every hit sets zombies burning for 3 seconds',
   'Through and through': 'Ammo · each bullet keeps going through one more zombie'
 };
@@ -20,7 +20,7 @@ const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%'], 'Run and gun': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Through and through': ['Pierce +1'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
-  'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
+  'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['Slowdown when hit −85%', '+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
   'Last stand': ['+60% damage below 30% health'],
@@ -65,7 +65,7 @@ function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
   // a reload from empty: shell by shell (two or three a go with a speed loader), or one mag change
   const reload = D.melee ? 0 : (D.perShell ? Math.ceil(mag / (D.loadN || 1)) * D.perShell + 0.12 : D.reload || 0) * S.reloadMul;
-  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: D.spread || 0, head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
+  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change. (A chip
 // whose good is null is a plain stat, shown grey: chipCls)
@@ -75,11 +75,18 @@ function chip(label, a, b, higherIsBetter, fmt) {
   return { t: `${label} ${fmt(a)} → ${fmt(b)}`, good: (b > a) === higherIsBetter };
 }
 const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => { const d = v * 57.3; return d.toFixed(d < 2 ? 2 : 1) + '°'; };
+// spread from the hip and down the sights: one SPREAD chip when both move together, otherwise a chip for each that
+// changes (a laser only the hip, a sight only the aimed)
+function spreadChips(a, b) {
+  const kh = a.spread ? b.spread / a.spread : 1, ka = a.aim ? b.aim / a.aim : 1;
+  if (Math.abs(kh - ka) < 1e-6) return [chip('SPREAD', a.spread, b.spread, false, fmtDeg)];
+  return [chip('HIP SPREAD', a.spread, b.spread, false, fmtDeg), chip('AIMED SPREAD', a.aim, b.aim, false, fmtDeg)];
+}
 // damage is judged per shot (pellets included) but written per hit, e.g. 15×8 → 17×9
 function dmgChip(a, b) { const ta = a.dmg * a.pel, tb = b.dmg * b.pel; return Math.abs(ta - tb) < 1e-6 ? null : { t: `DMG ${fmtDmg(a)} → ${fmtDmg(b)}`, good: tb > ta }; }
 function compareFx(a, b) {
   return [dmgChip(a, b), chip(a.mag ? 'RATE' : 'SWINGS', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('MAG', a.mag, b.mag, true, fmt0), chip('RELOAD', a.reload, b.reload, false, v => fmt1(v) + ' s'),
-    chip('SPREAD', a.spread, b.spread, false, fmtDeg), chip('HEADSHOT', a.head, b.head, true, v => '×' + Math.round(v * 100) / 100)].filter(Boolean);
+    ...spreadChips(a, b), chip('HEADSHOT', a.head, b.head, true, v => '×' + Math.round(v * 100) / 100)].filter(Boolean);
 }
 // mods that add a feature rather than a number
 const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
@@ -92,7 +99,7 @@ function tierFx(id, k) {
   const b = gunStats(id, W(id));
   W8.gt[id][k] = n; recomputeEff();
   if (k === 'supp' && !D0.quiet) { a.dmg *= [1, 1.1, 1.2, 1.3][n]; b.dmg *= [1, 1.1, 1.2, 1.3][n + 1]; }   // the can's bonus is applied as you fire
-  if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[n]; b.spread *= m[n + 1]; }
+  if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[n]; b.spread *= m[n + 1]; a.aim *= m[n]; b.aim *= m[n + 1]; }
   const fx = compareFx(a, b);
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });

@@ -14,9 +14,9 @@ function wsNumbers(id) {
   if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
   const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
   const shot = D.dmg * S.dmgMul * suppMul(D);
-  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, hipK: D.hipK || 1, aimK: D.aimK || 1, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
-  if (S.att.stock && D.slot === 'side') r.spread *= 0.75;
+  r.hipSp = r.spread * 1.3 * r.hipK; r.aimSp = r.spread * 0.5 * r.aimK;   // from the hip (a laser) and down the sights (a sight)
   // reloads, every kind this gun has
   if (D.perShell) { r.shell = D.perShell * S.reloadMul; r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + (id === 'revolver' ? 0.3 : 0.12); }
   else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
@@ -30,8 +30,8 @@ function wsNumbers(id) {
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
 // numbers read, and put back. A source is listed against each number it moves, with how much
 // each stat a source can move, its name, which way is better, and how a better one reads (a shorter reload is "faster")
-const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['spread', 'Spread', -1], ['pierce', 'Pierce', 1], ['head', 'Headshots', 1]];
-const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter', Headshots: p => '+' + Math.round(p) + '% damage' };
+const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['hipSp', 'Hip spread', -1], ['aimSp', 'Aimed spread', -1], ['pierce', 'Pierce', 1], ['head', 'Headshots', 1]];
+const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter', 'Hip spread': p => Math.round(-p) + '% tighter', 'Aimed spread': p => Math.round(-p) + '% tighter', Headshots: p => '+' + Math.round(p) + '% damage' };
 function wsSources(id) {
   const D = W(id), out = []; if (!D || D.melee) return out;
   const full = wsNumbers(id), g = W8.gt[id] = W8.gt[id] || {}, diff = (name, undo) => {
@@ -42,6 +42,9 @@ function wsSources(id) {
       const pct = k === 'pierce' ? (b - a) : (b / a - 1) * 100, good = (b > a) === (dir > 0);
       fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : good && WS_GOOD[label] ? WS_GOOD[label](pct) : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
     }
+    // a change to both spreads alike (a skill, a mod) reads as one: Spread
+    const hs = fx.find(f => f.label === 'Hip spread'), as = fx.find(f => f.label === 'Aimed spread');
+    if (hs && as && hs.t === as.t) { fx.splice(fx.indexOf(as), 1); hs.label = 'Spread'; }
     if (fx.length) out.push({ name, fx });
   };
   for (const k of GUN_TIERS) { const n = g[k] || 0; if (n) diff(tierName(k, n - 1, id), () => { g[k] = 0; return () => { g[k] = n; }; }); }
@@ -63,8 +66,8 @@ function wsStock(id) {
 }
 const wsF = (v, d = 1) => v.toFixed(d), wsDeg = v => { const x = v * 57.3; return x.toFixed(x < 2 ? 2 : 1) + '°'; };
 // a cone for each way you're firing: hip, moving and aimed (firing.js: spreadOf)
-function wsCone(sp, mob) {
-  const mv = sp * 1.3 * (1 + RUN_SPREAD * (mob || 1)), W_ = 230, H = 70, ox = 8, oy = H / 2, L = W_ - 16, cones = [['Moving', mv, 'rgba(226,65,44,.18)', '#e2412c'], ['Hip', sp * 1.3, 'rgba(240,191,76,.2)', '#f0bf4c'], ['Aimed', sp * 0.5, 'rgba(94,194,196,.28)', '#5ec2c4']];
+function wsCone(sp, mob, hipK, aimK) {
+  const hip = sp * 1.3 * (hipK || 1), mv = hip * (1 + RUN_SPREAD * (mob || 1)), W_ = 230, H = 70, ox = 8, oy = H / 2, L = W_ - 16, cones = [['Moving', mv, 'rgba(226,65,44,.18)', '#e2412c'], ['Hip', hip, 'rgba(240,191,76,.2)', '#f0bf4c'], ['Aimed', sp * 0.5 * (aimK || 1), 'rgba(94,194,196,.28)', '#5ec2c4']];
   // drawn to scale against each other, the widest filling the box, so a tight gun's cones still show; the labels are true
   const path = a => { const t = (oy - 3) * a / mv; return `M${ox} ${oy} L${ox + L} ${(oy - t).toFixed(1)} L${ox + L} ${(oy + t).toFixed(1)} Z`; };
   return `<svg class="wsCone" viewBox="0 0 ${W_} ${H}">${cones.map(([n, a, f, s]) => `<path d="${path(a)}" fill="${f}" stroke="${s}" stroke-width="1"/>`).join('')}<line x1="${ox}" y1="${oy}" x2="${ox + L}" y2="${oy}" stroke="rgba(236,230,216,.25)" stroke-dasharray="2 3"/></svg>
@@ -103,13 +106,13 @@ function wsHTML(id) {
   else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`, r.akTac, s.akTac ?? sRel, -1);
   else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
   if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
-  h += row('Spread', wsDeg(r.spread * 1.3), D.fan ? wsDeg(r.spread * 1.3 * D.fan.spread) + ' fanning' : 'from the hip', r.spread, s.spread, -1);
+  h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
   h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
   // crits a gun lands without a scope: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
   if (r.crit || r.aimCrit) h += row('Crits', Math.round((r.crit + r.aimCrit) * 100) + '%', (r.aimCrit ? 'aimed shots' + (r.crit ? `, ${Math.round(r.crit * 100)}% from the hip` : '') : 'any shot') + ` · ×${wsF(r.critX, 2)} damage`, r.crit + r.aimCrit, (s.crit || 0) + (s.aimCrit || 0));
-  h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread, D.mobile);
+  h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread, D.mobile, r.hipK, r.aimK);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
   // what's improving it: each upgrade, attachment, mod or skill that makes a number better, and only how it does
   const src = wsSources(id).map(q => ({ name: q.name, fx: q.fx.filter(f => f.good) })).filter(q => q.fx.length);

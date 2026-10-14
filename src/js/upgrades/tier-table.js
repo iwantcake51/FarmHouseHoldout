@@ -23,12 +23,12 @@ const TIERS = {
     { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
     { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => {} }] },
   sight: { tag: 'Attachment', t: [
-    { r: 'c', name: 'Red dot', text: '15% tighter aim. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => S.spreadMul *= 0.85 },
-    { r: 'u', name: 'Holographic sight', text: '20% tighter aim. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => S.spreadMul *= 0.8 },
+    { r: 'c', name: 'Red dot', text: 'Shots aimed down the sights 25% tighter. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => {} },
+    { r: 'u', name: 'Holographic sight', text: 'Shots aimed down the sights 20% tighter again. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => {} },
     { r: 'r', name: 'Scope', text: 'Rifles only. While aiming: 1 in 4 hits does double damage, headshot multiplier ×1.25, dead accurate past 10 m.', vis: 'A scope on the rifle', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Laser pointer', text: 'Shows where you\'re aiming. 15% tighter aim.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
-    { r: 'r', name: 'Laser sight', text: 'A brighter beam. 30% tighter aim.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },
+    { r: 'u', name: 'Laser pointer', text: 'Shows where your shots go. Shots from the hip 20% tighter.', vis: 'A taped-on laser', ap: () => {} },
+    { r: 'r', name: 'Laser sight', text: 'A brighter beam. Shots from the hip 25% tighter again.', vis: 'A mounted laser', ap: () => {} }] },
   light: { tag: 'Attachment', t: [
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider light.', vis: 'A mounted light', ap: () => {} }] },
