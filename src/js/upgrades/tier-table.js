@@ -1,6 +1,6 @@
 // Tiered upgrade lines (per-gun attachment tiers and character tiers).
 
-// tiered upgrade lines: each step has its own name, rarity and look
+// tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
 const TIERS = {
   ammo: { tag: 'Ammo', t: [
     { r: 'c', name: 'Hollow points', text: 'Deals 25% more damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
@@ -10,10 +10,11 @@ const TIERS = {
     { r: 'c', name: 'Light trigger', text: 'Fires 18% faster.', ap: () => S.rateMul *= 1.18 },
     { r: 'u', name: 'Match trigger', text: 'Fire another 15% faster.', ap: () => S.rateMul *= 1.15 },
     { r: 'r', name: 'Hair trigger', text: 'Fire another 20% faster.', ap: () => S.rateMul *= 1.2 }] },
+  // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
-    { r: 'c', name: 'Extended mags', text: 'Magazines and tubes hold 40% more.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
-    { r: 'r', name: 'Drum magazines', text: 'Twice the stock capacity.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
-    { r: 'e', name: 'Casket magazines', text: 'Close to three times stock capacity.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate' }, text: 'Magazines and tubes hold 40% more.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag' }, text: 'Twice the stock capacity.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
+    { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Close to three times stock capacity.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [
     { r: 'u', name: 'Oil-filter can', text: 'A homemade can: quieter, +10% damage. It takes the muzzle: no choke, compensator or ported barrel with it.', vis: 'An oil filter on the muzzle', ap: () => {} },
     { r: 'r', name: 'Suppressor', text: 'A proper can: +20% damage, very quiet.', vis: 'A long steel can', ap: () => {} },
@@ -60,3 +61,5 @@ const TIERS = {
     { r: 'e', name: 'Bloodthirst', text: 'Heal 4 health for every kill, 8 for a headshot kill.', ap: () => { S.healOnKill = 4; S.headHeal = true; } },
     { r: 'l', name: 'Vampire', text: 'Heal 6 for every kill, 12 for headshot kills.', ap: () => { S.healOnKill = 6; S.vampire = S.headHeal = true; } }] }
 };
+// what tier n of line k is called on gun id
+const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

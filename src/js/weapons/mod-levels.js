@@ -59,6 +59,19 @@ function addMod(id, m) {
 }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
+// what a gun fires as, for the HUD: the mode selected on it, or what the gun does by itself (an automatic's stream, a pump,
+// bolt or break action's one round, a handgun's single shots); n is how many rounds a burst sends
+const ACTION_MODE = { pump: 'Pump', hunting: 'Bolt', dbl: 'Break' };
+function fireModeOf(id) {
+  const D = W(id); if (!D || D.melee) return null;
+  const fm = W8.fm[id];
+  if (D.burst) return { k: 'burst', t: 'Burst ' + D.burst, n: D.burst };
+  if (fm === 'auto') return { k: 'auto', t: 'Auto' };
+  if (fm === 'fan') return { k: 'fan', t: 'Fan' };
+  if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
+  if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
+  return { k: 'semi', t: 'Semi' };
+}
 function fireModes(id) { return [null, ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;

@@ -106,6 +106,7 @@
   "effects/eye-glow.js",
   "zombies/zombie-visuals.js",
   "ui/hud.js",
+  "ui/gear-popup.js",
   "game/visuals.js",
   "game/loop.js"
 ]

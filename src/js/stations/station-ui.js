@@ -10,8 +10,20 @@ function stationDist(s) {
   return Math.hypot(dx, dz) * STATION_REACH / FOOT_REACH;   // scaled so both kinds compare on the same footing
 }
 function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }
-function openStation(s) { openSt = s; $('station').hidden = false; stStruct = ''; renderStation(); SFX.click(); }
-function closeStation() { if (!openSt) return; openSt = null; $('station').hidden = true; }
+// the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
+// walking from one station to the next while it's open just changes what's on it
+let stCloseT = 0, stOpenT = 0;
+function openStation(s) {
+  const el = $('station'), shut = el.hidden || el.classList.contains('closing');
+  clearTimeout(stCloseT); el.classList.remove('closing');
+  openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();
+  if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
+}
+function closeStation() {
+  if (!openSt) return; openSt = null;
+  const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
+  clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
+}
 const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
@@ -34,11 +46,11 @@ function renderStation() {
   const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
-    stStruct = struct; let group = null;
+    stStruct = struct; let group = null, k = 0;   // k: each heading and card's place, for the cards rising in one after another as it opens
     // a heading above the first card of each group (everything for the weapon in your hands)
     $('stRows').innerHTML = rows.map((r, i) => {
-      const head = r.group && r.group !== group ? `<div class="stGroup">${r.group}</div>` : ''; group = r.group || null;
-      return head + `<button type="button" data-i="${i}" style="--ic:${ST_ICON_COL[r.ic]}">
+      const head = r.group && r.group !== group ? `<div class="stGroup" style="--k:${Math.min(8, k++)}">${r.group}</div>` : ''; group = r.group || null;
+      return head + `<button type="button" data-i="${i}" style="--ic:${ST_ICON_COL[r.ic]};--k:${Math.min(8, k++)}">
       <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic]}</svg></span>
       <span class="tx"></span>
       <span class="ft">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}<span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
@@ -67,3 +79,5 @@ function craft(i) {
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.board(); renderStation();
   const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
 }
+// the wheel eases the cards along instead of jumping a notch at a time (core/dom.js)
+smoothWheel($('stRows'));

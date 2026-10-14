@@ -64,6 +64,7 @@ function vaultUpper(v, up) {
   const hold = air ? 1 - vk(t, 0.88, 1) : c; up.x *= 1 - hold; up.z *= 1 - hold;
   up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
   PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat
+  if (vaultGun()) up.y += clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * (air ? 1 : c);   // Run and gun: the chest turns to keep the gun on the aim
 }
 // both hands go down on the sill or rail (the weapon is put away) and stay put on it while your body goes over
 const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
@@ -79,7 +80,8 @@ function vaultHands(pm, v) {
   const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
   // once the hands let go they swing out loose for balance (the weapon's put away), and come back to it for the landing
   const wb = air ? vk(t, 0.35, 0.55) * (1 - vk(t, 0.86, 1)) : 0;
-  if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].forEach(([s, arm, sd]) => {
+  const one = vaultGun();   // Run and gun: the right hand stays on the gun, the left does the vault alone
+  if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
     armRest(arm, s, 0.9 + Math.sin(t * 9 + sd) * 0.08, sd * 0.5);
     arm.rotation.set(_vr.x + (arm.rotation.x - _vr.x) * wb, _vr.y + (arm.rotation.y - _vr.y) * wb, _vr.z * (1 - wb)); arm.scale.z = sc0 + (arm.scale.z - sc0) * wb;
@@ -89,7 +91,7 @@ function vaultHands(pm, v) {
   if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
   const lat = [v.L[0], v.L[1]];   // to your left
-  [['L', pm.armL, 1], ['R', pm.armR, -1]].forEach(([s, arm, sd]) => {
+  [['L', pm.armL, 1], ['R', pm.armR, -1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;   // the left hand is already set 0.16 to the left
     _vw.copy(v.plant); _vw.x += lat[0] * dL; _vw.z += lat[1] * dL; _vw.y += 0.03; vaultReach(pm, arm, s, _vw, w1);
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
@@ -199,9 +201,10 @@ function updatePlayerVisuals(dt, rdt) {
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   { const k = 1 - titleBlend(); if (pXray.rim.opacity !== 0.75 * k) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * k; } }
-  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && !P.vault; });   // put away while you vault (it rides on your body, player/stow.js)
+  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
+  updateBandStow();      // and so does putting it away for a bandage, or drawing it again after
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.003); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
   updateCharBlood(rdt);   // the stain on you (effects/body-blood.js)

@@ -63,6 +63,9 @@
 .histBox summary::before{content:"\25B8  "}.histBox[open] summary::before{content:"\25BE  "}
 .histBox summary b,.histHead b{color:var(--ink);font-family:var(--f-num);font-size:16px;letter-spacing:0;margin-left:4px}
 .histBox .hist{margin-top:8px;max-height:28vh}
+.histBox::details-content{height:0;overflow:clip;transition:height .3s cubic-bezier(.25,.8,.25,1),content-visibility .3s allow-discrete}
+.histBox[open]::details-content{height:auto}
+@media (prefers-reduced-motion:reduce){.histBox::details-content{transition:none}}
 .histHead{display:flex;align-items:baseline;gap:6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:4px}
 .hist{display:grid;gap:5px;max-height:44vh;overflow-y:auto;padding-right:4px;text-align:left}
 .hist .none{color:var(--dim);font-size:12px;padding:8px 0}
@@ -78,3 +81,8 @@
 .card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.55),0 0 34px rgba(216,105,44,.35)}
 #upNote{opacity:0;transition:opacity .3s}
 #upgrade.armed #upNote{opacity:1}
+/* the pause screen's two lists side by side on a wide screen: the cards you took, and the gear you bought */
+#paused .inner{width:min(940px,100%)}
+.pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px 22px;align-items:start}
+.pLists .hist{max-height:42vh}
+.hrow.gear .ht{color:var(--rc)}

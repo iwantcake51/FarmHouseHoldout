@@ -25,7 +25,8 @@ function updateHUD(rdt, D) {
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
     { const inc = Math.min(1 - hpF, (P.heal || 0) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
-    { const hv = Math.round(Math.min(1, (P.bandT > 0 ? 0.7 : 0) + Math.min(1, (P.heal || 0) / 12)) * 40) / 40; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
+    // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
+    { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
     setRoll('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
     setRoll('planks', String(S.planks)); if (cache.plFull !== (S.planks >= PLANK_MAX)) { cache.plFull = S.planks >= PLANK_MAX; $('planks').classList.toggle('full', cache.plFull); } setRoll('kills', String(run.kills)); setRoll('scrap', String(S.scrap));
@@ -43,11 +44,41 @@ function updateHUD(rdt, D) {
     { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
-    renderMeleeArt(id, D);
+    renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;
     setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;
+}
+// the fire mode by the ammo count (styles/hud-weapon.css): its rounds and name, with B when the gun can switch; drawn
+// again only when the mode or the gun changes
+function renderFireMode(id) {
+  const m = fireModeOf(id), el = $('fireMode'), key = m ? id + m.k + m.t : '';
+  if (cache.fm === key) return;
+  const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
+  el.hidden = !m; if (!m) return;
+  const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : 1;
+  g.className = 'fmG ' + m.k + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);
+  el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = fireModes(id).length < 2;
+  if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
+}
+// switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
+// for a moment, and the HUD's rounds roll over to it
+function fireModeSwitched(id) {
+  SFX.click(); tn(0.03, 'square', 900, 700, 0.06); setTimeout(() => tn(0.025, 'square', 1350, 1050, 0.05), 70);
+  const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
+  x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  renderFireMode(id);
+}
+// bleeding (weapons/combat-update.js): a drop of blood lands on the screen somewhere near its edge, runs down a little
+// and dries away; a few at most, the oldest going first (styles/overlays.css)
+function screenDrop() {
+  const box = $('bleedFx'); if (!box || state !== 'play') return;
+  while (box.childElementCount > 8) box.firstElementChild.remove();
+  const el = document.createElement('i'), side = rand(), x = side < 0.35 ? rr(2, 14) : side < 0.7 ? rr(86, 97) : rr(14, 86), y = side < 0.7 ? rr(4, 78) : rr(2, 16);
+  const sz = rr(10, 30), hold = rr(1.2, 2.2), life = rr(2.5, 3.8);
+  el.style.cssText = `left:${x}%;top:${y}%;--s:${sz.toFixed(0)}px;--hold:${hold.toFixed(2)}s;--life:${life.toFixed(2)}s;--run:${rr(0.9, 1.9).toFixed(2)}s;--len:${rr(sz * 0.9, sz * 3).toFixed(0)}px;rotate:${rr(-14, 14).toFixed(0)}deg`;
+  box.appendChild(el); setTimeout(() => el.remove(), (hold + life) * 1000 + 100);
 }

@@ -13,10 +13,15 @@ function sgRing(r) {
   dash(xhSgSh, gs); dash(xhSgR, g);
 }
 let gapCur = 10, lastGap = -1;
-const ARC = 2 * Math.PI * 30 * (84 / 360), M_ARC = 2 * Math.PI * 22 * (64 / 360);   // the gun's ammo arc; the melee stamina arc
+// the ammo arc (on the right) and the stamina arc (underneath) ride just outside the spread ring, so a wide spread never
+// swallows them: their radius grows with it from where they sit when it's tight (aR, sR), and the grenade launcher's
+// arc and the warning text move out with them
+let aR = 30, sR = 22;
+const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
 function ammoDash(n, filled) {
-  if (n > 40) return [`${(ARC * filled / n).toFixed(2)} 999`, `${ARC.toFixed(2)} 999`];
-  const seg = ARC / n, d = (seg * 0.7).toFixed(2), g = (seg * 0.3).toFixed(2);
+  const A = ARC();
+  if (n > 40) return [`${(A * filled / n).toFixed(2)} 999`, `${A.toFixed(2)} 999`];
+  const seg = A / n, d = (seg * 0.7).toFixed(2), g = (seg * 0.3).toFixed(2);
   const fg = filled ? Array(filled).fill(d + ' ' + g).join(' ') + ' 0 999' : '0 999';
   return [fg, Array(n).fill(d + ' ' + g).join(' ') + ' 0 999'];
 }
@@ -41,7 +46,7 @@ function updateCrosshair(rdt, D) {
     // away once it's full again
     {
       const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
-      if (on || cache.xhSt !== false) { st.setAttribute('stroke-dasharray', `${(sd * M_ARC).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC.toFixed(2)} 999`); }
+      if (on || cache.xhSt !== false) { st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`); }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
@@ -66,14 +71,19 @@ function updateCrosshair(rdt, D) {
     const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, 56);   // through a scope it tightens with range
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2;
-    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
+    if (gap !== lastGap) {
+      lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap);
+      aR = Math.max(30, gap + 9); sR = Math.max(22, gap + 7);
+      [xhAmmo, xhAmmoBg, xhRing].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR);
+      $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
+    }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
     let tgt = false;
     if (!D.melee) tgt = !!aimRay(mz.ox, mz.oz, mz.a, 22).z;
     else tgt = zombies.some(z => { const th = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.5 ? 0.75 : 0; return Math.hypot(z.x - P.x, z.z - P.z) < D.range + z.T.r + th && Math.abs(angDiff(Math.atan2(z.x - P.x, z.z - P.z), P.aim)) < D.arc + (th ? 0.25 : 0); });
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
-      const n = magSize(id), have = W8.mag[id] || 0, key = n + ':' + have;
+      const n = magSize(id), have = W8.mag[id] || 0, key = n + ':' + have + ':' + aR;
       const healing = P.bandT > 0;
       if (cache.ammoKey !== key) { cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg); }
       xh.classList.toggle('lowammo', have <= Math.max(1, n * 0.25));
@@ -91,9 +101,9 @@ function updateCrosshair(rdt, D) {
     let rp = 0;
     if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
     else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
-    xhRing.setAttribute('stroke-dasharray', (ARC * clamp(rp, 0, 1)).toFixed(1) + ' 999'); xhRing.style.opacity = W8.reloading ? 1 : 0;
+    xhRing.setAttribute('stroke-dasharray', (ARC() * clamp(rp, 0, 1)).toFixed(1) + ' 999'); xhRing.style.opacity = W8.reloading ? 1 : 0;
     xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
-    const glArc = 2 * Math.PI * 36 * (84 / 360);
+    const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';
     if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / (D.glRecharge || 6))).toFixed(1) + ' 999');
   }

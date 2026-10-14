@@ -22,6 +22,7 @@ const SFX = {
   shell() { tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
   chargePull() { nz(0.07, 'bandpass', 1700, 900, 0.22, 2); tn(0.03, 'square', 900, 700, 0.05); },
   chargeSlam() { nz(0.05, 'bandpass', 1100, 500, 0.32, 2); tn(0.05, 'triangle', 420, 180, 0.2); },
+  slideDrop() { nz(0.045, 'bandpass', 1700, 900, 0.34, 2.2); tn(0.04, 'triangle', 560, 220, 0.18); },
   rack() { nz(0.06, 'bandpass', 1400, 800, 0.3, 2); setTimeout(() => nz(0.07, 'bandpass', 900, 500, 0.32, 2), 110); },
   tink(hull, v) { if (hull) { tn(0.05, 'triangle', rr(520, 640), 300, 0.05 * v); nz(0.04, 'bandpass', 1400, 900, 0.06 * v, 3); } else { const f = rr(3800, 5200); tn(0.06, 'sine', f, f * 0.97, 0.035 * v); tn(0.04, 'sine', f * 1.5, f * 1.48, 0.015 * v); } },
   // working a pump: the forend yanked back to its stop (a rasp and a clack), then shoved home (a heavier slam)

@@ -36,7 +36,7 @@ function fenceTarget() {
 }
 // vaulting takes a little out of you: 8% stamina through a window, 6% over a fence, and every vault you chain on within
 // a few seconds of the last costs another 4% (vaultHeat cools off over 3 s). Without the breath for it you
-// scramble over instead: slower and lower, panting, and you stumble when you land. Light feet halves the cost.
+// scramble over instead: slower and lower, panting, and you stumble when you land. Run and gun halves the cost.
 const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
 function tryVault() {
   if (P.vault) return;
@@ -94,3 +94,6 @@ function vaultLand(v) {
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;
   if (v.scramble) { P.slow = Math.min(1, P.slow + 0.35); camVault.vb -= 0.6; SFX.pant(); }   // a heavy, tired landing: slowed, but never frozen in place
 }
+// Run and gun: the gun stays in your right hand through a vault, on the aim, and you can fire it (the left hand takes the
+// sill on its own; a melee weapon is still put away)
+const vaultGun = () => !!(P.vault && S.vaultFire && !W(curId()).melee);

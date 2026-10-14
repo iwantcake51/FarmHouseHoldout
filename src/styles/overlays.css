@@ -98,3 +98,39 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 .dropMark.off .dmArrow{display:block;position:absolute;left:-10px;top:-11px;width:0;height:0;border-left:20px solid #f08a4a;border-top:11px solid transparent;border-bottom:11px solid transparent;transform-origin:10px 11px;transform:rotate(var(--a)) translateX(44px);filter:drop-shadow(0 0 6px rgba(240,138,74,.7))}
 @keyframes dmBob{50%{margin-top:-5px}}
 @keyframes dmBlink{50%{opacity:.55}}
+/* bleeding (ui/hud.js screenDrop): drops of blood land on the screen near its edges, each glossy, with a run that
+   trickles down from it, and dry away dark after a while */
+#bleedFx{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+#bleedFx i{position:absolute;width:var(--s);height:calc(var(--s) * 1.12);border-radius:50% 50% 46% 54% / 58% 56% 44% 42%;
+  background:radial-gradient(circle at 34% 30%,rgba(255,160,150,.55) 0 7%,rgba(176,18,12,.92) 27%,rgba(112,6,3,.95) 66%,rgba(78,0,0,.92));
+  box-shadow:0 1px 2px rgba(40,0,0,.45),inset 0 -2px 3px rgba(40,0,0,.35);animation:bfLand .2s cubic-bezier(.2,.9,.3,1.25) both,bfDry var(--life) ease-in var(--hold) forwards}
+#bleedFx i::after{content:"";position:absolute;left:36%;top:72%;width:30%;height:0;border-radius:0 0 50% 50%;background:linear-gradient(180deg,rgba(132,8,5,.92),rgba(120,6,4,.7) 80%,rgba(120,6,4,.0));animation:bfRun var(--run) cubic-bezier(.3,.2,.4,1) .25s forwards}
+@keyframes bfLand{from{transform:scale(.25);opacity:0}}
+@keyframes bfRun{to{height:var(--len)}}
+@keyframes bfDry{to{opacity:0;filter:saturate(.55) brightness(.6)}}
+@media (prefers-reduced-motion:reduce){#bleedFx i,#bleedFx i::after{animation-duration:.01s}}
+/* gear you get (ui/gear-popup.js): a card at the bottom middle, under the station panel, that rolls up into view from
+   its bottom edge, says what it is, what it's on and what it does, with a bar running out along its foot, and rolls
+   back down out of sight */
+#gearPop{--gc:#d9a83e;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;width:min(420px,46vw);display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;
+  padding:10px 16px 12px 10px;text-shadow:none;background:linear-gradient(180deg,rgba(18,19,20,.96),rgba(12,13,14,.94));border:1px solid rgba(236,230,216,.12);border-top:2px solid var(--gc);box-shadow:0 14px 34px -10px rgba(0,0,0,.85);overflow:hidden}
+#gearPop.in{animation:gpIn .38s cubic-bezier(.2,.8,.25,1) both}
+#gearPop.out{animation:gpOut .26s cubic-bezier(.55,0,.8,.2) both}
+@keyframes gpIn{from{clip-path:inset(100% 0 0 0);translate:0 12px}to{clip-path:inset(-10px -10px -10px -10px)}}
+@keyframes gpOut{from{clip-path:inset(-10px -10px -10px -10px)}to{clip-path:inset(100% 0 0 0);translate:0 10px}}
+#gearPop .gpIc{display:grid;place-items:center;width:44px;height:44px;background:color-mix(in srgb,var(--gc) 16%,rgba(0,0,0,.4));border:1.5px solid var(--gc)}
+#gearPop .gpIc svg{width:26px;height:26px;fill:var(--gc)}
+#gearPop .gpTx{display:grid;gap:3px;min-width:0}
+#gearPop .gpEye{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gc)}
+#gearPop .gpName{font-family:var(--f-num);font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;text-transform:uppercase;color:var(--ink)}
+#gearPop .gpText{font-style:normal;font-size:12px;line-height:1.4;color:#cfc8b8}
+#gearPop .gpText:empty{display:none}
+#gearPop .gpFx{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+#gearPop .gpFx:empty{display:none}
+#gearPop .gpFx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:10px;line-height:1.3;padding:2px 5px 1px;border:1px solid currentColor;border-radius:2px}
+#gearPop .gpFx .up{color:#8fd49a;background:rgba(80,160,96,.12)}#gearPop .gpFx .down{color:#ec8a72;background:rgba(200,80,60,.12)}
+#gearPop .gpBar{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--gc);opacity:.65;transform-origin:left center}
+#gearPop.in .gpBar{animation:tBar var(--hold,4.6s) linear .38s both}
+#gearPop.in .gpTx>*{animation:stRise .32s cubic-bezier(.2,.8,.3,1) backwards}
+#gearPop.in .gpName{animation-delay:.08s}#gearPop.in .gpText{animation-delay:.14s}#gearPop.in .gpFx{animation-delay:.2s}
+@media (prefers-reduced-motion:reduce){#gearPop.in,#gearPop.out,#gearPop.in .gpTx>*{animation-duration:.01s;animation-delay:0s}}

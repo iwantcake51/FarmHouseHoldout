@@ -23,7 +23,7 @@ function startBandage() {
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
-  P.bandT = 0; SFX.click();
+  P.bandT = 0; ANIM.healCut = true; SFX.click();   // the view snaps back out of the lean-in (player/hold.js)
   toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
 }
 function tickBandage(dt) {
@@ -31,7 +31,7 @@ function tickBandage(dt) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; feed('med', h, 'health over time'); popEl('bands'); }
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
   }
   if (P.heal > 0 && !P.dead) { const r = healRate(), h = Math.min(P.heal, dt * r, S.maxHp - P.hp); P.hp += h; P.heal -= Math.max(h, dt * r * (P.hp >= S.maxHp ? 1 : 0)); if (P.heal < 0.01) P.heal = 0; }
 }

@@ -24,7 +24,7 @@ function dropBeam() {
   const m = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ map: BEAM_TEX, color: 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
 }
-function dropPickup(x, z, kind, amount, ammoType) {
+function dropPickup(x, z, kind, amount, ammoType, cargo) {
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
   if (kind === 'planks') { box(g, 0.75, 0.07, 0.16, M.board, 0, 0.3, -0.05).rotation.y = .3; box(g, 0.75, 0.07, 0.16, M.board2, 0, 0.37, 0.05).rotation.y = -.2; }
@@ -33,7 +33,7 @@ function dropPickup(x, z, kind, amount, ammoType) {
     for (let k = 0; k < 3; k++) { const n = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 6), GM.steel); n.position.set(rr(-.12, .12), 0.25 + k * 0.03, rr(-.12, .12)); n.rotation.set(rand(), rand(), rand()); n.castShadow = true; g.add(n); }
     box(g, 0.24, 0.03, 0.06, GM.metal2, 0, 0.22, 0).rotation.y = rand() * 3;
   }
-  else if (kind === 'supply') { box(g, 0.8, 0.55, 0.6, M.olive, 0, 0.3, 0); box(g, 0.82, 0.08, 0.62, M.metal, 0, 0.45, 0); box(g, 0.25, 0.2, 0.02, M.white, 0, 0.3, 0.31); }
+  else if (kind === 'supply') crateModel(g, cargo);   // a supply crate, or a weapon's case (stations/supply-drop.js)
   else if (ammoType === 'p9') {        // a blue-grey carton of 9mm with rounds stood on top
     box(g, 0.34, 0.14, 0.24, AM.p9box, 0, 0.26, 0); box(g, 0.35, 0.02, 0.25, AM.cardboard, 0, 0.34, 0);
     for (let k = 0; k < 4; k++) cartridge(g, -0.11 + k * 0.075, 0.39, 0.02, 0.07, 0.018);
@@ -66,7 +66,7 @@ function dropPickup(x, z, kind, amount, ammoType) {
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
   if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
 // its ring and glow dimmed, so it's plain you can't grab it; it eases back into colour as soon as you have room
@@ -114,7 +114,8 @@ function updatePickups(dt) {
       if (p.kind === 'planks') { const n = addPlanks((rand() < 0.2 ? 2 : 1) * p.amount); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount; SFX.scrap(); }
-      else if (p.kind === 'supply') { ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
+      else if (p.kind === 'supply' && p.cargo && p.cargo.kind === 'weapon') { deliverWeapon(p.cargo.id); flareDone(); ft = WEAP[p.cargo.id].name; SFX.pick(); }
+      else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
         const opts = ammoTypes();
@@ -124,7 +125,7 @@ function updatePickups(dt) {
       }
       floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
-    } else if (p.t <= 0) { scene.remove(p.g); pickups.splice(k, 1); }
+    } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
     else if (d > 1.3) p.warned = false;
   }
 }

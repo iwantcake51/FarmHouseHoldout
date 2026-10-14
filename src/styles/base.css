@@ -16,3 +16,14 @@ body.playing #c{cursor:none}
 .hud{position:fixed;z-index:2;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.5)}
 .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .big{font-family:var(--f-num);font-weight:800;line-height:.85;font-variant-numeric:tabular-nums}
+/* scrollbars: a thin dark rail with a squared bar in the HUD's dim ink, warming to orange under the pointer and while
+   dragged (WebKit/Blink); Firefox gets the same colours on its own thin bar */
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:rgba(236,230,216,.035);box-shadow:inset 1px 0 0 rgba(236,230,216,.07)}
+::-webkit-scrollbar-thumb{background:rgba(163,158,144,.42);border:2px solid transparent;background-clip:padding-box;min-height:28px}
+::-webkit-scrollbar-thumb:hover{background-color:rgba(216,105,44,.75)}
+::-webkit-scrollbar-thumb:active{background-color:var(--orange)}
+::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:rgba(163,158,144,.5) rgba(236,230,216,.035)}}
+/* a <details> list opens and closes by growing to its height rather than snapping (where the browser can) */
+:root{interpolate-size:allow-keywords}

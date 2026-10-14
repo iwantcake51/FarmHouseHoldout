@@ -65,25 +65,55 @@ function stepCaseTrails(dt) {
     const k = g.t / g.max; g.s.material.opacity = g.a * k; g.s.scale.setScalar(g.sc * (0.5 + 0.5 * k));
   }
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepCaseTrails(dt); }
+// a belt-fed gun throws its spent links as well as its brass: each M13 link is a dark steel clip with two loops,
+// flicked out of the right of the feed tray with every round, slower and higher than the cases
+const LINK_MAT = lam(0x4e5054), LINK_LOOP = new THREE.TorusGeometry(0.0082, 0.0017, 4, 9, Math.PI * 1.4);
+const links = [];
+for (let k = 0; k < 60; k++) {
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  [-0.011, 0.011].forEach(o => { const t = new THREE.Mesh(LINK_LOOP, LINK_MAT); t.position.z = o; g.add(t); });
+  const st = new THREE.Mesh(UBOX_D, LINK_MAT); st.scale.set(0.004, 0.0016, 0.03); st.position.set(0.0075, -0.002, 0); g.add(st);
+  links.push({ g, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.006, bounces: 4, kind: 'link' });
+}
+let lIdx = 0;
+function ejectLinks(n, z) {
+  PM.g.updateMatrixWorld(true);
+  const h = holdOf(W8.cur, 'R');
+  _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
+  _cv.set(X - 0.036, GUN_Y + 0.025, z); h.localToWorld(_cv);
+  for (let k = 0; k < n; k++) {
+    const c = links[lIdx = (lIdx + 1) % links.length], side = rr(1.1, 1.9), up = rr(1.4, 2.2), back = rr(-0.2, 0.3);
+    c.g.position.copy(_cv); c.g.visible = true; c.g.scale.setScalar(1); c.g.rotation.set(rr(0, 3), P.aim + rr(-0.6, 0.6), rr(0, 3));
+    c.vx = _cR.x * side - _cF.x * back + P.vx * 0.8 + rr(-0.25, 0.25); c.vz = _cR.z * side - _cF.z * back + P.vz * 0.8 + rr(-0.25, 0.25); c.vy = up;
+    c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
+  }
+}
+function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
 for (let k = 0; k < 10; k++) { const g = new THREE.Group(); g.visible = false; scene.add(g); const body = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = true; g.add(body); mags.push({ g, body, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' }); }
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
-function dropMag(id) {
+function dropMag(id, side) {
   const D = W(id), mp = MAGPOS[W8.cur]; if (!D || !mp) return;
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
-  const drum = T('mag') >= 2 && id !== 'pistol' && id !== 'deagle' || id === 'auto12', belt = id === 'lmg';
-  const c = mags[mIdx = (mIdx + 1) % mags.length];
-  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2;
-  if (id === 'deagle') { w = 0.06; h = 0.17; d = 0.08; }
-  else if (id === 'smg' || id === 'sub') { w = 0.05; h = id === 'sub' && hasMod('stack') ? 0.38 : 0.24; d = 0.07; }
-  else if (id === 'ar') { w = 0.06; h = 0.26; d = 0.1; }
-  if (belt) { w = 0.17; h = 0.15; d = 0.17; mat = GM.olive; }
-  c.body.geometry = drum ? DRUM_G : UBOX_D; c.body.material = mat;
-  if (drum) { c.body.scale.set(belt ? 0.2 : 0.15, 0.12, belt ? 0.2 : 0.15); c.body.rotation.set(0, 0, Math.PI / 2); c.r = 0.075; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = 0.06; }
+  // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
+  // drum (its radius and thickness, and which way its axis runs: along the gun or across it)
+  const mt = T('mag'), c = mags[mIdx = (mIdx + 1) % mags.length];
+  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2, dr = null;
+  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = GM.poly; } }
+  else if (id === 'deagle') { w = 0.026; h = 0.17; d = 0.065; }
+  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
+  else if (id === 'sub') { w = 0.026; h = hasMod('stack') ? 0.36 : 0.24; d = 0.042; }
+  else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
+  else if (id === 'auto12') dr = { r: 0.114, t: 0.078, ax: 'z' };
+  else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.018 * mt; d = 0.174; mat = GM.olive; }
+  c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = mat;
+  if (dr) { c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); c.r = dr.r * 0.6; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = dr.t / 2; }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
-  _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv);
+  // an akimbo pair's left gun drops its own mag, from its own hand
+  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
+  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
+  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
   c.g.position.copy(_cv); c.g.rotation.set(0.2, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   c.vx = P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vz = P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vy = rr(-0.2, 0.6);
@@ -103,7 +133,7 @@ function stepDebris(list, dt) {
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
-        else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5)); tinkT = 0.035; }
+        else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little

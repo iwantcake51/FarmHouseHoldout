@@ -78,8 +78,8 @@ function updateSwap(dt, rdt) {
   const stowNew = stowFrame(st.to, _sw.b);
   // what shows where: the old weapon in the hand until it's put away, the new one on you until it's drawn
   const putting = t < T.put && st.oldW, drawing = t >= T.cross;
-  if (st.from) { gunMeshes[st.from].visible = !!putting; if (STOW[st.from]) STOW[st.from].visible = !putting && !P.dead; }
-  gunMeshes[st.to].visible = drawing; if (STOW[st.to]) STOW[st.to].visible = !drawing && !P.dead;
+  if (st.from) { gunMeshes[st.from].visible = !!putting; showStowed(st.from, !putting); }
+  gunMeshes[st.to].visible = drawing; showStowed(st.to, !drawing);
   if (putting) {
     // the right hand carries the old weapon back to where it rides; the left lets go
     const stowOld = stowFrame(st.from, _sw.c.clone()), k = smooth(t / T.put);
@@ -112,4 +112,19 @@ function updateSwap(dt, rdt) {
     const kl = smooth(clamp((u - 0.45) / 0.55, 0, 1));
     armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(liveL, kl), newMelee); armToward(pm.armL, lQ, lP, lS, kl * kl);
   }
+}
+// bandaging (player/hold.js): before the hands come up to the wrap, the right hand carries the weapon back to where it
+// rides, the same way a swap puts one away, and afterwards draws it again from there; bandP is how far it's gone (at 1
+// it's away, and the copy on your body shows instead)
+const _bs = new THREE.Matrix4();
+function updateBandStow() {
+  const k = ANIM.bandP || 0, s = W8.cur, g = gunMeshes[s];
+  if (k <= 0 || k >= 1 || swapSt || P.dead || P.vault || !g || !STOW[s]) return;
+  PM.g.updateMatrixWorld(true);
+  _sw.toUp.copy(PM.upper.matrixWorld).invert().multiply(PM.g.matrixWorld);
+  const live = toBody(g.matrixWorld, _sw.a), stow = stowFrame(s, _sw.b); if (!stow) return;
+  const e = smooth(k), f = blendFrame(_bs, live, stow, e), mel = isMelee(s);
+  placeAt(g, f);
+  armTo(PM.armR, 'R', gripAt(_sw.t, s, f), mel);
+  armTo(PM.armL, 'L', _sw.t2.copy(fistOf(PM.armL, _sw.liveL)).lerp(SWAP_REST_L, e), mel);
 }

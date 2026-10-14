@@ -11,7 +11,7 @@ const GUN_MODS = {
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: nearly twice the fire rate and ammo.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; } },
   longbarrel: { w: 'revolver', r: 'c', name: 'Eight-inch barrel', text: 'Revolver damage +30%, one more pierce, and its shots lose less damage at range.', vis: 'A much longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; D.reach = (D.reach || 1) + 0.3; } },
   fan: { w: 'revolver', r: 'r', fm: 'Fanning', name: 'Fan the hammer', text: 'Fire the revolver almost three times as fast, with more spread. B switches back to aimed shots.', vis: 'A filed-down hammer', stat: D => { D.rate = 0.15; D.spread *= 2.6; } },
-  boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every hand cannon round explodes on impact.', vis: 'Red-tipped rounds', stat: D => { D.explode = 1.5; } },
+  boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every hand cannon round explodes on impact.', vis: 'A red band on the magazine', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Halves hand cannon spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Pump shells set every zombie they hit on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },
   slug: { w: 'pump', r: 'u', name: 'Slug rounds', text: 'One heavy slug per shell that goes through three zombies.', vis: 'Yellow slugs in the side saddle', stat: D => { D.pellets = 1; D.dmg = 125; D.pierce = 2; D.spread = 0.012; } },

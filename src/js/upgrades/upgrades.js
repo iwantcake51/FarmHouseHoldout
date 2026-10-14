@@ -10,7 +10,7 @@ const UPG = [
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'A second pouch on your belt: carry 5 bandages instead of 3. It comes with two in it.', vis: 'A pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'Three full cans of ammo for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
-  { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast, for half the stamina.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
+  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Climb through windows and over fences a quarter faster, for half the stamina, and keep shooting while you do.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
@@ -22,7 +22,7 @@ const UPG = [
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
   // Gunsmith picks its gun when the card is dealt, so the card can say which one
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
-    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = WEAP[this.target].name.toLowerCase(); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm} gets two of its ammo, trigger and magazine upgrades raised a tier (the two furthest behind), and any of the three it has none of fitted at tier 1.`, vis: 'Changes two or three at once' }; },
+    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm} gets two of its ammo, trigger and magazine upgrades raised a tier (the two furthest behind), and any of the three it has none of fitted at tier 1.`, vis: 'Changes two or three at once' }; },
     ap() { const id = this.target; if (!id) return; W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health and you barely slow down when hit.', can: () => S.slowRes < 0.85, ap: () => { S.maxHp += 50; P.hp += 50; S.slowRes = Math.max(S.slowRes, 0.85); } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Kills sometimes slow the world for a moment.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
@@ -30,7 +30,7 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Light feet', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind']);
+const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind']);
 const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); if (k === 'Weapon') return c.tag; const tier = (c.tag.match(/Tier \d+ of \d+/) || [])[0]; return tier ? k + ' · ' + tier : k; }
@@ -87,7 +87,7 @@ function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= 
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons

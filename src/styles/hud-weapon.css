@@ -44,3 +44,22 @@
 .slots span.on{border-color:var(--orange);color:var(--ink);background:linear-gradient(0deg,rgba(216,105,44,.18),rgba(10,12,13,.72) 70%);box-shadow:0 4px 12px -6px var(--orange)}
 .slots span{transition:background .15s,border-color .15s,color .15s}
 .slots span.lock{opacity:.35}
+/* fire mode, left of the ammo count: the rounds a pull of the trigger sends (one; a burst's; a stream that fades off for
+   full auto; one for a pump, bolt or break action) over its name, with the B keycap when the gun can switch. A switch
+   rolls the new rounds up into place and flashes the name orange */
+#fireMode{align-self:center;display:grid;justify-items:center;gap:4px;margin-right:8px;padding:5px 8px 4px;min-width:46px;background:linear-gradient(180deg,rgba(10,12,13,.35),rgba(10,12,13,.7));border:1px solid rgba(236,230,216,.13);border-top:2px solid rgba(236,230,216,.3);text-shadow:none}
+#fireMode.sw{border-top-color:var(--orange)}
+#fireMode .fmG{display:flex;align-items:flex-end;gap:2px;height:14px;overflow:hidden}
+#fireMode .fmG i{display:block;width:4px;height:12px;background:#d4b25c;border-radius:1.5px 1.5px 0 0;box-shadow:0 1px 0 rgba(0,0,0,.6)}
+#fireMode .fmG.auto i:nth-child(n+3){opacity:.7}#fireMode .fmG.auto i:nth-child(n+4){opacity:.45}#fireMode .fmG.auto i:nth-child(n+5){opacity:.22}
+#fireMode .fmG.burst i{height:11px}
+#fireMode .fmG.fan i:nth-child(1){transform:rotate(-18deg)}#fireMode .fmG.fan i:nth-child(3){transform:rotate(18deg)}
+#fireMode .fmG.action i{width:5px;height:13px;background:#c9a043}
+#fireMode .fmG.in i{animation:fmIn .3s cubic-bezier(.2,.8,.3,1) backwards}
+#fireMode .fmG.in i:nth-child(2){animation-delay:.03s}#fireMode .fmG.in i:nth-child(3){animation-delay:.06s}#fireMode .fmG.in i:nth-child(4){animation-delay:.09s}#fireMode .fmG.in i:nth-child(5){animation-delay:.12s}
+@keyframes fmIn{from{transform:translateY(14px)}}
+#fireMode .fmT{display:flex;align-items:center;gap:4px;font-family:var(--f-num);font-weight:700;font-size:13px;letter-spacing:.12em;line-height:1;text-transform:uppercase;color:var(--ink)}
+#fireMode .fmT kbd{font-family:var(--f-ui);font-weight:600;font-size:9px;letter-spacing:0;padding:1px 3px 0;color:#15110c;background:var(--ink);border-radius:2px}
+#fireMode .fmT kbd[hidden]{display:none}
+#fireMode.sw .fmT b{animation:fmFlash .9s ease-out}
+@keyframes fmFlash{0%,30%{color:var(--orange);text-shadow:0 0 8px rgba(216,105,44,.8)}}

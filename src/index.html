@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="bleedFx"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -59,6 +59,7 @@
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
   </svg>
+  <div id="xhMode"></div>
   <div id="ammoWarn" hidden onanimationend="if(event.animationName==='awKick')this.classList.remove('kick')"></div>
 </div>
 
@@ -101,7 +102,7 @@
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
-  <div class="ammoRow"><img id="meleeArt" alt="" hidden><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd>B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
   <div id="rounds"></div>
   <div class="slots" id="slots"></div>
 </div>
@@ -176,8 +177,10 @@
   <div class="inner">
     <div class="eyebrow">Paused</div>
     <h2>Catch your breath</h2>
-    <div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div>
-    <div class="hist" id="pHist"></div>
+    <div class="pLists">
+      <div><div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div><div class="hist" id="pHist"></div></div>
+      <div><div class="histHead"><span>Gear you've bought and been given</span><b id="pBuyN">0</b></div><div class="hist" id="pBuy"></div></div>
+    </div>
     <div class="btns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
   </div>
 </div>

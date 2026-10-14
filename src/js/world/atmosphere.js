@@ -34,7 +34,7 @@ const motes = (() => {
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts);
   return { pts, pos, col, seed, m, MAX };
 })();
-const MOTE_DENSITY = 110 / (28 * 28);
+const MOTE_DENSITY = 45 / (28 * 28);   // a light scatter of them, not a haze
 // low banks of mist that creep across the yard at night
 const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
@@ -53,7 +53,7 @@ function stepAtmos(realDt) {
   WIND.value = t * 1.6;
   const tb = titleBlend();
   measureView();
-  motes.m.opacity = mix(0.5 * Math.max(0, day - 0.15), 0.35, tb);
+  motes.m.opacity = mix(0.42 * Math.max(0, day - 0.15), 0.35, tb);
   if (motes.m.opacity > 0.01) {
     const ex = viewExt.x, ez = viewExt.z, want = Math.min(motes.MAX, Math.round(MOTE_DENSITY * 4 * ex * ez)), ease = Math.min(1, realDt * 1.5);
     for (let k = 0; k < motes.MAX; k++) {
