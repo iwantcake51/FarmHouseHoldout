@@ -1,7 +1,12 @@
 /* Bottom-right weapon: name, ammo count, round glyphs, slot row. */
 #arms{bottom:calc(18px + env(safe-area-inset-bottom,0px));right:20px;text-align:right;display:grid;gap:5px;justify-items:end;max-width:min(440px,56vw)}
 #wName{font-family:var(--f-num);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase;line-height:1}
-#wMods{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);min-height:12px;text-wrap:balance}
+/* what's on the gun: a row of small chips on a dark backing, each edged in its kind's workbench colour (mods and gun
+   upgrades blue, attachments teal, rounds gold, the tune-up amber), wrapping right-aligned */
+#wMods{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:340px}
+#wMods span{--c:#8aa6ea;font-size:10.5px;font-weight:600;letter-spacing:.06em;line-height:1;text-transform:uppercase;white-space:nowrap;
+  padding:4px 7px 3px 6px;color:#ece6d8;background:rgba(10,12,13,.68);border-left:2px solid var(--c);text-shadow:none}
+#wMods .att{--c:#5ec2c4}#wMods .ammo{--c:#d4b25c}#wMods .tune{--c:#f0bf4c}
 .ammoRow{display:flex;align-items:baseline;gap:6px}
 #ammo{font-size:76px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #meleeArt{height:auto;max-width:46vw;margin:8px 0 6px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(0,0,0,.35))}

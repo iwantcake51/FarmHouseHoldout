@@ -13,10 +13,10 @@ Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
 const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_M = [lam(0x6e0f0a), lam(0x521009), lam(0x84160f)], _dz = new V3(0, 0, 1), _dv = new V3();
 DROP_M.forEach(m => { m.userData.mobile = true; });
 const drops = [];
-for (let k = 0; k < 380; k++) { const m = new THREE.Mesh(DROP_G, DROP_M[k % 3]); m.visible = false; scene.add(m); drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
+for (let k = 0; k < 640; k++) { const m = new THREE.Mesh(DROP_G, DROP_M[k % 3]); m.visible = false; scene.add(m); drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
 let dropIdx = 0;
 function bloodDrops(x, y, z, n, dirx, dirz, force) {
-  for (let k = 0, c = Math.max(1, Math.round(n * 1.8)); k < c; k++) {
+  for (let k = 0, c = Math.max(1, Math.round(n * 2.6)); k < c; k++) {   // (a good many: each one marks the ground where it lands)
     const d = drops[dropIdx = (dropIdx + 1) % drops.length], big = rand() < 0.22, f = (force || 2) * (big ? rr(0.3, 0.9) : rr(0.5, 1.45));
     d.r = big ? rr(0.02, 0.036) : rr(0.007, 0.017);
     d.vx = (dirx || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vz = (dirz || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vy = rr(0.5, 3.1) * (big ? 0.8 : 1);
@@ -46,7 +46,12 @@ function stepDrops(dt) {
     const p = m.position, sp = Math.hypot(d.vx, d.vy, d.vz);
     // into a wall, a post or a trunk on the way: it splashes there, as high as it was
     if (p.y < 2.4 && bulletBlocked(p.x, p.z)) { splat(p.x - d.vx * dt, p.z - d.vz * dt, 'drop', 0.08 + d.r * 7, undefined, 0, p.y + 0.15); d.life = 0; }
-    else if (p.y <= 0.015) { if (d.r > 0.012 || rand() < 0.5) splat(p.x, p.z, 'drop', 0.06 + d.r * 7); d.life = 0; }
+    else if (p.y <= 0.015) {
+      // where it lands: a mark the size of the drop, and a big one bursts into a few specks thrown on the way it was going
+      splat(p.x, p.z, 'drop', 0.06 + d.r * 7);
+      if (d.r > 0.02) { const h = Math.hypot(d.vx, d.vz) || 1; for (let s = 0, n = 2 + (rand() * 3 | 0); s < n; s++) { const f = rr(0.06, 0.28); splat(p.x + d.vx / h * f + rr(-0.06, 0.06), p.z + d.vz / h * f + rr(-0.06, 0.06), 'drop', rr(0.05, 0.1)); } }
+      d.life = 0;
+    }
     if (d.life <= 0) { m.visible = false; continue; }
     if (sp > 0.05) { _dv.set(d.vx / sp, d.vy / sp, d.vz / sp); m.quaternion.setFromUnitVectors(_dz, _dv); }
     const sh = Math.max(0.55, Math.min(1, d.life / 1.2)) * d.r;

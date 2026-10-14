@@ -1,5 +1,18 @@
 // Zombie AI, attacks on you, brute concussion and zombie animation.
 
+// a wall, a fence or a window frame between a zombie and you stops its swing: it can catch you while you're climbing
+// through a window or over a fence (you're in that cell then, and the cells you're each in don't count), but not once
+// you're past it and the frame is between you
+function reachBlocked(x0, z0, x1, z1) {
+  const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1), n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.1);
+  for (let s = 1; s < n; s++) {
+    const i = ci(x0 + (x1 - x0) * s / n), j = ci(z0 + (z1 - z0) * s / n);
+    if ((i === si && j === sj) || (i === ti && j === tj) || !inb(i, j)) continue;
+    const k = idx(i, j), t = cell[k], o = openAt[k];
+    if (t === WALL || t === FENCE || (t === OPEN && o && (o.kind === 'window' || o.boards.length))) return true;
+  }
+  return false;
+}
 // zombie AI, attacks, fence climbing and body animation
 function updateZombies(dt) {
   let hitMe = false, nearest = 99;
@@ -70,7 +83,7 @@ function updateZombies(dt) {
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       } else z.face += angDiff(Math.atan2(dxp, dzp), z.face) * Math.min(1, dt * 8);
       if (P.dead) { if (dp < z.T.r + 0.6 && z.atk <= 0 && z.stagger <= 0) { z.atk = rr(0.8, 1.2); z.lunge = 1; } }   // and claw at you once they reach you
-      else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !P.vault) {
+      else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !reachBlocked(z.x, z.z, P.x, P.z)) {
         P.hitFrom = z.face;
         z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken;   // a crawler only gets a weak swipe in, but it trips you hitMe = true; interruptBandage();
         // tilt the view toward whoever hit you
@@ -108,7 +121,7 @@ function updateZombies(dt) {
       const t0 = z.crawlT; z.crawlT = Math.min(1, z.crawlT + dt / 0.8); const t = z.crawlT;
       if (t0 < 0.62 && t >= 0.62) {   // hits the ground
         burst(z.x + Math.sin(z.face) * 0.9, 0.1, z.z + Math.cos(z.face) * 0.9, 6, 'dust', Math.sin(z.face), Math.cos(z.face), 1.2);
-        splat(z.x + Math.sin(z.face) * 0.7, z.z + Math.cos(z.face) * 0.7, 'pool', rr(0.5, 0.75));
+        splat(z.x + Math.sin(z.face) * 0.7, z.z + Math.cos(z.face) * 0.7, 'pool', rr(0.5, 0.75), undefined, rr(1.2, 2));   // spreading out from under it
         SFX.thud(); if (Math.hypot(z.x - P.x, z.z - P.z) < 6) shake = Math.max(shake, 0.06);
       }
     }

@@ -68,7 +68,7 @@ function splitHead(z, dx, dz) {
   head.parent.remove(head); bloodZombie(z, 0.25);
   z.spurts.push({ part: 'head', t: 1.8 });
   burst(wp.x, wp.y, wp.z, 18, 'blood', dx, dz, 3.6); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', across.x, across.z, 2.4); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', -across.x, -across.z, 2.4);
-  spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7)); splat(wp.x, wp.z, 'pool', 0.9);
+  spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7)); splatLater(rr(0.3, 0.5), wp.x, wp.z, 'pool', 0.9, undefined, rr(1.5, 2.5));   // the neck pumping out a pool, spreading
   SFX.sever(); SFX.hitBlade(true); shake = Math.max(shake, 0.32);
   run.heads++; run.limbs++;
   return true;
@@ -139,9 +139,9 @@ function blowApart(z, dx, dz) {
   }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28; burst(x, y, zz, 5, 'blood', Math.sin(a), Math.cos(a), rr(4, 7)); }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
-  splat(x, zz, 'pool', 1.5 * z.T.scale, undefined, 0.5);
+  splatLater(rr(0.25, 0.4), x, zz, 'pool', 1.5 * z.T.scale, undefined, rr(1.6, 2.4));
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
-  for (let k = 0; k < 8; k++) splat(x + rr(-2.2, 2.2), zz + rr(-2.2, 2.2), 'drop', rr(0.3, 0.6));
+  for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
   SFX.sever();
 }

@@ -7,12 +7,12 @@ const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // priced in the same band as a new mod (10 to 18 scrap): by how much each step does for you, the night-only light
 // cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
 const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18], laser: [10, 14], light: [8, 12], loader: [12, 16] };
-// how many steps a line has on this gun: the scope only on the rifles, the hand cannon's mags stop at the extended one,
-// the revolver has one speed loader
+// how many steps a line has on this gun: the scope only on the rifles, the mags as far as MAG_STEPS says, the revolver
+// has one speed loader
 function tierMax(k, id) {
   const n = TIERS[k].t.length;
   if (k === 'sight' && !SCOPE_GUNS.has(id)) return 2;
-  if (k === 'mag' && id === 'deagle') return 2;
+  if (k === 'mag' && MAG_STEPS[id] !== undefined) return MAG_STEPS[id];
   if (k === 'loader' && id === 'revolver') return 1;
   return n;
 }

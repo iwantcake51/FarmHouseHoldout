@@ -18,7 +18,7 @@ const falloff = (id, t) => {
   const k = (W(id) && W(id).reach) || 1, f0 = F[0] * k, f1 = F[1] * k, fl = 1 - (1 - F[2]) / k;
   return t <= f0 ? 1 : t >= f1 ? fl : 1 - (1 - fl) * (t - f0) / (f1 - f0);
 };
-const AMMO_DROP = { p9: 17, magnum: 6, shells: 6, rifle: 15 }, AMMO_CAN = { p9: 192, magnum: 54, shells: 54, rifle: 135 };
+const AMMO_DROP = { p9: 15, magnum: 6, shells: 6, rifle: 15 }, AMMO_CAN = { p9: 192, magnum: 54, shells: 54, rifle: 135 };
 // ammo boxes dropped by zombies hold about two thirds of a crafted batch (ammoAmt) for each gun you carry, so ammo stays
 // tight into the mid waves without running dry
 const AMMO_PICKUP_MUL = 0.65;

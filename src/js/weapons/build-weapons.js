@@ -61,15 +61,18 @@ function buildGuns() {
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)
+// what's on a weapon besides its mods, each with its kind for the HUD's chips (ui/hud.js): the tune-up, rounds
+// (ammo, pierce, incendiary), the magazine (a gun upgrade) and the attachments
+const EXTRA_KIND = { ammo: 'ammo', mag: 'upg', supp: 'att', sight: 'att', laser: 'att', light: 'att', loader: 'att' };
 function gunExtras(id) {
   const D = WEAP[id], out = [];
   if (!D) return out;
-  if (W8.tune && W8.tune[id]) out.push('Tuned');
+  if (W8.tune && W8.tune[id]) out.push({ t: 'Tuned', k: 'tune' });
   if (D.melee) return out;
-  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push(tierName(k, n - 1, id)); }
-  if (S.pierce) out.push('Pierce ' + S.pierce);
-  if (S.att.fire) out.push('Incendiary');
-  if (S.att.bayonet && D.slot === 'long') out.push('Bayonet');
-  if (S.att.stock && D.slot === 'side') out.push('Stock');
+  for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push({ t: tierName(k, n - 1, id), k: EXTRA_KIND[k] }); }
+  if (S.pierce) out.push({ t: 'Pierce ' + S.pierce, k: 'ammo' });
+  if (S.att.fire) out.push({ t: 'Incendiary', k: 'ammo' });
+  if (S.att.bayonet && D.slot === 'long') out.push({ t: 'Bayonet', k: 'att' });
+  if (S.att.stock && D.slot === 'side') out.push({ t: 'Stock', k: 'att' });
   return out;
 }

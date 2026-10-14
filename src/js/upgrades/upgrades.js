@@ -47,7 +47,10 @@ const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
-const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => !tierFits(k, g)).length * SMITH_SCRAP : 0;
+const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
+// how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
+// (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder)
+const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0 };
 function tierFits(k, id) {
   const D = WEAP[id], n = gunTier(id, k);
   if (n >= TIERS[k].t.length) return false;
@@ -55,7 +58,7 @@ function tierFits(k, id) {
   if (k === 'loader') return id === 'revolver' ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader; shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
   if (k === 'sight' && n === 2) return SCOPE_GUNS.has(id);   // a real scope only goes on the rifles
-  if (k === 'mag' && id === 'deagle') return n < 2;   // the hand cannon takes a base plate and a longer mag, never a drum
+  if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];
   return true;
 }
 for (const k in TIERS) {

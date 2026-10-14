@@ -43,8 +43,9 @@ function updateHUD(rdt, D) {
     renderMoodles();
     const id = curId();
     setT('wName', D.name);
-    const own = (W8.mods[id] || []).map(modName);
-    setT('wMods', own.concat(gunExtras(id)).join(' · '));
+    // what's on it, as chips edged in the workbench's colours: mods and gun upgrades blue, attachments teal, rounds gold
+    const chips = (W8.mods[id] || []).map(m => ({ t: modName(m), k: 'upg' })).concat(gunExtras(id)), ck = chips.map(c => c.k + c.t).join('|');
+    if (cache.wMods !== ck) { cache.wMods = ck; $('wMods').innerHTML = chips.map(c => `<span class="${c.k}">${c.t}</span>`).join(''); }
     // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }

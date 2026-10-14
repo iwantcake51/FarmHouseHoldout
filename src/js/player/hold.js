@@ -701,7 +701,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
     HSH.visible = feed;
     if (feed) {
-      const rifle = D.ammo === 'rifle', two = !rifle && (D.loadN || 1) >= 2 && !!brkG;
+      const rifle = D.ammo === 'rifle', two = !rifle && !!brkG && Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)) >= 2;   // as many as are going in
       HSH_R.visible = rifle; HSH_S[0].visible = !rifle; HSH_S[1].visible = two;
       if (!(brkG && brkG.rims.length)) { _bq.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq); }
       HSH.quaternion.copy(_bq); HSH.position.copy(_fL).addScaledVector(_slAx, 0.04);

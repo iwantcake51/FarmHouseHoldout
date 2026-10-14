@@ -76,14 +76,26 @@ function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').cl
 function pauseRun() { if (state !== 'play' || P.dead || switching) return; setState('paused'); }
 function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
+  cancelLeave();
   el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
 }
 $('startBtn').onclick = enterRun;
 $('againBtn').onclick = enterRun;
 $('menuBtn').onclick = leaveToMenu;
-$('pMenuBtn').onclick = () => { saveBest(); leaveToMenu(); };
+// leaving a run from the pause screen asks first: the buttons give way to the question, and a yes, or a cancel (Esc)
+// that puts them back
+const P_SURE = {
+  menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); leaveToMenu(); } },
+  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => die() }
+};
+let pSure = null;
+function askLeave(k) { pSure = k; $('pSureQ').textContent = P_SURE[k].q; $('pSureYes').textContent = P_SURE[k].yes; $('pBtns').hidden = true; $('pSure').hidden = false; $('pSureNo').focus({ preventScroll: true }); }
+function cancelLeave() { if (!pSure) return false; pSure = null; $('pSure').hidden = true; $('pBtns').hidden = false; return true; }
+$('pMenuBtn').onclick = () => askLeave('menu');
+$('quitBtn').onclick = () => askLeave('quit');
+$('pSureYes').onclick = () => { const k = pSure; cancelLeave(); if (k) P_SURE[k].go(); };
+$('pSureNo').onclick = cancelLeave;
 $('resumeBtn').onclick = resumeRun;
-$('quitBtn').onclick = () => die();
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseRun(); });
 // the first look at the farm comes up out of the dark too
 requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title').classList.add('arrive'); }));
