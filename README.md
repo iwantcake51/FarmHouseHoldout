@@ -70,7 +70,7 @@ Every source file starts with a one-line comment saying what is in it.
 | How long drops stay on the ground; planks are always +1; a drop you're full on stays put, greyed, with no message; a drop out past the farm's edge flies in to you (`homing`) | `DROP_LIFE` in `src/js/pickups/pickups.js` |
 | How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
 | Bloody footprints: how wet the ground is (`bloodWet`, a coarse grid the splashes wet and each wave halves), and the prints your boots leave after stepping in it (`bloodyStep`, the `foot` print in the blood shader) | `src/js/effects/blood-map.js` |
-| Red outlines on zombies (the see-through rim and the last few of a wave) only near you: full to `RED_NEAR`, gone by `RED_FAR` | `src/js/zombies/zombie-visuals.js` |
+| Red outlines on zombies: every zombie in a circle round you gets the same red rim (`nearOl`, and the see-through rim behind cover), full inside `RED_NEAR` and fading in from `RED_FAR`; the last few of a wave keep their pulsing outline at any distance | `src/js/zombies/zombie-visuals.js` |
 | Which guns take a real scope (the third sight tier) | `SCOPE_GUNS` in `src/js/game/run-state.js` |
 | Shots carry on past the edge of the farm (the player still can't walk out) | `bulletBlocked` in `src/js/world/collision.js` |
 | The cards after a wave (skills, perks, aid) and what each says | `UPG` in `src/js/upgrades/upgrades.js`, its effect chips in `src/js/upgrades/upgrade-info.js` |
