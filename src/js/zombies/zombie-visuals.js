@@ -8,8 +8,9 @@ const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826);
 // into reach and out as they leave it: everyone in the arc for a two-hander that cleaves, only the nearest for a
 // one-hander (melee/melee.js). It fades with them, so it never shows a zombie you can't see.
 const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
-// the circle round you that zombies are outlined in: full inside RED_NEAR metres, fading in from RED_FAR
-const RED_NEAR = 7, RED_FAR = 11, NEAR_COL = 0xd8301f, NEAR_A = 0.62;
+// the circle round you inside which a zombie behind something shows its outline: full strength up to RED_NEAR metres,
+// then fading out the further it is, to nothing at RED_FAR
+const RED_NEAR = 4, RED_FAR = 12;
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
 // standing behind a tree or a wall still reads as in reach; a burning one is orange (BURN_COL)
 const _xrRed = new THREE.Color(0xff3322), _xrSil = new THREE.Color(0xd8382a), _xrGreen = new THREE.Color(REACH_COL), _xrBurn = new THREE.Color(0xff8a1e);
@@ -47,15 +48,12 @@ function updateZombieVisuals(dt, rdt) {
       z.burnOl.opacity = z.burnA * z.vis * (0.5 + 0.22 * Math.sin(worldT * 17) * Math.sin(worldT * 7.3 + 1)) * (1 - 0.6 * (z.reachA || 0)); z.burnOl.visible = z.burnA > 0;
       tintXray(z);
     }
-    // red outlines for the zombies in a circle round you, fading in as they come into it: every one of them gets the
-    // same rim, out in the open or behind something (the see-through rim and silhouette then show it through what's in
-    // the way), so how far away it is is all that decides it. Far off they're left plain; the last few of a wave keep
-    // their pulsing outline at any distance, and their see-through one with it
-    const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0, bA = z.burnA || 0;
+    // the outline seen through whatever stands in front of a zombie (the see-through rim and silhouette) shows only in a
+    // circle round you: full strength up close, growing fainter the further out it is, gone at the circle's edge; past it
+    // a zombie behind something is just hidden. The last few of a wave keep their pulsing outline, and their see-through
+    // one, at any distance
+    const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0;
     if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.38; } }
-    { const a = z.redOl ? 0 : NEAR_A * near * z.vis * (1 - rA) * (1 - 0.8 * bA) * (z.om ? 0.6 : 1);   // (under the green reach rim, the orange fire one or the pale crawler one)
-      if (a > 0.005 && !z.nearOl) z.nearOl = outline(z.m.g, 0, 0, 0.026, rimMat(NEAR_COL));
-      if (z.nearOl) { z.nearOl.opacity = a; z.nearOl.visible = a > 0.005; } }
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {

@@ -150,7 +150,7 @@ const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
 const MOM_T = 2.5;
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.nearOl) z.nearOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
   burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);

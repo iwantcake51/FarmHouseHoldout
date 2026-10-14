@@ -19,6 +19,7 @@ function startBandage() {
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); W8.reloading = null; W8.burstLeft = 0; W8.swing = 0;
   P.bandT = P.bandMax = bandTime(); SFX.rip();
+  P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
 function interruptBandage() {
