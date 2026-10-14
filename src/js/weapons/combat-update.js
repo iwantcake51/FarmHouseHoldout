@@ -54,5 +54,5 @@ function updateCombat(dt) {
     if (P.dripT <= 0) { P.dripT = rr(0.25, 0.6); splat(P.x + rr(-.2, .2), P.z + rr(-.2, .2), 'drop', rr(0.12, 0.24)); }
     if (P.hp <= 0) { P.hp = 0; startDeath(); }
   }
-  if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && !P.vault && !W8.trigLock) fire();
+  if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) fire();
 }

@@ -23,7 +23,7 @@ addEventListener('keydown', e => {
   if (k === 'g') throwGrenade();
   if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
-    if (mode) { SFX.click(); tn(0.03, 'square', 900, 700, 0.06); toast(mode, { kind: 'info', icon: 'gear', sub: 'Fire mode · B to switch' }); }
+    if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)
   }
   if (['1', '2', '3', '4'].includes(k)) equip(SLOTS[+k - 1]);
   if (k === 't' && phase === 'break') breakT = 0;

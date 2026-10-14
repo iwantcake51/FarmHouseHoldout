@@ -101,7 +101,7 @@ function buildGear() {
   bandPouch2.visible = !!S.pouch;
   LOOK.g.hat.visible = !(S.slowRes >= 0.85);   // the helmet goes on instead of your hat
   if (bt || thick) buildBoots(bt, thick);
-  // Light feet: hard-shell knee pads on elastic straps
+  // Run and gun: hard-shell knee pads on elastic straps
   if (S.vaultMul < 1) [PM.legL, PM.legR].forEach(l => {
     const g = gearItem(l, 0, -0.27, 0); gb(g, 0.2, 0.14, 0.04, GEAR.black, 0, 0, 0.125); gb(g, 0.15, 0.1, 0.02, GEAR.foam, 0, 0, 0.152);
     [-0.05, 0.05].forEach(y => gb(g, 0.205, 0.022, 0.235, GEAR.dark, 0, y, 0));

@@ -43,11 +43,31 @@ function updateHUD(rdt, D) {
     { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
-    renderMeleeArt(id, D);
+    renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;
     setRoll('reloadTag', W8.reloading && !xhShown ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : (!W8.reloading && !D.melee && !(W8.mag[id] > 0) && W8.reserve[D.ammo] === 0) ? 'Empty. Craft ammo or switch' : '');
     renderSlots();
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;
+}
+// the fire mode by the ammo count (styles/hud-weapon.css): its rounds and name, with B when the gun can switch; drawn
+// again only when the mode or the gun changes
+function renderFireMode(id) {
+  const m = fireModeOf(id), el = $('fireMode'), key = m ? id + m.k + m.t : '';
+  if (cache.fm === key) return;
+  const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
+  el.hidden = !m; if (!m) return;
+  const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : 1;
+  g.className = 'fmG ' + m.k + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);
+  el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = fireModes(id).length < 2;
+  if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
+}
+// switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
+// for a moment, and the HUD's rounds roll over to it
+function fireModeSwitched(id) {
+  SFX.click(); tn(0.03, 'square', 900, 700, 0.06); setTimeout(() => tn(0.025, 'square', 1350, 1050, 0.05), 70);
+  const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
+  x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  renderFireMode(id);
 }

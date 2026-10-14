@@ -93,7 +93,7 @@ const mags = [];
 for (let k = 0; k < 10; k++) { const g = new THREE.Group(); g.visible = false; scene.add(g); const body = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = true; g.add(body); mags.push({ g, body, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' }); }
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
-function dropMag(id) {
+function dropMag(id, side) {
   const D = W(id), mp = MAGPOS[W8.cur]; if (!D || !mp) return;
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
   // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
@@ -110,7 +110,10 @@ function dropMag(id) {
   c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = mat;
   if (dr) { c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); c.r = dr.r * 0.6; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = dr.t / 2; }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
-  _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv);
+  // an akimbo pair's left gun drops its own mag, from its own hand
+  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
+  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
+  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
   c.g.position.copy(_cv); c.g.rotation.set(0.2, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   c.vx = P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vz = P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vy = rr(-0.2, 0.6);

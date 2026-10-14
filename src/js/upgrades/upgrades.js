@@ -10,7 +10,7 @@ const UPG = [
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'A second pouch on your belt: carry 5 bandages instead of 3. It comes with two in it.', vis: 'A pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: 'Three full cans of ammo for every gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
-  { r: 'c', tag: 'Body', name: 'Light feet', text: 'Climb through windows twice as fast, for half the stamina.', can: () => S.vaultMul > 0.5, ap: () => S.vaultMul = 0.5 },
+  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Climb through windows and over fences a quarter faster, for half the stamina, and keep shooting while you do.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Every scrap pickup is worth double.', can: () => S.scrapMul < 2, ap: () => S.scrapMul = 2 },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => S.slowRes < 0.7, ap: () => S.slowRes += 0.4 },
@@ -30,7 +30,7 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Light feet', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind']);
+const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind']);
 const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); if (k === 'Weapon') return c.tag; const tier = (c.tag.match(/Tier \d+ of \d+/) || [])[0]; return tier ? k + ' · ' + tier : k; }
