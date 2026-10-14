@@ -148,7 +148,7 @@ function dmSupply(g) {
   dmFinish(g, keep);
 }
 // ---- a weapon's case off the radio: an olive hard case, ribbed lid, the seam round its middle, three latches, the
-// handle and its stencilled panel, corner guards (gold-rimmed in the field, a gun's colour)
+// handle and its stencilled panel, corner guards (rimmed in the field in the weapon's rarity colour, like a gun)
 function dmCase(g, cargo) {
   const keep = new Set(), L = WEAP[cargo.id] && WEAP[cargo.id].melee ? 0.9 : 1.1, H = 0.22, D = 0.42, y = 0.15, top = y + H / 2;
   keep.add(dmBox(g, L, H, D, DM.olive, 0, y, 0));
