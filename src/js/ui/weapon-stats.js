@@ -1,0 +1,98 @@
+// The weapon stats panel: everything about the weapon in your hands in one compact sheet (damage, fire rate,
+// magazine, each kind of reload, the pump or bolt, spread and drop-off as small charts) and what is changing each
+// number. It sits beside the workbench while that's open, and I shows or hides it anywhere.
+
+// shown at the workbench unless you hide it there (wsBench), and elsewhere only once you ask for it (wsOn)
+let wsOn = false, wsBench = true, wsKey = '';
+const wsAtBench = () => !!openSt && openSt.id === 'bench';
+const wsShown = () => state === 'play' && !P.dead && (wsAtBench() ? wsBench : wsOn);
+// the numbers for a weapon as it stands (stats this sheet shows; the same sums the game uses)
+function wsNumbers(id) {
+  const D = W(id); if (!D) return null;
+  if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
+  const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
+  const shot = D.dmg * S.dmgMul * suppMul(D);
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + S.pierce, head: S.headMul + (D.headBonus || 0) };
+  if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
+  if (S.att.stock && D.slot === 'side') r.spread *= 0.75;
+  // reloads, every kind this gun has
+  if (D.perShell) { r.shell = D.perShell * S.reloadMul; r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + (id === 'revolver' ? 0.3 : 0.12); }
+  else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
+  else { r.reload = D.reload * S.reloadMul; if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; }
+  // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
+  const kind = EJECT[id] === 'pump' ? 'pump' : EJECT[id] === 'bolt' ? 'bolt' : null;
+  if (kind) { const v = RACKS[kind], avg = v.reduce((a, q) => a + q.dur + q.delay, 0) / v.length; r.cycle = Math.min(avg, 1 / rate * 0.92); r.cycleKind = kind; }
+  const F = FALLOFF[id]; if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; }
+  return r;
+}
+// what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
+// numbers read, and put back. A source is listed against each number it moves, with how much
+const WS_STATS = [['dmg', 'DMG', 1], ['rate', 'RATE', 1], ['mag', 'MAG', 1], ['reload', 'RELOAD', -1], ['tac', 'RELOAD', -1], ['akTac', 'RELOAD', -1], ['shell', 'RELOAD', -1], ['spread', 'SPREAD', -1], ['pierce', 'PIERCE', 1]];
+function wsSources(id) {
+  const D = W(id), out = []; if (!D || D.melee) return out;
+  const full = wsNumbers(id), g = W8.gt[id] = W8.gt[id] || {}, diff = (name, undo) => {
+    const redo = undo(); recomputeEff(); const w = wsNumbers(id); redo(); recomputeEff();
+    const fx = [];
+    for (const [k, label, dir] of WS_STATS) {
+      const a = w[k], b = full[k]; if (a === undefined || b === undefined || Math.abs(a - b) < 1e-6 || fx.some(f => f.label === label)) continue;
+      const pct = k === 'pierce' ? (b - a) : (b / a - 1) * 100, good = (b > a) === (dir > 0);
+      fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
+    }
+    if (fx.length) out.push({ name, fx });
+  };
+  for (const k of GUN_TIERS) { const n = g[k] || 0; if (n) diff(tierName(k, n - 1, id), () => { g[k] = 0; return () => { g[k] = n; }; }); }
+  for (const m of (W8.mods[id] || [])) diff(modName(m), () => { const l = W8.mods[id], i = l.indexOf(m); l.splice(i, 1); return () => l.splice(i, 0, m); });
+  if (W8.tune[id]) diff('Tune-up', () => { W8.tune[id] = 0; return () => { W8.tune[id] = 1; }; });
+  // your skills and perks, all at once
+  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]), pk = S.pierce;
+  diff('Your skills', () => { ks.forEach(k => { S[k] = 1; }); S.pierce = 0; return () => { ks.forEach((k, i) => { S[k] = keep[i]; }); S.pierce = pk; }; });
+  return out;
+}
+const wsF = (v, d = 1) => v.toFixed(d), wsDeg = v => { const x = v * 57.3; return x.toFixed(x < 2 ? 2 : 1) + '°'; };
+// a cone for each way you're firing: hip, moving and aimed (firing.js: spreadOf)
+function wsCone(sp) {
+  const W_ = 230, H = 70, ox = 8, oy = H / 2, L = W_ - 16, cones = [['Moving', sp * 2.6, 'rgba(226,65,44,.18)', '#e2412c'], ['Hip', sp * 1.3, 'rgba(240,191,76,.2)', '#f0bf4c'], ['Aimed', sp * 0.5, 'rgba(94,194,196,.28)', '#5ec2c4']];
+  // drawn to scale against each other, the widest filling the box, so a tight gun's cones still show; the labels are true
+  const path = a => { const t = (oy - 3) * a / (sp * 2.6); return `M${ox} ${oy} L${ox + L} ${(oy - t).toFixed(1)} L${ox + L} ${(oy + t).toFixed(1)} Z`; };
+  return `<svg class="wsCone" viewBox="0 0 ${W_} ${H}">${cones.map(([n, a, f, s]) => `<path d="${path(a)}" fill="${f}" stroke="${s}" stroke-width="1"/>`).join('')}<line x1="${ox}" y1="${oy}" x2="${ox + L}" y2="${oy}" stroke="rgba(236,230,216,.25)" stroke-dasharray="2 3"/></svg>
+    <div class="wsKey">${cones.map(([n, a, f, s]) => `<span style="--c:${s}">${n} ${wsDeg(a)}</span>`).join('')}</div>`;
+}
+// damage per shot over range (ammo.js: falloff)
+function wsFall(id, r) {
+  const W_ = 230, H = 64, top = 6, bot = H - 14, max = Math.max(20, Math.ceil(r.fall[1] + 2)), x = d => 8 + d / max * (W_ - 16), y = k => bot - k * (bot - top);
+  const pts = [[0, 1], [r.fall[0], 1], [r.fall[1], r.fall[2]], [max, r.fall[2]]].map(([d, k]) => `${x(d).toFixed(1)},${y(k).toFixed(1)}`).join(' ');
+  const per = r.dmg * r.pel, ticks = [0, 5, 10, 15, 20, 25, 30].filter(d => d <= max);
+  return `<svg class="wsFall" viewBox="0 0 ${W_} ${H}"><polygon points="${x(0)},${bot} ${pts} ${x(max)},${bot}" fill="rgba(240,191,76,.14)"/><polyline points="${pts}" fill="none" stroke="#f0bf4c" stroke-width="1.6"/>
+    ${ticks.map(d => `<text x="${x(d)}" y="${H - 2}">${d}m</text>`).join('')}<text x="${x(0) + 2}" y="${top + 8}" class="hi">${Math.round(per)}</text><text x="${x(max) - 2}" y="${y(r.fall[2]) - 4}" class="lo" text-anchor="end">${Math.round(per * r.fall[2])}</text></svg>
+    <div class="wsKey"><span style="--c:#f0bf4c">Full to ${wsF(r.fall[0], 0)} m, ${Math.round(r.fall[2] * 100)}% from ${wsF(r.fall[1], 0)} m</span></div>`;
+}
+function wsHTML(id) {
+  const D = W(id), r = wsNumbers(id); if (!r) return '';
+  const row = (l, v, sub) => `<span class="l">${l}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : '<em></em>'}`;
+  let h = `<div class="wsHead"><b>${D.short || D.name}</b><span>${D.name}${r.ak ? ' · a pair' : ''}</span></div><div class="wsGrid">`;
+  if (r.melee) return h + row('Damage', Math.round(r.dmg)) + row('Swings', wsF(r.rate) + '/s') + row('Reach', wsF(r.reach, 2) + ' m') + row('Hits', r.hits > 1 ? 'up to ' + r.hits : 'one') + '</div>';
+  h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '');
+  h += row('Fire rate', wsF(r.rate) + '/s', r.ak ? wsF(r.rate / 2) + '/s each gun' : '');
+  h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag));
+  if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty');
+  else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`);
+  else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.tac !== undefined ? wsF(r.reload) + ' s empty (slide)' : (D.speedload ? 'speed loader' : ''));
+  if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots');
+  if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through');
+  h += row('Headshots', '×' + wsF(r.head, 2));
+  h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread);
+  if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
+  const src = wsSources(id);
+  h += '<div class="wsSub">What\'s changing it</div>' + (src.length ? '<div class="wsSrc">' + src.map(s => `<div><span>${s.name}</span>${s.fx.map(f => `<i class="${f.good ? 'up' : 'down'}">${f.label} ${f.t}</i>`).join('')}</div>`).join('') + '</div>' : '<div class="wsNone">Stock: nothing fitted or learned yet</div>');
+  return h;
+}
+// every frame: shown or hidden, beside the workbench while it's open, and rebuilt only when something it shows changes
+function updateWeaponStats() {
+  const el = $('wStats'), on = wsShown() && !!curId(), id = curId();
+  if (el.hidden === on) el.hidden = !on;
+  $('station').classList.toggle('withStats', on && wsAtBench());
+  if (!on) return;
+  const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.pierce, S.headMul, S.att]);
+  if (key !== wsKey) { wsKey = key; el.innerHTML = wsHTML(id); }
+}
+function toggleWeaponStats() { if (wsAtBench()) { wsBench = !wsBench; stStruct = ''; } else wsOn = !wsOn; wsKey = ''; SFX.click(); }   // (stStruct: the bench's note says which)

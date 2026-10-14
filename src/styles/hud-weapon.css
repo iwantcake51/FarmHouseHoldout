@@ -22,7 +22,8 @@
 #rounds.sh i{width:7px;height:13px;background:#a8342a;border-radius:0;border-bottom:3px solid #c9a43a}
 #rounds.rf i{width:4px;height:16px;background:#c9a043}
 #rounds.mg i{width:6px;height:11px;background:#c9a043}
-#rounds.hp i:not(.off){border-top:3px solid #c0703a}#rounds.hp2 i:not(.off){border-top:3px solid #e08a3a;box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i:not(.off){background:#c8ccd0;border-top:3px solid #e8ecef}
+/* better rounds show at the bullet's tip; a shell has no bullet, so it stays just a shell */
+#rounds.hp:not(.sh) i:not(.off){border-top:3px solid #c0703a}#rounds.hp2:not(.sh) i:not(.off){border-top:3px solid #e08a3a;box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3:not(.sh) i:not(.off){background:#c8ccd0;border-top:3px solid #e8ecef}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 @keyframes roundFall{0%{transform:none}18%{transform:translate(calc(var(--dx) * .2),var(--up)) rotate(calc(var(--rot) * .15))}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}

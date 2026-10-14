@@ -15,13 +15,14 @@ addEventListener('keydown', e => {
   if (state !== 'play') return;
   if (e.repeat && k !== 'f') return;
   keys.add(k);
-  if (k === 'e') { if (openSt) closeStation(); else { const s = nearestStation(); if (s) openStation(s); } return; }
+  if (k === 'e') { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) { craft(k === '0' ? 9 : +k - 1); return; }
   if (k === 'r') startReload();
   if (k === 'q' && state === 'play') startBandage();
   if (k === ' ' && state === 'play') tryVault();                                    // Space climbs through windows and hops fences
   if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
   if (k === 'g') throwGrenade();
+  if (k === 'i') toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)
   if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
     if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)

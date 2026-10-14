@@ -24,6 +24,16 @@ const HOLD = {
   lmg: { grip: [X, 0.99, 0.48], fore: [X, 1.055, 0.9], blade: 0.58, pull: 0.17, kind: 'long' }
 };
 const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
+// the arms are thick blocks aimed at those points, so a fist centred on the gun hides it from the camera above: the
+// hands are aimed this far below them (metres, down the gun), the fist's top against the gun's underside, and the
+// trigger hand out to its own side (out), so it takes the grip from the side and below rather than lying over the
+// receiver. A long gun lies on the support hand and sits clear over the trigger hand; a handgun's grip is already
+// below its slide, so its hands only drop a little
+const HAND_DROP = { long: { grip: 0.06, out: 0.035, fore: 0.07 }, hand: { grip: 0.02, out: 0.015, fore: 0.015 } };
+// and the rest of keeping the gun in view: the arms a little slimmer than the body's blocks, a long gun carried a touch
+// higher (LONG_RAISE) so the arms come up to it from below rather than level with it, and the wrists turned (HAND_ROLL):
+// the support hand's palm up under the fore-end, the trigger hand's knuckles out round the grip
+const ARM_THIN = 0.84, LONG_RAISE = 0.045, HAND_ROLL = { long: { R: -0.17, L: 0.24 }, hand: { R: -0.07, L: 0.13 } };
 // each reload is done one of three ways, picked at random (weapons/reload.js), with the same timing: how far the gun
 // is rolled over, pitched down, turned, lifted and drawn in for it. A mag change: rolled to show the well, held flatter
 // and nosed down, or rolled hard and turned; feeding shells: tipped to show the port, flatter, or rolled further
@@ -33,6 +43,12 @@ const _rv = new V3();
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight. Each is reloaded on its own
 // turn (akU in weapons/akimbo.js says how far through it is), the other kept up on the aim
 const AK_PULL = 0.1;
+// shotguns at rest sit at low ready: the stock in the shoulder pocket and the muzzle down (p), a little lower and
+// further in (y, z), canted (r) and turned across the body (yaw). They come up to the shoulder the moment you fire,
+// aim or hold the trigger, and settle back down MOUNT_HOLD seconds after the last shot (ANIM.mount). The double barrel
+// rests lowest and most canted, hunter style
+const LOW_READY = { pump: { p: 0.3, y: -0.035, z: -0.05, r: 0.06, yaw: -0.05 }, auto12: { p: 0.24, y: -0.03, z: -0.04, r: 0.05, yaw: -0.04 }, dbl: { p: 0.44, y: -0.07, z: -0.07, r: 0.17, yaw: -0.12 } }, MOUNT_HOLD = 1.5;
+const REL_JIT0 = { k: 1, dx: 0, dy: 0, seed: 0 };
 // and no one holds two guns the same: the right a touch higher and further out, the left lower, drawn back and in, each
 // canted over toward the middle (the left more, a little gangster) and toed in, and each drifting on its own (f: how
 // quickly). cant and toe in radians, the rest in metres
@@ -119,9 +135,9 @@ function armAim(side, t, rest) {
 }
 function reach(arm, side, t, roll, rest) {
   const [rx, ry, sc] = armAim(side, t, rest), s = (rest ? SHOULDER_REST : SHOULDER)[side];
-  arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, roll || 0); arm.scale.set(1, 1, sc);
+  arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, roll || 0); arm.scale.set(ARM_THIN, ARM_THIN, sc);
 }
-function armRest(arm, side, rx, ry) { const s = SHOULDER_REST[side]; arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, 0); arm.scale.set(1, 1, 1); }
+function armRest(arm, side, rx, ry) { const s = SHOULDER_REST[side]; arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, 0); arm.scale.set(ARM_THIN, ARM_THIN, 1); }
 // a point on the gun (hold-local) in upper-body space
 const holdOf = (s, side) => (HOLDS[s] && (HOLDS[s][side] || HOLDS[s].R)) || gunMeshes[s];
 function gunPt(out, s, side, x, y, z) { return out.set(x, y, z).applyMatrix4(holdOf(s, side).matrix).applyMatrix4(gunMeshes[s].matrix); }
@@ -412,12 +428,16 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6);
   let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
+  // gun never quite still in the hands while they work on it
+  const J = W8.relJit || REL_JIT0;
+  if (re > 0.001) { roll += re * 0.04 * Math.sin(now * 2.3 + J.seed); pitch += re * 0.03 * Math.sin(now * 1.7 + J.seed * 1.3); yaw += re * 0.025 * Math.sin(now * 1.3 + J.seed * 0.7); }
   if (!ak && re > 0.001) {
     if (rk === 'mag' && id === 'revolver') { pitch -= 0.3 * re; roll += 0.35 * re; oz -= 0.07 * re; oy += 0.02 * re; }   // the speed loader: canted, open cylinder up, muzzle down a touch
-    else if (rk === 'mag') { const v = REL_MAG[W8.relStyle || 0]; roll -= v.r * re; pitch -= v.p * re; yaw += v.y * re; oy += v.oy * re; oz -= v.oz * re; }
+    else if (rk === 'mag') { const v = REL_MAG[W8.relStyle || 0], e = re * J.k; roll -= v.r * e; pitch -= v.p * e; yaw += v.y * e; oy += v.oy * e; oz -= v.oz * e; }
     else if (id === 'dbl') { pitch += 0.55 * re; oz -= 0.05 * re; }                       // broken open, muzzles down
     else if (id === 'revolver') { pitch -= 0.25 * re; roll += 0.35 * re; oz -= 0.06 * re; } // canted so the open cylinder faces up
-    else { const v = REL_SHELL[W8.relStyle || 0]; roll -= v.r * re; pitch -= v.p * re; oy -= v.oy * re; oz -= v.oz * re; }   // tipped to show the loading port
+    else { const v = REL_SHELL[W8.relStyle || 0], e = re * J.k; roll -= v.r * e; pitch -= v.p * e; oy -= v.oy * e; oz -= v.oz * e; }   // tipped to show the loading port
   }
   {
     // working the action: the gun leans the way this rack works it (RACKS in weapons/casings.js) and follows on its
@@ -428,13 +448,27 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
     up.y += RACK.w; up.x += 0.3 * RACK.p;
   }
-  if (psW) {   // turned to the support hand as it takes the slide; a slingshot tugs the gun back, the slam jolts it
-    const tug = W8.relVar === 0 ? smooth(clamp((rp - PS_TUG) / (PS_REL[0] - PS_TUG), 0, 1)) * (rp < PS_REL[0] ? 1 : 0) : 0, slam = Math.sin(clamp((rp - PS_REL[W8.relVar]) / 0.05, 0, 1) * Math.PI);
+  if (psW && W8.relVar === 0) {   // a slingshot: turned to the support hand as it takes the slide, tugged back, jolted by the slam
+    const tug = smooth(clamp((rp - PS_TUG) / (PS_REL[0] - PS_TUG), 0, 1)) * (rp < PS_REL[0] ? 1 : 0), slam = Math.sin(clamp((rp - PS_REL[0]) / 0.05, 0, 1) * Math.PI);
     roll -= 0.22 * psW; yaw += 0.1 * psW; pitch -= 0.04 * psW - 0.06 * slam; oz += 0.012 * tug - 0.01 * slam;
   }
+  if (PS && W8.relVar === 1) {   // the slide release: the gun rolled in to the shooting hand's thumb, which drops the slide, and the slam jolts it
+    const th = Math.sin(clamp((rp - (PS_REL[1] - 0.09)) / 0.15, 0, 1) * Math.PI), slam = Math.sin(clamp((rp - PS_REL[1]) / 0.05, 0, 1) * Math.PI);
+    roll += 0.3 * th; yaw -= 0.07 * th; pitch -= 0.05 * th - 0.07 * slam; oz -= 0.01 * slam;
+  }
+  // a shotgun at low ready between shots (LOW_READY), not while it's being reloaded or worked
+  const LR = !ak && LOW_READY[id];
+  if (LR) {
+    const mt = ads > 0.05 || now - (ANIM.shotAt || -9) < MOUNT_HOLD || (mouseDown && state === 'play') || !!cy;
+    ANIM.mount = (ANIM.mount ?? 1) + ((mt ? 1 : 0) - (ANIM.mount ?? 1)) * Math.min(1, rdt * (mt ? 16 : 2.4));
+    const lw = smooth(1 - ANIM.mount) * (1 - re); pitch += LR.p * lw; oy += LR.y * lw; oz += LR.z * lw; roll += LR.r * lw; yaw += LR.yaw * lw;
+  }
+  // the double barrel snapped shut with a flick of the wrist: the barrels swinging up into place jolt the gun up
+  if (id === 'dbl') { const shut = Math.max(0, (ANIM.brkPrev ?? 0) - (ANIM.brk || 0)); ANIM.brkPrev = ANIM.brk || 0; ANIM.flk = Math.min(1, Math.max((ANIM.flk || 0) * Math.exp(-rdt * 7), shut * 3)); pitch -= 0.26 * ANIM.flk; oy += 0.02 * ANIM.flk; }
   if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg + 0.05 * slamK; oy += 0.02 * cg; oz -= 0.03 * cg + 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
+  if (H.kind === 'long') oy += LONG_RAISE;
   { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; ox += Math.sin(fa.yaw) * FREE_SWING; oy -= Math.sin(fa.pitch) * FREE_SWING; }   // the arms trail a turn and swing on after it
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Run and gun: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
@@ -545,12 +579,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const cr = CRANE[s] || [];
   if (cr.length) { const want = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) ? 1 : 0; ANIM.crane = (ANIM.crane || 0) + (want - (ANIM.crane || 0)) * Math.min(1, rdt * (want ? 14 : 18)); cr.forEach(c => { c.rotation.z = -ANIM.crane * 1.3; c.updateMatrix(); }); }   // out to the left
   // ---- hands: start from their places on the gun
-  gunPt(_hR, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
-  if (ak) gunPt(_hL, s, 'L', H.grip[0], H.grip[1], H.grip[2]);
+  const hd = HAND_DROP[H.kind] || HAND_DROP.hand;
+  gunPt(_hR, s, 'R', H.grip[0] + hd.out, H.grip[1] - hd.grip, H.grip[2]);
+  if (ak) gunPt(_hL, s, 'L', H.grip[0] - hd.out, H.grip[1] - hd.grip, H.grip[2]);
   else {
     let fz = H.fore[2];
     if (H.foreOnSlide && sl) { const q = sl.find(e => e.cyc); if (q) fz += q.m.position.z - q.z0; }   // the support hand rides the pump
-    gunPt(_hL, s, 'R', H.fore[0], H.fore[1], fz);
+    gunPt(_hL, s, 'R', H.fore[0], H.fore[1] - hd.fore, fz);
   }
   // the firing hand: works the bolt by its knob on a bolt gun's cycle (both points are on the gun, so it never lags
   // behind it), coming up over the wrist on the way there and back
@@ -597,10 +632,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         if (W8.relVar === 0) {
           gunPt(_p1, s, 'R', A[0], A[1] + 0.04, A[2] + dz - 0.01); gunPt(_p2, s, 'R', A[0], A[1], A[2] + dz); gunPt(_p3, s, 'R', A[0] + 0.01, A[1] + 0.05, A[2] - 0.07);
           free = walkPath(_p4, [[0, _hL], [0.24, _p1], [0.36, _p2], [relU, _p2], [relU + 0.09, _p3], [1, _hL]], rr);
-        } else {
-          gunPt(_p1, s, 'R', B[0] + 0.015, B[1] + 0.02, B[2]); gunPt(_p2, s, 'R', B[0], B[1] - 0.004, B[2]); gunPt(_p3, s, 'R', B[0] + 0.02, B[1] + 0.025, B[2] - 0.01);
-          free = walkPath(_p4, [[0, _hL], [0.32, _p1], [relU - 0.08, _p1], [relU, _p2], [relU + 0.12, _p3], [1, _hL]], rr);
-        }
+        } else { free = null; wt = 0; }   // the slide release: the shooting hand's thumb does it (the gun's roll, above), the support hand back on the grip
       }
     } else if (rel === 'shell') {
       if (id === 'revolver' && cr.length) _p1.set(0.035, 0.045, -0.07).applyMatrix4(cr[0].matrix).applyMatrix4(holdOf(s, 'R').matrix).applyMatrix4(gg.matrix);   // the back of the open cylinder
@@ -620,6 +652,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp);
       wt = 1;
     }
+    if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt);
     // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges)
     const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
@@ -640,8 +673,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
   } else handTarget(_fL, 'L', _hL, null, 0, rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
-  reach(pm.armR, 'R', _fR);
-  reach(pm.armL, 'L', _fL);
+  const hr = HAND_ROLL[H.kind] || HAND_ROLL.hand;
+  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w)); reach(pm.armL, 'L', _fL, ak ? -hr.R * (1 - HAND.L.w) : hr.L * (1 - HAND.L.w));   // (turned back straight while a hand's off the gun)
   pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1;
   pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
   up.x += ANIM.pitch * 0.4 + ads * 0.05;

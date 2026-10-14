@@ -12,12 +12,13 @@ function updateInteractions(dt) {
   const canBoard = boardable(o);
   if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * S.boardSpeed; if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
   else boardT = 0;
-  const fv = !o && !P.vault && fenceTarget();
+  const fv = !o && !P.vault && fenceTarget(), tk = nearestTake();
   // the prompt eases in and out (the 'on' class); its rows stay put while it fades so it never blinks empty
-  const showPrompt = !!(o || st || fv) && !P.vault && !openSt;
+  const showPrompt = !!(o || st || fv || tk) && !P.vault && !openSt;
   if (showPrompt) {
     const rows = [], row = (k, t, extra) => `<div class="pr"><kbd>${k}</kbd><span>${t}</span>${extra || ''}</div>`;
-    if (st) rows.push(row('E', `Use the ${st.name.toLowerCase()}`));
+    if (tk) { const id = takeId(tk), old = W8.slot[WEAP[id].slot]; rows.push(row('E', `${tk.kind === 'gun' ? 'Pick up' : 'Take'} the ${WEAP[id].name.toLowerCase()}`, old && old !== id ? `<em>drops your ${WEAP[old].short || WEAP[old].name}</em>` : '')); }
+    else if (st) rows.push(row('E', `Use the ${st.name.toLowerCase()}`));
     if (fv) rows.push(row('Space', 'Hop the fence'));
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';

@@ -36,7 +36,7 @@ function recomputeEff() {
     if (D.mag) D.mag *= [1, 1.4, 2.0, 2.7][mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
-    // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's, so both take longer than one
+    // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
     if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
     if (D.akimbo) D.reload *= AK_ONE;
     D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];
@@ -46,7 +46,7 @@ function recomputeEff() {
 }
 const W = id => EFF[id];
 // how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
-const MAG_SLOW = 0.3, AK_ONE = 0.8;
+const MAG_SLOW = 0.3, AK_ONE = 1;
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
 // fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
 const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };

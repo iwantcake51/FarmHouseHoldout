@@ -9,13 +9,17 @@ function equip(s, force) {
   W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.click();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
-// (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half)
+// (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half); reloading one of
+// a pair, a gun still in the other hand, slows you AK_WALK more
 function reloadSlow() {
   if (!W8.reloading) return 1;
   const id = curId(), D = W(id); if (!D || D.melee) return 1;
   const base = D.slot === 'side' ? 0.12 : D.slot === 'long' ? 0.2 : 0.17;
-  return 1 - Math.min(0.48, base + Math.min(0.28, magSize(id) / 360));
+  return 1 - Math.min(0.48, base + Math.min(0.28, magSize(id) / 360) + (D.akimbo ? AK_WALK : 0));
 }
+const AK_WALK = 0.14;
+// each reload's own feel (player/hold.js): how far the gun's turned for it, a bulge in the hand's way there, a wobble
+const relJitter = () => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: rr(0, 20) }; };
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
   const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;   // hands are busy with the bandage, or still drawing
@@ -23,7 +27,7 @@ function startReload() {
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
-  W8.relStyle = Math.floor(Math.random() * 3);   // which of its ways this reload is done (player/hold.js)
+  W8.relStyle = Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done, and its own feel (player/hold.js)
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
     // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js), and the
@@ -80,7 +84,7 @@ function tickReload(dt) {
     // one shell a go, or two or three with a speed loader
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
     W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); if (n > 1) setTimeout(() => SFX.shell(), 55); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) { W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul; W8.relStyle = Math.floor(Math.random() * 3); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) { W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul; W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
     // done: a pump or bolt gun that's open is racked next (weapons/casings.js), one that's chambered is ready as it is;
     // anything else snaps shut
     else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); }

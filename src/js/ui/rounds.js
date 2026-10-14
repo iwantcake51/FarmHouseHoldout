@@ -20,14 +20,15 @@ function dropRound(src) {
 // the glyphs for one magazine: the spent ones first (they sit at the far end), then those left; a big one is a bar
 const magGlyphs = (n, have) => n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i class="off"></i>'.repeat(Math.max(0, n - have)) + '<i></i>'.repeat(Math.max(0, Math.min(have, n)));
 const roundsCls = D => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '');
-// an akimbo pair: each gun's magazine its own group, the left's on the left, split by a rule; the one being reloaded dims
+// an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
+// being reloaded dims
 function renderRoundsAk(id, D) {
   const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + ':' + akBusy('L') + akBusy('R');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
   el.className = roundsCls(D) + ' ak';
   if (!el.firstElementChild || !el.firstElementChild.classList.contains('mag')) el.innerHTML = '<div class="mag"></div><div class="mag"></div>';
-  ['L', 'R'].forEach((s, k) => {
+  [AK_ON.left, AK_ON.right].forEach((s, k) => {
     const g = el.children[k];
     if (pr && pr.ak && pr.id === id && pr.n === n && m[s] < pr[s] && n <= 40 && state === 'play') for (let i = n - pr[s], c = 0; i < n - m[s] && c < 6; i++, c++) if (g.children[i]) dropRound(g.children[i]);
     g.innerHTML = magGlyphs(n, m[s]); g.classList.toggle('rl', akBusy(s));

@@ -9,6 +9,7 @@ function canSever(wId) {
   if (D.blunt) return false;
   return true;
 }
+const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
@@ -22,7 +23,8 @@ function sever(z, part, dx, dz, blast) {
   gibs.push({ m: mesh, vx: dx * rr(2, 4.5) + rr(-1.2, 1.2), vy: rr(2.5, 4.5), vz: dz * rr(2, 4.5) + rr(-1.2, 1.2), spin: rr(6, 14), life: 9, landed: false });
   z.spurts.push({ part, t: 1.4 });
   burst(wp.x, wp.y, wp.z, 10, 'blood', dx, dz, 3); spray(wp.x, wp.z, dx, dz, rr(0.8, 1.3));
-  if (part !== 'torso') run.limbs++; if (!blast) SFX.sever();   // a blast plays one sound for the lot
+  if (part !== 'torso') { run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
+  if (!blast) SFX.sever();   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) {
     // the leg goes and they buckle and fall forward onto their hands
     z.crawl = true; z.crawlT = 0; z.stagger = Math.max(z.stagger, 0.85); z.trail = 0;

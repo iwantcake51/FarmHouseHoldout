@@ -1,0 +1,25 @@
+/* The weapon stats sheet (ui/weapon-stats.js): a compact panel on the left, beside the workbench while it's open (the
+   bench moves over to make room: #station.withStats) or anywhere with I. */
+#wStats{left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:252px;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
+  pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.93);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.5);text-shadow:none;animation:stRise .25s cubic-bezier(.2,.8,.3,1)}
+#station.withStats{left:calc(50% + 134px);width:min(820px,calc(100vw - 32px - 280px))}
+.wsHead{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.wsHead b{font-family:var(--f-num);font-weight:800;font-size:24px;text-transform:uppercase;line-height:1}
+.wsHead span{color:var(--dim);font-size:11px}
+.wsGrid{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:3px 8px}
+.wsGrid .l{color:var(--dim);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.wsGrid b{font-family:var(--f-num);font-weight:800;font-size:17px;line-height:1;text-align:right;font-variant-numeric:tabular-nums}
+.wsGrid em{font-style:normal;color:var(--dim);font-size:10.5px;line-height:1.2}
+.wsSub{margin:10px 0 3px;color:var(--orange);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.wsCone,.wsFall{display:block;width:100%;height:auto;background:rgba(236,230,216,.03);border:1px solid rgba(236,230,216,.08)}
+.wsFall text{fill:var(--dim);font-size:8px;font-family:var(--f-ui);text-anchor:middle}
+.wsFall text.hi,.wsFall text.lo{fill:var(--ink);font-size:9px;text-anchor:start}.wsFall text.lo{text-anchor:end}
+.wsKey{display:flex;flex-wrap:wrap;gap:2px 10px;margin-top:3px;font-size:10px;color:var(--dim)}
+.wsKey span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:4px;background:var(--c);vertical-align:0}
+.wsSrc{display:grid;gap:4px}
+.wsSrc div{display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+.wsSrc span{font-size:11px;margin-right:3px}
+.wsSrc i{font-style:normal;font-size:9.5px;padding:1px 4px;border:1px solid}
+.wsSrc i.up{color:#9fd37a;border-color:rgba(159,211,122,.45)}.wsSrc i.down{color:#e2715a;border-color:rgba(226,113,90,.45)}
+.wsNone{color:var(--dim);font-size:11px}
+@media (max-width:700px){#wStats{display:none}#station.withStats{left:50%;width:min(820px,calc(100vw - 32px))}}

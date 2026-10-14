@@ -4,6 +4,9 @@
 // splits it between the hands.
 
 const AK_SIDES = ['L', 'R'];
+// which gun is on which side as you see it: the rig's 'R' hand is the one on your left as you face (its 'L' on your
+// right), so left click fires the 'R' gun, and the HUD and crosshair show it on the left
+const AK_ON = { left: 'R', right: 'L' };
 const akPer = id => Math.max(1, Math.round(magSize(id) / 2));   // one gun's magazine
 // each hand's rounds. The total is the truth: when something else changed it (a new gun, a bigger mag), the difference
 // is shared out, filling the right gun first and emptying the left first
@@ -20,9 +23,10 @@ function akMags(id) {
 }
 // a gun's turn to be reloaded: it goes down to the hip pouch while the other stays up on the aim and can still fire. Its
 // mag flicks out at AK_OUT of its turn, the fresh one is seated at AK_IN, and a gun that ran dry has its slide dropped
-// off the stop at AK_SLIDE as it comes back up (player/hold.js poses it on the same marks). One with rounds left skips
-// the slide and takes AK_TAC of the time
-const AK_OUT = 0.08, AK_IN = 0.6, AK_SLIDE = 0.7, AK_TAC = 0.85;
+// off the stop at AK_SLIDE as it comes back up (player/hold.js poses it on the same marks). Done one-handed it's slow:
+// a gun with rounds left takes AK_TAC of a lone gun's reload, and one run dry AK_EMPTY (its mag fumbled out and the
+// slide thumbed home with the same hand)
+const AK_OUT = 0.08, AK_IN = 0.6, AK_SLIDE = 0.7, AK_TAC = 0.95, AK_EMPTY = 1.4;
 const akBusy = s => W8.reloading === 'mag' && !!W8.akRel && W8.akRel.side === s;
 // how far through its own reload a gun is (0 when it's up on the aim)
 const akU = s => akBusy(s) ? clamp(W8.akRel.t / W8.akRel.dur, 0, 1) : 0;
@@ -31,7 +35,7 @@ function akSlideBack(id, s) {
   if (akBusy(s) && W8.akRel.empty) return W8.akRel.t / W8.akRel.dur < AK_SLIDE;
   return akMags(id)[s] <= 0;
 }
-const akDur = (D, empty) => D.reload * S.reloadMul * (empty ? 1 : AK_TAC);
+const akDur = (D, empty) => D.reload * S.reloadMul * (empty ? AK_EMPTY : AK_TAC);
 // R: every gun that's short of a full mag is reloaded in turn, the emptier first (the right if they're even). Only one
 // fired, only that one is reloaded, so it's quicker
 function akStartReload(id, D) {
@@ -45,7 +49,7 @@ function akNextGun(id, D) {
   const left = AK_SIDES.filter(s => !r.done[s] && m[s] < per).sort((a, b) => m[a] - m[b] || (a === 'R' ? -1 : 1));
   if (!left.length || reserveOf(id) <= 0) { W8.reloading = null; r.side = null; return; }
   const s = left[0];
-  r.side = s; r.t = 0; r.ev = 0; r.empty = m[s] <= 0; r.dur = akDur(D, r.empty); W8.relStyle = Math.floor(Math.random() * 3);
+  r.side = s; r.t = 0; r.ev = 0; r.empty = m[s] <= 0; r.dur = akDur(D, r.empty); W8.relStyle = Math.floor(Math.random() * 3); relJitter();
   akRing(id, D);
 }
 // the reload ring and the HUD's timer run over the whole reload: this gun's turn and the other's, if it's still to come
@@ -69,7 +73,7 @@ function akTickReload(dt, id, D) {
   if (u >= 1) { r.done[s] = true; akNextGun(id, D); if (!W8.reloading) return; }
   akRing(id, D);
 }
-// the triggers. want.L / want.R are the mouse buttons; want.any is a touch stick, one trigger for both, and the guns
+// the triggers. want.L / want.R are each gun's trigger (the mouse buttons, through AK_ON); want.any is a touch stick, one trigger for both, and the guns
 // take turns on it. In single shots each gun fires once a click; a burst is a gun's own (three from that gun, both for
 // six), repeating while its button is held and stopping where it is when it's let go
 function akTriggers(dt, id, D, want) {

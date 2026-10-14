@@ -31,7 +31,7 @@ function animateDeath(dt) {
   pm.lower.rotation.y = 0; pm.lower.position.y = 0; pm.upper.position.y = 0;
   pm.legL.rotation.x = 0.55 * kn * (1 - fall * 0.6); pm.legR.rotation.x = 0.25 * kn * (1 - fall * 0.4);
   const flail = Math.sin(t * 9) * 0.1 * (1 - fall);
-  pm.armL.position.set(-0.33, 1.08, 0); pm.armR.position.set(0.33, 1.08, 0); pm.armL.scale.set(1, 1, 1); pm.armR.scale.set(1, 1, 1);
+  pm.armL.position.set(-0.33, 1.08, 0); pm.armR.position.set(0.33, 1.08, 0); pm.armL.scale.set(ARM_THIN, ARM_THIN, 1); pm.armR.scale.set(ARM_THIN, ARM_THIN, 1);
   pm.armL.rotation.set(sg > 0 ? -1.2 * kn - 0.9 * fall + flail : -0.4 * kn - 2.2 * fall + flail, 0.5 * fall, -0.5 * fall);
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
@@ -165,10 +165,14 @@ function animatePlayer(dt, rdt) {
     const zl = -st * sn * 0.5, zr = st * sn * 0.5 * bad;
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
     pm.legL.rotation.z = (zl > 0 ? zl * 0.35 : zl) - splay; pm.legR.rotation.z = (zr < 0 ? zr * 0.35 : zr) + splay; pm.lower.rotation.z = spd <= 0.3 ? ANIM.legYaw * 0.035 : 0;
-    if (ANIM.stepping && spd <= 0.3) {
-      const q = Math.sin(ANIM.stepT * 12), lift = Math.min(1, Math.abs(ANIM.legYaw) * 1.6 + 0.3);
-      pm.legL.rotation.x = q * 0.13 * lift; pm.legR.rotation.x = -q * 0.13 * lift;
-      pm.legL.rotation.z = Math.max(0, q) * 0.08 * lift; pm.legR.rotation.z = -Math.max(0, -q) * 0.08 * lift;
+    // the shuffle round eases in and, once the feet have caught up, settles out over a moment (stepW) instead of the
+    // legs snapping straight from mid-step
+    ANIM.stepW = (ANIM.stepW || 0) + ((ANIM.stepping && spd <= 0.3 ? 1 : 0) - (ANIM.stepW || 0)) * Math.min(1, rdt * (ANIM.stepping ? 14 : 7));
+    if (ANIM.stepW > 0.002 && spd <= 0.3) {
+      if (!ANIM.stepping) ANIM.stepT = (ANIM.stepT || 0) + rdt;   // the last step carries on as it fades
+      const w = ANIM.stepW, q = Math.sin(ANIM.stepT * 12), lift = Math.min(1, Math.abs(ANIM.legYaw) * 1.6 + 0.3) * w, mix = (a, b) => a * (1 - w) + b;
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, q * 0.13 * lift); pm.legR.rotation.x = mix(pm.legR.rotation.x, -q * 0.13 * lift);
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, Math.max(0, q) * 0.08 * lift); pm.legR.rotation.z = mix(pm.legR.rotation.z, -Math.max(0, -q) * 0.08 * lift);
       pm.lower.position.y = Math.abs(q) * 0.016 * lift; pm.lower.rotation.z += q * 0.035 * lift;
     }
   }

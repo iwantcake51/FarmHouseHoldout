@@ -107,12 +107,12 @@ function updateCrosshair(rdt, D) {
     else tgt = zombies.some(z => { const th = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.5 ? 0.75 : 0; return Math.hypot(z.x - P.x, z.z - P.z) < D.range + z.T.r + th && Math.abs(angDiff(Math.atan2(z.x - P.x, z.z - P.z), P.aim)) < D.arc + (th ? 0.25 : 0); });
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
-      // two guns: each arc is its own gun's mag (the right's on the right), each turning yellow under a quarter
-      const am = ak && akMags(id), n = ak ? akPer(id) : magSize(id), have = ak ? am.R : W8.mag[id] || 0, key = n + ':' + have + ':' + aR + (ak ? ':' + am.L : '');
+      // two guns: each arc is its own gun's mag (the one on your right on the right, AK_ON), each turning yellow under a quarter
+      const am = ak && akMags(id), n = ak ? akPer(id) : magSize(id), have = ak ? am[AK_ON.right] : W8.mag[id] || 0, haveL = ak ? am[AK_ON.left] : 0, key = n + ':' + have + ':' + aR + (ak ? ':' + haveL : '');
       const healing = P.bandT > 0, lowAt = Math.max(1, n * 0.25);
       if (cache.ammoKey !== key) {
         cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg);
-        if (ak) { const [fgL, bgL] = ammoDash(n, am.L); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', am.L <= lowAt); }
+        if (ak) { const [fgL, bgL] = ammoDash(n, haveL); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', haveL <= lowAt); }
         xhAmmo.classList.toggle('low', have <= lowAt);
       }
       // yellow under a quarter, red and asking for a reload when empty. With two guns it's both mags together: low once
@@ -133,7 +133,7 @@ function updateCrosshair(rdt, D) {
       // each gun's ring fills through its own turn, and only its arc dims while it's down being reloaded; a gun running low
       // pulses its arc yellow, and an empty one flashes its whole arc red until it's reloaded
       const am2 = akMags(id), lowA = Math.max(1, akPer(id) * 0.25);
-      for (const [s, ring, arc, bg] of [['R', xhRing, xhAmmo, xhAmmoBg], ['L', xhRingL, xhAmmoL, xhAmmoBgL]]) {
+      for (const [s, ring, arc, bg] of [[AK_ON.right, xhRing, xhAmmo, xhAmmoBg], [AK_ON.left, xhRingL, xhAmmoL, xhAmmoBgL]]) {
         const busy = akBusy(s), n = am2[s]; ring.setAttribute('stroke-dasharray', (ARC() * (busy ? akU(s) : 0)).toFixed(1) + ' 999'); ring.style.opacity = busy ? 1 : 0; arc.style.opacity = busy ? 0.25 : 1;
         arc.classList.toggle('flash', n > 0 && n <= lowA && !busy); bg.classList.toggle('out', n === 0 && !busy);
       }

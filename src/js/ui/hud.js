@@ -49,7 +49,7 @@ function updateHUD(rdt, D) {
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
     const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
-    if (ak) { const per = akPer(id); setRoll('ammoL', String(am.L)); setRoll('ammo', String(am.R)); ammoEl($('ammoL'), am.L, per, akBusy('L')); ammoEl($('ammo'), am.R, per, akBusy('R')); }
+    if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
     else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magSize(id), false); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);

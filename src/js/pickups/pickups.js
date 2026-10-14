@@ -4,7 +4,7 @@ const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
-const PICK_COL = { scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0xf08a4a, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
+const PICK_COL = { gun: 0xf0c060, scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0xf08a4a, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
 const AM = {
   brass: lam(0xc9a043), brassTip: lam(0xb0663a), p9box: lam(0x3e5466), magBox: lam(0x7a2420), shell: lam(0xa8342a), rifleClip: lam(0x3a3b36), cardboard: lam(0x9a8460), shellBox: lam(0x3f5a34)
 };
@@ -34,6 +34,7 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
     box(g, 0.24, 0.03, 0.06, GM.metal2, 0, 0.22, 0).rotation.y = rand() * 3;
   }
   else if (kind === 'supply') crateModel(g, cargo);   // a supply crate, or a weapon's case (stations/supply-drop.js)
+  else if (kind === 'gun') g.add(cargo.model);         // a gun you put down (gunDrop, below)
   else if (ammoType === 'p9') {        // a blue-grey carton of 9mm with rounds stood on top
     box(g, 0.34, 0.14, 0.24, AM.p9box, 0, 0.26, 0); box(g, 0.35, 0.02, 0.25, AM.cardboard, 0, 0.34, 0);
     for (let k = 0; k < 4; k++) cartridge(g, -0.11 + k * 0.075, 0.39, 0.02, 0.07, 0.018);
@@ -61,12 +62,13 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   const ring = new THREE.Mesh(ringGeo, ringMat), disc = new THREE.Mesh(discGeo, discMat);
   ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.y = 0.035; disc.position.y = 0.033; ring.renderOrder = disc.renderOrder = 2;
   if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); root.add(dropBeam()); }
+  if (kind === 'gun') { ring.scale.setScalar(1.4); disc.scale.setScalar(1.4); }
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
   if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
 // its ring and glow dimmed, so it's plain you can't grab it; it eases back into colour as soon as you have room
@@ -92,7 +94,7 @@ function updatePickups(dt) {
     p.item.position.set(Math.cos(p.toss) * 0.25 * (1 - a), hop + 0.06 + Math.sin(p.ph) * 0.06, Math.sin(p.toss) * 0.25 * (1 - a));
     p.item.rotation.y += dt * 1.3;
     const pulse = 0.5 + 0.5 * Math.sin(p.ph * 1.4);
-    p.ring.scale.setScalar((p.kind === 'supply' ? 1.8 : 1) * (0.92 + pulse * 0.16)); p.ringMat.opacity = 0.45 + pulse * 0.4;
+    p.ring.scale.setScalar((p.kind === 'supply' ? 1.8 : p.kind === 'gun' ? 1.4 : 1) * (0.92 + pulse * 0.16)); p.ringMat.opacity = 0.45 + pulse * 0.4;
     // the last 10 seconds: it pulses, slowly at first and faster and faster, then shrinks away in the last moment
     const warn = clamp(1 - p.t / 10, 0, 1);
     p.wph = (p.wph || 0) + dt * Math.PI * 2 * (0.9 + 9 * warn * warn);
@@ -107,7 +109,7 @@ function updatePickups(dt) {
     // a drop out past the edge of the farm, where you can't walk, flies in to you once it's landed, picking up speed;
     // one you can't take yet (a full bag or stack) stops just short of you
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply') {
+    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun') {
       const sp = Math.min(10, 2 + (p.age - 0.5) * 6), full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom()), stop = full ? 1.4 : 0;
       if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
       if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
@@ -116,12 +118,11 @@ function updatePickups(dt) {
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
-    if (d < 0.9 && !full) {
+    if (d < 0.9 && !full && !isTake(p)) {   // (a weapon is taken with E: takeIt, below)
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount + (p.hoard ? ' ×2' : ''); SFX.scrap(); }
-      else if (p.kind === 'supply' && p.cargo && p.cargo.kind === 'weapon') { deliverWeapon(p.cargo.id); flareDone(); ft = WEAP[p.cargo.id].name; SFX.pick(); }
       else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
@@ -134,4 +135,41 @@ function updatePickups(dt) {
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }
+}
+
+// weapons are taken on purpose, with E (or the touch button), never just by walking over them: a weapon's case off the
+// radio, and a gun you've put down for another, lying where you dropped it with its upgrades and the rounds that were
+// in it. Taking one puts down the one in that slot in its place (gunDrop)
+const TAKE_R = 1.4;
+const isTake = p => p.kind === 'gun' || (p.kind === 'supply' && !!p.cargo && p.cargo.kind === 'weapon');
+const takeId = p => p.kind === 'gun' ? p.cargo.id : p.cargo.id;
+function nearestTake() {
+  if (P.dead || P.vault || state !== 'play') return null;
+  let best = null, bd = TAKE_R;
+  for (const p of pickups) { if (!isTake(p) || p.age < 0.4) continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+// put a weapon down where you stand: a copy of it as you carry it, lying on its side, to pick back up
+function gunDrop(id) {
+  const s = WEAP[id].slot, src = gunMeshes[s]; if (!src) return;
+  const copy = src.clone(true);
+  copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });
+  copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.scale.set(1, 1, 1); copy.visible = true;
+  copy.children.forEach(h => { if (h.userData.side) { h.position.x = h.userData.x0 || 0; h.position.y = h.position.z = 0; h.rotation.set(0, 0, 0); h.visible = true; } });
+  copy.updateMatrixWorld(true); const c = new THREE.Box3().setFromObject(copy).getCenter(new V3());
+  const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
+  const a = rr(0, Math.PI * 2);
+  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: lay, mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null });
+}
+function takeIt(p) {
+  const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];
+  if (old) gunDrop(old);
+  if (p.kind === 'gun') {
+    // your own gun back: as you left it, no fresh ammo with it
+    W8.slot[D.slot] = id; recomputeEff(); W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
+    equip(D.slot, true); buildGuns(); gunGlow = 1;
+    gotGear({ ic: 'gear', kind: 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
+  } else { deliverWeapon(id); flareDone(); }
+  floatText(p.x, p.z, D.name, '#f0c060'); SFX.pick();
+  scene.remove(p.g); const k = pickups.indexOf(p); if (k >= 0) pickups.splice(k, 1);
 }
