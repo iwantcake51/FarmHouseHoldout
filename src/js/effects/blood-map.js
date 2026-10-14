@@ -51,9 +51,10 @@ void main() {
     a = smoothstep(0.52, 0.3, r + (nz - 0.5) * 0.4);
     a = max(a, smoothstep(0.66, 0.74, bn(vUv * 2.6 + uSeed * 3.1)) * smoothstep(1.0, 0.55, r));
   } else {
-    // a boot print, toe along +x: the sole and the heel with a gap between, its tread breaking it up so it reads pressed
-    // in rather than painted on
-    float sole = length((p - vec2(0.3, 0.0)) / vec2(0.6, 0.36)), heel = length((p - vec2(-0.62, 0.0)) / vec2(0.27, 0.32));
+    // a boot print the size of the boot sole (0.28 m long, 0.2 m wide over the 0.3 m quad), toe along +x: a squared-off
+    // sole and heel with a gap between, its tread breaking it up so it reads pressed in rather than painted on
+    vec2 qs = abs(p - vec2(0.28, 0.0)) / vec2(0.62, 0.66), qh = abs(p - vec2(-0.64, 0.0)) / vec2(0.27, 0.6);
+    float sole = pow(pow(qs.x, 4.0) + pow(qs.y, 4.0), 0.25), heel = pow(pow(qh.x, 4.0) + pow(qh.y, 4.0), 0.25);
     a = max(smoothstep(1.0, 0.78, sole + (nz - 0.5) * 0.35), smoothstep(1.0, 0.78, heel + (nz - 0.5) * 0.35));
     a *= 0.55 + 0.45 * smoothstep(0.32, 0.62, bn(vUv * 5.0 + uSeed));
   }
@@ -86,7 +87,7 @@ function bloodyStep() {
   const wet = bloodWetAt(P.x, P.z);
   if (wet > 0.35) P.bloodFeet = Math.max(P.bloodFeet || 0, Math.min(1, wet));
   if (!(P.bloodFeet > 0.04)) return;
-  const v = Math.hypot(P.vx, P.vz) || 1, dx = P.vx / v, dz = P.vz / v, off = 0.1 * P.footSide;
+  const v = Math.hypot(P.vx, P.vz) || 1, dx = P.vx / v, dz = P.vz / v, off = 0.13 * P.footSide;   // under that leg
   splat(P.x - dz * off + dx * 0.08, P.z + dx * off + dz * 0.08, 'foot', 0.3, Math.atan2(dz, dx), 0, 0, 0.3 + 0.55 * P.bloodFeet);
   P.bloodFeet -= 0.12;
 }

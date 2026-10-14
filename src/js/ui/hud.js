@@ -1,6 +1,8 @@
 // The HUD each frame.
 
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
+// a fresh run's max health: anything over it on the bar is bonus health, in its own colour
+const BASE_HP = 100;
 function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
@@ -23,6 +25,8 @@ function updateHUD(rdt, D) {
     setT('wNum', String(Math.max(1, run.wave)).padStart(2, '0'));
     setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
+    // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
+    { const b = hpF > 0 ? Math.min(100, (BASE_HP / S.maxHp) / hpF * 100) : 100, bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
     // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
     { const inc = Math.min(1 - hpF, ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }

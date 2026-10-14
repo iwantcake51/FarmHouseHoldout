@@ -107,7 +107,7 @@ function dropMag(id, side) {
   const mt = T('mag'), c = mags[mIdx = (mIdx + 1) % mags.length];
   let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2, dr = null;
   if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = GM.poly; } }
-  else if (id === 'deagle') { w = 0.026; h = 0.17; d = 0.065; }
+  else if (id === 'deagle') { w = 0.026; h = [0.17, 0.22, 0.32][Math.min(2, mt)]; d = 0.065; }
   else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
   else if (id === 'sub') { w = 0.026; h = hasMod('stack') ? 0.36 : 0.24; d = 0.042; }
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }

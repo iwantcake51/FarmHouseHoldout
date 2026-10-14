@@ -59,7 +59,7 @@ function fitAttachments(g, D, front, y, info) {
       if (!rail) box(g, 0.012, 0.006, 0.02, GM.metal2, X, top + 0.001, lz - 0.02);
       em.position.set(lx - 0.01, ey, fz + 0.003);
     }
-    lg.add(em); g.userData.laserEm = em;
+    em.userData.isLaser = true; lg.add(em); g.userData.laserEm = em;   // (isLaser: found again on the copy you carry, weapons/laser.js)
   }
   if (T('light') && !info.noLight) {
     const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can

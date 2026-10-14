@@ -10,13 +10,13 @@ function packQ(d, u) { return new THREE.Quaternion().setFromRotationMatrix(new T
 // pack's left is the side the long gun is on; the melee weapon is at its right edge). The long gun lies flat against
 // the pack's left side, upright and barrel down, its left side to the canvas (over the bottle in the side pocket),
 // its top facing back and the butt standing a little above the pack; the automatic lies against the back on a slant,
-// muzzle up and leaning toward the long gun's side, its left side to the canvas. pivot is the point on the model at
-// the mount (bb: the model's bounds)
+// muzzle up and leaning toward the long gun's side, its left side to the canvas (the M60 turned over, its right side
+// to the canvas, so the ammo box hangs out). pivot is the point on the model at the mount (bb: the model's bounds)
 const STOW_TILT = 0.45;
 const STOW_AT = {
   side: { part: () => PM.upper, pos: [0.3, 0.6, 0.02], rot: [Math.PI / 2, 0, 0.05], pivot: id => (HOLD[id] || HOLD_DEF).grip },
   long: { part: () => packBody, pos: [0.295, 1.1, -0.24], q: packQ(new V3(0, -1, 0), new V3(0, 0, -1)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, bb.min.z + 0.4] },
-  auto: { part: () => packBody, pos: [0, 0.93, -0.36], q: packQ(new V3(Math.sin(STOW_TILT), Math.cos(STOW_TILT), 0), new V3(Math.cos(STOW_TILT), -Math.sin(STOW_TILT), 0)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2] },
+  auto: { part: () => packBody, pos: [0, 0.93, -0.36], q: packQ(new V3(Math.sin(STOW_TILT), Math.cos(STOW_TILT), 0), new V3(Math.cos(STOW_TILT), -Math.sin(STOW_TILT), 0)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2], flip: id => id === 'lmg' },
   melee: { part: () => packBody, pos: [-0.24, 1.2, -0.33], rot: [0, 0, Math.PI - 0.12], pivot: () => [0, 0.05, 0] }
 };
 // a pair's left gun has its own place: a second holster on the left hip (mirrored, its paddle to your side), or on the
@@ -25,12 +25,92 @@ const STOW_AK = {
   side: { part: () => PM.upper, pos: [-0.3, 0.6, 0.02], rot: [Math.PI / 2, 0, -0.05], pivot: id => (HOLD[id] || HOLD_DEF).grip },
   auto: { part: () => packBody, pos: [0, 0.93, -0.36], q: packQ(new V3(-Math.sin(STOW_TILT), Math.cos(STOW_TILT), 0), new V3(-Math.cos(STOW_TILT), -Math.sin(STOW_TILT), 0)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2] }
 };
-// how far out from the pack's back the automatic sits (its centre line): over the planks strapped there (a first
-// layer and its strap, then a second), and over the melee weapon its lower end crosses
-const plankOff = () => { const n = Math.min(5, S.planks | 0); return n > 3 ? 0.12 : n ? 0.077 : 0; };
-const packZ = () => (W8.slot.melee ? -0.4 : -0.36) - plankOff();
+// the automatic lies on whatever is under it on the pack's back: the canvas, the planks strapped there, the melee
+// weapon its lower end crosses (and a pair's second gun on the first). What's there is drawn into a height map, the
+// furthest-out z of anything over each centimetre of the back (in packBody's frame), and the gun is pushed in until its
+// nearest point touches it. Of the pack itself only the canvas counts (its own colours; the straps, buckles and bottle
+// are baked into one mesh), as the straps and buckles squash under the gun
+const REST = { x0: -0.45, y0: 0.35, c: 0.01, nx: 90, ny: 120 };
+function restWalk(o, skip, f) { if (!o.visible || skip.has(o) || o.userData.isOutline || (o.isMesh && o.parent === packBody && o.material.vertexColors)) return; if (o.isMesh) f(o); o.children.forEach(c => restWalk(c, skip, f)); }
+function restMap(skip) {
+  const R = REST, hm = new Float32Array(R.nx * R.ny).fill(Infinity), inv = new THREE.Matrix4().copy(packBody.matrixWorld).invert(), m = new THREE.Matrix4(), a = new V3(), b = new V3(), c = new V3();
+  const cell = (v, o) => Math.floor((v - o) / R.c), tri = () => {
+    const d = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y); if (Math.abs(d) < 1e-9) return;
+    const i0 = Math.max(0, cell(Math.min(a.x, b.x, c.x), R.x0)), i1 = Math.min(R.nx - 1, cell(Math.max(a.x, b.x, c.x), R.x0));
+    const j0 = Math.max(0, cell(Math.min(a.y, b.y, c.y), R.y0)), j1 = Math.min(R.ny - 1, cell(Math.max(a.y, b.y, c.y), R.y0));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const px = R.x0 + (i + 0.5) * R.c, py = R.y0 + (j + 0.5) * R.c;
+      const l1 = ((b.y - c.y) * (px - c.x) + (c.x - b.x) * (py - c.y)) / d, l2 = ((c.y - a.y) * (px - c.x) + (a.x - c.x) * (py - c.y)) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
+      const z = l1 * a.z + l2 * b.z + l3 * c.z, k = j * R.nx + i; if (z < hm[k]) hm[k] = z;
+    }
+  };
+  restWalk(packBody, skip, o => {
+    const g = o.geometry, pa = g.attributes.position, ix = g.index, n = ix ? ix.count : pa.count; m.multiplyMatrices(inv, o.matrixWorld);
+    for (let t = 0; t + 2 < n; t += 3) {
+      a.fromBufferAttribute(pa, ix ? ix.getX(t) : t).applyMatrix4(m); b.fromBufferAttribute(pa, ix ? ix.getX(t + 1) : t + 1).applyMatrix4(m); c.fromBufferAttribute(pa, ix ? ix.getX(t + 2) : t + 2).applyMatrix4(m);
+      tri();
+    }
+  });
+  return hm;
+}
+// a stowed gun's points in its mount's frame, as it's turned on the pack (x, y, z flat): only its face toward the pack,
+// the nearest point over each centimetre, as nothing behind that can touch first
+function restPts(o) {
+  const near = new Map(), inv = new THREE.Matrix4().copy(o.matrixWorld).invert(), m = new THREE.Matrix4(), v = new V3();
+  restWalk(o.userData.gun, new Set(), q => {
+    const pa = q.geometry.attributes.position; m.multiplyMatrices(inv, q.matrixWorld);
+    for (let k = 0; k < pa.count; k++) { v.fromBufferAttribute(pa, k).applyMatrix4(m); const key = Math.round(v.x * 100) * 4096 + Math.round(v.y * 100), p = near.get(key); if (!p || v.z > p[2]) near.set(key, [v.x, v.y, v.z]); }
+  });
+  const out = []; near.forEach(p => out.push(p[0], p[1], p[2])); return out;
+}
+// how a gun lies best on what's under it: tipped end over end and rolled on its length a little, whichever leaves the
+// least gap under it along its length (in 2 cm steps), then pushed in until its nearest point touches. So one crossing
+// the melee weapon rests on it at one end and on the pack at the other. Returns the turn and how far in
+function restPose(o, hm) {
+  const R = REST, pts = restPts(o), d = new V3(0, 0, 1).applyQuaternion(o.userData.inner.quaternion), e = new V3().crossVectors(d, new V3(0, 0, 1)).normalize();
+  const q = new THREE.Quaternion(), qr = new THREE.Quaternion(), mt = new THREE.Matrix4(), v = new V3(), bins = new Map();
+  let best = null;
+  for (let tilt = -0.24; tilt < 0.25; tilt += 0.06) for (let roll = -0.2; roll < 0.21; roll += 0.1) {
+    q.setFromAxisAngle(e, tilt).multiply(qr.setFromAxisAngle(d, roll)); mt.makeRotationFromQuaternion(q);
+    let sh = Infinity; bins.clear();
+    for (let k = 0; k < pts.length; k += 3) {
+      v.set(pts[k], pts[k + 1], pts[k + 2]).applyMatrix4(mt); const along = Math.round(v.dot(d) / 0.02); v.add(o.position);
+      const i = Math.floor((v.x - R.x0) / R.c), j = Math.floor((v.y - R.y0) / R.c); if (i < 0 || j < 0 || i >= R.nx || j >= R.ny) continue;
+      const s = hm[j * R.nx + i]; if (s === Infinity) continue;
+      const g = s - v.z; if (g < sh) sh = g; const b = bins.get(along); if (b === undefined || g < b) bins.set(along, g);
+    }
+    if (sh === Infinity) continue;
+    let gap = 0; bins.forEach(g => { gap += g - sh; });
+    const cost = gap / bins.size + 0.02 * (Math.abs(tilt) + Math.abs(roll));
+    if (!best || cost < best.cost) best = { cost, sh, q: q.clone() };
+  }
+  return best;
+}
+// lay the automatic (and a pair's second gun over it) on what's under it, with everything at rest; its strap reaches
+// down to the pack either side of it
+const AUTO_Z = -0.36;
+let restKey = '';   // what the automatic was last laid on (updateStow)
+function restAuto() {
+  const o = STOW.auto; if (!o) return;
+  const t = o.userData.twin, swung = [o, t, STOW.melee, STOW.long, plankStack[0].parent].filter(Boolean), rot = swung.map(q => q.rotation.clone());
+  swung.forEach(q => q.rotation.set(0, 0, 0));
+  const vis = [o.visible, t && t.visible]; o.visible = true; if (t) t.visible = true;
+  const lay = (g, skip) => {
+    g.position.z = AUTO_Z; g.userData.inner.quaternion.copy(g.userData.q0); packBody.updateMatrixWorld(true);
+    const hm = restMap(skip), p = restPose(g, hm); if (p) { g.userData.inner.quaternion.premultiply(p.q); g.position.z += p.sh; }
+    return hm;
+  };
+  const hm = lay(o, new Set([o, t].filter(Boolean))), st = o.userData.strap;
+  if (st) {
+    const i = Math.floor((o.position.x - REST.x0) / REST.c), j = Math.floor((o.position.y + 0.02 - REST.y0) / REST.c), s = hm[j * REST.nx + i];
+    const z1 = s !== Infinity ? Math.max(0.042, s - o.position.z) : 0.042; st.scale.z = (z1 + 0.018) / 0.06; st.position.z = (z1 - 0.018) / 2;
+  }
+  if (t) lay(t, new Set([t]));
+  swung.forEach((q, k) => q.rotation.copy(rot[k])); o.visible = vis[0]; if (t) t.visible = vis[1];
+}
 const HOLSTER_M = lam(0x1d1d1f), HOOD_M = lam(0x141415), STRAP_M = lam(0x2c2620), BELT_M = lam(0x19191a), SNAP_M = lam(0x2e2f31), BUCKLE_M = lam(0x8a8d90);
-// a black duty holster, moulded round each sidearm (in the gun's own frame): rear and top of the shell, its closed
+// a duty holster (in the run's colour, player/look.js), moulded round each sidearm (in the gun's own frame): rear and top of the shell, its closed
 // front, the bore line, the trigger guard it covers (gz along the gun, gb its bottom), the mouth's lower corner where
 // it follows the front of the grip, and its width
 const HOLSTER_FIT = {
@@ -63,6 +143,7 @@ function buildBelt(on) {
   beltPieces.push(box(PM.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(PM.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158), box(PM.upper, 0.05, 0.034, 0.01, BELT_M, 0, 0.6, 0.16));
 }
 function buildStow() {
+  if (LOOK.cur) { HOLSTER_M.color.setHex(LOOK.cur.holster); HOOD_M.color.setHex(shade(LOOK.cur.holster, 0.72)); }   // the hood a shade darker
   for (const s in STOW) { const o = STOW[s]; if (o && o.parent) o.parent.remove(o); const t = o && o.userData.twin; if (t && t.parent) t.parent.remove(t); delete STOW[s]; }
   buildBelt(!!W8.slot.side);
   // one stowed copy of a slot's weapon (for a pair, of one of its guns: hand), centred where a lone gun would be
@@ -74,7 +155,9 @@ function buildStow() {
     copy.children.forEach(h => { if (h.userData.side) { h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.visible = true; } });
     copy.updateMatrixWorld(true); const outer = new THREE.Group(), inner = new THREE.Group(), pv = at.pivot(id, new THREE.Box3().setFromObject(copy));
     outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]);
+    if (at.flip && at.flip(id)) inner.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), Math.PI));   // turned over on its length
     inner.add(copy); outer.add(inner); at.part().add(outer);
+    outer.userData.gun = copy; outer.userData.inner = inner; outer.userData.q0 = inner.quaternion.clone();
     const sls = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); });
     return { outer, inner, copy, pv, sls };
   };
@@ -84,7 +167,7 @@ function buildStow() {
     // a leather holster round the sidearm, a strap across the pack for slung guns
     if (s === 'side') buildHolster(inner, id, pv, MUZ[s]);
     else if (s === 'long') [-0.04, -0.34].forEach(y => box(outer, 0.115, 0.03, 0.17, STRAP_M, -0.028, y, 0));   // two straps round it to the side of the pack
-    else if (s === 'auto') box(outer, 0.5, 0.035, 0.06, STRAP_M, 0, 0.02, 0.012).rotation.z = -STOW_TILT * 0.4;   // a strap across it, holding it to the pack
+    else if (s === 'auto') { const st = outer.userData.strap = box(outer, 0.5, 0.035, 0.06, STRAP_M, 0, 0.02, 0.012); st.rotation.z = -STOW_TILT * 0.4; }   // a strap across it, holding it to the pack
     outer.userData.slides = sls; outer.userData.id = id;
     outer.userData.slot = s; outer.userData.gun = copy; STOW[s] = outer;
     // a pair: the left gun in its own place, in a holster mirrored for the left hip
@@ -97,12 +180,13 @@ function buildStow() {
   }
 }
 // planks strapped flat across the back of the pack, one for each you carry up to five: three side by side against the
-// pack, then two more laid crosswise over them under a second strap
+// pack, then two more laid crosswise over them under a second strap. Each is a shade of its own, dealt again whenever
+// it's a fresh plank that shows up there
 const plankStack = [];
 {
   const g = new THREE.Group(); g.position.set(0, 0, -0.355); packBody.add(g);
   [[0.8, 0.04, M.board, 0, -0.02], [0.935, -0.05, M.board2, 0, 0.03], [1.07, 0.03, M.board, 0, -0.02], [0.87, -0.11, M.board2, 1, 0.01], [1.0, 0.09, M.board, 1, -0.01]].forEach(([y, tilt, mat, layer, x], k) => {
-    const p = box(g, 0.6 - layer * 0.04, 0.12, 0.04, mat, x, y, -0.005 * (k % 3) - layer * 0.046); p.rotation.z = tilt;
+    const p = box(g, 0.6 - layer * 0.04, 0.12, 0.04, lam(mat.color.getHex()), x, y, -0.005 * (k % 3) - layer * 0.046); p.rotation.z = tilt; p.userData.wood = mat.color.getHex();
     for (let n = 0; n < 2; n++) box(p, 0.012, 0.125, 0.045, M.metal, -0.22 + n * 0.44, 0, 0);   // nails at the ends
     p.visible = false; plankStack.push(p);
   });
@@ -141,10 +225,11 @@ function updatePack(dt) {
   packPivot.position.y = PACK_PIV[1] + clamp(q.y - PM.upper.position.y, -L.bounce, L.bounce);
   packPivot.rotation.set(q.rx, q.ry, q.rz);
 }
-// show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out
-function showStowed(s, on) {
+// show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out. A pair's left gun goes
+// with it (on2), or on its own while it's put away for a Run and gun vault (player/hold.js)
+function showStowed(s, on, on2 = on) {
   const o = STOW[s]; if (!o) return; o.userData.gun.visible = on; o.visible = (on || s === 'side') && !P.dead;
-  const t = o.userData.twin; if (t) { o.userData.gun2.visible = on; t.visible = o.visible; }   // a pair's left gun with it
+  const t = o.userData.twin; if (t) { o.userData.gun2.visible = on2; t.visible = (on2 || s === 'side') && !P.dead; }
 }
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
@@ -160,7 +245,7 @@ function updateStow(rdt) {
   }
   for (const s in STOW) {
     // the weapon in your hands goes back on you while you vault
-    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed);
+    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed, stowed || (s === held && !!ANIM.akHolstered));
     if (!o.visible) continue;
     const t = o.userData.twin;
     if (s === 'side') {
@@ -174,9 +259,11 @@ function updateStow(rdt) {
       }
     }
     else { o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8); if (t) t.rotation.copy(o.rotation); }   // slung guns and the melee weapon swing about the straps
-    if (s === 'auto') { o.position.z = packZ(); if (t) t.position.z = packZ() - 0.045; }   // a pair's second over the first
   }
   const n = Math.min(plankStack.length, S.planks | 0);
-  plankStack.forEach((p, k) => { p.visible = k < n; }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
+  plankStack.forEach((p, k) => { if (k < n && !p.visible) p.material.color.setHex(plankTint(p.userData.wood)); p.visible = k < n; }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
+  // the automatic is laid on what's under it again whenever that changes
+  const rk = STOW.auto ? STOW.auto.uuid + '|' + n + '|' + (STOW.melee ? STOW.melee.uuid : '') + '|' + (STOW.long ? STOW.long.uuid : '') : '';
+  if (rk && rk !== restKey) { restKey = rk; restAuto(); }
   plankStack[0].parent.rotation.set(stowSw.x * 0.15, 0, stowSw.z * 0.2);
 }

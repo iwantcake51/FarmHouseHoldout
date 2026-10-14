@@ -11,6 +11,8 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 // the circle round you inside which a zombie behind something shows its outline: full strength up to RED_NEAR metres,
 // then fading out the further it is, to nothing at RED_FAR
 const RED_NEAR = 4, RED_FAR = 12;
+// the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
+const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
 // standing behind a tree or a wall still reads as in reach; a burning one is orange (BURN_COL)
 const _xrRed = new THREE.Color(0xff3322), _xrSil = new THREE.Color(0xd8382a), _xrGreen = new THREE.Color(REACH_COL), _xrBurn = new THREE.Color(0xff8a1e);
@@ -31,7 +33,7 @@ function updateZombieVisuals(dt, rdt) {
     if (z.stain) z.stain.burn = z.burn;
     updateZombieStain(z.stain, rdt);
     const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
-    z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = true;
+    z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came z.m.g.visible = true;
     if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
     if (z.inReach || z.reachA > 0) {
       const on = !!z.inReach; z.inReach = false;
@@ -53,8 +55,18 @@ function updateZombieVisuals(dt, rdt) {
     // a zombie behind something is just hidden. The last few of a wave keep their pulsing outline, and their see-through
     // one, at any distance
     const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0;
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.38; } }
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } }
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
+    // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
+    // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)
+    { const lt = T('light'), L = lt && LIGHT_OL[lt], dk = curDark;
+      let a = 0;
+      if (L && dk > 0.05 && !P.dead) {
+        const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), P.aim));
+        a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75;
+      }
+      if (a > 0.01 && !z.lightOl) z.lightOl = outline(z.m.g, 0, 0, 0.022, rimMat(LIGHT_COL));
+      if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
     const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);

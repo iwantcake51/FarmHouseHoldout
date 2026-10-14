@@ -1,5 +1,5 @@
 // The survivor's look, dealt fresh at the start of every run: skin tone, hair and its style, beard, eye colour, hat,
-// top, trousers, shoes and the colour of the pack. The pieces sit in their own groups on the rig so they can be
+// top, trousers, shoes, the colours of the pack and its bedroll, and of the holster. The pieces sit in their own groups on the rig so they can be
 // cleared and rebuilt; colours something else changes later (the shirt under a jacket, skin) stay shared materials,
 // the rest is baked into a few merged meshes per body part.
 
@@ -26,7 +26,12 @@ const LOOKS = {
   },
   pants: [0x2f3238, 0x3a4a64, 0x4a3a2a, 0x6a5e44, 0x1e1e22, 0x434a36],
   shoes: ['boots', 'boots', 'blackboots', 'tanboots', 'sneakers'],
-  pack: [0x5a4a34, 0x4a5236, 0x55585a, 0x34405a, 0x5e3e2a], roll: [0x7a3a2a, 0x3a5a3a, 0x5a5a6a, 0x8a6a3a, 0x6a2a3a]
+  // canvas and nylon packs (olive, coyote, khaki, black, navy, forest, grey, brown, maroon, hiking red, orange, blue,
+  // teal), sleeping bags in their brighter nylons, and holsters in what they really come in: black most often, coyote,
+  // tan, olive drab, ranger green, wolf grey, and brown, tan or oxblood leather
+  pack: [0x5a4a34, 0x4a5236, 0x7a6a4a, 0x8a7a56, 0x2a2a2c, 0x2e3a54, 0x3a4a34, 0x55585a, 0x5e2a2a, 0x8a2e24, 0xa85a24, 0x34507a, 0x2e5a5a],
+  roll: [0x7a3a2a, 0x3a5a3a, 0x5a5a6a, 0x8a6a3a, 0x6a2a3a, 0x2e4a7a, 0xa85a24, 0x4a3a6a, 0xb08a2a, 0x2a2a2c, 0x3e6e6a, 0x9a2a22],
+  holster: [0x1d1d1f, 0x1d1d1f, 0x1d1d1f, 0x8a7656, 0xa08a62, 0x4e5236, 0x3e4632, 0x56585a, 0x5a3820, 0x8a5530, 0x4a2018]
 };
 const shade = (c, k) => new THREE.Color(c).multiplyScalar(k).getHex();
 const hsl = (h, s, l) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l).getHex();
@@ -49,7 +54,14 @@ function dealLook(opt) {
   L.top = o.top ?? pick(LOOKS.top); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
   L.pants = o.pants ?? pick(LOOKS.pants); L.shoes = o.shoes ?? pick(LOOKS.shoes);
   L.sneak = o.sneak ?? rollSneak();
-  L.pack = o.pack ?? pick(LOOKS.pack); L.roll = o.roll ?? pick(LOOKS.roll);
+  // the pack and its bedroll: half the time a stock colour, otherwise a fresh muted shade (a brighter one for the bedroll)
+  L.pack = o.pack ?? (rand() < 0.5 ? pick(LOOKS.pack) : hsl(rand(), rr(0.12, 0.45), rr(0.16, 0.38)));
+  const rollCol = () => rand() < 0.5 ? pick(LOOKS.roll) : hsl(rand(), rr(0.3, 0.7), rr(0.24, 0.5));
+  L.roll = o.roll ?? rollCol();
+  // a bedroll that would vanish into the pack is dealt again
+  const near = (a, b) => { const x = new THREE.Color(a), y = new THREE.Color(b); return Math.abs(x.r - y.r) + Math.abs(x.g - y.g) + Math.abs(x.b - y.b) < 0.25; };
+  for (let k = 0; k < 8 && o.roll === undefined && near(L.roll, L.pack); k++) L.roll = rollCol();
+  L.holster = o.holster ?? pick(LOOKS.holster);
   return L;
 }
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)

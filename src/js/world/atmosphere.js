@@ -6,7 +6,8 @@ const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z
 const moths = (() => {
   const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], [cxw(14), 1.4, cxw(16)]];   // outdoor lights only
   const seed = [];
-  centres.forEach((c, i) => { const n = i === 1 ? 16 : 9; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
+  // a few round each light, not a swarm
+  centres.forEach((c, i) => { const n = i === 1 ? 6 : 4; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
   const pos = new Float32Array(seed.length * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   const m = new THREE.PointsMaterial({ color: 0xf4e8cc, size: 2.2 * DPR, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts);
@@ -98,9 +99,9 @@ function stepAtmos(realDt) {
     sp.visible = sp.material.opacity > 0.005;
   }
 }
-// fireflies at night
+// fireflies at night: a scattered handful over the whole farm
 const fireflies = (() => {
-  const n = 46, pos = new Float32Array(n * 3), seed = [];
+  const n = 14, pos = new Float32Array(n * 3), seed = [];
   // they drift up to 1.2 m either way, so none is seeded within that of the house and none wanders in
   while (seed.length < n) { const x = rr(cxw(FX0), cxw(FX1)), z = rr(cxw(FZ0), cxw(FZ1)); if (!inHouse(x, z, 1.4)) seed.push({ x, z, y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));

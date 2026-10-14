@@ -152,12 +152,20 @@ const porchRoof = (() => {
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.renderOrder = -10; } });   // drawn before the outlines, like the main roof
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
 })();
-// how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt,
-// so blood and brass land on top of them instead of under the boards
+// how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and
+// indoors the floorboards and the rugs on them a touch above it, so blood and brass land on top of them instead of
+// under the boards, and you stand on them (player/animation.js)
 function surfaceY(x, z) {
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
   if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
-  if (ci(x) === 21 && ci(z) === HZ1) return 0.22;
+  if (ci(x) === 21 && ci(z) === HZ1) return 0.27;   // the top of the threshold
+  if (x > cxw(HX0) + 0.5 && x < cxw(HX1) - 0.5 && z > cxw(HZ0) + 0.5 && z < cxw(HZ1) - 0.5) {
+    const ox = (x - cxw(24.9)) / 1.35, oz = z - cxw(18.75);
+    if (Math.abs(x - cxw(21.5)) < 1.5 && Math.abs(z - cxw(22)) < 1) return 0.032;   // the woven rug
+    if (ox * ox + oz * oz < 0.62 * 0.62) return 0.026;                             // the braided oval by the bed
+    if (Math.abs(x - cxw(21)) < 0.5 && Math.abs(z - cxw(25.15)) < 0.28) return 0.025;   // the doormat
+    return 0.015;                                                                  // the floorboards
+  }
   return 0;
 }

@@ -402,7 +402,7 @@ const GUN_MODELS = {
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
     let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.183], [0.916, 1.185]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.006, 0.012, GM.rubber, X, 1.188, 0.935 + k * 0.025); front = 0.916 + L; }   // longer, with another port, each level
     if (m.boom) box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive rounds: the mag's base plate painted with a red band
-    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 } };   // the laser under the frame's lip
+    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true };   // the laser under the frame's lip
   },
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
   // onto the tang (the safety button sits there) and the ejection port on the shooter's right, the bolt showing in it;
@@ -900,7 +900,7 @@ const GUN_MODELS = {
       if (T('laser') === 1) { cyl(g, 0.011, 0.11, GM.metal2, lx, ly, lz); ring(g, 0.0125, 0.012, A, lx, ly, lz + 0.05); box(g, 0.008, 0.008, 0.004, GM.red, lx, ly, lz + 0.057); em.position.set(lx, ly, lz + 0.06); }
       else { box(g, 0.03, 0.036, 0.11, GM.tan, lx + 0.004, ly, lz); box(g, 0.01, 0.01, 0.004, GM.laserG, lx + 0.004, ly + 0.008, lz + 0.056); box(g, 0.01, 0.01, 0.004, GM.glass, lx + 0.004, ly - 0.008, lz + 0.056); box(g, 0.012, 0.006, 0.02, GM.metal2, lx + 0.004, ly + 0.02, lz - 0.02); em.position.set(lx + 0.004, ly + 0.008, lz + 0.059); }
       [lz - 0.032, lz + 0.03].forEach(z => tapeWrap(g, X, y0, z, HR + 0.002, lx + (T('laser') === 1 ? 0.012 : 0.02), ly, 0.95));
-      g.add(em); g.userData.laserEm = em;
+      em.userData.isLaser = true; g.add(em); g.userData.laserEm = em;   // (isLaser: found again on the copy you carry, weapons/laser.js)
     }
     // ---- light, on the barrel ahead of the front sight, low on the left: taped on, then a weapon light in a barrel ring
     if (T('light')) {

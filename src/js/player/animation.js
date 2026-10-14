@@ -2,8 +2,15 @@
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
+const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
 // swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
+// how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
+const HIP_TWIST = 0.38;
+// how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
+const SOLE_LIFT = 0.009;
+// turning, the chest leads: twisted round ahead of the hips by TURN_TWIST and leaned in by TURN_BANK for each radian a
+// second you're turning (up to TURN_MAX and a tenth), on a loose spring so it swings a touch past as the turn stops
+const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
@@ -20,7 +27,7 @@ function animateDeath(dt) {
   const kn = smooth(clamp(t / 0.35, 0, 1)), fall = clamp((t - 0.3) / 0.55, 0, 1), f2 = fall * fall;
   const land = t > 0.85 ? Math.sin(Math.min(1, (t - 0.85) / 0.35) * Math.PI) * 0.08 * (1 - Math.min(1, (t - 0.85) / 0.35)) : 0;
   const rx = sg * (0.18 * kn + 1.36 * f2 - land);
-  pm.g.position.set(P.x, -0.18 * kn * (1 - fall) + 0.15 * f2, P.z); pm.g.rotation.set(rx, ANIM.yaw, ANIM.deathTwist * fall);
+  pm.g.position.set(P.x, (ANIM.standY || 0) - 0.18 * kn * (1 - fall) + 0.15 * f2, P.z); pm.g.rotation.set(rx, ANIM.yaw, ANIM.deathTwist * fall);
   pm.lower.rotation.y = 0; pm.lower.position.y = 0; pm.upper.position.y = 0;
   pm.legL.rotation.x = 0.55 * kn * (1 - fall * 0.6); pm.legR.rotation.x = 0.25 * kn * (1 - fall * 0.4);
   const flail = Math.sin(t * 9) * 0.1 * (1 - fall);
@@ -51,7 +58,8 @@ function vaultPose(pm, v) {
   pm.g.rotation.x = q.lean;
   pm.legL.rotation.x = q.legL - q.lean; pm.legR.rotation.x = q.legR - q.lean;
   // the hips turn so the legs swing over a fence side by side (the plan's twist); through a window there's no room
-  pm.lower.rotation.y = q.twist || 0;   // already turned to the side away from the post pm.lower.rotation.z = 0; pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.position.y = 0;
+  pm.lower.rotation.y = q.twist || 0;   // already turned to the side away from the post
+  pm.lower.rotation.z = 0; pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.position.y = 0;
   const yw = ANIM.yaw;
   pm.g.position.y = q.y - VB.hip + VB.hip * (1 - Math.cos(q.lean));
   pm.g.position.x -= Math.sin(yw) * VB.hip * Math.sin(q.lean); pm.g.position.z -= Math.cos(yw) * VB.hip * Math.sin(q.lean);
@@ -63,8 +71,7 @@ function vaultUpper(v, up) {
   // the plan places the whole body, so the upper body's own lean (aiming, walking, a flinch) is held off through the jump
   const hold = air ? 1 - vk(t, 0.88, 1) : c; up.x *= 1 - hold; up.z *= 1 - hold;
   up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
-  PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat
-  if (vaultGun()) up.y += clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * (air ? 1 : c);   // Run and gun: the chest turns to keep the gun on the aim
+  PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat (Run and gun keeps the chest on the aim: animatePlayer)
 }
 // both hands go down on the sill or rail (the weapon is put away) and stay put on it while your body goes over
 const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
@@ -79,8 +86,8 @@ function vaultReach(pm, arm, side, pt, w) {
 function vaultHands(pm, v) {
   const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
   // once the hands let go they swing out loose for balance (the weapon's put away), and come back to it for the landing
-  const wb = air ? vk(t, 0.35, 0.55) * (1 - vk(t, 0.86, 1)) : 0;
-  const one = vaultGun();   // Run and gun: the right hand stays on the gun, the left does the vault alone
+  const one = vaultGun();   // Run and gun: the right hand stays on the gun, the left does the vault alone, and takes its time coming back to it
+  const wb = air ? vk(t, 0.35, 0.55) * (1 - vk(t, one ? 0.66 : 0.86, 1)) : 0;
   if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
     armRest(arm, s, 0.9 + Math.sin(t * 9 + sd) * 0.08, sd * 0.5);
@@ -103,16 +110,27 @@ function animatePlayer(dt, rdt) {
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : 16;   // ease back round to your aim after a vault
   ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim, ANIM.yaw) * Math.min(1, rdt * turnRate);
-  pm.g.position.set(P.x, 0, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, 0.02, P.z); pBlob.scale.setScalar(1.15 - Math.min(0.4, pm.g.position.y * 0.5));
+  // Run and gun: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
+  // after the landing it stays there while the hips come back round under it; then it lets go (ANIM.rg), by when there's
+  // nothing left to make up. chestYaw is where the chest faces
+  if (vaultGun()) ANIM.rg = 1; else ANIM.rg = Math.max(0, (ANIM.rg || 0) - rdt * (P.vault || ANIM.postVault > 0 ? 0 : 3));
+  const rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * ANIM.rg; ANIM.chestYaw = ANIM.yaw + rgTw;
+  // how fast the chest is turning (not the hips swinging round to a sill or back from one)
+  const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12); ANIM.prevYaw = ANIM.chestYaw;
+  // you stand on whatever's underfoot (surfaceY in world/house.js): up onto the porch, its step and the door's
+  // threshold, and the floorboards and rugs indoors, the soles just on top; stepping up and down takes a moment
+  { const s = surfaceY(P.x, P.z), t = s > 0 ? s + SOLE_LIFT : 0; ANIM.standY += (t - ANIM.standY) * Math.min(1, rdt * 16); }
+  pm.g.position.set(P.x, ANIM.standY, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, ANIM.standY + 0.02, P.z); pBlob.scale.setScalar(1.15);
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / 4.1, 0, 1.3);
   const hpF = P.hp / S.maxHp, limp = hpF < 0.4 ? (0.4 - hpF) / 0.4 : 0;
   ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5); ANIM.stumble = Math.max(0, (ANIM.stumble || 0) - rdt * 2.2);
-  // hips turn toward the direction you walk; walking away from your aim plays the stride backwards. Down the sights
-  // they stay squarer to the aim and the legs side-step the rest of the way (ANIM.r2, below)
+  // hips turn a little toward the direction you walk (no more than HIP_TWIST, so the legs stay under the torso); walking
+  // away from your aim plays the stride backwards. Whatever's left over the legs side-step (ANIM.r2, below): walking
+  // across your aim is a strafe, legs swinging out to the side, not hips wrung round under a torso facing elsewhere
   const ads = ANIM.ads || 0;
   let legYaw = 0, mvRel = 0;
   if (spd > 0.3 || P.vault) {
-    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } mvRel = rel; const lim = 1.15 - 0.7 * ads; legYaw = clamp(rel, -lim, lim); }
+    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } mvRel = rel; const lim = HIP_TWIST * (1 - 0.4 * ads); legYaw = clamp(rel, -lim, lim); }
     ANIM.legYaw += (legYaw - ANIM.legYaw) * Math.min(1, rdt * (ANIM.postVault > 0 ? 4 : 10));   // the hips come round gently out of a vault
     ANIM.feet = ANIM.yaw + ANIM.legYaw; ANIM.stepping = false;
   } else {
@@ -134,7 +152,7 @@ function animatePlayer(dt, rdt) {
     // landing: from a plain stance the knees give and the body dips forward, then rises back up as the stride
     // comes back in, so you walk straight out of it (a winded landing sinks deeper)
     const p = 1 - ANIM.land, k = Math.sin(Math.PI * p) * (ANIM.landHeavy ? 1.45 : 1), back = smooth(p);
-    pm.g.position.y = -k * 0.1; pm.g.rotation.x = k * 0.2;
+    pm.g.position.y = ANIM.standY - k * 0.1; pm.g.rotation.x = k * 0.2;
     pm.legL.rotation.x = ANIM.legDir * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDir * s * stride * back * (1 - limp * 0.7) + k * 0.32;
     pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
@@ -181,8 +199,10 @@ function animatePlayer(dt, rdt) {
   const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), aF = ANIM.ax * sy + ANIM.az * cy, aS = ANIM.ax * cy - ANIM.az * sy;
   const alx = clamp(aF * 0.0042, -0.09, 0.1) * (1 - 0.6 * ads), alz = clamp(-aS * 0.003, -0.07, 0.07) * (1 - 0.6 * ads);
   const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + limp * Math.max(0, s) * 0.14 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;
+  // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
+  if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
   // breathing lifts the chest a touch
-  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8, ury = -s * 0.03 * run1 * (1 - ads * 0.7), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide;
+  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8, ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw, urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
@@ -190,6 +210,7 @@ function animatePlayer(dt, rdt) {
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
   else if (state === 'title') introPose(pm, up, 1);         // and on the title you wait down on that knee
   poseHands(D, up, ph, runF, rdt, now);
+  pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
   if (P.vault) vaultUpper(P.vault, up);
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);

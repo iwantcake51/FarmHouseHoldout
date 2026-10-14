@@ -24,7 +24,14 @@ function closeStation() {
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
 }
-const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
+// the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
+// laser, a light...) teal, the gun's upgrades and mods blue
+const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
+const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 'att' ? 'upg' : r.ic];
+// a tiered upgrade's stars (r.tier(): how many steps you have, of how many): one per step, filled for those you have,
+// outlined for those you don't, the one this card buys a brighter outline than the rest
+const STAR = '<path d="M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z"/>';
+const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}>${STAR}</svg>`).join('')}</span>` : '';
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
 const chipCache = new Map(); let chipKey = '';
@@ -43,15 +50,15 @@ function renderStation() {
   if (!openSt) return;
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
   const rows = RECIPES[openSt.id], struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
-  const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}</b><em>${r.desc()}</em>${cardChips(r)}`);
+  const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
     stStruct = struct; let group = null, k = 0;   // k: each heading and card's place, for the cards rising in one after another as it opens
     // a heading above the first card of each group (everything for the weapon in your hands)
     $('stRows').innerHTML = rows.map((r, i) => {
       const head = r.group && r.group !== group ? `<div class="stGroup" style="--k:${Math.min(8, k++)}">${r.group}</div>` : ''; group = r.group || null;
-      return head + `<button type="button" data-i="${i}" style="--ic:${ST_ICON_COL[r.ic]};--k:${Math.min(8, k++)}">
-      <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic]}</svg></span>
+      return head + `<button type="button" data-i="${i}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
+      <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic] || FEED_ICON.gear}</svg></span>
       <span class="tx"></span>
       <span class="ft">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}<span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
     </button>`;

@@ -30,10 +30,11 @@ const UPG = [
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
   { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots do 3× damage instead of 2.2×.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
-  // Gunsmith picks its gun when the card is dealt, so the card can say which one
+  // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and
+  // pays SMITH_SCRAP for each of the three that's already maxed, about what a tier costs at the bench
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
-    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest ammo, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.`, vis: 'Changes two or three at once' }; },
-    ap() { const id = this.target; if (!id) return; W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); } },
+    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest ammo, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
+    ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health. Getting hit barely slows you.', can: () => S.slowRes < 0.85, ap: () => { S.maxHp += 50; P.hp += 50; S.slowRes = Math.max(S.slowRes, 0.85); } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Some kills slow time for a moment. Once every 8 seconds at most.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
   { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, deal 60% more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
@@ -43,9 +44,10 @@ const UPG = [
 const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
 const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
-function kindTag(u, c) { const k = findKind(u, c); if (k === 'Weapon') return c.tag; const tier = (c.tag.match(/Tier \d+ of \d+/) || [])[0]; return tier ? k + ' · ' + tier : k; }
+function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
+const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => !tierFits(k, g)).length * SMITH_SCRAP : 0;
 function tierFits(k, id) {
   const D = WEAP[id], n = gunTier(id, k);
   if (n >= TIERS[k].t.length) return false;
@@ -53,6 +55,7 @@ function tierFits(k, id) {
   if (k === 'loader') return id === 'revolver' ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader; shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
   if (k === 'sight' && n === 2) return SCOPE_GUNS.has(id);   // a real scope only goes on the rifles
+  if (k === 'mag' && id === 'deagle') return n < 2;   // the hand cannon takes a base plate and a longer mag, never a drum
   return true;
 }
 for (const k in TIERS) {

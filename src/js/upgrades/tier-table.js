@@ -1,6 +1,8 @@
 // Tiered upgrade lines (per-gun attachment tiers and character tiers).
 
 // tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
+// what each step of the feeding line gives: health a feed, the odds a kill (a headshot kill) feeds you, the most a wave
+const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 0.5, cap: 35 }, { h: 6, p: 0.5, ph: 1, cap: 50 }];
 const TIERS = {
   ammo: { tag: 'Ammo', t: [
     { r: 'c', name: 'Hollow points', text: '+25% damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
@@ -12,8 +14,8 @@ const TIERS = {
     { r: 'r', name: 'Hair trigger', text: 'Fires 20% faster.', ap: () => S.rateMul *= 1.2 }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate' }, text: 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
-    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate' }, text: 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [
     { r: 'u', name: 'Oil-filter can', text: 'Quieter shots, +10% damage. Uses the muzzle slot.', vis: 'An oil filter on the muzzle', ap: () => {} },
@@ -57,9 +59,11 @@ const TIERS = {
     { r: 'r', name: 'Night eyes', text: 'See much further at night.', ap: () => S.nightVis = 1 },
     { r: 'e', name: 'Cat eyes', text: 'See almost everything at night.', ap: () => S.nightVis = 2.2 }] },
   feed: { tag: 'Body', t: [
-    { r: 'r', name: 'Iron stomach', text: 'Heal 2 per kill, 4 per headshot kill.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
-    { r: 'e', name: 'Bloodthirst', text: 'Heal 4 per kill, 8 per headshot kill.', ap: () => { S.healOnKill = 4; S.headHeal = true; } },
-    { r: 'l', name: 'Vampire', text: 'Heal 6 per kill, 12 per headshot kill.', ap: () => { S.healOnKill = 6; S.vampire = S.headHeal = true; } }] }
+    // a kill only sometimes feeds you (FEED: how much, how often, more often for a headshot), and only so much a wave, so
+    // bandages are still what keeps you going
+    { r: 'r', name: 'Iron stomach', text: '1 in 3 kills heals 3 (1 in 2 for headshots). Up to 20 a wave.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
+    { r: 'e', name: 'Bloodthirst', text: '1 in 3 kills heals 5 (1 in 2 for headshots). Up to 35 a wave.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
+    { r: 'l', name: 'Vampire', text: '1 in 2 kills heals 6 (every headshot). Up to 50 a wave.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] }
 };
 // what tier n of line k is called on gun id
 const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

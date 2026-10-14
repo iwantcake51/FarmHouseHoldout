@@ -115,7 +115,8 @@ function gunFire(id, D, side) {
   const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = scopeOn ? D.critC || 0 : 0;
   const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0);
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
-  const trPw = tracerPower(D) * (suppressed(D) ? 0.8 : 1), trSt = D.ignite ? 'dragon' : T('ammo') >= 2 ? 'hot' : 'std';
+  // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
+  const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
   for (let p = 0; p < pellets; p++) {
     const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
@@ -138,7 +139,7 @@ function gunFire(id, D, side) {
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     if (p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, trPw, trSt);
-    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, (D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' ? 0.85 : 0) * (suppressed(D) ? 0.5 : 1));   // big calibres leave smoke in the air
+    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
     else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
