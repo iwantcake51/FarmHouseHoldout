@@ -28,10 +28,12 @@
 @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 #stRows .ic{grid-row:1/3;display:grid;place-items:center;width:40px;height:40px;background:rgba(0,0,0,.35);border:1.5px solid var(--ic)}
 #stRows .ic svg{width:24px;height:24px;fill:var(--ic)}
-/* a tiered upgrade's steps as stars by its name: filled up to the one it buys, outlined for the ones after */
+/* a tiered upgrade's steps as stars by its name: filled for the ones you have, outlined for the rest, the one it buys
+   brighter */
 #stRows .stars{display:inline-flex;gap:2px;margin-left:8px;vertical-align:1px}
-#stRows .stars svg{width:11px;height:11px;fill:none;stroke:var(--ic);stroke-width:2;stroke-linejoin:round}
-#stRows .stars svg.on{fill:var(--ic)}
+#stRows .stars svg{width:11px;height:11px;fill:none;stroke:var(--ic);stroke-width:2;stroke-linejoin:round;opacity:.5}
+#stRows .stars svg.next{opacity:1}
+#stRows .stars svg.on{fill:var(--ic);opacity:1}
 #stRows .tx{display:grid;gap:2px;min-width:0;align-content:start}
 #stRows .tx b{font-size:14px;font-weight:600;color:var(--ink)}
 /* who the card is for, above its name: the gun in your hands, all your guns, you */

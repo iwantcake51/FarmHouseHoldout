@@ -28,9 +28,10 @@ function closeStation() {
 // laser, a light...) teal, the gun's upgrades and mods blue
 const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
 const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 'att' ? 'upg' : r.ic];
-// a tiered upgrade's stars: one per step, filled up to the one this buys, outlined for those still to come
+// a tiered upgrade's stars (r.tier(): how many steps you have, of how many): one per step, filled for those you have,
+// outlined for those you don't, the one this card buys a brighter outline than the rest
 const STAR = '<path d="M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z"/>';
-const starRow = (n, of) => of > 1 ? `<span class="stars" title="Step ${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : ''}>${STAR}</svg>`).join('')}</span>` : '';
+const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}>${STAR}</svg>`).join('')}</span>` : '';
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
 const chipCache = new Map(); let chipKey = '';
