@@ -15,7 +15,7 @@ const GUN_MODS = {
   longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: '+30% damage, goes through 1 more zombie, loses less damage at range.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; D.reach = (D.reach || 1) + 0.3; } },
   // no mode to switch: from the hip you fan it (hold the trigger, the shots come almost 3× as fast and far wilder),
   // down the sights it's the careful single shots it always was (weapons/firing.js: fanning)
-  fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots almost 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.15, spread: 2.6 }; } },
+  fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
   boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every round explodes on hit.', vis: 'A red band on the magazine', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Half the spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Shells set zombies on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },

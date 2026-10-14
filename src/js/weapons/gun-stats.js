@@ -3,8 +3,12 @@
 // Guns: damage, fire rate, magazine, reload, spread, recoil, starting ammo, rarity in the upgrade pool. Each one does
 // something better than the rest, so there's a reason to pick it (its card says what):
 //   pistol    the starter: accurate, quick to reload, cheap on ammo
-//   revolver  the handgun with reach: each round goes through a zombie and keeps its bite furthest out
-//   deagle    the hardest-hitting handgun: through two zombies, and it knocks them back
+//   revolver  the marksman's handgun, best planted: by far the most accurate, the hardest body hits and the longest
+//             reach of any handgun, each round through a zombie, its aim barely opening as you keep firing (sprayK);
+//             but slow to fire, and moving costs it more than most (mobile)
+//   deagle    the brawler: fires faster, the biggest headshot multiplier of any gun (headX), through two zombies and
+//             knocks them back, and handles well on the move; but its kick throws quick follow-ups wide (sprayK) and its
+//             big rounds lose their punch sooner with range (FALLOFF)
 //   smg       the fastest-firing gun, and the one that holds its aim on the move (mobile)
 //   sub       the steadiest automatic: tight through long bursts (sprayK) and the longest-reaching 9mm
 //   ar        rifle rounds through a zombie at long range, full auto or semi (OWN_MODES, weapons/mod-levels.js)
@@ -17,8 +21,8 @@
 // fast holding the trigger opens the spread
 const GUN_WEAPONS = {
   pistol: { slot: 'side', ammo: 'p9', name: '9mm pistol', short: '9mm', dmg: 27, rate: 0.21, mag: 13, reload: 1.15, spread: 0.03, kick: 1.4, shake: 0.08, start: 65 },
-  revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 68, rate: 0.38, mag: 6, reload: 1.8, perShell: 0.3, spread: 0.015, kick: 3, shake: 0.16, pierce: 1, start: 18, rar: 'u', desc: 'Six heavy rounds, each one through a zombie. Keeps its bite further out than any other handgun.' },
-  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 2.0, spread: 0.02, kick: 6, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'The hardest-hitting handgun. Rounds go through two zombies and knock them back.' },
+  revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 105, rate: 0.6, mag: 6, reload: 1.8, perShell: 0.3, spread: 0.006, kick: 3, shake: 0.16, pierce: 1, sprayK: 0.4, mobile: 1.3, start: 18, rar: 'u', desc: 'The marksman\'s handgun: dead accurate, the hardest body hits and the longest reach, each round through a zombie. Slow to fire, and best fired standing.' },
+  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 80, rate: 0.34, mag: 7, reload: 2.0, spread: 0.024, kick: 6, shake: 0.24, pierce: 2, headX: 1, sprayK: 1.6, mobile: 0.8, start: 21, rar: 'e', desc: 'The brawler: fires fast, its headshots hit harder than any gun\'s, and its rounds go through two zombies and knock them back. The kick throws quick follow-ups wide, and it loses punch at range.' },
   pump: { slot: 'long', ammo: 'shells', name: 'Pump shotgun', short: 'Pump', dmg: 18, rate: 0.7, mag: 6, perShell: 0.42, spread: 0.27, pellets: 8, kick: 3.2, shake: 0.28, start: 20, rar: 'u', desc: 'Eight pellets a shell. Knocks zombies back harder than anything, and tears limbs off up close.' },
   dbl: { slot: 'long', ammo: 'shells', name: 'Double barrel', short: 'Double', dmg: 19, rate: 0.26, mag: 2, perShell: 0.42, spread: 0.36, pellets: 9, kick: 3, shake: 0.32, start: 16, rar: 'c', desc: 'Two barrels as fast as you can pull: the biggest burst of damage up close.' },
   auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 10, rate: 0.21, mag: 8, reload: 2.2, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 30, rar: 'l', drumMag: true, desc: 'A fully automatic shotgun: holds the trigger down where the others pump. A box of 8, or fit the 20-shell drum.' },
