@@ -20,7 +20,7 @@ function wsNumbers(id) {
   // reloads, every kind this gun has
   if (D.perShell) { r.shell = D.perShell * S.reloadMul; r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + (id === 'revolver' ? 0.3 : 0.12); }
   else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
-  else { r.reload = D.reload * S.reloadMul; if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; }
+  else { r.reload = D.reload * S.reloadMul; if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; if (!D.speedload) r.empty = r.reload * EMPTY_MUL; }
   // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
   const kind = EJECT[id] === 'pump' ? 'pump' : EJECT[id] === 'bolt' ? 'bolt' : null;
   if (kind) { const v = RACKS[kind], avg = v.reduce((a, q) => a + q.dur + q.delay, 0) / v.length; r.cycle = Math.min(avg, 1 / rate * 0.92); r.cycleKind = kind; }
@@ -29,7 +29,9 @@ function wsNumbers(id) {
 }
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
 // numbers read, and put back. A source is listed against each number it moves, with how much
-const WS_STATS = [['dmg', 'DMG', 1], ['rate', 'RATE', 1], ['mag', 'MAG', 1], ['reload', 'RELOAD', -1], ['tac', 'RELOAD', -1], ['akTac', 'RELOAD', -1], ['shell', 'RELOAD', -1], ['spread', 'SPREAD', -1], ['pierce', 'PIERCE', 1]];
+// each stat a source can move, its name, which way is better, and how a better one reads (a shorter reload is "faster")
+const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['spread', 'Spread', -1], ['pierce', 'Pierce', 1]];
+const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter' };
 function wsSources(id) {
   const D = W(id), out = []; if (!D || D.melee) return out;
   const full = wsNumbers(id), g = W8.gt[id] = W8.gt[id] || {}, diff = (name, undo) => {
@@ -38,7 +40,7 @@ function wsSources(id) {
     for (const [k, label, dir] of WS_STATS) {
       const a = w[k], b = full[k]; if (a === undefined || b === undefined || Math.abs(a - b) < 1e-6 || fx.some(f => f.label === label)) continue;
       const pct = k === 'pierce' ? (b - a) : (b / a - 1) * 100, good = (b > a) === (dir > 0);
-      fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
+      fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : good && WS_GOOD[label] ? WS_GOOD[label](pct) : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
     }
     if (fx.length) out.push({ name, fx });
   };
@@ -81,13 +83,14 @@ function wsHTML(id) {
   const D = W(id), r = wsNumbers(id); if (!r) return '';
   // a row: the number in its box, set against the stock gun's (v and was; dir says which way is better), and the
   // change, then any note
+  // (the change sits in its own column beside the box, and any note on a line of its own under them)
   const row = (l, txt, sub, v, was, dir = 1) => {
     let k = '', d = '';
     if (v !== undefined && was !== undefined && Math.abs(v - was) > Math.max(1e-6, Math.abs(was) * 0.005)) {
       k = (v > was) === (dir > 0) ? 'up' : 'down';
-      d = `<i class="d ${k}">${was ? (v > was ? '+' : '') + Math.round((v / was - 1) * 100) + '%' : '+' + wsF(v, 0)}</i>`;
+      d = was ? (v > was ? '+' : '') + Math.round((v / was - 1) * 100) + '%' : '+' + wsF(v, 0);
     }
-    return `<span class="l">${l}</span><b class="v ${k}">${txt}</b><em>${d}${sub || ''}</em>`;
+    return `<span class="l">${l}</span><b class="v ${k}">${txt}</b><i class="d ${k}">${d}</i>${sub ? `<em>${sub}</em>` : ''}`;
   };
   let h = `<div class="wsHead"><b>${D.short || D.name}</b><span>${D.name}${r.ak ? ' · a pair' : ''}</span></div>`;
   if (r.melee) return h + '<div class="wsGrid">' + row('Damage', Math.round(r.dmg)) + row('Swings', wsF(r.rate) + '/s') + row('Reach', wsF(r.reach, 2) + ' m') + row('Hits', r.hits > 1 ? 'up to ' + r.hits : 'one') + '</div>';
@@ -98,7 +101,7 @@ function wsHTML(id) {
   h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag), '', r.mag, s.mag);
   if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty', r.shell, s.shell, -1);
   else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`, r.akTac, s.akTac ?? sRel, -1);
-  else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.tac !== undefined ? wsF(r.reload) + ' s empty (slide)' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
+  else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
   if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
   h += row('Spread', wsDeg(r.spread * 1.3), D.fan ? wsDeg(r.spread * 1.3 * D.fan.spread) + ' fanning' : 'from the hip', r.spread, s.spread, -1);
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
@@ -106,8 +109,9 @@ function wsHTML(id) {
   h += row('Headshots', '×' + wsF(r.head, 2), '', r.head, s.head);
   h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
-  const src = wsSources(id);
-  h += '<div class="wsSub">What\'s changing it</div>' + (src.length ? '<div class="wsSrc">' + src.map(s => `<div><span>${s.name}</span>${s.fx.map(f => `<i class="${f.good ? 'up' : 'down'}">${f.label} ${f.t}</i>`).join('')}</div>`).join('') + '</div>' : '<div class="wsNone">Stock: nothing fitted or learned yet</div>');
+  // what's improving it: each upgrade, attachment, mod or skill that makes a number better, and only how it does
+  const src = wsSources(id).map(q => ({ name: q.name, fx: q.fx.filter(f => f.good) })).filter(q => q.fx.length);
+  h += '<div class="wsSub">What\'s improving it</div>' + (src.length ? '<div class="wsSrc">' + src.map(s => `<div><span>${s.name}</span><p>${s.fx.map(f => `<i><b>${f.label}</b> ${f.t}</i>`).join('')}</p></div>`).join('') + '</div>' : '<div class="wsNone">Stock: nothing fitted or learned yet</div>');
   return h;
 }
 // every frame: shown or hidden, docked against the workbench while it's open, and rebuilt only when something it

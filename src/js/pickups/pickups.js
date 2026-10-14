@@ -4,64 +4,35 @@ const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
-const PICK_COL = { gun: 0xf0c060, scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0xf08a4a, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
-const AM = {
-  brass: lam(0xc9a043), brassTip: lam(0xb0663a), p9box: lam(0x3e5466), magBox: lam(0x7a2420), shell: lam(0xa8342a), rifleClip: lam(0x3a3b36), cardboard: lam(0x9a8460), shellBox: lam(0x3f5a34)
-};
+// (the supply crate off the radio, ammo for everything, in teal so it stands apart; a weapon's case gold, like a gun)
+const PICK_COL = { gun: 0xf0c060, scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, case: 0xf0c060, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
+const pickCol = (kind, ammoType, cargo) => PICK_COL[kind === 'ammo' ? ammoType || 'rifle' : kind === 'supply' && cargo && cargo.kind === 'weapon' ? 'case' : kind];
 const ringGeo = new THREE.RingGeometry(0.34, 0.44, 28), discGeo = new THREE.CircleGeometry(0.44, 28);
-const roundGeo = new THREE.CylinderGeometry(0.018, 0.018, 1, 8);
-function cartridge(g, x, y, z, len, r, lying, tipMat) {
-  const c = new THREE.Mesh(roundGeo, AM.brass); c.scale.set(r / 0.018, len, r / 0.018); c.position.set(x, y, z); if (lying) c.rotation.z = Math.PI / 2; c.castShadow = true; g.add(c);
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(r, len * 0.35, 8), tipMat || AM.brassTip);
-  if (lying) { tip.rotation.z = -Math.PI / 2; tip.position.set(x + len / 2 + len * 0.17, y, z); } else tip.position.set(x, y + len / 2 + len * 0.17, z);
-  g.add(tip); return c;
-}
-// a tall, soft shaft of orange light standing up out of a supply crate, fading toward the top, so it stands out across
+// a tall, soft shaft of light in the crate's colour standing up out of a supply crate, fading toward the top, so it stands out across
 // the yard and through the dark
 const BEAM_TEX = glowTex(4, 64, x => { const g = x.createLinearGradient(0, 64, 0, 0); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 4, 64); });
 const BEAM_GEO = new THREE.CylinderGeometry(0.1, 0.26, 7, 14, 1, true).translate(0, 3.5, 0);
-function dropBeam() {
-  const m = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ map: BEAM_TEX, color: 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+function dropBeam(col) {
+  const m = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ map: BEAM_TEX, color: col || 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
 }
 function dropPickup(x, z, kind, amount, ammoType, cargo) {
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
-  if (kind === 'planks') { box(g, 0.75, 0.07, 0.16, M.board, 0, 0.3, -0.05).rotation.y = .3; box(g, 0.75, 0.07, 0.16, M.board2, 0, 0.37, 0.05).rotation.y = -.2; }
-  else if (kind === 'med') { box(g, 0.38, 0.26, 0.28, lam(0xe2ddd0), 0, 0.3, 0); box(g, 0.2, 0.27, 0.06, lam(0xa3281c), 0, 0.3, 0.12); box(g, 0.06, 0.27, 0.2, lam(0xa3281c), 0, 0.3, 0.06); }
-  else if (kind === 'scrap') {
-    for (let k = 0; k < 3; k++) { const n = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 6), GM.steel); n.position.set(rr(-.12, .12), 0.25 + k * 0.03, rr(-.12, .12)); n.rotation.set(rand(), rand(), rand()); n.castShadow = true; g.add(n); }
-    box(g, 0.24, 0.03, 0.06, GM.metal2, 0, 0.22, 0).rotation.y = rand() * 3;
-  }
-  else if (kind === 'supply') crateModel(g, cargo);   // a supply crate, or a weapon's case (stations/supply-drop.js)
-  else if (kind === 'gun') g.add(cargo.model);         // a gun you put down (gunDrop, below)
-  else if (ammoType === 'p9') {        // a blue-grey carton of 9mm with rounds stood on top
-    box(g, 0.34, 0.14, 0.24, AM.p9box, 0, 0.26, 0); box(g, 0.35, 0.02, 0.25, AM.cardboard, 0, 0.34, 0);
-    for (let k = 0; k < 4; k++) cartridge(g, -0.11 + k * 0.075, 0.39, 0.02, 0.07, 0.018);
-  } else if (ammoType === 'magnum') {  // a red box and a loaded brass speedloader
-    box(g, 0.24, 0.16, 0.2, AM.magBox, -0.08, 0.27, 0);
-    const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 10), AM.brass); sl.position.set(0.14, 0.24, 0.05); g.add(sl);
-    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; cartridge(g, 0.14 + Math.cos(a) * 0.055, 0.31, 0.05 + Math.sin(a) * 0.055, 0.08, 0.02); }
-  } else if (ammoType === 'shells') {  // loose red shells with brass heads around a small box
-    box(g, 0.26, 0.12, 0.18, AM.shellBox, -0.05, 0.25, -0.04);
-    for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.16, 10), AM.shell); s.rotation.z = Math.PI / 2; s.rotation.y = rr(-.6, .6); s.position.set(rr(-.12, .16), 0.23 + (k > 1 ? 0.08 : 0), 0.1 + rr(-.05, .05)); s.castShadow = true; g.add(s); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.035, 10), AM.brass); b.position.y = -0.075; s.add(b); }
-  } else {                              // rifle: long rounds on a stripper clip
-    box(g, 0.34, 0.03, 0.06, AM.rifleClip, 0, 0.21, 0);
-    for (let k = 0; k < 5; k++) cartridge(g, -0.13 + k * 0.065, 0.32, 0, 0.2, 0.022);
-    cartridge(g, 0.05, 0.22, 0.15, 0.2, 0.022, true);
-  }
-  const col = PICK_COL[kind === 'ammo' ? ammoType : kind];
+  dropModel(g, kind, ammoType, cargo);   // (pickups/drop-models.js)
+  const col = pickCol(kind, ammoType, cargo);
   // planks and bandages can be left lying when you're full: they get their own copies of their materials so they can
   // go half grey on their own (greyDrop, below)
   const mats = [];
   if (kind === 'planks' || kind === 'med') g.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.userData.c0 = o.material.color.clone(); mats.push(o.material); } });
-  const om = outline(g, col);
-  const xr = xray(g, col, true);
+  const fineOut = o => !o.userData.fine;   // (the merged detail has no outline of its own)
+  const om = outline(g, col, 0, 0, null, fineOut);
+  const xr = xray(g, col, true, false, fineOut);
   const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
   const discMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
   const ring = new THREE.Mesh(ringGeo, ringMat), disc = new THREE.Mesh(discGeo, discMat);
   ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.y = 0.035; disc.position.y = 0.033; ring.renderOrder = disc.renderOrder = 2;
-  if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); root.add(dropBeam()); }
+  if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); root.add(dropBeam(col)); }
   if (kind === 'gun') { ring.scale.setScalar(1.4); disc.scale.setScalar(1.4); }
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
@@ -134,7 +105,7 @@ function updatePickups(dt) {
         if (opts.length > 1) ft = '+Ammo for every gun'; else if (!opts.length) { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; }
         SFX.pick();
       }
-      floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
+      floatText(p.x, p.z, ft, '#' + pickCol(p.kind, p.ammoType, p.cargo).toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }

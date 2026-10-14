@@ -43,11 +43,13 @@ void main() {
   float nz = bn(vUv * 0.7 + uSeed) * 0.6 + bn(vUv * 1.9 + uSeed * 1.7) * 0.4, a;
   if (uKind < 0.5) a = smoothstep(1.0, 0.5, r + (nz - 0.5) * 0.75);   // a pool: a soft blob with a ragged rim
   else if (uKind < 1.5) {
-    // a spray thrown along +x: a splash where it starts, fanning out into streaks and flecks that thin out with distance
+    // a spray thrown along +x: a spatter of drops where it starts (not a solid splash, so a body hit again and again
+    // doesn't sit in a puddle), fanning out into streaks and flecks that thin out with distance
     float t = (p.x + 1.0) * 0.5, w = mix(0.22, 0.95, t), lane = abs(p.y) / w;
     float streak = bn(vec2(t * 0.45, p.y * 2.6 / w) + uSeed);
-    a = smoothstep(1.0, 0.55, lane + (nz - 0.5) * 0.5) * smoothstep(0.42, 0.66, streak + (1.0 - t) * 0.42) * smoothstep(1.0, 0.7, t);
-    a = max(a, smoothstep(0.5, 0.18, length(p - vec2(-0.68, 0.0)) + (nz - 0.5) * 0.3));
+    a = smoothstep(1.0, 0.55, lane + (nz - 0.5) * 0.5) * smoothstep(0.5, 0.64, streak + (1.0 - t) * 0.3) * smoothstep(1.0, 0.7, t);
+    a *= smoothstep(0.38, 0.56, bn(vUv * 4.1 + uSeed * 1.3));   // broken into flecks
+    a = max(a, smoothstep(0.6, 0.68, bn(vUv * 3.4 + uSeed * 2.3)) * smoothstep(0.8, 0.25, length(p - vec2(-0.6, 0.0))));
   } else if (uKind < 2.5) {
     // a drop: a small blob and the fine spatter round it
     a = smoothstep(0.52, 0.3, r + (nz - 0.5) * 0.4);
@@ -94,8 +96,8 @@ function bloodyStep() {
   splat(P.x - dz * off + dx * 0.08, P.z + dx * off + dz * 0.08, 'foot', 0.3, Math.atan2(dz, dx), 0, 0, 0.3 + 0.55 * P.bloodFeet);
   P.bloodFeet -= 0.12;
 }
-// paint a splash: kind 'pool' | 'spray' | 'drop' | 'scorch', size (metres across), ang the way a spray was thrown,
-// grow how long a pool takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
+// paint a splash: kind 'spray' | 'drop' | 'scorch' (or 'pool', a soft blob, no longer thrown), size (metres across),
+// ang the way a spray was thrown, grow how long one takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
 function splat(x, z, kind, size, ang, grow, h, str) {
   if (Math.abs(x) > HALF || Math.abs(z) > HALF) return;
   if (kind !== 'scorch' && kind !== 'foot') wetSplat(x, z, size * (kind === 'spray' ? 0.5 : 0.42), kind === 'drop' ? 0.3 : 1);
@@ -113,12 +115,13 @@ const POOL_FROM = 0.05;
 // a splash that's still in the air: painted when it lands, t seconds from now (stepBloodMap)
 const bmLater = [];
 function splatLater(t, ...a) { bmLater.push({ t, a }); }
-// a spray thrown from (x, z) along (dx, dz): it's in the air a moment, the first of it landing close in and the main
-// spray further out just after
+// a spray thrown from (x, z) along (dx, dz): it's in the air a moment, the first of it landing close in, the main spray
+// further out just after, and its tail flung furthest of all
 function spray(x, z, dx, dz, size, h) {
   const t = rr(0.18, 0.32), a = Math.atan2(dz, dx);
-  splatLater(t * 0.55, x + dx * size * 0.12, z + dz * size * 0.12, 'drop', size * 0.32, undefined, 0, h);
-  splatLater(t, x + dx * size * 0.42, z + dz * size * 0.42, 'spray', size, a, 0, h);
+  splatLater(t * 0.55, x + dx * size * 0.15, z + dz * size * 0.15, 'drop', size * 0.32, undefined, 0, h);
+  splatLater(t, x + dx * size * 0.62, z + dz * size * 0.62, 'spray', size, a, 0, h);
+  splatLater(t * 1.4, x + dx * size * (1.15 + rand() * 0.4), z + dz * size * (1.15 + rand() * 0.4), 'spray', size * 0.6, a + rr(-0.25, 0.25), 0, h);
 }
 // wipe the farm clean for a new run
 function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmLater.length = 0; bmCleared = false; bmDirty = true; bloodWet.fill(0); }

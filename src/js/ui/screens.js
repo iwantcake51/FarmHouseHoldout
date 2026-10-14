@@ -105,7 +105,7 @@ function startDeath() {
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
-  ANIM.deathTwist = rr(-0.1, 0.1); ANIM.deathPool = 0;
+  ANIM.deathTwist = rr(-0.1, 0.1);
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands

@@ -70,10 +70,8 @@ function stepRagdoll(r, dt) {
   if (r.t > 8) g.position.y -= (r.t - 8) * 0.25;
   if (!r.pooled && k >= 1) {
     r.pooled = true;
+    // it hits the ground: a little blood knocked out of it (no pool: what it bled is what the shots threw)
     const hx = r.x - Math.sin(r.face) * r.dir * 0.6 * r.s, hz = r.z - Math.cos(r.face) * r.dir * 0.6 * r.s;
-    // it bleeds out where it lies: a pool that spreads out from under the body for several seconds, and another
-    // welling up at the end it bled from
-    splat(r.x, r.z, 'pool', rr(1.6, 2.2) * r.s, undefined, rr(7, 10)); splat(hx * 0.6 + r.x * 0.4, hz * 0.6 + r.z * 0.4, 'pool', rr(1.0, 1.4) * r.s, undefined, rr(4, 6));
     burst(hx, 0.15, hz, 5, 'blood', 0, 0, 0.6); burst(r.x, 0.1, r.z, 4, 'dust');
     if (Math.hypot(r.x - P.x, r.z - P.z) < 12) SFX.thud();
   }

@@ -26,7 +26,7 @@ function akMags(id) {
 // off the stop at AK_SLIDE as it comes back up (player/hold.js poses it on the same marks). Done one-handed it's slow:
 // a gun with rounds left takes AK_TAC of a lone gun's reload, and one run dry AK_EMPTY (its mag fumbled out and the
 // slide thumbed home with the same hand)
-const AK_OUT = 0.08, AK_IN = 0.6, AK_SLIDE = 0.7, AK_TAC = 0.95, AK_EMPTY = 1.4;
+const AK_OUT = 0.08, AK_IN = 0.6, AK_SLIDE = 0.7, AK_TAC = 0.95, AK_EMPTY = 1.75;
 const akBusy = s => W8.reloading === 'mag' && !!W8.akRel && W8.akRel.side === s;
 // how far through its own reload a gun is (0 when it's up on the aim)
 const akU = s => akBusy(s) ? clamp(W8.akRel.t / W8.akRel.dur, 0, 1) : 0;

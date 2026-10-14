@@ -6,20 +6,22 @@ const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
 let pIdx = 0;
 Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
-// blood droplets: smooth beads in a few sizes (a few heavy drops among a fine spray), drawn out along the way they're
-// flying and slowed by the air (the fine ones more), shrinking a little as they go. Where one comes down it leaves its
-// stain in the farm's blood map (effects/blood-map.js): a drop and its spatter on the ground, or partway up a wall,
-// a fence post or a trunk if it hits that first.
+// blood droplets: smooth beads in a few sizes (a few heavy drops among a fine spray), thrown well out (DROP_THROW),
+// drawn out along the way they're flying and slowed by the air (the fine ones more), shrinking a little as they go.
+// Where one comes down it leaves its stain in the farm's blood map (effects/blood-map.js): a drop and its spatter on the
+// ground, or at the height it hit whatever it ran into first (dropHits): a wall, a trunk, a fence post or rail, a
+// crate, the bench, a window's sill or the wall over it, or the boards across it.
 const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_M = [lam(0x6e0f0a), lam(0x521009), lam(0x84160f)], _dz = new V3(0, 0, 1), _dv = new V3();
 DROP_M.forEach(m => { m.userData.mobile = true; });
 const drops = [];
 for (let k = 0; k < 640; k++) { const m = new THREE.Mesh(DROP_G, DROP_M[k % 3]); m.visible = false; scene.add(m); drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
 let dropIdx = 0;
+const DROP_THROW = 1.7, DROP_SCATTER = 1.5, DROP_DRAG = 0.6;
 function bloodDrops(x, y, z, n, dirx, dirz, force) {
   for (let k = 0, c = Math.max(1, Math.round(n * 2.6)); k < c; k++) {   // (a good many: each one marks the ground where it lands)
-    const d = drops[dropIdx = (dropIdx + 1) % drops.length], big = rand() < 0.22, f = (force || 2) * (big ? rr(0.3, 0.9) : rr(0.5, 1.45));
+    const d = drops[dropIdx = (dropIdx + 1) % drops.length], big = rand() < 0.22, f = (force || 2) * DROP_THROW * (big ? rr(0.3, 0.9) : rr(0.5, 1.45));
     d.r = big ? rr(0.02, 0.036) : rr(0.007, 0.017);
-    d.vx = (dirx || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vz = (dirz || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25); d.vy = rr(0.5, 3.1) * (big ? 0.8 : 1);
+    d.vx = (dirx || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25) * DROP_SCATTER; d.vz = (dirz || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25) * DROP_SCATTER; d.vy = rr(0.5, 3.4) * (big ? 0.8 : 1);
     d.life = 2.6; d.m.position.set(x + rr(-0.05, 0.05), y + rr(-0.05, 0.05), z + rr(-0.05, 0.05)); d.m.scale.setScalar(d.r); d.m.visible = true;
   }
 }
@@ -36,16 +38,32 @@ function bleedDrip() {
   }
   if (Math.hypot(P.vx, P.vz) < 0.3 && rand() < 0.22) splat(P.x + rr(-0.12, 0.12), P.z + rr(-0.12, 0.12), 'drop', rr(0.2, 0.32));
 }
+// whether a drop at x, y, z has run into something standing there (up to how high it stands, and only its real parts:
+// a fence's post and its two rails, not the gaps between; a window's sill and the wall over it, or a board across it)
+function dropHits(x, y, z) {
+  const i = ci(x), j = ci(z); if (!inb(i, j)) return false;
+  const k = idx(i, j), c = cell[k];
+  if (c === WALL || (c === OBST && !lowObst.has(k))) return y < 2.4;
+  if (c === OBST) return y < 0.92;   // a crate, the bench, the hay: waist high
+  if (c === FENCE) {
+    if (y > 1.02) return false;
+    const fx = Math.abs(x - cxw(i)), fz = Math.abs(z - cxw(j)), isF = (a, b) => inb(a, b) && cell[idx(a, b)] === FENCE, rail = Math.abs(y - 0.38) < 0.06 || Math.abs(y - 0.75) < 0.06;
+    return (fx < 0.09 && fz < 0.09) || (rail && ((fz < 0.05 && (isF(i - 1, j) || isF(i + 1, j))) || (fx < 0.05 && (isF(i, j - 1) || isF(i, j + 1)))));
+  }
+  const o = c === OPEN && openAt[k]; if (!o) return false;
+  if (o.boards.some((b, n) => Math.abs(y - o.ys[n]) < 0.13)) return true;
+  return o.kind === 'window' ? y < 1.0 || y > 1.9 : y > 2.05;
+}
 function stepDrops(dt) {
   if (dt <= 0) return;
   for (const d of drops) {
     if (d.life <= 0) continue; d.life -= dt;
-    const m = d.m, drag = Math.exp(-dt * (0.012 / d.r) * 0.9);
+    const m = d.m, drag = Math.exp(-dt * (0.012 / d.r) * DROP_DRAG);
     d.vx *= drag; d.vz *= drag; d.vy = d.vy * drag - 13 * dt;
     m.position.x += d.vx * dt; m.position.y += d.vy * dt; m.position.z += d.vz * dt;
     const p = m.position, sp = Math.hypot(d.vx, d.vy, d.vz);
-    // into a wall, a post or a trunk on the way: it splashes there, as high as it was
-    if (p.y < 2.4 && bulletBlocked(p.x, p.z)) { splat(p.x - d.vx * dt, p.z - d.vz * dt, 'drop', 0.08 + d.r * 7, undefined, 0, p.y + 0.15); d.life = 0; }
+    // into something standing in its way: it splashes there, as high as it was
+    if (p.y < 2.4 && dropHits(p.x, p.y, p.z)) { splat(p.x - d.vx * dt * 0.5, p.z - d.vz * dt * 0.5, 'drop', 0.06 + d.r * 4, undefined, 0, p.y + 0.15, 0.7); d.life = 0; }   // (a smaller mark: most of it's on what it hit)
     else if (p.y <= 0.015) {
       // where it lands: a mark the size of the drop, and a big one bursts into a few specks thrown on the way it was going
       splat(p.x, p.z, 'drop', 0.06 + d.r * 7);
@@ -97,15 +115,15 @@ function stepParticles(dt) {
     if (p.life <= 0) m.visible = false;
   }
   stepDrops(dt);
-  const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but your own blood pool keeps spreading
-  stepBloodMap(gdt);   // new splashes into the farm's blood map, pools spreading (effects/blood-map.js)
+  const gdt = P.dead ? P.deathDt || 0 : dt;   // the world is frozen once you're down, but the blood in the air still lands
+  stepBloodMap(gdt);   // new splashes into the farm's blood map (effects/blood-map.js)
   for (let k = gibs.length - 1; k >= 0; k--) {
     const g = gibs[k]; g.life -= dt;
     if (!g.landed) {
       g.vy -= 14 * dt; g.m.position.x += g.vx * dt; g.m.position.y += g.vy * dt; g.m.position.z += g.vz * dt; g.m.rotation.x += g.spin * dt; g.m.rotation.z += g.spin * 0.6 * dt;
       if (bulletBlocked(g.m.position.x, g.m.position.z)) { g.vx *= -0.3; g.vz *= -0.3; }
       if (rand() < 0.5) burst(g.m.position.x, g.m.position.y, g.m.position.z, 1, 'blood', 0, 0, 0.3);
-      if (g.m.position.y < 0.12) { g.m.position.y = 0.12; if (Math.abs(g.vy) > 2) { g.vy *= -0.35; g.vx *= 0.5; g.vz *= 0.5; splat(g.m.position.x, g.m.position.z, 'drop', rr(.4, .6)); } else { g.landed = true; splat(g.m.position.x, g.m.position.z, 'pool', 0.6, undefined, 1.5); } }
+      if (g.m.position.y < 0.12) { g.m.position.y = 0.12; if (Math.abs(g.vy) > 2) { g.vy *= -0.35; g.vx *= 0.5; g.vz *= 0.5; splat(g.m.position.x, g.m.position.z, 'drop', rr(.4, .6)); } else { g.landed = true; splat(g.m.position.x, g.m.position.z, 'drop', rr(0.3, 0.45)); } }
     }
     g.m.visible = visAt(g.m.position.x, g.m.position.z) > 0.2;
     if (g.life < 1) g.m.position.y -= dt * 0.3;

@@ -4,7 +4,7 @@
 const GUN_WEAPONS = {
   pistol: { slot: 'side', ammo: 'p9', name: '9mm pistol', short: '9mm', dmg: 27, rate: 0.21, mag: 13, reload: 1.15, spread: 0.03, kick: 1.4, shake: 0.08, start: 65 },
   revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 64, rate: 0.42, mag: 6, reload: 1.8, perShell: 0.3, spread: 0.015, kick: 3, shake: 0.16, pierce: 1, start: 18, rar: 'u', desc: 'Six heavy rounds. Each one goes through a zombie.' },
-  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 1.6, spread: 0.02, kick: 4.5, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'Absurd stopping power from a handgun.' },
+  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 2.0, spread: 0.02, kick: 4.5, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'Absurd stopping power from a handgun.' },
   pump: { slot: 'long', ammo: 'shells', name: 'Pump shotgun', short: 'Pump', dmg: 15, rate: 0.78, mag: 6, perShell: 0.42, spread: 0.3, pellets: 8, kick: 2.6, shake: 0.28, start: 18, rar: 'c', desc: 'Eight pellets a shell. Tears limbs off up close.' },
   dbl: { slot: 'long', ammo: 'shells', name: 'Double barrel', short: 'Double', dmg: 17, rate: 0.26, mag: 2, perShell: 0.5, spread: 0.36, pellets: 9, kick: 3, shake: 0.32, start: 16, rar: 'c', desc: 'Two quick, brutal shots, then two shells in.' },
   auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 14, rate: 0.19, mag: 20, reload: 2.6, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 40, rar: 'l', desc: 'A fully automatic shotgun with a 20-shell drum.' },

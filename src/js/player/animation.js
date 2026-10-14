@@ -36,8 +36,6 @@ function animateDeath(dt) {
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
   pm.head.rotation.set(-sg * 0.3 * fall, 0, 0.2 * fall * Math.sign(ANIM.deathTwist || 1));
-  // a slowly spreading pool under you
-  if (t > 0.9 && ANIM.deathPool < 5 && t > 0.9 + ANIM.deathPool * 0.45) { ANIM.deathPool++; splat(P.x + Math.sin(ANIM.yaw) * sg * 0.6 + rr(-.25, .25), P.z + Math.cos(ANIM.yaw) * sg * 0.6 + rr(-.25, .25), 'pool', 0.5 + ANIM.deathPool * 0.22, undefined, 1.6); }
   const d = ANIM.dropped;
   if (d && !d.landed) {
     d.vy -= 12 * dt; d.g.position.x += d.vx * dt; d.g.position.y += d.vy * dt; d.g.position.z += d.vz * dt; d.g.rotateZ(d.spin * dt);

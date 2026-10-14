@@ -121,7 +121,6 @@ function updateZombies(dt) {
       const t0 = z.crawlT; z.crawlT = Math.min(1, z.crawlT + dt / 0.8); const t = z.crawlT;
       if (t0 < 0.62 && t >= 0.62) {   // hits the ground
         burst(z.x + Math.sin(z.face) * 0.9, 0.1, z.z + Math.cos(z.face) * 0.9, 6, 'dust', Math.sin(z.face), Math.cos(z.face), 1.2);
-        splat(z.x + Math.sin(z.face) * 0.7, z.z + Math.cos(z.face) * 0.7, 'pool', rr(0.5, 0.75), undefined, rr(1.2, 2));   // spreading out from under it
         SFX.thud(); if (Math.hypot(z.x - P.x, z.z - P.z) < 6) shake = Math.max(shake, 0.06);
       }
     }

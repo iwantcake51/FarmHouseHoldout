@@ -63,8 +63,36 @@ function flashUniforms() {
   const K = LMU.uFlK.value, F = FLASH[T('light')], D = W(curId());
   if (!F || state === 'title' || curDark <= 0.05 || !D || D.melee) { K.z = 0; return; }
   const [lr, half, k] = F, li = k * curDark;
-  if (D.akimbo && !P.vault) { [-1, 1].forEach((sg, i) => { const mz = muzzle(sg); LMU.uFl.value[i].set(mz.ox, mz.oz, Math.sin(mz.a), Math.cos(mz.a)); }); K.set(lr, half * 0.9, li * 0.62, 2); }
-  else { LMU.uFl.value[0].set(P.x, P.z, Math.sin(P.aim), Math.cos(P.aim)); K.set(lr, half, li, 1); }
+  if (D.akimbo && !P.vault) { [-1, 1].forEach((sg, i) => { const mz = muzzle(sg); LMU.uFl.value[i].set(mz.ox, mz.oz, Math.sin(mz.a), Math.cos(mz.a)); flashShadows(i, mz.ox, mz.oz, mz.a, half * 0.9, lr); }); K.set(lr, half * 0.9, li * 0.62, 2); }
+  else { LMU.uFl.value[0].set(P.x, P.z, Math.sin(P.aim), Math.cos(P.aim)); flashShadows(0, P.x, P.z, P.aim, half, lr); K.set(lr, half, li, 1); }
+  flShTex.needsUpdate = true;
+}
+// the flashlight's shadows: rays cast out from each beam's lens across its cone every frame (FL_RAYS a beam, spread a
+// little wider than the cone), each stopping where it meets something that stops sight (a wall, a tall prop, a window
+// boarded up), FL_PAST into it so the face it hit is lit. The lit shader tests every pixel against how far its ray got
+// (flCone, core/shaders.js), so the edges of a beam through a window or past a corner are clean lines
+const FL_RAYS = 256, FL_PAST = 0.4, flSh = new Uint8Array(FL_RAYS * 2 * 4), flShTex = new THREE.DataTexture(flSh, FL_RAYS, 2, THREE.RGBAFormat);
+flShTex.magFilter = flShTex.minFilter = THREE.LinearFilter; LMU.uFlSh.value = flShTex;
+function flashShadows(k, x, z, dir, half, reach) {
+  const h = half + 0.3, A = LMU.uFlA.value;
+  if (k) { A.z = dir; A.w = h; } else { A.x = dir; A.y = h; }
+  for (let r = 0; r < FL_RAYS; r++) { const d = flRay(x, z, dir - h + 2 * h * (r + 0.5) / FL_RAYS, Math.min(FL_MAX, reach + 1)); flSh[(k * FL_RAYS + r) * 4] = Math.round(d / FL_MAX * 255); }
+}
+// how far a ray from x, z at angle a gets through the grid (cell by cell, Amanatides and Woo) before a cell that stops
+// sight, out to max
+function flRay(x, z, a, max) {
+  const dx = Math.sin(a), dz = Math.cos(a), sx = dx > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+  let i = ci(x), j = ci(z), t = 0;
+  let nx = dx ? (i - HALF + (dx > 0 ? 1 : 0) - x) / dx : Infinity, nz = dz ? (j - HALF + (dz > 0 ? 1 : 0) - z) / dz : Infinity;
+  const ex = dx ? Math.abs(1 / dx) : Infinity, ez = dz ? Math.abs(1 / dz) : Infinity;
+  while (t < max) {
+    if (nx < nz) { t = nx; nx += ex; i += sx; } else { t = nz; nz += ez; j += sz; }
+    if (t >= max) return max;
+    if (i < 0 || j < 0 || i >= N || j >= N) return t;
+    const ob = openAt[j * N + i];
+    if (blockArr[j * N + i] || (ob && ob.boards.length >= 2)) return Math.min(max, t + FL_PAST);
+  }
+  return max;
 }
 // how much of the flashlight falls at a point (for what isn't drawn by the lit shader, like smoke): the same cone
 function flashAt(x, z) {

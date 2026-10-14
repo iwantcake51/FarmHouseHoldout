@@ -127,7 +127,7 @@ const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body s
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
 const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
 const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3(), _akH = new V3();
-const _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
+const SUPPORT_REACH = 1.27, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
 function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
@@ -573,6 +573,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // a pair in the shoulder rig: the left gun's drawn back out from under the right arm after a Run and gun vault
     // (the hand goes across to it, pulls it at AK_GRAB and swings it round onto the aim)
     if (side === 'L' && ak && ANIM.akIn && !P.vault && rigPair(s)) rigDraw(h, vk(ANIM.akDraw, 0, AK_GRAB - 0.05) * (1 - vk(ANIM.akDraw, AK_GRAB + 0.08, 1)));
+  }
+  // the support hand can't reach further than its arm: a turn's free-aim swing that would carry the forend beyond
+  // SUPPORT_REACH arm-lengths from the left shoulder is held in, the whole gun drawn back toward that shoulder so the
+  // hand stays on it (not while the hand's off the gun anyway, reloading or working the action)
+  if (!ak && H.fore) {
+    gunPt(_sup, s, 'R', H.fore[0], H.fore[1] - (HAND_DROP[H.kind] || HAND_DROP.hand).fore, H.fore[2]);
+    const sL = SHOULDER.L, dx = _sup.x - sL[0], dy = _sup.y - sL[1], dz = _sup.z - sL[2], d = Math.hypot(dx, dy, dz), over = d - FIST * SUPPORT_REACH;
+    if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
   up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
   ANIM.recoil = Math.max(0, ANIM.recoil - rdt * 11);

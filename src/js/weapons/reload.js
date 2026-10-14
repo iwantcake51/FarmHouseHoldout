@@ -39,10 +39,10 @@ function startReload() {
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.click(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
-    // slide off its stop, one of two ways
-    const tac = slideReload(id) && (W8.mag[id] || 0) > 0;
+    // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer
+    const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
     W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
-    W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;
+    W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty ? EMPTY_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;
     SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); reloadJolt(0.08); } }, 140);
   }
 }
@@ -52,12 +52,14 @@ const SL_IN = 0.56, SL_DROP = 0.7, SL_SHUT = 0.84;
 // how far through a mag reload the mag is pushed home, and (for a rifle with a charging handle) when the handle is
 // pulled and let go; player/hold.js poses the hands to the same marks
 const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.86, CH_SLAM = 0.9;
-// pistols whose slide locks back on the last round (player/hold.js holds it there, in the hand and in the holster): a
+// a magazine gun run dry takes EMPTY_MUL longer to reload than one with rounds left (it's fumbled out of an empty gun,
+// and the gun's charged or its slide dropped at the end). Pistols whose slide locks back on the last round
+// (player/hold.js holds it there, in the hand and in the holster): a
 // reload with rounds still in it is TAC_MUL of the time and leaves the slide alone; an empty one changes the mag in the
 // first PS_MAG of it, then drops the slide: a slingshot (variant 0: grab the back of it, tug it off the stop and let it
 // fly) or a thumb on the slide stop (variant 1), let go at PS_REL by variant. The slingshot is a steady tug, eased in
 // and out over about a tenth of a second (more for the hand cannon), not a snatch
-const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, PS_MAG = 0.68, PS_TUG = 0.815, PS_REL = [0.917, 0.872];
+const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, EMPTY_MUL = 1.25, PS_MAG = 0.68, PS_TUG = 0.815, PS_REL = [0.917, 0.872];
 const slideReload = id => !!SLIDE_PISTOLS[id] && !(W(id) || {}).akimbo;
 const slideLocked = id => !!SLIDE_PISTOLS[id] && ((W(id) || {}).akimbo ? akMags(id).R <= 0 : (W8.mag[id] || 0) <= 0);   // a pair's holstered one is the right
 const hasCharge = () => !!CHARGE[W8.cur];

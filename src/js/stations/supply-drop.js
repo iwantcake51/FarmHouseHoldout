@@ -12,14 +12,7 @@ function callDrop(cargo) {
   supplySpot = { x, z, a: rand() * Math.PI * 2, heard: false, t: -DROP_LEAD, dustT: 0 };
 }
 // a crate for what's in it: the square supply crate, or a long olive case with its latches and handle for a weapon
-function crateModel(g, cargo) {
-  if (cargo && cargo.kind === 'weapon') {
-    const L = WEAP[cargo.id] && WEAP[cargo.id].melee ? 0.9 : 1.1;
-    box(g, L, 0.24, 0.42, M.olive, 0, 0.14, 0); box(g, L + 0.02, 0.05, 0.44, M.metal, 0, 0.27, 0);
-    [-1, 1].forEach(s => { box(g, 0.08, 0.06, 0.02, M.metal, s * L * 0.3, 0.2, 0.215); box(g, 0.1, 0.03, 0.04, M.metal, s * L * 0.42, 0.3, 0); });   // latches, and the corner guards
-    box(g, 0.22, 0.03, 0.06, M.metal, 0, 0.31, 0.1); box(g, 0.24, 0.14, 0.02, M.white, 0, 0.14, -0.215);   // the handle, and the stencilled panel
-  } else { box(g, 0.8, 0.55, 0.6, M.olive, 0, 0.3, 0); box(g, 0.82, 0.08, 0.62, M.metal, 0, 0.45, 0); box(g, 0.25, 0.2, 0.02, M.white, 0, 0.3, 0.31); }
-}
+function crateModel(g, cargo) { if (cargo && cargo.kind === 'weapon') dmCase(g, cargo); else dmSupply(g); }   // (pickups/drop-models.js)
 // ---- the helicopter: a blade-slap chop over a turbine whine and a low engine rumble, coming in from one side, loudest
 // as it passes over the drop and on away to the other, muffled while it's far; and its shadow on the ground
 const HELI_CURVE = (() => { const c = new Float32Array(1024); for (let i = 0; i < c.length; i++) { const x = i / (c.length - 1) * 2 - 1; c[i] = Math.pow(Math.max(0, x), 6) * 1.6; } return c; })();
