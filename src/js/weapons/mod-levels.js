@@ -67,15 +67,19 @@ function fireModeOf(id) {
   const fm = W8.fm[id];
   if (D.burst) return { k: 'burst', t: 'Burst ' + D.burst, n: D.burst };
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
+  if (fm === 'semi') return { k: 'semi', t: 'Semi' };
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };
 }
-function fireModes(id) { return [null, ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
+// modes a gun has out of the box, besides its own: the assault rifle's selector has semi (SEMI: steadier single shots,
+// game/run-state.js)
+const OWN_MODES = { ar: ['semi'] };
+function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;
   const next = modes[(modes.indexOf(W8.fm[id] || null) + 1) % modes.length];
   W8.fm[id] = next; W8.burstLeft = 0; recomputeEff();
-  return next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : 'Single shots';
+  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' ? 'Full auto' : 'Single shots';
 }

@@ -43,7 +43,7 @@ function startReload() {
     const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
     W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
     W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty ? EMPTY_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;
-    SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); reloadJolt(0.08); } }, 140);
+    SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); magSwapIn(id); reloadJolt(0.08); } }, 140);   // the old mag falls; a newer one bought since comes out of the pouch
   }
 }
 // the revolver's speed loader, through its reload: the rounds go into the cylinder, the loader is twisted and let go
@@ -94,7 +94,7 @@ function tickReload(dt) {
   } else {
     const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);
     W8.mag[id] = (W8.mag[id] || 0) + take; W8.reserve[D.ammo] -= take;
-    W8.reloading = null;
+    W8.reloading = null; magSwapIn(id);
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, 0.12); }   // (seated already, unless it was cut short)
   }
 }

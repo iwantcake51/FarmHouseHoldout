@@ -153,6 +153,7 @@ function tuneFx(id) {
   W8.tune[id] = 1; recomputeEff(); const b = gunStats(id, W(id)), Rb = W(id).range; W8.tune[id] = 0; recomputeEff();
   const D0 = W(id), fx = compareFx(gunStats(id, D0), b);
   if (D0.melee && Rb > D0.range) fx.push({ t: `REACH ${D0.range.toFixed(2)} → ${Rb.toFixed(2)} m`, good: true });
+  if (!D0.melee) { const x = Math.max(D0.critM || 0, 2) + (D0.critUp || 0); fx.push({ t: `CRITS +${Math.round(TUNE.crit * 100)}% of hits`, good: true }, { t: `CRIT DMG ×${x} → ×${x + TUNE.critM}`, good: true }); }
   return fx;
 }
 // everything the card shows besides its text: chips and a "what it's for" line

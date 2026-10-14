@@ -14,13 +14,14 @@ const TIERS = {
     { r: 'r', name: 'Hair trigger', text: 'Fires 20% faster.', ap: () => S.rateMul *= 1.2 }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate' }, text: 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    // the drum shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 10-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
     { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [
     { r: 'u', name: 'Oil-filter can', text: 'Quieter shots, +10% damage. Uses the muzzle slot.', vis: 'An oil filter on the muzzle', ap: () => {} },
     { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
-    { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => S.pierce++ }] },
+    { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => {} }] },
   sight: { tag: 'Attachment', t: [
     { r: 'c', name: 'Red dot', text: '15% tighter aim. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => S.spreadMul *= 0.85 },
     { r: 'u', name: 'Holographic sight', text: '20% tighter aim. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => S.spreadMul *= 0.8 },

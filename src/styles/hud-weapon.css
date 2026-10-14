@@ -22,13 +22,21 @@
 .rc>.rs{display:block;position:absolute;left:0;right:0;top:0;transform:translateY(calc(var(--p,0) * var(--rh,1em)))}
 .rc>.rs>span{display:block;height:var(--rh,1em);line-height:var(--rh,1em);text-align:center}
 #ammo{--rh:.85em}
-#rounds{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:260px;min-height:14px}
+/* laid out from the bottom right: right to left along a row, rows stacking upward (ui/rounds.js puts the last round first) */
+#rounds{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;justify-content:flex-start;gap:2px;max-width:260px;min-height:14px}
 #rounds i{display:block;width:4px;height:12px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:1.5px 1.5px 0 0}
 #rounds.sh i{width:7px;height:13px;background:#a8342a;border-radius:0;border-bottom:3px solid #c9a43a}
-#rounds.rf i{width:4px;height:16px;background:#c9a043}
+#rounds.rf i{width:5px;height:16px;background:#c9a043}
 #rounds.mg i{width:6px;height:11px;background:#c9a043}
+/* rifle and magnum rounds come to a point (a 9mm's nose is round), so the heavier calibres read apart at a glance; a
+   better round's coloured tip sits in the point */
+#rounds.rf i,#rounds.mg i,#fireMode .fmG.rf i,#fireMode .fmG.mg i{border-radius:0;clip-path:polygon(50% 0,100% 34%,100% 100%,0 100%,0 34%)}
+#rounds.mg i,#fireMode .fmG.mg i{clip-path:polygon(50% 0,100% 42%,100% 100%,0 100%,0 42%)}
+#fireMode .fmG.rf i{width:5px;height:14px;background:#c9a043}#fireMode .fmG.mg i{width:6px;height:12px;background:#c9a043}
 /* better rounds show at the bullet's tip; a shell has no bullet, so it stays just a shell */
 #rounds.hp:not(.sh) i:not(.off){border-top:3px solid #c0703a}#rounds.hp2:not(.sh) i:not(.off){border-top:3px solid #e08a3a;box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3:not(.sh) i:not(.off){background:#c8ccd0;border-top:3px solid #e8ecef}
+/* on a pointed round the better rounds' colour fills the whole point */
+#rounds.rf.hp i:not(.off),#rounds.mg.hp i:not(.off){border-top:0;background:linear-gradient(#c0703a 0 38%,#c9a043 38%)}#rounds.rf.hp2 i:not(.off),#rounds.mg.hp2 i:not(.off){border-top:0;background:linear-gradient(#e08a3a 0 38%,#c9a043 38%)}#rounds.rf.hp3 i:not(.off),#rounds.mg.hp3 i:not(.off){border-top:0;background:linear-gradient(#eef1f3 0 38%,#c8ccd0 38%)}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 @keyframes roundFall{0%{transform:none}18%{transform:translate(calc(var(--dx) * .2),var(--up)) rotate(calc(var(--rot) * .15))}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}
@@ -48,8 +56,8 @@
 .ammoRow .mb::after{content:"";position:absolute;left:50%;top:0;width:1.5px;height:46%;margin-left:-.75px;background:rgba(236,230,216,.55)}
 .ammoRow .mb.r{background-image:linear-gradient(90deg,transparent 50%,var(--ink) 50%)}
 #ammoSep{align-self:center;display:block;width:2px;height:44px;margin:0 6px 0 8px;background:linear-gradient(180deg,transparent,rgba(236,230,216,.4) 25%,rgba(236,230,216,.4) 75%,transparent);transform:skewX(-14deg)}
-#rounds.ak{flex-wrap:nowrap;align-items:flex-end;gap:0;max-width:none}
-#rounds .mag{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:128px;transition:opacity .2s}
+#rounds.ak{flex-direction:row;flex-wrap:nowrap;justify-content:flex-end;align-items:flex-end;gap:0;max-width:none}
+#rounds .mag{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;justify-content:flex-start;gap:2px;max-width:128px;transition:opacity .2s}
 #rounds .mag+.mag{margin-left:9px;padding-left:9px;border-left:1px solid rgba(236,230,216,.3)}
 #rounds .mag.rl{opacity:.35}
 #rounds .mag .belt{width:110px}

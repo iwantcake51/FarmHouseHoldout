@@ -143,7 +143,7 @@ function takeIt(p) {
   if (old) gunDrop(old);
   if (p.kind === 'gun') {
     // your own gun back: as you left it, no fresh ammo with it
-    W8.slot[D.slot] = id; recomputeEff(); W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
+    W8.slot[D.slot] = id; recomputeEff(); delete W8.pin[id]; W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
     equip(D.slot, true); buildGuns(); gunGlow = 1;
     gotGear({ ic: 'gear', kind: 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
   } else { deliverWeapon(id); flareDone(); }

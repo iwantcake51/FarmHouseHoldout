@@ -30,7 +30,7 @@ function attachmentCards() {
   // zombie (twice at most)
   if (!S.att.fire) out.push({ ic: 'ammo', group, for: () => 'For every gun you carry', fx: () => [{ t: 'Sets zombies alight for 3 s', good: true }], cost: 18, title: () => 'Incendiary rounds', desc: () => 'Bullets set zombies on fire for 3 s.', why: () => '',
     make: () => { S.att.fire = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Incendiary rounds'); gotGear({ ic: 'ammo', kind: 'Rounds', name: 'Incendiary rounds', whom: 'every gun you carry', text: 'Bullets set zombies on fire for 3 s.' }); } });
-  if (S.pierce < 2) out.push({ ic: 'ammo', group, tier: () => [S.pierce, 2], for: () => 'For every gun you carry', fx: () => [{ t: `PIERCE +${S.pierce} → +${S.pierce + 1}`, good: true }], cost: [12, 16][S.pierce], title: () => 'Through and through' + (S.pierce ? ' II' : ''), desc: () => 'Bullets pass through one more zombie.', why: () => '',
+  if (S.pierce < 2 && ammoGuns().some(g => !ownPierce(g))) out.push({ ic: 'ammo', group, tier: () => [S.pierce, 2], for: () => ammoGuns().some(ownPierce) ? 'For your guns that don\'t pierce already' : 'For every gun you carry', fx: () => [{ t: `PIERCE +${S.pierce} → +${S.pierce + 1}`, good: true }], cost: [12, 16][S.pierce], title: () => 'Through and through' + (S.pierce ? ' II' : ''), desc: () => 'Bullets pass through one more zombie.' + (ammoGuns().some(ownPierce) ? ' Not on a gun with flechettes, slugs, a longer revolver barrel or a heavy-duty can: those pierce on their own.' : ''), why: () => '',
     make: () => { S.pierce++; buildGuns(); gunGlow = 1; feed('gear', 0, 'Through and through'); gotGear({ ic: 'ammo', kind: 'Rounds', name: 'Through and through' + (S.pierce > 1 ? ' II' : ''), whom: 'every gun you carry', text: 'Bullets go through ' + S.pierce + ' more zombie' + (S.pierce > 1 ? 's' : '') + '.' }); } });
   if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'att', group, for: () => 'For every long gun you carry', fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Shove (V) with a long gun stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', whom: 'your long guns', text: 'Shove (V) with a long gun stabs for 45 damage.' }); } });
   if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'att', group, for: () => 'For every sidearm you carry', fx: () => [{ t: 'SPREAD −25%', good: true }, { t: 'KICK −45%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => 'Sidearms: 25% tighter aim, 45% less kick', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', whom: 'your sidearms', text: 'Sidearms: 25% tighter aim, 45% less kick.' }); } });
@@ -39,7 +39,7 @@ function attachmentCards() {
 // a tune-up is the dearest thing on the bench, and the card spells out what it does
 const TUNE_COST = 30;
 const tuneText = D => D.melee ? `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster swings, +${TUNE.reach} m reach, ${pctUp(TUNE.kb)}% more knockback`
-  : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread`;
+  : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread, +${Math.round(TUNE.crit * 100)}% crit chance, crits +${TUNE.critM}×`;
 const pctUp = m => Math.round((m - 1) * 100), pctDown = m => Math.round((1 - m) * 100);
 // ammo is sold by the gun: one load for the gun in your hands, or one for every gun you carry at the same price each
 // (so two 9mm guns are two loads of 9mm, and three guns cost three times one)
@@ -75,9 +75,9 @@ function tinkerCards() {
   const id = curId(), D = id && W(id); if (!D) return [];
   const group = gearGroup(D), out = [];
   modsFor(id).forEach(m => out.push({ ic: 'gear', group, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
-    make: () => { const fx0 = modFx(m); addMod(id, m); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text, fx: fx0 }); } }));
+    make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
   modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
-    make: () => { const fx0 = improveFx(id, m); improveMod(m); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.', fx: fx0 }); } }));
+    make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
   return out;
 }
 // a gun's own upgrades, one card per line (the next tier up) for the gun in your hands: better rounds, a lighter
@@ -88,13 +88,15 @@ function gunTierCards() {
   const out = [], group = gearGroup(D);
   for (const k of ['ammo', 'trigger', 'mag']) {
     if (!tierFits(k, id)) continue;
-    const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id);
-    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[st.r] || 14, title: () => nm, desc: () => st.text, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: st.text, fx: fx0 }); } });
+    const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text, r = (k === 'mag' && st.rAs && st.rAs[id]) || st.r;
+    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[r] || 14, title: () => nm, desc: () => txt, why: () => '',
+      make: () => { const fx0 = tierFx(id, k); magChange(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); }); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
   }
   return out;
 }
 const TIER_LINE = { ammo: 'Ammo', trigger: 'Trigger', mag: 'Magazine' };
+// a bigger mag bought for a gun waits in the pouch until you next reload (magChange, game/run-state.js)
+const magNote = id => W8.pin[id] ? ' The new mag goes in at your next reload.' : '';
 // the sawhorse's cards say so when your stack is close to full (PLANK_MAX, barricades/planks.js)
 const plankDesc = (n, text) => plankRoom() && plankRoom() < n ? `Only room for ${plankRoom()} more (you carry ${PLANK_MAX} at most)` : text;
 const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX}`;

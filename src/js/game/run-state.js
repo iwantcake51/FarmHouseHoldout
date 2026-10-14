@@ -10,7 +10,7 @@ function freshRun() {
     att: { bayonet: false, fire: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
   Object.keys(TIERS).forEach(k => S.tier[k] = 0);
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, spent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -33,7 +33,7 @@ function recomputeEff() {
     // high-power scope (its stat, weapons/gun-mods.js) does better
     if (sight >= 3 && SCOPE_GUNS.has(id)) { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
-    if (D.mag) D.mag *= [1, 1.4, 2.0, 2.7][mag];
+    if (D.mag) D.mag *= (MAG_UP[id] || MAG_UP.all)[mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
@@ -41,20 +41,34 @@ function recomputeEff() {
     if (D.akimbo) D.reload *= AK_ONE;
     D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];
     if ((g.supp || 0) >= 3) D.pierce = (D.pierce || 0) + 1;   // the heavy-duty can: bullets go through one more zombie
+    if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     EFF[id] = D;
   }
 }
 const W = id => EFF[id];
+// Through and through (S.pierce, stations/recipes.js) is for guns that don't already push rounds through more zombies
+// with something of their own: flechettes, the revolver's longer barrels, slugs, or the heavy-duty can leave it out
+const PIERCE_MODS = new Set(['flech', 'longbarrel', 'slug']);
+const ownPierce = id => (W8.mods[id] || []).some(m => PIERCE_MODS.has(m)) || gunTier(id, 'supp') >= 3;
+const skillPierce = id => id && ownPierce(id) ? 0 : S.pierce;
 // how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.3, AK_ONE = 1;
+// how much each magazine tier holds against the gun's own: most guns step up through three, the drum shotgun's one step is
+// its drum, twice its box (MAG_STEPS, upgrades/upgrades.js)
+const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2] };
+// an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
+const SEMI = { spread: 0.7, shake: 0.75 };
 // what match-grade rounds and each sight add to a gun's headshot multiplier (on top of S.headMul's 2.2×)
 const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3] };
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
-// fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
-const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };
+// fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench. A
+// tuned gun also lands crits: TUNE.crit of its hits on any shot (D.critT, scoped or not), and every crit it lands, a
+// scope's included, hits TUNE.critM harder (D.critUp; weapons/firing.js)
+const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15, crit: 0.08, critM: 0.25 };
 function tuneUp(D) {
   D.dmg *= TUNE.dmg; D.rate *= TUNE.rate;
   if (D.melee) { D.range += TUNE.reach; D.kb *= TUNE.kb; return; }
+  D.critT = (D.critT || 0) + TUNE.crit; D.critUp = (D.critUp || 0) + TUNE.critM;
   if (D.reload) D.reload *= TUNE.reload;
   if (D.perShell) D.perShell *= TUNE.reload;
   D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too
@@ -68,7 +82,22 @@ const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;
-const T = k => GUN_TIERS.has(k) ? gunTier(tierCtx || curId(), k) : S.tier[k];
+const T = k => !GUN_TIERS.has(k) ? S.tier[k] : k === 'mag' ? magTierIn(tierCtx || curId()) : gunTier(tierCtx || curId(), k);
+// a new magazine bought for a gun doesn't jump into it: the mag that's in it stays (its size, and the model's mag) until
+// you next change mags (weapons/reload.js). W8.pin holds, for a magazine-fed gun upgraded since its last mag change, the
+// tier and capacity of the one still in it. Guns fed a round at a time, the revolver's cylinder and an akimbo pair take
+// the change at once
+const magTierIn = id => (id && W8.pin && W8.pin[id]) ? W8.pin[id].t : gunTier(id, 'mag');
+const magCap = id => (W8.pin && W8.pin[id]) ? W8.pin[id].cap : magSize(id);
+function magChange(id, fn) {
+  const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');
+  fn();
+  const D = id && W(id); if (!D || !D0) return;
+  if (D.melee || D.perShell || D.speedload || D.akimbo || D0.akimbo) { delete W8.pin[id]; return; }   // these take it at once (a waiting mag too)
+  if ((magSize(id) !== cap0 || gunTier(id, 'mag') !== t0) && !W8.pin[id]) W8.pin[id] = { cap: cap0, t: t0 };
+}
+// the old mag's out: the new one goes in, model and all
+function magSwapIn(id) { if (W8.pin && W8.pin[id]) { delete W8.pin[id]; buildGuns(); } }
 const curId = () => W8.slot[W8.cur];
 const hasMod = m => (W8.mods[MODS[m].w] || []).includes(m);
 const held = id => W8.slot[WEAP[id].slot] === id;

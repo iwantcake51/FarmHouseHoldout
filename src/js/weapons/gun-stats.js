@@ -1,18 +1,32 @@
 // Gun stats, and the combined weapon table WEAP.
 
-// Guns: damage, fire rate, magazine, reload, spread, recoil, starting ammo, rarity in the upgrade pool.
+// Guns: damage, fire rate, magazine, reload, spread, recoil, starting ammo, rarity in the upgrade pool. Each one does
+// something better than the rest, so there's a reason to pick it (its card says what):
+//   pistol    the starter: accurate, quick to reload, cheap on ammo
+//   revolver  the handgun with reach: each round goes through a zombie and keeps its bite furthest out
+//   deagle    the hardest-hitting handgun: through two zombies, and it knocks them back
+//   smg       the fastest-firing gun, and the one that holds its aim on the move (mobile)
+//   sub       the steadiest automatic: tight through long bursts (sprayK) and the longest-reaching 9mm
+//   ar        rifle rounds through a zombie at long range, full auto or semi (OWN_MODES, weapons/mod-levels.js)
+//   lmg       the most sustained fire: a hundred-round belt, slow to carry
+//   pump      the hardest knockback, and it tears limbs off up close
+//   dbl       the biggest burst: both barrels as fast as you can pull
+//   auto12    an automatic shotgun: a box of 10, or the drum (20) as its one magazine upgrade (MAG_UP)
+//   hunting   one round through four zombies at full power at any range (no drop-off)
+// mobile: how much of the spread and the off-target shots moving costs from the hip (weapons/firing.js); sprayK: how
+// fast holding the trigger opens the spread
 const GUN_WEAPONS = {
   pistol: { slot: 'side', ammo: 'p9', name: '9mm pistol', short: '9mm', dmg: 27, rate: 0.21, mag: 13, reload: 1.15, spread: 0.03, kick: 1.4, shake: 0.08, start: 65 },
-  revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 64, rate: 0.42, mag: 6, reload: 1.8, perShell: 0.3, spread: 0.015, kick: 3, shake: 0.16, pierce: 1, start: 18, rar: 'u', desc: 'Six heavy rounds. Each one goes through a zombie.' },
-  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 2.0, spread: 0.02, kick: 4.5, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'Absurd stopping power from a handgun.' },
-  pump: { slot: 'long', ammo: 'shells', name: 'Pump shotgun', short: 'Pump', dmg: 15, rate: 0.78, mag: 6, perShell: 0.42, spread: 0.3, pellets: 8, kick: 2.6, shake: 0.28, start: 18, rar: 'c', desc: 'Eight pellets a shell. Tears limbs off up close.' },
-  dbl: { slot: 'long', ammo: 'shells', name: 'Double barrel', short: 'Double', dmg: 17, rate: 0.26, mag: 2, perShell: 0.5, spread: 0.36, pellets: 9, kick: 3, shake: 0.32, start: 16, rar: 'c', desc: 'Two quick, brutal shots, then two shells in.' },
-  auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 14, rate: 0.19, mag: 20, reload: 2.6, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 40, rar: 'l', desc: 'A fully automatic shotgun with a 20-shell drum.' },
-  hunting: { slot: 'long', ammo: 'rifle', name: 'Hunting rifle', short: 'Rifle', dmg: 130, rate: 1.3, mag: 5, perShell: 0.55, spread: 0.006, kick: 4, shake: 0.25, pierce: 3, start: 20, rar: 'r', desc: 'Bolt action. One round goes through four zombies.' },
-  smg: { slot: 'auto', ammo: 'p9', name: 'Machine pistol', short: 'Auto', dmg: 17, rate: 0.085, mag: 30, reload: 1.5, spread: 0.08, kick: 0.7, shake: 0.06, start: 90, rar: 'u', desc: 'Fully automatic. Sprays more than it aims.' },
-  sub: { slot: 'auto', ammo: 'p9', name: 'Submachine gun', short: 'SMG', dmg: 23, rate: 0.075, mag: 32, reload: 1.7, spread: 0.05, kick: 0.9, shake: 0.06, start: 120, rar: 'r', desc: 'Accurate automatic fire with a folding stock.' },
-  ar: { slot: 'auto', ammo: 'rifle', name: 'Assault rifle', short: 'AR', dmg: 36, rate: 0.1, mag: 30, reload: 2.0, spread: 0.035, kick: 1.4, shake: 0.08, pierce: 1, start: 90, rar: 'r', desc: 'Rifle rounds on full auto.' },
-  lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.07, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.9, rar: 'l', desc: 'A hundred-round belt. You walk slower carrying it.' }
+  revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 68, rate: 0.38, mag: 6, reload: 1.8, perShell: 0.3, spread: 0.015, kick: 3, shake: 0.16, pierce: 1, start: 18, rar: 'u', desc: 'Six heavy rounds, each one through a zombie. Keeps its bite further out than any other handgun.' },
+  deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 2.0, spread: 0.02, kick: 6, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'The hardest-hitting handgun. Rounds go through two zombies and knock them back.' },
+  pump: { slot: 'long', ammo: 'shells', name: 'Pump shotgun', short: 'Pump', dmg: 18, rate: 0.7, mag: 6, perShell: 0.42, spread: 0.27, pellets: 8, kick: 3.2, shake: 0.28, start: 20, rar: 'u', desc: 'Eight pellets a shell. Knocks zombies back harder than anything, and tears limbs off up close.' },
+  dbl: { slot: 'long', ammo: 'shells', name: 'Double barrel', short: 'Double', dmg: 19, rate: 0.26, mag: 2, perShell: 0.42, spread: 0.36, pellets: 9, kick: 3, shake: 0.32, start: 16, rar: 'c', desc: 'Two barrels as fast as you can pull: the biggest burst of damage up close.' },
+  auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 10, rate: 0.21, mag: 10, reload: 2.2, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 30, rar: 'l', drumMag: true, desc: 'A fully automatic shotgun: holds the trigger down where the others pump. A box of 10, or fit the 20-shell drum.' },
+  hunting: { slot: 'long', ammo: 'rifle', name: 'Hunting rifle', short: 'Rifle', dmg: 150, rate: 1.15, mag: 5, perShell: 0.55, spread: 0.006, kick: 4, shake: 0.25, pierce: 3, start: 20, rar: 'r', desc: 'Bolt action. One round goes through four zombies, at full power at any range.' },
+  smg: { slot: 'auto', ammo: 'p9', name: 'Machine pistol', short: 'Auto', dmg: 22, rate: 0.075, mag: 30, reload: 1.3, spread: 0.05, kick: 0.7, shake: 0.06, mobile: 0.3, sprayK: 0.7, start: 100, rar: 'u', desc: 'The fastest-firing gun, and the one that holds its aim best on the move. Quick to reload.' },
+  sub: { slot: 'auto', ammo: 'p9', name: 'Submachine gun', short: 'SMG', dmg: 28, rate: 0.072, mag: 30, reload: 1.5, spread: 0.035, kick: 0.9, shake: 0.06, sprayK: 0.45, start: 120, rar: 'r', desc: 'The steadiest automatic: it stays tight through long bursts, and reaches further than any 9mm.' },
+  ar: { slot: 'auto', ammo: 'rifle', name: 'Assault rifle', short: 'AR', dmg: 38, rate: 0.095, mag: 30, reload: 2.0, spread: 0.035, kick: 1.4, shake: 0.08, pierce: 1, start: 90, rar: 'r', desc: 'Rifle rounds that go through a zombie and reach a long way. Full auto, or semi for steadier shots (B).' },
+  lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.07, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.9, sprayK: 0.8, rar: 'l', desc: 'A hundred-round belt: the most fire you can keep up. You walk slower carrying it.' }
 };
 // every weapon in the game, melee first, keyed by id
 const WEAP = Object.assign({}, MELEE_WEAPONS, GUN_WEAPONS);

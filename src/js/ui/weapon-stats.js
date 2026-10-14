@@ -14,7 +14,7 @@ function wsNumbers(id) {
   if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
   const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
   const shot = D.dmg * S.dmgMul * suppMul(D);
-  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + S.pierce, head: headMulFor(D) };
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') r.spread *= 0.75;
   // reloads, every kind this gun has
@@ -63,10 +63,10 @@ function wsStock(id) {
 }
 const wsF = (v, d = 1) => v.toFixed(d), wsDeg = v => { const x = v * 57.3; return x.toFixed(x < 2 ? 2 : 1) + '°'; };
 // a cone for each way you're firing: hip, moving and aimed (firing.js: spreadOf)
-function wsCone(sp) {
-  const W_ = 230, H = 70, ox = 8, oy = H / 2, L = W_ - 16, cones = [['Moving', sp * 2.6, 'rgba(226,65,44,.18)', '#e2412c'], ['Hip', sp * 1.3, 'rgba(240,191,76,.2)', '#f0bf4c'], ['Aimed', sp * 0.5, 'rgba(94,194,196,.28)', '#5ec2c4']];
+function wsCone(sp, mob) {
+  const mv = sp * 1.3 * (1 + RUN_SPREAD * (mob || 1)), W_ = 230, H = 70, ox = 8, oy = H / 2, L = W_ - 16, cones = [['Moving', mv, 'rgba(226,65,44,.18)', '#e2412c'], ['Hip', sp * 1.3, 'rgba(240,191,76,.2)', '#f0bf4c'], ['Aimed', sp * 0.5, 'rgba(94,194,196,.28)', '#5ec2c4']];
   // drawn to scale against each other, the widest filling the box, so a tight gun's cones still show; the labels are true
-  const path = a => { const t = (oy - 3) * a / (sp * 2.6); return `M${ox} ${oy} L${ox + L} ${(oy - t).toFixed(1)} L${ox + L} ${(oy + t).toFixed(1)} Z`; };
+  const path = a => { const t = (oy - 3) * a / mv; return `M${ox} ${oy} L${ox + L} ${(oy - t).toFixed(1)} L${ox + L} ${(oy + t).toFixed(1)} Z`; };
   return `<svg class="wsCone" viewBox="0 0 ${W_} ${H}">${cones.map(([n, a, f, s]) => `<path d="${path(a)}" fill="${f}" stroke="${s}" stroke-width="1"/>`).join('')}<line x1="${ox}" y1="${oy}" x2="${ox + L}" y2="${oy}" stroke="rgba(236,230,216,.25)" stroke-dasharray="2 3"/></svg>
     <div class="wsKey">${cones.map(([n, a, f, s]) => `<span style="--c:${s}">${n} ${wsDeg(a)}</span>`).join('')}</div>`;
 }
@@ -98,7 +98,7 @@ function wsHTML(id) {
   h += '<div class="wsLegend"><span>Stock</span><span class="up">Better</span><span class="down">Worse</span></div><div class="wsGrid">';
   h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '', r.dmg, s.dmg);
   h += row('Fire rate', wsF(r.rate) + '/s', r.ak ? wsF(r.rate / 2) + '/s each gun' : D.fan ? wsF(S.rateMul / D.fan.rate) + '/s fanned from the hip' : '', r.rate, s.rate);
-  h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag), '', r.mag, s.mag);
+  h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag), W8.pin[id] ? `${W8.pin[id].cap} in the gun till you reload` : '', r.mag, s.mag);
   if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty', r.shell, s.shell, -1);
   else if (r.ak) h += row('Reload', wsF(r.akTac) + ' s', `one gun · ${wsF(r.akEmpty)} s empty · both empty ${wsF(r.akEmpty * 2)} s`, r.akTac, s.akTac ?? sRel, -1);
   else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
@@ -107,7 +107,7 @@ function wsHTML(id) {
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
   h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
-  h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread);
+  h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread, D.mobile);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
   // what's improving it: each upgrade, attachment, mod or skill that makes a number better, and only how it does
   const src = wsSources(id).map(q => ({ name: q.name, fx: q.fx.filter(f => f.good) })).filter(q => q.fx.length);

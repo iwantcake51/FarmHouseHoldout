@@ -16,12 +16,12 @@ function buildGuns() {
   // body armour by tier: a canvas jacket, then a vest over it, then a plate carrier (player/gear.js builds them)
   const ar = T('armor');
   shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)
-  const dmgT = T('ammo'), magT = T('mag'), pr = S.pierce;
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; tierCtx = id;
+    const magT = T('mag'), pr = skillPierce(id);   // this gun's own (the mag that's in it: weapons/reload.js)
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
       const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
@@ -71,7 +71,7 @@ function gunExtras(id) {
   if (W8.tune && W8.tune[id]) out.push({ t: 'Tuned', k: 'tune' });
   if (D.melee) return out;
   for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push({ t: tierName(k, n - 1, id), k: EXTRA_KIND[k] }); }
-  if (S.pierce) out.push({ t: 'Pierce ' + S.pierce, k: 'ammo' });
+  if (skillPierce(id)) out.push({ t: 'Pierce ' + skillPierce(id), k: 'ammo' });
   if (S.att.fire) out.push({ t: 'Incendiary', k: 'ammo' });
   if (S.att.bayonet && D.slot === 'long') out.push({ t: 'Bayonet', k: 'att' });
   if (S.att.stock && D.slot === 'side') out.push({ t: 'Stock', k: 'att' });

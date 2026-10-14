@@ -108,7 +108,7 @@ function updateCrosshair(rdt, D) {
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
       // two guns: each arc is its own gun's mag (the one on your right on the right, AK_ON), each turning yellow under a quarter
-      const am = ak && akMags(id), n = ak ? akPer(id) : magSize(id), have = ak ? am[AK_ON.right] : W8.mag[id] || 0, haveL = ak ? am[AK_ON.left] : 0, key = n + ':' + have + ':' + aR + (ak ? ':' + haveL : '');
+      const am = ak && akMags(id), n = ak ? akPer(id) : magCap(id), have = ak ? am[AK_ON.right] : W8.mag[id] || 0, haveL = ak ? am[AK_ON.left] : 0, key = n + ':' + have + ':' + aR + (ak ? ':' + haveL : '');
       const healing = P.bandT > 0, lowAt = Math.max(1, n * 0.25);
       if (cache.ammoKey !== key) {
         cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg);
@@ -120,7 +120,7 @@ function updateCrosshair(rdt, D) {
       // empty; a single empty gun is shown by its own arc flashing red
       const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn'), tot = W8.mag[id] || 0, dry = ak ? am.L === 0 && am.R === 0 : have === 0;
       // while reloading the same spot reads "Reloading", or counts the shells going in
-      const mode = W8.reloading ? 'loading' : dry ? (res > 0 ? 'reload' : 'none') : tot <= Math.max(1, Math.floor(magSize(id) * 0.25)) ? 'low' : '';
+      const mode = W8.reloading ? 'loading' : dry ? (res > 0 ? 'reload' : 'none') : tot <= Math.max(1, Math.floor(magCap(id) * 0.25)) ? 'low' : '';
       const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? (ak ? 'No ammo <kbd>R</kbd>' : 'Reload <kbd>R</kbd>') : mode === 'none' ? 'No ammo' : '';
       if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;

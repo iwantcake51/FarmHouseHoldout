@@ -1,5 +1,10 @@
 // Boarding, station prompts and the on-screen hint.
 
+// boarding under attack without a hammer is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed, unless
+// you've got any of the hammer line (upgrades/tier-table.js). In the break between waves there's time to do it properly
+const BOARD_WAVE = 0.3;
+const boardSlow = () => phase === 'wave' && !T('hammer');
+const boardRate = () => S.boardSpeed * (boardSlow() ? BOARD_WAVE : 1);
 // an opening you could board up right now (holding F boards it)
 function boardable(o) { return !!(o && o.boards.length < 3 && S.planks > 0 && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault); }
 // door/window boarding, station prompts and the on-screen hint
@@ -10,7 +15,7 @@ function updateInteractions(dt) {
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();
   const canBoard = boardable(o);
-  if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * S.boardSpeed; if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
+  if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * boardRate(); if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
   else boardT = 0;
   const fv = !o && !P.vault && fenceTarget(), tk = nearestTake();
   // the prompt eases in and out (the 'on' class); its rows stay put while it fades so it never blinks empty
@@ -25,7 +30,7 @@ function updateInteractions(dt) {
       if (vaultTarget(o)) rows.push(row('Space', 'Climb through the window'));
       if (o.boards.length >= 3) rows.push(`<div class="pr off"><span>The ${what} is fully boarded</span></div>`);
       else if (S.planks <= 0) rows.push('<div class="pr off"><span>No planks left. Cut some at the sawhorse.</span></div>');
-      else rows.push(row('Hold F', `Board up the ${what}`, `<em>${o.boards.length}/3</em>`));
+      else rows.push(row('Hold F', `Board up the ${what}`, `<em>${o.boards.length}/3${boardSlow() ? ' · slow without a hammer' : ''}</em>`));
     }
     setH('pRows', rows.join(''));
   }

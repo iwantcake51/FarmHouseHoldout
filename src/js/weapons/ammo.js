@@ -2,7 +2,7 @@
 
 const AMMO_NAME = { p9: '9mm', magnum: 'magnum', shells: 'shells', rifle: 'rifle rounds' };
 // [full damage out to, reaches the floor at, floor multiplier]
-const FALLOFF = { pistol: [4, 12, 0.32], smg: [5, 14, 0.45], sub: [6, 15, 0.48], revolver: [7, 18, 0.36], deagle: [8, 20, 0.24], pump: [5, 13, 0.6], dbl: [5, 13, 0.6], auto12: [5, 13, 0.6], ar: [9, 20, 0.6], lmg: [9, 20, 0.58] };
+const FALLOFF = { pistol: [4, 12, 0.32], smg: [6, 15, 0.5], sub: [10, 22, 0.65], revolver: [10, 22, 0.5], deagle: [8, 20, 0.35], pump: [5, 13, 0.6], dbl: [5, 13, 0.6], auto12: [5, 13, 0.6], ar: [12, 26, 0.65], lmg: [9, 20, 0.58] };
 const AMMO_REF = { p9: 13, magnum: 7, shells: 6, rifle: 12 };
 // one ammo box or crafted batch; a calibre that feeds more than one of your guns comes in a bit bigger (+20% per extra gun)
 function ammoAmt(a) {
