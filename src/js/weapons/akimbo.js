@@ -73,8 +73,9 @@ function akTickReload(dt, id, D) {
 // take turns on it. In single shots each gun fires once a click; a burst is a gun's own (three from that gun, both for
 // six), repeating while its button is held and stopping where it is when it's let go
 function akTriggers(dt, id, D, want) {
-  // vaulting (Run and gun) the left hand's on the sill, so either button fires the right gun
-  if (P.vault) { want = { L: false, R: want.L || want.R || want.any, any: false }; }
+  // vaulting (Run and gun) the left hand's on the sill, its gun put away till it's drawn again after (player/hold.js),
+  // so either button fires the right gun
+  if (P.vault || ANIM.akIn) { want = { L: false, R: want.L || want.R || want.any, any: false }; }
   for (const s of AK_SIDES) {
     W8.akCd[s] -= dt;
     if (!want[s] && !want.any) { W8.akLock[s] = false; W8.akBurst[s] = 0; }

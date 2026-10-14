@@ -35,8 +35,7 @@ function cancelBandage() {
   if (!(P.bandT > 0)) return;
   const k = bandProg(), h = Math.round(bandHeal() * k);
   P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click();
-  if (h > 0) { P.heal = (P.heal || 0) + h; feed('med', h, 'health over time'); }
-  toast('Bandage cut short', { kind: 'warn', icon: 'med', sub: `${Math.round(k * 100)}% wrapped · heals ${h} of ${bandHeal()}` });
+  if (h > 0) { P.heal = (P.heal || 0) + h; feed('med', h, 'health over time'); }   // just the heal in the feed, no warning
 }
 // a weapon key or the touch swap button: during a bandage it cancels it and takes that weapon out instead, carried
 // out of where it rides as the hands come down (bandPhases, player/hold.js); otherwise it's an ordinary swap

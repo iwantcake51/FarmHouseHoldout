@@ -225,10 +225,11 @@ function updatePack(dt) {
   packPivot.position.y = PACK_PIV[1] + clamp(q.y - PM.upper.position.y, -L.bounce, L.bounce);
   packPivot.rotation.set(q.rx, q.ry, q.rz);
 }
-// show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out
-function showStowed(s, on) {
+// show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out. A pair's left gun goes
+// with it (on2), or on its own while it's put away for a Run and gun vault (player/hold.js)
+function showStowed(s, on, on2 = on) {
   const o = STOW[s]; if (!o) return; o.userData.gun.visible = on; o.visible = (on || s === 'side') && !P.dead;
-  const t = o.userData.twin; if (t) { o.userData.gun2.visible = on; t.visible = o.visible; }   // a pair's left gun with it
+  const t = o.userData.twin; if (t) { o.userData.gun2.visible = on2; t.visible = (on2 || s === 'side') && !P.dead; }
 }
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
@@ -244,7 +245,7 @@ function updateStow(rdt) {
   }
   for (const s in STOW) {
     // the weapon in your hands goes back on you while you vault
-    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed);
+    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed, stowed || (s === held && !!ANIM.akHolstered));
     if (!o.visible) continue;
     const t = o.userData.twin;
     if (s === 'side') {
