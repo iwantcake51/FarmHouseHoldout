@@ -164,7 +164,7 @@ function gunFire(id, D) {
   { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, D.rate < 0.15); }
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];
-  if (ej === 'fire') ejectCasing(D.ammo, shots, 'fire', W8.akSide);
+  if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
   else if (ej === 'pump' || ej === 'bolt') startCycle(id);
   else if (ej === 'breach') W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots);
   }

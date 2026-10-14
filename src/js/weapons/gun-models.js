@@ -26,6 +26,8 @@ function portFill(g, z0, y0, z1, y1, w, bev, mat) {
 }
 // a bevel grows a profile's outline by its size all round: pull a traced outline in by d first so it comes out the size
 // it was traced at (a negative d pushes it out, for the hole through a bevelled piece)
+// is X near the edge B..C (within span of both ends), so joining the neighbours there doesn't throw a spike out
+const t1ok = (X0, B, C, span) => Math.hypot(X0[0] - B[0], X0[1] - B[1]) < span && Math.hypot(X0[0] - C[0], X0[1] - C[1]) < span;
 function inset(pts, d) {
   let P = pts.slice(), Q = P;
   for (let it = 0; it < 60; it++) {
@@ -39,9 +41,18 @@ function inset(pts, d) {
       let mx = n1[0] + n2[0], my = n1[1] + n2[1]; const ml = Math.hypot(mx, my) || 1; mx /= ml; my /= ml;
       const k = Math.sign(d) * Math.min(Math.abs(d) * 3, Math.abs(d) / Math.max(0.05, mx * n1[0] + my * n1[1])); return [p[0] + mx * k, p[1] + my * k];
     });
-    // an edge shorter than the inset that turned round has folded over: drop its far corner and go again
-    let bad = -1; for (let i = 0; i < n; i++) { const j = (i + 1) % n; if ((P[j][0] - P[i][0]) * (Q[j][0] - Q[i][0]) + (P[j][1] - P[i][1]) * (Q[j][1] - Q[i][1]) < 0) { bad = j; break; } }
-    if (bad < 0) break; P = P.filter((_, i) => i !== bad);
+    // an edge shorter than the inset that turned round has folded over: take it out by running the edges either side of
+    // it on until they meet, so the long traced edges keep their lines (only if they meet near it; otherwise drop its
+    // far corner) and go again
+    let bad = -1; for (let i = 0; i < n; i++) { const j = (i + 1) % n; if ((P[j][0] - P[i][0]) * (Q[j][0] - Q[i][0]) + (P[j][1] - P[i][1]) * (Q[j][1] - Q[i][1]) < 0) { bad = i; break; } }
+    if (bad < 0) break;
+    const i = bad, j = (i + 1) % n, h = (i + n - 1) % n, k = (j + 1) % n, A = P[h], B = P[i], C = P[j], D = P[k];
+    const d1x = B[0] - A[0], d1y = B[1] - A[1], d2x = D[0] - C[0], d2y = D[1] - C[1], den = d1x * d2y - d1y * d2x;
+    let X0 = null;
+    if (Math.abs(den) > 1e-12) { const t = ((C[0] - A[0]) * d2y - (C[1] - A[1]) * d2x) / den; X0 = [A[0] + d1x * t, A[1] + d1y * t]; }
+    const span = Math.hypot(C[0] - B[0], C[1] - B[1]) + Math.abs(d) * 2;
+    if (X0 && t1ok(X0, B, C, span) && n > 4) P = P.map((q, m) => m === i ? X0 : q).filter((_, m) => m !== j);
+    else P = P.filter((_, m) => m !== j);
   }
   return Q;
 }
@@ -124,6 +135,16 @@ function checker(g, poly, xo, gap, ang, pm, lm) {
   const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
   g.add(new THREE.Mesh(geo, lm || GM.walnut2));   // all the lines are one mesh
+}
+// many small boxes as one mesh: the grooves, ribs and slots set flush into a face ([w, h, d, x, y, z, rx] each), one
+// draw call however many there are
+function boxes(g, B, mat) {
+  const pos = [], nor = [], mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), one = new THREE.Vector3(1, 1, 1);
+  B.forEach(([w, h, d, x, y, z, rx]) => { const gg = new THREE.BoxGeometry(w, h, d).toNonIndexed(); gg.applyMatrix4(mx.compose(new THREE.Vector3(x, y, z), q.setFromEuler(e.set(rx || 0, 0, 0)), one)); pos.push(gg.attributes.position.array); nor.push(gg.attributes.normal.array); });
+  if (!pos.length) return null;
+  const cat = L => { const A = new Float32Array(L.reduce((n, a) => n + a.length, 0)); let at = 0; L.forEach(a => { A.set(a, at); at += a.length; }); return A; };
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(cat(pos), 3)); geo.setAttribute('normal', new THREE.BufferAttribute(cat(nor), 3));
+  const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
 }
 // slim a stock down the gun: every piece in the group has its width about X scaled by wf(z), so the wrist can be
 // narrower than the butt and the panels and lines on the faces stay on them
@@ -451,7 +472,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.542, 1.133], [0.552, 1.136], [0.57, 1.137], [0.582, 1.141], [0.585, 1.152], [z0, 1.152], [z0, 1.12], [0.7, 1.12], [0.712, 1.112], [0.716, 1.1], [0.711, 1.088], [0.7, 1.082], [0.637, 1.08], [0.6, 1.08], [0.542, 1.082]]), 0.05, E, X, 0.004);
     [-1, 1].forEach(sd => { profile(g, shp([[0.548, 1.088], [0.606, 1.088], [0.606, 1.13], [0.578, 1.13], [0.548, 1.124]], [shp([[0.552, 1.092], [0.602, 1.092], [0.602, 1.126], [0.579, 1.126], [0.552, 1.121]])]), 0.002, GM.engrD, X + sd * 0.0285, 0.0005);
       cyl(g, 0.0055, 0.004, GM.engrD, X + sd * 0.029, 1.096, 0.705, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.003, 0.004, GM.steelDk, X + sd * 0.029, 1.11, 0.565, 10).rotation.set(0, 0, Math.PI / 2); });
-    { const tl = profile(g, shp([[0.572, 1.152], [z0, 1.152], [z0, 1.159], [0.58, 1.161]]), 0.012, GM.steel, X - 0.008, 0.001); tl.rotation.y = -0.25; }   // top lever, swung to the right
+    { const tg = new THREE.Group(); tg.position.set(X, 0, z0 - 0.006); g.add(tg); profile(tg, shp([[0.572 - z0 + 0.006, 1.151], [0.006, 1.151], [0.006, 1.159], [0.58 - z0 + 0.006, 1.161]]), 0.012, GM.steel, -0.004, 0.001); tg.rotation.y = -0.25; }   // top lever on its spindle, swung to the right
     box(g, 0.008, 0.004, 0.014, GM.steel, X, 1.138, 0.556);   // safety on the tang
     profile(g, shp([[0.536, 1.082], [0.648, 1.082], [0.632, 1.067], [0.61, 1.058], [0.586, 1.058], [0.565, 1.07], [0.55, 1.078], [0.536, 1.078]], [shp([[0.635, 1.078], [0.626, 1.069], [0.608, 1.063], [0.588, 1.063], [0.57, 1.073], [0.566, 1.078]])]), 0.01, GM.steelDk, X, 0.0012);
     [0.6, 0.582].forEach(z => profile(g, shp([[z, 1.08], [z + 0.007, 1.08], [z + 0.011, 1.069], [z + 0.008, 1.06], [z + 0.002, 1.059], [z + 0.004, 1.068]]), 0.006, m.both ? GM.brass : GM.steel, X, 0.0008));
@@ -479,7 +500,7 @@ const GUN_MODELS = {
       cyl(brk, 0.0105, 0.002, GM.rubber, ...bx(sd * 0.0155, 1.14, z1 + 0.0005), 14);
       cyl(brk, 0.0105, 0.002, GM.rubber, ...bx(sd * 0.0155, 1.14, z0 - 0.0005), 14);
     });
-    box(brk, 0.012, 0.004, bl - 0.01, B, ...bx(0, 1.157, z0 + bl / 2));
+    box(brk, 0.012, 0.011, bl - 0.01, B, ...bx(0, 1.1535, z0 + bl / 2));   // the rib, sunk into the valley between them
     box(brk, 0.008, 0.006, bl - 0.02, B, ...bx(0, 1.124, z0 + bl / 2));
     { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 6), GM.dot); bd.position.set(...bx(0, 1.161, z1 - 0.012)); brk.add(bd); }
     box(brk, 0.022, 0.024, 0.07, B, ...bx(0, 1.114, z0 + 0.04));   // the lumps, down into the bar
@@ -508,14 +529,14 @@ const GUN_MODELS = {
     stipple(g, panel, 0.034, 0.0034, GM.poly, GM.rubber);                                                                // the textured panels
     cyl(g, 0.005, 0.071, St, X, 1.151, 1.186, 12).rotation.set(0, 0, Math.PI / 2);                                          // the cross pin
     cyl(g, 0.0045, 0.071, St, X, 1.1235, 0.13, 12).rotation.set(0, 0, Math.PI / 2);                                         // the sling pin
-    box(g, 0.003, 0.009, 0.04, St, X + 0.0347, 1.1425, 0.822); cyl(g, 0.004, 0.004, St, X + 0.0352, 1.1425, 0.84, 10).rotation.set(0, 0, Math.PI / 2);   // the latch
+    box(g, 0.004, 0.009, 0.04, St, X + 0.0345, 1.1425, 0.822); cyl(g, 0.004, 0.004, St, X + 0.0365, 1.1425, 0.84, 10).rotation.set(0, 0, Math.PI / 2);   // the latch
     // ---- barrel, its bore; the folding front sight, the tall rear sight
     cyl(g, 0.0163, 0.112, St, X, 1.13, 1.247, 18); cyl(g, 0.0095, 0.002, GM.rubber, X, 1.13, 1.3035, 12);
-    profile(g, shp([[1.108, 1.198], [1.1995, 1.198], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
-    profile(g, shp([[0.4688, 1.198], [0.534, 1.198], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]], [shp([[0.5145, 1.276], [0.527, 1.276], [0.527, 1.29], [0.5145, 1.29]]), shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012);
+    profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
+    profile(g, shp([[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]], [shp([[0.5145, 1.276], [0.527, 1.276], [0.527, 1.29], [0.5145, 1.29]]), shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012);
     // ---- the charging handle's fin on top: its own group so the reload can pull it back
     const ch = new THREE.Group(); g.add(ch);
-    profile(ch, shp([[0.8152, 1.1975], [0.8793, 1.1975], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);
+    profile(ch, shp([[0.8152, 1.192], [0.8793, 1.192], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);
     // ---- the ejection port on the right with the bolt in it, running back on each shot and held open when empty
     profile(g, shp([[0.66, 1.127], [0.77, 1.127], [0.77, 1.165], [0.66, 1.165]]), 0.002, GM.rubber, X - 0.0345, 0.0004);
     const bc = box(g, 0.003, 0.03, 0.06, St, X - 0.0352, 1.146, 0.74);
@@ -762,7 +783,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.5975, 1.128], [0.6135, 1.128], [0.6145, 1.15], [0.611, 1.1655], [0.5975, 1.1655]]), 0.007, A, X - 0.0255, 0.0015);   // the brass deflector
     // the bolt carrier in the port (it runs back on each shot); the steel dust cover swung down on its hinge rod under the
     // port, lying against the receiver, its rim standing up round it and its latch at its foot
-    const bc = box(g, 0.012, 0.0235, 0.104, GM.steel, X - 0.015, 1.1405, 0.674);
+    const bc = box(g, 0.0202, 0.0272, 0.104, GM.steel, X - 0.0109, 1.1405, 0.674);
     cyl(g, 0.002, 0.13, GM.metal2, X - 0.0255, 1.1225, 0.673, 8);
     const DC = [[0.609, 1.1215], [0.737, 1.1215], [0.737, 1.0835], [0.7335, 1.08], [0.6125, 1.08], [0.609, 1.0835]];
     profile(g, shp(DC), 0.003, GM.blued, X - 0.0265, 0.0006);
@@ -899,56 +920,105 @@ const GUN_MODELS = {
     }
     return { front, y: y0, magZ: 0, magY: mtop, slide: bc, bolts: [], travel: 0.045, lock: true, mz, top, sz, scopeH: 0.05, noSight: sight === 1, noLaser: true, noLight: true, charge: ch, chargeAt: [X + 0.026, 1.172, 0.462] };
   },
-  // light machine gun: an M60, traced off a side-on photo (levelled). A slim barrel with its collars and a prong flash
-  // hider, the tall A-frame front sight, the gas tube under the barrel; a railed handguard with long vent ribs down its
-  // sides; the receiver with its raised feed cover, the carrying handle over it and the ladder rear sight behind; the
-  // charging handle on the right; the pistol grip and guard under it; the olive ammo box hanging on the left with the
-  // belt feeding up out of it; the long stock with the shoulder rest folded down on top of the butt plate
+  // light machine gun: the classic M60, traced off a side-on photo, with the hard green 100-round box off another. The
+  // stock with its ribbed sides and steel butt plate; the receiver with the charging handle's track and knob on the
+  // right, the feed cover on top and the ladder rear sight standing in front of it (folded flat under an optic); the
+  // trigger housing, the raked pistol grip with its grooves, the big round guard; the forearm, ribbed down its sides,
+  // with the heat shield and its row of oval holes over the barrel; the turned barrel and its two collars, the thin
+  // A-frame front sight, the slotted flash hider; the gas cylinder under the barrel and the bipod folded back along it
+  // (down on its legs with the bipod mod); the ammo box hanging on the left, its lid propped open and the belt rising
+  // out of it into the feed tray
   lmg(g, m) {
-    const K = GM.metal, P = GM.park, mg = g.userData.magG || g;
-    // ---- barrel, flash hider, front sight, gas tube
-    cyl(g, 0.0145, 0.5, GM.blued, X, 1.13, 1.25, 16);
-    [[1.159, 0.012], [1.216, 0.026], [1.362, 0.03]].forEach(([z, L]) => ring(g, 0.0175, L, K, X, 1.13, z));
-    lathe(g, [[0.016, 1.497], [0.0172, 1.502], [0.0172, 1.535], [0.012, 1.535], [0.011, 1.5]], K, X, 1.13, 16);
-    [0, 1, 2, 3, 4].forEach(k => { const a = k / 5 * Math.PI * 2, sl = box(g, 0.004, 0.006, 0.026, GM.rubber, X + Math.sin(a) * 0.016, 1.13 + Math.cos(a) * 0.016, 1.52); sl.rotation.z = -a; });
-    profile(g, shp([[1.334, 1.146], [1.411, 1.146], [1.386, 1.235], [1.377, 1.243], [1.373, 1.243], [1.363, 1.231]], [shp([[1.356, 1.16], [1.392, 1.16], [1.38, 1.205], [1.372, 1.205]])]), 0.012, K, X, 0.0015);
-    box(g, 0.004, 0.012, 0.004, K, X, 1.25, 1.375);
-    cyl(g, 0.0135, 0.325, K, X, 1.087, 1.162, 16); cyl(g, 0.011, 0.05, GM.metal2, X, 1.087, 1.35, 14);
-    box(g, 0.02, 0.05, 0.022, K, X, 1.11, 1.152);
-    // ---- handguard: rails on top and the sides' long ribs, the sling loop's oval
-    profile(g, shp([[0.82, 1.046], [1.0, 1.046], [1.004, 1.052], [1.004, 1.16], [1.0, 1.166], [0.82, 1.166]]), 0.07, P, X, 0.004);
-    for (let k = 0; k < 11; k++) box(g, 0.05, 0.004, 0.006, GM.rubber, X, 1.171, 0.832 + k * 0.016);
-    box(g, 0.042, 0.004, 0.18, K, X, 1.169, 0.91);
-    [-1, 1].forEach(sd => { for (let k = 0; k < 18; k++) box(g, 0.003, 0.05, 0.004, GM.rubber, X + sd * 0.0385, 1.093, 0.835 + k * 0.0095);
-      box(g, 0.003, 0.006, 0.17, K, X + sd * 0.0385, 1.13, 0.91); });
-    { const t = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0028, 6, 14), K); t.rotation.y = Math.PI / 2; t.scale.set(1, 0.55, 1.6); t.position.set(X + 0.041, 1.115, 0.965); g.add(t); }
-    // ---- receiver and feed cover, rear sight, carrying handle
-    profile(g, shp([[0.4, 1.044], [0.82, 1.044], [0.82, 1.17], [0.66, 1.17], [0.607, 1.186], [0.58, 1.192], [0.523, 1.199], [0.49, 1.195], [0.404, 1.189], [0.4, 1.17]]), 0.064, K, X, 0.003);
-    profile(g, shp([[0.66, 1.17], [0.817, 1.17], [0.813, 1.178], [0.798, 1.195], [0.74, 1.192], [0.725, 1.186], [0.66, 1.186]]), 0.058, GM.metal2, X, 0.003);
-    box(g, 0.012, 0.012, 0.03, K, X, 1.198, 0.79);
-    profile(g, shp([[0.618, 1.17], [0.645, 1.17], [0.641, 1.222], [0.636, 1.235], [0.626, 1.235], [0.622, 1.2]]), 0.03, K, X, 0.0015);
-    profile(g, shp([[0.65, 1.17], [0.66, 1.17], [0.665, 1.246], [0.695, 1.246], [0.698, 1.17], [0.708, 1.17], [0.705, 1.255], [0.81, 1.255], [0.812, 1.17], [0.82, 1.17], [0.818, 1.262], [0.81, 1.271], [0.66, 1.268], [0.651, 1.262]]), 0.016, K, X, 0.0015);
-    for (let k = 0; k < 7; k++) box(g, 0.018, 0.012, 0.004, GM.rubber, X, 1.262, 0.716 + k * 0.013);
-    const sl = box(g, 0.012, 0.024, 0.03, GM.steel, X - 0.038, 1.12, 0.79);   // the charging handle, on the right
-    // ---- pistol grip and trigger guard under the receiver
-    profile(g, shp([[0.42, 1.044], [0.47, 1.044], [0.468, 1.02], [0.462, 0.99], [0.455, 0.955], [0.43, 0.952], [0.428, 0.98], [0.418, 1.02]]), 0.036, P, X, 0.004);
-    profile(g, shp([[0.47, 1.044], [0.55, 1.044], [0.55, 1.012], [0.54, 1.002], [0.48, 1.002], [0.47, 1.012]], [shp([[0.477, 1.038], [0.543, 1.038], [0.543, 1.015], [0.535, 1.008], [0.484, 1.008], [0.477, 1.015]])]), 0.012, K, X, 0.0015);
-    profile(g, shp([[0.49, 1.044], [0.497, 1.044], [0.503, 1.028], [0.5, 1.014], [0.493, 1.011], [0.495, 1.026]]), 0.006, GM.metal2, X, 0.0008);
-    // ---- stock: shoulder rest on top of the butt, the butt plate's ridges
-    profile(g, shp([[0.402, 1.17], [0.362, 1.178], [0.305, 1.176], [0.183, 1.176], [0.137, 1.183], [0.125, 1.191], [0.083, 1.201], [0.064, 1.199], [0.057, 1.187], [0.057, 0.99], [0.07, 0.983], [0.179, 1.014], [0.242, 1.044], [0.402, 1.044]]), 0.058, P, X, 0.005);
-    for (let k = 0; k < 9; k++) [-1, 1].forEach(sd => box(g, 0.002, 0.004, 0.06, GM.rubber, X + sd * 0.0342, 1.06 + k * 0.012, 0.115));
-    box(g, 0.068, 0.006, 0.07, K, X, 1.2, 0.105); box(g, 0.07, 0.21, 0.008, K, X, 1.092, 0.055);
-    // ---- the ammo box (in the mag group, so the reload can swap it) and the belt up to the feed tray
-    const bh = 0.23 + 0.018 * ((m.belt || 0) + T('mag')), bt = 1.126, bz0 = 0.405, bz1 = 0.592, bx = X + 0.058;
-    box(mg, 0.06, bh, bz1 - bz0, GM.olive, bx, bt - bh / 2, (bz0 + bz1) / 2);
-    box(mg, 0.064, 0.012, bz1 - bz0 + 0.004, GM.oliveD, bx, bt - 0.006, (bz0 + bz1) / 2);
-    box(mg, 0.004, bh * 0.6, 0.12, GM.oliveD, bx + 0.031, bt - bh * 0.45, (bz0 + bz1) / 2);
-    box(mg, 0.03, 0.006, 0.06, K, bx - 0.032, bt - 0.02, 0.5);
-    for (let k = 0; k < 5; k++) { const c = cyl(g, 0.0055, 0.04, GM.brass, X + 0.036, 1.13 + k * 0.007, 0.545 + k * 0.012, 8); c.rotation.set(0, 0, 0); c.rotation.z = Math.PI / 2; c.rotation.y = 0.2; }
-    if (m.bipod) {   // the bipod: legs angled down and forward off the gas tube
-      box(g, 0.026, 0.02, 0.03, K, X, 1.066, 1.29);
-      [-1, 1].forEach(sd => { const leg = profile(g, shp([[1.29, 1.066], [1.302, 1.066], [1.43, 0.79], [1.415, 0.785]]), 0.008, K, X + sd * 0.018, 0.001); leg.rotation.z = sd * 0.14; box(g, 0.012, 0.004, 0.03, K, X + sd * 0.055, 0.789, 1.425); });
+    const K = GM.metal, P = GM.furn, y0 = 1.13, mg = g.userData.magG || g, sight = T('sight');
+    // ---- the stock: ribs down both sides, the steel butt plate with the shoulder rest folded on top
+    const ST = [[0.0605, 0.9989], [0.0632, 1.0294], [0.0634, 1.0782], [0.0598, 1.1458], [0.0558, 1.1806], [0.0573, 1.1859], [0.0647, 1.1899], [0.0638, 1.1962], [0.0724, 1.1979], [0.0742, 1.2005], [0.0883, 1.1992], [0.1095, 1.1864], [0.1182, 1.1849], [0.1237, 1.1872], [0.1304, 1.1862], [0.1357, 1.1801], [0.1735, 1.17], [0.179, 1.1655], [0.1848, 1.1654], [0.1875, 1.1688], [0.1928, 1.1701], [0.258, 1.1695], [0.258, 1.0495], [0.2384, 1.0492], [0.2281, 1.0458], [0.141, 0.9888], [0.1257, 0.9821], [0.0981, 0.9767], [0.0837, 0.9773], [0.0674, 0.9835]];
+    solid(g, ST, 0.066, P, X, 0.012);
+    { const R = []; for (let yy = 1.006; yy < 1.162; yy += 0.0093) { const z0 = 0.084, edge = yy < 1.0458 ? 0.141 + (yy - 0.9888) / (1.0458 - 0.9888) * 0.0871 : 0.26, z1 = Math.min(0.244, edge - 0.016); if (z1 - z0 > 0.02) R.push([0.0666, 0.0026, z1 - z0, X, yy, (z0 + z1) / 2]); } boxes(g, R, GM.rubber); }   // the ribs' grooves, flush with the faces
+    solid(g, [[0.0605, 0.9989], [0.0632, 1.0294], [0.0634, 1.0782], [0.0598, 1.1458], [0.0558, 1.1806], [0.0573, 1.1859], [0.0647, 1.1899], [0.0638, 1.1962], [0.0724, 1.1979], [0.0742, 1.2005], [0.08, 1.2], [0.0745, 1.185], [0.0745, 1.1458], [0.0762, 1.0782], [0.0762, 1.0294], [0.0742, 0.99], [0.0674, 0.9835]], 0.07, K, X, 0.004);   // the butt plate
+    // ---- the receiver: its body, the feed cover on top, the trigger housing under it; on the right the charging
+    // handle's track with the handle in it (it runs back as the gun fires) and the vent holes
+    solid(g, [[0.2545, 1.0607], [0.6793, 1.0607], [0.6794, 1.1564], [0.6764, 1.1589], [0.646, 1.165], [0.44, 1.172], [0.4395, 1.1844], [0.3668, 1.1711], [0.3629, 1.1744], [0.2871, 1.1686], [0.254, 1.1693]], 0.064, K, X, 0.004);
+    solid(g, [[0.4395, 1.168], [0.646, 1.168], [0.6463, 1.18], [0.645, 1.1852], [0.6408, 1.1846], [0.639, 1.1816], [0.6331, 1.184], [0.624, 1.1799], [0.6218, 1.1835], [0.5856, 1.1863], [0.5823, 1.1926], [0.5777, 1.1911], [0.5727, 1.1939], [0.5388, 1.1941], [0.5213, 1.1885], [0.5174, 1.1901], [0.4961, 1.1895], [0.4914, 1.1846], [0.4887, 1.1883], [0.4505, 1.1861], [0.4482, 1.1856], [0.446, 1.1817], [0.4395, 1.1844]], 0.06, GM.metal2, X, 0.003);
+    solid(g, [[0.4338, 1.064], [0.619, 1.064], [0.619, 1.0457], [0.4338, 1.0456]], 0.05, K, X, 0.003);
+    box(g, 0.003, 0.009, 0.148, GM.rubber, X - 0.0316, 1.093, 0.326);                                         // the handle's track
+    const sl = new THREE.Group(); g.add(sl);
+    box(sl, 0.008, 0.012, 0.02, GM.metal2, X - 0.034, 1.093, 0.385); cyl(sl, 0.0085, 0.02, GM.steel, X - 0.046, 1.093, 0.385, 16).rotation.set(0, 0, Math.PI / 2);
+    [0.455, 0.465, 0.475].forEach(z => cyl(g, 0.0032, 0.0646, GM.rubber, X, 1.135, z, 10).rotation.set(0, 0, Math.PI / 2));
+    // the rear sight: the ladder standing up in front of the feed cover (lying flat under an optic)
+    const RS = [[0.6539, 1.158], [0.6577, 1.169], [0.658, 1.1789], [0.6552, 1.1851], [0.6625, 1.1993], [0.657, 1.2022], [0.6601, 1.2081], [0.6565, 1.2248], [0.6605, 1.2338], [0.6606, 1.2575], [0.6651, 1.2585], [0.6672, 1.2307], [0.6712, 1.2197], [0.6684, 1.208], [0.6731, 1.2035], [0.6684, 1.2002], [0.6684, 1.1939], [0.6744, 1.184], [0.6764, 1.1589]];
+    if (!sight) { profile(g, shp(RS), 0.012, K, X, 0.0012); cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14).rotation.set(0, 0, Math.PI / 2); }
+    else box(g, 0.014, 0.006, 0.06, K, X, 1.1615, 0.69);
+    // ---- the pistol grip, raked back, with its grooves; the big round guard and the trigger in it
+    const GR = [[0.4329, 1.064], [0.4331, 1.0447], [0.4353, 1.0384], [0.4381, 1.0364], [0.455, 1.034], [0.4604, 1.0281], [0.4627, 1.0207], [0.4636, 1.0099], [0.4615, 0.9988], [0.4366, 0.9632], [0.4334, 0.9553], [0.435, 0.9418], [0.4443, 0.9356], [0.464, 0.9306], [0.494, 0.9306], [0.4961, 0.9338], [0.4952, 0.9453], [0.4981, 0.9586], [0.5144, 0.9875], [0.5226, 0.9976], [0.535, 1.012], [0.535, 1.064]];
+    solid(g, GR, 0.04, P, X, 0.006);
+    { const R = [], bk = [[0.4334, 0.9553], [0.4615, 0.9988]], fr = [[0.4952, 0.9453], [0.5144, 0.9875]]; for (let yy = 0.946; yy < 0.99; yy += 0.0085) { const z0 = zAt(bk, yy) + 0.008, z1 = zAt(fr, yy) - 0.008; R.push([0.0406, 0.0026, z1 - z0, X, yy, (z0 + z1) / 2]); } boxes(g, R, GM.rubber); }
+    solid(g, [[0.53, 1.05], [0.619, 1.05], [0.619, 1.0362], [0.6132, 1.0332], [0.6086, 1.0069], [0.597, 0.9949], [0.5843, 0.99], [0.5681, 0.9899], [0.5328, 0.9994], [0.5226, 0.9976], [0.528, 1.02]], 0.03, K, X, 0.002,
+      [shp(inset([[0.5578, 1.0203], [0.5597, 1.0134], [0.5626, 1.0079], [0.565, 1.0017], [0.581, 1.001], [0.5933, 1.0023], [0.6014, 1.008], [0.6042, 1.0191], [0.6026, 1.031], [0.5915, 1.0364], [0.5671, 1.0361], [0.5613, 1.0328], [0.5592, 1.0274]], -0.002))]);
+    profile(g, shp([[0.5655, 1.048], [0.5655, 1.03], [0.5665, 1.02], [0.5705, 1.009], [0.574, 1.008], [0.5715, 1.019], [0.5712, 1.03], [0.5735, 1.048]]), 0.007, GM.metal2, X, 0.0008);
+    // ---- the forearm: ribbed down its sides, rounded under; over the barrel the heat shield with its oval holes, the
+    // carrying handle's hinge behind it
+    solid(g, [[0.6591, 1.0451], [0.6696, 1.0385], [0.6739, 1.037], [0.7119, 1.0391], [1.0254, 1.0414], [1.0313, 1.0522], [1.0321, 1.0694], [1.0392, 1.0708], [1.0392, 1.12], [0.66, 1.12]], 0.072, P, X, 0.012);
+    { const R = []; for (let z = 0.692; z < 1.022; z += 0.0084) R.push([0.0726, 0.052, 0.0026, X, 1.0805, z]); boxes(g, R, GM.rubber); }   // its rib grooves, flush with the sides
+    const HS = [[0.77, 1.114], [1.03, 1.114], [1.03, 1.1586], [1.0237, 1.1624], [0.9543, 1.1596], [0.905, 1.1604], [0.899, 1.1586], [0.8621, 1.1591], [0.851, 1.1574], [0.8414, 1.1616], [0.826, 1.1644], [0.771, 1.1672]];
+    { const holes = []; for (let k = 0; k < 9; k++) { const z = 0.853 + k * 0.0204; holes.push(shp(inset(rrect(z - 0.004, 1.128, z + 0.004, 1.152, 0.0039).getPoints().map(p => [p.x, p.y]), -0.002))); } solid(g, HS, 0.054, K, X, 0.002, holes); }
+    box(g, 0.03, 0.044, 0.25, GM.rubber, X, 1.136, 0.9);                                                      // dark inside it, seen through the holes
+    solid(g, [[0.676, 1.115], [0.771, 1.115], [0.771, 1.1672], [0.7655, 1.1702], [0.7322, 1.1702], [0.7238, 1.1691], [0.7232, 1.1629], [0.7283, 1.1593], [0.7234, 1.1542], [0.7182, 1.1536], [0.7092, 1.1565], [0.6814, 1.1566], [0.676, 1.158]], 0.05, K, X, 0.004);
+    // ---- barrel, turned: its two collars, a band under the front sight, then thicker to the flash hider
+    lathe(g, [[0.0001, 0.67], [0.0117, 0.67], [0.0117, 1.155], [0.0172, 1.1575], [0.0178, 1.165], [0.0172, 1.178], [0.0117, 1.1805], [0.0117, 1.2215], [0.0172, 1.224], [0.0178, 1.236], [0.0172, 1.246], [0.0117, 1.2485], [0.0117, 1.3405], [0.0178, 1.3425], [0.0178, 1.3915], [0.0165, 1.393], [0.0165, 1.43], [0.0001, 1.43]], GM.blued, X, y0, 28);
+    // the A-frame front sight, a thin blade with its window, standing on the band
+    profile(g, shp([[1.3423, 1.1415], [1.3924, 1.1415], [1.3924, 1.1446], [1.3903, 1.1466], [1.384, 1.2081], [1.3843, 1.2279], [1.3819, 1.2325], [1.3748, 1.236], [1.3738, 1.2316], [1.3697, 1.2311], [1.3681, 1.2289], [1.3471, 1.1643]],
+      [shp(inset([[1.3524, 1.1521], [1.3763, 1.1468], [1.38, 1.148], [1.3804, 1.1532], [1.3773, 1.2042], [1.3735, 1.2066], [1.3681, 1.2045]], -0.001))]), 0.006, K, X, 0.001);
+    // the flash hider, turned, with four long slots round it (the dark bore seen through them)
+    lathe(g, [[0.0001, 1.43], [0.0165, 1.43], [0.0165, 1.449], [0.0105, 1.449]], K, X, y0, 28);
+    lathe(g, [[0.0105, 1.514], [0.0165, 1.514], [0.0165, 1.522], [0.0128, 1.535], [0.0098, 1.535], [0.0098, 1.514], [0.0105, 1.514]], K, X, y0, 28);
+    cyl(g, 0.0102, 0.07, GM.rubber, X, y0, 1.483, 16);
+    { const S = [0, Math.PI / 2, Math.PI, Math.PI * 1.5], half = 0.16; for (let i = 0; i < 4; i++) { const a0 = S[i] + half, a1 = S[(i + 1) % 4] + (i === 3 ? Math.PI * 2 : 0) - half, sh = new THREE.Shape(), N = 5, pt = (r, a) => [X + r * Math.sin(a), y0 - r * Math.cos(a)];
+      for (let k = 0; k <= N; k++) { const pp = pt(0.0165, a0 + (a1 - a0) * k / N); k ? sh.lineTo(...pp) : sh.moveTo(...pp); } for (let k = N; k >= 0; k--) sh.lineTo(...pt(0.0105, a0 + (a1 - a0) * k / N)); sh.closePath(); xsec(g, sh, 1.448, 1.5145, K); } }
+    // ---- the gas cylinder under the barrel and the block joining them under the sight; the bipod on its yoke at the
+    // front, legs folded back along the cylinder (perforated, their feet hanging at the back), or down on them
+    cyl(g, 0.0105, 0.36, K, X, 1.094, 1.215, 20); cyl(g, 0.0128, 0.022, GM.metal2, X, 1.094, 1.388, 20);
+    solid(g, [[1.355, 1.09], [1.4, 1.09], [1.4, 1.135], [1.355, 1.135]], 0.02, K, X, 0.003);
+    solid(g, [[1.395, 1.062], [1.43, 1.062], [1.43, 1.116], [1.395, 1.116]], 0.032, K, X, 0.004);   // the yoke
+    if (!m.bipod) cyl(g, 0.0068, 0.032, GM.metal2, X, 1.069, 1.17, 14).rotation.x = 0;                     // the clamp holding the folded legs, up into the cylinder
+    {
+      const legH = []; for (let k = 0; k < 12; k++) { const z = -0.315 + k * 0.0205; legH.push(shp(inset(rrect(z - 0.004, -0.0095, z + 0.004, -0.0005, 0.0038).getPoints().map(p => [p.x, p.y]), -0.0008))); }
+      [-1, 1].forEach(sd => {
+        const lg = new THREE.Group(); lg.position.set(X + sd * 0.0172, 1.1, 1.41); g.add(lg);
+        profile(lg, shp([[-0.375, -0.03], [0, -0.03], [0, 0.017], [-0.375, 0.017]], legH), 0.0024, K, 0, 0.0008);
+        profile(lg, shp([[-0.3535, -0.072], [-0.3465, -0.072], [-0.344, -0.03], [-0.344, 0.004], [-0.355, 0.004], [-0.356, -0.03]]), 0.012, K, sd * 0.004, 0.001);   // its foot
+        if (m.bipod) lg.rotation.set(-1.72, 0, sd * 0.2, 'ZYX');   // swung down, then splayed
+      });
     }
-    return { front: 1.535, y: 1.13, slide: sl, bolts: [], travel: 0.1, lock: true, mz: 0.5, top: 1.195, sz: 0.72 };
+    // ---- the ammo box (in the mag group, so the reload can swap it): the hard olive 100-round box hanging on the left
+    // under the feed tray, rounded at its corners, screwed at its edges, its lid propped open on the hinge along its
+    // outer top edge, flipped back out of the way (taller with the belt and mag upgrades)
+    const bh = 0.22 + 0.018 * ((m.belt || 0) + T('mag')), bt = 1.1, bz0 = 0.448, bz1 = 0.622, bx0 = X + 0.032, bx1 = X + 0.132, bxm = (bx0 + bx1) / 2, bzm = (bz0 + bz1) / 2;
+    {
+      const sh = new THREE.Shape(), r = 0.011; sh.moveTo(bx0 + r, bz0); sh.lineTo(bx1 - r, bz0); sh.quadraticCurveTo(bx1, bz0, bx1, bz0 + r); sh.lineTo(bx1, bz1 - r); sh.quadraticCurveTo(bx1, bz1, bx1 - r, bz1); sh.lineTo(bx0 + r, bz1); sh.quadraticCurveTo(bx0, bz1, bx0, bz1 - r); sh.lineTo(bx0, bz0 + r); sh.quadraticCurveTo(bx0, bz0, bx0 + r, bz0);
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: bh - 0.006, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 6 });
+      geo.rotateX(Math.PI / 2); geo.translate(0, bt - 0.003, 0);
+      const bm = new THREE.Mesh(geo, GM.olive); bm.castShadow = true; mg.add(bm);
+      box(mg, bx1 - bx0 - 0.008, 0.002, bz1 - bz0 - 0.01, GM.rubber, bxm, bt + 0.0006, bzm);                   // the open top, dark inside
+      [[bz0 + 0.013, bt - 0.013], [bz1 - 0.013, bt - 0.013], [bz0 + 0.013, bt - bh + 0.013], [bz1 - 0.013, bt - bh + 0.013]].forEach(([z, yy]) => cyl(mg, 0.0028, 0.003, GM.oliveD, bx1 + 0.0008, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // screws
+      cyl(mg, 0.0032, bz1 - bz0 - 0.008, GM.oliveD, bx1 - 0.002, bt + 0.003, bzm, 10);                          // the lid's hinge
+      const lid = new THREE.Group(); lid.position.set(bx1 - 0.002, bt + 0.003, 0); lid.rotation.z = -1.95; mg.add(lid);   // flipped back past upright
+      solid(lid, [[bz0 + 0.004, -0.0015], [bz1 - 0.004, -0.0015], [bz1 - 0.004, 0.0015], [bz0 + 0.004, 0.0015]], bx1 - bx0 - 0.004, GM.olive, -(bx1 - bx0 - 0.004) / 2, 0.0012);
+    }
+    // the belt: rounds pointing forward, each held in its link, looping up out of the box and over into the feed tray.
+    // It shows what's left: under ten rounds they go from the box end first, and an empty gun shows none (player/hold.js)
+    const belt = [];
+    {
+      const P0 = [X + 0.03, 1.146], P1 = [X + 0.15, 1.23], P2 = [bxm, 1.09], bez = t => [0, 1].map(c => (1 - t) * (1 - t) * P0[c] + 2 * (1 - t) * t * P1[c] + t * t * P2[c]);
+      let prev = bez(0), run = 0; const pts = [prev];
+      for (let i = 1; i <= 600 && pts.length < 10; i++) { const q = bez(i / 600); run += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; if (run >= 0.0165) { pts.push(q); run = 0; } }
+      pts.forEach(([x, yy]) => {
+        const rd = new THREE.Group(); mg.add(rd);
+        cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);
+        [-0.021, 0.021].forEach(o => ring(rd, 0.0092, 0.007, GM.metal2, x, yy, 0.535 + o));   // its link's loops, hooked into the next
+        belt.push(rd);
+      });
+    }
+    // ---- optics sit on the feed cover
+    return { front: 1.535, y: y0, slide: sl, bolts: [], travel: 0.09, lock: true, mz: 0.535, top: 1.194, sz: 0.515, belt };
   }
 };
