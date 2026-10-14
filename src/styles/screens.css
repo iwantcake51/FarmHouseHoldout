@@ -37,6 +37,10 @@
 .tally b{font-family:var(--f-num);font-weight:800;font-size:40px;display:block;line-height:1}
 /* moving between the title and a run (ui/screens.js): the screen you're leaving slides away, the view dips to black
    where the farm gets reset behind it, and the title's pieces come in one after another as the dark lifts */
+/* behind a menu screen (paused, or the finds after a wave) the HUD dims, so the counters don't glare through the
+   lighter side of the screen's backdrop */
+#waveBox,#moodles,#vitals,#arms,#feed{transition:filter .25s ease}
+body.menu :is(#waveBox,#moodles,#vitals,#arms,#feed,#xh){filter:brightness(.38) saturate(.55)}
 #fadeVeil{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:0;background:#0b0807;transition:opacity .75s cubic-bezier(.3,.1,.3,1)}
 #fadeVeil.on{opacity:1;pointer-events:auto;transition:opacity .45s cubic-bezier(.5,0,.7,.4)}
 .screen.leaving .inner{animation:screenOut .45s cubic-bezier(.55,0,.8,.3) both}

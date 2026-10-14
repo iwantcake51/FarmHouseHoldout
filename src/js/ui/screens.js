@@ -12,6 +12,7 @@ function setState(s) {
   ['waveBox', 'vitals', 'arms', 'moodles'].forEach(id => $(id).hidden = s === 'title');
   $('scrim').style.opacity = s === 'title' ? 0.4 : 1;
   document.body.classList.toggle('playing', s === 'play');
+  document.body.classList.toggle('menu', s === 'paused' || s === 'upgrade');   // the HUD dims behind a menu (styles/screens.css)
   if (s !== 'play') { closeStation(); $('prompt').classList.remove('on'); cache.promptOn = false; }
   if (s === 'paused') { renderHistory('pHist', 'pHistN'); renderBought('pBuy', 'pBuyN'); }
   if (s === 'upgrade') renderHistory('upHist', 'upHistN');

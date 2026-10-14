@@ -1,4 +1,5 @@
-// Weapons you aren't holding, carried on your body: the sidearm in a holster on your right hip, a long gun flat
+// Weapons you aren't holding, carried on your body: the sidearm in a holster on your right hip (a pair of them in a
+// shoulder rig, one under each arm), a long gun flat
 // against the pack's left side and an automatic on a slant across its back, the melee weapon through the straps at
 // its right edge; the planks you carry, strapped to the back of the pack; and the backpack's own swing.
 
@@ -19,11 +20,19 @@ const STOW_AT = {
   auto: { part: () => packBody, pos: [0, 0.93, -0.36], q: packQ(new V3(Math.sin(STOW_TILT), Math.cos(STOW_TILT), 0), new V3(Math.cos(STOW_TILT), -Math.sin(STOW_TILT), 0)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2], flip: id => id === 'lmg' },
   melee: { part: () => packBody, pos: [-0.24, 1.2, -0.33], rot: [0, 0, Math.PI - 0.12], pivot: () => [0, 0.05, 0] }
 };
-// a pair's left gun has its own place: a second holster on the left hip (mirrored, its paddle to your side), or on the
-// pack crossed over the first, slanting the other way
+// a pair of automatics: the left gun on the pack crossed over the first, slanting the other way (a pair of sidearms
+// goes in the shoulder rig, STOW_RIG)
 const STOW_AK = {
-  side: { part: () => PM.upper, pos: [-0.3, 0.6, 0.02], rot: [Math.PI / 2, 0, -0.05], pivot: id => (HOLD[id] || HOLD_DEF).grip },
   auto: { part: () => packBody, pos: [0, 0.93, -0.36], q: packQ(new V3(-Math.sin(STOW_TILT), Math.cos(STOW_TILT), 0), new V3(-Math.cos(STOW_TILT), -Math.sin(STOW_TILT), 0)), pivot: (id, bb) => [X, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2] }
+};
+// a pair of sidearms rides in a shoulder rig instead, one under each arm for a cross draw: the right hand's gun under
+// the left arm and the left hand's under the right (player/swap.js). Each lies along your ribs on its side, muzzle back
+// and dipping a little, turned out from the body a touch, the grip hanging forward and down where the other hand can
+// reach it across your chest
+const rigQ = sx => { const d = new V3(sx * 0.22, -0.26, -1).normalize(), u = new V3(0, 1, 0); u.addScaledVector(d, -u.dot(d)).normalize(); return packQ(d, u); };
+const STOW_RIG = {
+  R: { part: () => PM.upper, pos: [-0.274, 0.86, 0.13], q: rigQ(-1), pivot: id => (HOLD[id] || HOLD_DEF).grip },
+  L: { part: () => PM.upper, pos: [0.274, 0.86, 0.13], q: rigQ(1), pivot: id => (HOLD[id] || HOLD_DEF).grip }
 };
 // the automatic lies on whatever is under it on the pack's back: the canvas, the planks strapped there, the melee
 // weapon its lower end crosses (and a pair's second gun on the first). What's there is drawn into a height map, the
@@ -122,7 +131,9 @@ let beltPieces = [];
 // the holster: the moulded shell (closed over the slide, the trigger guard and the muzzle, open at the mouth where the
 // grip comes out), the retention hood over the back of the slide with its snap, a second snap low on the shell, and
 // on the body side a paddle and the loop that holds it on the belt (pv: the gun's grip point, where the belt runs)
-function buildHolster(parent, id, pv, muz) {
+// In the shoulder rig (rig) there's no paddle or belt loop: a backing panel lies against your ribs instead, with a
+// D-ring at each end for the harness
+function buildHolster(parent, id, pv, muz, rig) {
   const F = HOLSTER_FIT[id]; if (!F) { box(parent, 0.075, 0.24, 0.13, HOLSTER_M, 0.0, -0.13, -0.02); return; }
   const g = new THREE.Group(); g.position.set(-pv[0], -pv[1], -pv[2]); parent.add(g);
   const fr = Math.max(F.front, Math.min((muz || 0) - 0.012, F.front + 0.12)), w = F.w, t = F.top, b = F.bore, [z0, z1] = F.gz, x0 = X;
@@ -132,6 +143,11 @@ function buildHolster(parent, id, pv, muz) {
   solid(g, [[h0, t + 0.009], [h1, t + 0.009], [h1 + 0.004, t - 0.03], [h0 - 0.004, t - 0.03]], w + 0.008, HOOD_M, x0, 0.004);
   cyl(g, 0.0065, 0.004, SNAP_M, x0 + w / 2 + 0.005, t - 0.017, (h0 + h1) / 2, 14).rotation.set(0, 0, Math.PI / 2);
   cyl(g, 0.0055, 0.003, SNAP_M, x0 + w / 2 + 0.0015, b - 0.012, z1 + 0.03, 14).rotation.set(0, 0, Math.PI / 2);
+  if (rig) {
+    solid(g, [[F.rear - 0.006, t + 0.004], [fr - 0.02, t + 0.004], [fr - 0.012, b - 0.03], [z1 + 0.02, F.gb + 0.02], [F.rear - 0.002, F.gb + 0.03]], 0.005, HOOD_M, x0 - w / 2 - 0.003, 0.002);
+    [F.rear + 0.004, fr - 0.024].forEach(z => { const r = new THREE.Mesh(new THREE.TorusGeometry(0.009, 0.0022, 5, 12), BUCKLE_M); r.position.set(x0 - w / 2 - 0.004, t + 0.008, z); r.rotation.y = Math.PI / 2; g.add(r); });
+    return;
+  }
   // the paddle against your hip and the loop round the belt (the belt runs at the grip point: pv[2] along the gun)
   solid(g, [[F.rear - 0.012, t + 0.006], [F.rear + 0.075, t + 0.006], [F.rear + 0.08, F.gb + 0.03], [F.rear - 0.008, F.gb + 0.02]], 0.006, HOOD_M, x0 - w / 2 - 0.002, 0.002);
   box(g, 0.026, t - F.gb, 0.05, HOOD_M, x0 - w / 2 - 0.016, (t + F.gb) / 2, pv[2]);
@@ -141,6 +157,40 @@ function buildBelt(on) {
   beltPieces.forEach(o => o.parent && o.parent.remove(o)); beltPieces = [];
   if (!on) return;
   beltPieces.push(box(PM.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(PM.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158), box(PM.upper, 0.05, 0.034, 0.01, BELT_M, 0, 0.6, 0.16));
+}
+// the shoulder rig's harness, while a pair of sidearms rides in it: a leather pad over each shoulder running down onto
+// the chest, a webbing strap from each pad round to the front of the holster under that arm with its slider buckle, one
+// from the holster's back end up across your back to where the two cross between the shoulder blades (under the pack),
+// and a tie-down from each holster to the belt. Upper-body space; s is the side (+x the right hand's)
+let rigPieces = [];
+const RIG = { pad: 0.07, padT: 0.012, web: 0.034, webT: 0.006, x: 0.274, z: 0.158 };
+function strapTo(parent, a, b, w, th, n, mat) {   // a flat strap from a to b, w wide, lying with its face toward n
+  const along = new V3().subVectors(b, a), len = along.length(); along.divideScalar(len || 1);
+  const up = new V3().copy(n).addScaledVector(along, -n.dot(along)).normalize(), side = new V3().crossVectors(up, along);
+  const m = box(parent, w, th, len, mat, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+  m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, along)); return m;
+}
+function buildRig(on) {
+  rigPieces.forEach(o => o.parent && o.parent.remove(o)); rigPieces = [];
+  if (!on) return;
+  const U = PM.upper, P2 = (x, y, z) => new V3(x, y, z), fwd = P2(0, 0, 1), top = P2(0, 1, 0), back = P2(0, 0, -1);
+  for (const s of [-1, 1]) {
+    const x = RIG.x * s, sx = P2(s, 0, 0);
+    // the pad: over the top of the shoulder and down onto the chest
+    rigPieces.push(strapTo(U, P2(0.165 * s, 1.168, -0.13), P2(0.17 * s, 1.17, RIG.z - 0.01), RIG.pad, RIG.padT, top, HOOD_M));
+    rigPieces.push(strapTo(U, P2(0.172 * s, 1.17, RIG.z + 0.004), P2(0.185 * s, 1.0, RIG.z + 0.004), RIG.pad, RIG.padT, fwd, HOOD_M));
+    // webbing from the pad's foot round the side to the front of the holster, its slider halfway down
+    rigPieces.push(strapTo(U, P2(0.19 * s, 1.012, RIG.z + 0.009), P2(0.245 * s, 0.995, RIG.z - 0.005), RIG.web, RIG.webT, fwd, BELT_M));
+    rigPieces.push(strapTo(U, P2(0.245 * s, 0.995, RIG.z - 0.005), P2(x + 0.008 * s, 0.995, 0.135), RIG.web, RIG.webT, sx, BELT_M));
+    rigPieces.push(box(U, 0.03, 0.016, 0.01, BELT_M, 0.205 * s, 1.009, RIG.z + 0.014));
+    // from the holster's back end up the side and across the back to the cross
+    rigPieces.push(strapTo(U, P2(x - 0.004 * s, 0.94, -0.12), P2(0.235 * s, 1.0, -RIG.z - 0.004), RIG.web, RIG.webT, sx, BELT_M));
+    rigPieces.push(strapTo(U, P2(0.235 * s, 1.0, -RIG.z - 0.004), P2(0, 0.93, -RIG.z - 0.006), RIG.web, RIG.webT, back, BELT_M));
+    rigPieces.push(strapTo(U, P2(0.165 * s, 1.168, -0.13), P2(0.03 * s, 0.93, -RIG.z - 0.008), RIG.web * 1.2, RIG.webT, back, BELT_M));
+    // the tie-down to the belt
+    rigPieces.push(strapTo(U, P2(x - 0.002 * s, 0.83, 0.05), P2(0.262 * s, 0.62, 0.04), 0.022, 0.005, sx, BELT_M));
+  }
+  rigPieces.push(box(U, 0.06, 0.06, 0.008, HOOD_M, 0, 0.93, -RIG.z - 0.01));   // the leather patch where they cross
 }
 function buildStow() {
   if (LOOK.cur) { HOLSTER_M.color.setHex(LOOK.cur.holster); HOOD_M.color.setHex(shade(LOOK.cur.holster, 0.72)); }   // the hood a shade darker
@@ -161,20 +211,23 @@ function buildStow() {
     const sls = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); });
     return { outer, inner, copy, pv, sls };
   };
+  const rig = !!(W8.slot.side && (W(W8.slot.side) || {}).akimbo && HOLDS.side && HOLDS.side.L);
+  buildRig(rig);
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
-    const { outer, inner, copy, pv, sls } = place(s, id, STOW_AT[s], 'R');
+    const inRig = rig && s === 'side';
+    const { outer, inner, copy, pv, sls } = place(s, id, inRig ? STOW_RIG.R : STOW_AT[s], 'R');
     // a leather holster round the sidearm, a strap across the pack for slung guns
-    if (s === 'side') buildHolster(inner, id, pv, MUZ[s]);
+    if (s === 'side') buildHolster(inner, id, pv, MUZ[s], inRig);
     else if (s === 'long') [-0.04, -0.34].forEach(y => box(outer, 0.115, 0.03, 0.17, STRAP_M, -0.028, y, 0));   // two straps round it to the side of the pack
     else if (s === 'auto') { const st = outer.userData.strap = box(outer, 0.5, 0.035, 0.06, STRAP_M, 0, 0.02, 0.012); st.rotation.z = -STOW_TILT * 0.4; }   // a strap across it, holding it to the pack
     outer.userData.slides = sls; outer.userData.id = id;
-    outer.userData.slot = s; outer.userData.gun = copy; STOW[s] = outer;
-    // a pair: the left gun in its own place, in a holster mirrored for the left hip
-    const ak = (W(id) || {}).akimbo && STOW_AK[s];
+    outer.userData.slot = s; outer.userData.gun = copy; outer.userData.rig = inRig; STOW[s] = outer;
+    // a pair: the left gun in its own place (for sidearms, the rig's other holster), in a mirrored holster
+    const ak = (W(id) || {}).akimbo && (inRig ? STOW_RIG.L : STOW_AK[s]);
     if (ak) {
       const L = place(s, id, ak, 'L');
-      if (s === 'side') { const hg = new THREE.Group(); hg.scale.x = -1; L.inner.add(hg); buildHolster(hg, id, L.pv, MUZ[s]); }
+      if (s === 'side') { const hg = new THREE.Group(); hg.scale.x = -1; L.inner.add(hg); buildHolster(hg, id, L.pv, MUZ[s], inRig); }
       outer.userData.twin = L.outer; outer.userData.gun2 = L.copy; outer.userData.slides2 = L.sls;
     }
   }
@@ -249,8 +302,9 @@ function updateStow(rdt) {
     if (!o.visible) continue;
     const t = o.userData.twin;
     if (s === 'side') {
-      o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the hip and rocks fore and aft
-      if (t) t.rotation.set(stowSw.x * 0.6, 0, Math.abs(stowSw.z) * 0.3);
+      const rk = o.userData.rig ? 0.2 : 1;   // (strapped under the arms, the rig's holsters hardly move)
+      o.rotation.set(stowSw.x * 0.6 * rk, 0, -Math.abs(stowSw.z) * 0.3 * rk);   // the holster rides the hip and rocks fore and aft
+      if (t) t.rotation.set(stowSw.x * 0.6 * rk, 0, Math.abs(stowSw.z) * 0.3 * rk);
       // an empty pistol goes in with its slide locked back (each of a pair by its own mag)
       if (stowed && SLIDE_PISTOLS[o.userData.id]) {
         const lock = (sls, back) => sls.forEach(m => { const r = m.userData.slideRest; m.position.z = r.z0 - r.travel * back; m.updateMatrix(); });

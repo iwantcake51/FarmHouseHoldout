@@ -22,7 +22,7 @@ function updateHUD(rdt, D) {
       $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
-    setT('wNum', String(Math.max(1, run.wave)).padStart(2, '0'));
+    setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave
     setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end

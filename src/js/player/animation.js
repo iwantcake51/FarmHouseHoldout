@@ -85,9 +85,11 @@ function vaultReach(pm, arm, side, pt, w) {
 }
 function vaultHands(pm, v) {
   const { c, t, air } = vaultPhase(v), win = v.kind === 'window';
-  // once the hands let go they swing out loose for balance (the weapon's put away), and come back to it for the landing
+  // once the hands let go they swing out loose for balance (the weapon's put away), and stay loose through the landing:
+  // the weapon is drawn from there as you touch down (player/swap.js), so the hands don't first come up empty to where
+  // it would be
   const one = vaultGun();   // Run and gun: the right hand stays on the gun, the left does the vault alone, and takes its time coming back to it
-  const wb = air ? vk(t, 0.35, 0.55) * (1 - vk(t, one ? 0.66 : 0.86, 1)) : 0;
+  const wb = air ? vk(t, 0.35, 0.55) * (one ? 1 - vk(t, 0.66, 1) : 1) : 0;
   if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
     armRest(arm, s, 0.9 + Math.sin(t * 9 + sd) * 0.08, sd * 0.5);

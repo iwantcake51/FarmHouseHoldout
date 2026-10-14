@@ -14,16 +14,22 @@ function faceCut() {
   return c;
 }
 // roof and wall-face fading so you can see inside
+const ROOF_INTRO = [0.12, 1.15];
 function updateCutaway(rdt) {
   const fc = faceCut();
   // roof: off when you're indoors or tucked behind the house, back on outside
   {
     const inside = P.x > HOUSE.x0 + 0.35 && P.x < HOUSE.x1 - 0.35 && P.z > HOUSE.z0 + 0.35 && P.z < HOUSE.z1 - 0.35;
     const want = state === 'title' ? 1 : inside || fc.N || fc.W ? 0 : 1;
-    roof.op += (want - roof.op) * Math.min(1, rdt * 7); if (Math.abs(want - roof.op) < 0.004) roof.op = want;
-    // the roof fades from view but keeps casting its shadow, so stepping inside never floods the rooms with sun
+    // as a run starts, the roof lifts away with the camera's glide (ROOF_INTRO: from and to, in seconds of it) on an
+    // ease in and out, rather than most of the way in the first few frames
+    if (want === 0 && introCamOn()) roof.op = Math.min(roof.op, 1 - smooth(clamp((INTRO.t - ROOF_INTRO[0]) / (ROOF_INTRO[1] - ROOF_INTRO[0]), 0, 1)));
+    else { roof.op += (want - roof.op) * Math.min(1, rdt * 7); if (Math.abs(want - roof.op) < 0.004) roof.op = want; }
+    // the roof fades from view but keeps casting its shadow, so stepping inside never floods the rooms with sun. It
+    // keeps writing depth while it fades, so it goes as one surface instead of showing its far slope, gables and
+    // shingle rows through itself
     const lv = Math.max(amb[0], amb[1], amb[2]);
-    roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.98; m.colorWrite = roof.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
+    roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.02; m.colorWrite = roof.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
   }
   // porch roof: off while you stand on the porch or just inside the door, where it would cover you
   {

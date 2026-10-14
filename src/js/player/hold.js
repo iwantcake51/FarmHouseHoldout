@@ -51,10 +51,11 @@ const AK_HAND = {
   R: { cant: 0.2, toe: 0.03, p: -0.012, up: 0.012, fwd: 0.018, in: 0, f: 1.3 },
   L: { cant: 0.3, toe: 0.05, p: 0.035, up: -0.022, fwd: -0.03, in: 0.012, f: 1.75 }
 };
-// Run and gun with a pair: the left hand's needed for the vault, so its gun goes away for it (into its holster, or onto
-// your back) and is drawn again after: over AK_DRAW seconds the hand goes down to it, pulls it at AK_GRAB of the way and
-// brings it up to the aim. AK_DRAW_AT is where it's drawn from (the hip for a pistol, over the shoulder for one off the
-// back): the gun's pitch there, and how far down, back and out
+// Run and gun with a pair: the left hand's needed for the vault, so its gun goes away for it (into the shoulder rig
+// under your right arm, or onto your back) and is drawn again after: over AK_DRAW seconds the hand goes to it, pulls it
+// at AK_GRAB of the way and brings it up to the aim. A pistol's is drawn across the chest from the rig (rigDraw);
+// AK_DRAW_AT is where one off the back is drawn from: the gun's pitch there, and how far down, back and out (side: a
+// pistol pair's on the hip, kept for one not in the rig)
 const AK_DRAW = 0.55, AK_GRAB = 0.4, AK_DRAW_AT = { side: { p: 1.3, y: -0.42, z: -0.3, x: 0.07 }, auto: { p: -1.1, y: 0.1, z: -0.48, x: 0.02 } };
 // free aim: the arms don't turn in lockstep with the body. As you turn, the arms and the gun lag behind (a heavy gun
 // more), swinging round from the shoulders, then swing on past and settle; looking up or down the same. A loose spring
@@ -147,6 +148,17 @@ function akSling(h, g, sg, c, ox, oy, oz) {
   h.quaternion.slerp(_akSQ, c);
   h.position.copy(_akSG).sub(_v.set(g[0], g[1], g[2]).applyQuaternion(h.quaternion));
   h.updateMatrix();
+}
+// the left gun of a rig pair, w of the way from the hold just posed to where it rides under the right arm (its copy's
+// frame there, brought into the hold's parent's space), turned about its grip so it comes round in the hand
+const _rdM = new THREE.Matrix4(), _rdP = new V3(), _rdQ = new THREE.Quaternion(), _rdS = new V3(), _rdG = new V3(), _rdC0 = new V3(), _rdC1 = new V3();
+function rigDraw(h, w) {
+  if (w <= 0.001) return;
+  PM.g.updateMatrixWorld(true);
+  _rdM.copy(h.parent.matrixWorld).invert().multiply(STOW.side.userData.gun2.matrixWorld).decompose(_rdP, _rdQ, _rdS);
+  const gp = (HOLD[W8.slot.side] || HOLD_DEF).grip; _rdG.set(gp[0], gp[1], gp[2]);
+  _rdC0.copy(_rdG).applyQuaternion(h.quaternion).add(h.position); _rdC1.copy(_rdG).applyQuaternion(_rdQ).add(_rdP);
+  h.quaternion.slerp(_rdQ, w); h.position.copy(_rdC0.lerp(_rdC1, w)).sub(_rdG.applyQuaternion(h.quaternion)); h.updateMatrix();
 }
 // the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch when they must
 function armAim(side, t, rest) {
@@ -542,7 +554,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       if (side === 'L') {
         // put away for a vault, then drawn: the hand goes down to where it is, and comes back up with it
         h.visible = !ANIM.akHolstered;
-        if (ANIM.akIn && !P.vault) { const at = AK_DRAW_AT[s] || AK_DRAW_AT.side, w = vk(ANIM.akDraw, 0, AK_GRAB - 0.05) * (1 - vk(ANIM.akDraw, AK_GRAB + 0.08, 1)); hx += at.p * w; hoy += at.y * w; hoz += at.z * w; hox += sg * at.x * w; }
+        if (ANIM.akIn && !P.vault && !rigPair(s)) { const at = AK_DRAW_AT[s] || AK_DRAW_AT.side, w = vk(ANIM.akDraw, 0, AK_GRAB - 0.05) * (1 - vk(ANIM.akDraw, AK_GRAB + 0.08, 1)); hx += at.p * w; hoy += at.y * w; hoz += at.z * w; hox += sg * at.x * w; }
       }
     }
     if (u > 0) {
@@ -558,6 +570,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (akC && side === akC.side) { hox -= sg * 0.1 * akC.hold; hoy -= 0.04 * akC.hold; hoz -= 0.1 * akC.hold; hz += sg * 0.45 * akC.hold; hx -= 0.06 * akC.hold + 0.1 * akC.slam; }
     posePivot(h, hx, hy, hz, g[0], g[1], g[2], hox, hoy, hoz);
     if (ak && side === ANIM.akChSide && ANIM.akCh > 0.001) akSling(h, g, sg, ANIM.akCh, hox, hoy, hoz);
+    // a pair in the shoulder rig: the left gun's drawn back out from under the right arm after a Run and gun vault
+    // (the hand goes across to it, pulls it at AK_GRAB and swings it round onto the aim)
+    if (side === 'L' && ak && ANIM.akIn && !P.vault && rigPair(s)) rigDraw(h, vk(ANIM.akDraw, 0, AK_GRAB - 0.05) * (1 - vk(ANIM.akDraw, AK_GRAB + 0.08, 1)));
   }
   up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
   ANIM.recoil = Math.max(0, ANIM.recoil - rdt * 11);
