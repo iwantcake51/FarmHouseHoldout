@@ -122,7 +122,7 @@ function gunFire(id, D, side) {
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
   // looking through a scope: the spread depends on the range, and each hit can land a crit
-  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (scopeOn ? D.critC || 0 : 0) + (D.critT || 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
+  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (scopeOn ? D.critC || 0 : 0) + (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
   const pellets = (D.pellets || 1) * shots, pierce = skillPierce(id) + (D.pierce || 0);
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
@@ -141,9 +141,10 @@ function gunFire(id, D, side) {
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
-      // a crit: through a scope, a tuned gun's own (D.critT), or Lucky shot's 1 in 12 on any bullet hit
+      // a crit: through a scope, a tuned gun's own (D.critT), the revolver's aimed Dead-eye (D.aimCrit), or Lucky shot's
+      // 1 in 12 on any bullet hit
       const crit = (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;

@@ -14,7 +14,7 @@ function wsNumbers(id) {
   if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
   const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
   const shot = D.dmg * S.dmgMul * suppMul(D);
-  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D) };
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') r.spread *= 0.75;
   // reloads, every kind this gun has
@@ -107,6 +107,8 @@ function wsHTML(id) {
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
   h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
+  // crits a gun lands without a scope: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
+  if (r.crit || r.aimCrit) h += row('Crits', Math.round((r.crit + r.aimCrit) * 100) + '%', (r.aimCrit ? 'aimed shots' + (r.crit ? `, ${Math.round(r.crit * 100)}% from the hip` : '') : 'any shot') + ` · ×${wsF(r.critX, 2)} damage`, r.crit + r.aimCrit, (s.crit || 0) + (s.aimCrit || 0));
   h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread, D.mobile);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
   // what's improving it: each upgrade, attachment, mod or skill that makes a number better, and only how it does
