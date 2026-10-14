@@ -44,7 +44,7 @@ const UPG = [
 const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
 const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
-function kindTag(u, c) { const k = findKind(u, c); if (k === 'Weapon') return c.tag; const tier = (c.tag.match(/Tier \d+ of \d+/) || [])[0]; return tier ? k + ' · ' + tier : k; }
+function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => !tierFits(k, g)).length * SMITH_SCRAP : 0;
