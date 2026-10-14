@@ -7,18 +7,19 @@ const SLOW_STEP = { soles: 0.4, trail: 0.2, stubborn: 0.85 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
+// grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
 const UPG = [
-  { r: 'c', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
+  { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, ap: () => addPlanks(7) },
   { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
-  { r: 'c', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
+  { r: 'u', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
-  { r: 'c', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate.', can: () => S.spreadMul > 0.55, ap: () => S.spreadMul *= 0.88 },
-  { r: 'c', tag: 'Body', name: 'Light step', text: 'Move 6% faster.', can: () => S.speedMul < 1.5, ap: () => S.speedMul *= 1.06 },
-  { r: 'c', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
+  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate.', can: () => S.spreadMul > 0.55, ap: () => S.spreadMul *= 0.88 },
+  { r: 'u', tag: 'Body', name: 'Light step', text: 'Move 6% faster.', can: () => S.speedMul < 1.5, ap: () => S.speedMul *= 1.06 },
+  { r: 'u', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
   { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Switch weapons 40% faster.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
   { r: 'u', tag: 'Med', name: 'Field medic', text: 'Bandages go on 30% faster.', can: () => S.bandMul > 0.75, ap: () => S.bandMul = 0.7 },
   { r: 'u', tag: 'Luck', name: 'Lucky shot', text: '1 in 12 bullet hits does double damage.', can: () => !S.luck, ap: () => S.luck = 1 / 12 },

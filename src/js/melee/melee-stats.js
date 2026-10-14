@@ -6,7 +6,7 @@
 // weapon hits is shown as a stat on its card (MULTI-HIT, upgrades/upgrade-info.js), never written into its description.
 const MELEE_WEAPONS = {
   bat: { slot: 'melee', name: 'Ash bat', short: 'Bat', melee: true, blunt: true, two: true, style: 'swing', dmg: 48, rate: 0.48, range: 1.75, arc: 1.05, sever: 0.2, kb: 4.5, cleave: 3 },
-  crowbar: { slot: 'melee', name: 'Crowbar', short: 'Crowbar', melee: true, blunt: true, style: 'swing', dmg: 62, rate: 0.46, range: 1.7, arc: 1.0, sever: 0, kb: 5, rar: 'c', desc: 'Heavy steel. Fast, blunt and reliable.' },
+  crowbar: { slot: 'melee', name: 'Crowbar', short: 'Crowbar', melee: true, blunt: true, style: 'swing', dmg: 62, rate: 0.46, range: 1.7, arc: 1.0, sever: 0, kb: 5, rar: 'u', desc: 'Heavy steel. Fast, blunt and reliable.' },
   wrench: { slot: 'melee', name: 'Pipe wrench', short: 'Wrench', melee: true, blunt: true, style: 'swing', dmg: 78, rate: 0.6, range: 1.7, arc: 1.05, sever: 0, kb: 7.5, rar: 'u', desc: 'Crushes skulls and knocks zombies flat on their backs.' },
   katana: { slot: 'melee', name: 'Katana', short: 'Katana', melee: true, two: true, style: 'slash', dmg: 84, rate: 0.38, range: 2.05, arc: 1.15, sever: 1.6, kb: 2.5, cleave: 3, rar: 'e', desc: 'Fast and long, and it takes limbs off clean.' },
   sledge: { slot: 'melee', name: 'Sledgehammer', short: 'Sledge', melee: true, blunt: true, two: true, style: 'chop', dmg: 150, rate: 1.05, range: 2.0, arc: 1.2, sever: 0, kb: 11, slow: 0.9, cleave: 4, rar: 'r', desc: 'A slow overhead swing that sends zombies flying.' },

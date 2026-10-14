@@ -6,10 +6,10 @@ const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 // (the supply crate off the radio, ammo for everything, in teal so it stands apart). A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
-// purple epic, orange legendary (a weapon with none, like the starting pistol, is common)
+// purple epic, orange legendary (a weapon with none, the starting pistol and bat, is uncommon: grey is only for aid)
 const PICK_COL = { scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
 const RAR_COL = { c: 0xc4bcad, u: 0x6fd07a, r: 0x5f9ee8, e: 0x9f7af2, l: 0xf0a050 };
-const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'c'];
+const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'u'];
 const pickCol = (kind, ammoType, cargo) => kind === 'gun' ? weaponCol(cargo && cargo.id) : kind === 'supply' && cargo && cargo.kind === 'weapon' ? weaponCol(cargo.id) : PICK_COL[kind === 'ammo' ? ammoType || 'rifle' : kind];
 const ringGeo = new THREE.RingGeometry(0.34, 0.44, 28), discGeo = new THREE.CircleGeometry(0.44, 28);
 // a tall, soft shaft of light in the crate's colour standing up out of a supply crate, fading toward the top, so it stands out across
