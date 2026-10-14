@@ -45,6 +45,7 @@
 #stRows .fx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:10px;line-height:1.3;letter-spacing:.02em;padding:2px 5px 1px;border:1px solid currentColor;border-radius:2px}
 #stRows .fx .up{color:#8fd49a;background:rgba(80,160,96,.12)}
 #stRows .fx .down{color:#ec8a72;background:rgba(200,80,60,.12)}
+#stRows .fx .eq{color:#b8c0c8;background:rgba(184,192,200,.08)}
 #stRows .ft{display:flex;align-items:center;gap:8px;font-size:11px}
 #stRows kbd{font-family:var(--f-ui);font-weight:600;background:var(--ink);color:#111;padding:0 5px}
 #stRows .cost{display:flex;align-items:center;gap:3px;color:#c8d2dc;font-weight:600}

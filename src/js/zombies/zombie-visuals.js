@@ -61,9 +61,9 @@ function updateZombieVisuals(dt, rdt) {
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)
     { const lt = T('light'), L = lt && LIGHT_OL[lt], dk = curDark;
       let a = 0;
-      if (L && dk > 0.05 && !P.dead) {
+      if (L && dk > 0.05 && !P.dead && flOn > 0) {
         const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), P.aim));
-        a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75;
+        a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75 * flOn;
       }
       if (a > 0.01 && !z.lightOl) z.lightOl = outline(z.m.g, 0, 0, 0.022, rimMat(LIGHT_COL));
       if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }

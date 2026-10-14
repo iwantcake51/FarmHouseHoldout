@@ -42,7 +42,7 @@ function cardChips(r) {
   const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], S.att, S.magMul, S.reloadMul]);
   if (key !== chipKey) { chipKey = key; chipCache.clear(); }
   const ck = r.title();
-  if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${f.good ? 'up' : 'down'}">${f.good ? '▲' : '▼'} ${f.t}</i>`).join(''));
+  if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join(''));
   const h = chipCache.get(ck); return h ? `<span class="fx">${h}</span>` : '';
 }
 // the panel is rebuilt only when its list of cards changes; otherwise each card's text, cost and state are updated where

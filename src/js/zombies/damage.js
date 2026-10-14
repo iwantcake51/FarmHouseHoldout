@@ -74,7 +74,7 @@ function splitHead(z, dx, dz) {
   return true;
 }
 function pickPart(z, rel, side, D) {
-  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0));
+  const head = Math.min(0.85, 0.14 + S.headBonus);
   let p;
   if (Math.abs(rel) > 0.6) p = side > 0 ? 'armR' : 'armL';
   else { const r = rand(); p = r < head ? 'head' : r < head + 0.22 ? (side > 0 ? 'legR' : 'legL') : 'torso'; }

@@ -7,7 +7,7 @@ const TIERS = {
   ammo: { tag: 'Ammo', t: [
     { r: 'c', name: 'Hollow points', text: '+25% damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
     { r: 'u', name: '+P loads', text: '+20% damage.', vis: 'Hotter, orange tracers', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade rounds', text: '+25% damage and more headshots.', vis: 'Polished nickel rounds', ap: () => { S.dmgMul *= 1.25; S.headBonus += 0.1; } }] },
+    { r: 'e', name: 'Match-grade rounds', text: '+25% damage. Headshot multiplier +0.3×.', vis: 'Polished nickel rounds', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
     { r: 'c', name: 'Light trigger', text: 'Fires 18% faster.', ap: () => S.rateMul *= 1.18 },
     { r: 'u', name: 'Match trigger', text: 'Fires 15% faster.', ap: () => S.rateMul *= 1.15 },
@@ -22,9 +22,9 @@ const TIERS = {
     { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
     { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => S.pierce++ }] },
   sight: { tag: 'Attachment', t: [
-    { r: 'c', name: 'Red dot', text: '15% tighter aim and more headshots.', vis: 'A red dot sight', ap: () => { S.spreadMul *= 0.85; S.headBonus += 0.04; } },
-    { r: 'u', name: 'Holographic sight', text: '20% tighter aim and more headshots.', vis: 'A holo sight', ap: () => { S.spreadMul *= 0.8; S.headBonus += 0.06; } },
-    { r: 'r', name: 'Scope', text: 'Rifles only. While aiming: 1 in 4 hits does double damage, headshots +25%, dead accurate past 10 m.', vis: 'A scope on the rifle', ap: () => {} }] },
+    { r: 'c', name: 'Red dot', text: '15% tighter aim. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => S.spreadMul *= 0.85 },
+    { r: 'u', name: 'Holographic sight', text: '20% tighter aim. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => S.spreadMul *= 0.8 },
+    { r: 'r', name: 'Scope', text: 'Rifles only. While aiming: 1 in 4 hits does double damage, headshot multiplier ×1.25, dead accurate past 10 m.', vis: 'A scope on the rifle', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'Shows where you\'re aiming. 15% tighter aim.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
     { r: 'r', name: 'Laser sight', text: 'A brighter beam. 30% tighter aim.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },
@@ -46,14 +46,15 @@ const TIERS = {
   boots: { tag: 'Body', t: [
     { r: 'c', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 },
-    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; S.slowRes += 0.2; } }] },
+    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; slowLess(SLOW_STEP.trail); } }] },
   hammer: { tag: 'Tools', t: [
     { r: 'c', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Board up 50% faster. Boards are 25% tougher.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Board up twice as fast again. Boards are 50% tougher.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [
-    { r: 'c', name: 'Wide eyes', text: 'See 25% wider.', ap: () => S.cone += 0.3 },
-    { r: 'u', name: 'Peripheral vision', text: 'See wider, and sense zombies within 4 m behind you.', ap: () => { S.cone += 0.3; S.near = 4; } },
+    // wide eyes (what were Wide eyes and Peripheral vision): a much wider cone, its edges reaching a little way round
+    // behind your shoulders, and a bigger circle round you
+    { r: 'u', name: 'Wide eyes', text: 'See 50% wider, round to a little behind you, and anything within 4 m.', ap: () => { S.cone += 0.6; S.near = 4; } },
     { r: 'r', name: 'Eyes in the back of your head', text: 'Sense zombies within 6 m in every direction.', ap: () => { S.cone += 0.2; S.near = 6; } }] },
   night: { tag: 'Senses', t: [
     { r: 'r', name: 'Night eyes', text: 'See much further at night.', ap: () => S.nightVis = 1 },

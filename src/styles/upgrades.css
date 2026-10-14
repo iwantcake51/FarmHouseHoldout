@@ -57,6 +57,7 @@
 .card .fx span{font-family:var(--f-ui);font-weight:600;font-size:11px;line-height:1.35;letter-spacing:.02em;padding:3px 7px 2px;border:1.5px solid currentColor;border-radius:2px}
 .card .fx .up{color:#2f6b37;background:rgba(63,122,70,.1)}
 .card .fx .down{color:#9a3a2a;background:rgba(154,58,42,.08)}
+.card .fx .eq{color:#5a5248;background:rgba(90,82,72,.08)}
 /* what the attachment or upgrade is for */
 .card .use{font-size:12px;line-height:17px;margin:8px 0 2px;padding:6px 9px 5px;background:rgba(40,35,30,.07);border-left:3px solid var(--rc)}
 .card .s{font-family:var(--f-ui);font-size:11px;line-height:24px;color:#4a443c;letter-spacing:.02em}

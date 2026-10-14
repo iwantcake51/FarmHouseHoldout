@@ -99,7 +99,7 @@ function buildGear() {
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
-  LOOK.g.hat.visible = !(S.slowRes >= 0.85);   // the helmet goes on instead of your hat
+  LOOK.g.hat.visible = !S.stubborn;   // the helmet goes on instead of your hat
   if (bt || thick) buildBoots(bt, thick);
   // Run and gun: hard-shell knee pads on elastic straps
   if (S.vaultMul < 1) [PM.legL, PM.legR].forEach(l => {
@@ -126,7 +126,7 @@ function buildGear() {
     gb(g, 0.03, 0.02, 0.02, GEAR.dark, 0, -0.005, 0.185);   // the bridge
     [-1, 1].forEach(s => { gb(g, 0.016, 0.022, 0.3, GEAR.dark, s * 0.168, 0.02, 0.03); gb(g, 0.02, 0.04, 0.03, GEAR.dark, s * 0.168, 0.0, -0.11); });
   }
-  if (T('eyes') >= 3) {   // a little rear-view mirror on a wire stalk off your hat (or hair)
+  if (T('eyes') >= 2) {   // a little rear-view mirror on a wire stalk off your hat (or hair)
     const g = gearItem(PM.head, 0.16, LOOK.mirrorY, -0.06);
     gb(g, 0.012, 0.012, 0.09, GEAR.steelDk, 0, 0, -0.03); gb(g, 0.07, 0.05, 0.014, GEAR.dark, 0, 0.01, -0.08); gb(g, 0.06, 0.04, 0.004, GEAR.steel, 0, 0.01, -0.088);
   }
@@ -176,7 +176,7 @@ function buildGear() {
     gb(g, 0.06, 0.05, 0.05, GEAR.redDk, 0.05, 0.02, -0.18); gb(g, 0.03, 0.08, 0.02, GEAR.red, 0.07, -0.04, -0.195);   // the knot at the back
   }
   // Stubborn: a steel helmet with a cloth cover band, a rim, a chin strap and goggles over the brim
-  if (S.slowRes >= 0.85) {
+  if (S.stubborn) {
     const g = gearItem(PM.head, 0, 0.13, 0);
     gb(g, 0.4, 0.1, 0.42, GEAR.olive, 0, 0.04, -0.005); gb(g, 0.36, 0.06, 0.38, GEAR.olive, 0, 0.11, -0.005); gb(g, 0.26, 0.04, 0.28, GEAR.olive, 0, 0.155, -0.005);
     gb(g, 0.42, 0.025, 0.44, GEAR.oliveDk, 0, -0.01, -0.005); gb(g, 0.405, 0.035, 0.425, GEAR.oliveLt, 0, 0.07, -0.005);   // rim and cover band

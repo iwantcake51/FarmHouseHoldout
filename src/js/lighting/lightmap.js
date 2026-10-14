@@ -59,10 +59,16 @@ function computeLight() {
 // frame so it swings round with you smoothly. An akimbo pair has one on each gun, each a cone of its own from that gun,
 // a bit dimmer apiece. FLASH: each tier's reach, half-angle and strength
 const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
-function flashUniforms() {
+// the light is on the gun, so it's only on while the gun's out in your hands: put away for a vault (without Run and gun)
+// it goes off, and it comes back on as the gun's drawn again, once the hand has it (SWAP_T.cross, player/swap.js).
+// flOn eases it off and on over a few frames, like a switch clicked
+let flOn = 0;
+const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
+function flashUniforms(rdt) {
   const K = LMU.uFlK.value, F = FLASH[T('light')], D = W(curId());
-  if (!F || state === 'title' || curDark <= 0.05 || !D || D.melee) { K.z = 0; return; }
-  const [lr, half, k] = F, li = k * curDark;
+  flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0;
+  if (!F || state === 'title' || curDark <= 0.05 || !D || D.melee || flOn <= 0) { K.z = 0; return; }
+  const [lr, half, k] = F, li = k * curDark * flOn;
   if (D.akimbo && !P.vault) { [-1, 1].forEach((sg, i) => { const mz = muzzle(sg); LMU.uFl.value[i].set(mz.ox, mz.oz, Math.sin(mz.a), Math.cos(mz.a)); flashShadows(i, mz.ox, mz.oz, mz.a, half * 0.9, lr); }); K.set(lr, half * 0.9, li * 0.62, 2); }
   else { LMU.uFl.value[0].set(P.x, P.z, Math.sin(P.aim), Math.cos(P.aim)); flashShadows(0, P.x, P.z, P.aim, half, lr); K.set(lr, half, li, 1); }
   flShTex.needsUpdate = true;
@@ -107,7 +113,7 @@ function flashAt(x, z) {
 }
 // blend the light/vision map toward its target and upload it
 function updateLightmap(rdt) {
-  flashUniforms();
+  flashUniforms(rdt);
   for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); lmT = 0; } }
   lmT -= rdt; if (lmT <= 0) { computeLight(); lmT = 0.07; }
   const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead ? 1.1 : 9));

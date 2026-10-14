@@ -14,7 +14,7 @@ function wsNumbers(id) {
   if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
   const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
   const shot = D.dmg * S.dmgMul * suppMul(D);
-  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + S.pierce, head: S.headMul + (D.headBonus || 0) };
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, pierce: (D.pierce || 0) + S.pierce, head: headMulFor(D) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
   if (S.att.stock && D.slot === 'side') r.spread *= 0.75;
   // reloads, every kind this gun has
@@ -30,8 +30,8 @@ function wsNumbers(id) {
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
 // numbers read, and put back. A source is listed against each number it moves, with how much
 // each stat a source can move, its name, which way is better, and how a better one reads (a shorter reload is "faster")
-const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['spread', 'Spread', -1], ['pierce', 'Pierce', 1]];
-const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter' };
+const WS_STATS = [['dmg', 'Damage', 1], ['rate', 'Fire rate', 1], ['mag', 'Magazine', 1], ['reload', 'Reload', -1], ['tac', 'Reload', -1], ['akTac', 'Reload', -1], ['shell', 'Reload', -1], ['spread', 'Spread', -1], ['pierce', 'Pierce', 1], ['head', 'Headshots', 1]];
+const WS_GOOD = { Reload: p => Math.round(-p) + '% faster', Spread: p => Math.round(-p) + '% tighter', Headshots: p => '+' + Math.round(p) + '% damage' };
 function wsSources(id) {
   const D = W(id), out = []; if (!D || D.melee) return out;
   const full = wsNumbers(id), g = W8.gt[id] = W8.gt[id] || {}, diff = (name, undo) => {
@@ -106,7 +106,7 @@ function wsHTML(id) {
   h += row('Spread', wsDeg(r.spread * 1.3), D.fan ? wsDeg(r.spread * 1.3 * D.fan.spread) + ' fanning' : 'from the hip', r.spread, s.spread, -1);
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
-  h += row('Headshots', '×' + wsF(r.head, 2), '', r.head, s.head);
+  h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
   h += '</div><div class="wsSub">Spread</div>' + wsCone(r.spread);
   if (r.fall) h += '<div class="wsSub">Damage over range</div>' + wsFall(id, r);
   // what's improving it: each upgrade, attachment, mod or skill that makes a number better, and only how it does
