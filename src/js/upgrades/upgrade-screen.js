@@ -24,7 +24,7 @@ function dealCards() {
   // better, the last card becomes one
   const due = gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
   if (due && !dealt.some(isDue)) {
-    const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf));
+    const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
     if (owed.length) dealt[dealt.length - 1] = drawCard(owed, u => rarWeight(u.r));
   }
   const wrap = $('cards'); wrap.innerHTML = '';

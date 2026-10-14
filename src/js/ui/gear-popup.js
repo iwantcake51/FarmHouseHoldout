@@ -6,9 +6,9 @@
 const gunCall = id => WEAP[id].name.replace(/^[.\d]+[a-z]*\s+/i, '').toLowerCase();
 // how each kind of thing is marked, in the popup and the list
 const GEAR_COL = { gear: '#d9a83e', ammo: '#d4b25c', med: '#d0432c', supply: '#d8692c' };
-// o: { ic, kind (what sort of thing), name, gun (the weapon it's on) or whom (who it's for), text (what it does), fx (chips) }
+// o: { ic, kind (what sort of thing), name, gun (the weapon it's on) or whom (who it's for) or on (said outright), text (what it does), fx (chips) }
 function gotGear(o) {
-  const on = o.gun ? 'On your ' + gunCall(o.gun) : o.whom ? 'For ' + o.whom : '';
+  const on = o.on || (o.gun ? 'On your ' + gunCall(o.gun) : o.whom ? 'For ' + o.whom : '');
   run.bought.push({ name: o.name, kind: o.kind, on, text: o.text, ic: o.ic || 'gear', wave: Math.max(1, run.wave) });
   gearQ.push(Object.assign({ on }, o)); if (!gearShowing) nextGear();
 }

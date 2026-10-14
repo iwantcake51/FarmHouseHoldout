@@ -87,7 +87,7 @@ function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= 
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons
