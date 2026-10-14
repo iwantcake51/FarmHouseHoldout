@@ -539,7 +539,7 @@ const GUN_MODELS = {
     profile(ch, shp([[0.8152, 1.192], [0.8793, 1.192], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);
     // ---- the ejection port on the right with the bolt in it, running back on each shot and held open when empty
     profile(g, shp([[0.66, 1.127], [0.77, 1.127], [0.77, 1.165], [0.66, 1.165]]), 0.002, GM.rubber, X - 0.0345, 0.0004);
-    const bc = box(g, 0.003, 0.03, 0.06, St, X - 0.0352, 1.146, 0.74);
+    const bc = box(g, 0.003, 0.03, 0.06, St, X - 0.0352, 1.146, 0.74); bc.userData.clip = 0.66;
     // ---- the grip (its textured insert), the selector, the steel guard, the trigger
     const GR = [[0.4313, 1.0828], [0.4551, 1.0844], [0.4621, 1.0841], [0.4785, 1.0799], [0.4866, 1.0747], [0.493, 1.068], [0.5021, 1.0531], [0.5053, 1.0427], [0.5059, 1.0321], [0.5021, 1.0189], [0.4959, 1.0063], [0.4848, 0.994], [0.4769, 0.9829], [0.4667, 0.9642], [0.4579, 0.9391], [0.4546, 0.915], [0.4559, 0.9092], [0.4605, 0.9031], [0.4693, 0.8985], [0.4791, 0.8883], [0.4883, 0.8862], [0.5084, 0.8874], [0.5221, 0.8845], [0.5266, 0.8858], [0.5314, 0.8904], [0.5238, 0.8998], [0.5224, 0.9084], [0.5283, 0.9327], [0.5383, 0.959], [0.5475, 0.9773], [0.5584, 0.9939], [0.5668, 1.0013], [0.5746, 1.0024], [0.5763, 1.0099], [0.5702, 1.0174], [0.5681, 1.0269], [0.5699, 1.0339], [0.5737, 1.0397], [0.5789, 1.0437], [0.588, 1.0461], [0.588, 1.095], [0.43, 1.095]];
     solid(g, GR, 0.044, K, X, 0.009);
@@ -555,7 +555,7 @@ const GUN_MODELS = {
     cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
     cyl(mg, 0.02, 0.004, GM.rubber, X, dy, dz + 0.0405, 20); cyl(mg, 0.006, 0.004, GM.metal2, X, dy - dr + 0.016, dz + 0.0405, 10);
     if (m.flech) cyl(mg, dr + 0.002, 0.012, GM.shellY, X, dy, dz + 0.016, 40);
-    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.05, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, charge: ch, chargeAt: [X, 1.215, 0.85] };
+    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },
 
   // hunting rifle: a Winchester Model 70, traced off a side-on photo. A one-piece walnut stock (a straight comb, a
@@ -616,7 +616,7 @@ const GUN_MODELS = {
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
     if (m.expand) box(g, 0.05, 0.03, 0.08, GM.copper, X + 0.06, 1.02, 0.7);
-    return { front: 1.48, y: 1.14, noSight: scope, top: 1.152, sz: 0.76, slide: bh, travel: 0.11, cyc: true };
+    return { front: 1.48, y: 1.14, noSight: scope, top: 1.152, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the
@@ -644,7 +644,7 @@ const GUN_MODELS = {
     [-1, 1].forEach(sd => { for (let k = 0; k < 4; k++) box(ch, 0.001, 0.016, 0.002, GM.rubber, X + sd * 0.0285, 1.1574, 0.494 + k * 0.006); });
     // ---- the port on the right, and the bolt in it
     profile(g, shp([[0.6, 1.12], [0.68, 1.12], [0.68, 1.146], [0.6, 1.146]]), 0.002, GM.rubber, X - 0.0232, 0.0004);
-    const bc = box(g, 0.003, 0.021, 0.05, GM.steel, X - 0.0243, 1.133, 0.655);
+    const bc = box(g, 0.003, 0.021, 0.05, GM.steel, X - 0.0243, 1.133, 0.655); bc.userData.clip = 0.6;   // it runs right back out of sight past the port's rear edge
     // ---- the foregrip (the finger hook in front of it) and its ridges
     const FF = [[0.8763, 0.9236], [0.8723, 0.9593], [0.8672, 0.9862], [0.8584, 1.0202], [0.8489, 1.0482]], FB = [[0.8217, 0.9142], [0.82, 0.9159], [0.8127, 0.9482], [0.8064, 0.9936], [0.8048, 1.0359]];
     profile(g, shp(inset([[0.8292, 0.9133], [0.8678, 0.9189], [0.8736, 0.9207], ...FF, [0.8478, 1.0566], [0.8495, 1.0615], [0.8562, 1.0679], [0.8794, 1.071], [0.8966, 1.0735], [0.8966, 1.0815], [0.8946, 1.085], [0.7684, 1.0854], [0.7649, 1.0834], [0.765, 1.0483], [0.7714, 1.0527], [0.7753, 1.0527], [0.7891, 1.0477], [0.7976, 1.0397], [0.8036, 1.0379], ...FB.slice().reverse()], 0.003)), 0.03, P, X, 0.003);
@@ -674,7 +674,7 @@ const GUN_MODELS = {
       profile(mg, shp(inset([[0.5993, 0.925], [0.66, 0.925], [0.66, 0.885], [0.5993, 0.885]], 0.002)), 0.026, P, X, 0.002);
       cyl(mg, 0.08, 0.056, P, X, 0.81, 0.629, 32).rotation.set(0, 0, Math.PI / 2); cyl(mg, 0.03, 0.06, K, X, 0.81, 0.629, 18).rotation.set(0, 0, Math.PI / 2);
     }
-    return { front, y: 1.113, magZ: 0.629, magY: 0.89, slide: bc, bolts: [], travel: 0.04, lock: true, top: 1.1656, sz: 0.7, ownMags: true, charge: ch, chargeAt: [X, 1.163, 0.503] };
+    return { front, y: 1.113, magZ: 0.629, magY: 0.89, slide: bc, bolts: [], travel: 0.085, lock: true, top: 1.1656, sz: 0.7, ownMags: true, charge: ch, chargeAt: [X, 1.163, 0.503] };
   },
   // SMG: an H&K MP5A2, traced off a side-on photo (and the MP5SD's can off another). The fixed A2 stock with its rubber
   // butt plate and sling slots; the stamped receiver tube with a rib down each side, the drum rear sight on top and the
@@ -697,8 +697,8 @@ const GUN_MODELS = {
     [-1, 1].forEach(s2 => box(g, 0.002, 0.006, 0.17, GM.metal2, X + s2 * 0.0225, 1.146, 0.63));                          // the ribs down the receiver
     cyl(g, 0.0105, 0.032, K, X, 1.191, 0.562, 16).rotation.set(0, 0, Math.PI / 2);                                    // the sight drum
     profile(g, shp([[0.6, 1.128], [0.66, 1.128], [0.66, 1.156], [0.6, 1.156]]), 0.002, GM.rubber, X - 0.0222, 0.0004);   // the port, and its bolt
-    const bc = box(g, 0.003, 0.022, 0.05, St, X - 0.0232, 1.142, 0.63);
-    // ---- the cocking tube's handle on the left (the 'slide': pulled back on a reload)
+    const bc = box(g, 0.003, 0.022, 0.05, St, X - 0.0232, 1.142, 0.63); bc.userData.clip = 0.6;
+    // ---- the cocking tube's handle on the left (it stays forward as the gun fires: the bolt in the port is what cycles)
     const sl = new THREE.Group(); g.add(sl); box(sl, 0.016, 0.008, 0.012, St, X + 0.02, 1.16, 0.985); cyl(sl, 0.006, 0.01, K, X + 0.03, 1.16, 0.985, 10).rotation.set(0, 0, Math.PI / 2);
     let front;
     if (!sd) {
@@ -726,7 +726,7 @@ const GUN_MODELS = {
     // ---- the curved magazine (in the mag group so the reload drops it), longer with the double stack
     const k = [1, 1.6, 1.75, 1.9][m.stack || 0], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
     solid(mg, [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext), 0.026, K, X, 0.003);
-    return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: sl, bolts: [bc], travel: 0.08, lock: true, top: 1.1742, sz: 0.66, ownMags: true };
+    return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: bc, bolts: [], travel: 0.065, lock: true, top: 1.1742, sz: 0.66, ownMags: true };
   },
   // assault rifle: a Colt M4 carbine, traced off a side-on photo (the open dust cover off another). The six-position
   // stock on its buffer tube; the lower with its magwell, the guard and trigger, its pins and the mag release; the A2
@@ -918,7 +918,7 @@ const GUN_MODELS = {
       box(g, 0.028, 0.026, 0.22, A, X, y0 - HR - 0.011, 0.92); cyl(g, 0.034, 0.23, A, X, y0 - HR - 0.058, 0.92); ring(g, 0.036, 0.012, GM.metal2, X, y0 - HR - 0.058, 1.035);
       box(g, 0.046, 0.046, 0.07, A, X, y0 - HR - 0.04, 0.78); box(g, 0.011, 0.028, 0.011, GM.metal2, X, y0 - HR - 0.072, 0.78);
     }
-    return { front, y: y0, magZ: 0, magY: mtop, slide: bc, bolts: [], travel: 0.045, lock: true, mz, top, sz, scopeH: 0.05, noSight: sight === 1, noLaser: true, noLight: true, charge: ch, chargeAt: [X + 0.026, 1.172, 0.462] };
+    return { front, y: y0, magZ: 0, magY: mtop, slide: bc, bolts: [], travel: 0.12, lock: true, mz, top, sz, scopeH: 0.05, noSight: sight === 1, noLaser: true, noLight: true, charge: ch, chargeAt: [X + 0.026, 1.172, 0.462], chargeTravel: 0.11 };
   },
   // light machine gun: the classic M60, traced off a side-on photo, with the hard green 100-round box off another. The
   // stock with its ribbed sides and steel butt plate; the receiver with the charging handle's track and knob on the
@@ -936,7 +936,7 @@ const GUN_MODELS = {
     { const R = []; for (let yy = 1.006; yy < 1.162; yy += 0.0093) { const z0 = 0.084, edge = yy < 1.0458 ? 0.141 + (yy - 0.9888) / (1.0458 - 0.9888) * 0.0871 : 0.26, z1 = Math.min(0.244, edge - 0.016); if (z1 - z0 > 0.02) R.push([0.0666, 0.0026, z1 - z0, X, yy, (z0 + z1) / 2]); } boxes(g, R, GM.rubber); }   // the ribs' grooves, flush with the faces
     solid(g, [[0.0605, 0.9989], [0.0632, 1.0294], [0.0634, 1.0782], [0.0598, 1.1458], [0.0558, 1.1806], [0.0573, 1.1859], [0.0647, 1.1899], [0.0638, 1.1962], [0.0724, 1.1979], [0.0742, 1.2005], [0.08, 1.2], [0.0745, 1.185], [0.0745, 1.1458], [0.0762, 1.0782], [0.0762, 1.0294], [0.0742, 0.99], [0.0674, 0.9835]], 0.07, K, X, 0.004);   // the butt plate
     // ---- the receiver: its body, the feed cover on top, the trigger housing under it; on the right the charging
-    // handle's track with the handle in it (it runs back as the gun fires) and the vent holes
+    // handle's track with the handle in it and the vent holes
     solid(g, [[0.2545, 1.0607], [0.6793, 1.0607], [0.6794, 1.1564], [0.6764, 1.1589], [0.646, 1.165], [0.44, 1.172], [0.4395, 1.1844], [0.3668, 1.1711], [0.3629, 1.1744], [0.2871, 1.1686], [0.254, 1.1693]], 0.064, K, X, 0.004);
     solid(g, [[0.4395, 1.168], [0.646, 1.168], [0.6463, 1.18], [0.645, 1.1852], [0.6408, 1.1846], [0.639, 1.1816], [0.6331, 1.184], [0.624, 1.1799], [0.6218, 1.1835], [0.5856, 1.1863], [0.5823, 1.1926], [0.5777, 1.1911], [0.5727, 1.1939], [0.5388, 1.1941], [0.5213, 1.1885], [0.5174, 1.1901], [0.4961, 1.1895], [0.4914, 1.1846], [0.4887, 1.1883], [0.4505, 1.1861], [0.4482, 1.1856], [0.446, 1.1817], [0.4395, 1.1844]], 0.06, GM.metal2, X, 0.003);
     solid(g, [[0.4338, 1.064], [0.619, 1.064], [0.619, 1.0457], [0.4338, 1.0456]], 0.05, K, X, 0.003);
@@ -944,6 +944,10 @@ const GUN_MODELS = {
     const sl = new THREE.Group(); g.add(sl);
     box(sl, 0.008, 0.012, 0.02, GM.metal2, X - 0.034, 1.093, 0.385); cyl(sl, 0.0085, 0.02, GM.steel, X - 0.046, 1.093, 0.385, 16).rotation.set(0, 0, Math.PI / 2);
     [0.455, 0.465, 0.475].forEach(z => cyl(g, 0.0032, 0.0646, GM.rubber, X, 1.135, z, 10).rotation.set(0, 0, Math.PI / 2));
+    // the ejection port on the right, the bolt in it running right back past its rear edge on each shot (the charging
+    // handle stays where it is: it doesn't ride with the bolt)
+    profile(g, shp([[0.47, 1.103], [0.575, 1.103], [0.575, 1.13], [0.47, 1.13]]), 0.002, GM.rubber, X - 0.0322, 0.0004);
+    const bolt = box(g, 0.003, 0.021, 0.06, GM.steel, X - 0.0333, 1.1165, 0.545); bolt.userData.clip = 0.47;
     // the rear sight: the ladder standing up in front of the feed cover (lying flat under an optic)
     const RS = [[0.6539, 1.158], [0.6577, 1.169], [0.658, 1.1789], [0.6552, 1.1851], [0.6625, 1.1993], [0.657, 1.2022], [0.6601, 1.2081], [0.6565, 1.2248], [0.6605, 1.2338], [0.6606, 1.2575], [0.6651, 1.2585], [0.6672, 1.2307], [0.6712, 1.2197], [0.6684, 1.208], [0.6731, 1.2035], [0.6684, 1.2002], [0.6684, 1.1939], [0.6744, 1.184], [0.6764, 1.1589]];
     if (!sight) { profile(g, shp(RS), 0.012, K, X, 0.0012); cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14).rotation.set(0, 0, Math.PI / 2); }
@@ -1019,6 +1023,6 @@ const GUN_MODELS = {
       });
     }
     // ---- optics sit on the feed cover
-    return { front: 1.535, y: y0, slide: sl, bolts: [], travel: 0.09, lock: true, mz: 0.535, top: 1.194, sz: 0.515, belt };
+    return { front: 1.535, y: y0, slide: bolt, bolts: [], travel: 0.11, lock: true, mz: 0.535, top: 1.194, sz: 0.515, belt };
   }
 };

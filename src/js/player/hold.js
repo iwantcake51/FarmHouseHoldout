@@ -354,7 +354,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (sl && sl.length) {
     for (const q of sl) {
       const st = ANIM.slideT[q.side || 'R'];
-      let off = st < 0.022 ? st / 0.022 : Math.max(0, 1 - (st - 0.022) / 0.07), held = false, fast = false;
+      let off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06), held = false, fast = false;   // slammed back, a beat at the end of its stroke, run home
       if (q.cyc) {
         // the rifle's bolt stays open, handle up, while you feed it; otherwise the action follows the cycle
         const bolt = EJECT[id] === 'bolt', open = bolt && rel === 'shell';
@@ -371,7 +371,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (fast ? 60 : off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
-      q.m.position.z = q.z0 - q.travel * off; q.m.updateMatrix();
+      const zc = q.z0 - q.travel * off, cl = q.m.userData.clip;
+      if (cl === undefined) q.m.position.z = zc;
+      else {   // a bolt seen through a port in the gun's side: whatever has run back past the port's rear edge is inside the receiver, out of sight
+        const L = q.L || (q.L = 2 * (q.m.geometry.boundingBox || (q.m.geometry.computeBoundingBox(), q.m.geometry.boundingBox)).max.z), f = zc + L / 2, r = Math.max(cl, zc - L / 2);
+        q.m.visible = f - r > 0.001; if (q.m.visible) { q.m.scale.z = (f - r) / L; q.m.position.z = (f + r) / 2; }
+      }
+      q.m.updateMatrix();
     }
   }
   // the magazine on the model: slides out as the reload starts, gone while the old one falls, a fresh one rises back in
@@ -383,7 +389,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     ANIM.magDrop = show ? md : 0.22;
   }
   // the charging handle: drawn back by the right hand and let go
-  if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -0.065 * pull; c.updateMatrix(); }
+  if (CHARGE[s]) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
   // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and snaps
   // shut after; the brass of each loaded shell shows in its chamber, the one being pushed home as soon as it's in
   const brkG = BRK[s];
@@ -417,7 +423,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back
-  if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - 0.065 * hp); _hR.lerp(_p1, cg); _hR.y += Math.sin(Math.PI * cg) * 0.035; }   // over the top of the receiver on the way, and it stays back where it let go
+  if (cg > 0.001) { const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn; gunPt(_p1, s, 'R', at[0], at[1] + 0.012, at[2] - CHARGE[s].tr * hp); _hR.lerp(_p1, cg); _hR.y += Math.sin(Math.PI * cg) * 0.035; }   // over the top of the receiver on the way, and it stays back where it let go
   handTarget(_fR, 'R', _hR, null, 0, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
