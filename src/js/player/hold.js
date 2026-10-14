@@ -43,11 +43,11 @@ const _rv = new V3();
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight. Each is reloaded on its own
 // turn (akU in weapons/akimbo.js says how far through it is), the other kept up on the aim
 const AK_PULL = 0.1;
-// the pump and the auto shotgun at rest sit at low ready: the stock in the shoulder pocket and the muzzle down (p), a
-// little lower and further in (y, z), canted (r) and turned across the body (yaw). They come up to the shoulder the
-// moment you fire, aim or hold the trigger, and settle back down MOUNT_HOLD seconds after the last shot (ANIM.mount).
-// The double barrel stays up at the shoulder
-const LOW_READY = { pump: { p: 0.3, y: -0.035, z: -0.05, r: 0.06, yaw: -0.05 }, auto12: { p: 0.24, y: -0.03, z: -0.04, r: 0.05, yaw: -0.04 } }, MOUNT_HOLD = 1.5;
+// the auto shotgun at rest sits at low ready: the stock in the shoulder pocket and the muzzle down (p), a little lower
+// and further in (y, z), canted (r) and turned across the body (yaw). It comes up to the shoulder the moment you fire,
+// aim or hold the trigger, and settles back down MOUNT_HOLD seconds after the last shot (ANIM.mount). The pump and the
+// double barrel stay up at the shoulder
+const LOW_READY = { auto12: { p: 0.24, y: -0.03, z: -0.04, r: 0.05, yaw: -0.04 } }, MOUNT_HOLD = 1.5;
 const REL_JIT0 = { k: 1, dx: 0, dy: 0, seed: 0 };
 // and no one holds two guns the same: the right a touch higher and further out, the left lower, drawn back and in, each
 // canted over toward the middle (the left more, a little gangster) and toed in, and each drifting on its own (f: how
