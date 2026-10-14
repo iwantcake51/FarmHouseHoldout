@@ -25,6 +25,8 @@ function ammoDash(n, filled) {
   const fg = filled ? Array(filled).fill(d + ' ' + g).join(' ') + ' 0 999' : '0 999';
   return [fg, Array(n).fill(d + ' ' + g).join(' ') + ' 0 999'];
 }
+// the melee brackets' springs: their size (s) and twist (r, in degrees), and the cooldown they're recovering against
+const XHM = { s: 1, vs: 0, r: 0, vr: 0, cd: 0, max: 0, ready: true }, XHM_TWIST = 9;
 // the warning under the crosshair: its numbers ("Loading 3/6") roll like the HUD's counters (ui/hud-text.js); text
 // with a key cap in it, and the bandaging percentage (plain), are just written
 function awText(aw, t, plain) {
@@ -50,10 +52,26 @@ function updateCrosshair(rdt, D) {
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
-    // the brackets pinch in and dim through the swing's recovery, then spring back out when it's ready again
+    // the brackets pinch in and dim through the swing's recovery and ease back out as it comes back, with a soft pop
+    // when it's ready; while the swing goes through they twist a little the way it's going. Recovery runs against the
+    // cooldown the swing started with (a tired swing's is longer), so they always open from fully in
+    if (W8.cd > XHM.cd + 1e-4) XHM.max = W8.cd;
+    XHM.cd = W8.cd;
     if (D.melee) {
-      const rd = 1 - clamp(W8.cd / ((D.rate || 0.5) * 1.3), 0, 1), e = rd >= 1 ? 1 : 0.62 + 0.3 * rd * rd, k = (e * 100 | 0) + ':' + (rd >= 1);
-      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `scale(${e.toFixed(2)})`); b.style.opacity = rd >= 1 ? 1 : 0.45 + 0.35 * rd; }
+      const rd = XHM.max > 0 ? 1 - clamp(W8.cd / XHM.max, 0, 1) : 1, ready = rd >= 1;
+      if (ready && !XHM.ready) XHM.vs += 0.9;
+      XHM.ready = ready;
+      // the twist mirrors the body's: back against the wind-up, then round with the strike (clockwise on screen, as
+      // the weapon sweeps). An overhead chop has no sideways sweep, so it tips the way the camera rolls instead
+      const sT = 0.62 + 0.38 * smooth(rd), p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0, keys = SWING[D.style || 'swing'];
+      const rT = !(W8.swing > 0) ? 0 : D.style === 'chop' ? W8.swingSide * XHM_TWIST * 0.6 * Math.sin(Math.PI * Math.min(1, p * 1.2)) : -(sampleSwing(keys, p)[1] - keys[0][1]) * XHM_TWIST;
+      for (let t = Math.min(rdt, 0.1); t > 1e-6; t -= 1 / 120) {
+        const h = Math.min(t, 1 / 120);
+        XHM.vs += ((sT - XHM.s) * 260 - XHM.vs * 22) * h; XHM.s += XHM.vs * h;
+        XHM.vr += ((rT - XHM.r) * 180 - XHM.vr * 16) * h; XHM.r += XHM.vr * h;
+      }
+      const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
+      if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
     }
     // bandage ring: shown only while a bandage is going on, filling as it does
     { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
