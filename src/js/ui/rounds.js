@@ -17,7 +17,25 @@ function dropRound(src) {
   document.body.append(g, p);
   p.addEventListener('animationend', () => p.remove());
 }
+// the glyphs for one magazine: the spent ones first (they sit at the far end), then those left; a big one is a bar
+const magGlyphs = (n, have) => n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i class="off"></i>'.repeat(Math.max(0, n - have)) + '<i></i>'.repeat(Math.max(0, Math.min(have, n)));
+const roundsCls = D => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '');
+// an akimbo pair: each gun's magazine its own group, the left's on the left, split by a rule; the one being reloaded dims
+function renderRoundsAk(id, D) {
+  const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + ':' + akBusy('L') + akBusy('R');
+  if (cache.rounds === key) return; cache.rounds = key;
+  const el = $('rounds'), pr = cache.roundsPrev;
+  el.className = roundsCls(D) + ' ak';
+  if (!el.firstElementChild || !el.firstElementChild.classList.contains('mag')) el.innerHTML = '<div class="mag"></div><div class="mag"></div>';
+  ['L', 'R'].forEach((s, k) => {
+    const g = el.children[k];
+    if (pr && pr.ak && pr.id === id && pr.n === n && m[s] < pr[s] && n <= 40 && state === 'play') for (let i = n - pr[s], c = 0; i < n - m[s] && c < 6; i++, c++) if (g.children[i]) dropRound(g.children[i]);
+    g.innerHTML = magGlyphs(n, m[s]); g.classList.toggle('rl', akBusy(s));
+  });
+  cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
+}
 function renderRounds(id, D) {
+  if (D.akimbo) { renderRoundsAk(id, D); return; }
   const n = magSize(id), have = W8.mag[id] || 0, key = id + n + ':' + have + ':' + T('ammo');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
@@ -25,7 +43,6 @@ function renderRounds(id, D) {
     const kids = el.children; let k = 0;
     for (let i = n - pr.have; i < n - have && k < 6; i++, k++) if (kids[i]) dropRound(kids[i]);
   }
-  cache.roundsPrev = { id, n, have }; el.className = ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '');
-  if (n > 40) { el.innerHTML = `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>`; return; }
-  el.innerHTML = '<i class="off"></i>'.repeat(Math.max(0, n - have)) + '<i></i>'.repeat(Math.max(0, Math.min(have, n)));
+  cache.roundsPrev = { id, n, have }; el.className = roundsCls(D);
+  el.innerHTML = magGlyphs(n, have);
 }

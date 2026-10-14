@@ -66,7 +66,7 @@ function renderHistory(list, countEl) {
 function openUpgrade() {
   closeStation();
   $('upEyebrow').textContent = 'Wave ' + run.wave + ' cleared · ' + run.kills + ' kills so far';
-  dealCards(); cardsArmed = false; mouseDown = false;
+  dealCards(); cardsArmed = false; mouseDown = mouseDownR = false;
   setState('upgrade');
   const el = $('upgrade'); el.classList.remove('show', 'armed');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));

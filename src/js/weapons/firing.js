@@ -3,7 +3,7 @@
 // how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,
 // the hunting rifle and shotguns up to about 1.2 (a double barrel firing both)
 const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Math.pow(shots, 0.6) / 130, 0.08, 1.25);
-// which hand's gun just fired: akimbo alternates (akSide flips before each shot), everything else is the right hand
+// which hand's gun just fired: an akimbo pair's is the side of its last shot (weapons/akimbo.js), anything else's the right
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
@@ -88,16 +88,20 @@ function fire() {
   }
   gunFire(id, D);
 }
-function gunFire(id, D) {
+// side: which of an akimbo pair fires (weapons/akimbo.js), each from its own mag
+function gunFire(id, D, side) {
   {
+  let shots = 1;
+  if (D.akimbo) { if (!akShot(id, D, side || (W8.akSide > 0 ? 'L' : 'R'))) return; run.shots++; }
+  else {
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
   if (W8.reloading) return;
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
   if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
-  const shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
+  shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
   W8.mag[id] -= shots; W8.cd = D.rate / S.rateMul; run.shots++;
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; W8.trigLock = true; }   // one burst per trigger pull
-  if (D.akimbo) W8.akSide *= -1;
+  }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
   // the first round goes exactly where the crosshair sits on a body, and hits that part

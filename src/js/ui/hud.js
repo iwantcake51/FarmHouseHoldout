@@ -40,8 +40,12 @@ function updateHUD(rdt, D) {
     setT('wName', D.name);
     const own = (W8.mods[id] || []).map(modName);
     setT('wMods', own.concat(gunExtras(id)).join(' · '));
-    setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0));
-    { const n = D.melee ? 0 : magSize(id), have = W8.mag[id] || 0, el = $('ammo'); el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); }
+    // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
+    const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
+    if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
+    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
+    if (ak) { const per = akPer(id); setRoll('ammoL', String(am.L)); setRoll('ammo', String(am.R)); ammoEl($('ammoL'), am.L, per, akBusy('L')); ammoEl($('ammo'), am.R, per, akBusy('R')); }
+    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magSize(id), false); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D); renderFireMode(id);

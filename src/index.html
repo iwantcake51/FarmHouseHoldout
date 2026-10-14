@@ -30,6 +30,10 @@
     <circle id="xhAmmoBg" class="ammoBg" r="30" transform="rotate(-42)"></circle>
     <circle id="xhAmmo" class="ammo" r="30" transform="rotate(-42)"></circle>
     <circle id="xhReload" class="reload" r="30" transform="rotate(-42)" stroke-dasharray="0 999"></circle>
+    <!-- akimbo: the left gun's mag and reload, mirrored on the left -->
+    <circle id="xhAmmoBgL" class="ammoBg" r="30" transform="rotate(138)" hidden></circle>
+    <circle id="xhAmmoL" class="ammo" r="30" transform="rotate(138)" hidden></circle>
+    <circle id="xhReloadL" class="reload" r="30" transform="rotate(138)" stroke-dasharray="0 999" hidden></circle>
     <circle id="xhGl" class="gl" r="36" transform="rotate(138)" stroke-dasharray="0 999"></circle>
     <circle id="xhHealBg" class="healBg" r="23"></circle>
     <circle id="xhHeal" class="heal" r="23" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
@@ -102,7 +106,7 @@
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
-  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd>B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd>B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><i class="mb l akOnly" title="Left click"></i><span class="big akOnly" id="ammoL">10</span><i id="ammoSep" class="akOnly"></i><i class="mb r akOnly" title="Right click"></i><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
   <div id="rounds"></div>
   <div class="slots" id="slots"></div>
 </div>

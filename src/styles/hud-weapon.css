@@ -30,6 +30,23 @@
 @keyframes roundPuff{from{transform:scale(.5);opacity:.9}to{transform:translate(var(--px),-26px) scale(2.4);opacity:0}}
 #rounds .belt{width:200px;height:6px;background:rgba(0,0,0,.5)}
 #rounds .belt span{display:block;height:100%;background:#c9a043}
+/* akimbo: each gun's mag, the left's on the left, by the mouse button that fires it (a little mouse with that side lit),
+   over two groups of rounds split by a rule. The gun being reloaded dims and its rounds fade back */
+#arms:not(.ak) .akOnly{display:none}
+#arms.ak #ammo,#arms.ak #ammoL{font-size:62px}
+#ammoL{--rh:.85em;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#ammo,#ammoL{transition:opacity .2s}
+#ammo.rl,#ammoL.rl{opacity:.4}
+.ammoRow .mb{align-self:center;display:block;width:10px;height:15px;margin:0 1px 0 4px;border:1.5px solid rgba(236,230,216,.55);border-radius:5px 5px 4px 4px;
+  background:linear-gradient(90deg,var(--ink) 50%,transparent 50%) 0 0/100% 46% no-repeat;box-shadow:0 1px 0 rgba(0,0,0,.6);position:relative}
+.ammoRow .mb::after{content:"";position:absolute;left:50%;top:0;width:1.5px;height:46%;margin-left:-.75px;background:rgba(236,230,216,.55)}
+.ammoRow .mb.r{background-image:linear-gradient(90deg,transparent 50%,var(--ink) 50%)}
+#ammoSep{align-self:center;display:block;width:2px;height:44px;margin:0 6px 0 8px;background:linear-gradient(180deg,transparent,rgba(236,230,216,.4) 25%,rgba(236,230,216,.4) 75%,transparent);transform:skewX(-14deg)}
+#rounds.ak{flex-wrap:nowrap;align-items:flex-end;gap:0;max-width:none}
+#rounds .mag{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:128px;transition:opacity .2s}
+#rounds .mag+.mag{margin-left:9px;padding-left:9px;border-left:1px solid rgba(236,230,216,.3)}
+#rounds .mag.rl{opacity:.35}
+#rounds .mag .belt{width:110px}
 /* bandage counter: a white cross and how many are in the bag */
 #bandBox{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 6px;background:linear-gradient(90deg,rgba(10,12,13,.4),rgba(10,12,13,.78));border:1px solid rgba(236,230,216,.16);border-right:3px solid #d0432c;box-shadow:0 6px 16px -10px rgba(0,0,0,.9);text-shadow:none;transition:opacity .3s,border-color .3s}
 #bandBox svg{width:20px;height:20px;padding:3px;background:#b8352a;border-radius:3px;fill:#fbf7ee;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 0 8px rgba(208,67,44,.45)}

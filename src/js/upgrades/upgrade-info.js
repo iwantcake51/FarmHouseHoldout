@@ -71,7 +71,7 @@ function compareFx(a, b) {
     chip('SPREAD', a.spread, b.spread, false, fmtDeg), chip('HEADSHOTS', a.head * 100, b.head * 100, true, v => '+' + Math.round(v) + '%')].filter(Boolean);
 }
 // mods that add a feature rather than a number
-const MOD_FEATURE = { akimbo: 'A gun in each hand', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
+const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
   ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', pierce: 'Goes through zombies' };
 // try a gun's next tier for real, read its numbers, then put it back
 function tierFx(id, k) {

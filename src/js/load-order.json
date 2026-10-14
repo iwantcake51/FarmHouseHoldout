@@ -66,6 +66,7 @@
   "player/aiming.js",
   "input/touch.js",
   "weapons/reload.js",
+  "weapons/akimbo.js",
   "weapons/firing.js",
   "melee/melee.js",
   "player/shove.js",

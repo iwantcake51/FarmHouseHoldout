@@ -2,6 +2,8 @@
 
 const projV = new V3();
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
+// an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
+const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');
 const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
 // the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
 // wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
@@ -13,10 +15,12 @@ function sgRing(r) {
   dash(xhSgSh, gs); dash(xhSgR, g);
 }
 let gapCur = 10, lastGap = -1;
-// the ammo arc (on the right) and the stamina arc (underneath) ride just outside the spread ring, so a wide spread never
-// swallows them: their radius grows with it from where they sit when it's tight (aR, sR), and the grenade launcher's
-// arc and the warning text move out with them
-let aR = 30, sR = 22;
+// the ammo arc (on the right) and the stamina arc (underneath) ride just outside the reticle, so it never reaches into
+// or over them: their radius grows from where they sit when it's tight (aR, sR) to keep a clear gap outside its outer
+// edge (the ticks reach TICK_L past the spread, the shotgun's arcs sit on it), and the grenade launcher's arc and the
+// warning text move out with them
+let aR = 30, sR = 22, lastXh = '';
+const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 };
 const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
 function ammoDash(n, filled) {
   const A = ARC();
@@ -81,6 +85,7 @@ function updateCrosshair(rdt, D) {
     else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
     if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
     xhAmmo.style.display = xhAmmoBg.style.display = D.melee ? 'none' : '';
+    const ak = !D.melee && !!D.akimbo; [xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.toggleAttribute('hidden', !ak));
     bloom *= Math.exp(-rdt * 9);
     const mz = muzzle();
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
@@ -88,11 +93,13 @@ function updateCrosshair(rdt, D) {
     const dpx = Math.hypot(mouseX - px, mouseY - py);
     const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, 56);   // through a scope it tightens with range
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
-    const gap = Math.round(gapCur * 2) / 2;
-    if (gap !== lastGap) {
-      lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap);
-      aR = Math.max(30, gap + 9); sR = Math.max(22, gap + 7);
-      [xhAmmo, xhAmmoBg, xhRing].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR);
+    const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
+    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
+    if (xk !== lastXh) {
+      lastXh = xk;
+      const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
+      aR = Math.max(30, outer + XH_CLEAR.a); sR = Math.max(22, outer + XH_CLEAR.s);
+      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR);
       $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
@@ -101,14 +108,18 @@ function updateCrosshair(rdt, D) {
     else tgt = zombies.some(z => { const th = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.5 ? 0.75 : 0; return Math.hypot(z.x - P.x, z.z - P.z) < D.range + z.T.r + th && Math.abs(angDiff(Math.atan2(z.x - P.x, z.z - P.z), P.aim)) < D.arc + (th ? 0.25 : 0); });
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
-      const n = magSize(id), have = W8.mag[id] || 0, key = n + ':' + have + ':' + aR;
-      const healing = P.bandT > 0;
-      if (cache.ammoKey !== key) { cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg); }
-      xh.classList.toggle('lowammo', have <= Math.max(1, n * 0.25));
-      // yellow under a quarter, red and asking for a reload when empty
-      const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn');
+      // two guns: each arc is its own gun's mag (the right's on the right), each turning yellow under a quarter
+      const am = ak && akMags(id), n = ak ? akPer(id) : magSize(id), have = ak ? am.R : W8.mag[id] || 0, key = n + ':' + have + ':' + aR + (ak ? ':' + am.L : '');
+      const healing = P.bandT > 0, lowAt = Math.max(1, n * 0.25);
+      if (cache.ammoKey !== key) {
+        cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg);
+        if (ak) { const [fgL, bgL] = ammoDash(n, am.L); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', am.L <= lowAt); }
+        xhAmmo.classList.toggle('low', have <= lowAt);
+      }
+      // yellow under a quarter, red and asking for a reload when empty (with two guns, when either's dry)
+      const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn'), tot = W8.mag[id] || 0, dry = ak ? am.L === 0 || am.R === 0 : have === 0;
       // while reloading the same spot reads "Reloading", or counts the shells going in
-      const mode = W8.reloading ? 'loading' : have === 0 ? (res > 0 ? 'reload' : 'none') : have <= Math.max(1, Math.floor(n * 0.25)) ? 'low' : '';
+      const mode = W8.reloading ? 'loading' : tot === 0 ? (res > 0 ? 'reload' : 'none') : dry && res > 0 ? 'reload' : tot <= Math.max(1, Math.floor(magSize(id) * 0.25)) ? 'low' : '';
       const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? 'Reload <kbd>R</kbd>' : mode === 'none' ? 'No ammo' : '';
       if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;
@@ -117,10 +128,17 @@ function updateCrosshair(rdt, D) {
       }
     }
     let rp = 0;
+    if (ak) {
+      // each gun's ring fills through its own turn, and only its arc dims while it's down being reloaded
+      for (const [s, ring, arc] of [['R', xhRing, xhAmmo], ['L', xhRingL, xhAmmoL]]) {
+        const busy = akBusy(s); ring.setAttribute('stroke-dasharray', (ARC() * (busy ? akU(s) : 0)).toFixed(1) + ' 999'); ring.style.opacity = busy ? 1 : 0; arc.style.opacity = busy ? 0.25 : 1;
+      }
+    } else {
     if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
     else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
     xhRing.setAttribute('stroke-dasharray', (ARC() * clamp(rp, 0, 1)).toFixed(1) + ' 999'); xhRing.style.opacity = W8.reloading ? 1 : 0;
     xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
+    }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';
     if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / (D.glRecharge || 6))).toFixed(1) + ' 999');
