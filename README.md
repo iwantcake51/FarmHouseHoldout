@@ -120,6 +120,9 @@ Every source file starts with a one-line comment saying what is in it.
 | Furniture in the house (table, pantry shelf, bed, lamps, wall decorations) | `src/js/world/props.js`; the stations are in `src/js/stations/stations.js` |
 | The survivor's look, dealt fresh each run: skin, hair, beard, eyes, hat, top, trousers, shoes, pack colour | `src/js/player/look.js` (the fixed belt, backpack and pouches are in `src/js/player/player.js`) |
 | HUD look | `src/styles/hud-*.css` and `src/js/ui/hud.js` |
+| Menu open and close animations: the station panel unrolling from its orange rule and rolling back up into it (`src/styles/stations.css`, `openStation` / `closeStation` in `src/js/stations/station-ui.js`), the title, pause and death screens' lines coming in one after another (`src/styles/screens.css`, `#dead` in `src/styles/hud-feed.css`), the history list growing open | `src/styles/` |
+| Scrollbars (thin, squared, orange under the pointer) and the wheel easing lists along instead of stepping (`smoothWheel`) | `src/styles/base.css`, `src/js/core/dom.js` |
+| The pollen and dust drifting by day: how thick (`MOTE_DENSITY`) and how bright | `motes` in `src/js/world/atmosphere.js` |
 | The rolling digit counters (ammo, reserve, bandages, planks, scrap, kills, the reload text) | `rollText` / `setRoll` in `src/js/ui/hud-text.js` |
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 | The icons (HUD, pickups, stations, status icons) | `src/js/ui/game-icons.js` |

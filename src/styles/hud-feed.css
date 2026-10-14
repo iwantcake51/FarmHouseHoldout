@@ -5,6 +5,18 @@ body.dying .hud,body.dying #xh,body.dying #ammoWarn,body.dying #scrim{opacity:0!
 body.dying #c{cursor:default}
 #dead:not([hidden]){animation:deadIn 1.6s ease both}
 @keyframes deadIn{from{opacity:0}}
+/* then its lines come in one after another from the left, like the title and pause screens: what happened, the wave,
+   each count of the tally in turn, and the buttons last */
+#dead:not([hidden]) .inner>*,#dead:not([hidden]) .tally>*{animation:screenIn .8s cubic-bezier(.2,.9,.3,1) backwards}
+#dead:not([hidden]) .inner>:nth-child(1){animation-delay:.5s}
+#dead:not([hidden]) .inner>:nth-child(2){animation-delay:.65s}
+#dead:not([hidden]) .inner>.tally{animation:none}
+#dead:not([hidden]) .tally>:nth-child(1){animation-delay:.9s}
+#dead:not([hidden]) .tally>:nth-child(2){animation-delay:1s}
+#dead:not([hidden]) .tally>:nth-child(3){animation-delay:1.1s}
+#dead:not([hidden]) .tally>:nth-child(4){animation-delay:1.2s}
+#dead:not([hidden]) .inner>.btns{animation-delay:1.45s}
+@media (prefers-reduced-motion:reduce){#dead:not([hidden]),#dead:not([hidden]) *{animation-duration:.01s!important;animation-delay:0s!important}}
 #feed{left:20px;bottom:calc(158px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-shadow:none}
 .fd{display:flex;align-items:center;gap:9px;min-width:170px;padding:5px 14px 5px 8px;background:linear-gradient(90deg,rgba(10,12,13,.85) 60%,rgba(10,12,13,0));border-left:3px solid var(--fc,#a39e90);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);animation:fdIn .28s cubic-bezier(.2,.9,.3,1.2);transition:opacity .5s,transform .5s}
 .fd svg{width:18px;height:18px;flex:none;fill:var(--fc)}

@@ -2,6 +2,7 @@
 
 let best = 0;
 try { best = +localStorage.getItem('kessler-best') || 0; } catch (e) {}
+['pHist', 'upHist'].forEach(id => smoothWheel($(id)));   // the history lists scroll smoothly too
 const showBest = () => { const t = best ? 'Best run: wave ' + best : ''; $('best').textContent = t; $('deadBest').textContent = t; };
 showBest();
 function setState(s) {

@@ -63,6 +63,9 @@
 .histBox summary::before{content:"\25B8  "}.histBox[open] summary::before{content:"\25BE  "}
 .histBox summary b,.histHead b{color:var(--ink);font-family:var(--f-num);font-size:16px;letter-spacing:0;margin-left:4px}
 .histBox .hist{margin-top:8px;max-height:28vh}
+.histBox::details-content{height:0;overflow:clip;transition:height .3s cubic-bezier(.25,.8,.25,1),content-visibility .3s allow-discrete}
+.histBox[open]::details-content{height:auto}
+@media (prefers-reduced-motion:reduce){.histBox::details-content{transition:none}}
 .histHead{display:flex;align-items:baseline;gap:6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-top:4px}
 .hist{display:grid;gap:5px;max-height:44vh;overflow-y:auto;padding-right:4px;text-align:left}
 .hist .none{color:var(--dim);font-size:12px;padding:8px 0}
