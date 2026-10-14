@@ -70,7 +70,7 @@ Every source file starts with a one-line comment saying what is in it.
 | How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
 | How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
 | Gun 3D models: each gun's outline traced off a side-on photo; the part helpers at the top (`solid` for rounded grips and stocks that keep the traced size, `inset`, `clipTo`, `checker` and `stipple` for checkering and stippling cut to a stock's own outline, `taperX` to slim a stock through the wrist, `ribTube` for knurled and ribbed tubes, `lathe` for turned barrels and muzzle devices; `cyl` gives anything barrel-sized enough sides to read round) | `src/js/weapons/gun-models.js` |
-| Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
+| Attachment models (suppressors, sights, lasers, drums...). A gun with a rail for a laser says where in its model (`laser`: under the frame, or on a side rail); the others are found from the model | `src/js/weapons/attachments.js` |
 | Gun mods bought as upgrades at the workbench (burst switch, second pistol...), and which ones take the muzzle (`muzzle`: one can, choke or muzzle device per gun, `muzzleTaken` in `weapons/mod-levels.js`) | `src/js/weapons/gun-mods.js` |
 | What improving a mod at the workbench does at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
 | Melee damage, swing speed, reach, knockback, and how many zombies a swing hits (`cleave`; without it a swing hits only the nearest, unless its reach is long enough: `REACH_CLEAVE`) | `src/js/melee/melee-stats.js` |

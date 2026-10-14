@@ -30,33 +30,36 @@ function fitAttachments(g, D, front, y, info) {
     const bl = box(g, 0.01, 0.04, 0.26, GM.blade, X, y - 0.055, front + 0.08); box(bl, 0.011, 0.008, 0.2, GM.steel, 0, 0.006, -0.02);
     const tip = box(g, 0.01, 0.03, 0.04, GM.blade, X, y - 0.06, front + 0.215); tip.rotation.x = 0.5;
   }
-  // lasers hang right under the gun at the mount point (found from the model, so they touch whatever is there:
-  // a pistol's rail under the dust cover, a shotgun's barrel or forend); the beam starts from an emitter at the lens (weapons/laser.js).
-  // On sidearms they sit flush under the frame with no riser; long guns tape or rail them under the barrel.
+  // lasers hang right under the gun at the mount point; the beam starts from an emitter at the lens (weapons/laser.js).
+  // A gun with a rail for one says where (info.laser: the rail's underside y and the laser's middle z, or a side rail at
+  // x, the laser turned to stand out from that side): pistols on the rail under the dust cover in front of the trigger
+  // guard, the revolver under its barrel lug, the MP9 on its right-hand rail, the MP5 under its handguard. A railed gun
+  // takes a compact pointer clamped on, then a compact laser module; the others are found from the model and get a
+  // pointer taped under the barrel, then a module on a rail mount
   if (T('laser') && !info.noLaser) {
-    // a sidearm's goes just behind the front of its frame (the rail), found by stepping back from the muzzle until the
-    // underside drops from the slide to the frame
-    let lz = side ? front - 0.08 : front - 0.22;
-    if (side) { const u0 = undersideAt(g, X, front - 0.03, y); for (let z = front - 0.03; z > front - 0.26; z -= 0.01) if (undersideAt(g, X, z, y) < u0 - 0.012) { lz = z - 0.03; break; } }
-    const u = undersideAt(g, X, lz, y), em = new THREE.Object3D();
-    if (T('laser') === 1 && side) {   // a compact pointer clamped straight onto the rail
-      box(g, 0.034, 0.012, 0.064, GM.metal, X, u - 0.006, lz - 0.004);
-      cyl(g, 0.013, 0.09, GM.metal2, X, u - 0.022, lz); ring(g, 0.0145, 0.012, GM.metal, X, u - 0.022, lz + 0.04);
-      box(g, 0.008, 0.008, 0.004, GM.red, X, u - 0.022, lz + 0.046); em.position.set(X, u - 0.022, lz + 0.049);
+    const L = info.laser, rail = side || !!L, em = new THREE.Object3D();
+    let lg = g, lx = X, u, lz;
+    if (L && L.side) { lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); lx = 0; u = 0; lz = L.z; }   // its top against the side rail
+    else if (L) { u = L.y; lz = L.z; }
+    else { lz = front - 0.22; u = undersideAt(g, X, lz, y); }
+    if (T('laser') === 1 && rail) {   // a compact pointer clamped straight onto the rail
+      box(lg, 0.034, 0.012, 0.064, GM.metal, lx, u - 0.006, lz - 0.004);
+      cyl(lg, 0.013, 0.09, GM.metal2, lx, u - 0.022, lz); ring(lg, 0.0145, 0.012, GM.metal, lx, u - 0.022, lz + 0.04);
+      box(lg, 0.008, 0.008, 0.004, GM.red, lx, u - 0.022, lz + 0.046); em.position.set(lx, u - 0.022, lz + 0.049);
     } else if (T('laser') === 1) {   // a pointer taped under the barrel
       cyl(g, 0.012, 0.1, GM.metal2, X, u - 0.012, lz); { const tb = y - (u - 0.027); [-0.03, 0.03].forEach(o => box(g, 0.03, tb, 0.016, GM.tape, X, u - 0.027 + tb / 2, lz + o)); }   // tape from under the pointer up round the barrel
       box(g, 0.008, 0.008, 0.004, GM.red, X, u - 0.012, lz + 0.052); em.position.set(X, u - 0.012, lz + 0.055);
-    } else {   // a laser module with two windows: on a rail mount under a long gun, straight onto a sidearm's rail
-      // a sidearm's is a compact unit that stops short of the trigger guard
-      const top = side ? u : u - 0.012, len = side ? 0.08 : 0.12, h = side ? 0.034 : 0.04, cz = side ? lz + 0.012 : lz;
-      if (!side) box(g, 0.03, 0.02, 0.06, GM.metal, X, u - 0.003, lz);   // the mount, clamped up into the gun
-      box(g, 0.042, h, len, GM.tan, X, top - h / 2, cz);
+    } else {   // a laser module with two windows: on a rail mount under a long gun, straight onto a rail
+      // a railed gun's is a compact unit that stops short of the trigger guard
+      const top = rail ? u : u - 0.012, len = rail ? 0.08 : 0.12, h = rail ? 0.034 : 0.04, cz = rail ? lz + 0.012 : lz;
+      if (!rail) box(g, 0.03, 0.02, 0.06, GM.metal, X, u - 0.003, lz);   // the mount, clamped up into the gun
+      box(lg, 0.042, h, len, GM.tan, lx, top - h / 2, cz);
       const fz = cz + len / 2 + 0.001, ey = top - h / 2 - 0.001;
-      box(g, 0.012, 0.012, 0.004, GM.laserG, X - 0.01, ey, fz); box(g, 0.012, 0.012, 0.004, GM.glass, X + 0.01, ey, fz);   // a green laser
-      if (!side) box(g, 0.012, 0.006, 0.02, GM.metal2, X, top + 0.001, lz - 0.02);
-      em.position.set(X - 0.01, ey, fz + 0.003);
+      box(lg, 0.012, 0.012, 0.004, GM.laserG, lx - 0.01, ey, fz); box(lg, 0.012, 0.012, 0.004, GM.glass, lx + 0.01, ey, fz);   // a green laser
+      if (!rail) box(g, 0.012, 0.006, 0.02, GM.metal2, X, top + 0.001, lz - 0.02);
+      em.position.set(lx - 0.01, ey, fz + 0.003);
     }
-    g.add(em); g.userData.laserEm = em;
+    lg.add(em); g.userData.laserEm = em;
   }
   if (T('light') && !info.noLight) {
     const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can

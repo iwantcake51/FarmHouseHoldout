@@ -305,7 +305,7 @@ const GUN_MODELS = {
     if (m.match) { const e = 0.04 * (m.match - 1); cyl(g, 0.0125, 0.11 + e, GM.metal2, X, 1.142, 0.9 + e / 2); ring(g, 0.0145, 0.012, GM.steel, X, 1.142, 0.95 + e); front = 0.955 + e; }   // a longer barrel with each level
     if (m.auto) box(sl, 0.006, 0.012, 0.04, GM.orange, X + 0.017, 1.135, 0.56);   // the auto sear's selector
     if (m.burst) { box(sl, 0.03, 0.03, 0.016, GM.metal2, X, 1.142, 0.536); box(sl, 0.01, 0.016, 0.02, GM.orange, X + 0.016, 1.15, 0.53).rotation.y = 0.35; }
-    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, sz: 0.6, ownMags: true };
+    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, sz: 0.6, ownMags: true, laser: { y: 1.1, z: 0.786 } };   // the laser on the dust cover's rail
   },
   // .357 revolver: a stainless Smith & Wesson, measured off side-on photos (a 6" 617 for the frame, a snub-nosed 986
   // for the grips). The frame has a real window for the cylinder (so it's empty when the cylinder swings out), a thin
@@ -349,7 +349,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.672, 1.14], [z1 - 0.004, 1.14], [z1, 1.135], [z1 - 0.003, 1.126], [0.672, 1.125]]), 0.024, S2, X, 0.002);
     profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.004, S2, X, 0.0005); box(g, 0.0046, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.152, z1 + 0.0005, 14);
-    return { front: z1, y: 1.152, top: 1.174, sz: 0.62, crane };
+    return { front: z1, y: 1.152, top: 1.174, sz: 0.62, crane, laser: { y: 1.125, z: z1 - 0.05 } };   // the laser clamped under the lug
   },
   // .50 hand cannon: a stainless Desert Eagle Mark XIX, traced off a side-on photo. A fixed barrel block (a slotted
   // rail along its top, chamfered shoulders, a long flute down each side), the slide behind it (slanted serrations, the
@@ -402,7 +402,7 @@ const GUN_MODELS = {
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
     let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.183], [0.916, 1.185]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.006, 0.012, GM.rubber, X, 1.188, 0.935 + k * 0.025); front = 0.916 + L; }   // longer, with another port, each level
     if (m.boom) box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive rounds: the mag's base plate painted with a red band
-    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61 };
+    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 } };   // the laser under the frame's lip
   },
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
   // onto the tang (the safety button sits there) and the ejection port on the shooter's right, the bolt showing in it;
@@ -674,7 +674,7 @@ const GUN_MODELS = {
       profile(mg, shp(inset([[0.5993, 0.925], [0.66, 0.925], [0.66, 0.885], [0.5993, 0.885]], 0.002)), 0.026, P, X, 0.002);
       cyl(mg, 0.08, 0.056, P, X, 0.81, 0.629, 32).rotation.set(0, 0, Math.PI / 2); cyl(mg, 0.03, 0.06, K, X, 0.81, 0.629, 18).rotation.set(0, 0, Math.PI / 2);
     }
-    return { front, y: 1.113, magZ: 0.629, magY: 0.89, slide: bc, bolts: [], travel: 0.085, lock: true, top: 1.1656, sz: 0.7, ownMags: true, charge: ch, chargeAt: [X, 1.163, 0.503] };
+    return { front, y: 1.113, magZ: 0.629, magY: 0.89, slide: bc, bolts: [], travel: 0.085, lock: true, top: 1.1656, sz: 0.7, ownMags: true, charge: ch, chargeAt: [X, 1.163, 0.503], laser: { side: -1, x: X - 0.0215, y: 1.1, z: 0.83 } };   // the laser on the right-hand rail
   },
   // SMG: an H&K MP5A2, traced off a side-on photo (and the MP5SD's can off another). The fixed A2 stock with its rubber
   // butt plate and sling slots; the stamped receiver tube with a rib down each side, the drum rear sight on top and the
@@ -726,7 +726,7 @@ const GUN_MODELS = {
     // ---- the curved magazine (in the mag group so the reload drops it), longer with the double stack
     const k = [1, 1.6, 1.75, 1.9][m.stack || 0], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
     solid(mg, [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext), 0.026, K, X, 0.003);
-    return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: bc, bolts: [], travel: 0.065, lock: true, top: 1.1742, sz: 0.66, ownMags: true };
+    return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: bc, bolts: [], travel: 0.065, lock: true, top: 1.1742, sz: 0.66, ownMags: true, laser: { y: sd ? 1.088 : 1.0867, z: 0.88 } };   // the laser clamped under the handguard
   },
   // assault rifle: a Colt M4 carbine, traced off a side-on photo (the open dust cover off another). The six-position
   // stock on its buffer tube; the lower with its magwell, the guard and trigger, its pins and the mag release; the A2
