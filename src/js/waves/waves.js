@@ -15,7 +15,7 @@ function buildWave(n) {
   return list;
 }
 function startWave() {
-  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false;   // an open station menu stays open
+  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
   run.waveTotal = spawnQ.length;

@@ -19,7 +19,17 @@ const rimMat = col => new THREE.MeshBasicMaterial(Object.assign({ color: col, si
 // and for zombies a tinted silhouette of the whole body so you can read them through the wall at a glance.
 // withSil: true for the red zombie silhouette, or a colour; keep(mesh) can leave meshes out;
 // bias (world units) ignores occluders closer than that, so a gun held against the body never counts as a wall
-function xray(g, col, noClip, withSil, keep, bias) {
+// a see-through material drawn as halftone: a grid of dots on screen (cell pixels apart), each as big as the
+// material's opacity allows, so as it fades the dots shrink away rather than the colour thinning out
+function halftone(mat, cell) {
+  mat.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+  { vec2 c = mod(gl_FragCoord.xy, ${cell.toFixed(1)}) - ${(cell / 2).toFixed(2)}; if (length(c) > ${(cell * 0.62).toFixed(2)} * sqrt(clamp(opacity, 0.0, 1.0))) discard; gl_FragColor.a = min(1.0, opacity * 3.0); }`);
+  };
+  mat.customProgramCacheKey = () => 'halftone' + cell;
+  return mat;
+}
+function xray(g, col, noClip, withSil, keep, bias, ht) {
   // clipped just above the ground so feet sinking into the dirt or a porch board never light up
   const rim = new THREE.MeshBasicMaterial(Object.assign({ color: col || 0xff3322, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: noClip ? null : XRAY_CLIP }, RIM_STENCIL));
   const fill = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilFail: THREE.ReplaceStencilOp });
@@ -28,11 +38,13 @@ function xray(g, col, noClip, withSil, keep, bias) {
   list.forEach(o => { const f = new THREE.Mesh(o.geometry, fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f); });
   outline(g, 0, 0, withSil ? 0.055 : 0.04, rim, keep); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
   if (bias) rim.onBeforeCompile = biasDepth(bias);
+  if (ht) halftone(rim, ht * 0.75);
   if (!withSil) return { rim, fill };
   // the silhouette marks each pixel with stencil 2 as it draws, so overlapping limbs don't stack up darker
   const sil = new THREE.MeshBasicMaterial({ color: withSil === true ? 0xd8382a : withSil, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: XRAY_CLIP,
     stencilWrite: true, stencilRef: 2, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp });
   if (bias) sil.onBeforeCompile = biasDepth(bias);
+  if (ht) halftone(sil, ht);
   list.forEach(o => { const m = new THREE.Mesh(o.geometry, sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m); });
   return { rim, fill, sil };
 }

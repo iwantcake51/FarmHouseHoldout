@@ -30,7 +30,8 @@ function ammoDash(n, filled) {
   return [fg, Array(n).fill(d + ' ' + g).join(' ') + ' 0 999'];
 }
 // the melee brackets' springs: their size (s) and twist (r, in degrees), and the cooldown they're recovering against
-const XHM = { s: 1, vs: 0, r: 0, vr: 0, cd: 0, max: 0, ready: true }, XHM_TWIST = 9;
+// XHM_TWIST: how many times harder than the camera's roll the brackets twist
+const XHM = { s: 1, vs: 0, r: 0, vr: 0, cd: 0, max: 0, ready: true }, XHM_TWIST = 12;
 // the warning under the crosshair: its numbers ("Loading 3/6") roll like the HUD's counters (ui/hud-text.js); text
 // with a key cap in it, and the bandaging percentage (plain), are just written
 function awText(aw, t, plain) {
@@ -57,22 +58,20 @@ function updateCrosshair(rdt, D) {
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
     // the brackets pinch in and dim through the swing's recovery and ease back out as it comes back, with a soft pop
-    // when it's ready; while the swing goes through they twist a little the way it's going. Recovery runs against the
-    // cooldown the swing started with (a tired swing's is longer), so they always open from fully in
+    // when it's ready; they twist with the camera as a swing rolls it, the same way the picture turns but much harder,
+    // snapping round and back. Recovery runs against the cooldown the swing started with (a tired swing's is longer), so
+    // they always open from fully in
     if (W8.cd > XHM.cd + 1e-4) XHM.max = W8.cd;
     XHM.cd = W8.cd;
     if (D.melee) {
       const rd = XHM.max > 0 ? 1 - clamp(W8.cd / XHM.max, 0, 1) : 1, ready = rd >= 1;
       if (ready && !XHM.ready) XHM.vs += 0.9;
       XHM.ready = ready;
-      // the twist mirrors the body's: back against the wind-up, then round with the strike (clockwise on screen, as
-      // the weapon sweeps). An overhead chop has no sideways sweep, so it tips the way the camera rolls instead
-      const sT = 0.62 + 0.38 * smooth(rd), p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0, keys = SWING[D.style || 'swing'];
-      const rT = !(W8.swing > 0) ? 0 : D.style === 'chop' ? W8.swingSide * XHM_TWIST * 0.6 * Math.sin(Math.PI * Math.min(1, p * 1.2)) : -(sampleSwing(keys, p)[1] - keys[0][1]) * XHM_TWIST;
+      const sT = 0.62 + 0.38 * smooth(rd), rT = clamp(camRoll * 57.3 * XHM_TWIST, -40, 40);
       for (let t = Math.min(rdt, 0.1); t > 1e-6; t -= 1 / 120) {
         const h = Math.min(t, 1 / 120);
         XHM.vs += ((sT - XHM.s) * 260 - XHM.vs * 22) * h; XHM.s += XHM.vs * h;
-        XHM.vr += ((rT - XHM.r) * 180 - XHM.vr * 16) * h; XHM.r += XHM.vr * h;
+        XHM.vr += ((rT - XHM.r) * 900 - XHM.vr * 38) * h; XHM.r += XHM.vr * h;   // stiff: quick to snap round, a small overshoot
       }
       const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
       if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
@@ -116,11 +115,13 @@ function updateCrosshair(rdt, D) {
         if (ak) { const [fgL, bgL] = ammoDash(n, am.L); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', am.L <= lowAt); }
         xhAmmo.classList.toggle('low', have <= lowAt);
       }
-      // yellow under a quarter, red and asking for a reload when empty (with two guns, when either's dry)
-      const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn'), tot = W8.mag[id] || 0, dry = ak ? am.L === 0 || am.R === 0 : have === 0;
+      // yellow under a quarter, red and asking for a reload when empty. With two guns it's both mags together: low once
+      // they add up to a quarter or less, and "No ammo" (with the reload key, if there's any to load) only when both are
+      // empty; a single empty gun is shown by its own arc flashing red
+      const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn'), tot = W8.mag[id] || 0, dry = ak ? am.L === 0 && am.R === 0 : have === 0;
       // while reloading the same spot reads "Reloading", or counts the shells going in
-      const mode = W8.reloading ? 'loading' : tot === 0 ? (res > 0 ? 'reload' : 'none') : dry && res > 0 ? 'reload' : tot <= Math.max(1, Math.floor(magSize(id) * 0.25)) ? 'low' : '';
-      const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? 'Reload <kbd>R</kbd>' : mode === 'none' ? 'No ammo' : '';
+      const mode = W8.reloading ? 'loading' : dry ? (res > 0 ? 'reload' : 'none') : tot <= Math.max(1, Math.floor(magSize(id) * 0.25)) ? 'low' : '';
+      const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? (ak ? 'No ammo <kbd>R</kbd>' : 'Reload <kbd>R</kbd>') : mode === 'none' ? 'No ammo' : '';
       if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;
         aw.classList.remove('low', 'out', 'loading', 'heal'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
@@ -129,11 +130,15 @@ function updateCrosshair(rdt, D) {
     }
     let rp = 0;
     if (ak) {
-      // each gun's ring fills through its own turn, and only its arc dims while it's down being reloaded
-      for (const [s, ring, arc] of [['R', xhRing, xhAmmo], ['L', xhRingL, xhAmmoL]]) {
-        const busy = akBusy(s); ring.setAttribute('stroke-dasharray', (ARC() * (busy ? akU(s) : 0)).toFixed(1) + ' 999'); ring.style.opacity = busy ? 1 : 0; arc.style.opacity = busy ? 0.25 : 1;
+      // each gun's ring fills through its own turn, and only its arc dims while it's down being reloaded; a gun running low
+      // pulses its arc yellow, and an empty one flashes its whole arc red until it's reloaded
+      const am2 = akMags(id), lowA = Math.max(1, akPer(id) * 0.25);
+      for (const [s, ring, arc, bg] of [['R', xhRing, xhAmmo, xhAmmoBg], ['L', xhRingL, xhAmmoL, xhAmmoBgL]]) {
+        const busy = akBusy(s), n = am2[s]; ring.setAttribute('stroke-dasharray', (ARC() * (busy ? akU(s) : 0)).toFixed(1) + ' 999'); ring.style.opacity = busy ? 1 : 0; arc.style.opacity = busy ? 0.25 : 1;
+        arc.classList.toggle('flash', n > 0 && n <= lowA && !busy); bg.classList.toggle('out', n === 0 && !busy);
       }
     } else {
+    xhAmmo.classList.remove('flash'); xhAmmoBg.classList.remove('out');
     if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
     else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
     xhRing.setAttribute('stroke-dasharray', (ARC() * clamp(rp, 0, 1)).toFixed(1) + ' 999'); xhRing.style.opacity = W8.reloading ? 1 : 0;

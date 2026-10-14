@@ -21,7 +21,7 @@ const UPG_FX = {
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%'], 'Run and gun': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Through and through': ['Pierce +1'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm spread −25%', 'Sidearm kick −45%'], 'Second wind': ['+50 health below 25%, once a wave'],
-  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier', 'Any missing ones at tier 1'],
+  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
   'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health', 'Slowdown when hit −85%'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
   'Last stand': ['+60% damage below 30% health'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Light step': ['Speed +6%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
@@ -32,7 +32,7 @@ const UPG_FX = {
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +25%'], 'Peripheral vision': ['View cone wider', 'Sense 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night eyes': ['See far more at night'], 'Cat eyes': ['Nights look like dusk'],
-  'Iron stomach': ['+2 health per kill', '+4 for headshot kills'], 'Bloodthirst': ['+4 health per kill', '+8 for headshot kills'], 'Vampire': ['+6 health per kill', '+12 for headshot kills']
+  'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
 };
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same
 // line: once you have some, the card's first chip shows your total before and after (Melee +25% → +56%) instead of

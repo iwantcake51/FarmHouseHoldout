@@ -33,6 +33,28 @@ const _rv = new V3();
 // akimbo: each pistol out in its own hand, close enough in that both arms sit straight. Each is reloaded on its own
 // turn (akU in weapons/akimbo.js says how far through it is), the other kept up on the aim
 const AK_PULL = 0.1;
+// and no one holds two guns the same: the right a touch higher and further out, the left lower, drawn back and in, each
+// canted over toward the middle (the left more, a little gangster) and toed in, and each drifting on its own (f: how
+// quickly). cant and toe in radians, the rest in metres
+const AK_HAND = {
+  R: { cant: 0.2, toe: 0.03, p: -0.012, up: 0.012, fwd: 0.018, in: 0, f: 1.3 },
+  L: { cant: 0.3, toe: 0.05, p: 0.035, up: -0.022, fwd: -0.03, in: 0.012, f: 1.75 }
+};
+// free aim: the arms don't turn in lockstep with the body. As you turn, the gun lags a little behind (a heavy one more),
+// then swings on after you and settles; looking up or down the same. A loose spring per axis
+const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 };
+function freeAim(rdt, heavy, ads) {
+  const F = FREE_AIM; if (!(rdt > 0)) return F;
+  if (F.last === null) { F.last = ANIM.yaw; F.lastP = ANIM.pitch || 0; }
+  const turn = clamp(angDiff(ANIM.yaw, F.last) / rdt, -14, 14), tilt = clamp(((ANIM.pitch || 0) - F.lastP) / rdt, -6, 6);
+  F.last = ANIM.yaw; F.lastP = ANIM.pitch || 0;
+  const lag = (heavy ? 0.024 : 0.016) * (1 - 0.5 * ads), ty = clamp(-turn * lag, -0.12, 0.12), tp = clamp(-tilt * lag * 0.6, -0.06, 0.06);
+  for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {
+    F.vy += ((ty - F.yaw) * 120 - F.vy * 14) * h; F.yaw += F.vy * h;
+    F.vp += ((tp - F.pitch) * 120 - F.vp * 14) * h; F.pitch += F.vp * h;
+  }
+  return F;
+}
 // how far the hunting rifle's bolt handle turns up to unlock (radians)
 const BOLT_TURN = 1.05;
 // the gun riding a rack: a loose spring per axis (muzzle pitch, roll, yaw, back into the shoulder, down, and the
@@ -406,6 +428,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg + 0.05 * slamK; oy += 0.02 * cg; oz -= 0.03 * cg + 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
+  { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; }   // the arms trail a turn and swing on after it
   if (vaultGun()) pitch -= PM.g.rotation.x;   // Run and gun: the gun stays level while the body tips over the sill
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
@@ -414,8 +437,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
-    let hx = k.p, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
+    let hx = k.p, hy = k.y, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
     const u = ak ? akU(side) : 0;
+    if (ak) {
+      // this hand's own way of holding it (AK_HAND), eased off while it's down being reloaded, and its own drift
+      const a = AK_HAND[side], on = u > 0 ? 1 - Math.sin(Math.PI * clamp(u, 0, 1)) : 1, dr = now * a.f;
+      hz += sg * a.cant * on; hy -= sg * a.toe * on; hx += a.p + Math.sin(dr) * 0.012;
+      hox -= sg * a.in; hoy += a.up + Math.sin(dr * 1.3 + 0.5) * 0.004; hoz += a.fwd; hy += Math.sin(dr * 0.7 + 1.3) * 0.01;
+    }
     if (u > 0) {
       // this gun's turn, the other kept up on the aim: its mag flicked out with a roll of the wrist, the gun taken down
       // to its hip pouch and driven onto a fresh one, and back up with a snap as it seats; one that ran dry gets its
@@ -424,7 +453,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const thumb = W8.akRel.empty ? Math.sin(clamp((u - AK_SLIDE + 0.05) / 0.12, 0, 1) * Math.PI) : 0;
       hx += -0.4 * flick + 1.15 * dip - 0.25 * seat - 0.1 * thumb; hz += sg * (0.4 * flick + 0.16 * thumb); hoy -= 0.26 * dip; hoz -= 0.16 * dip; hox -= sg * 0.05 * dip;
     }
-    posePivot(h, hx, k.y, hz, g[0], g[1], g[2], hox, hoy, hoz);
+    posePivot(h, hx, hy, hz, g[0], g[1], g[2], hox, hoy, hoz);
   }
   up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
   ANIM.recoil = Math.max(0, ANIM.recoil - rdt * 11);

@@ -22,12 +22,14 @@ const plankTex = (() => {
   x.fillStyle = 'rgba(40,24,10,.35)'; x.fillRect(0, 0, 256, 2); x.fillRect(0, 38, 256, 2);   // darker edges
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
 })();
-const PLANK_M = [0xd8c3a0, 0xbfa27c, 0xa98e6c, 0xcdb592].map(c => lam(c, { map: plankTex }));
+// each board is one of a few woods, in a shade of its own: a touch lighter or darker, warmer or greyer than the next
+const PLANK_COL = [0xd8c3a0, 0xbfa27c, 0xa98e6c, 0xcdb592];
+function plankTint(c) { const k = new THREE.Color(c), h = {}; k.getHSL(h); return k.setHSL(h.h + rr(-0.012, 0.012), clamp(h.s * rr(0.85, 1.15), 0, 1), clamp(h.l * rr(0.92, 1.08), 0, 1)).getHex(); }
 const NAIL_M = lam(0x3a3836), PLANK_END = lam(0x8a6a48);
 const boardGeo = new THREE.BoxGeometry(1, 1, 1);
 function makePlank(sign) {
   const g = new THREE.Group(), L = rr(1.22, 1.36), H = rr(0.16, 0.2), Th = 0.055;
-  const m = new THREE.Mesh(boardGeo, PLANK_M[(rand() * PLANK_M.length) | 0]); m.scale.set(L, H, Th); m.castShadow = true; g.add(m);
+  const m = new THREE.Mesh(boardGeo, lam(plankTint(PLANK_COL[(rand() * PLANK_COL.length) | 0]), { map: plankTex })); m.scale.set(L, H, Th); m.castShadow = true; g.add(m);
   // lighter sawn ends and the odd split corner
   [-1, 1].forEach(e => {
     const end = new THREE.Mesh(boardGeo, PLANK_END); end.scale.set(0.012, H * 0.98, Th * 1.02); end.position.x = e * L / 2; g.add(end);

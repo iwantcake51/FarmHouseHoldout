@@ -32,6 +32,7 @@ function buildGuns() {
       if (D.melee) { unfight(parent); return 0; }
       let front = info.front; const y = info.y;
       if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
+      else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
       else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
       if (pr) { cyl(parent, 0.02, 0.09 * pr, GM.blued, X, y, front + 0.045 * pr); ring(parent, 0.024, 0.012, GM.metal, X, y, front + 0.09 * pr - 0.006); front += 0.09 * pr; }
       const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;

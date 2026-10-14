@@ -12,6 +12,10 @@
 #xh .ammoBg{fill:none;stroke:rgba(236,230,216,.18);stroke-width:3}
 #xh .ammo{fill:none;stroke:var(--ink);stroke-width:3;filter:drop-shadow(0 0 1px rgba(0,0,0,.9))}
 #xh .ammo.low{stroke:var(--orange)}#xh .ammo.out{stroke:#e2412c}
+/* a gun of a pair running low pulses its arc yellow; an empty one flashes its whole arc red */
+#xh .ammo.flash{stroke:#e8b84a;animation:arcPulse .7s ease-in-out infinite}
+#xh .ammoBg.out{stroke:#e2412c;animation:arcPulse .45s ease-in-out infinite}
+@keyframes arcPulse{50%{opacity:.3}}
 #xh .reload{fill:none;stroke:var(--orange);stroke-width:3}
 #xh .dot{fill:var(--ink);stroke:rgba(0,0,0,.75);stroke-width:1}
 #xh .gl{fill:none;stroke:var(--gold);stroke-width:2}

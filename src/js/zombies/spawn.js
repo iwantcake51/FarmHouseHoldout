@@ -24,7 +24,7 @@ function spawnZombie(type) {
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) { o.material.userData.mobile = true; fm.add(o.material); } }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });
-  const xr = xray(m.g, 0xff3322, false, true);
+  const xr = xray(m.g, 0xff3322, false, true, null, 0, 5);   // seen through cover in halftone dots, like you (effects/outlines.js)
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11, hp = T_.hp * hpMul;
   zombies.push({ type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
