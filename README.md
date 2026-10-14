@@ -69,7 +69,7 @@ Every source file starts with a one-line comment saying what is in it.
 | What zombies drop and how often (more ammo for melee kills) | `killZombie` in `src/js/zombies/damage.js` |
 | How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
 | How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
-| Gun 3D models: each gun's outline traced off a side-on photo; the part helpers at the top (`solid` for rounded grips and stocks that keep the traced size, `inset`, `clipTo`, `checker` and `stipple` for checkering and stippling cut to a stock's own outline, `taperX` to slim a stock through the wrist) | `src/js/weapons/gun-models.js` |
+| Gun 3D models: each gun's outline traced off a side-on photo; the part helpers at the top (`solid` for rounded grips and stocks that keep the traced size, `inset`, `clipTo`, `checker` and `stipple` for checkering and stippling cut to a stock's own outline, `taperX` to slim a stock through the wrist, `ribTube` for knurled and ribbed tubes, `lathe` for turned barrels and muzzle devices; `cyl` gives anything barrel-sized enough sides to read round) | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods bought as upgrades at the workbench (burst switch, second pistol...), and which ones take the muzzle (`muzzle`: one can, choke or muzzle device per gun, `muzzleTaken` in `weapons/mod-levels.js`) | `src/js/weapons/gun-mods.js` |
 | What improving a mod at the workbench does at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |

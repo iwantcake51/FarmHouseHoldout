@@ -81,7 +81,7 @@ function dropMag(id) {
   else if (id === 'deagle') { w = 0.026; h = 0.17; d = 0.065; }
   else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
   else if (id === 'sub') { w = 0.026; h = hasMod('stack') ? 0.36 : 0.24; d = 0.042; }
-  else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.028; h = 0.22; d = 0.068; } }
+  else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') dr = { r: 0.114, t: 0.078, ax: 'z' };
   else if (id === 'lmg') { w = 0.055; h = 0.23; d = 0.19; mat = GM.olive; }
   c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = mat;

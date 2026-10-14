@@ -20,7 +20,7 @@ const HOLD = {
   auto12: { grip: [X, 0.975, 0.5], fore: [X, 1.075, 0.98], blade: 0.58, pull: 0.21, kind: 'long' },
   hunting: { grip: [X, 1.055, 0.49], fore: [X, 1.085, 0.82], blade: 0.46, pull: 0.15, kind: 'long', port: [X, 1.165, 0.7] },
   sub: { grip: [X, 0.975, 0.548], fore: [X, 1.095, 0.92], blade: 0.58, pull: 0.21, kind: 'long' },
-  ar: { grip: [X, 0.965, 0.6], fore: [X, 1.06, 0.95], blade: 0.58, pull: 0.2, kind: 'long' },
+  ar: { grip: [X, 0.965, 0.47], fore: [X, 1.072, 0.95], blade: 0.58, pull: 0.2, kind: 'long' },
   lmg: { grip: [X, 0.995, 0.448], fore: [X, 1.06, 0.9], blade: 0.58, pull: 0.17, kind: 'long' }
 };
 const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
