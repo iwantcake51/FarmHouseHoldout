@@ -191,11 +191,73 @@ function dropLoader() {
   c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14; c.kind = 'mag';
 }
 
+// bandaging: first the weapon goes away, carried by the right hand to where it rides (bandP, player/swap.js), then the
+// hands come up and the right one winds the bandage round the left forearm (bandW, eased into bandK); after, the hands
+// come down and the weapon is drawn again. healFx is how far the blue edge and the camera's lean-in have come: they
+// build slowly as the bandage goes on, ease off as it ends, and drop away fast if a hit cuts it short (healCut)
+const BAND_PUT = 0.2, BAND_WRAP = 0.16;
+function bandPhases(rdt) {
+  const band = P.bandT > 0;
+  if (band) { ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT); if (ANIM.bandP >= 1) ANIM.bandW = Math.min(1, (ANIM.bandW || 0) + rdt / BAND_WRAP); }
+  else { ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP); if (ANIM.bandW <= 0) ANIM.bandP = Math.max(0, (ANIM.bandP || 0) - rdt / BAND_PUT); }
+  ANIM.bandK = smooth(ANIM.bandW || 0);
+  if (band) ANIM.healCut = false;
+  const prog = band ? 1 - P.bandT / (P.bandMax || 1) : 0, fx = band ? 0.2 + 0.8 * smooth(prog) : 0;
+  ANIM.healFx = (ANIM.healFx || 0) + (fx - (ANIM.healFx || 0)) * Math.min(1, rdt * (band ? 2.4 : ANIM.healCut ? 11 : 2.6));
+}
+// the bandages on your left arm, each a wrap round the forearm and up it: the one going on grows round the arm as it's
+// wound (from the wrist up), with the loose end running to the right hand; the ones already on stay, a spot of blood
+// seeping through each, until the run ends (P.wraps of them)
+const WRAP_AT = [[0.34, 0.47], [0.2, 0.31], [0.07, 0.17]], WRAP_M = lam(0xe8e2d4), WRAP_EDGE = lam(0xcfc7b6), WRAP_BLOOD = lam(0x8a1c14);
+const wraps = WRAP_AT.map(([z0, z1]) => {
+  const g = new THREE.Group(); g.position.z = (z0 + z1) / 2; PM.armL.add(g); g.visible = false; g.userData.fine = true;
+  const L = z1 - z0, band = box(g, 0.158, 0.158, L, WRAP_M, 0, 0, 0);
+  [-1, 1].forEach(e => box(g, 0.164, 0.164, 0.012, WRAP_EDGE, 0, 0, e * (L / 2 - 0.006)));   // the turned-over edges
+  const blood = box(g, 0.05, 0.004, 0.04, WRAP_BLOOD, 0.02, 0.08, 0.005); blood.userData.fine = true;   // on top, where it's seeped through
+  g.traverse(o => { o.userData.fine = true; o.castShadow = false; });
+  return { g, band, blood, L };
+});
+const wrapTail = box(PM.upper, 0.03, 0.004, 1, WRAP_M, 0, 0, 0); wrapTail.visible = false; wrapTail.userData.fine = true;
+const _wc = new V3(), _wa = new V3(), _wu = new V3(), _wv = new V3();
+function bandagePose(pm, up, now, sh) {
+  const k = ANIM.bandK || 0, n = Math.min(WRAP_AT.length, P.wraps || 0), band = P.bandT > 0;
+  // the wrap going on (the next free one), grown as far as the bandage has gone; any finished ones as they are
+  const prog = band ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : 0, cur = band && n < WRAP_AT.length ? n : -1;
+  wraps.forEach((w, i) => {
+    w.g.visible = i < n || (i === cur && k > 0.05);
+    const f = i === cur ? Math.max(0.04, prog) : 1;
+    w.band.scale.z = f; w.band.position.z = -w.L / 2 * (1 - f); w.blood.visible = i < n;
+  });
+  wrapTail.visible = false;
+  let w = k * (sh ? 1 - sh.q : 1); if (w <= 0.001) return;
+  // the left forearm comes up in front of you, turned in across the chest; the right hand goes round and round it,
+  // working up the arm as it winds on, the head bent to watch
+  const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
+  reach(a, 'L', _fL.set(0.05, 0.98 + Math.sin(now * 2.1) * 0.01, 0.36), 0.4, true);
+  a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz + (a.rotation.z - rz) * w);
+  a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
+  a.updateMatrix();
+  const cz = band ? mix(WRAP_AT[Math.max(0, cur)][1] - 0.02, WRAP_AT[Math.max(0, cur)][0] + 0.02, prog) : 0.4, wr = 0.45 * bandTime() / BAND_TIME;
+  _wc.set(0, 0, cz * a.scale.z).applyMatrix4(a.matrix);                                    // the point being wound, in upper-body space
+  _wa.set(0, 0, 1).applyQuaternion(a.quaternion); _wu.set(0, 1, 0).applyQuaternion(a.quaternion); _wv.crossVectors(_wa, _wu);
+  const th = (band ? (P.bandMax - P.bandT) : now) / wr * Math.PI * 2, R = 0.13;
+  _fR.copy(_wc).addScaledVector(_wu, Math.cos(th) * R).addScaledVector(_wv, Math.sin(th) * R);
+  const r = pm.armR, qx = r.rotation.x, qy = r.rotation.y, qz = r.rotation.z, qpx = r.position.x, qpy = r.position.y, qpz = r.position.z, qs = r.scale.z;
+  reach(r, 'R', _fR, 0, true);
+  r.rotation.set(qx + (r.rotation.x - qx) * w, qy + (r.rotation.y - qy) * w, qz + (r.rotation.z - qz) * w);
+  r.position.set(qpx + (r.position.x - qpx) * w, qpy + (r.position.y - qpy) * w, qpz + (r.position.z - qpz) * w); r.scale.z = qs + (r.scale.z - qs) * w;
+  // the loose end, from the roll in the right hand to where it's going on
+  if (cur >= 0 && w > 0.6) {
+    r.updateMatrix(); _wv.set(0, 0, FIST * r.scale.z).applyMatrix4(r.matrix); _wa.copy(_wc).addScaledVector(_wu, 0.08);
+    wrapTail.visible = true; wrapTail.position.lerpVectors(_wv, _wa, 0.5); wrapTail.scale.z = Math.max(0.01, _wv.distanceTo(_wa)); wrapTail.lookAt(_wv.applyMatrix4(pm.upper.matrixWorld));
+  }
+  pm.head.rotation.x += 0.42 * w; pm.head.rotation.y = pm.head.rotation.y * (1 - w) + 0.18 * w; up.x += 0.12 * w;
+}
 // arms, hands and weapon for this frame; up is the upper-body rotation, which this adds lean and twist to
 function poseHands(D, up, ph, runF, rdt, now) {
   const pm = PM, s = W8.cur;
   stepKick(RK.R, rdt); stepKick(RK.L, rdt);
-  ANIM.bandK = (ANIM.bandK || 0) + ((P.bandT > 0 ? 1 : 0) - (ANIM.bandK || 0)) * Math.min(1, rdt * 9);   // how far into the bandaging pose
+  bandPhases(rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
   if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = 0; ANIM.relEnv = 0; }   // a fresh weapon starts with both hands on it
@@ -206,6 +268,7 @@ function poseHands(D, up, ph, runF, rdt, now) {
   }
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
+  bandagePose(pm, up, now, sh);
 }
 
 // a melee weapon, just drawn (player/swap.js draws it, weapons/reload.js starts this): a one-hander is spun once
@@ -245,12 +308,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // the weapon rides in the right fist on its keyframes
   armRest(pm.armR, 'R', arx + walk, ary);
   mh.rotation.set(hrx, 0, D.style === 'chop' ? 0 : 0.15);
-  const bk = smooth(ANIM.bandK || 0);
-  if (bk > 0.999) {   // weapon held low in the right hand, the left wraps the bandage round you; a bash drives the right hand out on its own
-    pm.armR.rotation.x = 0.55; const bt = now;
-    if (sh) { const w = sh.q; _fR.set(0.14, 1.04, 0.28 + sh.push + ANIM.shoveHit * 0.06); const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(0.55 * (1 - w) + rxR * w, ryR * w, 0); }
-    reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(bt * 9) * 0.07, 0.9 + Math.sin(bt * 9) * 0.05, 0.26), 0, true);
-  } else {
+  {
     // the left arm's own pose first: two-handed, the fist closes on the handle just above the right, wherever the
     // swing takes it; one-handed, it hangs loose
     if (D.two) {
@@ -269,21 +327,12 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
       a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz * (1 - w));
       a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
     }
-    // easing into (or out of) the bandaging pose: the weapon hand drops, the other goes to the wrap
-    if (bk > 0.001) {
-      const r = pm.armR; r.rotation.set(r.rotation.x + (0.55 - r.rotation.x) * bk, r.rotation.y * (1 - bk), r.rotation.z * (1 - bk));
-      const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
-      reach(a, 'L', _fL.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26), 0, true);
-      a.rotation.set(rx + (a.rotation.x - rx) * bk, ry + (a.rotation.y - ry) * bk, rz * (1 - bk));
-      a.position.set(px + (a.position.x - px) * bk, py + (a.position.y - py) * bk, pz + (a.position.z - pz) * bk); a.scale.z = sz + (a.scale.z - sz) * bk;
-    }
   }
 }
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
-  const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60, band = P.bandT > 0, bk = smooth(ANIM.bandK || 0);
-  if (band) ANIM.sw += (0.85 - ANIM.sw) * Math.min(1, rdt * 9);
+  const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
   ANIM.pitch = (ANIM.pitch || 0) + ((ANIM.pitchT || 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
@@ -332,7 +381,6 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     roll -= 0.22 * psW; yaw += 0.1 * psW; pitch -= 0.04 * psW - 0.06 * slam; oz += 0.012 * tug - 0.01 * slam;
   }
   if (cg) { roll += 0.26 * cg; pitch -= 0.07 * cg + 0.05 * slamK; oy += 0.02 * cg; oz -= 0.03 * cg + 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
-  pitch += 0.35 * bk; ox += 0.06 * bk;                                                     // hangs at your side while you wrap up
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   oz -= ak ? AK_PULL : H.pull;
   if (vaultGun()) pitch -= PM.g.rotation.x;   // Run and gun: the gun stays level while the body tips over the sill
@@ -350,7 +398,6 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const u = akPhase(side, rp), flick = Math.sin(clamp(u / 0.14, 0, 1) * Math.PI), dip = Math.sin(clamp((u - 0.12) / 0.62, 0, 1) * Math.PI), seat = Math.sin(clamp((u - 0.5) / 0.14, 0, 1) * Math.PI);
       hx += -0.4 * flick + 1.15 * dip - 0.25 * seat; hz += sg * 0.4 * flick; hoy -= 0.26 * dip; hoz -= 0.16 * dip; hox -= sg * 0.05 * dip;
     }
-    if (ak && band && side === 'L') h.visible = false; else h.visible = true;   // the left gun goes in the belt while you bandage
     posePivot(h, hx, k.y, hz, g[0], g[1], g[2], hox, hoy, hoz);
   }
   up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
@@ -443,8 +490,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;
-    if (band) { free = _p4.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26); wt = 1; }
-    else if (rel === 'mag' && D.speedload && cr.length) {
+    if (rel === 'mag' && D.speedload && cr.length) {
       // the back of the open cylinder and the gun's forward axis, in upper-body space
       const hq = holdOf(s, 'R');
       _p1.set(0.035, 0.045, -0.06).applyMatrix4(cr[0].matrix).applyMatrix4(hq.matrix).applyMatrix4(gg.matrix);
@@ -520,9 +566,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   } else handTarget(_fL, 'L', _hL, null, 0, rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   reach(pm.armR, 'R', _fR);
-  if (ak && band) reach(pm.armL, 'L', _fL.set(0.06 + Math.cos(now * 9) * 0.07, 0.9 + Math.sin(now * 9) * 0.05, 0.26));
-  else reach(pm.armL, 'L', _fL);
-  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1 + 0.35 * bk;
+  reach(pm.armL, 'L', _fL);
+  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1;
   pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
-  up.x += ANIM.pitch * 0.4 + ads * 0.05 + 0.18 * bk;
+  up.x += ANIM.pitch * 0.4 + ads * 0.05;
 }

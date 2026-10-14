@@ -201,9 +201,10 @@ function updatePlayerVisuals(dt, rdt) {
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   { const k = 1 - titleBlend(); if (pXray.rim.opacity !== 0.75 * k) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * k; } }
-  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over
+  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
+  updateBandStow();      // and so does putting it away for a bandage, or drawing it again after
   // blood dries off slowly
   if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.003); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
   updateCharBlood(rdt);   // the stain on you (effects/body-blood.js)

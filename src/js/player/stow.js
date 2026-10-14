@@ -138,7 +138,7 @@ function updateStow(rdt) {
   }
   for (const s in STOW) {
     // the weapon in your hands goes back on you while you vault
-    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()); showStowed(s, stowed);
+    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed);
     if (!o.visible) continue;
     if (s === 'side') {
       o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the hip and rocks fore and aft

@@ -96,6 +96,8 @@ Every source file starts with a one-line comment saying what is in it.
 | The shotgun pattern (`pelletOff`), what a round keeps through each zombie (`PIERCE_KEEP`), and scopes (`scopeSpread`, `SCOPE_HEAD`) | `src/js/weapons/firing.js` |
 | What a workbench tune-up does to a weapon | `TUNE` in `src/js/game/run-state.js` |
 | Bandage count (3, or 5 with the Med pouch), time and healing, and the medicine cabinet upgrades | `src/js/player/bandages.js` |
+| Bandaging on screen: the weapon carried away to where it rides first (`BAND_PUT`, `updateBandStow` in `src/js/player/swap.js`), the right hand winding the bandage round the left forearm (`bandagePose`), the wraps that stay on your arm after (`WRAP_AT`), and the blue edge and the camera's slow lean-in that build as it goes on and drop away fast if a hit cuts it short (`healFx`; the zoom is in `src/js/game/camera.js`) | `src/js/player/hold.js` |
+| Bleeding: drops falling from the wound that spot the ground as you go (`bleedDrip` in `src/js/effects/particles.js`), the stain soaking into your clothes, and blood landing on the screen (`screenDrop` in `src/js/ui/hud.js`, `#bleedFx` in `src/styles/overlays.css`) | `src/js/weapons/combat-update.js` |
 | The start of a run: the camera glide, getting up off one knee, the HUD sliding in | `src/js/game/intro.js` |
 | Shove range, push and cooldown (slower while you bandage) | `src/js/player/shove.js` |
 | Walking speed and statuses (bleeding, exhaustion) | `src/js/player/movement.js` |

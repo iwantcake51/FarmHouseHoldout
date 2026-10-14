@@ -23,6 +23,19 @@ function bloodDrops(x, y, z, n, dirx, dirz, force) {
     d.life = 2.6; d.m.position.set(x + rr(-0.05, 0.05), y + rr(-0.05, 0.05), z + rr(-0.05, 0.05)); d.m.scale.setScalar(d.r); d.m.visible = true;
   }
 }
+// you bleeding: a drop or two falls from the wound (the left arm or your side) carried along at your speed, and spots the
+// ground where it lands, so you leave a trail as you go and a spreading patch where you stand
+const _bw = new V3();
+function bleedDrip() {
+  PM.upper.updateMatrixWorld(); const arm = rand() < 0.6;
+  _bw.set(arm ? -0.3 : 0.24, arm ? 0.8 : 0.95, rr(-0.05, 0.08)); PM.upper.localToWorld(_bw);
+  for (let k = 0, n = rand() < 0.3 ? 2 : 1; k < n; k++) {
+    const d = drops[dropIdx = (dropIdx + 1) % drops.length];
+    d.r = rr(0.012, 0.022); d.vx = P.vx * 0.85 + rr(-0.15, 0.15); d.vz = P.vz * 0.85 + rr(-0.15, 0.15); d.vy = rr(-0.4, 0.2);
+    d.life = 2; d.m.position.copy(_bw); d.m.scale.setScalar(d.r); d.m.visible = true;
+  }
+  if (Math.hypot(P.vx, P.vz) < 0.3 && rand() < 0.22) splat(P.x + rr(-0.12, 0.12), P.z + rr(-0.12, 0.12), 'drop', rr(0.2, 0.32));
+}
 function stepDrops(dt) {
   if (dt <= 0) return;
   for (const d of drops) {
