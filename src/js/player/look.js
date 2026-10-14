@@ -26,11 +26,22 @@ const LOOKS = {
     cap: [0xc4612a, 0x9a2a22, 0x3a5a3a, 0x2e4a6a, 0x2a2a2a, 0xb09060], beanie: [0x3a4a5a, 0x8a2a22, 0x4a5a36, 0x2a2a2a, 0xc8a040],
     cowboy: [0x6a4a2a, 0x9a7a4a, 0x3a2a1e], bandana: [0x9a2a22, 0x2e4a7a, 0x2a2a2a]
   },
-  top: ['work', 'work', 'tee', 'flannel', 'hoodie'],
+  top: ['work', 'work', 'tee', 'flannel', 'hoodie', 'polo', 'poloLong'],
   topCol: {
     work: [0x4e5a3c, 0x7a6a44, 0x4a6080, 0x6a4a30, 0x5a5e62], tee: [0x8a8a86, 0x2e2e30, 0xa83a2a, 0x3a5a7a, 0xd8d2c4, 0x4e5a3c],
-    flannel: [0x9a2e24, 0x3e5a3a, 0x34507a, 0x6a4a2a], hoodie: [0x6a6a6a, 0x2e3a54, 0x4a5236, 0x5e2a2a, 0x2a2a2c]
+    flannel: [0x9a2e24, 0x3e5a3a, 0x34507a, 0x6a4a2a], hoodie: [0x6a6a6a, 0x2e3a54, 0x4a5236, 0x5e2a2a, 0x2a2a2c],
+    polo: [0x2e3a54, 0xd8d4cc, 0x8a2a22, 0x3a5a3a, 0x7a9ab8, 0x2a2a2c, 0xb8a47a, 0xc8a040], poloLong: [0x2e3a54, 0xd8d4cc, 0x3a5a3a, 0x5a5e62, 0x6a2a2e, 0x2a2a2c],
+    // the suit, rare (SUIT_ODDS): charcoal, navy, black, grey, brown or taupe, with its trousers to match
+    suit: [0x2a2c30, 0x2a2c30, 0x1e2434, 0x18181a, 0x4a4a4e, 0x4a3a2a, 0x5a5448]
   },
+  // under a flannel's rolled sleeves, a work shirt's or a tee's: a thermal down to the wrists (white most often, cream,
+  // oatmeal, heather grey, charcoal, or the red of long johns), showing at the open collar too
+  under: [0xe6e2d8, 0xe6e2d8, 0xe6e2d8, 0xd8cfb8, 0xc8bca0, 0x8a8a86, 0x3a3a3c, 0x7a2a24],
+  underOdds: { flannel: 0.5, work: 0.35, tee: 0.22, polo: 0.08 },
+  // what a suit comes with: a dress shirt (white, pale blue, pale pink, grey), a tie (red, navy, black, maroon, gold,
+  // green or a stripe) and dress shoes (black, oxblood or brown)
+  dress: [0xeceae4, 0xeceae4, 0xb8cce0, 0xe0c8c8, 0xc8c8c8], tie: [0x8a1e1e, 0x1e2a4a, 0x141416, 0x5a1a24, 0xb08a2a, 0x2a4a34, 'stripe'],
+  dressShoe: [0x141416, 0x141416, 0x3e1a16, 0x4e2e1a],
   pants: [0x2f3238, 0x3a4a64, 0x4a3a2a, 0x6a5e44, 0x1e1e22, 0x434a36],
   shoes: ['boots', 'boots', 'blackboots', 'tanboots', 'sneakers'],
   // canvas and nylon packs (olive, coyote, khaki, black, navy, forest, grey, brown, maroon, hiking red, orange, blue,
@@ -45,7 +56,8 @@ const LOOKS = {
 const shade = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
 const hsl = (h, s, l) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l).getHex();
 // a top in any colour: half the time one of the stock colours for that top, otherwise a fresh, slightly worn-looking shade
-const rollTopCol = top => rand() < 0.45 ? pick(LOOKS.topCol[top]) : hsl(rand(), rr(0.18, top === 'tee' ? 0.62 : 0.5), rr(0.2, top === 'tee' ? 0.62 : 0.44));
+const rollTopCol = top => top === 'suit' || rand() < 0.45 ? pick(LOOKS.topCol[top]) : hsl(rand(), rr(0.18, top === 'tee' ? 0.62 : 0.5), rr(0.2, top === 'tee' ? 0.62 : 0.44));
+const SUIT_ODDS = 0.03;   // how often a run starts in a suit and tie (its trousers and dress shoes come with it)
 // sneakers: an upper in any colour (white, grey and black come up often), a sole, and a stripe that stands out from the upper
 function rollSneak() {
   const h = rand(), plain = rand() < 0.35, up = plain ? hsl(0, 0, pick([0.12, 0.45, 0.85])) : hsl(h, rr(0.35, 0.8), rr(0.28, 0.62));
@@ -56,6 +68,7 @@ const lookMats = {}, lm = c => lookMats[c] || (lookMats[c] = lam(c));
 // deal a look: anything in opt is kept as given (handy for testing), the rest is random
 function dealLook(opt) {
   const o = opt || {}, L = {};
+  const near = (a, b) => { const x = new THREE.Color(a), y = new THREE.Color(b); return Math.abs(x.r - y.r) + Math.abs(x.g - y.g) + Math.abs(x.b - y.b) < 0.25; };
   L.skin = o.skin ?? pick(LOOKS.skin); L.hair = o.hair ?? pick(LOOKS.hair); L.hairStyle = o.hairStyle ?? pick(LOOKS.hairStyle);
   L.beard = o.beard ?? pick(LOOKS.beard);
   // eyes: from the list, now and then a shade of their own, and once in a while each eye a different colour
@@ -69,15 +82,21 @@ function dealLook(opt) {
     freckles: rand() < 0.14, mole: rand() < 0.16 ? [rr(-0.12, 0.12), rr(-0.11, 0.0)] : null, cleft: rand() < 0.15, ears: rand() < 0.2 ? 1.35 : rr(0.9, 1.1), grime: rand() < 0.3, patch: rand() < 0.04 };
   L.beardCol = L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9);
   L.hat = o.hat ?? pick(LOOKS.hat); L.hatCol = o.hatCol ?? (L.hat === 'none' ? 0 : pick(LOOKS.hatCol[L.hat]));
-  L.top = o.top ?? pick(LOOKS.top); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
-  L.pants = o.pants ?? pick(LOOKS.pants); L.shoes = o.shoes ?? pick(LOOKS.shoes);
+  L.top = o.top ?? (rand() < SUIT_ODDS ? 'suit' : pick(LOOKS.top)); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
+  // a thermal under it now and then, never one that would vanish into the shirt over it
+  L.under = o.under ?? (rand() < (LOOKS.underOdds[L.top] || 0) ? pick(LOOKS.under) : 0);
+  for (let k = 0; k < 6 && o.under === undefined && L.under && near(L.under, L.topCol); k++) L.under = pick(LOOKS.under);
+  if (L.under && near(L.under, L.topCol)) L.under = 0;
+  const suit = L.top === 'suit';
+  L.pants = o.pants ?? (suit ? L.topCol : pick(LOOKS.pants)); L.shoes = o.shoes ?? (suit ? 'dress' : pick(LOOKS.shoes));
+  if (suit) { L.dress = o.dress ?? pick(LOOKS.dress); L.tie = o.tie ?? pick(LOOKS.tie); L.square = o.square ?? (rand() < 0.4 ? pick([0xeceae4, 0x8a1e1e, 0xb08a2a, 0x1e2a4a]) : 0); }
+  if (L.shoes === 'dress') L.dressShoe = o.dressShoe ?? pick(LOOKS.dressShoe);
   L.sneak = o.sneak ?? rollSneak();
   // the pack and its bedroll: half the time a stock colour, otherwise a fresh muted shade (a brighter one for the bedroll)
   L.pack = o.pack ?? (rand() < 0.5 ? pick(LOOKS.pack) : hsl(rand(), rr(0.12, 0.45), rr(0.16, 0.38)));
   const rollCol = () => rand() < 0.5 ? pick(LOOKS.roll) : hsl(rand(), rr(0.3, 0.7), rr(0.24, 0.5));
   L.roll = o.roll ?? rollCol();
   // a bedroll that would vanish into the pack is dealt again
-  const near = (a, b) => { const x = new THREE.Color(a), y = new THREE.Color(b); return Math.abs(x.r - y.r) + Math.abs(x.g - y.g) + Math.abs(x.b - y.b) < 0.25; };
   for (let k = 0; k < 8 && o.roll === undefined && near(L.roll, L.pack); k++) L.roll = rollCol();
   L.holster = o.holster ?? pick(LOOKS.holster);
   return L;
@@ -225,15 +244,29 @@ function buildLook(L) {
     [-1, 1].forEach(s => box(HT, 0.03, 0.09, 0.012, lm(hc), s * 0.02, 0.04, -0.19).rotation.z = s * 0.25);
     LOOK.mirrorY = hairTop + 0.02;
   } else LOOK.mirrorY = hairTop + 0.02;
-  // ---- top: a work shirt, a tee, a flannel or a hoodie
+  // ---- top: a work shirt, a tee, a flannel, a hoodie, a polo (short sleeved or long) or, rarely, a suit and tie
   const sleeve = (len, cuff) => [LOOK.g.armL, LOOK.g.armR].forEach(a => {
     box(a, 0.156, 0.156, len, shirt, 0, 0, -0.03 + len / 2);
     if (cuff) box(a, cuff[0], cuff[0], cuff[1], shirtDk, 0, 0, -0.03 + len - cuff[1] / 2 + cuff[2]);
   });
+  // a thermal under it: its sleeves run on to the wrist (WRIST) under the shirt's, with a ribbed cuff and a few rows of
+  // the waffle knit, and it shows at the open collar, a henley's two buttons in it
+  const WRIST = 0.43;
+  if (L.under) {
+    const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
+    [LOOK.g.armL, LOOK.g.armR].forEach(a => {
+      box(a, 0.15, 0.15, WRIST + 0.03, th, 0, 0, -0.03 + (WRIST + 0.03) / 2);
+      box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
+      [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
+    });
+    if (L.top === 'work' || L.top === 'flannel') { box(TO, 0.1, 0.06, 0.008, th, 0, 0.27, 0.152); [0.282, 0.258].forEach(y => box(TO, 0.012, 0.012, 0.006, thDk, 0, y, 0.158)); }
+    else box(TO, 0.2, 0.014, 0.05, th, 0, 0.306, 0.13);   // a band of it above a crew neck or a polo's collar
+  }
   if (L.top === 'work' || L.top === 'flannel') {
     [-1, 1].forEach(s => box(TO, 0.12, 0.04, 0.08, shirtDk, s * 0.07, 0.295, 0.125).rotation.y = s * 0.35);
-    box(TO, 0.05, 0.5, 0.016, shirtDk, 0, 0.0, 0.157);
-    for (let k = 0; k < 4; k++) box(TO, 0.022, 0.022, 0.012, lm(0xe6d6b0), 0, 0.19 - k * 0.12, 0.168);
+    // buttoned to the top, or open at the neck over the thermal
+    box(TO, 0.05, L.under ? 0.44 : 0.5, 0.016, shirtDk, 0, L.under ? -0.03 : 0.0, 0.157);
+    for (let k = L.under ? 1 : 0; k < 4; k++) box(TO, 0.022, 0.022, 0.012, lm(0xe6d6b0), 0, 0.19 - k * 0.12, 0.168);
     box(TO, 0.085, 0.085, 0.016, shirtDk, -0.07, 0.03, 0.157); box(TO, 0.09, 0.022, 0.018, shirt, -0.07, 0.07, 0.161);
   }
   if (L.top === 'work') sleeve(0.16, [0.168, 0.04, 0.02]);
@@ -253,15 +286,53 @@ function buildLook(L) {
     box(TO, 0.3, 0.13, 0.016, shirtDk, 0, -0.17, 0.157);                                 // the front pocket
     [-1, 1].forEach(s => box(TO, 0.012, 0.11, 0.01, lm(0xd8d2c4), s * 0.05, 0.22, 0.157));   // drawstrings
     sleeve(0.46, [0.164, 0.04, 0.006]);
+  } else if (L.top === 'polo' || L.top === 'poloLong') {
+    // a knit collar lying flat with a tipped edge, a three-button placket, now and then a little logo on the chest, and
+    // ribbed bands at the sleeves (short) or cuffs at the wrists (long)
+    const tip = lm(shade(L.topCol, L.topCol === 0xd8d4cc ? 0.7 : 0.62));
+    [-1, 1].forEach(s => { const c = box(TO, 0.11, 0.03, 0.075, shirt, s * 0.062, 0.3, 0.12); c.rotation.y = s * 0.4; c.rotation.z = -s * 0.12; box(c, 0.112, 0.006, 0.077, tip, 0, 0.012, 0); });
+    box(TO, 0.034, 0.12, 0.012, shirtDk, 0, 0.225, 0.154);
+    [0.26, 0.215, 0.17].forEach(y => box(TO, 0.014, 0.014, 0.008, lm(L.topCol === 0xd8d4cc ? 0xbab4a8 : 0xe6e0d4), 0, y, 0.161));
+    if (L.print) box(TO, 0.028, 0.022, 0.008, lm(L.print), 0.075, 0.215, 0.153);
+    if (L.top === 'polo') sleeve(0.17, [0.162, 0.028, 0.004]); else sleeve(0.46, [0.16, 0.04, 0.004]);
+  } else if (L.top === 'suit') {
+    // the jacket is the shirt colour (so body armour's canvas still goes over it); in the V of its lapels a dress shirt
+    // and a tie, knotted at the collar and tucked in where the jacket buttons; a breast pocket (a square in it sometimes),
+    // flap pockets, two buttons, and the shirt's cuffs showing at the wrists
+    const ds = lm(L.dress), dsDk = lm(shade(L.dress, 0.84));
+    box(TO, 0.15, 0.24, 0.006, ds, 0, 0.18, 0.152);
+    [-1, 1].forEach(s => { box(TO, 0.075, 0.3, 0.014, shirtDk, s * 0.072, 0.16, 0.156).rotation.z = -s * 0.3; box(TO, 0.052, 0.026, 0.01, ds, s * 0.028, 0.288, 0.157).rotation.z = s * 0.55; });
+    if (L.tie === 'stripe') {
+      const a = lm(0x1e2a4a), b = lm(0x8a1e1e);
+      box(TO, 0.032, 0.028, 0.012, a, 0, 0.27, 0.16); box(TO, 0.042, 0.19, 0.008, a, 0, 0.15, 0.157);
+      for (let k = 0; k < 5; k++) box(TO, 0.044, 0.01, 0.006, b, 0, 0.23 - k * 0.04, 0.161).rotation.z = 0.5;
+    } else { const t = lm(L.tie); box(TO, 0.032, 0.028, 0.012, t, 0, 0.27, 0.16); box(TO, 0.04, 0.19, 0.008, t, 0, 0.15, 0.157); box(TO, 0.008, 0.16, 0.004, lm(shade(L.tie, 0.7)), 0, 0.15, 0.161); }
+    [0.03, -0.07].forEach(y => box(TO, 0.022, 0.022, 0.01, lm(0x18181a), 0, y, 0.155));
+    box(TO, 0.07, 0.008, 0.01, shirtDk, 0.19, 0.17, 0.153);
+    if (L.square) box(TO, 0.04, 0.018, 0.008, lm(L.square), 0.19, 0.182, 0.155);
+    [-1, 1].forEach(s => box(TO, 0.1, 0.02, 0.012, shirtDk, s * 0.15, -0.14, 0.154));
+    sleeve(WRIST - 0.01, null);
+    [LOOK.g.armL, LOOK.g.armR].forEach(a => { box(a, 0.15, 0.15, 0.03, ds, 0, 0, WRIST - 0.03); box(a, 0.152, 0.152, 0.006, dsDk, 0, 0, WRIST - 0.018); });
   }
   // ---- trousers: a cargo pocket on one thigh and a knee patch on the other
   const pDk = lm(shade(L.pants, 0.7));
-  box(LOOK.g.legL, 0.012, 0.13, 0.12, PM.mats.pants, -0.1, -0.2, 0.0); box(LOOK.g.legL, 0.016, 0.03, 0.13, pDk, -0.101, -0.14, 0.0);
-  box(LOOK.g.legR, 0.11, 0.09, 0.012, pDk, 0.01, -0.28, 0.114);
-  // ---- shoes: laced work boots (brown, black or tan) or sneakers
+  if (L.top === 'suit') [LOOK.g.legL, LOOK.g.legR].forEach(l => box(l, 0.008, 0.46, 0.006, lm(shade(L.pants, 0.8)), 0, -0.26, 0.112));   // a suit's: pressed, a crease down the front
+  else {
+    box(LOOK.g.legL, 0.012, 0.13, 0.12, PM.mats.pants, -0.1, -0.2, 0.0); box(LOOK.g.legL, 0.016, 0.03, 0.13, pDk, -0.101, -0.14, 0.0);
+    box(LOOK.g.legR, 0.11, 0.09, 0.012, pDk, 0.01, -0.28, 0.114);
+  }
+  // ---- shoes: laced work boots (brown, black or tan), sneakers, or a suit's dress shoes
   const SH = { boots: [0x3e2e22, 0x1e1a16, 0x8a7a5a], blackboots: [0x1e1e20, 0x121212, 0x3a3a3a], tanboots: [0x7a5a3a, 0x2a2018, 0x4a3a2a] };
   [LOOK.g.shoeL, LOOK.g.shoeR].forEach(l => {
-    if (L.shoes === 'sneakers') {
+    if (L.shoes === 'dress') {
+      // low and sleek: a thin sole and a heel, the toe running out a little longer, the trouser leg over the top, and a
+      // shine on the toe
+      const up = lm(L.dressShoe), sole = lm(0x121212);
+      box(l, 0.18, 0.07, 0.25, up, 0, -0.51, 0.03); box(l, 0.15, 0.05, 0.06, up, 0, -0.52, 0.175);
+      box(l, 0.186, 0.018, 0.3, sole, 0, -0.547, 0.045); box(l, 0.17, 0.03, 0.07, sole, 0, -0.535, -0.065);
+      box(l, 0.06, 0.008, 0.012, lm(shade(L.dressShoe, 0.6)), 0, -0.476, 0.09);
+      box(l, 0.05, 0.006, 0.05, lm(L.dressShoe === 0x141416 ? 0x4a4a50 : shade(L.dressShoe, 1.7)), 0, -0.494, 0.17);
+    } else if (L.shoes === 'sneakers') {
       const [up, sole, stripe] = L.sneak;
       box(l, 0.2, 0.085, 0.27, lm(up), 0, -0.5, 0.03); box(l, 0.205, 0.03, 0.28, lm(sole), 0, -0.54, 0.032);
       box(l, 0.204, 0.022, 0.12, lm(stripe), 0, -0.505, 0.02); box(l, 0.1, 0.012, 0.09, lm(0xe8e4dc), 0, -0.455, 0.1);
