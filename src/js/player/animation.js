@@ -5,7 +5,7 @@
 const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
 // swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
-const HIP_TWIST = 0.38;
+const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
 // how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
 const SOLE_LIFT = 0.009;
 // turning, the chest leads: twisted round ahead of the hips by TURN_TWIST and leaned in by TURN_BANK for each radian a
@@ -130,7 +130,9 @@ function animatePlayer(dt, rdt) {
   const ads = ANIM.ads || 0;
   let legYaw = 0, mvRel = 0;
   if (spd > 0.3 || P.vault) {
-    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = 1; if (Math.abs(rel) > Math.PI * 0.55) { rel = angDiff(rel, Math.PI); ANIM.legDir = -1; } mvRel = rel; const lim = HIP_TWIST * (1 - 0.4 * ads); legYaw = clamp(rel, -lim, lim); }
+    // (which way the stride plays only changes some way past straight across, LEG_FLIP either side, so a strafe doesn't
+    // flick it back and forth; and it blends over rather than flipping: legDirS, below)
+    if (spd > 0.3) { const md = Math.atan2(P.vx, P.vz); let rel = angDiff(md, ANIM.yaw); ANIM.legDir = Math.abs(rel) > Math.PI * (0.5 + (ANIM.legDir < 0 ? -LEG_FLIP : LEG_FLIP)) ? -1 : 1; if (ANIM.legDir < 0) rel = angDiff(rel, Math.PI); mvRel = rel; const lim = HIP_TWIST * (1 - 0.4 * ads); legYaw = clamp(rel, -lim, lim); }
     ANIM.legYaw += (legYaw - ANIM.legYaw) * Math.min(1, rdt * (ANIM.postVault > 0 ? 4 : 10));   // the hips come round gently out of a vault
     ANIM.feet = ANIM.yaw + ANIM.legYaw; ANIM.stepping = false;
   } else {
@@ -144,7 +146,11 @@ function animatePlayer(dt, rdt) {
   pm.lower.rotation.y = ANIM.legYaw;
   // how far off the hips' facing you're actually going: the legs swing along that line, partly as a side step
   ANIM.r2 = (ANIM.r2 || 0) + ((spd > 0.3 && !P.vault ? clamp(angDiff(mvRel, ANIM.legYaw), -1.3, 1.3) : 0) - (ANIM.r2 || 0)) * Math.min(1, rdt * 10);
-  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * Math.min(1, runF) * (1 - 0.2 * ads);
+  ANIM.legDirS = (ANIM.legDirS ?? 1) + (ANIM.legDir - (ANIM.legDirS ?? 1)) * Math.min(1, rdt * 7);   // the stride's way, blended
+  // the stride's size follows your speed on a short lag, so turning round on the spot (your speed dipping through
+  // nothing for a frame) doesn't snap the legs together
+  ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
+  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads);
   ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 2.4);   // 0.42 s to soak up a landing
   if (P.vault) {
     vaultPose(pm, P.vault);
@@ -153,13 +159,13 @@ function animatePlayer(dt, rdt) {
     // comes back in, so you walk straight out of it (a winded landing sinks deeper)
     const p = 1 - ANIM.land, k = Math.sin(Math.PI * p) * (ANIM.landHeavy ? 1.45 : 1), back = smooth(p);
     pm.g.position.y = ANIM.standY - k * 0.1; pm.g.rotation.x = k * 0.2;
-    pm.legL.rotation.x = ANIM.legDir * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDir * s * stride * back * (1 - limp * 0.7) + k * 0.32;
+    pm.legL.rotation.x = ANIM.legDirS * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDirS * s * stride * back * (1 - limp * 0.7) + k * 0.32;
     pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
     // the stride runs along the line you're going: fore and aft as far as the hips face it, and the rest a side step,
     // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
     // a little and the steps shorten
-    const st = ANIM.legDir * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * 0.7, splay = 0.045 * ads;
+    const st = ANIM.legDirS * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * 0.7, splay = 0.045 * ads;
     pm.legL.rotation.x = st * sc;
     pm.legR.rotation.x = -st * sc * bad;   // the bad leg hardly swings
     const zl = -st * sn * 0.5, zr = st * sn * 0.5 * bad;
@@ -186,7 +192,7 @@ function animatePlayer(dt, rdt) {
   const breathe = Math.sin(now * 1.7) * 0.01 * still;
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
-  const shift = P.vault ? 0 : -ANIM.legDir * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
+  const shift = P.vault ? 0 : -ANIM.legDirS * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
   // the chest rides the hips' bob on a spring: it lags them a little and settles just past each footfall
   if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
   pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy + breathe;

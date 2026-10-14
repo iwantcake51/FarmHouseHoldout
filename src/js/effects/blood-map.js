@@ -106,8 +106,10 @@ function splat(x, z, kind, size, ang, grow, h, str) {
   u.uH.value = clamp((h !== undefined ? h : kind === 'spray' ? 0.9 : 0) / 2, 0, 1); u.uSeed.value.set(rand(), rand());
   const r = size * (kind === 'spray' ? 0.62 : 0.5);
   m.position.set(x, z, 0); m.rotation.set(0, 0, ang === undefined ? rand() * 6.28 : ang);
-  q.s = r; q.t = 0; q.dur = grow && grow > 0.2 ? grow : 0; q.busy = true; m.scale.setScalar(q.dur ? r * 0.25 : r); m.visible = true; bmDirty = true;
+  q.s = r; q.t = 0; q.dur = grow && grow > 0.2 ? grow : 0; q.busy = true; m.scale.setScalar(q.dur ? r * POOL_FROM : r); m.visible = true; bmDirty = true;
 }
+// a pool that spreads wells up from next to nothing (POOL_FROM of its size), slowly at first, never popping in
+const POOL_FROM = 0.05;
 // a splash that's still in the air: painted when it lands, t seconds from now (stepBloodMap)
 const bmLater = [];
 function splatLater(t, ...a) { bmLater.push({ t, a }); }
@@ -136,7 +138,7 @@ function stepBloodMap(dt) {
   for (let k = bmLater.length - 1; k >= 0; k--) { const L = bmLater[k]; if ((L.t -= dt) <= 0) { bmLater.splice(k, 1); splat(...L.a); } }   // blood landing
   for (const q of bmQuads) {
     if (!q.busy || !q.dur) continue;
-    q.t += dt; const e = 1 - Math.pow(1 - Math.min(1, q.t / q.dur), 3); q.m.scale.setScalar(q.s * (0.25 + 0.75 * e)); bmDirty = true;
+    q.t += dt; const u = Math.min(1, q.t / q.dur), e = u * u * (3 - 2 * u); q.m.scale.setScalar(q.s * (POOL_FROM + (1 - POOL_FROM) * e)); bmDirty = true;
   }
   if (!bmDirty && bmDry <= 3) return;
   const at = R.getRenderTarget(), ac = R.autoClear; R.getClearColor(_bmCol); const aa = R.getClearAlpha();

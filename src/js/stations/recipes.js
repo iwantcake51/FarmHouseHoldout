@@ -23,7 +23,7 @@ function attachmentCards() {
   for (const k of ['supp', 'choke', 'sight', 'laser', 'light', 'loader']) {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
     const L = TIERS[k], n = gunTier(id, k), st = L.t[n], txt = typeof st.text === 'function' ? st.text(D) : st.text;
-    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => st.name, desc: () => txt + (n ? ` Replaces the ${L.t[n - 1].name.toLowerCase()}.` : ''), why: () => '',
+    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => st.name, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, st.name); gotGear({ ic: 'gear', kind: 'Attachment', name: st.name, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for every gun you carry, fitted here like the rest: incendiary rounds, and rounds that go through one more
@@ -89,7 +89,7 @@ function gunTierCards() {
   for (const k of ['ammo', 'trigger', 'mag']) {
     if (!tierFits(k, id)) continue;
     const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id);
-    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[st.r] || 14, title: () => nm, desc: () => st.text + (n ? ` Replaces the ${tierName(k, n - 1, id).toLowerCase()}.` : ''), why: () => '',
+    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[st.r] || 14, title: () => nm, desc: () => st.text, why: () => '',
       make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: st.text, fx: fx0 }); } });
   }
   return out;

@@ -139,7 +139,7 @@ function blowApart(z, dx, dz) {
   }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28; burst(x, y, zz, 5, 'blood', Math.sin(a), Math.cos(a), rr(4, 7)); }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
-  splatLater(rr(0.25, 0.4), x, zz, 'pool', 1.5 * z.T.scale, undefined, rr(1.6, 2.4));
+  splatLater(rr(0.6, 0.9), x, zz, 'pool', 1.5 * z.T.scale, undefined, rr(3, 4));
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
   for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
@@ -155,8 +155,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
-  burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
-  spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
+  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
+  spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out; the pool comes once it's down (zombies/deaths.js)
   shake = Math.max(shake, 0.16);
   popEl('kills');
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
