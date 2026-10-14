@@ -218,11 +218,28 @@ const wraps = WRAP_AT.map(([z0, z1]) => {
   return { g, band, blood, L };
 });
 const wrapTail = box(PM.upper, 0.03, 0.004, 1, WRAP_M, 0, 0, 0); wrapTail.visible = false; wrapTail.userData.fine = true;
+// each wrap goes on over whatever's on the arm there (a sleeve and its cuff, the canvas jacket, gloves, an armband), so
+// it's sized to sit just outside the widest of them across its length rather than sinking into a sleeve or having a
+// cuff poke through it; refit every few frames while any is showing (gear and clothes change with upgrades and runs)
+const _wb = new THREE.Box3(), _wm = new THREE.Matrix4(), WRAP_GAP = 0.007;
+let wrapFitT = 0;
+function fitWraps() {
+  const arm = PM.armL; arm.updateMatrixWorld(true); _wm.copy(arm.matrixWorld).invert();
+  const mine = new Set(); wraps.forEach(w => w.g.traverse(o => mine.add(o)));
+  // clothes and gear (lit materials), not the outline shells round the arm
+  const parts = []; arm.traverse(o => { if (o === arm || !o.isMesh || mine.has(o) || !o.visible || !(o.material && o.material.isMeshLambertMaterial)) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _wb.copy(o.geometry.boundingBox).applyMatrix4(_wm.clone().multiply(o.matrixWorld)); parts.push(_wb.clone()); });
+  wraps.forEach((w, i) => {
+    const [z0, z1] = WRAP_AT[i]; let half = 0.07;   // the bare arm
+    for (const b of parts) if (b.max.z > z0 && b.min.z < z1) half = Math.max(half, -b.min.x, b.max.x, -b.min.y, b.max.y);
+    w.half = half + WRAP_GAP; w.g.scale.x = w.g.scale.y = (2 * w.half) / 0.158;
+  });
+}
 const _wc = new V3(), _wa = new V3(), _wu = new V3(), _wv = new V3();
 function bandagePose(pm, up, now, sh) {
   const k = ANIM.bandK || 0, n = Math.min(WRAP_AT.length, P.wraps || 0), band = P.bandT > 0;
   // the wrap going on (the next free one), grown as far as the bandage has gone; any finished ones as they are
   const prog = band ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : 0, cur = band && n < WRAP_AT.length ? n : -1;
+  if ((n || k > 0.05) && --wrapFitT <= 0) { wrapFitT = 12; fitWraps(); }
   wraps.forEach((w, i) => {
     w.g.visible = i < n || (i === cur && k > 0.05);
     const f = i === cur ? Math.max(0.04, prog) : 1;
@@ -240,7 +257,7 @@ function bandagePose(pm, up, now, sh) {
   const cz = band ? mix(WRAP_AT[Math.max(0, cur)][1] - 0.02, WRAP_AT[Math.max(0, cur)][0] + 0.02, prog) : 0.4, wr = 0.45 * bandTime() / BAND_TIME;
   _wc.set(0, 0, cz * a.scale.z).applyMatrix4(a.matrix);                                    // the point being wound, in upper-body space
   _wa.set(0, 0, 1).applyQuaternion(a.quaternion); _wu.set(0, 1, 0).applyQuaternion(a.quaternion); _wv.crossVectors(_wa, _wu);
-  const th = (band ? (P.bandMax - P.bandT) : now) / wr * Math.PI * 2, R = 0.13;
+  const th = (band ? (P.bandMax - P.bandT) : now) / wr * Math.PI * 2, R = Math.max(0.13, ((wraps[Math.max(0, cur)] || {}).half || 0.08) + 0.05);   // the hand goes round outside whatever the arm has on
   _fR.copy(_wc).addScaledVector(_wu, Math.cos(th) * R).addScaledVector(_wv, Math.sin(th) * R);
   const r = pm.armR, qx = r.rotation.x, qy = r.rotation.y, qz = r.rotation.z, qpx = r.position.x, qpy = r.position.y, qpz = r.position.z, qs = r.scale.z;
   reach(r, 'R', _fR, 0, true);

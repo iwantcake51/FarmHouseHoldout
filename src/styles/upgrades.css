@@ -81,3 +81,8 @@
 .card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.55),0 0 34px rgba(216,105,44,.35)}
 #upNote{opacity:0;transition:opacity .3s}
 #upgrade.armed #upNote{opacity:1}
+/* the pause screen's two lists side by side on a wide screen: the cards you took, and the gear you bought */
+#paused .inner{width:min(940px,100%)}
+.pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px 22px;align-items:start}
+.pLists .hist{max-height:42vh}
+.hrow.gear .ht{color:var(--rc)}

@@ -5,8 +5,8 @@ let dealt = [], cardsArmed = false, armTimer = 0;
 const FOR_TAG = { Gun: 'For all your guns', Ammo: 'For all your guns', Melee: 'For your melee weapons' };
 function cardFor(u, c) {
   if (u.weaponOf) return 'A new weapon for your ' + SLOT_NAME[WEAP[u.weaponOf].slot].toLowerCase() + ' slot';
-  if (u.modOf) return 'For your ' + WEAP[MODS[u.modOf].w].name.toLowerCase();
-  if (u.target) return 'For your ' + WEAP[u.target].name.toLowerCase();
+  if (u.modOf) return 'For your ' + gunCall(MODS[u.modOf].w);
+  if (u.target) return 'For your ' + gunCall(u.target);
   return FOR_TAG[c.tag.split(' ')[0]] || 'For you';
 }
 function rarWeight(r) { const w = run.wave; return { c: 60, u: 26 + w * 1.5, r: 9 + w * 1.4, e: 3 + w * 1.0, l: 0.8 + w * 0.5 }[r]; }
@@ -59,7 +59,7 @@ function renderHistory(list, countEl) {
     const r = document.createElement('div'); r.className = 'hrow r-' + h.r;
     r.innerHTML = '<span class="hn"></span><span class="ht"></span><span class="hw"></span><span class="hd"></span>';
     r.querySelector('.hn').textContent = h.name; if (h.n > 1) { const i = document.createElement('i'); i.textContent = '\u00d7' + h.n; r.querySelector('.hn').appendChild(i); }
-    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r]; r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
+    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r] + (h.on ? ' \u00b7 ' + h.on : ''); r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
     el.appendChild(r);
   });
 }
@@ -79,8 +79,9 @@ function pickCard(i) {
   const u = dealt[i], c = u.shown; cardsArmed = false;
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); gunGlow = 1; SFX.upgrade();
-  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : u.target ? c.name + ' (' + WEAP[u.target].short + ')' : c.name, prev = run.taken.find(h => h.name === nm), total = st ? stackTotal(c.name, before) : '';
-    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; prev.total = total; } else run.taken.push({ name: nm, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1, total }); }
+  // in the history: what it was and, for one that went on a gun, which gun (by its plain name: your pistol, not your 9mm)
+  { const nm = u.weaponOf ? WEAP[u.weaponOf].name : c.name, on = u.target ? 'On your ' + gunCall(u.target) : '', prev = run.taken.find(h => h.name === nm && (h.on || '') === on), total = st ? stackTotal(c.name, before) : '';
+    if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; prev.total = total; } else run.taken.push({ name: nm, on, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1, total }); }
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out

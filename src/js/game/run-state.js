@@ -10,7 +10,7 @@ function freshRun() {
   Object.keys(TIERS).forEach(k => S.tier[k] = 0);
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
     cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, glCd: 0, spent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
-  run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [] };
+  run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
 function recomputeEff() {
