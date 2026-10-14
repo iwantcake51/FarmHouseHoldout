@@ -54,8 +54,8 @@ const skillPierce = id => id && ownPierce(id) ? 0 : S.pierce;
 // how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.3, AK_ONE = 1;
 // how much each magazine tier holds against the gun's own: most guns step up through three, the drum shotgun's one step is
-// its drum, twice its box (MAG_STEPS, upgrades/upgrades.js)
-const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2] };
+// its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
+const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5] };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
 // what match-grade rounds and each sight add to a gun's headshot multiplier (on top of S.headMul's 2.2×)

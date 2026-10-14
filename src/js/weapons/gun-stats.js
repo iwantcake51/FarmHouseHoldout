@@ -11,7 +11,7 @@
 //   lmg       the most sustained fire: a hundred-round belt, slow to carry
 //   pump      the hardest knockback, and it tears limbs off up close
 //   dbl       the biggest burst: both barrels as fast as you can pull
-//   auto12    an automatic shotgun: a box of 10, or the drum (20) as its one magazine upgrade (MAG_UP)
+//   auto12    an automatic shotgun: a box of 8, or the drum (20) as its one magazine upgrade (MAG_UP)
 //   hunting   one round through four zombies at full power at any range (no drop-off)
 // mobile: how much of the spread and the off-target shots moving costs from the hip (weapons/firing.js); sprayK: how
 // fast holding the trigger opens the spread
@@ -21,7 +21,7 @@ const GUN_WEAPONS = {
   deagle: { slot: 'side', ammo: 'magnum', name: '.50 hand cannon', short: '.50', dmg: 100, rate: 0.5, mag: 7, reload: 2.0, spread: 0.02, kick: 6, shake: 0.24, pierce: 2, start: 21, rar: 'e', desc: 'The hardest-hitting handgun. Rounds go through two zombies and knock them back.' },
   pump: { slot: 'long', ammo: 'shells', name: 'Pump shotgun', short: 'Pump', dmg: 18, rate: 0.7, mag: 6, perShell: 0.42, spread: 0.27, pellets: 8, kick: 3.2, shake: 0.28, start: 20, rar: 'u', desc: 'Eight pellets a shell. Knocks zombies back harder than anything, and tears limbs off up close.' },
   dbl: { slot: 'long', ammo: 'shells', name: 'Double barrel', short: 'Double', dmg: 19, rate: 0.26, mag: 2, perShell: 0.42, spread: 0.36, pellets: 9, kick: 3, shake: 0.32, start: 16, rar: 'c', desc: 'Two barrels as fast as you can pull: the biggest burst of damage up close.' },
-  auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 10, rate: 0.21, mag: 10, reload: 2.2, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 30, rar: 'l', drumMag: true, desc: 'A fully automatic shotgun: holds the trigger down where the others pump. A box of 10, or fit the 20-shell drum.' },
+  auto12: { slot: 'long', ammo: 'shells', name: 'Drum shotgun', short: 'Drum SG', dmg: 10, rate: 0.21, mag: 8, reload: 2.2, spread: 0.3, pellets: 7, kick: 2.2, shake: 0.22, start: 30, rar: 'l', drumMag: true, desc: 'A fully automatic shotgun: holds the trigger down where the others pump. A box of 8, or fit the 20-shell drum.' },
   hunting: { slot: 'long', ammo: 'rifle', name: 'Hunting rifle', short: 'Rifle', dmg: 150, rate: 1.15, mag: 5, perShell: 0.55, spread: 0.006, kick: 4, shake: 0.25, pierce: 3, start: 20, rar: 'r', desc: 'Bolt action. One round goes through four zombies, at full power at any range.' },
   smg: { slot: 'auto', ammo: 'p9', name: 'Machine pistol', short: 'Auto', dmg: 22, rate: 0.075, mag: 30, reload: 1.3, spread: 0.05, kick: 0.7, shake: 0.06, mobile: 0.3, sprayK: 0.7, start: 100, rar: 'u', desc: 'The fastest-firing gun, and the one that holds its aim best on the move. Quick to reload.' },
   sub: { slot: 'auto', ammo: 'p9', name: 'Submachine gun', short: 'SMG', dmg: 28, rate: 0.072, mag: 30, reload: 1.5, spread: 0.035, kick: 0.9, shake: 0.06, sprayK: 0.45, start: 120, rar: 'r', desc: 'The steadiest automatic: it stays tight through long bursts, and reaches further than any 9mm.' },

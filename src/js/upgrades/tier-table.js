@@ -15,7 +15,7 @@ const TIERS = {
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
     // the drum shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 10-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
     { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [

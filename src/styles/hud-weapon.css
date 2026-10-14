@@ -24,19 +24,20 @@
 #ammo{--rh:.85em}
 /* laid out from the bottom right: right to left along a row, rows stacking upward (ui/rounds.js puts the last round first) */
 #rounds{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;justify-content:flex-start;gap:2px;max-width:260px;min-height:14px}
-#rounds i{display:block;width:4px;height:12px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:1.5px 1.5px 0 0}
+/* a 9mm round (the pistol, the SMGs): short and stubby with a round nose */
+#rounds i{display:block;width:5px;height:9px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:2.5px 2.5px .5px .5px}
 #rounds.sh i{width:7px;height:13px;background:#a8342a;border-radius:0;border-bottom:3px solid #c9a43a}
-#rounds.rf i{width:5px;height:16px;background:#c9a043}
+#rounds.rf i{width:5px;height:21px;background:#c9a043}
 #rounds.mg i{width:6px;height:11px;background:#c9a043}
-/* rifle and magnum rounds come to a point (a 9mm's nose is round), so the heavier calibres read apart at a glance; a
-   better round's coloured tip sits in the point */
-#rounds.rf i,#rounds.mg i,#fireMode .fmG.rf i,#fireMode .fmG.mg i{border-radius:0;clip-path:polygon(50% 0,100% 34%,100% 100%,0 100%,0 34%)}
+/* rifle rounds are long and come to a sharp point, magnums a shorter one (a 9mm's nose is round), so the heavier
+   calibres read apart at a glance; a better round's coloured tip sits in the point */
+#rounds.rf i,#rounds.mg i,#fireMode .fmG.rf i,#fireMode .fmG.mg i{border-radius:0;clip-path:polygon(50% 0,100% 30%,100% 100%,0 100%,0 30%)}
 #rounds.mg i,#fireMode .fmG.mg i{clip-path:polygon(50% 0,100% 42%,100% 100%,0 100%,0 42%)}
-#fireMode .fmG.rf i{width:5px;height:14px;background:#c9a043}#fireMode .fmG.mg i{width:6px;height:12px;background:#c9a043}
+#fireMode .fmG.rf i{width:5px;height:14px;background:#c9a043}#fireMode .fmG.rf.burst i,#fireMode .fmG.rf.auto i{height:14px}#fireMode .fmG.mg i{width:6px;height:12px;background:#c9a043}
 /* better rounds show at the bullet's tip; a shell has no bullet, so it stays just a shell */
 #rounds.hp:not(.sh) i:not(.off){border-top:3px solid #c0703a}#rounds.hp2:not(.sh) i:not(.off){border-top:3px solid #e08a3a;box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3:not(.sh) i:not(.off){background:#c8ccd0;border-top:3px solid #e8ecef}
 /* on a pointed round the better rounds' colour fills the whole point */
-#rounds.rf.hp i:not(.off),#rounds.mg.hp i:not(.off){border-top:0;background:linear-gradient(#c0703a 0 38%,#c9a043 38%)}#rounds.rf.hp2 i:not(.off),#rounds.mg.hp2 i:not(.off){border-top:0;background:linear-gradient(#e08a3a 0 38%,#c9a043 38%)}#rounds.rf.hp3 i:not(.off),#rounds.mg.hp3 i:not(.off){border-top:0;background:linear-gradient(#eef1f3 0 38%,#c8ccd0 38%)}
+#rounds.rf.hp i:not(.off),#rounds.mg.hp i:not(.off){border-top:0;background:linear-gradient(#c0703a 0 32%,#c9a043 32%)}#rounds.rf.hp2 i:not(.off),#rounds.mg.hp2 i:not(.off){border-top:0;background:linear-gradient(#e08a3a 0 32%,#c9a043 32%)}#rounds.rf.hp3 i:not(.off),#rounds.mg.hp3 i:not(.off){border-top:0;background:linear-gradient(#eef1f3 0 32%,#c8ccd0 32%)}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 @keyframes roundFall{0%{transform:none}18%{transform:translate(calc(var(--dx) * .2),var(--up)) rotate(calc(var(--rot) * .15))}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}
@@ -81,9 +82,9 @@
 #fireMode{align-self:center;display:grid;justify-items:center;gap:4px;margin-right:8px;padding:5px 8px 4px;min-width:46px;background:linear-gradient(180deg,rgba(10,12,13,.35),rgba(10,12,13,.7));border:1px solid rgba(236,230,216,.13);border-top:2px solid rgba(236,230,216,.3);text-shadow:none}
 #fireMode.sw{border-top-color:var(--orange)}
 #fireMode .fmG{display:flex;align-items:flex-end;gap:2px;height:14px;overflow:hidden}
-#fireMode .fmG i{display:block;width:4px;height:12px;background:#d4b25c;border-radius:1.5px 1.5px 0 0;box-shadow:0 1px 0 rgba(0,0,0,.6)}
+#fireMode .fmG i{display:block;width:5px;height:9px;background:#d4b25c;border-radius:2.5px 2.5px .5px .5px;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 #fireMode .fmG.auto i:nth-child(n+3){opacity:.7}#fireMode .fmG.auto i:nth-child(n+4){opacity:.45}#fireMode .fmG.auto i:nth-child(n+5){opacity:.22}
-#fireMode .fmG.burst i{height:11px}
+#fireMode .fmG.burst i{height:9px}
 #fireMode .fmG.fan i:nth-child(1){transform:rotate(-18deg)}#fireMode .fmG.fan i:nth-child(3){transform:rotate(18deg)}
 #fireMode .fmG.action i{width:5px;height:13px;background:#c9a043}
 #fireMode .fmG.in i{animation:fmIn .3s cubic-bezier(.2,.8,.3,1) backwards}
