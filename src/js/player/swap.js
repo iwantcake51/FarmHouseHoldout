@@ -64,7 +64,7 @@ function armToward(arm, q, p, s, w) { arm.quaternion.slerp(q, w); arm.position.l
 function updateSwap(dt, rdt) {
   const st = swapSt; if (!st) return;
   if (P.dead || P.vault || P.shove || P.bandT > 0 || W8.cur !== st.to) { endSwap(); return; }
-  st.t += dt > 0 ? rdt : 0;   // it holds still while the game is paused
+  st.t += dt > 0 ? rdt * S.swapMul : 0;   // it holds still while the game is paused (Quick draw speeds it up)
   const t = st.t, T = SWAP_T;
   if (t >= T.end) { endSwap(); return; }
   const pm = PM, newMelee = isMelee(st.to), oldMelee = isMelee(st.from);
@@ -119,7 +119,11 @@ function updateSwap(dt, rdt) {
 const _bs = new THREE.Matrix4();
 function updateBandStow() {
   const k = ANIM.bandP || 0, s = W8.cur, g = gunMeshes[s];
+  // the melee pose only turns the weapon in the fist (player/hold.js), so whatever this moved last frame goes back to
+  // the fist first: the held frame it's carried from is then the real one, and it's back in the hand once it's drawn
+  if (ANIM.bandMoved) { ANIM.bandMoved = false; gunMeshes.melee.position.set(0, 0, 0.5); SLOTS.forEach(q => gunMeshes[q].scale.set(1, 1, 1)); gunMeshes.melee.updateMatrix(); }
   if (k <= 0 || k >= 1 || swapSt || P.dead || P.vault || !g || !STOW[s]) return;
+  ANIM.bandMoved = true;
   PM.g.updateMatrixWorld(true);
   _sw.toUp.copy(PM.upper.matrixWorld).invert().multiply(PM.g.matrixWorld);
   const live = toBody(g.matrixWorld, _sw.a), stow = stowFrame(s, _sw.b); if (!stow) return;

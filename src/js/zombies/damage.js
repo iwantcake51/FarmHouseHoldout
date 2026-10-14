@@ -99,6 +99,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   part = part || 'torso';
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
   if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
+  if (S.momentum && run.time - S.momT < MOM_T) dmg *= 1 + 0.05 * S.momK;   // Momentum: +5% for each quick kill, up to 5
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
@@ -142,6 +143,11 @@ function blowApart(z, dx, dz) {
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
   SFX.sever();
 }
+// Hoarder's odds of a doubled scrap drop, and Bullet time's: how likely a kill sets it off, how slow, how long, and the wait
+// before it can go again
+const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
+// Momentum keeps building while each kill comes within MOM_T seconds of the last
+const MOM_T = 2.5;
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
@@ -152,8 +158,10 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   shake = Math.max(shake, 0.16);
   popEl('kills');
   if (S.healOnKill) P.hp = Math.min(S.maxHp, P.hp + S.healOnKill * (S.headHeal && part === 'head' ? 2 : 1));
-  if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }   // a short burst, and not again for a few seconds
-  if (S.bulletTime && timeScale > 0.6 && rand() < 0.35) { slowTo = 0.45; slowIn = 0.22; slowHold = 0.15; }
+  if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
+  if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
+  // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds
+  if (S.bulletTime && timeScale > 0.8 && !(run.time < (S.btNext || 0)) && rand() < BT.chance) { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; S.btNext = run.time + BT.cd; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
   if (part === 'head' && z.limbs.head && wId === 'axe' && rand() < 0.85) splitHead(z, dx, dz);
   else if (part === 'head' && z.limbs.head && canSever(wId)) { const c = shells ? 0.95 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : heavy ? 0.8 : overkill > 15 ? 0.55 : 0.3; if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; } }
@@ -165,7 +173,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   SFX.kill();
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
   const big = z.type === 'brute' ? 2 : 1;
-  if (rand() < (z.type === 'brute' ? 1 : 0.5)) dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * S.scrapMul);
+  // Hoarder: a scrap drop has a HOARD_X chance to be worth double
+  if (rand() < (z.type === 'brute' ? 1 : 0.5)) { const hoard = S.hoard && rand() < HOARD_X; dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * (hoard ? 2 : 1)); if (hoard) pickups[pickups.length - 1].hoard = true; }
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
     // rounds pays you back a little). Planks are the rarest roll

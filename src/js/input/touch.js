@@ -24,5 +24,5 @@ $('tbBoard').addEventListener('pointerdown', () => touchBoard = true);
 $('tbClimb').onclick = () => { const s = nearestStation(); if (s && !vaultTarget(nearestOpening())) { openSt ? closeStation() : openStation(s); } else spaceAction(); };
 $('tbReload').onclick = () => startReload();
 $('tbAlt').onclick = () => throwGrenade();
-$('tbSwap').onclick = () => { const owned = SLOTS.filter(s => W8.slot[s]); equip(owned[(owned.indexOf(W8.cur) + 1) % owned.length]); };
+$('tbSwap').onclick = () => { const owned = SLOTS.filter(s => W8.slot[s]); switchSlot(owned[(owned.indexOf(W8.cur) + 1) % owned.length]); };
 $('tbWave').onclick = () => { if (phase === 'break') breakT = 0; };

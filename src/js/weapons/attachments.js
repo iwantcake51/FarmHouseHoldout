@@ -77,7 +77,7 @@ function fitAttachments(g, D, front, y, info) {
   if (sight && !info.noSight) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy - 0.002, bz = sz + oz;   // mounts sit 2 mm down into the rail or receiver they clamp
-    if (sight === 3 && !side) {   // variable scope in rings
+    if (sight === 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
       const sy = by + (info.scopeH || 0.075);
       [-0.06, 0.08].forEach(o => { box(p, 0.04, 0.012, 0.03, GM.metal, sx, by + 0.006, bz + o); box(p, 0.014, sy - by, 0.02, GM.metal, sx, by + (sy - by) / 2, bz + o); ring(p, 0.03, 0.022, GM.metal, sx, sy, bz + o); });
       cyl(p, 0.025, 0.3, GM.metal, sx, sy, bz + 0.01, 18);

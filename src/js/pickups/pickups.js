@@ -103,29 +103,35 @@ function updatePickups(dt) {
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
     const seen = visAt(p.x, p.z); p.g.visible = true;
     p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
-    const d = Math.hypot(p.x - P.x, p.z - P.z);
+    let d = Math.hypot(p.x - P.x, p.z - P.z);
+    // a drop out past the edge of the farm, where you can't walk, flies in to you once it's landed, picking up speed;
+    // one you can't take yet (a full bag or stack) stops just short of you
+    if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
+    if (p.homing && p.age > 0.5 && p.kind !== 'supply') {
+      const sp = Math.min(10, 2 + (p.age - 0.5) * 6), full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom()), stop = full ? 1.4 : 0;
+      if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
+      if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
+    }
     if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
-    // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank stack
-    const bagFull = (P.band || 0) >= bandMax(), planksFull = !plankRoom();
-    if (p.kind === 'med' && bagFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Bandage bag full', { kind: 'warn', icon: 'med', sub: bandMax() + '/' + bandMax() + ' · press G to use one' }); } }
-    else if (p.kind === 'planks' && planksFull && d < 0.9) { if (!p.warned) { p.warned = true; toast('Can\'t carry more planks', { kind: 'warn', icon: 'planks', sub: PLANK_MAX + ' is all your pack holds · board something up' }); } }
-    else if (d < 0.9) {
+    // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
+    // stack: it just stays there, greyed out (greyDrop), with no message
+    const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
+    if (d < 0.9 && !full) {
       let ft = '';
-      if (p.kind === 'planks') { const n = addPlanks((rand() < 0.2 ? 2 : 1) * p.amount); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }
+      if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
-      else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount; SFX.scrap(); }
+      else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount + (p.hoard ? ' ×2' : ''); SFX.scrap(); }
       else if (p.kind === 'supply' && p.cargo && p.cargo.kind === 'weapon') { deliverWeapon(p.cargo.id); flareDone(); ft = WEAP[p.cargo.id].name; SFX.pick(); }
       else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
         const opts = ammoTypes();
-        opts.forEach(a => { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL * p.amount)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); if (!ft) ft = '+' + amt + ' ' + AMMO_NAME[a]; });
+        opts.forEach(a => { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL * S.ammoMul * p.amount)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); if (!ft) ft = '+' + amt + ' ' + AMMO_NAME[a]; });
         if (opts.length > 1) ft = '+Ammo for every gun'; else if (!opts.length) { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; }
         SFX.pick();
       }
       floatText(p.x, p.z, ft, '#' + PICK_COL[p.kind === 'ammo' ? (p.ammoType || 'rifle') : p.kind].toString(16).padStart(6, '0'));
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
-    else if (d > 1.3) p.warned = false;
   }
 }

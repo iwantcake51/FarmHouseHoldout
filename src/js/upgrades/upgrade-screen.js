@@ -79,6 +79,7 @@ function pickCard(i) {
   const u = dealt[i], c = u.shown; cardsArmed = false;
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); gunGlow = 1; SFX.upgrade();
+  P.wraps = 0;   // the wave's bandages come off your arm while the cards are covering you
   // in the history: what it was and, for one that went on a gun, which gun (by its plain name: your pistol, not your 9mm)
   { const nm = u.weaponOf ? WEAP[u.weaponOf].name : c.name, on = u.target ? 'On your ' + gunCall(u.target) : '', prev = run.taken.find(h => h.name === nm && (h.on || '') === on), total = st ? stackTotal(c.name, before) : '';
     if (prev) { prev.n++; prev.wave = run.wave; prev.text = c.text; prev.total = total; } else run.taken.push({ name: nm, on, tag: c.tag, text: c.text, r: c.r, wave: run.wave, n: 1, total }); }
