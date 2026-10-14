@@ -1,7 +1,8 @@
 // Keyboard and mouse input.
 
 const keys = new Set();
-let mouseX = innerWidth / 2, mouseY = innerHeight / 2, mouseDown = false, hasMouse = false;
+// mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
+let mouseX = innerWidth / 2, mouseY = innerHeight / 2, mouseDown = false, mouseDownR = false, hasMouse = false;
 const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), aimPlane = new THREE.Plane(new V3(0, 1, 0), -GUN_Y), aimPt = new V3(0, GUN_Y, 5);
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -31,7 +32,7 @@ addEventListener('keydown', e => {
   if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX);
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-addEventListener('blur', () => { keys.clear(); mouseDown = false; aimHeld = false; pauseRun(); });
+addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; aimHeld = false; pauseRun(); });
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (e.button === 0) mouseDown = true; if (e.button === 2) { aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
-addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { aimHeld = false; exitScope(); aiming = false; } });
+cv.addEventListener('mousedown', e => { audioInit(); if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
+addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; aimHeld = false; exitScope(); aiming = false; } });

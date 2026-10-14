@@ -9,7 +9,7 @@ function freshRun() {
     att: { bayonet: false, fire: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
   Object.keys(TIERS).forEach(k => S.tier[k] = 0);
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, glCd: 0, spent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, spent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -34,18 +34,18 @@ function recomputeEff() {
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
     if (D.mag) D.mag *= [1, 1.4, 2.0, 2.7][mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
-    // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own); two guns take longer
-    // to reload than one (they're done one after the other), and each pull of the trigger fires a burst from both
+    // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
+    // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's, so both take longer than one
     if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
-    if (D.akimbo) { D.reload *= AK_RELOAD; if (D.burst) D.burst *= 2; }
+    if (D.akimbo) D.reload *= AK_ONE;
     D.spread *= [1, 0.85, 0.68, 0.68][sight] * [1, 0.85, 0.6][laser];
     if ((g.supp || 0) >= 3) D.pierce = (D.pierce || 0) + 1;   // the heavy-duty can: bullets go through one more zombie
     EFF[id] = D;
   }
 }
 const W = id => EFF[id];
-// how much longer a mag change takes for each doubling of the magazine, and how much longer two guns take than one
-const MAG_SLOW = 0.3, AK_RELOAD = 1.45;
+// how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
+const MAG_SLOW = 0.3, AK_ONE = 0.8;
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
 // fifth more damage a second, roughly what one ammo tier gives, which is why it's the dearest thing on the bench
 const TUNE = { dmg: 1.1, rate: 1 / 1.1, reload: 0.85, spread: 0.85, reach: 0.15, kb: 1.15 };

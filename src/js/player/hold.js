@@ -30,10 +30,9 @@ const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0
 const REL_MAG = [{ r: 0.5, p: 0.12, y: 0.12, oy: 0.04, oz: 0.08 }, { r: 0.32, p: 0.2, y: 0.04, oy: 0.02, oz: 0.1 }, { r: 0.68, p: 0.08, y: 0.18, oy: 0.05, oz: 0.06 }];
 const REL_SHELL = [{ r: 0.45, p: 0.08, oy: 0.03, oz: 0.04 }, { r: 0.32, p: 0.14, oy: 0.02, oz: 0.06 }, { r: 0.58, p: 0.05, oy: 0.04, oz: 0.03 }];
 const _rv = new V3();
-// akimbo: each pistol out in its own hand, close enough in that both arms sit straight. They're reloaded one after the
-// other, the right first (AK_EV in weapons/reload.js): how far through its own half of the reload each gun is
+// akimbo: each pistol out in its own hand, close enough in that both arms sit straight. Each is reloaded on its own
+// turn (akU in weapons/akimbo.js says how far through it is), the other kept up on the aim
 const AK_PULL = 0.1;
-const akPhase = (side, rp) => clamp(side === 'L' ? (rp - 0.5) / 0.5 : rp / 0.5, 0, 1);
 // how far the hunting rifle's bolt handle turns up to unlock (radians)
 const BOLT_TURN = 1.05;
 // the gun riding a rack: a loose spring per axis (muzzle pitch, roll, yaw, back into the shoulder, down, and the
@@ -409,11 +408,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
     let hx = k.p, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
-    if (ak && re > 0.001 && rk === 'mag') {
-      // one gun at a time, the right first, the other kept up on the aim: its mag flicked out with a roll of the wrist,
-      // the gun taken down to its hip pouch and driven onto a fresh one, and back up with a snap as it seats
-      const u = akPhase(side, rp), flick = Math.sin(clamp(u / 0.14, 0, 1) * Math.PI), dip = Math.sin(clamp((u - 0.12) / 0.62, 0, 1) * Math.PI), seat = Math.sin(clamp((u - 0.5) / 0.14, 0, 1) * Math.PI);
-      hx += -0.4 * flick + 1.15 * dip - 0.25 * seat; hz += sg * 0.4 * flick; hoy -= 0.26 * dip; hoz -= 0.16 * dip; hox -= sg * 0.05 * dip;
+    const u = ak ? akU(side) : 0;
+    if (u > 0) {
+      // this gun's turn, the other kept up on the aim: its mag flicked out with a roll of the wrist, the gun taken down
+      // to its hip pouch and driven onto a fresh one, and back up with a snap as it seats; one that ran dry gets its
+      // slide stop thumbed on the way up, a twist of the wrist as the slide slams home
+      const flick = Math.sin(clamp(u / 0.14, 0, 1) * Math.PI), dip = Math.sin(clamp((u - 0.12) / 0.62, 0, 1) * Math.PI), seat = Math.sin(clamp((u - 0.5) / 0.14, 0, 1) * Math.PI);
+      const thumb = W8.akRel.empty ? Math.sin(clamp((u - AK_SLIDE + 0.05) / 0.12, 0, 1) * Math.PI) : 0;
+      hx += -0.4 * flick + 1.15 * dip - 0.25 * seat - 0.1 * thumb; hz += sg * (0.4 * flick + 0.16 * thumb); hoy -= 0.26 * dip; hoz -= 0.16 * dip; hox -= sg * 0.05 * dip;
     }
     posePivot(h, hx, k.y, hz, g[0], g[1], g[2], hox, hoy, hoz);
   }
@@ -431,12 +433,15 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         off = open ? 1 : cp ? cp.off : 0; held = open || !cp;   // eased when nothing's working it (a rack cut short closes, not snaps)
         if (bolt) { q.lift = (q.lift || 0) + ((open ? 1 : cp ? cp.lift : 0) - (q.lift || 0)) * (cp && !open ? 1 : Math.min(1, rdt * 14)); q.m.rotation.z = -BOLT_TURN * q.lift; }
       }
-      else if (q.lock && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
+      // an akimbo gun's slide: locked back once that gun's run dry, until its own reload drops it (weapons/akimbo.js);
+      // let go, it slams home in a blink rather than snapping
+      else if (q.lock && ak && akSlideBack(id, q.side)) { off = 1; held = true; }
+      else if (q.lock && ak && q.off > 0.02 && st > 0.1) { off = 0; held = true; fast = true; }
+      else if (q.lock && !ak && (W8.mag[id] || 0) <= 0 && rel !== 'mag') { off = 1; held = true; }
       else if (q.lock && PS) {   // locked back through the mag change, tugged off the stop (a slingshot), then flies home
         const relT = PS_REL[W8.relVar], tug = W8.relVar === 0 ? smooth(clamp((rp - PS_TUG) / (relT - PS_TUG), 0, 1)) * 0.14 : 0;
         off = rp < relT ? 1 + tug : 0; held = true; fast = rp >= relT;
       }
-      else if (q.lock && rel === 'mag' && ak) { off = W8.akEmpty && rp < AK_EV[q.side === 'L' ? 3 : 1] + 0.03 ? 1 : 0; held = true; }   // each runs home as its fresh mag goes in
       else if (q.lock && rel === 'mag' && SLIDE_PISTOLS[id]) { off = 0; held = true; }   // rounds still in it: the slide stays put
       else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
       else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
@@ -455,11 +460,11 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const mgs = MAGG[s] || [];
   if (mgs.length && ak) {
     // an akimbo pair: each gun's mag slides out as its turn starts, is gone while it falls, and the fresh one is driven
-    // up into the grip as that gun comes down onto it
+    // up into the grip as that gun comes down onto it (the right gun's is built first)
     mgs.forEach((m, k) => {
-      const u = rel === 'mag' ? akPhase(k ? 'L' : 'R', rp) : 1, md = u < 0.08 ? smooth(u / 0.08) * 0.12 : u < 0.55 ? 0 : 0.12 * (1 - smooth(clamp((u - 0.55) / 0.05, 0, 1)));
-      m.visible = rel !== 'mag' || u < 0.08 || u >= 0.55; m.position.y = -md;
-      if (!k) ANIM.magDrop = m.visible ? md : 0.22;
+      const side = k ? 'L' : 'R', u = akU(side), md = u < 0.08 ? smooth(u / 0.08) * 0.12 : u < 0.55 ? 0 : 0.12 * (1 - smooth(clamp((u - 0.55) / 0.05, 0, 1)));
+      m.visible = u < 0.08 || u >= 0.55; m.position.y = -md;
+      if (akBusy(side) || (!k && !W8.reloading)) ANIM.magDrop = m.visible ? md : 0.22;
     });
   } else if (mgs.length) {
     let md = 0, show = true;

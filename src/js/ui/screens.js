@@ -16,7 +16,7 @@ function setState(s) {
   if (s === 'paused') { renderHistory('pHist', 'pHistN'); renderBought('pBuy', 'pBuyN'); }
   if (s === 'upgrade') renderHistory('upHist', 'upHistN');
   if (s === 'play') { last = performance.now(); cv.focus({ preventScroll: true }); }
-  keys.clear(); mouseDown = false;
+  keys.clear(); mouseDown = mouseDownR = false;
 }
 // wipe the farm back to a fresh run: bodies, drops, debris, boards, stats, your character
 function resetRun(keepLook) {
@@ -90,7 +90,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title'
 // the run ends PZ-style: you go down where you stand, the HUD drains away, they close in, then the tally
 function startDeath() {
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
-  exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = false;
+  exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1); ANIM.deathPool = 0;
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);

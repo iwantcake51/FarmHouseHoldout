@@ -10,7 +10,8 @@ function updateCombat(dt) {
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
   tickReload(dt); tickCycle(dt);
   if (W8.burstLeft > 0) { W8.burstT -= dt; if (W8.burstT <= 0 && (W8.mag[curId()] || 0) > 0) { W8.burstLeft--; W8.burstT = 0.06; W8.inBurst = true; fire(); W8.inBurst = false; W8.cd = W8.burstLeft > 0 ? 0 : 0.45 / Math.sqrt(S.rateMul); } else if ((W8.mag[curId()] || 0) <= 0) W8.burstLeft = 0; }
-  const wantFire = (mouseDown || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25);   // not till it's back in your hands after a bandage
+  const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25);   // not till it's back in your hands after a bandage
+  const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire) && canFire;
   tickBandage(dt);
   if (!wantFire) W8.trigLock = false;
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
@@ -56,5 +57,8 @@ function updateCombat(dt) {
     if (P.scrDripT <= 0) { P.scrDripT = rr(0.6, 1.3); screenDrop(); }                     // and blood on the screen (ui/hud.js)
     if (P.hp <= 0) { P.hp = 0; startDeath(); }
   }
-  if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) fire();
+  // a gun in each hand: each button its own gun (weapons/akimbo.js)
+  const D = W(curId());
+  if (D && D.akimbo) { const ok = canFire && (!P.vault || vaultGun()); akTriggers(dt, curId(), D, { L: ok && mouseDown, R: ok && mouseDownR, any: ok && stickFire }); }
+  else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) fire();
 }
