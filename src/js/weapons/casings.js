@@ -73,15 +73,19 @@ let mIdx = 0;
 function dropMag(id) {
   const D = W(id), mp = MAGPOS[W8.cur]; if (!D || !mp) return;
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
-  const drum = T('mag') >= 2 && id !== 'pistol' && id !== 'deagle' || id === 'auto12', belt = id === 'lmg';
-  const c = mags[mIdx = (mIdx + 1) % mags.length];
-  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2;
-  if (id === 'deagle') { w = 0.06; h = 0.17; d = 0.08; }
-  else if (id === 'smg' || id === 'sub') { w = 0.05; h = id === 'sub' && hasMod('stack') ? 0.38 : 0.24; d = 0.07; }
-  else if (id === 'ar') { w = 0.06; h = 0.26; d = 0.1; }
-  if (belt) { w = 0.17; h = 0.15; d = 0.17; mat = GM.olive; }
-  c.body.geometry = drum ? DRUM_G : UBOX_D; c.body.material = mat;
-  if (drum) { c.body.scale.set(belt ? 0.2 : 0.15, 0.12, belt ? 0.2 : 0.15); c.body.rotation.set(0, 0, Math.PI / 2); c.r = 0.075; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = 0.06; }
+  // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
+  // drum (its radius and thickness, and which way its axis runs: along the gun or across it)
+  const mt = T('mag'), c = mags[mIdx = (mIdx + 1) % mags.length];
+  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2, dr = null;
+  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = GM.poly; } }
+  else if (id === 'deagle') { w = 0.026; h = 0.17; d = 0.065; }
+  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
+  else if (id === 'sub') { w = 0.026; h = hasMod('stack') ? 0.36 : 0.24; d = 0.042; }
+  else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.028; h = 0.22; d = 0.068; } }
+  else if (id === 'auto12') dr = { r: 0.114, t: 0.078, ax: 'z' };
+  else if (id === 'lmg') { w = 0.055; h = 0.23; d = 0.19; mat = GM.olive; }
+  c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = mat;
+  if (dr) { c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); c.r = dr.r * 0.6; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = dr.t / 2; }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
   _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv);
   c.g.position.copy(_cv); c.g.rotation.set(0.2, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;

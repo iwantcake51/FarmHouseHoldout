@@ -69,7 +69,7 @@ Every source file starts with a one-line comment saying what is in it.
 | What zombies drop and how often (more ammo for melee kills) | `killZombie` in `src/js/zombies/damage.js` |
 | How long drops stay on the ground | `DROP_LIFE` in `src/js/pickups/pickups.js` |
 | How many planks you can carry | `PLANK_MAX` in `src/js/barricades/planks.js` |
-| Gun 3D models | `src/js/weapons/gun-models.js` |
+| Gun 3D models: each gun's outline traced off a side-on photo; the part helpers at the top (`solid` for rounded grips and stocks that keep the traced size, `inset`, `clipTo`, `checker` and `stipple` for checkering and stippling cut to a stock's own outline, `taperX` to slim a stock through the wrist) | `src/js/weapons/gun-models.js` |
 | Attachment models (suppressors, sights, lasers, drums...) | `src/js/weapons/attachments.js` |
 | Gun mods bought as upgrades at the workbench (burst switch, second pistol...), and which ones take the muzzle (`muzzle`: one can, choke or muzzle device per gun, `muzzleTaken` in `weapons/mod-levels.js`) | `src/js/weapons/gun-mods.js` |
 | What improving a mod at the workbench does at levels II and III, and the fire modes V steps through | `src/js/weapons/mod-levels.js` |
@@ -91,6 +91,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Upgrade tiers per gun and for your character | `src/js/upgrades/tier-table.js` |
 | The supply crate's marker (over it, or at the edge of the screen pointing to it) and the light beam over a landed crate | `updateDropMarker` in `src/js/stations/supply-drop.js`, `dropBeam` in `src/js/pickups/pickups.js` |
 | What each station sells, and the prices (ammo by the gun, `AMMO_COST`; a gun's ammo, trigger and magazine upgrades, `TIER_COST`). Everything for the weapon in your hands sits in one group, Attachments / Upgrades (`gearGroup`), and each card's green and red chips come from `src/js/upgrades/upgrade-info.js` (`tierFx`, `modFx`, `improveFx`, `tuneFx`) | `src/js/stations/recipes.js` |
+| Pistol slides: which pistols lock back on the last round (`SLIDE_PISTOLS`), how much quicker a reload with rounds still in it is (`TAC_MUL`), and the empty reload's slide drop, a slingshot or a thumb on the slide stop (`PS_MAG`, `PS_REL`; the hand moves are in `src/js/player/hold.js`, `slideAt` and `stopAt` per gun in `HOLD`) | `src/js/weapons/reload.js` |
 | Speed loaders: the revolver's reload with one (`REV_LOAD`) and how long each go of shells takes (`LOADER_T`); the revolver's loader moves are in `src/js/player/hold.js` (`SLM`) | `src/js/game/run-state.js`, `SL_IN` and the rest in `src/js/weapons/reload.js` |
 | The shotgun pattern (`pelletOff`), what a round keeps through each zombie (`PIERCE_KEEP`), and scopes (`scopeSpread`, `SCOPE_HEAD`) | `src/js/weapons/firing.js` |
 | What a workbench tune-up does to a weapon | `TUNE` in `src/js/game/run-state.js` |
@@ -101,7 +102,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Aiming down sights and zoom | `src/js/player/aiming.js` |
 | How each gun is held (grip and support hand points, stance), reload and bolt hand motions, akimbo | `src/js/player/hold.js` |
 | Working the pump and the bolt: the ways each is worked, one picked at random each time (`RACKS`: the beats, timing, how the gun leans, where the hand takes the knob, and the knocks to the gun and the camera at each stop), how far the action is back (`cyclePose`), the sounds on each beat (`cycleFx`), and the rack that chambers a round (`chamberCycle`): a pump or bolt gun can't fire again till a rack drives a round home (`needsRack`), and a rack cut short by a reload or a swap is done again once your hands are free. The gun rides a loose spring through it (`RACK_K`, `RACK_D` in `src/js/player/hold.js`, along with how far the bolt handle turns, `BOLT_TURN`), and so does the camera (`camRack` in `src/js/game/camera.js`) | `src/js/weapons/casings.js` |
-| Weapons carried on your body (hip holster, strapped flat across the pack, melee in the straps), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
+| Weapons carried on your body (the duty holster moulded round each sidearm, `HOLSTER_FIT`, on a belt; long guns strapped flat across the pack, melee in the straps; an empty pistol goes in with its slide locked back), the planks on your pack, and how the backpack swings (`PACK_SW`) | `src/js/player/stow.js` |
 | Dust clouds, spark streaks, impact flashes, blood mist, embers, and dragon's breath (`dragonBreath`) | `src/js/effects/puffs.js` |
 | Bullet tracers: how hard each round hits as far as its tracer goes (`tracerPower`), the colours for plain, +P and dragon's breath rounds (`TR_STYLE`), and the slug, its head, the line it leaves, the heat haze and the light a big round throws on the ground | `src/js/effects/tracers.js` |
 | Bullet holes in the house walls | `src/js/effects/bullet-holes.js` |

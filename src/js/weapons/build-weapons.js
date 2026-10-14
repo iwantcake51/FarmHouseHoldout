@@ -21,7 +21,7 @@ function buildGuns() {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
-    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; tierCtx = id;
+    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; BRK[s] = null; tierCtx = id;
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
       const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
@@ -31,13 +31,17 @@ function buildGuns() {
       if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
       if (D.melee) { unfight(parent); return 0; }
       let front = info.front; const y = info.y;
-      if (info.baseMag) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
-      else if (info.magZ) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
+      if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
+      else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
       if (pr) { cyl(parent, 0.02, 0.09 * pr, GM.blued, X, y, front + 0.045 * pr); ring(parent, 0.024, 0.012, GM.metal, X, y, front + 0.09 * pr - 0.006); front += 0.09 * pr; }
-      const muz = fitAttachments(parent, D, front, y, info) + 0.02;
+      const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
+      // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
+      // sawn-off's forend), so it all swings down with them when it's broken open
+      if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
+      if (info.brk) { BRK[s] = { g: info.brk, rims: info.rims || [] }; }
       // pull apart faces that would z-fight, then let the slides and bolts note their rest positions
       unfight(parent);
-      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }));
+      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel }; });
       return muz;
     };
     const g = gunMeshes[s];

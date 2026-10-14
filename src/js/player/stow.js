@@ -17,9 +17,42 @@ const STOW_AT = {
   auto: { part: () => packBody, pos: [0, 0.94, -0.5], q: flatOnBack(-0.62), strap: 0.62, pivot: () => [X, 1.1, 0.72] },
   melee: { part: () => packBody, pos: [-0.24, 1.2, -0.33], rot: [0, 0, Math.PI - 0.12], pivot: () => [0, 0.05, 0] }
 };
-const HOLSTER_M = lam(0x3a2c20), STRAP_M = lam(0x2c2620);
+const HOLSTER_M = lam(0x1d1d1f), HOOD_M = lam(0x141415), STRAP_M = lam(0x2c2620), BELT_M = lam(0x19191a), SNAP_M = lam(0x2e2f31), BUCKLE_M = lam(0x8a8d90);
+// a black duty holster, moulded round each sidearm (in the gun's own frame): rear and top of the shell, its closed
+// front, the bore line, the trigger guard it covers (gz along the gun, gb its bottom), the mouth's lower corner where
+// it follows the front of the grip, and its width
+const HOLSTER_FIT = {
+  pistol: { rear: 0.566, top: 1.168, front: 0.852, bore: 1.142, gz: [0.652, 0.738], gb: 1.046, mouth: [0.566, 1.128], w: 0.05 },
+  deagle: { rear: 0.55, top: 1.197, front: 0.924, bore: 1.16, gz: [0.641, 0.727], gb: 1.054, mouth: [0.55, 1.124], w: 0.054 },
+  revolver: { rear: 0.55, top: 1.182, front: 0.86, bore: 1.152, gz: [0.574, 0.634], gb: 1.034, mouth: [0.55, 1.128], w: 0.066 }
+};
+let beltPieces = [];
+// the holster: the moulded shell (closed over the slide, the trigger guard and the muzzle, open at the mouth where the
+// grip comes out), the retention hood over the back of the slide with its snap, a second snap low on the shell, and
+// on the body side a paddle and the loop that holds it on the belt (pv: the gun's grip point, where the belt runs)
+function buildHolster(parent, id, pv, muz) {
+  const F = HOLSTER_FIT[id]; if (!F) { box(parent, 0.075, 0.24, 0.13, HOLSTER_M, 0.0, -0.13, -0.02); return; }
+  const g = new THREE.Group(); g.position.set(-pv[0], -pv[1], -pv[2]); parent.add(g);
+  const fr = Math.max(F.front, Math.min((muz || 0) - 0.012, F.front + 0.12)), w = F.w, t = F.top, b = F.bore, [z0, z1] = F.gz, x0 = X;
+  solid(g, [[F.rear, t], [fr - 0.014, t], [fr, t - 0.012], [fr + 0.002, b - 0.028], [fr - 0.012, b - 0.042], [z1 + 0.03, b - 0.046], [z1 + 0.006, F.gb + 0.012], [z1 - 0.006, F.gb], [z0 + 0.012, F.gb], [z0, F.gb + 0.01], [F.mouth[0] + 0.012, F.mouth[1] - 0.006], F.mouth], w, HOLSTER_M, x0, 0.009);
+  // the hood: a strap up over the back of the slide and down both sides, its tab on the outside with the snap
+  const h0 = F.rear + 0.008, h1 = F.rear + 0.04;
+  solid(g, [[h0, t + 0.009], [h1, t + 0.009], [h1 + 0.004, t - 0.03], [h0 - 0.004, t - 0.03]], w + 0.008, HOOD_M, x0, 0.004);
+  cyl(g, 0.0065, 0.004, SNAP_M, x0 + w / 2 + 0.005, t - 0.017, (h0 + h1) / 2, 14).rotation.set(0, 0, Math.PI / 2);
+  cyl(g, 0.0055, 0.003, SNAP_M, x0 + w / 2 + 0.0015, b - 0.012, z1 + 0.03, 14).rotation.set(0, 0, Math.PI / 2);
+  // the paddle against your hip and the loop round the belt (the belt runs at the grip point: pv[2] along the gun)
+  solid(g, [[F.rear - 0.012, t + 0.006], [F.rear + 0.075, t + 0.006], [F.rear + 0.08, F.gb + 0.03], [F.rear - 0.008, F.gb + 0.02]], 0.006, HOOD_M, x0 - w / 2 - 0.002, 0.002);
+  box(g, 0.026, t - F.gb, 0.05, HOOD_M, x0 - w / 2 - 0.016, (t + F.gb) / 2, pv[2]);
+}
+// the belt round your waist the holster hangs on, with its buckle, while you carry a sidearm
+function buildBelt(on) {
+  beltPieces.forEach(o => o.parent && o.parent.remove(o)); beltPieces = [];
+  if (!on) return;
+  beltPieces.push(box(PM.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(PM.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158), box(PM.upper, 0.05, 0.034, 0.01, BELT_M, 0, 0.6, 0.16));
+}
 function buildStow() {
   for (const s in STOW) { const o = STOW[s]; if (o && o.parent) o.parent.remove(o); delete STOW[s]; }
+  buildBelt(!!W8.slot.side);
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const at = STOW_AT[s], copy = gunMeshes[s].clone(true);
@@ -31,8 +64,9 @@ function buildStow() {
     outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]);
     inner.add(copy); outer.add(inner); at.part().add(outer);
     // a leather holster round the sidearm, a strap across the pack for slung guns
-    if (s === 'side') box(outer, 0.075, 0.24, 0.13, HOLSTER_M, 0.0, -0.13, -0.02);
+    if (s === 'side') buildHolster(inner, id, pv, MUZ[s]);
     else if (s !== 'melee') box(outer, 0.44, 0.035, 0.03, STRAP_M, 0, 0.02, 0.04).rotation.z = at.strap;   // a strap across it, holding it to the pack
+    const sls = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); }); outer.userData.slides = sls; outer.userData.id = id;
     outer.userData.slot = s; STOW[s] = outer;
   }
 }
@@ -97,6 +131,7 @@ function updateStow(rdt) {
     const o = STOW[s]; o.visible = (s !== held || !!P.vault) && !P.dead;   // the weapon in your hands goes back on you while you vault
     if (!o.visible) continue;
     if (s === 'side') o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the hip and rocks fore and aft
+    if (o.userData.slides && SLIDE_PISTOLS[o.userData.id]) { const back = slideLocked(o.userData.id) ? 1 : 0; o.userData.slides.forEach(m => { const r = m.userData.slideRest; m.position.z = r.z0 - r.travel * back; m.updateMatrix(); }); }   // an empty pistol goes in with its slide locked back
     else o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8);                            // slung guns and the melee weapon swing about the straps
   }
   const n = Math.min(plankStack.length, S.planks | 0);
