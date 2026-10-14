@@ -90,7 +90,13 @@ function ejectLinks(n, z) {
 }
 function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
-for (let k = 0; k < 10; k++) { const g = new THREE.Group(); g.visible = false; scene.add(g); const body = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = true; g.add(body); mags.push({ g, body, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' }); }
+// each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
+// a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
+for (let k = 0; k < 10; k++) {
+  const g = new THREE.Group(), pv = new THREE.Group(); g.visible = false; scene.add(g); g.add(pv);
+  const body = new THREE.Mesh(UBOX_D, GM.metal2), neck = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = neck.castShadow = true; pv.add(body, neck);
+  mags.push({ g, pv, body, neck, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
+}
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
 function dropMag(id, side) {
@@ -107,8 +113,15 @@ function dropMag(id, side) {
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') dr = { r: 0.114, t: 0.078, ax: 'z' };
   else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.018 * mt; d = 0.174; mat = GM.olive; }
-  c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = mat;
-  if (dr) { c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); c.r = dr.r * 0.6; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); }; c.restY = dr.t / 2; }
+  c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = c.neck.material = mat; c.pv.rotation.set(0, 0, 0); c.neck.visible = !!dr;
+  if (dr) {
+    // the drum, its axis along or across the gun, and its stick standing up out of it, as long as the drum's radius
+    c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0);
+    const nh = dr.r * 1.05, nw = id === 'pistol' ? 0.026 : 0.044, nd = id === 'pistol' ? 0.05 : 0.07;
+    c.neck.scale.set(dr.ax === 'x' ? Math.min(nw, dr.t * 0.8) : nw, nh, dr.ax === 'z' ? Math.min(nd, dr.t * 0.8) : nd); c.neck.position.set(0, dr.r * 0.75 + nh / 2, 0);
+    c.r = dr.r * 0.6; c.restY = dr.t / 2;
+    c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.pv.rotation.set(dr.ax === 'z' ? -Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); };   // flat on its face
+  }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
   // an akimbo pair's left gun drops its own mag, from its own hand
   if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }

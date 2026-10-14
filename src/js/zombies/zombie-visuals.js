@@ -8,6 +8,7 @@ const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826);
 // into reach and out as they leave it: everyone in the arc for a two-hander that cleaves, only the nearest for a
 // one-hander (melee/melee.js). It fades with them, so it never shows a zombie you can't see.
 const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
+const RED_NEAR = 8, RED_FAR = 13;
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
 // standing behind a tree or a wall still reads as in reach; a burning one is orange (BURN_COL)
 const _xrRed = new THREE.Color(0xff3322), _xrSil = new THREE.Color(0xd8382a), _xrGreen = new THREE.Color(REACH_COL), _xrBurn = new THREE.Color(0xff8a1e);
@@ -29,7 +30,7 @@ function updateZombieVisuals(dt, rdt) {
     updateZombieStain(z.stain, rdt);
     const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 3.2)); z.m.g.visible = true;
-    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.xr) { z.xr.rim.opacity = z.vis; if (z.xr.sil) z.xr.sil.opacity = z.vis * 0.38; } if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
+    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
     if (z.inReach || z.reachA > 0) {
       const on = !!z.inReach; z.inReach = false;
       z.reachA = (z.reachA || 0) + ((on ? 1 : 0) - (z.reachA || 0)) * Math.min(1, rdt * (on ? 9 : 5)); if (!on && z.reachA < 0.01) z.reachA = 0;
@@ -45,7 +46,11 @@ function updateZombieVisuals(dt, rdt) {
       z.burnOl.opacity = z.burnA * z.vis * (0.5 + 0.22 * Math.sin(worldT * 17) * Math.sin(worldT * 7.3 + 1)) * (1 - 0.6 * (z.reachA || 0)); z.burnOl.visible = z.burnA > 0;
       tintXray(z);
     }
-    if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * (z.reachA || 0));
+    // the red see-through outline (and the pulsing one on a wave's last few) only for zombies fairly near you: full up to
+    // RED_NEAR metres, gone by RED_FAR, so the far ones aren't lit up across the map
+    const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1));
+    if (z.xr) { const a = z.vis * Math.max(near, z.reachA || 0, z.burnA || 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.38; } }
+    if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * (z.reachA || 0)) * near;
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
     const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);

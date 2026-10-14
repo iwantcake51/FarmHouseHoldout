@@ -197,7 +197,14 @@ function dropLoader() {
 const BAND_PUT = 0.2, BAND_WRAP = 0.16;
 function bandPhases(rdt) {
   const band = P.bandT > 0;
-  if (band) { ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT); if (ANIM.bandP >= 1) ANIM.bandW = Math.min(1, (ANIM.bandW || 0) + rdt / BAND_WRAP); }
+  // another weapon picked during the bandage (switchSlot): the hands come down, the one in hand finishes going away,
+  // then the new one is taken out
+  if (ANIM.bandSwitch && !band) {
+    ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP);
+    if (ANIM.bandW <= 0) ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT);
+    if (ANIM.bandP >= 1) { const s = ANIM.bandSwitch; ANIM.bandSwitch = null; if (W8.slot[s]) { W8.cur = s; W8.reloading = null; W8.burstLeft = 0; W8.swing = 0; W8.cd = Math.max(W8.cd, BAND_PUT); SFX.click(); if (WEAP[W8.slot[s]].melee) ANIM.meleeEqT = -BAND_PUT; } }
+  }
+  else if (band) { ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT); if (ANIM.bandP >= 1) ANIM.bandW = Math.min(1, (ANIM.bandW || 0) + rdt / BAND_WRAP); }
   else { ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP); if (ANIM.bandW <= 0) ANIM.bandP = Math.max(0, (ANIM.bandP || 0) - rdt / BAND_PUT); }
   ANIM.bandK = smooth(ANIM.bandW || 0);
   if (band) ANIM.healCut = false;

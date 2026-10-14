@@ -70,13 +70,14 @@ function akTickReload(dt, id, D) {
   akRing(id, D);
 }
 // the triggers. want.L / want.R are the mouse buttons; want.any is a touch stick, one trigger for both, and the guns
-// take turns on it. A burst is a gun's own: one pull, three from that gun (pull both for six)
+// take turns on it. In single shots each gun fires once a click; a burst is a gun's own (three from that gun, both for
+// six), repeating while its button is held and stopping where it is when it's let go
 function akTriggers(dt, id, D, want) {
   // vaulting (Run and gun) the left hand's on the sill, so either button fires the right gun
   if (P.vault) { want = { L: false, R: want.L || want.R || want.any, any: false }; }
   for (const s of AK_SIDES) {
     W8.akCd[s] -= dt;
-    if (!want[s] && !want.any) W8.akLock[s] = false;
+    if (!want[s] && !want.any) { W8.akLock[s] = false; W8.akBurst[s] = 0; }
     if (W8.akBurst[s] > 0) {
       W8.akBurstT[s] -= dt;
       if (W8.akBurstT[s] <= 0) {
@@ -104,10 +105,11 @@ function akTriggers(dt, id, D, want) {
 function akShot(id, D, s) {
   if (akBusy(s)) return false;
   const m = akMags(id);
-  if (m[s] <= 0) { W8.akCd[s] = 0.25; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return false; }
+  if (m[s] <= 0) { W8.akCd[s] = 0.25; if (semiAuto(id)) W8.akLock[s] = true; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return false; }
   m[s]--; W8.mag[id]--; W8.akSide = s === 'L' ? -1 : 1;
   // each gun at its own pace (two guns together fire as fast as D.rate), and a moment before the other can follow
   W8.akCd[s] = D.rate * 2 / S.rateMul; if (!W8.inBurst) W8.cd = D.rate * 0.6 / S.rateMul;
-  if (D.burst && W8.akBurst[s] <= 0 && !W8.inBurst) { W8.akBurst[s] = D.burst - 1; W8.akBurstT[s] = 0.06; W8.akLock[s] = true; }
+  if (D.burst && W8.akBurst[s] <= 0 && !W8.inBurst) { W8.akBurst[s] = D.burst - 1; W8.akBurstT[s] = 0.06; }
+  else if (!W8.inBurst && semiAuto(id)) W8.akLock[s] = true;   // one shot a click
   return true;
 }

@@ -9,11 +9,13 @@ function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
   tickReload(dt); tickCycle(dt);
-  if (W8.burstLeft > 0) { W8.burstT -= dt; if (W8.burstT <= 0 && (W8.mag[curId()] || 0) > 0) { W8.burstLeft--; W8.burstT = 0.06; W8.inBurst = true; fire(); W8.inBurst = false; W8.cd = W8.burstLeft > 0 ? 0 : 0.45 / Math.sqrt(S.rateMul); } else if ((W8.mag[curId()] || 0) <= 0) W8.burstLeft = 0; }
   const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25);   // not till it's back in your hands after a bandage
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire) && canFire;
+  // a semi-auto needs the trigger let go between shots (trigLock); a burst keeps going only while it's held, and let go
+  // part way through it stops there
+  if (!wantFire) { W8.trigLock = false; W8.burstLeft = 0; }
+  if (W8.burstLeft > 0) { W8.burstT -= dt; if (W8.burstT <= 0 && (W8.mag[curId()] || 0) > 0) { W8.burstLeft--; W8.burstT = 0.06; W8.inBurst = true; fire(); W8.inBurst = false; W8.cd = W8.burstLeft > 0 ? 0 : 0.45 / Math.sqrt(S.rateMul); } else if ((W8.mag[curId()] || 0) <= 0) W8.burstLeft = 0; }
   tickBandage(dt);
-  if (!wantFire) W8.trigLock = false;
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
   P.stamT = (P.stamT || 0) + dt;
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a

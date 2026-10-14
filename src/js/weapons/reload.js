@@ -6,7 +6,7 @@ function equip(s, force) {
   exitScope(); ANIM.sw = 0.35; W8.swing = 0; W8.boltOpen = false;
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
   if ((W(W8.slot[s]) || {}).melee) ANIM.meleeEqT = -(SWAP_T.end - 0.06);   // a flourish once it's drawn (player/hold.js)
-  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE); SFX.click();
+  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.click();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
 // (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half)

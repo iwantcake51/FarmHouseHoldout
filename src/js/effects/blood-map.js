@@ -31,7 +31,7 @@ BMU.uBloodNoise.value = (() => {
   const t = new THREE.DataTexture(d, S, S, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
 })();
 const bmScene = new THREE.Scene(), bmCam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
-const BM_KIND = { pool: 0, spray: 1, drop: 2, scorch: 0 };
+const BM_KIND = { pool: 0, spray: 1, drop: 2, scorch: 0, foot: 3 };
 const BM_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const BM_FRAG = `
 uniform float uKind, uStr, uH, uR, uSoot; uniform vec2 uSeed; uniform sampler2D uNoise; varying vec2 vUv;
@@ -46,10 +46,16 @@ void main() {
     float streak = bn(vec2(t * 0.45, p.y * 2.6 / w) + uSeed);
     a = smoothstep(1.0, 0.55, lane + (nz - 0.5) * 0.5) * smoothstep(0.42, 0.66, streak + (1.0 - t) * 0.42) * smoothstep(1.0, 0.7, t);
     a = max(a, smoothstep(0.5, 0.18, length(p - vec2(-0.68, 0.0)) + (nz - 0.5) * 0.3));
-  } else {
+  } else if (uKind < 2.5) {
     // a drop: a small blob and the fine spatter round it
     a = smoothstep(0.52, 0.3, r + (nz - 0.5) * 0.4);
     a = max(a, smoothstep(0.66, 0.74, bn(vUv * 2.6 + uSeed * 3.1)) * smoothstep(1.0, 0.55, r));
+  } else {
+    // a boot print, toe along +x: the sole and the heel with a gap between, its tread breaking it up so it reads pressed
+    // in rather than painted on
+    float sole = length((p - vec2(0.3, 0.0)) / vec2(0.6, 0.36)), heel = length((p - vec2(-0.62, 0.0)) / vec2(0.27, 0.32));
+    a = max(smoothstep(1.0, 0.78, sole + (nz - 0.5) * 0.35), smoothstep(1.0, 0.78, heel + (nz - 0.5) * 0.35));
+    a *= 0.55 + 0.45 * smoothstep(0.32, 0.62, bn(vUv * 5.0 + uSeed));
   }
   a *= uStr;
   gl_FragColor = vec4(a * uR, a * uH * uR, a * uSoot, a);   // alpha: fresh
@@ -62,14 +68,37 @@ const bmMat = () => new THREE.ShaderMaterial({ vertexShader: BM_VERT, fragmentSh
 const bmQuads = [];
 for (let k = 0; k < 96; k++) { const m = new THREE.Mesh(BM_QUAD, bmMat()); m.visible = false; m.frustumCulled = false; bmScene.add(m); bmQuads.push({ m, t: 0, dur: 0, s: 1, busy: false }); }
 let bmQ = 0, bmDirty = true, bmCleared = false, bmDry = 0;
+// what's known of the blood on the ground away from the GPU, for footprints: how wet each half-metre of the farm is.
+// Splashes wet it (a drop only a little), each wave halves it, and a new run dries it out
+const BW_CELL = 0.5, BW_N = Math.ceil(HALF * 2 / BW_CELL), bloodWet = new Float32Array(BW_N * BW_N);
+const bwCell = v => clamp(Math.floor((v + HALF) / BW_CELL), 0, BW_N - 1);
+function wetSplat(x, z, r, k) {
+  for (let cz = bwCell(z - r); cz <= bwCell(z + r); cz++) for (let cx = bwCell(x - r); cx <= bwCell(x + r); cx++) {
+    const px = (cx + 0.5) * BW_CELL - HALF, pz = (cz + 0.5) * BW_CELL - HALF;
+    if (Math.hypot(px - x, pz - z) <= r + BW_CELL * 0.35) { const i = cz * BW_N + cx; bloodWet[i] = Math.max(bloodWet[i], k); }
+  }
+}
+const bloodWetAt = (x, z) => bloodWet[bwCell(z) * BW_N + bwCell(x)];
+// a footfall (player/movement.js): stepping in wet blood soaks your boots for about eight prints (P.bloodFeet), and each
+// step while they're bloody leaves a print under that foot, toe the way you're walking, fainter each time
+function bloodyStep() {
+  P.footSide = -(P.footSide || 1);
+  const wet = bloodWetAt(P.x, P.z);
+  if (wet > 0.35) P.bloodFeet = Math.max(P.bloodFeet || 0, Math.min(1, wet));
+  if (!(P.bloodFeet > 0.04)) return;
+  const v = Math.hypot(P.vx, P.vz) || 1, dx = P.vx / v, dz = P.vz / v, off = 0.1 * P.footSide;
+  splat(P.x - dz * off + dx * 0.08, P.z + dx * off + dz * 0.08, 'foot', 0.3, Math.atan2(dz, dx), 0, 0, 0.3 + 0.55 * P.bloodFeet);
+  P.bloodFeet -= 0.12;
+}
 // paint a splash: kind 'pool' | 'spray' | 'drop' | 'scorch', size (metres across), ang the way a spray was thrown,
 // grow how long a pool takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
-function splat(x, z, kind, size, ang, grow, h) {
+function splat(x, z, kind, size, ang, grow, h, str) {
   if (Math.abs(x) > HALF || Math.abs(z) > HALF) return;
+  if (kind !== 'scorch' && kind !== 'foot') wetSplat(x, z, size * (kind === 'spray' ? 0.5 : 0.42), kind === 'drop' ? 0.3 : 1);
   let q = null; for (let n = 0; n < bmQuads.length && !q; n++) { const c = bmQuads[bmQ = (bmQ + 1) % bmQuads.length]; if (!c.busy) q = c; }
   if (!q) q = bmQuads[bmQ];
   const m = q.m, u = m.material.uniforms, scorch = kind === 'scorch';
-  u.uKind.value = BM_KIND[kind] || 0; u.uStr.value = kind === 'drop' ? 0.85 : 1; u.uR.value = scorch ? 0 : 1; u.uSoot.value = scorch ? 1 : 0;
+  u.uKind.value = BM_KIND[kind] || 0; u.uStr.value = str !== undefined ? str : kind === 'drop' ? 0.85 : 1; u.uR.value = scorch ? 0 : 1; u.uSoot.value = scorch ? 1 : 0;
   u.uH.value = clamp((h !== undefined ? h : kind === 'spray' ? 0.9 : 0) / 2, 0, 1); u.uSeed.value.set(rand(), rand());
   const r = size * (kind === 'spray' ? 0.62 : 0.5);
   m.position.set(x, z, 0); m.rotation.set(0, 0, ang === undefined ? rand() * 6.28 : ang);
@@ -78,10 +107,10 @@ function splat(x, z, kind, size, ang, grow, h) {
 // a spray thrown from (x, z) along (dx, dz)
 function spray(x, z, dx, dz, size, h) { splat(x + dx * size * 0.35, z + dz * size * 0.35, 'spray', size, Math.atan2(dz, dx), 0, h); }
 // wipe the farm clean for a new run
-function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmCleared = false; bmDirty = true; bmAgeDue = 0; }
+function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmCleared = false; bmDirty = true; bmAgeDue = 0; bloodWet.fill(0); }
 // a wave starting ages every stain (waves/waves.js)
 let bmAgeDue = 0;
-function bloodAge() { bmAgeDue += BM_AGE; bmDry = 99; }
+function bloodAge() { bmAgeDue += BM_AGE; bmDry = 99; for (let i = 0; i < bloodWet.length; i++) bloodWet[i] *= 0.5; }   // and it's half as wet underfoot
 // the aging pass: the map copied into the other target, freshness taken down by uAge, and blood with none left faded
 // by uFade; then the two swap
 const bmAgeScene = new THREE.Scene(), bmAgeM = new THREE.Mesh(BM_QUAD, new THREE.ShaderMaterial({ vertexShader: BM_VERT, depthTest: false, depthWrite: false, blending: THREE.NoBlending,

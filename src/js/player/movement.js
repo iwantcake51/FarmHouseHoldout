@@ -50,7 +50,7 @@ function updatePlayer(dt) {
     P.moving = spd > 0.35;
     const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6);
     // a soft footstep each time a foot comes down (twice a stride), a little brighter on the farmhouse boards
-    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(Math.min(1, spd / 4.1), P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1);
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { SFX.step(Math.min(1, spd / 4.1), P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1); bloodyStep(); }   // and a bloody print if your boots are (effects/blood-map.js)
   }
   P.still = P.moving ? 0 : P.still + dt;
 

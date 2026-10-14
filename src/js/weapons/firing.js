@@ -5,6 +5,8 @@
 const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Math.pow(shots, 0.6) / 130, 0.08, 1.25);
 // which hand's gun just fired: an akimbo pair's is the side of its last shot (weapons/akimbo.js), anything else's the right
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
+// a semi-automatic fires once a pull of the trigger: the handguns in single shots (not fanning, a burst or the auto sear)
+const semiAuto = id => { const m = fireModeOf(id); return !!m && m.k === 'semi'; };
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
   const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
@@ -97,10 +99,11 @@ function gunFire(id, D, side) {
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
   if (W8.reloading) return;
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
-  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
+  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
   W8.mag[id] -= shots; W8.cd = D.rate / S.rateMul; run.shots++;
-  if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; W8.trigLock = true; }   // one burst per trigger pull
+  if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
+  else if (!W8.inBurst && semiAuto(id)) W8.trigLock = true;   // one shot a pull
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
@@ -127,8 +130,9 @@ function gunFire(id, D, side) {
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
-      const crit = critC > 0 && rand() < critC; critNext = crit;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? D.critM : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      // a crit: through a scope, or Lucky shot's 1 in 12 on any bullet hit
+      const crit = (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? Math.max(D.critM || 0, 2) : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
