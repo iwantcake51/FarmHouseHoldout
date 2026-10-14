@@ -26,12 +26,16 @@ function interruptBandage() {
   P.bandT = 0; ANIM.healCut = true; SFX.click();   // the view snaps back out of the lean-in (player/hold.js)
   toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
 }
-// stopped on purpose (a click, or a weapon key): the half-wound bandage is wasted, and the weapon comes back out (or
-// the one picked, switchSlot) once the hands are down
+// how far the bandage going on has got (0 to 1)
+const bandProg = () => P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : 0;
+// stopped on purpose (a click, or a weapon key): the bandage is used up and heals for as far as it got (half wound,
+// half its healing), and the weapon comes back out (or the one picked, switchSlot) once the hands are down
 function cancelBandage() {
   if (!(P.bandT > 0)) return;
+  const k = bandProg(), h = Math.round(bandHeal() * k);
   P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click();
-  toast('Bandage wasted', { kind: 'bad', icon: 'med', sub: 'You stopped wrapping it' });
+  if (h > 0) { P.heal = (P.heal || 0) + h; feed('med', h, 'health over time'); }
+  toast('Bandage cut short', { kind: 'warn', icon: 'med', sub: `${Math.round(k * 100)}% wrapped · heals ${h} of ${bandHeal()}` });
 }
 // a weapon key or the touch swap button: during a bandage it cancels it and takes that weapon out instead, carried
 // out of where it rides as the hands come down (bandPhases, player/hold.js); otherwise it's an ordinary swap
