@@ -79,9 +79,9 @@ function gunTierCards() {
   const out = [], group = gearGroup(D);
   for (const k of ['ammo', 'trigger', 'mag']) {
     if (!tierFits(k, id)) continue;
-    const L = TIERS[k], n = gunTier(id, k), st = L.t[n];
-    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[st.r] || 14, title: () => st.name, desc: () => `${TIER_LINE[k]} ${n + 1} of ${L.t.length} · ${st.text}` + (n ? ` Replaces the ${L.t[n - 1].name.toLowerCase()}.` : ''), why: () => '',
-      make: () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, st.name); toast(st.name, { kind: 'good', icon: 'gear', sub: forYour(id) + ' · ' + st.text }); } });
+    const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id);
+    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[st.r] || 14, title: () => nm, desc: () => `${TIER_LINE[k]} ${n + 1} of ${L.t.length} · ${st.text}` + (n ? ` Replaces the ${tierName(k, n - 1, id).toLowerCase()}.` : ''), why: () => '',
+      make: () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); toast(nm, { kind: 'good', icon: 'gear', sub: forYour(id) + ' · ' + st.text }); } });
   }
   return out;
 }

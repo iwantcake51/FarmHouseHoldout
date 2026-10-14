@@ -44,7 +44,7 @@ function buildHolster(parent, id, pv, muz) {
   solid(g, [[F.rear - 0.012, t + 0.006], [F.rear + 0.075, t + 0.006], [F.rear + 0.08, F.gb + 0.03], [F.rear - 0.008, F.gb + 0.02]], 0.006, HOOD_M, x0 - w / 2 - 0.002, 0.002);
   box(g, 0.026, t - F.gb, 0.05, HOOD_M, x0 - w / 2 - 0.016, (t + F.gb) / 2, pv[2]);
 }
-// the belt round your waist the holster hangs on, with its buckle, while you carry a sidearm
+// the belt round your waist the holster hangs on, with its buckle, while you carry a sidearm (drawn or not)
 function buildBelt(on) {
   beltPieces.forEach(o => o.parent && o.parent.remove(o)); beltPieces = [];
   if (!on) return;
@@ -67,7 +67,7 @@ function buildStow() {
     if (s === 'side') buildHolster(inner, id, pv, MUZ[s]);
     else if (s !== 'melee') box(outer, 0.44, 0.035, 0.03, STRAP_M, 0, 0.02, 0.04).rotation.z = at.strap;   // a strap across it, holding it to the pack
     const sls = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); }); outer.userData.slides = sls; outer.userData.id = id;
-    outer.userData.slot = s; STOW[s] = outer;
+    outer.userData.slot = s; outer.userData.gun = copy; STOW[s] = outer;
   }
 }
 // planks strapped flat across the back of the pack, one for each you carry up to five: three side by side against the
@@ -115,6 +115,8 @@ function updatePack(dt) {
   packPivot.position.y = PACK_PIV[1] + clamp(q.y - PM.upper.position.y, -L.bounce, L.bounce);
   packPivot.rotation.set(q.rx, q.ry, q.rz);
 }
+// show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out
+function showStowed(s, on) { const o = STOW[s]; if (!o) return; o.userData.gun.visible = on; o.visible = (on || s === 'side') && !P.dead; }
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
   if (stowDirty) { stowDirty = false; buildStow(); }
@@ -128,10 +130,13 @@ function updateStow(rdt) {
     stowSw.vz += (-60 * (stowSw.z - tz) - 5 * stowSw.vz) * dt; stowSw.z += stowSw.vz * dt;
   }
   for (const s in STOW) {
-    const o = STOW[s]; o.visible = (s !== held || !!P.vault) && !P.dead;   // the weapon in your hands goes back on you while you vault
+    // the weapon in your hands goes back on you while you vault
+    const o = STOW[s], stowed = s !== held || !!P.vault; showStowed(s, stowed);
     if (!o.visible) continue;
-    if (s === 'side') o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the hip and rocks fore and aft
-    if (o.userData.slides && SLIDE_PISTOLS[o.userData.id]) { const back = slideLocked(o.userData.id) ? 1 : 0; o.userData.slides.forEach(m => { const r = m.userData.slideRest; m.position.z = r.z0 - r.travel * back; m.updateMatrix(); }); }   // an empty pistol goes in with its slide locked back
+    if (s === 'side') {
+      o.rotation.set(stowSw.x * 0.6, 0, -Math.abs(stowSw.z) * 0.3);   // the holster rides the hip and rocks fore and aft
+      if (stowed && SLIDE_PISTOLS[o.userData.id]) { const back = slideLocked(o.userData.id) ? 1 : 0; o.userData.slides.forEach(m => { const r = m.userData.slideRest; m.position.z = r.z0 - r.travel * back; m.updateMatrix(); }); }   // an empty pistol goes in with its slide locked back
+    }
     else o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8);                            // slung guns and the melee weapon swing about the straps
   }
   const n = Math.min(plankStack.length, S.planks | 0);

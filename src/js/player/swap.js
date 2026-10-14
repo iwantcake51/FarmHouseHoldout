@@ -78,8 +78,8 @@ function updateSwap(dt, rdt) {
   const stowNew = stowFrame(st.to, _sw.b);
   // what shows where: the old weapon in the hand until it's put away, the new one on you until it's drawn
   const putting = t < T.put && st.oldW, drawing = t >= T.cross;
-  if (st.from) { gunMeshes[st.from].visible = !!putting; if (STOW[st.from]) STOW[st.from].visible = !putting && !P.dead; }
-  gunMeshes[st.to].visible = drawing; if (STOW[st.to]) STOW[st.to].visible = !drawing && !P.dead;
+  if (st.from) { gunMeshes[st.from].visible = !!putting; showStowed(st.from, !putting); }
+  gunMeshes[st.to].visible = drawing; showStowed(st.to, !drawing);
   if (putting) {
     // the right hand carries the old weapon back to where it rides; the left lets go
     const stowOld = stowFrame(st.from, _sw.c.clone()), k = smooth(t / T.put);

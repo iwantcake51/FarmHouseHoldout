@@ -49,8 +49,9 @@ const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.86, CH_SLAM = 0.9;
 // pistols whose slide locks back on the last round (player/hold.js holds it there, in the hand and in the holster): a
 // reload with rounds still in it is TAC_MUL of the time and leaves the slide alone; an empty one changes the mag in the
 // first PS_MAG of it, then drops the slide: a slingshot (variant 0: grab the back of it, tug it off the stop and let it
-// fly) or a thumb on the slide stop (variant 1), let go at PS_REL by variant
-const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, PS_MAG = 0.8, PS_TUG = 0.885, PS_REL = [0.938, 0.92];
+// fly) or a thumb on the slide stop (variant 1), let go at PS_REL by variant. The slingshot is a steady tug, eased in
+// and out over about a tenth of a second (more for the hand cannon), not a snatch
+const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, PS_MAG = 0.68, PS_TUG = 0.815, PS_REL = [0.917, 0.872];
 const slideReload = id => !!SLIDE_PISTOLS[id] && !(W(id) || {}).akimbo;
 const slideLocked = id => !!SLIDE_PISTOLS[id] && (W8.mag[id] || 0) <= 0;
 const hasCharge = () => !!CHARGE[W8.cur];

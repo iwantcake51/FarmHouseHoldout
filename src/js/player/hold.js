@@ -48,13 +48,15 @@ const _rackT = { p: 0, r: 0, y: 0, z: 0, h: 0, w: 0 };
 // to the side (y). A shot throws the gun up and back; a beat later the hands haul it back down (drop), so a strong gun
 // dips past where it was aimed before it settles home smoothly. No two shots are quite alike: how hard each way, which
 // way it rolls and kicks, when and how hard it's hauled down. Pistols flip, long guns shove back into the shoulder; a
-// light gun or one on full auto just flips and settles
+// light gun or one on full auto just flips and settles. A handgun's kick goes with less than its power (pw^0.6), so even
+// a 9mm snaps the wrists up a few degrees and drives back, and the hand cannons don't fly out of the hands
 const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0 });
 const RK = { R: kickState(), L: kickState() };
 function gunKick(side, pw, kind, auto) {
-  const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), flip = pw * (hand ? 10 : 7.5) * (1 + 0.4 * big) * a;
-  k.vp -= flip * rr(0.85, 1.2); k.vz -= pw * (hand ? 1.6 : 3) * a * rr(0.85, 1.2); k.vh += pw * (hand ? 0.5 : 0.8) * big * a * rr(0.8, 1.2);
-  k.vr += (rand() < 0.5 ? -1 : 1) * pw * (hand ? 2.4 : 1.6) * rr(0.7, 1.2); k.vy += rr(-1, 1) * pw * (hand ? 1.3 : 0.8);
+  const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6);
+  const flip = (hand ? 13.5 * hp : pw * 7.5 * (1 + 0.4 * big)) * a;
+  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2); k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2);
+  k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2); k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8);
   if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
 }
 function stepKick(k, dt) {
@@ -460,10 +462,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         const sq = sl && sl.find(e => e.lock), dz = sq ? sq.m.position.z - sq.z0 : 0, A = H.slideAt || [X, 1.172, 0.57], B = H.stopAt || [X + 0.03, 1.128, 0.66];
         if (W8.relVar === 0) {
           gunPt(_p1, s, 'R', A[0], A[1] + 0.04, A[2] + dz - 0.01); gunPt(_p2, s, 'R', A[0], A[1], A[2] + dz); gunPt(_p3, s, 'R', A[0] + 0.01, A[1] + 0.05, A[2] - 0.07);
-          free = walkPath(_p4, [[0, _hL], [0.3, _p1], [0.45, _p2], [relU, _p2], [relU + 0.07, _p3], [1, _hL]], rr);
+          free = walkPath(_p4, [[0, _hL], [0.24, _p1], [0.36, _p2], [relU, _p2], [relU + 0.09, _p3], [1, _hL]], rr);
         } else {
           gunPt(_p1, s, 'R', B[0] + 0.015, B[1] + 0.02, B[2]); gunPt(_p2, s, 'R', B[0], B[1] - 0.004, B[2]); gunPt(_p3, s, 'R', B[0] + 0.02, B[1] + 0.025, B[2] - 0.01);
-          free = walkPath(_p4, [[0, _hL], [0.35, _p1], [relU - 0.04, _p1], [relU, _p2], [relU + 0.1, _p3], [1, _hL]], rr);
+          free = walkPath(_p4, [[0, _hL], [0.32, _p1], [relU - 0.08, _p1], [relU, _p2], [relU + 0.12, _p3], [1, _hL]], rr);
         }
       }
     } else if (rel === 'shell') {
