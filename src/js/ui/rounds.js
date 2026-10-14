@@ -1,11 +1,21 @@
 // Rounds-left glyphs that drop off the HUD.
 
-// a fired round drops out of the HUD: it pops up, tumbles off the bottom of the screen and leaves a wisp of smoke
+// a fired round drops out of the HUD: it pops up, tumbles off the bottom of the screen and leaves a wisp of smoke. Only
+// the empty case goes (the bullet's gone downrange): the glyph's brass below the bullet (CASE_OF of its height), in its
+// own case colour (a match-grade round's nickel), its mouth open at the top; a rifle case keeps its neck and shoulder.
+// A shotgun shell goes whole, as it is
+const CASE_OF = { rf: 0.7, mg: 0.7, p9: 0.64 };
 function dropRound(src) {
   const r = src.getBoundingClientRect(); if (!r.width) return;
-  const cs = getComputedStyle(src), g = document.createElement('i'), dir = rand() < 0.5 ? -1 : 1;
+  const cs = getComputedStyle(src), g = document.createElement('i'), dir = rand() < 0.5 ? -1 : 1, box = src.closest('#rounds');
+  const cal = !box ? 'p9' : box.classList.contains('sh') ? 'sh' : box.classList.contains('rf') ? 'rf' : box.classList.contains('mg') ? 'mg' : 'p9';
   g.className = 'fallRound';
-  Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, background: cs.backgroundColor, backgroundImage: cs.backgroundImage, borderBottom: cs.borderBottom, borderTop: cs.borderTop, borderRadius: cs.borderRadius, clipPath: cs.clipPath });
+  if (cal === 'sh') Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, background: cs.backgroundColor, borderBottom: cs.borderBottom, borderRadius: cs.borderRadius });
+  else {
+    const h = r.height * CASE_OF[cal], brass = cs.getPropertyValue('--cs').trim() || '#d8b45a';
+    g.className = 'fallRound case' + (cal === 'rf' ? ' rf' : '');
+    Object.assign(g.style, { left: r.left + 'px', top: (r.top + r.height - h) + 'px', width: r.width + 'px', height: h + 'px', background: `linear-gradient(${brass} 0 86%, #9c7a34 86%)` });
+  }
   // a real arc: flicked up and sideways, gravity takes over gradually, tumbling the whole way down
   const vx = dir * rr(70, 190), vy = -rr(240, 380), grav = 1500, spin = dir * rr(380, 900), drop = innerHeight - r.top + 40;
   const T = (-vy + Math.sqrt(vy * vy + 2 * grav * drop)) / grav, frames = [];
