@@ -36,7 +36,12 @@ python3 trace.py grid photo.png --step 50                    # prints the part's
 python3 trace.py grid photo.png --crop 600,380,1000,700 --step 10 --zoom 3   # zoom into a detail
 ```
 
-Look at the grid image. List the parts and how each will be built:
+Look at the grid image and **every other view the user gave you**, then list the parts and how each will be built.
+A side photo only shows a silhouette. A round tube, a flat slab and a fin all look the same from the side, so decide
+each part's cross-section from the front, top or 3/4 views before tracing. Most optics, barrels, tubes and knobs are
+round. Extruding one as a flat profile is the classic mistake: it looks right side-on and wrong from every other angle.
+A part that's round with a fin or foot on it is built as a lathe for the round part plus narrow extrusions for the fin
+and foot. Trace each of those separately, cut off where it meets the round body, so the body hides the cut.
 
 | Part looks like | Build it as | Trace it with |
 |---|---|---|
@@ -68,7 +73,9 @@ python3 trace.py map --pts "30,-0.1015;1463,0.1015" --row 1107,0          # or t
 
 ### 4. Trace each part
 
-Cut each part out with a `--box` (pixels) or `--poly` (pixels) or `--gbox`/`--gpoly` (model units), then trace it:
+Cut each part out with a `--box` (pixels) or `--poly` (pixels) or `--gbox`/`--gpoly` (model units), then trace it.
+When a polygon's first number is negative, write it as `--gpoly="-0.02,0.01;..."` (with `=`) so it isn't read as an
+option:
 
 ```bash
 python3 trace.py outline photo.png "$MAP" --poly "725,395;1475,395;1475,978;610,978;610,860" --tol 0.5
@@ -126,8 +133,11 @@ If the overlay is wrong, fix it this way:
 ### 7. Check the model against the photo
 
 - Draw the model's outlines back over the photo: `trace.py check photo.png "$MAP" polys.json`.
-- Render the model from the same side, at the same framing, and put it next to the photo:
-  `trace.py compare photo.png render.png compare.png`. Look at the blended third panel for any edge that doesn't line up.
+- Render the model square-on from the photo's side with an **orthographic** camera framed to the photo's own MAP:
+  the photo's pixel (x, row) is model (z, y), so the camera's view covers the photo's width times `s`, centred where
+  the photo's middle maps to. Render it on white and put it next to the photo:
+  `trace.py compare photo.png render.png compare.png`. In the blended third panel, any edge that doesn't line up shows
+  doubled. A perspective camera can't be compared this way, because its edges move with depth.
 - Then render the angles the user will actually see it from, and compare against the other reference views.
 
 ## Commands
