@@ -75,7 +75,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Bloody footprints: how wet the ground is (`bloodWet`, a coarse grid the splashes wet and that dries over about `BW_DRY` seconds), and the boot-sized prints your boots leave after stepping in it, under the foot that stepped (`bloodyStep`, the `foot` print in the blood shader) | `src/js/effects/blood-map.js` |
 | How quickly zombies fade in as they come into sight and out as they leave it | `updateZombieVisuals` in `src/js/zombies/zombie-visuals.js` |
 | Red outlines on zombies behind something (the see-through rim and silhouette, drawn as halftone dots like your own: `halftone` in `src/js/effects/outlines.js`): only in a circle round you, full strength inside `RED_NEAR` and fading out to nothing at `RED_FAR`; the last few of a wave keep their pulsing outline at any distance. At night a weapon light outlines the zombies in its beam, further and wider at its second tier (`LIGHT_OL`) | `src/js/zombies/zombie-visuals.js` |
-| Which guns take a real scope (the third sight tier) | `SCOPE_GUNS` in `src/js/game/run-state.js` |
+| Which guns take a real scope (the third sight tier): the two rifles and the revolver. The revolver gets a picatinny rail down its top strap and barrel with any optic, in place of its rear sight (`REV_RAIL`, `revolver` in `src/js/weapons/gun-models.js`), and its scope is a shorter, slimmer handgun scope sat forward on it (a gun's `scopeK`, `scopeR`, `scopeZ`, read in `fitAttachments` in `src/js/weapons/attachments.js`) | `SCOPE_GUNS` in `src/js/game/run-state.js` |
 | Shots carry on past the edge of the farm (the player still can't walk out) | `bulletBlocked` in `src/js/world/collision.js` |
 | The cards after a wave (skills, perks, aid) and what each says (a melee weapon's description never says how many it hits: that's a stat chip, `hitsChip`, and in `statLine`); slowdown when hit stacks across Thick soles, Trail runners and Stubborn, each taking its share off what's left (`SLOW_STEP`, `slowLess`); Gunsmith never picks a gun with its ammo, trigger and magazine all maxed, and pays `SMITH_SCRAP` for each one already maxed | `UPG` in `src/js/upgrades/upgrades.js`, its effect chips in `src/js/upgrades/upgrade-info.js` |
 | Gun 3D models: each gun's outline traced off a side-on photo; the part helpers at the top (`solid` for rounded grips and stocks that keep the traced size, `inset`, `clipTo`, `checker` and `stipple` for checkering and stippling cut to a stock's own outline, `taperX` to slim a stock through the wrist, `ribTube` for knurled and ribbed tubes, `lathe` for turned barrels and muzzle devices; `cyl` gives anything barrel-sized enough sides to read round) | `src/js/weapons/gun-models.js` |
@@ -207,7 +207,7 @@ Shared state:
 | --- | --- |
 | W A S D | Walk in eight directions |
 | Mouse | Aim; click to fire a handgun (one shot a click), hold to fire an automatic or swing. With a gun in each hand, left click fires the left one and right click the right. Clicking during a bandage stops it |
-| Hold right click | Aim down the sights (scoped rifles zoom in further and steady right down) |
+| Hold right click | Aim down the sights (scoped guns zoom in further and steady right down) |
 | 1 2 3 4 | Melee, sidearm, long gun, automatic (during a bandage: stops it and takes that weapon out) |
 | R | Reload |
 | Q | Apply a bandage (a ring round the cursor shows it going on, then the healing left) |

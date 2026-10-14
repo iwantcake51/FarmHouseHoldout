@@ -1,6 +1,6 @@
 // Aiming down the sights, scopes, zoom wheel.
 
-// ---- scope: hold right click with a scoped rifle ----
+// ---- scope: hold right click with a scoped gun (the rifles, the revolver) ----
 let scoped = false, zoomBeforeScope = 1;
 const scopePt = new V3();
 function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && ((SCOPE_GUNS.has(id) && T('sight') >= 3) || (id === 'hunting' && hasMod('hpscope'))); }

@@ -29,7 +29,8 @@ function recomputeEff() {
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
     D.headX = (D.headX || 0) + (ammo >= 3 ? HEAD_UP.ammo : 0) + HEAD_UP.sight[sight];   // a bigger headshot multiplier (zombies/zombie-types.js)
-    // a scope fitted to a long gun lands crits: a quarter of the hits through it do double damage; the hunting rifle's
+    // a scope lands crits: a quarter of the hits through it do double damage (on the revolver, on top of its aimed
+    // Dead-eye crits, D.aimCrit); the hunting rifle's
     // high-power scope (its stat, weapons/gun-mods.js) does better
     if (sight >= 3 && SCOPE_GUNS.has(id)) { D.critC = Math.max(D.critC || 0, 0.25); D.critM = Math.max(D.critM || 0, 2); }
     D.rate /= [1, 1.18, 1.357, 1.628][trig];
@@ -79,8 +80,9 @@ function tuneUp(D) {
   D.spread *= TUNE.spread; D.shake *= TUNE.spread;   // steadier, so the kick throws the aim off less too
 }
 const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
-// the only guns a real scope (the third sight tier) goes on
-const SCOPE_GUNS = new Set(['hunting', 'ar']);
+// the only guns a real scope (the third sight tier) goes on: the two rifles, and the revolver (a handgun scope, on the
+// rail it gets with any optic: weapons/gun-models.js)
+const SCOPE_GUNS = new Set(['hunting', 'ar', 'revolver']);
 // a speed loader: the revolver's reload with one (seconds), and how long each go of two or three shells takes against
 // a single shell (longer, but each shell is in quicker: about 1.6 and 2.2 times as fast overall)
 const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];

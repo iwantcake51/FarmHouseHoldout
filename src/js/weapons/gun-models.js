@@ -6,6 +6,9 @@ const BOLT_KNOB = [-0.054, -0.046, -0.008];
 // the revolver's cylinder: its axis height, radius and the circle its chambers sit on (the speed loader matches it,
 // player/hold.js)
 const REV_CYL = { y: 1.1415, r: 0.0245, ch: 0.0137 };
+// the revolver's optic rail: from just ahead of the hammer (where the rear sight was) forward along the barrel, stopping
+// short of the front sight on a short barrel
+const REV_RAIL = { z0: 0.55, z1: 0.8 };
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
 // cylinder barrel-sized or bigger gets sides enough for its size (about one per millimetre of radius), so a barrel, a
 // can or a tube always reads round, never faceted
@@ -312,14 +315,15 @@ const GUN_MODELS = {
   // top strap with the rear sight, the hammer's checkered spur behind it, the trigger guard loop with a wide smooth
   // trigger; the fluted cylinder rides a crane hinged at its lower left and swings out to the left like a real one; the
   // barrel is a round tube with a rib and a full underlug, a ramped front sight with its red insert, longer with each
-  // level (snub, 4", 6", 8 3/8"); the grips are finger-grooved wood with the medallion
+  // level (snub, 4", 6", 8 3/8"); the grips are finger-grooved wood with the medallion. Any optic goes on a picatinny
+  // rail screwed down the top strap and on along the barrel's rib, in place of the rear sight (a Weigand-style mount)
   revolver(g, m) {
-    const S2 = GM.stainless, D = GM.stainlessD, cy0 = REV_CYL.y, cr = REV_CYL.r;
+    const S2 = GM.stainless, D = GM.stainlessD, cy0 = REV_CYL.y, cr = REV_CYL.r, optic = T('sight') > 0;
     // ---- frame: grip frame, recoil shield, the window round the cylinder, the yoke's seat, the trigger guard
     profile(g, shp([[0.53, 1.118], [0.514, 1.134], [0.515, 1.158], [0.54, 1.155], [0.552, 1.165], [0.562, 1.174], [0.672, 1.174], [0.672, 1.125], [0.666, 1.115], [0.664, 1.088], [0.64, 1.087], [0.636, 1.081], [0.632, 1.062], [0.622, 1.048], [0.606, 1.042], [0.583, 1.04], [0.571, 1.043], [0.566, 1.061], [0.552, 1.061], [0.545, 1.064]],
       [rrect(0.577, 1.114, 0.662, 1.167, 0.004), shp([[0.628, 1.078], [0.624, 1.062], [0.614, 1.052], [0.598, 1.048], [0.584, 1.049], [0.577, 1.056], [0.577, 1.08]])]), 0.03, S2, X, 0.0025);
     box(g, 0.024, 0.05, 0.08, GM.rubber, X, 1.141, 0.62);   // the frame's inner wall behind the cylinder, so the window isn't see-through
-    box(g, 0.016, 0.009, 0.012, GM.rubber, X, 1.178, 0.558); box(g, 0.004, 0.004, 0.003, GM.dot, X, 1.181, 0.552);   // rear sight
+    if (!optic) { box(g, 0.016, 0.009, 0.012, GM.rubber, X, 1.178, 0.558); box(g, 0.004, 0.004, 0.003, GM.dot, X, 1.181, 0.552); }   // rear sight
     [[0.548, 1.1], [0.556, 1.075]].forEach(([z, yy]) => cyl(g, 0.0035, 0.033, D, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // side plate screws
     box(g, 0.004, 0.008, 0.016, D, X + 0.016, 1.15, 0.566);   // the cylinder release, on the left
     profile(g, shp([[0.535, 1.135], [0.548, 1.162], [0.54, 1.168], [0.522, 1.166], [0.512, 1.162], [0.52, 1.156], [0.532, 1.152]]), 0.009, m.fan ? GM.brass : GM.steelDk, X, 0.001);   // hammer
@@ -349,7 +353,20 @@ const GUN_MODELS = {
     profile(g, shp([[0.672, 1.14], [z1 - 0.004, 1.14], [z1, 1.135], [z1 - 0.003, 1.126], [0.672, 1.125]]), 0.024, S2, X, 0.002);
     profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.004, S2, X, 0.0005); box(g, 0.0046, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.152, z1 + 0.0005, 14);
-    return { front: z1, y: 1.152, top: 1.174, sz: 0.62, crane, laser: { y: 1.125, z: z1 - 0.05 } };   // the laser clamped under the lug
+    // ---- the rail, with an optic: flat on the top strap, then on a base saddled over the barrel's top (the rib under it),
+    // the picatinny section on that with its cross slots, the base's screw showing each side; it stops short of the front
+    // sight. The scope that goes on it is a handgun scope, shorter and slimmer than a rifle's, its long eye relief
+    // putting it forward over the cylinder and barrel, low in its rings (weapons/attachments.js)
+    let top = 1.174;
+    if (optic) {
+      const r0 = REV_RAIL.z0, r1 = Math.min(REV_RAIL.z1, z1 - 0.042), b0 = 1.1725, RT = b0 + 0.0105;
+      xsec(g, shp([[X - 0.011, 1.165], [X + 0.011, 1.165], [X + 0.013, 1.169], [X + 0.013, b0 + 0.0012], [X - 0.013, b0 + 0.0012], [X - 0.013, 1.169]]), 0.672, r1, GM.rail, 0.0006);   // its base saddled over the barrel
+      xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), r0, r1, GM.rail, 0.0006);
+      for (let z = r0 + 0.012; z < r1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // the cross slots, flush with its top
+      [-1, 1].forEach(sd => cyl(g, 0.0028, 0.003, GM.steelDk, X + sd * 0.0132, 1.168, (0.672 + r1) / 2, 10).rotation.set(0, 0, Math.PI / 2));   // the base's screw, through it each side
+      top = RT;
+    }
+    return { front: z1, y: 1.152, top, sz: 0.62, crane, laser: { y: 1.125, z: z1 - 0.05 }, scopeH: 0.04, scopeK: 0.74, scopeR: 0.8, scopeZ: 0.652 };   // the laser clamped under the lug
   },
   // .50 hand cannon: a stainless Desert Eagle Mark XIX, traced off a side-on photo. A fixed barrel block (a slotted
   // rail along its top, chamfered shoulders, a long flute down each side), the slide behind it (slanted serrations, the

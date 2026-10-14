@@ -25,7 +25,7 @@ const TIERS = {
   sight: { tag: 'Attachment', t: [
     { r: 'c', name: 'Red dot', text: 'Shots aimed down the sights 25% tighter. Headshot multiplier +0.15×.', vis: 'A red dot sight', ap: () => {} },
     { r: 'u', name: 'Holographic sight', text: 'Shots aimed down the sights 20% tighter again. Headshot multiplier +0.15× more.', vis: 'A holo sight', ap: () => {} },
-    { r: 'r', name: 'Scope', text: 'Rifles only. While aiming: 1 in 4 hits does double damage, headshot multiplier ×1.25, dead accurate past 10 m.', vis: 'A scope on the rifle', ap: () => {} }] },
+    { r: 'r', name: 'Scope', text: 'Rifles and the revolver only. While aiming: 1 in 4 hits does double damage, headshot multiplier ×1.25, dead accurate past 10 m.', vis: 'A scope in rings', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
     { r: 'u', name: 'Laser pointer', text: 'Shows where your shots go. Shots from the hip 20% tighter.', vis: 'A taped-on laser', ap: () => {} },
     { r: 'r', name: 'Laser sight', text: 'A brighter beam. Shots from the hip 25% tighter again.', vis: 'A mounted laser', ap: () => {} }] },
