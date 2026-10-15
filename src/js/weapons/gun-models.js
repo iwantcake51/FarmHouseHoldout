@@ -527,7 +527,7 @@ const GUN_MODELS = {
     else profile(brk, shp([[0.72, 1.12], [0.939, 1.121], [0.934, 1.112], [0.92, 1.104], [0.85, 1.096], [0.78, 1.088], [0.72, 1.09]].map(([z, yy]) => [z - 0.705, yy - 1.096])), 0.046, W, 0, 0.006);
     // the brass heads of the shells in the chambers, shown while loaded
     const rims = [-1, 1].map(sd => cyl(brk, 0.0125, 0.003, GM.brass, ...bx(sd * 0.0155, 1.14, z0 - 0.0015), 16));
-    return { front: z1, y: 1.14, top: 1.155, sz: 0.66, loaderAt: m.sawn ? [X - 0.026, 1.096, 0.8] : null, brk, rims };
+    return { front: z1, y: 1.14, top: 1.155, sz: 0.66, brk, rims };
   },
   // automatic shotgun: an AA-12, traced off a level side-on photo. One long slab is receiver and stock together (square
   // at the front round the barrel's shoulder with a cross pin through it, the textured panel and the latch on its left,

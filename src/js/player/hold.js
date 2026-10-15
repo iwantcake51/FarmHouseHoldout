@@ -502,6 +502,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
+  // the double barrel being closed after its reload (weapons/reload.js: tickShut): shP how far through (-1: it isn't),
+  // shK how far the barrels have swung up, quickening as they go so they swing home hard
+  const shP = !rel && !D.akimbo && D.breakOpen ? brkShutP() : -1, shK = shP >= 0 ? Math.pow(clamp((shP - BRK_GRAB) / (1 - BRK_GRAB), 0, 1), 2) : 0;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
   const CH = rel === 'mag' && CHARGE[s] && !D.akimbo;   // (a pair charges its own way: weapons/akimbo.js, akChargeState)
@@ -517,7 +520,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const drawn = CH ? 1 - Math.pow(1 - clamp((rp - 0.8) / (CH_PULL - 0.8), 0, 1), 3) : 0, home = CH ? clamp((rp - CH_SLAM) / 0.02, 0, 1) : 0, pull = drawn * (1 - home * home);
   const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
   if (rel) ANIM.relKind = rel;
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
+  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);   // (closing the double barrel: the stock comes up to meet the barrels)
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
@@ -558,6 +561,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     AT.hy -= 0.16 * back; AT.tw -= 0.04 * back;                             // a glance at the pouch for the next one
     if (beat(0.7)) { if (id === 'dbl') relKnock(1.4, -0.6, -0.2, 0); else if (id === 'revolver') relKnock(0.4, 1.4, 0, 0.2); else relKnock(-1.3, 1.1, 0.2, 0.35); }   // dropped in, or thumbed home
   }
+  if (shP < 0 && (ANIM.shWas ?? -1) >= 0) relKnock(-2, 0.7, 0.25, 0.2);   // the double barrel latching shut knocks the gun up
+  ANIM.shWas = shP;
   if (PS && beat(PS_REL[W8.relVar])) relKnock(-2.2, W8.relVar ? 1.6 : -1.2, 0.3, -0.4);   // the slide slamming home
   if (CH && beat(CH_SLAM)) relKnock(-1.6, -1.2, 0.2, -0.3);
   if (ak) { const a = Math.max(akU('R') > 0 ? bump(akU('R'), 0, 1) : 0, akU('L') > 0 ? bump(akU('L'), 0, 1) : 0); AT.hp += 0.14 * a; }   // a pair: a look down at the one being reloaded
@@ -712,14 +717,16 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the charging handle: drawn back by the right hand and let go
   if (CHARGE[s] && !ak) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
   else if (ak && HOLDS[s]) for (const sd of ['R', 'L']) { const c = HOLDS[s][sd] && HOLDS[s][sd].userData.charge; if (c) { c.m.position.z = akC && akC.side === sd ? -c.tr * akC.pull : 0; c.m.updateMatrix(); } }   // a pair's: the one being charged
-  // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and snaps
-  // shut after; the brass of each loaded shell shows in its chamber, the one being pushed home as soon as it's in
+  // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and is
+  // closed after it, the support hand lifting the barrels up on the forend till they latch (shK); the brass of each
+  // loaded shell shows in its chamber, the one being pushed home as soon as it's in
   const brkG = BRK[s];
   if (brkG) {
     const open = rel === 'shell' ? 1 : 0;
-    ANIM.brk = (ANIM.brk || 0) + (open - (ANIM.brk || 0)) * Math.min(1, rdt * (open ? 11 : 24));
+    if (shP >= 0) ANIM.brk = Math.min(ANIM.brk || 0, 1 - shK);   // (never swinging further open, if it was cut short opening)
+    else ANIM.brk = (ANIM.brk || 0) + (open - (ANIM.brk || 0)) * Math.min(1, rdt * (open ? 11 : 24));
     brkG.g.rotation.x = 0.62 * smooth(clamp(ANIM.brk, 0, 1)); brkG.g.updateMatrix();
-    const loaded = (W8.mag[id] || 0) + (rel === 'shell' && rp >= 0.7 ? Math.min(D.loadN || 1, 2 - (W8.mag[id] || 0)) : 0);
+    const loaded = (W8.mag[id] || 0) + (rel === 'shell' && rp >= SHELL_IN ? Math.min(D.loadN || 1, 2 - (W8.mag[id] || 0)) : 0);
     brkG.rims.forEach((r, k) => { r.visible = k < loaded; });
   }
   // a belt-fed gun shows what's left in its belt: the rounds go from the box end first under ten, and none are left
@@ -843,7 +850,17 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else if (st === 2) { _p3.copy(POUCH).lerp(_p2, 0.5); _p3.y += 0.05; free = walkPath(_p4, [[0, POUCH], [0.28, _p3], [0.5, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); }   // up and over, then in
       else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp);
       wt = 1;
+    } else if (shP >= 0 && brkG) {
+      // closing the double barrel: back from wherever the hand was (the pouch, or the chamber if it was stopped) to the
+      // forend where it hangs on the swung-down barrels, under and up onto it, then riding it as it lifts them shut
+      const bp = brkG.g.position, fy = H.fore[1] + fh[0] - foreDrop(s, H);
+      _p1.set(H.fore[0] - bp.x, fy - bp.y, H.fore[2] + fh[1] - bp.z).applyMatrix4(brkG.g.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z);
+      if (!ANIM.shFrom) ANIM.shFrom = new V3().copy(_fL);
+      if (shP < BRK_GRAB) { const k = smooth(shP / BRK_GRAB); _p2.copy(_p1); _p2.y -= 0.05; free = walkPath(_p4, [[0, ANIM.shFrom], [0.7, _p2], [1, _p1]], k); }
+      else free = _p4.copy(_p1);
+      wt = 1;
     }
+    if (shP < 0) ANIM.shFrom = null;
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
     magToFist(_fL);   // the fresh mag, where the fist actually got to
