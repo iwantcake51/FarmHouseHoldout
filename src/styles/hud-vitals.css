@@ -5,6 +5,11 @@
 #hpMax{font-family:var(--f-num);font-weight:600;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
 #ecg{flex:1;height:34px;min-width:0}
 #ecg polyline{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;filter:drop-shadow(0 0 3px rgba(236,230,216,.35))}
+#ecg polyline{stroke-width:1.4}
+/* beats per minute, after the trace, like a monitor's; red once your heart is racing */
+#bpmBox{display:grid;justify-items:end;margin:0 0 2px -4px;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);line-height:1}
+#bpmBox b{font-family:var(--f-num);font-weight:700;font-size:17px;letter-spacing:0;color:var(--ink);min-width:3ch;text-align:right;transition:color .4s}
+#bpmBox.fast b{color:#ff5a40}
 #vitals.low #ecg polyline{stroke:#e0402c;filter:drop-shadow(0 0 4px rgba(224,64,44,.6))}
 .bar{position:relative;height:6px;background:rgba(0,0,0,.5)}
 @property --sc1{syntax:'<color>';inherits:true;initial-value:#5f9e78}

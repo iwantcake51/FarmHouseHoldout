@@ -1,15 +1,45 @@
-// Health ECG line.
+// Health ECG line and heart rate.
 
-// heartbeat trace
-const ECG_N = 76, ecg = new Array(ECG_N).fill(0);
-let ecgPhase = 0, ecgAcc = 0;
-function ecgSample(f) {
-  if (f < 0.1) return 0;
-  if (f < 0.16) return -0.12 * Math.sin((f - 0.1) / 0.06 * Math.PI);
-  if (f < 0.19) return 0.2 * ((f - 0.16) / 0.03);
-  if (f < 0.22) return 0.2 - 1.25 * ((f - 0.19) / 0.03);
-  if (f < 0.26) return -1.05 + 1.4 * ((f - 0.22) / 0.04);
-  if (f < 0.29) return 0.35 - 0.35 * ((f - 0.26) / 0.03);
-  if (f > 0.4 && f < 0.56) return -0.22 * Math.sin((f - 0.4) / 0.16 * Math.PI);
-  return 0;
+// The heart rate follows your body the way a real one does: about 72 at rest, up when you run, get hit or lose
+// blood (losing blood makes the heart race to keep the pressure up), and highest while a wound is still bleeding.
+// It climbs within a couple of seconds and only settles slowly once the cause is gone. Near death it falters, slows
+// and goes irregular before it stops.
+const ECG_HZ = 120, ECG_N = 181, ecg = new Array(ECG_N).fill(0);
+let ecgAcc = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72, hrShown = 72;
+const ECG_R = 0.22;   // the R spike, this long after the start of each beat (the P wave comes first)
+const gauss = (t, mu, sd, a) => a * Math.exp(-((t - mu) * (t - mu)) / (2 * sd * sd));
+// one beat, t seconds after it starts, positive up: P, a small Q dip, the tall R, the S dip, then the T wave, which
+// comes in closer at a fast rate (the QT interval shortens with the beat)
+function beatWave(t, len) {
+  const tT = ECG_R + 0.24 * Math.sqrt(Math.min(1.2, len));
+  return gauss(t, 0.08, 0.025, 0.12) + gauss(t, ECG_R - 0.028, 0.009, -0.14) + gauss(t, ECG_R, 0.011, 1) + gauss(t, ECG_R + 0.03, 0.012, -0.28) + gauss(t, tT, 0.05, 0.26);
 }
+// a hit makes your heart jump (ui/hud.js hitFromAt)
+function heartStartle() { hrStartle = Math.min(30, hrStartle + 12); }
+// how hard the last beat pushed, 0..1: up fast at the R spike, then easing off till the next (the bleeding throb rides it)
+function heartPulse() {
+  if (P.hp <= 0) return 0;
+  let tr = beatT - ECG_R; if (tr < 0) tr += prevRR;
+  return tr < 0.07 ? smooth(tr / 0.07) : 1 - smooth(Math.min(1, (tr - 0.07) / Math.max(0.15, 0.8 * beatRR - 0.07)));
+}
+function updateHeart(rdt, hpF) {
+  const dead = P.hp <= 0, lost = clamp(1 - hpF, 0, 1), bleedK = P.bleed > 0 ? Math.min(1, P.bleed / 6) : 0;
+  hrStartle = Math.max(0, hrStartle - rdt * 2.5);
+  let target = 72 + lost * 55 + bleedK * 38 + (P.sprint ? 26 : 0) + (1 - P.stam) * 22 + P.slow * 14 + (P.adr > 0 ? 28 : 0) + hrStartle;
+  if (hpF < 0.1) target = target * hpF / 0.1 + 46 * (1 - hpF / 0.1);   // the heart gives out near the end: it slows right down
+  target = Math.min(188, target);
+  heartRate += (target - heartRate) * (1 - Math.exp(-rdt / (target > heartRate ? 2.2 : 9)));
+  ecgAcc += rdt * ECG_HZ;
+  while (ecgAcc >= 1) {
+    ecgAcc--;
+    beatT += 1 / ECG_HZ;
+    if (beatT >= beatRR) { beatT -= beatRR; prevRR = beatRR; beatRR = 60 / heartRate * (1 + rr(-1, 1) * (hpF < 0.1 ? 0.14 : 0.025)); }   // a little beat-to-beat wobble, a lot near death
+    ecg.shift(); ecg.push(dead ? rr(-0.01, 0.01) : beatWave(beatT, beatRR) + beatWave(beatT + prevRR, prevRR) + rr(-0.015, 0.015));
+  }
+  $('ecgLine').setAttribute('points', ecg.map((v, i) => `${i},${(20 - v * 15).toFixed(1)}`).join(' '));
+  // the readout settles like a monitor's, not every frame
+  hrShown += (heartRate - hrShown) * Math.min(1, rdt * 2);
+  setT('bpm', dead ? '0' : String(Math.round(hrShown)));
+  const fast = !dead && hrShown > 120; if (cache.bpmFast !== fast) { cache.bpmFast = fast; $('bpmBox').classList.toggle('fast', fast); }
+}
+function resetHeart() { heartRate = hrShown = 72; hrStartle = 0; beatT = 0; beatRR = prevRR = 60 / 72; ecg.fill(0); }
