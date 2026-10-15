@@ -1,6 +1,6 @@
 ---
 name: trace-photo
-description: Trace an object's outline off a reference photo into precise model coordinates (sub-pixel accurate) so a 3D model, vector shape or CAD sketch matches the real thing. Use this whenever the user gives reference photos/images of a gun, attachment, tool, vehicle, product or part and wants it modelled, rebuilt, remodelled or redrawn "from the reference", "traced", "as close as possible to the source image", "matching the picture", or wants outlines, side profiles, lathe/revolve curves, hole positions or circle sizes measured off an image, even if they never say the word "trace".
+description: Trace an object off reference photos into precise model coordinates (sub-pixel accurate) and check the model against every photo, so a 3D model, vector shape or CAD sketch matches the real thing from every angle. Use this whenever the user gives reference photos/images of a gun, attachment, tool, vehicle, product or part and wants it modelled, rebuilt, remodelled or redrawn "from the reference", "traced", "as close as possible to the source image", "matching the picture", says a model is "inaccurate", "off", or "the proportions aren't right" next to photos, or wants outlines, side profiles, lathe/revolve curves, hole positions, sizes or positions measured off an image, including three-quarter, front, rear or top views, even if they never say the word "trace".
 ---
 
 # Trace a reference photo into model coordinates
@@ -10,7 +10,9 @@ outline is the real edge of the object, found to a fraction of a pixel, mapped i
 checked by drawing it back over the photo. The result is a list of points you drop straight into an extrusion, a
 lathe, or a path.
 
-The tool is `scripts/trace.py` (next to this file). It needs Python 3 with numpy, pillow, scipy and scikit-image
+Every photo the user sends counts. The side photo gives the profile; the others (three-quarter, front, rear, top) get a
+camera fitted to them, so the model can be laid over each one and every part that disagrees found, measured and fixed
+(step 8). The tool is `scripts/trace.py` (next to this file). It needs Python 3 with numpy, pillow, scipy and scikit-image
 (`pip install numpy pillow scipy scikit-image` if any are missing). Run any subcommand with `-h` for every option.
 
 ## The workflow
@@ -138,7 +140,77 @@ If the overlay is wrong, fix it this way:
   the photo's middle maps to. Render it on white and put it next to the photo:
   `trace.py compare photo.png render.png compare.png`. In the blended third panel, any edge that doesn't line up shows
   doubled. A perspective camera can't be compared this way, because its edges move with depth.
-- Then render the angles the user will actually see it from, and compare against the other reference views.
+- Then go through every other photo the user sent, as in step 8.
+
+### 8. Use every other photo: fit a camera to it, lay the model over it, fix what disagrees
+
+A three-quarter photo can't be traced flat, but it can be matched exactly: find the camera that took it, render the
+model through that camera, and every difference left is the model's. This is how widths, depths and the shapes of
+parts the side view hides get right.
+
+1. **Export the model's triangles** in model units, one named part per mesh: an OBJ (`o`/`g` names the parts), or JSON
+   `{"parts": {name: [x,y,z, x,y,z, x,y,z, ...]}, "colors": {name: "#rrggbb"}}`. From three.js:
+   ```js
+   root.updateMatrixWorld(true); const parts = {}, colors = {}; let n = 0;
+   root.traverse(o => { if (!o.isMesh) return; const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry, p = g.attributes.position, v = new THREE.Vector3(), a = [];
+     for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); a.push(v.x, v.y, v.z); }
+     const k = String(n++).padStart(3, '0') + ' ' + (o.name || 'mesh'); parts[k] = a; if (o.material.color) colors[k] = '#' + o.material.color.getHexString(); });
+   JSON.stringify({ parts, colors });
+   ```
+   Name the meshes (or note which index is which part) so the reports below say which part is off.
+
+2. **Fit the camera** for each photo:
+   ```bash
+   python3 trace.py pose photo_34.jpg --mesh model.json --ignore "x,y;x,y;...|x,y;..."
+   ```
+   It searches every direction round the model, and the model mirrored, slides each view onto the photo's silhouette,
+   then refines rotation, position and focal length until the silhouettes overlap as closely as they can. It prints
+   the overlap (IoU), whether a mirrored fit won, and the camera (also as three.js `position / up / lookAt / fov`).
+   - **Leave out the parts you doubt** with `--ignore` (polygons in pixels), so the camera locks onto the parts you
+     trust (the traced, round ones). On the parts it keeps, aim for an IoU of 0.96 or more.
+   - **A near-symmetric object can fit back to front or mirrored.** Check the reported position makes sense, and that
+     text in the photo reads normally (then it isn't mirrored: pass `--mirror no`). If the search lands wrong, give it
+     a few `--pts "u,v=x,y,z;..."` (pixels of features whose model position you know for sure: a cap's centre, a tip),
+     narrow `--az`/`--el`, or start from a camera you trust with `--init`.
+   - Don't ignore away the one feature that breaks the symmetry (a turret, a knob); keep it in.
+   - A range starting with a minus needs `=`: `--el=-10,10`.
+
+3. **See where it disagrees**:
+   ```bash
+   python3 trace.py diff photo_34.jpg model.json photo_34_cam.json --parts
+   ```
+   Four panels: the photo, the model rendered from the same camera, the disagreement (red: the photo has material the
+   model lacks; blue: the model has material the photo doesn't), and the two blended. It lists the biggest patches
+   with the parts they belong to and, with `--parts`, those parts' model-space extents. Also render the model in the
+   real engine with the printed camera, next to the photo: shading shows what silhouettes can't (a step, a chamfer,
+   how thick a web is).
+
+4. **Fit the parts against all the photos at once**:
+   ```bash
+   python3 trace.py fit model.json --view side.png side_cam.json --view q34.jpg q34_cam.json "ignore polys" \
+       --view rear.jpg rear_cam.json --parts "^08[0-3] " --dof sxy,sz,tz --pivot 0,0.061,-0.0625
+   ```
+   It moves and scales just those parts (`tx,ty,tz`, `s`, `sxy` across a round part's axis, `sx,sy,sz`) until the
+   model agrees best with every view together, and prints the move, the parts' new extent, and each view's
+   disagreement before and after. Put the numbers into the model's data, re-export, `diff` again. Fit one group at
+   a time (housing, then eyepiece, then each knob) and set `--pivot` where scaling should be centred (on the axis for
+   round parts).
+
+5. **Measure what silhouettes can't settle** with `ray`:
+   ```bash
+   python3 trace.py ray q34_cam.json --px "387,372" --cam2 rear_cam.json --px2 "198,287"   # one feature, two photos
+   python3 trace.py ray q34_cam.json --px "113,336;119,321" --plane x=0.004                 # onto a known plane
+   python3 trace.py ray q34_cam.json --px "208,425" --mesh model.json                         # onto the model
+   ```
+   Picking the same feature (a screw's centre, a corner) in two photos triangulates its true position, nothing
+   assumed. The report says how far apart the two rays pass in pixels: under about 3 px it's the same point; over 10
+   px the picks aren't the same feature. One photo onto a plane is only as good as the plane you assume, so prefer two.
+
+6. **Decide between photos that disagree.** If fixing a part improves one view and worsens another, the photos show
+   different versions of the product (a different mount, a different model year). Say so, and follow the reference
+   the user sent last or pointed at.
+
+Report each view's IoU before and after, with the diff pictures.
 
 ## Commands
 
@@ -151,10 +223,15 @@ If the overlay is wrong, fix it this way:
 | `circle IMG MAP --box ... [--rmin] [--rmax]` | centre z, y and radius, with the fit's rms |
 | `check IMG MAP POLYS` | model-space polygons drawn back over the photo |
 | `compare REF RENDER OUT [--crop]` | reference, render, and the two blended |
+| `pose IMG --mesh M [--pts] [--ignore] [--mirror] [--az] [--el] [--fov] [--init]` | the photo's camera (JSON), the overlap, a three.js camera line |
+| `diff IMG M CAM [--parts] [--ignore] [--crop]` | the four-panel picture, and the disagreeing patches with their parts |
+| `fit M --view IMG CAM [IGNORE] ... --parts REGEX --dof ... [--pivot] [--out]` | the move/scale that best matches every view, before/after per view |
+| `ray CAM --px ... (--plane a=v \| --mesh M \| --cam2 CAM2 --px2 ...)` | model points off an angled photo; two pixels: the distance |
 
 Add `--json` to `outline`/`lathe` to print only the points, and `--dp` to change the decimal places (default 5).
 
 ## Report back
 
 Show the user the overlay images for the main parts, give the numbers (points, worst deviation in px and model
-units, the scale used and where it came from), then show the finished model next to the reference.
+units, the scale used and where it came from), then show the finished model next to every reference photo, each
+rendered from that photo's fitted camera, with its IoU before and after.

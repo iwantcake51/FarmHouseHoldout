@@ -8,6 +8,10 @@
   circle   a round feature (cap, bolt head, lens) inside the outline -> centre and radius
   check    model-space polygons drawn back over the photo
   compare  reference and render side by side, and blended
+  pose     fit a camera to a photo taken from any angle (from the model's silhouette and/or point pairs)
+  diff     the model laid over that photo through its camera: where they disagree, part by part
+  fit      move/scale chosen parts until the model agrees with every photo at once
+  ray      model coordinates read off an angled photo: a pixel onto a plane or the model, or triangulated from two
 
 Run `trace.py CMD -h` for each one's options. Every command that reads the photo takes the MAP as JSON:
   {"xm": px, "zm": z at xm, "yb": px row, "gy": y at row yb, "s": model units per px, "dir": 1 or -1, "rot": deg}
@@ -21,7 +25,7 @@ edge is drawn where it's halfway between the two (marching squares, so it lands 
 line where an anti-aliased edge really is, light parts and dark ones alike, instead of wherever a fixed threshold
 happens to cut it.
 """
-import argparse, json, math, sys
+import argparse, json, math, signal, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage as ndi
@@ -72,9 +76,9 @@ def ev(expr, a, F):
     return eval(expr, {'np': np}, {'r': r, 'g': g, 'b': b, 'F': F, 'lum': lum, 'sat': sat})
 
 
-def edge_field(a, args, crop):
-    """N over the crop: 0 = background, 1 = the part, the edge at 0.5 (sub-pixel). Also the coarse mask, and how much
-    of the edge band had too little contrast to refine (and fell back to the coarse mask)."""
+def coarse_fg(a, args):
+    """The part, to the pixel: everything near the background colour and joined to the border is background, the rest
+    is the part. Also F, each pixel's colour distance from the background."""
     bg = bg_colour(a, args.bg)
     F = np.sqrt(((a - bg) ** 2).sum(-1)).astype(np.float32)
     near = F < args.th
@@ -87,6 +91,13 @@ def edge_field(a, args, crop):
     if args.color: fg &= ev(args.color, a, F).astype(bool)
     if args.open: fg = ndi.binary_opening(fg, iterations=args.open)
     if args.close: fg = ndi.binary_closing(fg, iterations=args.close)
+    return fg, F
+
+
+def edge_field(a, args, crop):
+    """N over the crop: 0 = background, 1 = the part, the edge at 0.5 (sub-pixel). Also the coarse mask, and how much
+    of the edge band had too little contrast to refine (and fell back to the coarse mask)."""
+    fg, F = coarse_fg(a, args)
     y0, y1, x0, x1 = crop
     fg = fg[y0:y1, x0:x1]
     field = (ev(args.field, a, F) if args.field else F)[y0:y1, x0:x1].astype(np.float32)
@@ -361,7 +372,437 @@ def cmd_compare(args):
     out.save(args.out); print('compare:', args.out)
 
 
+# ---------------------------------------------------------------------------------------------------- the other views
+# The side photo fixes the profile; every other photo (3/4, front, rear, top, underneath) is matched by fitting a
+# camera to it. The model's own triangles go through a pinhole camera, its silhouette is laid over the photo's, and the
+# camera moves until the two agree as closely as they can. Whatever still disagrees is then the model's error, shown
+# part by part: red where the photo has material the model lacks, blue where the model has material the photo doesn't.
+
+def load_mesh(path):
+    """Triangles (N, 3, 3) in model units, each one's part index, the part names, and their colours (if given). OBJ
+    (o/g lines name the parts) or JSON {"parts": {name: [x,y,z, x,y,z, x,y,z, ...]}, "colors": {name: "#rrggbb"}}."""
+    cols = {}
+    if path.lower().endswith('.obj'):
+        V, T, names, cur = [], [], [], 'mesh'
+        for line in open(path):
+            w = line.split()
+            if not w: continue
+            if w[0] == 'v': V.append([float(c) for c in w[1:4]])
+            elif w[0] in ('o', 'g') and len(w) > 1: cur = ' '.join(w[1:])
+            elif w[0] == 'f':
+                idx = [int(c.split('/')[0]) for c in w[1:]]; idx = [i - 1 if i > 0 else len(V) + i for i in idx]
+                for k in range(1, len(idx) - 1): T.append([V[idx[0]], V[idx[k]], V[idx[k + 1]]]); names.append(cur)
+        tris = np.array(T, float)
+    else:
+        d = json.load(open(path)); parts = d['parts'] if isinstance(d, dict) else {'mesh': d}; cols = d.get('colors', {}) if isinstance(d, dict) else {}
+        tris, names = [], []
+        for k, a in parts.items():
+            a = np.asarray(a, float).reshape(-1, 3, 3); tris.append(a); names += [k] * len(a)
+        tris = np.concatenate(tris)
+    keys = list(dict.fromkeys(names)); pid = np.array([keys.index(n) for n in names])
+    return tris, pid, keys, cols
+
+
+def cam_project(cam, P):
+    """Model points (N, 3) to photo pixels (N, 2) and their depth in front of the camera. A mirrored camera sees the
+    model flipped left to right (x -> -x), for photos printed the wrong way round."""
+    P = np.asarray(P, float).reshape(-1, 3)
+    if cam.get('mirror'): P = P * [-1, 1, 1]
+    X = P @ np.asarray(cam['R']).T + np.asarray(cam['t'])
+    z = X[:, 2]
+    return np.stack([cam['w'] / 2 + cam['f'] * X[:, 0] / z, cam['h'] / 2 + cam['f'] * X[:, 1] / z], 1), z
+
+
+def cam_ray(cam, u, v):
+    """The ray through photo pixel (u, v): its origin (the camera) and direction, in model units."""
+    R = np.asarray(cam['R']); t = np.asarray(cam['t']); C = -R.T @ t
+    d = R.T @ np.array([(u - cam['w'] / 2) / cam['f'], (v - cam['h'] / 2) / cam['f'], 1.0]); d /= np.linalg.norm(d)
+    if cam.get('mirror'): C = C * [-1, 1, 1]; d = d * [-1, 1, 1]
+    return C, d
+
+
+def look_cam(w, h, fov, centre, az, el, dist, roll=0.0, mirror=False):
+    """A camera dist from centre, looking at it from azimuth az (from +z towards +x) and elevation el, in degrees."""
+    a, e = math.radians(az), math.radians(el)
+    d = np.array([math.cos(e) * math.sin(a), math.sin(e), math.cos(e) * math.cos(a)])
+    C = np.asarray(centre, float) + d * dist; zc = -d
+    up = np.array([0.0, 1.0, 0.0]) if abs(zc[1]) < 0.995 else np.array([0.0, 0.0, -1.0])
+    xc = np.cross(zc, up); xc /= np.linalg.norm(xc); yc = np.cross(zc, xc)
+    R = np.stack([xc, yc, zc]); r = math.radians(roll)
+    R = np.array([[math.cos(r), -math.sin(r), 0], [math.sin(r), math.cos(r), 0], [0, 0, 1]]) @ R
+    return {'w': w, 'h': h, 'f': (h / 2) / math.tan(math.radians(fov) / 2), 'R': R.tolist(), 't': (-R @ C).tolist(), 'mirror': bool(mirror)}
+
+
+def cam_info(cam, centre):
+    """The camera spelled out for a renderer: where it is, what it looks at, which way is up, its vertical field of view."""
+    R = np.asarray(cam['R']); C = -R.T @ np.asarray(cam['t']); fwd = R[2]; up = -R[1]
+    dist = float(np.dot(np.asarray(centre) * ([-1, 1, 1] if cam.get('mirror') else 1) - C, fwd))
+    tgt = C + fwd * dist
+    if cam.get('mirror'): C, tgt, up = C * [-1, 1, 1], tgt * [-1, 1, 1], up * [-1, 1, 1]
+    fov = math.degrees(2 * math.atan(cam['h'] / 2 / cam['f']))
+    return {'position': [round(float(v), 6) for v in C], 'target': [round(float(v), 6) for v in tgt], 'up': [round(float(v), 6) for v in up], 'fov_y': round(fov, 4), 'aspect': round(cam['w'] / cam['h'], 6)}
+
+
+def raster(cam, tris, scale=1.0, mode='sil', pid=None, colours=None):
+    """Draw the triangles from the camera, scale x the photo's size. mode 'sil': the silhouette (bool); 'label': the
+    front-most part at each pixel (-1 for none); 'shade': a flat-lit grey render (RGB), far triangles first."""
+    W, H = max(1, round(cam['w'] * scale)), max(1, round(cam['h'] * scale))
+    uv, z = cam_project(cam, tris.reshape(-1, 3)); uv = (uv * scale).reshape(-1, 3, 2); z = z.reshape(-1, 3)
+    ok = (z > 1e-9).all(1)
+    if mode == 'sil':
+        im = Image.new('L', (W, H), 0); d = ImageDraw.Draw(im)
+        for T in uv[ok]: d.polygon([(T[0, 0], T[0, 1]), (T[1, 0], T[1, 1]), (T[2, 0], T[2, 1])], fill=255)
+        return np.asarray(im) > 0
+    order = np.argsort(-z.mean(1)); order = order[ok[order]]
+    if mode == 'label':
+        im = Image.new('I', (W, H), 0); d = ImageDraw.Draw(im)
+        for i in order: T = uv[i]; d.polygon([(T[0, 0], T[0, 1]), (T[1, 0], T[1, 1]), (T[2, 0], T[2, 1])], fill=int(pid[i]) + 1)
+        return np.asarray(im).astype(np.int32) - 1
+    # shade: Lambert from over the camera's left shoulder, both faces lit, each part in its own colour (or grey)
+    P = tris * ([-1, 1, 1] if cam.get('mirror') else 1); Rm = np.asarray(cam['R'])
+    Xc = P.reshape(-1, 3) @ Rm.T + np.asarray(cam['t']); Xc = Xc.reshape(-1, 3, 3)
+    n = np.cross(Xc[:, 1] - Xc[:, 0], Xc[:, 2] - Xc[:, 0]); n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+    toward = -Xc.mean(1); n *= np.sign((n * toward).sum(1, keepdims=True) + 1e-12)
+    L = np.array([-0.45, -0.65, -0.6]); L /= np.linalg.norm(L)
+    lit = 0.38 + 0.62 * np.clip(n @ L, 0, 1)
+    im = Image.new('RGB', (W, H), (255, 255, 255)); d = ImageDraw.Draw(im)
+    for i in order:
+        base = colours[pid[i]] if colours is not None else (150, 152, 158)
+        c = tuple(int(min(255, (60 + 0.75 * v) * lit[i])) for v in base); T = uv[i]   # lifted, so dark finishes still show their shape
+        d.polygon([(T[0, 0], T[0, 1]), (T[1, 0], T[1, 1]), (T[2, 0], T[2, 1])], fill=c, outline=c)
+    return np.asarray(im)
+
+
+def part_colours(keys, cols):
+    out = []
+    for k in keys:
+        c = cols.get(k)
+        if c: c = c.lstrip('#'); out.append(tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)))
+        else: out.append((150, 152, 158))
+    return out
+
+
+def parse_ignore(s, W, H, scale=1.0):
+    """Regions to leave out of the score (parts the photo's copy has and the model shouldn't, a hand, a stand):
+    polygons in photo pixels, "x,y;x,y;...|x,y;..."."""
+    m = Image.new('L', (W, H), 0)
+    if s:
+        d = ImageDraw.Draw(m)
+        for poly in s.split('|'): d.polygon([(x * scale, y * scale) for x, y in parse_pts(poly)], fill=1)
+    return np.asarray(m).astype(bool)
+
+
+def photo_part(args, im):
+    """The photo's silhouette of the part: a mask you made (black on white), or the background test (largest piece)."""
+    if args.mask: return np.asarray(Image.open(args.mask).convert('L').resize(im.size)) < 128
+    fg, _ = coarse_fg(np.asarray(im).astype(np.float32), args)
+    lab = measure.label(fg)
+    if lab.max() > 1 and not args.all_pieces:
+        sizes = np.bincount(lab.ravel()); sizes[0] = 0; fg = lab == sizes.argmax()
+    return fg
+
+
+def shrink(mask, scale):
+    if scale == 1: return mask
+    W, H = max(1, round(mask.shape[1] * scale)), max(1, round(mask.shape[0] * scale))
+    return np.asarray(Image.fromarray(mask.astype(np.uint8) * 255).resize((W, H), Image.BOX)) > 127
+
+
+def iou(a, b, valid):
+    i = (a & b & valid).sum(); u = ((a | b) & valid).sum()
+    return i / max(1, u)
+
+
+def parse_corr(s):
+    """Point pairs "u,v=x,y,z;...": a photo pixel and the model point it shows."""
+    uv, X = [], []
+    for item in s.replace(' ', '').split(';'):
+        if not item: continue
+        a, b = item.split('='); uv.append([float(v) for v in a.split(',')]); X.append([float(v) for v in b.split(',')])
+    return np.array(uv), np.array(X)
+
+
+def cmd_pose(args):
+    """Fit a camera to a photo taken from any angle, so the model can be laid over it: from the model's silhouette
+    (--mesh), from point pairs you read off the photo (--pts), or both."""
+    from scipy.optimize import minimize, least_squares
+    from scipy.spatial.transform import Rotation
+    im = load_img(args.img); w, h = im.size
+    if not args.mesh and not args.pts: print('give --mesh, --pts or both'); sys.exit(1)
+    tris = pid = None
+    if args.mesh:
+        tris, pid, keys, cols = load_mesh(args.mesh); V = tris.reshape(-1, 3)
+    uvp, Xp = parse_corr(args.pts) if args.pts else (None, None)
+    pts_all = V if args.mesh else Xp
+    lo, hi = pts_all.min(0), pts_all.max(0); centre = (lo + hi) / 2; size = float(np.linalg.norm(hi - lo))
+    fg = photo_part(args, im) if args.mesh else None
+    sc = min(1.0, args.work / max(w, h))
+    fgs = shrink(fg, sc) if fg is not None else None
+    ign = parse_ignore(args.ignore, round(w * sc), round(h * sc), sc) if args.mesh else None
+    valid = ~ign if ign is not None else None
+    fov0 = args.fov or 20.0; fixf = args.fov is not None
+    mirrors = {'no': [False], 'yes': [True], 'both': [False, True]}[args.mirror]
+
+    def to_cam(x, mirror, f=None):
+        R = Rotation.from_rotvec(x[:3]).as_matrix()
+        return {'w': w, 'h': h, 'f': f if f is not None else float(math.exp(x[6])), 'R': R.tolist(), 't': list(map(float, x[3:6])), 'mirror': mirror}
+
+    def from_cam(cam):
+        return np.r_[Rotation.from_matrix(np.asarray(cam['R'])).as_rotvec(), cam['t'], math.log(cam['f'])]
+
+    def pts_err(cam):
+        if uvp is None: return 0.0
+        q, z = cam_project(cam, Xp)
+        return float(np.sqrt(((q - uvp) ** 2).sum(1).mean())) if (z > 0).all() else 1e6
+
+    def cost(x, mirror, scale, valid_, fgs_):
+        cam = to_cam(x, mirror, math.exp(x[6]) if not fixf else (h / 2) / math.tan(math.radians(fov0) / 2))
+        fov = 2 * math.degrees(math.atan(h / 2 / cam['f']))
+        pen = 0.0 if 2 <= fov <= 80 else 1.0
+        c = pen
+        if tris is not None:
+            m = raster(cam, tris, scale)
+            if m.shape != fgs_.shape: return 2.0
+            c += 1 - iou(m, fgs_, valid_)
+        if uvp is not None: c += args.pts_weight * pts_err(cam) / math.hypot(w, h)
+        return c
+
+    def align(cam, mirror):
+        """Dolly and slide a camera so the model's silhouette has the photo's size and sits where the photo's does."""
+        if tris is None: return cam
+        cy, cx = np.argwhere(fgs).mean(0); area_p = fgs.sum()
+        for _ in range(3):
+            m = raster(cam, tris, sc)
+            if not m.any(): return cam
+            my, mx = np.argwhere(m).mean(0); k = math.sqrt(m.sum() / max(1, area_p))
+            t = np.asarray(cam['t'], float); t[2] *= k
+            t[0] += (cx - mx) / sc * t[2] / cam['f']; t[1] += (cy - my) / sc * t[2] / cam['f']
+            cam['t'] = t.tolist()
+        return cam
+
+    # 1. where from: every direction round the model (and its mirror image), each slid to match, scored
+    cands = []
+    if args.init:
+        c0 = json.load(open(args.init)); c0['w'], c0['h'] = w, h; cands.append((cost(from_cam(c0), c0.get('mirror', False), sc, valid, fgs) if tris is not None else 0, c0))
+    else:
+        az0, az1 = [float(v) for v in args.az.split(',')]; el0, el1 = [float(v) for v in args.el.split(',')]
+        dist = size / (2 * math.tan(math.radians(fov0) / 2)) * 1.3
+        for mirror in mirrors:
+            for az in np.arange(az0, az1, args.az_step):
+                for el in np.arange(el0, el1 + 1e-9, args.el_step):
+                    cam = align(look_cam(w, h, fov0, centre * ([-1, 1, 1] if mirror else 1), az, el, dist, 0, mirror), mirror)
+                    x = from_cam(cam)
+                    if tris is not None: c = cost(x, mirror, sc, valid, fgs)
+                    else:   # points only: solve from here and keep the best
+                        r = least_squares(lambda y: (cam_project(to_cam(y, mirror), Xp)[0] - uvp).ravel(), x, method='lm' if len(Xp) * 2 >= 7 else 'trf')
+                        cam = to_cam(r.x, mirror); c = pts_err(cam)
+                    cands.append((c, cam))
+    cands.sort(key=lambda t: t[0])
+    # 2. refine the best few: rotation, position and focal length together, first at the working size, then full size
+    def refine(cam, scale, valid_, fgs_, steps, fev):
+        mirror = cam.get('mirror', False); x0 = from_cam(cam)
+        dist = abs(x0[5])
+        st = np.array([steps[0]] * 3 + [steps[1] * dist] * 2 + [steps[2] * dist, steps[3]])
+        if fixf: st[6] = 1e-9
+        sim = np.vstack([x0] + [x0 + np.eye(7)[i] * st[i] for i in range(7)])
+        r = minimize(cost, x0, args=(mirror, scale, valid_, fgs_), method='Nelder-Mead', options={'initial_simplex': sim, 'maxfev': fev, 'xatol': 1e-7, 'fatol': 1e-6})
+        return r.fun, to_cam(r.x, mirror, None if not fixf else (h / 2) / math.tan(math.radians(fov0) / 2))
+    best = []
+    for c, cam in cands[:args.keep]:
+        f1, cam1 = refine(cam, sc, valid, fgs, (0.06, 0.03, 0.08, 0.15), args.iters)
+        f1, cam1 = refine(cam1, sc, valid, fgs, (0.015, 0.008, 0.02, 0.04), args.iters // 2)
+        best.append((f1, cam1))
+    best.sort(key=lambda t: t[0]); fbest, cam = best[0]
+    if tris is not None and sc < 1:   # polish at full size
+        ignf = parse_ignore(args.ignore, w, h); fbest, cam = refine(cam, 1.0, ~ignf, fg, (0.004, 0.002, 0.005, 0.01), args.iters // 2)
+    cam = {k: cam[k] for k in ('w', 'h', 'f', 'R', 't', 'mirror')}
+    cam['info'] = cam_info(cam, centre)
+    if tris is not None:
+        m = raster(cam, tris, 1.0); ignf = parse_ignore(args.ignore, w, h); cam['iou'] = round(float(iou(m, fg, ~ignf)), 4)
+    if uvp is not None: cam['pts_rms_px'] = round(pts_err(cam), 3)
+    out = args.out or (args.img.rsplit('.', 1)[0] + '_cam.json'); json.dump(cam, open(out, 'w'), indent=1)
+    I = cam['info']
+    print(f'camera: {out}')
+    if 'iou' in cam: print(f'silhouette overlap (IoU) {cam["iou"]:.4f}' + (' with the model mirrored left to right: the photo is probably flipped' if cam['mirror'] else ''))
+    if 'pts_rms_px' in cam: print(f'point pairs off by {cam["pts_rms_px"]} px rms')
+    if len(mirrors) == 2 and tris is not None:
+        other = [f for f, c in best if c.get('mirror') != cam['mirror']]
+        if other: print(f'  (best the other way round: {1 - other[0]:.4f} at the working size)')
+    print(f'fov_y {I["fov_y"]} deg, aspect {I["aspect"]}; position {I["position"]}, looking at {I["target"]}, up {I["up"]}')
+    print(f'three.js: cam = new THREE.PerspectiveCamera({I["fov_y"]}, {w} / {h}, near, far); cam.position.set({", ".join(map(str, I["position"]))}); '
+          f'cam.up.set({", ".join(map(str, I["up"]))}); cam.lookAt({", ".join(map(str, I["target"]))});' + ('  // and the model scaled (-1, 1, 1)' if cam['mirror'] else ''))
+    if tris is not None: print('next: trace.py diff', args.img, args.mesh, out)
+
+
+def cmd_diff(args):
+    """Lay the model over a photo through its fitted camera: where they disagree, and which parts are to blame."""
+    im = load_img(args.img); w, h = im.size
+    cam = json.load(open(args.cam)); cam['w'], cam['h'] = w, h
+    tris, pid, keys, cols = load_mesh(args.mesh)
+    fg = photo_part(args, im); ign = parse_ignore(args.ignore, w, h); valid = ~ign
+    ss = args.ss
+    sil = shrink(raster(cam, tris, ss), 1 / ss) if ss > 1 else raster(cam, tris, 1.0)
+    lab = raster(cam, tris, 1.0, 'label', pid)
+    shade = raster(cam, tris, ss, 'shade', pid, part_colours(keys, cols))
+    if ss > 1: shade = np.asarray(Image.fromarray(shade).resize((w, h), Image.LANCZOS))
+    extra = sil & ~fg & valid; miss = fg & ~sil & valid
+    k = args.tol
+    extra_c = ndi.binary_opening(extra, iterations=k) if k else extra; miss_c = ndi.binary_opening(miss, iterations=k) if k else miss
+    I = iou(sil, fg, valid)
+    print(f'IoU {I:.4f}; the model covers {extra.sum()} px the photo doesn\'t (blue), and misses {miss.sum()} px the photo has (red); '
+          f'{extra_c.sum()} and {miss_c.sum()} of them more than {k} px from the edge')
+    # which parts the disagreement belongs to
+    labf = lab.copy(); labf[labf < 0] = -1
+    if (labf >= 0).any():
+        _, (iy, ix) = ndi.distance_transform_edt(labf < 0, return_indices=True); near = labf[iy, ix]
+    else: near = labf
+    def blame(region):
+        ids, n = np.unique(near[region], return_counts=True); o = np.argsort(-n)
+        return [(keys[ids[j]], int(n[j])) for j in o[:3] if ids[j] >= 0]
+    V = tris.reshape(-1, 3)
+    def bbox_of(name):
+        sel = tris[pid == keys.index(name)].reshape(-1, 3); lo, hi = sel.min(0), sel.max(0)
+        return '[' + ', '.join(f'{a:.4g}..{b:.4g}' for a, b in zip(lo, hi)) + ']'
+    for tag, reg in (('blue (model has, photo hasn\'t)', extra_c), ('red (photo has, model hasn\'t)', miss_c)):
+        L, nl = ndi.label(reg)
+        if not nl: print(f'{tag}: none'); continue
+        sizes = ndi.sum(reg, L, range(1, nl + 1)); order = np.argsort(-sizes)[:args.top]
+        print(f'{tag}: {nl} patches, the biggest:')
+        for j in order:
+            ys, xs = np.nonzero(L == j + 1)
+            print(f'  {int(sizes[j]):6d} px at x {xs.min()}..{xs.max()}, y {ys.min()}..{ys.max()} (centre {xs.mean():.0f}, {ys.mean():.0f}); parts: '
+                  + ', '.join(f'{n} ({c} px)' for n, c in blame(L == j + 1)))
+    if args.parts:
+        print('parts (model x, y, z ranges):'); seen = set()
+        for reg in (extra_c, miss_c):
+            for n, _ in blame(reg):
+                if n not in seen: seen.add(n); print(f'  {n}: {bbox_of(n)}')
+    # the picture: the photo, the model from the same camera, the disagreement, the two blended
+    ph = np.asarray(im).astype(np.float32)
+    dif = 255 - (255 - ph) * 0.35
+    dif[miss] = [235, 40, 40]; dif[extra] = [40, 90, 235]
+    if ign.any(): dif[ign] = dif[ign] * 0.6 + np.array([255, 220, 0]) * 0.4
+    dimg = Image.fromarray(dif.astype(np.uint8)); dd = ImageDraw.Draw(dimg)
+    for c in measure.find_contours(fg.astype(float), 0.5): dd.line([(p[1], p[0]) for p in c], fill=(0, 190, 255), width=1)
+    for c in measure.find_contours(sil.astype(float), 0.5): dd.line([(p[1], p[0]) for p in c], fill=(255, 0, 200), width=1)
+    ren = Image.fromarray(shade.astype(np.uint8)); blend = Image.blend(im.convert('RGB'), ren, 0.5)
+    panels = [im.convert('RGB'), ren, dimg, blend]
+    if args.crop:
+        c = tuple(int(v) for v in args.crop.split(',')); panels = [p.crop(c) for p in panels]
+    pw, phh = panels[0].size; z = args.zoom if args.zoom else max(1, min(4, 900 // max(pw, phh)))
+    panels = [p.resize((pw * z, phh * z), Image.LANCZOS) for p in panels]
+    out = Image.new('RGB', (pw * z * 2 + 8, phh * z * 2 + 8), 'white')
+    for i, p in enumerate(panels): out.paste(p, ((i % 2) * (pw * z + 8), (i // 2) * (phh * z + 8)))
+    path = args.png or (args.img.rsplit('.', 1)[0] + '_diff.png'); out.save(path)
+    print('picture (photo | model, same camera / red: missing, blue: extra, cyan: photo\'s edge, magenta: model\'s | blended):', path)
+
+
+def cmd_ray(args):
+    """Read model coordinates off a photo taken from any angle: the ray through a pixel, through the photo's fitted
+    camera, meets a plane you name (x=0.012, y=..., z=...) or the model's surface (--mesh); or, with the same feature picked
+    in a second photo (--cam2, --px2), where the two rays cross: its true position, nothing assumed. Two: the distance."""
+    cam = json.load(open(args.cam))
+    if args.img: w, h = Image.open(args.img).size; cam['w'], cam['h'] = w, h
+    if args.cam2:   # the same features picked in a second photo: where the two rays pass closest is the point itself
+        cam2 = json.load(open(args.cam2)); A, B = parse_pts(args.px), parse_pts(args.px2)
+        if len(A) != len(B): print('give as many --px2 pixels as --px'); sys.exit(1)
+        res = []
+        for (u, v), (u2, v2) in zip(A, B):
+            C1, d1 = cam_ray(cam, u, v); C2, d2 = cam_ray(cam2, u2, v2); w0 = C1 - C2
+            a, b, c, d, e = d1 @ d1, d1 @ d2, d2 @ d2, d1 @ w0, d2 @ w0; den = a * c - b * b
+            if abs(den) < 1e-12: print(f'({u:g}, {v:g}): the two rays are parallel'); continue
+            s1, s2 = (b * e - c * d) / den, (a * e - b * d) / den; P1, P2 = C1 + s1 * d1, C2 + s2 * d2; P = (P1 + P2) / 2
+            # how far apart the rays pass, and what that is in pixels in the first photo: big means the two picks
+            # aren't the same feature (or a camera is off)
+            gap = np.linalg.norm(P1 - P2); px = gap * cam['f'] / max(1e-9, s1)
+            res.append(P); print(f'({u:g}, {v:g}) + ({u2:g}, {v2:g}) -> x {P[0]:.{args.dp}f}, y {P[1]:.{args.dp}f}, z {P[2]:.{args.dp}f}  (rays {gap:.2g} apart, {px:.1f} px)')
+        if len(res) == 2: print(f'distance {np.linalg.norm(res[1] - res[0]):.{args.dp}f}')
+        return
+    if args.mesh: tris, pid, keys, _ = load_mesh(args.mesh)
+    res = []
+    for u, v in parse_pts(args.px):
+        C, d = cam_ray(cam, u, v)
+        if args.plane:
+            ax, val = args.plane.split('='); i = 'xyz'.index(ax.strip()); val = float(val)
+            if abs(d[i]) < 1e-12: print(f'({u:g}, {v:g}): the ray runs along the plane'); continue
+            s_ = (val - C[i]) / d[i]; P = C + s_ * d; what = f'on {args.plane}'
+        else:   # first hit on the model (Moller-Trumbore, every triangle at once)
+            A, B, Cc = tris[:, 0], tris[:, 1], tris[:, 2]; e1, e2 = B - A, Cc - A
+            pv = np.cross(d, e2); det = (e1 * pv).sum(1); ok = np.abs(det) > 1e-15; inv = np.where(ok, 1 / np.where(ok, det, 1), 0)
+            tv = C - A; uu = (tv * pv).sum(1) * inv; qv = np.cross(tv, e1); vv = (qv * d).sum(1) * inv; tt = (e2 * qv).sum(1) * inv
+            hit = ok & (uu >= 0) & (vv >= 0) & (uu + vv <= 1) & (tt > 0)
+            if not hit.any(): print(f'({u:g}, {v:g}): misses the model'); continue
+            j = np.argmin(np.where(hit, tt, np.inf)); P = C + tt[j] * d; what = f'on {keys[pid[j]]}'
+        res.append(P); print(f'({u:g}, {v:g}) -> x {P[0]:.{args.dp}f}, y {P[1]:.{args.dp}f}, z {P[2]:.{args.dp}f}  {what}')
+    if len(res) == 2: print(f'distance {np.linalg.norm(res[1] - res[0]):.{args.dp}f} (dx {res[1][0] - res[0][0]:.{args.dp}f}, dy {res[1][1] - res[0][1]:.{args.dp}f}, dz {res[1][2] - res[0][2]:.{args.dp}f})')
+
+
+def part_transform(dofs, x, pivot):
+    """The move a fit settles on: translations (tx, ty, tz) and scales about the pivot (s: all three, sxy: across a
+    round part's z axis, sx, sy, sz), as a function on points."""
+    v = dict(zip(dofs, x)); k = np.array([1.0, 1.0, 1.0])
+    k *= math.exp(v.get('s', 0)); k[:2] *= math.exp(v.get('sxy', 0))
+    for i, a in enumerate('xyz'): k[i] *= math.exp(v.get('s' + a, 0))
+    t = np.array([v.get('tx', 0), v.get('ty', 0), v.get('tz', 0)])
+    return lambda P: (P - pivot) * k + pivot + t, k, t
+
+
+def cmd_fit(args):
+    """Move and scale chosen parts until the model agrees with every photo at once (each through its fitted camera):
+    which way a part is off, by how much, measured against all the views together."""
+    from scipy.optimize import minimize
+    import re
+    tris, pid, keys, cols = load_mesh(args.mesh)
+    rx = re.compile(args.parts); sel_parts = [i for i, k in enumerate(keys) if rx.search(k)]
+    if not sel_parts: print('no part names match', args.parts); sys.exit(1)
+    sel = np.isin(pid, sel_parts); mov, fix = tris[sel], tris[~sel]
+    pivot = np.array([float(v) for v in args.pivot.split(',')]) if args.pivot else (mov.reshape(-1, 3).min(0) + mov.reshape(-1, 3).max(0)) / 2
+    dofs = args.dof.split(',')
+    for d in dofs:
+        if d not in ('tx', 'ty', 'tz', 's', 'sxy', 'sx', 'sy', 'sz'): print('unknown dof', d); sys.exit(1)
+    views = []
+    for vw in args.view:
+        img, camp = vw[0], vw[1]; ignore = vw[2] if len(vw) > 2 else None
+        im = load_img(img); w, h = im.size; cam = json.load(open(camp)); cam['w'], cam['h'] = w, h
+        sc = min(1.0, args.work / max(w, h))
+        fg = shrink(photo_part(args, im), sc); valid = ~parse_ignore(ignore, fg.shape[1], fg.shape[0], sc)
+        base = raster(cam, fix, sc)
+        views.append(dict(name=img, cam=cam, sc=sc, fg=fg, valid=valid, base=base, area=max(1, (fg & valid).sum())))
+    def score(x, per=False):
+        f, _, _ = part_transform(dofs, x, pivot); m = f(mov.reshape(-1, 3)).reshape(mov.shape); out = []
+        for V in views:
+            sil = V['base'] | raster(V['cam'], m, V['sc'])
+            out.append(((sil ^ V['fg']) & V['valid']).sum() / V['area'])
+        return out if per else float(sum(out))
+    x0 = np.zeros(len(dofs)); before = score(x0, True)
+    size = float(np.linalg.norm(mov.reshape(-1, 3).max(0) - mov.reshape(-1, 3).min(0)))
+    st = np.array([args.step * size if d.startswith('t') else 0.06 for d in dofs])
+    best = None
+    for trial in range(args.restarts):   # Nelder-Mead from a few starts: the score moves in whole pixels
+        start = x0 if trial == 0 else x0 + (np.random.default_rng(trial).random(len(dofs)) - 0.5) * st * 2
+        sim = np.vstack([start] + [start + np.eye(len(dofs))[i] * st[i] for i in range(len(dofs))])
+        r = minimize(score, start, method='Nelder-Mead', options={'initial_simplex': sim, 'maxfev': args.iters, 'xatol': 1e-7, 'fatol': 1e-7})
+        if best is None or r.fun < best.fun: best = r
+    after = score(best.x, True)
+    f, k, t = part_transform(dofs, best.x, pivot)
+    names = [keys[i] for i in sel_parts]
+    print(f'{len(names)} parts: {", ".join(names[:12])}{" ..." if len(names) > 12 else ""}')
+    print(f'pivot {", ".join(f"{v:.5f}" for v in pivot)}')
+    print('move: ' + ', '.join(f'{d} {v:+.5f}' if d.startswith('t') else f'{d} x{math.exp(v):.4f}' for d, v in zip(dofs, best.x)))
+    print(f'  = translate ({t[0]:+.5f}, {t[1]:+.5f}, {t[2]:+.5f}), scale ({k[0]:.4f}, {k[1]:.4f}, {k[2]:.4f}) about the pivot')
+    lo, hi = mov.reshape(-1, 3).min(0), mov.reshape(-1, 3).max(0); P = f(mov.reshape(-1, 3)); lo2, hi2 = P.min(0), P.max(0)
+    print('extent before: ' + ', '.join(f'{a} {l:.5f}..{h_:.5f}' for a, l, h_ in zip('xyz', lo, hi)))
+    print('extent after:  ' + ', '.join(f'{a} {l:.5f}..{h_:.5f}' for a, l, h_ in zip('xyz', lo2, hi2)))
+    for V, b, a in zip(views, before, after):
+        print(f'  {V["name"]}: disagreement {100 * b:.2f}% -> {100 * a:.2f}% of the photo\'s area')
+    if args.out:
+        T = tris.copy(); T[sel] = P.reshape(mov.shape)
+        parts = {kk: T[pid == i].reshape(-1).round(6).tolist() for i, kk in enumerate(keys)}
+        json.dump({'parts': parts, 'colors': cols}, open(args.out, 'w')); print('moved mesh:', args.out)
+
+
 def main():
+    if hasattr(signal, 'SIGPIPE'): signal.signal(signal.SIGPIPE, signal.SIG_DFL)   # piped into head: stop quietly
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = p.add_subparsers(dest='cmd', required=True)
 
@@ -418,6 +859,46 @@ def main():
     q.add_argument('--row', required=True, help='"row,y": a photo row and the model y there'); q.add_argument('--rot', type=float, default=0); q.set_defaults(fn=cmd_map)
 
     q = sp.add_parser('compare', help='reference over render'); q.add_argument('ref'); q.add_argument('render'); q.add_argument('out'); q.add_argument('--crop'); q.set_defaults(fn=cmd_compare)
+
+    def photo_opts(q):
+        q.add_argument('--mask', help='your own silhouette of the part (black on white, the photo\'s size) instead of the background test')
+        q.add_argument('--th', type=float, default=40, help='colour distance from the background that counts as the part (default 40)')
+        q.add_argument('--bg', help='background colour r,g,b (default: the median of the photo\'s border)')
+        q.add_argument('--shadow', action='store_true', help='treat warm grey shadows on a white backdrop as background')
+        q.add_argument('--color', help='numpy test the part\'s pixels pass (see outline)')
+        q.add_argument('--open', type=int, default=1); q.add_argument('--close', type=int, default=1); q.add_argument('--holes', action='store_true')
+        q.add_argument('--all-pieces', dest='all_pieces', action='store_true', help='keep every separate piece of the photo\'s part, not just the biggest')
+        q.add_argument('--ignore', help='leave these photo regions out of the score: polygons in pixels "x,y;x,y;...|x,y;..." (a hand, a stand, a part this copy has and the model shouldn\'t)')
+
+    q = sp.add_parser('pose', help=cmd_pose.__doc__); q.add_argument('img'); q.add_argument('--mesh', help='the model\'s triangles: OBJ, or JSON {"parts": {name: [x,y,z,...]}}')
+    q.add_argument('--pts', help='point pairs "u,v=x,y,z;...": a photo pixel and the model point it shows (4 or more; on their own, 6 or more)')
+    q.add_argument('--pts-weight', dest='pts_weight', type=float, default=1.0, help='how much the point pairs count against the silhouette (default 1)')
+    q.add_argument('--fov', type=float, help='fix the vertical field of view, degrees (default: fitted, starting at 20)')
+    q.add_argument('--az', default='0,360', help='azimuths to search, degrees "from,to" (0 looks at the model\'s +z face, 90 its +x side)'); q.add_argument('--az-step', dest='az_step', type=float, default=15)
+    q.add_argument('--el', default='-30,60', help='elevations to search, degrees "from,to"'); q.add_argument('--el-step', dest='el_step', type=float, default=15)
+    q.add_argument('--mirror', choices=['no', 'yes', 'both'], default='both', help='also try the model flipped left to right, for a photo printed mirror-wise (default both)')
+    q.add_argument('--init', help='start from this camera JSON instead of searching'); q.add_argument('--keep', type=int, default=3, help='how many of the best starting views to refine (default 3)')
+    q.add_argument('--iters', type=int, default=500, help='evaluations per refinement (default 500)'); q.add_argument('--work', type=float, default=360, help='search at this size, px (default 360)')
+    q.add_argument('--out', help='camera JSON to write (default <photo>_cam.json)'); photo_opts(q); q.set_defaults(fn=cmd_pose)
+
+    q = sp.add_parser('diff', help=cmd_diff.__doc__); q.add_argument('img'); q.add_argument('mesh'); q.add_argument('cam'); photo_opts(q)
+    q.add_argument('--tol', type=int, default=1, help='ignore disagreements thinner than this, px (default 1)'); q.add_argument('--top', type=int, default=6, help='patches to list (default 6)')
+    q.add_argument('--parts', action='store_true', help='also print the model-space box of each part named'); q.add_argument('--ss', type=int, default=2, help='supersampling (default 2)')
+    q.add_argument('--crop', help='x0,y0,x1,y1 of the photo to show'); q.add_argument('--zoom', type=int); q.add_argument('--png'); q.set_defaults(fn=cmd_diff)
+
+    q = sp.add_parser('fit', help=cmd_fit.__doc__); q.add_argument('mesh')
+    q.add_argument('--view', nargs='+', action='append', required=True, metavar='IMG CAM [IGNORE]', help='a photo, its fitted camera, and (optionally) regions to leave out; repeat for every view')
+    q.add_argument('--parts', required=True, help='which parts move: a regex on their names, e.g. "^08[0-3]" or "eyepiece"')
+    q.add_argument('--dof', default='tx,ty,tz', help='what may change: tx,ty,tz (move), s (scale), sxy (scale across the z axis, for round parts), sx,sy,sz (default tx,ty,tz)')
+    q.add_argument('--pivot', help='scale about this model point "x,y,z" (default: the parts\' middle)')
+    q.add_argument('--step', type=float, default=0.05, help='first move tried, as a share of the parts\' size (default 0.05)')
+    q.add_argument('--iters', type=int, default=300); q.add_argument('--restarts', type=int, default=3); q.add_argument('--work', type=float, default=500, help='compare at this size, px (default 500)')
+    q.add_argument('--out', help='write the mesh with the parts moved, to diff again'); photo_opts(q); q.set_defaults(fn=cmd_fit)
+
+    q = sp.add_parser('ray', help=cmd_ray.__doc__); q.add_argument('cam'); q.add_argument('--px', required=True, help='photo pixels "u,v;u,v"')
+    q.add_argument('--plane', help='axis=value, e.g. y=0.0186'); q.add_argument('--mesh', help='hit the model\'s surface instead of a plane'); q.add_argument('--img', help='the photo, if the camera was fitted at another size')
+    q.add_argument('--cam2', help='a second photo\'s camera: triangulate each --px with the same feature picked in that photo (--px2)'); q.add_argument('--px2', help='the same features\' pixels in the second photo')
+    q.add_argument('--dp', type=int, default=5); q.set_defaults(fn=cmd_ray)
 
     args = p.parse_args(); args.fn(args)
 
