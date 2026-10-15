@@ -60,7 +60,7 @@ const stackTotal = (name, before) => { const st = STACKS[name]; return st && Mat
 // a gun's headline numbers, as the card compares them
 function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
-  // a reload from empty: shell by shell (two or three a go with a speed loader), or one mag change
+  // a reload from empty: shell by shell (two or three a go with Sleight of Hand or Triple Load), or one mag change
   const reload = D.melee ? 0 : (D.perShell ? Math.ceil(mag / (D.loadN || 1)) * D.perShell + 0.12 : D.reload || 0) * S.reloadMul;
   return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), aimMv: (D.spread || 0) * 0.5 * (D.aimK || 1) * (1 + 0.5 * (D.aimMove ?? 1)), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
 }
@@ -103,7 +103,7 @@ function tierFx(id, k) {
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
-  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : WEAP[id].breakOpen ? 'Both shells at once' : `${n + 2} shells a go`, good: true });
+  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : WEAP[id].breakOpen ? 'Both shells at once' : 'Three shells a go', good: true });
   if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
   return fx;

@@ -30,7 +30,8 @@ function recomputeEff() {
     D.dmg *= [1, 1.25, 1.5, 1.875][ammo];
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
-    else if (loader && D.perShell) { D.loadN = 1 + loader; D.perShell *= LOADER_T[loader]; }         // two or three shells a go
+    else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
+    else if (loader && D.perShell) { D.loadN = TRIPLE.n; D.perShell *= TRIPLE.t; }                    // Triple Load: three shells a go
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
     // a bigger headshot multiplier (zombies/zombie-types.js): match-grade rounds on any gun, a sight only on a sniper
@@ -93,9 +94,14 @@ const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5 }, SCOPE_GUNS = new Set(Objec
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
 // zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
 const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };
-// a speed loader: the revolver's reload with one (seconds), and how long each go of two or three shells takes against
-// a single shell (longer, but each shell is in quicker: about 1.6 and 2.2 times as fast overall)
-const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];
+// the revolver's reload with its speed loader (seconds); and Triple Load, the pump's loader step: three shells a go,
+// each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: about twice as fast overall,
+// 6 shells in 1.3 s against 2.6 s)
+const REV_LOAD = 1.15, TRIPLE = { n: 3, t: 1.36 };
+// Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
+// own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
+// 0.7 s against 1.3 s without it
+const SOH = { shell: 0.8, shut: 0.75 };
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;
