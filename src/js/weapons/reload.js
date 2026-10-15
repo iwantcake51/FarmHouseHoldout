@@ -6,7 +6,8 @@ function equip(s, force) {
   exitScope(); ANIM.sw = 0.35; W8.swing = 0; W8.boltOpen = false;
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
   if ((W(W8.slot[s]) || {}).melee) ANIM.meleeEqT = -(SWAP_T.end - 0.06);   // a flourish once it's drawn (player/hold.js)
-  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.click();
+  if (W8.cur === s) { W8.reloading = null; W8.reloadT = 0; } else cutReload();   // (a reload put away part done is picked up again: cutReload)
+  W8.cur = s; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.click();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
 // (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half); reloading one of
@@ -23,12 +24,15 @@ const relJitter = () => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), 
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
   const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;   // hands are busy with the bandage, or still drawing
+  // a reload cut short past its mag coming out or going in picks up from there (staged reloads, below)
+  const sv = W8.relSave[id]; delete W8.relSave[id];
+  if (sv && (sv.st === 'out' || sv.st === 'in')) { resumeStage(id, D, sv); return; }
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   W8.relStyle = Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done, and its own feel (player/hold.js)
-  W8.relStop = false; W8.shutQ = false; W8.shutFire = 0;
+  W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
     // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js), and the
@@ -44,7 +48,7 @@ function startReload() {
     const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
     W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
     W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty ? EMPTY_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;
-    SFX.magOut(); reloadJolt(0.12); setTimeout(() => { if (W8.reloading === 'mag' && curId() === id) { dropMag(id); magSwapIn(id); reloadJolt(0.08); } }, 140);   // the old mag falls; a newer one bought since comes out of the pouch
+    SFX.magOut(); reloadJolt(0.12);   // (the old mag falls a beat later, at magOutP: tickReload)
   }
 }
 // the revolver's speed loader, through its reload: the rounds go into the cylinder, the loader is twisted and let go
@@ -64,6 +68,53 @@ const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, EMPTY_MUL = 1.25
 const slideReload = id => !!SLIDE_PISTOLS[id] && !(W(id) || {}).akimbo;
 const slideLocked = id => !!SLIDE_PISTOLS[id] && ((W(id) || {}).akimbo ? akMags(id).R <= 0 : (W8.mag[id] || 0) <= 0);   // a pair's holstered one is the right
 const hasCharge = () => !!CHARGE[W8.cur];
+// Staged reloads. A reload cut short by anything but the trigger (switching weapons, a shove, a sprint, a vault, a
+// bandage) keeps the last of its marks it got to, for that gun (W8.relSave[id], cutReload): begun ('start'), the old
+// mag out ('out': what was left in it goes back in your pouch and the gun stands empty, its well bare), the new one in
+// ('in': it's loaded, and only charging it, dropping the slide or shutting the cylinder is left), or, loading a shell
+// or round at a time, part loaded ('shell': what's in stays in). It picks up from that mark by itself as soon as the gun
+// is in your hands and they're free (resumeReload, each frame from weapons/combat-update.js). Till it has, a gun with
+// its mag out, or in but not charged, won't fire; a shot fired first forgets a 'start' or a 'shell'
+const MAG_DROP_T = 0.14;   // seconds into a mag change the old mag comes free and falls (no more than 0.3 of the change)
+// where in a mag reload (0 to 1) the old mag falls and the new one's seated (player/hold.js poses the hands the same)
+const magK = () => hasCharge() ? CH_MAG : W8.relEmpty ? PS_MAG : 1;
+const magOutP = () => Math.min(0.3, MAG_DROP_T / Math.max(0.3, W8.reloadMax)) * magK();
+const magSeatP = () => MAG_SEAT * magK();
+const relHeld = id => { const sv = W8.relSave[id]; return !!sv && (sv.st === 'out' || sv.st === 'in'); };
+function cutReload() {
+  const id = curId(), D = W(id), rel = W8.reloading;
+  if (rel && D && !D.melee && D.ammo) {
+    let sv = null;
+    if (rel === 'shell') sv = { st: 'shell' };
+    else if (D.akimbo && !D.speedload) sv = { st: 'start' };   // (a pair's own reload: weapons/akimbo.js)
+    else if (W8.seated) { if ((hasCharge() || W8.relEmpty || D.speedload) && !W8.slammed) sv = { st: 'in', p: D.speedload ? (W8.pulled ? SL_DROP : SL_IN) : magSeatP(), pulled: !!(D.speedload && W8.pulled) }; }
+    else if (W8.magOut) { sv = { st: 'out', p: magOutP() }; W8.reserve[D.ammo] += W8.mag[id] || 0; W8.mag[id] = 0; }
+    else sv = { st: 'start' };
+    if (sv) W8.relSave[id] = Object.assign(sv, { max: W8.reloadMax, relEmpty: W8.relEmpty, relVar: W8.relVar, relStyle: W8.relStyle, jit: W8.relJit });
+  }
+  W8.reloading = null; W8.reloadT = 0;
+}
+function resumeStage(id, D, sv) {
+  if (sv.st === 'out' && reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
+  W8.reloading = 'mag'; W8.reloadMax = sv.max; W8.reloadT = sv.max * (1 - sv.p);
+  W8.relEmpty = sv.relEmpty; W8.relVar = sv.relVar; W8.relStyle = sv.relStyle; if (sv.jit) W8.relJit = sv.jit;
+  W8.magOut = true; W8.seated = W8.filled = sv.st === 'in'; W8.pulled = sv.pulled; W8.slammed = false; W8.relStop = false;
+  SFX.click(); reloadJolt(0.1);
+}
+// each frame: back to a reload left part done, once the gun's in your hands and they're free (and, for one only begun
+// or part loaded, you're not holding the trigger or the sprint key)
+function resumeReload() {
+  const id = curId(), sv = id && W8.relSave[id]; if (!sv || W8.reloading || state !== 'play' || P.dead) return;
+  if (P.vault || P.bandT > 0 || swapSt || W8.swing > 0 || P.shove || openSt || (P.sprint && !rgReload())) return;
+  if (sprintKey() && P.moving && !P.sprintLock && !rgReload()) return;
+  if ((sv.st === 'start' || sv.st === 'shell') && (mouseDown || P.fireQ)) return;
+  startReload();
+}
+// what's to go in goes in as the mag's seated
+function fillMag(id, D) {
+  W8.filled = true; const take = Math.min(magSize(id) - (W8.mag[id] || 0), W8.reserve[D.ammo]);
+  if (take > 0) { W8.mag[id] = (W8.mag[id] || 0) + take; W8.reserve[D.ammo] -= take; }
+}
 function tickReload(dt) {
   if (!W8.reloading) return;
   const id = curId(), D = W(id);
@@ -71,12 +122,13 @@ function tickReload(dt) {
   W8.reloadT -= dt;
   if (W8.reloading === 'mag' && D.speedload) {
     const p = 1 - W8.reloadT / W8.reloadMax;
-    if (!W8.seated && p >= SL_IN) { W8.seated = true; SFX.shell(); setTimeout(() => SFX.shell(), 45); reloadJolt(0.2); }
+    if (!W8.seated && p >= SL_IN) { W8.seated = true; fillMag(id, D); SFX.shell(); setTimeout(() => SFX.shell(), 45); reloadJolt(0.2); }
     if (!W8.pulled && p >= SL_DROP) { W8.pulled = true; dropLoader(); }
     if (!W8.slammed && p >= SL_SHUT) { W8.slammed = true; reloadJolt(0.16); }   // flicked shut (player/hold.js: its click as it latches)
   } else if (W8.reloading === 'mag') {
-    const p = 1 - W8.reloadT / W8.reloadMax, ch = hasCharge(), ps = W8.relEmpty, seat = ch ? MAG_SEAT * CH_MAG : ps ? MAG_SEAT * PS_MAG : MAG_SEAT;
-    if (!W8.seated && p >= seat) { W8.seated = true; SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, D.ammo === 'rifle' || (D.mag || 0) > 30 ? 0.16 : 0.12); }   // slapped home
+    const p = 1 - W8.reloadT / W8.reloadMax, ch = hasCharge(), ps = W8.relEmpty, seat = magSeatP();
+    if (!W8.magOut && p >= magOutP()) { W8.magOut = true; dropMag(id); magSwapIn(id); reloadJolt(0.08); }   // the old mag falls; a newer one bought since comes out of the pouch
+    if (!W8.seated && p >= seat) { W8.seated = true; fillMag(id, D); SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, D.ammo === 'rifle' || (D.mag || 0) > 30 ? 0.16 : 0.12); }   // slapped home
     if (ch && !W8.pulled && p >= CH_PULL) { W8.pulled = true; SFX.chargePull(); reloadJolt(0.1); }
     if (ch && !W8.slammed && p >= CH_SLAM) { W8.slammed = true; SFX.chargeSlam(); reloadJolt(0.2); shake = Math.max(shake, 0.1); }
     if (ps && !W8.pulled && W8.relVar === 0 && p >= PS_TUG) { W8.pulled = true; SFX.chargePull(); reloadJolt(0.06); }   // tugged off the stop
@@ -94,8 +146,7 @@ function tickReload(dt) {
     else if (D.breakOpen) W8.reloading = null;   // the barrels are closed next, before it'll fire (tickShut)
     else { W8.reloading = null; if (!(CRANE[W8.cur] || []).length) SFX.rack(); reloadJolt(0.22); shake = Math.max(shake, 0.12); W8.cd = Math.max(W8.cd, 0.25); }   // (a revolver's flicked shut: player/hold.js)
   } else {
-    const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);
-    W8.mag[id] = (W8.mag[id] || 0) + take; W8.reserve[D.ammo] -= take;
+    if (!W8.filled) fillMag(id, D);
     W8.reloading = null; magSwapIn(id);
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, 0.12); }   // (seated already, unless it was cut short)
   }

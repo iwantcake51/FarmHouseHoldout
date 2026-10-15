@@ -9,7 +9,7 @@ const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
-  tickReload(dt); tickShut(dt); tickCycle(dt);
+  resumeReload(); tickReload(dt); tickShut(dt); tickCycle(dt);
   const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
   // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
@@ -24,13 +24,19 @@ function updateCombat(dt) {
   // how much you're moving, for the spread: up at once as you move, settling over about a third of a second after you stop
   { const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1); P.mvS = (P.mvS || 0) + (mv - (P.mvS || 0)) * Math.min(1, dt * (mv > (P.mvS || 0) ? 10 : 3)); }
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
-  // second after you've climbed through or over something
+  // second after you've climbed through or over something. What you ran off (P.runDebt) comes back last, and slowly:
+  // only once you've been off a sprint for RUN_REST.wait, at RUN_REST.rate (player/sprint.js)
+  P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, 1 - P.stam);
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
-  if (P.stamT > (S.lungs ? LUNGS.wait : 0.55) && !(P.stamWait > 0)) P.stam = Math.min(1, P.stam + dt * (P.exh ? 0.26 : 0.38) * (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1));
+  if (!(P.stamWait > 0)) {
+    const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1);
+    if (P.stam + P.runDebt < 1) { if (P.stamT > 0.55 * lw) P.stam = Math.min(1 - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
+    else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr); P.stam += g; P.runDebt -= g; }
+  }
   if (P.exh && P.stam >= 0.34) P.exh = false;
-  // emptying the tank leaves you sluggish; speed creeps back as the stamina does
-  if (P.exh) P.fatigued = true; else if (P.stam >= 0.75) P.fatigued = false;
-  const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / 0.75, 0, 1) : 1;
+  // emptying the tank leaves you sluggish till you could sprint again (SPRINT.unlock); speed creeps back as the stamina does
+  if (P.exh) P.fatigued = true; else if (P.stam >= SPRINT.unlock) P.fatigued = false;
+  const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / SPRINT.unlock, 0, 1) : 1;
   P.spdF = (P.spdF || 1) + (spT - (P.spdF || 1)) * Math.min(1, dt * (spT < (P.spdF || 1) ? 4 : 0.9));
   // point the gun (and your eyes) at what's under the cursor: the part of a zombie you're over; a zombie your aim is on
   // or near, at its chest and head (AIM_CHEST of its height, up a touch if it's close); a crawler down on the ground; or
