@@ -10,8 +10,7 @@ const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id &
 // aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
 // have any, from the first number when you're short of nothing to the second when you're out of something, and it
 // never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
-// 80%), bandages, scrap (under 24, about two buys at the bench) and planks (under half a stack). Scrap and planks count
-// for a bit less, since you start a run short of scrap
+// 80%), bandages and planks (under half a stack); bandages and planks count for a bit less
 const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
 // within the hand's aid, what you're short of comes up far more than the rest
 const needW = f => 0.3 + 8 * clamp(f, 0, 1);
@@ -19,10 +18,9 @@ const NEED = {
   ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
   health: () => (0.8 - P.hp / S.maxHp) / 0.55,
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
-  scrap: () => (24 - S.scrap) / 20,
   planks: () => 1 - S.planks / (PLANK_MAX / 2)
 };
-const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, scrap: 0.7, planks: 0.6 };
+const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, planks: 0.6 };
 // how short you are of anything, 0 to 1: the worst of them
 const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
 // Steady aim stacks up to STEADY_MAX times, and Lucky shot takes LUCK_MISS of the shots that hit nothing out of your
@@ -31,7 +29,6 @@ const STEADY_MAX = 3, LUCK_MISS = 1 / 3;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
-  { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', w: () => needW(NEED.scrap()), ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
@@ -62,7 +59,7 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+const AID = new Set(['Wood pile', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
 const TIER_KIND = { quick: 'Skill', armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
