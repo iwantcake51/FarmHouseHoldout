@@ -333,9 +333,11 @@ function speedLoader(g, rnd) {
 const SLM = new THREE.Group(), SL_RND = new THREE.Group();
 speedLoader(SLM, SL_RND); SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM);   // (slot: kept out of your clothes' blood, effects/body-blood.js)
 const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3(), _slS = new V3();
-// a round in the support hand while it's fed in by hand: two shotgun shells side by side (one shows, or both with a
-// speed loader feeding a pair) or a rifle cartridge; carried from the pouch and pushed home along the bore
-const HSH = new THREE.Group(), HSH_S = [0, 1].map(k => { const g = new THREE.Group(); g.position.x = k * 0.026; cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
+// a round in the support hand while it's fed in by hand: up to three shotgun shells (one, both side by side for the
+// double barrel's Sleight of Hand, or three in a row down the palm for the pump's Triple Load, thumbed up into the
+// tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
+const HSH = new THREE.Group(), HSH_S = [0, 1, 2].map(() => { const g = new THREE.Group(); cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
+const HSH_GAP = 0.026, HSH_FEED = [0.62, 0.72];   // shells' spacing in the hand; when a row of them is thumbed in, one after another
 const HSH_R = new THREE.Group(); cyl(HSH_R, 0.0055, 0.056, GM.brass, 0, 0, 0, 10); cyl(HSH_R, 0.0035, 0.016, GM.copper, 0, 0, 0.034, 10); HSH.add(HSH_R);
 HSH.visible = false; HSH.userData.slot = 'loader'; PM.upper.add(HSH);
 const _bq = new THREE.Quaternion();
@@ -897,8 +899,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
     HSH.visible = feed;
     if (feed) {
-      const rifle = D.ammo === 'rifle', two = !rifle && !!brkG && Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)) >= 2;   // as many as are going in
-      HSH_R.visible = rifle; HSH_S[0].visible = !rifle; HSH_S[1].visible = two;
+      const rifle = D.ammo === 'rifle', n = rifle ? 0 : Math.max(1, Math.min(D.loadN || 1, 3, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));   // as many as are going in
+      // side by side into the two chambers, or a row down the palm whose top one is at the port, the row riding up as
+      // each goes in
+      const fed = brkG ? 0 : Math.min(n - 1, Math.floor(n * clamp((rp - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
+      HSH_R.visible = rifle;
+      HSH_S.forEach((g, k) => { g.visible = k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else g.position.set(0, (fed - k) * HSH_GAP, 0); });
       if (!(brkG && brkG.rims.length)) { _bq.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq); }
       HSH.quaternion.copy(_bq); HSH.position.copy(_fL).addScaledVector(_slAx, 0.04);
     }

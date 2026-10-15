@@ -39,12 +39,12 @@ const TIERS = {
   light: { tag: 'Attachment', t: [
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider light.', vis: 'A mounted light', ap: () => {} }] },
-  // a speed loader: on a shotgun it feeds two shells at a go (three at level II), each go a little quicker; on the
-  // revolver all six rounds go in at once from a loader you then drop (weapons/reload.js). On the double barrel it's
-  // Sleight of Hand, its one step: both shells palmed and pushed in together
+  // one step on each gun that takes it: the revolver's speed loader, all six rounds in at once from a loader you then
+  // drop (weapons/reload.js); on the shotguns a technique, nothing on the gun: the double barrel's Sleight of Hand, both
+  // shells palmed and pushed in together, and the pump's Triple Load, three shells grabbed in one hand and fed into the
+  // tube one after another in one go (game/run-state.js: SOH, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Load 2 shells at a time, a little faster.' : 'Load all 6 rounds at once.', vis: 'A loader at hand', ap: () => {} },
-    { r: 'r', name: 'Speed loader II', text: () => 'Load 3 shells at a time, faster again.', vis: 'A bigger loader', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', pump: 'Triple Load' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'Load all 6 rounds at once.', vis: 'A loader at hand', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. Uses the muzzle slot.', vis: 'A choke ring', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Pellets 30% tighter again, slugs tighter too.', vis: 'A longer choke', ap: () => {} }] },

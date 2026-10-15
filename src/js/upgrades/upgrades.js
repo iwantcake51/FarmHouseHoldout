@@ -75,7 +75,7 @@ function tierFits(k, id) {
   const D = WEAP[id], n = gunTier(id, k);
   if (n >= TIERS[k].t.length) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
-  if (k === 'loader') return id === 'revolver' || D.breakOpen ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader, the double barrel's one Sleight of Hand; shotguns fed shell by shell
+  if (k === 'loader') return id === 'revolver' || (D.ammo === 'shells' && !!D.perShell);   // the revolver's speed loader; a technique on the shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
   if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];

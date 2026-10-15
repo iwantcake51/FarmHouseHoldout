@@ -6,14 +6,13 @@ const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // line (the next tier up); a suppressor and a choke rule each other out on shotguns, the scopes only fit the rifles and the revolver
 // priced in the same band as a new mod (10 to 18 scrap): by how much each step does for you, the night-only light
 // cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
-const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18, 22, 26], laser: [10, 14], light: [8, 12], loader: [12, 16] };
+const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18, 22, 26], laser: [10, 14], light: [8, 12], loader: [12] };
 // how many steps a line has on this gun: the scopes only on the rifles and the revolver, as far as SCOPE_TOP says, the mags as far as MAG_STEPS says, the revolver
-// has one speed loader and the double barrel one Sleight of Hand (both shells at once is all there is)
+// has one speed loader, the double barrel one Sleight of Hand and the pump one Triple Load (TIERS.loader has one step)
 function tierMax(k, id) {
   const n = TIERS[k].t.length;
   if (k === 'sight') return SCOPE_TOP[id] || 2;
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return MAG_STEPS[id];
-  if (k === 'loader' && (id === 'revolver' || WEAP[id].breakOpen)) return 1;
   return n;
 }
 function attachmentCards() {
@@ -24,7 +23,7 @@ function attachmentCards() {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
     const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text;
     out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: D.breakOpen && k === 'loader' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
+      make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for every gun you carry, fitted here like the rest: incendiary rounds, and rounds that go through one more
   // zombie (twice at most)
