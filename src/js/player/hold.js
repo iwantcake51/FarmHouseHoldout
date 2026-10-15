@@ -689,11 +689,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   pitch += ACT.p; roll += ACT.r; yaw += ACT.y; oy += ACT.h; oz += ACT.z; up.y += ACT.tw;
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   // sprinting (player/sprint.js): the gun comes down to a low ready, muzzle down and across the body, both hands still
-  // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. Run and gun keeps it up
+  // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. It's carried high, muzzle only
+  // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up
   if (rd > 0.001) {
     const lg = H.kind === 'long', b2 = Math.sin(ph * 2), b1 = Math.sin(ph);
-    pitch += rd * ((lg ? 0.62 : 0.95) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
-    ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.07 : 0.1) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+    pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
+    ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
   }
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;

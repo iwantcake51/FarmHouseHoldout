@@ -12,9 +12,10 @@
 // Empty the tank and you're blown: no sprinting again till it's back to half (SPRINT.unlock), and slower till then (the
 // fatigue in weapons/combat-update.js). Aiming while you sprint skids you to a stop on your momentum (SPRINT.skid) and
 // brings the gun up into the sights as you slow; pulling the trigger skids you the same way, the gun comes up, and the
-// shot goes off once it's there (P.fireQ: a quick click isn't lost). Swinging hard round to run another way (PIVOT.ang
-// or more off the way you're going, at speed) you plant your feet and stop, shuffle round to face the new way, and then
-// set off again (P.pivot).
+// shot goes off once it's there (P.fireQ: a quick click isn't lost). Cutting round to run another way, a quarter turn
+// or a good deal more, you carve round through it on the run (sprintCarve) and keep going; only turning right about
+// (PIVOT.ang or more off the way you're going, at speed) plants your feet, shuffles you round to face the new way,
+// and sets you off again (P.pivot).
 //
 // Run and gun (S.runGun) lets you sprint and fire a 9mm gun, a pistol or a submachine gun, at anything within RG_ARC
 // of the way you're running: the gun stays up, the shots far looser (RG_SPREAD), and while your legs keep running the
@@ -38,9 +39,11 @@ const RG_ARC = 1.3, RG_SPREAD = 3;
 // boots dig in; scr: how fast the feet patter, radians a second), then the swing round (turn, plus perRad for each
 // radian of it; a step for about every stepRad of it), how far the hips lead the body round (lead), how quickly the
 // body follows them (yawRate), and the push off the new way (push: seconds of harder acceleration, pushAcc, which
-// builds up over pushIn seconds). A cut, up to PIVOT.cut round, carries PIVOT.keep of your pace through it into the new
-// way; anything sharper plants you. Everything about it eases in and out, so it reads as one smooth move
-const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08, scr: 34, turn: 0.1, perRad: 0.045, stepRad: 1.2, lead: 0.6, yawRate: 14, push: 0.35, pushAcc: 10, pushIn: 0.15, cut: 2.2, keep: 0.4 };
+// builds up over pushIn seconds). Anything short of PIVOT.ang round is carved through instead; a turn up to PIVOT.cut
+// round carries PIVOT.keep of your pace through the plant into the new way, and a full about-face stops you. Everything
+// about it eases in and out, so it reads as one smooth move. You have to be pushing that far round for a moment (wait)
+// before you plant, so the frame between two keys of a diagonal (S, then S and D) doesn't stop you dead
+const PIVOT = { ang: 2.45, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08, scr: 34, turn: 0.1, perRad: 0.045, stepRad: 1.2, lead: 0.6, yawRate: 14, push: 0.35, pushAcc: 10, pushIn: 0.15, cut: 2.8, keep: 0.4, wait: 0.07 };
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
 const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
@@ -87,15 +90,16 @@ function updateSprint(dt, moving, wx, wz) {
   // pushing off hard another way at speed: plant, and shuffle round to it (the turn's played out in sprintAnim)
   else if (P.sprint && can && (ANIM.sprintK || 0) > 0.6 && Math.hypot(P.vx, P.vz) > WALK_SPEED * PIVOT.minSpd) {
     const from = Math.atan2(P.vx, P.vz), turn = angDiff(Math.atan2(wx, wz), from);
-    if (Math.abs(turn) > PIVOT.ang) {
+    P.pivWait = Math.abs(turn) > PIVOT.ang ? (P.pivWait || 0) + dt : 0;
+    if (P.pivWait >= PIVOT.wait) {
       // a cut (up to PIVOT.cut round) carries some of your pace through into the new way; turning right about stops you
       const cut = Math.abs(turn) <= PIVOT.cut, sp = Math.hypot(P.vx, P.vz);
       P.pivot = { t: 0, from, turn, dur: PIVOT.brake + PIVOT.turn + PIVOT.perRad * Math.abs(turn), wx, wz, keep: cut ? sp * PIVOT.keep : 0 };
       P.runUp = (P.runUp || 0) * (cut ? 0.55 : 0.3);
       // digging in: a skid and a spray of dust off the boots
-      SFX.skid(); sprintDust(6);
+      SFX.skid(); sprintDust(6); P.pivWait = 0;
     }
-  }
+  } else P.pivWait = 0;
   P.sprint = can && !aiming && !P.pivot;
   if (P.sprint) {
     const use = Math.min(P.stam, stamUse(SPRINT.drain) * dt); P.stam -= use; P.runDebt = (P.runDebt || 0) + use; P.stamT = P.runT = 0;
