@@ -4,8 +4,10 @@
 // blood (losing blood makes the heart race to keep the pressure up), and highest while a wound is still bleeding.
 // It climbs within a couple of seconds and only settles slowly once the cause is gone. Near death it falters, slows
 // and goes irregular before it stops.
-const ECG_HZ = 120, ECG_N = 181, ecg = new Array(ECG_N).fill(0);
-let ecgAcc = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72, hrShown = 72;
+// The trace is drawn like a bedside monitor's: about 2.6 seconds across, the pen sweeping left to right over the old
+// trace and wiping a short gap ahead of itself, a little breathing drift in the baseline.
+const ECG_HZ = 120, ECG_N = 312, ECG_GAP = 14, ecg = new Array(ECG_N).fill(0);
+let ecgAcc = 0, ecgPen = 0, breathT = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72;
 const ECG_R = 0.22;   // the R spike, this long after the start of each beat (the P wave comes first)
 const gauss = (t, mu, sd, a) => a * Math.exp(-((t - mu) * (t - mu)) / (2 * sd * sd));
 // one beat, t seconds after it starts, positive up: P, a small Q dip, the tall R, the S dip, then the T wave, which
@@ -30,16 +32,23 @@ function updateHeart(rdt, hpF) {
   target = Math.min(188, target);
   heartRate += (target - heartRate) * (1 - Math.exp(-rdt / (target > heartRate ? 2.2 : 9)));
   ecgAcc += rdt * ECG_HZ;
+  const breathHz = (12 + (heartRate - 72) * 0.15) / 60;   // you breathe faster as your heart does
   while (ecgAcc >= 1) {
     ecgAcc--;
-    beatT += 1 / ECG_HZ;
-    if (beatT >= beatRR) { beatT -= beatRR; prevRR = beatRR; beatRR = 60 / heartRate * (1 + rr(-1, 1) * (hpF < 0.1 ? 0.14 : 0.025)); }   // a little beat-to-beat wobble, a lot near death
-    ecg.shift(); ecg.push(dead ? rr(-0.01, 0.01) : beatWave(beatT, beatRR) + beatWave(beatT + prevRR, prevRR) + rr(-0.015, 0.015));
+    beatT += 1 / ECG_HZ; breathT += breathHz / ECG_HZ;
+    // the next beat: a touch quicker breathing in and slower breathing out at rest, wild near death
+    if (beatT >= beatRR) { beatT -= beatRR; prevRR = beatRR; beatRR = 60 / heartRate * (1 + Math.sin(breathT * Math.PI * 2) * (heartRate < 100 ? 0.04 : 0.01) + rr(-1, 1) * (hpF < 0.1 ? 0.14 : 0.01)); }
+    const drift = Math.sin(breathT * Math.PI * 2) * 0.05;
+    ecg[ecgPen] = dead ? drift * 0.4 + rr(-0.01, 0.01) : beatWave(beatT, beatRR) + beatWave(beatT + prevRR, prevRR) + drift + rr(-0.012, 0.012);
+    ecgPen = (ecgPen + 1) % ECG_N;
   }
-  $('ecgLine').setAttribute('points', ecg.map((v, i) => `${i},${(20 - v * 15).toFixed(1)}`).join(' '));
-  // the readout settles like a monitor's, not every frame
-  hrShown += (heartRate - hrShown) * Math.min(1, rdt * 2);
-  setT('bpm', dead ? '0' : String(Math.round(hrShown)));
-  const fast = !dead && hrShown > 120; if (cache.bpmFast !== fast) { cache.bpmFast = fast; $('bpmBox').classList.toggle('fast', fast); }
+  // the sweep: everything but the gap just ahead of the pen, in one or two runs
+  const sx = 180 / (ECG_N - 1), pt = i => `${(i * sx).toFixed(1)},${(20 - ecg[i] * 15).toFixed(1)}`;
+  let d = '', open = false;
+  for (let i = 0; i < ECG_N; i++) {
+    if ((i - ecgPen + ECG_N) % ECG_N < ECG_GAP) { open = false; continue; }
+    d += (open ? 'L' : 'M') + pt(i); open = true;
+  }
+  $('ecgLine').setAttribute('d', d);
 }
-function resetHeart() { heartRate = hrShown = 72; hrStartle = 0; beatT = 0; beatRR = prevRR = 60 / 72; ecg.fill(0); }
+function resetHeart() { heartRate = 72; hrStartle = 0; beatT = 0; ecgPen = 0; beatRR = prevRR = 60 / 72; ecg.fill(0); }
