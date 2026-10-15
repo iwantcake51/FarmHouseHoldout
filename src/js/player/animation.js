@@ -16,6 +16,9 @@ const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // the chest turned backChest and the head backHead more; past behind, you keep to the shoulder you're looking over.
 // Like a real runner the head never gets round to the side: it turns at most neck on the shoulders and max from the way
 // you run, all told (about 43° and 60°), however the chest, a turn's lead and the springs add up
+// walking backwards (animatePlayer): the whole body tips back from the ankles by body and the chest by chest more (radians),
+// eased in over a moment as you back off; the head tucks back down to keep looking level
+const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 // Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
 // twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
@@ -173,6 +176,9 @@ function animatePlayer(dt, rdt) {
   // nothing for a frame) doesn't snap the legs together
   ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
   const ph = P.phase, s = Math.sin(ph), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk);   // a sprint reaches further each step
+  // how much you're backing off: going away from where you face, at a walk or better (full at an aimed backpedal's pace)
+  { const back = spd > 0.3 && !P.vault ? Math.max(0, -Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw))) * Math.min(1, spd / 1.4) : 0;
+    ANIM.backK = (ANIM.backK || 0) + (back - (ANIM.backK || 0)) * Math.min(1, rdt * BACKPEDAL.ease); }
   ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 2.4);   // 0.42 s to soak up a landing
   if (P.vault) {
     vaultPose(pm, P.vault);
@@ -248,6 +254,8 @@ function animatePlayer(dt, rdt) {
     if (scr > 0.001) { pm.g.position.y -= scr * (0.045 + 0.02 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
     if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; }
     pm.g.rotation.z -= 0.13 * (ANIM.pivBank || 0);   // banked into the turn (eased: player/sprint.js)
+    // backpedalling you lean back a touch, the weight on your heels (BACKPEDAL), less down the sights
+    pm.g.rotation.x -= BACKPEDAL.body * ANIM.backK * (1 - 0.3 * (ANIM.ads || 0));
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
@@ -297,9 +305,10 @@ function animatePlayer(dt, rdt) {
   }
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
-  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
+  const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
+  let urx = bpx + ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
-  pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
+  pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4 - bpx * BACKPEDAL.head + BACKPEDAL.body * ANIM.backK * BACKPEDAL.head, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
