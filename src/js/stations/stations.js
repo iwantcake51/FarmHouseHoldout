@@ -104,7 +104,7 @@ const STATIONS = [];
   ycyl(g, 0.025, 0.025, 0.07, lam(0xc87a2a), 0.12, 1.725, -0.0, 8); ycyl(g, 0.027, 0.027, 0.02, HM.enamel, 0.12, 1.77, 0.0, 8);
   xcyl(g, 0.04, 0.07, HM.cream, -0.1, 1.73, 0.2, 10); xcyl(g, 0.04, 0.07, HM.cream, -0.06, 1.8, 0.19, 10);
   unfight(g); mergeInto(g, finePieces(g));
-  obstacle(26, 24);
+  obstacle(26, 24);   // full height: the one piece of furniture in the house that still stops sight and bullets
   STATIONS.push({ g, id: 'med', name: 'Medicine cabinet', x: cxw(26) - 0.95, z: cxw(24) });
 
   // ---- ham radio on a side table by the south wall, turned towards the room, running off a car battery ----
