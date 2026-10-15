@@ -16,12 +16,29 @@ function footSurface(x, z) {
   if (onRoad(x, z, 0) || (x > cxw(HX0) - FOOT_YARD && x < cxw(HX1) + FOOT_YARD && z > cxw(HZ0) - FOOT_YARD && z < cxw(HZ1) + FOOT_YARD)) return 'dirt';
   return 'grass';
 }
-// a step of kind ('walk', 'run', 'land' or 'jump') at v (1 a normal one) from where you stand
-function footstep(kind, v = 1, x = P.x, z = P.z) {
-  const surf = footSurface(x, z), key = surf + '.' + kind, set = FOOT_SPRITE[key];
-  if (!FOOT_SND.buf || !set) { if (kind !== 'jump') SFX.step(v, surf === 'wood'); return; }
+// a step of kind ('walk', 'run', 'land' or 'jump') at v (1 a normal one) from where you stand, or from x, z (a
+// zombie's: no synthesized stand-in for those, and pitched by rate)
+function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
+  const surf = footSurface(x, z), key = surf + '.' + kind, set = FOOT_SPRITE[key], yours = x === P.x && z === P.z;
+  if (!FOOT_SND.buf || !set) { if (kind !== 'jump' && yours) SFX.step(v, surf === 'wood'); return; }
   let i = Math.floor(Math.random() * set.length);
   if (set.length > 1 && i === footLast[key]) i = (i + 1 + Math.floor(Math.random() * (set.length - 1))) % set.length;
   footLast[key] = i;
-  playAt(FOOT_SND.buf, { at: set[i][0], dur: set[i][1], x, z, vol: FOOT_LEVEL * FOOT_VOL[kind] * FOOT_SURF[surf] * v * rr(0.85, 1.1), rate: rr(0.94, 1.06) });
+  playAt(FOOT_SND.buf, { at: set[i][0], dur: set[i][1], x, z, vol: FOOT_LEVEL * FOOT_VOL[kind] * FOOT_SURF[surf] * v * rr(0.85, 1.1), rate: rate * rr(0.94, 1.06) });
+}
+// Zombies' footsteps: the same recordings, but you only hear one that's right on you. Past ZSTEP.far there's nothing;
+// it comes in as it closes and is at its loudest within ZSTEP.near, and even then it's well under your own (level). A
+// runner's are a run's, a brute's heavier and lower, a crawler's a soft drag. Only so many a moment (max in any gap
+// seconds), so a crowd at the window doesn't turn into a drumroll
+const ZSTEP = { near: 1.5, far: 4.5, level: 0.4, gap: 0.25, max: 3 };
+const zStepT = [];
+function zombieStep(z) {
+  if (P.dead || !AC) return;
+  const d = Math.hypot(z.x - P.x, z.z - P.z); if (d > ZSTEP.far) return;
+  const now = AC.currentTime; while (zStepT.length && now - zStepT[0] > ZSTEP.gap) zStepT.shift();
+  if (zStepT.length >= ZSTEP.max) return;
+  zStepT.push(now);
+  const near = 1 - smooth(clamp((d - ZSTEP.near) / (ZSTEP.far - ZSTEP.near), 0, 1));
+  const brute = z.type === 'brute', crawl = !!z.crawl;
+  footstep(z.type === 'runner' && !crawl ? 'run' : 'walk', ZSTEP.level * near * (brute ? 1.3 : crawl ? 0.45 : 1), z.x, z.z, brute ? 0.82 : crawl ? 0.9 : 1);
 }
