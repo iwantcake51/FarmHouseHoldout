@@ -187,7 +187,7 @@ function buildGear() {
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
-  LOOK.g.hat.visible = !S.stubborn;   // the helmet goes on instead of your hat
+  LOOK.g.hat.visible = !S.stubborn && !T('night');   // the helmet, or the night vision's head mount, goes on instead of your hat
   if (bt || thick) buildBoots(bt, thick);
   // Vault fire: hard-shell knee pads on elastic straps
   if (S.vaultMul < 1) [PM.shinL, PM.shinR].forEach(l => {
@@ -200,14 +200,30 @@ function buildGear() {
   });
   // eyes: wraparound shooting glasses, then night-vision goggles on a head mount (one tube, then two)
   if (T('night')) {
-    const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2;
-    gb(g, 0.34, 0.04, 0.34, GEAR.black, 0, 0.12, 0); gb(g, 0.04, 0.2, 0.33, GEAR.black, 0, 0.17, -0.005);   // the head harness
-    gb(g, 0.1, 0.08, 0.05, GEAR.dark, 0, 0.13, 0.19); gb(g, 0.04, 0.06, 0.06, GEAR.steelDk, 0, 0.08, 0.22);  // the mount
-    (n2 ? [-0.065, 0.065] : [0.07]).forEach(x => {
-      gc(g, 0.04, 0.11, GEAR.dark, x, 0.03, 0.25, 'z', 10); gc(g, 0.046, 0.025, GEAR.black, x, 0.03, 0.31, 'z', 10); gc(g, 0.03, 0.005, GEAR.green, x, 0.03, 0.324, 'z', 10);
+    // worn on the bare head (the hat comes off for it, buildGear) or on the Stubborn helmet: a band right round the head
+    // with straps over the crown, a shroud on the front of it with an arm down to the tubes, and the battery pack
+    // clipped to the back of it
+    const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2, hel = !!S.stubborn, L = LOOK.cur || {};
+    if (!hel) {
+      // the hair the hat was hiding, so the straps sit on hair, not a bare scalp
+      if (L.hat !== 'none' && L.hat !== 'bandana' && L.hairStyle !== 'bald' && L.hairStyle !== 'buzz') gb(g, 0.334, 0.045, 0.334, lam(L.hair ?? 0x3a2a1a), 0, 0.182, 0);
+      const by = 0.125, bh = 0.04;
+      gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, 0.178); gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, -0.2);            // the band, front and back
+      [-1, 1].forEach(sd => gb(g, 0.026, bh, 0.404, GEAR.black, sd * 0.187, by, -0.011));                     // and its sides
+      gb(g, 0.045, 0.018, 0.404, GEAR.black, 0, 0.214, -0.011); gb(g, 0.4, 0.018, 0.045, GEAR.black, 0, 0.214, -0.03);   // the straps over the crown
+      gb(g, 0.045, 0.1, 0.018, GEAR.black, 0, 0.17, 0.186); gb(g, 0.045, 0.1, 0.018, GEAR.black, 0, 0.17, -0.208);       // down to the band, front and back
+      [-1, 1].forEach(sd => gb(g, 0.018, 0.1, 0.045, GEAR.black, sd * 0.195, 0.17, -0.03));
+      gb(g, 0.14, 0.024, 0.14, GEAR.foam, 0, 0.214, -0.02);                                                      // the crown pad under them
+    }
+    const fz = hel ? 0.222 : 0.2, tz = fz + 0.05, tx = n2 ? 0 : 0.07;
+    gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, 0.15, fz);                                                            // the shroud
+    gb(g, 0.045, 0.1, 0.045, GEAR.steelDk, 0, 0.1, fz + 0.03);                                                  // the mount arm, down from it
+    gb(g, n2 ? 0.18 : 0.125, 0.032, 0.05, GEAR.dark, n2 ? 0 : tx / 2, 0.06, tz);                                // the bridge the tubes hang from
+    (n2 ? [-0.065, 0.065] : [tx]).forEach(x => {
+      gc(g, 0.04, 0.11, GEAR.dark, x, 0.03, tz, 'z', 10); gc(g, 0.046, 0.025, GEAR.black, x, 0.03, tz + 0.06, 'z', 10); gc(g, 0.03, 0.005, GEAR.green, x, 0.03, tz + 0.074, 'z', 10);
     });
-    if (n2) gb(g, 0.13, 0.03, 0.03, GEAR.dark, 0, 0.06, 0.24);
-    gb(g, 0.12, 0.07, 0.05, GEAR.dark, 0, 0.04, -0.185); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, 0.06, -0.211);   // the battery pack at the back
+    const bz = hel ? -0.24 : -0.222;
+    gb(g, 0.12, 0.07, 0.04, GEAR.dark, 0, 0.13, bz); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, 0.15, bz - 0.022);   // the battery pack at the back
   } else if (T('eyes')) {
     const g = gearItem(PM.head, 0, 0.035, 0);
     gb(g, 0.31, 0.026, 0.03, GEAR.dark, 0, 0.03, 0.172); [-1, 1].forEach(s => { gb(g, 0.13, 0.055, 0.012, GEAR.lens, s * 0.072, 0, 0.181); gb(g, 0.13, 0.008, 0.014, GEAR.lensDk, s * 0.072, -0.03, 0.18); });
@@ -269,7 +285,7 @@ function buildGear() {
     gb(g, 0.4, 0.1, 0.42, GEAR.olive, 0, 0.04, -0.005); gb(g, 0.36, 0.06, 0.38, GEAR.olive, 0, 0.11, -0.005); gb(g, 0.26, 0.04, 0.28, GEAR.olive, 0, 0.155, -0.005);
     gb(g, 0.42, 0.025, 0.44, GEAR.oliveDk, 0, -0.01, -0.005); gb(g, 0.405, 0.035, 0.425, GEAR.oliveLt, 0, 0.07, -0.005);   // rim and cover band
     [-1, 1].forEach(s => gb(g, 0.012, 0.2, 0.03, GEAR.black, s * 0.17, -0.13, 0.04));                              // chin strap
-    gb(g, 0.3, 0.05, 0.04, GEAR.black, 0, 0.06, 0.21); [-1, 1].forEach(s => gb(g, 0.1, 0.035, 0.012, GEAR.lens, s * 0.065, 0.06, 0.232));   // goggles on the brim
+    if (!T('night')) { gb(g, 0.3, 0.05, 0.04, GEAR.black, 0, 0.06, 0.21); [-1, 1].forEach(s => gb(g, 0.1, 0.035, 0.012, GEAR.lens, s * 0.065, 0.06, 0.232)); }   // goggles on the brim (the night vision's mount takes the front instead)
   }
   // Fleet-footed: a stopwatch clipped to the chest strap on its lanyard
   if (S.speedMul > 1.3) {
