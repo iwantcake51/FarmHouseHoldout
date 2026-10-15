@@ -28,6 +28,7 @@ const SFX = {
   slideDrop() { nz(0.045, 'bandpass', 1700, 900, 0.34, 2.2); tn(0.04, 'triangle', 560, 220, 0.18); },
   // a revolver's cylinder flicked home: the crisp click of the latch and a ring of the frame
   cylShut() { tn(0.025, 'square', 1700, 1100, 0.12); nz(0.05, 'bandpass', 3000, 1600, 0.26, 3); tn(0.07, 'triangle', 520, 260, 0.12); setTimeout(() => tn(0.02, 'square', 2100, 1500, 0.04), 28); },
+  brkShut() { tn(0.03, 'square', 950, 520, 0.13); nz(0.07, 'bandpass', 1700, 800, 0.32, 2.4); tn(0.08, 'triangle', 260, 120, 0.16); },   // the double barrel's barrels swung up and latching
   rack() { nz(0.06, 'bandpass', 1400, 800, 0.3, 2); setTimeout(() => nz(0.07, 'bandpass', 900, 500, 0.32, 2), 110); },
   tink(hull, v) { if (hull) { tn(0.05, 'triangle', rr(520, 640), 300, 0.05 * v); nz(0.04, 'bandpass', 1400, 900, 0.06 * v, 3); } else { const f = rr(3800, 5200); tn(0.06, 'sine', f, f * 0.97, 0.035 * v); tn(0.04, 'sine', f * 1.5, f * 1.48, 0.015 * v); } },
   // working a pump: the forend yanked back to its stop (a rasp and a clack), then shoved home (a heavier slam)

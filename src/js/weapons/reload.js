@@ -28,6 +28,7 @@ function startReload() {
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   W8.relStyle = Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done, and its own feel (player/hold.js)
+  W8.relStop = false; W8.shutQ = false; W8.shutFire = 0;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
     // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js), and the
@@ -86,10 +87,11 @@ function tickReload(dt) {
     // one shell a go, or two or three with a speed loader
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
     W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); if (n > 1) setTimeout(() => SFX.shell(), 55); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0) { W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul; W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul; W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
     // done: a pump or bolt gun that's open is racked next (weapons/casings.js), one that's chambered is ready as it is;
     // anything else snaps shut
     else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); }
+    else if (D.breakOpen) W8.reloading = null;   // the barrels are closed next, before it'll fire (tickShut)
     else { W8.reloading = null; if (!(CRANE[W8.cur] || []).length) SFX.rack(); reloadJolt(0.22); shake = Math.max(shake, 0.12); W8.cd = Math.max(W8.cd, 0.25); }   // (a revolver's flicked shut: player/hold.js)
   } else {
     const need = magSize(id) - (W8.mag[id] || 0), take = Math.min(need, W8.reserve[D.ammo]);
@@ -97,4 +99,37 @@ function tickReload(dt) {
     W8.reloading = null; magSwapIn(id);
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, 0.12); }   // (seated already, unless it was cut short)
   }
+}
+// the double barrel's shell reload (D.breakOpen): one shell a go, or both together with Sleight of Hand (the loader
+// tier, game/run-state.js). Pulling the trigger part way through stops it: with a shell already in, at once (unless
+// the next is already in the chamber, then it's pushed home first); with none, once the one in the hand is in. However
+// a reload ends (done, stopped, a sprint, a shove, a vault), the barrels are swung up and latched before the gun fires
+// again: BRK_SHUT long (Quick hands quickens it), the support hand coming back to the forend for the first BRK_GRAB of
+// it and lifting the barrels shut on it for the rest (player/hold.js poses it to the same marks). A trigger pulled
+// during it is kept, and the shot goes off as it latches (W8.shutQ, then W8.shutFire: weapons/combat-update.js)
+const BRK_SHUT = 0.3, BRK_GRAB = 0.42, SHELL_IN = 0.7, SHUT_FIRE_WAIT = 0.5;
+// a pull of the trigger during a break-action's reload or its closing: whether it's taken here (the gun doesn't fire)
+function breakTrigger(id, D) {
+  if (!D.breakOpen) return false;
+  if (W8.reloading === 'shell') {
+    const rp = 1 - W8.reloadT / W8.reloadMax;
+    if ((W8.mag[id] || 0) > 0 && rp < SHELL_IN) W8.reloading = null; else W8.relStop = true;
+    W8.shutQ = true; return true;
+  }
+  if (W8.brkOpen || W8.shutT > 0) { W8.shutQ = true; return true; }
+  return false;
+}
+// how far through closing (-1: not closing; 0 too on the frame a reload's stopped, before tickShut has started it)
+const brkShutP = () => W8.shutT > 0 ? 1 - W8.shutT / W8.shutMax : W8.brkOpen && W8.reloading !== 'shell' ? 0 : -1;
+function tickShut(dt) {
+  if (W8.shutFire > 0) W8.shutFire -= dt;
+  const D = W(curId());
+  if (!D || !D.breakOpen) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
+  if (W8.reloading === 'shell') { W8.brkOpen = true; return; }
+  if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = BRK_SHUT * S.reloadMul; }
+  if (W8.shutT <= 0) return;
+  W8.shutT -= dt;
+  if (W8.shutT > 0) return;
+  W8.shutT = 0; SFX.brkShut(); reloadJolt(0.22); shake = Math.max(shake, 0.12);   // latched
+  if (W8.shutQ) { W8.shutQ = false; W8.shutFire = SHUT_FIRE_WAIT; }
 }

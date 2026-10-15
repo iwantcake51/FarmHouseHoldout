@@ -305,30 +305,59 @@ function shovePose() {
   return { q, push: pose[0], lean: pose[1], tw: pose[2] };
 }
 
-// the revolver's speed loader in the left hand (weapons/reload.js has the marks): six rounds held in a dark ring with a
-// knurled knob behind, fetched from the pouch, pushed into the open cylinder, twisted to let go of the rounds and
-// dropped. It lives in upper-body space beside the gun, so it follows the hand exactly
+// the revolver's speed loader, off a photo of one: a squat black polymer body with fine turned grooves round it, its
+// face drilled with six deep holes the rounds sit in (cases inside, noses out) round a stem with a bright release
+// button, and a neck behind it to a knurled steel knob, the one you twist to let the rounds go. Its axis is z, the face
+// forward; rnd takes the rounds (left out on an empty one). SL_FACE: where the face is, so with the fist SL_HAND behind
+// the loader's middle the rounds go into the cylinder as the hand reaches it (player/hold.js: the hand's path)
+const SL_FACE = 0.03, SL_HAND = 0.07;
+function speedLoader(g, rnd) {
+  const R = REV_CYL.r * 0.97, C = REV_CYL.ch, f = SL_FACE, bl = 0.026;
+  cyl(g, R, bl, GM.poly, 0, 0, f - bl / 2, 28);
+  for (let k = 0; k < 6; k++) cyl(g, R * 1.006, 0.0008, GM.rubber, 0, 0, f - 0.004 - k * 0.0036, 28);   // the fine grooves
+  cyl(g, R * 0.9, 0.0012, GM.metal, 0, 0, f + 0.0001, 28);                                             // the face, a shade lighter
+  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; cyl(g, 0.0064, 0.0012, GM.rubber, Math.cos(a) * C, Math.sin(a) * C, f + 0.0006, 14); }   // the holes
+  cyl(g, 0.0042, 0.004, GM.steelDk, 0, 0, f + 0.002, 12); cyl(g, 0.0032, 0.0016, GM.stainless, 0, 0, f + 0.0046, 12);   // the stem and its button
+  cyl(g, 0.0072, 0.01, GM.poly, 0, 0, f - bl - 0.005, 16);                                              // the neck
+  const kz = f - bl - 0.019; cyl(g, 0.0104, 0.018, GM.stainless, 0, 0, kz, 20);                         // the knob
+  for (let k = 0; k < 6; k++) ring(g, 0.0107, 0.0011, GM.stainlessD, 0, 0, kz - 0.0075 + k * 0.003);      // knurled
+  cyl(g, 0.0092, 0.0012, GM.stainlessD, 0, 0, kz - 0.0094, 16);
+  if (rnd) for (let k = 0; k < 6; k++) {
+    const a = k * Math.PI / 3, x = Math.cos(a) * C, y = Math.sin(a) * C;
+    cyl(rnd, 0.0052, 0.012, GM.brass, x, y, f + 0.002, 10);                                              // the case, mostly down in its hole
+    cyl(rnd, 0.0047, 0.006, GM.copper, x, y, f + 0.011, 10); cyl(rnd, 0.0032, 0.003, GM.copper, x, y, f + 0.0155, 10);   // the bullet, its nose rounded off
+  }
+}
+// in the left hand (weapons/reload.js has the marks): fetched from the pouch, pushed into the open cylinder, twisted to
+// let go of the rounds and dropped. It lives in upper-body space beside the gun, so it follows the hand exactly
 const SLM = new THREE.Group(), SL_RND = new THREE.Group();
-{ const R = REV_CYL.r, C = REV_CYL.ch; cyl(SLM, R * 0.95, 0.018, GM.metal, 0, 0, 0, 18); cyl(SLM, 0.008, 0.022, GM.metal2, 0, 0, -0.02, 12); ring(SLM, R * 0.97, 0.004, GM.metal2, 0, 0, 0.006);
-  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, x = Math.cos(a) * C, y = Math.sin(a) * C; cyl(SL_RND, 0.0052, 0.028, GM.brass, x, y, 0.022, 10); cyl(SL_RND, 0.0038, 0.008, GM.copper, x, y, 0.039, 10); }
-  SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM); }   // (slot: kept out of your clothes' blood, effects/body-blood.js)
-const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3();
+speedLoader(SLM, SL_RND); SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM);   // (slot: kept out of your clothes' blood, effects/body-blood.js)
+const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3(), _slS = new V3();
 // a round in the support hand while it's fed in by hand: two shotgun shells side by side (one shows, or both with a
 // speed loader feeding a pair) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1].map(k => { const g = new THREE.Group(); g.position.x = k * 0.026; cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
 const HSH_R = new THREE.Group(); cyl(HSH_R, 0.0055, 0.056, GM.brass, 0, 0, 0, 10); cyl(HSH_R, 0.0035, 0.016, GM.copper, 0, 0, 0.034, 10); HSH.add(HSH_R);
 HSH.visible = false; HSH.userData.slot = 'loader'; PM.upper.add(HSH);
 const _bq = new THREE.Quaternion();
-// the empty loader, let go of: it falls out of the hand, bounces and lies there a while (the casings' debris, weapons/casings.js)
+// the empty loader, let go of: it falls out of the hand just as it was, turning over, bounces and lies there a while
+// on its side (the casings' debris, weapons/casings.js). Its own model, the rounds left behind in the cylinder, at the
+// size it is in the hand (the loader's inner group, sz, takes the body's scale; the debris shrinks its outer one away)
+const SL_DROPS = [];
+for (let k = 0; k < 4; k++) {
+  const g = new THREE.Group(), sz = new THREE.Group(); speedLoader(sz); sz.traverse(m => { if (m.isMesh) m.castShadow = true; });
+  g.add(sz); g.visible = false; scene.add(g);
+  SL_DROPS.push({ g, sz, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag', restY: 0.03, rest: g => g.rotation.set(0, g.rotation.y, 0) });
+}
+let slIdx = 0;
 function dropLoader() {
   if (!SLM.visible) return;
-  SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.visible = false;
-  const c = mags[mIdx = (mIdx + 1) % mags.length];
-  c.body.geometry = DRUM_G; c.body.material = GM.metal; c.body.scale.set(REV_CYL.r * 0.95, 0.018, REV_CYL.r * 0.95); c.body.rotation.set(Math.PI / 2, 0, 0);
-  c.r = 0.022; c.restY = 0.009; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); };
-  c.g.position.copy(_slW); c.g.rotation.set(0, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
+  SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.getWorldQuaternion(_bq); SLM.getWorldScale(_slS); SLM.visible = false;
+  const c = SL_DROPS[slIdx = (slIdx + 1) % SL_DROPS.length], s = _slS.x;
+  c.sz.scale.setScalar(s); c.sz.position.set(0, 0, -0.01 * s);   // (turning about its middle, the knob and all)
+  c.r = REV_CYL.r * 0.97 * s; c.restY = c.r;
+  c.g.position.copy(_slW).addScaledVector(_slAx.set(0, 0, 0.01 * s).applyQuaternion(_bq), 1); c.g.quaternion.copy(_bq); c.g.scale.setScalar(1); c.g.visible = true;
   c.vx = P.vx * 0.6 + rr(-0.4, 0.4); c.vz = P.vz * 0.6 + rr(-0.4, 0.4); c.vy = rr(-0.6, 0.2);
-  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14; c.kind = 'mag';
+  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14;
 }
 
 // bandaging: first the weapon goes away, carried by the right hand to where it rides (bandP, player/swap.js), then the
@@ -502,6 +531,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
+  // the double barrel being closed after its reload (weapons/reload.js: tickShut): shP how far through (-1: it isn't),
+  // shK how far the barrels have swung up, quickening as they go so they swing home hard
+  const shP = !rel && !D.akimbo && D.breakOpen ? brkShutP() : -1, shK = shP >= 0 ? Math.pow(clamp((shP - BRK_GRAB) / (1 - BRK_GRAB), 0, 1), 2) : 0;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
   const CH = rel === 'mag' && CHARGE[s] && !D.akimbo;   // (a pair charges its own way: weapons/akimbo.js, akChargeState)
@@ -517,7 +549,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const drawn = CH ? 1 - Math.pow(1 - clamp((rp - 0.8) / (CH_PULL - 0.8), 0, 1), 3) : 0, home = CH ? clamp((rp - CH_SLAM) / 0.02, 0, 1) : 0, pull = drawn * (1 - home * home);
   const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
   if (rel) ANIM.relKind = rel;
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);
+  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);   // (closing the double barrel: the stock comes up to meet the barrels)
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
@@ -558,6 +590,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     AT.hy -= 0.16 * back; AT.tw -= 0.04 * back;                             // a glance at the pouch for the next one
     if (beat(0.7)) { if (id === 'dbl') relKnock(1.4, -0.6, -0.2, 0); else if (id === 'revolver') relKnock(0.4, 1.4, 0, 0.2); else relKnock(-1.3, 1.1, 0.2, 0.35); }   // dropped in, or thumbed home
   }
+  if (shP < 0 && (ANIM.shWas ?? -1) >= 0) relKnock(-2, 0.7, 0.25, 0.2);   // the double barrel latching shut knocks the gun up
+  ANIM.shWas = shP;
   if (PS && beat(PS_REL[W8.relVar])) relKnock(-2.2, W8.relVar ? 1.6 : -1.2, 0.3, -0.4);   // the slide slamming home
   if (CH && beat(CH_SLAM)) relKnock(-1.6, -1.2, 0.2, -0.3);
   if (ak) { const a = Math.max(akU('R') > 0 ? bump(akU('R'), 0, 1) : 0, akU('L') > 0 ? bump(akU('L'), 0, 1) : 0); AT.hp += 0.14 * a; }   // a pair: a look down at the one being reloaded
@@ -712,14 +746,16 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the charging handle: drawn back by the right hand and let go
   if (CHARGE[s] && !ak) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
   else if (ak && HOLDS[s]) for (const sd of ['R', 'L']) { const c = HOLDS[s][sd] && HOLDS[s][sd].userData.charge; if (c) { c.m.position.z = akC && akC.side === sd ? -c.tr * akC.pull : 0; c.m.updateMatrix(); } }   // a pair's: the one being charged
-  // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and snaps
-  // shut after; the brass of each loaded shell shows in its chamber, the one being pushed home as soon as it's in
+  // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and is
+  // closed after it, the support hand lifting the barrels up on the forend till they latch (shK); the brass of each
+  // loaded shell shows in its chamber, the one being pushed home as soon as it's in
   const brkG = BRK[s];
   if (brkG) {
     const open = rel === 'shell' ? 1 : 0;
-    ANIM.brk = (ANIM.brk || 0) + (open - (ANIM.brk || 0)) * Math.min(1, rdt * (open ? 11 : 24));
+    if (shP >= 0) ANIM.brk = Math.min(ANIM.brk || 0, 1 - shK);   // (never swinging further open, if it was cut short opening)
+    else ANIM.brk = (ANIM.brk || 0) + (open - (ANIM.brk || 0)) * Math.min(1, rdt * (open ? 11 : 24));
     brkG.g.rotation.x = 0.62 * smooth(clamp(ANIM.brk, 0, 1)); brkG.g.updateMatrix();
-    const loaded = (W8.mag[id] || 0) + (rel === 'shell' && rp >= 0.7 ? Math.min(D.loadN || 1, 2 - (W8.mag[id] || 0)) : 0);
+    const loaded = (W8.mag[id] || 0) + (rel === 'shell' && rp >= SHELL_IN ? Math.min(D.loadN || 1, 2 - (W8.mag[id] || 0)) : 0);
     brkG.rims.forEach((r, k) => { r.visible = k < loaded; });
   }
   // a belt-fed gun shows what's left in its belt: the rounds go from the box end first under ten, and none are left
@@ -843,7 +879,17 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else if (st === 2) { _p3.copy(POUCH).lerp(_p2, 0.5); _p3.y += 0.05; free = walkPath(_p4, [[0, POUCH], [0.28, _p3], [0.5, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); }   // up and over, then in
       else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp);
       wt = 1;
+    } else if (shP >= 0 && brkG) {
+      // closing the double barrel: back from wherever the hand was (the pouch, or the chamber if it was stopped) to the
+      // forend where it hangs on the swung-down barrels, under and up onto it, then riding it as it lifts them shut
+      const bp = brkG.g.position, fy = H.fore[1] + fh[0] - foreDrop(s, H);
+      _p1.set(H.fore[0] - bp.x, fy - bp.y, H.fore[2] + fh[1] - bp.z).applyMatrix4(brkG.g.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z);
+      if (!ANIM.shFrom) ANIM.shFrom = new V3().copy(_fL);
+      if (shP < BRK_GRAB) { const k = smooth(shP / BRK_GRAB); _p2.copy(_p1); _p2.y -= 0.05; free = walkPath(_p4, [[0, ANIM.shFrom], [0.7, _p2], [1, _p1]], k); }
+      else free = _p4.copy(_p1);
+      wt = 1;
     }
+    if (shP < 0) ANIM.shFrom = null;
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
     magToFist(_fL);   // the fresh mag, where the fist actually got to
@@ -861,7 +907,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const slOn = rel === 'mag' && D.speedload && rp > 0.25 && rp < SL_DROP;
     if (slOn) {
       SLM.visible = true; SL_RND.visible = true;
-      SLM.position.copy(_fL).addScaledVector(_slAx, 0.07); SLM.quaternion.copy(_slQ);
+      SLM.position.copy(_fL).addScaledVector(_slAx, SL_HAND); SLM.quaternion.copy(_slQ);
       SLM.rotateZ(smooth(clamp((rp - SL_IN - 0.02) / 0.08, 0, 1)) * Math.PI / 3);
     } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
   } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);

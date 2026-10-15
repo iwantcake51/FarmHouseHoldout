@@ -106,7 +106,7 @@ function tierFx(id, k) {
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
-  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : `${n + 2} shells a go`, good: true });
+  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : WEAP[id].breakOpen ? 'Both shells at once' : `${n + 2} shells a go`, good: true });
   if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
   return fx;

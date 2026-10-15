@@ -151,7 +151,7 @@ function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side

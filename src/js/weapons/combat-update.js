@@ -9,10 +9,11 @@ const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
-  tickReload(dt); tickCycle(dt);
+  tickReload(dt); tickShut(dt); tickCycle(dt);
   const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
-  // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js)
-  const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ) && canFire;
+  // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the
+  // double barrel was open goes off as it latches: W8.shutFire, weapons/reload.js)
+  const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ || W8.shutFire > 0) && canFire;
   // a semi-auto needs the trigger let go between shots (trigLock); a burst keeps going only while it's held, and let go
   // part way through it stops there
   if (!wantFire) { W8.trigLock = false; W8.burstLeft = 0; }
@@ -76,5 +77,5 @@ function updateCombat(dt) {
     akTriggers(dt, curId(), D, { [AK_ON.left]: ok && (mouseDown || q === 'L'), [AK_ON.right]: ok && (mouseDownR || q === 'R'), any: ok && (stickFire || q === 'S') });
     if (ok && P.fireQ) { P.fireQ = null; P.shotHold = SHOT_HOLD; }
   }
-  else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) { if (P.fireQ) { P.fireQ = null; P.shotHold = SHOT_HOLD; } fire(); }
+  else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) { if (P.fireQ) { P.fireQ = null; P.shotHold = SHOT_HOLD; } W8.shutFire = 0; fire(); }
 }
