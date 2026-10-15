@@ -349,11 +349,9 @@ function updatePlayerVisuals(dt, rdt) {
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
   updateBandStow();      // and so does putting it away for a bandage, or drawing it again after
-  // blood dries off slowly
-  if (dt > 0) { P.blood = Math.max(0, (P.blood || 0) - dt * 0.003); for (const k in W8.bloodW) W8.bloodW[k] = Math.max(0, W8.bloodW[k] - dt * 0.004); }
-  updateCharBlood(rdt);   // the stain on you (effects/body-blood.js)
+  updateCharBlood(rdt, dt);   // the stain on you (effects/body-blood.js)
   bandRolls.forEach((m, k) => { m.visible = k < (P.band || 0); });
-  updateWeaponBlood(rdt);   // and on your weapons
+  updateWeaponBlood(rdt, dt);   // and on your weapons
   flashT -= rdt; if (flashT <= 0) flash.visible = false;
   else { const k = flashT / 0.055, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.42 * s1); flashStar.scale.setScalar(0.7 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.16 * s1, 1, 0.55 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);

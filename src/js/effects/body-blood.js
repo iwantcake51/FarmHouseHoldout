@@ -5,11 +5,31 @@
 // the shins, then the face and sides, the back last; on a gun the muzzle end; on a melee weapon its head and edge).
 // Fresh blood is bright and wet and darkens as it dries. Every surface gets its own copy of its material carrying the
 // shader (the originals are shared with the rest of the farm), kept in step with the original's colour each frame.
+//
+// The blood comes and goes splash by splash: each one stays as it landed for BLOOD_HOLD seconds, then fades away over
+// BLOOD_FADE (on the world clock, so it waits while the game's paused), the stain drawing back from its thin edges as
+// it goes. A fight leaves you, your weapon and the dead soaked; a quiet spell sees it gone again.
 
-function addBlood(char, wId, wAmt) {
-  P.blood = Math.min(1, (P.blood || 0) + char * 1.3);
-  if (wId && wAmt) W8.bloodW[wId] = Math.min(1, (W8.bloodW[wId] || 0) + wAmt);
+const BLOOD_HOLD = 15, BLOOD_FADE = 1.5;
+// a splash of blood (amt, 0..1 of soaked) on a list of them; what lands within half a second of the last counts as
+// one splash with it, so a list holds no more than a couple of dozen
+function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }
+// how bloody a list of splashes leaves something (0..1): each ages by dt, fades over its last BLOOD_FADE seconds and
+// is dropped once it's gone
+function splashLevel(list, dt) {
+  const end = BLOOD_HOLD + BLOOD_FADE; let b = 0;
+  for (let k = list.length - 1; k >= 0; k--) {
+    const s = list[k]; s[1] += dt;
+    if (s[1] >= end) list.splice(k, 1); else b += s[0] * Math.min(1, (end - s[1]) / BLOOD_FADE);
+  }
+  return Math.min(1, b);
 }
+const youSplash = [];   // the splashes on you; a new run starts clean (clearBodyBlood)
+function addBlood(char, wId, wAmt) {
+  splashOn(youSplash, char * 1.3);
+  if (wId && wAmt) splashOn(W8.bloodW[wId] || (W8.bloodW[wId] = []), wAmt);   // W8 starts afresh each run
+}
+function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
 
 const BLOOD_NOISE = `
 vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -144,24 +164,27 @@ function buildCharBlood() {
   PM.upper.children.forEach(c => walk(c, PM.torso, 0)); PM.lower.children.forEach(c => walk(c, PM.legL, 3));
   charBloodN = 0; PM.g.traverse(o => { if (o.isMesh) charBloodN++; });
 }
-// each frame: the stain eases out to how bloody you are (so a hit spreads it rather than popping it on), fresh blood
-// brightens it, and the copies keep the colour their originals have now (your shirt, skin and pack are re-dyed each
-// run). Anything put on you since (another plank on the pack) is picked up within half a second.
-function updateCharBlood(rdt) {
+// each frame: the stain eases out to how bloody you are (so a hit spreads it rather than popping it on) and draws
+// back as old splashes fade, fresh blood brightens it, and the copies keep the colour their originals have now (your
+// shirt, skin and pack are re-dyed each run). Anything put on you since (another plank on the pack) is picked up
+// within half a second.
+function updateCharBlood(rdt, dt) {
   charBloodChk += rdt;
   if (charBloodChk > 0.5) { charBloodChk = 0; let n = 0; PM.g.traverse(o => { if (o.isMesh) n++; }); if (n !== charBloodN) charBloodDirty = true; }
   if (charBloodDirty) buildCharBlood();
-  const b = P.blood || 0;
+  const b = P.blood = splashLevel(youSplash, dt);
   if (b > bloodWas + 0.001) BLOOD_U.uFresh.value = 1; else BLOOD_U.uFresh.value = Math.max(0, BLOOD_U.uFresh.value - rdt / 40);
   bloodWas = b;
-  bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : 0.6));
+  bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : BLOOD_BACK));
   BLOOD_U.uBlood.value = bloodShown;
   syncStains(charBlood);
 }
+const BLOOD_BACK = 6;   // how quickly a stain follows its blood fading (the fade itself is BLOOD_FADE)
 function syncStains(list) { for (const [o, m] of list) { if (!m.color.equals(o.color)) m.color.copy(o.color); if (o.emissive && !m.emissive.equals(o.emissive)) m.emissive.copy(o.emissive); } }
 
 // ---- on zombies: the same stain as yours, on each zombie's own copies of its materials. They come in with a little
-// on them already; every hit adds to it, and so does being stood next to one that's hit or killed ----
+// old blood on them already (b), which stays; every hit adds a splash over it, and so does being stood next to one
+// that's hit or killed, and those fade like yours ----
 function stainZombie(m) {
   const u = stainU(7.5), list = [], zones = new Map([[m.torso, 0], [m.armL, 1], [m.armR, 2], [m.legL, 3], [m.legR, 4], [m.head, 5]]);
   m.g.updateMatrixWorld(true);
@@ -172,14 +195,15 @@ function stainZombie(m) {
     o.children.forEach(c => walk(c, part, zone));
   };
   m.upper.children.forEach(c => walk(c, m.torso, 0)); m.lower.children.forEach(c => walk(c, m.legL, 3));
-  return { u, list, b: rr(0.08, 0.32), shown: 0, was: 0, char: 0, burn: 0, glow: 0 };
+  return { u, list, b: rr(0.08, 0.32), sp: [], shown: 0, was: 0, char: 0, burn: 0, glow: 0 };
 }
 // more blood on a zombie (0..1)
-function bloodZombie(z, amt) { if (z && z.stain) z.stain.b = Math.min(1, z.stain.b + amt); }
-function updateZombieStain(st, rdt) {
+function bloodZombie(z, amt) { if (z && z.stain) splashOn(z.stain.sp, amt); }
+function updateZombieStain(st, rdt, dt) {
   if (!st) return;
-  if (st.b > st.was + 0.001) st.u.uFresh.value = 1; else st.u.uFresh.value = Math.max(0, st.u.uFresh.value - rdt / 30);
-  st.was = st.b; st.shown += (st.b - st.shown) * Math.min(1, rdt * (st.b > st.shown ? 3 : 0.6)); st.u.uBlood.value = st.shown;
+  const b = Math.min(1, st.b + splashLevel(st.sp, dt));
+  if (b > st.was + 0.001) st.u.uFresh.value = 1; else st.u.uFresh.value = Math.max(0, st.u.uFresh.value - rdt / 30);
+  st.was = b; st.shown += (b - st.shown) * Math.min(1, rdt * (b > st.shown ? 3 : BLOOD_BACK)); st.u.uBlood.value = st.shown;
   // how burnt it is (st.char, grown while it burns: zombies/ai.js, zombies/deaths.js), and the embers while it's alight
   st.glow += ((st.burn > 0 ? 1 : 0) - st.glow) * Math.min(1, rdt * 2.5);
   st.u.uChar.value = st.char; st.u.uEmber.value = st.glow * (0.8 + 0.2 * Math.sin(worldT * 9.3) * Math.sin(worldT * 5.1 + 1));
@@ -201,11 +225,11 @@ function stainWeapon(id, frames, melee) {
     f.traverse(o => { if (!stainable(o)) return; const orig = o.material.userData.bloodOf || o.material, m = stainMat(orig, o, f, S.u, melee ? 2 : 1); o.material = m; S.list.push([orig, m]); });
   });
 }
-function updateWeaponBlood(rdt) {
+function updateWeaponBlood(rdt, dt) {
   for (const id in WSTAIN) {
-    const S = WSTAIN[id], b = W8.bloodW[id] || 0;
+    const S = WSTAIN[id], sp = W8.bloodW[id], b = sp ? splashLevel(sp, dt) : 0;
     if (b > S.was + 0.001) S.u.uFresh.value = 1; else S.u.uFresh.value = Math.max(0, S.u.uFresh.value - rdt / 30);
-    S.was = b; S.shown += (b - S.shown) * Math.min(1, rdt * (b > S.shown ? 3 : 0.6)); S.u.uBlood.value = S.shown;
+    S.was = b; S.shown += (b - S.shown) * Math.min(1, rdt * (b > S.shown ? 3 : BLOOD_BACK)); S.u.uBlood.value = S.shown;
     syncStains(S.list);
   }
 }
