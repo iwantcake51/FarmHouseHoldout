@@ -48,16 +48,17 @@ const TIERS = {
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. Uses the muzzle slot.', vis: 'A choke ring', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Pellets 30% tighter again, slugs tighter too.', vis: 'A longer choke', ap: () => {} }] },
+  // armour, footwear and the hammer are skills (TIER_KIND, upgrades/upgrades.js), so none starts below uncommon
   armor: { tag: 'Body', t: [
-    { r: 'c', name: 'Canvas jacket', text: '+25 max health, and heal 25.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
+    { r: 'u', name: 'Canvas jacket', text: '+25 max health, and heal 25.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
     { r: 'r', name: 'Kevlar vest', text: 'Take 20% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.8 },
     { r: 'e', name: 'Plate carrier', text: 'Take 25% less damage. +25 max health.', vis: 'Steel plates and pouches', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp += 25; } }] },
   boots: { tag: 'Body', t: [
-    { r: 'c', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
+    { r: 'u', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 },
     { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; slowLess(SLOW_STEP.trail); } }] },
   hammer: { tag: 'Tools', t: [
-    { r: 'c', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
+    { r: 'u', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Board up 50% faster. Boards are 25% tougher.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Board up twice as fast again. Boards are 50% tougher.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [

@@ -25,7 +25,7 @@ const NEED = {
 const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, scrap: 0.7, planks: 0.6 };
 // how short you are of anything, 0 to 1: the worst of them
 const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
-// grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
+// grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
@@ -67,7 +67,7 @@ const UPG = [
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
 const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Vault fire', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
-const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
+const TIER_KIND = { armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
