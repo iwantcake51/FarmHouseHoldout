@@ -555,7 +555,7 @@ function meleeFlourish(D, rdt, swinging) {
 const MCUT = { v: [0, 0, 0, 0, 0], t: 1, last: [0, 0, 0, 0, 0], lastP: 0 };
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, mh = gunMeshes.melee;
-  const keys = SWING[D.style || 'swing'], p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0;
+  const keys = heavySwing(D) ? SWING.heavy : SWING[D.style || 'swing'], p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0;
   let [, uy, ux, arx, ary, hrx] = sampleSwing(keys, p);
   const fl = meleeFlourish(D, rdt, p > 0 || !!sh);
   if (fl) { arx += fl.arx; hrx += fl.hrx; uy += fl.uy; ux += fl.ux; }

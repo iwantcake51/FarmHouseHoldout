@@ -27,12 +27,16 @@ const MENU_LOOK = { max: 1.05, behind: 2.7 };
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
-  chop: [[0, 0.25, 0, -0.35, -0.3, -0.6], [0.36, 0.2, -0.28, -2.45, -0.1, 0.35], [0.5, 0.05, 0.32, 0.05, -0.15, 1.95], [0.68, 0.05, 0.3, 0.1, -0.15, 2.0], [1, 0.25, 0, -0.35, -0.3, -0.6]]
+  chop: [[0, 0.25, 0, -0.35, -0.3, -0.6], [0.36, 0.2, -0.28, -2.45, -0.1, 0.35], [0.5, 0.05, 0.32, 0.05, -0.15, 1.95], [0.68, 0.05, 0.3, 0.1, -0.15, 2.0], [1, 0.25, 0, -0.35, -0.3, -0.6]],
+  // the fire axe and the sledgehammer (heavySwing, melee/melee.js): hauled up over the shoulder, a beat at the top
+  // gathering it a touch higher and further back, then brought down all at once, quickening right into the hit (a 1 on
+  // the key: it eases in and doesn't slow before it lands), and left buried there a moment before it's dragged back up
+  heavy: [[0, 0.25, 0, -0.35, -0.3, -0.6], [0.34, 0.22, -0.3, -2.4, -0.1, 0.3], [0.46, 0.2, -0.4, -2.68, -0.08, 0.02], [0.55, 0.02, 0.42, 0.14, -0.15, 2.08, 1], [0.76, 0.04, 0.36, 0.12, -0.15, 2.0], [1, 0.25, 0, -0.35, -0.3, -0.6]]
 };
 function sampleSwing(keys, p) {
   let k = 0; while (k < keys.length - 2 && keys[k + 1][0] <= p) k++;
-  const a = keys[k], b = keys[k + 1], t = smooth(clamp((p - a[0]) / (b[0] - a[0]), 0, 1));
-  return a.map((v, i) => v + (b[i] - v) * t);
+  const a = keys[k], b = keys[k + 1], u = clamp((p - a[0]) / (b[0] - a[0]), 0, 1), t = b[6] ? u * u : smooth(u);
+  return a.slice(0, 6).map((v, i) => v + (b[i] - v) * t);
 }
 function animateDeath(dt) {
   const pm = PM, t = P.deathT, sg = ANIM.deathSign;

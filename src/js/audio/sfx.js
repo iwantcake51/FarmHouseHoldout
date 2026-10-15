@@ -22,6 +22,10 @@ const SFX = {
   shove(stab) { if (playS(['swing_light_1', 'swing_light_2'], { rate: 1.1 })) return; nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
   kill() { if (playS(['kill_1', 'kill_2'], { gap: 0.05 })) return; tn(0.16, 'sine', 120, 40, 0.55); nz(0.12, 'lowpass', 1400, 160, 0.4); tn(0.05, 'square', 1500, 900, 0.05); },
   sever() { if (playS('sever', { gap: 0.06, jit: 0.08 })) return; nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
+  // a skull caving in under the sledgehammer: a sharp crack, a deep wet crunch, then the spatter
+  crush() { nz(0.07, 'bandpass', 1900, 600, 0.6, 1.4); tn(0.14, 'sine', 120, 42, 0.6); setTimeout(() => nz(0.24, 'lowpass', 1200, 180, 0.5, 1), 20); setTimeout(() => nz(0.18, 'bandpass', 2600, 900, 0.22, 1.8), 60); },
+  // a skull split by the fire axe: a hard crack of bone, then a wet tearing as it comes apart
+  split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
   headPop() { if (playS('head_pop', { gap: 0.05, rate: 1.12 })) return; nz(0.12, 'bandpass', 900, 260, 0.5, 1.6); tn(0.05, 'triangle', 760, 240, 0.14); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22, 1), 30); },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
@@ -50,6 +54,10 @@ const SFX = {
   boltLock() { if (playS('safety_1', { rate: 0.78 })) return; tn(0.04, 'square', 820, 560, 0.1); nz(0.04, 'bandpass', 2600, 1500, 0.2, 3); tn(0.05, 'sine', 170, 90, 0.12); },
   swingBlunt(two) { if (playS(two ? ['swing_heavy_1', 'swing_heavy_2', 'swing_heavy_3'] : ['swing_light_1', 'swing_light_2'], { jit: 0.07 })) return; nz(two ? 0.26 : 0.2, 'bandpass', 260, 1300, 0.34, 1.4); tn(0.12, 'sine', 90, 60, 0.05); },
   swingBlade(chop) { if (playS(chop ? ['swing_heavy_1', 'swing_heavy_2', 'swing_heavy_3'] : ['swing_knife', 'swing_light_1'], { jit: 0.07, rate: chop ? 1.08 : 1.15 })) return; nz(chop ? 0.2 : 0.15, 'bandpass', chop ? 900 : 1700, chop ? 3200 : 5600, 0.28, 3.5); tn(0.1, 'sine', 1500, 2700, 0.025); },
+  // the fire axe and the sledgehammer: a deep rush of air as they come down, and a heavy thump through the ground as they
+  // land, under the blade's or the hammer's own hit
+  swingHeavy(blade) { nz(0.22, 'bandpass', 180, blade ? 1500 : 900, 0.5, 1.2); tn(0.18, 'sine', 70, 45, 0.18); },
+  heavyHit(big) { tn(big ? 0.3 : 0.24, 'sine', big ? 72 : 85, 30, 0.85); nz(0.16, 'lowpass', 600, 90, 0.6); setTimeout(() => tn(0.12, 'sine', 55, 30, 0.35), 40); },
   hitBlunt(big) { if (playS(big ? ['hit_blunt_big_1', 'hit_blunt_big_2'] : ['hit_blunt_1', 'hit_blunt_2'], { jit: 0.06, gap: 0.04 })) return; tn(big ? 0.18 : 0.13, 'sine', big ? 85 : 110, 38, 0.62); nz(0.1, 'lowpass', 800, 140, 0.5); nz(0.045, 'bandpass', 1900, 800, 0.26, 2); setTimeout(() => nz(0.05, 'bandpass', 1300, 600, 0.14, 2.5), 30); },
   hitBlade(chop) { if (playS(chop ? ['hit_chop_1', 'hit_chop_2'] : ['hit_blade_1', 'hit_blade_2'], { jit: 0.06, gap: 0.04 })) return; nz(0.11, 'bandpass', 5200, 1700, 0.36, 3); tn(0.22, 'sine', 2600, 2540, 0.045); setTimeout(() => nz(0.16, 'bandpass', 700, 260, 0.32, 1.6), 22); if (chop) tn(0.12, 'sine', 150, 60, 0.42); },
   magDrop(v) { if (playS('mag_drop', { vol: v, jit: 0.1 })) return; tn(0.05, 'square', 340, 200, 0.07 * v); nz(0.09, 'bandpass', 1100, 500, 0.16 * v, 2); setTimeout(() => tn(0.03, 'square', 520, 380, 0.04 * v), 70); },
