@@ -6,6 +6,9 @@
 // low ready and can't be fired, the body turns to where you're running and banks into the bends (the run carves round
 // at SPRINT.carve radians a second rather than sliding across: sprintCarve), the view bobs (runCam), and a vault you
 // run into with enough momentum behind you goes over quicker (vaultRush, player/vaulting.js).
+// What a sprint burns is slow to come back (RUN_REST): it waits till you've stopped running for a while, then trickles
+// back far slower than what a swing, a shove or a vault takes (the stamina you run off is kept apart, P.runDebt, and
+// refilled last: weapons/combat-update.js), so a run is something to save for, not something you're always doing.
 // Empty the tank and you're blown: no sprinting again till it's back to half (SPRINT.unlock), and slower till then (the
 // fatigue in weapons/combat-update.js). Aiming while you sprint skids you to a stop on your momentum (SPRINT.skid) and
 // brings the gun up into the sights as you slow; pulling the trigger skids you the same way, the gun comes up, and the
@@ -20,6 +23,10 @@
 
 const WALK_SPEED = 3.5;
 const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
+// what a sprint burnt starts coming back only once you've stopped sprinting for wait seconds (Iron lungs shortens it),
+// then at rate a second standing still (exh: while you're blown), and a quarter slower while you walk: about 9 s
+// standing, 12 s walking, to win back a whole tank you ran off, against the 7 s it took to run it off
+const RUN_REST = { wait: 1.5, rate: 0.11, exh: 0.09 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
 // vault you've earned (none till you've built up half your momentum, all of it near flat out)
 const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return 1 - (1 - u) * (1 - u); };
@@ -90,7 +97,7 @@ function updateSprint(dt, moving, wx, wz) {
   }
   P.sprint = can && !aiming && !P.pivot;
   if (P.sprint) {
-    P.stam = Math.max(0, P.stam - stamUse(SPRINT.drain) * dt); P.stamT = 0;
+    const use = Math.min(P.stam, stamUse(SPRINT.drain) * dt); P.stam -= use; P.runDebt = (P.runDebt || 0) + use; P.stamT = P.runT = 0;
     if (P.stam <= 0.001) { P.exh = true; P.sprintLock = true; P.sprint = false; SFX.pant(); }   // blown
   }
   // momentum builds while you're running flat out (not while you're held up against something), and dies away after
