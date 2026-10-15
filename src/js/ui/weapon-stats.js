@@ -129,7 +129,7 @@ function wsHTML(id) {
 let wsCloseT = 0;
 function updateWeaponStats() {
   const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
-  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); if (on) el.classList.toggle('docked', dock); }
+  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
     clearTimeout(wsCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; void el.offsetWidth; el.classList.add('opening');
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {

@@ -14,7 +14,7 @@ function freshStats() {
 }
 function freshRun() {
   S = freshStats();
-  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
+  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
     cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
@@ -27,7 +27,7 @@ function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= [1, 1.25, 1.5, 1.875][ammo];
+    D.dmg *= AMMO_DMG[ammo];
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && D.perShell) { D.loadN = 1 + loader; D.perShell *= LOADER_T[loader]; }         // two or three shells a go
@@ -70,6 +70,8 @@ const SEMI = { spread: 0.7, shake: 0.75 };
 // the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a choke squeezes the pellets, a light
 // lights. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
 // moving adds to an aimed shot is left with each sight
+// each step of a gun's ammo line against stock rounds: hollow points, +P loads, match-grade (upgrades/tier-table.js)
+const AMMO_DMG = [1, 1.25, 1.5, 1.875];
 const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
 // what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)
 const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3, 0.3, 0.3] };
@@ -100,6 +102,22 @@ const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;
+// what you've bought for a gun, against what's on it (W8.gt): rounds swapped back to an older load or an attachment
+// taken off at the workbench's loadout panel (ui/loadout.js) are still yours to fit again for nothing, so the best
+// step you've bought of each line is kept here (W8.own), never below what's fitted
+const ownTier = (id, k) => Math.max((id && W8.own && W8.own[id] && W8.own[id][k]) || 0, gunTier(id, k));
+// fit step n of line k on a gun (0 takes it off): one you own, or one just bought, which is then yours. A can and a
+// choke share a shotgun's muzzle, so fitting one takes the other off (it stays yours too)
+function fitTier(id, k, n) {
+  const own = W8.own[id] = W8.own[id] || {}, g = W8.gt[id] = W8.gt[id] || {};
+  own[k] = Math.max(own[k] || 0, g[k] || 0, n);
+  if (n) g[k] = n; else delete g[k];
+  const o = k === 'supp' ? 'choke' : k === 'choke' ? 'supp' : null;
+  if (n && o && g[o]) { own[o] = Math.max(own[o] || 0, g[o]); delete g[o]; }
+}
+// the bayonet and the shoulder stock go on every long gun or sidearm you carry (S.att): owned once bought, fitted or not
+const ownAtt = k => !!(S.att[k] || (W8.ownAtt && W8.ownAtt[k]));
+function fitAtt(k, on) { W8.ownAtt[k] = ownAtt(k) || on; S.att[k] = on; }
 const T = k => !GUN_TIERS.has(k) ? S.tier[k] : k === 'mag' ? magTierIn(tierCtx || curId()) : gunTier(tierCtx || curId(), k);
 // a new magazine bought for a gun doesn't jump into it: the mag that's in it stays (its size, and the model's mag) until
 // you next change mags (weapons/reload.js). W8.pin holds, for a magazine-fed gun upgraded since its last mag change, the

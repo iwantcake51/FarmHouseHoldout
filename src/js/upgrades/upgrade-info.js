@@ -96,12 +96,15 @@ const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'G
 // try a gun's next tier for real, read its numbers, then put it back
 function tierFx(id, k) {
   if (!id) return [];
-  const n = gunTier(id, k), D0 = W(id), a = gunStats(id, D0);
+  // n: the step you own (the next one is what's on offer), f: the one fitted now (lower when it's been swapped back or
+  // taken off at the loadout panel, ui/loadout.js), which is what the new one is measured against
+  const n = ownTier(id, k), f = gunTier(id, k), D0 = W(id), a = gunStats(id, D0);
   W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff();
   const b = gunStats(id, W(id));
-  W8.gt[id][k] = n; recomputeEff();
-  if (k === 'supp' && !D0.quiet) { a.dmg *= [1, 1.1, 1.2, 1.3][n]; b.dmg *= [1, 1.1, 1.2, 1.3][n + 1]; }   // the can's bonus is applied as you fire
-  if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[n]; b.spread *= m[n + 1]; a.aim *= m[n]; b.aim *= m[n + 1]; }
+  if (f) W8.gt[id][k] = f; else delete W8.gt[id][k];
+  recomputeEff();
+  if (k === 'supp' && !D0.quiet) { a.dmg *= [1, 1.1, 1.2, 1.3][f]; b.dmg *= [1, 1.1, 1.2, 1.3][n + 1]; }   // the can's bonus is applied as you fire
+  if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[f]; b.spread *= m[n + 1]; a.aim *= m[f]; b.aim *= m[n + 1]; }
   const fx = compareFx(a, b);
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });

@@ -113,6 +113,7 @@
   "zombies/zombie-visuals.js",
   "ui/hud.js",
   "ui/weapon-stats.js",
+  "ui/loadout.js",
   "ui/gear-popup.js",
   "ui/cheats.js",
   "game/visuals.js",
