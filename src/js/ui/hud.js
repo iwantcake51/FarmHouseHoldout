@@ -82,13 +82,3 @@ function fireModeSwitched(id) {
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
 }
-// bleeding (weapons/combat-update.js): a drop of blood lands on the screen somewhere near its edge, runs down a little
-// and dries away; a few at most, the oldest going first (styles/overlays.css)
-function screenDrop() {
-  const box = $('bleedFx'); if (!box || state !== 'play') return;
-  while (box.childElementCount > 8) box.firstElementChild.remove();
-  const el = document.createElement('i'), side = rand(), x = side < 0.35 ? rr(2, 14) : side < 0.7 ? rr(86, 97) : rr(14, 86), y = side < 0.7 ? rr(4, 78) : rr(2, 16);
-  const sz = rr(10, 30), hold = rr(1.2, 2.2), life = rr(2.5, 3.8);
-  el.style.cssText = `left:${x}%;top:${y}%;--s:${sz.toFixed(0)}px;--hold:${hold.toFixed(2)}s;--life:${life.toFixed(2)}s;--run:${rr(0.9, 1.9).toFixed(2)}s;--len:${rr(sz * 0.9, sz * 3).toFixed(0)}px;rotate:${rr(-14, 14).toFixed(0)}deg`;
-  box.appendChild(el); setTimeout(() => el.remove(), (hold + life) * 1000 + 100);
-}

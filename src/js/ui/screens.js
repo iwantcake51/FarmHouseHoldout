@@ -32,7 +32,7 @@ function resetRun(keepLook) {
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1;
   zoomT = ZOOM_MAX; hurtFx = 0; flowDirty = true; timeScale = 1;   // the intro glides in all the way to the closest zoom
-  $('feed').innerHTML = ''; feedItems.length = 0; $('bleedFx').innerHTML = ''; clearGear();
+  $('feed').innerHTML = ''; feedItems.length = 0; clearGear();
   floats.forEach(f => f.el.remove()); floats.length = 0;
 }
 // soft: straight off the title, where the farm is already fresh and the survivor you see is the one you play, so the

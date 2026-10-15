@@ -98,17 +98,6 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 .dropMark.off .dmArrow{display:block;position:absolute;left:-10px;top:-11px;width:0;height:0;border-left:20px solid #f08a4a;border-top:11px solid transparent;border-bottom:11px solid transparent;transform-origin:10px 11px;transform:rotate(var(--a)) translateX(44px);filter:drop-shadow(0 0 6px rgba(240,138,74,.7))}
 @keyframes dmBob{50%{margin-top:-5px}}
 @keyframes dmBlink{50%{opacity:.55}}
-/* bleeding (ui/hud.js screenDrop): drops of blood land on the screen near its edges, each glossy, with a run that
-   trickles down from it, and dry away dark after a while */
-#bleedFx{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-#bleedFx i{position:absolute;width:var(--s);height:calc(var(--s) * 1.12);border-radius:50% 50% 46% 54% / 58% 56% 44% 42%;
-  background:radial-gradient(circle at 34% 30%,rgba(255,160,150,.55) 0 7%,rgba(176,18,12,.92) 27%,rgba(112,6,3,.95) 66%,rgba(78,0,0,.92));
-  box-shadow:0 1px 2px rgba(40,0,0,.45),inset 0 -2px 3px rgba(40,0,0,.35);animation:bfLand .2s cubic-bezier(.2,.9,.3,1.25) both,bfDry var(--life) ease-in var(--hold) forwards}
-#bleedFx i::after{content:"";position:absolute;left:36%;top:72%;width:30%;height:0;border-radius:0 0 50% 50%;background:linear-gradient(180deg,rgba(132,8,5,.92),rgba(120,6,4,.7) 80%,rgba(120,6,4,.0));animation:bfRun var(--run) cubic-bezier(.3,.2,.4,1) .25s forwards}
-@keyframes bfLand{from{transform:scale(.25);opacity:0}}
-@keyframes bfRun{to{height:var(--len)}}
-@keyframes bfDry{to{opacity:0;filter:saturate(.55) brightness(.6)}}
-@media (prefers-reduced-motion:reduce){#bleedFx i,#bleedFx i::after{animation-duration:.01s}}
 /* gear you get (ui/gear-popup.js): a card at the bottom middle, under the station panel, that rolls up into view from
    its bottom edge, says what it is, what it's on and what it does, with a bar running out along its foot, and rolls
    back down out of sight */
