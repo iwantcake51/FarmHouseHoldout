@@ -145,7 +145,7 @@
 <div class="screen" id="title">
   <div class="inner">
    <div class="lead">
-    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky · Night 1</div>
+    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky <span class="stamp">Night 1</span></div>
     <h1>Kessler Farm</h1>
     <div class="story">
       <p>Forty acres of soybean and rust off Route 9, three miles outside Ashby Hollow, Kentucky. The radio stopped making sense on Tuesday. By Thursday the Kesslers were gone, and the people who used to wave from passing trucks had started walking the fence line instead.</p>
@@ -209,6 +209,23 @@
     <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
+<!-- menu wear (styles/screens.css): worn print for the big titles and the stamp, a wobble for brush strokes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="fxWorn" x="-4%" y="-8%" width="108%" height="116%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="3" result="warp"/>
+    <feDisplacementMap in="SourceGraphic" in2="warp" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="edge"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="2" seed="11" result="fine"/>
+    <feColorMatrix in="fine" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -9 0 0 0 7" result="pits"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.011 0.03" numOctaves="3" seed="5" result="coarse"/>
+    <feColorMatrix in="coarse" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.2 0 0 0 1.5" result="fade"/>
+    <feComposite in="pits" in2="fade" operator="in" result="wear"/>
+    <feComposite in="edge" in2="wear" operator="in"/>
+  </filter>
+  <filter id="fxBrush" x="-60%" y="-2%" width="220%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.02 0.09" numOctaves="2" seed="7" result="warp"/>
+    <feDisplacementMap in="SourceGraphic" in2="warp" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 <div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>
