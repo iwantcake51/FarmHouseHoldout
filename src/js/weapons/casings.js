@@ -76,36 +76,67 @@ for (let k = 0; k < 90; k++) {
 }
 let cIdx = 0, tinkT = 0;
 const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
+// where each gun's spent brass comes out, in its own model's coordinates (weapons/gun-models.js): the middle of the
+// ejection port on its right side, just proud of the face, so the case leaves from the port and not from somewhere
+// along the barrel. On the hand cannon it's the mouth the slide opens between itself and the barrel block
+const EJECT_PORT = {
+  pistol: [X - 0.022, 1.149, 0.712], deagle: [X - 0.024, 1.162, 0.655], smg: [X - 0.03, 1.136, 0.64], sub: [X - 0.029, 1.145, 0.63],
+  ar: [X - 0.031, 1.143, 0.668], lmg: [X - 0.039, 1.12, 0.52], auto12: [X - 0.041, 1.149, 0.705], pump: [X - 0.028, 1.151, 0.65],
+  hunting: [X - 0.022, 1.143, 0.69]
+};
+// the double barrel throws its empties as it falls open, and the revolver's slide out of the cylinder once it's swung
+// out, not with the gun still shut: held here till the barrels are most of the way down or the cylinder most of the way
+// out (ANIM.brk, ANIM.crane: player/hold.js), and given back to the gun if the reload's dropped first
+let heldEject = null;
+const openFor = mode => mode === 'breach' ? (BRK[W8.cur] ? ANIM.brk || 0 : 1) : mode === 'dump' ? ((CRANE[W8.cur] || []).length ? ANIM.crane || 0 : 1) : 1;
+function tickHeldEject(dt) {
+  const q = heldEject; if (!q) return;
+  q.t += dt;
+  if (curId() !== q.id || !W8.reloading) { W8.spent[q.id] = (W8.spent[q.id] || 0) + q.n; heldEject = null; return; }
+  if (openFor(q.mode) < 0.8 && q.t < 0.6) return;
+  heldEject = null; ejectCasing(q.ammo, q.n, q.mode, null, true);
+}
 // mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
-// 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
-function ejectCasing(ammo, n, mode, sideSign) {
+// 'breach' kicks shells out of the double barrel's chambers back over your shoulder, 'dump' drops them out of the
+// revolver's cylinder at your feet. Everything starts where it really comes out of the posed gun
+function ejectCasing(ammo, n, mode, sideSign, now) {
+  const id = curId(), BK = mode === 'breach' && BRK[W8.cur];
+  if (!now && openFor(mode) < 0.8) { if (heldEject && heldEject.id === id) heldEject.n += n; else heldEject = { id, ammo, n, mode, t: 0 }; return; }
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
-  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : curId(); if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
-  const K = CASE_KIND[ammo === 'magnum' && curId() === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
-  const port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38), right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
+  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
+  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);
   // the gun's own axes in the world: the shooter's right is the gun's -x (the hand holding it is the rig's left)
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
-  _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, port); h.localToWorld(_cv);
+  // the revolver's chambers, wherever the cylinder has swung out to on its crane; the double barrel's, on its barrels
+  const cyl = mode === 'dump' && (CRANE[W8.cur] || []).find(c => c.parent === h), chambers = [];
+  if (cyl && cyl.children[0]) { const cg = cyl.children[0]; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; chambers.push(cg.localToWorld(new V3(Math.cos(a) * REV_CYL.ch, Math.sin(a) * REV_CYL.ch, -0.045))); } _cF.set(0, 0, 1).transformDirection(cg.matrixWorld); }
+  else if (BK) { BK.rims.forEach(r => chambers.push(r.getWorldPosition(new V3()))); _cF.set(0, 0, 1).transformDirection(BK.g.matrixWorld); }
+  const pt = EJECT_PORT[id];
+  if (pt) _cv.set(pt[0], pt[1], pt[2]); else _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38));
+  h.localToWorld(_cv);
   if (right) smoke(_cv.x, _cv.y, _cv.z, _cR.x * 0.5, 0.3, _cR.z * 0.5, 0.04, 0.2, rr(0.6, 0.9), 0.22, 0xb8b0a4);   // a breath of smoke from the port
   for (let k = 0; k < n; k++) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
     c.body.geometry = K.geo;
-    c.g.position.copy(_cv); c.g.visible = true; c.g.scale.setScalar(1);
+    c.g.position.copy(chambers.length ? chambers[k % chambers.length] : _cv); c.g.visible = true; c.g.scale.setScalar(1);
     c.g.rotation.set(rr(0, 3), P.aim + rr(-0.5, 0.5), rr(0, 3));
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
     else if (mode === 'pump' || mode === 'bolt') { side = rr(2.3, 3.3); up = rr(2.2, 3.2); back = rr(0.2, 0.8); }   // racked out hard
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
-    else {   // dump: the whole cylinder's worth tumbles out together, each case falling its own way
-      side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
-      c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
+    else {   // dump: the whole cylinder's worth slides out of the chambers together, each case falling its own way
+      side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8);
+      if (!chambers.length) { c.g.position.y -= rr(0.04, 0.12); c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); }
+      c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
     }
     // right is toward the shooter's right for every mode; the breach and dump modes keep their old feel through their own numbers
     const sx = right ? side : -side;
     c.vx = _cR.x * sx + _cU.x * up * 0.15 - _cF.x * back + P.vx * 0.8 + rr(-0.3, 0.3); c.vz = _cR.z * sx + _cU.z * up * 0.15 - _cF.z * back + P.vz * 0.8 + rr(-0.3, 0.3); c.vy = up;
+    if (mode === 'breach' && chambers.length) c.vy = up * 0.7 - _cF.y * back;   // kicked out along the bores, which point up at you with the barrels down
     c.spin = rr(9, 17) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-6, 6);
     c.age = 0; c.hot = right || mode === 'breach' ? 1 : 0.4;   // freshly fired brass: a glowing trail and a thread of smoke for a moment
   }
@@ -151,7 +182,7 @@ function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
