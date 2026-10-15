@@ -210,7 +210,7 @@ Shared state:
 
 ## Performance
 
-- **One bundle.** The production build is a single minified `game.js` (about 620 KB) and one `game.css`. The page asks for both by a hash of their contents (`game.js?v=…`), so a new deploy reaches players straight away instead of waiting out the browser cache. three.js ships as its own file and is cached for a year.
+- **One bundle.** The production build is a single minified `game.js` (about 630 KB) and one `game.css`. The page asks for both by a hash of their contents (`game.js?v=…`), so a new deploy reaches players straight away instead of waiting out the browser cache. three.js ships as its own file and is cached for a year.
 - **Adaptive resolution.** The game measures frame time and lowers or raises the render resolution between 1× and your screen's pixel ratio to keep the frame rate smooth (`game/loop.js`).
 - **Vision caching.** Line of sight is recomputed only when you move, turn far enough or a board changes, and at most every 0.6 seconds otherwise (`lighting/vision.js`).
 - **Light map instead of real lights.** Lamps, fires and muzzle flashes are painted into one small light texture each frame instead of using many three.js lights (`lighting/lightmap.js`). The flashlight alone is worked out per pixel in the same shader, from a few uniforms, so its beam stays smooth as you turn.
