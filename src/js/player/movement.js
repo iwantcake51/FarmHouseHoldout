@@ -14,6 +14,7 @@ function updatePlayer(dt) {
   if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
+  if (P.sprint && !P.vault && state === 'play') sprintVault(mx, my);   // sprinting at a window or a fence takes you over it (player/sprint.js)
   if (P.vault) {
     const v = P.vault;
     if (v.pre < v.preDur) {
@@ -27,7 +28,7 @@ function updatePlayer(dt) {
       v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
       P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
       if (v.t >= 1) {
-        // the weapon was put away for the jump (unless Run and gun kept it in hand): it's drawn again as you land, the
+        // the weapon was put away for the jump (unless Vault fire kept it in hand): it's drawn again as you land, the
         // hands coming off the sill to it rather than it appearing in them (player/swap.js)
         const kept = vaultGun(); P.vault = null; vaultLand(v);
         if (!kept && W8.slot[W8.cur] && !swapSt) { startSwap(null, W8.cur); W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); }
@@ -36,27 +37,33 @@ function updatePlayer(dt) {
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {
+    // the way you're pushing, on the ground
+    const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml;
+    updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
-    if ((mx || my) && P.stun <= 0) {
-      const l = Math.hypot(mx, my), sx = mx / l, sy = my / l;
-      const wx = RIGHT.x * sx + FWD.x * -sy, wz = RIGHT.z * sx + FWD.z * -sy;
+    if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = 4.1 * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
+      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
-      const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = 0.76 + 0.24 * smooth(ahead);
+      const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = P.sprint ? 1 : 0.76 + 0.24 * smooth(ahead);   // (sprinting you turn to run, so there's no backwards)
       tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;
     }
     // a quick but soft start, a short glide when you let go, and a firmer push when you reverse; frame-rate independent
-    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
-    P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k;
+    // (a sprint builds up over a moment, and a skid only loses speed to the ground's friction)
+    // (a cut mid-sprint carries some of your pace round into the new way while you plant: player/sprint.js)
+    if (P.pivot && P.pivot.keep) { tvx = P.pivot.wx * P.pivot.keep; tvz = P.pivot.wz * P.pivot.keep; }
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
+    if (P.pivot) pivotSlow(dt, tvx, tvz);   // planting for a hard turn (player/sprint.js)
+    else if (P.sprint && !(P.skid > 0) && (tvx || tvz) && !turning) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends
+    else { P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; }
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);
     if (dt > 0) { P.vx = (P.x - ox) / dt * 0.6 + P.vx * 0.4; P.vz = (P.z - oz) / dt * 0.6 + P.vz * 0.4; }
     const spd = Math.hypot(P.vx, P.vz);
     P.moving = spd > 0.35;
-    const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6);
+    const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6 * (1 - 0.25 * (ANIM.sprintK || 0)));   // a sprint lengthens the stride more than it quickens it
     // a soft footstep each time a foot comes down (twice a stride), a little brighter on the farmhouse boards
-    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { SFX.step(Math.min(1, spd / 4.1), P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1); bloodyStep(); }   // and a bloody print if your boots are (effects/blood-map.js)
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { SFX.step(Math.min(1.3, spd / WALK_SPEED), P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1); bloodyStep(); }   // and a bloody print if your boots are (effects/blood-map.js)
   }
   P.still = P.moving ? 0 : P.still + dt;
 

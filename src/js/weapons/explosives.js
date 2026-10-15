@@ -22,7 +22,7 @@ function explode(x, z, r, dmg, self) {
     hurtZombie(zb, dmg * (0.4 + 0.6 * f), nx, nz, 6 * f, 'boom', rand() < 0.3 ? 'head' : 'torso');
     zb.gib = false;
   }
-  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hurtFx = 1; interruptBandage(); } }
+  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hitFromAt(x, z); interruptBandage(); } }
 }
 EFF.boom = { dmg: 100, kick: 6 };
 EFF.fire = {};

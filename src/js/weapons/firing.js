@@ -27,6 +27,7 @@ function spreadOf(id) {
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
+  if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
   return s;
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
@@ -106,6 +107,7 @@ function gunFire(id, D, side) {
   let shots = 1;
   if (D.akimbo) { if (!akShot(id, D, side || (W8.akSide > 0 ? 'L' : 'R'))) return; run.shots++; }
   else {
+  if (breakTrigger(id, D)) return;   // the double barrel: stops the reload, and fires once it's closed (weapons/reload.js)
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
   if (W8.reloading) return;
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
@@ -151,7 +153,8 @@ function gunFire(id, D, side) {
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
-    if (p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, trPw, trSt);
+    // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
+    if (D.ignite ? p < 2 : p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.ignite ? trPw * 0.45 : trPw, trSt);
     if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
     else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
@@ -187,7 +190,8 @@ function gunFire(id, D, side) {
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
-  else if (ej === 'pump' || ej === 'bolt') startCycle(id);
-  else if (ej === 'breach') W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots);
+  // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)
+  else if (ej === 'pump' || ej === 'bolt') { W8.hudSpent[id] = (W8.hudSpent[id] || 0) + 1; startCycle(id); }
+  else if (ej === 'breach') { W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots); W8.hudSpent[id] = Math.min(magSize(id), (W8.hudSpent[id] || 0) + shots); }
   }
 }

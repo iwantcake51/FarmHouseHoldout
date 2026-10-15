@@ -11,6 +11,12 @@ const SOLE_LIFT = 0.009;
 // turning, the chest leads: twisted round ahead of the hips by TURN_TWIST and leaned in by TURN_BANK for each radian a
 // second you're turning (up to TURN_MAX and a tenth), on a loose spring so it swings a touch past as the turn stops
 const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
+// looking about at a sprint (animatePlayer): the cursor within ahead (radians) of the way you run, the chest turns as far
+// as chest toward it and the head up to head further; past it (eased in over blend) you look back over that shoulder,
+// the chest turned backChest and the head backHead more; past behind, you keep to the shoulder you're looking over.
+// Like a real runner the head never gets round to the side: it turns at most neck on the shoulders and max from the way
+// you run, all told (about 43° and 60°), however the chest, a turn's lead and the springs add up
+const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
@@ -69,7 +75,7 @@ function vaultUpper(v, up) {
   // the plan places the whole body, so the upper body's own lean (aiming, walking, a flinch) is held off through the jump
   const hold = air ? 1 - vk(t, 0.88, 1) : c; up.x *= 1 - hold; up.z *= 1 - hold;
   up.y -= sw * 0.55;   // the chest stays turned to the front while the hips swing round
-  PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat (Run and gun keeps the chest on the aim: animatePlayer)
+  PM.head.rotation.x -= Math.max(0, lean - 0.5) * 0.4;   // chin up as the body goes flat (Vault fire keeps the chest on the aim: animatePlayer)
 }
 // both hands go down on the sill or rail (the weapon is put away) and stay put on it while your body goes over
 const _vw = new V3(), _vs = new V3(), _vr = new THREE.Euler(), _vp = new V3();
@@ -86,7 +92,7 @@ function vaultHands(pm, v) {
   // once the hands let go they swing out loose for balance (the weapon's put away), and stay loose through the landing:
   // the weapon is drawn from there as you touch down (player/swap.js), so the hands don't first come up empty to where
   // it would be
-  const one = vaultGun();   // Run and gun: the right hand stays on the gun, the left does the vault alone, and takes its time coming back to it
+  const one = vaultGun();   // Vault fire: the right hand stays on the gun, the left does the vault alone, and takes its time coming back to it
   const wb = air ? vk(t, 0.35, 0.55) * (one ? 1 - vk(t, 0.66, 1) : 1) : 0;
   if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
@@ -108,9 +114,12 @@ function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) { animateDeath(P.deathDt || 0); return; }
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
-  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : 16;   // ease back round to your aim after a vault
-  ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim, ANIM.yaw) * Math.min(1, rdt * turnRate);
-  // Run and gun: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
+  sprintAnim(rdt);   // (player/sprint.js)
+  pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
+  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 16;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
+  // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it
+  ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim + angDiff(ANIM.runYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1)), ANIM.yaw) * Math.min(1, rdt * turnRate);
+  // Vault fire: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
   // after the landing it stays there while the hips come back round under it; then it lets go (ANIM.rg), by when there's
   // nothing left to make up. chestYaw is where the chest faces
   if (vaultGun()) ANIM.rg = 1; else ANIM.rg = Math.max(0, (ANIM.rg || 0) - rdt * (P.vault || ANIM.postVault > 0 ? 0 : 3));
@@ -121,7 +130,7 @@ function animatePlayer(dt, rdt) {
   // threshold, and the floorboards and rugs indoors, the soles just on top; stepping up and down takes a moment
   { const s = surfaceY(P.x, P.z), t = s > 0 ? s + SOLE_LIFT : 0; ANIM.standY += (t - ANIM.standY) * Math.min(1, rdt * 16); }
   pm.g.position.set(P.x, ANIM.standY, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, ANIM.standY + 0.02, P.z); pBlob.scale.setScalar(1.15);
-  const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / 4.1, 0, 1.3);
+  const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / WALK_SPEED, 0, 1.3), sk = smooth(clamp(ANIM.sprintK || 0, 0, 1)), skid = smooth(clamp(ANIM.skidK || 0, 0, 1));
   const hpF = P.hp / S.maxHp, limp = hpF < 0.4 ? (0.4 - hpF) / 0.4 : 0;
   ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5); ANIM.stumble = Math.max(0, (ANIM.stumble || 0) - rdt * 2.2);
   // hips turn a little toward the direction you walk (no more than HIP_TWIST, so the legs stay under the torso); walking
@@ -139,7 +148,12 @@ function animatePlayer(dt, rdt) {
     // standing still the torso turns on its own; when the twist gets too big the feet shuffle round to catch up
     if (ANIM.feet === undefined) ANIM.feet = ANIM.yaw;
     const tw = angDiff(ANIM.yaw, ANIM.feet);
-    if (!ANIM.stepping && Math.abs(tw) > 0.8) { ANIM.stepping = true; ANIM.stepT = 0; }
+    if (P.pivot || (ANIM.pivK || 0) > 0.05) {
+      // turning round from a sprint the hips lead the body round, step by step (below), and settle under it once it's round
+      const lead = P.pivot ? clamp(angDiff(ANIM.pivTo ?? ANIM.yaw, ANIM.yaw), -1, 1) * PIVOT.lead : 0;
+      ANIM.feet += angDiff(ANIM.yaw + lead, ANIM.feet) * Math.min(1, rdt * 12); ANIM.stepping = false;
+    }
+    else if (!ANIM.stepping && Math.abs(tw) > 0.8) { ANIM.stepping = true; ANIM.stepT = 0; }
     if (ANIM.stepping) { ANIM.feet += tw * Math.min(1, rdt * 6.5); ANIM.stepT += rdt; if (Math.abs(angDiff(ANIM.yaw, ANIM.feet)) < 0.06 && ANIM.stepT > 0.25) ANIM.stepping = false; }
     ANIM.legYaw = angDiff(ANIM.feet, ANIM.yaw);
   }
@@ -150,7 +164,7 @@ function animatePlayer(dt, rdt) {
   // the stride's size follows your speed on a short lag, so turning round on the spot (your speed dipping through
   // nothing for a frame) doesn't snap the legs together
   ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
-  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads);
+  const ph = P.phase, s = Math.sin(ph), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk);   // a sprint reaches further each step
   ANIM.land = Math.max(0, (ANIM.land || 0) - rdt * 2.4);   // 0.42 s to soak up a landing
   if (P.vault) {
     vaultPose(pm, P.vault);
@@ -160,6 +174,7 @@ function animatePlayer(dt, rdt) {
     const p = 1 - ANIM.land, k = Math.sin(Math.PI * p) * (ANIM.landHeavy ? 1.45 : 1), back = smooth(p);
     pm.g.position.y = ANIM.standY - k * 0.1; pm.g.rotation.x = k * 0.2;
     pm.legL.rotation.x = ANIM.legDirS * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDirS * s * stride * back * (1 - limp * 0.7) + k * 0.32;
+    pm.shinL.rotation.x = k * 0.75; pm.shinR.rotation.x = k * 0.45;   // the knees give
     pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
     // the stride runs along the line you're going: fore and aft as far as the hips face it, and the rest a side step,
@@ -181,6 +196,50 @@ function animatePlayer(dt, rdt) {
       pm.legL.rotation.z = mix(pm.legL.rotation.z, Math.max(0, q) * 0.08 * lift); pm.legR.rotation.z = mix(pm.legR.rotation.z, -Math.max(0, -q) * 0.08 * lift);
       pm.lower.position.y = Math.abs(q) * 0.016 * lift; pm.lower.rotation.z += q * 0.035 * lift;
     }
+    // the knees: each bends as its leg swings through, most just after it leaves the ground, so the heel lifts clear;
+    // at a sprint it kicks right up behind. A little give in the standing knee too
+    const kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads) * bad, give = 0.06 * Math.min(1, runF) + 0.08 * sk;
+    pm.shinL.rotation.x = kn * Math.pow(Math.max(0, -Math.cos(ph + 0.35)), 1.3) + give;
+    pm.shinR.rotation.x = kn * Math.pow(Math.max(0, Math.cos(ph + 0.35)), 1.3) * bad + give;
+    const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), brace = skid * (1 - scr);
+    if (brace > 0.001) {
+      // skidding to a stop: the leading leg braced out ahead, the back knee bent under you
+      // (less as you slow: stopped, there's no slide to brace against, and its way can't flip round as you come to rest)
+      const c = Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw)) * Math.min(1, spd / 1.5), mix = (a, b) => a + (b - a) * brace;
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.7 * c); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.3 * c);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.12); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.65);
+    }
+    if (scr > 0.001) {
+      // scrambling to plant your feet out of a sprint: short choppy steps, each foot thrown down ahead of you to dig in
+      // (the body's going over them, leaning back), the knee snatched up as it comes through, smaller as you slow
+      const q = Math.sin(ANIM.scrPh || 0), c = Math.cos(ANIM.scrPh || 0), a = 0.4 * (0.45 + 0.55 * clamp(Math.hypot(P.vx, P.vz) / 4, 0, 1)), mix = (x, y) => x + (y - x) * scr;
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.2 - a * q); pm.legR.rotation.x = mix(pm.legR.rotation.x, -0.2 + a * q);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.28 + 0.75 * Math.max(0, c)); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.28 + 0.75 * Math.max(0, -c));
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.06); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.06);
+    }
+    const pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
+    if (pk > 0.001) {
+      // and coming round: a step for every so much of the turn, each foot lifted and set down further round, out to
+      // the side you're turning to, the standing knee soft
+      const q = Math.sin(ANIM.pivPh || 0), up = Math.max(0, q), dn = Math.max(0, -q), d = ANIM.pivDir || 1, mix = (a, b) => a + (b - a) * pk;
+      const [lL, lR] = d > 0 ? [up, dn] : [dn, up];
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, 0.06 - 0.3 * lL); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.06 - 0.3 * lR);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.16 + 0.55 * lL); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.16 + 0.55 * lR);
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.05 - 0.12 * lL * (d > 0 ? 1 : 0.4)); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.05 + 0.12 * lR * (d < 0 ? 1 : 0.4));
+      pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.06);
+    }
+  }
+  // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
+  if (!P.vault) {
+    const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw), sl = skid * Math.min(1, spd / 1.5);   // (leaning on the slide, less as it dies)
+    pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * sl; pm.g.rotation.z += Math.sin(rel) * 0.2 * sl + (ANIM.runBank || 0);   // (and banked into a sprint's bends)
+    pm.g.position.y -= 0.07 * skid;
+    // scrambling to a stop you drop and bounce on each choppy step; turning round you stay low, bobbing a touch with
+    // each step, and come up again as you set off
+    const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
+    if (scr > 0.001) { pm.g.position.y -= scr * (0.045 + 0.02 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
+    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; }
+    pm.g.rotation.z -= 0.13 * (ANIM.pivBank || 0);   // banked into the turn (eased: player/sprint.js)
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
@@ -188,7 +247,11 @@ function animatePlayer(dt, rdt) {
   // bob twice per stride, dip onto the bad leg when limping, breathe when still. Down the sights you roll heel to toe
   // and glide: half the bob, and the chest held steady over the hips (below) so the gun stays on target
   const run1 = Math.min(1, runF), still = 1 - run1;
-  const bob = Math.abs(Math.cos(ph)) * 0.045 * run1 * (1 - 0.5 * ads) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
+  // (the bob's size follows your speed, but slowly through a hard turn or a skid and for a moment after, so it dies
+  // away as you plant and builds back as you set off instead of cutting out and snapping back in)
+  ANIM.bobSlow = P.pivot || P.skid > 0 ? 1 : Math.max(0, (ANIM.bobSlow || 0) - rdt * 1.6);
+  ANIM.bobRun = (ANIM.bobRun ?? run1) + (run1 - (ANIM.bobRun ?? run1)) * Math.min(1, rdt * (12 - 9 * ANIM.bobSlow));
+  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
   const breathe = Math.sin(now * 1.7) * 0.01 * still;
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
@@ -211,8 +274,22 @@ function animatePlayer(dt, rdt) {
   const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + limp * Math.max(0, s) * 0.14 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;
   // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
   if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
+  // sprinting, you look where the cursor is (SPRINT_LOOK): ahead of you the chest turns a little toward it and the head
+  // further, never right round; out to one side or behind, you glance back toward that shoulder, the head and shoulders
+  // turned as far as a running body goes (your view already goes where you look: lighting/vision.js).
+  // Right behind you, you keep to the shoulder you were looking over
+  if (rdt > 0) {
+    if (ANIM.lookC === undefined) ANIM.lookC = ANIM.vlookC = ANIM.lookH = ANIM.vlookH = 0;
+    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (P.vault ? 0 : 1);
+    const rel = angDiff(P.aim, ANIM.yaw), ar = Math.abs(rel); let sd = Math.sign(rel) || 1;
+    if (ar > L.behind && ANIM.lookSide) sd = ANIM.lookSide; ANIM.lookSide = sd;
+    const back = smooth(clamp((ar - L.ahead) / L.blend, 0, 1)), chest = (Math.sign(rel) * Math.min(ar, L.chest) * (1 - back) + sd * L.backChest * back) * fk;
+    const head = (clamp(rel - chest, -L.head, L.head) * (1 - back) + sd * L.backHead * back) * fk;
+    springTo(ANIM, 'lookC', 'vlookC', chest, 90, 15, h); springTo(ANIM, 'lookH', 'vlookH', head, 130, 17, h); ANIM.lookBack = back * fk; ANIM.lookK = fk;
+  }
   // breathing lifts the chest a touch
-  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8, ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw, urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
+  // (the chest jolts forward on each of a scramble's choppy steps)
+  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
@@ -221,7 +298,13 @@ function animatePlayer(dt, rdt) {
   else if (state === 'title') introPose(pm, up, 1);         // and on the title you wait down on that knee
   poseHands(D, up, ph, runF, rdt, now);
   pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
+  pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
+  // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run
+  if (ANIM.lookK > 0) {
+    const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
+    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * ANIM.lookK;
+  }
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);

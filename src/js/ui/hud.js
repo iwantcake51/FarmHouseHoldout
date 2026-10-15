@@ -35,11 +35,8 @@ function updateHUD(rdt, D) {
     setRoll('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
     $('vitals').classList.toggle('low', hpF < 0.3);
     setRoll('planks', String(S.planks)); if (cache.plFull !== (S.planks >= PLANK_MAX)) { cache.plFull = S.planks >= PLANK_MAX; $('planks').classList.toggle('full', cache.plFull); } setRoll('kills', String(run.kills)); setRoll('scrap', String(S.scrap));
-    // heartbeat: faster when hurt or pinned, flat when dead
-    const bpm = P.hp <= 0 ? 0 : 66 + (1 - hpF) * 90 + P.slow * 30 + (P.adr > 0 ? 25 : 0);
-    ecgPhase = (ecgPhase + rdt * bpm / 60) % 1; ecgAcc += rdt * 46;
-    while (ecgAcc >= 1) { ecgAcc--; ecg.shift(); ecg.push(bpm ? ecgSample(ecgPhase) + rr(-0.02, 0.02) : 0); }
-    $('ecgLine').setAttribute('points', ecg.map((v, i) => `${(i * 2).toFixed(0)},${(18 + v * 14).toFixed(1)}`).join(' '));
+    updateHeart(rdt, hpF);   // (ui/vitals.js)
+    damageVignettes(rdt);
     renderMoodles();
     const id = curId();
     setT('wName', D.name);
@@ -82,13 +79,29 @@ function fireModeSwitched(id) {
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
 }
-// bleeding (weapons/combat-update.js): a drop of blood lands on the screen somewhere near its edge, runs down a little
-// and dries away; a few at most, the oldest going first (styles/overlays.css)
-function screenDrop() {
-  const box = $('bleedFx'); if (!box || state !== 'play') return;
-  while (box.childElementCount > 8) box.firstElementChild.remove();
-  const el = document.createElement('i'), side = rand(), x = side < 0.35 ? rr(2, 14) : side < 0.7 ? rr(86, 97) : rr(14, 86), y = side < 0.7 ? rr(4, 78) : rr(2, 16);
-  const sz = rr(10, 30), hold = rr(1.2, 2.2), life = rr(2.5, 3.8);
-  el.style.cssText = `left:${x}%;top:${y}%;--s:${sz.toFixed(0)}px;--hold:${hold.toFixed(2)}s;--life:${life.toFixed(2)}s;--run:${rr(0.9, 1.9).toFixed(2)}s;--len:${rr(sz * 0.9, sz * 3).toFixed(0)}px;rotate:${rr(-14, 14).toFixed(0)}deg`;
-  box.appendChild(el); setTimeout(() => el.remove(), (hold + life) * 1000 + 100);
+// getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
+// drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
+const _hvA = new V3(), _hvB = new V3();
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
+function hitFromAt(x, z) {
+  _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
+  const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
+  if (l < 2) { hurtFx = 1; heartStartle(); return; }
+  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig');
+  el.style.setProperty('--hx', ((w + dx / l * t) / innerWidth * 100).toFixed(1) + '%'); el.style.setProperty('--hy', ((h + dy / l * t) / innerHeight * 100).toFixed(1) + '%');
+  hitVigUp = true; heartStartle();
+}
+// the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
+// health number, health bar and Bleeding icon throb with it
+function damageVignettes(rdt) {
+  if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) hitVigUp = false; } else hitVig = Math.max(0, hitVig - rdt / 0.45);
+  { const v = Math.round(smooth(hitVig) * 100) / 100; if (cache.hitVig !== v) { cache.hitVig = v; $('hitVig').style.opacity = v; } }
+  const bleeding = P.bleed > 0 && !P.dead;
+  if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
+  bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
+  bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1;
+  const beat = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
+  if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
+  if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
 }

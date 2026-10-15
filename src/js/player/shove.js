@@ -38,7 +38,7 @@ function landShove(s) {
     // brutes barely budge; everyone else is thrown back, loses their swing and stumbles slowly for a few seconds
     const f = s.power * (big ? 0.25 : 1) * (z.crawl ? 0.6 : 1);
     z.vx += nx * 9 * f; z.vz += nz * 9 * f;
-    if (!big) { z.stagger = Math.max(z.stagger, 0.8 * s.power); z.atk = Math.max(z.atk, 0.8 * s.power); z.lunge = 0; z.pushSlow = SHOVE_SLOW * s.power; z.shoved = 1; }
+    if (!big) { z.stagger = Math.max(z.stagger, 0.8 * s.power); z.atk = Math.max(z.atk, 0.8 * s.power); z.lunge = 0; z.pushSlow = SHOVE_SLOW * s.power; z.shoved = 1; zAnimShove(z); }
     else { z.pushSlow = Math.max(z.pushSlow || 0, 0.8); z.shoved = 0.35; }
     z.squash = 1; z.flash = Math.max(z.flash, 0.1);
     const hy = 1.0 * z.T.scale * (z.crawl ? 0.35 : 1);

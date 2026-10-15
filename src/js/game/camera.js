@@ -79,7 +79,7 @@ function updateCamera(rdt) {
   }
   if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
 
-  ANIM.ads = (ANIM.ads || 0) + ((aiming ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);
+  ANIM.ads = (ANIM.ads || 0) + ((aiming && !(P.skid > SPRINT.skid * 0.4) ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);   // skidding out of a sprint, into the sights as you slow
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
   cam.zoom = state === 'title' ? TITLE_ZOOM : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
@@ -87,9 +87,9 @@ function updateCamera(rdt) {
   const sh = shake * shake * 1.2;
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
-  vaultCam(rdt);
-  const cv = camVault, cr = camRec, ck = camRack, vx = camKick.x + cv.px + cr.px + ck.px, vz = camKick.z + cv.pz + cr.pz + ck.pz;
+  vaultCam(rdt); runCam();
+  const cv = camVault, cr = camRec, ck = camRack, cu = camRun, vx = camKick.x + cv.px + cr.px + ck.px + cu.px, vz = camKick.z + cv.pz + cr.pz + ck.pz + cu.pz;
   cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom;
-  cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + introRoll()); cam.updateProjectionMatrix();
+  cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
+  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + introRoll()); cam.updateProjectionMatrix();
 }

@@ -7,16 +7,28 @@ const SLOW_STEP = { soles: 0.4, trail: 0.2, stubborn: 0.85 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
+// aid comes up more often when you're short of what it brings, up to 1 + AID_NEED times as often with none left at
+// all: ammo for the guns you carry (under three mags' worth in reserve), health (below 80%), bandages, scrap (under
+// 30) and planks (under half a stack). Never a sure thing: it only tips the deal
+const AID_NEED = 1.5;
+const needW = f => 1 + AID_NEED * clamp(f, 0, 1);
+const NEED = {
+  ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
+  health: () => (0.8 - P.hp / S.maxHp) / 0.55,
+  bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
+  scrap: () => 1 - S.scrap / 30,
+  planks: () => 1 - S.planks / (PLANK_MAX / 2)
+};
 // grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
-  { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, ap: () => addPlanks(7) },
-  { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', ap: () => S.scrap += 10 },
-  { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, ap: () => P.hp = S.maxHp },
+  { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
+  { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', w: () => needW(NEED.scrap()), ap: () => S.scrap += 10 },
+  { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
-  { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
+  { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'u', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
-  { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
+  { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), w: () => needW(NEED.bandages()), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate.', can: () => S.spreadMul > 0.55, ap: () => S.spreadMul *= 0.88 },
   { r: 'u', tag: 'Body', name: 'Light step', text: 'Move 6% faster.', can: () => S.speedMul < 1.5, ap: () => S.speedMul *= 1.06 },
   { r: 'u', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
@@ -26,7 +38,8 @@ const UPG = [
   { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Ammo pickups give 25% more.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
   { r: 'r', tag: 'Body', name: 'Hardened', text: 'Take 12% less damage.', can: () => !S.hardened, ap: () => { S.hardened = true; S.dmgTaken *= 0.88; } },
   { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Kills in quick succession build up to +25% damage.', can: () => !S.momentum, ap: () => S.momentum = true },
-  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
+  { r: 'u', tag: 'Body', name: 'Vault fire', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
+  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Shoot pistols and SMGs while you sprint, far less accurately.', can: () => !S.runGun, ap: () => { S.runGun = true; } },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Scrap drops have a 25% chance to be worth double.', can: () => !S.hoard, ap: () => S.hoard = true },
   { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => (S.soles || 0) < 2, ap: () => { S.soles = (S.soles || 0) + 1; slowLess(SLOW_STEP.soles); } },
@@ -47,7 +60,7 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
+const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Vault fire', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
 const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
@@ -62,7 +75,7 @@ function tierFits(k, id) {
   const D = WEAP[id], n = gunTier(id, k);
   if (n >= TIERS[k].t.length) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
-  if (k === 'loader') return id === 'revolver' ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader; shotguns fed shell by shell
+  if (k === 'loader') return id === 'revolver' || D.breakOpen ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader, the double barrel's one Sleight of Hand; shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
   if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];

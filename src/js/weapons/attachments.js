@@ -76,8 +76,8 @@ function fitAttachments(g, D, front, y, info) {
     else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
   }
   // a shotgun's speed loader: a polymer clip on the left of the stock with the next two or three shells lying in it
-  // ready (on a sawn-off, on the forend)
-  if (T('loader') && isShell && D.perShell) {
+  // ready (none on the double barrel: its Sleight of Hand is all in the hands)
+  if (T('loader') && isShell && D.perShell && !D.breakOpen) {
     const n = 1 + T('loader'), at = info.loaderAt || [X - 0.034, 1.03, 0.3];
     box(g, 0.012, 0.024 * n + 0.012, 0.07, GM.poly, at[0] + 0.004, at[1] + 0.012 * (n - 1), at[2]);
     for (let k = 0; k < n; k++) { const sy = at[1] + k * 0.024; cyl(g, 0.0105, 0.05, GM.shell, at[0] - 0.008, sy, at[2] + 0.006, 8); cyl(g, 0.011, 0.014, GM.brass, at[0] - 0.008, sy, at[2] - 0.026, 8); }

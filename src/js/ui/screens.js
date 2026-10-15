@@ -27,12 +27,12 @@ function resetRun(keepLook) {
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0;
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
-  bloodMapClear(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
+  bloodMapClear(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
   resetBoards(); clearHoles(); freshRun(); if (!keepLook) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one
-  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.spdF = 1; P.fatigued = false; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
+  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1;
   zoomT = ZOOM_MAX; hurtFx = 0; flowDirty = true; timeScale = 1;   // the intro glides in all the way to the closest zoom
-  $('feed').innerHTML = ''; feedItems.length = 0; $('bleedFx').innerHTML = ''; clearGear();
+  $('feed').innerHTML = ''; feedItems.length = 0; clearGear();
   floats.forEach(f => f.el.remove()); floats.length = 0;
 }
 // soft: straight off the title, where the farm is already fresh and the survivor you see is the one you play, so the
@@ -48,7 +48,7 @@ function newRun(soft) {
 function backToMenu() {
   resetRun(); setState('title'); $('title').scrollTop = 0;
   // the HUD stops updating on the title, so clear the dying screen effects by hand
-  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'healVig', 'conc'].forEach(id => { $(id).style.opacity = 0; }); cache.redTint = null;
+  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'healVig', 'conc', 'hitVig', 'bleedVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
 }
 // Moving between the title and a run is never a cut: the screen you're on slides away, and wherever the farm has to be
@@ -102,6 +102,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title').classList.add('arrive'); }));
 // the run ends PZ-style: you go down where you stand, the HUD drains away, they close in, then the tally
 function startDeath() {
+  if (cheatSaves()) return;   // god mode (ui/cheats.js)
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;

@@ -69,6 +69,17 @@
 #conc.on{animation:concFx 2.8s ease-out}
 @keyframes concFx{0%{opacity:1}12%{opacity:.75}100%{opacity:0}}
 #hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(140,14,8,.6) 100%);opacity:0}
+/* getting hit (ui/hud.js hitFromAt): red from the side the blow came from, kept off the middle of the screen */
+#hitVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;--hx:50%;--hy:100%;
+  background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
+/* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
+#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 76% at center,transparent 40%,rgba(170,6,2,.5) 64%,rgba(90,0,0,.95) 100%),radial-gradient(ellipse 78% 74% at center,transparent 50%,rgba(20,0,0,.55) 100%)}
+#vitals.bleed #hpTxt{color:color-mix(in srgb,#ff3a26 calc(var(--bp,0) * 100%),var(--ink))}
+#vitals.bleed .bar{box-shadow:0 0 calc(var(--bp,0) * 12px) rgba(224,40,24,.8)}
+#vitals.bleed #hpFill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#ff4a32,#c81e12);box-shadow:0 0 8px rgba(255,60,40,.7);opacity:var(--bp,0)}
+.mood.bleed{color:color-mix(in srgb,#ff5a40 calc(var(--bp,0) * 100%),var(--ink))}
+.mood.bleed i{box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 0 calc(var(--bp,0) * 14px) rgba(230,40,24,.9);background:color-mix(in srgb,rgba(150,12,6,.85) calc(var(--bp,0) * 100%),rgba(10,12,13,.7))}
 /* near death: a red wash over the drained world, stronger toward the edges; it tints without darkening */
 #lowTint{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(190,24,12,.14) 30%,rgba(190,24,12,.3) 100%);mix-blend-mode:screen;transition:opacity .4s}
 /* the start of a run (game/intro.js): the screen lifts out of the dark, then the HUD slides in a piece at a time */
@@ -98,17 +109,6 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 .dropMark.off .dmArrow{display:block;position:absolute;left:-10px;top:-11px;width:0;height:0;border-left:20px solid #f08a4a;border-top:11px solid transparent;border-bottom:11px solid transparent;transform-origin:10px 11px;transform:rotate(var(--a)) translateX(44px);filter:drop-shadow(0 0 6px rgba(240,138,74,.7))}
 @keyframes dmBob{50%{margin-top:-5px}}
 @keyframes dmBlink{50%{opacity:.55}}
-/* bleeding (ui/hud.js screenDrop): drops of blood land on the screen near its edges, each glossy, with a run that
-   trickles down from it, and dry away dark after a while */
-#bleedFx{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-#bleedFx i{position:absolute;width:var(--s);height:calc(var(--s) * 1.12);border-radius:50% 50% 46% 54% / 58% 56% 44% 42%;
-  background:radial-gradient(circle at 34% 30%,rgba(255,160,150,.55) 0 7%,rgba(176,18,12,.92) 27%,rgba(112,6,3,.95) 66%,rgba(78,0,0,.92));
-  box-shadow:0 1px 2px rgba(40,0,0,.45),inset 0 -2px 3px rgba(40,0,0,.35);animation:bfLand .2s cubic-bezier(.2,.9,.3,1.25) both,bfDry var(--life) ease-in var(--hold) forwards}
-#bleedFx i::after{content:"";position:absolute;left:36%;top:72%;width:30%;height:0;border-radius:0 0 50% 50%;background:linear-gradient(180deg,rgba(132,8,5,.92),rgba(120,6,4,.7) 80%,rgba(120,6,4,.0));animation:bfRun var(--run) cubic-bezier(.3,.2,.4,1) .25s forwards}
-@keyframes bfLand{from{transform:scale(.25);opacity:0}}
-@keyframes bfRun{to{height:var(--len)}}
-@keyframes bfDry{to{opacity:0;filter:saturate(.55) brightness(.6)}}
-@media (prefers-reduced-motion:reduce){#bleedFx i,#bleedFx i::after{animation-duration:.01s}}
 /* gear you get (ui/gear-popup.js): a card at the bottom middle, under the station panel, that rolls up into view from
    its bottom edge, says what it is, what it's on and what it does, with a bar running out along its foot, and rolls
    back down out of sight */

@@ -3,21 +3,85 @@
 // ---- spent casings: semi-autos and automatics throw brass on every shot, the pump and the bolt throw it when cycled,
 // the double barrel and the revolver only drop theirs when opened to reload ----
 const EJECT = { pistol: 'fire', deagle: 'fire', smg: 'fire', sub: 'fire', ar: 'fire', lmg: 'fire', auto12: 'fire', pump: 'pump', hunting: 'bolt', dbl: 'breach', revolver: 'breach' };
-const CASE_KIND = { p9: { r: 0.022, len: 0.05, body: 'brass' }, magnum: { r: 0.027, len: 0.065, body: 'brass' }, rifle: { r: 0.024, len: 0.1, body: 'brass' }, shells: { r: 0.037, len: 0.13, body: 'hull' } };
-const CMAT = { brass: lam(0xc9a23f, { emissive: 0x2a1f06 }), hull: lam(0xa3261c, { emissive: 0x1c0503 }), head: lam(0xd8b25a, { emissive: 0x2a1f06 }) };
-const CGEO = new THREE.CylinderGeometry(1, 1, 1, 7), UBOX_D = new THREE.BoxGeometry(1, 1, 1), DRUM_G = new THREE.CylinderGeometry(1, 1, 1, 14);
+// Each case is turned on a lathe from the real one's profile, in millimetres: from the firing pin's dent in the middle
+// of the primer out across the head to the rim, up the outside past the extractor groove (a revolver's case has a rim
+// standing proud instead), the shoulder and neck on a rifle's, over the mouth and back down inside to the web, each
+// point [radius, height, colour] (two points in one place change the colour there). CASE_SCALE blows them up so they
+// still read on the floor from up where the camera is. A fired shotgun hull is a brass head under a plastic tube, its
+// crimp opened out into a star of folds (CASE_PLEAT).
+const CC = { brass: 0xc29c45, head: 0xa38233, lip: 0xe6c66a, soot: 0x5c4420, inside: 0x3b2a10, primer: 0xc4bfae, pocket: 0x3a2c12, dent: 0x6c6452,
+  hull: 0x931d15, hullLip: 0xb3301f, hullIn: 0x4f110a, wad: 0x8c8474 };
+const caseBase = (pr, rim) => [[0, 0.32, 'dent'], [pr * 0.22, 0.26, 'dent'], [pr * 0.36, 0.07, 'dent'], [pr * 0.36, 0.07, 'primer'], [pr, 0.07, 'primer'], [pr, 0.07, 'pocket'],
+  [pr + 0.12, 0, 'pocket'], [pr + 0.12, 0, 'head'], [rim - 0.32, 0, 'head'], [rim, 0.3, 'brass']];
+const CASE_PROF = {
+  // 9 mm Luger: rimless, straight, a touch of taper
+  p9: { seg: 16, prof: [...caseBase(2.2, 4.98), [4.98, 1.0, 'brass'], [4.72, 1.27, 'brass'], [3.95, 1.45, 'brass'], [3.95, 2.0, 'brass'], [4.965, 2.85, 'brass'],
+    [4.89, 14, 'brass'], [4.83, 19.0, 'soot'], [4.76, 19.15, 'lip'], [4.5, 19.15, 'lip'], [4.5, 19.15, 'inside'], [4.46, 18.6, 'inside'], [4.42, 5.6, 'inside'], [0, 5.2, 'inside']] },
+  // .50 AE, the hand cannon's: fat, with a rebated rim
+  magnum: { seg: 16, prof: [...caseBase(2.65, 6.7), [6.7, 1.25, 'brass'], [6.45, 1.5, 'brass'], [5.6, 1.65, 'brass'], [5.6, 2.3, 'brass'], [6.95, 3.3, 'brass'],
+    [6.92, 26, 'brass'], [6.88, 32.4, 'soot'], [6.8, 32.6, 'lip'], [6.5, 32.6, 'lip'], [6.5, 32.6, 'inside'], [6.45, 32, 'inside'], [6.4, 6.4, 'inside'], [0, 6, 'inside']] },
+  // .357 Magnum, the revolver's: a rim standing proud and no groove
+  rimmed: { seg: 16, prof: [...caseBase(2.2, 5.6), [5.6, 1.3, 'brass'], [5.42, 1.52, 'brass'], [4.82, 1.55, 'brass'],
+    [4.8, 26, 'brass'], [4.78, 32.8, 'soot'], [4.7, 33, 'lip'], [4.45, 33, 'lip'], [4.45, 33, 'inside'], [4.42, 32.4, 'inside'], [4.4, 5.6, 'inside'], [0, 5.2, 'inside']] },
+  // 7.62 NATO: tapered body, a sharp shoulder into the neck, soot down the neck from the shot
+  rifle: { seg: 16, prof: [...caseBase(2.65, 5.95), [5.95, 1.1, 'brass'], [5.62, 1.37, 'brass'], [4.95, 1.55, 'brass'], [4.95, 2.4, 'brass'], [5.94, 3.6, 'brass'],
+    [5.66, 38.9, 'brass'], [5.5, 39.8, 'brass'], [4.75, 42.4, 'brass'], [4.43, 43.4, 'soot'], [4.43, 47, 'soot'], [4.43, 50.85, 'soot'], [4.33, 51, 'lip'], [3.95, 51, 'lip'],
+    [3.95, 51, 'inside'], [3.92, 50.5, 'inside'], [3.92, 43.6, 'inside'], [5.15, 39.4, 'inside'], [5.4, 8, 'inside'], [0, 7.4, 'inside']] },
+  // a 12 gauge 2¾" hull: a brass head with a rim, the plastic over it, its fired crimp opened and flared a little
+  shells: { seg: 24, pleat: [58, 69.5, 0.075], prof: [...caseBase(3.05, 11.3), [11.3, 1.25, 'brass'], [11.0, 1.48, 'brass'], [10.45, 1.52, 'brass'], [10.45, 15.4, 'brass'], [10.3, 15.9, 'brass'],
+    [10.3, 15.9, 'hull'], [10.3, 58, 'hull'], [10.45, 64, 'hull'], [10.75, 69.5, 'hull'], [10.62, 70, 'hullLip'], [9.95, 70, 'hullLip'], [9.95, 70, 'hullIn'], [9.85, 69.4, 'hullIn'],
+    [9.45, 62, 'hullIn'], [9.4, 19, 'hullIn'], [9.4, 19, 'wad'], [9.1, 18.4, 'wad'], [0, 18.2, 'wad']] }
+};
+const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
+// turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
+// the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
+const CASE_PLEAT = 8;
+function turnCase({ prof, seg, pleat }, sc) {
+  const L = Math.max(...prof.map(q => q[1])), pos = [], nor = [], col = [], cols = {}, k = sc / 1000;
+  const colOf = n => cols[n] || (cols[n] = new THREE.Color(CC[n]));
+  const pk = y => pleat ? pleat[2] * smooth(clamp((y - pleat[0]) / (pleat[1] - pleat[0]), 0, 1)) : 0;
+  const vtx = (r, y, f, nr, ny, cn) => {
+    const p = pk(y), R = r * (1 + p * Math.cos(CASE_PLEAT * f)), dR = -r * p * CASE_PLEAT * Math.sin(CASE_PLEAT * f), s = Math.sin(f), c = Math.cos(f);
+    const nt = R > 1e-6 ? -nr * dR / R : 0, nx = nr * s + nt * c, nz = nr * c - nt * s, nl = Math.hypot(nx, ny, nz) || 1;
+    return { p: [R * s * k, (y - L / 2) * k, R * c * k], n: [nx / nl, ny / nl, nz / nl], c: colOf(cn) };
+  };
+  for (let j = 0; j + 1 < prof.length; j++) {
+    const [r0, y0, c0] = prof[j], [r1, y1, c1] = prof[j + 1], dl = Math.hypot(r1 - r0, y1 - y0); if (dl < 1e-6) continue;
+    const nr = (y1 - y0) / dl, ny = -(r1 - r0) / dl;   // square to the band, pointing out of the brass
+    for (let i = 0; i < seg; i++) {
+      const fa = i / seg * Math.PI * 2, fb = (i + 1) / seg * Math.PI * 2;
+      const A = vtx(r0, y0, fa, nr, ny, c0), B = vtx(r0, y0, fb, nr, ny, c0), C = vtx(r1, y1, fb, nr, ny, c1), D = vtx(r1, y1, fa, nr, ny, c1);
+      // wound to face along the normal, judged on a triangle that isn't squeezed to nothing where a band meets the axis
+      const [S1, S2] = r0 > 1e-6 ? [B, C] : [C, D];
+      const ux = S1.p[0] - A.p[0], uy = S1.p[1] - A.p[1], uz = S1.p[2] - A.p[2], vx = S2.p[0] - A.p[0], vy = S2.p[1] - A.p[1], vz = S2.p[2] - A.p[2];
+      const out = (uy * vz - uz * vy) * A.n[0] + (uz * vx - ux * vz) * A.n[1] + (ux * vy - uy * vx) * A.n[2] > 0;
+      const tris = out ? [[A, B, C], [A, C, D]] : [[A, C, B], [A, D, C]];
+      for (const t of tris) for (const v of t) { pos.push(...v.p); nor.push(...v.n); col.push(v.c.r, v.c.g, v.c.b); }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+// what each kind of round throws: the mesh, and its radius across the rim and length for the bounces and the glow
+const CASE_KIND = {};
+for (const kd in CASE_PROF) { const q = CASE_PROF[kd], sc = CASE_SCALE[kd]; CASE_KIND[kd] = { geo: turnCase(q, sc), r: Math.max(...q.prof.map(v => v[0])) * sc / 1000, len: Math.max(...q.prof.map(v => v[1])) * sc / 1000 }; }
+const CMAT = lam(0xffffff, { vertexColors: true, emissive: 0x241a06 });
+const UBOX_D = new THREE.BoxGeometry(1, 1, 1), DRUM_G = new THREE.CylinderGeometry(1, 1, 1, 14);
 const casings = [];
 for (let k = 0; k < 90; k++) {
   const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.visible = false; scene.add(g);
-  const body = new THREE.Mesh(CGEO, CMAT.brass), head = new THREE.Mesh(CGEO, CMAT.head); g.add(body, head);
-  casings.push({ g, body, head, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.02, bounces: 0, kind: 'p9' });
+  const body = new THREE.Mesh(CASE_KIND.p9.geo, CMAT); g.add(body);
+  casings.push({ g, body, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.02, bounces: 0, kind: 'p9' });
 }
 let cIdx = 0, tinkT = 0;
 const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
 // mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
 // 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
 function ejectCasing(ammo, n, mode, sideSign) {
-  const K = CASE_KIND[ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
+  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : curId(); if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
+  const K = CASE_KIND[ammo === 'magnum' && curId() === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38), right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);
@@ -28,8 +92,7 @@ function ejectCasing(ammo, n, mode, sideSign) {
   for (let k = 0; k < n; k++) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
-    c.body.material = CMAT[K.body]; c.body.scale.set(K.r, K.len, K.r); c.body.position.set(0, 0, 0);
-    c.head.scale.set(K.r * 1.08, K.body === 'hull' ? K.len * 0.28 : 0.008, K.r * 1.08); c.head.position.set(0, -K.len / 2 + (K.body === 'hull' ? K.len * 0.14 : 0.004), 0);
+    c.body.geometry = K.geo;
     c.g.position.copy(_cv); c.g.visible = true; c.g.scale.setScalar(1);
     c.g.rotation.set(rr(0, 3), P.aim + rr(-0.5, 0.5), rr(0, 3));
     let side, up, back;
@@ -88,7 +151,7 @@ function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
@@ -146,6 +209,7 @@ function stepDebris(list, dt) {
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
+        else if (c.kind === 'plank') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
         else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;

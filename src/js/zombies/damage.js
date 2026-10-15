@@ -14,22 +14,28 @@ function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
   z.limbs[part] = false;
-  const mesh = z.m[part], wp = new V3(), wq = new THREE.Quaternion(), ws = new V3();
+  flingPart(z, z.m[part], dx, dz, 1);
+  z.spurts.push({ part, t: 1.4 });
+  if (part !== 'torso') { run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
+  if (!blast) SFX.sever();   // a blast plays one sound for the lot
+  if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
+}
+// a piece of a zombie torn off (a limb, or just a forearm or shin: zombies/wounds.js) thrown out as a gib, a burst of
+// blood where it came away; v scales how hard it's thrown
+function flingPart(z, mesh, dx, dz, v) {
+  const wp = new V3(), wq = new THREE.Quaternion(), ws = new V3();
   mesh.getWorldPosition(wp); mesh.getWorldQuaternion(wq); mesh.getWorldScale(ws);
   mesh.parent.remove(mesh); mesh.children.filter(c => c.userData.isOutline).forEach(c => mesh.remove(c));
   mesh.traverse(o => { if (!o.isMesh || o.userData.isOutline) return; o.customDepthMaterial = undefined; if (z.fade) z.fade = z.fade.filter(mt => mt !== o.material); if (o.material.userData.bloodOf) { o.material.opacity = 1; o.material.transparent = false; o.material.depthWrite = true; o.material.colorWrite = true; } else { o.material = o.material.isMeshLambertMaterial ? relit(o.material) : o.material.clone(); o.material.opacity = 1; o.material.transparent = false; } });   // (only lit materials take the light-map patch: a glow can't)
   bloodZombie(z, 0.12); scene.add(mesh);
   mesh.position.copy(wp); mesh.quaternion.copy(wq); mesh.scale.copy(ws);
-  gibs.push({ m: mesh, vx: dx * rr(2, 4.5) + rr(-1.2, 1.2), vy: rr(2.5, 4.5), vz: dz * rr(2, 4.5) + rr(-1.2, 1.2), spin: rr(6, 14), life: 9, landed: false });
-  z.spurts.push({ part, t: 1.4 });
+  gibs.push({ m: mesh, vx: (dx * rr(2, 4.5) + rr(-1.2, 1.2)) * v, vy: rr(2.5, 4.5) * (0.6 + 0.4 * v), vz: (dz * rr(2, 4.5) + rr(-1.2, 1.2)) * v, spin: rr(6, 14), life: 9, landed: false });
   burst(wp.x, wp.y, wp.z, 10, 'blood', dx, dz, 3); spray(wp.x, wp.z, dx, dz, rr(0.8, 1.3));
-  if (part !== 'torso') { run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
-  if (!blast) SFX.sever();   // a blast plays one sound for the lot
-  if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) {
-    // the leg goes and they buckle and fall forward onto their hands
-    z.crawl = true; z.crawlT = 0; z.stagger = Math.max(z.stagger, 0.85); z.trail = 0;
-    z.om = outline(z.m.g, 0, 0, 0.026, rimMat(0xe8dcc0)); z.om.opacity = z.vis * 0.5; z.lastVis = undefined;
-  }
+}
+// a leg (or its shin) goes and they buckle and fall forward onto their hands
+function goCrawl(z) {
+  z.crawl = true; z.crawlT = 0; z.stagger = Math.max(z.stagger, 0.85); z.trail = 0;
+  z.om = outline(z.m.g, 0, 0, 0.026, rimMat(0xe8dcc0)); z.om.opacity = z.vis * 0.5; z.lastVis = undefined;
 }
 // the fire axe coming down on a skull splits it in two: each half (everything on the head, hair, eyes and all, cut flat
 // down the middle by clamping its corners to the cut) falls away to its own side with the raw face of the cut showing,
@@ -107,6 +113,8 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   const dealt = dmg * (D.melee ? 1 : part === 'head' ? headMulFor(D) : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
+  if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
+  zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)
   bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
   // brutes shrug hits off: no stagger, no knockback
@@ -118,7 +126,12 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
     z.lhp[part] -= dmg * mul;
-    if ((z.lhp[part] <= 0 || D.alwaysSever) && canSever(wId)) sever(z, part, dx, dz);
+    // shot through below the elbow or knee, it's mostly just that much that goes first (zombies/wounds.js), and what's
+    // left of the limb takes a little more
+    if ((z.lhp[part] <= 0 || D.alwaysSever) && canSever(wId)) {
+      if (!(z.cut && z.cut[part]) && !D.alwaysSever && rand() < 0.65 && severLower(z, part, dx, dz)) z.lhp[part] = z.maxHp * (part[0] === 'a' ? 0.12 : 0.16);
+      else sever(z, part, dx, dz);
+    }
   }
   if (D.bleed) z.bleed = 4;
   { const dd = Math.hypot(z.x - P.x, z.z - P.z);
@@ -166,9 +179,19 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (S.bulletTime && timeScale > 0.8 && !(run.time < (S.btNext || 0)) && rand() < BT.chance) { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; S.btNext = run.time + BT.cd; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
   if (part === 'head' && z.limbs.head && wId === 'axe' && rand() < 0.85) splitHead(z, dx, dz);
-  else if (part === 'head' && z.limbs.head && canSever(wId)) { const c = shells ? 0.95 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : heavy ? 0.8 : overkill > 15 ? 0.55 : 0.3; if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; } }
+  else if (part === 'head' && z.limbs.head) {
+    // a blade or a blast takes the head off; a bullet mostly goes in one side and out the other and leaves it on
+    // (zombies/wounds.js), though buckshot from close up or a big round can still take it
+    const bullet = !D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed', close = Math.hypot(z.x - P.x, z.z - P.z) < 3;
+    const c = !canSever(wId) ? 0 : shells ? (close ? 0.45 : 0.1) : D.melee ? 0.4 + (D.sever || 0) * 0.4 : bullet ? (heavy ? 0.1 : 0) : 0.8;
+    if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; }
+    else if (bullet) headShot(z, dx, dz);
+  }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
-  for (let k = 0; k < extra; k++) { const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p]); if (opts.length) sever(z, pick(opts), dx, dz); }
+  for (let k = 0; k < extra; k++) {
+    const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p] && (p !== 'head' || wId === 'boom' || rand() < 0.3)); if (!opts.length) continue;
+    const p = pick(opts); if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
+  }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);

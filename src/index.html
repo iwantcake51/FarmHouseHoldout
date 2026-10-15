@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="bleedFx"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -92,7 +92,7 @@
 </div>
 <div class="hud" id="moodles" hidden></div>
 <div class="hud" id="vitals" hidden>
-  <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 150 34" preserveAspectRatio="none" aria-hidden="true"><polyline id="ecgLine" points=""></polyline></svg></div>
+  <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
   <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
   <div id="stamBar"><i id="stamFill"></i></div>
   <div class="res">
@@ -112,6 +112,14 @@
 </div>
 <div class="hud" id="feed"></div>
 <div class="hud" id="wStats" hidden></div>
+<!-- cheats -->
+<div class="hud" id="cheatTag" hidden></div>
+<div id="cheat" hidden role="dialog" aria-label="Cheat menu">
+  <div class="chTop"><b>Cheat menu</b><span>The game keeps running</span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
+  <div class="chTabs" role="tablist"><button type="button" data-tab="player">Player</button><button type="button" data-tab="health">Health</button><button type="button" data-tab="weapons">Weapons</button><button type="button" data-tab="skills">Skills</button><button type="button" data-tab="world">World</button></div>
+  <div id="chBody"></div>
+</div>
+<!-- /cheats -->
 <div class="hud" id="station" hidden>
   <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div></div>
   <div id="stRows"></div>
@@ -149,6 +157,7 @@
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
       <kbd>W A S D</kbd><span>Walk</span>
+      <kbd>Shift</kbd><span>Sprint: uses stamina. Run into an open window or a fence to vault it; aim or fire to skid to a stop and bring the gun up; sprint to cut a reload short; put the cursor out to the side or behind to glance over your shoulder</span>
       <kbd>Mouse</kbd><span>Aim; hold the left button to fire</span>
       <kbd>Right click</kbd><span>Hold to aim down the sights: tighter, but slower</span>
       <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
