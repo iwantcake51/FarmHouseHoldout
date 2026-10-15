@@ -27,17 +27,26 @@ function fjoin(parts) {
   parts.forEach(g => { pos.set(g.attributes.position.array, o * 3); col.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
 }
-const BARK = 0x4a3626, PINE = [0x34462f, 0x3f5236, 0x2f4130], PINE2 = [0x2e4230, 0x384d34, 0x2b3d2c];
+// each pine's boughs shade smoothly from a deep green low down to a lighter, sunnier one at the tip, the whole height of
+// the tree as one gradient rather than a flat colour per tier
+const BARK = 0x4a3626, PINE = [0x26361f, 0x51683a], PINE2 = [0x22332a, 0x48603f];
+const _tgb = new THREE.Color(), _tgt = new THREE.Color();
 // a pine: tiers of cones over a trunk (tr: how much of it shows below the lowest boughs), each tier a little off true
 // and turned
 function pineGeo(tiers, w, h0, greens, tr = 0.9) {
-  const tk = tr + 0.6, P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18 * (tr > 1.2 ? 1.15 : 1), tk, 7), BARK, 0.08, fm4(0, tk / 2, 0))];
-  let y = tr;
+  const tk = tr + 0.6, P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18 * (tr > 1.2 ? 1.15 : 1), tk, 7), BARK, 0.08, fm4(0, tk / 2, 0))], cones = [];
+  let y = tr, top = tr;
   for (let k = 0; k < tiers; k++) {
     const t = k / Math.max(1, tiers - 1), r = w * (1 - 0.7 * t) * rr(0.94, 1.06), hh = h0 * (1 - 0.4 * t);
-    P.push(fpiece(new THREE.ConeGeometry(r, hh, 8), greens[k % greens.length], 0.08, fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05))));
-    y += hh * (tiers > 3 ? 0.42 : 0.48);
+    cones.push(fpiece(new THREE.ConeGeometry(r, hh, 8), greens[0], 0, fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05))));
+    top = y + hh; y += hh * (tiers > 3 ? 0.42 : 0.48);
   }
+  _tgb.setHex(greens[0]); _tgt.setHex(greens[1]);
+  cones.forEach(g => {
+    const pos = g.attributes.position, col = g.attributes.color;
+    for (let v = 0; v < pos.count; v++) { _tfc.copy(_tgb).lerp(_tgt, clamp((pos.getY(v) - tr) / (top - tr), 0, 1)); col.setXYZ(v, _tfc.r, _tfc.g, _tfc.b); }
+    P.push(g);
+  });
   return fjoin(P);
 }
 // bushes: a round clump, a low spreading one, a tall tuft of grass blades, and a berry bush
@@ -80,12 +89,12 @@ function rockGeo(kind) {
   if (kind === 'mossy') return fjoin([boulderGeo(0.33, 1.1, 0.62, 0.95, 0.7)]);
   return fjoin([boulderGeo(0.28, 1, 0.7, 0.9, 0.2)]);
 }
-// the pines, and how much of the forest each makes up: the common full one, a slimmer one, one a little shorter and one
-// on a longer bare trunk, all within about a metre of each other in height (each tree scaled a touch again as it's
-// planted). r is how far its widest boughs reach
+// the pines, and how much of the forest each makes up: a slim one, one a little shorter and one on a longer bare trunk,
+// all within about a metre of each other in height (each tree scaled a touch again as it's planted). r is how far its
+// widest boughs reach
 const TREE_VAR = [
-  { geo: () => pineGeo(3, 1.05, 2.0, PINE), w: 0.3, shade: 3.4, r: 1.05 }, { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.2, shade: 2.8, r: 0.85 },
-  { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.16, shade: 3.1, r: 0.95 }, { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.16, shade: 3.1, r: 0.95 }
+  { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.36, shade: 2.8, r: 0.85 },
+  { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.32, shade: 3.1, r: 0.95 }, { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.32, shade: 3.1, r: 0.95 }
 ].map(v => ({ ...v, g: v.geo() }));
 const pickVar = list => { let t = rand() * list.reduce((a, v) => a + v.w, 0); for (const v of list) { t -= v.w; if (t <= 0) return v; } return list[list.length - 1]; };
 // trees keep their distance: no two trunks closer than TREE_GAP of their two crowns' reach added together, so every
