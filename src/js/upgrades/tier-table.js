@@ -6,8 +6,8 @@ const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 
 // what a sight step does for your aimed shots, against the step before: how much tighter, and how much of the spread
 // moving adds to them it takes away
 const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
-// Quick hands: your reload time at each step (a share of the usual)
-const QUICK = [1, 0.75, 0.6, 0.5];
+// Quick hands: your reload time at each step (a share of the usual): each step 20% quicker than the last
+const QUICK = [1, 0.8, 0.64, 0.512];
 const quickTo = n => { S.reloadMul *= QUICK[n] / QUICK[n - 1]; };
 const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
@@ -94,9 +94,9 @@ const TIERS = {
   // Quick hands: each step sets how much faster you reload in all (QUICK), not on top of the one before; tier 2 and 3
   // trade the fingerless gloves for full work gloves (player/gear.js)
   quick: { tag: 'Body', t: [
-    { r: 'u', name: 'Quick hands', text: 'Reload 25% faster.', ap: () => quickTo(1) },
-    { r: 'r', name: 'Quick hands II', text: 'Reload 40% faster (instead of 25%).', ap: () => quickTo(2) },
-    { r: 'e', name: 'Quick hands III', text: 'Reload 50% faster (instead of 40%).', ap: () => quickTo(3) }] },
+    { r: 'u', name: 'Quick hands', text: 'Reload 20% faster.', ap: () => quickTo(1) },
+    { r: 'r', name: 'Quick hands II', text: 'Reload 20% faster again (36% in all).', ap: () => quickTo(2) },
+    { r: 'e', name: 'Quick hands III', text: 'Reload 20% faster again (49% in all).', ap: () => quickTo(3) }] },
   // bandaging slows you less (BAND_SLOW in player/movement.js): each step replaces the one before, it doesn't add to it
   walkw: { tag: 'Body', t: [
     { r: 'u', name: 'Walking wounded', text: 'Bandaging slows you down 10% less.', ap: () => { S.bandLess = 0.1; } },
