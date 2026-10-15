@@ -18,6 +18,10 @@ const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
 // and the bloom kick back STOCK.kick as hard, and quick shots open the spread STOCK.spray as fast
 const STOCK = { kick: 0.55, spray: 0.6 };
 const stocked = D => !!(S.att.stock && D && D.slot === 'side');
+// however loose everything makes it (a shotgun from the hip at a sprint, holding the trigger), a shot never strays more
+// than this either side of where it's aimed (about 40°): past a right angle it would go sideways or behind you, and the
+// crosshair (tan of it, ui/crosshair.js) would fold down to nothing
+const SPREAD_MAX = 0.7;
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
   // less with a sight: D.aimMove), holding the trigger opens it further
@@ -28,7 +32,7 @@ function spreadOf(id) {
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
-  return s;
+  return Math.min(s, SPREAD_MAX);
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
 // aim), and from there it tightens until, about ten metres out, the shot goes exactly where it's laid. Pellets still

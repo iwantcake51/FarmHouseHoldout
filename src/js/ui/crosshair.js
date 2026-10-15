@@ -20,7 +20,7 @@ let gapCur = 10, lastGap = -1;
 // edge (the ticks reach TICK_L past the spread, the shotgun's arcs sit on it), and the grenade launcher's arc and the
 // warning text move out with them
 let aR = 30, sR = 22, lastXh = '';
-const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 };
+const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 }, XH_SG_MAX = 150;
 const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
 function ammoDash(n, filled) {
   const A = ARC();
@@ -90,7 +90,7 @@ function updateCrosshair(rdt, D) {
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
     const dpx = Math.hypot(mouseX - px, mouseY - py);
-    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, 56);   // through a scope it tightens with range
+    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
     if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
