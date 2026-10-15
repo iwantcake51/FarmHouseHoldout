@@ -20,6 +20,11 @@ const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // eased in over a moment as you back off; the head tucks back down to keep looking level
 const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
+// Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
+// twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
+// carries a little weight swinging round and settles without a wobble. The shoulder you shoot across dips a touch (roll,
+// for each radian of twist). The head rides on it down the sights, held to SPRINT_LOOK's limits: past them it's the eyes
+const RG_TWIST = { max: 1.3, k: 230, damp: 28, roll: 0.05 };
 // at a station (the workbench and the rest) the body holds still and the head alone follows the cursor (P.look:
 // player/movement.js), up to max off the way the body faces (about 60°, as at a sprint); with the cursor right behind
 // you (past behind) it stays turned to the shoulder it was looking over, and when the panel shuts it comes back round

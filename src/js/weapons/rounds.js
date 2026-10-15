@@ -23,7 +23,7 @@ const ROUNDS = {
     text: D => D.sniper ? '+30% damage, and every limb they hit comes off. They stop in the first zombie.' : '+30% damage, and limbs come off twice as easily. They stop in the first zombie.',
     fx: D => { D.dmg *= 1.3; D.pierce = 0; D.severX = 2; if (D.sniper) D.alwaysSever = true; } },
   fire: { name: "Dragon's breath", r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'Orange dragon\'s breath shells',
-    text: `Shells spit fire and set zombies alight for 3 s, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing.`,
+    text: () => `Shells spit fire and set zombies alight for 3 s, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing.`,
     fx: D => { D.ignite = true; D.dragon = true; D.dmg *= 0.8; D.fall = DRAGON_FALL; D.maxRange = DRAGON_MAX; } },
   pierce: { name: 'Piercing rounds', r: 'u', cost: 12, fits: (D, id) => id === 'revolver', vis: 'Black-tipped rounds',
     text: 'Go through 1 more zombie, at full power through each. −10% damage.',
