@@ -79,6 +79,37 @@ function splitHead(z, dx, dz) {
   run.heads++; run.limbs++;
   return true;
 }
+// the sledgehammer coming down on a skull crushes it: the head caves in and bursts, gone in a spray of blood thrown
+// out all round with chips of bone, scalp and brains, the blood raining down on the ground about the body, and the body
+// drops without it, the neck still pumping as it falls (NECK_PUMP, zombies/zombie-visuals.js)
+const CRUSH_G = new THREE.BoxGeometry(0.06, 0.03, 0.05), CRUSH_M = [lam(0xd8cdb6), lam(0x7a1410), lam(0x4e0b08), lam(0xc98a86)];
+CRUSH_M.forEach(m => { m.userData.mobile = true; });
+const NECK_PUMP = 2.6;
+function crushHead(z, dx, dz) {
+  const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return false;
+  z.limbs.head = false;
+  head.getWorldPosition(_wB); const x = _wB.x, y = _wB.y, hz = _wB.z;
+  head.parent.remove(head); bloodZombie(z, 0.4);
+  // the burst: most of it driven on along the blow, the rest thrown out all round, and a red mist hanging where it was
+  burst(x, y, hz, 22, 'blood', dx, dz, 3);
+  for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28 + rr(-0.3, 0.3); burst(x, y, hz, 4, 'blood', Math.sin(a), Math.cos(a), rr(2.5, 4.5)); }
+  for (let k = 0; k < 8; k++) { const a = rand() * 6.28, sp = rr(0.6, 1.8); fx('mist', x + Math.sin(a) * 0.08, y + rr(-0.1, 0.1), hz + Math.cos(a) * 0.08, Math.sin(a) * sp + dx * 0.6, rr(-0.4, 0.6), Math.cos(a) * sp + dz * 0.6, rr(0.12, 0.2), rr(0.7, 1.1), rr(0.5, 0.8), 0.6); }
+  // what's left of it: chips of skull, scalp in the zombie's own skin, brains and gore, tumbling off and bleeding as they go
+  const scalp = lam(z.m.mats.skin.color.getHex()); scalp.userData.mobile = true;
+  for (let k = 0; k < 10; k++) {
+    const a = rand() * 6.28, sp = rr(1.2, 3.2), c = new THREE.Mesh(CRUSH_G, k < 2 ? scalp : CRUSH_M[k % 4]);
+    c.position.set(x + rr(-0.06, 0.06), y + rr(-0.05, 0.05), hz + rr(-0.06, 0.06)); c.rotation.set(rr(0, 6), rr(0, 6), rr(0, 6)); c.scale.setScalar(rr(0.5, 1.3)); c.castShadow = true; scene.add(c);
+    gibs.push({ m: c, vx: Math.sin(a) * sp + dx * rr(0.5, 1.5), vy: rr(1, 3.4), vz: Math.cos(a) * sp + dz * rr(0.5, 1.5), spin: rr(8, 16), life: 6, landed: false });
+  }
+  // the ground round it painted as it comes down: a heavy splash just past the body, sprays flung out every way (up the
+  // walls too, from that height) and a ring of spatter, the further out the later
+  splatLater(0.32, z.x + dx * 0.35, z.z + dz * 0.35, 'pool', rr(0.8, 1.0), undefined, 0.9);
+  for (let k = 0; k < 5; k++) { const a = Math.atan2(dx, dz) + (k - 2) * 1.1 + rr(-0.3, 0.3); spray(x, hz, Math.sin(a), Math.cos(a), rr(0.9, 1.5) * (k === 2 ? 1.3 : 1), 1.6); }
+  for (let k = 0; k < 12; k++) { const a = rand() * 6.28, d = rr(0.3, 1.8); splatLater(0.25 + d * rr(0.1, 0.18), z.x + Math.sin(a) * d, z.z + Math.cos(a) * d, 'drop', rr(0.25, 0.5)); }
+  SFX.crush(); shake = Math.max(shake, 0.5);
+  run.heads++;
+  return true;
+}
 function pickPart(z, rel, side, D) {
   const head = Math.min(0.85, 0.14 + S.headBonus);
   let p;
@@ -178,6 +209,9 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds
   if (S.bulletTime && timeScale > 0.8 && !(run.time < (S.btNext || 0)) && rand() < BT.chance) { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; S.btNext = run.time + BT.cd; }
   const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
+  // the sledgehammer crushes the head of whatever it kills, wherever the blow landed: it comes down from overhead
+  // (it leaves no head for the rest of this to take)
+  const crushed = wId === 'sledge' && crushHead(z, dx, dz);
   if (part === 'head' && z.limbs.head && wId === 'axe' && rand() < 0.85) splitHead(z, dx, dz);
   else if (part === 'head' && z.limbs.head) {
     // a blade or a blast takes the head off; a bullet mostly goes in one side and out the other and leaves it on
@@ -193,7 +227,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
     const p = pick(opts); if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
   }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
-  if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
+  if (z.gib && wId === 'boom') blowApart(z, dx, dz);
+  else { makeRagdoll(z, dx, dz, crushed ? 'crush' : part, force, wId); if (crushed) ragdolls[ragdolls.length - 1].neck = NECK_PUMP; }
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   SFX.kill();
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much

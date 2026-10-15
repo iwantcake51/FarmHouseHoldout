@@ -8,7 +8,11 @@ const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
   W8.cd -= dt;
-  if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
+  if (W8.swing > 0) {
+    W8.swing = Math.max(0, W8.swing - dt); const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
+    if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); }   // the heavy ones are heard coming down, before they land
+    if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
+  }
   tickReload(dt); tickShut(dt); tickCycle(dt);
   const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js; one made while the

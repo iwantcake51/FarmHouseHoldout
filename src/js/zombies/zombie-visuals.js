@@ -3,7 +3,7 @@
 // zombies and corpses fading in and out of your vision. Their shadows go with them: the shadow-map depth is dithered
 // away as they fade (fadeDepthMat, effects/outlines.js) and the soft blob under them fades too, so nothing you can't
 // see gives itself away by its shadow
-const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826);
+const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826), _neckV = new V3();
 // with a melee weapon out, the zombies your next swing would land on get a thin green rim that fades in as they come
 // into reach and out as they leave it: everyone in the arc for a two-hander that cleaves, only the nearest for a
 // one-hander (melee/melee.js). It fades with them, so it never shows a zombie you can't see.
@@ -73,6 +73,13 @@ function updateZombieVisuals(dt, rdt) {
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
     const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);
+    // a head crushed by the sledgehammer (zombies/damage.js: crushHead): the neck pumps blood as the body goes down, weaker
+    // as it runs out, and a pool spreads from it once it's down
+    if (r.neck > 0) {
+      r.neck -= dt; const v = r.g.localToWorld(_neckV.set(...STUMP.head));
+      if (rand() < 0.65) burst(v.x, Math.max(0.15, v.y), v.z, 1 + (r.neck > 1.6 ? 1 : 0), 'blood', rr(-1, 1), rr(-1, 1), 0.6 + r.neck * 0.5);
+      if (r.pooled && !r.neckPool) { r.neckPool = true; splat(v.x, v.z, 'pool', rr(0.8, 1.1), undefined, 2.4); }
+    }
     // the killing hit's flash cools off (it used to stay lit and leave the body glowing pale), and the eyes go out:
     // their glow fades over a second and a half and they dull to a dead grey
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;

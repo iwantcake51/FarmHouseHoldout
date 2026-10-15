@@ -33,22 +33,44 @@ function meleeTargets(D) {
   if (_mt.length > (D.cleave || 1)) _mt.length = D.cleave || 1;
   return _mt;
 }
+// the fire axe and the sledgehammer swing heavy (two-handed, style chop): their own swing (SWING.heavy,
+// player/animation.js), heard rushing down from p = whoosh (weapons/combat-update.js) and landing at p = hit, as the head
+// arrives. A hit stops the world dead for stop seconds (killStop more if it killed: game/hit-feedback.js), staggers what
+// it doesn't kill for stagger seconds, and shakes, punches and kicks the view harder; one that meets nothing slams into
+// the ground in front of you
+const HEAVY = { whoosh: 0.45, hit: 0.55, stop: 0.075, killStop: 0.035, stagger: 0.55 };
+function heavySwing(D) { return D.style === 'chop' && !!D.two; }
 function meleeHit() {
   const id = curId(), D = W(id); if (!D || !D.melee) return;
   {
-    const blade = !D.blunt;
-    if (blade) SFX.swingBlade(D.style === 'chop'); else SFX.swingBlunt(D.two);
-    let hit = false;
+    const blade = !D.blunt, heavy = heavySwing(D), fx0 = Math.sin(P.aim), fz0 = Math.cos(P.aim);
+    if (!heavy) { if (blade) SFX.swingBlade(D.style === 'chop'); else SFX.swingBlunt(D.two); }
+    let hit = false, kills = 0, near = D.range;
     for (const { z, d, dx, dz } of meleeTargets(D).slice()) {
       const r = rand(), part = r < (D.style === 'chop' ? 0.38 : 0.22) + S.headBonus ? 'head' : r < 0.55 ? (rand() < 0.5 ? 'armL' : 'armR') : r < 0.7 ? (rand() < 0.5 ? 'legL' : 'legR') : 'torso';
       // winded, a swing is slower and shoves them back less, but it hits just as hard
-      hurtZombie(z, D.dmg * S.meleeMul, dx / (d || 1), dz / (d || 1), D.kb * (W8.tired ? 0.55 : 1), id, part); hit = true;
+      if (hurtZombie(z, D.dmg * S.meleeMul, dx / (d || 1), dz / (d || 1), D.kb * (W8.tired ? 0.55 : 1), id, part)) kills++;
+      else if (heavy && z.type !== 'brute') z.stagger = Math.max(z.stagger, HEAVY.stagger);
+      hit = true; near = Math.min(near, d);
     }
     if (hit) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR)); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side
-    if (hit) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += Math.sin(P.aim) * 0.12; camKick.z += Math.cos(P.aim) * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
+    if (hit && !heavy) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += fx0 * 0.12; camKick.z += fz0 * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
+    // a heavy one landing: the world stops dead on it, a hard shake and a jolt of zoom, the view driven on along the blow
+    // and tipped further, a deep thump under its own hit, and the hammer knocks up the dirt where it comes down
+    else if (hit) {
+      const sl = !blade || id === 'sledge';
+      hitStop(HEAVY.stop + (kills ? HEAVY.killStop : 0));
+      shake = Math.max(shake, sl ? 0.62 : 0.54); camPunch = Math.max(camPunch, 0.035 + Math.min(3, kills) * 0.008);
+      camKick.x += fx0 * 0.22; camKick.z += fz0 * 0.22; camRoll = clamp(camRoll + W8.swingSide * 0.045, -0.12, 0.12);
+      if (blade) SFX.hitBlade(true); else SFX.hitBlunt(true);
+      SFX.heavyHit(sl);
+      if (sl) { const d = Math.min(D.range * 0.8, near + 0.2); groundDust(P.x + fx0 * d, P.z + fz0 * d, 0.45, fx0, fz0); }
+    }
     // a swing through open air: the weight carries on past where it would have landed, so the view follows it through a
     // little and leans with it, softer than a hit and with no shake (heavier weapons pull it further)
-    else { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += Math.sin(P.aim) * 0.07 * w; camKick.z += Math.cos(P.aim) * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1); }
+    else { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += fx0 * 0.07 * w; camKick.z += fz0 * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1);
+      // a heavy one that meets nothing carries on down into the ground in front of you: a thud, a kick of dust and a bump
+      if (heavy) { const d = D.range * 0.8, gx = P.x + fx0 * d, gz = P.z + fz0 * d; if (!bulletBlocked(gx, gz)) { groundDust(gx, gz, 0.6, fx0, fz0); SFX.thud(); shake = Math.max(shake, 0.2); hitStop(0.03); } } }
   }
 }
