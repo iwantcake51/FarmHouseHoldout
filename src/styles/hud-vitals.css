@@ -13,6 +13,11 @@
 #stamBar{position:relative;height:3px;margin-top:-4px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;opacity:0;transition:opacity .4s ease}
 #stamBar i{position:absolute;inset:0;transform-origin:left center;border-radius:2px;background:linear-gradient(90deg,var(--sc1,#5f9e78),var(--sc2,#a8dcb4));box-shadow:0 0 6px var(--sc2,#a8dcb4);transition:--sc1 .5s ease,--sc2 .5s ease}
 #stamBar.big{height:4px}
+/* what a sprint has run off (P.runDebt), just past the end of the fill: bright while you run, then dimmed as it's slowly
+   won back, the fill easing on into it till it's gone */
+#stamBar b{position:absolute;inset:0;transform-origin:left center;transform:scaleX(0);border-radius:2px;background:linear-gradient(90deg,rgba(244,214,150,.95),rgba(232,184,96,.75));box-shadow:0 0 5px rgba(240,196,110,.7);opacity:0;transition:opacity .7s ease}
+#stamBar b.on{opacity:.9}
+#stamBar b.back{opacity:.32;transition:opacity 1.1s ease}
 #stamBar.tired i{--sc1:#b0782c;--sc2:#e8b84a}
 #stamBar.exh i{--sc1:#8a2a1e;--sc2:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 @keyframes stPulse{50%{opacity:.5}}
