@@ -179,6 +179,35 @@ function buildBoots(bt, thick) {
     }
   });
 }
+// ---- Quick hands II and III: full-finger mechanic's work gloves over the blocky hand (the arm's last 0.13), in this
+// run's colourway (GLOVE_COLS, player/look.js). Up (+y) is the back of the hand and the thumb's on the inside. Tier 2
+// is the plain kind: a stretch-mesh back with the fingers' seams down it, dark synthetic-leather palm and fingertips,
+// piping down the outer side and a wide wrist strap with its logo tab. Tier 3 is the armoured kind over the same glove:
+// a moulded rubber knuckle guard, a pad on each finger, a plate over the back of the hand, a thumb guard, a padded palm
+// and a rubber pull tab on the strap
+const gloveMat = c => lookMats[c] || (lookMats[c] = lam(c));
+function buildGloves(armoured, C) {
+  const m = k => gloveMat(C[k]);
+  [PM.armL, PM.armR].forEach((a, i) => {
+    const g = gearItem(a, 0, 0, 0.47), inS = i ? -1 : 1;   // which way the thumb is (toward the body)
+    gb(g, 0.154, 0.154, 0.096, m('palm'), 0, 0, 0.024);                                   // the glove: palm and fingertips
+    gb(g, 0.132, 0.008, 0.07, m('back'), 0, 0.079, 0.011);                                // the mesh back, stopping short of the fingertips
+    [-0.034, 0, 0.034].forEach(x => gb(g, 0.006, 0.004, 0.03, m('palm'), x, 0.084, 0.034));   // the seams between the fingers
+    if (C.camo) [[-0.04, -0.012, 0.03, 0.022, 0], [0.022, -0.006, 0.038, 0.018, 1], [-0.012, 0.022, 0.032, 0.02, 2], [0.04, 0.03, 0.024, 0.016, 3], [-0.046, 0.032, 0.02, 0.014, 4]]
+      .forEach(([x, z, w, d, k]) => gb(g, w, 0.003, d, gloveMat(C.camo[k]), x, 0.0845, z));
+    gb(g, 0.004, 0.012, 0.09, m('accent'), -inS * 0.079, 0.05, 0.02);                    // piping down the outer side
+    gb(g, 0.11, 0.006, 0.05, gloveMat(shade(C.palm, 1.18)), 0, -0.079, 0.006);            // the palm's reinforcement
+    gb(g, 0.166, 0.166, 0.045, m('strap'), 0, 0, -0.045);                                 // the wrist strap
+    gb(g, 0.034, 0.006, 0.022, m('tab'), inS * 0.03, 0.085, -0.045);                      // its logo tab
+    if (!armoured) return;
+    gb(g, 0.144, 0.022, 0.03, m('armor'), 0, 0.09, 0.03); gb(g, 0.146, 0.006, 0.008, m('accent'), 0, 0.103, 0.03);   // the knuckle guard and its ridge
+    [-0.051, -0.017, 0.017, 0.051].forEach(x => gb(g, 0.026, 0.012, 0.02, m('armor'), x, 0.086, 0.058));           // a pad on each finger
+    gb(g, 0.09, 0.012, 0.04, m('armor'), 0, 0.087, -0.006); gb(g, 0.05, 0.004, 0.012, m('accent'), 0, 0.095, -0.006);   // the plate over the back of the hand
+    gb(g, 0.012, 0.045, 0.05, m('armor'), inS * 0.083, 0.02, 0.004);                     // the thumb guard
+    gb(g, 0.1, 0.01, 0.045, gloveMat(shade(C.palm, 0.8)), 0, -0.081, 0.0);                // the palm pad
+    gb(g, 0.05, 0.012, 0.04, m('armor'), -inS * 0.03, 0.088, -0.045);                               // the strap's rubber pull tab
+  });
+}
 function buildGear() {
   gearParts.forEach(m => m.parent && m.parent.remove(m)); gearParts.length = 0;
   charBloodDirty = true;   // the blood on you is laid again on the new gear next frame (effects/body-blood.js)
@@ -194,10 +223,12 @@ function buildGear() {
     const g = gearItem(l, 0, -0.27 - KNEE_Y, 0); gb(g, 0.2, 0.14, 0.04, GEAR.black, 0, 0, 0.125); gb(g, 0.15, 0.1, 0.02, GEAR.foam, 0, 0, 0.152);
     [-0.05, 0.05].forEach(y => gb(g, 0.205, 0.022, 0.235, GEAR.dark, 0, y, 0));
   });
-  // Quick hands: fingerless shooting gloves, a knuckle pad and a velcro wrist strap
-  if (S.reloadMul < 1) [PM.armL, PM.armR].forEach(a => {
+  // Quick hands: fingerless shooting gloves, a knuckle pad and a velcro wrist strap; then work gloves (buildGloves)
+  const qh = T('quick');
+  if (qh === 1) [PM.armL, PM.armR].forEach(a => {
     const g = gearItem(a, 0, 0, 0.47); gb(g, 0.158, 0.158, 0.1, GEAR.black, 0, 0, 0.01); gb(g, 0.11, 0.03, 0.06, GEAR.dark, 0, 0.08, 0.03); gb(g, 0.164, 0.164, 0.03, GEAR.olive, 0, 0, -0.04);
   });
+  if (qh >= 2) buildGloves(qh === 3, GLOVE_COLS[(LOOK.cur && LOOK.cur.glove) || 'blackRed']);
   // eyes: wraparound shooting glasses, then night-vision goggles on a head mount (one tube, then two)
   if (T('night')) {
     // worn on the bare head (the hat comes off for it, buildGear) or on the Stubborn helmet: a band right round the head

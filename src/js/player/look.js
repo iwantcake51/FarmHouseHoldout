@@ -51,6 +51,16 @@ const LOOKS = {
   roll: [0x7a3a2a, 0x3a5a3a, 0x5a5a6a, 0x8a6a3a, 0x6a2a3a, 0x2e4a7a, 0xa85a24, 0x4a3a6a, 0xb08a2a, 0x2a2a2c, 0x3e6e6a, 0x9a2a22],
   holster: [0x1d1d1f, 0x1d1d1f, 0x1d1d1f, 0x8a7656, 0xa08a62, 0x4e5236, 0x3e4632, 0x56585a, 0x5a3820, 0x8a5530, 0x4a2018]
 };
+// the work gloves Quick hands II and III put on you (player/gear.js), in the colourways real mechanic's gloves come in:
+// the back (its stretch mesh), the palm and fingertips (synthetic leather), the rubber armour over the knuckles and
+// fingers, the piping down the sides, the wrist strap, its logo tab, and for multicam the camo patches over the back
+const GLOVE_COLS = {
+  blackRed: { back: 0x1d1e20, palm: 0x2e2f32, armor: 0x26272a, accent: 0xb3261e, strap: 0x18191a, tab: 0xd8b030 },
+  blueBlack: { back: 0x2a6cc4, palm: 0x262729, armor: 0x1c1d1f, accent: 0x18191a, strap: 0x18191a, tab: 0xd8b030 },
+  multicam: { back: 0x8a7a58, palm: 0x6e5f44, armor: 0x7a6a4a, accent: 0x5a5038, strap: 0x5e533c, tab: 0xd8b030, camo: [0x5e6844, 0xb4a07a, 0x6a5a40, 0x4a5236, 0x9a8660] },
+  tanLeather: { back: 0xc0924e, palm: 0xb4874a, armor: 0x1e1f21, accent: 0x18191a, strap: 0x18191a, tab: 0xb02a22 },
+  allBlack: { back: 0x1c1d1f, palm: 0x28292b, armor: 0x2e3033, accent: 0x36383c, strap: 0x18191a, tab: 0x3a3c40 }
+};
 // (held to 1 a channel: getHex doesn't clamp, so a lightened channel past full would wrap round to nearly nothing and
 // a pale skin's scar come out teal)
 const shade = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
@@ -99,6 +109,7 @@ function dealLook(opt) {
   // a bedroll that would vanish into the pack is dealt again
   for (let k = 0; k < 8 && o.roll === undefined && near(L.roll, L.pack); k++) L.roll = rollCol();
   L.holster = o.holster ?? pick(LOOKS.holster);
+  L.glove = o.glove ?? pick(Object.keys(GLOVE_COLS));
   return L;
 }
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)

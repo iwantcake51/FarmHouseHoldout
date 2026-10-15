@@ -17,6 +17,11 @@ const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // Like a real runner the head never gets round to the side: it turns at most neck on the shoulders and max from the way
 // you run, all told (about 43° and 60°), however the chest, a turn's lead and the springs add up
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
+// Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
+// twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
+// carries a little weight swinging round and settles without a wobble. The shoulder you shoot across dips a touch (roll,
+// for each radian of twist). The head rides on it down the sights, held to SPRINT_LOOK's limits: past them it's the eyes
+const RG_TWIST = { max: 1.3, k: 230, damp: 28, roll: 0.05 };
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
@@ -123,7 +128,10 @@ function animatePlayer(dt, rdt) {
   // after the landing it stays there while the hips come back round under it; then it lets go (ANIM.rg), by when there's
   // nothing left to make up. chestYaw is where the chest faces
   if (vaultGun()) ANIM.rg = 1; else ANIM.rg = Math.max(0, (ANIM.rg || 0) - rdt * (P.vault || ANIM.postVault > 0 ? 0 : 3));
-  const rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * ANIM.rg; ANIM.chestYaw = ANIM.yaw + rgTw;
+  // Run and gun at a sprint (RG_TWIST): the chest twists round off the running hips to the aim, and back as it lets go
+  if (ANIM.rgT === undefined) ANIM.rgT = ANIM.vrgT = 0;
+  if (rdt > 0) springTo(ANIM, 'rgT', 'vrgT', clamp(angDiff(P.aim, ANIM.yaw), -RG_TWIST.max, RG_TWIST.max) * smooth(clamp(ANIM.rgK || 0, 0, 1)), RG_TWIST.k, RG_TWIST.damp, Math.min(rdt, 0.04));
+  const rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * ANIM.rg + ANIM.rgT * (1 - ANIM.rg); ANIM.chestYaw = ANIM.yaw + rgTw;
   // how fast the chest is turning (not the hips swinging round to a sill or back from one)
   const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12); ANIM.prevYaw = ANIM.chestYaw;
   // you stand on whatever's underfoot (surfaceY in world/house.js): up onto the porch, its step and the door's
@@ -280,7 +288,7 @@ function animatePlayer(dt, rdt) {
   // Right behind you, you keep to the shoulder you were looking over
   if (rdt > 0) {
     if (ANIM.lookC === undefined) ANIM.lookC = ANIM.vlookC = ANIM.lookH = ANIM.vlookH = 0;
-    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (P.vault ? 0 : 1);
+    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (1 - smooth(clamp(ANIM.rgK || 0, 0, 1))) * (P.vault ? 0 : 1);
     const rel = angDiff(P.aim, ANIM.yaw), ar = Math.abs(rel); let sd = Math.sign(rel) || 1;
     if (ar > L.behind && ANIM.lookSide) sd = ANIM.lookSide; ANIM.lookSide = sd;
     const back = smooth(clamp((ar - L.ahead) / L.blend, 0, 1)), chest = (Math.sign(rel) * Math.min(ar, L.chest) * (1 - back) + sd * L.backChest * back) * fk;
@@ -289,7 +297,7 @@ function animatePlayer(dt, rdt) {
   }
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
-  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
+  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
@@ -300,10 +308,12 @@ function animatePlayer(dt, rdt) {
   pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
   pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
-  // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run
-  if (ANIM.lookK > 0) {
+  // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run,
+  // looking about or twisted round with Run and gun
+  const nk = Math.max(ANIM.lookK || 0, smooth(clamp(ANIM.rgK || 0, 0, 1)) * (1 - (ANIM.rg || 0)));
+  if (nk > 0) {
     const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
-    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * ANIM.lookK;
+    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * nk;
   }
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);

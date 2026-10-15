@@ -8,7 +8,8 @@ const TIER_USE = {
   choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
   boots: 'Footwear · you move faster', hammer: 'Tool · faster, tougher boarding', eyes: 'Senses · you see more around you',
   night: 'Night vision · you see in the dark', feed: 'Body · you heal when you kill',
-  strong: 'Melee · harder hits for less stamina', rungun: 'Body · shoot while you sprint', soles: 'Body · getting hit slows you less'
+  strong: 'Melee · harder hits for less stamina', rungun: 'Body · shoot while you sprint', soles: 'Body · getting hit slows you less',
+  walkw: 'Body · bandaging slows you less', quick: 'Body · faster reloads'
 };
 const UPG_USE = {
   'Bayonet': 'Attachment · a blade under this long gun: shove (V) to stab',
@@ -16,9 +17,9 @@ const UPG_USE = {
 };
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
-  'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
+  'Quick hands': ['Reload 20% faster'], 'Quick hands II': ['Reload 20% → 40% faster'], 'Quick hands III': ['Reload 40% → 60% faster'], 'Wood pile': ['+7 planks'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint', 'Reload while sprinting'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of powder, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
   'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
@@ -42,7 +43,6 @@ const stackOf = (label, base, v, next, val) => ({ label, base, v, next, val });
 const speedStack = m => stackOf('Speed', 1, () => S.speedMul, v => v * m, v => '+' + pctUp(v) + '%');
 const slowStack = k => stackOf('Slowdown when hit', 0, () => S.slowRes, v => slowAfter(v, SLOW_STEP[k]), v => '−' + Math.round(v * 100) + '%');
 const STACKS = {
-  'Quick hands': stackOf('Reload time', 1, () => S.reloadMul, v => v * 0.75, v => '−' + pctDown(v) + '%'),
   'Strong arms II': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Strong arms III': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Steady aim': stackOf('Spread', 1, () => S.spreadMul, v => v * 0.88, v => '−' + pctDown(v) + '%'),

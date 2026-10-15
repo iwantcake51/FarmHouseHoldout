@@ -5,7 +5,7 @@ let S, W8, run, EFF = {};
 // the stats a run starts with, before any skill (the cheat menu, ui/cheats.js, rebuilds skills on top of these)
 function freshStats() {
   const s = { dmgMul: 1, rateMul: 1, magMul: 1, reloadMul: 1, speedMul: 1, maxHp: 100, pierce: 0, dropMul: 1, boardMul: 1, meleeMul: 1, planks: 6, scrap: 4,
-    spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
+    spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, bandLess: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
     cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, vaultFire: false, runGun: 0, lungs: false, hoard: false, btNext: 0, bulletTime: false, lastStand: false,
     swapMul: 1, bandMul: 1, ammoMul: 1, luck: 0, momentum: false, momK: 0, momT: -9, steady: 0, swingStam: 1,
     tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
