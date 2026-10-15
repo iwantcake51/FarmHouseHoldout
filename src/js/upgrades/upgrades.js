@@ -30,7 +30,6 @@ const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k]
 const STEADY_MAX = 3, LUCK_MISS = 1 / 3;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
-  { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
   { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', w: () => needW(NEED.scrap()), ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
@@ -63,8 +62,8 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
-const TIER_KIND = { armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
+const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+const TIER_KIND = { quick: 'Skill', armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
