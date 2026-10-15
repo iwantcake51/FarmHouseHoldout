@@ -13,8 +13,10 @@ const SOLE_LIFT = 0.009;
 const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // looking about at a sprint (animatePlayer): the cursor within ahead (radians) of the way you run, the chest turns as far
 // as chest toward it and the head up to head further; past it (eased in over blend) you look back over that shoulder,
-// the chest turned backChest and the head backHead more; past behind, you keep to the shoulder you're looking over
-const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.5, backHead: 1.25, behind: 2.7 };
+// the chest turned backChest and the head backHead more; past behind, you keep to the shoulder you're looking over.
+// Like a real runner the head never gets round to the side: it turns at most neck on the shoulders and max from the way
+// you run, all told (about 43° and 60°), however the chest, a turn's lead and the springs add up
+const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
@@ -273,8 +275,8 @@ function animatePlayer(dt, rdt) {
   // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
   if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
   // sprinting, you look where the cursor is (SPRINT_LOOK): ahead of you the chest turns a little toward it and the head
-  // further, never right round; out to one side or behind, you look back over that shoulder, the head turned right
-  // round and the shoulders with it, to see what's after you (your view already goes where you look: lighting/vision.js).
+  // further, never right round; out to one side or behind, you glance back toward that shoulder, the head and shoulders
+  // turned as far as a running body goes (your view already goes where you look: lighting/vision.js).
   // Right behind you, you keep to the shoulder you were looking over
   if (rdt > 0) {
     if (ANIM.lookC === undefined) ANIM.lookC = ANIM.vlookC = ANIM.lookH = ANIM.vlookH = 0;
@@ -283,7 +285,7 @@ function animatePlayer(dt, rdt) {
     if (ar > L.behind && ANIM.lookSide) sd = ANIM.lookSide; ANIM.lookSide = sd;
     const back = smooth(clamp((ar - L.ahead) / L.blend, 0, 1)), chest = (Math.sign(rel) * Math.min(ar, L.chest) * (1 - back) + sd * L.backChest * back) * fk;
     const head = (clamp(rel - chest, -L.head, L.head) * (1 - back) + sd * L.backHead * back) * fk;
-    springTo(ANIM, 'lookC', 'vlookC', chest, 90, 15, h); springTo(ANIM, 'lookH', 'vlookH', head, 130, 17, h); ANIM.lookBack = back * fk;
+    springTo(ANIM, 'lookC', 'vlookC', chest, 90, 15, h); springTo(ANIM, 'lookH', 'vlookH', head, 130, 17, h); ANIM.lookBack = back * fk; ANIM.lookK = fk;
   }
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
@@ -298,6 +300,11 @@ function animatePlayer(dt, rdt) {
   pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
   pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
+  // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run
+  if (ANIM.lookK > 0) {
+    const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
+    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * ANIM.lookK;
+  }
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
