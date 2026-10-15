@@ -142,7 +142,8 @@ function animatePlayer(dt, rdt) {
     // standing still the torso turns on its own; when the twist gets too big the feet shuffle round to catch up
     if (ANIM.feet === undefined) ANIM.feet = ANIM.yaw;
     const tw = angDiff(ANIM.yaw, ANIM.feet);
-    if (!ANIM.stepping && Math.abs(tw) > 0.8) { ANIM.stepping = true; ANIM.stepT = 0; }
+    if (P.pivot || (ANIM.pivK || 0) > 0.05) { ANIM.feet += tw * Math.min(1, rdt * 10); ANIM.stepping = false; }   // shuffling round in a hard turn, the hips come round with the body, step by step (below)
+    else if (!ANIM.stepping && Math.abs(tw) > 0.8) { ANIM.stepping = true; ANIM.stepT = 0; }
     if (ANIM.stepping) { ANIM.feet += tw * Math.min(1, rdt * 6.5); ANIM.stepT += rdt; if (Math.abs(angDiff(ANIM.yaw, ANIM.feet)) < 0.06 && ANIM.stepT > 0.25) ANIM.stepping = false; }
     ANIM.legYaw = angDiff(ANIM.feet, ANIM.yaw);
   }
@@ -196,12 +197,25 @@ function animatePlayer(dt, rdt) {
       pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.7 * c); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.3 * c);
       pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.12); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.65);
     }
+    const pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
+    if (pk > 0.001) {
+      // shuffling round in a hard turn: short quick steps in place, each knee lifting in turn and each foot set down a
+      // little out to the side you're turning to, the standing knee soft
+      const q = Math.sin(ANIM.pivPh || 0), up = Math.max(0, q), dn = Math.max(0, -q), d = ANIM.pivDir || 1, mix = (a, b) => a + (b - a) * pk;
+      const [lL, lR] = d > 0 ? [up, dn] : [dn, up];
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, 0.05 - 0.34 * lL); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.05 - 0.34 * lR);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.14 + 0.62 * lL); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.14 + 0.62 * lR);
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.04 - 0.08 * lL * (d > 0 ? 1 : 0.3)); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.04 + 0.08 * lR * (d < 0 ? 1 : 0.3));
+      pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.05);
+    }
   }
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
   if (!P.vault) {
     const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw);
     pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * skid; pm.g.rotation.z += Math.sin(rel) * 0.2 * skid;
     pm.g.position.y -= 0.07 * skid;
+    const pk = smooth(clamp(ANIM.pivK || 0, 0, 1));   // and low through a hard turn's shuffle, bobbing a touch on each step
+    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.018 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.06 * pk; }
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;

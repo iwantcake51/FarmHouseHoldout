@@ -77,6 +77,7 @@ function tryVault() {
   const run = P.sprint ? SPRINT.vault : 1, s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1) * run;
   // where the left hand goes down (L points to your left): on the sill's near edge, or the top rail where you cross
   const latX = lat0 + (lat1 - lat0) * 0.3, plant = win ? new V3(C[0] + dx * -0.46 + L[0] * 0.16, 1.05, C[1] + dz * -0.46 + L[1] * 0.16) : new V3(C[0] + L[0] * (latX + 0.16), 0.8, C[1] + L[1] * (latX + 0.16));
+  P.pivot = null;   // a hard turn's shuffle round gives way to the vault
   // side: how much the jump runs across the screen (-1 left .. 1 right), which is how far the view tips with it
   P.vault = { t: 0, pre: 0, preDur: (win ? 0.24 : 0.16) * S.vaultMul * (scramble ? 1.8 : 1) * run * run, dur: (win ? 0.85 : 0.55) * mul, scramble, kind, fence: !win,
     C, L, s0, s1, lat0, lat1, twistSide, sx: P.x, sz: P.z, obs: vaultObstacle(kind, false), plant, ground: new V3(C[0] + dx * (s1 + 0.15) + L[0] * 0.14, 0.04, C[1] + dz * (s1 + 0.15) + L[1] * 0.14),

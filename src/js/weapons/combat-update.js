@@ -11,7 +11,8 @@ function updateCombat(dt) {
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
   tickReload(dt); tickCycle(dt);
   const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
-  const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire) && canFire;
+  // (a click made while the gun was down at a sprint goes off now it's up: P.fireQ, player/sprint.js)
+  const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire || !!P.fireQ) && canFire;
   // a semi-auto needs the trigger let go between shots (trigLock); a burst keeps going only while it's held, and let go
   // part way through it stops there
   if (!wantFire) { W8.trigLock = false; W8.burstLeft = 0; }
@@ -71,6 +72,10 @@ function updateCombat(dt) {
   }
   // a gun in each hand: each button its own gun (weapons/akimbo.js)
   const D = W(curId());
-  if (D && D.akimbo) { const ok = canFire && (!P.vault || vaultGun()); akTriggers(dt, curId(), D, { [AK_ON.left]: ok && mouseDown, [AK_ON.right]: ok && mouseDownR, any: ok && stickFire }); }
-  else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) fire();
+  if (D && D.akimbo) {
+    const ok = canFire && (!P.vault || vaultGun()), q = P.fireQ;
+    akTriggers(dt, curId(), D, { [AK_ON.left]: ok && (mouseDown || q === 'L'), [AK_ON.right]: ok && (mouseDownR || q === 'R'), any: ok && (stickFire || q === 'S') });
+    if (ok && P.fireQ) { P.fireQ = null; P.shotHold = SHOT_HOLD; }
+  }
+  else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) { if (P.fireQ) { P.fireQ = null; P.shotHold = SHOT_HOLD; } fire(); }
 }

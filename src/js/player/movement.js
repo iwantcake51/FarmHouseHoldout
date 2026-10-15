@@ -36,11 +36,11 @@ function updatePlayer(dt) {
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {
-    updateSprint(dt, !!(mx || my));   // (player/sprint.js)
+    // the way you're pushing, on the ground
+    const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml;
+    updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
-    if ((mx || my) && P.stun <= 0 && !(P.skid > 0)) {   // (skidding to a stop, you go where your momentum takes you)
-      const l = Math.hypot(mx, my), sx = mx / l, sy = my / l;
-      const wx = RIGHT.x * sx + FWD.x * -sy, wz = RIGHT.z * sx + FWD.z * -sy;
+    if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
       const sp = WALK_SPEED * (P.sprint ? SPRINT.mul : 1) * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
@@ -49,7 +49,7 @@ function updatePlayer(dt) {
     }
     // a quick but soft start, a short glide when you let go, and a firmer push when you reverse; frame-rate independent
     // (a sprint builds up over a moment, and a skid only loses speed to the ground's friction)
-    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : turning ? 22 : P.sprint ? 6 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : P.sprint ? 6 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
     P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k;
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);
