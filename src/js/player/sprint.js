@@ -70,7 +70,7 @@ function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
   if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock) P.sprintLock = false;
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
-  if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); SFX.step(1.2, pivotIndoors()); }   // driving off the new way
+  if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); footstep('run', 1.15); }   // driving off the new way
   if (P.pushT > 0) P.pushT -= dt;
   // a click while the gun's down (sprinting, turning, or still coming up): it goes off once the gun's up
   const trig = rgArc() ? null : sprintTrig();
@@ -155,7 +155,6 @@ function sprintCarve(dt, tvx, tvz) {
 // turn: the scramble to plant your feet (scrK, its quick choppy steps on scrPh, each one a scuff, a puff of dust and a
 // jolt), then the turn round (pivK, its steps on pivPh, kept in time with the body coming round so each foot is set
 // down a little further round), all with the gun still down (unless you've pulled the trigger)
-const pivotIndoors = () => P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1;
 function sprintAnim(rdt) {
   const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ);
   if (pv) {
@@ -181,7 +180,7 @@ function sprintAnim(rdt) {
   if ((ANIM.scrK || 0) > 0.01) {
     const p0 = ANIM.scrPh || 0; ANIM.scrPh = p0 + rdt * PIVOT.scr * (scr ? 1 : 0.6);
     if (scr && Math.floor(ANIM.scrPh / Math.PI) !== Math.floor(p0 / Math.PI)) {
-      SFX.step(1.1, pivotIndoors());
+      footstep('run', 0.8);
       const sd = Math.floor(ANIM.scrPh / Math.PI) % 2 ? 1 : -1; burst(P.x + RIGHT.x * sd * 0.12 + rr(-0.05, 0.05), 0.04, P.z + RIGHT.z * sd * 0.12 + rr(-0.05, 0.05), 1, 'dust');
     }
   } else ANIM.scrPh = 0;
@@ -190,7 +189,7 @@ function sprintAnim(rdt) {
   if (pv) { ANIM.pivDir = Math.sign(pv.turn) || 1; ANIM.pivPh = Math.PI * Math.max(2, Math.round(Math.abs(pv.turn) / PIVOT.stepRad)) * (ANIM.pivU || 0); }
   else if ((ANIM.pivK || 0) > 0.01) ANIM.pivPh = Math.min(Math.ceil(ph0 / Math.PI - 1e-6) * Math.PI, ph0 + rdt * 16);
   else ANIM.pivPh = 0;
-  if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(0.6, pivotIndoors());
+  if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) footstep('walk', 0.6);
 }
 
 // the view while you sprint stays steady: no shake and no turning, only a drift of a few centimetres with the stride,

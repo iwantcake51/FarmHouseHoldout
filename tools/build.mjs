@@ -49,8 +49,19 @@ function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap
 async function buildOnce() {
   const t0 = Date.now();
   fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
+  // recorded sounds (src/sounds, audio/spatial.js): copied beside the page, and asked for by a hash of their contents
+  // like the scripts, so a deploy that changes one is picked up straight away
+  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')) : [];
+  fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
+  const soundUrl = {};
+  for (const f of sounds) {
+    const bytes = fs.readFileSync(path.join(SRC, 'sounds', f));
+    fs.writeFileSync(path.join(OUT, 'sounds', f), bytes);
+    soundUrl[f] = { url: `sounds/${f}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`, bytes };
+  }
   // scripts
   let js = joinScripts();
+  for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
   if (!dev) js = (await transform(js, { loader: 'js', minify: true, target: 'es2020', legalComments: 'none' })).code;
   fs.writeFileSync(path.join(OUT, 'game.js'), js);
   // styles: index.css @imports every sheet in cascade order
@@ -71,8 +82,10 @@ async function buildOnce() {
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
     .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>`)
-    .replace('<script src="./game.js"></script>', () => `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
+    .replace('<script src="./game.js"></script>', () => `<script>window.SOUND_DATA = ${JSON.stringify(soundData())};</script>\n<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
+  // (the one-file build carries the sounds in it, as data: URLs)
+  function soundData() { return Object.fromEntries(Object.values(soundUrl).map(s => [s.url, 'data:audio/mpeg;base64,' + s.bytes.toString('base64')])); }
   const kb = f => (fs.statSync(path.join(OUT, f)).size / 1024).toFixed(0) + ' KB';
   console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
 }
@@ -82,7 +95,7 @@ async function main() {
   if (!serve) return;
   let timer = null;
   fs.watch(SRC, { recursive: true }, () => { clearTimeout(timer); timer = setTimeout(() => buildOnce().catch(e => console.error(e.message)), 80); });
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.mp3': 'audio/mpeg' };
   http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
     let file = path.join(OUT, url === '/' ? 'index.html' : url);

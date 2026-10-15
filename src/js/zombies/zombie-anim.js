@@ -227,7 +227,9 @@ function animateZombie(z, dt, dp, relP) {
   a.acc = (a.acc || 0) + (acc - (a.acc || 0)) * Math.min(1, dt * 6);
   const tw = clamp(angDiff(z.face, a.pf ?? z.face) / dt, -6, 6); a.pf = z.face; a.tw = (a.tw || 0) + (tw - (a.tw || 0)) * Math.min(1, dt * 6);
   const kind = z.crawl ? 'crawl' : z.type;
+  const ph0 = z.phase;
   if (!z.vault) z.phase += d * 2 * Math.PI / (Z_STRIDE[kind] * (z.type === 'runner' ? 1 : z.T.scale));
+  if (!z.vault && !z.dead && Math.floor(z.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) zombieStep(z);   // a foot down (audio/footsteps.js)
   const ref = Math.max(0.05, z.speed * (z.crawl ? 0.32 : 1)), k = a.spd / ref, mv = smooth(clamp(a.spd / (ref * 0.3), 0, 1)), ph = z.phase;
   // the lunge counter going back up to 1 is a new swing (at you or at the boards)
   if (z.lunge > a.lastLunge + 0.5) {

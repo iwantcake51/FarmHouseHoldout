@@ -59,6 +59,7 @@
     <!-- stamina: a short arc under the reticle, with any weapon, while it's being used and until it's full again -->
     <g id="xhStamG">
       <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
+      <circle id="xhStamRun" class="stRun" r="22" transform="rotate(58)"></circle>
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
@@ -94,7 +95,7 @@
 <div class="hud" id="vitals" hidden>
   <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
   <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
-  <div id="stamBar"><i id="stamFill"></i></div>
+  <div id="stamBar"><b id="stamRun"></b><i id="stamFill"></i></div>
   <div class="res">
     <span title="Planks"><svg data-gi="planks"></svg><b id="planks">6</b></span>
     <span title="Scrap"><svg data-gi="scrap"></svg><b id="scrap">0</b></span>

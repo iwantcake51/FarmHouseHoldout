@@ -46,7 +46,7 @@ function dealCards() {
   // shuffled, so the skill isn't always the first card
   for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
   skipScrap = SKIP_SCRAP[0] + Math.floor(rand() * (SKIP_SCRAP[1] - SKIP_SCRAP[0] + 1));
-  $('upSkip').innerHTML = `Take none · <b>+${skipScrap} scrap</b> instead <kbd>4</kbd>`; delete $('upSkip').dataset.down;
+  $('upSkip').innerHTML = `Take none · <b>+${skipScrap} scrap</b> instead <kbd>4</kbd>`; delete $('upSkip').dataset.down; $('upSkip').classList.remove('taken');
   const wrap = $('cards'); wrap.innerHTML = '';
   const rots = [-1.6, 0.8, -0.4];
   dealt.forEach((u, i) => {
@@ -113,9 +113,35 @@ function pickCard(i) {
 function skipCards() {
   if (state !== 'upgrade' || !cardsArmed) return;
   cardsArmed = false;
-  S.scrap += skipScrap; feed('scrap', skipScrap, 'scrap'); popEl('scrap'); SFX.upgrade();
+  S.scrap += skipScrap; feed('scrap', skipScrap, 'scrap'); SFX.upgrade();
   P.wraps = 0;
+  // the button's stamped with what you took, and the scrap flies off it into your scrap count
+  const btn = $('upSkip'); btn.innerHTML = `<b>+${skipScrap} scrap</b> taken`; btn.classList.add('taken');
+  scrapFly(btn, skipScrap);
   leaveUpgrade([...$('cards').children]);
+}
+// bits of scrap thrown up off el and arcing down into the scrap count at the top of the screen, a few at a time, each
+// one bumping the count as it lands (one bit for every scrap or so, up to SCRAP_BITS)
+const SCRAP_BITS = 10;
+function scrapFly(el, n) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { popEl('scrap'); return; }
+  const a = el.getBoundingClientRect(), t = $('scrap').getBoundingClientRect(), tx = t.width ? t.left + t.width / 2 : 40, ty = t.height ? t.top + t.height / 2 : 30;
+  const sx = a.left + a.width / 2, sy = a.top + a.height / 2, cols = ['#c9b48e', '#a88a5a', '#d8c7a0', '#8f7b5c'];
+  for (let k = 0, N = Math.min(SCRAP_BITS, Math.max(5, n)); k < N; k++) {
+    const b = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), sz = rr(20, 30);
+    b.setAttribute('viewBox', GI_VB); b.innerHTML = GI.scrap; b.classList.add('scrapBit'); b.style.width = b.style.height = sz + 'px'; b.style.fill = cols[k % cols.length];
+    document.body.appendChild(b);
+    // out of the button in a little burst, up over the top of the arc, then down into the count
+    const x0 = sx - sz / 2 + rr(-a.width * 0.35, a.width * 0.35), y0 = sy - sz / 2, ox = rr(-90, 90), oy = rr(-110, -50);
+    const mx = (x0 + tx) / 2 + rr(-80, 80), my = Math.min(y0, ty) - rr(60, 140), ex = tx - sz / 2, ey = ty - sz / 2, r0 = rr(-40, 40), r1 = r0 + rr(-540, 540);
+    const an = b.animate([
+      { transform: `translate(${x0}px,${y0}px) scale(.3) rotate(${r0}deg)`, opacity: 0 },
+      { offset: 0.16, transform: `translate(${x0 + ox}px,${y0 + oy}px) scale(1.05) rotate(${r0 + (r1 - r0) * 0.2}deg)`, opacity: 1 },
+      { offset: 0.55, transform: `translate(${mx}px,${my}px) scale(.95) rotate(${r0 + (r1 - r0) * 0.6}deg)`, opacity: 1 },
+      { transform: `translate(${ex}px,${ey}px) scale(.45) rotate(${r1}deg)`, opacity: 0.85 }
+    ], { duration: rr(820, 1050), delay: k * 55, easing: 'cubic-bezier(.3,.05,.45,1)', fill: 'both' });
+    an.onfinish = () => { b.remove(); popEl('scrap'); };
+  }
 }
 function leaveUpgrade(burn) {
   const el = $('upgrade');

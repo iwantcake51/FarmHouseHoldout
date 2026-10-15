@@ -71,7 +71,7 @@ function gunExtras(id) {
   if (D.melee) return out;
   for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push({ t: tierName(k, n - 1, id), k: EXTRA_KIND[k] }); }
   if (roundOn(id) !== 'std') out.push({ t: roundName(id, roundOn(id)), k: 'ammo' });   // the kind of round loaded (weapons/rounds.js)
-  if (S.att.bayonet && D.slot === 'long') out.push({ t: 'Bayonet', k: 'att' });
-  if (S.att.stock && D.slot === 'side') out.push({ t: 'Stock', k: 'att' });
+  if (gunAtt(id, 'bayonet')) out.push({ t: 'Bayonet', k: 'att' });
+  if (gunAtt(id, 'stock')) out.push({ t: 'Stock', k: 'att' });
   return out;
 }

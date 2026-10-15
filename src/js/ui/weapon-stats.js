@@ -139,7 +139,7 @@ function updateWeaponStats() {
     clearTimeout(wsCloseT); wsCloseT = setTimeout(() => { el.classList.remove('closing'); el.hidden = true; }, 200);
   }
   if (!on) return;
-  const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.headMul, S.att, W8.rounds[id]]);
+  const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.headMul, W8.att[id], W8.rounds[id]]);
   if (key !== wsKey) { wsKey = key; el.innerHTML = wsHTML(id); }
 }
 function toggleWeaponStats() { if (wsAtBench()) { wsBench = !wsBench; stStruct = ''; } else wsOn = !wsOn; wsKey = ''; SFX.click(); }   // (stStruct: the bench's note says which)

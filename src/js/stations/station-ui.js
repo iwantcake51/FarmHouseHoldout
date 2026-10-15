@@ -39,7 +39,7 @@ const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">$
 const chipCache = new Map(); let chipKey = '';
 function cardChips(r) {
   if (!r.fx) return '';
-  const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.rounds[id], S.att, S.magMul, S.reloadMul]);
+  const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.rounds[id], W8.att[id], S.magMul, S.reloadMul]);
   if (key !== chipKey) { chipKey = key; chipCache.clear(); }
   const ck = r.title();
   if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join(''));
