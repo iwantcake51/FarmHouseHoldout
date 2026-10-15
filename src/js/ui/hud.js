@@ -79,6 +79,11 @@ function fireModeSwitched(id) {
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
 }
+// X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
+function roundSwitched(id) {
+  SFX.click(); setTimeout(() => SFX.click(), 90);
+  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+}
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();

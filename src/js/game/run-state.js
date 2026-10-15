@@ -8,14 +8,14 @@ function freshStats() {
     spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
     cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, vaultFire: false, runGun: false, lungs: false, hoard: false, btNext: 0, bulletTime: false, lastStand: false,
     swapMul: 1, bandMul: 1, ammoMul: 1, luck: 0, momentum: false, momK: 0, momT: -9, hardened: false,
-    att: { bayonet: false, fire: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
+    att: { bayonet: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
   Object.keys(TIERS).forEach(k => s.tier[k] = 0);
   return s;
 }
 function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -45,17 +45,13 @@ function recomputeEff() {
     if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
     if (D.akimbo) D.reload *= AK_ONE;
     D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
-    if ((g.supp || 0) >= 3) D.pierce = (D.pierce || 0) + 1;   // the heavy-duty can: bullets go through one more zombie
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
+    // the one kind of round loaded, last, over everything else (weapons/rounds.js)
+    const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
     EFF[id] = D;
   }
 }
 const W = id => EFF[id];
-// Through and through (S.pierce, stations/recipes.js) is for guns that don't already push rounds through more zombies
-// with something of their own: flechettes, the revolver's longer barrels, slugs, or the heavy-duty can leave it out
-const PIERCE_MODS = new Set(['flech', 'longbarrel', 'slug']);
-const ownPierce = id => (W8.mods[id] || []).some(m => PIERCE_MODS.has(m)) || gunTier(id, 'supp') >= 3;
-const skillPierce = id => id && ownPierce(id) ? 0 : S.pierce;
 // how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.3, AK_ONE = 1;
 // how much each magazine tier holds against the gun's own: most guns step up through three, the drum shotgun's one step is
@@ -68,7 +64,10 @@ const SEMI = { spread: 0.7, shake: 0.75 };
 // zooms in too; on a sniper a sight also raises the headshot multiplier, HEAD_UP, and through a scope every headshot
 // crits, SCOPES), a laser tightens the ones from the hip (and shows where they go), the shoulder stock only steadies
 // the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a choke squeezes the pellets, a light
-// lights. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
+// lights, and the one kind of round loaded does what that round does (weapons/rounds.js). A gun's own mods keep off
+// those jobs too: where one would only have done what a line does (a pump's tube extension, the SMG's double-stack and
+// integral can, the M60's belt box), the line is it, by that name (TIERS' as, upgrades/tier-table.js); and the guns whose
+// rate is their action's (NO_TRIGGER, upgrades/upgrades.js) fire faster by their own mod, not a lighter trigger. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
 // moving adds to an aimed shot is left with each sight
 const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
 // what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)

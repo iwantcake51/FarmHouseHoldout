@@ -25,6 +25,7 @@ addEventListener('keydown', e => {
   if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
   if (k === 'g') throwGrenade();
   if (k === 'i') toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)
+  if (k === 'x' && state === 'play') swapRounds();   // the next kind of round you own for this gun, with a reload (weapons/rounds.js)
   if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
     if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)

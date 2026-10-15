@@ -342,6 +342,8 @@ function gripMag(g, y, z, tilt, w, h, d) {
 }
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.
+// a shotgun's loaded shells by kind (weapons/rounds.js): the pump's side saddle, and a band round the drum shotgun's mag
+const SHELL_MAT = { fire: GM.shellO, slug: GM.shellY, flech: GM.steel };
 const GUN_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
@@ -511,7 +513,7 @@ const GUN_MODELS = {
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
     let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.183], [0.916, 1.185]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.006, 0.012, GM.rubber, X, 1.188, 0.935 + k * 0.025); front = 0.916 + L; }   // longer, with another port, each level
-    if (m.boom) box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive rounds: the mag's base plate painted with a red band
+    if (roundOn(tierCtx) === 'boom') box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive tips: the mag's base plate painted with a red band
     return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true };   // the laser under the frame's lip
   },
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
@@ -548,11 +550,11 @@ const GUN_MODELS = {
     { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.0035, 8, 6), GM.dot); bd.position.set(X, 1.168, 1.378); g.add(bd); }
     // ---- magazine tube and its cap, the barrel's lug that clamps onto it, the swivel stud; with an extension, the tube
     // runs on toward the muzzle and a clamp holds it to the barrel
-    const tEnd = [1.146, 1.25, 1.32, 1.385][m.tube || 0];
+    const tEnd = [1.146, 1.25, 1.32, 1.385][T('mag')];   // (its magazine line: Tube extension, Long tube, Full-length tube)
     cyl(g, 0.0088, tEnd - 0.718, GM.metal, X, 1.1225, (tEnd + 0.718) / 2, 16);
     box(g, 0.012, 0.022, 0.03, B, X, 1.135, 1.13);
     cyl(g, 0.0102, 0.026, B, X, 1.1225, tEnd - 0.011, 16); cyl(g, 0.0036, 0.012, GM.metal2, X, 1.1225, tEnd + 0.004, 10);
-    if (m.tube) { ring(g, 0.0118, 0.004, GM.metal2, X, 1.1225, 1.146); box(g, 0.014, 0.034, 0.016, GM.metal2, X, 1.137, tEnd - 0.05); }
+    if (T('mag')) { ring(g, 0.0118, 0.004, GM.metal2, X, 1.1225, 1.146); box(g, 0.014, 0.034, 0.016, GM.metal2, X, 1.137, tEnd - 0.05); }
     // ---- the forend and its action bars ride together (the pump cycle slides this group, player/hold.js)
     const fe = new THREE.Group(); g.add(fe);
     const FE = [[0.8048, 1.0935], [0.797, 1.0955], [0.7967, 1.0985], [0.7992, 1.1018], [0.8012, 1.1245], [0.8048, 1.1383], [0.8071, 1.142], [0.8269, 1.1496], [0.864, 1.1504], [1.0052, 1.1496], [1.0225, 1.1487], [1.028, 1.1436], [1.0299, 1.125], [1.0294, 1.1069], [1.0286, 1.102], [1.026, 1.1], [0.93, 1.0968], [0.87, 1.095]];
@@ -563,7 +565,7 @@ const GUN_MODELS = {
     // ---- the bolt in the port, which runs back with the forend
     const bolt = box(g, 0.004, 0.017, 0.074, GM.steel, X - 0.0176, 1.148, 0.656);
     // a side saddle of spare shells on the left of the receiver, longer with each magazine tier
-    const sm = m.dragon ? GM.shellO : m.slug ? GM.shellY : GM.shell;
+    const sm = SHELL_MAT[roundOn(tierCtx)] || GM.shell;   // in the colour of the shells loaded
     const n = Math.min(8, 4 + T('mag') * 2);
     box(g, 0.006, 0.05, 0.024 * n + 0.01, GM.poly, X + 0.025, 1.132, 0.51 + n * 0.012);
     for (let k = 0; k < n; k++) { const z = 0.522 + k * 0.024; cyl(g, 0.0105, 0.054, sm, X + 0.039, 1.14, z, 10).rotation.set(0, 0, 0); cyl(g, 0.0112, 0.014, GM.brass, X + 0.039, 1.106, z, 10).rotation.set(0, 0, 0); }   // stood upright in it
@@ -658,6 +660,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.4971, 0.886], [0.5242, 0.8791], [0.5391, 0.873], [0.5494, 0.8685], [0.5731, 0.8582], [0.5896, 0.854], [0.6647, 0.8467], [0.6715, 0.8474], [0.6754, 0.8497], [0.6779, 0.8547], [0.6715, 0.8545], [0.59, 0.861], [0.5735, 0.8652], [0.5498, 0.8755], [0.5395, 0.88], [0.5246, 0.8861], [0.4975, 0.893]]), 0.012, St, X, 0.0012);   // the long bar
     profile(g, shp([[0.6655, 0.8475], [0.6779, 0.8475], [0.6921, 0.8637], [0.6872, 0.9018], [0.6768, 1.0155], [0.6742, 1.0502], [0.6667, 1.0502], [0.6693, 1.0155], [0.6797, 0.9018], [0.684, 0.866], [0.6735, 0.8545]]), 0.01, St, X, 0.0012);   // the rod
     profile(g, shp([[0.574, 1.0045], [0.6697, 1.0075], [0.6697, 1.0145], [0.574, 1.0115]]), 0.01, St, X, 0.001);   // the bar under the trigger
+    if (m.well) { const L = 0.12 + 0.012 * (m.well - 1); box(g, 0.064, 0.02, L, GM.metal2, X, 1.052, 0.737); box(g, 0.07, 0.005, L + 0.01, St, X, 1.041, 0.737); }   // the flared mag well: a funnel lip round the top of the mag, standing out below the housing
     profile(g, shp([[0.598, 1.047], [0.607, 1.047], [0.612, 1.035], [0.609, 1.022], [0.602, 1.016], [0.604, 1.03], [0.6, 1.04]]), 0.007, St, X, 0.0008);   // the trigger
     // ---- the magazine (in the mag group, so the reload can drop it): its own 8-shell box, raked a little forward with
     // ribs down its sides and a base plate; or, with its one magazine upgrade, the drum: face forward, a hub in the
@@ -666,12 +669,12 @@ const GUN_MODELS = {
     if (T('mag')) {
       cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
       cyl(mg, 0.02, 0.004, GM.rubber, X, dy, dz + 0.0405, 20); cyl(mg, 0.006, 0.004, GM.metal2, X, dy - dr + 0.016, dz + 0.0405, 10);
-      if (m.flech) cyl(mg, dr + 0.002, 0.012, GM.shellY, X, dy, dz + 0.016, 40);
+      if (SHELL_MAT[roundOn(tierCtx)]) cyl(mg, dr + 0.002, 0.012, SHELL_MAT[roundOn(tierCtx)], X, dy, dz + 0.016, 40);
     } else {
       const bm = new THREE.Group(); bm.position.set(X, 1.075, dz); bm.rotation.x = -0.08; mg.add(bm);
       box(bm, 0.05, 0.215, 0.095, K, 0, -0.1075, 0); box(bm, 0.056, 0.016, 0.103, GM.poly, 0, -0.218, 0.002);
       [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
-      if (m.flech) box(bm, 0.052, 0.014, 0.097, GM.shellY, 0, -0.17, 0);
+      if (SHELL_MAT[roundOn(tierCtx)]) box(bm, 0.052, 0.014, 0.097, SHELL_MAT[roundOn(tierCtx)], 0, -0.17, 0);
     }
     return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },
@@ -742,7 +745,6 @@ const GUN_MODELS = {
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
-    if (m.expand) box(g, 0.05, 0.03, 0.08, GM.copper, X + 0.06, 1.02, 0.7);
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
@@ -811,11 +813,11 @@ const GUN_MODELS = {
   // butt plate and sling slots; the stamped receiver tube with a rib down each side, the drum rear sight on top and the
   // ejection port on the right; the cocking tube running forward over the barrel to the hooded front sight, its handle on
   // the left (pulled back and slapped down on a reload); the slim handguard with a flute down each side; the barrel's
-  // nub; the polymer trigger housing with the grip and the guard in one; the curved magazine, longer with the
-  // double-stack mod. The integral suppressor swaps the handguard and barrel for the SD's ribbed handguard round the
-  // back of a fat can, its bare front longer each level
+  // nub; the polymer trigger housing with the grip and the guard in one; the curved magazine, longer with each
+  // magazine upgrade. Its suppressor line (the SD's integral can) swaps the handguard and barrel for the SD's ribbed
+  // handguard round the back of a fat can, its bare front longer each level
   sub(g, m) {
-    const P = GM.poly, K = GM.metal, St = GM.steel, mg = g.userData.magG || g, sd = m.integral || 0;
+    const P = GM.poly, K = GM.metal, St = GM.steel, mg = g.userData.magG || g, sd = T('supp');   // its suppressor line is the SD's integral can
     // ---- the stock: the A2's moulded polymer, its edges rounded right over and slimmer through the wrist than at the butt
     // or where it takes the receiver (STK_W); the rubber butt pad ribbed down its face; the sling plate on the left (a
     // hexagon round a slot with a bar across it), two plugs on the right
@@ -875,9 +877,9 @@ const GUN_MODELS = {
     profile(g, shp([[0.6296, 1.047], [0.6488, 1.047], [0.6488, 1.0287], [0.6458, 1.0245], [0.6427, 1.0185], [0.6418, 1.0132], [0.6424, 1.0049], [0.6498, 0.9902], [0.6492, 0.9877], [0.6465, 0.987], [0.6421, 0.9889], [0.64, 0.9907], [0.6376, 0.9937], [0.6344, 1.0], [0.6325, 1.0122], [0.6335, 1.0242], [0.6326, 1.0271], [0.6296, 1.0295]]), 0.008, P, X, 0.0008);
     [[0.513, 1.089], [0.709, 1.093]].forEach(([z, y]) => { cyl(g, 0.0042, 0.0432, GM.metal2, X, y, z, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.0016, 0.0434, GM.rubber, X, y, z, 10).rotation.set(0, 0, Math.PI / 2); });   // the push pins holding it on, standing out each side
     { const lv = box(g, 0.003, 0.006, 0.026, St, X + 0.0215, 1.085, 0.66); lv.rotation.x = 0.5; cyl(g, 0.006, 0.003, St, X + 0.021, 1.085, 0.655, 12).rotation.set(0, 0, Math.PI / 2); }
-    // ---- the curved magazine (in the mag group so the reload drops it), longer with the double stack: its spines
+    // ---- the curved magazine (in the mag group so the reload drops it), longer with each magazine upgrade: its spines
     // rounded front and back, a raised panel pressed down each side, the floor plate on its foot with the pin through it
-    const k = [1, 1.6, 1.75, 1.9][m.stack || 0], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
+    const k = [1, 1.3, 1.6, 1.9][T('mag')], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
     const MO = [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext);
     solid(mg, MO, 0.026, K, X, 0.005);
     solid(mg, inset(MO, 0.0105), 0.0278, K, X, 0.0007);                                                                          // the panel
@@ -1155,7 +1157,7 @@ const GUN_MODELS = {
     // ---- the ammo box (in the mag group, so the reload can swap it): the hard olive 100-round box hanging on the left
     // under the feed tray, rounded at its corners, screwed at its edges, its lid propped open on the hinge along its
     // outer top edge, flipped back out of the way (taller with the belt and mag upgrades)
-    const bh = 0.22 + 0.018 * ((m.belt || 0) + T('mag')), bt = 1.1, bz0 = 0.448, bz1 = 0.622, bx0 = X + 0.032, bx1 = X + 0.132, bxm = (bx0 + bx1) / 2, bzm = (bz0 + bz1) / 2;
+    const bh = 0.22 + 0.03 * T('mag'), bt = 1.1, bz0 = 0.448, bz1 = 0.622, bx0 = X + 0.032, bx1 = X + 0.132, bxm = (bx0 + bx1) / 2, bzm = (bz0 + bz1) / 2;
     {
       const sh = new THREE.Shape(), r = 0.011; sh.moveTo(bx0 + r, bz0); sh.lineTo(bx1 - r, bz0); sh.quadraticCurveTo(bx1, bz0, bx1, bz0 + r); sh.lineTo(bx1, bz1 - r); sh.quadraticCurveTo(bx1, bz1, bx1 - r, bz1); sh.lineTo(bx0 + r, bz1); sh.quadraticCurveTo(bx0, bz1, bx0, bz1 - r); sh.lineTo(bx0, bz0 + r); sh.quadraticCurveTo(bx0, bz0, bx0 + r, bz0);
       const geo = new THREE.ExtrudeGeometry(sh, { depth: bh - 0.006, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 6 });
