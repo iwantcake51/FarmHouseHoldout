@@ -1,6 +1,6 @@
 {
   "about": "Recorded sound effects, played as they come in the pack (no clip is edited). tools/build.mjs pulls each file listed here out of the zip into dist/sounds/sfx/ and hands the game this list (audio/sound-bank.js). level: how loud the set plays (each clip is evened out to it as it's loaded); zoom: how much zooming out quietens it (1 fully, like the footsteps; 0 not at all, for interface sounds).",
-  "zip": "assets/sounds/Rust & Blood - SFX Library v1.1d.zip",
+  "zip": "assets/sounds/Sounds.zip",
   "root": "Rust & Blood - SFX Library/Audio/Sound Effects/",
   "sets": {
     "fire.pistol": { "level": 0.26, "zoom": 0.5, "files": ["Firearms/Fire/pistol_fire_ufx_1.ogg", "Firearms/Fire/pistol_fire_ufx_2.ogg", "Firearms/Fire/pistol_fire_ufx_3.ogg", "Firearms/Fire/pistol_fire_ufx_4.ogg"] },
