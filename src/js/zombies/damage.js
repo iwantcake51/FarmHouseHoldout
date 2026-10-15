@@ -44,7 +44,7 @@ function goCrawl(z) {
 // is built out in layers, each standing proud of the one under it: the pale rim of the skull, the red meat inside it,
 // the brain packed into the top with its folds, a row of teeth along the front and the dark of the throat below, with
 // strings of gore hanging off the bottom
-const CUT_M = [lam(0x7a1410), lam(0x4e0b08), lam(0xc9b8a0), lam(0xc98a86), lam(0x8e4a4a), lam(0xe8e0cc)], DEAD_EYE = lam(0x2e1612);
+const CUT_M = [lam(0x7a1410), lam(0x4e0b08), lam(0xc9b8a0), lam(0xc98a86), lam(0x8e4a4a), lam(0xe8e0cc), lam(0xae6660)], DEAD_EYE = lam(0x2e1612);
 CUT_M.concat(DEAD_EYE).forEach(m => { m.userData.mobile = true; });
 const SPLIT_STEP = 0.0015;
 // the cut face, in the head's frame: [w (front to back), h, thickness, material, how far it stands out of the cut, y, z]
@@ -52,9 +52,9 @@ const CUT_LAYERS = [
   [0.3, 0.3, 0.012, 2, 0.004, 0, 0],                 // the skull's rim
   [0.27, 0.27, 0.012, 0, 0.009, -0.004, 0],          // the meat
   [0.2, 0.15, 0.012, 3, 0.015, 0.055, -0.01],        // the brain, up in the top of it
-  [0.17, 0.008, 0.006, 4, 0.019, 0.085, -0.01],      // its folds
-  [0.15, 0.008, 0.006, 4, 0.019, 0.055, -0.02],
-  [0.13, 0.008, 0.006, 4, 0.019, 0.025, -0.005],
+  [0.17, 0.008, 0.006, 4, 0.026, 0.085, -0.01],      // its folds, over the lumps of it (below)
+  [0.15, 0.008, 0.006, 4, 0.026, 0.055, -0.02],
+  [0.13, 0.008, 0.006, 4, 0.026, 0.025, -0.005],
   [0.1, 0.07, 0.008, 1, 0.014, -0.08, -0.02]         // the throat
 ];
 function splitHead(z, dx, dz) {
@@ -84,6 +84,8 @@ function splitHead(z, dx, dz) {
     // the face of the cut, built out toward the other half (-sd); a layer's outer face is `out` from the cut
     const cut = (w, h, t, mi, out, y, zz) => box(half, t, h, w, CUT_M[mi], -sd * (out - t / 2), y, zz);
     CUT_LAYERS.forEach(L => cut(L[0], L[1], L[2], L[3], L[4], L[5], L[6]));
+    for (let k = 0; k < 4; k++) cut(rr(0.05, 0.08), rr(0.04, 0.06), 0.006, 6, k % 2 ? 0.018 : 0.021, rr(0.03, 0.08), rr(-0.08, 0.06));   // the brain swelling out in lumps
+    for (let k = 0; k < 5; k++) cut(rr(0.03, 0.06), rr(0.03, 0.06), 0.004, 1, 0.012, rr(-0.12, 0.0), rr(-0.12, 0.12));   // clots of dark blood over the meat
     for (let k = 0; k < 4; k++) cut(0.022, 0.03, 0.01, 5, 0.017, -0.105, 0.13 - k * 0.028);   // teeth along the front
     for (let k = 0; k < 2; k++) { const len = rr(0.05, 0.11); box(half, 0.012, len, 0.014, CUT_M[k], -sd * rr(0.006, 0.012), -0.13 - len / 2, rr(-0.08, 0.06)); }   // gore hanging off it
     scene.add(half);
