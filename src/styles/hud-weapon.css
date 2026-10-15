@@ -49,6 +49,7 @@
 .fallRound.case.rf{border-top:0;border-radius:0;clip-path:polygon(20% 0,80% 0,80% 9%,100% 20%,100% 100%,0 100%,0 20%,20% 9%)}
 @keyframes roundFall{0%{transform:none}18%{transform:translate(calc(var(--dx) * .2),var(--up)) rotate(calc(var(--rot) * .15))}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}
 .roundPuff{position:fixed;z-index:3;pointer-events:none;display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,rgba(210,205,195,.55),rgba(210,205,195,0) 70%);animation:roundPuff .9s ease-out forwards}
+.roundPuff.wisp{width:14px;height:14px;animation-duration:.75s}
 @keyframes roundPuff{from{transform:scale(.5);opacity:.9}to{transform:translate(var(--px),-26px) scale(2.4);opacity:0}}
 #rounds .belt{width:200px;height:6px;background:rgba(0,0,0,.5)}
 #rounds .belt span{display:block;height:100%;background:#c9a043}
