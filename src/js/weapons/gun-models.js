@@ -210,6 +210,19 @@ function ribTube(g, r, len, mat, x, y, z, n, dep, sx, tp) {
   geo.computeVertexNormals(); geo.rotateX(Math.PI / 2);
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
 }
+// a tube along the bore knurled all over: a grid n round it and rows along it, every other point of it raised dep into
+// a little pyramid (the ends left round to meet their caps)
+function knurl(g, r, len, mat, x, y, z, n, rows, dep) {
+  const geo = new THREE.CylinderGeometry(r - dep, r - dep, len, n * 2, rows * 2), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const vx = p.getX(i), vz = p.getZ(i); if (Math.hypot(vx, vz) < 1e-6) continue;
+    const a = Math.round((Math.atan2(vx, vz) + Math.PI * 2) / (Math.PI * 2) * n * 2), b = Math.round((p.getY(i) / len + 0.5) * rows * 2);
+    if (b > 0 && b < rows * 2 && (a % 2 || b % 2)) continue;
+    const f = r / (r - dep); p.setXYZ(i, vx * f, p.getY(i), vz * f);
+  }
+  geo.computeVertexNormals(); geo.rotateX(Math.PI / 2);
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+}
 // a box magazine seen side on, the way a rifle mag runs: straight for Ls under the well, then bending forward on an arc
 // of radius R for La more. Points are placed by r, the distance from the arc's centre (R is the middle of the mag, so
 // R - d/2 its front and R + d/2 its back), and s, the length down the mag from its top. shape(r0, r1, s0, s1, up) is the
@@ -241,6 +254,86 @@ function tapeWrap(g, x, y, z, r, tx, ty, sx) {
 }
 const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
 function guard(g, y, z0, z1, mat) { box(g, 0.016, 0.012, z1 - z0, mat, X, y, (z0 + z1) / 2); box(g, 0.016, 0.05, 0.012, mat, X, y + 0.025, z1); box(g, 0.009, 0.034, 0.01, GM.metal2, X, y + 0.025, z0 + (z1 - z0) * 0.45).rotation.x = 0.25; }
+// the MP5 (sub, below), built round on the lines traced off its side photo: the barrel's axis (ax), the cocking tube's
+// axis and radius (ct), the receiver's half width, top and bottom (rw, top, bot) and where it ends at the front
+// (rcvEnd), where the front sight block starts (fs), the muzzle, where the cocking handle rests, and how far back the
+// SD's front sight sits (sdShift)
+const MP5 = { ax: 1.119, ct: { y: 1.159, r: 0.0125 }, rw: 0.022, top: 1.1745, bot: 1.1116, rcvEnd: 0.7985, fs: 1.0365, muzzle: 1.1225, handle: 0.945, sdShift: -0.0542 };
+// the A2 stock's width down the gun, as a share of its full width: full at the butt, slimmer through the wrist, full again
+// where it takes the receiver
+const STK_W = pw([[0.2, 1], [0.34, 0.84], [0.43, 0.84], [0.49, 1]]);
+// its front sight block, dz further along (the SD's sits further back and has no barrel out front): round the front of
+// the cocking tube a collar with the tube's knurled end cap on it; up off it on a neck the hooded ring, the post inside;
+// under it, round the barrel, the clamp with its bolt and the sling loop on the left; out ahead the barrel's collar with
+// its three lugs and the knurled thread protector, open at the bore
+function mp5Front(g, dz, barrel) {
+  const K = GM.metal, ct = MP5.ct, z = v => v + dz;
+  cyl(g, 0.0152, 0.03, K, X, ct.y, z(1.0545), 24);                                                         // the collar round the tube
+  lathe(g, [[0, z(1.0695)], [0.018, z(1.0695)], [0.019, z(1.0703)], [0.019, z(1.0722)], [0.0176, z(1.0734)], [0.009, z(1.0739)], [0, z(1.0739)]], K, X, ct.y, 28);   // the end cap
+  ribTube(g, 0.0192, 0.0026, K, X, ct.y, z(1.0712), 20, 0.0007);                                           // its knurled rim
+  const hy = 1.2144 - 0.021;   // (its top where the photo has it)
+  box(g, 0.012, hy - 0.019 - ct.y, 0.02, K, X, (hy - 0.019 + ct.y) / 2 + 0.006, z(1.0555));              // the hood's neck
+  lathe(g, [[0.014, z(1.0458)], [0.019, z(1.0448)], [0.021, z(1.0468)], [0.021, z(1.0642)], [0.019, z(1.0662)], [0.014, z(1.0652)], [0.014, z(1.0458)]], K, X, hy, 28);   // the hooded ring
+  box(g, 0.0028, 0.013, 0.004, K, X, hy - 0.0072, z(1.0555));                                             // the post in it
+  if (!barrel) return;
+  const ax = MP5.ax;
+  cyl(g, 0.0166, 0.033, K, X, ax, z(1.0532), 24);                                                          // the barrel clamp
+  box(g, 0.02, ct.y - ax, 0.026, K, X, (ct.y + ax) / 2, z(1.0545));                                        // the web joining it to the collar
+  cyl(g, 0.0046, 0.006, GM.metal2, X + 0.0172, ax, z(1.0535), 6).rotation.set(0, 0, Math.PI / 2);         // the clamp bolt's head, on the left
+  { const t = new THREE.Mesh(new THREE.TorusGeometry(0.0072, 0.0015, 6, 16), GM.metal2); t.position.set(X + 0.0185, ax - 0.0115, z(1.043)); t.rotation.y = Math.PI / 2; t.castShadow = true; g.add(t); }   // the sling loop
+  lathe(g, [[0, z(1.0695)], [0.0113, z(1.0695)], [0.0113, z(1.0912)], [0, z(1.0912)]], K, X, ax, 24);      // the lug collar
+  [Math.PI / 2, Math.PI / 2 + 2.094, Math.PI / 2 - 2.094].forEach(a => { const b = box(g, 0.006, 0.006, 0.013, K, X + Math.cos(a) * 0.0122, ax + Math.sin(a) * 0.0122, z(1.0805)); b.rotation.z = a - Math.PI / 2; });   // its three lugs
+  lathe(g, [[0, z(1.0912)], [0.0106, z(1.0912)], [0.0106, z(1.1193)], [0.0093, z(1.1225)], [0, z(1.1225)]], K, X, ax, 24);   // the thread protector
+  ribTube(g, 0.0107, 0.018, K, X, ax, z(1.103), 16, 0.0007);                                               // its knurling
+  cyl(g, 0.0052, 0.002, GM.rubber, X, ax, z(1.1228), 12);                                                  // the bore
+}
+// its cocking handle at z: a short stem out of the slot on the tube's left side, pointing out and a little up and
+// forward, and the knob on it, a knurled mushroom with a domed face
+const _mpD = new V3(0.85, 0.45, 0.2).normalize(), _mpQ = new THREE.Quaternion().setFromUnitVectors(new V3(0, 0, 1), _mpD);
+function mp5Handle(g, z) {
+  const ct = MP5.ct, rl = Math.hypot(_mpD.x, _mpD.y), h = new THREE.Group(); g.add(h);
+  h.position.set(X + ct.r * _mpD.x / rl * 0.9, ct.y + ct.r * _mpD.y / rl * 0.9, z); h.quaternion.copy(_mpQ);
+  cyl(h, 0.0034, 0.009, GM.steel, 0, 0, 0.0035, 12);                                                       // the stem
+  ribTube(h, 0.0128, 0.0062, GM.metal, 0, 0, 0.0108, 18, 0.0009);                                          // the knob's knurled rim
+  lathe(h, [[0, 0.0139], [0.0085, 0.0164], [0.0122, 0.0139], [0.0128, 0.0139], [0.0128, 0.0077], [0.007, 0.0068], [0, 0.0068]], GM.metal, 0, 0, 22);   // and its domed face
+}
+// the receiver's section: flat sides under a round top, the bottom corners taken off, and pressed into the left side
+// (L) and the right (Rt) the long channel under the round, the rolled lip under it standing out ([out from the side,
+// y] from the bottom up)
+const MP5_CH = [[0, 1.1222], [0.0009, 1.1232], [0.0013, 1.1252], [0.0009, 1.1272], [-0.001, 1.1284], [-0.0042, 1.1296], [-0.005, 1.1318], [-0.005, 1.1462], [-0.004, 1.149], [-0.0012, 1.15]];
+function mp5Section(L, Rt) {
+  const R = MP5.rw, yc = MP5.top - R, b = MP5.bot, c = 0.0015, sh = new THREE.Shape();
+  sh.moveTo(X - R + c, b); sh.lineTo(X + R - c, b); sh.lineTo(X + R, b + c);
+  if (L) MP5_CH.forEach(([d, y]) => sh.lineTo(X + R + d, y));
+  for (let i = 0; i <= 16; i++) { const a = Math.PI * i / 16; sh.lineTo(X + R * Math.cos(a), yc + R * Math.sin(a)); }
+  if (Rt) MP5_CH.slice().reverse().forEach(([d, y]) => sh.lineTo(X - R - d, y));
+  sh.lineTo(X - R, b + c); sh.closePath(); return sh;
+}
+// its rear sight: a plate clamped down on the receiver's round top; on it the housing, a floor between two ears that
+// slope off at the back, the windage screw lying in it and a cross-head screw in the right ear; the drum standing in
+// the front of the housing leaning forward, a plain band at its foot, knurled above, the top a cup with its rim cut
+// away front and back (the open notch) and an aperture through it; the detent's nub under its front
+const MP5_TILT = 0.35, MP5_DRUM = { y: 1.1784, z: 0.5725, r: 0.013 };
+function mp5Rear(g) {
+  const K = GM.metal, M2 = GM.metal2, R = MP5.rw, yc = MP5.top - R, D = MP5_DRUM;
+  { const sh = new THREE.Shape(), w = 0.0159, rb = R - 0.0003, a0 = Math.atan2(Math.sqrt(rb * rb - w * w), w);
+    sh.moveTo(X + w, 1.1792); sh.lineTo(X - w, 1.1792); sh.absarc(X, yc, rb, Math.PI - a0, a0, true); sh.closePath();
+    xsec(g, sh, 0.5249, 0.5914, K, 0.0006); }                                                                              // the clamp plate
+  solid(g, [[0.5262, 1.176], [0.5262, 1.1805], [0.5318, 1.1812], [0.5352, 1.1868], [0.5665, 1.1868], [0.5665, 1.176]], 0.028, K, X, 0.0006);   // the housing's floor
+  [-1, 1].forEach(s2 => solid(g, [[0.5345, 1.1765], [0.5345, 1.1905], [0.5352, 1.1942], [0.5372, 1.1975], [0.5402, 1.1997], [0.5435, 1.2005], [0.5652, 1.2005], [0.5672, 1.1985], [0.5672, 1.1765]], 0.0029, K, X + s2 * 0.01475, 0.0006));   // its ears
+  { const ws = lathe(g, [[0, 0], [0.0054, 0], [0.0054, 0.0006], [0.0042, 0.0014], [0, 0.0016]], M2, X, 1.1868, 18); ws.rotation.x = -Math.PI / 2; ws.position.z = 0.5505; }   // the windage screw
+  box(g, 0.0094, 0.0008, 0.001, GM.rubber, X, 1.1884, 0.5505).rotation.y = 0.5;                                              // and its slot
+  cyl(g, 0.0027, 0.0008, M2, X - 0.0164, 1.1872, 0.5428, 14).rotation.set(0, 0, Math.PI / 2);                               // the right ear's screw
+  [0, Math.PI / 2].forEach(a => { const c = box(g, 0.0004, 0.0036, 0.0007, GM.rubber, X - 0.0168, 1.1872, 0.5428); c.rotation.x = a + Math.PI / 4; });   // its cross
+  cyl(g, 0.0032, 0.016, GM.steel, X, 1.1796, 0.5908, 14).rotation.set(0, 0, Math.PI / 2);                                  // the detent's nub
+  const d = new THREE.Group(); d.position.set(X, D.y, D.z); d.rotation.x = MP5_TILT - Math.PI / 2; g.add(d);   // (its z up the drum, its y back)
+  lathe(d, [[0, 0], [D.r - 0.0006, 0], [D.r - 0.0006, 0.0074], [D.r - 0.0012, 0.008], [0, 0.008]], M2, 0, 0, 32);          // the plain band
+  knurl(d, D.r, 0.0115, K, 0, 0, 0.01375, 26, 3, 0.0007);                                                                   // the knurling
+  cyl(d, D.r - 0.0036, 0.0004, GM.rubber, 0, 0, 0.0197, 20);                                                                // the cup's floor
+  const gap = 0.34; [0, Math.PI].forEach(a => { const sh = new THREE.Shape(); sh.absarc(0, 0, D.r, a - Math.PI / 2 + gap, a + Math.PI / 2 - gap, false); sh.absarc(0, 0, D.r - 0.0036, a + Math.PI / 2 - gap, a - Math.PI / 2 + gap, true); sh.closePath();
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.0048, bevelEnabled: false, curveSegments: 10 }); geo.translate(0, 0, 0.0195); const m = new THREE.Mesh(geo, K); m.castShadow = true; d.add(m); });   // the rim, cut for the notch
+  const h = 0.0138; cyl(g, 0.0019, 2 * D.r / Math.cos(MP5_TILT) + 0.0004, GM.rubber, X, D.y + h * Math.cos(MP5_TILT), D.z + h * Math.sin(MP5_TILT), 12);   // the aperture, through it
+}
 function stockPad(g, w, h, z, y) { box(g, w + 0.004, h, 0.025, GM.rubber, X, y, z); }
 // a pistol magazine inside the grip, tilted with it, with its base plate just below the grip; it lives in the mag group so it can drop out
 function gripMag(g, y, z, tilt, w, h, d) {
@@ -723,47 +816,75 @@ const GUN_MODELS = {
   // back of a fat can, its bare front longer each level
   sub(g, m) {
     const P = GM.poly, K = GM.metal, St = GM.steel, mg = g.userData.magG || g, sd = m.integral || 0;
-    // ---- the stock (into the receiver), its butt plate, the sling slots
-    solid(g, [[0.146, 1.1268], [0.1674, 1.1274], [0.3683, 1.1302], [0.3778, 1.1313], [0.3947, 1.1346], [0.4125, 1.1399], [0.429, 1.148], [0.453, 1.1626], [0.4637, 1.1683], [0.4654, 1.1698], [0.4836, 1.1801], [0.4903, 1.1818], [0.497, 1.1822], [0.505, 1.1818], [0.505, 1.0642], [0.4705, 1.0641], [0.4663, 1.0648], [0.4552, 1.0684], [0.4417, 1.0687], [0.4342, 1.068], [0.411, 1.0595], [0.3822, 1.0476], [0.3661, 1.0411], [0.3217, 1.0234], [0.2965, 1.0132], [0.2701, 1.0024], [0.2542, 0.9967], [0.2247, 0.9846], [0.2009, 0.9744], [0.1903, 0.9708], [0.1843, 0.9678], [0.1796, 0.9669], [0.1606, 0.9659], [0.15, 0.9662]], 0.044, P, X, 0.01);
-    solid(g, [[0.1393, 1.1188], [0.1401, 1.1217], [0.1425, 1.1239], [0.148, 1.1261], [0.159, 1.1273], [0.159, 0.966], [0.1557, 0.9661], [0.151, 0.9684], [0.1482, 0.9725], [0.1464, 0.9834], [0.1461, 1.0049], [0.1443, 1.0245], [0.1437, 1.0465], [0.1429, 1.0565], [0.1419, 1.0593], [0.1407, 1.0833], [0.1395, 1.0937]], 0.046, GM.rubber, X, 0.003);
-    [0.222, 0.308].forEach(z => [-1, 1].forEach(s2 => cyl(g, 0.0055, 0.002, GM.rubber, X + s2 * 0.0222, 1.079, z, 12).rotation.set(0, 0, Math.PI / 2)));
-    // ---- the upper, its outline traced in one (receiver tube and its end cap, the rear sight's base, the claw-mount
-    // notches, the mag well, the cocking tube's top, the front sight, the barrel's nub, the handguard's belly), then the
-    // rounder handguard and the round cocking tube over it on the same lines
-    const UP = [[0.7865, 1.0565], [0.717, 1.0565], [0.7167, 1.1116], [0.4877, 1.1116], [0.47, 1.1116], [0.47, 1.1715], [0.4836, 1.1801], [0.4876, 1.1813], [0.497, 1.1822], [0.5118, 1.1817], [0.5168, 1.1806], [0.5243, 1.1778], [0.5294, 1.1742], [0.5333, 1.1739], [0.535, 1.1749], [0.5361, 1.1765], [0.5366, 1.1876], [0.538, 1.1912], [0.541, 1.1955], [0.548, 1.1996], [0.5514, 1.2003], [0.5588, 1.2003], [0.5628, 1.2036], [0.565, 1.2041], [0.5844, 1.1973], [0.5887, 1.195], [0.5893, 1.1934], [0.5892, 1.1912], [0.5863, 1.1862], [0.5841, 1.1791], [0.5856, 1.1773], [0.5919, 1.1734], [0.6, 1.1748], [0.6624, 1.174], [0.6644, 1.1746], [0.6659, 1.1778], [0.669, 1.1781], [0.6705, 1.1764], [0.673, 1.1752], [0.6873, 1.175], [0.691, 1.1781], [0.6937, 1.1777], [0.6952, 1.1745], [0.7042, 1.1745], [0.7909, 1.1747], [0.811, 1.1726], [0.8609, 1.1731], [0.8782, 1.1714], [0.9144, 1.1713], [0.9208, 1.1719], [0.9239, 1.1756], [0.9286, 1.178], [0.9367, 1.1786], [0.9421, 1.1781], [0.9467, 1.1763], [0.9484, 1.1722], [0.9531, 1.1713], [1.001, 1.1709], [1.0145, 1.1681], [1.0196, 1.1703], [1.0334, 1.1703], [1.041, 1.1682], [1.0427, 1.1695], [1.0436, 1.1734], [1.043, 1.1773], [1.0423, 1.1863], [1.0418, 1.195], [1.0429, 1.2087], [1.0446, 1.2114], [1.0467, 1.2131], [1.0514, 1.2143], [1.0555, 1.2144], [1.061, 1.2128], [1.0639, 1.2079], [1.0681, 1.1939], [1.0691, 1.1852], [1.069, 1.1745], [1.0719, 1.1701], [1.0729, 1.1669], [1.0736, 1.1604], [1.0735, 1.1522], [1.0721, 1.1432], [1.0689, 1.1378], [1.0693, 1.1324], [1.071, 1.1298], [1.0738, 1.1307], [1.0755, 1.1331], [1.08, 1.1338], [1.0846, 1.1331], [1.0872, 1.1314], [1.0916, 1.1297], [1.1189, 1.1295], [1.12, 1.1289], [1.122, 1.1258], [1.1225, 1.1184], [1.1217, 1.1109], [1.1186, 1.1077], [1.1097, 1.1073], [1.0849, 1.1082], [1.0757, 1.1073], [1.0715, 1.1082], [1.0694, 1.1069], [1.068, 1.1037], [1.0664, 1.1026], [1.0633, 1.102], [1.0455, 1.1023], [1.0437, 1.1013], [1.0399, 1.0974], [1.0365, 1.0966], [0.9969, 1.0933], [0.9489, 1.0878], [0.937, 1.0872], [0.9296, 1.0858], [0.8976, 1.0833], [0.8774, 1.0814], [0.8585, 1.0793], [0.8517, 1.0779], [0.8048, 1.0732], [0.8018, 1.0736], [0.7992, 1.0751], [0.798, 1.0791], [0.7969, 1.0869], [0.796, 1.0882], [0.7946, 1.0886], [0.7874, 1.0851], [0.785, 1.0804], [0.7847, 1.077], [0.7858, 1.0735]];
-    solid(g, sd ? [[0.7865, 1.0565], [0.717, 1.0565], [0.7167, 1.1116], [0.4877, 1.1116], ...UP.slice(4, 44), [0.7909, 1.1747], [0.7985, 1.1747], [0.7985, 1.0886], [0.7946, 1.0886], [0.7874, 1.0851], [0.785, 1.0804], [0.7847, 1.077], [0.7858, 1.0735]] : UP, 0.044, K, X, 0.005);
-    [-1, 1].forEach(s2 => box(g, 0.002, 0.006, 0.17, GM.metal2, X + s2 * 0.0225, 1.146, 0.63));                          // the ribs down the receiver
-    cyl(g, 0.0105, 0.032, K, X, 1.191, 0.562, 16).rotation.set(0, 0, Math.PI / 2);                                    // the sight drum
+    // ---- the stock: the A2's moulded polymer, its edges rounded right over and slimmer through the wrist than at the butt
+    // or where it takes the receiver (STK_W); the rubber butt pad ribbed down its face; the sling plate on the left (a
+    // hexagon round a slot with a bar across it), two plugs on the right
+    const stk = new THREE.Group(); g.add(stk);
+    solid(stk, [[0.146, 1.1268], [0.1674, 1.1274], [0.3683, 1.1302], [0.3778, 1.1313], [0.3947, 1.1346], [0.4125, 1.1399], [0.429, 1.148], [0.453, 1.1626], [0.4637, 1.1683], [0.4654, 1.1698], [0.4836, 1.1801], [0.4903, 1.1818], [0.497, 1.1822], [0.505, 1.1818], [0.505, 1.0642], [0.4705, 1.0641], [0.4663, 1.0648], [0.4552, 1.0684], [0.4417, 1.0687], [0.4342, 1.068], [0.411, 1.0595], [0.3822, 1.0476], [0.3661, 1.0411], [0.3217, 1.0234], [0.2965, 1.0132], [0.2701, 1.0024], [0.2542, 0.9967], [0.2247, 0.9846], [0.2009, 0.9744], [0.1903, 0.9708], [0.1843, 0.9678], [0.1796, 0.9669], [0.1606, 0.9659], [0.15, 0.9662]], 0.044, P, X, 0.017);
+    solid(stk, [[0.1393, 1.1188], [0.1401, 1.1217], [0.1425, 1.1239], [0.148, 1.1261], [0.159, 1.1273], [0.159, 0.966], [0.1557, 0.9661], [0.151, 0.9684], [0.1482, 0.9725], [0.1464, 0.9834], [0.1461, 1.0049], [0.1443, 1.0245], [0.1437, 1.0465], [0.1429, 1.0565], [0.1419, 1.0593], [0.1407, 1.0833], [0.1395, 1.0937]], 0.046, GM.rubber, X, 0.008);
+    taperX(stk, STK_W);
+    for (let k = -2; k <= 2; k++) { const r = box(g, 0.0024, 0.13, 0.002, GM.rubber, X + k * 0.0072, 1.044, 0.1418); r.rotation.x = -0.053; }   // the pad's ribs
+    { const zs = 0.218, xs = X + 0.022 * STK_W(zs); const hx = new THREE.Mesh(new THREE.CylinderGeometry(0.0172, 0.0172, 0.003, 6), GM.metal2); hx.position.set(xs, 1.062, zs); hx.rotation.set(Math.PI / 6, 0, Math.PI / 2); hx.castShadow = true; g.add(hx);
+      box(g, 0.0012, 0.019, 0.011, GM.rubber, xs + 0.0016, 1.062, zs); box(g, 0.004, 0.021, 0.0042, K, xs + 0.0025, 1.062, zs); }   // the sling plate, its slot and bar
+    [0.222, 0.308].forEach(z => cyl(g, 0.0055, 0.002, GM.rubber, X - 0.022 * STK_W(z) - 0.0004, 1.079, z, 12).rotation.set(0, 0, Math.PI / 2));   // the plugs
+    // ---- the upper, on the lines traced off the photo but built round, the way the steel really is: the receiver a tube
+    // with flat sides and a round top, the channel pressed down each side with its lip standing out (mp5Section), the
+    // mag well under its front, the drum rear sight on top (mp5Rear) with the notched claw-mount tabs ahead of it; the
+    // port on the right with the bolt in it
+    // (the channel stops short of the mag well, and on the right round the port; its ends are rounded off)
+    [[0.47, 0.595, 1, 1], [0.595, 0.665, 1, 0], [0.665, 0.711, 1, 1], [0.711, MP5.rcvEnd, 0, 0]].forEach(([z0, z1, l, r]) => xsec(g, mp5Section(l, r), z0, z1, K, 0));
+    [[1, 0.711], [-1, 0.711], [-1, 0.595], [-1, 0.665]].forEach(([s2, z]) => cyl(g, 0.0102, 0.0052, K, X + s2 * (MP5.rw - 0.0026), 1.1398, z, 16).rotation.set(0, 0, Math.PI / 2));
+    [[1, 0.48, 0.705], [-1, 0.48, 0.59], [-1, 0.67, 0.705]].forEach(([s2, z0, z1]) => box(g, 0.0006, 0.0062, z1 - z0, GM.rubber, X + s2 * (MP5.rw - 0.0047), 1.1462, (z0 + z1) / 2));   // the shadow up under its top edge
+    solid(g, [[0.717, 1.0565], [0.7865, 1.0565], [0.7858, 1.0735], [0.7847, 1.077], [0.785, 1.0804], [0.7874, 1.0851], [0.7946, 1.0886], [MP5.rcvEnd, 1.0886], [MP5.rcvEnd, 1.115], [0.717, 1.115]], 0.044, K, X, 0.004);   // the mag well
+    mp5Rear(g);
+    [0.667, 0.6913].forEach(z => { const t = MP5.top; solid(g, [[z - 0.0042, t - 0.002], [z - 0.0042, t + 0.001], [z - 0.0024, t + 0.0036], [z + 0.0024, t + 0.0036], [z + 0.0042, t + 0.001], [z + 0.0042, t - 0.002]], 0.016, K, X, 0.0005);
+      box(g, 0.0168, 0.0016, 0.0014, GM.rubber, X, t + 0.0029, z); });                                              // the claw-mount tabs, notched for the claws
     profile(g, shp([[0.6, 1.128], [0.66, 1.128], [0.66, 1.156], [0.6, 1.156]]), 0.002, GM.rubber, X - 0.0222, 0.0004);   // the port, and its bolt
     const bc = box(g, 0.003, 0.022, 0.05, St, X - 0.0232, 1.142, 0.63); bc.userData.clip = 0.6;
-    // ---- the cocking tube's handle on the left (it stays forward as the gun fires: the bolt in the port is what cycles)
-    const sl = new THREE.Group(); g.add(sl); box(sl, 0.016, 0.008, 0.012, St, X + 0.02, 1.16, 0.985); cyl(sl, 0.006, 0.01, K, X + 0.03, 1.16, 0.985, 10).rotation.set(0, 0, Math.PI / 2);
+    // ---- the cocking tube's handle on the left, at the front of its slot (it stays forward as the gun fires: the bolt in
+    // the port is what cycles): an arm angled out, up and forward, and the knurled ball on its end; the slot runs back
+    // from it to the notch it's slapped up into
+    const sl = new THREE.Group(); g.add(sl); mp5Handle(sl, MP5.handle);
+    box(g, 0.0016, 0.0046, MP5.handle - 0.828, GM.rubber, X + MP5.ct.r - 0.0003, MP5.ct.y, (MP5.handle + 0.828) / 2);   // the slot
+    { const n = box(g, 0.0016, 0.0046, 0.014, GM.rubber, X + MP5.ct.r - 0.0003, MP5.ct.y + 0.004, 0.83); n.rotation.x = -0.75; }   // and its notch
     let front;
     if (!sd) {
-      solid(g, [[0.7975, 1.15], [1.0385, 1.15], [1.0365, 1.0966], [0.9969, 1.0933], [0.9489, 1.0878], [0.937, 1.0872], [0.8976, 1.0833], [0.8774, 1.0814], [0.8585, 1.0793], [0.8048, 1.0732], [0.8018, 1.0736], [0.7992, 1.0751], [0.798, 1.0791], [0.7969, 1.0869]], 0.052, P, X, 0.012);   // the handguard
+      solid(g, [[0.7975, 1.15], [1.0385, 1.15], [1.0365, 1.0966], [0.9969, 1.0933], [0.9489, 1.0878], [0.937, 1.0872], [0.8976, 1.0833], [0.8774, 1.0814], [0.8585, 1.0793], [0.8048, 1.0732], [0.8018, 1.0736], [0.7992, 1.0751], [0.798, 1.0791], [0.7969, 1.0869]], 0.052, P, X, 0.016);   // the handguard
       [-1, 1].forEach(s2 => box(g, 0.002, 0.007, 0.17, GM.rubber, X + s2 * 0.0262, 1.118, 0.925));                     // its flutes
-      cyl(g, 0.0125, 0.272, K, X, 1.159, 0.934, 16);                                                                  // the cocking tube
-      cyl(g, 0.0112, 0.05, K, X, 1.119, 1.097, 16); cyl(g, 0.005, 0.002, GM.rubber, X, 1.119, 1.1228, 10);            // the barrel's nub, its bore
-      front = 1.1225;
+      cyl(g, MP5.ct.r, MP5.fs - MP5.rcvEnd + 0.004, K, X, MP5.ct.y, (MP5.rcvEnd + MP5.fs) / 2, 24);                    // the cocking tube
+      mp5Front(g, 0, true); front = MP5.muzzle;
     } else {
       // ---- the SD: its cocking tube and front sight further back, the ribbed handguard round the back of the can,
       // then the can's bare front, longer each level
       const L = 0.14 + 0.05 * (sd - 1), z1 = 1.023, z2 = z1 + L;
-      cyl(g, 0.0125, 0.214, K, X, 1.159, 0.904, 16);
-      profile(g, shp([[0.9876, 1.165], [1.0136, 1.165], [1.0119, 1.1939], [1.0071, 1.2079], [1.0042, 1.2128], [0.9987, 1.2144], [0.9946, 1.2143], [0.9899, 1.2131], [0.9861, 1.2087], [0.985, 1.195]]), 0.026, K, X, 0.001);
+      cyl(g, MP5.ct.r, MP5.fs + MP5.sdShift - MP5.rcvEnd + 0.004, K, X, MP5.ct.y, (MP5.rcvEnd + MP5.fs + MP5.sdShift) / 2, 24);
+      mp5Front(g, MP5.sdShift, false);
       ribTube(g, 0.034, z1 - 0.797, P, X, 1.12, (0.797 + z1) / 2, 18, 0.004, 1);
       cyl(g, 0.0235, z2 - z1 + 0.01, K, X, 1.12, (z1 + z2) / 2, 22); ring(g, 0.025, 0.008, K, X, 1.12, z2 - 0.004); cyl(g, 0.006, 0.002, GM.rubber, X, 1.12, z2 + 0.0005, 10);
       front = z2;
     }
-    // ---- the trigger housing, grip and guard in one, traced with the guard's opening cut right through; the trigger
-    // hanging in it; the selector
-    solid(g, [[0.5616, 0.8978], [0.5562, 0.8986], [0.5308, 0.9121], [0.5035, 0.9291], [0.4966, 0.9343], [0.4954, 0.9361], [0.4948, 0.9386], [0.4967, 0.9432], [0.5051, 0.9552], [0.5125, 0.9675], [0.5191, 0.9764], [0.5264, 0.9885], [0.5393, 1.0073], [0.5407, 1.0103], [0.5506, 1.0243], [0.5546, 1.0339], [0.5549, 1.0403], [0.5525, 1.049], [0.5482, 1.0569], [0.5445, 1.0603], [0.5389, 1.0635], [0.5237, 1.0645], [0.5179, 1.064], [0.4801, 1.0641], [0.4801, 1.1121], [0.7196, 1.1121], [0.7197, 1.0632], [0.7273, 1.0289], [0.7237, 1.0222], [0.7229, 1.0162], [0.72, 1.0132], [0.7186, 1.0099], [0.7155, 1.0084], [0.7144, 1.0111], [0.7201, 1.0246], [0.7201, 1.0281], [0.716, 1.0274], [0.7111, 1.0279], [0.7048, 1.0249], [0.7022, 1.0225], [0.6993, 1.0178], [0.6869, 0.985], [0.6808, 0.9788], [0.6724, 0.9747], [0.635, 0.9749], [0.6254, 0.9766], [0.6107, 0.9841], [0.6082, 0.9843], [0.6037, 0.9834], [0.5992, 0.9797], [0.595, 0.9739], [0.5849, 0.9511], [0.5665, 0.9134], [0.5661, 0.9097], [0.5673, 0.9043], [0.5669, 0.9016], [0.5646, 0.8986]], 0.04, P, X, 0.0025,
-      [shp(inset([[0.6658, 0.9833], [0.6296, 0.9852], [0.6205, 0.9892], [0.6102, 0.9963], [0.609, 0.9997], [0.6098, 1.0038], [0.6161, 1.0178], [0.6222, 1.0287], [0.6249, 1.0297], [0.6558, 1.0295], [0.6816, 1.0289], [0.6878, 1.0282], [0.6906, 1.0269], [0.6916, 1.0243], [0.6914, 1.0212], [0.6814, 0.9929], [0.6758, 0.9864], [0.6705, 0.9838]], 0))]);
-    profile(g, shp([[0.6296, 1.0315], [0.6488, 1.0315], [0.6488, 1.0287], [0.6458, 1.0245], [0.6427, 1.0185], [0.6418, 1.0132], [0.6424, 1.0049], [0.6498, 0.9902], [0.6492, 0.9877], [0.6465, 0.987], [0.6421, 0.9889], [0.64, 0.9907], [0.6376, 0.9937], [0.6344, 1.0], [0.6325, 1.0122], [0.6335, 1.0242], [0.6326, 1.0271], [0.6296, 1.0295]]), 0.008, P, X, 0.0008);
+    // ---- the trigger housing: the block, bevelled, the selector's markings side (its bottom runs along the top of the
+    // guard's opening, then up into the grip); the guard a narrower loop under it, its front post coming down from the
+    // block and its bar running back into the grip; the grip on its own, rounded right over (nearly oval across), its
+    // heel flared; the mag release paddle hanging behind the magazine; the trigger hanging in the opening; the push
+    // pins; the selector
+    solid(g, [[0.4801, 1.0641], [0.4801, 1.1121], [0.7196, 1.1121], [0.7197, 1.0632], [0.7273, 1.0289], [0.6906, 1.0277], [0.6249, 1.0297], [0.5389, 1.0635], [0.5237, 1.0645]], 0.04, P, X, 0.004);
+    solid(g, [[0.6816, 1.032], [0.7201, 1.032], [0.7201, 1.0281], [0.716, 1.0274], [0.7111, 1.0279], [0.7048, 1.0249], [0.7022, 1.0225], [0.6993, 1.0178], [0.6869, 0.985], [0.6808, 0.9788], [0.6724, 0.9747], [0.635, 0.9749], [0.6254, 0.9766], [0.6107, 0.9841], [0.6037, 0.9834], [0.596, 0.985], [0.597, 0.9935], [0.6102, 0.9935], [0.6205, 0.9892], [0.6296, 0.9852], [0.6658, 0.9833], [0.6705, 0.9838], [0.6758, 0.9864], [0.6814, 0.9929], [0.6914, 1.0212], [0.6916, 1.0243], [0.6906, 1.0269], [0.6878, 1.0282], [0.6816, 1.0289]], 0.022, P, X, 0.0025);   // the guard
+    profile(g, shp(inset([[0.6249, 1.0297], [0.6222, 1.0287], [0.6161, 1.0178], [0.6098, 1.0038], [0.609, 0.9997], [0.6102, 0.9963], [0.6045, 0.9875], [0.5992, 0.9797], [0.595, 0.9739], [0.5849, 0.9511], [0.5665, 0.9134], [0.5661, 0.9097], [0.5673, 0.9043], [0.5669, 0.9016], [0.5646, 0.8986], [0.5616, 0.8978], [0.5562, 0.8986], [0.5308, 0.9121], [0.5035, 0.9291], [0.4966, 0.9343], [0.4954, 0.9361], [0.4948, 0.9386], [0.4967, 0.9432], [0.5051, 0.9552], [0.5125, 0.9675], [0.5191, 0.9764], [0.5264, 0.9885], [0.5393, 1.0073], [0.5407, 1.0103], [0.5506, 1.0243], [0.5546, 1.0339], [0.5549, 1.0403], [0.5525, 1.049], [0.5482, 1.0569], [0.5445, 1.0603], [0.5389, 1.0635], [0.535, 1.085], [0.628, 1.085]], 0.013)), 0.01, P, X, 0.013, 6);   // the grip (as solid, with more steps round its edges)
+    solid(g, [[0.7273, 1.034], [0.7273, 1.0289], [0.7237, 1.0222], [0.7229, 1.0162], [0.72, 1.0132], [0.7186, 1.0099], [0.7155, 1.0084], [0.7144, 1.0111], [0.7201, 1.0246], [0.7201, 1.034]], 0.012, K, X, 0.0008);   // the mag release paddle
+    profile(g, shp([[0.6296, 1.047], [0.6488, 1.047], [0.6488, 1.0287], [0.6458, 1.0245], [0.6427, 1.0185], [0.6418, 1.0132], [0.6424, 1.0049], [0.6498, 0.9902], [0.6492, 0.9877], [0.6465, 0.987], [0.6421, 0.9889], [0.64, 0.9907], [0.6376, 0.9937], [0.6344, 1.0], [0.6325, 1.0122], [0.6335, 1.0242], [0.6326, 1.0271], [0.6296, 1.0295]]), 0.008, P, X, 0.0008);
+    [[0.513, 1.089], [0.709, 1.093]].forEach(([z, y]) => { cyl(g, 0.0042, 0.0432, GM.metal2, X, y, z, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.0016, 0.0434, GM.rubber, X, y, z, 10).rotation.set(0, 0, Math.PI / 2); });   // the push pins holding it on, standing out each side
     { const lv = box(g, 0.003, 0.006, 0.026, St, X + 0.0215, 1.085, 0.66); lv.rotation.x = 0.5; cyl(g, 0.006, 0.003, St, X + 0.021, 1.085, 0.655, 12).rotation.set(0, 0, Math.PI / 2); }
-    // ---- the curved magazine (in the mag group so the reload drops it), longer with the double stack
+    // ---- the curved magazine (in the mag group so the reload drops it), longer with the double stack: its spines
+    // rounded front and back, a raised panel pressed down each side, the floor plate on its foot with the pin through it
     const k = [1, 1.6, 1.75, 1.9][m.stack || 0], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
-    solid(mg, [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext), 0.026, K, X, 0.003);
+    const MO = [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext);
+    solid(mg, MO, 0.026, K, X, 0.005);
+    solid(mg, inset(MO, 0.0105), 0.0278, K, X, 0.0007);                                                                          // the panel
+    { const b1 = ext([0.8223, 0.8286]), b2 = ext([0.8573, 0.849]), l = Math.hypot(b2[0] - b1[0], b2[1] - b1[1]), u = [(b2[0] - b1[0]) / l, (b2[1] - b1[1]) / l];
+      const at = (p, a, b) => [p[0] + u[0] * a - u[1] * b, p[1] + u[1] * a + u[0] * b];   // a along the foot, b up into the mag
+      solid(mg, [at(b1, -0.005, -0.0015), at(b2, 0.005, -0.0015), at(b2, 0.005, 0.007), at(b1, -0.005, 0.007)], 0.0295, K, X, 0.0012);   // the floor plate
+      const c = at(b1, l / 2, 0.0028); cyl(mg, 0.0019, 0.0298, GM.rubber, X, c[1], c[0], 10).rotation.set(0, 0, Math.PI / 2); }      // its pin
     return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: bc, bolts: [], travel: 0.065, lock: true, top: 1.1742, sz: 0.66, ownMags: true, laser: { y: sd ? 1.088 : 1.0867, z: 0.88 } };   // the laser clamped under the handguard
   },
   // assault rifle: a Colt M4 carbine, traced off a side-on photo (the open dust cover off another). The six-position
