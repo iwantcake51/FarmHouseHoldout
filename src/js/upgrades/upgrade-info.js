@@ -29,7 +29,7 @@ const UPG_FX = {
   'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
   'Momentum': ['+5% damage per quick kill', 'Up to +25%, lost after 2.5 s'],
   'Canvas jacket': ['+25 max health', 'Heal 25'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
-  'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%', 'Slowdown when hit −20%'],
+  'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'Black and white'], 'Night vision goggles': ['Nights look like dusk', 'Colour in the dark'],
@@ -42,7 +42,6 @@ const UPG_FX = {
 const xTimes = v => (Math.round(v * 10) / 10) + '×';
 const stackOf = (label, base, v, next, val) => ({ label, base, v, next, val });
 const speedStack = m => stackOf('Speed', 1, () => S.speedMul, v => v * m, v => '+' + pctUp(v) + '%');
-// (Trail runners' first chip is its speed, so only Thick soles shows the slowdown adding up)
 const slowStack = k => stackOf('Slowdown when hit', 0, () => S.slowRes, v => slowAfter(v, SLOW_STEP[k]), v => '−' + Math.round(v * 100) + '%');
 const STACKS = {
   'Quick hands': stackOf('Reload time', 1, () => S.reloadMul, v => v * 0.75, v => '−' + pctDown(v) + '%'),

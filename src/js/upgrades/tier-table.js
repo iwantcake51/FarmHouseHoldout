@@ -56,7 +56,7 @@ const TIERS = {
   boots: { tag: 'Body', t: [
     { r: 'u', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 },
-    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; slowLess(SLOW_STEP.trail); } }] },
+    { r: 'r', name: 'Trail runners', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 }] },
   hammer: { tag: 'Tools', t: [
     { r: 'u', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Board up 50% faster. Boards are 25% tougher.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },

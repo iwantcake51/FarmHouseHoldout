@@ -2,8 +2,8 @@
 
 const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
 // less slowdown when you're hit (S.slowRes, zombies/ai.js): each thing that helps takes its share off what's left, so
-// they all stack (both steps of Thick soles −40% and Trail runners −20% make −71%) and none ever makes you immune to it
-const SLOW_STEP = { soles: 0.4, trail: 0.2 };
+// both steps of Thick soles stack (−40% twice makes −64%) and never make you immune to it
+const SLOW_STEP = { soles: 0.4 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
