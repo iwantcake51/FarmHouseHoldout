@@ -16,7 +16,7 @@ function loop(now) {
   let simDt = 0;
   if (state === 'play' || (state === 'dead' && P.dead)) {
     if (P.dead) tickDeath(rdt);
-    simDt = rdt * (hitStopT > 0 && !P.dead ? Math.min(timeScale, HITSTOP_SCALE) : timeScale); hitStopT = Math.max(0, hitStopT - rdt); if (simDt > 0) update(simDt);
+    simDt = rdt * timeScale; if (simDt > 0) update(simDt);
     if (P.dead) { /* tickDeath owns the time scale */ }
     else if (slowIn > 0) { slowIn -= rdt; timeScale += (slowTo - timeScale) * Math.min(1, rdt * 9); }
     else if (slowHold > 0) { slowHold -= rdt; timeScale += (slowTo - timeScale) * Math.min(1, rdt * 9); }
