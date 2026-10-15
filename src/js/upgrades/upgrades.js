@@ -68,9 +68,9 @@ const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl 
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
-// (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the drum shotgun
-// one: from its box straight to the drum
-const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, auto12: 1 };
+// (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
+// tube is what it holds; the tube extension mod is how it takes more), the drum shotgun one: from its box straight to the drum
+const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1 };
 function tierFits(k, id) {
   const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;
