@@ -4,8 +4,9 @@
 const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 },
   // how far your eyes have got used to the dark (lighting/day-night.js): it lifts the black-and-white dark a little
   uAdapt: { value: 0 },
-  // the night vision monocular's lift (lighting/lightmap.js): the dark brighter, but still in black and white
-  uNvMono: { value: 0 },
+  // night vision (lighting/lightmap.js): how much it lifts the black-and-white dark, and how much of the colour it
+  // brings back there (a little through the monocular, more through the goggles, never all of it)
+  uNvMono: { value: 0 }, uNvSat: { value: 0 },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
@@ -48,7 +49,7 @@ float flCone(vec4 f, vec2 p, float a0, float h, float row) {
   return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform vec4 uFl[2];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform vec4 uFlA;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[2];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform vec4 uFlA;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -91,9 +92,11 @@ const FRAG_BODY = `
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
   float lmV = mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
   lmC *= lmV;
-  // eyes used to the dark see a bit more of it, and the night vision monocular lifts it more, still without colour
-  float lmG = (dot(lmC, vec3(0.299, 0.587, 0.114)) + dot(lmBase, vec3(0.299, 0.587, 0.114)) * uNvMono * lmV) * (1.0 + uAdapt) + uAdapt * 0.016;
-  gl_FragColor.rgb = mix(vec3(lmG), lmC, lmL);   // colour only where there's light: the dark goes black and white
+  // eyes used to the dark see a bit more of it, and night vision lifts it more, bringing back some of its colour
+  float lmBL = dot(lmBase, vec3(0.299, 0.587, 0.114));
+  float lmG = (dot(lmC, vec3(0.299, 0.587, 0.114)) + lmBL * uNvMono * lmV) * (1.0 + uAdapt) + uAdapt * 0.016;
+  vec3 lmD = mix(vec3(lmG), min(lmBase * (lmG / max(lmBL, 0.02)), vec3(1.0)), uNvSat);
+  gl_FragColor.rgb = mix(lmD, lmC, lmL);   // colour only where there's light: the dark goes black and white
   // clouds passing over: their shade drifts across the farm by day (not indoors)
   if (uCloud.z > 0.001) {
     vec2 cq = vWp.xz * 0.022 + uCloud.xy;
@@ -135,7 +138,7 @@ const TREE_BODY = `
 function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uFl: LMU.uFl, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlA: LMU.uFlA });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlA: LMU.uFlA });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }

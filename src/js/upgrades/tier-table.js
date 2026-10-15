@@ -68,8 +68,8 @@ const TIERS = {
     { r: 'r', name: 'Eyes in the back of your head', text: 'Sense zombies within 6 m in every direction.', ap: () => { S.cone += 0.2; S.near = 6; } }] },
   night: { tag: 'Senses', t: [
     // a night vision monocular (one tube on a head mount, player/gear.js), then binocular goggles (two)
-    { r: 'r', name: 'Night vision monocular', text: 'See much further at night, in black and white.', ap: () => S.nightVis = 1 },
-    { r: 'e', name: 'Night vision goggles', text: 'See almost everything at night, in full colour.', ap: () => S.nightVis = 2.2 }] },
+    { r: 'r', name: 'Night vision monocular', text: 'See much further at night, with a hint of colour.', ap: () => S.nightVis = 1 },
+    { r: 'e', name: 'Night vision goggles', text: 'See almost everything at night, in muted colour.', ap: () => S.nightVis = 2.2 }] },
   // perks that come in steps: harder melee hits that cost less stamina a swing (S.swingStam, melee/melee.js); shooting
   // at a sprint (S.runGun, player/sprint.js), 9mm guns first, then shotguns and the assault rifle too, reloading on the
   // run; and less slowdown when you're hit
