@@ -20,6 +20,13 @@ const falloff = (id, t) => {
   const k = (W(id) && W(id).reach) || 1, f0 = F[0] * k, f1 = F[1] * k, fl = 1 - (1 - F[2]) / k;
   return t <= f0 ? 1 : t >= f1 ? fl : 1 - (1 - fl) * (t - f0) / (f1 - f0);
 };
+// how much of a shotgun's headshot bonus is left at a range: all of it out to where its damage starts to drop, none
+// by where the damage bottoms out, along the same line (so a slug, with its longer drop-off, keeps it far further)
+const headFade = (id, t) => {
+  const F = fallOf(id); if (!F || W(id).ammo !== 'shells') return 1;
+  const fl = 1 - (1 - F[2]) / ((W(id).reach) || 1);
+  return clamp((falloff(id, t) - fl) / (1 - fl), 0, 1);
+};
 const AMMO_DROP = { p9: 15, magnum: 6, shells: 6, rifle: 15 }, AMMO_CAN = { p9: 192, magnum: 54, shells: 54, rifle: 135 };
 // ammo boxes dropped by zombies hold about two thirds of a crafted batch (ammoAmt) for each gun you carry, so ammo stays
 // tight into the mid waves without running dry

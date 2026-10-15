@@ -89,7 +89,7 @@ function pickPart(z, rel, side, D) {
   return p;
 }
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
-let critNext = false;
+let critNext = false, headNext = 1;   // the next hit's crit, and how much of its headshot bonus is left at that range (headFade, weapons/ammo.js)
 // fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
 const BURN_TICK = 0.5, BURN_DMG = 7;
 function burnHurt(z) {
@@ -104,7 +104,7 @@ function burnHurt(z) {
 // second), and the most flechettes can make it bleed however many land
 const BLEED_T = 4, BLEED_R = 8, DART_BLEED_MAX = 12;
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
-  const crit = critNext; critNext = false;
+  const crit = critNext, headK = headNext; critNext = false; headNext = 1;
   if (z.dead) return false;
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
@@ -114,7 +114,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
-  const dealt = dmg * (D.melee ? 1 : part === 'head' ? headMulFor(D) : partMult(part));
+  const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
   zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)

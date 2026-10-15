@@ -147,7 +147,7 @@ function gunFire(id, D, side) {
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the revolver's
       // aimed Dead-eye (D.aimCrit), or Lucky shot's 1 in 12 on any bullet hit
-      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
+      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit; headNext = headFade(id, hits[k].t);
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
