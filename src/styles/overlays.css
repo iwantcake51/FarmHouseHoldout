@@ -74,7 +74,7 @@
   background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
   -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
-#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 76% at center,transparent 44%,rgba(160,8,4,.42) 68%,rgba(100,0,0,.9) 100%)}
+#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 76% at center,transparent 40%,rgba(170,6,2,.5) 64%,rgba(90,0,0,.95) 100%),radial-gradient(ellipse 78% 74% at center,transparent 50%,rgba(20,0,0,.55) 100%)}
 #vitals.bleed #hpTxt{color:color-mix(in srgb,#ff3a26 calc(var(--bp,0) * 100%),var(--ink))}
 #vitals.bleed .bar{box-shadow:0 0 calc(var(--bp,0) * 12px) rgba(224,40,24,.8)}
 .mood.bleed{color:color-mix(in srgb,#ff5a40 calc(var(--bp,0) * 100%),var(--ink))}

@@ -104,7 +104,7 @@ function damageVignettes(rdt, hpF) {
   if (bleeding && bleedVig === 0) bleedPh = 0;   // the first beat lands straight away
   bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
   bleedPh = (bleedPh + rdt / (hpF < 0.3 ? 0.62 : 0.85)) % 1;
-  const beat = bleedPh < 0.16 ? smooth(bleedPh / 0.16) : 1 - smooth((bleedPh - 0.16) / 0.84), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.22 * bleedVig + 0.78 * bp) * 50) / 50;
+  const beat = bleedPh < 0.16 ? smooth(bleedPh / 0.16) : 1 - smooth((bleedPh - 0.16) / 0.84), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
 }
