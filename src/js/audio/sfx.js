@@ -15,6 +15,8 @@ const SFX = {
   sever() { nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
   // a skull caving in under the sledgehammer: a sharp crack, a deep wet crunch, then the spatter
   crush() { nz(0.07, 'bandpass', 1900, 600, 0.6, 1.4); tn(0.14, 'sine', 120, 42, 0.6); setTimeout(() => nz(0.24, 'lowpass', 1200, 180, 0.5, 1), 20); setTimeout(() => nz(0.18, 'bandpass', 2600, 900, 0.22, 1.8), 60); },
+  // a skull split by the fire axe: a hard crack of bone, then a wet tearing as it comes apart
+  split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
   headPop() { nz(0.12, 'bandpass', 900, 260, 0.5, 1.6); tn(0.05, 'triangle', 760, 240, 0.14); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22, 1), 30); },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },

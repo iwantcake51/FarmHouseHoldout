@@ -16,7 +16,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   let kind;
   if (z.vault) kind = 'vault';
   else if (z.crawl) kind = 'crawl';
-  else if (part === 'crush') kind = rand() < 0.55 ? 'crumple' : 'knees';   // the head crushed from above: it drops where it stands
+  else if (part === 'crush') kind = rand() < 0.55 ? 'crumple' : 'knees';   // the head crushed or split from above: it drops where it stands
   else if (heavy) kind = along > 0 ? 'forward' : 'blown';
   else if (part === 'head' && rand() < 0.6) kind = 'crumple';
   else if (part === 'legL' || part === 'legR') kind = 'knees';
