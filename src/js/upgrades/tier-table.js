@@ -69,6 +69,19 @@ const TIERS = {
   night: { tag: 'Senses', t: [
     { r: 'r', name: 'Night eyes', text: 'See much further at night.', ap: () => S.nightVis = 1 },
     { r: 'e', name: 'Cat eyes', text: 'See almost everything at night.', ap: () => S.nightVis = 2.2 }] },
+  // perks that come in steps: harder melee hits that cost less stamina a swing (S.swingStam, melee/melee.js); shooting
+  // at a sprint (S.runGun, player/sprint.js), 9mm guns first, then shotguns and the assault rifle too, reloading on the
+  // run; and less slowdown when you're hit
+  strong: { tag: 'Melee', t: [
+    { r: 'u', name: 'Strong arms', text: 'Melee hits 25% harder. Swings cost 8% less stamina.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } },
+    { r: 'u', name: 'Strong arms II', text: 'Melee hits 25% harder again. Swings cost 8% less stamina again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } },
+    { r: 'r', name: 'Strong arms III', text: 'Melee hits 25% harder again. Swings cost 8% less stamina again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } }] },
+  rungun: { tag: 'Body', t: [
+    { r: 'r', name: 'Run and gun', text: 'Shoot pistols and SMGs while you sprint, far less accurately.', ap: () => { S.runGun = 1; } },
+    { r: 'r', name: 'Run and gun II', text: 'Shotguns and the assault rifle too: fire and pump them at a sprint. Reload any of them without stopping. Not the hunting rifle or the LMG.', ap: () => { S.runGun = 2; } }] },
+  soles: { tag: 'Body', t: [
+    { r: 'u', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } },
+    { r: 'r', name: 'Thick soles II', text: 'Getting hit slows you down 40% less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },
   feed: { tag: 'Body', t: [
     // a kill only sometimes feeds you (FEED: how much, how often, more often for a headshot), and only so much a wave, so
     // bandages are still what keeps you going

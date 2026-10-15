@@ -15,7 +15,9 @@
 //
 // Run and gun (S.runGun) lets you sprint and fire a 9mm gun, a pistol or a submachine gun, at anything within RG_ARC
 // of the way you're running: the gun stays up and the chest on the aim, the shots far looser (RG_SPREAD). Anything
-// further round than that, the gun comes down as usual.
+// further round than that, the gun comes down as usual. Its second step adds the shotguns (pumped on the run too) and
+// the assault rifle, never the hunting rifle or the LMG, and lets you reload any of them without breaking the sprint.
+
 const WALK_SPEED = 3.5;
 const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
@@ -37,7 +39,9 @@ const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and f
 
 function sprintKey() { return keys.has('shift') || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
-function runGunOK() { const D = W(curId()); return !!S.runGun && !!D && !D.melee && D.ammo === 'p9'; }
+function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
+// and from its second step, a reload carries on through a sprint (and doesn't stop one starting)
+const rgReload = () => S.runGun >= 2 && runGunOK();
 // Run and gun, aiming within its arc of the way you're running: a sprint keeps the gun up, and it fires
 const rgArc = () => runGunOK() && Math.abs(angDiff(P.aim, ANIM.runYaw ?? P.aim)) < RG_ARC;
 function runGunning() { return !!P.sprint && rgArc(); }
@@ -67,9 +71,9 @@ function updateSprint(dt, moving, wx, wz) {
   // pressing sprint as you move cuts a reload short: what's in stays in (the rest of the mag, the shells already fed),
   // a revolver's cylinder is flicked shut (player/hold.js) and you break into the sprint
   const sk = sprintKey(), skPress = sk && !P.sprintKeyWas; P.sprintKeyWas = sk;
-  if (skPress && moving && W8.reloading && state === 'play' && !P.vault) { W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; }
+  if (skPress && moving && W8.reloading && state === 'play' && !P.vault && !rgReload()) { W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; }
   const can = moving && sk && state === 'play' && !P.dead && !P.vault && !(P.stun > 0) && !P.sprintLock && P.stam > 0 &&
-    !W8.reloading && !(P.bandT > 0) && !(W8.swing > 0) && !openSt && !(P.skid > 0) && !P.pivot && !P.fireQ && !(P.shotHold > 0) && !(INTRO.t >= 0);
+    (!W8.reloading || rgReload()) && !(P.bandT > 0) && !(W8.swing > 0) && !openSt && !(P.skid > 0) && !P.pivot && !P.fireQ && !(P.shotHold > 0) && !(INTRO.t >= 0);
   // aiming or pulling the trigger while you sprint: you skid to a stop on your momentum, the gun coming up as you slow
   if (P.sprint && (aiming || trig)) { P.skid = SPRINT.skid; SFX.skid(); sprintDust(3); }
   // pushing off hard another way at speed: plant, and shuffle round to it (the turn's played out in sprintAnim)

@@ -5,7 +5,7 @@ const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) ||
 // heavier weapons cost more stamina per swing, and one that only hits a single zombie costs SINGLE_STAM of that: it
 // has to land more swings to clear a crowd (one made long enough to sweep through more, melee/melee-stats.js, pays in full)
 const SINGLE_STAM = 0.7;
-const stamCost = D => stamUse((D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 : 0.12) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1));
+const stamCost = D => stamUse((D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 : 0.12) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
 // a swing that meets nothing costs only part of that (charged as it starts); the rest is paid when it lands on something
 const SWING_AIR = 0.55;
 // Iron lungs: a bigger tank, so everything costs less of it
