@@ -1,5 +1,5 @@
 // Zombie body animation: a pose worked out each frame for what the zombie's doing (shambling, sprinting, stomping,
-// dragging itself along, clawing at you, pounding on boards, smashing a window, climbing), and every joint eased toward
+// dragging itself along, clawing at you, pounding on boards and tearing them off, climbing), and every joint eased toward
 // it on a spring of its own. The legs follow the stride closely; the trunk a little loosely; the arms and the head
 // loosest of all, so they swing, lag behind and overshoot, and settle after every move. A hit, a shove or a sudden stop
 // throws the joints rather than snapping them to a pose, and every zombie walks in its own way (its gait, dealt as it
@@ -168,7 +168,7 @@ function zCollapsePose(z, T, K, t) {
   zBoost(K, ['rx', 'y'], 1.6);
 }
 
-// ---- attacks, pounding on boards, smashing glass ----
+// ---- attacks, and breaking boards ----
 function zAttackPose(z, a, T, K) {
   const t = a.atkT, kind = a.kind, sg = a.aside;   // sg: the striking arm's side (-1 the L arm)
   const S = sg < 0 ? 'l' : 'r', E = sg < 0 ? 'elL' : 'elR';
@@ -212,24 +212,6 @@ function zRipPose(z, a, T, K) {
   zMix(T, z.crawl ? { alx: -0.6, arx: -0.6, elL: -1.2, elR: -1.2, rx: 0.9 } : { alx: 0.45, arx: 0.5, elL: -1.45, elR: -1.35, ux: -0.32, fw: -0.12, hx: -0.3 }, Math.sin(Math.min(1, w) * Math.PI * 0.5));
   zBoost(K, ['alx', 'arx', 'elL', 'elR'], 2.2);
 }
-// smashing a window's glass (z.smash): the fist drawn back, punched through the pane at hitT, then raked about to clear
-// the shards from the frame. A crawler reaches up from the ground and claws it in
-function zSmashPose(z, a, T, K) {
-  const sm = z.smash; if (!sm) return;
-  const t = sm.t, ht = sm.hitT, sg = sm.side, H = sg < 0 ? 'l' : 'r', E = sg < 0 ? 'elL' : 'elR', o = {};
-  if (z.crawl) {
-    const reach = _zsm(0, ht * 0.8, t), hit = t > ht ? 1 - _zsm(ht, sm.dur, t) : 0;
-    o.rx = 1.2 - 0.75 * reach; o.ux = 0.15 * reach; o.hx = -0.9 * reach; o.y = 0.2 * z.T.scale + 0.06 * reach;
-    o['a' + H + 'x'] = -1.6 - 0.85 * reach + (t > ht ? 0.6 * hit : 0); o[E] = -0.3 - 0.5 * reach;
-  } else {
-    const back = _zsm(0, ht * 0.85, t) * (t < ht ? 1 : 0), after = t >= ht ? _zsm(ht, ht + 0.12, t) : 0, clear = t > ht + 0.12 ? Math.sin((t - ht) * 14) * (1 - _zsm(ht + 0.12, sm.dur, t)) : 0;
-    o['a' + H + 'x'] = t < ht ? -0.2 - 1.3 * back : -0.15 + 0.1 * clear; o['a' + H + 'y'] = t < ht ? sg * 0.45 * back : -sg * 0.2 * after + 0.45 * clear * sg;
-    o[E] = t < ht ? -0.3 - 1.25 * back : -0.1 - 0.3 * Math.abs(clear); o.uy = t < ht ? sg * 0.3 * back : -sg * 0.2 * after;
-    o.ux = t < ht ? 0.05 - 0.08 * back : 0.3 * after * (1 - _zsm(ht + 0.15, sm.dur, t)) + 0.1; o.fw = t >= ht ? 0.08 * after * (1 - _zsm(ht + 0.2, sm.dur, t)) : 0; o.hx = -0.15;
-  }
-  zMix(T, o, 1); zBoost(K, ['a' + H + 'x', 'a' + H + 'y', E, 'ux', 'uy'], t > ht - 0.05 && t < ht + 0.1 ? 3 : 1.4);
-}
-
 // ---- every frame ----
 function animateZombie(z, dt, dp, relP) {
   const a = z.an, g = a.g, m = z.m, T = _zT, K = _zK, j = a.j, v = a.v;
@@ -274,13 +256,12 @@ function animateZombie(z, dt, dp, relP) {
     // thrown back by a shove, still finding its feet
     if (z.shoved > 0 && !z.crawl) { const q = Math.sin(Math.min(1, z.shoved) * Math.PI * 0.5); T[ZJ.rx] -= q * 0.18; T[ZJ.ux] -= q * 0.4; T[ZJ.hx] -= q * 0.3; T[ZJ.alx] -= q * 0.6; T[ZJ.arx] -= q * 0.5; T[ZJ.fw] -= q * 0.1; }
     // the swing at you and the wind-up for it as it closes in
-    const ready = !z.atkBoard && !z.smash && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
+    const ready = !z.atkBoard && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
     a.wu += ((ready ? 1 - z.atk / 0.4 : 0) - a.wu) * Math.min(1, dt * 10);
     if (!z.crawl) zAttackPose(z, a, T, K);
     else if (a.atkT < 0.6) { const st = a.atkT < 0.1 ? smooth(a.atkT / 0.1) : 1 - _zsm(0.1, 0.6, a.atkT); zMix(T, { rx: 0.85, alx: -2.1 + 0.4 * st, arx: -1.9, elL: -0.2, hx: -0.2 }, st); zBoost(K, ['alx', 'rx', 'hx'], 2.4); }
     a.bw += ((z.atkBoard ? 1 : 0) - a.bw) * Math.min(1, dt * 6); zBoardPose(z, a, T, K);
     a.rip = Math.max(0, a.rip - dt * 1.8); zRipPose(z, a, T, K);
-    zSmashPose(z, a, T, K);
   }
   // now and then a twitch: the head jerks, a shoulder hitches
   if ((a.twT -= dt) <= 0) {

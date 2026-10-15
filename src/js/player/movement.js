@@ -26,8 +26,6 @@ function updatePlayer(dt) {
     } else {
       // the jump follows its plan (player/vault-plan.js), still moving at the end so the landing carries on into a walk
       v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
-      // diving through a window still glazed: you go through the glass, head and arms first
-      if (v.kind === 'window' && !v.glassDone && q.s > -0.45) { v.glassDone = true; const o = openAt[idx(ci(v.C[0]), ci(v.C[1]))]; if (glassIntact(o)) smashGlass(o, v.dx, v.dz); }
       P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
       if (v.t >= 1) {
         // the weapon was put away for the jump (unless Vault fire kept it in hand): it's drawn again as you land, the

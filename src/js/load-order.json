@@ -85,7 +85,6 @@
   "ui/clock.js",
   "lighting/lightmap.js",
   "lighting/window-glow.js",
-  "world/window-glass.js",
   "lighting/static-lights.js",
   "lighting/day-night.js",
   "lighting/vision.js",

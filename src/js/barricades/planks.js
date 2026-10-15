@@ -47,43 +47,75 @@ function addBoard(o) {
   const m = makePlank(o.out * side);
   m.position.set(rr(-.06, .06), o.ys[n] + rr(-0.04, 0.04), o.out * side * (0.52 + n * 0.012)); m.rotation.set(rr(-0.03, 0.03), rr(-0.04, 0.04), (n % 2 ? -1 : 1) * rr(.1, .28));
   m.userData.drop = 0.12; m.position.y += 0.12;   // knocked into place
-  m.userData.rz0 = m.rotation.z; m.userData.x0 = m.position.x; o.bside = side;   // (where it rests when it's knocked about, and which side of the glass the boards are on)
+  m.userData.rz0 = m.rotation.z; m.userData.x0 = m.position.x; m.userData.z0 = m.position.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
   run.boards++; SFX.board(); setTimeout(() => SFX.board(), 110);
   burst(o.x + o.nx * side * .55, o.ys[n], o.z + o.nz * side * .55, 4, 'dust');
   flowDirty = true; lightsDirty = true;
 }
-// a blow on the boards: the one on top jumps and rattles in its nails (boardShake), a puff of dust off it
+// a blow on the boards: the one on top jumps and rattles in its nails, chips and a puff of dust fly off it, and it's
+// pulled a little further loose toward whoever's hitting it (boardShake)
 function boardJolt(o, z) {
   const m = o.meshes[o.meshes.length - 1]; if (!m) return;
   m.userData.jolt = 1; m.userData.jSide = rand() < 0.5 ? -1 : 1;
-  if (z && z.vis > 0.2) burst(o.x + o.nx * openSide(o, z.x, z.z) * 0.45, m.position.y, o.z + o.nz * openSide(o, z.x, z.z) * 0.45, 2, 'dust');
+  if (!z) return;
+  const sd = openSide(o, z.x, z.z); m.userData.pull = o.out * sd;
+  if (z.vis > 0.2) { const x = o.x + o.nx * sd * 0.5, zz = o.z + o.nz * sd * 0.5, y = m.position.y; burst(x, y, zz, 2, 'dust'); burst(x, y, zz, 3, 'wood', o.nx * sd, o.nz * sd, 1.2); }
 }
+// every frame, each board as loose as the blows on it have worked it (its hp against what it went up with): it comes
+// away from one nail and hangs from the other, its free end dropping further the looser it gets, and stands off the
+// frame toward whoever's working at it; one just hit rattles
 function boardShake(rdt) {
-  for (const o of openings) for (const m of o.meshes) {
-    const j = m.userData.jolt; if (!(j > 0)) continue;
-    const nj = Math.max(0, j - rdt * 3.2); m.userData.jolt = nj;
-    m.rotation.z = m.userData.rz0 + Math.sin(nj * 30) * 0.06 * nj * m.userData.jSide; m.position.x = m.userData.x0 + Math.sin(nj * 23) * 0.02 * nj;
-  }
+  for (const o of openings) o.meshes.forEach((m, k) => {
+    const u = m.userData, loose = clamp(1 - o.boards[k] / (u.hp0 || 1), 0, 1), j = u.jolt || 0;
+    if (!(loose > 0) && !(j > 0)) return;
+    if (u.y0 === undefined) { if (u.drop > 0) return; u.y0 = m.position.y; }   // (once it's done being knocked into place)
+    const nj = Math.max(0, j - rdt * 3.2); u.jolt = nj;
+    // turned about the end still nailed (half the board's length out from its middle, on the side away from u.sag)
+    const L = m.children[0] ? m.children[0].scale.x : 1.3, th = -u.sag * 0.34 * smooth(loose) + Math.sin(nj * 30) * 0.06 * nj * (u.jSide || 1);
+    m.rotation.z = u.rz0 + th;
+    m.position.x = u.x0 + u.sag * L / 2 * (Math.cos(th) - 1) + Math.sin(nj * 23) * 0.015 * nj;
+    m.position.y = u.y0 + u.sag * L / 2 * Math.sin(th);
+    m.position.z = u.z0 + (u.pull || 0) * 0.08 * smooth(loose);
+  });
 }
-// a board torn down: it comes away whole (wrenched off toward whoever broke it, zombie or not), splinters flying, and
-// clatters to the ground, where it lies a while (weapons/casings.js's debris)
+// a board torn down: wrenched off toward whoever broke it, zombie or not, either whole or snapped in two where the
+// blows landed (each half with long splinters standing out of the break), splinters flying; the pieces clatter to the
+// ground and lie there a while (weapons/casings.js's debris)
 const loosePlanks = [];
 function breakBoard(o, z) {
   o.boards.pop(); const m = o.meshes.pop();
   const sd = z ? openSide(o, z.x, z.z) : -openSide(o, P.x, P.z), ox = o.nx * sd, oz = o.nz * sd;
   if (m) {
     m.updateMatrixWorld(true); const wp = new V3(), wq = new THREE.Quaternion(); m.getWorldPosition(wp); m.getWorldQuaternion(wq);
-    o.bg.remove(m); scene.add(m); m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq);
-    loosePlanks.push({ g: m, life: 30, vx: ox * rr(1.6, 2.8) + rr(-0.5, 0.5), vy: rr(0.8, 2.2), vz: oz * rr(1.6, 2.8) + rr(-0.5, 0.5), spin: rr(-6, 6), roll: rr(-5, 5), r: 0.09, bounces: 0, kind: 'plank', restY: 0.03,
-      rest: g => { g.rotation.set(Math.PI / 2, Math.atan2(ox, oz) + Math.PI / 2 + rr(-0.6, 0.6), 0); } });
-    while (loosePlanks.length > 18) { const q = loosePlanks.shift(); scene.remove(q.g); }
+    o.bg.remove(m);
+    const fly = g => {
+      scene.add(g);
+      loosePlanks.push({ g, life: 30, vx: ox * rr(1.6, 2.8) + rr(-0.6, 0.6), vy: rr(0.8, 2.2), vz: oz * rr(1.6, 2.8) + rr(-0.6, 0.6), spin: rr(-7, 7), roll: rr(-6, 6), r: 0.09, bounces: 0, kind: 'plank', restY: 0.03,
+        rest: q => { q.rotation.set(Math.PI / 2, Math.atan2(ox, oz) + Math.PI / 2 + rr(-0.8, 0.8), 0); } });
+    };
+    const bd = m.children[0];
+    if (bd && rand() < 0.5) {
+      const L = bd.scale.x, H = bd.scale.y, Th = bd.scale.z, cut = rr(0.35, 0.65);
+      [[-1, cut], [1, 1 - cut]].forEach(([s, f]) => {
+        const g = new THREE.Group(), len = L * f, b = new THREE.Mesh(boardGeo, bd.material); b.scale.set(len, H, Th); b.castShadow = true; g.add(b);
+        for (let q = 0; q < 3; q++) { const sp = new THREE.Mesh(boardGeo, PLANK_END), w = rr(0.04, 0.12); sp.scale.set(w, H * rr(0.15, 0.32), Th * rr(0.4, 0.9)); sp.position.set(-s * (len / 2 + w * 0.4), rr(-H / 3, H / 3), 0); sp.rotation.z = rr(-0.35, 0.35); g.add(sp); }
+        g.rotation.order = 'YXZ'; g.position.copy(new V3(s * (L / 2 - len / 2), 0, 0).applyQuaternion(wq).add(wp)); g.quaternion.copy(wq);
+        fly(g);
+      });
+    } else { m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq); fly(m); }
+    while (loosePlanks.length > 24) { const q = loosePlanks.shift(); scene.remove(q.g); }
   }
   burst(o.x + ox * 0.5, 1.3, o.z + oz * 0.5, 12, 'wood', ox, oz, 3);
   SFX.crack(); setTimeout(() => SFX.crack(), 60); flowDirty = true; lightsDirty = true;
 }
+// boards knocked about and pieces of them lying about, each frame
+function stepBoards(dt, rdt) {
+  stepDebris(loosePlanks, dt); boardShake(rdt);
+  for (const q of loosePlanks) if (q.life > 0) q.g.visible = visAt(q.g.position.x, q.g.position.z) > 0.15;
+}
 function resetBoards() {
   openings.forEach(o => { while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.busy = null; });
   loosePlanks.forEach(q => scene.remove(q.g)); loosePlanks.length = 0;
-  resetGlass(); lightsDirty = true;
+  lightsDirty = true;
 }

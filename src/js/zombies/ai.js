@@ -1,5 +1,5 @@
-// Zombie AI: the way to you, climbing fences and breaking in through windows (the glass smashed and the boards torn off
-// first), attacks on you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
+// Zombie AI: the way to you, climbing fences and breaking in through windows (tearing the boards off first), attacks on
+// you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
 // zombies/climb.js.
 
 // a wall, a fence or a window frame between a zombie and you stops its swing: it can catch you while you're climbing
@@ -17,30 +17,15 @@ function reachBlocked(x0, z0, x1, z1) {
 }
 // which side of an opening a point's on (1: the side its normal points to, the outside)
 const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 1;
-// a window takes one zombie at a time: the next waits its turn while one smashes the glass or climbs through
-function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !(b.vault || b.smash)) { o.busy = null; return true; } return false; }
-// at a window: the glass first (unless the boards are on this side of it), then the boards (returned, to be torn down),
-// then it climbs in (zombies/climb.js). A runner dives straight through glass with nothing behind it
+// a window takes one zombie at a time: the next waits its turn while one climbs through
+function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !b.vault) { o.busy = null; return true; } return false; }
+// at a window: the boards to tear down first (returned), then it climbs in (zombies/climb.js)
 function atWindow(z, o) {
   if (!winFree(o, z)) return null;
-  const zs = openSide(o, z.x, z.z), glass = glassIntact(o) && !(o.boards.length && o.bside === zs);
-  if (glass && (z.type !== 'runner' || o.boards.length)) { startSmash(z, o); return null; }
   if (o.boards.length) return o;
-  const dx = -o.nx * zs, dz = -o.nz * zs, x1 = o.x + dx, z1 = o.z + dz;
+  const zs = openSide(o, z.x, z.z), dx = -o.nx * zs, dz = -o.nz * zs, x1 = o.x + dx, z1 = o.z + dz;
   if (!hardBlocked(ci(x1), ci(z1))) startClimb(z, 'window', o.x, o.z, dx, dz, x1, z1, o);
   return null;
-}
-// smashing a window's glass: the fist goes through it at hitT (zombies/zombie-anim.js poses it), then the shards are
-// raked out of the frame
-function startSmash(z, o) {
-  const zs = openSide(o, z.x, z.z);
-  z.smash = { t: 0, o, dur: z.crawl ? 1.8 : rr(0.95, 1.15), hitT: z.crawl ? 1.1 : rr(0.42, 0.5), side: rand() < 0.5 ? -1 : 1, hit: false, dx: -o.nx * zs, dz: -o.nz * zs };
-  o.busy = z;
-}
-function stepSmash(z, dt) {
-  const sm = z.smash; sm.t += dt; z.face += angDiff(Math.atan2(sm.dx, sm.dz), z.face) * Math.min(1, dt * 10);
-  if (!sm.hit && sm.t >= sm.hitT) { sm.hit = true; if (glassIntact(sm.o)) smashGlass(sm.o, sm.dx, sm.dz); }
-  if (sm.t >= sm.dur) { z.smash = null; if (sm.o.busy === z) sm.o.busy = null; }
 }
 // over a fence: straight across it, square to the way it runs, toward the side the way in wants; it lands in that
 // cell's neighbour the flow likes best (if where the climb leaves it is no good)
@@ -84,9 +69,8 @@ function updateZombies(dt) {
       if (rand() < 0.5) { const v = new V3(...STUMP[sp.part]); m.g.localToWorld(v); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
-    // climbing over a fence or in through a window, or smashing a window's glass: nothing else till it's done
+    // climbing over a fence or in through a window: nothing else till it's done
     if (z.vault) { stepClimb(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
-    if (z.smash) { stepSmash(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
     // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
     if (z.out) {
@@ -113,7 +97,7 @@ function updateZombies(dt) {
         if (cell[idx(bi, bj)] === FENCE && dn < (z.crawl ? 1.35 : 0.85) + z.T.r) fenceCross(z, i, j, bi, bj, fl);
         else if (op && op.kind === 'window' && dn < (z.crawl ? 1.3 : 0.8) + z.T.r) attackingBoard = atWindow(z, op);
         else if (op && op.boards.length && dn < 0.95 + z.T.r) attackingBoard = op;
-        if (z.vault || z.smash) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
+        if (z.vault) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
         tx = cxw(bi); tz = cxw(bj);
       }
     }
@@ -159,7 +143,7 @@ function updateZombies(dt) {
       if (o2 === z || o2.vault) continue; const sx = z.x - o2.x, sz = z.z - o2.z, sd = Math.hypot(sx, sz), md = z.T.r + o2.T.r;
       if (sd < md && sd > 0.001) {
         const oi = ci(o2.x), oj = ci(o2.z), there = inb(oi, oj) ? fl[idx(oi, oj)] : 1e9;
-        const ahead = o2.smash || there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
+        const ahead = there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
         const px = sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), pz = sz / sd * (md - sd) * (ahead ? 0.9 : 0.1);
         if (z.out) { z.x += px; z.z += pz; } else moveCircle(z, px, pz, z.T.r);   // out in the fog there's nothing to bump into
       }

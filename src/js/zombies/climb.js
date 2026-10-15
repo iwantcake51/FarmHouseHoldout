@@ -5,8 +5,7 @@
 // each climb is a run of key poses over its length (t 0..1): s is where it is along the climb, metres from the fence
 // rail or the middle of the window (- before it), y how high off the ground, and the joints (zombies/zombie-anim.js) as
 // they're set at that moment. In between, everything follows a smooth curve through the keys (zombie-anim.js's springs
-// loosen it further). ev: what happens at a key (land: it hits the ground, with a thud and dust; glass: it goes through
-// the window's glass). dur: seconds, before each zombie's own odd 10% either way
+// loosen it further). ev: what happens at a key (land: it hits the ground, with a thud and dust). dur: seconds, before each zombie's own odd 10% either way
 const CLIMBS = {
   // a walker leans on the rail, gets a knee up, hauls itself over on its belly, topples off head first, hits the dirt,
   // gets its knees under it and stands
@@ -55,11 +54,11 @@ const CLIMBS = {
     [0.91, { s: 0.75, y: 0.15, rx: 1.2, ux: 0.1, alx: -1.05, arx: -1.1, aly: 0, ary: 0, elL: -0.6, elR: -0.55, llx: -1.0, klx: 1.6, lrx: -0.8, krx: 1.5, hx: -0.6 }],
     [0.96, { s: 1.0, y: 0.05, rx: 0.55, ux: 0.28, alx: -0.3, arx: -0.4, elL: -0.5, elR: -0.4, llx: -0.8, klx: 1.2, lrx: -0.15, krx: 0.4, hx: -0.3 }],
     [1, { s: 1.3, y: 0, rx: 0, ux: 0, alx: -0.2, arx: -0.2, elL: -0.3, elR: -0.3, llx: 0, klx: 0.05, lrx: 0, krx: 0.05, hx: 0 }]] },
-  // a runner dives through it head first, hands out ahead, and comes up out of a roll on the far side still running
+  // a runner dives through head first, hands out ahead, and comes up out of a roll on the far side still running
   windowRunner: { dur: 1.35, keys: [
     [0, { s: -1.05, rx: 0.28, alx: -0.4, arx: -0.4, elL: -0.8, elR: -0.8 }],
     [0.18, { s: -0.95, y: -0.1, rx: 0.4, ux: 0.1, alx: 0.2, arx: 0.25, elL: -0.5, elR: -0.5, klx: 0.9, krx: 0.9, llx: -0.4, lrx: -0.1 }],
-    [0.32, { s: -0.85, y: 0.95, rx: 1.0, ux: 0, alx: -1.3, arx: -1.35, elL: -0.15, elR: -0.15, llx: 0.3, klx: 0.6, lrx: 0.4, krx: 0.4, hx: -0.4 }, 'glass'],
+    [0.32, { s: -0.85, y: 0.95, rx: 1.0, ux: 0, alx: -1.3, arx: -1.35, elL: -0.15, elR: -0.15, llx: 0.3, klx: 0.6, lrx: 0.4, krx: 0.4, hx: -0.4 }],
     [0.5, { s: -0.2, y: 1.2, rx: 1.45, alx: -1.55, arx: -1.5, elL: -0.1, elR: -0.1, llx: 0.3, klx: 0.3, lrx: 0.35, krx: 0.25, hx: -0.5 }],
     [0.62, { s: 0.35, y: 1.0, rx: 1.7, alx: -1.35, arx: -1.3, elL: -0.2, elR: -0.2, llx: 0.4, klx: 0.4, lrx: 0.45, krx: 0.4, hx: -0.5 }],
     [0.72, { s: 0.75, y: 0.2, rx: 1.75, alx: -1.2, arx: -1.15, elL: -0.5, elR: -0.5, llx: 0.6, klx: 0.6, lrx: 0.5, krx: 0.6, hx: -0.5 }, 'land'],
@@ -117,7 +116,6 @@ function stepClimb(z, dt) {
   while (v.ev < c.k.length && c.k[v.ev].t <= t) {
     const e = c.k[v.ev].ev; v.ev++;
     if (e === 'land') { burst(z.x + v.dx * 0.5, 0.1, z.z + v.dz * 0.5, z.crawl ? 4 : 6, 'dust', v.dx, v.dz, 1.2); if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.thud(); }
-    if (e === 'glass' && v.o && glassIntact(v.o)) smashGlass(v.o, v.dx, v.dz);
   }
   // done: it carries on from where the climb left it (or from the far cell's middle, if that left it somewhere it can't stand)
   if (t >= 1) { z.vault = null; if (hardBlocked(ci(z.x), ci(z.z))) { z.x = v.x1; z.z = v.z1; } if (v.o && v.o.busy === z) v.o.busy = null; }

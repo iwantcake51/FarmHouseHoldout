@@ -89,7 +89,7 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     const out = j === HZ0 ? -1 : j === HZ1 ? 1 : i === HX0 ? -1 : 1;
     const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; g.add(bg);
     const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
-    const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, cut, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
+    const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
     // a glowing frame shown when this opening is the one you'd board up
     const hm = new THREE.MeshBasicMaterial({ color: 0xf0a04a, transparent: true, opacity: 0.9, depthTest: false });
     const hl = new THREE.Group(); hl.visible = false; hl.renderOrder = 5; bg.add(hl);
