@@ -113,12 +113,18 @@ const bump = (t, a, b) => Math.sin(Math.PI * clamp((t - a) / (b - a), 0, 1));   
 // dips past where it was aimed before it settles home smoothly. No two shots are quite alike: how hard each way, which
 // way it rolls and kicks, when and how hard it's hauled down. Pistols flip, long guns shove back into the shoulder; a
 // light gun or one on full auto just flips and settles. A handgun's kick goes with less than its power (pw^0.6), so even
-// a 9mm snaps the wrists up a few degrees and drives back, and the hand cannons don't fly out of the hands
+// a 9mm snaps the wrists up a few degrees and drives back, and the hand cannons don't fly out of the hands. The flip is
+// held to a few degrees a shot (about 5 for a 9mm, 10 for a hand cannon or a rifle), and however fast you fire, the
+// muzzle never climbs past KICK_UP: each shot has less room to throw it up the higher it already is (KICK_ROOM), and
+// what it shows is eased into that ceiling (kickPitch) instead of stopping dead against it
+const KICK_UP = 0.24, KICK_ROOM = 0.6;
+const kickPitch = p => p < 0 ? -KICK_UP * Math.tanh(-p / KICK_UP) : p;
 const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0 });
 const RK = { R: kickState(), L: kickState() };
 function gunKick(side, pw, kind, auto) {
   const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6);
-  const flip = (hand ? 13.5 * hp : pw * 7.5 * (1 + 0.4 * big)) * a;
+  const room = 1 - KICK_ROOM * clamp(-k.p / KICK_UP, 0, 1);
+  const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room;
   k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2); k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2);
   k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2); k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8);
   if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
@@ -126,7 +132,7 @@ function gunKick(side, pw, kind, auto) {
 function stepKick(k, dt) {
   for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
     if (k.dropT > 0 && (k.dropT -= h) <= 0) { k.vp += k.dP; k.vh += k.dH; k.vz += k.dZ; }   // hauled back down, just past the peak
-    k.vp += (-380 * k.p - 26 * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
+    k.vp += (-380 * k.p - 30 * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
     k.vz += (-380 * k.z - 26 * k.vz) * h; k.z += k.vz * h;
     k.vh += (-340 * k.h - 25 * k.vh) * h; k.h += k.vh * h;
     k.vr += (-300 * k.r - 22 * k.vr) * h; k.r += k.vr * h;
@@ -650,7 +656,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
-    let hx = k.p, hy = k.y, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
+    let hx = kickPitch(k.p), hy = k.y, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
     const u = ak ? akU(side) : 0;
     if (ak) {
       // this hand's own way of holding it (AK_HAND), eased off while it's down being reloaded, and its own drift
@@ -689,7 +695,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const sL = SHOULDER.L, dx = _sup.x - sL[0], dy = _sup.y - sL[1], dz = _sup.z - sL[2], d = Math.hypot(dx, dy, dz), over = d - FIST * SUPPORT_REACH;
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  up.x -= ANIM.recoil * (heavy ? 0.06 : 0.03);
+  up.x -= Math.min(1.2, ANIM.recoil) * (heavy ? 0.035 : 0.02);   // the shoulders rock back a touch with it
   ANIM.recoil = Math.max(0, ANIM.recoil - rdt * 11);
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
   const sl = SLIDES[s];
