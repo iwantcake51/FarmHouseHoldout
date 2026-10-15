@@ -7,18 +7,24 @@ const SLOW_STEP = { soles: 0.4, trail: 0.2, stubborn: 0.85 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
-// aid comes up more often when you're short of what it brings, up to 1 + AID_NEED times as often with none left at
-// all: ammo for the guns you carry (under three mags' worth in reserve), health (below 80%), bandages, scrap (under
-// 30) and planks (under half a stack). Never a sure thing: it only tips the deal
-const AID_NEED = 1.5;
-const needW = f => 1 + AID_NEED * clamp(f, 0, 1);
+// aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
+// have any, from the first number when you're short of nothing to the second when you're out of something, and it
+// never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
+// 80%), bandages, scrap (under 24, about two buys at the bench) and planks (under half a stack). Scrap and planks count
+// for a bit less, since you start a run short of scrap
+const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
+// within the hand's aid, what you're short of comes up far more than the rest
+const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
   ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
   health: () => (0.8 - P.hp / S.maxHp) / 0.55,
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
-  scrap: () => 1 - S.scrap / 30,
+  scrap: () => (24 - S.scrap) / 20,
   planks: () => 1 - S.planks / (PLANK_MAX / 2)
 };
+const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, scrap: 0.7, planks: 0.6 };
+// how short you are of anything, 0 to 1: the worst of them
+const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
 // grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },

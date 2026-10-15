@@ -16,17 +16,32 @@ function drawCard(pool, wt) {
   for (; k < pool.length - 1; k++) { r -= wt(pool[k]); if (r <= 0) break; }
   return pool.splice(k, 1)[0];
 }
+// three cards after a wave: always at least one skill (a perk if there's no skill left to give), aid only some of the
+// time and more often the shorter you are of something (AID_CHANCE, upgrades/upgrades.js), and the rest skills, perks
+// and weapons
+const isAid = u => findKind(u, u) === 'Aid';
 function dealCards() {
   const pool = UPG.filter(u => !u.can || u.can()); dealt = [];
   const wt = u => rarWeight(u.r) * (typeof u.w === 'function' ? u.w() : u.w || 1);
-  while (dealt.length < 3 && pool.length) dealt.push(drawCard(pool, wt));
+  const aid = pool.filter(isAid), rest = pool.filter(u => !isAid(u));
+  const kindIn = k => rest.filter(u => findKind(u, u) === k);
+  const anchorFrom = kindIn('Skill').length ? kindIn('Skill') : kindIn('Perk');
+  let anchor = null;
+  if (anchorFrom.length) { anchor = drawCard(anchorFrom, wt); rest.splice(rest.indexOf(anchor), 1); dealt.push(anchor); }
+  const need = aidNeed(), nAid = rand() < AID_CHANCE[0] + (AID_CHANCE[1] - AID_CHANCE[0]) * need ? (rand() < AID_TWO * need ? 2 : 1) : 0;
+  for (let k = 0; k < nAid && aid.length && dealt.length < 3; k++) dealt.push(drawCard(aid, wt));
+  while (dealt.length < 3 && rest.length) dealt.push(drawCard(rest, wt));
+  while (dealt.length < 3 && aid.length) dealt.push(drawCard(aid, wt));   // (only when there's nothing else left to deal)
   // a gun you're owed (gunDue, upgrades/upgrades.js): if none of the three is a long gun or automatic of that band or
-  // better, the last card becomes one
+  // better, one becomes one: never the skill, and aid only when there's nothing else to swap
   const due = gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
   if (due && !dealt.some(isDue)) {
     const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
-    if (owed.length) dealt[dealt.length - 1] = drawCard(owed, u => rarWeight(u.r));
+    const swap = [...dealt].reverse().find(u => u !== anchor && !isAid(u)) || [...dealt].reverse().find(u => u !== anchor);
+    if (owed.length && swap) dealt[dealt.indexOf(swap)] = drawCard(owed, u => rarWeight(u.r));
   }
+  // shuffled, so the skill isn't always the first card
+  for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
   const wrap = $('cards'); wrap.innerHTML = '';
   const rots = [-1.6, 0.8, -0.4];
   dealt.forEach((u, i) => {
