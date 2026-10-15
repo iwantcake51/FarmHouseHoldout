@@ -53,16 +53,17 @@ const TIERS = {
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. Uses the muzzle slot.', vis: 'A choke ring', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Pellets 30% tighter again, slugs tighter too.', vis: 'A longer choke', ap: () => {} }] },
+  // armour, footwear and the hammer are skills (TIER_KIND, upgrades/upgrades.js), so none starts below uncommon
   armor: { tag: 'Body', t: [
-    { r: 'c', name: 'Canvas jacket', text: '+25 max health, and heal 25.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
+    { r: 'u', name: 'Canvas jacket', text: '+25 max health, and heal 25.', vis: 'You wear it', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
     { r: 'r', name: 'Kevlar vest', text: 'Take 20% less damage.', vis: 'Worn over the jacket', ap: () => S.dmgTaken *= 0.8 },
     { r: 'e', name: 'Plate carrier', text: 'Take 25% less damage. +25 max health.', vis: 'Steel plates and pouches', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp += 25; } }] },
   boots: { tag: 'Body', t: [
-    { r: 'c', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
+    { r: 'u', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 },
-    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; slowLess(SLOW_STEP.trail); } }] },
+    { r: 'r', name: 'Trail runners', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 }] },
   hammer: { tag: 'Tools', t: [
-    { r: 'c', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
+    { r: 'u', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Board up 50% faster. Boards are 25% tougher.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Board up twice as fast again. Boards are 50% tougher.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [
@@ -71,8 +72,22 @@ const TIERS = {
     { r: 'u', name: 'Wide eyes', text: 'See 50% wider, round to a little behind you, and anything within 4 m.', ap: () => { S.cone += 0.6; S.near = 4; } },
     { r: 'r', name: 'Eyes in the back of your head', text: 'Sense zombies within 6 m in every direction.', ap: () => { S.cone += 0.2; S.near = 6; } }] },
   night: { tag: 'Senses', t: [
-    { r: 'r', name: 'Night eyes', text: 'See much further at night.', ap: () => S.nightVis = 1 },
-    { r: 'e', name: 'Cat eyes', text: 'See almost everything at night.', ap: () => S.nightVis = 2.2 }] },
+    // a night vision monocular (one tube on a head mount, player/gear.js), then binocular goggles (two)
+    { r: 'r', name: 'Night vision monocular', text: 'See much further at night, with a hint of colour.', ap: () => S.nightVis = 1 },
+    { r: 'e', name: 'Night vision goggles', text: 'See almost everything at night, in muted colour.', ap: () => S.nightVis = 2.2 }] },
+  // perks that come in steps: harder melee hits that cost less stamina a swing (S.swingStam, melee/melee.js); shooting
+  // at a sprint (S.runGun, player/sprint.js), 9mm guns first, then shotguns and the assault rifle too, reloading on the
+  // run; and less slowdown when you're hit
+  strong: { tag: 'Melee', t: [
+    { r: 'u', name: 'Strong arms', text: 'Melee hits 25% harder. Swings cost 8% less stamina.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } },
+    { r: 'u', name: 'Strong arms II', text: 'Melee hits 25% harder again. Swings cost 8% less stamina again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } },
+    { r: 'r', name: 'Strong arms III', text: 'Melee hits 25% harder again. Swings cost 8% less stamina again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } }] },
+  rungun: { tag: 'Body', t: [
+    { r: 'r', name: 'Run and gun', text: 'Shoot pistols and SMGs while you sprint, far less accurately.', ap: () => { S.runGun = 1; } },
+    { r: 'r', name: 'Run and gun II', text: 'Shotguns and the assault rifle too: fire and pump them at a sprint. Reload any of them without stopping. Not the hunting rifle or the LMG.', ap: () => { S.runGun = 2; } }] },
+  soles: { tag: 'Body', t: [
+    { r: 'u', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } },
+    { r: 'r', name: 'Thick soles II', text: 'Getting hit slows you down 40% less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },
   feed: { tag: 'Body', t: [
     // a kill only sometimes feeds you (FEED: how much, how often, more often for a headshot), and only so much a wave, so
     // bandages are still what keeps you going

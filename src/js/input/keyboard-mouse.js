@@ -10,6 +10,7 @@ addEventListener('keydown', e => {
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
   if (state === 'upgrade' && ['1', '2', '3'].includes(k)) { pickCard(+k - 1); return; }
+  if (state === 'upgrade' && k === '4') { skipCards(); return; }
   if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused' && !(k === 'escape' && cancelLeave())) resumeRun(); return; }   // Esc backs out of a leave-the-run question first
   // T starts the run from the title, a new run from the death screen, and the next wave during a break
   if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }

@@ -33,23 +33,25 @@ function lightField(x, z, r, cone) {
   return out;
 }
 function addField(field, mul, col) { for (let k = 0; k < field.length; k += 2) { const i = field[k] * 3, f = field[k + 1] * mul; lmTgt[i] += f * col[0]; lmTgt[i + 1] += f * col[1]; lmTgt[i + 2] += f * col[2]; } }
+const NV_MONO = 0.42, NV_SAT = [0, 0.22, 0.6];
 function computeLight() {
   const dark = curDark, on = state !== 'title';
-  // night eyes lift the whole night toward a cool, faintly green dusk, and amplify what you look at even more
-  const nv = on ? S.nightVis * dark : 0, a0 = amb[0] + nv * 0.26, a1 = amb[1] + nv * 0.31, a2 = amb[2] + nv * 0.25;
-  for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = a0; lmTgt[k * 3 + 1] = a1; lmTgt[k * 3 + 2] = a2; }
+  // night vision lifts the dark (NV_MONO of a light's worth for each of S.nightVis) without lighting it, so it stays
+  // mostly black and white: the monocular brings back a little of its colour, the goggles more, never all of it
+  // (NV_SAT by step; uNvMono, uNvSat in core/shaders.js)
+  LMU.uNvMono.value = on ? S.nightVis * dark * NV_MONO : 0; LMU.uNvSat.value = on ? NV_SAT[T('night')] || 0 : 0;
+  for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
   if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   STATIC_LIGHTS.forEach(L => {
     if (L.spill) { const b = L.spill.boards.length; if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);
   });
-  // how much light falls where you stand from the sky and the lamps (not your own muzzle flash, flashlight or night
-  // eyes): what your eyes get used to (updateDarkEyes, lighting/day-night.js)
+  // how much light falls where you stand from the sky and the lamps (not your own muzzle flash or flashlight): what
+  // your eyes get used to (updateDarkEyes, lighting/day-night.js)
   { const i = (clamp(Math.floor((P.z + HALF) * FR), 0, FN - 1) * FN + clamp(Math.floor((P.x + HALF) * FR), 0, FN - 1)) * 3;
-    litHere = lmTgt[i] * 0.299 + lmTgt[i + 1] * 0.587 + lmTgt[i + 2] * 0.114 - nv * 0.288; }
+    litHere = lmTgt[i] * 0.299 + lmTgt[i + 1] * 0.587 + lmTgt[i + 2] * 0.114; }
   if (on) {
-    if (nv > 0.05) addField(lightField(P.x, P.z, 9 + S.nightVis * 3, { dir: P.aim, half: S.cone }), nv * 0.42, [0.82, 1, 0.84]);
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
   }

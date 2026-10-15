@@ -199,7 +199,7 @@ function chRemoveMod(id, m) {
 // every skill and perk the cards after a wave can give you (not aid, weapons or the Gunsmith, which works on a gun), and
 // the tiered lines (armour, boots, hammer, senses, feeding). A plain one counts how often you took it (run.taken), a
 // tiered one its step
-const CH_TIER_NAME = { armor: 'Body armour', boots: 'Footwear', hammer: 'Hammer', eyes: 'Awareness', night: 'Night vision', feed: 'Feeding' };
+const CH_TIER_NAME = { armor: 'Body armour', boots: 'Footwear', hammer: 'Hammer', eyes: 'Awareness', night: 'Night vision', feed: 'Feeding', strong: 'Strong arms', rungun: 'Run and gun', soles: 'Thick soles' };
 const chPlain = () => UPG.filter(u => !u.weaponOf && !u.tierOf && !u.card && !AID.has(u.name));
 const chTiers = () => UPG.filter(u => u.tierOf).map(u => u.tierOf);
 const takenN = name => { const h = run.taken.find(t => t.name === name && !t.on); return h ? h.n : 0; };

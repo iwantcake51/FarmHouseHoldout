@@ -7,7 +7,8 @@ const TIER_USE = {
   laser: 'Laser · a beam shows exactly where your shots land, and tightens your shots from the hip', light: 'Light · lights up the ground ahead of you at night',
   choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
   boots: 'Footwear · you move faster', hammer: 'Tool · faster, tougher boarding', eyes: 'Senses · you see more around you',
-  night: 'Senses · you see in the dark', feed: 'Body · you heal when you kill'
+  night: 'Night vision · you see in the dark', feed: 'Body · you heal when you kill',
+  strong: 'Melee · harder hits for less stamina', rungun: 'Body · shoot while you sprint', soles: 'Body · getting hit slows you less'
 };
 const UPG_USE = {
   'Bayonet': 'Attachment · a blade under your long gun: shove (V) to stab',
@@ -16,20 +17,20 @@ const UPG_USE = {
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
-  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
+  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint', 'Reload while sprinting'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of powder, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
-  'Stubborn': ['Slowdown when hit −85%', '+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
+  'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
   'Last stand': ['+60% damage below 30% health'],
-  'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Light step': ['Speed +6%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
-  'Field medic': ['Bandaging 30% faster'], 'Lucky shot': ['1 in 12 hits: double damage'], 'Ammo pouch': ['Ammo pickups +25%'], 'Hardened': ['Damage taken −12%'],
+  'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%', 'Up to 3 times'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
+  'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
   'Momentum': ['+5% damage per quick kill', 'Up to +25%, lost after 2.5 s'],
   'Canvas jacket': ['+25 max health', 'Heal 25'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
-  'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%', 'Slowdown when hit −20%'],
+  'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
-  'Night eyes': ['See far more at night'], 'Cat eyes': ['Nights look like dusk'],
+  'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
 };
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same
@@ -39,17 +40,16 @@ const UPG_FX = {
 const xTimes = v => (Math.round(v * 10) / 10) + '×';
 const stackOf = (label, base, v, next, val) => ({ label, base, v, next, val });
 const speedStack = m => stackOf('Speed', 1, () => S.speedMul, v => v * m, v => '+' + pctUp(v) + '%');
-// (Trail runners' first chip is its speed, so only these two show the slowdown adding up)
 const slowStack = k => stackOf('Slowdown when hit', 0, () => S.slowRes, v => slowAfter(v, SLOW_STEP[k]), v => '−' + Math.round(v * 100) + '%');
 const STACKS = {
   'Quick hands': stackOf('Reload time', 1, () => S.reloadMul, v => v * 0.75, v => '−' + pctDown(v) + '%'),
-  'Strong arms': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
+  'Strong arms II': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
+  'Strong arms III': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Steady aim': stackOf('Spread', 1, () => S.spreadMul, v => v * 0.88, v => '−' + pctDown(v) + '%'),
-  'Light step': speedStack(1.06),
   'Tough skin': stackOf('Max health', 100, () => S.maxHp, v => v + 15, v => String(Math.round(v))),
   'Scavenger': stackOf('Drops', 1, () => S.dropMul, v => v * 1.5, v => '+' + pctUp(v) + '%'),
   'Painkillers': stackOf('Regen', 0, () => S.regen, v => v + 1, v => v + ' health/s'),
-  'Thick soles': slowStack('soles'), 'Stubborn': slowStack('stubborn'),
+  'Thick soles II': slowStack('soles'),
   'Running shoes': speedStack(1.1), 'Trail runners': speedStack(1.1),
   'Plate carrier': stackOf('Damage taken', 1, () => S.dmgTaken, v => v * 0.75, v => '−' + pctDown(v) + '%'),
   'Framing hammer': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 1.5, xTimes),

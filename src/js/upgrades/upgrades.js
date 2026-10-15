@@ -2,24 +2,33 @@
 
 const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
 // less slowdown when you're hit (S.slowRes, zombies/ai.js): each thing that helps takes its share off what's left, so
-// they all stack (Thick soles −40% and Stubborn −85% make −91%) and none ever makes you immune to it
-const SLOW_STEP = { soles: 0.4, trail: 0.2, stubborn: 0.85 };
+// both steps of Thick soles stack (−40% twice makes −64%) and never make you immune to it
+const SLOW_STEP = { soles: 0.4 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
-// aid comes up more often when you're short of what it brings, up to 1 + AID_NEED times as often with none left at
-// all: ammo for the guns you carry (under three mags' worth in reserve), health (below 80%), bandages, scrap (under
-// 30) and planks (under half a stack). Never a sure thing: it only tips the deal
-const AID_NEED = 1.5;
-const needW = f => 1 + AID_NEED * clamp(f, 0, 1);
+// aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
+// have any, from the first number when you're short of nothing to the second when you're out of something, and it
+// never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
+// 80%), bandages, scrap (under 24, about two buys at the bench) and planks (under half a stack). Scrap and planks count
+// for a bit less, since you start a run short of scrap
+const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
+// within the hand's aid, what you're short of comes up far more than the rest
+const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
   ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
   health: () => (0.8 - P.hp / S.maxHp) / 0.55,
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
-  scrap: () => 1 - S.scrap / 30,
+  scrap: () => (24 - S.scrap) / 20,
   planks: () => 1 - S.planks / (PLANK_MAX / 2)
 };
-// grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
+const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, scrap: 0.7, planks: 0.6 };
+// how short you are of anything, 0 to 1: the worst of them
+const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
+// Steady aim stacks up to STEADY_MAX times, and Lucky shot takes LUCK_MISS of the shots that hit nothing out of your
+// reserve instead of the magazine (luckyKeep, weapons/firing.js)
+const STEADY_MAX = 3, LUCK_MISS = 1 / 3;
+// grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
@@ -27,22 +36,16 @@ const UPG = [
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
-  { r: 'u', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), w: () => needW(NEED.bandages()), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
-  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate.', can: () => S.spreadMul > 0.55, ap: () => S.spreadMul *= 0.88 },
-  { r: 'u', tag: 'Body', name: 'Light step', text: 'Move 6% faster.', can: () => S.speedMul < 1.5, ap: () => S.speedMul *= 1.06 },
+  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate. Up to 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
   { r: 'u', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
   { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Switch weapons 40% faster.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
-  { r: 'u', tag: 'Med', name: 'Field medic', text: 'Bandages go on 30% faster.', can: () => S.bandMul > 0.75, ap: () => S.bandMul = 0.7 },
-  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: '1 in 12 bullet hits does double damage.', can: () => !S.luck, ap: () => S.luck = 1 / 12 },
+  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: '1 in 3 shots that miss comes out of your reserve ammo instead of the magazine.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
   { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Ammo pickups give 25% more.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
-  { r: 'r', tag: 'Body', name: 'Hardened', text: 'Take 12% less damage.', can: () => !S.hardened, ap: () => { S.hardened = true; S.dmgTaken *= 0.88; } },
   { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Kills in quick succession build up to +25% damage.', can: () => !S.momentum, ap: () => S.momentum = true },
-  { r: 'u', tag: 'Body', name: 'Vault fire', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
-  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Shoot pistols and SMGs while you sprint, far less accurately.', can: () => !S.runGun, ap: () => { S.runGun = true; } },
+  { r: 'r', tag: 'Body', name: 'Vault fire', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
   { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Scrap drops have a 25% chance to be worth double.', can: () => !S.hoard, ap: () => S.hoard = true },
-  { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => (S.soles || 0) < 2, ap: () => { S.soles = (S.soles || 0) + 1; slowLess(SLOW_STEP.soles); } },
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: '+25% stamina. It refills sooner and 25% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Kills give a short burst of speed. Once every 4 seconds at most.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, heal 50 when you drop below 25% health.', can: () => !S.secondWind, ap: () => S.secondWind = true },
@@ -54,14 +57,14 @@ const UPG = [
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
     card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest powder, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
     ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); magChange(id, () => { ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
-  { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health. Getting hit barely slows you, and it adds to anything else that helps.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; slowLess(SLOW_STEP.stubborn); } },
+  { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Some kills slow time for a moment. Once every 8 seconds at most.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
   { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, deal 60% more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Vault fire', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
-const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
+const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+const TIER_KIND = { armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
