@@ -148,7 +148,7 @@ Every source file starts with a one-line comment saying what is in it.
 | The pool a body bleeds out into where it lands | `src/js/zombies/deaths.js` |
 | The zombies' eye glow and the streaks behind it (`EYE_GLOW`, `EYE_HALO`, `EYE_STREAK`) | `src/js/effects/eye-glow.js` |
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
-| Blood on you, zombies and your weapons (a stain shader that builds up with hits), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
+| Blood on you, zombies and your weapons (a stain shader that builds up with hits; each splash stays `BLOOD_HOLD` seconds, then fades over `BLOOD_FADE`), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
 | The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
 | Sounds | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |

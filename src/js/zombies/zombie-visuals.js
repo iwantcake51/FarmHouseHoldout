@@ -31,7 +31,7 @@ function updateZombieVisuals(dt, rdt) {
   markReach();
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
-    updateZombieStain(z.stain, rdt);
+    updateZombieStain(z.stain, rdt, dt);
     const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
@@ -72,7 +72,7 @@ function updateZombieVisuals(dt, rdt) {
       if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
-    const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);
+    const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt, dt);
     // the killing hit's flash cools off (it used to stay lit and leave the body glowing pale), and the eyes go out:
     // their glow fades over a second and a half and they dull to a dead grey
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;

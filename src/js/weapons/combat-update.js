@@ -66,7 +66,7 @@ function updateCombat(dt) {
   if (W8.heat > 0.7 && W8.wispT <= 0 && !W(curId()).melee && !P.dead) { W8.wispT = 0.09; const mw = muzzleWorld(); smoke(mw.x, mw.y + 0.02, mw.z, rr(-0.1, 0.1), rr(0.25, 0.5), rr(-0.1, 0.1), 0.04, 0.22, rr(0.9, 1.4), 0.16 * Math.min(1, W8.heat - 0.5)); }
   if (P.bleed > 0 && !P.dead) {
     P.bleed = Math.max(0, P.bleed - dt); P.hp -= 1.7 * dt * S.dmgTaken; P.dripT = (P.dripT || 0) - dt;
-    P.blood = Math.min(1, (P.blood || 0) + dt * 0.02);   // it soaks into your clothes (effects/body-blood.js)
+    splashOn(youSplash, dt * 0.02);   // it soaks into your clothes (effects/body-blood.js)
     if (P.dripT <= 0) { P.dripT = rr(0.12, 0.3); bleedDrip(); }                          // drops falling from the wound (effects/particles.js)
     if (P.hp <= 0) { P.hp = 0; startDeath(); }
   }
