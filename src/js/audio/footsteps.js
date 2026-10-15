@@ -29,8 +29,9 @@ function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
 // Zombies' footsteps: the same recordings, but you only hear one that's right on you. Past ZSTEP.far there's nothing;
 // it comes in as it closes and is at its loudest within ZSTEP.near, and even then it's well under your own (level). A
 // runner's are a run's, a brute's heavier and lower, a crawler's a soft drag. Only so many a moment (max in any gap
-// seconds), so a crowd at the window doesn't turn into a drumroll
-const ZSTEP = { near: 1.5, far: 4.5, level: 0.4, gap: 0.25, max: 3 };
+// seconds), so a crowd at the window doesn't turn into a drumroll. Zoomed out they fall away faster than other sounds
+// (on top of what audio/spatial.js takes off for everything): down to wide of themselves at ZOOM_MIN
+const ZSTEP = { near: 2, far: 6, level: 0.4, gap: 0.25, max: 3, wide: 0.3 };
 const zStepT = [];
 function zombieStep(z) {
   if (P.dead || !AC) return;
@@ -38,7 +39,8 @@ function zombieStep(z) {
   const now = AC.currentTime; while (zStepT.length && now - zStepT[0] > ZSTEP.gap) zStepT.shift();
   if (zStepT.length >= ZSTEP.max) return;
   zStepT.push(now);
-  const near = 1 - smooth(clamp((d - ZSTEP.near) / (ZSTEP.far - ZSTEP.near), 0, 1));
+  const near = 1 - smooth(clamp((d - ZSTEP.near) / (ZSTEP.far - ZSTEP.near), 0, 1)), out = smooth(clamp((1 - (cam.zoom || 1)) / (1 - ZOOM_MIN), 0, 1));
+  const zk = 1 - (1 - ZSTEP.wide) * out;   // 1 at the default zoom and closer, ZSTEP.wide zoomed all the way out
   const brute = z.type === 'brute', crawl = !!z.crawl;
-  footstep(z.type === 'runner' && !crawl ? 'run' : 'walk', ZSTEP.level * near * (brute ? 1.3 : crawl ? 0.45 : 1), z.x, z.z, brute ? 0.82 : crawl ? 0.9 : 1);
+  footstep(z.type === 'runner' && !crawl ? 'run' : 'walk', ZSTEP.level * near * zk * (brute ? 1.3 : crawl ? 0.45 : 1), z.x, z.z, brute ? 0.82 : crawl ? 0.9 : 1);
 }
