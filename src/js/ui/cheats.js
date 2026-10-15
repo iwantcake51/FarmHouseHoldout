@@ -124,7 +124,7 @@ const CHEAT_TABS = {
     if (!D.melee) {
       const lines = CH_GUN_LINES.filter(k => chLineFits(k, id));
       h += lines.map(k => {
-        const n = gunTier(id, k), max = tierMax(k, id), up = tierFits(k, id) && (k !== 'choke' || D.ammo === 'shells');
+        const n = ownTier(id, k), max = tierMax(k, id), up = tierFits(k, id) && (k !== 'choke' || D.ammo === 'shells');
         const why = !up && n < max ? (k === 'supp' || k === 'choke' ? 'The muzzle is taken' : '') : '';
         return `<div class="chRow"><span class="chK">${CH_LINE[k]}</span><span class="chTier">${n ? esc(tierName(k, n - 1, id)) : '<i>None</i>'}<small>${n}/${max}${why ? ' · ' + why : ''}</small></span>${chStep('tier', { k }, '', n > 0, up)}</div>`;
       }).join('');
@@ -278,18 +278,18 @@ const CHEAT_ACTS = {
   ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[WEAP[id].ammo] = Math.max(W8.reserve[WEAP[id].ammo], 3 * AMMO_CAN[WEAP[id].ammo]); } }); },
   give: d => { chGive(d.id); feed('gear', 0, WEAP[d.id].name); },
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
-  tier: d => { const id = curId(), k = d.k, n = gunTier(id, k), dd = +d.d;
+  tier: d => { const id = curId(), k = d.k, n = ownTier(id, k), dd = +d.d;
     if (dd > 0 ? !tierFits(k, id) : n <= 0) return;
-    chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + dd; if (!W8.gt[id][k]) delete W8.gt[id][k]; }); },
+    chGun(id, () => { fitTier(id, k, n + dd); W8.own[id][k] = n + dd; }); },   // down a step is gone, not just taken off
   mod: d => { const id = curId(), m = d.m, dd = +d.d;
     if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m)); return; }
     const lv = modLv(m);
     if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
-  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; }); },
+  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },
   round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); gunGlow = 1; },
-  maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) W8.gt[id][k] = gunTier(id, k) + 1; recomputeEff(); }); },
+  maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) fitTier(id, k, ownTier(id, k) + 1); recomputeEff(); }); },
   skill: d => chSkill(d.key, +d.d),
   noskills: () => chNoSkills(),
   wave: d => { run.wave = Math.max(0, run.wave + +d.d); },

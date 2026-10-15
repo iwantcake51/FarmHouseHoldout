@@ -23,9 +23,9 @@ function attachmentCards() {
   const out = [], group = gearGroup(D);
   for (const k of ['supp', 'choke', 'sight', 'laser', 'light', 'loader']) {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
-    const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text;
+    const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text;
     out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
+      make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for the gun in your hands: every kind it takes, only one loaded at a time (weapons/rounds.js). One you don't
   // have yet is bought and loaded; one you have is loaded for nothing (X swaps between them in the field); the one in
@@ -39,9 +39,9 @@ function attachmentCards() {
       make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); gunGlow = 1; feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
   }
   // the bayonet and the stock go on this gun alone (gunAtt, game/run-state.js)
-  const fitAtt = k => { (W8.att[id] = W8.att[id] || {})[k] = true; buildGuns(); gunGlow = 1; };
-  if (D.slot === 'long' && !gunAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Shove (V) with this gun in your hands stabs for 45 damage', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (V) with this gun in your hands stabs for 45 damage.' }); } });
-  if (D.slot === 'side' && !gunAtt(id, 'stock')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => '45% less kick, and quick shots open up 40% slower', why: () => '', make: () => { fitAtt('stock'); feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', gun: id, text: '45% less kick, and quick shots open up 40% slower.' }); } });
+  const fitAtt = k => { setAtt(id, k, true); buildGuns(id); gunGlow = 1; };
+  if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Shove (V) with this gun in your hands stabs for 45 damage', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (V) with this gun in your hands stabs for 45 damage.' }); } });
+  if (D.slot === 'side' && !ownAtt(id, 'stock')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => '45% less kick, and quick shots open up 40% slower', why: () => '', make: () => { fitAtt('stock'); feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', gun: id, text: '45% less kick, and quick shots open up 40% slower.' }); } });
   return out;
 }
 // a tune-up is the dearest thing on the bench, and the card spells out what it does
@@ -83,9 +83,9 @@ function tinkerCards() {
   const id = curId(), D = id && W(id); if (!D) return [];
   const group = gearGroup(D), out = [];
   modsFor(id).forEach(m => out.push({ ic: 'gear', group, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
-    make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
+    make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
   modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
-    make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
+    make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
   return out;
 }
 // a gun's own upgrades, one card per line (the next tier up) for the gun in your hands: better rounds, a lighter
@@ -96,9 +96,9 @@ function gunTierCards() {
   const out = [], group = gearGroup(D);
   for (const k of ['ammo', 'trigger', 'mag']) {
     if (!tierFits(k, id)) continue;
-    const L = TIERS[k], n = gunTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text, r = (k === 'mag' && st.rAs && st.rAs[id]) || st.r;
+    const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D) : st.text, r = (k === 'mag' && st.rAs && st.rAs[id]) || st.r;
     out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: TIER_COST[r] || 14, title: () => nm, desc: () => txt, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); magChange(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); }); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
+      make: () => { const fx0 = tierFx(id, k); magChange(id, () => { fitTier(id, k, n + 1); recomputeEff(); }); buildGuns(id); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
   }
   return out;
 }

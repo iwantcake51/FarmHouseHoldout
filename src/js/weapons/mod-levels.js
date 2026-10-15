@@ -39,7 +39,7 @@ const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) 
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
 // level it asks for) fitted
 const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && hasMod(k));
-const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && muzzleTaken(MODS[m].w));
+const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
 // one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off

@@ -144,13 +144,18 @@ const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMe
 const WOUND_N = 8;   // wounds a zombie can show at once (zombies/wounds.js)
 const stainU = freq => ({ uWound: { value: Array.from({ length: WOUND_N }, () => new THREE.Vector4()) }, uWoundK: { value: new Array(WOUND_N).fill(-1) }, uWoundN: { value: 0 }, uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
 
+// stained copies swapped out for new ones (your gear re-laid, a weapon rebuilt) are let go a few frames later, once the
+// new ones have been drawn. Freed at once, every copy using a stain shader could be gone before the next frame, and
+// WebGL would throw that program away and compile it again: a hitch every time an attachment was bought or swapped
+const stainBin = []; let stainBinT = 0;
+function binStains(list) { list.forEach(([, m]) => stainBin.push(m)); stainBinT = 3; }
 // ---- on you ----
 const BLOOD_U = stainU(7.5);
 const charBlood = [];   // [original material, the copy on you]
 let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
 function buildCharBlood() {
   charBloodDirty = false;
-  charBlood.forEach(([, m]) => m.dispose()); charBlood.length = 0;
+  binStains(charBlood); charBlood.length = 0;   // (let go once the new ones are drawn: binStains, below)
   PM.g.updateMatrixWorld(true);
   BLOOD_U.uSeed.value.set(rr(0, 40), rr(0, 40), rr(0, 40));
   const held = new Set(Object.values(gunMeshes)), zones = new Map([[PM.torso, 0], [PM.armL, 1], [PM.armR, 2], [PM.legL, 3], [PM.legR, 4], [PM.shinL, 3], [PM.shinR, 4], [PM.head, 5]]);
@@ -214,7 +219,7 @@ function updateZombieStain(st, rdt, dt) {
 // carry on your body share it ----
 const WSTAIN = {};   // weapon id -> { u, list, shown, was }
 function stainWeapon(id, frames, melee) {
-  const old = WSTAIN[id]; if (old) old.list.forEach(([, m]) => m.dispose());
+  const old = WSTAIN[id]; if (old) binStains(old.list);
   const S = WSTAIN[id] = { u: stainU(melee ? 15 : 17), list: [], shown: old ? old.shown : 0, was: old ? old.was : 0 };
   frames.forEach(f => {
     f.updateMatrixWorld(true);
@@ -226,6 +231,7 @@ function stainWeapon(id, frames, melee) {
   });
 }
 function updateWeaponBlood(rdt, dt) {
+  if (stainBin.length && --stainBinT <= 0) { stainBin.forEach(m => m.dispose()); stainBin.length = 0; }   // (binStains)
   for (const id in WSTAIN) {
     const S = WSTAIN[id], sp = W8.bloodW[id], b = sp ? splashLevel(sp, dt) : 0;
     if (b > S.was + 0.001) S.u.uFresh.value = 1; else S.u.uFresh.value = Math.max(0, S.u.uFresh.value - rdt / 30);
