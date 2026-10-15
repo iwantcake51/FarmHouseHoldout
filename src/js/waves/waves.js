@@ -14,15 +14,13 @@ function buildWave(n) {
   for (let k = list.length - 1; k > 0; k--) { const j = (rand() * (k + 1)) | 0; [list[k], list[j]] = [list[j], list[k]]; }
   return list;
 }
-// the line under the wave number goes with the hour the wave starts at (dayPart, ui/clock.js): '23 in the dark' only at night
-const WAVE_WHERE = { Dawn: 'at first light', Morning: 'out of the corn', Midday: 'in broad daylight', Afternoon: 'in the long shadows', Dusk: 'at nightfall', Night: 'in the dark' };
 function startWave() {
   run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
   run.waveTotal = spawnQ.length;
-  const brutes = run.wave === 5 || run.wave % 5 === 0, part = dayPart(tod), night = part === 'Night' || part === 'Dusk';
-  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' ' + WAVE_WHERE[part]), { eye: brutes ? (night ? 'Horde night' : 'Horde day') : 'Incoming', kind: brutes ? 'red' : '' });
+  const brutes = run.wave === 5 || run.wave % 5 === 0;   // the wording fits any hour: a wave can start in daylight
+  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 function beginBreak(t) { phase = 'break'; breakT = breakMax = t; }
