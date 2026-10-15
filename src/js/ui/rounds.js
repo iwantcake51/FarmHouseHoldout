@@ -30,6 +30,43 @@ function dropRound(src, spent) {
   document.body.append(g, p);
   p.addEventListener('animationend', () => p.remove());
 }
+// a shot in a gun that keeps its cases kicks them in the HUD. The ones just fired punch down into the base and squash,
+// flash hot, tip to one side and spring back, a wisp off the open mouth; the cases already spent in it rattle loose,
+// and the live rounds left dip with the recoil, each a beat after the last as the jolt runs along the row. All of it a
+// damped spring (a fast hit, overshoot, settling), sampled into keyframes so it moves on a curve, not in straight lines
+const caseSpring = (t, f, z) => t <= 0 ? 0 : Math.exp(-z * 6.2832 * f * t) * Math.sin(6.2832 * f * t * Math.sqrt(1 - z * z));
+const KICK_MS = 700, KICK_N = 42;
+function caseShake(g, ms, at) {
+  const frames = [];
+  for (let k = 0; k <= KICK_N; k++) { const t = k / KICK_N * ms / 1000; frames.push(at(t)); }
+  g.animate(frames, { duration: ms, easing: 'linear' });
+}
+function kickRounds(el, have, wasHave, fired) {
+  const kids = el.children, last = Math.min(kids.length, have + fired), mid = (have + wasHave - 1) / 2;
+  for (let i = 0; i < last; i++) {
+    const g = kids[i], dir = rand() < 0.5 ? -1 : 1, lag = Math.abs(i - mid) * 0.022;
+    g.style.transformOrigin = '50% 100%';
+    if (i >= have && i < wasHave) {   // just fired
+      const a = rr(4, 5.5), tip = dir * rr(7, 11), heat = rr(0.8, 1.1);
+      caseShake(g, KICK_MS, t => {
+        const y = a * caseSpring(t, 5.2, 0.36), sq = 0.16 * caseSpring(t, 6.5, 0.42), r = tip * caseSpring(t - 0.03, 4.4, 0.3);
+        return { transform: `translateY(${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg) scale(${(1 + sq * 0.55).toFixed(3)},${(1 - sq).toFixed(3)})`, filter: `brightness(${(1 + heat * Math.exp(-t * 9)).toFixed(3)})` };
+      });
+      const r = g.getBoundingClientRect(), p = document.createElement('i'); p.className = 'roundPuff wisp';
+      Object.assign(p.style, { left: (r.left + r.width / 2 - 9) + 'px', top: (r.top - 10) + 'px' }); p.style.setProperty('--px', rr(-6, 6).toFixed(0) + 'px');
+      document.body.append(p); p.addEventListener('animationend', () => p.remove());
+    } else if (i >= have) {   // spent already: loose in the gun, they rattle
+      const a = rr(1.6, 2.3), tip = dir * rr(7, 11);
+      caseShake(g, KICK_MS, t => {
+        const s = t - lag, y = a * caseSpring(s, 7, 0.32), x = dir * 1.1 * caseSpring(s - 0.02, 9.5, 0.3), r = tip * caseSpring(s, 8, 0.3);
+        return { transform: `translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg)` };
+      });
+    } else {   // live: a dip with the recoil
+      const a = rr(1.3, 1.9);
+      caseShake(g, KICK_MS, t => ({ transform: `translateY(${(a * caseSpring(t - lag, 5.5, 0.45)).toFixed(2)}px)` }));
+    }
+  }
+}
 // the glyphs for one magazine, in the order they're laid out from the bottom right (styles/hud-weapon.css: right to
 // left along a row, rows stacking upward): the last round in the mag first, so it sits at the bottom right, then the
 // rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
@@ -56,12 +93,13 @@ function renderRounds(id, D) {
   const n = magCap(id), have = W8.mag[id] || 0, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
   const key = id + n + ':' + have + ':' + fired + ':' + T('ammo');   // the mag that's in it (game/run-state.js), and the fired cases it's kept
   if (cache.rounds === key) return; cache.rounds = key;
-  const el = $('rounds'), pr = cache.roundsPrev;
-  if (pr && pr.id === id && pr.n === n && n <= 40 && state === 'play') {
+  const el = $('rounds'), pr = cache.roundsPrev, same = pr && pr.id === id && pr.n === n && n <= 40 && state === 'play';
+  if (same) {
     const kids = el.children; let k = 0;
     if (!keeps && have < pr.have) for (let i = have; i < pr.have && k < 6; i++, k++) { if (kids[i]) dropRound(kids[i]); }   // thrown out as they're fired
     if (fired < pr.fired) for (let i = pr.have + fired; i < pr.have + pr.fired && k < 8; i++, k++) { if (kids[i]) dropRound(kids[i], true); }   // the kept ones, thrown out as the gun throws them
   }
   cache.roundsPrev = { id, n, have, fired }; el.className = roundsCls(D);
   el.innerHTML = magGlyphs(n, have, fired);
+  if (same && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
 }
