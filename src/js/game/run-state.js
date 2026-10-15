@@ -8,14 +8,14 @@ function freshStats() {
     spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
     cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, vaultFire: false, runGun: 0, lungs: false, hoard: false, btNext: 0, bulletTime: false, lastStand: false,
     swapMul: 1, bandMul: 1, ammoMul: 1, luck: 0, momentum: false, momK: 0, momT: -9, steady: 0, swingStam: 1,
-    att: { bayonet: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
+    tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
   Object.keys(TIERS).forEach(k => s.tier[k] = 0);
   return s;
 }
 function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -116,6 +116,9 @@ function magChange(id, fn) {
 // the old mag's out: the new one goes in, model and all
 function magSwapIn(id) { if (W8.pin && W8.pin[id]) { delete W8.pin[id]; buildGuns(); } }
 const curId = () => W8.slot[W8.cur];
+// the bayonet and the shoulder stock are bought for one gun and stay on it (W8.att[id]), like every other attachment:
+// the bayonet only fits a long gun, the stock only a sidearm
+const gunAtt = (id, k) => { const D = id && WEAP[id]; return !!(D && W8.att && W8.att[id] && W8.att[id][k] && D.slot === (k === 'bayonet' ? 'long' : 'side')); };
 const hasMod = m => (W8.mods[MODS[m].w] || []).includes(m);
 const held = id => W8.slot[WEAP[id].slot] === id;
 const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
@@ -125,7 +128,7 @@ function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
   if (D.melee) return D.two ? 1.03 : 1.07;
   if (D.slot !== 'long' && D.slot !== 'auto') return 1;
-  const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (S.att.bayonet && D.slot === 'long' ? 1 : 0);
+  const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, magSize(id) / 30 * 0.03);
   return clamp(1 - cal - mag - att * 0.008, 0.8, 1);
 }

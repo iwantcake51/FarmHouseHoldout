@@ -25,7 +25,7 @@ function fitAttachments(g, D, front, y, info) {
       front += L;
     }
   }
-  if (S.att.bayonet && D.slot === 'long') {   // long guns only, not the automatics
+  if (gunAtt(tierCtx, 'bayonet')) {   // long guns only, not the automatics
     ring(g, 0.024, 0.03, GM.metal, X, y, front - 0.03); box(g, 0.03, 0.045, 0.07, GM.poly, X, y - 0.05, front - 0.08);
     const bl = box(g, 0.01, 0.04, 0.26, GM.blade, X, y - 0.055, front + 0.08); box(bl, 0.011, 0.008, 0.2, GM.steel, 0, 0.006, -0.02);
     const tip = box(g, 0.01, 0.03, 0.04, GM.blade, X, y - 0.06, front + 0.215); tip.rotation.x = 0.5;
@@ -120,7 +120,7 @@ function fitAttachments(g, D, front, y, info) {
     }
   }
   if (roundOn(tierCtx) === 'fire') { ring(g, 0.03, 0.03, GM.ember, X, y, Math.min(front - 0.05, (info.sz || 0.62) + 0.28)); box(g, 0.012, 0.02, 0.05, GM.ember, X + 0.04, y - 0.04, (info.sz || 0.62) - 0.05); }
-  if (S.att.stock && side) {   // a folding brace off the back of the grip
+  if (gunAtt(tierCtx, 'stock') && side) {   // a folding brace off the back of the grip
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;

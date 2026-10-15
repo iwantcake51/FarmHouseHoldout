@@ -7,7 +7,7 @@ const SHOVE_BAND = 1.65;
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // the touch button climbs a window or fence when you are at one, and shoves otherwise
 function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
-const hasBayonet = () => { const D = W(curId()); return !!(S.att.bayonet && D && D.slot === 'long'); };   // long guns only
+const hasBayonet = () => gunAtt(curId(), 'bayonet');   // only on the long gun it was fitted to
 function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
   const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
