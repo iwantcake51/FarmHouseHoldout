@@ -54,7 +54,7 @@ function updatePlayer(dt) {
     if (P.pivot && P.pivot.keep) { tvx = P.pivot.wx * P.pivot.keep; tvz = P.pivot.wz * P.pivot.keep; }
     const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
     if (P.pivot) pivotSlow(dt, tvx, tvz);   // planting for a hard turn (player/sprint.js)
-    else if (P.sprint && !(P.skid > 0) && (tvx || tvz) && !turning) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends
+    else if (P.sprint && !(P.skid > 0) && (tvx || tvz)) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends, even a sharp cut
     else { P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; }
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);
