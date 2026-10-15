@@ -2,13 +2,18 @@
 
 const hasShotgun = () => !!(W8.slot.long && WEAP[W8.slot.long].ammo === 'shells');
 let S, W8, run, EFF = {};
-function freshRun() {
-  S = { dmgMul: 1, rateMul: 1, magMul: 1, reloadMul: 1, speedMul: 1, maxHp: 100, pierce: 0, dropMul: 1, boardMul: 1, meleeMul: 1, planks: 6, scrap: 4,
+// the stats a run starts with, before any skill (the cheat menu, ui/cheats.js, rebuilds skills on top of these)
+function freshStats() {
+  const s = { dmgMul: 1, rateMul: 1, magMul: 1, reloadMul: 1, speedMul: 1, maxHp: 100, pierce: 0, dropMul: 1, boardMul: 1, meleeMul: 1, planks: 6, scrap: 4,
     spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
     cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, vaultFire: false, runGun: false, lungs: false, hoard: false, btNext: 0, bulletTime: false, lastStand: false,
     swapMul: 1, bandMul: 1, ammoMul: 1, luck: 0, momentum: false, momK: 0, momT: -9, hardened: false,
     att: { bayonet: false, fire: false, stock: false }, tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
-  Object.keys(TIERS).forEach(k => S.tier[k] = 0);
+  Object.keys(TIERS).forEach(k => s.tier[k] = 0);
+  return s;
+}
+function freshRun() {
+  S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
     cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };

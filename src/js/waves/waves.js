@@ -36,14 +36,17 @@ function waveCleared() { phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn 
 function updateWaves(dt) {
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
 
-  if (phase === 'break') {
+  if (phase === 'break' && CHEAT.noWaves) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
+    setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
+    waveBar(1, 'break');
+  } else if (phase === 'break') {
     breakT -= dt;
     setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
     waveBar(breakT / breakMax, 'break');
     if (breakT <= 0) startWave();
   } else if (phase === 'wave') {
     spawnT -= dt;
-    if (spawnQ.length && spawnT <= 0 && zombies.length < 40) {
+    if (spawnQ.length && spawnT <= 0 && zombies.length < 40 && !CHEAT.noWaves) {
       spawnZombie(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4);
     }
     const left = spawnQ.length + zombies.length;

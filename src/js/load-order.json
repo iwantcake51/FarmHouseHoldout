@@ -114,6 +114,7 @@
   "ui/hud.js",
   "ui/weapon-stats.js",
   "ui/gear-popup.js",
+  "ui/cheats.js",
   "game/visuals.js",
   "game/loop.js"
 ]
