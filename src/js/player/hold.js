@@ -305,30 +305,59 @@ function shovePose() {
   return { q, push: pose[0], lean: pose[1], tw: pose[2] };
 }
 
-// the revolver's speed loader in the left hand (weapons/reload.js has the marks): six rounds held in a dark ring with a
-// knurled knob behind, fetched from the pouch, pushed into the open cylinder, twisted to let go of the rounds and
-// dropped. It lives in upper-body space beside the gun, so it follows the hand exactly
+// the revolver's speed loader, off a photo of one: a squat black polymer body with fine turned grooves round it, its
+// face drilled with six deep holes the rounds sit in (cases inside, noses out) round a stem with a bright release
+// button, and a neck behind it to a knurled steel knob, the one you twist to let the rounds go. Its axis is z, the face
+// forward; rnd takes the rounds (left out on an empty one). SL_FACE: where the face is, so with the fist SL_HAND behind
+// the loader's middle the rounds go into the cylinder as the hand reaches it (player/hold.js: the hand's path)
+const SL_FACE = 0.03, SL_HAND = 0.07;
+function speedLoader(g, rnd) {
+  const R = REV_CYL.r * 0.97, C = REV_CYL.ch, f = SL_FACE, bl = 0.026;
+  cyl(g, R, bl, GM.poly, 0, 0, f - bl / 2, 28);
+  for (let k = 0; k < 6; k++) cyl(g, R * 1.006, 0.0008, GM.rubber, 0, 0, f - 0.004 - k * 0.0036, 28);   // the fine grooves
+  cyl(g, R * 0.9, 0.0012, GM.metal, 0, 0, f + 0.0001, 28);                                             // the face, a shade lighter
+  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; cyl(g, 0.0064, 0.0012, GM.rubber, Math.cos(a) * C, Math.sin(a) * C, f + 0.0006, 14); }   // the holes
+  cyl(g, 0.0042, 0.004, GM.steelDk, 0, 0, f + 0.002, 12); cyl(g, 0.0032, 0.0016, GM.stainless, 0, 0, f + 0.0046, 12);   // the stem and its button
+  cyl(g, 0.0072, 0.01, GM.poly, 0, 0, f - bl - 0.005, 16);                                              // the neck
+  const kz = f - bl - 0.019; cyl(g, 0.0104, 0.018, GM.stainless, 0, 0, kz, 20);                         // the knob
+  for (let k = 0; k < 6; k++) ring(g, 0.0107, 0.0011, GM.stainlessD, 0, 0, kz - 0.0075 + k * 0.003);      // knurled
+  cyl(g, 0.0092, 0.0012, GM.stainlessD, 0, 0, kz - 0.0094, 16);
+  if (rnd) for (let k = 0; k < 6; k++) {
+    const a = k * Math.PI / 3, x = Math.cos(a) * C, y = Math.sin(a) * C;
+    cyl(rnd, 0.0052, 0.012, GM.brass, x, y, f + 0.002, 10);                                              // the case, mostly down in its hole
+    cyl(rnd, 0.0047, 0.006, GM.copper, x, y, f + 0.011, 10); cyl(rnd, 0.0032, 0.003, GM.copper, x, y, f + 0.0155, 10);   // the bullet, its nose rounded off
+  }
+}
+// in the left hand (weapons/reload.js has the marks): fetched from the pouch, pushed into the open cylinder, twisted to
+// let go of the rounds and dropped. It lives in upper-body space beside the gun, so it follows the hand exactly
 const SLM = new THREE.Group(), SL_RND = new THREE.Group();
-{ const R = REV_CYL.r, C = REV_CYL.ch; cyl(SLM, R * 0.95, 0.018, GM.metal, 0, 0, 0, 18); cyl(SLM, 0.008, 0.022, GM.metal2, 0, 0, -0.02, 12); ring(SLM, R * 0.97, 0.004, GM.metal2, 0, 0, 0.006);
-  for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3, x = Math.cos(a) * C, y = Math.sin(a) * C; cyl(SL_RND, 0.0052, 0.028, GM.brass, x, y, 0.022, 10); cyl(SL_RND, 0.0038, 0.008, GM.copper, x, y, 0.039, 10); }
-  SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM); }   // (slot: kept out of your clothes' blood, effects/body-blood.js)
-const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3();
+speedLoader(SLM, SL_RND); SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM);   // (slot: kept out of your clothes' blood, effects/body-blood.js)
+const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3(), _slS = new V3();
 // a round in the support hand while it's fed in by hand: two shotgun shells side by side (one shows, or both with a
 // speed loader feeding a pair) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1].map(k => { const g = new THREE.Group(); g.position.x = k * 0.026; cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
 const HSH_R = new THREE.Group(); cyl(HSH_R, 0.0055, 0.056, GM.brass, 0, 0, 0, 10); cyl(HSH_R, 0.0035, 0.016, GM.copper, 0, 0, 0.034, 10); HSH.add(HSH_R);
 HSH.visible = false; HSH.userData.slot = 'loader'; PM.upper.add(HSH);
 const _bq = new THREE.Quaternion();
-// the empty loader, let go of: it falls out of the hand, bounces and lies there a while (the casings' debris, weapons/casings.js)
+// the empty loader, let go of: it falls out of the hand just as it was, turning over, bounces and lies there a while
+// on its side (the casings' debris, weapons/casings.js). Its own model, the rounds left behind in the cylinder, at the
+// size it is in the hand (the loader's inner group, sz, takes the body's scale; the debris shrinks its outer one away)
+const SL_DROPS = [];
+for (let k = 0; k < 4; k++) {
+  const g = new THREE.Group(), sz = new THREE.Group(); speedLoader(sz); sz.traverse(m => { if (m.isMesh) m.castShadow = true; });
+  g.add(sz); g.visible = false; scene.add(g);
+  SL_DROPS.push({ g, sz, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag', restY: 0.03, rest: g => g.rotation.set(0, g.rotation.y, 0) });
+}
+let slIdx = 0;
 function dropLoader() {
   if (!SLM.visible) return;
-  SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.visible = false;
-  const c = mags[mIdx = (mIdx + 1) % mags.length];
-  c.body.geometry = DRUM_G; c.body.material = GM.metal; c.body.scale.set(REV_CYL.r * 0.95, 0.018, REV_CYL.r * 0.95); c.body.rotation.set(Math.PI / 2, 0, 0);
-  c.r = 0.022; c.restY = 0.009; c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.body.rotation.set(0, 0, 0); };
-  c.g.position.copy(_slW); c.g.rotation.set(0, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
+  SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.getWorldQuaternion(_bq); SLM.getWorldScale(_slS); SLM.visible = false;
+  const c = SL_DROPS[slIdx = (slIdx + 1) % SL_DROPS.length], s = _slS.x;
+  c.sz.scale.setScalar(s); c.sz.position.set(0, 0, -0.01 * s);   // (turning about its middle, the knob and all)
+  c.r = REV_CYL.r * 0.97 * s; c.restY = c.r;
+  c.g.position.copy(_slW).addScaledVector(_slAx.set(0, 0, 0.01 * s).applyQuaternion(_bq), 1); c.g.quaternion.copy(_bq); c.g.scale.setScalar(1); c.g.visible = true;
   c.vx = P.vx * 0.6 + rr(-0.4, 0.4); c.vz = P.vz * 0.6 + rr(-0.4, 0.4); c.vy = rr(-0.6, 0.2);
-  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14; c.kind = 'mag';
+  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14;
 }
 
 // bandaging: first the weapon goes away, carried by the right hand to where it rides (bandP, player/swap.js), then the
@@ -878,7 +907,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const slOn = rel === 'mag' && D.speedload && rp > 0.25 && rp < SL_DROP;
     if (slOn) {
       SLM.visible = true; SL_RND.visible = true;
-      SLM.position.copy(_fL).addScaledVector(_slAx, 0.07); SLM.quaternion.copy(_slQ);
+      SLM.position.copy(_fL).addScaledVector(_slAx, SL_HAND); SLM.quaternion.copy(_slQ);
       SLM.rotateZ(smooth(clamp((rp - SL_IN - 0.02) / 0.08, 0, 1)) * Math.PI / 3);
     } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
   } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);
