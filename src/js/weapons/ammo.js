@@ -9,9 +9,11 @@ function ammoAmt(a) {
   let mx = 0, n = 0; for (const sl of SLOTS) { const id = W8.slot[sl]; if (id && W(id).ammo === a) { mx = Math.max(mx, magSize(id)); n++; } }
   return Math.round(AMMO_DROP[a] * (mx ? clamp(Math.sqrt(mx / AMMO_REF[a]), 1, 2.4) : 1) * (1 + 0.2 * Math.max(0, n - 1)));
 }
-// a crafted batch for one gun: two ammo boxes' worth, sized to that gun's magazine (a drum shotgun gets more shells
-// than a pump). The workbench sells ammo by the gun, so two guns on the same calibre are two batches
-const gunBatch = id => { const D = W(id), a = D.ammo; return Math.round(AMMO_DROP[a] * clamp(Math.sqrt(magSize(id) / AMMO_REF[a]), 1, 2.4)) * 2; };
+// a crafted batch for one gun: the same for every gun on a calibre, whatever its magazine holds, so a pistol and a
+// submachine gun get the same 9mm for the same price. The workbench sells ammo by the gun, so two guns on the same
+// calibre are two batches
+const AMMO_BATCH = { p9: 40, magnum: 12, shells: 14, rifle: 45 };
+const gunBatch = id => AMMO_BATCH[W(id).ammo];
 // a longer barrel (D.reach, weapons/gun-mods.js) stretches both ranges by that much and lifts the floor to match
 const falloff = (id, t) => {
   const F = FALLOFF[id]; if (!F) return 1;
