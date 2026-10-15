@@ -3,14 +3,23 @@
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
 const BASE_HP = 100;
+// the stamina you've used and not yet won back (everything past the fill), and whether it's coming back yet ('back',
+// dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
+function stamDrain(rdt) {
+  const up = P.stam > (ANIM.stamPrev ?? P.stam) + 1e-5, down = P.stam < (ANIM.stamPrev ?? P.stam) - 1e-5; ANIM.stamPrev = P.stam;
+  ANIM.drainD = Math.max(0, 1 - ANIM.stamD);
+  if (ANIM.drainD < 0.004) ANIM.drainSt = '';
+  else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
+  else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
+}
 function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
-  // and what a sprint has run off (P.runDebt, player/sprint.js) shows just past the fill: bright while you're running or
-  // catching your breath, dimmed once it's coming back, the fill easing on over it
-  ANIM.runD = (ANIM.runD || 0) + ((P.runDebt || 0) - (ANIM.runD || 0)) * Math.min(1, rdt * 10);
-  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = Math.min(ANIM.runD, 1 - ANIM.stamD);
-    const rs = rd < 0.004 ? '' : P.sprint || (P.runT || 0) < RUN_REST.wait ? 'on' : 'back';
+  // and what you've used (a sprint, a swing, a shove, a vault) shows just past the fill, here and on the crosshair's ring
+  // (ui/crosshair.js): bright while you're using it and till it starts coming back, then dimmed, the fill easing on
+  // into it till it's gone
+  stamDrain(rdt);
+  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
     const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
     if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
       const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }

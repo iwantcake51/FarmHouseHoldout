@@ -53,7 +53,12 @@ function updateCrosshair(rdt, D) {
     // away once it's full again
     {
       const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
-      if (on || cache.xhSt !== false) { st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`); }
+      if (on || cache.xhSt !== false) {
+        st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`);
+        // what you've used, just past it, as on the bar under your health (stamDrain, ui/hud.js)
+        const sr = $('xhStamRun'); sr.setAttribute('stroke-dasharray', `0 ${(sd * M_ARC()).toFixed(2)} ${(ANIM.drainD * M_ARC()).toFixed(2)} 999`);
+        const rc = 'stRun' + (ANIM.drainSt ? ' ' + ANIM.drainSt : ''); if (sr.getAttribute('class') !== rc) sr.setAttribute('class', rc);
+      }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
@@ -98,7 +103,7 @@ function updateCrosshair(rdt, D) {
       lastXh = xk;
       const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
       aR = Math.max(30, outer + XH_CLEAR.a); sR = Math.max(22, outer + XH_CLEAR.s);
-      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR);
+      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR);
       $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;

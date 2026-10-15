@@ -13,8 +13,8 @@
 #stamBar{position:relative;height:3px;margin-top:-4px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;opacity:0;transition:opacity .4s ease}
 #stamBar i{position:absolute;inset:0;transform-origin:left center;border-radius:2px;background:linear-gradient(90deg,var(--sc1,#5f9e78),var(--sc2,#a8dcb4));box-shadow:0 0 6px var(--sc2,#a8dcb4);transition:--sc1 .5s ease,--sc2 .5s ease}
 #stamBar.big{height:4px}
-/* what a sprint has run off (P.runDebt), just past the end of the fill: bright while you run, then dimmed as it's slowly
-   won back, the fill easing on into it till it's gone */
+/* the stamina you've used (a sprint, a swing, a shove, a vault: stamDrain in ui/hud.js), just past the end of the fill:
+   bright while you're using it, then dimmed as it comes back, the fill easing on into it till it's gone */
 #stamBar b{position:absolute;inset:0;transform-origin:left center;transform:scaleX(0);border-radius:2px;background:linear-gradient(90deg,rgba(244,214,150,.95),rgba(232,184,96,.75));box-shadow:0 0 5px rgba(240,196,110,.7);opacity:0;transition:opacity .7s ease}
 #stamBar b.on{opacity:.9}
 #stamBar b.back{opacity:.32;transition:opacity 1.1s ease}
@@ -26,6 +26,9 @@
 /* the stamina arc fades in when you use some and back out a moment after it's full */
 #xhStamG{opacity:0;transition:opacity .6s ease .35s}
 #xhStamG.on{opacity:1;transition:opacity .15s ease}
+#xh .stRun{fill:none;stroke:#f0cc84;stroke-width:3;stroke-linecap:round;opacity:0;transition:opacity .7s ease;filter:drop-shadow(0 0 2px rgba(240,190,100,.6))}
+#xh .stRun.on{opacity:.9}
+#xh .stRun.back{opacity:.3;transition:opacity 1.1s ease}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#d4e6f6,#86acd2);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
 /* (the first layer is health up to the base 100; past it, bonus health from armour and the like is steel blue) */
