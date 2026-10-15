@@ -49,7 +49,7 @@ function updatePlayer(dt) {
     }
     // a quick but soft start, a short glide when you let go, and a firmer push when you reverse; frame-rate independent
     // (a sprint builds up over a moment, and a skid only loses speed to the ground's friction)
-    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : P.sprint ? 6 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : P.sprint ? (P.pushT > 0 ? PIVOT.pushAcc : 6) : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
     P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k;
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);

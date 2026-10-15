@@ -16,11 +16,12 @@
 const WALK_SPEED = 3.5;
 const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2 };
 const RG_ARC = 1.3, RG_SPREAD = 3;
-// the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the scramble to
-// plant your feet (brake: seconds, fric: how hard the ground stops you, scr: how fast the feet patter, radians a
-// second), then the turn itself (turn, plus perRad for each radian of it; a step for about every stepRad of it), how
-// far the hips lead the body round (lead) and how loosely the body follows them (yawRate)
-const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.24, fric: 11, scr: 27, turn: 0.2, perRad: 0.06, stepRad: 1.0, lead: 0.55, yawRate: 8 };
+// the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the plant (brake:
+// seconds, fric: how hard the ground stops you, scr: how fast the feet patter, radians a second), then the snap round
+// (turn, plus perRad for each radian of it; a step for about every stepRad of it), how far the hips lead the body
+// round (lead), how quickly the body follows them (yawRate), and the push off the new way (push: seconds of hard
+// acceleration, pushAcc), with a kick of roll to the view as you plant (roll)
+const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.1, fric: 24, scr: 44, turn: 0.08, perRad: 0.03, stepRad: 1.2, lead: 0.6, yawRate: 24, push: 0.28, pushAcc: 16, roll: 0.035 };
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
 const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
@@ -48,7 +49,8 @@ function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
   if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock) P.sprintLock = false;
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
-  if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) P.pivot = null;
+  if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); SFX.step(1.2, pivotIndoors()); }   // driving off the new way
+  if (P.pushT > 0) P.pushT -= dt;
   // a click while the gun's down (sprinting, turning, or still coming up): it goes off once the gun's up
   const trig = rgArc() ? null : sprintTrig();
   if (trig && (P.sprint || P.pivot || (ANIM.ready || 0) > READY_UP)) { P.fireQ = trig; P.fireQT = FIRE_WAIT; }
@@ -62,7 +64,8 @@ function updateSprint(dt, moving, wx, wz) {
     const from = Math.atan2(P.vx, P.vz), turn = angDiff(Math.atan2(wx, wz), from);
     if (Math.abs(turn) > PIVOT.ang) {
       P.pivot = { t: 0, from, turn, dur: PIVOT.brake + PIVOT.turn + PIVOT.perRad * Math.abs(turn) };
-      SFX.skid(); sprintDust(2); shake = Math.max(shake, 0.16);
+      // digging in: a skid, a spray of dust off the boots and the view rolled hard into the turn for a moment
+      SFX.skid(); sprintDust(6); shake = Math.max(shake, 0.07); camRoll += Math.sign(turn) * PIVOT.roll;
     }
   }
   P.sprint = can && !aiming && !P.pivot;
@@ -93,31 +96,34 @@ function sprintAnim(rdt) {
   ease('ready', on ? 1 : 0, 8, 6.5);      // down in about a fifth of a second, back up a touch quicker than that
   ease('faceK', on ? 1 : 0, 6, 5);
   const scr = !!pv && pv.t < PIVOT.brake;
-  const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 0.8 : 0;
-  ease('skidK', sk, 18, 7);
-  ease('scrK', scr ? 1 : 0, 22, 7);
-  ease('pivK', pv && pv.t > PIVOT.brake * 0.75 ? 1 : 0, 10, 6);
+  const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 1 : 0;
+  ease('skidK', sk, pv ? 34 : 18, pv ? 12 : 7);   // (a hard turn's plant is quick: the lean back goes in and comes out fast)
+  ease('scrK', scr ? 1 : 0, 40, 10);
+  ease('pivK', pv && pv.t > PIVOT.brake * 0.75 ? 1 : 0, 22, 8);
   // the scramble's steps, quick and short, dying away as you stop
   if ((ANIM.scrK || 0) > 0.01) {
     const p0 = ANIM.scrPh || 0; ANIM.scrPh = p0 + rdt * PIVOT.scr * (scr ? 1 : 0.6);
     if (scr && Math.floor(ANIM.scrPh / Math.PI) !== Math.floor(p0 / Math.PI)) {
-      SFX.step(1.1, pivotIndoors()); shake = Math.max(shake, 0.1);
+      SFX.step(1.1, pivotIndoors());
       const sd = Math.floor(ANIM.scrPh / Math.PI) % 2 ? 1 : -1; burst(P.x + RIGHT.x * sd * 0.12 + rr(-0.05, 0.05), 0.04, P.z + RIGHT.z * sd * 0.12 + rr(-0.05, 0.05), 1, 'dust');
     }
   } else ANIM.scrPh = 0;
   // the turn's steps keep time with the body coming round; once it's round the last one's put down
   const ph0 = ANIM.pivPh || 0;
   if (pv) { ANIM.pivDir = Math.sign(pv.turn) || 1; ANIM.pivPh = Math.PI * Math.max(2, Math.round(Math.abs(pv.turn) / PIVOT.stepRad)) * (ANIM.pivU || 0); }
-  else if ((ANIM.pivK || 0) > 0.01) ANIM.pivPh = Math.min(Math.ceil(ph0 / Math.PI - 1e-6) * Math.PI, ph0 + rdt * 9);
+  else if ((ANIM.pivK || 0) > 0.01) ANIM.pivPh = Math.min(Math.ceil(ph0 / Math.PI - 1e-6) * Math.PI, ph0 + rdt * 16);
   else ANIM.pivPh = 0;
   if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(0.6, pivotIndoors());
 }
 
-// the view while you sprint: a jolt down at each footfall, swaying from side to side with the stride and rolling with
-// it a touch (on top of the vault's, the recoil's and the rack's: game/camera.js)
-const camRun = { px: 0, pz: 0, bob: 0, roll: 0 };
+// the view while you sprint bobs by turning rather than shaking: it rolls from side to side with the stride
+// (RUN_CAM.roll, radians), swings round you a touch the other way (orbit, radians of the camera's swing about you), nods
+// down a little at each footfall (nod, radians of tilt), and only drifts a few centimetres (side, dip): on top of the
+// vault's, the recoil's and the rack's (game/camera.js)
+const RUN_CAM = { roll: 0.016, orbit: 0.01, nod: 0.006, side: 0.015, dip: 0.04 };
+const camRun = { px: 0, pz: 0, bob: 0, roll: 0, orbit: 0, nod: 0 };
 function runCam() {
-  const k = smooth(clamp(ANIM.sprintK || 0, 0, 1)), ph = P.phase, hit = Math.pow(Math.abs(Math.cos(ph)), 10), side = Math.sin(ph) * 0.05 * k;
-  camRun.bob = -0.11 * hit * k; camRun.px = RIGHT.x * side; camRun.pz = RIGHT.z * side; camRun.roll = Math.sin(ph) * 0.007 * k;
-  if (k > 0.3) shake = Math.max(shake, 0.13 * k);
+  const k = smooth(clamp(ANIM.sprintK || 0, 0, 1)), ph = P.phase, s = Math.sin(ph), hit = Math.pow(Math.abs(Math.cos(ph)), 6), side = s * RUN_CAM.side * k;
+  camRun.bob = -RUN_CAM.dip * hit * k; camRun.px = RIGHT.x * side; camRun.pz = RIGHT.z * side;
+  camRun.roll = s * RUN_CAM.roll * k; camRun.orbit = -s * RUN_CAM.orbit * k; camRun.nod = hit * RUN_CAM.nod * k;
 }

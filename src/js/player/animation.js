@@ -231,7 +231,7 @@ function animatePlayer(dt, rdt) {
     // each step, and come up again as you set off
     const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
     if (scr > 0.001) { pm.g.position.y -= scr * (0.06 + 0.025 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
-    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; pm.g.rotation.z += -(ANIM.pivDir || 1) * 0.04 * pk * (P.pivot ? 1 : 0); }
+    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; pm.g.rotation.z += -(ANIM.pivDir || 1) * 0.13 * pk * (P.pivot ? 1 : 0); }   // banked hard into the turn
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
