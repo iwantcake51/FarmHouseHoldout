@@ -110,7 +110,7 @@ function animatePlayer(dt, rdt) {
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
-  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : 16;   // ease back round to your aim after a vault
+  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 16;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
   // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it
   ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim + angDiff(ANIM.runYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1)), ANIM.yaw) * Math.min(1, rdt * turnRate);
   // Vault fire: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
@@ -142,7 +142,11 @@ function animatePlayer(dt, rdt) {
     // standing still the torso turns on its own; when the twist gets too big the feet shuffle round to catch up
     if (ANIM.feet === undefined) ANIM.feet = ANIM.yaw;
     const tw = angDiff(ANIM.yaw, ANIM.feet);
-    if (P.pivot || (ANIM.pivK || 0) > 0.05) { ANIM.feet += tw * Math.min(1, rdt * 10); ANIM.stepping = false; }   // shuffling round in a hard turn, the hips come round with the body, step by step (below)
+    if (P.pivot || (ANIM.pivK || 0) > 0.05) {
+      // turning round from a sprint the hips lead the body round, step by step (below), and settle under it once it's round
+      const lead = P.pivot ? clamp(angDiff(ANIM.pivTo ?? ANIM.yaw, ANIM.yaw), -1, 1) * PIVOT.lead : 0;
+      ANIM.feet += angDiff(ANIM.yaw + lead, ANIM.feet) * Math.min(1, rdt * 12); ANIM.stepping = false;
+    }
     else if (!ANIM.stepping && Math.abs(tw) > 0.8) { ANIM.stepping = true; ANIM.stepT = 0; }
     if (ANIM.stepping) { ANIM.feet += tw * Math.min(1, rdt * 6.5); ANIM.stepT += rdt; if (Math.abs(angDiff(ANIM.yaw, ANIM.feet)) < 0.06 && ANIM.stepT > 0.25) ANIM.stepping = false; }
     ANIM.legYaw = angDiff(ANIM.feet, ANIM.yaw);
@@ -191,22 +195,31 @@ function animatePlayer(dt, rdt) {
     const kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads) * bad, give = 0.06 * Math.min(1, runF) + 0.08 * sk;
     pm.shinL.rotation.x = kn * Math.pow(Math.max(0, -Math.cos(ph + 0.35)), 1.3) + give;
     pm.shinR.rotation.x = kn * Math.pow(Math.max(0, Math.cos(ph + 0.35)), 1.3) * bad + give;
-    if (skid > 0.001) {
+    const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), brace = skid * (1 - scr);
+    if (brace > 0.001) {
       // skidding to a stop: the leading leg braced out ahead, the back knee bent under you
-      const c = Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw)), mix = (a, b) => a + (b - a) * skid;
+      const c = Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw)), mix = (a, b) => a + (b - a) * brace;
       pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.7 * c); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.3 * c);
       pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.12); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.65);
     }
+    if (scr > 0.001) {
+      // scrambling to plant your feet out of a sprint: short choppy steps, each foot thrown down ahead of you to dig in
+      // (the body's going over them, leaning back), the knee snatched up as it comes through, smaller as you slow
+      const q = Math.sin(ANIM.scrPh || 0), c = Math.cos(ANIM.scrPh || 0), a = 0.4 * (0.45 + 0.55 * clamp(Math.hypot(P.vx, P.vz) / 4, 0, 1)), mix = (x, y) => x + (y - x) * scr;
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.2 - a * q); pm.legR.rotation.x = mix(pm.legR.rotation.x, -0.2 + a * q);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.28 + 0.75 * Math.max(0, c)); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.28 + 0.75 * Math.max(0, -c));
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.06); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.06);
+    }
     const pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
     if (pk > 0.001) {
-      // shuffling round in a hard turn: short quick steps in place, each knee lifting in turn and each foot set down a
-      // little out to the side you're turning to, the standing knee soft
+      // and coming round: a step for every so much of the turn, each foot lifted and set down further round, out to
+      // the side you're turning to, the standing knee soft
       const q = Math.sin(ANIM.pivPh || 0), up = Math.max(0, q), dn = Math.max(0, -q), d = ANIM.pivDir || 1, mix = (a, b) => a + (b - a) * pk;
       const [lL, lR] = d > 0 ? [up, dn] : [dn, up];
-      pm.legL.rotation.x = mix(pm.legL.rotation.x, 0.05 - 0.34 * lL); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.05 - 0.34 * lR);
-      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.14 + 0.62 * lL); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.14 + 0.62 * lR);
-      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.04 - 0.08 * lL * (d > 0 ? 1 : 0.3)); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.04 + 0.08 * lR * (d < 0 ? 1 : 0.3));
-      pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.05);
+      pm.legL.rotation.x = mix(pm.legL.rotation.x, 0.06 - 0.3 * lL); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.06 - 0.3 * lR);
+      pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.16 + 0.55 * lL); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.16 + 0.55 * lR);
+      pm.legL.rotation.z = mix(pm.legL.rotation.z, -0.05 - 0.12 * lL * (d > 0 ? 1 : 0.4)); pm.legR.rotation.z = mix(pm.legR.rotation.z, 0.05 + 0.12 * lR * (d < 0 ? 1 : 0.4));
+      pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.06);
     }
   }
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
@@ -214,8 +227,11 @@ function animatePlayer(dt, rdt) {
     const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw);
     pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * skid; pm.g.rotation.z += Math.sin(rel) * 0.2 * skid;
     pm.g.position.y -= 0.07 * skid;
-    const pk = smooth(clamp(ANIM.pivK || 0, 0, 1));   // and low through a hard turn's shuffle, bobbing a touch on each step
-    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.018 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.06 * pk; }
+    // scrambling to a stop you drop and bounce on each choppy step; turning round you stay low, bobbing a touch with
+    // each step, and come up again as you set off
+    const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
+    if (scr > 0.001) { pm.g.position.y -= scr * (0.06 + 0.025 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
+    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; pm.g.rotation.z += -(ANIM.pivDir || 1) * 0.04 * pk * (P.pivot ? 1 : 0); }
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
@@ -247,7 +263,8 @@ function animatePlayer(dt, rdt) {
   // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
   if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
   // breathing lifts the chest a touch
-  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid, ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw, urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
+  // (the chest jolts forward on each of a scramble's choppy steps)
+  let urx = ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw, urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank;
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body

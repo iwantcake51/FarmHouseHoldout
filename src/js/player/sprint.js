@@ -16,9 +16,11 @@
 const WALK_SPEED = 3.5;
 const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2 };
 const RG_ARC = 1.3, RG_SPREAD = 3;
-// the turn: how far round counts, how fast you must be going, the plant (brake: seconds, fric: how hard you stop),
-// then the shuffle round (turn, plus perRad for each radian of it), and its steps (radians of stride a second)
-const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.17, fric: 12, turn: 0.14, perRad: 0.07, steps: 20 };   // (minSpd: of walking speed, well into a sprint)
+// the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the scramble to
+// plant your feet (brake: seconds, fric: how hard the ground stops you, scr: how fast the feet patter, radians a
+// second), then the turn itself (turn, plus perRad for each radian of it; a step for about every stepRad of it), how
+// far the hips lead the body round (lead) and how loosely the body follows them (yawRate)
+const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.24, fric: 11, scr: 27, turn: 0.2, perRad: 0.06, stepRad: 1.0, lead: 0.55, yawRate: 8 };
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
 const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
@@ -74,25 +76,41 @@ function updateSprint(dt, moving, wx, wz) {
 }
 
 // the animation's blends, each eased on its own clock: the gait (sprintK), the gun down at a low ready (ready), the body
-// turned to where you're running (faceK), the skid (skidK, a quick lean back that lets go as you stop), and the shuffle
-// round in a hard turn (pivK, its steps on pivPh): the plant is a short skid, then the body comes round to the new way
-// on quick short steps, a knee coming up each time, with the gun still down (unless you've pulled the trigger)
+// turned to where you're running (faceK), the skid (skidK, a quick lean back that lets go as you stop), and a hard
+// turn: the scramble to plant your feet (scrK, its quick choppy steps on scrPh, each one a scuff, a puff of dust and a
+// jolt), then the turn round (pivK, its steps on pivPh, kept in time with the body coming round so each foot is set
+// down a little further round), all with the gun still down (unless you've pulled the trigger)
+const pivotIndoors = () => P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1;
 function sprintAnim(rdt) {
   const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ);
-  if (pv) ANIM.runYaw = pv.from + pv.turn * smooth(clamp((pv.t - PIVOT.brake * 0.6) / (pv.dur - PIVOT.brake * 0.6), 0, 1));
-  else if (Math.hypot(P.vx, P.vz) > 0.5) ANIM.runYaw = Math.atan2(P.vx, P.vz);
+  if (pv) {
+    // the body starts round as the feet dig in and eases round to the new way
+    const u0 = PIVOT.brake * 0.75, u = smooth(clamp((pv.t - u0) / (pv.dur - u0), 0, 1));
+    ANIM.runYaw = pv.from + pv.turn * u; ANIM.pivU = u; ANIM.pivTo = pv.from + pv.turn;
+  } else if (Math.hypot(P.vx, P.vz) > 0.5) ANIM.runYaw = Math.atan2(P.vx, P.vz);
   const ease = (k, to, up, down) => { ANIM[k] = (ANIM[k] || 0) + (to - (ANIM[k] || 0)) * Math.min(1, rdt * (to > (ANIM[k] || 0) ? up : down)); };
   ease('sprintK', P.sprint ? 1 : 0, 4.5, 4);
   ease('ready', on ? 1 : 0, 8, 6.5);      // down in about a fifth of a second, back up a touch quicker than that
   ease('faceK', on ? 1 : 0, 6, 5);
-  const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : pv ? 0.85 * Math.sin(Math.PI * Math.min(1, pv.t / (PIVOT.brake * 1.3))) : 0;
-  ease('skidK', sk, 18, 10);
-  ease('pivK', pv && pv.t > PIVOT.brake * 0.7 ? 1 : 0, 12, 6);
-  if (pv && pv.t <= PIVOT.brake * 0.7) { ANIM.pivPh = 0; ANIM.pivDir = Math.sign(pv.turn) || 1; }   // the first step's with the foot on the side you're turning to
-  else if ((ANIM.pivK || 0) > 0.01) {
-    const ph0 = ANIM.pivPh || 0; ANIM.pivPh = ph0 + rdt * PIVOT.steps * (pv ? 1 : 0.5);
-    if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(0.55, P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1);
-  }
+  const scr = !!pv && pv.t < PIVOT.brake;
+  const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 0.8 : 0;
+  ease('skidK', sk, 18, 7);
+  ease('scrK', scr ? 1 : 0, 22, 7);
+  ease('pivK', pv && pv.t > PIVOT.brake * 0.75 ? 1 : 0, 10, 6);
+  // the scramble's steps, quick and short, dying away as you stop
+  if ((ANIM.scrK || 0) > 0.01) {
+    const p0 = ANIM.scrPh || 0; ANIM.scrPh = p0 + rdt * PIVOT.scr * (scr ? 1 : 0.6);
+    if (scr && Math.floor(ANIM.scrPh / Math.PI) !== Math.floor(p0 / Math.PI)) {
+      SFX.step(1.1, pivotIndoors()); shake = Math.max(shake, 0.1);
+      const sd = Math.floor(ANIM.scrPh / Math.PI) % 2 ? 1 : -1; burst(P.x + RIGHT.x * sd * 0.12 + rr(-0.05, 0.05), 0.04, P.z + RIGHT.z * sd * 0.12 + rr(-0.05, 0.05), 1, 'dust');
+    }
+  } else ANIM.scrPh = 0;
+  // the turn's steps keep time with the body coming round; once it's round the last one's put down
+  const ph0 = ANIM.pivPh || 0;
+  if (pv) { ANIM.pivDir = Math.sign(pv.turn) || 1; ANIM.pivPh = Math.PI * Math.max(2, Math.round(Math.abs(pv.turn) / PIVOT.stepRad)) * (ANIM.pivU || 0); }
+  else if ((ANIM.pivK || 0) > 0.01) ANIM.pivPh = Math.min(Math.ceil(ph0 / Math.PI - 1e-6) * Math.PI, ph0 + rdt * 9);
+  else ANIM.pivPh = 0;
+  if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(0.6, pivotIndoors());
 }
 
 // the view while you sprint: a jolt down at each footfall, swaying from side to side with the stride and rolling with

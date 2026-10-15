@@ -104,6 +104,7 @@
   "ui/melee-art.js",
   "player/animation.js",
   "player/hold.js",
+  "player/grip.js",
   "player/stow.js",
   "player/swap.js",
   "effects/eye-glow.js",

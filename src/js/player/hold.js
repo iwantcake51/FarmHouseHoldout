@@ -14,7 +14,7 @@ const HOLD = {
   pistol: { grip: [X, 1.04, 0.565], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand', slideAt: [X, 1.172, 0.565], stopAt: [X + 0.03, 1.13, 0.662] },
   deagle: { grip: [X, 1.04, 0.56], fore: [X - 0.05, 0.985, 0.6], blade: 0.12, pull: 0.09, kind: 'hand', slideAt: [X, 1.2, 0.585], stopAt: [X + 0.032, 1.122, 0.628] },
   revolver: { grip: [X, 1.03, 0.5], fore: [X - 0.045, 0.985, 0.54], blade: 0.12, pull: 0.04, kind: 'hand' },
-  smg: { grip: [X, 1.0, 0.628], fore: [X, 0.99, 0.836], blade: 0.5, pull: 0.25, kind: 'long' },
+  smg: { grip: [X, 1.0, 0.628], fore: [X, 0.99, 0.836], blade: 0.5, pull: 0.25, kind: 'long', post: true },   // (post: the hand's on a vertical foregrip, player/grip.js)
   pump: { grip: [X, 1.082, 0.445], fore: [X, 1.104, 0.915], blade: 0.58, pull: 0.16, kind: 'long', foreOnSlide: true, port: [X, 1.095, 0.66] },
   dbl: { grip: [X, 1.07, 0.5], fore: [X, 1.094, 0.84], blade: 0.48, pull: 0.12, kind: 'long', port: [X, 1.14, 0.612] },
   auto12: { grip: [X, 0.975, 0.5], fore: [X, 1.075, 0.98], blade: 0.58, pull: 0.21, kind: 'long' },
@@ -639,7 +639,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // SUPPORT_REACH arm-lengths from the left shoulder is held in, the whole gun drawn back toward that shoulder so the
   // hand stays on it (not while the hand's off the gun anyway, reloading or working the action)
   if (!ak && H.fore) {
-    gunPt(_sup, s, 'R', H.fore[0], H.fore[1] - (HAND_DROP[H.kind] || HAND_DROP.hand).fore, H.fore[2]);
+    gunPt(_sup, s, 'R', H.fore[0], H.fore[1] - foreDrop(s, H), H.fore[2]);
     const sL = SHOULDER.L, dx = _sup.x - sL[0], dy = _sup.y - sL[1], dz = _sup.z - sL[2], d = Math.hypot(dx, dy, dz), over = d - FIST * SUPPORT_REACH;
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
@@ -737,7 +737,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   else {
     let fz = H.fore[2];
     if (H.foreOnSlide && sl) { const q = sl.find(e => e.cyc); if (q) fz += q.m.position.z - q.z0; }   // the support hand rides the pump
-    gunPt(_hL, s, 'R', H.fore[0], H.fore[1] - hd.fore, fz);
+    gunPt(_hL, s, 'R', H.fore[0], H.fore[1] - foreDrop(s, H), fz);   // the fist up against the fore-end's underside (player/grip.js)
   }
   // the firing hand: works the bolt by its knob on a bolt gun's cycle (both points are on the gun, so it never lags
   // behind it), coming up over the wrist on the way there and back
