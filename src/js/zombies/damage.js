@@ -124,7 +124,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
   dmgNumber(z, dealt, part === 'head' && !D.melee, y, crit);
   if (part !== 'torso' && part !== 'head') {
-    const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul;
+    const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
     // shot through below the elbow or knee, it's mostly just that much that goes first (zombies/wounds.js), and what's
     // left of the limb takes a little more

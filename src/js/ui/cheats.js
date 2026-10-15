@@ -129,6 +129,12 @@ const CHEAT_TABS = {
         return `<div class="chRow"><span class="chK">${CH_LINE[k]}</span><span class="chTier">${n ? esc(tierName(k, n - 1, id)) : '<i>None</i>'}<small>${n}/${max}${why ? ' · ' + why : ''}</small></span>${chStep('tier', { k }, '', n > 0, up)}</div>`;
       }).join('');
     }
+    // the kinds of round it takes: give and load any of them (weapons/rounds.js)
+    if (!D.melee && roundTypes(id).length > 1) {
+      h += chHead('Rounds');
+      h += roundTypes(id).map(k => { const own = roundOwned(id, k), on = roundOn(id) === k;
+        return `<div class="chRow${own ? ' have' : ''}"><span class="chK chMod" title="${esc(roundText(id, k))}">${esc(roundName(id, k))}<small>${on ? 'Loaded' : own ? 'Owned' : esc(roundText(id, k))}</small></span>${chBtn(on ? 'Loaded' : 'Load', 'round', { k }, '', on)}</div>`; }).join('');
+    }
     const mods = Object.keys(MODS).filter(m => MODS[m].w === id);
     if (mods.length) {
       h += chHead('Mods');
@@ -167,7 +173,7 @@ const CHEAT_TABS = {
 
 // ---- the gun in your hands ----------------------------------------------------------------------------------------
 const CH_GUN_LINES = ['ammo', 'trigger', 'mag', 'supp', 'choke', 'sight', 'laser', 'light', 'loader'];
-const CH_LINE = { ammo: 'Ammo', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
+const CH_LINE = { ammo: 'Powder', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
 function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
@@ -278,7 +284,8 @@ const CHEAT_ACTS = {
     if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
-  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; }); },
+  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; }); },
+  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); gunGlow = 1; },
   maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) W8.gt[id][k] = gunTier(id, k) + 1; recomputeEff(); }); },
   skill: d => chSkill(d.key, +d.d),
   noskills: () => chNoSkills(),

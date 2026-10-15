@@ -7,10 +7,12 @@ const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 
 // moving adds to them it takes away
 const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
 const TIERS = {
-  ammo: { tag: 'Ammo', t: [
-    { r: 'c', name: 'Hollow points', text: '+25% damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
+  // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
+  // round is what it does (the line's key is still 'ammo')
+  ammo: { tag: 'Powder', t: [
+    { r: 'c', name: 'Hand-loads', text: '+25% damage, whatever round is loaded.', vis: 'Rounds loaded by hand to a hotter charge', ap: () => S.dmgMul *= 1.25 },
     { r: 'u', name: '+P loads', text: '+20% damage.', vis: 'Hotter, orange tracers', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade rounds', text: '+25% damage. Headshot multiplier +0.3×.', vis: 'Polished nickel rounds', ap: () => S.dmgMul *= 1.25 }] },
+    { r: 'e', name: 'Match-grade loads', text: '+25% damage. Headshot multiplier +0.3×.', vis: 'Every charge weighed out the same', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
     { r: 'c', name: 'Light trigger', text: 'Fires 18% faster.', ap: () => S.rateMul *= 1.18 },
     { r: 'u', name: 'Match trigger', text: 'Fires 15% faster.', ap: () => S.rateMul *= 1.15 },
@@ -18,13 +20,16 @@ const TIERS = {
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
     // the drum shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
-    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
-    { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
+    // the pump's are its tube extended toward the muzzle, the M60's a longer belt in a deeper box, the SMG's longer
+    // curved mags (they used to be mods of their own: weapons/gun-mods.js)
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag', pump: 'Tube extension', lmg: '140-round belt' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag', pump: 'Long tube', lmg: '200-round belt', sub: 'Double-stack mags' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
+    { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag', pump: 'Full-length tube', lmg: '270-round belt' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
+  // the SMG's is the SD's integral can, its barrel swapped for it (weapons/gun-models.js)
   supp: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Oil-filter can', text: 'Quieter shots, +10% damage. Uses the muzzle slot.', vis: 'An oil filter on the muzzle', ap: () => {} },
-    { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
-    { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => {} }] },
+    { r: 'u', name: 'Oil-filter can', as: { sub: 'Integral suppressor' }, text: 'Quieter shots, +10% damage. Uses the muzzle slot.', vis: 'An oil filter on the muzzle', ap: () => {} },
+    { r: 'r', name: 'Suppressor', as: { sub: 'Integral suppressor II' }, text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
+    { r: 'e', name: 'Heavy-duty suppressor', as: { sub: 'Integral suppressor III' }, text: 'Very quiet shots, +30% damage.', vis: 'A thick, long can', ap: () => {} }] },
   sight: { tag: 'Attachment', t: [
     // every sight only tightens your aimed shots, standing and on the move (SIGHT_AIM, SIGHT_MOVE in game/run-state.js);
     // on a sniper it also raises the headshot multiplier, and through a scope its headshots crit (SCOPES)

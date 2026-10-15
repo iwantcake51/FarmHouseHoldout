@@ -1,5 +1,5 @@
-// Forest placement and the foliage: pines, spruces, broadleaves and dead trees with shade pools under them, bushes and
-// rocks, each a handful of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
+// Forest placement and the foliage: pines of every size with shade pools under them, bushes and rocks, each a handful
+// of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
 
 const treeCells = [], TREES = [];
 // the yard fence stays in view: no pine stands within FENCE_CLEAR cells outside it (FENCE_CLEAR_CAM on the sides that
@@ -37,55 +37,16 @@ function fjoin(parts) {
   parts.forEach(g => { pos.set(g.attributes.position.array, o * 3); col.set(g.attributes.color.array, o * 3); o += g.attributes.position.count; });
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals(); return g;
 }
-// a limb from a to b (radius r0 at a, r1 at b)
-function fbough(a, b, r0, r1, hex, seg) {
-  const d = _tfv.copy(b).sub(a), L = d.length(), q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d.normalize());
-  const m = new THREE.Matrix4().compose(new V3().copy(a).lerp(b, 0.5), q, new V3(1, 1, 1));
-  return fpiece(new THREE.CylinderGeometry(r1, r0, L, seg || 5), hex, 0.08, m);
-}
-const BARK = 0x4a3626, BARK2 = 0x5a4130, DEADWOOD = [0x625a50, 0x584f45, 0x6b6156], PINE = [0x34462f, 0x3f5236, 0x2f4130], SPRUCE = [0x2c3f33, 0x354a3b, 0x283a2f], LEAF = [0x445c2f, 0x4f6533, 0x3c5329, 0x586c35];
-// a pine: tiers of cones over a short trunk, each tier a little off true and turned
-function pineGeo(tiers, w, h0, greens) {
-  const P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18, 1.5, 7), BARK, 0.08, fm4(0, 0.75, 0))];
-  let y = 0.9;
+const BARK = 0x4a3626, PINE = [0x34462f, 0x3f5236, 0x2f4130], PINE2 = [0x2e4230, 0x384d34, 0x2b3d2c];
+// a pine: tiers of cones over a trunk (tr: how much of it shows below the lowest boughs), each tier a little off true
+// and turned
+function pineGeo(tiers, w, h0, greens, tr = 0.9) {
+  const tk = tr + 0.6, P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18 * (tr > 1.2 ? 1.15 : 1), tk, 7), BARK, 0.08, fm4(0, tk / 2, 0))];
+  let y = tr;
   for (let k = 0; k < tiers; k++) {
     const t = k / Math.max(1, tiers - 1), r = w * (1 - 0.7 * t) * rr(0.94, 1.06), hh = h0 * (1 - 0.4 * t);
     P.push(fpiece(new THREE.ConeGeometry(r, hh, 8), greens[k % greens.length], 0.08, fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05))));
     y += hh * (tiers > 3 ? 0.42 : 0.48);
-  }
-  return fjoin(P);
-}
-// a broadleaf: a trunk forking into boughs, a round canopy of leafy clumps
-function broadGeo(big) {
-  const P = [], h = big ? 1.9 : 1.6, s = big ? 1 : 0.82;
-  P.push(fpiece(new THREE.CylinderGeometry(0.12, 0.21, h, 7), BARK2, 0.07, fm4(0, h / 2, 0)));
-  const top = new V3(0, h, 0);
-  for (let k = 0; k < 3; k++) { const a = k * 2.1 + rr(-0.3, 0.3), out = rr(0.45, 0.7) * s; P.push(fbough(top, new V3(Math.sin(a) * out, h + rr(0.45, 0.7) * s, Math.cos(a) * out), 0.09, 0.04, BARK2)); }
-  const clumps = [[0, 0.95, 0, 0.95], [0.62, 0.65, 0.2, 0.72], [-0.55, 0.7, -0.25, 0.78], [0.15, 0.6, -0.62, 0.7], [-0.25, 0.55, 0.6, 0.7], [0.1, 1.4, 0.05, 0.6]];
-  clumps.forEach(([x, y, z, r]) => P.push(fpiece(new THREE.IcosahedronGeometry(r * s, 0), pick(LEAF), 0.1, fm4((x + rr(-0.1, 0.1)) * s, h + (y + rr(-0.1, 0.1)) * s, (z + rr(-0.1, 0.1)) * s, rand() * 3, rand() * 3, rand() * 3, 1, rr(0.8, 0.95), 1))));
-  return fjoin(P);
-}
-// a dead tree: a bare trunk leaning a little, its limbs reaching up and out and forking at the ends
-function deadGeo() {
-  const P = [], c = pick(DEADWOOD), lean = rr(-0.16, 0.16), la = rand() * 6.28;
-  const base = new V3(0, 0, 0), mid = new V3(0, 1.7, 0), tip = new V3(Math.sin(la) * lean * 2, 3.2, Math.cos(la) * lean * 2);
-  P.push(fbough(base, mid, 0.19, 0.12, c, 7), fbough(mid, tip, 0.12, 0.03, c, 6));
-  for (let k = 0; k < 6; k++) {
-    const f = rr(0.35, 0.9), at = new V3().copy(mid).lerp(tip, f), a = k * 1.15 + rr(-0.3, 0.3), L = rr(0.55, 1.05) * (1.1 - f * 0.5), up = rr(0.35, 0.8);
-    const end = new V3(at.x + Math.sin(a) * L, at.y + up * L, at.z + Math.cos(a) * L);
-    P.push(fbough(at, end, 0.055, 0.02, c));
-    if (rand() < 0.7) { const b = a + rr(-0.9, 0.9), l2 = L * rr(0.3, 0.5); P.push(fbough(end, new V3(end.x + Math.sin(b) * l2, end.y + rr(0.15, 0.4) * l2, end.z + Math.cos(b) * l2), 0.02, 0.008, c, 4)); }
-  }
-  P.push(fbough(mid.clone().setY(1.0), new V3(rr(-0.4, 0.4), 1.15, rr(-0.4, 0.4)), 0.05, 0.03, c));   // a broken-off stub low down
-  return fjoin(P);
-}
-// a dead pine: a tall bare spar, short dead stubs all the way up it, angled down
-function deadPineGeo() {
-  const P = [], c = pick(DEADWOOD), H = rr(3.3, 3.9);
-  P.push(fbough(new V3(0, 0, 0), new V3(rr(-0.08, 0.08), H, rr(-0.08, 0.08)), 0.17, 0.025, c, 6));
-  for (let y = 1.0; y < H - 0.35; y += rr(0.16, 0.3)) {
-    const a = rand() * 6.28, r = 0.15 * (1 - y / H) + 0.03, L = rr(0.25, 0.7) * (1 - y / H * 0.7);
-    P.push(fbough(new V3(0, y, 0), new V3(Math.sin(a) * (L + r), y - rr(0.05, 0.25), Math.cos(a) * (L + r)), 0.03, 0.01, c, 4));
   }
   return fjoin(P);
 }
@@ -129,12 +90,13 @@ function rockGeo(kind) {
   if (kind === 'mossy') return fjoin([boulderGeo(0.33, 1.1, 0.62, 0.95, 0.7)]);
   return fjoin([boulderGeo(0.28, 1, 0.7, 0.9, 0.2)]);
 }
-// the shapes, and how much of the forest each makes up: the farm's own trees and the woods past its edge
+// the pines, and how much of the forest each makes up: the common full one, a slimmer one, a broader one, one a little
+// shorter and one on a longer bare trunk, all within about a metre of each other in height (each tree scaled a touch
+// again as it's planted)
 const TREE_VAR = [
-  { geo: () => pineGeo(3, 1.05, 2.0, PINE), w: 0.3, shade: 3.4 }, { geo: () => pineGeo(3, 0.95, 2.1, PINE), w: 0.12, shade: 3.2 },
-  { geo: () => pineGeo(5, 0.85, 1.35, SPRUCE), w: 0.18, shade: 2.8 },
-  { geo: () => broadGeo(true), w: 0.12, shade: 3.8 }, { geo: () => broadGeo(false), w: 0.08, shade: 3.2 },
-  { geo: deadGeo, w: 0.1, shade: 2.0, dead: true }, { geo: deadPineGeo, w: 0.1, shade: 1.4, dead: true }
+  { geo: () => pineGeo(3, 1.05, 2.0, PINE), w: 0.3, shade: 3.4 }, { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.2, shade: 2.8 },
+  { geo: () => pineGeo(3, 1.2, 1.9, PINE, 0.85), w: 0.18, shade: 3.8 }, { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.16, shade: 3.1 },
+  { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.16, shade: 3.1 }
 ].map(v => ({ ...v, g: v.geo() }));
 const pickVar = list => { let t = rand() * list.reduce((a, v) => a + v.w, 0); for (const v of list) { t -= v.w; if (t <= 0) return v; } return list[list.length - 1]; };
 // trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own tint
@@ -142,7 +104,7 @@ function plantTrees(list, shadows) {
   const dm = new THREE.Object3D(), c = new THREE.Color();
   TREE_VAR.forEach(v => {
     const mine = list.filter(t => t[3] === v); if (!mine.length) return;
-    const im = new THREE.InstancedMesh(v.g, v.dead ? M.deadTree : M.tree, mine.length);
+    const im = new THREE.InstancedMesh(v.g, M.tree, mine.length);
     mine.forEach(([x, z, s, , r], k) => {
       dm.position.set(x, 0, z); dm.rotation.set(rr(-0.04, 0.04), r, rr(-0.04, 0.04)); dm.scale.setScalar(s); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix);
       im.setColorAt(k, c.setRGB(rr(0.86, 1.08), rr(0.88, 1.08), rr(0.84, 1.04)));
@@ -151,10 +113,10 @@ function plantTrees(list, shadows) {
   });
 }
 {
-  const trees = treeCells.map(([i, j]) => { const v = pickVar(TREE_VAR), s = rr(0.85, 1.4) * (v.dead ? rr(0.85, 1.05) : 1); return [cxw(i) + rr(-0.2, 0.2), cxw(j) + rr(-0.2, 0.2), s, v, rand() * 6.28]; });
+  const trees = treeCells.map(([i, j]) => { const v = pickVar(TREE_VAR), s = rr(0.92, 1.12); return [cxw(i) + rr(-0.2, 0.2), cxw(j) + rr(-0.2, 0.2), s, v, rand() * 6.28]; });
   trees.forEach(([x, z, s]) => TREES.push({ x, z, s }));
   plantTrees(trees, true);
-  // a soft dark pool of shade under every tree, as wide as its crown (a dead one's is thin)
+  // a soft dark pool of shade under every tree, as wide as its crown
   const ao = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }), trees.length), dm = new THREE.Object3D();
   trees.forEach(([x, z, s, v], k) => { dm.position.set(x, 0.015, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(v.shade * s); dm.updateMatrix(); ao.setMatrixAt(k, dm.matrix); });
   ao.renderOrder = 1; scene.add(ao);
@@ -188,9 +150,9 @@ function plantTrees(list, shadows) {
     const px = x + rr(-0.4, 0.4), pz = z + rr(-0.4, 0.4), d = Math.max(Math.abs(px), Math.abs(pz)) - HALF - 0.3;
     // nothing on the far side of the road either: that strip is nearer the camera, and its trees would stand in front of it
     if (d < 0 || onTrail(px, pz) || onRoad(px, pz, 1.6) || pz > ROAD.z) continue;
-    if (rand() < 0.62 * Math.pow(1 - d / R, 0.5) + 0.12) out.push([px, pz, rr(0.85, 1.5)]);
+    if (rand() < 0.62 * Math.pow(1 - d / R, 0.5) + 0.12) out.push([px, pz, rr(0.95, 1.2)]);
   }
-  plantTrees(out.map(([x, z, s]) => { const v = pickVar(TREE_VAR.filter(q => !q.dead || rand() < 0.8)); return [x, z, s * (v.dead ? 0.9 : 1), v, (x * 7.3 + z * 3.1) % 6.28]; }), false);
+  plantTrees(out.map(([x, z, s]) => [x, z, s, pickVar(TREE_VAR), (x * 7.3 + z * 3.1) % 6.28]), false);
 }
 
 // what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet

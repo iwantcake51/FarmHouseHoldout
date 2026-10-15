@@ -21,7 +21,7 @@ function buildGuns() {
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; tierCtx = id;
-    const magT = T('mag'), pr = skillPierce(id);   // this gun's own (the mag that's in it: weapons/reload.js)
+    const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
     const build = parent => {
       // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
       const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
@@ -35,7 +35,6 @@ function buildGuns() {
       if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
       else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
       else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
-      if (pr) { cyl(parent, 0.02, 0.09 * pr, GM.blued, X, y, front + 0.045 * pr); ring(parent, 0.024, 0.012, GM.metal, X, y, front + 0.09 * pr - 0.006); front += 0.09 * pr; }
       const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
       // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
       // sawn-off's forend), so it all swings down with them when it's broken open
@@ -62,8 +61,8 @@ function buildGuns() {
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)
-// what's on a weapon besides its mods, each with its kind for the HUD's chips (ui/hud.js): the tune-up, rounds
-// (ammo, pierce, incendiary), the magazine (a gun upgrade) and the attachments
+// what's on a weapon besides its mods, each with its kind for the HUD's chips (ui/hud.js): the tune-up, the powder and
+// the kind of round loaded, the magazine (a gun upgrade) and the attachments
 const EXTRA_KIND = { ammo: 'ammo', mag: 'upg', supp: 'att', sight: 'att', laser: 'att', light: 'att', loader: 'att' };
 function gunExtras(id) {
   const D = WEAP[id], out = [];
@@ -71,8 +70,7 @@ function gunExtras(id) {
   if (W8.tune && W8.tune[id]) out.push({ t: 'Tuned', k: 'tune' });
   if (D.melee) return out;
   for (const k of ['ammo', 'mag', 'supp', 'sight', 'laser', 'light', 'loader']) { const n = gunTier(id, k); if (n) out.push({ t: tierName(k, n - 1, id), k: EXTRA_KIND[k] }); }
-  if (skillPierce(id)) out.push({ t: 'Pierce ' + skillPierce(id), k: 'ammo' });
-  if (S.att.fire) out.push({ t: 'Incendiary', k: 'ammo' });
+  if (roundOn(id) !== 'std') out.push({ t: roundName(id, roundOn(id)), k: 'ammo' });   // the kind of round loaded (weapons/rounds.js)
   if (S.att.bayonet && D.slot === 'long') out.push({ t: 'Bayonet', k: 'att' });
   if (S.att.stock && D.slot === 'side') out.push({ t: 'Stock', k: 'att' });
   return out;

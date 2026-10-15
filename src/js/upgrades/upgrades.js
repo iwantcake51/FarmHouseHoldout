@@ -55,7 +55,7 @@ const UPG = [
   // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and
   // pays SMITH_SCRAP for each of the three that's already maxed, about what a tier costs at the bench
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
-    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest ammo, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
+    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest powder, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
     ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); magChange(id, () => { ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
   { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Some kills slow time for a moment. Once every 8 seconds at most.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
@@ -74,9 +74,13 @@ const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the drum shotgun
 // one: from its box straight to the drum
 const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, auto12: 1 };
+// the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
+// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that
+const NO_TRIGGER = new Set(['pump', 'hunting']);
 function tierFits(k, id) {
   const D = WEAP[id], n = gunTier(id, k);
   if (n >= TIERS[k].t.length) return false;
+  if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
   if (k === 'loader') return id === 'revolver' || D.breakOpen ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader, the double barrel's one Sleight of Hand; shotguns fed shell by shell
   if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free

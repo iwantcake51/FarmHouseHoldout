@@ -2,7 +2,7 @@
 
 // what each upgrade line is for, shown under the card text
 const TIER_USE = {
-  ammo: 'Ammo · each bullet hits harder', trigger: 'Trigger · the gun fires faster', mag: 'Magazine · more shots before you reload',
+  ammo: 'Powder · a hotter charge behind every round, whichever kind is loaded', trigger: 'Trigger · the gun fires faster', mag: 'Magazine · more shots before you reload',
   supp: 'Muzzle can · harder hits, much quieter shots, a smaller muzzle flash', sight: 'Sight · tighter shots down the sights, and a bigger headshot multiplier',
   laser: 'Laser · a beam shows exactly where your shots land, and tightens your shots from the hip', light: 'Light · lights up the ground ahead of you at night',
   choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
@@ -13,17 +13,15 @@ const TIER_USE = {
 const UPG_USE = {
   'Bayonet': 'Attachment · a blade under your long gun: shove (V) to stab',
   'Shoulder stock': 'Attachment · steadies your sidearm\'s kick',
-  'Incendiary rounds': 'Ammo · every hit sets zombies burning for 3 seconds',
-  'Through and through': 'Ammo · each bullet keeps going through one more zombie'
 };
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 25% faster'], 'Wood pile': ['+7 planks'], 'Scrounger': ['+10 scrap'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
-  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint', 'Reload while sprinting'], 'Through and through': ['Pierce +1'],
+  'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint', 'Reload while sprinting'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Sidearm kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%, once a wave'],
-  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of ammo, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
-  'Incendiary rounds': ['Burn 3 s on every hit'], 'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
+  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of powder, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
+  'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
   'Last stand': ['+60% damage below 30% health'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%', 'Up to 3 times'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
   'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
@@ -49,7 +47,6 @@ const STACKS = {
   'Strong arms III': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Steady aim': stackOf('Spread', 1, () => S.spreadMul, v => v * 0.88, v => '−' + pctDown(v) + '%'),
   'Tough skin': stackOf('Max health', 100, () => S.maxHp, v => v + 15, v => String(Math.round(v))),
-  'Through and through': stackOf('Pierce', 0, () => S.pierce, v => v + 1, v => '+' + v),
   'Scavenger': stackOf('Drops', 1, () => S.dropMul, v => v * 1.5, v => '+' + pctUp(v) + '%'),
   'Painkillers': stackOf('Regen', 0, () => S.regen, v => v + 1, v => v + ' health/s'),
   'Thick soles II': slowStack('soles'),
@@ -111,6 +108,19 @@ function tierFx(id, k) {
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
   return fx;
 }
+// what loading kind of round k does to gun id, against what's loaded now: tried for real, read, and put back
+function roundFx(id, k) {
+  const r = W8.rounds[id] = W8.rounds[id] || { own: [], on: 'std' }, k0 = r.on || 'std', D0 = W(id), a = gunStats(id, D0), f0 = roundFeat(D0);
+  r.on = k; recomputeEff(); const D1 = W(id), b = gunStats(id, D1), f1 = roundFeat(D1);
+  r.on = k0; recomputeEff();
+  const fx = compareFx(a, b);
+  if (f1.pierce !== f0.pierce) fx.push({ t: `PIERCE ${f0.pierce} → ${f1.pierce}`, good: f1.pierce > f0.pierce });
+  if (f1.ignite && !f0.ignite) fx.push({ t: 'Sets zombies alight', good: true });
+  if (f1.explode && !f0.explode) fx.push({ t: 'Explodes on hit', good: true });
+  if (f1.sever > f0.sever) fx.push({ t: f1.sever > 2 ? 'Every limb it hits comes off' : 'Limbs off twice as easily', good: true });
+  return fx;
+}
+const roundFeat = D => ({ pierce: D.pierce || 0, ignite: !!D.ignite, explode: !!D.explode, sever: D.alwaysSever ? 3 : D.severX || 1 });
 // a new weapon against the one it would replace in that slot
 function weaponFx(id) {
   const D = W(id), cur = W8.slot[D.slot], b = gunStats(id, D);

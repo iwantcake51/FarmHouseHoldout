@@ -3,7 +3,8 @@
 const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && modOffer(m)) : [];
 const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // attachments for the gun in your hands, bought and fitted at the workbench: only the ones that fit it show, one card per
-// line (the next tier up); a suppressor and a choke rule each other out on shotguns, the scopes only fit the rifles and the revolver
+// line (the next tier up), then its rounds; a suppressor and a choke rule each other out on shotguns, the scopes only fit
+// the rifles and the revolver
 // priced in the same band as a new mod (10 to 18 scrap): by how much each step does for you, the night-only light
 // cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
 const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18, 22, 26], laser: [10, 14], light: [8, 12], loader: [12, 16] };
@@ -14,6 +15,7 @@ function tierMax(k, id) {
   if (k === 'sight') return SCOPE_TOP[id] || 2;
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return MAG_STEPS[id];
   if (k === 'loader' && (id === 'revolver' || WEAP[id].breakOpen)) return 1;
+  if (k === 'trigger' && NO_TRIGGER.has(id)) return 0;
   return n;
 }
 function attachmentCards() {
@@ -26,12 +28,17 @@ function attachmentCards() {
     out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + 1; recomputeEff(); buildGuns(); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: D.breakOpen && k === 'loader' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
-  // rounds for every gun you carry, fitted here like the rest: incendiary rounds, and rounds that go through one more
-  // zombie (twice at most)
-  if (!S.att.fire) out.push({ ic: 'ammo', group, for: () => 'For every gun you carry', fx: () => [{ t: 'Sets zombies alight for 3 s', good: true }], cost: 18, title: () => 'Incendiary rounds', desc: () => 'Bullets set zombies on fire for 3 s.', why: () => '',
-    make: () => { S.att.fire = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Incendiary rounds'); gotGear({ ic: 'ammo', kind: 'Rounds', name: 'Incendiary rounds', whom: 'every gun you carry', text: 'Bullets set zombies on fire for 3 s.' }); } });
-  if (S.pierce < 2 && ammoGuns().some(g => !ownPierce(g))) out.push({ ic: 'ammo', group, tier: () => [S.pierce, 2], for: () => ammoGuns().some(ownPierce) ? 'For your guns that don\'t pierce already' : 'For every gun you carry', fx: () => [{ t: `PIERCE +${S.pierce} → +${S.pierce + 1}`, good: true }], cost: [12, 16][S.pierce], title: () => 'Through and through' + (S.pierce ? ' II' : ''), desc: () => 'Bullets pass through one more zombie.' + (ammoGuns().some(ownPierce) ? ' Not on a gun with flechettes, slugs, a longer revolver barrel or a heavy-duty can: those pierce on their own.' : ''), why: () => '',
-    make: () => { S.pierce++; buildGuns(); gunGlow = 1; feed('gear', 0, 'Through and through'); gotGear({ ic: 'ammo', kind: 'Rounds', name: 'Through and through' + (S.pierce > 1 ? ' II' : ''), whom: 'every gun you carry', text: 'Bullets go through ' + S.pierce + ' more zombie' + (S.pierce > 1 ? 's' : '') + '.' }); } });
+  // rounds for the gun in your hands: every kind it takes, only one loaded at a time (weapons/rounds.js). One you don't
+  // have yet is bought and loaded; one you have is loaded for nothing (X swaps between them in the field); the one in
+  // the gun shows as loaded. Plain rounds only show once there's something else to go back from
+  const on = roundOn(id), types = roundTypes(id), owns = types.filter(k => roundOwned(id, k));
+  for (const k of types) {
+    if (k === 'std' && owns.length < 2) continue;
+    const own = roundOwned(id, k), nm = roundName(id, k), txt = roundText(id, k);
+    out.push({ ic: 'ammo', group, for: () => forYour(id), fx: () => k === roundOn(id) ? [] : roundFx(id, k), cost: own ? 0 : ROUNDS[k].cost,
+      title: () => (k === on ? 'Loaded: ' : own ? 'Load ' : '') + nm, desc: () => txt + (own || k === 'std' ? '' : ' · One kind loaded at a time'), why: () => k === roundOn(id) ? 'Loaded' : '',
+      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); gunGlow = 1; feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
+  }
   if (D.slot === 'long' && !S.att.bayonet) out.push({ ic: 'att', group, for: () => 'For every long gun you carry', fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Shove (V) with a long gun stabs for 45 damage', why: () => '', make: () => { S.att.bayonet = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', whom: 'your long guns', text: 'Shove (V) with a long gun stabs for 45 damage.' }); } });
   if (D.slot === 'side' && !S.att.stock) out.push({ ic: 'att', group, for: () => 'For every sidearm you carry', fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => 'Sidearms: 45% less kick, and quick shots open up 40% slower', why: () => '', make: () => { S.att.stock = true; buildGuns(); gunGlow = 1; feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', whom: 'your sidearms', text: 'Sidearms: 45% less kick, and quick shots open up 40% slower.' }); } });
   return out;
