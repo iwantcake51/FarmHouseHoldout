@@ -25,7 +25,7 @@ edge is drawn where it's halfway between the two (marching squares, so it lands 
 line where an anti-aliased edge really is, light parts and dark ones alike, instead of wherever a fixed threshold
 happens to cut it.
 """
-import argparse, json, math, signal, sys
+import argparse, json, math, os, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage as ndi
@@ -801,8 +801,23 @@ def cmd_fit(args):
         json.dump({'parts': parts, 'colors': cols}, open(args.out, 'w')); print('moved mesh:', args.out)
 
 
+class QuietOut:
+    """stdout that stops writing once the reader goes away (piped into head), so the command still finishes its work
+    and writes its pictures"""
+    def __init__(self, f): self.f, self.dead = f, False
+    def write(self, x):
+        if not self.dead:
+            try: self.f.write(x)
+            except BrokenPipeError: self.dead = True
+        return len(x)
+    def flush(self):
+        if not self.dead:
+            try: self.f.flush()
+            except BrokenPipeError: self.dead = True
+
+
 def main():
-    if hasattr(signal, 'SIGPIPE'): signal.signal(signal.SIGPIPE, signal.SIG_DFL)   # piped into head: stop quietly
+    sys.stdout = QuietOut(sys.stdout)
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = p.add_subparsers(dest='cmd', required=True)
 
@@ -901,6 +916,8 @@ def main():
     q.add_argument('--dp', type=int, default=5); q.set_defaults(fn=cmd_ray)
 
     args = p.parse_args(); args.fn(args)
+    sys.stdout.flush()
+    if sys.stdout.dead: os.dup2(os.open(os.devnull, os.O_WRONLY), sys.__stdout__.fileno())   # nothing left to say at exit
 
 
 if __name__ == '__main__':
