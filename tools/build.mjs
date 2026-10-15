@@ -9,7 +9,6 @@
 // That means any file can call a function from any other file, and load order only matters for
 // top-level statements that run immediately (building the world, creating materials, and so on).
 import { build as esbuild, transform } from 'esbuild';
-import { unzipSync } from 'fflate';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -45,44 +44,26 @@ function joinScripts() {
   });
   return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
 }
-function sfxBank() {
-  const p = path.join(SRC, 'sounds/sfx-bank.json'); if (!fs.existsSync(p)) return null;
-  const b = JSON.parse(fs.readFileSync(p, 'utf8')), zipPath = path.join(ROOT, b.zip);
-  if (!fs.existsSync(zipPath)) { console.warn('sound pack not found, recorded effects left out: ' + b.zip); return null; }
-  const want = new Set(Object.values(b.sets).flatMap(s => s.files.map(f => b.root + f)));
-  const files = unzipSync(fs.readFileSync(zipPath), { filter: f => want.has(f.name) });
-  fs.mkdirSync(path.join(OUT, 'sounds/sfx'), { recursive: true });
-  const url = {};
-  for (const [name, bytes] of Object.entries(files)) {
-    const base = path.basename(name);
-    fs.writeFileSync(path.join(OUT, 'sounds/sfx', base), bytes);
-    url[name] = `sounds/sfx/${encodeURIComponent(base)}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`;
-  }
-  return Object.fromEntries(Object.entries(b.sets).map(([k, s]) => [k, { level: s.level, zoom: s.zoom, urls: s.files.map(f => url[b.root + f]).filter(Boolean) }]));
-}
 function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]); }
 
 async function buildOnce() {
   const t0 = Date.now();
   fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
-  // recorded sounds (src/sounds, audio/spatial.js): copied beside the page, and asked for by a hash of their contents
-  // like the scripts, so a deploy that changes one is picked up straight away
-  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')).filter(f => !f.endsWith('.json')) : [];
-  fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
+  // recorded sounds (src/sounds: audio/spatial.js, audio/samples.js): copied beside the page, and asked for by a hash of
+  // their contents like the scripts, so a deploy that changes one is picked up straight away
+  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')) : [];
+  fs.rmSync(path.join(OUT, 'sounds'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
   const soundUrl = {};
   for (const f of sounds) {
     const bytes = fs.readFileSync(path.join(SRC, 'sounds', f));
     fs.writeFileSync(path.join(OUT, 'sounds', f), bytes);
     soundUrl[f] = { url: `sounds/${f}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`, bytes };
   }
-  // recorded sound effects from a pack (src/sounds/sfx-bank.json): each file it lists is taken out of the pack's zip as
-  // it is, into dist/sounds/sfx/, and the game is handed the list with where each one ended up (SFX_BANK,
-  // audio/sound-bank.js). The pack itself stays zipped in assets/; no loose copy of it is kept in the repo
-  const bank = sfxBank();
   // scripts
   let js = joinScripts();
-  js = js.replace('const SFX_BANK = null;', () => `const SFX_BANK = ${JSON.stringify(bank)};`);
   for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
+  // (audio/samples.js builds its file names, so it's handed the hashes instead)
+  js = js.replace('const SOUND_HASH = {};', () => `const SOUND_HASH = ${JSON.stringify(Object.fromEntries(sounds.map(f => [f, soundUrl[f].url.split('?v=')[1]])))};`);
   if (!dev) js = (await transform(js, { loader: 'js', minify: true, target: 'es2020', legalComments: 'none' })).code;
   fs.writeFileSync(path.join(OUT, 'game.js'), js);
   // styles: index.css @imports every sheet in cascade order
@@ -106,9 +87,9 @@ async function buildOnce() {
     .replace('<script src="./game.js"></script>', () => `<script>window.SOUND_DATA = ${JSON.stringify(soundData())};</script>\n<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
   // (the one-file build carries the sounds in it, as data: URLs)
-  function soundData() { return Object.fromEntries(Object.values(soundUrl).map(s => [s.url, 'data:audio/mpeg;base64,' + s.bytes.toString('base64')])); }
+  function soundData() { return Object.fromEntries(Object.values(soundUrl).map(s => [s.url, `data:${s.url.includes('.ogg') ? 'audio/ogg' : 'audio/mpeg'};base64,` + s.bytes.toString('base64')])); }
   const kb = f => (fs.statSync(path.join(OUT, f)).size / 1024).toFixed(0) + ' KB';
-  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
+  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  ${sounds.length} sounds  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
 }
 
 async function main() {

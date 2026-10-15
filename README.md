@@ -17,10 +17,10 @@ npm run build    # production build into dist/
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Readable build plus a local server. Save any file in `src/` and refresh the browser. |
-| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`. |
+| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`, `dist/sounds/`. |
 | `npm run build:dev` | Same files as `build`, but not minified and with a `// ==== path` banner before each source file, so errors point at the right file. |
 
-Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection.
+Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection; the sounds are inside it.
 
 ## Deploying to Netlify
 
@@ -51,16 +51,15 @@ src/
     pickups/          ammo, scrap, medkits and other drops
     effects/          blood, particles, smoke, tracers, muzzle flash, outlines
     ui/               HUD, crosshair, health line, status icons, rounds display, menus
-    audio/            the sounds: recorded ones (footsteps, guns, reloads, melee and more) played from where they are, synthesized ones standing in
+    audio/            the recorded sounds (footsteps from where they are), the reverb inside the house, synthesized ones for the rest
     input/            keyboard, mouse and touch controls
     game/             shared state, the update and draw order, camera, main loop
 assets/               raw packs to pick from, not shipped with the game (sizes to keep to: assets/README.md)
   textures/           texture packs (Kenney zips as they come)
   sounds/             sound packs and single sound files
-  src/sounds/         (under src/) the footsteps the game ships (packed by tools/pack-footsteps.py), and sfx-bank.json: which files of the
-                      sound pack in assets/sounds play for what (taken out of its zip as they are by the build)
-tools/build.mjs       the build script (copies src/sounds into dist/, versioned, and inlines the footsteps in standalone.html;
-                      takes the sound pack's files listed in src/sounds/sfx-bank.json out of its zip into dist/sounds/sfx/)
+  src/sounds/         (under src/) the recorded sounds the game ships, made from the packs in assets/sounds/
+tools/build.mjs       the build script (copies src/sounds into dist/, versioned, and inlines it in standalone.html)
+tools/make-sounds.mjs cuts, trims and levels the guns-and-stuff recordings into src/sounds/*.ogg (needs ffmpeg and unzip)
 tools/pack-footsteps.py  packs assets/sounds/Footsteps.zip into src/sounds/footsteps.mp3 and its clip list (needs ffmpeg, numpy)
 netlify.toml          Netlify settings
 ```
@@ -160,8 +159,9 @@ Every source file starts with a one-line comment saying what is in it.
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Blood on you, zombies and your weapons (a stain shader that builds up with hits), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
 | The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
-| Sounds (synthesized: each recorded set below takes one of these over once it's loaded, and it's what plays without them) | `src/js/audio/sfx.js` |
-| Recorded sound effects from the Rust & Blood pack (in `assets/sounds`, played as they come, never edited): each gun's shot and the suppressed shot of each kind of gun, the grenade launcher and the blast, mags out and in, shells and rounds going in, the charging handle, slide and pump, dry fire, melee swings and hits, nailing boards and boards breaking, a dropped gun, and picking up, buying, upgrading, bandaging and taking a weapon in hand. Which files make up each set, how loud it plays (`level`: each clip is evened out to it as it loads, `peakRms` in `src/js/audio/spatial.js`) and how much zooming out quietens it (`zoom`) is `src/sounds/sfx-bank.json`; what each game sound plays is `REC_SFX` and `gunSound` | `src/js/audio/sound-bank.js` |
+| Sounds: what plays for what (`SFX`, with a synthesized sound for each that plays till its recording's loaded) | `src/js/audio/sfx.js` |
+| Which recordings are used and how each is cut (`SOUNDS`) | `tools/make-sounds.mjs` |
+| How loud each recording plays (`SAMPLES`), how a gunshot's varied every shot (`SFX.fire`), and the house's reverb (`houseIR`, `indoors`) | `src/js/audio/samples.js`, `src/js/audio/sfx.js` |
 | Sounds placed in the world: heard from a listener over the middle of the view, raised as you zoom out so they get quieter (`HEAR`: its height, the distance a sound is at full volume, how far it pans), panned by where they are on screen; recorded sounds are fetched and decoded once (`loadSound`, `decodeSounds`) and played with `playAt` | `src/js/audio/spatial.js` |
 | Footsteps: recorded, from your feet, by the ground under you (wood indoors and on the porch, dirt round the house and on the drive, grass elsewhere: `footSurface`, `FOOT_YARD`), a walk, a run (sprinting), a push off and a landing (vaulting), each never the same clip twice running and a touch different in pitch and volume, how loud they are overall (`FOOT_LEVEL`) and each kind against the others (`FOOT_VOL`, `FOOT_SURF`); which clips are packed, trimmed and evened out is `SETS` in `tools/pack-footsteps.py` (run it again after changing them), where each sits in the file `FOOT_SPRITE` (`src/js/audio/footstep-sprite.js`). The synthesized step stands in till the file's loaded. Zombies' footsteps (`zombieStep`, each foot down in `animateZombie`, `src/js/zombies/zombie-anim.js`): the same recordings, silent past `ZSTEP.far` of you (6 m) and only at their loudest within `ZSTEP.near` (2 m), well under your own even then (`ZSTEP.level`), falling away faster than other sounds as you zoom out past the default (to `ZSTEP.wide` of themselves at the furthest), a brute's heavier and lower and a crawler's a soft drag, and only `ZSTEP.max` in any `ZSTEP.gap` seconds | `src/js/audio/footsteps.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |

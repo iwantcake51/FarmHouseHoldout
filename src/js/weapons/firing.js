@@ -199,7 +199,7 @@ function gunFire(id, D, side) {
   }
   if (anyHit) run.hits++;
   const quiet = suppressed(D);
-  gunSound(id, quiet);   // (audio/sound-bank.js)
+  SFX.fire(id, quiet, D.ammo === 'shells');
   const st = stocked(id) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st;
   fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);
