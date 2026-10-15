@@ -104,7 +104,7 @@ function tickReload(dt) {
 // tier, game/run-state.js). Pulling the trigger part way through stops it: with a shell already in, at once (unless
 // the next is already in the chamber, then it's pushed home first); with none, once the one in the hand is in. However
 // a reload ends (done, stopped, a sprint, a shove, a vault), the barrels are swung up and latched before the gun fires
-// again: BRK_SHUT long (Quick hands quickens it), the support hand coming back to the forend for the first BRK_GRAB of
+// again: BRK_SHUT long (Quick hands quickens it, and Sleight of Hand: D.shutMul), the support hand coming back to the forend for the first BRK_GRAB of
 // it and lifting the barrels shut on it for the rest (player/hold.js poses it to the same marks). A trigger pulled
 // during it is kept, and the shot goes off as it latches (W8.shutQ, then W8.shutFire: weapons/combat-update.js)
 const BRK_SHUT = 0.3, BRK_GRAB = 0.42, SHELL_IN = 0.7, SHUT_FIRE_WAIT = 0.5;
@@ -126,7 +126,7 @@ function tickShut(dt) {
   const D = W(curId());
   if (!D || !D.breakOpen) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
   if (W8.reloading === 'shell') { W8.brkOpen = true; return; }
-  if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = BRK_SHUT * S.reloadMul; }
+  if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = BRK_SHUT * S.reloadMul * (D.shutMul || 1); }
   if (W8.shutT <= 0) return;
   W8.shutT -= dt;
   if (W8.shutT > 0) return;

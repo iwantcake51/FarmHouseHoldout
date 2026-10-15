@@ -43,7 +43,7 @@ const TIERS = {
   // revolver all six rounds go in at once from a loader you then drop (weapons/reload.js). On the double barrel it's
   // Sleight of Hand, its one step: both shells palmed and pushed in together
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time.' : D.ammo === 'shells' ? 'Load 2 shells at a time, a little faster.' : 'Load all 6 rounds at once.', vis: 'A loader at hand', ap: () => {} },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Load 2 shells at a time, a little faster.' : 'Load all 6 rounds at once.', vis: 'A loader at hand', ap: () => {} },
     { r: 'r', name: 'Speed loader II', text: () => 'Load 3 shells at a time, faster again.', vis: 'A bigger loader', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Pellets 30% tighter, slugs 45% tighter. Uses the muzzle slot.', vis: 'A choke ring', ap: () => {} },

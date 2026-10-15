@@ -30,6 +30,7 @@ function recomputeEff() {
     D.dmg *= [1, 1.25, 1.5, 1.875][ammo];
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
+    else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
     else if (loader && D.perShell) { D.loadN = 1 + loader; D.perShell *= LOADER_T[loader]; }         // two or three shells a go
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
     reachCleave(D);   // long enough and it sweeps through more than one (melee/melee-stats.js)
@@ -97,6 +98,10 @@ const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75
 // a speed loader: the revolver's reload with one (seconds), and how long each go of two or three shells takes against
 // a single shell (longer, but each shell is in quicker: about 1.6 and 2.2 times as fast overall)
 const REV_LOAD = 1.15, LOADER_T = [1, 1.3 * 0.92, 1.6 * 0.85];
+// Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
+// own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
+// 0.7 s against 1.3 s without it
+const SOH = { shell: 0.8, shut: 0.75 };
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;
