@@ -82,9 +82,11 @@ function barrelFree(lat, L) {
   return _bf;
 }
 // muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair; a
-// gun pushed back off something in front of you fires from just short of it (ANIM.barrel, from gunPush)
+// gun pushed back off something in front of you fires from just short of it (ANIM.barrel, from gunPush; each of a
+// pair from its own, ANIM.barrelS)
 function muzzle(sideSign) {
-  const D = W(curId()), sx = D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (ANIM.barrel ?? Infinity) - BARREL.clear));
+  const D = W(curId()), ak = !!(D && D.akimbo), sg = sideSign || W8.akSide, sx = ak ? AKX * sg : X;
+  const bar = ak && ANIM.barrelS ? ANIM.barrelS[sg < 0 ? 'L' : 'R'] : ANIM.barrel, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (bar ?? Infinity) - BARREL.clear));
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = Math.cos(P.aim), rz = -Math.sin(P.aim);
   let ox = P.x + fx * m + rx * sx, oz = P.z + fz * m + rz * sx;
   if (bulletBlocked(ox, oz) || !los(P.x, P.z, ox, oz)) { ox = P.x + fx * 0.3; oz = P.z + fz * 0.3; }
