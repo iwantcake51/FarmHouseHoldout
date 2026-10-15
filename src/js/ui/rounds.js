@@ -79,20 +79,52 @@ const calmHud = matchMedia('(prefers-reduced-motion: reduce)');
 // which gun the rounds are drawn for; a different one (or one back from a melee weapon) starts its pop
 function popCheck(id) {
   const was = cache.rounds === 'melee' ? 'melee' : cache.roundsGun; cache.roundsGun = id;
-  if (was !== id) cache.popAt = performance.now();
+  if (was !== id) { cache.popAt = performance.now(); cache.popN = Infinity; }
 }
 function popRounds(el) {
   const gone = performance.now() - (cache.popAt || -1e9);
   if (gone > POP_SPAN + POP_MS || calmHud.matches) return;
   for (const box of el.classList.contains('ak') ? el.children : [el]) {
-    const kids = box.children, step = Math.min(26, POP_SPAN / Math.max(1, kids.length - 1));
-    for (let i = 0; i < kids.length; i++) {
+    const kids = box.children, n = Math.min(kids.length, cache.popN), step = Math.min(26, POP_SPAN / Math.max(1, n - 1));
+    for (let i = 0; i < n; i++) {
       const g = kids[i], delay = i * step - gone; if (delay + POP_MS <= 0) continue;
       g.style.transformOrigin = '50% 100%';
       g.animate(POP_FRAMES, { duration: POP_MS, delay, easing: 'linear', fill: 'backwards', composite: 'add' });
       g.animate(POP_FADE, { duration: POP_MS, delay, easing: 'ease-out', fill: 'backwards' });
     }
   }
+}
+// through a mag change (weapons/reload.js), the mag in the gun as the HUD shows it: the old one's, till it comes out;
+// none, from then till the new one's pushed home (the count at 0, every slot empty); then what the new one holds, and
+// the spare rounds less what went into it. A pair, a revolver's speed loader and a shell at a time show the gun as it is
+function hudMag(id) {
+  const D = W(id), have = W8.mag[id] || 0, res = W8.reserve[D.ammo];
+  if (W8.reloading !== 'mag' || D.speedload || D.akimbo) return { have, res };
+  if (W8.seated) { const take = Math.max(0, Math.min(magSize(id) - have, res)); return { have: have + take, res: res - take }; }
+  return { have: W8.magOut ? 0 : have, res, out: !!W8.magOut };
+}
+// a mag pulled out takes its rounds out of the HUD with it: they drop out of the row, the bottom right first and the
+// rest close behind, falling away under gravity with a little drift and tilt each, fading as they go. Copies of them
+// fall (like a fired round, dropRound), and the row's left showing its empty slots; the new mag's rounds pop up into
+// them once it's seated (popRounds)
+const FALL_MS = 430, FALL_N = 24, FALL_SPAN = 170;
+function magFall(el, n) {
+  if (calmHud.matches) return;
+  const kids = [...el.children].slice(0, n), step = Math.min(16, FALL_SPAN / Math.max(1, kids.length - 1));
+  kids.forEach((src, i) => {
+    const r = src.getBoundingClientRect(); if (!r.width) return;
+    const cs = getComputedStyle(src), g = document.createElement('i'), belt = src.classList.contains('belt');
+    g.className = 'fallRound';
+    Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px', animation: 'none', backgroundColor: cs.backgroundColor, backgroundImage: cs.backgroundImage, borderBottom: cs.borderBottom, clipPath: cs.clipPath, borderRadius: cs.borderRadius, boxShadow: cs.boxShadow });
+    if (belt) { const f = src.firstElementChild; g.style.backgroundImage = `linear-gradient(90deg,${getComputedStyle(f).backgroundColor} ${f.style.width},transparent ${f.style.width})`; }
+    const dir = rand() < 0.5 ? -1 : 1, vx = dir * rr(4, 16), vy = rr(10, 40), grav = belt ? 520 : 760, spin = belt ? 0 : dir * rr(14, 40), frames = [];
+    for (let k = 0; k <= FALL_N; k++) {
+      const t = k / FALL_N * FALL_MS / 1000, f = k / FALL_N;
+      frames.push({ transform: `translate(${(vx * t).toFixed(1)}px,${(vy * t + 0.5 * grav * t * t).toFixed(1)}px) rotate(${(spin * t).toFixed(1)}deg)`, opacity: (f < 0.35 ? 1 : 1 - Math.pow((f - 0.35) / 0.65, 1.4)).toFixed(3) });
+    }
+    document.body.append(g);
+    g.animate(frames, { duration: FALL_MS, delay: i * step, easing: 'linear', fill: 'both' }).onfinish = () => g.remove();
+  });
 }
 // the glyphs for one magazine, in the order they're laid out from the bottom right (styles/hud-weapon.css: right to
 // left along a row, rows stacking upward): the last round in the mag first, so it sits at the bottom right, then the
@@ -120,17 +152,19 @@ function renderRoundsAk(id, D) {
 function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
   popCheck(id);
-  const n = magCap(id), have = W8.mag[id] || 0, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
-  const key = id + n + ':' + have + ':' + fired + ':' + T('ammo');   // the mag that's in it (game/run-state.js), and the fired cases it's kept
+  const n = magCap(id), hm = hudMag(id), have = hm.have, out = !!hm.out, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
+  const key = id + n + ':' + have + ':' + fired + ':' + T('ammo') + (out ? ':out' : '');   // the mag that's in it (game/run-state.js, through a mag change: hudMag), and the fired cases it's kept
   if (cache.rounds === key) return; cache.rounds = key;
-  const el = $('rounds'), pr = cache.roundsPrev, same = pr && pr.id === id && pr.n === n && n <= 40 && state === 'play';
-  if (same) {
+  const el = $('rounds'), pr = cache.roundsPrev, same = pr && pr.id === id && pr.n === n && state === 'play', swapMag = same && out !== !!pr.out;
+  if (swapMag && out) magFall(el, pr.have);   // the mag's out, and its rounds with it
+  else if (swapMag && have > 0) { cache.popAt = performance.now(); cache.popN = have; }   // a mag's in (or the old one kept, the reload cut short): its rounds pop up
+  else if (same && n <= 40) {
     const kids = el.children; let k = 0;
     if (!keeps && have < pr.have) for (let i = have; i < pr.have && k < 6; i++, k++) { if (kids[i]) dropRound(kids[i]); }   // thrown out as they're fired
     if (fired < pr.fired) for (let i = pr.have + fired; i < pr.have + pr.fired && k < 8; i++, k++) { if (kids[i]) dropRound(kids[i], true); }   // the kept ones, thrown out as the gun throws them
   }
-  cache.roundsPrev = { id, n, have, fired }; el.className = roundsCls(D);
+  cache.roundsPrev = { id, n, have, fired, out }; el.className = roundsCls(D);
   el.innerHTML = magGlyphs(n, have, fired);
-  if (same && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
+  if (same && n <= 40 && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
   popRounds(el);   // a gun just drawn: after the kick, so it adds on top
 }

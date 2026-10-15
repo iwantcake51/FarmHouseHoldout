@@ -48,8 +48,9 @@ function updateHUD(rdt, D) {
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
     const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
     if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
-    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magCap(id), false); }
-    setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
+    const hm = !D.melee && !ak && hudMag(id);   // through a mag change, what's in the gun as you'd see it (ui/rounds.js)
+    if (!ak) { setRoll('ammo', D.melee ? '—' : String(hm.have)); ammoEl($('ammo'), D.melee ? 0 : hm.have, D.melee ? 0 : magCap(id), false); }
+    setRoll('ammoRes', D.melee ? '' : '/ ' + (hm ? hm.res : W8.reserve[D.ammo]));
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
