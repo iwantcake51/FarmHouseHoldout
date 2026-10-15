@@ -7,6 +7,8 @@
 const AK_SPREAD = 1.15;
 // a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
 const SLUG_FALL = [14, 30, 0.85];
+// dragon's breath: full damage to 2 m, down to 20% by 7 m, and nothing at all past 8 m
+const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;
 // how much harder a zombie bleeds (health a second) for each flechette that lands in it
 const DART_BLEED = 1.5;
 const GUN_MODS = {
@@ -22,7 +24,8 @@ const GUN_MODS = {
   fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
   boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every round explodes on hit.', vis: 'A red band on the magazine', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Half the spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
-  dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Shells set zombies on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },
+  // a burst of burning pellets: deadly at arm's length, weak a few steps out, burnt out past DRAGON_MAX (no hit, no fire)
+  dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: `Shells set zombies on fire, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing.`, vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; D.fall = DRAGON_FALL; D.maxRange = DRAGON_MAX; } },
   // the two special loads work nothing alike. A slug is one heavy lump of lead: it hits like a rifle, slams the zombie
   // back and staggers it, keeps most of its punch through each body, and holds its damage far further out than any
   // other load (its own drop-off, D.fall: weapons/ammo.js)

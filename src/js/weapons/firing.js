@@ -135,9 +135,10 @@ function gunFire(id, D, side) {
     const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
+    const endR = Math.min(wallT, D.maxRange || 26);   // how far it can do anything: a wall, or where a dragon's breath pellet burns out
     const hits = [];
-    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz); if (h && h.t >= -0.3 && h.t <= wallT) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
-    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= wallT) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
+    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz); if (h && h.t >= -0.3 && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
+    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
     hits.sort((a, b) => a.t - b.t);
     const n = Math.min(hits.length, 1 + pierce);
     for (let k = 0; k < n; k++) {
@@ -151,13 +152,13 @@ function gunFire(id, D, side) {
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
-    const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
+    const endT = n ? Math.max(0.2, hits[n - 1].t) : endR, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
     if (D.ignite ? p < 2 : p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.ignite ? trPw * 0.45 : trPw, trSt);
     if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' || (D.ammo === 'shells' && pellets === shots) ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
-    else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
+    else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
       bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : 0.09);   // and a hole in it (effects/bullet-holes.js)
