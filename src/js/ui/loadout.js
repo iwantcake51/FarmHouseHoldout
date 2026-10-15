@@ -44,7 +44,7 @@ function wlPick(i) {
     else fitTier(id, o.k, o.n);
     recomputeEff();
   });
-  buildGuns(); gunGlow = 1; SFX.click();
+  buildGuns(o.att ? null : id); gunGlow = 1; SFX.click();   // (the bayonet and the stock go on every long gun or sidearm)
   feed('gear', 0, o.n ? o.name + (o.k === 'ammo' ? ' loaded' : ' on') : (was ? was.name : o.name) + (o.k === 'ammo' ? ' unloaded' : ' off'));
   if (openSt) renderStation();   // the bench's cards measure against what's on the gun now
   const b = $('wLoad').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }

@@ -10,13 +10,17 @@ function drum(parent, info, big) {
 }
 // a box magazine with a darker base plate
 function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y, z); box(parent, w + 0.008, 0.016, d + 0.012, GM.poly, x, y - h / 2 + 0.006, z); hi(parent, w * 0.6, d * 0.8, x, y + h / 2 - 0.02, z); }
-function buildGuns() {
+// only: a change to one gun (an attachment, rounds or a mod bought or swapped at the bench) rebuilds just that gun,
+// not every weapon you carry and your gear with them: building a gun and pulling its faces apart is the slow part. A
+// slot whose model isn't the weapon in it now (one just put in it, or emptied) is built too
+function buildGuns(only) {
   recomputeEff();
-  SLOTS.forEach(s => { const g = gunMeshes[s]; while (g.children.length) g.remove(g.children[0]); });
+  const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS;
+  sl.forEach(s => { const g = gunMeshes[s]; while (g.children.length) g.remove(g.children[0]); g.userData.bloodId = null; });
   // body armour by tier: a canvas jacket, then a vest over it, then a plate carrier (player/gear.js builds them)
   const ar = T('armor');
   shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)
-  for (const s of SLOTS) {
+  for (const s of sl) {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
@@ -57,7 +61,7 @@ function buildGuns() {
     stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
-  buildGear();
+  if (!only) buildGear();
   stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
