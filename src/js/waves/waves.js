@@ -19,8 +19,8 @@ function startWave() {
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
   run.waveTotal = spawnQ.length;
-  const brutes = run.wave === 5 || run.wave % 5 === 0;
-  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' in the dark'), { eye: brutes ? 'Horde night' : 'Incoming', kind: brutes ? 'red' : '' });
+  const brutes = run.wave === 5 || run.wave % 5 === 0;   // the wording fits any hour: a wave can start in daylight
+  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 function beginBreak(t) { phase = 'break'; breakT = breakMax = t; }
