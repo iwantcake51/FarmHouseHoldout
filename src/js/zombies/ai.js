@@ -56,7 +56,7 @@ function updateZombies(dt) {
     const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp), relP = angDiff(Math.atan2(dxp, dzp), z.face);
     if (dp < nearest) nearest = dp;
     if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
-    // on fire (dragon's breath, incendiary rounds): flames on it while you can see it, and the fire hurts in ticks, every
+    // on fire (dragon's breath): flames on it while you can see it, and the fire hurts in ticks, every
     // half second, each shown as an orange damage number like any other hit
     if (z.burn > 0) {
       z.burn -= dt; z.burnT = (z.burnT || 0) + dt;

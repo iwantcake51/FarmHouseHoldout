@@ -177,7 +177,7 @@ function gunFire(id, D, side) {
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
-      if (D.ignite && !z.dead) z.burn = 3;   // incendiary rounds, dragon's breath
+      if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), or the
       // revolver's aimed Dead-eye (D.aimCrit)
       const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit;
