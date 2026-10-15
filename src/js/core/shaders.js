@@ -35,8 +35,11 @@ const VERT_BODY = `
 // the baked light map did, but per pixel, so the rim is a smooth curve and it swings round with you every frame). Close
 // to the lens it spills a little all round. It stops where its ray across the beam was stopped (row: the beam's row of
 // the shadow texture, a0 and h the angle its rays are centred on and how far either side they go), a clean edge past a
-// window frame or a corner
+// window frame or a corner. Past the middle line of a window (tw, how far out its ray crossed it) the beam only goes on
+// where it passed between the sill and the head: a beam from gun height through a window only just over the sill
+// lights what stands up outside, not the ground just under it or the top of the wall over it
 const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
+const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
 const FL_FN = `
 float flCone(vec4 f, vec2 p, float a0, float h, float row) {
   vec2 d = p - f.xy; float r = length(d);
@@ -44,8 +47,12 @@ float flCone(vec4 f, vec2 p, float a0, float h, float row) {
   float cone = (1.0 - smoothstep(uFlK.y - 0.2, uFlK.y + 0.05, a)) * (1.0 + 0.5 * (1.0 - smoothstep(0.0, uFlK.y * 0.6, a)));
   float fall = 1.0 - clamp(r / uFlK.x, 0.0, 1.0);
   float rel = mod(atan(d.x, d.y) - a0 + 9.424778, 6.283185) - 3.141593;
-  float reach = texture2D(uFlSh, vec2(clamp((rel + h) / (2.0 * h), 0.0, 1.0), row)).r * ${FL_MAX.toFixed(1)};
+  vec4 sh = texture2D(uFlSh, vec2(clamp((rel + h) / (2.0 * h), 0.0, 1.0), row));
+  float reach = sh.r * ${FL_MAX.toFixed(1)}, tw = sh.g * ${FL_MAX.toFixed(1)};
   float lit = r < 0.7 ? 1.0 : 1.0 - smoothstep(reach - 0.08, reach + 0.08, r);
+  float hw = ${GUN_Y.toFixed(2)} + (vWp.y - ${GUN_Y.toFixed(2)}) * tw / max(r, 1e-3);   // how high its line from the lens crossed the window
+  float gap = smoothstep(${FL_WIN[0].toFixed(2)} - 0.03, ${FL_WIN[0].toFixed(2)} + 0.03, hw) * (1.0 - smoothstep(${FL_WIN[1].toFixed(2)} - 0.03, ${FL_WIN[1].toFixed(2)} + 0.03, hw));
+  lit *= mix(1.0, gap, smoothstep(tw - 0.02, tw + 0.1, r));
   return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
