@@ -88,6 +88,11 @@ const TIERS = {
   soles: { tag: 'Body', t: [
     { r: 'u', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } },
     { r: 'r', name: 'Thick soles II', text: 'Getting hit slows you down 40% less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },
+  // bandaging slows you less (BAND_SLOW in player/movement.js): each step replaces the one before, it doesn't add to it
+  walkw: { tag: 'Body', t: [
+    { r: 'u', name: 'Walking wounded', text: 'Bandaging slows you down 10% less.', ap: () => { S.bandLess = 0.1; } },
+    { r: 'u', name: 'Walking wounded II', text: 'Bandaging slows you down 25% less (instead of 10%).', ap: () => { S.bandLess = 0.25; } },
+    { r: 'u', name: 'Walking wounded III', text: 'Bandaging slows you down 40% less (instead of 25%).', ap: () => { S.bandLess = 0.4; } }] },
   feed: { tag: 'Body', t: [
     // a kill only sometimes feeds you (FEED: how much, how often, more often for a headshot), and only so much a wave, so
     // bandages are still what keeps you going
