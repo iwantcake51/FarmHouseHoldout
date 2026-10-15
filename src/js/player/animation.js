@@ -17,6 +17,10 @@ const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // Like a real runner the head never gets round to the side: it turns at most neck on the shoulders and max from the way
 // you run, all told (about 43° and 60°), however the chest, a turn's lead and the springs add up
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
+// at a station (the workbench and the rest) the body holds still and the head alone follows the cursor (P.look:
+// player/movement.js), up to max off the way the body faces (about 60°, as at a sprint); with the cursor right behind
+// you (past behind) it stays turned to the shoulder it was looking over, and when the panel shuts it comes back round
+const MENU_LOOK = { max: 1.05, behind: 2.7 };
 const SWING = {
   swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
   slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
@@ -300,6 +304,18 @@ function animatePlayer(dt, rdt) {
   pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
   pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
+  // looking about at a station (MENU_LOOK): the head turns on the shoulders to the cursor, whatever the chest is doing
+  if (rdt > 0) {
+    if (ANIM.menuH === undefined) ANIM.menuH = ANIM.vmenuH = 0;
+    let tgt = 0;
+    if (P.look != null && !P.vault) {
+      const L = MENU_LOOK, rel = angDiff(P.look, ANIM.yaw);
+      const sd = Math.abs(rel) > L.behind && ANIM.menuSide ? ANIM.menuSide : Math.sign(rel) || 1; ANIM.menuSide = sd;
+      tgt = sd * Math.min(Math.abs(rel), L.max) - up.y;
+    }
+    springTo(ANIM, 'menuH', 'vmenuH', tgt, 130, 17, Math.min(rdt, 0.04));
+  }
+  pm.head.rotation.y += ANIM.menuH;
   // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run
   if (ANIM.lookK > 0) {
     const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
