@@ -69,6 +69,16 @@
 #conc.on{animation:concFx 2.8s ease-out}
 @keyframes concFx{0%{opacity:1}12%{opacity:.75}100%{opacity:0}}
 #hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(140,14,8,.6) 100%);opacity:0}
+/* getting hit (ui/hud.js hitFromAt): red from the side the blow came from, kept off the middle of the screen */
+#hitVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;--hx:50%;--hy:100%;
+  background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
+  -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
+/* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
+#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 76% at center,transparent 44%,rgba(160,8,4,.42) 68%,rgba(100,0,0,.9) 100%)}
+#vitals.bleed #hpTxt{color:color-mix(in srgb,#ff3a26 calc(var(--bp,0) * 100%),var(--ink))}
+#vitals.bleed .bar{box-shadow:0 0 calc(var(--bp,0) * 12px) rgba(224,40,24,.8)}
+.mood.bleed{color:color-mix(in srgb,#ff5a40 calc(var(--bp,0) * 100%),var(--ink))}
+.mood.bleed i{box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 0 calc(var(--bp,0) * 14px) rgba(230,40,24,.9);background:color-mix(in srgb,rgba(150,12,6,.85) calc(var(--bp,0) * 100%),rgba(10,12,13,.7))}
 /* near death: a red wash over the drained world, stronger toward the edges; it tints without darkening */
 #lowTint{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(190,24,12,.14) 30%,rgba(190,24,12,.3) 100%);mix-blend-mode:screen;transition:opacity .4s}
 /* the start of a run (game/intro.js): the screen lifts out of the dark, then the HUD slides in a piece at a time */

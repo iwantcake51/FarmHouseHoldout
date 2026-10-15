@@ -12,6 +12,7 @@ function updateHUD(rdt, D) {
     hurtFx = Math.max(0, hurtFx - rdt * 2);
     const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
+    damageVignettes(rdt, hpF);
     // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
     const grey = Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
     { const rt = Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
@@ -81,4 +82,29 @@ function fireModeSwitched(id) {
   const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
+}
+// getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
+// drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
+const _hvA = new V3(), _hvB = new V3();
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+function hitFromAt(x, z) {
+  _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
+  const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
+  if (l < 2) { hurtFx = 1; return; }
+  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig');
+  el.style.setProperty('--hx', ((w + dx / l * t) / innerWidth * 100).toFixed(1) + '%'); el.style.setProperty('--hy', ((h + dy / l * t) / innerHeight * 100).toFixed(1) + '%');
+  hitVigUp = true;
+}
+// the hit side snaps in fast and eases out; bleeding throbs at the edges with every beat of blood you lose, and the
+// health number and the Bleeding icon throb with it
+function damageVignettes(rdt, hpF) {
+  if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) hitVigUp = false; } else hitVig = Math.max(0, hitVig - rdt / 0.45);
+  { const v = Math.round(smooth(hitVig) * 100) / 100; if (cache.hitVig !== v) { cache.hitVig = v; $('hitVig').style.opacity = v; } }
+  const bleeding = P.bleed > 0 && !P.dead;
+  if (bleeding && bleedVig === 0) bleedPh = 0;   // the first beat lands straight away
+  bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
+  bleedPh = (bleedPh + rdt / (hpF < 0.3 ? 0.62 : 0.85)) % 1;
+  const beat = bleedPh < 0.16 ? smooth(bleedPh / 0.16) : 1 - smooth((bleedPh - 0.16) / 0.84), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.22 * bleedVig + 0.78 * bp) * 50) / 50;
+  if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
+  if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
 }

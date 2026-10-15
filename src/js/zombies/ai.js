@@ -119,7 +119,7 @@ function updateZombies(dt) {
       } else z.face += angDiff(Math.atan2(dxp, dzp), z.face) * Math.min(1, dt * 6);
       if (P.dead) { if (dp < z.T.r + 0.6 && z.atk <= 0 && z.stagger <= 0) { z.atk = rr(0.8, 1.2); z.lunge = 1; } }   // and claw at you once they reach you
       else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !reachBlocked(z.x, z.z, P.x, P.z)) {
-        P.hitFrom = z.face;
+        P.hitFrom = z.face; hitFromAt(z.x, z.z);
         z.atk = 1.05; z.lunge = 1; P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken; hitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
         // tilt the view toward whoever hit you
         const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);
@@ -163,7 +163,7 @@ function updateZombies(dt) {
     animateZombie(z, dt, dp, relP); zFlash(z, dt);
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
-  if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); hurtFx = 1; shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }
+  if (hitMe && !P.dead) { addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35)); }
   if (S.secondWind && !S.windUsed && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; P.hp = Math.min(S.maxHp, P.hp + 50); P.slow = 0; feed('med', 50, 'second wind'); SFX.upgrade(); }
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
   groanT -= dt; if (groanT <= 0 && nearest < 30) { SFX.groan(clamp(1 - nearest / 16, 0.1, 1)); groanT = rr(1.5, 4); }
