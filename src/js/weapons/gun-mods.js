@@ -8,6 +8,12 @@
 // pump's and the bolt rifle's way to fire faster is their own action, not a trigger (NO_TRIGGER, upgrades/upgrades.js)
 // two guns are fired one-handed from the hip: a little looser than one held in both hands
 const AK_SPREAD = 1.15;
+// a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
+const SLUG_FALL = [14, 30, 0.85];
+// dragon's breath: full damage to 2 m, down to 20% by 7 m, and nothing at all past 8 m
+const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;
+// how much harder a zombie bleeds (health a second) for each flechette that lands in it
+const DART_BLEED = 1.5;
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: '30% tighter shots, +15% damage, and loses less damage at range.', vis: 'A longer, heavier slide', stat: D => { D.spread *= 0.7; D.dmg *= 1.15; D.reach = (D.reach || 1) + 0.3; } },
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts. Hold to keep firing. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
@@ -20,7 +26,7 @@ const GUN_MODS = {
   // down the sights it's the careful single shots it always was (weapons/firing.js: fanning)
   fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
   // (the shoulder stock, stations/recipes.js, is what tames a sidearm's kick: the compensator only tightens it)
-  comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Halves the spread.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; } },
+  comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Half the spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires 50% faster, 5% more spread.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
   sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets, wider spread, faster reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },

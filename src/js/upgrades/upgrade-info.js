@@ -89,7 +89,7 @@ function compareFx(a, b) {
 }
 // mods that add a feature rather than a number
 const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
-  ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', pierce: 'Goes through zombies' };
+  ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', stagger: 'Staggers zombies', pierce: 'Goes through zombies' };
 // try a gun's next tier for real, read its numbers, then put it back
 function tierFx(id, k) {
   if (!id) return [];
@@ -150,7 +150,7 @@ function modFx(mid) {
   if (D1.range > (D0.range || 0)) fx.push({ t: `REACH ${(D0.range || 0).toFixed(2)} → ${D1.range.toFixed(2)} m`, good: true });
   if (D0.melee) { const t = multiHit(D0, D1) || chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
   // a longer barrel: how far out it keeps its full damage (weapons/ammo.js)
-  const F = FALLOFF[m.w]; if (F && (D1.reach || 1) !== (D0.reach || 1)) fx.push(chip('FULL DMG TO', F[0] * (D0.reach || 1), F[0] * D1.reach, true, v => v.toFixed(1) + ' m'));
+  const F0 = D0.fall || FALLOFF[m.w], F1 = D1.fall || FALLOFF[m.w]; if (F0 && ((D1.reach || 1) !== (D0.reach || 1) || F1 !== F0)) fx.push(chip('FULL DMG TO', F0[0] * (D0.reach || 1), F1[0] * (D1.reach || 1), true, v => v.toFixed(1) + ' m'));
   return fx;
 }
 // a mod you have, made one level better (weapons/mod-levels.js), against how it is now
@@ -164,7 +164,7 @@ function improveFx(id, m) {
   if ((D1.critC || 0) > (D0.critC || 0)) fx.push({ t: `CRITS ${Math.round(D0.critC * 100)}% → ${Math.round(D1.critC * 100)}%`, good: true });
   if ((D1.explode || 0) > (D0.explode || 0)) fx.push({ t: 'Bigger blasts', good: true });
   if ((D1.glRecharge || 0) && D1.glRecharge < D0.glRecharge) fx.push({ t: `GRENADE ${fmt1(D0.glRecharge)} → ${fmt1(D1.glRecharge)} s`, good: true });
-  const F = FALLOFF[id]; if (F && (D1.reach || 1) !== (D0.reach || 1)) fx.push(chip('FULL DMG TO', F[0] * (D0.reach || 1), F[0] * D1.reach, true, v => v.toFixed(1) + ' m'));
+  const F = fallOf(id); if (F && (D1.reach || 1) !== (D0.reach || 1)) fx.push(chip('FULL DMG TO', F[0] * (D0.reach || 1), F[0] * D1.reach, true, v => v.toFixed(1) + ' m'));
   return fx;
 }
 // a workbench tune-up (TUNE, game/run-state.js) against the weapon as it is

@@ -18,6 +18,10 @@ const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
 // and the bloom kick back STOCK.kick as hard, and quick shots open the spread STOCK.spray as fast
 const STOCK = { kick: 0.55, spray: 0.6 };
 const stocked = id => gunAtt(id, 'stock');
+// however loose everything makes it (a shotgun from the hip at a sprint, holding the trigger), a shot never strays more
+// than this either side of where it's aimed (about 40°): past a right angle it would go sideways or behind you, and the
+// crosshair (tan of it, ui/crosshair.js) would fold down to nothing
+const SPREAD_MAX = 0.7;
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
   // less with a sight: D.aimMove), holding the trigger opens it further
@@ -28,7 +32,7 @@ function spreadOf(id) {
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
-  return s;
+  return Math.min(s, SPREAD_MAX);
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
 // aim), and from there it tightens until, about ten metres out, the shot goes exactly where it's laid. Pellets still
@@ -42,6 +46,9 @@ function scopeSpread(id, d) {
 // where a pellet goes inside the spread: bunched toward the middle like a real pattern (the sum of three draws), out to
 // the full spread at the edges, so close up most of a shell lands on what you aimed at
 const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
+// how far (m) from the point you aimed at a shotgun pellet can land and still hit that part (the head, the chest, a limb):
+// a little more than the part itself, as a pellet clipping its edge counts
+const PELLET_CORE = { head: 0.22, torso: 0.3, armL: 0.15, armR: 0.15, legL: 0.17, legR: 0.17 };
 // each zombie a round goes through takes a quarter off what it does to the next
 const PIERCE_KEEP = 0.75;
 // how far off the thing you're looking at through the scope is
@@ -165,32 +172,39 @@ function gunFire(id, D, side) {
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
   const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
   for (let p = 0; p < pellets; p++) {
-    const aimed = p === 0 && tgt, a = aimed ? tgtA : base + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
+    // a shotgun's pattern is centred on what the crosshair sits on (the first pellet lands exactly there), not on the
+    // ground under the cursor, which from this camera is off to one side of a zombie's head
+    const aimed = p === 0 && tgt, a = aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
+    const endR = Math.min(wallT, D.maxRange || 26);   // how far it can do anything: a wall, or where a dragon's breath pellet burns out
     const hits = [];
-    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= wallT) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
-    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= wallT) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
+    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
+    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
     hits.sort((a, b) => a.t - b.t);
     const n = Math.min(hits.length, 1 + pierce);
     for (let k = 0; k < n; k++) {
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
-      const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
+      // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
+      // pattern scatters over the body as before (PELLET_CORE)
+      let part = hits[k].part;
+      if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
+      part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), or the
       // revolver's aimed Dead-eye (D.aimCrit)
-      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit;
+      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit; headNext = headFade(id, hits[k].t);
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
-    const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
+    const endT = n ? Math.max(0.2, hits[n - 1].t) : endR, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
     if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt);
-    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
+    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' || (D.ammo === 'shells' && pellets === shots) ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
-    else if (!n && wallT < 26) {   // sparks and a little dust puff where it hits the wall
+    else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
       bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : 0.09);   // and a hole in it (effects/bullet-holes.js)

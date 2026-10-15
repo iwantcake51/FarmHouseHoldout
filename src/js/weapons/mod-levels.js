@@ -7,7 +7,7 @@ const MOD_UP = {
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
   longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
-  comp: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
+  comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
   slam: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },

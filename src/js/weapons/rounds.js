@@ -9,17 +9,22 @@
 const ROUNDS = {
   std: { name: 'Standard rounds', as: { shells: 'Buckshot' }, r: 'c', cost: 0, text: D => D.ammo === 'shells' ? 'Plain buckshot.' : 'Plain full-metal-jacket rounds.' },
   slug: { name: 'Slugs', r: 'u', cost: 12, fits: D => D.ammo === 'shells', vis: 'Yellow slug shells',
-    text: 'One heavy slug instead of shot: as much damage as a full hit of buckshot, dead accurate, carries further and goes through 2 zombies.',
-    fx: (D, id) => { const W0 = WEAP[id]; D.dmg *= (W0.pellets || 1) * SLUG_K; D.spread = SLUG_SPREAD * D.spread / W0.spread; D.pellets = 1; D.pierce = (D.pierce || 0) + 2; D.reach = (D.reach || 1) + 0.8; } },
+    text: 'One heavy slug instead of shot: huge damage, slams zombies back and staggers them, goes through 3, and barely loses damage at range.',
+    // a slug hits like a rifle, slams the zombie back and staggers it, keeps most of its punch through each body, and
+    // holds its damage far further out than any other load (its own drop-off, D.fall: SLUG_FALL, weapons/gun-mods.js)
+    fx: (D, id) => { const W0 = WEAP[id]; D.dmg = SLUG_DMG * D.dmg / W0.dmg; D.spread = SLUG_SPREAD * D.spread / W0.spread; D.pellets = 1; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.85; D.kick = 14; D.stagger = 0.6; D.fall = SLUG_FALL; } },
   flech: { name: 'Flechettes', r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'Steel-grey flechette shells',
-    text: 'Steel darts instead of shot: every one goes through 2 more zombies. −20% damage.',
-    fx: D => { D.dmg *= 0.8; D.pierce = (D.pierce || 0) + 2; } },
+    text: 'A tight cloud of thin darts: each hits lighter, but they go through 2 more zombies, barely push them back, and every dart makes them bleed more.',
+    // the opposite of a slug: thin steel darts, each one weak, that zip through 2 more zombies with hardly any loss and
+    // barely push them, leaving them bleeding. Every dart that lands opens the bleed further (D.bleed per hit,
+    // zombies/damage.js), and darts punch small holes rather than tearing limbs off (D.dart)
+    fx: D => { D.pellets += 3; D.dmg *= 0.6; D.spread *= 0.55; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.9; D.kick *= 0.25; D.dart = true; D.bleed = DART_BLEED; } },
   hollow: { name: 'Hollow points', as: { hunting: 'Expanding rounds' }, r: 'c', cost: 10, fits: D => D.ammo !== 'shells', vis: 'Copper hollow-point tips',
     text: D => D.sniper ? '+30% damage, and every limb they hit comes off. They stop in the first zombie.' : '+30% damage, and limbs come off twice as easily. They stop in the first zombie.',
     fx: D => { D.dmg *= 1.3; D.pierce = 0; D.severX = 2; if (D.sniper) D.alwaysSever = true; } },
   fire: { name: "Dragon's breath", r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'Orange dragon\'s breath shells',
-    text: 'Shells spit fire and set zombies alight for 3 s. −20% pellet damage.',
-    fx: D => { D.ignite = true; D.dragon = true; D.dmg *= 0.8; } },
+    text: `Shells spit fire and set zombies alight for 3 s, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing.`,
+    fx: D => { D.ignite = true; D.dragon = true; D.dmg *= 0.8; D.fall = DRAGON_FALL; D.maxRange = DRAGON_MAX; } },
   pierce: { name: 'Piercing rounds', r: 'u', cost: 12, fits: (D, id) => id === 'revolver', vis: 'Black-tipped rounds',
     text: 'Go through 1 more zombie, at full power through each. −10% damage.',
     fx: D => { D.dmg *= 0.9; D.pierce = (D.pierce || 0) + 1; D.pierceKeep = Math.max(D.pierceKeep ?? PIERCE_KEEP, 0.9); } },
@@ -27,8 +32,9 @@ const ROUNDS = {
     text: 'Every round explodes on hit, but stops in the first zombie.',
     fx: D => { D.explode = 1.7; D.pierce = 0; } }
 };
-// a slug's damage against a full hit of the gun's own buckshot, and its spread (a choke tightens it more, game/run-state.js)
-const SLUG_K = 0.85, SLUG_SPREAD = 0.012;
+// a slug's damage (on the pump; another shotgun's is scaled by its own pellet damage) and its spread (a choke tightens
+// it more, game/run-state.js)
+const SLUG_DMG = 140, SLUG_SPREAD = 0.012;
 // the order they're offered in, and the price of buying one for a gun (loading one you own is free)
 const ROUND_ORDER = ['std', 'slug', 'flech', 'fire', 'hollow', 'pierce', 'boom'];
 const roundOn = id => (id && W8.rounds && W8.rounds[id] && W8.rounds[id].on) || 'std';

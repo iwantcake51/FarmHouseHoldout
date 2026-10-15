@@ -152,7 +152,7 @@ function pickPart(z, rel, side, D) {
   return p;
 }
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
-let critNext = false;
+let critNext = false, headNext = 1;   // the next hit's crit, and how much of its headshot bonus is left at that range (headFade, weapons/ammo.js)
 // fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
 const BURN_TICK = 0.5, BURN_DMG = 7;
 function burnHurt(z) {
@@ -163,8 +163,11 @@ function burnHurt(z) {
   if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); return true; }
   return false;
 }
+// bleeding: how long a cut keeps bleeding (each new one starts it over), how hard a blade bleeds it (health a
+// second), and the most flechettes can make it bleed however many land
+const BLEED_T = 4, BLEED_R = 8, DART_BLEED_MAX = 12;
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
-  const crit = critNext; critNext = false;
+  const crit = critNext, headK = headNext; critNext = false; headNext = 1;
   if (z.dead) return false;
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
@@ -174,20 +177,20 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
-  const dealt = dmg * (D.melee ? 1 : part === 'head' ? headMulFor(D) : partMult(part));
+  const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
   zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)
   bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
   // brutes shrug hits off: no stagger, no knockback
-  if (z.type !== 'brute') { z.stagger = part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18; z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }
+  if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
   dmgNumber(z, dealt, part === 'head' && !D.melee, y, crit);
   if (part !== 'torso' && part !== 'head') {
-    const mul = (D.ammo === 'shells' ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
+    const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
     // shot through below the elbow or knee, it's mostly just that much that goes first (zombies/wounds.js), and what's
     // left of the limb takes a little more
@@ -196,7 +199,9 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
       else sever(z, part, dx, dz);
     }
   }
-  if (D.bleed) z.bleed = 4;
+  // a serrated blade opens one steady bleed; flechettes stack it, each dart that lands bleeding it a little harder
+  if (D.bleed === true) { z.bleed = Math.max(z.bleed, BLEED_T); z.bleedR = Math.max(z.bleedR || 0, BLEED_R); }
+  else if (D.bleed) { z.bleed = Math.max(z.bleed, BLEED_T); z.bleedR = Math.min(DART_BLEED_MAX, (z.bleedR || 0) + D.bleed); }
   { const dd = Math.hypot(z.x - P.x, z.z - P.z);
     if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, 0.08 + (D.sever ? 0.04 : 0));
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
@@ -240,7 +245,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
   // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds
   if (S.bulletTime && timeScale > 0.8 && !(run.time < (S.btNext || 0)) && rand() < BT.chance) { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; S.btNext = run.time + BT.cd; }
-  const shells = D.ammo === 'shells', heavy = (D.dmg || 0) >= 80 || wId === 'boom';
+  const shells = D.ammo === 'shells' && !D.dart, heavy = (D.dmg || 0) >= 80 || wId === 'boom';
   // the sledgehammer crushes the head of whatever it kills, wherever the blow landed: it comes down from overhead
   // (and the fire axe often splits it: either leaves no head for the rest of this to take)
   const crushed = wId === 'sledge' && crushHead(z, dx, dz);

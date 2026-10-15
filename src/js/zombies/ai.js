@@ -63,7 +63,7 @@ function updateZombies(dt) {
       if (z.vis > 0.3) { const s = z.T.scale; burnFx(z.x, z.z, (z.crawl ? 0.1 : 0.45) * s, (z.crawl ? 0.5 : 1.5) * s, 0.2 * s, dt); }
       if (z.burnT >= BURN_TICK) { z.burnT -= BURN_TICK; if (burnHurt(z)) continue; }
     } else z.burnT = 0;
-    if (z.bleed > 0) { z.bleed -= dt; z.hp -= 8 * dt; if (rand() < dt * 3) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
+    if (z.bleed > 0) { z.bleed -= dt; z.hp -= (z.bleedR || BLEED_R) * dt; if (z.bleed <= 0) z.bleedR = 0; if (rand() < dt * (2 + (z.bleedR || BLEED_R) * 0.15)) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }
       if (rand() < 0.5) { const v = sp.o ? new V3(...sp.p).applyMatrix4(sp.o.matrixWorld) : m.g.localToWorld(new V3(...STUMP[sp.part])); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }

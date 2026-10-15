@@ -25,7 +25,7 @@ function wsNumbers(id) {
   // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
   const kind = EJECT[id] === 'pump' ? 'pump' : EJECT[id] === 'bolt' ? 'bolt' : null;
   if (kind) { const v = RACKS[kind], avg = v.reduce((a, q) => a + q.dur + q.delay, 0) / v.length; r.cycle = Math.min(avg, 1 / rate * 0.92); r.cycleKind = kind; }
-  const F = FALLOFF[id]; if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; }
+  const F = fallOf(id); if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; r.maxR = D.maxRange; }
   return r;
 }
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
@@ -80,11 +80,13 @@ function wsCone(sp, mob, hipK, aimK) {
 // damage per shot over range (ammo.js: falloff)
 function wsFall(id, r) {
   const W_ = 230, H = 64, top = 6, bot = H - 14, max = Math.max(20, Math.ceil(r.fall[1] + 2)), x = d => 8 + d / max * (W_ - 16), y = k => bot - k * (bot - top);
-  const pts = [[0, 1], [r.fall[0], 1], [r.fall[1], r.fall[2]], [max, r.fall[2]]].map(([d, k]) => `${x(d).toFixed(1)},${y(k).toFixed(1)}`).join(' ');
+  // (dragon's breath does nothing at all past its burn-out range: r.maxR)
+  const end = r.maxR ? [[r.maxR, r.fall[2]], [r.maxR, 0], [max, 0]] : [[max, r.fall[2]]], lo = r.maxR ? 0 : r.fall[2];
+  const pts = [[0, 1], [r.fall[0], 1], [r.fall[1], r.fall[2]], ...end].map(([d, k]) => `${x(d).toFixed(1)},${y(k).toFixed(1)}`).join(' ');
   const per = r.dmg * r.pel, ticks = [0, 5, 10, 15, 20, 25, 30].filter(d => d <= max);
   return `<svg class="wsFall" viewBox="0 0 ${W_} ${H}"><polygon points="${x(0)},${bot} ${pts} ${x(max)},${bot}" fill="rgba(240,191,76,.14)"/><polyline points="${pts}" fill="none" stroke="#f0bf4c" stroke-width="1.6"/>
-    ${ticks.map(d => `<text x="${x(d)}" y="${H - 2}">${d}m</text>`).join('')}<text x="${x(0) + 2}" y="${top + 8}" class="hi">${Math.round(per)}</text><text x="${x(max) - 2}" y="${y(r.fall[2]) - 4}" class="lo" text-anchor="end">${Math.round(per * r.fall[2])}</text></svg>
-    <div class="wsKey"><span style="--c:#f0bf4c">Full to ${wsF(r.fall[0], 0)} m, ${Math.round(r.fall[2] * 100)}% from ${wsF(r.fall[1], 0)} m</span></div>`;
+    ${ticks.map(d => `<text x="${x(d)}" y="${H - 2}">${d}m</text>`).join('')}<text x="${x(0) + 2}" y="${top + 8}" class="hi">${Math.round(per)}</text><text x="${x(max) - 2}" y="${y(lo) - 4}" class="lo" text-anchor="end">${Math.round(per * lo)}</text></svg>
+    <div class="wsKey"><span style="--c:#f0bf4c">Full to ${wsF(r.fall[0], 0)} m, ${Math.round(r.fall[2] * 100)}% from ${wsF(r.fall[1], 0)} m${r.maxR ? `, nothing past ${r.maxR} m` : ''}</span></div>`;
 }
 function wsHTML(id) {
   const D = W(id), r = wsNumbers(id); if (!r) return '';
@@ -111,9 +113,9 @@ function wsHTML(id) {
   else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
   if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
   h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed, ${wsDeg(r.aimMv)} aimed on the move` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
-  if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
+  if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage' + (D.maxRange ? ` · nothing past ${D.maxRange} m` : ''), r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
-  h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
+  h += row('Headshots', '×' + wsF(r.head, 2), D.ammo === 'shells' && r.fall ? `up close, fading to ×1 by ${wsF(r.fall[1], 0)} m` : 'damage multiplier', r.head, s.head);   // a shotgun's fades with range (headFade, weapons/ammo.js)
   // a sniper's headshots through a scope: every one a crit
   if (D.headCrit) h += row('Scoped', 'Crits', `every headshot while aiming · ×${wsF(r.critX, 2)} damage`);
   // crits a gun lands by chance: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
