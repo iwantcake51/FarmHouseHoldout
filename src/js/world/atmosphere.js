@@ -52,6 +52,7 @@ const fogW = { lv: 0.3, to: 0.3, t: 20 };
 function stepAtmos(realDt) {
   const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
   WIND.value = t * 1.6;
+  updatePushers();   // the grass and bushes parting round you and the zombies near you (world/trees.js)
   const tb = titleBlend();
   measureView();
   motes.m.opacity = mix(0.42 * Math.max(0, day - 0.15), 0.35, tb);
