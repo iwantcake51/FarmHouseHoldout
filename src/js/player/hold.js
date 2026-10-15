@@ -499,6 +499,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const walk = Math.sin(ph) * (0.06 * Math.min(1, runF) + 0.38 * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (p ? 0 : 1);   // the arms pump at a sprint
   up.y += uy; up.x += ux;
   // the weapon rides in the right fist on its keyframes
+  { const q = shakyTremor(); arx += q.p * SHAKY_TREM.p; ary += q.y * SHAKY_TREM.y; hrx += q.r * SHAKY_TREM.r * 0.6; }   // shaking at low health (player/shaky-hands.js)
   armRest(pm.armR, 'R', arx + walk, ary);
   mh.rotation.set(hrx, 0, D.style === 'chop' ? 0 : 0.15);
   {
@@ -629,6 +630,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;
+  { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
   { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; ox += Math.sin(fa.yaw) * FREE_SWING; oy -= Math.sin(fa.pitch) * FREE_SWING; }   // the arms trail a turn and swing on after it
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
