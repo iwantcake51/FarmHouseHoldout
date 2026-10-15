@@ -60,6 +60,33 @@ const STAIN_FRAG = `
       vec3 dried = mix(vec3(0.24, 0.05, 0.035), vec3(0.15, 0.03, 0.022), core);
       diffuseColor.rgb = mix(diffuseColor.rgb, mix(dried, fresh, uFresh), a * mix(0.72, 0.95, core));
     }
+    // wounds (zombies only, zombies/wounds.js): each a point in its part's frame (uWound: xyz, radius) and which part
+    // and what kind (uWoundK: zone + 10 x kind). A bullet hole is black in a dark ring; an exit wound blown open, pale
+    // bone round a dark crater with pink inside; a stump's end raw, the bone in the middle. Blood runs down from each
+    for (int i = 0; i < WOUND_N; i++) {
+      if (i >= uWoundN) break;
+      float wk = uWoundK[i]; if (abs(mod(wk, 10.0) - uZone) > 0.5) continue;
+      vec4 w = uWound[i]; vec3 d3 = bp - w.xyz; float r = w.w, kind = floor(wk / 10.0 + 0.01), dl = length(d3);
+      vec3 dr = vec3(d3.x, d3.y < 0.0 ? d3.y * 0.22 : d3.y * 1.6, d3.z); float dRun = length(dr);
+      if (dl > r * 1.6 && dRun > r * 1.3) continue;
+      float d = dl * (1.0 + 0.22 * bsnoise(bp * 70.0 + w.xyz * 9.0));
+      float run = smoothstep(r * 1.3, r * 0.5, dRun * (1.0 + 0.3 * bsnoise(bp * 34.0 + w.xyz * 5.0)));
+      vec3 c = mix(diffuseColor.rgb, vec3(0.3, 0.025, 0.02), max(run * 0.88, smoothstep(r * 1.35, r * 0.9, d)));
+      if (kind > 1.5) {
+        c = mix(c, vec3(0.52, 0.07, 0.055), smoothstep(r * 0.98, r * 0.78, d));
+        c = mix(c, vec3(0.22, 0.02, 0.02), smoothstep(r * 0.62, r * 0.46, d) * 0.55);
+        c = mix(c, vec3(0.86, 0.82, 0.72), smoothstep(r * 0.3, r * 0.22, dl));
+      } else if (kind > 0.5) {
+        c = mix(c, vec3(0.8, 0.74, 0.64), smoothstep(r * 0.98, r * 0.82, d));
+        c = mix(c, vec3(0.5, 0.08, 0.07), smoothstep(r * 0.8, r * 0.68, d));
+        c = mix(c, vec3(0.66, 0.32, 0.32), smoothstep(r * 0.64, r * 0.44, d) * (0.45 + 0.55 * smoothstep(-0.3, 0.5, bsnoise(bp * 90.0))));
+        c = mix(c, vec3(0.05, 0.004, 0.004), smoothstep(r * 0.46, r * 0.22, d));
+      } else {
+        c = mix(c, vec3(0.17, 0.012, 0.01), smoothstep(r * 0.8, r * 0.55, d));
+        c = mix(c, vec3(0.025, 0.0, 0.0), smoothstep(r * 0.48, r * 0.3, d));
+      }
+      diffuseColor.rgb = c;
+    }
     // burnt (a zombie set on fire, zombies/ai.js): char creeps over the body in patches as it burns, a scorched brown
     // edge running ahead of it, until the whole thing is a blackened corpse. While it's still alight the burning edge
     // and the cracks in the char glow like embers
@@ -88,13 +115,14 @@ function stainMat(orig, mesh, frame, su, mode, zone) {
     if (baseC) baseC.call(m, sh, r);
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'uniform mat4 uPart;\nvarying vec3 vBloodP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBloodP = (uPart * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'uniform float uChar;\nuniform float uEmber;\nuniform float uBlood;\nuniform float uFresh;\nuniform vec3 uSeed;\nuniform float uZone;\nuniform float uMode;\nuniform float uFreq;\nuniform vec3 uLo;\nuniform vec3 uHi;\nvarying vec3 vBloodP;\n' + BLOOD_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + STAIN_FRAG);
+    sh.fragmentShader = '#define WOUND_N ' + WOUND_N + '\nuniform vec4 uWound[WOUND_N];\nuniform float uWoundK[WOUND_N];\nuniform int uWoundN;\nuniform float uChar;\nuniform float uEmber;\nuniform float uBlood;\nuniform float uFresh;\nuniform vec3 uSeed;\nuniform float uZone;\nuniform float uMode;\nuniform float uFreq;\nuniform vec3 uLo;\nuniform vec3 uHi;\nvarying vec3 vBloodP;\n' + BLOOD_NOISE + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + STAIN_FRAG);
   };
   m.customProgramCacheKey = () => (baseKey ? baseKey.call(orig) : '') + '-stain';
   return m;
 }
 const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent && !o.userData.isOutline && !o.userData.isFlash;
-const stainU = freq => ({ uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
+const WOUND_N = 8;   // wounds a zombie can show at once (zombies/wounds.js)
+const stainU = freq => ({ uWound: { value: Array.from({ length: WOUND_N }, () => new THREE.Vector4()) }, uWoundK: { value: new Array(WOUND_N).fill(-1) }, uWoundN: { value: 0 }, uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
 
 // ---- on you ----
 const BLOOD_U = stainU(7.5);

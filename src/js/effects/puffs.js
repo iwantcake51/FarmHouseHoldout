@@ -90,6 +90,8 @@ function stepFx(dt) {
     const s = p.s, m = s.material; if (p.life <= 0) { s.visible = false; continue; }
     const K = FXK[p.kind], k = 1 - p.life / p.max, dr = Math.exp(-dt * K.drag);
     p.vx *= dr; p.vz *= dr; p.vy = p.vy * dr - K.grav * dt + K.rise * dt;
+    // burning pellets, flame and sparks stop at a wall (and die there) rather than going through it
+    if ((p.kind === 'dragon' || p.kind === 'flame' || p.kind === 'spark') && s.position.y < 2.4 && bulletBlocked(s.position.x + p.vx * dt, s.position.z + p.vz * dt)) { p.vx = p.vz = 0; p.life = Math.min(p.life, 0.05); }
     s.position.x += p.vx * dt; s.position.y += p.vy * dt; s.position.z += p.vz * dt;
     if (s.position.y < 0.03) { s.position.y = 0.03; p.vy = 0; if (p.kind === 'spark') p.life = Math.min(p.life, 0.03); else if (p.kind === 'dragon') { p.vx *= 0.25; p.vz *= 0.25; } }
     let op = p.a * Math.min(1, k * 9) * Math.pow(1 - k, p.kind === 'flash' ? 1 : 1.6);

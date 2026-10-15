@@ -79,6 +79,8 @@ const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
 // mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
 // 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
 function ejectCasing(ammo, n, mode, sideSign) {
+  // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
+  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : curId(); if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
   const K = CASE_KIND[ammo === 'magnum' && curId() === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38), right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);

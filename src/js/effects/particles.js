@@ -11,10 +11,15 @@ Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
 // Where one comes down it leaves its stain in the farm's blood map (effects/blood-map.js): a drop and its spatter on the
 // ground, or at the height it hit whatever it ran into first (dropHits): a wall, a trunk, a fence post or rail, a
 // crate, the bench, a window's sill or the wall over it, or the boards across it.
-const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_M = [lam(0x6e0f0a), lam(0x521009), lam(0x84160f)], _dz = new V3(0, 0, 1), _dv = new V3();
-DROP_M.forEach(m => { m.userData.mobile = true; });
+// They're all drawn at once, as instances of one mesh (a shotgun on a crowd throws hundreds of them, and each its own
+// mesh was a draw call apiece): each drop keeps its own transform (m, never in the scene itself) and its shade, and
+// the live ones are packed into the instances every frame
+const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_C = [0x6e0f0a, 0x521009, 0x84160f].map(c => new THREE.Color(c)), _dz = new V3(0, 0, 1), _dv = new V3();
+const DROP_N = 640, DROP_MAT = lam(0xffffff); DROP_MAT.userData.mobile = true;
+const dropIM = new THREE.InstancedMesh(DROP_G, DROP_MAT, DROP_N); dropIM.frustumCulled = false; dropIM.count = 0; dropIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+dropIM.setColorAt(0, DROP_C[0]); dropIM.instanceColor.setUsage(THREE.DynamicDrawUsage); scene.add(dropIM);
 const drops = [];
-for (let k = 0; k < 640; k++) { const m = new THREE.Mesh(DROP_G, DROP_M[k % 3]); m.visible = false; scene.add(m); drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
+for (let k = 0; k < DROP_N; k++) { const m = new THREE.Object3D(); m.visible = false; drops.push({ m, c: DROP_C[k % 3], life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
 let dropIdx = 0;
 const DROP_THROW = 1.7, DROP_SCATTER = 1.5, DROP_DRAG = 0.6;
 function bloodDrops(x, y, z, n, dirx, dirz, force) {
@@ -55,7 +60,14 @@ function dropHits(x, y, z) {
   return o.kind === 'window' ? y < 1.0 || y > 1.9 : y > 2.05;
 }
 function stepDrops(dt) {
-  if (dt <= 0) return;
+  if (dt > 0) moveDrops(dt);
+  // the live ones into the instances (when the world's frozen they hold where they are)
+  let n = 0;
+  for (const d of drops) { if (!d.m.visible) continue; d.m.updateMatrix(); dropIM.setMatrixAt(n, d.m.matrix); dropIM.setColorAt(n, d.c); n++; }
+  dropIM.count = n; dropIM.visible = n > 0;
+  if (n) { dropIM.instanceMatrix.needsUpdate = true; dropIM.instanceColor.needsUpdate = true; }
+}
+function moveDrops(dt) {
   for (const d of drops) {
     if (d.life <= 0) continue; d.life -= dt;
     const m = d.m, drag = Math.exp(-dt * (0.012 / d.r) * DROP_DRAG);

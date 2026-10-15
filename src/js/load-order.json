@@ -55,6 +55,7 @@
   "effects/outlines.js",
   "game/hit-feedback.js",
   "zombies/damage.js",
+  "zombies/wounds.js",
   "weapons/explosives.js",
   "barricades/planks.js",
   "player/vaulting.js",

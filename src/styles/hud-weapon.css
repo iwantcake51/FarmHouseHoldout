@@ -37,6 +37,12 @@
    bright bullet in a nickel case. A shell has no bullet, so it stays just a shell */
 #rounds.hp i{--bl:#8f4f28}#rounds.hp2 i{--bl:#e8842e}#rounds.hp2:not(.sh) i:not(.off){box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i{--bl:#e09a62;--cs:#c8ccd0}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
+/* fired and kept in the gun: a case with no bullet in it, its mouth dark (the brass's own colours, the bullet's part clear);
+   a shotgun hull blown open at the crimp, its petals splayed and the inside showing, the plastic gone dull */
+#rounds i.fired{background:linear-gradient(transparent 0 33%,#3a2c14 33% 38%,var(--cs) 38% 89%,#9c7a34 89%)}
+#rounds.rf i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 34%,var(--cs) 34% 93%,#9c7a34 93%)}
+#rounds.mg i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 35%,var(--cs) 35% 91%,#9c7a34 91%)}
+#rounds.sh i.fired{background:linear-gradient(#4a1712 0 22%,#8f3a30 22% 30%,#9a3c32 30%);clip-path:polygon(0 100%,0 22%,6% 2%,18% 16%,32% 0,50% 15%,68% 0,82% 16%,94% 2%,100% 22%,100% 100%)}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 /* a spent case, bullet gone: an open mouth at the top, and a rifle case's neck and shoulder (ui/rounds.js) */
 .fallRound.case{border-radius:.5px;border-top:1px solid #7a5e28}

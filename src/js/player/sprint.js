@@ -64,7 +64,11 @@ function updateSprint(dt, moving, wx, wz) {
   const trig = rgArc() ? null : sprintTrig();
   if (trig && (P.sprint || P.pivot || (ANIM.ready || 0) > READY_UP)) { P.fireQ = trig; P.fireQT = FIRE_WAIT; }
   P.shotHold = trig ? SHOT_HOLD : Math.max(0, (P.shotHold || 0) - dt);
-  const can = moving && sprintKey() && state === 'play' && !P.dead && !P.vault && !(P.stun > 0) && !P.sprintLock && P.stam > 0 &&
+  // pressing sprint as you move cuts a reload short: what's in stays in (the rest of the mag, the shells already fed),
+  // a revolver's cylinder is flicked shut (player/hold.js) and you break into the sprint
+  const sk = sprintKey(), skPress = sk && !P.sprintKeyWas; P.sprintKeyWas = sk;
+  if (skPress && moving && W8.reloading && state === 'play' && !P.vault) { W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; }
+  const can = moving && sk && state === 'play' && !P.dead && !P.vault && !(P.stun > 0) && !P.sprintLock && P.stam > 0 &&
     !W8.reloading && !(P.bandT > 0) && !(W8.swing > 0) && !openSt && !(P.skid > 0) && !P.pivot && !P.fireQ && !(P.shotHold > 0) && !(INTRO.t >= 0);
   // aiming or pulling the trigger while you sprint: you skid to a stop on your momentum, the gun coming up as you slow
   if (P.sprint && (aiming || trig)) { P.skid = SPRINT.skid; SFX.skid(); sprintDust(3); }
