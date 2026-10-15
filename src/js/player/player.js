@@ -4,6 +4,15 @@
 const P = { stam: 1, exh: false, stamT: 9, x: cxw(21), z: cxw(22), hp: 100, aim: Math.PI, phase: 0, moving: false, vault: null, slow: 0, stun: 0, adr: 0, still: 0, vx: 0, vz: 0 };
 const PM = human(0xd2a07c, 0x4e5a3c, 0x2f3238);
 scene.add(PM.g);
+// knees: the survivor's legs are cut at the knee (KNEE_Y below the hip) and the shin hung from it, so a stride lifts
+// its heel and a sprint kicks it up behind (the zombies keep their straight legs). The shins carry whatever's below the
+// knee: the shoes (player/look.js), boots and knee pads (player/gear.js). The thigh runs a touch past the knee so no gap
+// opens at its back when it bends
+const KNEE_Y = -0.27;
+{
+  const thigh = new THREE.BoxGeometry(0.19, 0.29, 0.22).translate(0, -0.145, 0), shin = new THREE.BoxGeometry(0.184, 0.28, 0.214).translate(0, -0.14, 0);
+  ['L', 'R'].forEach(s => { const leg = PM['leg' + s], m = new THREE.Mesh(shin, leg.material); leg.geometry = thigh; m.position.y = KNEE_Y; m.castShadow = true; leg.add(m); PM['shin' + s] = m; });
+}
 const SURV = { belt: lam(0x2e241a), brass: lam(0xb08a3a), sole: lam(0x1e1a16) };
 PM.mats.shirtDk = lam(0x3e4830);   // seams, collar and cuffs; coloured with the shirt (player/look.js, and build-weapons.js for the jacket)
 PM.mats.skinDk = lam(0xb88762);    // ears and nose, a shade darker than the skin
@@ -39,7 +48,7 @@ PM.upper.add(packPivot); packPivot.add(packBody);
   sil(box(B, 0.38, 0.15, 0.15, canvasLt, 0, 0.64, -0.25)); box(B, 0.3, 0.012, 0.01, web, 0, 0.67, -0.327); box(B, 0.02, 0.04, 0.012, SURV.brass, 0.12, 0.65, -0.329);
   sil(xc(B, 0.07, 0.4, roll, 0, 1.255, -0.25)); xc(B, 0.03, 0.41, canvasDk, 0, 1.255, -0.25);
   // fold the small pieces into one mesh per material on the torso, the upper body and the pack
-  const rig = new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR]);
+  const rig = new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]);
   unfight(PM.g, { fixed: rig });
   const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, ...Object.values(PACK)]) };   // recoloured at runtime, so kept out of the baked colours
   mergeInto(TO, finePieces(TO, rig), live); mergeInto(U, finePieces(U, new Set([...rig, packPivot])), live); mergeInto(B, finePieces(B, rig), live);

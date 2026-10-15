@@ -5,8 +5,8 @@
 
 const LOOK = { g: {}, cur: null, mirrorY: 0.214, xrayReady: false };
 // each group and the rig part it rides on (the hat and the shoes get their own, so gear can hide them)
-const LOOK_ON = { head: PM.head, hat: PM.head, torso: PM.torso, armL: PM.armL, armR: PM.armR, legL: PM.legL, legR: PM.legR, shoeL: PM.legL, shoeR: PM.legR };
-for (const k in LOOK_ON) { const g = new THREE.Group(); LOOK_ON[k].add(g); LOOK.g[k] = g; }
+const LOOK_ON = { head: PM.head, hat: PM.head, torso: PM.torso, armL: PM.armL, armR: PM.armR, legL: PM.legL, legR: PM.legR, shinL: PM.shinL, shinR: PM.shinR, shoeL: PM.shinL, shoeR: PM.shinR };
+for (const k in LOOK_ON) { const g = new THREE.Group(); LOOK_ON[k].add(g); LOOK.g[k] = g; if (LOOK_ON[k] === PM.shinL || LOOK_ON[k] === PM.shinR) g.position.y = -KNEE_Y; }   // (laid out in the whole leg's space, from the hip)
 const PBOOT = [LOOK.g.shoeL, LOOK.g.shoeR];   // hidden by gear.js when you've upgraded your footwear
 const LOOKS = {
   skin: [0xf2cfae, 0xe3b48f, 0xd2a07c, 0xbd8761, 0x9c6a46, 0x7a4e32, 0x5a3824],
@@ -116,7 +116,7 @@ function rollLook(opt) {
   const sils = buildLook(L);
   // pull flush faces apart, then fold each group's small pieces into a few meshes
   const pieces = new Set(); Object.values(LOOK.g).forEach(g => g.traverse(o => { if (o.isMesh) pieces.add(o); }));
-  unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR]) });
+  unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]) });
   const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, PM.mats.pants]) };
   Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g), live));
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
@@ -316,7 +316,7 @@ function buildLook(L) {
   }
   // ---- trousers: a cargo pocket on one thigh and a knee patch on the other
   const pDk = lm(shade(L.pants, 0.7));
-  if (L.top === 'suit') [LOOK.g.legL, LOOK.g.legR].forEach(l => box(l, 0.008, 0.46, 0.006, lm(shade(L.pants, 0.8)), 0, -0.26, 0.112));   // a suit's: pressed, a crease down the front
+  if (L.top === 'suit') [[LOOK.g.legL, LOOK.g.shinL], [LOOK.g.legR, LOOK.g.shinR]].forEach(([l, sh]) => { const m = lm(shade(L.pants, 0.8)); box(l, 0.008, 0.25, 0.006, m, 0, -0.155, 0.112); box(sh, 0.008, 0.21, 0.006, m, 0, -0.385, 0.108); });   // a suit's: pressed, a crease down the front of each thigh and shin
   else {
     box(LOOK.g.legL, 0.012, 0.13, 0.12, PM.mats.pants, -0.1, -0.2, 0.0); box(LOOK.g.legL, 0.016, 0.03, 0.13, pDk, -0.101, -0.14, 0.0);
     box(LOOK.g.legR, 0.11, 0.09, 0.012, pDk, 0.01, -0.28, 0.114);

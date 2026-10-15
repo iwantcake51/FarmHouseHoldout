@@ -105,7 +105,7 @@ function buildCharBlood() {
   charBlood.forEach(([, m]) => m.dispose()); charBlood.length = 0;
   PM.g.updateMatrixWorld(true);
   BLOOD_U.uSeed.value.set(rr(0, 40), rr(0, 40), rr(0, 40));
-  const held = new Set(Object.values(gunMeshes)), zones = new Map([[PM.torso, 0], [PM.armL, 1], [PM.armR, 2], [PM.legL, 3], [PM.legR, 4], [PM.head, 5]]);
+  const held = new Set(Object.values(gunMeshes)), zones = new Map([[PM.torso, 0], [PM.armL, 1], [PM.armR, 2], [PM.legL, 3], [PM.legR, 4], [PM.shinL, 3], [PM.shinR, 4], [PM.head, 5]]);
   const walk = (o, part, zone) => {
     if (held.has(o) || o.userData.slot !== undefined || o.userData.isOutline) return;
     if (zones.has(o)) { part = o; zone = zones.get(o); }

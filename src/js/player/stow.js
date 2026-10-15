@@ -255,7 +255,7 @@ const PACK_SW = { bounce: 0.03, back: 0.24, into: 0.025, side: 0.16, twist: 0.3,
 function updatePack(dt) {
   const q = packSw, L = PACK_SW;
   if (dt > 0) {
-    const on = !P.dead, run1 = clamp(Math.hypot(P.vx, P.vz) / 4.1, 0, 1);
+    const on = !P.dead, run1 = clamp(Math.hypot(P.vx, P.vz) / WALK_SPEED, 0, 1);
     // how your body is speeding up, forward and sideways, and turning (ANIM.ax/az are set in player/animation.js)
     const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), ax = on ? ANIM.ax || 0 : 0, az = on ? ANIM.az || 0 : 0;
     const aF = ax * sy + az * cy, aS = ax * cy - az * sy;
@@ -279,7 +279,7 @@ function updatePack(dt) {
   packPivot.rotation.set(q.rx, q.ry, q.rz);
 }
 // show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out. A pair's left gun goes
-// with it (on2), or on its own while it's put away for a Run and gun vault (player/hold.js)
+// with it (on2), or on its own while it's put away for a Vault fire vault (player/hold.js)
 function showStowed(s, on, on2 = on) {
   const o = STOW[s]; if (!o) return; o.userData.gun.visible = on; o.visible = (on || s === 'side') && !P.dead;
   const t = o.userData.twin; if (t) { o.userData.gun2.visible = on2; t.visible = (on2 || s === 'side') && !P.dead; }
@@ -287,7 +287,7 @@ function showStowed(s, on, on2 = on) {
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
   if (stowDirty) { stowDirty = false; buildStow(); }
-  const held = W8.cur, spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / 4.1, 0, 1.2);
+  const held = W8.cur, spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / WALK_SPEED, 0, 1.2);
   // the swing follows your velocity in the body's frame: speeding up swings it back, strafing swings it aside
   const c = Math.cos(ANIM.yaw), sn = Math.sin(ANIM.yaw), fwd = P.vx * sn + P.vz * c, lat = P.vx * c - P.vz * sn;
   // turning flings them out sideways (packSw.turn is how fast you're turning, from updatePack)

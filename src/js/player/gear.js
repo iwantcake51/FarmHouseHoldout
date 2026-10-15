@@ -68,8 +68,8 @@ function buildArmor(ar) {
 }
 // ---- footwear: good leather work boots, then white running shoes, then trail runners; Thick soles builds the sole up
 function buildBoots(bt, thick) {
-  [PM.legL, PM.legR].forEach((l, i) => {
-    const g = gearItem(l, 0, 0, 0.05), sole = thick ? 0.04 + thick : 0.04;
+  [PM.shinL, PM.shinR].forEach((l, i) => {
+    const g = gearItem(l, 0, -KNEE_Y, 0.05), sole = thick ? 0.04 + thick : 0.04;   // (laid out from the hip, as on the whole leg)
     if (bt === 1 || !bt) {   // work boots: a tall shaft, a toe cap, laces criss-crossing up the front, a pull tab, a heeled sole
       gb(g, 0.215, 0.22, 0.26, GEAR.leather, 0, -0.45, -0.03); gb(g, 0.21, 0.09, 0.15, GEAR.leather, 0, -0.505, 0.11);
       gb(g, 0.205, 0.07, 0.06, GEAR.leatherDk, 0, -0.515, 0.17); gb(g, 0.22, 0.03, 0.27, GEAR.leatherDk, 0, -0.34, -0.03);
@@ -101,9 +101,9 @@ function buildGear() {
   bandPouch2.visible = !!S.pouch;
   LOOK.g.hat.visible = !S.stubborn;   // the helmet goes on instead of your hat
   if (bt || thick) buildBoots(bt, thick);
-  // Run and gun: hard-shell knee pads on elastic straps
-  if (S.vaultMul < 1) [PM.legL, PM.legR].forEach(l => {
-    const g = gearItem(l, 0, -0.27, 0); gb(g, 0.2, 0.14, 0.04, GEAR.black, 0, 0, 0.125); gb(g, 0.15, 0.1, 0.02, GEAR.foam, 0, 0, 0.152);
+  // Vault fire: hard-shell knee pads on elastic straps
+  if (S.vaultMul < 1) [PM.shinL, PM.shinR].forEach(l => {
+    const g = gearItem(l, 0, -0.27 - KNEE_Y, 0); gb(g, 0.2, 0.14, 0.04, GEAR.black, 0, 0, 0.125); gb(g, 0.15, 0.1, 0.02, GEAR.foam, 0, 0, 0.152);
     [-0.05, 0.05].forEach(y => gb(g, 0.205, 0.022, 0.235, GEAR.dark, 0, y, 0));
   });
   // Quick hands: fingerless shooting gloves, a knuckle pad and a velcro wrist strap

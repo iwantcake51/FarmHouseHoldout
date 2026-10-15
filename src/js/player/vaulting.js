@@ -36,7 +36,7 @@ function fenceTarget() {
 }
 // vaulting takes a little out of you: 8% stamina through a window, 6% over a fence, and every vault you chain on within
 // a few seconds of the last costs another 4% (vaultHeat cools off over 3 s). Without the breath for it you
-// scramble over instead: slower and lower, panting, and you stumble when you land. Run and gun halves the cost.
+// scramble over instead: slower and lower, panting, and you stumble when you land. Vault fire halves the cost.
 const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
 function tryVault() {
   if (P.vault) return;
@@ -73,11 +73,12 @@ function tryVault() {
   const L = [-dz, dx], kind = win ? 'window' : 'fence';
   // a window starts from a short crouch back off the sill: the legs are straight, so they can only tuck up out of the
   // wall's way while the hips are still well short of it
-  const s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1);
+  // a vault you sprint into goes over quicker (SPRINT.vault), hardly stopping for the crouch
+  const run = P.sprint ? SPRINT.vault : 1, s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1) * run;
   // where the left hand goes down (L points to your left): on the sill's near edge, or the top rail where you cross
   const latX = lat0 + (lat1 - lat0) * 0.3, plant = win ? new V3(C[0] + dx * -0.46 + L[0] * 0.16, 1.05, C[1] + dz * -0.46 + L[1] * 0.16) : new V3(C[0] + L[0] * (latX + 0.16), 0.8, C[1] + L[1] * (latX + 0.16));
   // side: how much the jump runs across the screen (-1 left .. 1 right), which is how far the view tips with it
-  P.vault = { t: 0, pre: 0, preDur: (win ? 0.24 : 0.16) * S.vaultMul * (scramble ? 1.8 : 1), dur: (win ? 0.85 : 0.55) * mul, scramble, kind, fence: !win,
+  P.vault = { t: 0, pre: 0, preDur: (win ? 0.24 : 0.16) * S.vaultMul * (scramble ? 1.8 : 1) * run * run, dur: (win ? 0.85 : 0.55) * mul, scramble, kind, fence: !win,
     C, L, s0, s1, lat0, lat1, twistSide, sx: P.x, sz: P.z, obs: vaultObstacle(kind, false), plant, ground: new V3(C[0] + dx * (s1 + 0.15) + L[0] * 0.14, 0.04, C[1] + dz * (s1 + 0.15) + L[1] * 0.14),
     x0: P.x, z0: P.z, x1: C[0] + dx * s1 + L[0] * lat1, z1: C[1] + dz * s1 + L[1] * lat1, face: Math.atan2(dx, dz), dx, dz, side: clamp(dx * RIGHT.x + dz * RIGHT.z, -1, 1) };
   buildVaultPlan(P.vault);
@@ -94,6 +95,6 @@ function vaultLand(v) {
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;
   if (v.scramble) { P.slow = Math.min(1, P.slow + 0.35); camVault.vb -= 0.6; SFX.pant(); }   // a heavy, tired landing: slowed, but never frozen in place
 }
-// Run and gun: the gun stays in your right hand through a vault, on the aim, and you can fire it (the left hand takes the
+// Vault fire: the gun stays in your right hand through a vault, on the aim, and you can fire it (the left hand takes the
 // sill on its own; a melee weapon is still put away)
 const vaultGun = () => !!(P.vault && S.vaultFire && !W(curId()).melee);

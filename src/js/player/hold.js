@@ -51,7 +51,7 @@ const AK_HAND = {
   R: { cant: 0.2, toe: 0.03, p: -0.012, up: 0.012, fwd: 0.018, in: 0, f: 1.3 },
   L: { cant: 0.3, toe: 0.05, p: 0.035, up: -0.022, fwd: -0.03, in: 0.012, f: 1.75 }
 };
-// Run and gun with a pair: the left hand's needed for the vault, so its gun goes away for it (into the shoulder rig
+// Vault fire with a pair: the left hand's needed for the vault, so its gun goes away for it (into the shoulder rig
 // under your right arm, or onto your back) and is drawn again after: over AK_DRAW seconds the hand goes to it, pulls it
 // at AK_GRAB of the way and brings it up to the aim. A pistol's is drawn across the chest from the rig (rigDraw);
 // AK_DRAW_AT is where one off the back is drawn from: the gun's pitch there, and how far down, back and out (side: a
@@ -403,7 +403,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
     if (MCUT.t < 1) { MCUT.t = Math.min(1, MCUT.t + rdt / 0.16); const w = 1 - smooth(MCUT.t); uy += MCUT.v[0] * w; ux += MCUT.v[1] * w; arx += MCUT.v[2] * w; ary += MCUT.v[3] * w; hrx += MCUT.v[4] * w; }
     MCUT.last = now5; MCUT.lastP = p; ANIM.flPrev = !!fl;
   }
-  const walk = Math.sin(ph) * 0.06 * Math.min(1, runF) * (p ? 0 : 1);
+  const walk = Math.sin(ph) * (0.06 * Math.min(1, runF) + 0.38 * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (p ? 0 : 1);   // the arms pump at a sprint
   up.y += uy; up.x += ux;
   // the weapon rides in the right fist on its keyframes
   armRest(pm.armR, 'R', arx + walk, ary);
@@ -458,8 +458,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
-  const blade = ak ? 0 : H.blade * (1 - sw * 0.6);
-  let pitch = 0.9 * sw + ANIM.pitch, yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  const blade = ak ? 0 : H.blade * (1 - sw * 0.6), rd = smooth(clamp(ANIM.ready || 0, 0, 1));   // (rd: down at a low ready, sprinting)
+  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd), yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
   // gun never quite still in the hands while they work on it
   const J = W8.relJit || REL_JIT0, AT = _actT;
@@ -522,14 +522,21 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) springTo(ACT, a, 'v' + a, AT[a], a === 'hp' || a === 'hy' || a === 'tw' ? ACT_K * 0.5 : ACT_K, a === 'hp' || a === 'hy' || a === 'tw' ? ACT_D * 0.75 : ACT_D, dt);
   pitch += ACT.p; roll += ACT.r; yaw += ACT.y; oy += ACT.h; oz += ACT.z; up.y += ACT.tw;
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
+  // sprinting (player/sprint.js): the gun comes down to a low ready, muzzle down and across the body, both hands still
+  // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. Run and gun keeps it up
+  if (rd > 0.001) {
+    const lg = H.kind === 'long', b2 = Math.sin(ph * 2), b1 = Math.sin(ph);
+    pitch += rd * ((lg ? 0.62 : 0.95) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
+    ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.07 : 0.1) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+  }
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;
   { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; ox += Math.sin(fa.yaw) * FREE_SWING; oy -= Math.sin(fa.pitch) * FREE_SWING; }   // the arms trail a turn and swing on after it
-  if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Run and gun: the gun stays level while the body tips over the sill and dips into the landing
+  if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
-  // the left gun put away for a Run and gun vault and drawn again after (AK_DRAW); akHolstered while it's away
+  // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away
   if (ak && vaultGun()) { ANIM.akIn = true; ANIM.akDraw = 0; }
   else if (!ak) ANIM.akIn = false;
   else if (ANIM.akIn) { ANIM.akDraw += rdt / AK_DRAW; if (ANIM.akDraw >= 1) ANIM.akIn = false; }
@@ -570,7 +577,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (akC && side === akC.side) { hox -= sg * 0.1 * akC.hold; hoy -= 0.04 * akC.hold; hoz -= 0.1 * akC.hold; hz += sg * 0.45 * akC.hold; hx -= 0.06 * akC.hold + 0.1 * akC.slam; }
     posePivot(h, hx, hy, hz, g[0], g[1], g[2], hox, hoy, hoz);
     if (ak && side === ANIM.akChSide && ANIM.akCh > 0.001) akSling(h, g, sg, ANIM.akCh, hox, hoy, hoz);
-    // a pair in the shoulder rig: the left gun's drawn back out from under the right arm after a Run and gun vault
+    // a pair in the shoulder rig: the left gun's drawn back out from under the right arm after a Vault fire vault
     // (the hand goes across to it, pulls it at AK_GRAB and swings it round onto the aim)
     if (side === 'L' && ak && ANIM.akIn && !P.vault && rigPair(s)) rigDraw(h, vk(ANIM.akDraw, 0, AK_GRAB - 0.05) * (1 - vk(ANIM.akDraw, AK_GRAB + 0.08, 1)));
   }

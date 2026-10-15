@@ -89,6 +89,7 @@
   "lighting/vision.js",
   "weapons/laser.js",
   "game/update.js",
+  "player/sprint.js",
   "player/movement.js",
   "weapons/combat-update.js",
   "barricades/interactions.js",

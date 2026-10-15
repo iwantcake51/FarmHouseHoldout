@@ -10,7 +10,7 @@ function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) { W8.swing = Math.max(0, W8.swing - dt); if (!W8.hitDone && 1 - W8.swing / W8.swingDur >= 0.4) { W8.hitDone = true; meleeHit(); } }
   tickReload(dt); tickCycle(dt);
-  const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25);   // not till it's back in your hands after a bandage
+  const canFire = !openSt && !P.dead && !(P.bandT > 0) && !(ANIM.bandP > 0.25) && !sprintHolds();   // not till it's back in your hands after a bandage, nor sprinting (player/sprint.js)
   const stickFire = !!(tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4), wantFire = (mouseDown || stickFire) && canFire;
   // a semi-auto needs the trigger let go between shots (trigLock); a burst keeps going only while it's held, and let go
   // part way through it stops there

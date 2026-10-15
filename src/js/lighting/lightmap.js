@@ -59,7 +59,7 @@ function computeLight() {
 // frame so it swings round with you smoothly. An akimbo pair has one on each gun, each a cone of its own from that gun,
 // a bit dimmer apiece. FLASH: each tier's reach, half-angle and strength
 const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
-// the light is on the gun, so it's only on while the gun's out in your hands: put away for a vault (without Run and gun)
+// the light is on the gun, so it's only on while the gun's out in your hands: put away for a vault (without Vault fire)
 // it goes off, and it comes back on as the gun's drawn again, once the hand has it (SWAP_T.cross, player/swap.js).
 // flOn eases it off and on over a few frames, like a switch clicked
 let flOn = 0;

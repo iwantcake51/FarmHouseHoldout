@@ -8,7 +8,7 @@ function renderMoodles() {
   if (P.slow > 0.45) list.push(['bad', 'pinned', 'Pinned']); else if (P.slow > 0.15) list.push(['warn', 'pinned', 'Slowed']);
   if (P.bandT > 0) list.push(['good', 'wound', 'Bandaging']); else if (P.heal > 0) list.push(['good', 'wound', 'Healing']);
   if (P.bleed > 0) list.push(['bad', 'wound', 'Bleeding']);
-  if (P.exh) list.push(['bad', 'lungs', 'Winded']); else if (P.stam < 0.35) list.push(['warn', 'lungs', 'Tired']);
+  if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35) list.push(['warn', 'lungs', 'Tired']);
   if (P.conc > 0.15) list.push(['bad', 'pinned', 'Concussed']);
   if (P.adr > 0) list.push(['good', 'adren', 'Adrenaline']);
   if (S.lastStand && hp < 0.3) list.push(['good', 'fire', 'Last stand']);
