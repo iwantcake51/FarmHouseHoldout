@@ -43,7 +43,7 @@ const CHEAT_FX = {
   badly: { name: 'Badly hurt', text: 'Down to 20% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.35, ap: () => fxHp(0.2), off: () => { P.hp = S.maxHp; } },
   last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = S.maxHp; } },
   wind: { name: 'Second wind ready', text: 'Gives you the Second wind perk if you haven\'t got it, ready to go again.', on: () => S.secondWind && !S.windUsed, ap: () => { if (!S.secondWind) chSkill('p:Second wind', 1); S.windUsed = false; }, off: () => { S.windUsed = true; } },
-  heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else giveWeapon('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
+  heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else chGive('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
   dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { tod = 0; }, off: () => { tod = 12; } }
 };
 // held effects: kept on every frame until you let go (for this page only)
@@ -182,6 +182,9 @@ function chGun(id, fn) {
   delete W8.pin[id]; recomputeEff(); buildGuns(); gunGlow = 1;
   if (!W(id).melee) W8.mag[id] = magSize(id);
 }
+// a weapon into its slot and your hands, the way one off the radio arrives (stations/supply-drop.js): giveWeapon only
+// changes the stats, so the models in your hands and on your back are rebuilt for it too
+function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1; }
 function chRemoveMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== m && MODS[k].need !== m);   // and anything that needed it
   Object.keys(MODS).forEach(k => { if (!(W8.mods[id] || []).includes(k) && MODS[k].w === id) delete W8.modLv[k]; });
@@ -267,7 +270,7 @@ const CHEAT_ACTS = {
   scrap: d => { S.scrap = +d.n ? S.scrap + +d.n : 0; popEl('scrap'); },
   planks: () => { S.planks = PLANK_MAX; popEl('planks'); },
   ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[WEAP[id].ammo] = Math.max(W8.reserve[WEAP[id].ammo], 3 * AMMO_CAN[WEAP[id].ammo]); } }); },
-  give: d => { exitScope(); giveWeapon(d.id); feed('gear', 0, WEAP[d.id].name); },
+  give: d => { chGive(d.id); feed('gear', 0, WEAP[d.id].name); },
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
   tier: d => { const id = curId(), k = d.k, n = gunTier(id, k), dd = +d.d;
     if (dd > 0 ? !tierFits(k, id) : n <= 0) return;
