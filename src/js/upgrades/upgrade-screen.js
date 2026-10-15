@@ -1,6 +1,9 @@
 // Dealing, showing and picking upgrade cards, and the upgrade history.
 
 let dealt = [], cardsArmed = false, armTimer = 0;
+// or take none of them and SKIP_SCRAP scrap instead (from the first to the second, rolled with each hand)
+const SKIP_SCRAP = [5, 10];
+let skipScrap = 0;
 // who a card is for, in plain words at the top of it: a weapon of yours, all your guns, or you
 const FOR_TAG = { Gun: 'For all your guns', Ammo: 'For all your guns', Melee: 'For your melee weapons' };
 function cardFor(u, c) {
@@ -42,6 +45,8 @@ function dealCards() {
   }
   // shuffled, so the skill isn't always the first card
   for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
+  skipScrap = SKIP_SCRAP[0] + Math.floor(rand() * (SKIP_SCRAP[1] - SKIP_SCRAP[0] + 1));
+  $('upSkip').innerHTML = `Take none · <b>+${skipScrap} scrap</b> instead <kbd>4</kbd>`; delete $('upSkip').dataset.down;
   const wrap = $('cards'); wrap.innerHTML = '';
   const rots = [-1.6, 0.8, -0.4];
   dealt.forEach((u, i) => {
@@ -101,10 +106,25 @@ function pickCard(i) {
   feed('gear', 0, u.weaponOf ? WEAP[u.weaponOf].name : c.name);
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out
-  const el = $('upgrade'), cards = [...$('cards').children];
+  const cards = [...$('cards').children];
+  cards[i].classList.add('picked'); leaveUpgrade(cards.filter((b, k) => k !== i));
+}
+// none of them: the scrap shown under the cards instead, and all three burn
+function skipCards() {
+  if (state !== 'upgrade' || !cardsArmed) return;
+  cardsArmed = false;
+  S.scrap += skipScrap; feed('scrap', skipScrap, 'scrap'); popEl('scrap'); SFX.upgrade();
+  P.wraps = 0;
+  leaveUpgrade([...$('cards').children]);
+}
+function leaveUpgrade(burn) {
+  const el = $('upgrade');
   el.classList.remove('armed'); el.classList.add('picking');
-  cards[i].classList.add('picked'); burnCards(cards.filter((b, k) => k !== i));
+  burnCards(burn);
   state = 'leaving';
   setTimeout(() => { el.classList.remove('show'); }, 1250);
   setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(25); }, 1650);
 }
+// (a press has to start once the cards are live, like a card's, so a click held over from the wave doesn't take it)
+$('upSkip').addEventListener('pointerdown', () => { if (cardsArmed) $('upSkip').dataset.down = '1'; });
+$('upSkip').addEventListener('click', e => { if (e.detail === 0 || $('upSkip').dataset.down === '1') skipCards(); });
