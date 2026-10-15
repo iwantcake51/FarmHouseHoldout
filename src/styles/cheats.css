@@ -12,8 +12,8 @@
 .chTop kbd,#cheatTag kbd{font:600 10px var(--f-ui);padding:2px 5px;border:1px solid rgba(236,230,216,.3);border-radius:3px;color:var(--dim)}
 #chClose{align-self:center;width:26px;height:26px;padding:0;border:0;background:none;color:var(--dim);font-size:22px;line-height:1;cursor:pointer}
 #chClose:hover{color:var(--ink)}
-.chTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:0 14px;border-bottom:1px solid rgba(236,230,216,.12)}
-.chTabs button{padding:8px 0 7px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;color:var(--dim);font:600 11px var(--f-ui);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.chTabs{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:0 14px;border-bottom:1px solid rgba(236,230,216,.12)}
+.chTabs button{padding:8px 0 7px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;color:var(--dim);font:600 10.5px var(--f-ui);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 .chTabs button:hover{color:var(--ink)}
 .chTabs button.on{color:var(--ink);border-bottom-color:var(--orange)}
 #chBody{overflow-y:auto;overscroll-behavior:contain;padding:4px 14px 14px}
@@ -65,6 +65,14 @@
 #chTime{flex:1;accent-color:var(--orange);cursor:pointer}
 .chTime+.chBtns{display:grid;grid-template-columns:repeat(3,1fr)}
 .chTime+.chBtns .chBtn{text-align:center}
+/* health: the number and a slider to set it; status effects with a dot that lights while the icon is showing */
+.chHp{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.chHp .chClock{min-width:96px}
+#chHp{flex:1;accent-color:#e2715a;cursor:pointer}
+.chNote{margin:0 0 6px;color:var(--dim);font-size:10.5px;line-height:1.35}
+.chDot{flex:none;width:8px;height:8px;border-radius:50%;background:rgba(236,230,216,.14);transition:background .15s,box-shadow .15s}
+.chDot.on{background:#9fd37a;box-shadow:0 0 6px rgba(159,211,122,.8)}
+.chFx .chGrp{flex:none}
 /* the reminder on the HUD while a switch is on */
 #cheatTag{top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:3px 10px;border:1px solid rgba(216,105,44,.45);border-radius:3px;background:rgba(12,14,15,.6);
   color:var(--orange);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}

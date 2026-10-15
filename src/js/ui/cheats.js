@@ -7,7 +7,7 @@ const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: fa
 try { Object.assign(CHEAT, JSON.parse(localStorage.getItem(CHEAT_KEY) || '{}')); } catch (e) {}
 const saveCheats = () => { try { localStorage.setItem(CHEAT_KEY, JSON.stringify(CHEAT)); } catch (e) {} };
 const CHEAT_TOGGLES = {
-  god: { name: 'God mode', text: 'Health stays full and bleeding stops. Nothing can kill you.' },
+  god: { name: 'God mode', text: 'Health stays full and nothing can kill you. Bleeding and other effects still show.' },
   scrap: { name: 'Infinite scrap', text: 'Scrap never drops below 999. Buy anything at the stations.' },
   ammo: { name: 'Infinite ammo', text: 'Every ammo type stays at 999 in reserve. You still reload.' },
   noWaves: { name: 'Waves off', text: 'No zombies spawn. The break timer stops, and a wave in progress stops sending more.' },
@@ -19,12 +19,35 @@ try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (
 
 // every frame of play (game/update.js): keep what the switches promise
 function cheatTick() {
-  if (CHEAT.god) { P.hp = S.maxHp; P.bleed = 0; }
+  CHEAT_HELD.forEach(k => CHEAT_FX[k].hold && CHEAT_FX[k].hold());
+  if (CHEAT.god) P.hp = S.maxHp;
   if (CHEAT.scrap && S.scrap < 999) S.scrap = 999;
   if (CHEAT.ammo) for (const a in W8.reserve) if (W8.reserve[a] < 999) W8.reserve[a] = 999;
 }
 // god mode: a hit that would have killed you leaves you standing (ui/screens.js: startDeath)
-const cheatSaves = () => { if (!CHEAT.god) return false; P.hp = S.maxHp; P.bleed = 0; return true; };
+const cheatSaves = () => { if (!CHEAT.god) return false; P.hp = S.maxHp; return true; };
+
+// ---- status effects: each one the status icons top right can show (ui/moodles.js), what turns it on, what keeps it on
+// while it's held (every frame, ui/cheats.js: cheatTick) and what clears it. on: whether its icon is showing
+const fxHp = f => { P.hp = Math.max(1, Math.round(S.maxHp * f)); };
+const CHEAT_FX = {
+  bleed: { name: 'Bleeding', text: 'Loses about 1.7 health a second until it stops or a bandage goes on.', on: () => P.bleed > 0, ap: () => { P.bleed = 14; }, hold: () => { P.bleed = Math.max(P.bleed || 0, 2); }, off: () => { P.bleed = 0; } },
+  adren: { name: 'Adrenaline', text: '15% faster on your feet, heart racing.', on: () => P.adr > 0, ap: () => { P.adr = 8; }, hold: () => { P.adr = Math.max(P.adr || 0, 0.5); }, off: () => { P.adr = 0; } },
+  slowed: { name: 'Slowed', text: 'A hit has you stumbling.', on: () => P.slow > 0.15 && P.slow <= 0.45, ap: () => { P.slow = 0.4; }, hold: () => { P.slow = Math.max(P.slow, 0.3); }, off: () => { P.slow = 0; } },
+  pinned: { name: 'Pinned', text: 'Grabbed and barely moving.', on: () => P.slow > 0.45, ap: () => { P.slow = 1; }, hold: () => { P.slow = Math.max(P.slow, 0.9); }, off: () => { P.slow = 0; P.stun = 0; } },
+  conc: { name: 'Concussed', text: 'The screen swims and your aim goes wide.', on: () => P.conc > 0.15, ap: () => { P.conc = 1; }, hold: () => { P.conc = Math.max(P.conc || 0, 0.8); }, off: () => { P.conc = 0; } },
+  winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = 1; P.exh = P.sprintLock = P.fatigued = false; } },
+  healing: { name: 'Healing', text: 'Health coming back over time, as after a bandage.', on: () => P.bandT <= 0 && P.heal > 0, ap: () => { if (P.hp >= S.maxHp) fxHp(0.5); P.heal = (P.heal || 0) + 50; }, hold: () => { P.heal = Math.max(P.heal || 0, 5); }, off: () => { P.heal = 0; } },
+  bandaging: { name: 'Bandaging', text: 'A bandage going on (one is added to your bag if you have none).', on: () => P.bandT > 0, ap: () => { P.band = Math.max(P.band || 0, 1); if (P.hp >= S.maxHp && !(P.bleed > 0)) fxHp(0.9); startBandage(); popEl('bands'); }, off: () => { if (P.bandT > 0) { P.bandT = 0; ANIM.healCut = true; } } },
+  hurt: { name: 'Hurt', text: 'Down to 60% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.7 && P.hp / S.maxHp >= 0.35, ap: () => fxHp(0.6), off: () => { P.hp = S.maxHp; } },
+  badly: { name: 'Badly hurt', text: 'Down to 20% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.35, ap: () => fxHp(0.2), off: () => { P.hp = S.maxHp; } },
+  last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = S.maxHp; } },
+  wind: { name: 'Second wind ready', text: 'Gives you the Second wind perk if you haven\'t got it, ready to go again.', on: () => S.secondWind && !S.windUsed, ap: () => { if (!S.secondWind) chSkill('p:Second wind', 1); S.windUsed = false; }, off: () => { S.windUsed = true; } },
+  heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else giveWeapon('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
+  dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { tod = 0; }, off: () => { tod = 12; } }
+};
+// held effects: kept on every frame until you let go (for this page only)
+const CHEAT_HELD = new Set();
 
 // ---- the panel ----------------------------------------------------------------------------------------------------
 const chEl = $('cheat'), chBody = $('chBody');
@@ -60,6 +83,8 @@ function cheatLiveTick() {
   set('phase', state === 'title' ? 'On the title screen' : phase === 'wave' ? `Wave ${run.wave} in progress` : phase === 'cleared' ? 'Wave cleared' : CHEAT.noWaves ? 'Break (waves off)' : `Break · next wave in ${Math.ceil(Math.max(0, breakT))}s`);
   const id = curId(); if (id && WEAP[id].ammo) set('mag', `${W8.mag[id] || 0} / ${magSize(id)} · ${W8.reserve[WEAP[id].ammo]} spare`);
   const sl = $('chTime'); if (sl && document.activeElement !== sl && Math.abs(+sl.value - tod) > 0.02) sl.value = tod;
+  const hs = $('chHp'); if (hs && document.activeElement !== hs && Math.abs(+hs.value - P.hp) > 0.5) hs.value = Math.ceil(P.hp);
+  chBody.querySelectorAll('[data-fxon]').forEach(el => el.classList.toggle('on', !!CHEAT_FX[el.dataset.fxon].on()));
 }
 // a small reminder on the HUD while any switch is on
 function cheatTag() {
@@ -71,12 +96,20 @@ function cheatTag() {
 const CHEAT_TABS = {
   player() {
     return chHead('Switches') + ['god', 'scrap', 'ammo'].map(chToggle).join('') +
-      chHead('Health') + `<div class="chRow"><span class="chK">Health</span><b data-live="hp"></b>${chBtn('Heal to full', 'heal')}</div>` +
-      `<div class="chRow"><span class="chK">Max health</span><b>${S.maxHp}</b>${chStep('maxhp', {}, '±25', S.maxHp > 25, true)}</div>` +
-      `<div class="chRow"><span class="chK">Bandages</span><b data-live="bands"></b>${chBtn('Fill', 'bands')}</div>` +
-      chHead('Supplies') + `<div class="chRow"><span class="chK">Scrap</span><b data-live="scrap"></b><span class="chGrp">${chBtn('+50', 'scrap', { n: 50 })}${chBtn('+500', 'scrap', { n: 500 })}${chBtn('0', 'scrap', { n: 0 })}</span></div>` +
+      chHead('Supplies') + `<div class="chRow"><span class="chK">Bandages</span><b data-live="bands"></b>${chBtn('Fill', 'bands')}</div>` + `<div class="chRow"><span class="chK">Scrap</span><b data-live="scrap"></b><span class="chGrp">${chBtn('+50', 'scrap', { n: 50 })}${chBtn('+500', 'scrap', { n: 500 })}${chBtn('0', 'scrap', { n: 0 })}</span></div>` +
       `<div class="chRow"><span class="chK">Planks</span><b data-live="planks"></b>${chBtn('Fill', 'planks')}</div>` +
       `<div class="chRow"><span class="chK">Ammo</span><b data-live="mag">—</b>${chBtn('Refill all', 'ammo')}</div>`;
+  },
+  health() {
+    return chHead('Health') +
+      `<div class="chHp"><b data-live="hp" class="chClock"></b><input id="chHp" type="range" min="1" max="${S.maxHp}" step="1" value="${Math.ceil(P.hp)}" aria-label="Health"></div>` +
+      (CHEAT.god ? '<p class="chNote">God mode is on, so your health goes straight back to full. Switch it off on the Player tab to stay hurt.</p>' : '') +
+      `<div class="chRow"><span class="chK">Hurt yourself<small>A hit from a random side, with the flinch and the red edge</small></span><span class="chGrp">${[10, 25, 50].map(n => chBtn('−' + n, 'hurt', { n }, 'warn')).join('')}</span></div>` +
+      `<div class="chRow"><span class="chK">Heal yourself</span><span class="chGrp">${[10, 25].map(n => chBtn('+' + n, 'healn', { n })).join('')}${chBtn('Full', 'heal')}</span></div>` +
+      `<div class="chRow"><span class="chK">Max health</span><b>${S.maxHp}</b>${chStep('maxhp', {}, '±25', S.maxHp > 25, true)}</div>` +
+      chHead('Status effects') + '<p class="chNote">The icons top right. Apply sets it off once; Hold keeps it on until you let go.</p>' +
+      Object.entries(CHEAT_FX).map(([k, f]) => `<div class="chRow chFx" data-fx="${k}"><i class="chDot" data-fxon="${k}"></i><span class="chK">${f.name}<small>${esc(f.text)}</small></span><span class="chGrp">${chBtn('Apply', 'fx', { k })}${f.hold ? chBtn('Hold', 'fxhold', { k }, CHEAT_HELD.has(k) ? 'have' : '') : ''}${chBtn('Clear', 'fxoff', { k }, 'ghost')}</span></div>`).join('') +
+      `<div class="chBtns">${chBtn('Clear every effect', 'fxall', {}, 'warn')}</div>`;
   },
   weapons() {
     let h = chHead('Give a weapon');
@@ -220,6 +253,15 @@ function chNoSkills() {
 const CHEAT_ACTS = {
   tg: d => { CHEAT[d.k] = !CHEAT[d.k]; saveCheats(); if (CHEAT[d.k]) cheatTick(); },
   heal: () => { P.hp = S.maxHp; P.bleed = 0; P.slow = 0; },
+  healn: d => { P.hp = Math.min(S.maxHp, P.hp + +d.n); },
+  // a hit like a zombie's (zombies/ai.js), from a random side: no armour, no dodging it
+  hurt: d => { if (P.dead) return; const a = rand() * Math.PI * 2; P.hp -= +d.n; P.hitFrom = a; hitFromAt(P.x + Math.sin(a) * 2, P.z + Math.cos(a) * 2); interruptBandage();
+    addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood');
+    if (P.hp <= 0) { P.hp = 0; startDeath(); } },
+  fx: d => { if (!P.dead) CHEAT_FX[d.k].ap(); },
+  fxhold: d => { if (CHEAT_HELD.has(d.k)) CHEAT_HELD.delete(d.k); else { CHEAT_HELD.add(d.k); CHEAT_FX[d.k].ap(); } },
+  fxoff: d => { CHEAT_HELD.delete(d.k); CHEAT_FX[d.k].off(); },
+  fxall: () => { CHEAT_HELD.clear(); ['bleed', 'adren', 'pinned', 'conc', 'winded', 'healing', 'bandaging'].forEach(k => CHEAT_FX[k].off()); },
   maxhp: d => { S.maxHp = Math.max(25, S.maxHp + 25 * d.d); P.hp = d.d > 0 ? P.hp + 25 : Math.min(P.hp, S.maxHp); },
   bands: () => { P.band = bandMax(); popEl('bands'); },
   scrap: d => { S.scrap = +d.n ? S.scrap + +d.n : 0; popEl('scrap'); },
@@ -257,6 +299,7 @@ chEl.addEventListener('click', e => {
 chEl.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
 chEl.addEventListener('input', e => {
   if (e.target.id === 'chTime') { tod = +e.target.value; cheatLiveTick(); }
+  if (e.target.id === 'chHp') { P.hp = +e.target.value; cheatLiveTick(); }
   if (e.target.id === 'chFind') { cheatFind = e.target.value; const pos = e.target.selectionStart; renderCheats(); const f = $('chFind'); f.focus(); f.setSelectionRange(pos, pos); }
 });
 // typing in the search box or dragging the slider doesn't move you or fire; F9 and Esc still close the menu, Enter hands
