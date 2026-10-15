@@ -73,8 +73,9 @@ function tryVault() {
   const L = [-dz, dx], kind = win ? 'window' : 'fence';
   // a window starts from a short crouch back off the sill: the legs are straight, so they can only tuck up out of the
   // wall's way while the hips are still well short of it
-  // a vault you sprint into goes over quicker (SPRINT.vault), hardly stopping for the crouch
-  const run = P.sprint ? SPRINT.vault : 1, s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1) * run;
+  // a vault you sprint into with momentum behind you goes over quicker (SPRINT.vault, as much as vaultRush gives), hardly
+  // stopping for the crouch
+  const run = 1 - (1 - SPRINT.vault) * vaultRush(), s0 = win ? -1.3 : -0.85, mul = S.vaultMul * (scramble ? 1.55 : 1) * run;
   // where the left hand goes down (L points to your left): on the sill's near edge, or the top rail where you cross
   const latX = lat0 + (lat1 - lat0) * 0.3, plant = win ? new V3(C[0] + dx * -0.46 + L[0] * 0.16, 1.05, C[1] + dz * -0.46 + L[1] * 0.16) : new V3(C[0] + L[0] * (latX + 0.16), 0.8, C[1] + L[1] * (latX + 0.16));
   P.pivot = null;   // a hard turn's shuffle round gives way to the vault

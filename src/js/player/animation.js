@@ -225,7 +225,7 @@ function animatePlayer(dt, rdt) {
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
   if (!P.vault) {
     const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw);
-    pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * skid; pm.g.rotation.z += Math.sin(rel) * 0.2 * skid;
+    pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * skid; pm.g.rotation.z += Math.sin(rel) * 0.2 * skid + (ANIM.runBank || 0);   // (and banked into a sprint's bends)
     pm.g.position.y -= 0.07 * skid;
     // scrambling to a stop you drop and bounce on each choppy step; turning round you stay low, bobbing a touch with
     // each step, and come up again as you set off

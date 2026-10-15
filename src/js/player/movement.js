@@ -42,15 +42,18 @@ function updatePlayer(dt) {
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
       const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = WALK_SPEED * (P.sprint ? SPRINT.mul : 1) * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
+      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 0.45 : 1) * reloadSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
-      const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = 0.76 + 0.24 * smooth(ahead);
+      const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = P.sprint ? 1 : 0.76 + 0.24 * smooth(ahead);   // (sprinting you turn to run, so there's no backwards)
       tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;
     }
     // a quick but soft start, a short glide when you let go, and a firmer push when you reverse; frame-rate independent
     // (a sprint builds up over a moment, and a skid only loses speed to the ground's friction)
-    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : P.sprint ? (P.pushT > 0 ? PIVOT.pushAcc : 6) : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
-    P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k;
+    // (a cut mid-sprint carries some of your pace round into the new way while you plant: player/sprint.js)
+    if (P.pivot && P.pivot.keep) { tvx = P.pivot.wx * P.pivot.keep; tvz = P.pivot.wz * P.pivot.keep; }
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
+    if (P.sprint && !P.pivot && !(P.skid > 0) && (tvx || tvz) && !turning) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends
+    else { P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; }
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);
     if (dt > 0) { P.vx = (P.x - ox) / dt * 0.6 + P.vx * 0.4; P.vz = (P.z - oz) / dt * 0.6 + P.vz * 0.4; }
