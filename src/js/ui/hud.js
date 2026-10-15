@@ -82,7 +82,8 @@ function fireModeSwitched(id) {
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-let hitVig = 0, hitVigUp = false, bleedVig = 0;
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
 function hitFromAt(x, z) {
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
@@ -91,14 +92,16 @@ function hitFromAt(x, z) {
   el.style.setProperty('--hx', ((w + dx / l * t) / innerWidth * 100).toFixed(1) + '%'); el.style.setProperty('--hy', ((h + dy / l * t) / innerHeight * 100).toFixed(1) + '%');
   hitVigUp = true; heartStartle();
 }
-// the hit side snaps in fast and eases out; bleeding throbs at the edges with every beat of your heart (ui/vitals.js),
-// and the health number, health bar and Bleeding icon throb with it
+// the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
+// health number, health bar and Bleeding icon throb with it
 function damageVignettes(rdt) {
   if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) hitVigUp = false; } else hitVig = Math.max(0, hitVig - rdt / 0.45);
   { const v = Math.round(smooth(hitVig) * 100) / 100; if (cache.hitVig !== v) { cache.hitVig = v; $('hitVig').style.opacity = v; } }
   const bleeding = P.bleed > 0 && !P.dead;
+  if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
   bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
-  const beat = heartPulse(), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
+  bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1;
+  const beat = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
 }

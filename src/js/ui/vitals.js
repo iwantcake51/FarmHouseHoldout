@@ -25,12 +25,6 @@ function newBeat(len) {
 let beatCur = newBeat(60 / 72), beatPrev = newBeat(60 / 72);
 // a hit makes your heart jump (ui/hud.js hitFromAt)
 function heartStartle() { hrStartle = Math.min(30, hrStartle + 12); ecgJolt = 1; ecgJoltV = rr(-1, 1) < 0 ? -1 : 1; }
-// how hard the last beat pushed, 0..1: up fast at the R spike, then easing off till the next (the bleeding throb rides it)
-function heartPulse() {
-  if (P.hp <= 0) return 0;
-  let tr = beatT - ECG_R; if (tr < 0) tr += prevRR;
-  return tr < 0.07 ? smooth(tr / 0.07) : 1 - smooth(Math.min(1, (tr - 0.07) / Math.max(0.15, 0.8 * beatRR - 0.07)));
-}
 function updateHeart(rdt, hpF) {
   const dead = P.hp <= 0, lost = clamp(1 - hpF, 0, 1), bleedK = P.bleed > 0 ? Math.min(1, P.bleed / 6) : 0;
   hrStartle = Math.max(0, hrStartle - rdt * 2.5);
