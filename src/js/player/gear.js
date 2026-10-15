@@ -8,7 +8,7 @@ const gearParts = [];
 const GEAR = {
   leather: lam(0x4a3524), leatherDk: lam(0x33241a), leatherLt: lam(0x6a4c32), sole: lam(0x1e1a16), solePale: lam(0xd8d0c0), lace: lam(0x2a2018),
   white: lam(0xd8d2c4), offWhite: lam(0xbcb6a8), red: lam(0xb8382a), redDk: lam(0x8a2a20), blue: lam(0x34607e), blueDk: lam(0x24465e), amber: lam(0xe0a030),
-  olive: lam(0x4a5236), oliveDk: lam(0x363c28), oliveLt: lam(0x5e6844), coyote: lam(0x8a7656), coyoteDk: lam(0x6a5a40), dark: lam(0x24262a), black: lam(0x161718),
+  olive: lam(0x4a5236), oliveDk: lam(0x363c28), oliveLt: lam(0x5e6844), coyote: lam(0x8a7656), coyoteDk: lam(0x6a5a40), tan: lam(0xae9670), tanDk: lam(0x8c7654), tanLt: lam(0xc4ae86), dark: lam(0x24262a), black: lam(0x161718),
   green: basic(0x7cf08a), lens: basic(0xe8c25a), lensDk: lam(0x6a4a14), orange: lam(0xd06a2a), orangeDk: lam(0xa04e1c), steel: lam(0x8a8d90), steelDk: lam(0x55585c),
   wood: lam(0x7a5434), woodDk: lam(0x5a3e26), yellow: lam(0xd8b030), canvas: lam(0x7a6a4a), canvasDk: lam(0x5e5036), cord: lam(0x4a3a24), brass: lam(0xb08a3a),
   pill: lam(0xd8742a), label: lam(0xe8e2d0), nail: lam(0xa8a8a0), foam: lam(0x3a3c40)
@@ -46,7 +46,7 @@ function buildArmor(ar) {
   if (ar >= 2) {
     // soft armour, cut close to the body: thin front and back panels, flat shoulder straps, velcro side flaps, a name
     // tape and a light on the chest
-    const g = gearItem(PM.torso), vest = ar >= 3 ? GEAR.coyote : GEAR.oliveDk, vestDk = ar >= 3 ? GEAR.coyoteDk : GEAR.black;
+    const g = gearItem(PM.torso), vest = ar >= 3 ? GEAR.tan : GEAR.oliveDk, vestDk = ar >= 3 ? GEAR.tanDk : GEAR.black;
     gb(g, 0.52, 0.44, 0.026, vest, 0, -0.02, 0.161); gb(g, 0.52, 0.48, 0.026, vest, 0, 0.0, -0.161);
     [-1, 1].forEach(s => { gb(g, 0.09, 0.025, 0.33, vest, s * 0.15, 0.31, 0); gb(g, 0.012, 0.26, 0.31, vestDk, s * 0.254, -0.06, 0); gb(g, 0.014, 0.11, 0.22, vest, s * 0.257, -0.06, 0); });   // straps over the shoulders, side flaps
     gb(g, 0.5, 0.035, 0.03, vestDk, 0, -0.23, 0.166);                                                 // the hem binding
@@ -54,52 +54,92 @@ function buildArmor(ar) {
     if (ar === 2) { gb(g, 0.04, 0.065, 0.025, GEAR.black, 0.16, 0.0, 0.186); gb(g, 0.026, 0.026, 0.008, GEAR.amber, 0.16, 0.015, 0.201); }   // a clip light
   }
   if (ar >= 3) {
-    // the plate carrier over it, slim: plates front and back, three magazine pouches across the belly, an admin pouch,
-    // padded shoulders, side plates, a drag handle and rows of webbing, all kept close to the vest
-    const g = gearItem(PM.torso), c = GEAR.coyote, cd = GEAR.coyoteDk;
-    gb(g, 0.4, 0.36, 0.028, c, 0, 0.02, 0.188); gb(g, 0.34, 0.3, 0.006, cd, 0, 0.04, 0.205);
-    gb(g, 0.4, 0.38, 0.028, c, 0, 0.03, -0.188);
-    for (let k = 0; k < 3; k++) { gb(g, 0.36, 0.014, 0.006, cd, 0, -0.06 + k * 0.08, 0.205); gb(g, 0.36, 0.014, 0.006, cd, 0, -0.04 + k * 0.08, -0.205); }
-    // the three belly pouches hold your long gun's ammo (with two long guns, two for one and the third for the other;
-    // with none, your sidearm's), open-topped under a bungee so what's in them pokes out
+    // the plate carrier, done like a modern chest rig in plain tan: a slim plate bag on the upper chest with a velcro
+    // patch and a push-to-talk on the strap, wide laser-cut shoulder straps, and low across the belly the placard: a
+    // row of three open-top pouches with your long gun's ammo standing tall in them (with two long guns, two for one
+    // and the third for the other; with none, your sidearm's), a wing pouch either side (the sidearm's mags on the
+    // right if you've a long gun too, a zipped pouch with the radio's antenna up out of it on the left), and a plate
+    // bag behind
+    const g = gearItem(PM.torso), t = GEAR.tan, td = GEAR.tanDk;
+    gb(g, 0.36, 0.3, 0.024, t, 0, 0.1, 0.187); gb(g, 0.36, 0.34, 0.024, t, 0, 0.04, -0.187);           // the plate bags
+    gb(g, 0.12, 0.07, 0.004, td, -0.09, 0.15, 0.2); gb(g, 0.08, 0.045, 0.003, GEAR.coyoteDk, -0.09, 0.15, 0.203);   // the velcro and its patch
+    [-1, 1].forEach(s => {
+      gb(g, 0.085, 0.014, 0.37, t, s * 0.15, 0.31, 0); gb(g, 0.085, 0.07, 0.014, t, s * 0.15, 0.27, 0.172);   // the shoulder straps, over and down the front
+      for (let k = 0; k < 3; k++) gb(g, 0.045, 0.003, 0.008, td, s * 0.15, 0.318, 0.09 - k * 0.06);       // their laser-cut slots
+    });
+    gb(g, 0.028, 0.038, 0.018, GEAR.black, -0.15, 0.26, 0.186);                                       // the push-to-talk
+    // the placard and its three pouches
     const longs = [W8.slot.auto, W8.slot.long].filter(Boolean), fill = longs.length === 2 ? [longs[0], longs[0], longs[1]] : longs.length ? [longs[0], longs[0], longs[0]] : [W8.slot.side, W8.slot.side, W8.slot.side];
+    const pz = 0.196, pd = 0.036, pf = pz + pd / 2;
+    gb(g, 0.32, 0.14, pd, t, 0, -0.13, pz); gb(g, 0.322, 0.008, pd + 0.002, td, 0, -0.064, pz);
+    [-1, 1].forEach(s => gb(g, 0.004, 0.13, 0.002, td, s * 0.0525, -0.13, pf + 0.001));                    // the seams between the pouches
     for (let k = 0; k < 3; k++) {
-      const x = -0.13 + k * 0.13; gb(g, 0.1, 0.13, 0.03, c, x, -0.17, 0.217); gb(g, 0.102, 0.012, 0.034, cd, x, -0.11, 0.219); gb(g, 0.055, 0.06, 0.006, GEAR.black, x, -0.19, 0.234);
-      if (fill[k]) pouchFill(g, fill[k], x, -0.105, 0.217, 0.09);
-      gb(g, 0.104, 0.008, 0.008, GEAR.black, x, -0.097, 0.236);   // the bungee across the top
+      const x = -0.105 + k * 0.105; [-0.15, -0.18].forEach(y => gb(g, 0.05, 0.006, 0.002, td, x, y, pf + 0.001));   // laser-cut slots
+      if (fill[k]) pouchFill(g, fill[k], x, -0.06, pz, 0.095, pd);
     }
-    // and with a long gun as well, the sidearm's mags ride in a small pouch on the right of the chest
-    if (longs.length && W8.slot.side) { gb(g, 0.072, 0.08, 0.026, c, 0.165, -0.005, 0.215); gb(g, 0.074, 0.01, 0.03, cd, 0.165, 0.032, 0.216); pouchFill(g, W8.slot.side, 0.165, 0.035, 0.215, 0.062); }
-    gb(g, 0.15, 0.09, 0.018, cd, 0, 0.16, 0.211);                                                      // admin pouch
-    [-1, 1].forEach(s => { gb(g, 0.1, 0.028, 0.4, cd, s * 0.15, 0.335, 0); gb(g, 0.012, 0.22, 0.24, c, s * 0.266, -0.04, 0); });
-    gb(g, 0.15, 0.028, 0.026, GEAR.black, 0, 0.25, -0.215); [-1, 1].forEach(s => gb(g, 0.026, 0.05, 0.02, GEAR.black, s * 0.065, 0.225, -0.21));   // drag handle
-    gb(g, 0.05, 0.11, 0.026, GEAR.black, -0.2, 0.0, 0.215); gc(g, 0.005, 0.1, GEAR.black, -0.2, 0.1, 0.214);   // a radio and its antenna
+    // the wing pouches
+    const wing = (x, zip) => {
+      gb(g, 0.085, 0.16, 0.042, t, x, -0.155, 0.19);
+      if (zip) { [-1, 1].forEach(s => gb(g, 0.004, 0.135, 0.002, td, x + s * 0.034, -0.16, 0.212)); gb(g, 0.072, 0.004, 0.044, td, x, -0.08, 0.19); gb(g, 0.006, 0.022, 0.005, td, x + 0.03, -0.09, 0.214); }
+    };
+    wing(-0.205, true);
+    gc(g, 0.009, 0.025, GEAR.black, -0.225, -0.065, 0.185, null, 8); const ant = gc(g, 0.0035, 0.24, GEAR.black, -0.235, 0.06, 0.185, null, 6); ant.rotation.z = 0.12;   // the radio's antenna
+    if (longs.length && W8.slot.side) { gb(g, 0.085, 0.13, 0.034, t, 0.205, -0.15, 0.19); gb(g, 0.087, 0.008, 0.036, td, 0.205, -0.088, 0.19); pouchFill(g, W8.slot.side, 0.205, -0.085, 0.19, 0.085, 0.034); }
+    else wing(0.205, true);
   }
 }
-// what rides in a carrier pouch for each gun, stowed as it would be: magazines base plate up (two to a pouch for a
-// handgun), a speed loader for the revolver, shotgun shells brass up in their loops, rifle rounds tip up, or a short
-// length of the machine gun's belt; w is how wide the pouch is
+// what rides in a pouch for each gun, stowed as it would be: magazines upside down, floor plate up (two to a pouch for
+// a handgun, with a divider), each held by a shock cord over its plate down to a pull tab; the revolver's speed loader;
+// shotgun shells brass up through an elastic loop; rifle rounds tip up; or a fold of the machine gun's belt. Each mag
+// is the gun's own: the AR's grey STANAG with its two pressed ribs, the MP5's curved steel one, the MP9's polymer one
+// with its count windows, the drum shotgun's box, the pistol's polymer one with its flared base, the hand cannon's steel
 const POUCH_FILL = {
-  ar: { k: 'mag', w: 0.066, h: 0.068, d: 0.024 }, sub: { k: 'mag', w: 0.05, h: 0.066, d: 0.018, tilt: 0.12 }, smg: { k: 'mag', w: 0.042, h: 0.06, d: 0.02, poly: true },
-  auto12: { k: 'mag', w: 0.072, h: 0.058, d: 0.028 }, pistol: { k: 'mag2', w: 0.03, h: 0.052, d: 0.018, poly: true }, deagle: { k: 'mag2', w: 0.033, h: 0.052, d: 0.02 },
+  ar: { k: 'mag', w: 0.064, h: 0.085, d: 0.024, body: 'magAl', plate: 'metal2', ribs: 2, tilt: 0.07 },
+  sub: { k: 'mag', w: 0.048, h: 0.082, d: 0.018, body: 'metal', plate: 'metal', ribs: 2, tilt: 0.2 },
+  smg: { k: 'mag', w: 0.042, h: 0.072, d: 0.02, body: 'poly', plate: 'rubber', windows: true },
+  auto12: { k: 'mag', w: 0.07, h: 0.07, d: 0.028, body: 'metal2', plate: 'poly', ridges: true },
+  pistol: { k: 'mag2', w: 0.028, h: 0.058, d: 0.017, body: 'poly', plate: 'rubber', flare: true },
+  deagle: { k: 'mag2', w: 0.031, h: 0.06, d: 0.019, body: 'steelDk', plate: 'poly' },
   revolver: { k: 'loader' }, pump: { k: 'shells' }, dbl: { k: 'shells' }, hunting: { k: 'rounds', n: 5 }, lmg: { k: 'rounds', n: 7, belt: true }
 };
 const POUCH_TIP = new THREE.CylinderGeometry(0.0012, 0.0058, 0.016, 8);
-function pouchFill(g, id, x, y, z, w) {
+function pouchFill(g, id, x, y, z, w, d) {
   const f = POUCH_FILL[id]; if (!f) return;
-  const body = f.poly ? GM.poly : GM.metal2, base = GM.poly;
-  // a mag standing base up out of the pouch top at y: its body, then the wider base plate
-  const mag = (mx, mw, mh, md, tilt) => { const a = gb(g, mw, mh, md, body, mx, y + mh / 2 - 0.012, z); const b = gb(g, mw + 0.006, 0.01, md + 0.006, base, mx, y + mh - 0.008, z); if (tilt) [a, b].forEach(o => { o.rotation.x = tilt; }); };
-  if (f.k === 'mag') mag(x, f.w, f.h, f.d, f.tilt);
-  else if (f.k === 'mag2') [-1, 1].forEach(s => mag(x + s * w * 0.24, f.w, f.h, f.d));
-  else if (f.k === 'loader') { gc(g, 0.024, 0.026, GEAR.black, x, y + 0.01, z, null, 12); gc(g, 0.008, 0.018, GEAR.steelDk, x, y + 0.03, z, null, 8); }
-  else if (f.k === 'shells') for (let k = 0; k < 4; k++) { const sx = x + (k - 1.5) * w * 0.25; gc(g, 0.0095, 0.05, GM.shell, sx, y + 0.011, z, null, 10); gc(g, 0.0102, 0.012, GM.brass, sx, y + 0.04, z, null, 10); }
-  else if (f.k === 'rounds') {
-    for (let k = 0; k < f.n; k++) {
-      const rx = x + (k - (f.n - 1) / 2) * w * (f.belt ? 0.13 : 0.18); gc(g, 0.0058, 0.046, GM.brass, rx, y + 0.01, z, null, 8);
-      const t = new THREE.Mesh(POUCH_TIP, GM.copper); t.position.set(rx, y + 0.041, z); t.castShadow = true; g.add(t);
+  const black = GEAR.black, cord = GEAR.tanDk;
+  // a mag standing floor plate up out of the pouch mouth at y, raked a touch with its curve
+  const mag = (mx, sc) => {
+    const m = new THREE.Group(); m.position.set(mx, y, z); m.rotation.z = (f.tilt || 0) * (mx < x ? -1 : 1) * (f.k === 'mag2' ? 0 : 1); g.add(m);
+    const mw = f.w * sc, L = f.h, md = f.d, B = GM[f.body], P = GM[f.plate];
+    gb(m, mw, L + 0.02, md, B, 0, L / 2 - 0.01, 0);
+    if (f.ribs) [-1, 1].forEach(s => gb(m, 0.006, L - 0.014, md + 0.003, B, s * mw * 0.24, L / 2 - 0.006, 0));   // ribs pressed out down each side
+    if (f.windows) [0.25, 0.55].forEach(t => gb(m, 0.008, 0.007, md + 0.002, GM.rubber, mw * 0.25, L * t, 0));
+    if (f.ridges) [0.3, 0.6].forEach(t => gb(m, mw + 0.003, 0.004, md + 0.003, GM.poly, 0, L * t, 0));
+    gb(m, mw + 0.007, 0.011, md + 0.006, P, 0, L + 0.004, 0);                                           // the floor plate
+    if (f.flare) gb(m, 0.008, 0.016, md + 0.008, P, mw / 2 + 0.002, L + 0.001, 0);                      // the base's lip at the front
+    // the shock cord: two strands over the plate and down its front, and the pull tab standing up off it
+    [-1, 1].forEach(s => { gb(m, 0.003, 0.003, md + 0.012, cord, s * 0.008, L + 0.011, 0); gb(m, 0.003, L * 0.55, 0.003, cord, s * 0.008, L * 0.74, md / 2 + 0.004); });
+    const tab = gb(m, 0.018, 0.03, 0.005, cord, 0, L + 0.026, md / 2 - 0.002); tab.rotation.x = -0.25;
+  };
+  if (f.k === 'mag') mag(x, 1);
+  else if (f.k === 'mag2') { [-1, 1].forEach(s => mag(x + s * w * 0.24, 1)); gb(g, 0.004, 0.012, d + 0.002, GEAR.tanDk, x, y - 0.004, z); }   // the divider between them
+  else if (f.k === 'loader') {
+    gc(g, 0.026, 0.024, black, x, y + 0.006, z, null, 14); gc(g, 0.028, 0.004, GEAR.dark, x, y + 0.016, z, null, 14);
+    gc(g, 0.009, 0.016, GEAR.steelDk, x, y + 0.026, z, null, 10); gc(g, 0.0105, 0.004, GEAR.steelDk, x, y + 0.03, z, null, 10);   // the knurled knob
+  } else if (f.k === 'shells') {
+    for (let k = 0; k < 4; k++) {
+      const sx = x + (k - 1.5) * w * 0.235; gc(g, 0.0095, 0.05, GM.shell, sx, y + 0.011, z, null, 10); gc(g, 0.0102, 0.013, GM.brass, sx, y + 0.0415, z, null, 10);
+      gc(g, 0.0102, 0.002, GM.brass, sx, y + 0.049, z, null, 10); gc(g, 0.0032, 0.002, GM.steel, sx, y + 0.0495, z, null, 8);   // the rim and the primer
     }
-    if (f.belt) gb(g, w * 0.95, 0.008, 0.016, GEAR.dark, x, y + 0.012, z);   // the links holding them
+    gb(g, w * 0.96, 0.014, 0.004, GEAR.tanDk, x, y + 0.012, z + 0.0115);   // the elastic loop across them
+  } else if (f.k === 'rounds') {
+    const sp = w * (f.belt ? 0.13 : 0.18);
+    for (let k = 0; k < f.n; k++) {
+      const rx = x + (k - (f.n - 1) / 2) * sp; gc(g, 0.0058, 0.046, GM.brass, rx, y + 0.01, z, null, 8);
+      const t = new THREE.Mesh(POUCH_TIP, GM.copper); t.position.set(rx, y + 0.041, z); t.castShadow = true; g.add(t);
+      if (f.belt && k < f.n - 1) gb(g, sp * 0.5, 0.01, 0.014, GEAR.dark, rx + sp / 2, y + 0.008, z);   // the links between them
+    }
+    if (f.belt) gb(g, sp * (f.n - 1), 0.004, 0.016, GEAR.dark, x, y + 0.003, z);
+    else gb(g, w * 0.96, 0.012, 0.004, GEAR.tanDk, x, y + 0.01, z + 0.0075);   // the elastic loop across them
   }
 }
 // ---- footwear: good leather work boots, then white running shoes, then trail runners; Thick soles builds the sole up
