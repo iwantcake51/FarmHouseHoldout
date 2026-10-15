@@ -16,6 +16,13 @@
 #upgrade.armed #upSkip{pointer-events:auto}
 #upgrade.armed #upSkip:hover{opacity:1;outline-color:var(--orange)}
 #upgrade.picking #upSkip{opacity:0;transition-delay:0s}
+/* taken instead: it swells and glows in the scrap's orange, stamped with what you got, while the bits fly off it
+   (scrapFly) and the cards burn; it goes with the rest of the screen */
+#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);
+  transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease;animation:skipGlow 1.2s ease-in-out .3s}
+#upSkip.taken b{font-size:21px}
+@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(216,105,44,.8)}}
+.scrapBit{position:fixed;left:0;top:0;z-index:60;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 4px rgba(255,180,90,.35));will-change:transform}
 .card{all:unset;box-sizing:border-box;position:relative;cursor:pointer;width:260px;min-height:190px;padding:14px 18px 46px;background:var(--card);color:var(--card-ink);font-family:var(--f-type);box-shadow:0 10px 30px rgba(0,0,0,.5);border-top:7px solid var(--rc,#6d665b);
   background-image:repeating-linear-gradient(180deg,transparent 0 23px,rgba(70,110,150,.22) 23px 24px);background-position:0 46px;--rx:0deg;--ry:0deg;overflow:hidden;
   opacity:0;transform:translateY(60px) rotate(calc(var(--r) * 4)) rotateY(-70deg);transition:transform .55s cubic-bezier(.2,.9,.25,1.15),opacity .35s ease,box-shadow .2s;transition-delay:calc(.25s + var(--i) * .14s)}
