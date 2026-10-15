@@ -83,6 +83,11 @@ function updatePlayer(dt) {
     // a small dead zone round the character on screen, so sweeping the cursor across him never flips you round
     _pv.set(P.x, GUN_Y, P.z).project(cam);
     const psx = (_pv.x + 1) / 2 * innerWidth, psy = (1 - _pv.y) / 2 * innerHeight;
-    if (ray.ray.intersectPlane(aimPlane, aimPt) && Math.hypot(mouseX - psx, mouseY - psy) > 30 && Math.hypot(aimPt.x - P.x, aimPt.z - P.z) > 0.35) P.aim = Math.atan2(aimPt.x - P.x, aimPt.z - P.z);
+    // at the workbench or any station, the body and the gun stay where they were and only the head follows the cursor
+    // (P.look: animatePlayer); the keys still walk you about. Aiming down the sights turns you to the cursor as ever
+    const held = !!openSt && !aiming, pt = held ? _lookPt : aimPt;
+    if (ray.ray.intersectPlane(aimPlane, pt) && Math.hypot(mouseX - psx, mouseY - psy) > 30 && Math.hypot(pt.x - P.x, pt.z - P.z) > 0.35) { const a = Math.atan2(pt.x - P.x, pt.z - P.z); if (held) P.look = a; else P.aim = a; }
   }
+  if (!openSt || aiming || scoped || P.dead) P.look = null;
 }
+const _lookPt = new V3();
