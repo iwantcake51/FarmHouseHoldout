@@ -6,6 +6,9 @@ const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) ||
 // has to land more swings to clear a crowd (one made long enough to sweep through more, melee/melee-stats.js, pays in full)
 const SINGLE_STAM = 0.7;
 const stamCost = D => stamUse((D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 : 0.12) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1));
+// winded, a swing comes slower (TIRED.swing) and the next one waits longer (TIRED.cd); one that only hits a single
+// zombie (weapons/firing.js) is slowed by just TIRED.single of that, as it's lighter in the hand
+const TIRED = { cd: 1.6, swing: 1.45, single: 2 / 3 };
 // a swing that meets nothing costs only part of that (charged as it starts); the rest is paid when it lands on something
 const SWING_AIR = 0.55;
 // Iron lungs: a bigger tank, so everything costs less of it

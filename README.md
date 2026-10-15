@@ -90,7 +90,7 @@ Every source file starts with a one-line comment saying what is in it.
 | Melee damage, swing speed, reach, knockback, and how many zombies a swing hits (`cleave`; without it a swing hits only the nearest, unless its reach is long enough: `REACH_CLEAVE`) | `src/js/melee/melee-stats.js` |
 | Stamina a melee swing costs: more for the heavy two-handers, and `SINGLE_STAM` of that for a weapon that hits only one zombie (`stamCost`) | `src/js/melee/melee.js` |
 | Melee models and mods (and how much each mod's part grows per level, `lvAt`) | `src/js/melee/melee-models.js`, `src/js/melee/melee-mods.js` |
-| Stamina cost and swing slowdown, Iron lungs (`LUNGS`), and which zombies a swing lands on | `src/js/melee/melee.js` |
+| Stamina cost and swing slowdown, how much slower a swing comes when you're winded (`TIRED`; less so for a weapon that hits only one zombie), Iron lungs (`LUNGS`), and which zombies a swing lands on | `src/js/melee/melee.js` |
 | How heavy the fire axe and sledgehammer feel (`HEAVY`: when the whoosh starts and the hit lands in the swing, and how long survivors stagger; their own overhead swing is `SWING.heavy` in `src/js/player/animation.js`) | `heavySwing`, `meleeHit` in `src/js/melee/melee.js` |
 | The sledgehammer crushing the head of whatever it kills (`crushHead`: the burst of blood, bone and brains, the blood it rains on the ground, and how long the neck pumps as the body drops, `NECK_PUMP`) | `src/js/zombies/damage.js` |
 | How stamina comes back (the wait after a vault, `VAULT_BREATH`) and how far down the arms point a gun (`PITCH_MAX`), and where on a zombie on or near your aim you look and point (`AIM_CHEST`, `AIM_NEAR`, up to `AIM_UP`) | `src/js/weapons/combat-update.js` |
