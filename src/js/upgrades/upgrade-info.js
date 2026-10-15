@@ -7,7 +7,7 @@ const TIER_USE = {
   laser: 'Laser · a beam shows exactly where your shots land, and tightens your shots from the hip', light: 'Light · lights up the ground ahead of you at night',
   choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
   boots: 'Footwear · you move faster', hammer: 'Tool · faster, tougher boarding', eyes: 'Senses · you see more around you',
-  night: 'Senses · you see in the dark', feed: 'Body · you heal when you kill',
+  night: 'Night vision · you see in the dark', feed: 'Body · you heal when you kill',
   strong: 'Melee · harder hits for less stamina', rungun: 'Body · shoot while you sprint', soles: 'Body · getting hit slows you less'
 };
 const UPG_USE = {
@@ -32,7 +32,7 @@ const UPG_FX = {
   'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%', 'Slowdown when hit −20%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
-  'Night eyes': ['See far more at night'], 'Cat eyes': ['Nights look like dusk'],
+  'Night vision monocular': ['See far more at night', 'Black and white'], 'Night vision goggles': ['Nights look like dusk', 'Colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
 };
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same

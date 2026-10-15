@@ -33,10 +33,14 @@ function lightField(x, z, r, cone) {
   return out;
 }
 function addField(field, mul, col) { for (let k = 0; k < field.length; k += 2) { const i = field[k] * 3, f = field[k + 1] * mul; lmTgt[i] += f * col[0]; lmTgt[i + 1] += f * col[1]; lmTgt[i + 2] += f * col[2]; } }
+const NV_MONO = 0.42;
 function computeLight() {
   const dark = curDark, on = state !== 'title';
-  // night eyes lift the whole night toward a cool, faintly green dusk, and amplify what you look at even more
-  const nv = on ? S.nightVis * dark : 0, a0 = amb[0] + nv * 0.26, a1 = amb[1] + nv * 0.31, a2 = amb[2] + nv * 0.25;
+  // night vision: the monocular (first step) lifts the dark in black and white only (uNvMono, core/shaders.js), NV_MONO
+  // of a light's worth; the goggles (second) light the whole night toward a cool, faintly green dusk, colour and all,
+  // and amplify what you look at even more
+  const nvOn = on ? S.nightVis * dark : 0, nv = T('night') >= 2 ? nvOn : 0, a0 = amb[0] + nv * 0.26, a1 = amb[1] + nv * 0.31, a2 = amb[2] + nv * 0.25;
+  LMU.uNvMono.value = nv ? 0 : nvOn * NV_MONO;
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = a0; lmTgt[k * 3 + 1] = a1; lmTgt[k * 3 + 2] = a2; }
   if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
