@@ -57,6 +57,11 @@ async function buildOnce() {
   const css = await esbuild({ entryPoints: [path.join(SRC, 'styles/index.css')], bundle: true, minify: !dev, write: false, logLevel: 'silent' });
   const cssText = css.outputFiles[0].text;
   fs.writeFileSync(path.join(OUT, 'game.css'), cssText);
+  // the recorded sounds (audio/samples.js fetches them; standalone.html carries them inline instead)
+  const sndDir = path.join(SRC, 'sounds'), sounds = fs.existsSync(sndDir) ? fs.readdirSync(sndDir).filter(f => f.endsWith('.ogg')) : [];
+  fs.rmSync(path.join(OUT, 'sounds'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
+  const inline = {};
+  for (const f of sounds) { fs.copyFileSync(path.join(sndDir, f), path.join(OUT, 'sounds', f)); inline[f.slice(0, -4)] = fs.readFileSync(path.join(sndDir, f)).toString('base64'); }
   // three.js r128, self-hosted
   fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
   // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
@@ -70,11 +75,11 @@ async function buildOnce() {
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
-    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>`)
+    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>\n<script>window.FH_SOUNDS = ${JSON.stringify(inline)};</script>`)
     .replace('<script src="./game.js"></script>', () => `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
   const kb = f => (fs.statSync(path.join(OUT, f)).size / 1024).toFixed(0) + ' KB';
-  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
+  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  ${sounds.length} sounds  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
 }
 
 async function main() {
@@ -82,7 +87,7 @@ async function main() {
   if (!serve) return;
   let timer = null;
   fs.watch(SRC, { recursive: true }, () => { clearTimeout(timer); timer = setTimeout(() => buildOnce().catch(e => console.error(e.message)), 80); });
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png' };
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ogg': 'audio/ogg' };
   http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
     let file = path.join(OUT, url === '/' ? 'index.html' : url);

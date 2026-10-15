@@ -8,6 +8,7 @@ function audioInit() {
     master = AC.createGain(); master.gain.value = 0.5; muff = AC.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = 20000; master.connect(muff); muff.connect(AC.destination);
     noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   } catch (e) { AC = null; }
+  if (AC) samplesInit();   // the recorded sounds and the house's reverb (audio/samples.js)
 }
 function nz(dur, type, f0, f1, vol, q) {
   if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();

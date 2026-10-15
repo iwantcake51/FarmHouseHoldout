@@ -6,7 +6,7 @@ function equip(s, force) {
   exitScope(); ANIM.sw = 0.35; W8.swing = 0; W8.boltOpen = false;
   startSwap(W8.cur === s ? null : W8.cur, s);   // put the old one away and draw this one (player/swap.js)
   if ((W(W8.slot[s]) || {}).melee) ANIM.meleeEqT = -(SWAP_T.end - 0.06);   // a flourish once it's drawn (player/hold.js)
-  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.click();
+  W8.cur = s; W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.akBurst.L = W8.akBurst.R = 0; W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); SFX.equip();
 }
 // reloading slows you down: a little with a sidearm, more with a long gun, and more again the bigger the magazine
 // (a 13-round pistol about 15%, a 30-round rifle about a quarter, the 100-round LMG belt nearly half); reloading one of
@@ -37,7 +37,7 @@ function startReload() {
     if (EJECT[id] === 'bolt') { W8.open[id] = true; W8.boltOpen = true; }
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
     W8.reloadT = D.perShell * S.reloadMul + (id === 'revolver' ? 0.3 : 0.12); W8.reloadMax = W8.reloadT;
-  } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.click(); reloadJolt(0.12); }   // the cylinder swings out
+  } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
     // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer

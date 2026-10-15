@@ -101,7 +101,7 @@ function updatePickups(dt) {
       if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
       else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount + (p.hoard ? ' ×2' : ''); SFX.scrap(); }
-      else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
+      else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.crate(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
         const opts = ammoTypes();

@@ -5,7 +5,7 @@ const flashes = [];
 // and dirt thrown out along the ground, then a column of smoke that hangs. Zombies near the middle that it kills
 // are blown apart (blowApart in zombies/damage.js); further out they lose limbs and are thrown.
 function explode(x, z, r, dmg, self) {
-  SFX.boom(); shake = Math.max(shake, 0.8);
+  SFX.boom(Math.hypot(P.x - x, P.z - z), r); shake = Math.max(shake, 0.8);
   fx('flash', x, 0.7, z, 0, 0, 0, 0.8, r * 1.5, 0.16, 1);
   for (let k = 0; k < 9; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2); fx('ember', x + Math.sin(a) * 0.2, rr(0.3, 0.8), z + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(1.2, 3.4), Math.cos(a) * sp, rr(0.35, 0.5), rr(0.9, 1.5), rr(0.22, 0.38), 0.95); }
   sparkBurst(x, 0.4, z, 18, 0, 0, 8);
@@ -30,7 +30,7 @@ EFF.bleed = {};
 const grenades = [];
 function throwGrenade() {
   const D = W(curId()); if (!D || !D.gl || W8.glCd > 0 || P.vault) return;
-  W8.glCd = D.glRecharge || 6; SFX.thump();
+  W8.glCd = D.glRecharge || 6; SFX.launch();
   const dx = aimPt.x - P.x, dz = aimPt.z - P.z, d = Math.min(14, Math.hypot(dx, dz));
   const a = Math.atan2(dx, dz), x1 = P.x + Math.sin(a) * d, z1 = P.z + Math.cos(a) * d;
   const m = box(scene, 0.12, 0.12, 0.18, GM.olive, P.x, GUN_Y, P.z);

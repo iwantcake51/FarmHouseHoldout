@@ -17,10 +17,10 @@ npm run build    # production build into dist/
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Readable build plus a local server. Save any file in `src/` and refresh the browser. |
-| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`. |
+| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`, `dist/sounds/`. |
 | `npm run build:dev` | Same files as `build`, but not minified and with a `// ==== path` banner before each source file, so errors point at the right file. |
 
-Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection.
+Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection; the sounds are inside it.
 
 ## Deploying to Netlify
 
@@ -51,13 +51,15 @@ src/
     pickups/          ammo, scrap, medkits and other drops
     effects/          blood, particles, smoke, tracers, muzzle flash, outlines
     ui/               HUD, crosshair, health line, status icons, rounds display, menus
-    audio/            every sound, synthesized with Web Audio (there are no sound files)
+    audio/            playing the recorded sounds, the reverb inside the house, and synthesized sounds for the rest
     input/            keyboard, mouse and touch controls
     game/             shared state, the update and draw order, camera, main loop
 assets/               raw packs to pick from, not shipped with the game (sizes to keep to: assets/README.md)
   textures/           texture packs (Kenney zips as they come)
   sounds/             sound packs and single sound files
+  sounds/             the recorded sounds the game plays (cut from assets/sounds/ by tools/make-sounds.mjs)
 tools/build.mjs       the build script
+tools/make-sounds.mjs cuts, trims and levels the recordings in assets/sounds/ into src/sounds/ (needs ffmpeg and unzip)
 netlify.toml          Netlify settings
 ```
 
@@ -150,7 +152,9 @@ Every source file starts with a one-line comment saying what is in it.
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Blood on you, zombies and your weapons (a stain shader that builds up with hits), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
 | The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
-| Sounds | `src/js/audio/sfx.js` |
+| Sounds: what plays for what (`SFX`, with a synthesized sound for each that plays till its recording's loaded) | `src/js/audio/sfx.js` |
+| Which recordings are used and how each is cut (`SOUNDS`) | `tools/make-sounds.mjs` |
+| How loud each recording plays (`SAMPLES`), how a gunshot's varied every shot (`SFX.fire`), and the house's reverb (`houseIR`, `indoors`) | `src/js/audio/samples.js`, `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | The flashlight's beam: drawn per pixel in the lit shader (`flCone` in `src/js/core/shaders.js`) with a soft rim and a brighter middle, set every frame from each tier's reach, width and strength (`FLASH`, `flashUniforms`; an akimbo pair has a beam per gun); its shadows are rays cast out across the beam every frame (`flashShadows`, `flRay`, `FL_RAYS`), each stopped by what stops sight, so a beam through a window or past a corner has clean edges; smoke catches it too (`flashAt`). It's only on while the gun's out in your hands: off while it's put away for a vault without Run and gun, and on again once the hand has it on the draw (`gunOut`, `flOn`) | `src/js/lighting/lightmap.js` |

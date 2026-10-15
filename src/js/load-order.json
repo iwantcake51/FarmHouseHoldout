@@ -63,6 +63,7 @@
   "stations/recipes.js",
   "stations/station-ui.js",
   "audio/audio.js",
+  "audio/samples.js",
   "audio/sfx.js",
   "game/state.js",
   "input/keyboard-mouse.js",

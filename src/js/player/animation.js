@@ -45,7 +45,7 @@ function animateDeath(dt) {
   const d = ANIM.dropped;
   if (d && !d.landed) {
     d.vy -= 12 * dt; d.g.position.x += d.vx * dt; d.g.position.y += d.vy * dt; d.g.position.z += d.vz * dt; d.g.rotateZ(d.spin * dt);
-    if (d.g.position.y < 0.06) { d.g.position.y = 0.06; d.landed = true; const yaw = rr(0, 6.28); if (d.melee) d.g.rotation.set(Math.PI / 2, yaw, 0, 'YXZ'); else d.g.rotation.set(0, yaw, Math.PI / 2 * (rand() < 0.5 ? 1 : -1), 'YXZ'); SFX.thud(); burst(d.g.position.x, 0.1, d.g.position.z, 3, 'dust'); }
+    if (d.g.position.y < 0.06) { d.g.position.y = 0.06; d.landed = true; const yaw = rr(0, 6.28); if (d.melee) d.g.rotation.set(Math.PI / 2, yaw, 0, 'YXZ'); else d.g.rotation.set(0, yaw, Math.PI / 2 * (rand() < 0.5 ? 1 : -1), 'YXZ'); SFX.gunDrop(); burst(d.g.position.x, 0.1, d.g.position.z, 3, 'dust'); }
   }
 }
 // ---- vaulting: a crouch and a reach for the sill, the push-off with a hand planted on it, the legs tucked and swung
