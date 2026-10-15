@@ -9,16 +9,6 @@ const FENCE_CLEAR = 2, FENCE_CLEAR_CAM = 5, GAP_LANE = 2;
 const outFence = (i, j) => Math.max(FX0 - i, i - FX1, FZ0 - j, j - FZ1);   // how many cells outside the fence line
 const camSide = (i, j) => (i > FX1 && Math.sin(YAW) > 0) || (i < FX0 && Math.sin(YAW) < 0) || (j > FZ1 && Math.cos(YAW) > 0) || (j < FZ0 && Math.cos(YAW) < 0);
 const gapLane = (i, j) => ((j > FZ1 || j < FZ0) && i >= 20 - GAP_LANE && i <= 22 + GAP_LANE) || ((i > FX1 || i < FX0) && j >= 21 - GAP_LANE && j <= 22 + GAP_LANE);
-for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-  if (cell[idx(i, j)]) continue;
-  const d = Math.min(i, j, N - 1 - i, N - 1 - j);
-  let p = d === 0 ? (nearGap(i, j, 1) ? 0 : 1) : d === 1 ? (nearGap(i, j, 2) ? 0 : .6) : d === 2 ? (nearGap(i, j, 3) ? 0 : .22) : 0;
-  const inYard = i >= FX0 - 1 && i <= FX1 + 1 && j >= FZ0 - 1 && j <= FZ1 + 1;
-  if (d > 2 && !inYard) p = outFence(i, j) <= (camSide(i, j) ? FENCE_CLEAR_CAM : FENCE_CLEAR) || gapLane(i, j) ? 0 : 0.05;
-  if (onRoad(cxw(i), cxw(j), 1.2)) p = 0;   // the drive out to the road stays clear, canopies and all (world/ground.js)
-  if (rand() < p) { obstacle(i, j); treeCells.push([i, j]); }
-}
-
 // ---- the models: each shape a few low-poly pieces, flat-shaded, every face a shade lighter or darker than its colour so
 // the facets read, joined into one geometry with its colours baked in. So a whole tree (trunk, boughs and leaves) is one
 // instanced draw, and every instance gets a tint of its own
@@ -90,15 +80,55 @@ function rockGeo(kind) {
   if (kind === 'mossy') return fjoin([boulderGeo(0.33, 1.1, 0.62, 0.95, 0.7)]);
   return fjoin([boulderGeo(0.28, 1, 0.7, 0.9, 0.2)]);
 }
-// the pines, and how much of the forest each makes up: the common full one, a slimmer one, a broader one, one a little
-// shorter and one on a longer bare trunk, all within about a metre of each other in height (each tree scaled a touch
-// again as it's planted)
+// the pines, and how much of the forest each makes up: the common full one, a slimmer one, one a little shorter and one
+// on a longer bare trunk, all within about a metre of each other in height (each tree scaled a touch again as it's
+// planted). r is how far its widest boughs reach
 const TREE_VAR = [
-  { geo: () => pineGeo(3, 1.05, 2.0, PINE), w: 0.3, shade: 3.4 }, { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.2, shade: 2.8 },
-  { geo: () => pineGeo(3, 1.2, 1.9, PINE, 0.85), w: 0.18, shade: 3.8 }, { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.16, shade: 3.1 },
-  { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.16, shade: 3.1 }
+  { geo: () => pineGeo(3, 1.05, 2.0, PINE), w: 0.3, shade: 3.4, r: 1.05 }, { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.2, shade: 2.8, r: 0.85 },
+  { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.16, shade: 3.1, r: 0.95 }, { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.16, shade: 3.1, r: 0.95 }
 ].map(v => ({ ...v, g: v.geo() }));
 const pickVar = list => { let t = rand() * list.reduce((a, v) => a + v.w, 0); for (const v of list) { t -= v.w; if (t <= 0) return v; } return list[list.length - 1]; };
+// trees keep their distance: no two trunks closer than TREE_GAP of their two crowns' reach added together, so every
+// trunk stands clear of its neighbours' boughs and no two pines ever grow out of each other
+const TREE_GAP = 0.6, _tgrid = new Map(), TG_CELL = 1.5;
+const _tgk = (a, b) => a * 4096 + b;
+function roomForTree(x, z, r) {
+  const a = Math.floor(x / TG_CELL), b = Math.floor(z / TG_CELL);
+  for (let u = a - 1; u <= a + 1; u++) for (let w = b - 1; w <= b + 1; w++) for (const t of _tgrid.get(_tgk(u, w)) || [])
+    if ((t[0] - x) ** 2 + (t[1] - z) ** 2 < (TREE_GAP * (t[2] + r)) ** 2) return false;
+  return true;
+}
+function claimTree(x, z, r) { const k = _tgk(Math.floor(x / TG_CELL), Math.floor(z / TG_CELL)); if (!_tgrid.has(k)) _tgrid.set(k, []); _tgrid.get(k).push([x, z, r]); }
+// a tree for the farm's own woods: which pine, how big, where in its cell, and its turn
+const farmTrees = [];
+{
+  const spots = [];
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    if (cell[idx(i, j)]) continue;
+    const d = Math.min(i, j, N - 1 - i, N - 1 - j);
+    let p = d === 0 ? (nearGap(i, j, 1) ? 0 : 1) : d === 1 ? (nearGap(i, j, 2) ? 0 : .8) : d === 2 ? (nearGap(i, j, 3) ? 0 : .22) : 0;
+    const inYard = i >= FX0 - 1 && i <= FX1 + 1 && j >= FZ0 - 1 && j <= FZ1 + 1;
+    if (d > 2 && !inYard) p = outFence(i, j) <= (camSide(i, j) ? FENCE_CLEAR_CAM : FENCE_CLEAR) || gapLane(i, j) ? 0 : 0.05;
+    if (onRoad(cxw(i), cxw(j), 1.2)) p = 0;   // the drive out to the road stays clear, canopies and all (world/ground.js)
+    if (p > 0) spots.push([i, j, d, p]);
+  }
+  // the trees nearest the yard go in first, so the tree line you see from the farm keeps its shape, and the rows out
+  // at the edge fill in round them. A cell gets a few tries at a spot clear of the trees already in
+  spots.sort((a, b) => b[2] - a[2]);
+  for (const [i, j, d, p] of spots) {
+    if (rand() >= p) continue;
+    let placed = false;
+    for (let t = 0; t < 8 && !placed; t++) {
+      // (a tree in the outermost row can stand anywhere in its cell: that whole row is solid anyway)
+      const v = pickVar(TREE_VAR), s = rr(0.92, 1.12), o = d === 0 ? 0.45 : 0.2, x = cxw(i) + rr(-o, o), z = cxw(j) + rr(-o, o);
+      if (!roomForTree(x, z, v.r * s)) continue;
+      claimTree(x, z, v.r * s); farmTrees.push([x, z, s, v, rand() * 6.28]); treeCells.push([i, j]); placed = true;
+    }
+    // the outermost row is the farm's wall: it stays solid all round, a tree in it or not (the boughs either side and
+    // the woods behind cover the spot), so the gaps are still the only ways in
+    if (placed || d === 0) obstacle(i, j);
+  }
+}
 // trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own tint
 function plantTrees(list, shadows) {
   const dm = new THREE.Object3D(), c = new THREE.Color();
@@ -113,7 +143,7 @@ function plantTrees(list, shadows) {
   });
 }
 {
-  const trees = treeCells.map(([i, j]) => { const v = pickVar(TREE_VAR), s = rr(0.92, 1.12); return [cxw(i) + rr(-0.2, 0.2), cxw(j) + rr(-0.2, 0.2), s, v, rand() * 6.28]; });
+  const trees = farmTrees;
   trees.forEach(([x, z, s]) => TREES.push({ x, z, s }));
   plantTrees(trees, true);
   // a soft dark pool of shade under every tree, as wide as its crown
@@ -147,12 +177,18 @@ function plantTrees(list, shadows) {
   const R = 15, out = [], gapDir = GAPS.map(([i, j]) => ({ x: cxw(i), z: cxw(j), ax: i === 0 ? -1 : i === N - 1 ? 1 : 0, az: j === 0 ? -1 : j === N - 1 ? 1 : 0 }));
   const onTrail = (x, z) => gapDir.some(g => g.ax ? Math.sign(x - g.x) === g.ax && Math.abs(z - g.z) < 1.7 : Math.sign(z - g.z) === g.az && Math.abs(x - g.x) < 1.7);
   for (let z = -HALF - R; z < HALF + R; z += 1.05) for (let x = -HALF - R; x < HALF + R; x += 1.05) {
-    const px = x + rr(-0.4, 0.4), pz = z + rr(-0.4, 0.4), d = Math.max(Math.abs(px), Math.abs(pz)) - HALF - 0.3;
-    // nothing on the far side of the road either: that strip is nearer the camera, and its trees would stand in front of it
-    if (d < 0 || onTrail(px, pz) || onRoad(px, pz, 1.6) || pz > ROAD.z) continue;
-    if (rand() < 0.62 * Math.pow(1 - d / R, 0.5) + 0.12) out.push([px, pz, rr(0.95, 1.2)]);
+    if (rand() >= 0.7 * Math.pow(1 - clamp(Math.max(Math.abs(x), Math.abs(z)) - HALF - 0.3, 0, R) / R, 0.5) + 0.15) continue;
+    // a few tries round the spot for one clear of the trees already in (the farm's own first)
+    for (let t = 0; t < 6; t++) {
+      const px = x + rr(-0.5, 0.5), pz = z + rr(-0.5, 0.5), d = Math.max(Math.abs(px), Math.abs(pz)) - HALF - 0.3;
+      // nothing on the far side of the road either: that strip is nearer the camera, and its trees would stand in front of it
+      if (d < 0 || onTrail(px, pz) || onRoad(px, pz, 1.6) || pz > ROAD.z) continue;
+      const v = pickVar(TREE_VAR), s = rr(0.95, 1.2);
+      if (!roomForTree(px, pz, v.r * s)) continue;
+      claimTree(px, pz, v.r * s); out.push([px, pz, s, v, (px * 7.3 + pz * 3.1) % 6.28]); break;
+    }
   }
-  plantTrees(out.map(([x, z, s]) => [x, z, s, pickVar(TREE_VAR), (x * 7.3 + z * 3.1) % 6.28]), false);
+  plantTrees(out, false);
 }
 
 // what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet
