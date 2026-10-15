@@ -85,7 +85,6 @@
   "game/new-run.js",
   "ui/clock.js",
   "lighting/lightmap.js",
-  "lighting/window-glow.js",
   "lighting/static-lights.js",
   "lighting/day-night.js",
   "lighting/vision.js",

@@ -31,7 +31,7 @@ function updateDarkEyes(dt) {
   P.adapt = a < want ? Math.min(want, a + dt / DARK_EYES.adjust) : Math.max(want, a - dt / DARK_EYES.lose);
   LMU.uAdapt.value = smooth(P.adapt) * DARK_EYES.lift;
 }
-// time of day: sun, ambient, window glow, the clock, bugs and mist
+// time of day: sun, ambient, the clock, bugs and mist
 function updateDayNight(rdt) {
   const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
   curDark = lightAt(h);
@@ -41,7 +41,6 @@ function updateDayNight(rdt) {
   sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? S.nightVis * curDark * 0.16 : 0));
   openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
-  paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });
   if (state !== 'title') {
     // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
     const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
