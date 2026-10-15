@@ -134,58 +134,88 @@ function stepKick(k, dt) {
   }
 }
 const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
-// the fresh mag in the support hand: taken from the pouch at MAG_TAKE of the mag change, it rides in the fist (held low
-// on its left side, MAG_GRIP of the way down it) up and round on a curve to the gun, tipped so its front goes into the
-// well first (or its back, rocked in from behind), then rocked straight and pushed home as it seats (MAG_SEAT, when the
-// reload hears it: weapons/reload.js). The mag's path is worked out in the gun's own frame, so it stays with the gun as
-// the reload rolls and tips it, and the hand is put where the mag is held: never off it
-const MAG_TAKE = 0.42, MAG_GRIP = 0.62;
-const MAG_WAY = [   // by reload style (W8.relStyle): where the mag's top passes, off the well's mouth, and how it's tipped (x: front up, z: rolled)
-  { mid: [-0.06, -0.2, 0.06], tip: [0.42, 0.24], in: [0, -0.035, 0.012], tipIn: [0.16, 0] },    // up from the pouch, front first, pushed home
-  { mid: [0, -0.19, 0.1], tip: [0.5, 0.1], in: [0, -0.03, 0.016], tipIn: [0.2, 0] },              // brought up from in front and slapped in
-  { mid: [-0.05, -0.17, -0.06], tip: [-0.38, 0.2], in: [0, -0.03, -0.014], tipIn: [-0.16, 0] }    // rocked in from behind
+// the fresh mag in the support hand: taken from the pouch at MAG_TAKE of the mag change, it rides in the fist (wrapped
+// round it low on its left side, MAG_GRIP of the way down) along a swing of keys to the gun: drawn up out of the pouch,
+// carried out and round, lined up under the well along the mag's own length, its edge hooked in, then rocked straight and
+// pushed home as it seats (MAG_SEAT, when the reload hears it: weapons/reload.js). Its tip is keyed with it, so it turns
+// as it goes rather than at the end. The way is worked out in the gun's own frame, so it stays with the gun as the reload
+// rolls and tips it, and the hand is put where the mag is held: never off it
+const MAG_TAKE = 0.42, MAG_GRIP = 0.68, MAG_DRAW = new V3(0.03, 0.08, 0.1);   // (out of the pouch: up and forward, clear of the shoulder)
+// by reload style (W8.relStyle), after the pouch and the draw up out of it (the first key, at the pouch plus MAG_DRAW):
+// [u, where the mag's top is off the well's mouth (x out to the right, y up, z forward, along the mag's own seated
+// lean, so "below" is down a raked grip), its tip (x: top tipped forward, the foot back toward you; z: rolled)]
+const MAG_WAY = [
+  // swung out low to the left, brought in under the well, lined up with it and pushed straight up home
+  [[0.16, null, [0.8, 0.5]], [0.44, [-0.17, -0.2, 0.08], [0.48, 0.42]], [0.7, [-0.03, -0.1, -0.012], [0.18, 0.1]], [0.86, [0, -0.03, -0.004], [0.08, 0.01]]],
+  // brought round from in front, its front hooked into the well first, rocked back and slapped in
+  [[0.16, null, [0.8, 0.5]], [0.42, [-0.13, -0.18, 0.2], [0.1, 0.34]], [0.7, [0, -0.048, 0.034], [-0.34, 0.05]], [0.87, [0, -0.012, 0.009], [-0.11, 0]]],
+  // out wide and round from behind, its back hooked in first, rocked forward home
+  [[0.16, null, [0.8, 0.5]], [0.44, [-0.21, -0.16, -0.17], [0.7, 0.42]], [0.7, [-0.02, -0.06, -0.045], [0.38, 0.08]], [0.87, [0, -0.013, -0.009], [0.12, 0]]]
 ];
-const _mInv = new THREE.Matrix4(), _mM = new THREE.Matrix4(), _mE = new THREE.Euler(), _mQ = new V3(), _mG = new V3(), _mK = [new V3(), new V3(), new V3(), new V3()], _mBox = new THREE.Box3(), _mT = new THREE.Box3();
-// the mag's extent in the hold's frame as it sits in the gun: the middle of its top (where it goes into the well) and how long it is
+const MAG_POUCH_TIP = [0.85, 0.5];   // how it's tipped in the pouch, in the gun's frame
+const _mInv = new THREE.Matrix4(), _mM = new THREE.Matrix4(), _mE = new THREE.Euler(), _mQ = new V3(), _mG = new V3(), _mBox = new THREE.Box3(), _mV = new V3();
+const _mK = [], _mTk = [], _mX = new V3(1, 0, 0);   // the way's keys: where the top is, its tip
+// the mag's extent in the hold's frame as it sits in the gun: the middle of its top (where it goes into the well), how
+// long and wide it is, and its lean (a pistol's raked grip; the straight top of a curved mag), forward of straight up
 function magShape(mg) {
   if (mg.userData.shape !== undefined) return mg.userData.shape;
+  // (from its vertices, not the geometries' bounding boxes: those can be stale, from before a part was moved into place)
   mg.position.set(0, 0, 0); mg.rotation.set(0, 0, 0); mg.updateMatrixWorld(true); _mInv.copy(mg.matrixWorld).invert(); _mBox.makeEmpty();
-  mg.traverse(o => { if (o.isMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _mT.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld).applyMatrix4(_mInv); _mBox.union(_mT); } });
-  return (mg.userData.shape = _mBox.isEmpty() ? null : { top: new V3((_mBox.min.x + _mBox.max.x) / 2, _mBox.max.y, (_mBox.min.z + _mBox.max.z) / 2), len: _mBox.max.y - _mBox.min.y, w: _mBox.max.x - _mBox.min.x });
+  let main = null, mh = 0;
+  mg.traverse(o => { if (!o.isMesh) return; _mM.multiplyMatrices(_mInv, o.matrixWorld); const ps = o.geometry.attributes.position, pts = [];
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < ps.count; i++) { const q = new V3().fromBufferAttribute(ps, i).applyMatrix4(_mM); pts.push(q); _mBox.expandByPoint(q); lo = Math.min(lo, q.y); hi = Math.max(hi, q.y); }
+    if (hi - lo > mh) { mh = hi - lo; main = { pts, top: hi, ix: o.geometry.index }; } });
+  if (_mBox.isEmpty()) return (mg.userData.shape = null);
+  const len = _mBox.max.y - _mBox.min.y;
+  // its lean, from the body of it (the tallest part): the middle of its depth where it's cut across a little way down
+  // from the top (below a raked top's slant and the feed lips) and a little further (a curved mag's straight top; a
+  // pistol mag at its grip's rake)
+  const mid = y => { let lo = Infinity, hi = -Infinity; const P = main.pts, I = main.ix, n = I ? I.count : P.length, at = i => P[I ? I.getX(i) : i];
+    for (let i = 0; i + 2 < n; i += 3) for (let e = 0; e < 3; e++) { const a = at(i + e), b = at(i + (e + 1) % 3);
+      if ((a.y - y) * (b.y - y) > 0 || a.y === b.y) continue; const z = a.z + (b.z - a.z) * (y - a.y) / (b.y - a.y); lo = Math.min(lo, z); hi = Math.max(hi, z); }
+    return lo <= hi ? (lo + hi) / 2 : null; };
+  const t = main.top, za = mid(t - 0.18 * mh), zb = mid(t - 0.36 * mh), lean = za !== null && zb !== null ? clamp(Math.atan2(za - zb, 0.18 * mh), -0.6, 0.6) : 0;
+  return (mg.userData.shape = { top: new V3((_mBox.min.x + _mBox.max.x) / 2, _mBox.max.y, za !== null ? za + Math.tan(lean) * 0.18 * mh : (_mBox.min.z + _mBox.max.z) / 2), len, w: _mBox.max.x - _mBox.min.x, lean });
 }
 // put the mag where it is at rpm of the mag change (between MAG_TAKE and MAG_SEAT) and return where the fist holding it
 // is, in upper-body space (out); null when the gun has no mag of its own to carry
 function magInHand(out, s, H, mg, rpm) {
   const sh = magShape(mg); if (!sh) return null;
-  const hq = holdOf(s, 'R'), lg = H.kind === 'long', way = MAG_WAY[W8.relStyle || 0], k = lg ? 1 : 0.45;   // a handgun's goes in straighter
-  const u = clamp((rpm - MAG_TAKE) / (MAG_SEAT - MAG_TAKE), 0, 1);
+  const hq = holdOf(s, 'R'), lg = H.kind === 'long', way = MAG_WAY[W8.relStyle || 0] || MAG_WAY[0], k = lg ? 1 : 0.5, kp = lg ? 1 : 0.7;   // a handgun's tipped less, swung a little closer in
+  const u = clamp((rpm - MAG_TAKE) / (MAG_SEAT - MAG_TAKE), 0, 1), P0 = sh.top, n = way.length + 2;
   _mM.multiplyMatrices(gunMeshes[s].matrix, hq.matrix); _mInv.copy(_mM).invert();
-  // the tip: tilted coming out of the pouch, eased toward the way it goes in, then straight as it seats
-  const t1 = smooth(clamp(u / 0.55, 0, 1)), t2 = smooth(clamp((u - 0.55) / 0.3, 0, 1)), t3 = smooth(clamp((u - 0.85) / 0.15, 0, 1));
-  const ex = ((0.85 * (1 - t1) + way.tip[0] * t1) * (1 - t2) + way.tipIn[0] * t2) * (1 - t3) * k, ez = ((0.5 * (1 - t1) + way.tip[1] * t1) * (1 - t2) + way.tipIn[1] * t2) * (1 - t3) * k;
-  _mE.set(ex, 0, ez);
-  _mG.set(-sh.w / 2 - 0.012, -sh.len * MAG_GRIP, 0).applyEuler(_mE);   // the grip, from the mag's top: low on its left side
-  // where its top goes: from wherever puts the grip in the pouch, round past the mid point, to the well's mouth and home
-  const P0 = sh.top;
-  _mK[0].copy(POUCH).applyMatrix4(_mInv).sub(_mG);
-  _mK[1].set(way.mid[0], way.mid[1] * (lg ? 1 : 0.8), way.mid[2] * k).add(P0);
-  _mK[2].set(way.in[0], way.in[1], way.in[2] * k).add(P0);
-  _mK[3].copy(P0);
-  walkPath(_mQ, [[0, _mK[0]], [0.5, _mK[1]], [0.84, _mK[2]], [1, _mK[3]]], u);
+  while (_mK.length < n) { _mK.push([0, new V3()]); _mTk.push([0, new V3()]); }
+  // the grip (from the mag's top: low on its left side, down its lean) under a tip, and where the top is with that grip on p
+  const grip = (o, ex, ez) => o.set(-sh.w / 2 - 0.01, -sh.len * MAG_GRIP, 0).applyAxisAngle(_mX, sh.lean).applyEuler(_mE.set(ex, 0, ez));
+  const topAt = (o, p, ex, ez) => o.copy(p).applyMatrix4(_mInv).sub(grip(_mG, ex, ez));
+  // the keys: the pouch, drawn up out of it, the style's way (along the mag's lean, a handgun's closer in), home
+  _mK[0][0] = 0; topAt(_mK[0][1], POUCH, MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k); _mTk[0][0] = 0; _mTk[0][1].set(MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k, 0);
+  for (let i = 0; i < way.length; i++) {
+    const [t, at, tip] = way[i], K = _mK[i + 1], TK = _mTk[i + 1];
+    K[0] = TK[0] = t; TK[1].set(tip[0] * k, tip[1] * k, 0);
+    if (!at) topAt(K[1], _mV.copy(POUCH).add(MAG_DRAW), TK[1].x, TK[1].y);
+    else { K[1].set(at[0] * kp, at[1] * (lg ? 1 : 0.75), at[2] * kp).applyAxisAngle(_mX, sh.lean).add(P0); }
+  }
+  _mK[n - 1][0] = _mTk[n - 1][0] = 1; _mK[n - 1][1].copy(P0); _mTk[n - 1][1].set(0, 0, 0);
+  _mK.length = _mTk.length = n;
+  walkPath(_mQ, _mK, u); walkPath(_mV, _mTk, u);
+  const ex = _mV.x, ez = _mV.y; grip(_mG, ex, ez);   // (leaves _mE at this tip)
   // the group's own transform, so its contents (laid out in the hold's frame, seated) land at that top and tip
   mg.visible = true; mg.rotation.copy(_mE); mg.position.copy(P0).applyEuler(_mE).negate().add(_mQ);
   MAG_CARRY.u = u; MAG_CARRY.mg = mg; MAG_CARRY.p0 = P0;
   return out.copy(_mQ).add(_mG).applyMatrix4(_mM);
 }
-// then, once the hand has gone where it's sent (a beat behind, on its spring), the mag goes where the fist really is,
-// so it's never out of it; over the last of the way (MAG_GUIDE on) the well takes it, so it seats exactly
-const MAG_CARRY = { u: -1, mg: null, p0: null }, MAG_GUIDE = 0.7, _mF = new V3();
-function magToFist(fist) {
+// then the mag goes where the fist really got to (a beat behind where it was sent, on its spring), so it's never out of
+// it; over the last of the way (MAG_GUIDE on) the fist is drawn onto its mark instead, so the mag it carries seats exactly
+const MAG_CARRY = { u: -1, mg: null, p0: null }, MAG_GUIDE = 0.62, _mF = new V3();
+function magToFist(fist, want) {
   const c = MAG_CARRY; if (c.u < 0 || !c.mg) return;
   const g = smooth(clamp((c.u - MAG_GUIDE) / (1 - MAG_GUIDE), 0, 1));
+  if (want && g > 0) { fist.lerp(want, g); HAND.L.free.lerp(want, g); }   // (its spring too, so it lets go of the mag where it is)
+  armReach('L', fist);   // (and only as far as the arm goes)
   _mF.copy(fist).applyMatrix4(_mInv).sub(_mG);   // where its top is with the grip in the fist (in the hold's frame)
-  _mQ.lerp(_mF, 1 - g);
-  c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mQ);
+  c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mF);
   c.u = -1;
 }
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
@@ -199,6 +229,36 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   g.position.set(px - _v.x + ox, py - _v.y + oy, pz - _v.z + oz); g.quaternion.copy(_q);
   if (yaw0) { _qy.setFromAxisAngle(Y_AX, yaw0); g.position.applyQuaternion(_qy); g.quaternion.premultiply(_qy); }
   g.updateMatrix();
+}
+// the gun pushed back off whatever's in front of you (barrelFree in weapons/firing.js), the way Tarkov or Insurgency:
+// Sandstorm do it: slid straight back along its barrel toward you, hands and all, up to GUN_BACK. A wall closer still tips the
+// muzzle up about the grip till it clears (up to GUN_TIP); a zombie doesn't, it's shot point blank. It comes in fast and
+// eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
+// weapons/firing.js). rd (a sprint's low ready) takes it away
+const GUN_BACK = { long: 0.4, hand: 0.2 }, GUN_TIP = 1.2;
+const _gbM = new V3(), _gbF = new V3(), _gbG = new V3(), _gbQ = new THREE.Quaternion();
+function gunPush(gg, s, H, ak, rd, rdt) {
+  _gbF.set(0, 0, 1).applyQuaternion(gg.quaternion); const fl = Math.hypot(_gbF.x, _gbF.z) || 1, fx = _gbF.x / fl, fz = _gbF.z / fl;
+  const fwdOf = v => v.x * fx + v.z * fz, lg = H.kind === 'long' ? 'long' : 'hand';
+  let needW = 0, needZ = 0, free = Infinity, reach = 0;
+  for (const side of ak ? ['R', 'L'] : ['R']) {
+    gunPt(_gbM, s, side, X, GUN_Y + 0.03, (MUZ[s] || 0.9) + 0.02);
+    const fwd = fwdOf(_gbM), f = barrelFree(_gbM.x * fz - _gbM.z * fx, fwd + BARREL.clear + 0.05);
+    free = Math.min(free, f.wall, f.zom); reach = Math.max(reach, fwd);
+    needW = Math.max(needW, fwd + BARREL.clear - f.wall); needZ = Math.max(needZ, fwd + BARREL.clear - f.zom);
+  }
+  ANIM.barrel = free;
+  const k = 1 - rd, tW = Math.max(0, needW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, needZ) * k));
+  const ease = (key, t) => { const c = ANIM[key] || 0; return (ANIM[key] = c + (t - c) * (1 - Math.exp(-rdt * (t > c ? 28 : 10)))); };
+  const back = ease('gpush', tB), tip = ease('gtip', Math.max(0, tW - GUN_BACK[lg]));
+  if (back < 0.001 && tip < 0.001) return;
+  _gbM.set(0, 0, -back).applyQuaternion(gg.quaternion); gg.position.add(_gbM); gg.updateMatrix();
+  if (tip > 0.001) {
+    gunPt(_gbG, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
+    const a = Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(0.05, reach - back - fwdOf(_gbG)), -1, 1)));
+    _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, -a);   // (about its own right axis, muzzle up)
+    gg.position.sub(_gbG).applyQuaternion(_gbQ).add(_gbG); gg.quaternion.premultiply(_gbQ); gg.updateMatrix();
+  }
 }
 // one of a pair laid flat across the chest as if it hung on a sling, while its hand charges the other: the muzzle
 // across the body to the other side, dipping AK_SLING.dip, a flat side to the chest, the grip at AK_SLING's x, y, z
@@ -224,10 +284,18 @@ function rigDraw(h, w) {
   _rdC0.copy(_rdG).applyQuaternion(h.quaternion).add(h.position); _rdC1.copy(_rdG).applyQuaternion(_rdQ).add(_rdP);
   h.quaternion.slerp(_rdQ, w); h.position.copy(_rdC0.lerp(_rdC1, w)).sub(_rdG.applyQuaternion(h.quaternion)); h.updateMatrix();
 }
-// the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch when they must
+// the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch or shorten
+// (a gun pushed in, a hand down at the pouch) to put the fist on it
+const ARM_SHORT = 0.55, ARM_LONG = 1.3;   // how far an arm shortens or stretches from FIST
 function armAim(side, t, rest) {
   const s = (rest ? SHOULDER_REST : SHOULDER)[side], dx = t.x - s[0], dy = t.y - s[1], dz = t.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
-  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, 0.8, 1.3)];
+  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, ARM_LONG)];
+}
+// where an arm's fist really gets to, sent to v (in upper-body space): as far along toward it as the arm will go
+const _arV = new V3();
+function armReach(side, v) {
+  const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, ARM_LONG * FIST);
+  return c === l ? v : v.set(s[0], s[1], s[2]).addScaledVector(_arV, c / l);
 }
 function reach(arm, side, t, roll, rest) {
   const [rx, ry, sc] = armAim(side, t, rest), s = (rest ? SHOULDER_REST : SHOULDER)[side];
@@ -633,6 +701,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
+  gunPush(gg, s, H, ak, rd, rdt);   // pushed back off a wall or a zombie in front of you
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
   // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away
@@ -892,7 +961,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (shP < 0) ANIM.shFrom = null;
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
-    magToFist(_fL);   // the fresh mag, where the fist actually got to
+    magToFist(_fL, free);   // the fresh mag, where the fist actually got to
     // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges)
     const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
     HSH.visible = feed;

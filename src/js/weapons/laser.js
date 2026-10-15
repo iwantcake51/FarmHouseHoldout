@@ -86,7 +86,7 @@ function laserReach(o, d, max) {
   }
   const h = Math.hypot(d.x, d.z);
   if (h > 1e-3) for (const zb of zombies) {
-    const r = zRay(zb, o.x, o.z, d.x / h, d.z / h); if (!r || r.t <= 0) continue;
+    const r = zRay(zb, o.x, o.z, d.x / h, d.z / h, 1e-6); if (!r) continue;
     const t = r.t / h, y = o.y + d.y * t; if (t < L && y > 0.05 && y < 1.85 * (zb.T.scale || 1)) { L = t; hit = true; }
   }
   return { L, hit };

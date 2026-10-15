@@ -149,21 +149,35 @@ function lit(mat, cut) {
 }
 const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
 const WIND = { value: 0 };
-// instanced foliage sways in the wind; the higher up a vertex sits the more it moves
-function windy(mat, amp) {
+// grass and bushes part round whoever's walking through them: up to four at a time (you, and the zombies nearest you),
+// each [x, z, reach, strength], set every frame by updatePushers (world/trees.js)
+const PUSHERS = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) };
+// instanced foliage sways in the wind; the higher up a vertex sits the more it moves. With push, it also leans away
+// from anyone walking through it (PUSHERS), the tops furthest and pressed down a little, the roots staying put: all in
+// the shader, so it costs nothing on the CPU however much grass there is
+function windy(mat, amp, push) {
   const base = mat.onBeforeCompile, baseKey = mat.customProgramCacheKey;
   mat.onBeforeCompile = function (sh, r) {
-    base.call(this || mat, sh, r); sh.uniforms.uWind = WIND;
-    sh.vertexShader = 'uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    base.call(this || mat, sh, r); sh.uniforms.uWind = WIND; if (push) sh.uniforms.uPush = PUSHERS;
+    sh.vertexShader = 'uniform float uWind;\n' + (push ? 'uniform vec4 uPush[4];\n' : '') + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
   vec3 ip = instanceMatrix[3].xyz; float hh = max(0.0, ip.y + transformed.y * 0.9);
   float ph = uWind + ip.x * 0.37 + ip.z * 0.23;
   float gust = 0.6 + 0.4 * sin(uWind * 0.31 + ip.x * 0.05);
   transformed.x += (sin(ph) * 0.7 + sin(ph * 2.3) * 0.3) * ${amp.toFixed(4)} * hh * gust;
-  transformed.z += cos(ph * 0.8) * ${(amp * 0.5).toFixed(4)} * hh * gust;
+  transformed.z += cos(ph * 0.8) * ${(amp * 0.5).toFixed(4)} * hh * gust;${push ? `
+  vec3 pOff = vec3(0.0);
+  for (int q = 0; q < 4; q++) {
+    vec4 pu = uPush[q]; vec2 dv = ip.xz - pu.xy; float dd = length(dv);
+    float k = pu.w * (1.0 - smoothstep(pu.z * 0.3, pu.z, dd));
+    pOff.xz += dv / max(dd, 0.04) * k; pOff.y -= k * 0.4;
+  }
+  pOff *= hh * ${push.toFixed(3)};
+  vec3 ic0 = instanceMatrix[0].xyz, ic1 = instanceMatrix[1].xyz, ic2 = instanceMatrix[2].xyz;
+  transformed += vec3(dot(ic0, pOff) / dot(ic0, ic0), dot(ic1, pOff) / dot(ic1, ic1), dot(ic2, pOff) / dot(ic2, ic2));` : ''}
 #endif`);
   };
-  mat.customProgramCacheKey = function () { return baseKey.call(this || mat) + '-wind-' + amp; };
+  mat.customProgramCacheKey = function () { return baseKey.call(this || mat) + '-wind-' + amp + (push ? '-push-' + push : ''); };
   return mat;
 }
 const basic = c => new THREE.MeshBasicMaterial({ color: c });

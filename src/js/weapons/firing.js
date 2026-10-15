@@ -46,9 +46,38 @@ const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
 const PIERCE_KEEP = 0.75;
 // how far off the thing you're looking at through the scope is
 const scopeDist = () => scoped ? Math.hypot(scopePt.x - P.x, scopePt.z - P.z) : Math.hypot(aimPt.x - P.x, aimPt.z - P.z);
-// muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair
+// what the barrel runs into in front of you: walls and tall props, the frame round a door or a window and any boards
+// across it, and a zombie standing in front of you (a crawler's under it, a body's on the ground). The gun's pushed back
+// off it (gunPush in player/hold.js), and it fires from where its muzzle has been pushed back to (muzzle, below), so a
+// zombie pressed right up against you still gets shot
+const BARREL = { from: 0.2, step: 0.025, clear: 0.04, zr: 0.16, jamb: 0.4 }, _bf = { wall: 0, zom: 0 };
+function barrelHits(x, z) {
+  const i = ci(x), j = ci(z); if (!inb(i, j)) return false;
+  const k = idx(i, j); if (blockArr[k]) return true;
+  const o = cell[k] === OPEN && openAt[k]; if (!o) return false;
+  return o.boards.length > 0 || Math.abs(o.axis === 'x' ? x - o.x : z - o.z) > BARREL.jamb;   // boarded up, or past the jambs
+}
+// how far out along the aim the barrel's free of walls (wall) and of zombies (zom), on the line lat to your right,
+// looking no further than L
+function barrelFree(lat, L) {
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = fz, rz = -fx, x0 = P.x + rx * lat, z0 = P.z + rz * lat, st = BARREL.step;
+  _bf.wall = _bf.zom = L;
+  for (let t = BARREL.from; t < L; t += st) if (barrelHits(x0 + fx * t, z0 + fz * t)) {
+    let a = t - st, b = t; for (let k = 0; k < 5; k++) { const m = (a + b) / 2; if (barrelHits(x0 + fx * m, z0 + fz * m)) b = m; else a = m; }   // to the face, not the step
+    _bf.wall = Math.max(BARREL.from, a); break;
+  }
+  for (const z of zombies) {
+    if (z.dead || z.crawl) continue;
+    const r = BARREL.zr * z.T.scale, vx = z.x - x0, vz = z.z - z0, t = vx * fx + vz * fz, off = vx * rx + vz * rz;
+    if (t <= 0 || off * off >= r * r) continue;
+    const near = t - Math.sqrt(r * r - off * off); if (near < _bf.zom) _bf.zom = Math.max(BARREL.from, near);
+  }
+  return _bf;
+}
+// muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair; a
+// gun pushed back off something in front of you fires from just short of it (ANIM.barrel, from gunPush)
 function muzzle(sideSign) {
-  const D = W(curId()), sx = D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, m = MUZ[W8.cur] || 0.9;
+  const D = W(curId()), sx = D && D.akimbo ? AKX * (sideSign || W8.akSide) : X, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (ANIM.barrel ?? Infinity) - BARREL.clear));
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = Math.cos(P.aim), rz = -Math.sin(P.aim);
   let ox = P.x + fx * m + rx * sx, oz = P.z + fz * m + rz * sx;
   if (bulletBlocked(ox, oz) || !los(P.x, P.z, ox, oz)) { ox = P.x + fx * 0.3; oz = P.z + fz * 0.3; }
@@ -71,14 +100,15 @@ function cursorTarget() {
   const z = zombies.find(q => q.m.g === root); if (!z) return null;
   return { z, part: o.userData.part, x: hit.point.x, y: hit.point.y, zz: hit.point.z };
 }
-// crawlers lie stretched out along the ground, so test their whole body, not just their hips
-function zRay(z, ox, oz, dx, dz) {
+// crawlers lie stretched out along the ground, so test their whole body, not just their hips: the nearest point of it
+// on the ray no nearer than tMin (so a crawler that's half behind the muzzle is still hit by its half in front)
+function zRay(z, ox, oz, dx, dz, tMin = -Infinity) {
   const r = z.T.r + (z.crawl ? 0.26 : 0.08); let best = null;
   const n = z.crawl ? 2 : 1;
   for (let q = 0; q < n; q++) {
     const f = z.crawl ? (q ? 0.85 : 0.3) * z.T.scale : 0, px = z.x + Math.sin(z.face) * f, pz = z.z + Math.cos(z.face) * f;
     const vx = px - ox, vz = pz - oz, t = vx * dx + vz * dz, off = vx * dz - vz * dx;
-    if (off * off < r * r && (!best || t < best.t)) best = { t, off, r };
+    if (t >= tMin && off * off < r * r && (!best || t < best.t)) best = { t, off, r };
   }
   return best;
 }
@@ -86,7 +116,7 @@ const bodyOf = z => z.crawl ? [z.x + Math.sin(z.face) * 0.55 * z.T.scale, z.z + 
 function aimRay(ox, oz, a, maxL) {
   const dx = Math.sin(a), dz = Math.cos(a); let L = maxL, hitZ = null;
   for (let t = 0.1; t < maxL; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { L = t; break; }
-  for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz); if (h && h.t > 0 && h.t < L) { L = h.t; hitZ = z; } }
+  for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, 1e-6); if (h && h.t < L) { L = h.t; hitZ = z; } }
   return { L, z: hitZ };
 }
 function fire() {
@@ -119,6 +149,9 @@ function gunFire(id, D, side) {
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
+  // anything between you and the muzzle can be hit too (a crawler at your feet, the barrel out over it: you shoot down
+  // into it), as can a body a touch behind the muzzle
+  const back = -Math.max(0.3, (ox - P.x) * Math.sin(P.aim) + (oz - P.z) * Math.cos(P.aim) - 0.25);
   // the first round goes exactly where the crosshair sits on a body, and hits that part (only sometimes on the run
   // from the hip: RUN_MISS)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
@@ -136,7 +169,7 @@ function gunFire(id, D, side) {
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
     const hits = [];
-    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz); if (h && h.t >= -0.3 && h.t <= wallT) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
+    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= wallT) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= wallT) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
     hits.sort((a, b) => a.t - b.t);
     const n = Math.min(hits.length, 1 + pierce);
