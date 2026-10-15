@@ -202,11 +202,11 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   if (rand() < (z.type === 'brute' ? 1 : 0.5)) { const hoard = S.hoard && rand() < HOARD_X; dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * (hoard ? 2 : 1)); if (hoard) pickups[pickups.length - 1].hoard = true; }
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
-    // rounds pays you back a little). Planks are the rarest roll, and the last 13% of the roll drops nothing, so a
-    // plank comes off about one walker in 32 and bandages about one in 26
+    // rounds pays you back a little). Planks are the rarest roll, and the last 6.5% of the roll drops nothing, so a
+    // plank comes off about one walker in 26 and bandages about one in 21
     const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
     if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
-    else if (r < 0.87) dropPickup(z.x, z.z, r < 0.72 ? 'planks' : 'med', big);
+    else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
   }
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
