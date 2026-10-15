@@ -20,6 +20,9 @@ const SFX = {
   // a board torn off hitting the ground: a hollow wooden clack
   plankDrop(v) { tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
+  // a trigger pulled on an empty gun, a weapon taken in hand, something bought at the bench, the launcher going off, a gun
+  // landing on the ground (recorded ones take these over: audio/sound-bank.js)
+  dry() { SFX.click(); }, equip() { SFX.click(); }, craft() { SFX.board(); }, launch() { SFX.thump(); }, gunDrop() { SFX.thud(); },
   magOut() { tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   magIn() { tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },
   shell() { tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },

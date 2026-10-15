@@ -85,7 +85,7 @@ $('stRows').addEventListener('click', e => { const b = e.target.closest('button'
 function craft(i) {
   if (!openSt) return; const r = RECIPES[openSt.id][i]; if (!r) return;
   if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
-  S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.board(); renderStation();
+  S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();
   const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
 }
 // the wheel eases the cards along instead of jumping a notch at a time (core/dom.js)

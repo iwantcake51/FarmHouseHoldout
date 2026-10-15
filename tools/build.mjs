@@ -9,6 +9,7 @@
 // That means any file can call a function from any other file, and load order only matters for
 // top-level statements that run immediately (building the world, creating materials, and so on).
 import { build as esbuild, transform } from 'esbuild';
+import { unzipSync } from 'fflate';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -44,6 +45,21 @@ function joinScripts() {
   });
   return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
 }
+function sfxBank() {
+  const p = path.join(SRC, 'sounds/sfx-bank.json'); if (!fs.existsSync(p)) return null;
+  const b = JSON.parse(fs.readFileSync(p, 'utf8')), zipPath = path.join(ROOT, b.zip);
+  if (!fs.existsSync(zipPath)) { console.warn('sound pack not found, recorded effects left out: ' + b.zip); return null; }
+  const want = new Set(Object.values(b.sets).flatMap(s => s.files.map(f => b.root + f)));
+  const files = unzipSync(fs.readFileSync(zipPath), { filter: f => want.has(f.name) });
+  fs.mkdirSync(path.join(OUT, 'sounds/sfx'), { recursive: true });
+  const url = {};
+  for (const [name, bytes] of Object.entries(files)) {
+    const base = path.basename(name);
+    fs.writeFileSync(path.join(OUT, 'sounds/sfx', base), bytes);
+    url[name] = `sounds/sfx/${encodeURIComponent(base)}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`;
+  }
+  return Object.fromEntries(Object.entries(b.sets).map(([k, s]) => [k, { level: s.level, zoom: s.zoom, urls: s.files.map(f => url[b.root + f]).filter(Boolean) }]));
+}
 function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]); }
 
 async function buildOnce() {
@@ -51,7 +67,7 @@ async function buildOnce() {
   fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
   // recorded sounds (src/sounds, audio/spatial.js): copied beside the page, and asked for by a hash of their contents
   // like the scripts, so a deploy that changes one is picked up straight away
-  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')) : [];
+  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')).filter(f => !f.endsWith('.json')) : [];
   fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
   const soundUrl = {};
   for (const f of sounds) {
@@ -59,8 +75,13 @@ async function buildOnce() {
     fs.writeFileSync(path.join(OUT, 'sounds', f), bytes);
     soundUrl[f] = { url: `sounds/${f}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`, bytes };
   }
+  // recorded sound effects from a pack (src/sounds/sfx-bank.json): each file it lists is taken out of the pack's zip as
+  // it is, into dist/sounds/sfx/, and the game is handed the list with where each one ended up (SFX_BANK,
+  // audio/sound-bank.js). The pack itself stays zipped in assets/; no loose copy of it is kept in the repo
+  const bank = sfxBank();
   // scripts
   let js = joinScripts();
+  js = js.replace('const SFX_BANK = null;', () => `const SFX_BANK = ${JSON.stringify(bank)};`);
   for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
   if (!dev) js = (await transform(js, { loader: 'js', minify: true, target: 'es2020', legalComments: 'none' })).code;
   fs.writeFileSync(path.join(OUT, 'game.js'), js);
@@ -95,7 +116,7 @@ async function main() {
   if (!serve) return;
   let timer = null;
   fs.watch(SRC, { recursive: true }, () => { clearTimeout(timer); timer = setTimeout(() => buildOnce().catch(e => console.error(e.message)), 80); });
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.mp3': 'audio/mpeg' };
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
   http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
     let file = path.join(OUT, url === '/' ? 'index.html' : url);
