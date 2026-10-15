@@ -123,6 +123,7 @@ function sprintAnim(rdt) {
   ease('runBank', P.sprint && !pv ? clamp(-(P.carveW || 0) * SPRINT.bank, -0.22, 0.22) : 0, 9, 6);   // leaning into a bend
   ease('ready', on ? 1 : 0, 8, 6.5);      // down in about a fifth of a second, back up a touch quicker than that
   ease('faceK', on ? 1 : 0, 6, 5);
+  ease('bobK', P.sprint && !pv && !(P.skid > 0) ? 1 : 0, 3.5, 11);   // the view's bob dies away as you plant for a turn or skid, and comes back as you get going (runCam)
   const scr = !!pv && pv.t < PIVOT.brake;
   const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 1 : 0;
   ease('skidK', sk, pv ? 34 : 18, pv ? 12 : 7);   // (a hard turn's plant is quick: the lean back goes in and comes out fast)
@@ -144,14 +145,12 @@ function sprintAnim(rdt) {
   if (pv && Math.floor(ANIM.pivPh / Math.PI) !== Math.floor(ph0 / Math.PI)) SFX.step(0.6, pivotIndoors());
 }
 
-// the view while you sprint bobs by turning rather than shaking: it rolls from side to side with the stride
-// (RUN_CAM.roll, radians), swings round you a touch the other way (orbit, radians of the camera's swing about you), nods
-// down a little at each footfall (nod, radians of tilt), and only drifts a few centimetres (side, dip): on top of the
-// vault's, the recoil's and the rack's (game/camera.js)
-const RUN_CAM = { roll: 0.016, orbit: 0.01, nod: 0.006, side: 0.015, dip: 0.04 };
-const camRun = { px: 0, pz: 0, bob: 0, roll: 0, orbit: 0, nod: 0 };
+// the view while you sprint stays steady: no shake and no turning, only a drift of a few centimetres with the stride,
+// from side to side (RUN_CAM.side) and down at each footfall (dip), on top of the vault's, the recoil's and the
+// rack's (game/camera.js). It settles smoothly out while you plant and turn or skid (ANIM.bobK)
+const RUN_CAM = { side: 0.015, dip: 0.04 };
+const camRun = { px: 0, pz: 0, bob: 0 };
 function runCam() {
-  const k = smooth(clamp(ANIM.sprintK || 0, 0, 1)), ph = P.phase, s = Math.sin(ph), hit = Math.pow(Math.abs(Math.cos(ph)), 6), side = s * RUN_CAM.side * k;
+  const k = smooth(clamp(ANIM.sprintK || 0, 0, 1)) * smooth(ANIM.bobK || 0), ph = P.phase, hit = Math.pow(Math.abs(Math.cos(ph)), 6), side = Math.sin(ph) * RUN_CAM.side * k;
   camRun.bob = -RUN_CAM.dip * hit * k; camRun.px = RIGHT.x * side; camRun.pz = RIGHT.z * side;
-  camRun.roll = s * RUN_CAM.roll * k; camRun.orbit = -s * RUN_CAM.orbit * k; camRun.nod = hit * RUN_CAM.nod * k;
 }

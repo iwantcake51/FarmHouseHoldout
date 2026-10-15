@@ -53,7 +53,6 @@ const TITLE_ZOOM = 0.8;
 const EDGE_IN = 0.14, EDGE_PAN = 0.09, camEdge = { x: 0, y: 0 };
 const edgeK = t => t < EDGE_IN ? -smooth(1 - t / EDGE_IN) : t > 1 - EDGE_IN ? smooth((t - 1 + EDGE_IN) / EDGE_IN) : 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
-const _camOff = new V3(), _camAx = new V3(), Y_UP = new V3(0, 1, 0);
 function updateCamera(rdt) {
   if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
   else if (scoped) {
@@ -91,8 +90,6 @@ function updateCamera(rdt) {
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, vx = camKick.x + cv.px + cr.px + ck.px + cu.px, vz = camKick.z + cv.pz + cr.pz + ck.pz + cu.pz;
   cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom;
-  // (the sprint's bob swings the camera round you and tips it, rather than shaking it: player/sprint.js)
-  const off = _camOff.copy(CAM_OFF); if (cu.orbit || cu.nod) { off.applyAxisAngle(Y_UP, cu.orbit); _camAx.set(off.z, 0, -off.x).normalize(); off.applyAxisAngle(_camAx, -cu.nod); }
-  cam.position.set(camTarget.x + vx + off.x + rr(-sh, sh), off.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + off.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + cu.roll + introRoll()); cam.updateProjectionMatrix();
+  cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
+  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + introRoll()); cam.updateProjectionMatrix();
 }
