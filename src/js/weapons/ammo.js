@@ -12,9 +12,11 @@ function ammoAmt(a) {
 // a crafted batch for one gun: two ammo boxes' worth, sized to that gun's magazine (a drum shotgun gets more shells
 // than a pump). The workbench sells ammo by the gun, so two guns on the same calibre are two batches
 const gunBatch = id => { const D = W(id), a = D.ammo; return Math.round(AMMO_DROP[a] * clamp(Math.sqrt(magSize(id) / AMMO_REF[a]), 1, 2.4)) * 2; };
+// a gun's drop-off: its own, or its load's where that has one (slugs: D.fall, weapons/gun-mods.js)
+const fallOf = id => (W(id) && W(id).fall) || FALLOFF[id];
 // a longer barrel (D.reach, weapons/gun-mods.js) stretches both ranges by that much and lifts the floor to match
 const falloff = (id, t) => {
-  const F = FALLOFF[id]; if (!F) return 1;
+  const F = fallOf(id); if (!F) return 1;
   const k = (W(id) && W(id).reach) || 1, f0 = F[0] * k, f1 = F[1] * k, fl = 1 - (1 - F[2]) / k;
   return t <= f0 ? 1 : t >= f1 ? fl : 1 - (1 - fl) * (t - f0) / (f1 - f0);
 };

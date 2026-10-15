@@ -25,7 +25,7 @@ function wsNumbers(id) {
   // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
   const kind = EJECT[id] === 'pump' ? 'pump' : EJECT[id] === 'bolt' ? 'bolt' : null;
   if (kind) { const v = RACKS[kind], avg = v.reduce((a, q) => a + q.dur + q.delay, 0) / v.length; r.cycle = Math.min(avg, 1 / rate * 0.92); r.cycleKind = kind; }
-  const F = FALLOFF[id]; if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; }
+  const F = fallOf(id); if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; }
   return r;
 }
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the

@@ -5,6 +5,10 @@
 // is still a barrel and takes a can on its end
 // two guns are fired one-handed from the hip: a little looser than one held in both hands
 const AK_SPREAD = 1.15;
+// a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
+const SLUG_FALL = [14, 30, 0.85];
+// how much harder a zombie bleeds (health a second) for each flechette that lands in it
+const DART_BLEED = 1.5;
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: '+35% damage. Loses less damage at range.', vis: 'A longer, heavier slide', stat: D => { D.dmg *= 1.35; D.reach = (D.reach || 1) + 0.3; } },
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts. Hold to keep firing. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
@@ -19,12 +23,18 @@ const GUN_MODS = {
   boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every round explodes on hit.', vis: 'A red band on the magazine', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Half the spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Shells set zombies on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },
-  slug: { w: 'pump', r: 'u', name: 'Slug rounds', text: 'Fires one heavy slug that goes through 3 zombies.', vis: 'Yellow slugs in the side saddle', stat: D => { D.pellets = 1; D.dmg = 125; D.pierce = 2; D.spread = 0.012; } },
+  // the two special loads work nothing alike. A slug is one heavy lump of lead: it hits like a rifle, slams the zombie
+  // back and staggers it, keeps most of its punch through each body, and holds its damage far further out than any
+  // other load (its own drop-off, D.fall: weapons/ammo.js)
+  slug: { w: 'pump', r: 'u', name: 'Slug rounds', text: 'One heavy slug: huge damage, slams zombies back and staggers them, goes through 3, and barely loses damage at range.', vis: 'Yellow slugs in the side saddle', stat: D => { D.pellets = 1; D.dmg = 140; D.pierce = 2; D.pierceKeep = 0.85; D.spread = 0.012; D.kick = 14; D.stagger = 0.6; D.fall = SLUG_FALL; } },
   slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires 50% faster, 5% more spread.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
   tube: { w: 'pump', r: 'c', name: 'Tube extension', text: '+4 shells.', vis: 'A longer magazine tube', stat: D => { D.mag += 4; } },
   sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets, wider spread, faster reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
-  flech: { w: 'auto12', r: 'r', name: 'Flechettes', text: 'Pellets go through 2 more zombies.', vis: 'A striped drum', stat: D => { D.pierce = (D.pierce || 0) + 2; } },
+  // flechettes are the opposite: a tight cloud of thin steel darts, each one weak, that zip through 2 more zombies
+  // with hardly any loss and barely push them, leaving them bleeding. Every dart that lands opens the bleed further
+  // (D.bleed per hit, zombies/damage.js), and darts punch small holes rather than tearing limbs off (D.dart)
+  flech: { w: 'auto12', r: 'r', name: 'Flechettes', text: 'A tight cloud of thin darts: each hits lighter, but they go through 2 more zombies, barely push them back, and every dart makes them bleed more.', vis: 'A striped drum', stat: D => { D.pellets += 3; D.dmg *= 0.6; D.spread *= 0.55; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.9; D.kick *= 0.25; D.dart = true; D.bleed = DART_BLEED; } },
   bolt: { w: 'hunting', r: 'c', name: 'Straight-pull bolt', text: 'Fires faster: 0.8 s between shots instead of 1.3 s.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.6; } },
   expand: { w: 'hunting', r: 'e', name: 'Expanding rounds', text: 'Every limb you hit comes off.', vis: 'Copper-tipped rounds', stat: D => { D.alwaysSever = true; } },
   akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. Double the ammo and fire rate. Can\'t aim down sights, slightly more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
