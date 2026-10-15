@@ -14,6 +14,7 @@ function updatePlayer(dt) {
   if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
+  if (P.sprint && !P.vault && state === 'play') sprintVault(mx, my);   // sprinting at a window or a fence takes you over it (player/sprint.js)
   if (P.vault) {
     const v = P.vault;
     if (v.pre < v.preDur) {
@@ -51,8 +52,9 @@ function updatePlayer(dt) {
     // (a sprint builds up over a moment, and a skid only loses speed to the ground's friction)
     // (a cut mid-sprint carries some of your pace round into the new way while you plant: player/sprint.js)
     if (P.pivot && P.pivot.keep) { tvx = P.pivot.wx * P.pivot.keep; tvz = P.pivot.wz * P.pivot.keep; }
-    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : P.pivot ? PIVOT.fric : turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
-    if (P.sprint && !P.pivot && !(P.skid > 0) && (tvx || tvz) && !turning) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends
+    const turning = (tvx || tvz) && tvx * P.vx + tvz * P.vz < 0, acc = P.skid > 0 ? SPRINT.skidFric : turning ? 22 : (tvx || tvz) ? 13 : 15, k = 1 - Math.exp(-dt * acc);
+    if (P.pivot) pivotSlow(dt, tvx, tvz);   // planting for a hard turn (player/sprint.js)
+    else if (P.sprint && !(P.skid > 0) && (tvx || tvz) && !turning) sprintCarve(dt, tvx, tvz);   // a sprint swings round into its bends
     else { P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; }
     if (Math.abs(P.vx) + Math.abs(P.vz) < 0.02) P.vx = P.vz = 0;
     const ox = P.x, oz = P.z; moveCircle(P, P.vx * dt, P.vz * dt, 0.3, true);

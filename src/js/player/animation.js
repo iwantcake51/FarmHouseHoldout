@@ -198,7 +198,8 @@ function animatePlayer(dt, rdt) {
     const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), brace = skid * (1 - scr);
     if (brace > 0.001) {
       // skidding to a stop: the leading leg braced out ahead, the back knee bent under you
-      const c = Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw)), mix = (a, b) => a + (b - a) * brace;
+      // (less as you slow: stopped, there's no slide to brace against, and its way can't flip round as you come to rest)
+      const c = Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw)) * Math.min(1, spd / 1.5), mix = (a, b) => a + (b - a) * brace;
       pm.legL.rotation.x = mix(pm.legL.rotation.x, -0.7 * c); pm.legR.rotation.x = mix(pm.legR.rotation.x, 0.3 * c);
       pm.shinL.rotation.x = mix(pm.shinL.rotation.x, 0.12); pm.shinR.rotation.x = mix(pm.shinR.rotation.x, 0.65);
     }
@@ -224,14 +225,15 @@ function animatePlayer(dt, rdt) {
   }
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
   if (!P.vault) {
-    const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw);
-    pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * skid; pm.g.rotation.z += Math.sin(rel) * 0.2 * skid + (ANIM.runBank || 0);   // (and banked into a sprint's bends)
+    const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw), sl = skid * Math.min(1, spd / 1.5);   // (leaning on the slide, less as it dies)
+    pm.g.rotation.x += 0.13 * sk * Math.min(1, runF) - Math.cos(rel) * 0.24 * sl; pm.g.rotation.z += Math.sin(rel) * 0.2 * sl + (ANIM.runBank || 0);   // (and banked into a sprint's bends)
     pm.g.position.y -= 0.07 * skid;
     // scrambling to a stop you drop and bounce on each choppy step; turning round you stay low, bobbing a touch with
     // each step, and come up again as you set off
     const scr = smooth(clamp(ANIM.scrK || 0, 0, 1)), pk = smooth(clamp(ANIM.pivK || 0, 0, 1));
-    if (scr > 0.001) { pm.g.position.y -= scr * (0.06 + 0.025 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
-    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; pm.g.rotation.z += -(ANIM.pivDir || 1) * 0.13 * pk * (P.pivot ? 1 : 0); }   // banked hard into the turn
+    if (scr > 0.001) { pm.g.position.y -= scr * (0.045 + 0.02 * Math.abs(Math.cos(ANIM.scrPh || 0))); pm.g.rotation.z += Math.sin(ANIM.scrPh || 0) * 0.035 * scr; }
+    if (pk > 0.001) { pm.g.position.y -= pk * (0.04 + 0.02 * (1 - Math.abs(Math.sin(ANIM.pivPh || 0)))); pm.g.rotation.x += 0.05 * pk; }
+    pm.g.rotation.z -= 0.13 * (ANIM.pivBank || 0);   // banked into the turn (eased: player/sprint.js)
   }
   // tripped by a crawler: you lurch to one side, a knee gives, and you catch yourself
   const stq = ANIM.stumble > 0 && !P.vault ? Math.sin(ANIM.stumble * Math.PI) : 0;
@@ -239,7 +241,11 @@ function animatePlayer(dt, rdt) {
   // bob twice per stride, dip onto the bad leg when limping, breathe when still. Down the sights you roll heel to toe
   // and glide: half the bob, and the chest held steady over the hips (below) so the gun stays on target
   const run1 = Math.min(1, runF), still = 1 - run1;
-  const bob = Math.abs(Math.cos(ph)) * (0.045 * run1 * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
+  // (the bob's size follows your speed, but slowly through a hard turn or a skid and for a moment after, so it dies
+  // away as you plant and builds back as you set off instead of cutting out and snapping back in)
+  ANIM.bobSlow = P.pivot || P.skid > 0 ? 1 : Math.max(0, (ANIM.bobSlow || 0) - rdt * 1.6);
+  ANIM.bobRun = (ANIM.bobRun ?? run1) + (run1 - (ANIM.bobRun ?? run1)) * Math.min(1, rdt * (12 - 9 * ANIM.bobSlow));
+  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
   const breathe = Math.sin(now * 1.7) * 0.01 * still;
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot

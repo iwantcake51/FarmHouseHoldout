@@ -17,19 +17,20 @@
 // of the way you're running: the gun stays up and the chest on the aim, the shots far looser (RG_SPREAD). Anything
 // further round than that, the gun comes down as usual.
 const WALK_SPEED = 3.5;
-const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 6.5, bendCost: 0.3, bank: 0.055 };
+const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
 // vault you've earned (none till you've built up half your momentum, all of it near flat out)
 const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return 1 - (1 - u) * (1 - u); };
 const vaultRush = () => P.sprint ? smooth(clamp(((P.runUp || 0) - 0.45) / 0.45, 0, 1)) : 0;
 const RG_ARC = 1.3, RG_SPREAD = 3;
 // the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the plant (brake:
-// seconds, fric: how hard the ground stops you, scr: how fast the feet patter, radians a second), then the snap round
-// (turn, plus perRad for each radian of it; a step for about every stepRad of it), how far the hips lead the body
-// round (lead), how quickly the body follows them (yawRate), and the push off the new way (push: seconds of hard
-// acceleration, pushAcc), with a kick of roll to the view as you plant (roll). A cut, up to PIVOT.cut round, carries
-// PIVOT.keep of your pace through it into the new way; anything sharper plants you
-const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.1, fric: 24, scr: 44, turn: 0.08, perRad: 0.03, stepRad: 1.2, lead: 0.6, yawRate: 24, push: 0.28, pushAcc: 16, roll: 0.035, cut: 2.2, keep: 0.4 };
+// seconds, dec: how hard the ground slows you, metres a second each second, building up over bite seconds as your
+// boots dig in; scr: how fast the feet patter, radians a second), then the swing round (turn, plus perRad for each
+// radian of it; a step for about every stepRad of it), how far the hips lead the body round (lead), how quickly the
+// body follows them (yawRate), and the push off the new way (push: seconds of harder acceleration, pushAcc, which
+// builds up over pushIn seconds). A cut, up to PIVOT.cut round, carries PIVOT.keep of your pace through it into the new
+// way; anything sharper plants you. Everything about it eases in and out, so it reads as one smooth move
+const PIVOT = { ang: 1.35, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08, scr: 34, turn: 0.1, perRad: 0.045, stepRad: 1.2, lead: 0.6, yawRate: 14, push: 0.35, pushAcc: 10, pushIn: 0.15, cut: 2.2, keep: 0.4 };
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
 const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
@@ -75,8 +76,8 @@ function updateSprint(dt, moving, wx, wz) {
       const cut = Math.abs(turn) <= PIVOT.cut, sp = Math.hypot(P.vx, P.vz);
       P.pivot = { t: 0, from, turn, dur: PIVOT.brake + PIVOT.turn + PIVOT.perRad * Math.abs(turn), wx, wz, keep: cut ? sp * PIVOT.keep : 0 };
       P.runUp = (P.runUp || 0) * (cut ? 0.55 : 0.3);
-      // digging in: a skid, a spray of dust off the boots and the view rolled hard into the turn for a moment
-      SFX.skid(); sprintDust(6); shake = Math.max(shake, 0.07); camRoll += Math.sign(turn) * PIVOT.roll;
+      // digging in: a skid and a spray of dust off the boots
+      SFX.skid(); sprintDust(6);
     }
   }
   P.sprint = can && !aiming && !P.pivot;
@@ -92,17 +93,44 @@ function updateSprint(dt, moving, wx, wz) {
   if ((P.skid > 0 || P.pivot) && P.skidDust <= 0 && Math.hypot(P.vx, P.vz) > 1.2) { P.skidDust = 0.05; burst(P.x + rr(-0.12, 0.12), 0.04, P.z + rr(-0.12, 0.12), 1, 'dust'); }   // kicked up as the boots scrape along
 }
 
-// steering at a sprint: the run swings round toward where you're pushing at SPRINT.carve radians a second (a touch
-// slower the more momentum you have) instead of sliding straight across to it, keeping its pace through the bend less
-// what the bend costs, while its speed comes up to the target on its own clock; P.carveW is how fast it's swinging,
-// for the lean into it
+// running flat out at an open window or a fence takes you straight over it, no key needed: when you're pushing at it
+// and going at it (within about 60 degrees of straight across, SPRINT.autoVault) at better than a walk
+function sprintVault(mx, my) {
+  const ml = Math.hypot(mx, my), sp = Math.hypot(P.vx, P.vz); if (!ml || sp < WALK_SPEED * 0.6 || P.pivot || P.skid > 0) return;
+  const o = nearestOpening(), win = vaultTarget(o), t = win || fenceTarget(); if (!t) return;
+  let jx, jz;
+  if (win) { const side = Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1; jx = -o.nx * side; jz = -o.nz * side; }
+  else if (Math.abs(t.x1 - P.x) > Math.abs(t.z1 - P.z)) { jx = Math.sign(t.x1 - P.x); jz = 0; } else { jx = 0; jz = Math.sign(t.z1 - P.z); }   // (straight across the fence, as tryVault takes it)
+  const wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml;
+  if (wx * jx + wz * jz > SPRINT.autoVault && (P.vx * jx + P.vz * jz) / sp > SPRINT.autoVault) tryVault();
+}
+// the plant and the swing round: your velocity's brought round to what the turn leaves you (nothing, or a cut's share
+// of your pace the new way) at a steady PIVOT.dec, the grip building over the first moment (bite) rather than
+// stopping you dead the instant you plant
+function pivotSlow(dt, tvx, tvz) {
+  const dx = tvx - P.vx, dz = tvz - P.vz, d = Math.hypot(dx, dz), m = PIVOT.dec * smooth(clamp(P.pivot.t / PIVOT.bite, 0, 1)) * dt;
+  if (d <= m) { P.vx = tvx; P.vz = tvz; } else { P.vx += dx / d * m; P.vz += dz / d * m; }
+  P.carveW = 0;
+}
+// how quickly a sprint's pace comes up: harder for a moment as you drive off a turn, that drive building in over pushIn
+const sprintAcc = () => P.pushT > 0 ? PIVOT.pushAcc * (0.35 + 0.65 * smooth(clamp((PIVOT.push - P.pushT) / PIVOT.pushIn, 0, 1))) : SPRINT.acc;
+// steering at a sprint: the run swings round toward where you're pushing instead of sliding straight across to it.
+// How fast it swings (P.carveW, radians a second, which also leans the body into it) eases in and out (SPRINT.carveIn)
+// toward a rate that's quicker the further round there is to go (carveK), up to SPRINT.carve (a touch less the more
+// momentum you have), so a bend rolls in and out smoothly. It keeps its pace through the bend less what the bend
+// costs, while its speed comes up to the target on its own clock
 function sprintCarve(dt, tvx, tvz) {
   const s0 = Math.hypot(P.vx, P.vz), st = Math.hypot(tvx, tvz);
-  if (s0 < 0.6 || !(dt > 0)) { const k = 1 - Math.exp(-dt * (P.pushT > 0 ? PIVOT.pushAcc : SPRINT.acc)); P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; return; }
-  const a0 = Math.atan2(P.vx, P.vz), w = SPRINT.carve * (1 - 0.3 * (P.runUp || 0)) * dt, step = clamp(angDiff(Math.atan2(tvx, tvz), a0), -w, w), a = a0 + step;
-  const sp = (s0 + (st - s0) * (1 - Math.exp(-dt * (P.pushT > 0 ? PIVOT.pushAcc : SPRINT.acc)))) * (1 - Math.abs(step) * SPRINT.bendCost);
+  if (s0 < 0.6 || !(dt > 0)) { const k = 1 - Math.exp(-dt * sprintAcc()); P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; return; }
+  const a0 = Math.atan2(P.vx, P.vz), diff = angDiff(Math.atan2(tvx, tvz), a0), wMax = SPRINT.carve * (1 - 0.3 * (P.runUp || 0));
+  P.carveW = (P.carveW || 0) + (clamp(diff * SPRINT.carveK, -wMax, wMax) - (P.carveW || 0)) * (1 - Math.exp(-dt * SPRINT.carveIn));
+  let step = P.carveW * dt;
+  if (step * diff <= 0) step = 0;   // still swinging the old way round: hold the line till it swings the new way
+  else if (Math.abs(step) > Math.abs(diff)) { step = diff; P.carveW = diff / dt; }   // and never past the way you're pushing
+  const a = a0 + step;
+  const sp = (s0 + (st - s0) * (1 - Math.exp(-dt * sprintAcc()))) * (1 - Math.abs(step) * SPRINT.bendCost);
   P.runUp = Math.max(0, (P.runUp || 0) - Math.abs(step) * 0.25);
-  P.vx = Math.sin(a) * sp; P.vz = Math.cos(a) * sp; P.carveW = step / dt;
+  P.vx = Math.sin(a) * sp; P.vz = Math.cos(a) * sp;
 }
 
 // the animation's blends, each eased on its own clock: the gait (sprintK), the gun down at a low ready (ready), the body
@@ -115,7 +143,7 @@ function sprintAnim(rdt) {
   const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ);
   if (pv) {
     // the body starts round as the feet dig in and eases round to the new way
-    const u0 = PIVOT.brake * 0.75, u = smooth(clamp((pv.t - u0) / (pv.dur - u0), 0, 1));
+    const u0 = PIVOT.brake * 0.4, u = smooth(clamp((pv.t - u0) / (pv.dur - u0), 0, 1));
     ANIM.runYaw = pv.from + pv.turn * u; ANIM.pivU = u; ANIM.pivTo = pv.from + pv.turn;
   } else if (Math.hypot(P.vx, P.vz) > 0.5) ANIM.runYaw = Math.atan2(P.vx, P.vz);
   const ease = (k, to, up, down) => { ANIM[k] = (ANIM[k] || 0) + (to - (ANIM[k] || 0)) * Math.min(1, rdt * (to > (ANIM[k] || 0) ? up : down)); };
@@ -123,12 +151,14 @@ function sprintAnim(rdt) {
   ease('runBank', P.sprint && !pv ? clamp(-(P.carveW || 0) * SPRINT.bank, -0.22, 0.22) : 0, 9, 6);   // leaning into a bend
   ease('ready', on ? 1 : 0, 8, 6.5);      // down in about a fifth of a second, back up a touch quicker than that
   ease('faceK', on ? 1 : 0, 6, 5);
-  ease('bobK', P.sprint && !pv && !(P.skid > 0) ? 1 : 0, 3.5, 11);   // the view's bob dies away as you plant for a turn or skid, and comes back as you get going (runCam)
+  ease('bobK', P.sprint && !pv && !(P.skid > 0) ? 1 : 0, 2.5, 4);   // the view's bob dies smoothly away through a turn or a skid, and builds back as you get going (runCam)
   const scr = !!pv && pv.t < PIVOT.brake;
   const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 1 : 0;
-  ease('skidK', sk, pv ? 34 : 18, pv ? 12 : 7);   // (a hard turn's plant is quick: the lean back goes in and comes out fast)
-  ease('scrK', scr ? 1 : 0, 40, 10);
-  ease('pivK', pv && pv.t > PIVOT.brake * 0.75 ? 1 : 0, 22, 8);
+  ease('skidK', sk, pv ? 12 : 18, pv ? 7 : 7);   // (a hard turn's plant is quick: the lean back goes in and comes out fast)
+  ease('scrK', scr ? 1 : 0, 13, 6);
+  ease('pivK', pv && pv.t > PIVOT.brake * 0.75 ? 1 : 0, 13, 5.5);
+  // banked into the turn as you come round, and easing back level as you set off
+  { const to = pv && pv.t > PIVOT.brake * 0.5 ? Math.sign(pv.turn) || 1 : 0; ANIM.pivBank = (ANIM.pivBank || 0) + (to - (ANIM.pivBank || 0)) * Math.min(1, rdt * (to ? 10 : 5)); }
   // the scramble's steps, quick and short, dying away as you stop
   if ((ANIM.scrK || 0) > 0.01) {
     const p0 = ANIM.scrPh || 0; ANIM.scrPh = p0 + rdt * PIVOT.scr * (scr ? 1 : 0.6);
@@ -147,7 +177,7 @@ function sprintAnim(rdt) {
 
 // the view while you sprint stays steady: no shake and no turning, only a drift of a few centimetres with the stride,
 // from side to side (RUN_CAM.side) and down at each footfall (dip), on top of the vault's, the recoil's and the
-// rack's (game/camera.js). It settles smoothly out while you plant and turn or skid (ANIM.bobK)
+// rack's (game/camera.js). It dies smoothly away through a turn or a skid and builds back after (ANIM.bobK)
 const RUN_CAM = { side: 0.015, dip: 0.04 };
 const camRun = { px: 0, pz: 0, bob: 0 };
 function runCam() {
