@@ -15,7 +15,7 @@ function shove() {
   const band = P.bandT > 0, slow = band ? SHOVE_BAND : 1;
   P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow;
   P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow, band };
-  exitScope(); W8.reloading = null; W8.reloadT = 0; W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
+  exitScope(); cutReload(); W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();
 }
 // runs every frame from updatePlayer: the lunge, and the hit landing at the end of the wind-up

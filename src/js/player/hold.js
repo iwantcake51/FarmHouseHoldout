@@ -808,7 +808,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   } else if (mgs.length) {
     let md = 0, show = true;
     // (the fresh one is carried up in the hand from MAG_TAKE: magInHand, below)
-    if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rpm < tOut) md = smooth(rpm / tOut) * 0.12; else if (rpm < MAG_TAKE && !D.speedload) show = false; }
+    if (!rel && relHeld(id) && W8.relSave[id].st === 'out') show = false;
+    else if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rpm < tOut) md = smooth(rpm / tOut) * 0.12; else if (rpm < MAG_TAKE && !D.speedload) show = false; }
     mgs.forEach(m => { m.visible = show; m.position.set(0, -md, 0); m.rotation.set(0, 0, 0); });
     ANIM.magDrop = show ? md : 0.22;
   }

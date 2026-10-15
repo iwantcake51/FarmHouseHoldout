@@ -84,7 +84,7 @@ function tryVault() {
     C, L, s0, s1, lat0, lat1, twistSide, sx: P.x, sz: P.z, obs: vaultObstacle(kind, false), plant, ground: new V3(C[0] + dx * (s1 + 0.15) + L[0] * 0.14, 0.04, C[1] + dz * (s1 + 0.15) + L[1] * 0.14),
     x0: P.x, z0: P.z, x1: C[0] + dx * s1 + L[0] * lat1, z1: C[1] + dz * s1 + L[1] * lat1, face: Math.atan2(dx, dz), dx, dz, side: clamp(dx * RIGHT.x + dz * RIGHT.z, -1, 1) };
   buildVaultPlan(P.vault);
-  W8.reloading = null; W8.reloadT = 0; P.shove = null;
+  cutReload(); P.shove = null;
   nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
 }
 // push off (the camera's tilt follows the jump on its own, see vaultCam in game/camera.js)

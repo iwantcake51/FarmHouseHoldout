@@ -102,7 +102,7 @@ for (const k in TIERS) {
 function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }
 function giveWeapon(id) {
   const D = WEAP[id], s = D.slot;
-  W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
+  W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; delete W8.relSave[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
   equip(s, true);
 }
 // weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you

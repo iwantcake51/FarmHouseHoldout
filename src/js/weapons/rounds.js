@@ -41,6 +41,7 @@ function ownRound(id, k) { const r = W8.rounds[id] = W8.rounds[id] || { own: [],
 // what's in the gun goes back in the pouch (a pair's two mags too), so the next rounds loaded are the new kind
 function dumpMag(id) {
   const D = WEAP[id]; if (!D || !D.ammo) return;
+  delete W8.relSave[id];   // (a reload left part done starts over with the new kind)
   W8.reserve[D.ammo] += W8.mag[id] || 0; W8.mag[id] = 0;
   if (W8.akMag[id]) W8.akMag[id] = { L: 0, R: 0 };
 }

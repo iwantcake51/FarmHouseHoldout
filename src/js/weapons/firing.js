@@ -139,11 +139,11 @@ function gunFire(id, D, side) {
   else {
   if (breakTrigger(id, D)) return;   // the double barrel: stops the reload, and fires once it's closed (weapons/reload.js)
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
-  if (W8.reloading) return;
+  if (W8.reloading || relHeld(id)) return;   // (a reload left with its mag out, or in but not charged: weapons/reload.js)
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
   if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
-  W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++;
+  W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++; delete W8.relSave[id];
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
   else if (!W8.inBurst && semiAuto(id)) W8.trigLock = true;   // one shot a pull
   }
