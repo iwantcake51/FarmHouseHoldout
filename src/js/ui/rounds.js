@@ -67,6 +67,33 @@ function kickRounds(el, have, wasHave, fired) {
     }
   }
 }
+// a gun just drawn brings its rounds up into the HUD: each one rises from under the row, small, and springs up into
+// place (a touch past it and back, settling), one after another from the bottom right, the next to fire last, a mag
+// of each at once for a pair. It goes on top of whatever else moves them (a kick: composite 'add'), and a redraw on the
+// way (a shot, a reload) picks it up where it had got to. A damped spring sampled into keyframes, like the kick
+const popSpring = t => Math.exp(-0.42 * 6.2832 * 3.1 * t) * Math.cos(6.2832 * 3.1 * t * 0.9075);   // 1 at the start, 0 at rest
+const POP_MS = 560, POP_N = 32, POP_SPAN = 280, POP_FRAMES = [];
+for (let k = 0; k <= POP_N; k++) { const s = popSpring(k / POP_N * POP_MS / 1000); POP_FRAMES.push({ transform: `translateY(${(11 * s).toFixed(2)}px) scale(${(1 - 0.5 * s).toFixed(3)})` }); }
+const POP_FADE = [{ opacity: 0 }, { opacity: 1, offset: 0.22 }, { opacity: 1 }];
+const calmHud = matchMedia('(prefers-reduced-motion: reduce)');
+// which gun the rounds are drawn for; a different one (or one back from a melee weapon) starts its pop
+function popCheck(id) {
+  const was = cache.rounds === 'melee' ? 'melee' : cache.roundsGun; cache.roundsGun = id;
+  if (was !== id) cache.popAt = performance.now();
+}
+function popRounds(el) {
+  const gone = performance.now() - (cache.popAt || -1e9);
+  if (gone > POP_SPAN + POP_MS || calmHud.matches) return;
+  for (const box of el.classList.contains('ak') ? el.children : [el]) {
+    const kids = box.children, step = Math.min(26, POP_SPAN / Math.max(1, kids.length - 1));
+    for (let i = 0; i < kids.length; i++) {
+      const g = kids[i], delay = i * step - gone; if (delay + POP_MS <= 0) continue;
+      g.style.transformOrigin = '50% 100%';
+      g.animate(POP_FRAMES, { duration: POP_MS, delay, easing: 'linear', fill: 'backwards', composite: 'add' });
+      g.animate(POP_FADE, { duration: POP_MS, delay, easing: 'ease-out', fill: 'backwards' });
+    }
+  }
+}
 // the glyphs for one magazine, in the order they're laid out from the bottom right (styles/hud-weapon.css: right to
 // left along a row, rows stacking upward): the last round in the mag first, so it sits at the bottom right, then the
 // rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
@@ -76,6 +103,7 @@ const roundsCls = D => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '
 // an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
 // being reloaded dims
 function renderRoundsAk(id, D) {
+  popCheck(id);
   const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + ':' + akBusy('L') + akBusy('R');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
@@ -87,9 +115,11 @@ function renderRoundsAk(id, D) {
     g.innerHTML = magGlyphs(n, m[s]); g.classList.toggle('rl', akBusy(s));
   });
   cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
+  popRounds(el);
 }
 function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
+  popCheck(id);
   const n = magCap(id), have = W8.mag[id] || 0, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
   const key = id + n + ':' + have + ':' + fired + ':' + T('ammo');   // the mag that's in it (game/run-state.js), and the fired cases it's kept
   if (cache.rounds === key) return; cache.rounds = key;
@@ -102,4 +132,5 @@ function renderRounds(id, D) {
   cache.roundsPrev = { id, n, have, fired }; el.className = roundsCls(D);
   el.innerHTML = magGlyphs(n, have, fired);
   if (same && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
+  popRounds(el);   // a gun just drawn: after the kick, so it adds on top
 }
