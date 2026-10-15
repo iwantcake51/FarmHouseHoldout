@@ -29,7 +29,9 @@
 #waveBox[data-ph="wave"] .wv{--wc:var(--orange)}#waveBox[data-ph="clear"] .wv{--wc:var(--gold)}
 .wv>.lbl:first-child{display:flex;align-items:center;gap:8px;color:var(--wc);transition:color .4s}
 .wv>.lbl:first-child::after{content:"";width:34px;height:1px;background:linear-gradient(90deg,var(--wc),transparent)}
-#wNum{font-size:60px;background:linear-gradient(180deg,#fbf7ee 0%,#ece6d8 50%,#bdb09a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 12px rgba(0,0,0,.5))}
+#wNum{font-size:60px;--rh:1em;line-height:1;color:#ece6d8;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 12px rgba(0,0,0,.5))}
+/* the wave number rolls (ui/hud-text.js): each digit on its drum carries the pale gradient itself */
+#wNum .rs>span{background:linear-gradient(180deg,#fbf7ee 0%,#ece6d8 50%,#bdb09a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
 #wSub{margin-top:4px;font-size:12px;color:var(--ink);max-width:260px}
 #wSub b{font-family:var(--f-num);font-weight:800;font-size:19px;line-height:1;margin-right:2px;color:var(--wc);vertical-align:-1px}
 #wSub kbd{font-family:var(--f-ui);border:1px solid rgba(236,230,216,.35);padding:0 4px;border-radius:2px}

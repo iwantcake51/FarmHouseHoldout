@@ -26,7 +26,13 @@ function updatePlayer(dt) {
       // the jump follows its plan (player/vault-plan.js), still moving at the end so the landing carries on into a walk
       v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
       P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
-      if (v.t >= 1) { P.vault = null; vaultLand(v); if (aimHeld) startAim(); }   // still holding aim (or pressed it on the way through): back down the sights
+      if (v.t >= 1) {
+        // the weapon was put away for the jump (unless Run and gun kept it in hand): it's drawn again as you land, the
+        // hands coming off the sill to it rather than it appearing in them (player/swap.js)
+        const kept = vaultGun(); P.vault = null; vaultLand(v);
+        if (!kept && W8.slot[W8.cur] && !swapSt) { startSwap(null, W8.cur); W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); }
+        if (aimHeld) startAim();   // still holding aim (or pressed it on the way through): back down the sights
+      }
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {

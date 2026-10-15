@@ -2,6 +2,7 @@
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 1.0;    // how far down (radians) the arms will point a gun
+const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you look (of its height), how near the aim it counts, how far up you'll point
 
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
@@ -18,6 +19,8 @@ function updateCombat(dt) {
   tickBandage(dt);
   // stamina comes back after a short breather; once you've emptied it you're winded until it's a third back
   P.stamT = (P.stamT || 0) + dt;
+  // how much you're moving, for the spread: up at once as you move, settling over about a third of a second after you stop
+  { const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1); P.mvS = (P.mvS || 0) + (mv - (P.mvS || 0)) * Math.min(1, dt * (mv > (P.mvS || 0) ? 10 : 3)); }
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
   // second after you've climbed through or over something
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
@@ -27,8 +30,10 @@ function updateCombat(dt) {
   if (P.exh) P.fatigued = true; else if (P.stam >= 0.75) P.fatigued = false;
   const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / 0.75, 0, 1) : 1;
   P.spdF = (P.spdF || 1) + (spT - (P.spdF || 1)) * Math.min(1, dt * (spT < (P.spdF || 1) ? 4 : 0.9));
-  // point the gun (and your eyes) at what's under the cursor: the part of a zombie you're over, a crawler down on the
-  // ground, or over open ground a point at waist height where the cursor is. It only ever tips down, never up at a roof
+  // point the gun (and your eyes) at what's under the cursor: the part of a zombie you're over; a zombie your aim is on
+  // or near, at its chest and head (AIM_CHEST of its height, up a touch if it's close); a crawler down on the ground; or
+  // over open ground a point at waist height where the cursor is. It tips down, and up only as far as AIM_UP at a
+  // zombie standing close, never at a roof
   ANIM.pitchT = 0; ANIM.aimY = GUN_Y;
   if (!P.dead && !W(curId()).melee) {
     let ty = null, tx = aimPt.x, tz = aimPt.z;
@@ -37,13 +42,18 @@ function updateCombat(dt) {
     else {
       const ar = aimRay(P.x, P.z, P.aim, 12);
       if (ar.z && ar.z.crawl) { ty = 0.3; [tx, tz] = bodyOf(ar.z); }
-      else for (const z of zombies) { if (!z.crawl) continue; const [bx, bz] = bodyOf(z); if (Math.hypot(aimPt.x - bx, aimPt.z - bz) < 1.1) { ty = 0.3; tx = bx; tz = bz; break; } }
+      else if (ar.z && !ar.z.dead) { ty = AIM_CHEST * (ar.z.T.scale || 1); tx = ar.z.x; tz = ar.z.z; }
+      else {
+        // nothing on the line: the zombie nearest where you're aiming, if it's close to it
+        let best = AIM_NEAR;
+        for (const z of zombies) { if (z.dead || z.vis < 0.15) continue; const [bx, bz] = bodyOf(z), d = Math.hypot(aimPt.x - bx, aimPt.z - bz); if (d < best) { best = d; ty = z.crawl ? 0.3 : AIM_CHEST * (z.T.scale || 1); tx = bx; tz = bz; } }
+      }
     }
     // over open ground: waist height out in the yard, closer to the ground the nearer you aim, so the arms can point
     // well down at the dirt by your feet
     if (ty === null && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { const d = Math.hypot(_gp.x - P.x, _gp.z - P.z); ty = 0.85 - 0.55 * (1 - smooth(clamp((d - 0.8) / 2.6, 0, 1))); tx = _gp.x; tz = _gp.z; }
     if (ty !== null) {
-      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), 0, PITCH_MAX);
+      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), ty > GUN_Y ? -AIM_UP : 0, PITCH_MAX);
       ANIM.aimY = Math.min(GUN_Y, ty);
     }
   }
@@ -61,6 +71,6 @@ function updateCombat(dt) {
   }
   // a gun in each hand: each button its own gun (weapons/akimbo.js)
   const D = W(curId());
-  if (D && D.akimbo) { const ok = canFire && (!P.vault || vaultGun()); akTriggers(dt, curId(), D, { L: ok && mouseDown, R: ok && mouseDownR, any: ok && stickFire }); }
+  if (D && D.akimbo) { const ok = canFire && (!P.vault || vaultGun()); akTriggers(dt, curId(), D, { [AK_ON.left]: ok && mouseDown, [AK_ON.right]: ok && mouseDownR, any: ok && stickFire }); }
   else if (wantFire && W8.cd <= 0 && W8.burstLeft <= 0 && (!P.vault || vaultGun()) && !W8.trigLock) fire();
 }

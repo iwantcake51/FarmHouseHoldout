@@ -6,6 +6,9 @@ const BOLT_KNOB = [-0.054, -0.046, -0.008];
 // the revolver's cylinder: its axis height, radius and the circle its chambers sit on (the speed loader matches it,
 // player/hold.js)
 const REV_CYL = { y: 1.1415, r: 0.0245, ch: 0.0137 };
+// the revolver's optic rail: from just ahead of the hammer (where the rear sight was) forward along the barrel, stopping
+// short of the front sight on a short barrel
+const REV_RAIL = { z0: 0.55, z1: 0.8 };
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
 // cylinder barrel-sized or bigger gets sides enough for its size (about one per millimetre of radius), so a barrel, a
 // can or a tube always reads round, never faceted
@@ -312,14 +315,15 @@ const GUN_MODELS = {
   // top strap with the rear sight, the hammer's checkered spur behind it, the trigger guard loop with a wide smooth
   // trigger; the fluted cylinder rides a crane hinged at its lower left and swings out to the left like a real one; the
   // barrel is a round tube with a rib and a full underlug, a ramped front sight with its red insert, longer with each
-  // level (snub, 4", 6", 8 3/8"); the grips are finger-grooved wood with the medallion
+  // level (snub, 4", 6", 8 3/8"); the grips are finger-grooved wood with the medallion. Any optic goes on a picatinny
+  // rail screwed down the top strap and on along the barrel's rib, in place of the rear sight (a Weigand-style mount)
   revolver(g, m) {
-    const S2 = GM.stainless, D = GM.stainlessD, cy0 = REV_CYL.y, cr = REV_CYL.r;
+    const S2 = GM.stainless, D = GM.stainlessD, cy0 = REV_CYL.y, cr = REV_CYL.r, optic = T('sight') > 0;
     // ---- frame: grip frame, recoil shield, the window round the cylinder, the yoke's seat, the trigger guard
     profile(g, shp([[0.53, 1.118], [0.514, 1.134], [0.515, 1.158], [0.54, 1.155], [0.552, 1.165], [0.562, 1.174], [0.672, 1.174], [0.672, 1.125], [0.666, 1.115], [0.664, 1.088], [0.64, 1.087], [0.636, 1.081], [0.632, 1.062], [0.622, 1.048], [0.606, 1.042], [0.583, 1.04], [0.571, 1.043], [0.566, 1.061], [0.552, 1.061], [0.545, 1.064]],
       [rrect(0.577, 1.114, 0.662, 1.167, 0.004), shp([[0.628, 1.078], [0.624, 1.062], [0.614, 1.052], [0.598, 1.048], [0.584, 1.049], [0.577, 1.056], [0.577, 1.08]])]), 0.03, S2, X, 0.0025);
     box(g, 0.024, 0.05, 0.08, GM.rubber, X, 1.141, 0.62);   // the frame's inner wall behind the cylinder, so the window isn't see-through
-    box(g, 0.016, 0.009, 0.012, GM.rubber, X, 1.178, 0.558); box(g, 0.004, 0.004, 0.003, GM.dot, X, 1.181, 0.552);   // rear sight
+    if (!optic) { box(g, 0.016, 0.009, 0.012, GM.rubber, X, 1.178, 0.558); box(g, 0.004, 0.004, 0.003, GM.dot, X, 1.181, 0.552); }   // rear sight
     [[0.548, 1.1], [0.556, 1.075]].forEach(([z, yy]) => cyl(g, 0.0035, 0.033, D, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // side plate screws
     box(g, 0.004, 0.008, 0.016, D, X + 0.016, 1.15, 0.566);   // the cylinder release, on the left
     profile(g, shp([[0.535, 1.135], [0.548, 1.162], [0.54, 1.168], [0.522, 1.166], [0.512, 1.162], [0.52, 1.156], [0.532, 1.152]]), 0.009, m.fan ? GM.brass : GM.steelDk, X, 0.001);   // hammer
@@ -349,7 +353,20 @@ const GUN_MODELS = {
     profile(g, shp([[0.672, 1.14], [z1 - 0.004, 1.14], [z1, 1.135], [z1 - 0.003, 1.126], [0.672, 1.125]]), 0.024, S2, X, 0.002);
     profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.004, S2, X, 0.0005); box(g, 0.0046, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.152, z1 + 0.0005, 14);
-    return { front: z1, y: 1.152, top: 1.174, sz: 0.62, crane, laser: { y: 1.125, z: z1 - 0.05 } };   // the laser clamped under the lug
+    // ---- the rail, with an optic: flat on the top strap, then on a base saddled over the barrel's top (the rib under it),
+    // the picatinny section on that with its cross slots, the base's screw showing each side; it stops short of the front
+    // sight. The scope that goes on it is a handgun scope, shorter and slimmer than a rifle's, its long eye relief
+    // putting it forward over the cylinder and barrel, low in its rings (weapons/attachments.js)
+    let top = 1.174;
+    if (optic) {
+      const r0 = REV_RAIL.z0, r1 = Math.min(REV_RAIL.z1, z1 - 0.042), b0 = 1.1725, RT = b0 + 0.0105;
+      xsec(g, shp([[X - 0.011, 1.165], [X + 0.011, 1.165], [X + 0.013, 1.169], [X + 0.013, b0 + 0.0012], [X - 0.013, b0 + 0.0012], [X - 0.013, 1.169]]), 0.672, r1, GM.rail, 0.0006);   // its base saddled over the barrel
+      xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), r0, r1, GM.rail, 0.0006);
+      for (let z = r0 + 0.012; z < r1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // the cross slots, flush with its top
+      [-1, 1].forEach(sd => cyl(g, 0.0028, 0.003, GM.steelDk, X + sd * 0.0132, 1.168, (0.672 + r1) / 2, 10).rotation.set(0, 0, Math.PI / 2));   // the base's screw, through it each side
+      top = RT;
+    }
+    return { front: z1, y: 1.152, top, sz: 0.62, crane, laser: { y: 1.125, z: z1 - 0.05 }, scopeH: 0.04, scopeK: 0.74, scopeR: 0.8, scopeZ: 0.652 };   // the laser clamped under the lug
   },
   // .50 hand cannon: a stainless Desert Eagle Mark XIX, traced off a side-on photo. A fixed barrel block (a slotted
   // rail along its top, chamfered shoulders, a long flute down each side), the slide behind it (slanted serrations, the
@@ -549,12 +566,20 @@ const GUN_MODELS = {
     profile(g, shp([[0.6655, 0.8475], [0.6779, 0.8475], [0.6921, 0.8637], [0.6872, 0.9018], [0.6768, 1.0155], [0.6742, 1.0502], [0.6667, 1.0502], [0.6693, 1.0155], [0.6797, 0.9018], [0.684, 0.866], [0.6735, 0.8545]]), 0.01, St, X, 0.0012);   // the rod
     profile(g, shp([[0.574, 1.0045], [0.6697, 1.0075], [0.6697, 1.0145], [0.574, 1.0115]]), 0.01, St, X, 0.001);   // the bar under the trigger
     profile(g, shp([[0.598, 1.047], [0.607, 1.047], [0.612, 1.035], [0.609, 1.022], [0.602, 1.016], [0.604, 1.03], [0.6, 1.04]]), 0.007, St, X, 0.0008);   // the trigger
-    // ---- the drum (in the mag group, so the reload can drop it): face forward, a hub in the middle, the chrome band
-    // round its back edge
+    // ---- the magazine (in the mag group, so the reload can drop it): its own 8-shell box, raked a little forward with
+    // ribs down its sides and a base plate; or, with its one magazine upgrade, the drum: face forward, a hub in the
+    // middle, the chrome band round its back edge (flechettes put a yellow stripe on either)
     const dy = 0.956, dz = 0.735, dr = 0.114;
-    cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
-    cyl(mg, 0.02, 0.004, GM.rubber, X, dy, dz + 0.0405, 20); cyl(mg, 0.006, 0.004, GM.metal2, X, dy - dr + 0.016, dz + 0.0405, 10);
-    if (m.flech) cyl(mg, dr + 0.002, 0.012, GM.shellY, X, dy, dz + 0.016, 40);
+    if (T('mag')) {
+      cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
+      cyl(mg, 0.02, 0.004, GM.rubber, X, dy, dz + 0.0405, 20); cyl(mg, 0.006, 0.004, GM.metal2, X, dy - dr + 0.016, dz + 0.0405, 10);
+      if (m.flech) cyl(mg, dr + 0.002, 0.012, GM.shellY, X, dy, dz + 0.016, 40);
+    } else {
+      const bm = new THREE.Group(); bm.position.set(X, 1.075, dz); bm.rotation.x = -0.08; mg.add(bm);
+      box(bm, 0.05, 0.215, 0.095, K, 0, -0.1075, 0); box(bm, 0.056, 0.016, 0.103, GM.poly, 0, -0.218, 0.002);
+      [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
+      if (m.flech) box(bm, 0.052, 0.014, 0.097, GM.shellY, 0, -0.17, 0);
+    }
     return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },
 
@@ -564,7 +589,7 @@ const GUN_MODELS = {
   // to a hooded front sight on its ramp, a notch rear sight on the receiver ring; the guard loop and its floorplate.
   // The bolt handle sweeps out and down to its knob, the way a Model 70's does
   hunting(g, m) {
-    const W = GM.walnut, B = GM.blued;
+    const W = GM.walnut, B = GM.blued, sight = T('sight');
     // ---- stock (traced off the photo: the straight comb, the wrist rising into the tang, the pistol grip, the long
     // forend), slimmer through the wrist and toward the tip; the black pad; checkering on the grip and the forend, cut
     // to the stock's own outline; the swivels
@@ -589,7 +614,7 @@ const GUN_MODELS = {
     // ---- barrel, tapering to the muzzle, and its sights
     taper(g, 0.0118, 0.0078, 0.552, B, X, 1.14, 1.204);
     profile(g, shp([[1.39, 1.144], [1.415, 1.149], [1.468, 1.151], [1.468, 1.144]]), 0.012, B, X, 0.001);
-    if (!(m.hpscope || T('sight') >= 3)) {
+    if (sight < 3) {   // iron sights till a scope goes on
       profile(g, shp([[1.42, 1.15], [1.452, 1.15], [1.452, 1.153], [1.42, 1.153]]), 0.024, B, X, 0);
       { const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, true, -Math.PI / 2, Math.PI), B); hood.rotation.x = Math.PI / 2; hood.position.set(X, 1.155, 1.44); g.add(hood); hood.material.side = THREE.DoubleSide; }
       box(g, 0.003, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
@@ -603,8 +628,17 @@ const GUN_MODELS = {
     box(bh, 0.005, 0.01, 0.016, GM.steel, 0, 0.015, -0.032);
     { const arm = box(bh, 0.009, 0.06, 0.012, m.bolt ? GM.steel : GM.metal2, -0.03, -0.025, -0.004); arm.rotation.z = -0.87; }
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 10, 8), m.bolt ? GM.steel : GM.metal2); knob.scale.set(1, 0.95, 1.25); knob.position.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]); knob.castShadow = true; bh.add(knob);
-    // ---- scopes: the plain one off the bench, or the big high-power one (the mod), in rings on two bases
-    const big = !!m.hpscope, scope = big || T('sight') >= 3;
+    // ---- scopes off the bench: the plain one, or the big high-power one, in rings on two bases; the ACOG on a one-piece
+    // picatinny base along the receiver, stepped down over its lower rear bridge (weapons/attachments.js puts it on)
+    const big = sight >= 5, scope = sight === 3 || big;
+    let top = 1.152;
+    if (sight === 4) {
+      const z0 = 0.63, z1 = 0.915, b0 = 1.156, RT = b0 + 0.0105;
+      profile(g, shp([[z0, 1.1405], [0.762, 1.1405], [0.768, 1.1478], [z1, 1.1478], [z1, b0 + 0.001], [z0, b0 + 0.001]]), 0.022, B, X, 0.0008);
+      xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), z0, z1, GM.rail, 0.0006);
+      for (let z = z0 + 0.012; z < z1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // its cross slots
+      top = RT;
+    }
     if (scope) {
       const sr = big ? 0.0215 : 0.019, sy = big ? 1.212 : 1.198, ob = big ? 0.036 : 0.03, oc = big ? 0.026 : 0.024, z0 = big ? 0.6 : 0.63, z1 = big ? 0.97 : 0.93;
       cyl(g, sr, z1 - z0 - 0.12, GM.metal, X, sy, (z0 + z1) / 2, 20);
@@ -616,7 +650,7 @@ const GUN_MODELS = {
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
     if (m.expand) box(g, 0.05, 0.03, 0.08, GM.copper, X + 0.06, 1.02, 0.7);
-    return { front: 1.48, y: 1.14, noSight: scope, top: 1.152, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
+    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the
@@ -658,12 +692,16 @@ const GUN_MODELS = {
     profile(g, shp(inset([[0.5923, 0.9148], [0.66, 0.911], ...GF, [0.6886, 1.0267], [0.6897, 1.0288], [0.6897, 1.065], [0.6885, 1.07], [0.5539, 1.07], [0.5508, 1.0676], [0.5503, 1.063], [0.5522, 1.0605], [0.5762, 1.056], [0.5946, 1.0489], ...GBk.slice().reverse()], 0.003)), 0.036, P, X, 0.003);
     for (let k = 0; k < 11; k++) { const y = 0.928 + k * 0.0068; [-1, 1].forEach(sd => { const f = zAt(GF, y); box(g, 0.0012, 0.0018, 0.014, GM.rubber, X + sd * 0.0211, y, f - 0.011); if (y < 1.012) { const b = zAt(GBk, y); box(g, 0.0012, 0.0018, 0.016, GM.rubber, X + sd * 0.0211, y, b + 0.012); } }); }
     cyl(g, 0.0058, 0.044, K, X, 1.041, 0.6727, 14).rotation.set(0, 0, Math.PI / 2);   // the safety button through the grip
-    // ---- the stock, out: the flat bar, the butt leaning back at its toe, the pin through it
-    profile(g, shp([[0.452, 1.1095], [0.262, 1.1095], [0.262, 1.0822], [0.357, 1.0835], [0.4327, 1.0873], [0.452, 1.0873]]), 0.012, K, X, 0.001);
-    profile(g, shp([[0.4327, 1.0873], [0.4471, 1.0873], [0.4471, 1.1107], [0.4327, 1.1107]]), 0.026, K, X, 0.0015);   // its knuckle on the hinge
-    box(g, 0.0135, 0.0025, 0.16, GM.rubber, X, 1.0985, 0.355);   // the groove down the bar
-    profile(g, shp(inset([[0.185, 0.9272], [0.2017, 0.9283], [0.2068, 0.933], [0.2277, 1.0321], [0.2239, 1.0446], [0.224, 1.0523], [0.2299, 1.0606], [0.2381, 1.0645], [0.2485, 1.074], [0.2688, 1.0822], [0.2695, 1.1068], [0.2676, 1.1103], [0.1965, 1.1084], [0.1906, 1.1066], [0.188, 1.1037], [0.1864, 1.0696], [0.1837, 1.0617], [0.1811, 0.9729], [0.1782, 0.9363], [0.1794, 0.9309]], 0.003)), 0.024, P, X, 0.003);
-    cyl(g, 0.0042, 0.032, GM.steel, X, 0.997, 0.2015, 12).rotation.set(0, 0, Math.PI / 2);
+    // ---- the stock, out: the flat bar, the butt leaning back at its toe, the pin through it. One of a pair has it
+    // folded, swung round its hinge flat along the right of the receiver with the butt beside the guard (so a gun
+    // tucked against the chest for a two-handed reload doesn't jab its stock up into the chin)
+    let sk = g;
+    if (m.akimbo2) { const H = [X - 0.017, 0, 0.447], f = new THREE.Group(); f.position.set(H[0], 0, H[2]); f.rotation.y = Math.PI; g.add(f); sk = new THREE.Group(); sk.position.set(-H[0], 0, -H[2]); f.add(sk); }
+    profile(sk, shp([[0.452, 1.1095], [0.262, 1.1095], [0.262, 1.0822], [0.357, 1.0835], [0.4327, 1.0873], [0.452, 1.0873]]), 0.012, K, X, 0.001);
+    profile(sk, shp([[0.4327, 1.0873], [0.4471, 1.0873], [0.4471, 1.1107], [0.4327, 1.1107]]), 0.026, K, X, 0.0015);   // its knuckle on the hinge
+    box(sk, 0.0135, 0.0025, 0.16, GM.rubber, X, 1.0985, 0.355);   // the groove down the bar
+    profile(sk, shp(inset([[0.185, 0.9272], [0.2017, 0.9283], [0.2068, 0.933], [0.2277, 1.0321], [0.2239, 1.0446], [0.224, 1.0523], [0.2299, 1.0606], [0.2381, 1.0645], [0.2485, 1.074], [0.2688, 1.0822], [0.2695, 1.1068], [0.2676, 1.1103], [0.1965, 1.1084], [0.1906, 1.1066], [0.188, 1.1037], [0.1864, 1.0696], [0.1837, 1.0617], [0.1811, 0.9729], [0.1782, 0.9363], [0.1794, 0.9309]], 0.003)), 0.024, P, X, 0.003);
+    cyl(sk, 0.0042, 0.032, GM.steel, X, 0.997, 0.2015, 12).rotation.set(0, 0, Math.PI / 2);
     // ---- the magazine: its top up in the grip, a stick longer each tier with its count windows, or a drum at the top
     box(mg, 0.026, 0.15, 0.056, K, X, 0.995, 0.629);
     if (mt < 3) {

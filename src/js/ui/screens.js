@@ -12,6 +12,7 @@ function setState(s) {
   ['waveBox', 'vitals', 'arms', 'moodles'].forEach(id => $(id).hidden = s === 'title');
   $('scrim').style.opacity = s === 'title' ? 0.4 : 1;
   document.body.classList.toggle('playing', s === 'play');
+  document.body.classList.toggle('menu', s === 'paused' || s === 'upgrade');   // the HUD dims behind a menu (styles/screens.css)
   if (s !== 'play') { closeStation(); $('prompt').classList.remove('on'); cache.promptOn = false; }
   if (s === 'paused') { renderHistory('pHist', 'pHistN'); renderBought('pBuy', 'pBuyN'); }
   if (s === 'upgrade') renderHistory('upHist', 'upHistN');
@@ -76,14 +77,26 @@ function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').cl
 function pauseRun() { if (state !== 'play' || P.dead || switching) return; setState('paused'); }
 function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
+  cancelLeave();
   el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
 }
 $('startBtn').onclick = enterRun;
 $('againBtn').onclick = enterRun;
 $('menuBtn').onclick = leaveToMenu;
-$('pMenuBtn').onclick = () => { saveBest(); leaveToMenu(); };
+// leaving a run from the pause screen asks first: the buttons give way to the question, and a yes, or a cancel (Esc)
+// that puts them back
+const P_SURE = {
+  menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); leaveToMenu(); } },
+  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => die() }
+};
+let pSure = null;
+function askLeave(k) { pSure = k; $('pSureQ').textContent = P_SURE[k].q; $('pSureYes').textContent = P_SURE[k].yes; $('pBtns').hidden = true; $('pSure').hidden = false; $('pSureNo').focus({ preventScroll: true }); }
+function cancelLeave() { if (!pSure) return false; pSure = null; $('pSure').hidden = true; $('pBtns').hidden = false; return true; }
+$('pMenuBtn').onclick = () => askLeave('menu');
+$('quitBtn').onclick = () => askLeave('quit');
+$('pSureYes').onclick = () => { const k = pSure; cancelLeave(); if (k) P_SURE[k].go(); };
+$('pSureNo').onclick = cancelLeave;
 $('resumeBtn').onclick = resumeRun;
-$('quitBtn').onclick = () => die();
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseRun(); });
 // the first look at the farm comes up out of the dark too
 requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title').classList.add('arrive'); }));
@@ -92,7 +105,7 @@ function startDeath() {
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
-  ANIM.deathTwist = rr(-0.1, 0.1); ANIM.deathPool = 0;
+  ANIM.deathTwist = rr(-0.1, 0.1);
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands

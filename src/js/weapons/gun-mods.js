@@ -11,8 +11,11 @@ const GUN_MODS = {
   // the auto sear takes the burst conversion's place once that's at level II: B switches between single shots and full auto
   auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, replaces: 'burst', name: 'Auto sear', text: 'Full auto: hold to fire. Replaces burst. B switches modes.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: left click fires the left, right click the right. Double the ammo and fire rate. Can\'t aim down sights, slightly more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; D.spread *= AK_SPREAD; } },
-  longbarrel: { w: 'revolver', r: 'c', name: 'Eight-inch barrel', text: '+30% damage, goes through 1 more zombie, loses less damage at range.', vis: 'A much longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; D.reach = (D.reach || 1) + 0.3; } },
-  fan: { w: 'revolver', r: 'r', fm: 'Fanning', name: 'Fan the hammer', text: 'Hold to fire almost 3× as fast, with more spread. B switches modes.', vis: 'A filed-down hammer', stat: D => { D.rate = 0.15; D.spread *= 2.6; } },
+  // named for its length at each level, as the model grows (weapons/gun-models.js: snub, then 4", 6" and 8")
+  longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: '+30% damage, goes through 1 more zombie, loses less damage at range.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.3; D.pierce = (D.pierce || 0) + 1; D.reach = (D.reach || 1) + 0.3; } },
+  // no mode to switch: from the hip you fan it (hold the trigger, the shots come almost 3× as fast and far wilder),
+  // down the sights it's the careful single shots it always was (weapons/firing.js: fanning)
+  fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
   boom: { w: 'deagle', r: 'l', name: 'Explosive tips', text: 'Every round explodes on hit.', vis: 'A red band on the magazine', stat: D => { D.explode = 1.5; } },
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Half the spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   dragon: { w: 'pump', r: 'e', name: "Dragon's breath", text: 'Shells set zombies on fire.', vis: 'Orange shells in the side saddle', stat: D => { D.ignite = true; } },
@@ -23,7 +26,6 @@ const GUN_MODS = {
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
   flech: { w: 'auto12', r: 'r', name: 'Flechettes', text: 'Pellets go through 2 more zombies.', vis: 'A striped drum', stat: D => { D.pierce = (D.pierce || 0) + 2; } },
   bolt: { w: 'hunting', r: 'c', name: 'Straight-pull bolt', text: 'Fires faster: 0.8 s between shots instead of 1.3 s.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.6; } },
-  hpscope: { w: 'hunting', r: 'u', name: 'High-power scope', text: 'While aiming: 2 in 5 hits do 2.5× damage, headshots +25%.', vis: 'A big scope', stat: D => { D.critC = 0.4; D.critM = 2.5; } },
   expand: { w: 'hunting', r: 'e', name: 'Expanding rounds', text: 'Every limb you hit comes off.', vis: 'Copper-tipped rounds', stat: D => { D.alwaysSever = true; } },
   akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. Double the ammo and fire rate. Can\'t aim down sights, slightly more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: '40% tighter aim.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },

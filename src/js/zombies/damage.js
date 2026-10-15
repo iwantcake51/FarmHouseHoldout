@@ -9,6 +9,7 @@ function canSever(wId) {
   if (D.blunt) return false;
   return true;
 }
+const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
@@ -22,7 +23,8 @@ function sever(z, part, dx, dz, blast) {
   gibs.push({ m: mesh, vx: dx * rr(2, 4.5) + rr(-1.2, 1.2), vy: rr(2.5, 4.5), vz: dz * rr(2, 4.5) + rr(-1.2, 1.2), spin: rr(6, 14), life: 9, landed: false });
   z.spurts.push({ part, t: 1.4 });
   burst(wp.x, wp.y, wp.z, 10, 'blood', dx, dz, 3); spray(wp.x, wp.z, dx, dz, rr(0.8, 1.3));
-  if (part !== 'torso') run.limbs++; if (!blast) SFX.sever();   // a blast plays one sound for the lot
+  if (part !== 'torso') { run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
+  if (!blast) SFX.sever();   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) {
     // the leg goes and they buckle and fall forward onto their hands
     z.crawl = true; z.crawlT = 0; z.stagger = Math.max(z.stagger, 0.85); z.trail = 0;
@@ -66,13 +68,13 @@ function splitHead(z, dx, dz) {
   head.parent.remove(head); bloodZombie(z, 0.25);
   z.spurts.push({ part: 'head', t: 1.8 });
   burst(wp.x, wp.y, wp.z, 18, 'blood', dx, dz, 3.6); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', across.x, across.z, 2.4); burst(wp.x, wp.y + 0.1, wp.z, 8, 'blood', -across.x, -across.z, 2.4);
-  spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7)); splat(wp.x, wp.z, 'pool', 0.9);
+  spray(wp.x, wp.z, dx, dz, rr(1.2, 1.7));
   SFX.sever(); SFX.hitBlade(true); shake = Math.max(shake, 0.32);
   run.heads++; run.limbs++;
   return true;
 }
 function pickPart(z, rel, side, D) {
-  const head = Math.min(0.85, 0.14 + S.headBonus + (D.headBonus || 0));
+  const head = Math.min(0.85, 0.14 + S.headBonus);
   let p;
   if (Math.abs(rel) > 0.6) p = side > 0 ? 'armR' : 'armL';
   else { const r = rand(); p = r < head ? 'head' : r < head + 0.22 ? (side > 0 ? 'legR' : 'legL') : 'torso'; }
@@ -137,9 +139,8 @@ function blowApart(z, dx, dz) {
   }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28; burst(x, y, zz, 5, 'blood', Math.sin(a), Math.cos(a), rr(4, 7)); }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
-  splat(x, zz, 'pool', 1.5 * z.T.scale, undefined, 0.5);
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
-  for (let k = 0; k < 8; k++) splat(x + rr(-2.2, 2.2), zz + rr(-2.2, 2.2), 'drop', rr(0.3, 0.6));
+  for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
   SFX.sever();
 }
@@ -153,8 +154,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   const D = W(wId) || EFF[wId] || {};
-  burst(z.x, 0.9 * z.T.scale, z.z, 14, 'blood', dx, dz, 4);
-  spray(z.x, z.z, dx, dz, rr(1.2, 1.8) * z.T.scale);
+  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
+  spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
   shake = Math.max(shake, 0.16);
   popEl('kills');
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)

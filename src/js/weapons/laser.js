@@ -1,4 +1,4 @@
-// Laser sight beams: straight out of each laser's lens along its gun's barrel, held, being reloaded or put away.
+// Laser sight beams: straight out of each laser's lens along its gun's barrel, on the gun in your hands only.
 // The taped-on pointer is red; the mounted laser sight (tier 2) is green.
 
 // the beam is a ribbon turned to face the camera (so it reads the same from any angle), shaded as light rather than a
@@ -51,24 +51,18 @@ const LASER_RUN = 20, LASER_MIN = 8, LASER_MAX = LASER_FADE[1] + 0.5;
 // fine and only a little brighter
 const LASER_COL = { 1: [0xff3a24, 0xff5a3a], 2: [0x3cff5a, 0x7dff8e] };
 const LASER_LOOK = { 1: { w: 0.1, op: 0.62, halo: 0.34, core: 0.08, lens: 0.12, dot: 0.8 }, 2: { w: 0.085, op: 0.5, halo: 0.28, core: 0.065, lens: 0.1, dot: 0.7 } };
-// every laser on you shines, straight out of its lens along the barrel wherever the gun points: the gun in your hands
-// (both of a pair) whether it's on the aim, being reloaded or coming out, and any put away on your hip or your back.
-// One beam per lens, made as it's first needed
+// the laser on the gun in your hands shines (both of a pair), straight out of its lens along the barrel wherever the
+// gun points, whether it's on the aim, being reloaded or coming out. A gun in its holster or on your back has its laser
+// switched off: put away for a vault or a bandage, or carried, it shines nothing. One beam per lens, made as it's first
+// needed
 const beams = new Map(), _lsA = new V3(), _lsD = new V3(), _lsB = new V3(), _lsQ = new THREE.Quaternion();
 const shownInWorld = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
-// the lenses on a stowed gun's copy (player/stow.js), found once per copy
-const stowLenses = o => o.userData.lenses || (o.userData.lenses = (() => { const l = []; o.traverse(q => { if (q.userData.isLaser) l.push(q); }); return l; })());
 function updateLaser(D) {
   const on = state === 'play' && !P.dead, used = new Set();
   if (on) {
     // the gun in your hands
     const hs = HOLDS[W8.cur], tier = T('laser');
     if (hs && tier > 0 && !D.melee && !scoped) for (const side of ['R', 'L']) { const em = hs[side] && hs[side].userData.laserEm; if (em && em.isObject3D) lens('h' + side, em, tier, used); }
-    // and the ones put away
-    for (const s of SLOTS) {
-      const o = STOW[s], id = o && o.userData.id, tier = id ? gunTier(id, 'laser') : 0; if (!tier) continue;
-      [o, o.userData.twin].forEach((g, k) => { if (g) stowLenses(g).forEach((em, n) => lens('s' + s + k + n, em, tier, used)); });
-    }
   }
   beams.forEach((B, k) => { if (!used.has(k)) B.b.visible = B.d.visible = B.lens.visible = false; });
 }

@@ -3,31 +3,39 @@
 // tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
 // what each step of the feeding line gives: health a feed, the odds a kill (a headshot kill) feeds you, the most a wave
 const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 0.5, cap: 35 }, { h: 6, p: 0.5, ph: 1, cap: 50 }];
+// what a sight step does for your aimed shots, against the step before: how much tighter, and how much of the spread
+// moving adds to them it takes away
+const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
 const TIERS = {
   ammo: { tag: 'Ammo', t: [
     { r: 'c', name: 'Hollow points', text: '+25% damage.', vis: 'Copper hollow-point tips on its rounds', ap: () => S.dmgMul *= 1.25 },
     { r: 'u', name: '+P loads', text: '+20% damage.', vis: 'Hotter, orange tracers', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade rounds', text: '+25% damage and more headshots.', vis: 'Polished nickel rounds', ap: () => { S.dmgMul *= 1.25; S.headBonus += 0.1; } }] },
+    { r: 'e', name: 'Match-grade rounds', text: '+25% damage. Headshot multiplier +0.3×.', vis: 'Polished nickel rounds', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
     { r: 'c', name: 'Light trigger', text: 'Fires 18% faster.', ap: () => S.rateMul *= 1.18 },
     { r: 'u', name: 'Match trigger', text: 'Fires 15% faster.', ap: () => S.rateMul *= 1.15 },
     { r: 'r', name: 'Hair trigger', text: 'Fires 20% faster.', ap: () => S.rateMul *= 1.2 }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate' }, text: 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
+    // the drum shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum.' : 'Holds 40% more rounds.', vis: 'Longer mags', ap: () => S.magMul *= 1.4 },
     { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag' }, text: 'Holds twice as many rounds as stock.', vis: 'Round drums on box-fed guns', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag' }, text: 'Holds almost 3× as many rounds as stock.', vis: 'Bigger drums', ap: () => S.magMul *= 1.35 }] },
   supp: { tag: 'Attachment', t: [
     { r: 'u', name: 'Oil-filter can', text: 'Quieter shots, +10% damage. Uses the muzzle slot.', vis: 'An oil filter on the muzzle', ap: () => {} },
     { r: 'r', name: 'Suppressor', text: 'Very quiet shots, +20% damage.', vis: 'A long steel can', ap: () => {} },
-    { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => S.pierce++ }] },
+    { r: 'e', name: 'Heavy-duty suppressor', text: 'Very quiet, +30% damage, and bullets go through 1 more zombie.', vis: 'A thick, long can', ap: () => {} }] },
   sight: { tag: 'Attachment', t: [
-    { r: 'c', name: 'Red dot', text: '15% tighter aim and more headshots.', vis: 'A red dot sight', ap: () => { S.spreadMul *= 0.85; S.headBonus += 0.04; } },
-    { r: 'u', name: 'Holographic sight', text: '20% tighter aim and more headshots.', vis: 'A holo sight', ap: () => { S.spreadMul *= 0.8; S.headBonus += 0.06; } },
-    { r: 'r', name: 'Scope', text: 'Rifles only. While aiming: 1 in 4 hits does double damage, headshots +25%, dead accurate past 10 m.', vis: 'A scope on the rifle', ap: () => {} }] },
+    // every sight only tightens your aimed shots, standing and on the move (SIGHT_AIM, SIGHT_MOVE in game/run-state.js);
+    // on a sniper it also raises the headshot multiplier, and through a scope its headshots crit (SCOPES)
+    { r: 'c', name: 'Red dot', text: D => sightText(1, D) + (D && D.sniper ? ' Headshot multiplier +0.15×.' : ''), vis: 'A red dot sight', ap: () => {} },
+    { r: 'u', name: 'Holographic sight', text: D => sightText(2, D) + (D && D.sniper ? ' Headshot multiplier +0.15× more.' : ''), vis: 'A holo sight', ap: () => {} },
+    { r: 'r', name: 'Scope', text: D => 'Rifles and the revolver only. Zooms in when you aim. ' + sightText(3, D) + ' Dead accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
+    { r: 'e', name: 'ACOG', text: D => 'Rifles only. Zooms in further. ' + sightText(4, D) + (D && D.sniper ? ' Headshot crits do 2.25×.' : ''), vis: 'A 4× ACOG, its fibre optic glowing red on top', ap: () => {} },
+    { r: 'l', name: 'High-power scope', text: D => 'Hunting rifle only. Zooms in furthest. ' + sightText(5, D) + ' Headshot crits do 2.5×.', vis: 'A big scope', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Laser pointer', text: 'Shows where you\'re aiming. 15% tighter aim.', vis: 'A taped-on laser', ap: () => S.spreadMul *= 0.85 },
-    { r: 'r', name: 'Laser sight', text: 'A brighter beam. 30% tighter aim.', vis: 'A mounted laser', ap: () => S.spreadMul *= 0.7 }] },
+    { r: 'u', name: 'Laser pointer', text: 'Shows where your shots go. Shots from the hip 20% tighter.', vis: 'A taped-on laser', ap: () => {} },
+    { r: 'r', name: 'Laser sight', text: 'A brighter beam. Shots from the hip 25% tighter again.', vis: 'A mounted laser', ap: () => {} }] },
   light: { tag: 'Attachment', t: [
     { r: 'u', name: 'Taped flashlight', text: 'Lights the ground ahead of you at night.', vis: 'A flashlight taped on', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider light.', vis: 'A mounted light', ap: () => {} }] },
@@ -46,14 +54,15 @@ const TIERS = {
   boots: { tag: 'Body', t: [
     { r: 'c', name: 'Good boots', text: 'Move 12% faster.', ap: () => S.speedMul *= 1.12 },
     { r: 'u', name: 'Running shoes', text: 'Move 10% faster.', ap: () => S.speedMul *= 1.1 },
-    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; S.slowRes += 0.2; } }] },
+    { r: 'r', name: 'Trail runners', text: 'Move 10% faster. Hits slow you less.', ap: () => { S.speedMul *= 1.1; slowLess(SLOW_STEP.trail); } }] },
   hammer: { tag: 'Tools', t: [
     { r: 'c', name: 'Claw hammer', text: 'Board up twice as fast.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Board up 50% faster. Boards are 25% tougher.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Board up twice as fast again. Boards are 50% tougher.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [
-    { r: 'c', name: 'Wide eyes', text: 'See 25% wider.', ap: () => S.cone += 0.3 },
-    { r: 'u', name: 'Peripheral vision', text: 'See wider, and sense zombies within 4 m behind you.', ap: () => { S.cone += 0.3; S.near = 4; } },
+    // wide eyes (what were Wide eyes and Peripheral vision): a much wider cone, its edges reaching a little way round
+    // behind your shoulders, and a bigger circle round you
+    { r: 'u', name: 'Wide eyes', text: 'See 50% wider, round to a little behind you, and anything within 4 m.', ap: () => { S.cone += 0.6; S.near = 4; } },
     { r: 'r', name: 'Eyes in the back of your head', text: 'Sense zombies within 6 m in every direction.', ap: () => { S.cone += 0.2; S.near = 6; } }] },
   night: { tag: 'Senses', t: [
     { r: 'r', name: 'Night eyes', text: 'See much further at night.', ap: () => S.nightVis = 1 },

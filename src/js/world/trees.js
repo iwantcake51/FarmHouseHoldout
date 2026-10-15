@@ -1,12 +1,19 @@
 // Forest placement, instanced pines with shade pools, bushes and rocks.
 
 const treeCells = [], TREES = [];
+// the yard fence stays in view: no pine stands within FENCE_CLEAR cells outside it (FENCE_CLEAR_CAM on the sides that
+// face the camera, where one would stand in front of the fence and hide it), nor in the way in to one of its gaps
+// (a lane GAP_LANE cells either side of the gap, straight out to the forest)
+const FENCE_CLEAR = 2, FENCE_CLEAR_CAM = 5, GAP_LANE = 2;
+const outFence = (i, j) => Math.max(FX0 - i, i - FX1, FZ0 - j, j - FZ1);   // how many cells outside the fence line
+const camSide = (i, j) => (i > FX1 && Math.sin(YAW) > 0) || (i < FX0 && Math.sin(YAW) < 0) || (j > FZ1 && Math.cos(YAW) > 0) || (j < FZ0 && Math.cos(YAW) < 0);
+const gapLane = (i, j) => ((j > FZ1 || j < FZ0) && i >= 20 - GAP_LANE && i <= 22 + GAP_LANE) || ((i > FX1 || i < FX0) && j >= 21 - GAP_LANE && j <= 22 + GAP_LANE);
 for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
   if (cell[idx(i, j)]) continue;
   const d = Math.min(i, j, N - 1 - i, N - 1 - j);
   let p = d === 0 ? (nearGap(i, j, 1) ? 0 : 1) : d === 1 ? (nearGap(i, j, 2) ? 0 : .6) : d === 2 ? (nearGap(i, j, 3) ? 0 : .22) : 0;
   const inYard = i >= FX0 - 1 && i <= FX1 + 1 && j >= FZ0 - 1 && j <= FZ1 + 1;
-  if (d > 2 && !inYard) p = 0.05;
+  if (d > 2 && !inYard) p = outFence(i, j) <= (camSide(i, j) ? FENCE_CLEAR_CAM : FENCE_CLEAR) || gapLane(i, j) ? 0 : 0.05;
   if (onRoad(cxw(i), cxw(j), 1.2)) p = 0;   // the drive out to the road stays clear, canopies and all (world/ground.js)
   if (rand() < p) { obstacle(i, j); treeCells.push([i, j]); }
 }

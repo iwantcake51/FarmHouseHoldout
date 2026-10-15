@@ -23,28 +23,29 @@ function drumTo(c, d, dir, spins, dur, now) {
   c._p = t; c._end = now + dur * 1000 + 60;
   c._s.style.transition = dur ? `transform ${dur}s cubic-bezier(.2,.9,.3,1.08)` : 'none'; c._s.style.setProperty('--p', -t);
 }
-function rollNum(sp, v, prev, now) {
-  const s = String(v), dir = Math.sign(v - prev), big = Math.abs(v - prev) >= 10, cols = sp._cols;
+function rollNum(sp, v, prev, now, str, spin) {
+  const s = str || String(v), dir = Math.sign(v - prev), big = spin || Math.abs(v - prev) >= 10, cols = sp._cols;
   while (cols.length > s.length) sp.removeChild(cols.shift());                                                          // fewer digits: the leading drums go
   let added = false;
   while (cols.length < s.length) { const c = rollDrum(); sp.insertBefore(c, sp.firstChild); cols.unshift(c); added = true; }   // more: new ones start at 0
   if (added && prev !== v) void sp.offsetWidth;   // laid out at 0 first, so they roll up from there instead of appearing
   for (let k = 0; k < s.length; k++) drumTo(cols[k], +s[k], dir, big && dir ? 1 : 0, prev === v ? 0 : big ? 0.42 + 0.12 * k : 0.18, now);
 }
-function rollText(el, text) {
+// spin: every change spins its drums a whole extra turn (the wave number), not just a big jump
+function rollText(el, text, spin) {
   if (el._rt === text) return;
   el._rt = text;
   const now = performance.now(), parts = String(text).split(/(\d+)/), shape = parts.map((p, i) => i % 2 ? '#' : p).join('');
   const st = el._roll;
-  if (st && st.shape === shape) { let j = 0; parts.forEach((p, i) => { if (i % 2) { const n = st.nums[j++], v = +p; rollNum(n.sp, v, n.v, now); n.v = v; } }); return; }
+  if (st && st.shape === shape) { let j = 0; parts.forEach((p, i) => { if (i % 2) { const n = st.nums[j++], v = +p; rollNum(n.sp, v, n.v, now, p, spin); n.v = v; } }); return; }
   el.textContent = ''; const nums = [];
   parts.forEach((p, i) => {
-    if (i % 2) { const sp = document.createElement('span'); sp.className = 'rn'; sp._cols = []; el.appendChild(sp); rollNum(sp, +p, +p, now); nums.push({ sp, v: +p }); }
+    if (i % 2) { const sp = document.createElement('span'); sp.className = 'rn'; sp._cols = []; el.appendChild(sp); rollNum(sp, +p, +p, now, p); nums.push({ sp, v: +p }); }
     else if (p) el.appendChild(document.createTextNode(p));
   });
   el._roll = { shape, nums };
 }
-const setRoll = (id, v) => rollText($(id), v);
+const setRoll = (id, v, spin) => rollText($(id), v, spin);
 const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
 let toastT = 0, annT = 0;
 // a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)

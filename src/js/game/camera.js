@@ -80,7 +80,7 @@ function updateCamera(rdt) {
   if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);
-  ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? (curId() === 'hunting' && hasMod('hpscope') ? 1.35 : 1) : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
+  ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
   cam.zoom = state === 'title' ? TITLE_ZOOM : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
   shake = Math.max(0, shake - rdt * 1.6);

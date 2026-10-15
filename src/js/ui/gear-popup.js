@@ -27,7 +27,7 @@ function nextGear() {
   el.querySelector('svg').innerHTML = GI[o.ic] || GI.gear;
   el.querySelector('.gpEye').textContent = o.kind + (o.on ? ' · ' + o.on : '');
   el.querySelector('.gpName').textContent = o.name; el.querySelector('.gpText').textContent = o.text || '';
-  el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 4).map(f => `<i class="${f.good ? 'up' : 'down'}">${f.good ? '▲' : '▼'} ${f.t}</i>`).join('');
+  el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 4).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('');
   el.hidden = false; el.classList.remove('out', 'in'); void el.offsetWidth; el.classList.add('in');
   SFX.pick && SFX.pick();
   clearTimeout(gearT); gearT = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); gearT = setTimeout(() => { el.hidden = true; el.classList.remove('out'); nextGear(); }, 260); }, hold * 1000);

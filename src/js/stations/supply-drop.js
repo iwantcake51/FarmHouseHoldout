@@ -12,14 +12,7 @@ function callDrop(cargo) {
   supplySpot = { x, z, a: rand() * Math.PI * 2, heard: false, t: -DROP_LEAD, dustT: 0 };
 }
 // a crate for what's in it: the square supply crate, or a long olive case with its latches and handle for a weapon
-function crateModel(g, cargo) {
-  if (cargo && cargo.kind === 'weapon') {
-    const L = WEAP[cargo.id] && WEAP[cargo.id].melee ? 0.9 : 1.1;
-    box(g, L, 0.24, 0.42, M.olive, 0, 0.14, 0); box(g, L + 0.02, 0.05, 0.44, M.metal, 0, 0.27, 0);
-    [-1, 1].forEach(s => { box(g, 0.08, 0.06, 0.02, M.metal, s * L * 0.3, 0.2, 0.215); box(g, 0.1, 0.03, 0.04, M.metal, s * L * 0.42, 0.3, 0); });   // latches, and the corner guards
-    box(g, 0.22, 0.03, 0.06, M.metal, 0, 0.31, 0.1); box(g, 0.24, 0.14, 0.02, M.white, 0, 0.14, -0.215);   // the handle, and the stencilled panel
-  } else { box(g, 0.8, 0.55, 0.6, M.olive, 0, 0.3, 0); box(g, 0.82, 0.08, 0.62, M.metal, 0, 0.45, 0); box(g, 0.25, 0.2, 0.02, M.white, 0, 0.3, 0.31); }
-}
+function crateModel(g, cargo) { if (cargo && cargo.kind === 'weapon') dmCase(g, cargo); else dmSupply(g); }   // (pickups/drop-models.js)
 // ---- the helicopter: a blade-slap chop over a turbine whine and a low engine rumble, coming in from one side, loudest
 // as it passes over the drop and on away to the other, muffled while it's far; and its shadow on the ground
 const HELI_CURVE = (() => { const c = new Float32Array(1024); for (let i = 0; i < c.length; i++) { const x = i / (c.length - 1) * 2 - 1; c[i] = Math.pow(Math.max(0, x), 6) * 1.6; } return c; })();
@@ -85,7 +78,8 @@ function stepFlare(dt) {
   if ((f.smokeT -= dt) <= 0 && k > 0.15) { f.smokeT = 0.09; smoke(f.tip.x + rr(-0.03, 0.03), f.tip.y + 0.05, f.tip.z + rr(-0.03, 0.03), rr(-0.07, 0.07) + 0.12, rr(0.45, 0.75), rr(-0.07, 0.07), 0.05, rr(0.45, 0.8), rr(2.4, 3.4), 0.32 * k, 0xc8463a); }
   if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.18, 0.45); sparkBurst(f.tip.x, f.tip.y + 0.02, f.tip.z, 1 + (rand() * 2 | 0), 0, 0, 0.9); }
 }
-// a weapon off the radio, out of its crate: it goes straight into your hands, and the card says what you got
+// a weapon off the radio, out of its crate (taken with E: takeIt in pickups/pickups.js, which puts down the one it
+// replaces): it goes into your hands, and the card says what you got
 function deliverWeapon(id) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
@@ -126,15 +120,21 @@ function updateSupplyDrop(dt) {
 }
 // a new run: nothing on its way, no flare, no shadow
 function resetDrops() { supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
-// ---- weapons by radio: a gamble or a sure thing. A surplus crate brings any gun that's turned up so far (it may not
-// beat yours); an upgrade crate a gun guaranteed to beat the one you carry in its slot, priced by how good it is; a
+// ---- weapons by radio: a gamble or a sure thing. A care package brings a gun of the kind you ask for, a sidearm
+// (secondary) or a long gun or automatic (primary), whichever of that kind has turned up so far (it may not beat
+// yours); an upgrade crate a gun guaranteed to beat the one you carry in its slot, priced by how good it is; a
 // top-shelf crate the best gun out there yet, dearer still. Melee the same, any or better. A weapon only comes once its
 // band is open (WEAP_OPEN, a wave ahead of the cards), never one you have, nor one already on its way or lying in its
 // crate (and those don't turn up as cards after a wave either)
 const RADIO_GUNS = Object.keys(GUN_WEAPONS).filter(id => GUN_WEAPONS[id].rar), RADIO_MELEE = Object.keys(MELEE_WEAPONS).filter(id => MELEE_WEAPONS[id].rar);
-const RADIO_COST = { surplus: 16, melee: 8, up: [0, 22, 38, 58, 82], top: [0, 30, 55, 85, 120], meleeUp: [0, 14, 24, 36] };
+const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 58, 82], top: [0, 30, 55, 85, 120], meleeUp: [0, 14, 24, 36] };
 const BAND_WORD = ['', 'light', 'solid', 'heavy', 'top-tier'], SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 const radioOpen = id => run.wave + 1 >= WEAP_OPEN[weapPow(id)];
+// the two care packages: what each brings, and how its card reads
+const CARE = {
+  side: { slots: ['side'], title: 'Sidearm care package', for: 'A secondary', desc: 'A random sidearm from whatever\'s turned up so far. It might not beat yours.' },
+  primary: { slots: ['long', 'auto'], title: 'Primary care package', for: 'A primary', desc: 'A random long gun or automatic from whatever\'s turned up so far. It might not beat what you carry.' }
+};
 const radioPending = id => !!((supplyCargo && supplyCargo.id === id) || (supplyFall && supplyFall.cargo && supplyFall.cargo.id === id) || pickups.some(p => p.cargo && p.cargo.id === id));
 const radioFree = id => radioOpen(id) && !held(id) && !radioPending(id);
 const beats = id => weapPow(id) > weapPow(W8.slot[WEAP[id].slot]);
@@ -161,9 +161,10 @@ function radioCards() {
   const o = radioOffer(), out = [], group = 'Weapons by air';
   const sCur = id => W8.slot[WEAP[id].slot], than = id => sCur(id) ? `beats your ${gunCall(sCur(id))}` : `for your empty ${SLOT_NAME[WEAP[id].slot].toLowerCase()} slot`;
   const order = (id, label) => { callDrop({ kind: 'weapon', id }); feed('supply', 0, label + ' called'); toast(label + ' on its way', { kind: 'good', icon: 'supply', sub: 'Listen for the helicopter · it lands in the yard' }); };
-  const guns = () => RADIO_GUNS.filter(radioFree), mels = () => RADIO_MELEE.filter(radioFree);
-  out.push({ ic: 'supply', group, for: () => 'A gun, any gun', cost: RADIO_COST.surplus, title: () => 'Surplus weapon crate', desc: () => 'A random gun from whatever\'s turned up so far. It could be anything, and it might not beat what you carry.',
-    why: () => busyWhy() || (guns().length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(), id => [0, 3, 2, 1.2, 0.7][weapPow(id)]), 'Surplus weapon crate') });
+  const guns = pk => RADIO_GUNS.filter(id => radioFree(id) && CARE[pk].slots.includes(WEAP[id].slot)), mels = () => RADIO_MELEE.filter(radioFree);
+  for (const pk in CARE) { const c = CARE[pk];
+    out.push({ ic: 'supply', group, for: () => c.for, cost: RADIO_COST[pk], title: () => c.title, desc: () => c.desc,
+      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => [0, 3, 2, 1.2, 0.7][weapPow(id)]), c.title) }); }
   if (o.up) { const id = o.up, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better ' + SLOT_WORD[WEAP[id].slot], fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.up[b], title: () => 'Upgrade crate',
     desc: () => `A ${BAND_WORD[b]} ${SLOT_WORD[WEAP[id].slot]} that ${than(id)}. Which one is a surprise.`, why: busyWhy, make: () => order(id, 'Upgrade crate') }); }
   if (o.top) { const id = o.top, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'The best out there', fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'BEST YET', good: true }], cost: RADIO_COST.top[b], title: () => 'Top-shelf crate',

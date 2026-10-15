@@ -6,8 +6,7 @@ const MOD_UP = {
   match: { t: '+12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
-  longbarrel: { t: '+12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
-  fan: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
+  longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
   boom: { t: 'Bigger blasts', up: D => { D.explode += 0.35; } },
   comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
   dragon: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
@@ -18,7 +17,6 @@ const MOD_UP = {
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   flech: { t: 'Pierce +1', up: D => { D.pierce = (D.pierce || 0) + 1; } },
   bolt: { t: 'Bolt works 12% faster', up: D => { D.rate *= 0.88; } },
-  hpscope: { t: 'Crit chance +10%, crits +0.25×', up: D => { D.critC += 0.1; D.critM += 0.25; } },
   expand: { t: '+12% damage', up: D => { D.dmg *= 1.12; } },
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
   integral: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
@@ -39,7 +37,10 @@ const MOD_UP = {
 };
 const roman = n => ['', 'I', 'II', 'III', 'IV'][n] || String(n);
 const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
-const modName = m => MODS[m].name + (modLv(m) > 1 ? ' ' + roman(modLv(m)) : '');
+// a mod's name at a level: its own name for each level if it has them (the revolver's barrel by its length), or the
+// name and the level in numerals
+const modNameAt = (m, lv) => MODS[m].names ? MODS[m].names[Math.min(lv, MODS[m].names.length) - 1] : MODS[m].name + (lv > 1 ? ' ' + roman(lv) : '');
+const modName = m => modNameAt(m, modLv(m));
 // the weapon's mods that tinkering could still improve
 const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < MOD_MAX) : [];
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
@@ -65,15 +66,19 @@ function fireModeOf(id) {
   const fm = W8.fm[id];
   if (D.burst) return { k: 'burst', t: 'Burst ' + D.burst, n: D.burst };
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
-  if (fm === 'fan') return { k: 'fan', t: 'Fan' };
+  if (fm === 'semi') return { k: 'semi', t: 'Semi' };
+  if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };
 }
-function fireModes(id) { return [null, ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
+// modes a gun has out of the box, besides its own: the assault rifle's selector has semi (SEMI: steadier single shots,
+// game/run-state.js)
+const OWN_MODES = { ar: ['semi'] };
+function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;
   const next = modes[(modes.indexOf(W8.fm[id] || null) + 1) % modes.length];
   W8.fm[id] = next; W8.burstLeft = 0; recomputeEff();
-  return next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : 'Single shots';
+  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' ? 'Full auto' : 'Single shots';
 }

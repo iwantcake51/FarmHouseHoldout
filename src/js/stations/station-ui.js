@@ -17,12 +17,14 @@ function openStation(s) {
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
   openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();
+  updateWeaponStats();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
   if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
 }
 function closeStation() {
   if (!openSt) return; openSt = null;
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
+  updateWeaponStats();   // the stats slide back in behind it as it rolls up
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
@@ -40,7 +42,7 @@ function cardChips(r) {
   const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], S.att, S.magMul, S.reloadMul]);
   if (key !== chipKey) { chipKey = key; chipCache.clear(); }
   const ck = r.title();
-  if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${f.good ? 'up' : 'down'}">${f.good ? '▲' : '▼'} ${f.t}</i>`).join(''));
+  if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join(''));
   const h = chipCache.get(ck); return h ? `<span class="fx">${h}</span>` : '';
 }
 // the panel is rebuilt only when its list of cards changes; otherwise each card's text, cost and state are updated where
@@ -77,7 +79,7 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
+  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) craft(+b.dataset.i); });
 function craft(i) {

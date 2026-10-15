@@ -46,6 +46,7 @@
   "effects/particles.js",
   "effects/puffs.js",
   "effects/bullet-holes.js",
+  "pickups/drop-models.js",
   "pickups/pickups.js",
   "zombies/deaths.js",
   "zombies/zombie-types.js",
@@ -107,6 +108,7 @@
   "effects/eye-glow.js",
   "zombies/zombie-visuals.js",
   "ui/hud.js",
+  "ui/weapon-stats.js",
   "ui/gear-popup.js",
   "game/visuals.js",
   "game/loop.js"

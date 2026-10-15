@@ -1,11 +1,21 @@
 // Rounds-left glyphs that drop off the HUD.
 
-// a fired round drops out of the HUD: it pops up, tumbles off the bottom of the screen and leaves a wisp of smoke
+// a fired round drops out of the HUD: it pops up, tumbles off the bottom of the screen and leaves a wisp of smoke. Only
+// the empty case goes (the bullet's gone downrange): the glyph's brass below the bullet (CASE_OF of its height), in its
+// own case colour (a match-grade round's nickel), its mouth open at the top; a rifle case keeps its neck and shoulder.
+// A shotgun shell goes whole, as it is
+const CASE_OF = { rf: 0.7, mg: 0.7, p9: 0.64 };
 function dropRound(src) {
   const r = src.getBoundingClientRect(); if (!r.width) return;
-  const cs = getComputedStyle(src), g = document.createElement('i'), dir = rand() < 0.5 ? -1 : 1;
+  const cs = getComputedStyle(src), g = document.createElement('i'), dir = rand() < 0.5 ? -1 : 1, box = src.closest('#rounds');
+  const cal = !box ? 'p9' : box.classList.contains('sh') ? 'sh' : box.classList.contains('rf') ? 'rf' : box.classList.contains('mg') ? 'mg' : 'p9';
   g.className = 'fallRound';
-  Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, background: cs.backgroundColor, borderBottom: cs.borderBottom, borderRadius: cs.borderRadius });
+  if (cal === 'sh') Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, background: cs.backgroundColor, borderBottom: cs.borderBottom, borderRadius: cs.borderRadius });
+  else {
+    const h = r.height * CASE_OF[cal], brass = cs.getPropertyValue('--cs').trim() || '#d8b45a';
+    g.className = 'fallRound case' + (cal === 'rf' ? ' rf' : '');
+    Object.assign(g.style, { left: r.left + 'px', top: (r.top + r.height - h) + 'px', width: r.width + 'px', height: h + 'px', background: `linear-gradient(${brass} 0 86%, #9c7a34 86%)` });
+  }
   // a real arc: flicked up and sideways, gravity takes over gradually, tumbling the whole way down
   const vx = dir * rr(70, 190), vy = -rr(240, 380), grav = 1500, spin = dir * rr(380, 900), drop = innerHeight - r.top + 40;
   const T = (-vy + Math.sqrt(vy * vy + 2 * grav * drop)) / grav, frames = [];
@@ -17,31 +27,35 @@ function dropRound(src) {
   document.body.append(g, p);
   p.addEventListener('animationend', () => p.remove());
 }
-// the glyphs for one magazine: the spent ones first (they sit at the far end), then those left; a big one is a bar
-const magGlyphs = (n, have) => n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i class="off"></i>'.repeat(Math.max(0, n - have)) + '<i></i>'.repeat(Math.max(0, Math.min(have, n)));
+// the glyphs for one magazine, in the order they're laid out from the bottom right (styles/hud-weapon.css: right to
+// left along a row, rows stacking upward): the last round in the mag first, so it sits at the bottom right, then the
+// rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
+// like reading, and the last round left is always bottom right; a part row sits on top. A big one is a bar
+const magGlyphs = (n, have) => n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i></i>'.repeat(Math.max(0, Math.min(have, n))) + '<i class="off"></i>'.repeat(Math.max(0, n - have));
 const roundsCls = D => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '');
-// an akimbo pair: each gun's magazine its own group, the left's on the left, split by a rule; the one being reloaded dims
+// an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
+// being reloaded dims
 function renderRoundsAk(id, D) {
   const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + ':' + akBusy('L') + akBusy('R');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
   el.className = roundsCls(D) + ' ak';
   if (!el.firstElementChild || !el.firstElementChild.classList.contains('mag')) el.innerHTML = '<div class="mag"></div><div class="mag"></div>';
-  ['L', 'R'].forEach((s, k) => {
+  [AK_ON.left, AK_ON.right].forEach((s, k) => {
     const g = el.children[k];
-    if (pr && pr.ak && pr.id === id && pr.n === n && m[s] < pr[s] && n <= 40 && state === 'play') for (let i = n - pr[s], c = 0; i < n - m[s] && c < 6; i++, c++) if (g.children[i]) dropRound(g.children[i]);
+    if (pr && pr.ak && pr.id === id && pr.n === n && m[s] < pr[s] && n <= 40 && state === 'play') for (let i = m[s], c = 0; i < pr[s] && c < 6; i++, c++) if (g.children[i]) dropRound(g.children[i]);   // the ones just fired
     g.innerHTML = magGlyphs(n, m[s]); g.classList.toggle('rl', akBusy(s));
   });
   cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
 }
 function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
-  const n = magSize(id), have = W8.mag[id] || 0, key = id + n + ':' + have + ':' + T('ammo');
+  const n = magCap(id), have = W8.mag[id] || 0, key = id + n + ':' + have + ':' + T('ammo');   // the mag that's in it (game/run-state.js)
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
   if (pr && pr.id === id && pr.n === n && have < pr.have && n <= 40 && state === 'play') {
     const kids = el.children; let k = 0;
-    for (let i = n - pr.have; i < n - have && k < 6; i++, k++) if (kids[i]) dropRound(kids[i]);
+    for (let i = have; i < pr.have && k < 6; i++, k++) if (kids[i]) dropRound(kids[i]);   // the ones just fired
   }
   cache.roundsPrev = { id, n, have }; el.className = roundsCls(D);
   el.innerHTML = magGlyphs(n, have);

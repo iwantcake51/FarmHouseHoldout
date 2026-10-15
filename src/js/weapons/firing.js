@@ -7,14 +7,26 @@ const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Ma
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 // a semi-automatic fires once a pull of the trigger: the handguns in single shots (not fanning, a burst or the auto sear)
 const semiAuto = id => { const m = fireModeOf(id); return !!m && m.k === 'semi'; };
+// a revolver with its hammer filed down for fanning (Fan the hammer) is fanned whenever it's fired from the hip
+const fanning = D => !!(D && D.fan) && !aiming;
+const fireRate = D => fanning(D) ? D.fan.rate : D.rate;   // seconds between shots
+// running and gunning from the hip costs you: moving opens the spread up to RUN_SPREAD more (and it takes a moment
+// to settle after you stop, P.mvS), and a shot fired on the move only sometimes goes exactly where the crosshair sits
+// on a body (RUN_MISS of them at a full run don't, and fly with the spread instead). Aiming down the sights is steady
+const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
+// the shoulder stock on a sidearm steadies its kick, and only that (its aim is the sights' and laser's job): the view
+// and the bloom kick back STOCK.kick as hard, and quick shots open the spread STOCK.spray as fast
+const STOCK = { kick: 0.55, spray: 0.6 };
+const stocked = D => !!(S.att.stock && D && D.slot === 'side');
 function spreadOf(id) {
-  // hip fire is a bit loose (aiming down the sights is far tighter), walking doubles it (+50% while aiming), holding the trigger opens it further
-  const mv = clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 : 1.3) * (1 + mv * (aiming ? 0.5 : 1)) * (1 + (W8.spray || 0) * 1.3);
+  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
+  // less with a sight: D.aimMove), holding the trigger opens it further
+  const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
+  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
-  if (S.att.stock && D.slot === 'side') s *= 0.75;
   if (D.bipod && P.still > 0.3) s *= 0.12;
+  if (fanning(D)) s *= D.fan.spread;
   return s;
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
@@ -26,8 +38,6 @@ function scopeSpread(id, d) {
   const D = W(id), k = smooth(clamp((d - SCOPE_NEAR) / (SCOPE_FAR - SCOPE_NEAR), 0, 1));
   return (D.pellets || 1) > 1 ? spreadOf(id) : spreadOf(id) * (1 - k);
 }
-// a scope's magnification also lands more head hits harder: a headshot through one does 25% more
-const SCOPE_HEAD = 1.25;
 // where a pellet goes inside the spread: bunched toward the middle like a real pattern (the sum of three draws), out to
 // the full spread at the edges, so close up most of a shell lands on what you aimed at
 const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
@@ -101,19 +111,21 @@ function gunFire(id, D, side) {
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
   if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.click(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
-  W8.mag[id] -= shots; W8.cd = D.rate / S.rateMul; run.shots++;
+  W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++;
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
   else if (!W8.inBurst && semiAuto(id)) W8.trigLock = true;   // one shot a pull
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
-  // the first round goes exactly where the crosshair sits on a body, and hits that part
+  // the first round goes exactly where the crosshair sits on a body, and hits that part (only sometimes on the run
+  // from the hip: RUN_MISS)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
+  if (tgt && !aiming && !scoped && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
-  // looking through a scope: the spread depends on the range, and each hit can land a crit
-  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = scopeOn ? D.critC || 0 : 0;
-  const pellets = (D.pellets || 1) * shots, pierce = S.pierce + (D.pierce || 0);
+  // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
+  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
+  const pellets = (D.pellets || 1) * shots, pierce = skillPierce(id) + (D.pierce || 0);
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
   const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
@@ -131,9 +143,10 @@ function gunFire(id, D, side) {
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       const part = hits[k].part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if ((S.att.fire || D.ignite) && !z.dead) z.burn = 3;
-      // a crit: through a scope, or Lucky shot's 1 in 12 on any bullet hit
-      const crit = (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? Math.max(D.critM || 0, 2) : 1) * (scopeOn && part === 'head' ? SCOPE_HEAD : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the revolver's
+      // aimed Dead-eye (D.aimCrit), or Lucky shot's 1 in 12 on any bullet hit
+      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC) || (S.luck > 0 && rand() < S.luck); critNext = crit;
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
     const endT = n ? Math.max(0.2, hits[n - 1].t) : wallT, lastZ = n ? hits[n - 1].z : null;
@@ -151,7 +164,7 @@ function gunFire(id, D, side) {
   if (anyHit) run.hits++;
   const quiet = suppressed(D);
   if (quiet) SFX.supp(D.ammo === 'shells'); else SFX[GUN_SFX[id]]();
-  const st = S.att.stock && D.slot === 'side' ? 0.55 : 1;
+  const st = stocked(D) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st;
   fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
@@ -169,8 +182,8 @@ function gunFire(id, D, side) {
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
-  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3)); W8.sprayT = 0;
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, D.rate < 0.15); }
+  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(D) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16); }
   ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too

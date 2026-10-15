@@ -3,10 +3,15 @@
 function outline(g, col, scl, thick, mat, keep) {
   const om = mat || new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 });
   const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline && (!keep || keep(o))) list.push(o); });
+  // each rim is the piece grown about its own middle, not its origin: a piece modelled away from its origin (a gun's
+  // parts, a limb hung from its joint) would otherwise have its rim slid off it, out of line
   list.forEach(o => {
     const s = new THREE.Mesh(o.geometry, om); s.userData.isOutline = true;
-    if (thick) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox, sx = b.max.x - b.min.x || 0.01, sy = b.max.y - b.min.y || 0.01, sz = b.max.z - b.min.z || 0.01; s.scale.set((sx + thick * 2) / sx, (sy + thick * 2) / sy, (sz + thick * 2) / sz); }
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    const b = o.geometry.boundingBox;
+    if (thick) { const sx = b.max.x - b.min.x || 0.01, sy = b.max.y - b.min.y || 0.01, sz = b.max.z - b.min.z || 0.01; s.scale.set((sx + thick * 2) / sx, (sy + thick * 2) / sy, (sz + thick * 2) / sz); }
     else s.scale.setScalar(scl || 1.14);
+    const c = b.getCenter(new V3()); s.position.set(c.x * (1 - s.scale.x), c.y * (1 - s.scale.y), c.z * (1 - s.scale.z));
     o.add(s);
   });
   return om;

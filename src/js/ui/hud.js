@@ -22,7 +22,7 @@ function updateHUD(rdt, D) {
       $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
-    setT('wNum', String(Math.max(1, run.wave)).padStart(2, '0'));
+    setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave
     setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
     $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
@@ -43,14 +43,15 @@ function updateHUD(rdt, D) {
     renderMoodles();
     const id = curId();
     setT('wName', D.name);
-    const own = (W8.mods[id] || []).map(modName);
-    setT('wMods', own.concat(gunExtras(id)).join(' · '));
+    // what's on it, as chips edged in the workbench's colours: mods and gun upgrades blue, attachments teal, rounds gold
+    const chips = (W8.mods[id] || []).map(m => ({ t: modName(m), k: 'upg' })).concat(gunExtras(id)), ck = chips.map(c => c.k + c.t).join('|');
+    if (cache.wMods !== ck) { cache.wMods = ck; $('wMods').innerHTML = chips.map(c => `<span class="${c.k}">${c.t}</span>`).join(''); }
     // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
     const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
-    if (ak) { const per = akPer(id); setRoll('ammoL', String(am.L)); setRoll('ammo', String(am.R)); ammoEl($('ammoL'), am.L, per, akBusy('L')); ammoEl($('ammo'), am.R, per, akBusy('R')); }
-    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magSize(id), false); }
+    if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
+    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magCap(id), false); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D); renderFireMode(id);
@@ -69,7 +70,7 @@ function renderFireMode(id) {
   const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
   el.hidden = !m; if (!m) return;
   const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : 1;
-  g.className = 'fmG ' + m.k + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);
+  g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // pointed rifle and magnum rounds
   el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = fireModes(id).length < 2;
   if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
 }

@@ -1,7 +1,12 @@
 /* Bottom-right weapon: name, ammo count, round glyphs, slot row. */
 #arms{bottom:calc(18px + env(safe-area-inset-bottom,0px));right:20px;text-align:right;display:grid;gap:5px;justify-items:end;max-width:min(440px,56vw)}
 #wName{font-family:var(--f-num);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase;line-height:1}
-#wMods{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);min-height:12px;text-wrap:balance}
+/* what's on the gun: a row of small chips on a dark backing, each edged in its kind's workbench colour (mods and gun
+   upgrades blue, attachments teal, rounds gold, the tune-up amber), wrapping right-aligned */
+#wMods{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;max-width:340px}
+#wMods span{--c:#8aa6ea;font-size:10.5px;font-weight:600;letter-spacing:.06em;line-height:1;text-transform:uppercase;white-space:nowrap;
+  padding:4px 7px 3px 6px;color:#ece6d8;background:rgba(10,12,13,.68);border-left:2px solid var(--c);text-shadow:none}
+#wMods .att{--c:#5ec2c4}#wMods .ammo{--c:#d4b25c}#wMods .tune{--c:#f0bf4c}
 .ammoRow{display:flex;align-items:baseline;gap:6px}
 #ammo{font-size:76px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #meleeArt{height:auto;max-width:46vw;margin:8px 0 6px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(0,0,0,.35))}
@@ -17,14 +22,25 @@
 .rc>.rs{display:block;position:absolute;left:0;right:0;top:0;transform:translateY(calc(var(--p,0) * var(--rh,1em)))}
 .rc>.rs>span{display:block;height:var(--rh,1em);line-height:var(--rh,1em);text-align:center}
 #ammo{--rh:.85em}
-#rounds{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:260px;min-height:14px}
-#rounds i{display:block;width:4px;height:12px;background:#d4b25c;box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:1.5px 1.5px 0 0}
+/* laid out from the bottom right: right to left along a row, rows stacking upward (ui/rounds.js puts the last round first) */
+#rounds{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;justify-content:flex-start;gap:2px;max-width:260px;min-height:14px}
+/* each round is drawn like its cartridge (after a cartridge comparison chart): a copper bullet (--bl) seated in a brass
+   case (--cs) with a darker rim at its base. A 9mm (the pistol, the SMGs) is a straight case about three times as tall
+   as it's wide with a round-nosed bullet; a rifle round (5.56, .30) a long bottlenecked case, its shoulder stepping in
+   to the neck, with a slim spitzer bullet to a sharp point; a magnum (.357, .50) a longer straight case with a
+   flat-nosed bullet; a shotgun shell a red hull on a brass head */
+#rounds i{display:block;width:5px;height:15px;--bl:#c47838;--cs:#d8b45a;background:linear-gradient(var(--bl) 0 36%,var(--cs) 36% 89%,#9c7a34 89%);box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:2.5px 2.5px .5px .5px / 4.5px 4.5px .5px .5px}
+#rounds.rf i{height:25px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 93%,#9c7a34 93%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
+#rounds.mg i{width:6px;height:17px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 91%,#9c7a34 91%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}
 #rounds.sh i{width:7px;height:13px;background:#a8342a;border-radius:0;border-bottom:3px solid #c9a43a}
-#rounds.rf i{width:4px;height:16px;background:#c9a043}
-#rounds.mg i{width:6px;height:11px;background:#c9a043}
-#rounds.hp i:not(.off){border-top:3px solid #c0703a}#rounds.hp2 i:not(.off){border-top:3px solid #e08a3a;box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i:not(.off){background:#c8ccd0;border-top:3px solid #e8ecef}
+/* better rounds change the bullet: hollow points a darker copper, +P loads a hot orange with a glow, match-grade a
+   bright bullet in a nickel case. A shell has no bullet, so it stays just a shell */
+#rounds.hp i{--bl:#8f4f28}#rounds.hp2 i{--bl:#e8842e}#rounds.hp2:not(.sh) i:not(.off){box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i{--bl:#e09a62;--cs:#c8ccd0}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
+/* a spent case, bullet gone: an open mouth at the top, and a rifle case's neck and shoulder (ui/rounds.js) */
+.fallRound.case{border-radius:.5px;border-top:1px solid #7a5e28}
+.fallRound.case.rf{border-top:0;border-radius:0;clip-path:polygon(20% 0,80% 0,80% 9%,100% 20%,100% 100%,0 100%,0 20%,20% 9%)}
 @keyframes roundFall{0%{transform:none}18%{transform:translate(calc(var(--dx) * .2),var(--up)) rotate(calc(var(--rot) * .15))}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot))}}
 .roundPuff{position:fixed;z-index:3;pointer-events:none;display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,rgba(210,205,195,.55),rgba(210,205,195,0) 70%);animation:roundPuff .9s ease-out forwards}
 @keyframes roundPuff{from{transform:scale(.5);opacity:.9}to{transform:translate(var(--px),-26px) scale(2.4);opacity:0}}
@@ -42,8 +58,8 @@
 .ammoRow .mb::after{content:"";position:absolute;left:50%;top:0;width:1.5px;height:46%;margin-left:-.75px;background:rgba(236,230,216,.55)}
 .ammoRow .mb.r{background-image:linear-gradient(90deg,transparent 50%,var(--ink) 50%)}
 #ammoSep{align-self:center;display:block;width:2px;height:44px;margin:0 6px 0 8px;background:linear-gradient(180deg,transparent,rgba(236,230,216,.4) 25%,rgba(236,230,216,.4) 75%,transparent);transform:skewX(-14deg)}
-#rounds.ak{flex-wrap:nowrap;align-items:flex-end;gap:0;max-width:none}
-#rounds .mag{display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:2px;max-width:128px;transition:opacity .2s}
+#rounds.ak{flex-direction:row;flex-wrap:nowrap;justify-content:flex-end;align-items:flex-end;gap:0;max-width:none}
+#rounds .mag{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;justify-content:flex-start;gap:2px;max-width:128px;transition:opacity .2s}
 #rounds .mag+.mag{margin-left:9px;padding-left:9px;border-left:1px solid rgba(236,230,216,.3)}
 #rounds .mag.rl{opacity:.35}
 #rounds .mag .belt{width:110px}
@@ -67,11 +83,14 @@
 #fireMode{align-self:center;display:grid;justify-items:center;gap:4px;margin-right:8px;padding:5px 8px 4px;min-width:46px;background:linear-gradient(180deg,rgba(10,12,13,.35),rgba(10,12,13,.7));border:1px solid rgba(236,230,216,.13);border-top:2px solid rgba(236,230,216,.3);text-shadow:none}
 #fireMode.sw{border-top-color:var(--orange)}
 #fireMode .fmG{display:flex;align-items:flex-end;gap:2px;height:14px;overflow:hidden}
-#fireMode .fmG i{display:block;width:4px;height:12px;background:#d4b25c;border-radius:1.5px 1.5px 0 0;box-shadow:0 1px 0 rgba(0,0,0,.6)}
+#fireMode .fmG i{display:block;width:4px;height:12px;background:linear-gradient(#c47838 0 36%,#d8b45a 36%);border-radius:2px 2px .5px .5px / 3.5px 3.5px .5px .5px;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 #fireMode .fmG.auto i:nth-child(n+3){opacity:.7}#fireMode .fmG.auto i:nth-child(n+4){opacity:.45}#fireMode .fmG.auto i:nth-child(n+5){opacity:.22}
-#fireMode .fmG.burst i{height:11px}
+#fireMode .fmG.burst i{height:12px}
 #fireMode .fmG.fan i:nth-child(1){transform:rotate(-18deg)}#fireMode .fmG.fan i:nth-child(3){transform:rotate(18deg)}
 #fireMode .fmG.action i{width:5px;height:13px;background:#c9a043}
+/* the badge's rounds are the gun's cartridge too: a rifle round's bottleneck and point, a magnum's flat nose */
+#fireMode .fmG.rf i{width:4px;height:14px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
+#fireMode .fmG.mg i{width:5px;height:13px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}
 #fireMode .fmG.in i{animation:fmIn .3s cubic-bezier(.2,.8,.3,1) backwards}
 #fireMode .fmG.in i:nth-child(2){animation-delay:.03s}#fireMode .fmG.in i:nth-child(3){animation-delay:.06s}#fireMode .fmG.in i:nth-child(4){animation-delay:.09s}#fireMode .fmG.in i:nth-child(5){animation-delay:.12s}
 @keyframes fmIn{from{transform:translateY(14px)}}

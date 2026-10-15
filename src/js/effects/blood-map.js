@@ -7,12 +7,14 @@
 // lightening what's there. Red is blood, green how high the splash went, blue soot, and alpha how fresh it is. Pools
 // spread over a few seconds by drawing their quad again a little bigger each frame.
 //
-// Blood stays put for a few waves and then soaks away: each wave that starts takes BM_AGE off every stain's freshness,
-// so blood spilled in one wave is still there two waves later and starts to fade at the start of the third, slowly
-// (over about BM_FADE seconds), from its thin edges in. A splash on top of old blood makes it fresh again. Fading reads
-// the map, so it's drawn into a second copy (ping-pong) and the two swap.
+// Blood thrown through the air lands when it gets there (splatLater): a hit's spray comes down a moment after the hit,
+// a little way out, never as a pool under the zombie the instant it's struck.
+//
+// Blood soaks away on its own clock: fresh for BM_STAY seconds, then fading from its thin edges in over BM_FADE, so a
+// splash is gone 70 to 90 seconds after it landed (the thickest last). A splash on top of old blood makes it fresh
+// again. Fading reads the map, so it's drawn into a second copy (ping-pong) and the two swap.
 
-const BM_RES = 1024, BM_AGE = 0.4, BM_FADE = 80;
+const BM_RES = 1024, BM_STAY = 25, BM_FADE = 58;
 const bmOpts = { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false };
 const bmTargets = [new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts), new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts)];
 let bmTarget = bmTargets[0];
@@ -41,11 +43,13 @@ void main() {
   float nz = bn(vUv * 0.7 + uSeed) * 0.6 + bn(vUv * 1.9 + uSeed * 1.7) * 0.4, a;
   if (uKind < 0.5) a = smoothstep(1.0, 0.5, r + (nz - 0.5) * 0.75);   // a pool: a soft blob with a ragged rim
   else if (uKind < 1.5) {
-    // a spray thrown along +x: a splash where it starts, fanning out into streaks and flecks that thin out with distance
+    // a spray thrown along +x: a spatter of drops where it starts (not a solid splash, so a body hit again and again
+    // doesn't sit in a puddle), fanning out into streaks and flecks that thin out with distance
     float t = (p.x + 1.0) * 0.5, w = mix(0.22, 0.95, t), lane = abs(p.y) / w;
     float streak = bn(vec2(t * 0.45, p.y * 2.6 / w) + uSeed);
-    a = smoothstep(1.0, 0.55, lane + (nz - 0.5) * 0.5) * smoothstep(0.42, 0.66, streak + (1.0 - t) * 0.42) * smoothstep(1.0, 0.7, t);
-    a = max(a, smoothstep(0.5, 0.18, length(p - vec2(-0.68, 0.0)) + (nz - 0.5) * 0.3));
+    a = smoothstep(1.0, 0.55, lane + (nz - 0.5) * 0.5) * smoothstep(0.5, 0.64, streak + (1.0 - t) * 0.3) * smoothstep(1.0, 0.7, t);
+    a *= smoothstep(0.38, 0.56, bn(vUv * 4.1 + uSeed * 1.3));   // broken into flecks
+    a = max(a, smoothstep(0.6, 0.68, bn(vUv * 3.4 + uSeed * 2.3)) * smoothstep(0.8, 0.25, length(p - vec2(-0.6, 0.0))));
   } else if (uKind < 2.5) {
     // a drop: a small blob and the fine spatter round it
     a = smoothstep(0.52, 0.3, r + (nz - 0.5) * 0.4);
@@ -67,10 +71,11 @@ const bmMat = () => new THREE.ShaderMaterial({ vertexShader: BM_VERT, fragmentSh
   uniforms: { uKind: { value: 0 }, uStr: { value: 1 }, uH: { value: 0 }, uR: { value: 1 }, uSoot: { value: 0 }, uSeed: { value: new THREE.Vector2() }, uNoise: BMU.uBloodNoise } });
 // a pool of quads to paint with: each is drawn once (or again each frame while it spreads) and then put back
 const bmQuads = [];
-for (let k = 0; k < 96; k++) { const m = new THREE.Mesh(BM_QUAD, bmMat()); m.visible = false; m.frustumCulled = false; bmScene.add(m); bmQuads.push({ m, t: 0, dur: 0, s: 1, busy: false }); }
+for (let k = 0; k < 160; k++) { const m = new THREE.Mesh(BM_QUAD, bmMat()); m.visible = false; m.frustumCulled = false; bmScene.add(m); bmQuads.push({ m, t: 0, dur: 0, s: 1, busy: false }); }
 let bmQ = 0, bmDirty = true, bmCleared = false, bmDry = 0;
 // what's known of the blood on the ground away from the GPU, for footprints: how wet each half-metre of the farm is.
-// Splashes wet it (a drop only a little), each wave halves it, and a new run dries it out
+// Splashes wet it (a drop only a little), it dries over BW_DRY seconds or so, and a new run dries it out
+const BW_DRY = 20;
 const BW_CELL = 0.5, BW_N = Math.ceil(HALF * 2 / BW_CELL), bloodWet = new Float32Array(BW_N * BW_N);
 const bwCell = v => clamp(Math.floor((v + HALF) / BW_CELL), 0, BW_N - 1);
 function wetSplat(x, z, r, k) {
@@ -91,8 +96,8 @@ function bloodyStep() {
   splat(P.x - dz * off + dx * 0.08, P.z + dx * off + dz * 0.08, 'foot', 0.3, Math.atan2(dz, dx), 0, 0, 0.3 + 0.55 * P.bloodFeet);
   P.bloodFeet -= 0.12;
 }
-// paint a splash: kind 'pool' | 'spray' | 'drop' | 'scorch', size (metres across), ang the way a spray was thrown,
-// grow how long a pool takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
+// paint a splash: kind 'spray' | 'drop' | 'scorch' (or 'pool', a soft blob, no longer thrown), size (metres across),
+// ang the way a spray was thrown, grow how long one takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
 function splat(x, z, kind, size, ang, grow, h, str) {
   if (Math.abs(x) > HALF || Math.abs(z) > HALF) return;
   if (kind !== 'scorch' && kind !== 'foot') wetSplat(x, z, size * (kind === 'spray' ? 0.5 : 0.42), kind === 'drop' ? 0.3 : 1);
@@ -103,15 +108,25 @@ function splat(x, z, kind, size, ang, grow, h, str) {
   u.uH.value = clamp((h !== undefined ? h : kind === 'spray' ? 0.9 : 0) / 2, 0, 1); u.uSeed.value.set(rand(), rand());
   const r = size * (kind === 'spray' ? 0.62 : 0.5);
   m.position.set(x, z, 0); m.rotation.set(0, 0, ang === undefined ? rand() * 6.28 : ang);
-  q.s = r; q.t = 0; q.dur = grow && grow > 0.2 ? grow : 0; q.busy = true; m.scale.setScalar(q.dur ? r * 0.25 : r); m.visible = true; bmDirty = true;
+  q.s = r; q.t = 0; q.dur = grow && grow > 0.2 ? grow : 0; q.busy = true; m.scale.setScalar(q.dur ? r * POOL_FROM : r); m.visible = true; bmDirty = true;
 }
-// a spray thrown from (x, z) along (dx, dz)
-function spray(x, z, dx, dz, size, h) { splat(x + dx * size * 0.35, z + dz * size * 0.35, 'spray', size, Math.atan2(dz, dx), 0, h); }
+// a pool that spreads wells up from next to nothing (POOL_FROM of its size), slowly at first, never popping in
+const POOL_FROM = 0.05;
+// a splash that's still in the air: painted when it lands, t seconds from now (stepBloodMap)
+const bmLater = [];
+function splatLater(t, ...a) { bmLater.push({ t, a }); }
+// a spray thrown from (x, z) along (dx, dz): it's in the air a moment, the first of it landing close in, the main spray
+// further out just after, and its tail flung furthest of all
+function spray(x, z, dx, dz, size, h) {
+  const t = rr(0.18, 0.32), a = Math.atan2(dz, dx);
+  splatLater(t * 0.55, x + dx * size * 0.15, z + dz * size * 0.15, 'drop', size * 0.32, undefined, 0, h);
+  splatLater(t, x + dx * size * 0.62, z + dz * size * 0.62, 'spray', size, a, 0, h);
+  splatLater(t * 1.4, x + dx * size * (1.15 + rand() * 0.4), z + dz * size * (1.15 + rand() * 0.4), 'spray', size * 0.6, a + rr(-0.25, 0.25), 0, h);
+}
 // wipe the farm clean for a new run
-function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmCleared = false; bmDirty = true; bmAgeDue = 0; bloodWet.fill(0); }
-// a wave starting ages every stain (waves/waves.js)
-let bmAgeDue = 0;
-function bloodAge() { bmAgeDue += BM_AGE; bmDry = 99; for (let i = 0; i < bloodWet.length; i++) bloodWet[i] *= 0.5; }   // and it's half as wet underfoot
+function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmLater.length = 0; bmCleared = false; bmDirty = true; bloodWet.fill(0); }
+// a wave starting (waves/waves.js): nothing to do now blood keeps its own time
+function bloodAge() {}
 // the aging pass: the map copied into the other target, freshness taken down by uAge, and blood with none left faded
 // by uFade; then the two swap
 const bmAgeScene = new THREE.Scene(), bmAgeM = new THREE.Mesh(BM_QUAD, new THREE.ShaderMaterial({ vertexShader: BM_VERT, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
@@ -123,18 +138,21 @@ const _bmCol = new THREE.Color();
 // each frame: spread the pools still spreading and draw whatever's new into the map
 function stepBloodMap(dt) {
   bmDry += dt;
+  for (let k = bmLater.length - 1; k >= 0; k--) { const L = bmLater[k]; if ((L.t -= dt) <= 0) { bmLater.splice(k, 1); splat(...L.a); } }   // blood landing
   for (const q of bmQuads) {
     if (!q.busy || !q.dur) continue;
-    q.t += dt; const e = 1 - Math.pow(1 - Math.min(1, q.t / q.dur), 3); q.m.scale.setScalar(q.s * (0.25 + 0.75 * e)); bmDirty = true;
+    q.t += dt; const u = Math.min(1, q.t / q.dur), e = u * u * (3 - 2 * u); q.m.scale.setScalar(q.s * (POOL_FROM + (1 - POOL_FROM) * e)); bmDirty = true;
   }
   if (!bmDirty && bmDry <= 3) return;
   const at = R.getRenderTarget(), ac = R.autoClear; R.getClearColor(_bmCol); const aa = R.getClearAlpha();
   R.autoClear = false;
   if (!bmCleared) { R.setClearColor(0x000000, 0); bmTargets.forEach(t => { R.setRenderTarget(t); R.clear(true, false, false); }); bmCleared = true; }
-  // every few seconds (and straight away when a wave starts): age the stains into the other copy and swap
+  // every few seconds: age the stains into the other copy and swap (freshness down by the time gone over BM_STAY, and
+  // stains with none left faded by it over BM_FADE), and dry the ground underfoot to match
   if (bmDry > 3) {
-    const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms;
-    u.uSrc.value = bmTarget.texture; u.uAge.value = bmAgeDue; u.uFade.value = Math.min(bmDry, 6) / BM_FADE; bmAgeDue = 0; bmDry = 0;
+    const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms, el = Math.min(bmDry, 6);
+    u.uSrc.value = bmTarget.texture; u.uAge.value = el / BM_STAY; u.uFade.value = el / BM_FADE; bmDry = 0;
+    const dry = Math.exp(-el / BW_DRY); for (let i = 0; i < bloodWet.length; i++) bloodWet[i] *= dry;
     R.setRenderTarget(dst); R.render(bmAgeScene, bmCam); bmTarget = dst; BMU.uBloodMap.value = dst.texture;
   }
   R.setRenderTarget(bmTarget); R.render(bmScene, bmCam);

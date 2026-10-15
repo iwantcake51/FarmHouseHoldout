@@ -8,20 +8,21 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === ' ' || k.startsWith('arrow') || k === 'tab') e.preventDefault();
   if (state === 'upgrade' && ['1', '2', '3'].includes(k)) { pickCard(+k - 1); return; }
-  if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused') resumeRun(); return; }
+  if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused' && !(k === 'escape' && cancelLeave())) resumeRun(); return; }   // Esc backs out of a leave-the-run question first
   // T starts the run from the title, a new run from the death screen, and the next wave during a break
   if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
   if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
   if (state !== 'play') return;
   if (e.repeat && k !== 'f') return;
   keys.add(k);
-  if (k === 'e') { if (openSt) closeStation(); else { const s = nearestStation(); if (s) openStation(s); } return; }
+  if (k === 'e') { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) { craft(k === '0' ? 9 : +k - 1); return; }
   if (k === 'r') startReload();
   if (k === 'q' && state === 'play') startBandage();
   if (k === ' ' && state === 'play') tryVault();                                    // Space climbs through windows and hops fences
   if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
   if (k === 'g') throwGrenade();
+  if (k === 'i') toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)
   if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
     if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)
@@ -33,6 +34,9 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; aimHeld = false; pauseRun(); });
+// right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
+// page has no text to copy or fields to paste into)
+addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
