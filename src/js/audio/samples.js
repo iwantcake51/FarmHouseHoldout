@@ -28,6 +28,7 @@ const SAMPLES = {
   wood_hit_1: { vol: 0.45 }, wood_hit_2: { vol: 0.45 }, wood_break: { vol: 0.55 },
   craft: { vol: 0.5 }, pickup: { vol: 0.5 }, equip: { vol: 0.42 }, upgrade: { vol: 0.45 }, crate_open: { vol: 0.55 }, medkit: { vol: 0.45 }
 };
+const SOUND_HASH = {};   // file -> a hash of it, written in by tools/build.mjs
 const sbuf = {}, sGapT = {}, sLast = {};
 let verbIn = null, sVoices = 0;
 // the house's own sound: a short, boxy room. Noise dying away over about 0.85 s, darker as it goes (the walls soak up
@@ -50,12 +51,11 @@ function samplesInit() {
     cv.buffer = houseIR(); hp.type = 'highpass'; hp.frequency.value = 160; lp.type = 'lowpass'; lp.frequency.value = 6500;
     verbIn = AC.createGain(); verbIn.connect(cv); cv.connect(hp); hp.connect(lp); lp.connect(master);
   } catch (e) { verbIn = null; }
-  // standalone.html carries them inline (tools/build.mjs); the deployed game fetches them
-  const inl = window.FH_SOUNDS;
-  const bytes = s => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
+  // asked for by a hash of their contents (tools/build.mjs fills SOUND_HASH in), or carried inside the one-file build
   for (const name in SAMPLES) {
-    const got = inl ? (inl[name] ? Promise.resolve(bytes(inl[name])) : Promise.reject()) : fetch('sounds/' + name + '.ogg').then(r => r.ok ? r.arrayBuffer() : Promise.reject());
-    got.then(ab => new Promise((ok, no) => AC.decodeAudioData(ab, ok, no))).then(b => { sbuf[name] = b; }, () => {});
+    const f = name + '.ogg', url = 'sounds/' + f + (SOUND_HASH[f] ? '?v=' + SOUND_HASH[f] : '');
+    fetch((window.SOUND_DATA && window.SOUND_DATA[url]) || url).then(r => r.ok ? r.arrayBuffer() : Promise.reject())
+      .then(ab => new Promise((ok, no) => AC.decodeAudioData(ab, ok, no))).then(b => { sbuf[name] = b; }, () => {});
   }
 }
 // whether you're inside the farmhouse

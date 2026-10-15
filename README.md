@@ -51,15 +51,16 @@ src/
     pickups/          ammo, scrap, medkits and other drops
     effects/          blood, particles, smoke, tracers, muzzle flash, outlines
     ui/               HUD, crosshair, health line, status icons, rounds display, menus
-    audio/            playing the recorded sounds, the reverb inside the house, and synthesized sounds for the rest
+    audio/            the recorded sounds (footsteps from where they are), the reverb inside the house, synthesized ones for the rest
     input/            keyboard, mouse and touch controls
     game/             shared state, the update and draw order, camera, main loop
 assets/               raw packs to pick from, not shipped with the game (sizes to keep to: assets/README.md)
   textures/           texture packs (Kenney zips as they come)
   sounds/             sound packs and single sound files
-  sounds/             the recorded sounds the game plays (cut from assets/sounds/ by tools/make-sounds.mjs)
-tools/build.mjs       the build script
-tools/make-sounds.mjs cuts, trims and levels the recordings in assets/sounds/ into src/sounds/ (needs ffmpeg and unzip)
+  src/sounds/         (under src/) the recorded sounds the game ships, made from the packs in assets/sounds/
+tools/build.mjs       the build script (copies src/sounds into dist/, versioned, and inlines it in standalone.html)
+tools/make-sounds.mjs cuts, trims and levels the guns-and-stuff recordings into src/sounds/*.ogg (needs ffmpeg and unzip)
+tools/pack-footsteps.py  packs assets/sounds/Footsteps.zip into src/sounds/footsteps.mp3 and its clip list (needs ffmpeg, numpy)
 netlify.toml          Netlify settings
 ```
 
@@ -155,6 +156,8 @@ Every source file starts with a one-line comment saying what is in it.
 | Sounds: what plays for what (`SFX`, with a synthesized sound for each that plays till its recording's loaded) | `src/js/audio/sfx.js` |
 | Which recordings are used and how each is cut (`SOUNDS`) | `tools/make-sounds.mjs` |
 | How loud each recording plays (`SAMPLES`), how a gunshot's varied every shot (`SFX.fire`), and the house's reverb (`houseIR`, `indoors`) | `src/js/audio/samples.js`, `src/js/audio/sfx.js` |
+| Sounds placed in the world: heard from a listener over the middle of the view, raised as you zoom out so they get quieter (`HEAR`: its height, the distance a sound is at full volume, how far it pans), panned by where they are on screen; recorded sounds are fetched and decoded once (`loadSound`, `decodeSounds`) and played with `playAt` | `src/js/audio/spatial.js` |
+| Footsteps: recorded, from your feet, by the ground under you (wood indoors and on the porch, dirt round the house and on the drive, grass elsewhere: `footSurface`, `FOOT_YARD`), a walk, a run (sprinting), a push off and a landing (vaulting), each never the same clip twice running and a touch different in pitch and volume, how loud each kind is (`FOOT_VOL`, `FOOT_SURF`); which clips are packed, trimmed and evened out is `SETS` in `tools/pack-footsteps.py` (run it again after changing them), where each sits in the file `FOOT_SPRITE` (`src/js/audio/footstep-sprite.js`). The synthesized step stands in till the file's loaded | `src/js/audio/footsteps.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | The flashlight's beam: drawn per pixel in the lit shader (`flCone` in `src/js/core/shaders.js`) with a soft rim and a brighter middle, set every frame from each tier's reach, width and strength (`FLASH`, `flashUniforms`; an akimbo pair has a beam per gun); its shadows are rays cast out across the beam every frame (`flashShadows`, `flRay`, `FL_RAYS`), each stopped by what stops sight, so a beam through a window or past a corner has clean edges; smoke catches it too (`flashAt`). It's only on while the gun's out in your hands: off while it's put away for a vault without Run and gun, and on again once the hand has it on the draw (`gunOut`, `flOn`) | `src/js/lighting/lightmap.js` |

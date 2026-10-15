@@ -9,6 +9,7 @@ function audioInit() {
     noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   } catch (e) { AC = null; }
   if (AC) samplesInit();   // the recorded sounds and the house's reverb (audio/samples.js)
+  decodeSounds();   // the recorded ones fetched so far (audio/spatial.js)
 }
 function nz(dur, type, f0, f1, vol, q) {
   if (!AC) return; const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();

@@ -49,19 +49,27 @@ function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap
 async function buildOnce() {
   const t0 = Date.now();
   fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
+  // recorded sounds (src/sounds: audio/spatial.js, audio/samples.js): copied beside the page, and asked for by a hash of
+  // their contents like the scripts, so a deploy that changes one is picked up straight away
+  const sounds = fs.existsSync(path.join(SRC, 'sounds')) ? fs.readdirSync(path.join(SRC, 'sounds')) : [];
+  fs.rmSync(path.join(OUT, 'sounds'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
+  const soundUrl = {};
+  for (const f of sounds) {
+    const bytes = fs.readFileSync(path.join(SRC, 'sounds', f));
+    fs.writeFileSync(path.join(OUT, 'sounds', f), bytes);
+    soundUrl[f] = { url: `sounds/${f}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`, bytes };
+  }
   // scripts
   let js = joinScripts();
+  for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
+  // (audio/samples.js builds its file names, so it's handed the hashes instead)
+  js = js.replace('const SOUND_HASH = {};', () => `const SOUND_HASH = ${JSON.stringify(Object.fromEntries(sounds.map(f => [f, soundUrl[f].url.split('?v=')[1]])))};`);
   if (!dev) js = (await transform(js, { loader: 'js', minify: true, target: 'es2020', legalComments: 'none' })).code;
   fs.writeFileSync(path.join(OUT, 'game.js'), js);
   // styles: index.css @imports every sheet in cascade order
   const css = await esbuild({ entryPoints: [path.join(SRC, 'styles/index.css')], bundle: true, minify: !dev, write: false, logLevel: 'silent' });
   const cssText = css.outputFiles[0].text;
   fs.writeFileSync(path.join(OUT, 'game.css'), cssText);
-  // the recorded sounds (audio/samples.js fetches them; standalone.html carries them inline instead)
-  const sndDir = path.join(SRC, 'sounds'), sounds = fs.existsSync(sndDir) ? fs.readdirSync(sndDir).filter(f => f.endsWith('.ogg')) : [];
-  fs.rmSync(path.join(OUT, 'sounds'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'sounds'), { recursive: true });
-  const inline = {};
-  for (const f of sounds) { fs.copyFileSync(path.join(sndDir, f), path.join(OUT, 'sounds', f)); inline[f.slice(0, -4)] = fs.readFileSync(path.join(sndDir, f)).toString('base64'); }
   // three.js r128, self-hosted
   fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
   // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
@@ -75,9 +83,11 @@ async function buildOnce() {
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
-    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>\n<script>window.FH_SOUNDS = ${JSON.stringify(inline)};</script>`)
-    .replace('<script src="./game.js"></script>', () => `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
+    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>`)
+    .replace('<script src="./game.js"></script>', () => `<script>window.SOUND_DATA = ${JSON.stringify(soundData())};</script>\n<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
+  // (the one-file build carries the sounds in it, as data: URLs)
+  function soundData() { return Object.fromEntries(Object.values(soundUrl).map(s => [s.url, `data:${s.url.includes('.ogg') ? 'audio/ogg' : 'audio/mpeg'};base64,` + s.bytes.toString('base64')])); }
   const kb = f => (fs.statSync(path.join(OUT, f)).size / 1024).toFixed(0) + ' KB';
   console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  ${sounds.length} sounds  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
 }
@@ -87,7 +97,7 @@ async function main() {
   if (!serve) return;
   let timer = null;
   fs.watch(SRC, { recursive: true }, () => { clearTimeout(timer); timer = setTimeout(() => buildOnce().catch(e => console.error(e.message)), 80); });
-  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ogg': 'audio/ogg' };
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg' };
   http.createServer((req, res) => {
     const url = decodeURIComponent(req.url.split('?')[0]);
     let file = path.join(OUT, url === '/' ? 'index.html' : url);
