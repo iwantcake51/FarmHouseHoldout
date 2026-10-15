@@ -44,26 +44,27 @@ function buildArmor(ar) {
     }
   }
   if (ar >= 2) {
-    // soft armour: front and back panels, shoulder straps, velcro side flaps, a name-tape patch and a light on the chest
+    // soft armour, cut close to the body: thin front and back panels, flat shoulder straps, velcro side flaps, a name
+    // tape and a light on the chest
     const g = gearItem(PM.torso), vest = ar >= 3 ? GEAR.coyote : GEAR.oliveDk, vestDk = ar >= 3 ? GEAR.coyoteDk : GEAR.black;
-    gb(g, 0.54, 0.46, 0.05, vest, 0, -0.02, 0.165); gb(g, 0.54, 0.5, 0.05, vest, 0, 0.0, -0.165);
-    [-1, 1].forEach(s => { gb(g, 0.11, 0.05, 0.36, vest, s * 0.15, 0.315, 0); gb(g, 0.02, 0.3, 0.32, vestDk, s * 0.255, -0.06, 0); gb(g, 0.024, 0.12, 0.24, vest, s * 0.258, -0.06, 0); });   // straps over the shoulders, side flaps
-    gb(g, 0.5, 0.06, 0.06, vestDk, 0, -0.24, 0.17);                                                   // the hem binding
-    gb(g, 0.16, 0.05, 0.012, GEAR.offWhite, -0.12, 0.13, 0.196); gb(g, 0.1, 0.06, 0.012, vestDk, 0.13, 0.13, 0.196);   // name tape, velcro
-    if (ar === 2) { gb(g, 0.05, 0.08, 0.04, GEAR.black, 0.16, 0.0, 0.205); gb(g, 0.03, 0.03, 0.01, GEAR.amber, 0.16, 0.02, 0.229); }   // a clip light
+    gb(g, 0.52, 0.44, 0.026, vest, 0, -0.02, 0.161); gb(g, 0.52, 0.48, 0.026, vest, 0, 0.0, -0.161);
+    [-1, 1].forEach(s => { gb(g, 0.09, 0.025, 0.33, vest, s * 0.15, 0.31, 0); gb(g, 0.012, 0.26, 0.31, vestDk, s * 0.254, -0.06, 0); gb(g, 0.014, 0.11, 0.22, vest, s * 0.257, -0.06, 0); });   // straps over the shoulders, side flaps
+    gb(g, 0.5, 0.035, 0.03, vestDk, 0, -0.23, 0.166);                                                 // the hem binding
+    gb(g, 0.15, 0.045, 0.008, GEAR.offWhite, -0.12, 0.13, 0.177); gb(g, 0.09, 0.055, 0.008, vestDk, 0.13, 0.13, 0.177);   // name tape, velcro
+    if (ar === 2) { gb(g, 0.04, 0.065, 0.025, GEAR.black, 0.16, 0.0, 0.186); gb(g, 0.026, 0.026, 0.008, GEAR.amber, 0.16, 0.015, 0.201); }   // a clip light
   }
   if (ar >= 3) {
-    // the plate carrier over it: thick chamfered plates front and back, three magazine pouches across the belly,
-    // an admin pouch, padded shoulders, side plates, a drag handle and rows of webbing
+    // the plate carrier over it, slim: plates front and back, three magazine pouches across the belly, an admin pouch,
+    // padded shoulders, side plates, a drag handle and rows of webbing, all kept close to the vest
     const g = gearItem(PM.torso), c = GEAR.coyote, cd = GEAR.coyoteDk;
-    gb(g, 0.42, 0.38, 0.06, c, 0, 0.02, 0.215); gb(g, 0.36, 0.32, 0.016, cd, 0, 0.04, 0.249);
-    gb(g, 0.42, 0.4, 0.06, c, 0, 0.03, -0.215);
-    for (let k = 0; k < 3; k++) { gb(g, 0.38, 0.016, 0.012, cd, 0, -0.06 + k * 0.08, 0.258); gb(g, 0.38, 0.016, 0.012, cd, 0, -0.04 + k * 0.08, -0.25); }
-    for (let k = 0; k < 3; k++) { const x = -0.13 + k * 0.13; gb(g, 0.11, 0.15, 0.07, c, x, -0.18, 0.25); gb(g, 0.112, 0.05, 0.075, cd, x, -0.12, 0.252); gb(g, 0.06, 0.07, 0.008, GEAR.black, x, -0.2, 0.289); }
-    gb(g, 0.16, 0.1, 0.04, cd, 0, 0.16, 0.262);                                                       // admin pouch
-    [-1, 1].forEach(s => { gb(g, 0.13, 0.06, 0.46, cd, s * 0.15, 0.335, 0); gb(g, 0.03, 0.24, 0.26, c, s * 0.262, -0.04, 0); });
-    gb(g, 0.16, 0.035, 0.04, GEAR.black, 0, 0.25, -0.26); [-1, 1].forEach(s => gb(g, 0.03, 0.06, 0.03, GEAR.black, s * 0.07, 0.22, -0.258));   // drag handle
-    gb(g, 0.06, 0.13, 0.05, GEAR.black, -0.2, 0.0, 0.275); gc(g, 0.006, 0.12, GEAR.black, -0.2, 0.12, 0.27);   // a radio and its antenna
+    gb(g, 0.4, 0.36, 0.028, c, 0, 0.02, 0.188); gb(g, 0.34, 0.3, 0.006, cd, 0, 0.04, 0.205);
+    gb(g, 0.4, 0.38, 0.028, c, 0, 0.03, -0.188);
+    for (let k = 0; k < 3; k++) { gb(g, 0.36, 0.014, 0.006, cd, 0, -0.06 + k * 0.08, 0.205); gb(g, 0.36, 0.014, 0.006, cd, 0, -0.04 + k * 0.08, -0.205); }
+    for (let k = 0; k < 3; k++) { const x = -0.13 + k * 0.13; gb(g, 0.1, 0.13, 0.03, c, x, -0.17, 0.217); gb(g, 0.102, 0.04, 0.034, cd, x, -0.12, 0.219); gb(g, 0.055, 0.06, 0.006, GEAR.black, x, -0.19, 0.234); }
+    gb(g, 0.15, 0.09, 0.018, cd, 0, 0.16, 0.211);                                                      // admin pouch
+    [-1, 1].forEach(s => { gb(g, 0.1, 0.028, 0.4, cd, s * 0.15, 0.335, 0); gb(g, 0.012, 0.22, 0.24, c, s * 0.266, -0.04, 0); });
+    gb(g, 0.15, 0.028, 0.026, GEAR.black, 0, 0.25, -0.215); [-1, 1].forEach(s => gb(g, 0.026, 0.05, 0.02, GEAR.black, s * 0.065, 0.225, -0.21));   // drag handle
+    gb(g, 0.05, 0.11, 0.026, GEAR.black, -0.2, 0.0, 0.215); gc(g, 0.005, 0.1, GEAR.black, -0.2, 0.1, 0.214);   // a radio and its antenna
   }
 }
 // ---- footwear: good leather work boots, then white running shoes, then trail runners; Thick soles builds the sole up
