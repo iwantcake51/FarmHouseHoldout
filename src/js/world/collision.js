@@ -3,8 +3,9 @@
 const blockArr = new Uint8Array(N * N);
 // what stops bullets and sight: walls and tall props, not the crates and hay bales you can see over
 for (let k = 0; k < N * N; k++) blockArr[k] = cell[k] === WALL || (cell[k] === OBST && !lowObst.has(k)) ? 1 : 0;
-const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && openAt[idx(i, j)].boards.length > 0); };
-const playerBlocked = (i, j) => { if (hardBlocked(i, j)) return true; const o = openAt[idx(i, j)]; return !!(o && o.kind === 'window'); };
+// a window's never walked through: you and the zombies climb it (player/vaulting.js, zombies/climb.js)
+const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && (openAt[idx(i, j)].boards.length > 0 || openAt[idx(i, j)].kind === 'window')); };
+const playerBlocked = hardBlocked;
 // out past the edge of the farm is open ground: shots (and anything thrown) carry on out to the zombies coming in
 const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) return false; return blockArr[idx(i, j)] === 1; };
 // zombies caught on a corner by one shoulder (the other side is clear) slip sideways toward the clear side as they push,

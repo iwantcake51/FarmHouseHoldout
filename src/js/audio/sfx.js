@@ -16,6 +16,14 @@ const SFX = {
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
+  // a board torn off hitting the ground: a hollow wooden clack
+  plankDrop(v) { tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
+  // a window smashing: the crack of the pane, a bright burst of breaking glass, then shards tinkling down after it
+  glass(v) {
+    v = v ?? 1; nz(0.06, 'highpass', 3000, 2000, 0.5 * v); nz(0.4, 'bandpass', 5200, 2600, 0.4 * v, 1.2); tn(0.05, 'triangle', 2400, 1300, 0.12 * v);
+    for (let k = 0; k < 7; k++) setTimeout(() => { const f = rr(3200, 6800); tn(rr(0.04, 0.1), 'sine', f, f * 0.96, rr(0.03, 0.07) * v); nz(0.03, 'bandpass', f, f * 0.8, 0.05 * v, 4); }, rr(40, 420));
+  },
+  glassTink(v) { const f = rr(4200, 7600); tn(0.05, 'sine', f, f * 0.97, 0.03 * v); nz(0.025, 'bandpass', f, f * 0.85, 0.03 * v, 5); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   magOut() { tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   magIn() { tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },

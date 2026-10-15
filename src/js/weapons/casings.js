@@ -207,6 +207,8 @@ function stepDebris(list, dt) {
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
+        else if (c.kind === 'plank') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
+        else if (c.kind === 'glass') { if (tinkT <= 0 && c.vy < -0.8) { SFX.glassTink(Math.min(1, -c.vy / 4)); tinkT = 0.03; } }   // (its shards: world/window-glass.js)
         else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;

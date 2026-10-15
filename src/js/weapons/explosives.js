@@ -14,6 +14,7 @@ function explode(x, z, r, dmg, self) {
   for (let k = 0; k < 12; k++) fx('smoke', x + rr(-0.5, 0.5), rr(0.3, 1.1), z + rr(-0.5, 0.5), rr(-0.7, 0.7), rr(0.7, 1.8), rr(-0.7, 0.7), rr(0.5, 0.8), rr(2.2, 3.4), rr(2.4, 3.8), rr(0.65, 0.8));
   splat(x, z, 'scorch', r * 0.9, undefined, 0.12);
   flashes.push({ x, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
+  for (const o of openings) { const d = Math.hypot(o.x - x, o.z - z); if (d < r + 1.5 && glassIntact(o)) smashGlass(o, (o.x - x) / (d || 1), (o.z - z) / (d || 1), true); }   // windows blown in (world/window-glass.js)
   for (const zb of zombies.slice()) {
     const dx = zb.x - x, dz = zb.z - z, d = Math.hypot(dx, dz); if (d > r) continue;
     const f = 1 - d / r, nx = dx / (d || 1), nz = dz / (d || 1);

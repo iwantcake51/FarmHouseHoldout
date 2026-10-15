@@ -41,7 +41,7 @@ function updateDayNight(rdt) {
   sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? S.nightVis * curDark * 0.16 : 0));
   openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
-  paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (b >= 2 ? 0.04 : b ? 0.12 : 0.2) * curDark; m.visible = m.material.opacity > 0.01; });
+  paneGlow.forEach(({ o, m }) => { const b = o.boards.length; m.material.opacity = (glassIntact(o) ? (b >= 2 ? 0.04 : b ? 0.12 : 0.2) : 0) * curDark; m.visible = m.material.opacity > 0.01; });
   if (state !== 'title') {
     // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
     const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';
