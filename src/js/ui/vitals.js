@@ -4,9 +4,9 @@
 // blood (losing blood makes the heart race to keep the pressure up), and highest while a wound is still bleeding.
 // It climbs within a couple of seconds and only settles slowly once the cause is gone. Near death it falters, slows
 // and goes irregular before it stops.
-// The trace is drawn like a bedside monitor's: about 2.6 seconds across, the pen sweeping left to right over the old
-// trace and wiping a short gap ahead of itself, a little breathing drift in the baseline.
-const ECG_HZ = 120, ECG_N = 312, ECG_GAP = 14, ecg = new Array(ECG_N).fill(0);
+// The trace is one unbroken line running right to left, about 2.6 seconds across, with a little breathing drift in
+// the baseline.
+const ECG_HZ = 120, ECG_N = 312, ecg = new Array(ECG_N).fill(0);
 let ecgAcc = 0, ecgPen = 0, breathT = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72;
 const ECG_R = 0.22;   // the R spike, this long after the start of each beat (the P wave comes first)
 const gauss = (t, mu, sd, a) => a * Math.exp(-((t - mu) * (t - mu)) / (2 * sd * sd));
@@ -42,13 +42,10 @@ function updateHeart(rdt, hpF) {
     ecg[ecgPen] = dead ? drift * 0.4 + rr(-0.01, 0.01) : beatWave(beatT, beatRR) + beatWave(beatT + prevRR, prevRR) + drift + rr(-0.012, 0.012);
     ecgPen = (ecgPen + 1) % ECG_N;
   }
-  // the sweep: everything but the gap just ahead of the pen, in one or two runs
-  const sx = 180 / (ECG_N - 1), pt = i => `${(i * sx).toFixed(1)},${(20 - ecg[i] * 15).toFixed(1)}`;
-  let d = '', open = false;
-  for (let i = 0; i < ECG_N; i++) {
-    if ((i - ecgPen + ECG_N) % ECG_N < ECG_GAP) { open = false; continue; }
-    d += (open ? 'L' : 'M') + pt(i); open = true;
-  }
+  // oldest on the left, newest at the right edge (ecgPen is the oldest sample in the ring)
+  const sx = 180 / (ECG_N - 1);
+  let d = '';
+  for (let k = 0; k < ECG_N; k++) d += (k ? 'L' : 'M') + (k * sx).toFixed(1) + ',' + (20 - ecg[(ecgPen + k) % ECG_N] * 15).toFixed(1);
   $('ecgLine').setAttribute('d', d);
 }
 function resetHeart() { heartRate = 72; hrStartle = 0; beatT = 0; ecgPen = 0; beatRR = prevRR = 60 / 72; ecg.fill(0); }

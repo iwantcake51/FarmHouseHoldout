@@ -4,7 +4,7 @@
 #hpTxt{font-size:46px;min-width:2.1ch;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #hpMax{font-family:var(--f-num);font-weight:600;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
 #ecg{flex:1;height:34px;min-width:0}
-/* a bedside monitor's sweep: the pen writes left to right and wipes a gap just ahead of itself (ui/vitals.js) */
+/* the heart trace (ui/vitals.js) */
 #ecg path{fill:none;stroke:var(--ink);stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 3px rgba(236,230,216,.35))}
 #vitals.low #ecg path{stroke:#e0402c;filter:drop-shadow(0 0 4px rgba(224,64,44,.6))}
 .bar{position:relative;height:6px;background:rgba(0,0,0,.5)}
