@@ -60,11 +60,46 @@ function buildArmor(ar) {
     gb(g, 0.4, 0.36, 0.028, c, 0, 0.02, 0.188); gb(g, 0.34, 0.3, 0.006, cd, 0, 0.04, 0.205);
     gb(g, 0.4, 0.38, 0.028, c, 0, 0.03, -0.188);
     for (let k = 0; k < 3; k++) { gb(g, 0.36, 0.014, 0.006, cd, 0, -0.06 + k * 0.08, 0.205); gb(g, 0.36, 0.014, 0.006, cd, 0, -0.04 + k * 0.08, -0.205); }
-    for (let k = 0; k < 3; k++) { const x = -0.13 + k * 0.13; gb(g, 0.1, 0.13, 0.03, c, x, -0.17, 0.217); gb(g, 0.102, 0.04, 0.034, cd, x, -0.12, 0.219); gb(g, 0.055, 0.06, 0.006, GEAR.black, x, -0.19, 0.234); }
+    // the three belly pouches hold your long gun's ammo (with two long guns, two for one and the third for the other;
+    // with none, your sidearm's), open-topped under a bungee so what's in them pokes out
+    const longs = [W8.slot.auto, W8.slot.long].filter(Boolean), fill = longs.length === 2 ? [longs[0], longs[0], longs[1]] : longs.length ? [longs[0], longs[0], longs[0]] : [W8.slot.side, W8.slot.side, W8.slot.side];
+    for (let k = 0; k < 3; k++) {
+      const x = -0.13 + k * 0.13; gb(g, 0.1, 0.13, 0.03, c, x, -0.17, 0.217); gb(g, 0.102, 0.012, 0.034, cd, x, -0.11, 0.219); gb(g, 0.055, 0.06, 0.006, GEAR.black, x, -0.19, 0.234);
+      if (fill[k]) pouchFill(g, fill[k], x, -0.105, 0.217, 0.09);
+      gb(g, 0.104, 0.008, 0.008, GEAR.black, x, -0.097, 0.236);   // the bungee across the top
+    }
+    // and with a long gun as well, the sidearm's mags ride in a small pouch on the right of the chest
+    if (longs.length && W8.slot.side) { gb(g, 0.072, 0.08, 0.026, c, 0.165, -0.005, 0.215); gb(g, 0.074, 0.01, 0.03, cd, 0.165, 0.032, 0.216); pouchFill(g, W8.slot.side, 0.165, 0.035, 0.215, 0.062); }
     gb(g, 0.15, 0.09, 0.018, cd, 0, 0.16, 0.211);                                                      // admin pouch
     [-1, 1].forEach(s => { gb(g, 0.1, 0.028, 0.4, cd, s * 0.15, 0.335, 0); gb(g, 0.012, 0.22, 0.24, c, s * 0.266, -0.04, 0); });
     gb(g, 0.15, 0.028, 0.026, GEAR.black, 0, 0.25, -0.215); [-1, 1].forEach(s => gb(g, 0.026, 0.05, 0.02, GEAR.black, s * 0.065, 0.225, -0.21));   // drag handle
     gb(g, 0.05, 0.11, 0.026, GEAR.black, -0.2, 0.0, 0.215); gc(g, 0.005, 0.1, GEAR.black, -0.2, 0.1, 0.214);   // a radio and its antenna
+  }
+}
+// what rides in a carrier pouch for each gun, stowed as it would be: magazines base plate up (two to a pouch for a
+// handgun), a speed loader for the revolver, shotgun shells brass up in their loops, rifle rounds tip up, or a short
+// length of the machine gun's belt; w is how wide the pouch is
+const POUCH_FILL = {
+  ar: { k: 'mag', w: 0.066, h: 0.068, d: 0.024 }, sub: { k: 'mag', w: 0.05, h: 0.066, d: 0.018, tilt: 0.12 }, smg: { k: 'mag', w: 0.042, h: 0.06, d: 0.02, poly: true },
+  auto12: { k: 'mag', w: 0.072, h: 0.058, d: 0.028 }, pistol: { k: 'mag2', w: 0.03, h: 0.052, d: 0.018, poly: true }, deagle: { k: 'mag2', w: 0.033, h: 0.052, d: 0.02 },
+  revolver: { k: 'loader' }, pump: { k: 'shells' }, dbl: { k: 'shells' }, hunting: { k: 'rounds', n: 5 }, lmg: { k: 'rounds', n: 7, belt: true }
+};
+const POUCH_TIP = new THREE.CylinderGeometry(0.0012, 0.0058, 0.016, 8);
+function pouchFill(g, id, x, y, z, w) {
+  const f = POUCH_FILL[id]; if (!f) return;
+  const body = f.poly ? GM.poly : GM.metal2, base = GM.poly;
+  // a mag standing base up out of the pouch top at y: its body, then the wider base plate
+  const mag = (mx, mw, mh, md, tilt) => { const a = gb(g, mw, mh, md, body, mx, y + mh / 2 - 0.012, z); const b = gb(g, mw + 0.006, 0.01, md + 0.006, base, mx, y + mh - 0.008, z); if (tilt) [a, b].forEach(o => { o.rotation.x = tilt; }); };
+  if (f.k === 'mag') mag(x, f.w, f.h, f.d, f.tilt);
+  else if (f.k === 'mag2') [-1, 1].forEach(s => mag(x + s * w * 0.24, f.w, f.h, f.d));
+  else if (f.k === 'loader') { gc(g, 0.024, 0.026, GEAR.black, x, y + 0.01, z, null, 12); gc(g, 0.008, 0.018, GEAR.steelDk, x, y + 0.03, z, null, 8); }
+  else if (f.k === 'shells') for (let k = 0; k < 4; k++) { const sx = x + (k - 1.5) * w * 0.25; gc(g, 0.0095, 0.05, GM.shell, sx, y + 0.011, z, null, 10); gc(g, 0.0102, 0.012, GM.brass, sx, y + 0.04, z, null, 10); }
+  else if (f.k === 'rounds') {
+    for (let k = 0; k < f.n; k++) {
+      const rx = x + (k - (f.n - 1) / 2) * w * (f.belt ? 0.13 : 0.18); gc(g, 0.0058, 0.046, GM.brass, rx, y + 0.01, z, null, 8);
+      const t = new THREE.Mesh(POUCH_TIP, GM.copper); t.position.set(rx, y + 0.041, z); t.castShadow = true; g.add(t);
+    }
+    if (f.belt) gb(g, w * 0.95, 0.008, 0.016, GEAR.dark, x, y + 0.012, z);   // the links holding them
   }
 }
 // ---- footwear: good leather work boots, then white running shoes, then trail runners; Thick soles builds the sole up
