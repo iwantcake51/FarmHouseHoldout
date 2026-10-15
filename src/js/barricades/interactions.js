@@ -15,7 +15,7 @@ function updateInteractions(dt) {
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();
   const canBoard = boardable(o);
-  if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * boardRate(); if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); } }
+  if (o && (keys.has('f') || touchBoard) && canBoard) { boardT += dt * boardRate(); if (boardT >= 0.6) { boardT = 0; S.planks--; addBoard(o); netBoardUp(o); } }
   else boardT = 0;
   const fv = !o && !P.vault && fenceTarget(), tk = nearestTake();
   // the prompt eases in and out (the 'on' class); its rows stay put while it fades so it never blinks empty

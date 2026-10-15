@@ -28,6 +28,16 @@ function tickShove(dt) {
   if (!s.hit && s.t >= s.hitT) { s.hit = true; landShove(s); }
   if (p >= 1) { P.shove = null; if (aimHeld) startAim(); }   // still holding aim: back down the sights
 }
+// a zombie shoved: thrown back (a brute barely budges), its swing lost, stumbling slowly for a few seconds. A co-op
+// teammate's shove lands here too (net/sync.js)
+function shoveZombie(z, nx, nz, f, power, big) {
+  z.vx += nx * 9 * f; z.vz += nz * 9 * f;
+  if (!big) { z.stagger = Math.max(z.stagger, 0.8 * power); z.atk = Math.max(z.atk, 0.8 * power); z.lunge = 0; z.pushSlow = SHOVE_SLOW * power; z.shoved = 1; zAnimShove(z); }
+  else { z.pushSlow = Math.max(z.pushSlow || 0, 0.8); z.shoved = 0.35; }
+  z.squash = 1; z.flash = Math.max(z.flash, 0.1);
+  const [bx, bz] = bodyOf(z), hy = 1.0 * z.T.scale * (z.crawl ? 0.35 : 1);
+  burst(bx - nx * 0.25, hy, bz - nz * 0.25, 6, 'dust', nx, nz, 2.4); burst(bx, 0.08, bz, 4, 'dust', nx, nz, 1.4);
+}
 function landShove(s) {
   SFX.shove(s.stab);
   let hit = 0, brute = false;
@@ -37,13 +47,10 @@ function landShove(s) {
     const nx = dx / (d || 1), nz = dz / (d || 1), big = z.type === 'brute';
     // brutes barely budge; everyone else is thrown back, loses their swing and stumbles slowly for a few seconds
     const f = s.power * (big ? 0.25 : 1) * (z.crawl ? 0.6 : 1);
-    z.vx += nx * 9 * f; z.vz += nz * 9 * f;
-    if (!big) { z.stagger = Math.max(z.stagger, 0.8 * s.power); z.atk = Math.max(z.atk, 0.8 * s.power); z.lunge = 0; z.pushSlow = SHOVE_SLOW * s.power; z.shoved = 1; zAnimShove(z); }
-    else { z.pushSlow = Math.max(z.pushSlow || 0, 0.8); z.shoved = 0.35; }
-    z.squash = 1; z.flash = Math.max(z.flash, 0.1);
-    const hy = 1.0 * z.T.scale * (z.crawl ? 0.35 : 1);
-    burst(bx - nx * 0.25, hy, bz - nz * 0.25, 6, 'dust', nx, nz, 2.4); burst(bx, 0.08, bz, 4, 'dust', nx, nz, 1.4);
-    if (s.stab && !z.dead) hurtZombie(z, EFF.bayonet.dmg * S.meleeMul * s.power, nx, nz, EFF.bayonet.kb, 'bayonet', 'torso');
+    netAct(z, nx, nz, () => {
+      shoveZombie(z, nx, nz, f, s.power, big); netRec('v', nr(f), nr(s.power), big ? 1 : 0);
+      if (s.stab && !z.dead) hurtZombie(z, EFF.bayonet.dmg * S.meleeMul * s.power, nx, nz, EFF.bayonet.kb, 'bayonet', 'torso');
+    });
     hit++; brute = brute || big;
   }
   if (hit) {

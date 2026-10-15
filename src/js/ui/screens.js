@@ -28,12 +28,13 @@ function resetRun(keepLook) {
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
   bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
-  resetBoards(); clearHoles(); freshRun(); if (!keepLook) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one
+  resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one (in co-op you keep the one your teammates have)
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = 0; P.adrCd = 0; tod = 15;
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1;
   zoomT = ZOOM_MAX; hurtFx = 0; flowDirty = true; timeScale = 1; camPunch = 0;   // the intro glides in all the way to the closest zoom
   $('feed').innerHTML = ''; feedItems.length = 0; clearGear();
   floats.forEach(f => f.el.remove()); floats.length = 0;
+  netRunStart();   // (co-op: net/sync.js)
 }
 // soft: straight off the title, where the farm is already fresh and the survivor you see is the one you play, so the
 // camera glides down from the title shot without a cut
@@ -47,6 +48,7 @@ function newRun(soft) {
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
   resetRun(); setState('title'); $('title').scrollTop = 0;
+  if (NET.on) { NET.inGame = false; toggleCoop(true); }   // still in a co-op game: back in its lobby
   // the HUD stops updating on the title, so clear the dying screen effects by hand
   cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'healVig', 'conc', 'hitVig', 'bleedVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
@@ -70,11 +72,12 @@ function switchScreens(dark, fn) {
 }
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
 // start a run: off the title the menu slides away and the camera swoops down onto you; after a death it dips to black
-function enterRun() { audioInit(); const soft = state === 'title'; switchScreens(!soft, () => newRun(soft)); }
+// in a co-op lobby only the host starts it, for everyone (net/net.js)
+function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); const soft = state === 'title'; switchScreens(!soft, () => newRun(soft)); }
 // to the title: a dip to black, and the menu comes in piece by piece as it lifts
 function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').classList.add('arrive'); }); }
 // the pause screen fades in and out instead of snapping
-function pauseRun() { if (state !== 'play' || P.dead || switching) return; setState('paused'); }
+function pauseRun() { if (state !== 'play' || P.dead || switching) return; $('quitBtn').hidden = netLink(); setState('paused'); }   // (in co-op the farm goes on while you're paused, and there's no abandoning it for the others)
 function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
   cancelLeave();
@@ -86,7 +89,7 @@ $('menuBtn').onclick = leaveToMenu;
 // leaving a run from the pause screen asks first: the buttons give way to the question, and a yes, or a cancel (Esc)
 // that puts them back
 const P_SURE = {
-  menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); leaveToMenu(); } },
+  menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); if (netLink()) netLeave(); leaveToMenu(); } },
   quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => die() }
 };
 let pSure = null;
@@ -108,6 +111,7 @@ function startDeath() {
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1);
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
+  if (netLink()) netDown();   // co-op: no slow motion, the farm goes on (net/sync.js)
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands
     gg.updateMatrixWorld(true);
@@ -127,13 +131,16 @@ function startDeath() {
 const DEATH_RATE = 0.55, DEATH_GROUND = 0.86, DEATH_SLOW = 0.6;
 function tickDeath(rdt) {
   P.deathDt = rdt * DEATH_RATE; P.deathT += P.deathDt;
+  if (netLink()) return;   // co-op: you're down, not out, until everyone is (net/sync.js)
   timeScale = DEATH_SLOW * Math.pow(1 - clamp(P.deathT / DEATH_GROUND, 0, 1), 1.6);
   if (P.deathT > 1.2 && performance.now() - P.deathAt > 3800 && state === 'play') die();
 }
 function die() {
   if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} }
   showBest();
-  $('deadTitle').textContent = 'Dead on wave ' + Math.max(1, run.wave);
+  $('deadTitle').textContent = (netLink() ? 'Overrun on wave ' : 'Dead on wave ') + Math.max(1, run.wave);
+  $('againBtn').hidden = NET.on && !NET.host;   // (in co-op the host starts the next one)
+  if (NET.on) NET.inGame = false;
   const acc = run.shots ? Math.round(run.hits / run.shots * 100) + '%' : '—';
   const mins = Math.floor(run.time / 60), secs = String(Math.floor(run.time % 60)).padStart(2, '0');
   $('deadStats').innerHTML = '';

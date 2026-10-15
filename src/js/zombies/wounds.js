@@ -64,6 +64,7 @@ const CHIP_G = new THREE.BoxGeometry(0.045, 0.02, 0.04), CHIP_M = [lam(0xd8cdb6)
 CHIP_M.forEach(m => { m.userData.mobile = true; });
 function headShot(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return;
+  netRec('h');
   head.getWorldPosition(_wB);
   const bx = _wB.x + dx * 0.17, by = _wB.y + 0.02, bz = _wB.z + dz * 0.17;
   burst(bx, by, bz, 14, 'blood', dx, dz, 5.4);
@@ -83,7 +84,7 @@ const BONE_G = new THREE.BoxGeometry(0.036, 0.036, 0.06), BONE_M = lam(0xe2d9c4)
 function severLower(z, part, dx, dz) {
   const arm = part[0] === 'a', key = (arm ? 'fore' : 'shin') + part.slice(3), low = z.m[key];
   if (!low || !low.parent || !z.limbs[part] || (z.cut && z.cut[part]) || (!arm && z.type === 'brute')) return false;   // (a brute's legs stay on: zombies/damage.js sever)
-  (z.cut || (z.cut = {}))[part] = true;
+  (z.cut || (z.cut = {}))[part] = true; netRec('l', part);
   flingPart(z, low, dx, dz, 0.8);
   z.m[key] = new THREE.Object3D();   // a stand-in for the poses to bend (zombies/zombie-anim.js, zombies/deaths.js)
   const end = arm ? _wP.set(0, 0, 0.27) : _wP.set(0, -0.29, 0);
@@ -92,7 +93,7 @@ function severLower(z, part, dx, dz) {
   if (arm) b.position.set(rr(-0.01, 0.01), rr(-0.01, 0.01), 0.29); else { b.position.set(rr(-0.01, 0.01), -0.31, rr(-0.01, 0.01)); b.rotation.x = Math.PI / 2; }
   z.m[part].add(b);
   z.spurts.push({ part, t: 1.2, o: z.m[part], p: arm ? [0, 0, 0.28] : [0, -0.3, 0] });   // from the stump
-  run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER * 0.7);
+  if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER * 0.7);
   SFX.sever();
   if (!arm && !z.crawl && !z.dead) goCrawl(z);
   return true;

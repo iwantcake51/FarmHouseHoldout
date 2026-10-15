@@ -20,6 +20,9 @@ const SRC = path.join(ROOT, 'src'), OUT = path.join(ROOT, 'dist');
 const args = new Set(process.argv.slice(2));
 const serve = args.has('--serve'), dev = serve || args.has('--dev');
 const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+// PeerJS, for co-op (src/js/net/net.js loads it the first time someone hosts or joins); the one-file build takes it from a CDN
+const PEER_VER = JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/peerjs/package.json'), 'utf8')).version;
+const PEER_CDN = `https://cdn.jsdelivr.net/npm/peerjs@${PEER_VER}/dist/peerjs.min.js`;
 // the F9 cheat menu (src/js/ui/cheats.js) is for testing: Netlify's production deploy of main is built with CHEATS=off
 // (netlify.toml), which leaves it out of the game altogether, its panel and all. Deploy previews, branch deploys and
 // local builds keep it
@@ -72,6 +75,7 @@ async function buildOnce() {
   fs.writeFileSync(path.join(OUT, 'game.css'), cssText);
   // three.js r128, self-hosted
   fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
+  fs.copyFileSync(path.join(ROOT, 'node_modules/peerjs/dist/peerjs.min.js'), path.join(OUT, 'vendor/peerjs.min.js'));
   // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
   // fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay the same)
   let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
@@ -83,7 +87,7 @@ async function buildOnce() {
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
-    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>`)
+    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>\n<script>window.PEERJS_SRC = '${PEER_CDN}';</script>`)
     .replace('<script src="./game.js"></script>', () => `<script>window.SOUND_DATA = ${JSON.stringify(soundData())};</script>\n<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
   // (the one-file build carries the sounds in it, as data: URLs)

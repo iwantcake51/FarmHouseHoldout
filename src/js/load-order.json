@@ -3,6 +3,7 @@
   "ui/game-icons.js",
   "core/renderer.js",
   "core/math.js",
+  "net/net.js",
   "core/shaders.js",
   "core/geometry.js",
   "world/grid.js",
@@ -121,5 +122,8 @@
   "ui/gear-popup.js",
   "ui/cheats.js",
   "game/visuals.js",
+  "net/sync.js",
+  "net/avatars.js",
+  "net/lobby.js",
   "game/loop.js"
 ]

@@ -171,6 +171,7 @@ function gunFire(id, D, side) {
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
   const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
+  const ends = [];   // where the tracers end, for your teammates' screens (net/avatars.js)
   for (let p = 0; p < pellets; p++) {
     // a shotgun's pattern is centred on what the crosshair sits on (the first pellet lands exactly there), not on the
     // ground under the cursor, which from this camera is off to one side of a zombie's head
@@ -201,7 +202,7 @@ function gunFire(id, D, side) {
     const endT = n ? Math.max(0.2, hits[n - 1].t) : endR, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
-    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt);
+    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT]); }
     if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' || (D.ammo === 'shells' && pellets === shots) ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
@@ -214,6 +215,7 @@ function gunFire(id, D, side) {
   if (anyHit) run.hits++;
   const quiet = suppressed(D);
   SFX.fire(id, quiet, D.ammo === 'shells');
+  shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);
   const st = stocked(id) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st;
   fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);

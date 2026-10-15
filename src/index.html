@@ -92,6 +92,8 @@
   </div>
 </div>
 <div class="hud" id="moodles" hidden></div>
+<div class="hud" id="team" hidden aria-label="Your team"></div>
+<div id="tags" aria-hidden="true"></div>
 <div class="hud" id="vitals" hidden>
   <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
   <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
@@ -154,7 +156,23 @@
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><span class="note" id="best"></span></div>
+    <div class="coop" id="coop" hidden>
+      <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
+      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
+      <div class="coopPick" id="coopPick">
+        <button class="btn ghost sm" id="coopHost" type="button">Host a game</button>
+        <span class="or">or join one</span>
+        <input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code">
+        <button class="btn ghost sm" id="coopJoin" type="button">Join</button>
+      </div>
+      <div class="coopRoom" id="coopRoom" hidden>
+        <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy</button></div>
+        <ol class="coopList" id="coopList"></ol>
+        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd>T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
+      </div>
+      <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
+    </div>
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>

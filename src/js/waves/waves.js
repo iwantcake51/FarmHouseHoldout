@@ -4,8 +4,10 @@
 // tenth of the wave, rising to three in ten by wave 12), brutes from wave 5 (one in twenty-five, up to one in eight),
 // and every fifth wave two more brutes on top. They come in a shuffled order.
 const waveMix = n => ({ runner: n >= 3 ? Math.min(0.3, 0.1 + (n - 3) * 0.022) : 0, brute: n >= 5 ? Math.min(0.125, 0.04 + (n - 5) * 0.0085) : 0 });
+// In co-op the horde grows with the team: 60% more for each survivor past the first
+const teamK = () => 1 + 0.6 * (netTeam() - 1);
 function buildWave(n) {
-  const count = 5 + Math.round(n * 3.4), mix = waveMix(n);
+  const count = Math.round((5 + Math.round(n * 3.4)) * teamK()), mix = waveMix(n);
   const runners = Math.round(count * mix.runner), brutes = Math.round(count * mix.brute);
   const list = Array.from({ length: Math.max(0, count - runners - brutes) }, () => 'walker');
   if (n % 5 === 0) list.push('brute', 'brute');
@@ -15,12 +17,18 @@ function buildWave(n) {
   return list;
 }
 function startWave() {
-  run.wave++; phase = 'wave'; spawnQ = buildWave(run.wave); spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
+  spawnQ = buildWave(run.wave + 1);
+  waveBegins(run.wave + 1, spawnQ.length);
+  netSend('wave', { n: run.wave, tot: run.waveTotal });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+}
+// a wave begins: on its own, or on a co-op joiner's screen when the host's does
+function waveBegins(n, total) {
+  run.wave = n; phase = 'wave'; spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
-  run.waveTotal = spawnQ.length;
+  run.waveTotal = total;
   const brutes = run.wave === 5 || run.wave % 5 === 0;   // the wording fits any hour: a wave can start in daylight
-  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : spawnQ.length + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
+  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 function beginBreak(t) { phase = 'break'; breakT = breakMax = t; }
@@ -31,14 +39,18 @@ function waveBar(frac, mode) {
   if (cache.wBar === k) return; cache.wBar = k;
   $('wBarFill').style.transform = `scaleX(${clamp(frac, 0, 1).toFixed(3)})`; $('waveBox').dataset.ph = mode;
 }
-function waveCleared() { phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn = 0.3; slowHold = 0.75; announce('Wave ' + run.wave, 'Cleared · Prepare for the next wave', { eye: 'Survived', kind: 'gold' }); SFX.cleared(); }
+function waveCleared() { netCleared(); phase = 'cleared'; clearT = 2.6; slowTo = 0.25; slowIn = 0.3; slowHold = 0.75; announce('Wave ' + run.wave, 'Cleared · Prepare for the next wave', { eye: 'Survived', kind: 'gold' }); SFX.cleared(); }
 // zombie path field, break timer, spawning and wave clear. Returns true when the upgrade screen opens
 function updateWaves(dt) {
+  if (netClient()) return clientWaves(dt);   // co-op, someone else hosting: their game runs the waves (net/sync.js)
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
 
   if (phase === 'break' && CHEAT.noWaves) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
     setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
     waveBar(1, 'break');
+  } else if (phase === 'break' && netWaiting()) {   // co-op: the break waits for everyone still choosing their find
+    setH('wSub', netWaiting());
+    waveBar(breakT / breakMax, 'break');
   } else if (phase === 'break') {
     breakT -= dt;
     setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
@@ -46,13 +58,13 @@ function updateWaves(dt) {
     if (breakT <= 0) startWave();
   } else if (phase === 'wave') {
     spawnT -= dt;
-    if (spawnQ.length && spawnT <= 0 && zombies.length < 40 && !CHEAT.noWaves) {
-      spawnZombie(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4);
+    if (spawnQ.length && spawnT <= 0 && zombies.length < 40 + 12 * (netTeam() - 1) && !CHEAT.noWaves) {
+      netSpawn(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4) / Math.sqrt(netTeam());
     }
     const left = spawnQ.length + zombies.length;
     setH('wSub', `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left'));
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
-    if (!spawnQ.length && !zombies.length && !P.dead) waveCleared();
+    if (!spawnQ.length && !zombies.length && !netAllDown()) waveCleared();
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear');
     clearT -= dt / Math.max(timeScale, 0.3);

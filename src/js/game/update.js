@@ -4,7 +4,7 @@
 function update(dt) {
   run.time += dt; cheatTick();   // the cheat menu's switches (ui/cheats.js)
   if (phase === 'wave' && !CHEAT.clock) tod = (tod + dt / 12) % 24;   // the clock stands still between waves
-  updatePlayer(dt);
+  updatePlayer(dt); avatarPush();
   updateCombat(dt);
   updateInteractions(dt);
   if (updateWaves(dt)) return;   // wave cleared: the upgrade screen takes over

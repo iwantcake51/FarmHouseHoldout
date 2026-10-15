@@ -72,7 +72,7 @@ function updateCamera(rdt) {
       camEdge.x += (ex - camEdge.x) * Math.min(1, rdt * 3); camEdge.y += (ey - camEdge.y) * Math.min(1, rdt * 3);
       const m = EDGE_PAN * 2 * VIEW / zoom;   // screen right is RIGHT on the ground; screen down is back toward the camera, stretched by the tilt
       px += (RIGHT.x * camEdge.x - FWD.x * camEdge.y / Math.sin(EL)) * m; pz += (RIGHT.z * camEdge.x - FWD.z * camEdge.y / Math.sin(EL)) * m; }
-    const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
+    const fo = camFocus(), gx = fo.x + px - vd.x * k, gz = fo.z + pz - vd.z * k;   // (down in co-op: a teammate, net/sync.js)
     if (state === 'play') tickIntro(rdt);
     if (introCamOn()) introCam(gx, gz, rdt);   // the glide in at the start of a run (game/intro.js)
     else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }

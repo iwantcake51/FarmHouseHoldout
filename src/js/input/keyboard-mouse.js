@@ -32,7 +32,7 @@ addEventListener('keydown', e => {
     if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)
   }
   if (['1', '2', '3', '4'].includes(k)) switchSlot(SLOTS[+k - 1]);
-  if (k === 't' && phase === 'break') breakT = 0;
+  if (k === 't' && phase === 'break') { if (netClient()) netSend('skip', {}); else breakT = 0; }   // (co-op: the host starts it)
   if (k === '=' || k === '+') zoomT = clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX);
   if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX);
 });

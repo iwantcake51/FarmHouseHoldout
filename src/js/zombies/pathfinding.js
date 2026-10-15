@@ -1,4 +1,4 @@
-// Flow field toward the player (Dijkstra over the grid); fences and boards cost extra.
+// Flow field toward the player, or every player in co-op (Dijkstra over the grid); fences and boards cost extra.
 
 // brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door
 const dist = new Float32Array(N * N), distB = new Float32Array(N * N);
@@ -11,8 +11,8 @@ function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i
 function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
 function flowInto(dist, big) {
   dist.fill(1e9); hp_.length = 0; hd_.length = 0;
-  const si = clamp(ci(P.x), 0, N - 1), sj = clamp(ci(P.z), 0, N - 1), s = idx(si, sj);
-  dist[s] = 0; hpush(s, 0);
+  // from every survivor still standing at once (in co-op there can be four), so each zombie heads for whoever's nearest
+  for (const q of netTargets()) { if (q.dead && !(q.me && !netLink())) continue; const s = idx(clamp(ci(q.x), 0, N - 1), clamp(ci(q.z), 0, N - 1)); if (dist[s]) { dist[s] = 0; hpush(s, 0); } }
   while (hp_.length) {
     const [c, d] = hpop(); if (d > dist[c]) continue;
     const i = c % N, j = (c / N) | 0;

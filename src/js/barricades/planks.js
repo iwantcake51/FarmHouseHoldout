@@ -40,16 +40,20 @@ function makePlank(sign) {
   return g;
 }
 let flowDirty = true, lightsDirty = false;
-function addBoard(o) {
+// hp and side are given for a board a co-op teammate put up (net/sync.js): how strong it went up, and which side of the
+// opening they stood on
+function addBoard(o, hp, sd) {
   const n = o.boards.length; if (n >= 3) return;
-  o.boards.push(70 * S.boardMul);
-  const side = Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
+  const mine = hp === undefined;
+  o.boards.push(mine ? 70 * S.boardMul : hp);
+  const side = sd || Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
   const m = makePlank(o.out * side);
   m.position.set(rr(-.06, .06), o.ys[n] + rr(-0.04, 0.04), o.out * side * (0.52 + n * 0.012)); m.rotation.set(rr(-0.03, 0.03), rr(-0.04, 0.04), (n % 2 ? -1 : 1) * rr(.1, .28));
   m.userData.drop = 0.12; m.position.y += 0.12;   // knocked into place
   m.userData.rz0 = m.rotation.z; m.userData.x0 = m.position.x; m.userData.z0 = m.position.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
-  run.boards++; SFX.board(); setTimeout(() => SFX.board(), 110);
+  if (mine) run.boards++;
+  SFX.board(); setTimeout(() => SFX.board(), 110);
   burst(o.x + o.nx * side * .55, o.ys[n], o.z + o.nz * side * .55, 4, 'dust');
   flowDirty = true; lightsDirty = true;
 }

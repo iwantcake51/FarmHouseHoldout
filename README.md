@@ -17,10 +17,28 @@ npm run build    # production build into dist/
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Readable build plus a local server. Save any file in `src/` and refresh the browser. |
-| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`, `dist/sounds/`. |
+| `npm run build` | Minified build: `dist/index.html`, `dist/game.js`, `dist/game.css`, `dist/vendor/three.min.js`, `dist/vendor/peerjs.min.js`, `dist/sounds/`. |
 | `npm run build:dev` | Same files as `build`, but not minified and with a `// ==== path` banner before each source file, so errors point at the right file. |
 
 Every build also writes `dist/standalone.html`: the whole game in one file you can open by double-clicking it or send to someone. It loads three.js from a CDN, so it needs an internet connection; the sounds are inside it.
+
+## Co-op
+
+Up to four players, online. On the title screen press **Co-op**, put in your name and **Host a game**: you get a
+four-letter code. Your friends open the game, press **Co-op**, type the code and **Join** (or open the page with
+`?join=CODE` on the end of the address). When everyone's in, the host presses **Start together**.
+
+- The host's game runs the farm: the zombies, the waves, the boards and the clock. Everyone else's shows what the
+  host's has. Each player's survivor, health, weapons, scrap and cards are their own.
+- Zombies go for whoever is nearest. Waves are 60% bigger for each extra player.
+- A player who goes down watches a teammate and is back on their feet, at half health, when the wave is cleared. The
+  run ends when everyone is down.
+- After a wave the next break waits until everyone has picked their card. Pausing doesn't stop the farm.
+- The host should keep the game's tab in view: a browser stops a hidden tab, and the farm stops with it for everyone.
+- Players connect directly to each other over WebRTC (PeerJS, in `dist/vendor/`). PeerJS's free public server only
+  introduces them. If it's down, run your own (`npx peerjs --port 9000`) and add `?peer=yourhost:9000` to everyone's
+  address. Some strict networks block direct connections; there's no relay server for those.
+- `?net=local` connects tabs of the same browser instead, with no network at all. It's useful for testing.
 
 ## Deploying to Netlify
 
@@ -54,6 +72,7 @@ src/
     audio/            the recorded sounds (footsteps from where they are), the reverb inside the house, synthesized ones for the rest
     input/            keyboard, mouse and touch controls
     game/             shared state, the update and draw order, camera, main loop
+    net/              co-op: the connection and lobby, teammates' survivors, keeping everyone's farm the same
 assets/               raw packs to pick from, not shipped with the game (sizes to keep to: assets/README.md)
   textures/           texture packs (Kenney zips as they come)
   sounds/             sound packs and single sound files
@@ -190,6 +209,12 @@ Every source file starts with a one-line comment saying what is in it.
 | The rolling digit counters (ammo, reserve, bandages, planks, scrap, kills, the reload text, and the wave number, which spins a whole turn round to each new wave: `spin`) | `rollText` / `setRoll` in `src/js/ui/hud-text.js` |
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 | The icons (HUD, pickups, stations, status icons) | `src/js/ui/game-icons.js` |
+| Co-op connection: hosting and joining, the four-letter codes, the most players (`NET_MAX`), how long a quiet player has before they count as gone (`NET_QUIET`), another PeerJS server (`PEER_OPTS`, `?peer=`), the same-browser test link (`?net=local`), and the messages each kind of event sends (`NET_ON`) | `src/js/net/net.js` |
+| The co-op lobby on the title (name, host, join, who's in, start) and the team list with health under the clock | `src/js/net/lobby.js`, `src/styles/coop.css` |
+| Teammates on your screen: their survivor built from the same rig and look as yours (`buildAvatar`, from `PM_BASE` in `src/js/player/player.js`), the pose sent twenty times a second (`poseOut`, the joints in `POSE_K`) and eased to, their weapon, nameplate and outline, their shots (tracers, flash, the sound quieter with distance: `heardFrom`) | `src/js/net/avatars.js` |
+| Keeping everyone's farm the same: zombies spawned from the host's seed (`netSpawn`, `withSeed` in `src/js/core/math.js`), the host's snapshot a dozen times a second (`snapOut`) and joiners' zombies eased to it (`puppetMove`, `puppetBoard`), climbs, swings at teammates (`netLunge`), hits and kills replayed from the hitter's record of them (`netAct`, `netOp`: the damage, what came off, how it fell, what it dropped), boards, drops picked up, the waves and their breaks, going down and getting back up (`netDown`, `netRevive`), and the run's end | `src/js/net/sync.js` |
+| Who a zombie goes for (the nearest survivor still standing), and what its swing does to you (`zStrike`) | `updateZombies`, `zStrike` in `src/js/zombies/ai.js` |
+| How much bigger a co-op wave is (`teamK`) | `src/js/waves/waves.js` |
 
 ### Adding a new gun
 

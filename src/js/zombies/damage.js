@@ -13,10 +13,10 @@ const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
-  z.limbs[part] = false;
+  z.limbs[part] = false; netRec('s', part, blast ? 1 : 0);   // (in co-op, what came off goes to the others: net/sync.js)
   flingPart(z, z.m[part], dx, dz, 1);
   z.spurts.push({ part, t: 1.4 });
-  if (part !== 'torso') { run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
+  if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
   if (!blast) SFX.sever();   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
 }
@@ -59,7 +59,7 @@ const CUT_LAYERS = [
 ];
 function splitHead(z, dx, dz) {
   const head = z.m.head; if (!head || !z.limbs.head) return false;
-  z.limbs.head = false;
+  z.limbs.head = false; netRec('p');
   head.updateWorldMatrix(true, true);
   const inv = head.matrixWorld.clone().invert(), wp = new V3(), wq = new THREE.Quaternion(), ws = new V3(), rel = new THREE.Matrix4(), mats = new Map();
   head.matrixWorld.decompose(wp, wq, ws);
@@ -106,9 +106,8 @@ function splitHead(z, dx, dz) {
   splatLater(0.3, z.x + dx * 0.25, z.z + dz * 0.25, 'pool', rr(0.6, 0.8), undefined, 0.8);
   // the hit: a crack through the skull and a wet split under the blade's own sound, a hard shake and a jolt of zoom, the
   // view driven on along the blow, and your weapon and you spattered
-  SFX.sever(); SFX.hitBlade(true); SFX.split(); shake = Math.max(shake, 0.6); camPunch = Math.max(camPunch, 0.05);
-  camKick.x += dx * 0.15; camKick.z += dz * 0.15; addBlood(0.05, 'axe', 0.15);
-  run.heads++; run.limbs++;
+  SFX.sever(); SFX.hitBlade(true); SFX.split();
+  if (!NREP) { shake = Math.max(shake, 0.6); camPunch = Math.max(camPunch, 0.05); camKick.x += dx * 0.15; camKick.z += dz * 0.15; addBlood(0.05, 'axe', 0.15); run.heads++; run.limbs++; }
   return true;
 }
 // the sledgehammer coming down on a skull crushes it: the head caves in and bursts, gone in a spray of blood thrown
@@ -119,7 +118,7 @@ CRUSH_M.forEach(m => { m.userData.mobile = true; });
 const NECK_PUMP = 2.6;
 function crushHead(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return false;
-  z.limbs.head = false;
+  z.limbs.head = false; netRec('c');
   head.getWorldPosition(_wB); const x = _wB.x, y = _wB.y, hz = _wB.z;
   head.parent.remove(head); bloodZombie(z, 0.4);
   // the burst: most of it driven on along the blow, the rest thrown out all round, and a red mist hanging where it was
@@ -138,8 +137,7 @@ function crushHead(z, dx, dz) {
   splatLater(0.32, z.x + dx * 0.35, z.z + dz * 0.35, 'pool', rr(0.8, 1.0), undefined, 0.9);
   for (let k = 0; k < 5; k++) { const a = Math.atan2(dx, dz) + (k - 2) * 1.1 + rr(-0.3, 0.3); spray(x, hz, Math.sin(a), Math.cos(a), rr(0.9, 1.5) * (k === 2 ? 1.3 : 1), 1.6); }
   for (let k = 0; k < 12; k++) { const a = rand() * 6.28, d = rr(0.3, 1.8); splatLater(0.25 + d * rr(0.1, 0.18), z.x + Math.sin(a) * d, z.z + Math.cos(a) * d, 'drop', rr(0.25, 0.5)); }
-  SFX.crush(); shake = Math.max(shake, 0.5);
-  run.heads++;
+  SFX.crush(); if (!NREP) { shake = Math.max(shake, 0.5); run.heads++; }
   return true;
 }
 function pickPart(z, rel, side, D) {
@@ -166,7 +164,9 @@ function burnHurt(z) {
 // bleeding: how long a cut keeps bleeding (each new one starts it over), how hard a blade bleeds it (health a
 // second), and the most flechettes can make it bleed however many land
 const BLEED_T = 4, BLEED_R = 8, DART_BLEED_MAX = 12;
-function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
+// in co-op the hit, and whatever it takes off or kills, goes to the other players as it happened here (netAct, net/sync.js)
+function hurtZombie(z, dmg, dx, dz, kb, wId, part) { return netAct(z, dx, dz, () => hurtZombie0(z, dmg, dx, dz, kb, wId, part)); }
+function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   const crit = critNext, headK = headNext; critNext = false; headNext = 1;
   if (z.dead) return false;
   const D = W(wId) || EFF[wId] || {};
@@ -178,17 +178,8 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
-  z.hp -= dealt; z.flash = 0.14; z.squash = 1;
-  if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
-  zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)
-  bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
-  for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
-  // brutes shrug hits off: no stagger, no knockback
-  if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
-  const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
-  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
-  if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
-  dmgNumber(z, dealt, part === 'head' && !D.melee, y, crit);
+  hitFx(z, dealt, dx, dz, kb, wId, part, D);
+  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
@@ -202,6 +193,7 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   // a serrated blade opens one steady bleed; flechettes stack it, each dart that lands bleeding it a little harder
   if (D.bleed === true) { z.bleed = Math.max(z.bleed, BLEED_T); z.bleedR = Math.max(z.bleedR || 0, BLEED_R); }
   else if (D.bleed) { z.bleed = Math.max(z.bleed, BLEED_T); z.bleedR = Math.min(DART_BLEED_MAX, (z.bleedR || 0) + D.bleed); }
+  netHitRec(z, dealt, part, kb, wId);
   { const dd = Math.hypot(z.x - P.x, z.z - P.z);
     if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, 0.08 + (D.sever ? 0.04 : 0));
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
@@ -209,10 +201,24 @@ function hurtZombie(z, dmg, dx, dz, kb, wId, part) {
   SFX.tick(); if (part === 'head') SFX.headHit();
   return false;
 }
+// what a hit does to the body, whoever's it was: the health off it, the flash, the hole, the jolt, the blood, and the
+// stagger and knockback (brutes shrug those off). A teammate's hits come through here too (net/sync.js)
+function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
+  z.hp -= dealt; z.flash = 0.14; z.squash = 1;
+  if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
+  zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)
+  bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
+  for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
+  if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
+  const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
+  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
+  if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
+}
 // a zombie caught right in a blast comes apart: head, arms, legs and torso all thrown out and tumbling, a burst of
 // blood and a red mist where it stood, and the ground round it painted
 function blowApart(z, dx, dz) {
   const x = z.x, zz = z.z, y = 0.9 * z.T.scale;
+  netRec('b'); const rec = NREC; NREC = null;   // (the others blow it apart their own way: just that it was)
   for (const part of ['head', 'armL', 'armR', 'legL', 'legR', 'torso']) {
     const a = Math.atan2(dx, dz) + rr(-1.4, 1.4), n0 = gibs.length;
     sever(z, part, Math.sin(a), Math.cos(a), true);
@@ -223,22 +229,22 @@ function blowApart(z, dx, dz) {
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
   for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
-  SFX.sever();
+  SFX.sever(); NREC = rec;
 }
 // Hoarder's odds of a doubled scrap drop, and Bullet time's: how likely a kill sets it off, how slow, how long, and the wait
 // before it can go again
 const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
 // Momentum keeps building while each kill comes within MOM_T seconds of the last
 const MOM_T = 2.5;
-function killZombie(z, dx, dz, wId, part, overkill) {
+// (a kill that's not part of a hit, a burn or a bleed running out, is sent on its own in co-op)
+function killZombie(z, dx, dz, wId, part, overkill) { return netAct(z, dx, dz, () => killZombie0(z, dx, dz, wId, part, overkill)); }
+function killZombie0(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
-  z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
-  for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
+  netRec('k', wId, part);
+  killBegin(z, dx, dz);
+  if (NREP) return;   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js)
+  run.kills++; popEl('kills');
   const D = W(wId) || EFF[wId] || {};
-  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
-  spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
-  shake = Math.max(shake, 0.16);
-  popEl('kills');
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
   if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h), '#ef6a52'); } }
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
@@ -265,9 +271,8 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz);
-  else { makeRagdoll(z, dx, dz, crushed || split ? 'crush' : part, force, wId); if (crushed || split) ragdolls[ragdolls.length - 1].neck = NECK_PUMP; }
-  const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
-  SFX.kill();
+  else { makeRagdoll(z, dx, dz, crushed || split ? 'crush' : part, force, wId); netRec('r', crushed || split ? 'crush' : part, Math.round(force * 100) / 100, crushed || split ? 1 : 0); if (crushed || split) ragdolls[ragdolls.length - 1].neck = NECK_PUMP; }
+  killEnd(z);
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
   const big = z.type === 'brute' ? 2 : 1;
   // Hoarder: a scrap drop has a HOARD_X chance to be worth double
@@ -280,6 +285,20 @@ function killZombie(z, dx, dz, wId, part, overkill) {
     if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
     else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
   }
+}
+// the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
+// round it; then, after it's fallen (or come apart), it's off the list
+function killBegin(z, dx, dz) {
+  z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
+  for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
+  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
+  spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
+  shake = Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : 0.16);
+}
+function killEnd(z) {
+  const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
+  if (z.id) NZ.delete(z.id);
+  SFX.kill();
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
 function dmgNumber(z, dmg, head, y, crit, kind) {

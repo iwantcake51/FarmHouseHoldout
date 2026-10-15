@@ -90,7 +90,7 @@ function updatePickups(dt) {
     // a drop out past the edge of the farm, where you can't walk, flies in to you once it's landed, picking up speed;
     // one you can't take yet (a full bag or stack) stops just short of you
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun') {
+    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && (!p.nid || p.own)) {   // (in co-op, only to whoever made the kill)
       const sp = Math.min(10, 2 + (p.age - 0.5) * 6), full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom()), stop = full ? 1.4 : 0;
       if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
       if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
@@ -113,6 +113,7 @@ function updatePickups(dt) {
         SFX.pick();
       }
       floatText(p.x, p.z, ft, '#' + pickCol(p.kind, p.ammoType, p.cargo).toString(16).padStart(6, '0'));
+      if (p.nid) netSend('pt', { n: p.nid });   // gone from your teammates' farms too
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }
