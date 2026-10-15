@@ -112,6 +112,14 @@
 </div>
 <div class="hud" id="feed"></div>
 <div class="hud" id="wStats" hidden></div>
+<!-- cheats -->
+<div class="hud" id="cheatTag" hidden></div>
+<div id="cheat" hidden role="dialog" aria-label="Cheat menu">
+  <div class="chTop"><b>Cheat menu</b><span>The game keeps running</span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
+  <div class="chTabs" role="tablist"><button type="button" data-tab="player">Player</button><button type="button" data-tab="health">Health</button><button type="button" data-tab="weapons">Weapons</button><button type="button" data-tab="skills">Skills</button><button type="button" data-tab="world">World</button></div>
+  <div id="chBody"></div>
+</div>
+<!-- /cheats -->
 <div class="hud" id="station" hidden>
   <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div></div>
   <div id="stRows"></div>

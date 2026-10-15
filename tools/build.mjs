@@ -20,6 +20,16 @@ const SRC = path.join(ROOT, 'src'), OUT = path.join(ROOT, 'dist');
 const args = new Set(process.argv.slice(2));
 const serve = args.has('--serve'), dev = serve || args.has('--dev');
 const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+// the F9 cheat menu (src/js/ui/cheats.js) is for testing: Netlify's production deploy of main is built with CHEATS=off
+// (netlify.toml), which leaves it out of the game altogether, its panel and all. Deploy previews, branch deploys and
+// local builds keep it
+const cheats = process.env.CHEATS ? process.env.CHEATS !== 'off' : process.env.CONTEXT !== 'production';
+// what stands in for ui/cheats.js without it: every switch off, and nothing for F9 to open
+const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false }, cheatOn = false;
+function cheatTick() {}
+function cheatSaves() { return false; }
+function toggleCheats() {}
+`;
 
 function joinScripts() {
   const order = JSON.parse(fs.readFileSync(path.join(SRC, 'js/load-order.json'), 'utf8'));
@@ -29,7 +39,8 @@ function joinScripts() {
   const parts = order.map(f => {
     const p = path.join(SRC, 'js', f);
     if (!fs.existsSync(p)) throw new Error('load-order.json lists a file that does not exist: ' + f);
-    return `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + fs.readFileSync(p, 'utf8');
+    const code = f === 'ui/cheats.js' && !cheats ? CHEATS_STUB : fs.readFileSync(p, 'utf8');
+    return `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + code;
   });
   return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
 }
@@ -50,7 +61,8 @@ async function buildOnce() {
   fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
   // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
   // fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay the same)
-  const html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
+  let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
+  if (!cheats) html = html.replace(/<!-- cheats -->[\s\S]*?<!-- \/cheats -->\n?/g, '');   // the cheat menu's panel goes too
   const ver = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
   fs.writeFileSync(path.join(OUT, 'index.html'), html
     .replace('href="./game.css"', `href="./game.css?v=${ver(cssText)}"`)
@@ -62,7 +74,7 @@ async function buildOnce() {
     .replace('<script src="./game.js"></script>', () => `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
   const kb = f => (fs.statSync(path.join(OUT, f)).size / 1024).toFixed(0) + ' KB';
-  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}`);
+  console.log(`built in ${Date.now() - t0} ms  ·  game.js ${kb('game.js')}  ·  game.css ${kb('game.css')}  ·  standalone.html ${kb('standalone.html')}${dev ? '  (dev)' : ''}${cheats ? '' : '  (no cheat menu)'}`);
 }
 
 async function main() {

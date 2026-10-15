@@ -5,6 +5,11 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# the F9 cheat menu is for testing: it's left out of the production deploy of main, and kept in deploy previews and
+# branch deploys (tools/build.mjs)
+[context.production.environment]
+  CHEATS = "off"
+
 # index.html asks for game.js and game.css by content hash (?v=...), so a new deploy is picked up straight away;
 # three.js never changes
 [[headers]]
