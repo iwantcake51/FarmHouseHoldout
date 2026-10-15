@@ -14,8 +14,9 @@
 // set off again (P.pivot).
 //
 // Run and gun (S.runGun) lets you sprint and fire a 9mm gun, a pistol or a submachine gun, at anything within RG_ARC
-// of the way you're running: the gun stays up and the chest on the aim, the shots far looser (RG_SPREAD). Anything
-// further round than that, the gun comes down as usual. Its second step adds the shotguns (pumped on the run too) and
+// of the way you're running: the gun stays up, the shots far looser (RG_SPREAD), and while your legs keep running the
+// way you're going your upper body twists round from the hips to shoot over that way (ANIM.rgK, player/animation.js).
+// Anything further round than that, the gun comes down and the chest unwinds as usual. Its second step adds the shotguns (pumped on the run too) and
 // the assault rifle, never the hunting rifle or the LMG, and lets you reload any of them without breaking the sprint.
 
 const WALK_SPEED = 3.5;
@@ -142,7 +143,8 @@ function sprintCarve(dt, tvx, tvz) {
 }
 
 // the animation's blends, each eased on its own clock: the gait (sprintK), the gun down at a low ready (ready), the body
-// turned to where you're running (faceK), the skid (skidK, a quick lean back that lets go as you stop), and a hard
+// turned to where you're running (faceK; with Run and gun firing on the run too, the chest twisted round off it to the
+// aim: rgK), the skid (skidK, a quick lean back that lets go as you stop), and a hard
 // turn: the scramble to plant your feet (scrK, its quick choppy steps on scrPh, each one a scuff, a puff of dust and a
 // jolt), then the turn round (pivK, its steps on pivPh, kept in time with the body coming round so each foot is set
 // down a little further round), all with the gun still down (unless you've pulled the trigger)
@@ -158,7 +160,8 @@ function sprintAnim(rdt) {
   ease('sprintK', P.sprint ? 0.3 + 0.7 * sprintPace() : 0, 6, 4);   // the gait opens out as the momentum builds
   ease('runBank', P.sprint && !pv ? clamp(-(P.carveW || 0) * SPRINT.bank, -0.22, 0.22) : 0, 9, 6);   // leaning into a bend
   ease('ready', on ? 1 : 0, 8, 6.5);      // down in about a fifth of a second, back up a touch quicker than that
-  ease('faceK', on ? 1 : 0, 6, 5);
+  ease('faceK', on || P.sprint ? 1 : 0, 6, 5);
+  ease('rgK', rg ? 1 : 0, 7, 5);   // the twist goes in a touch slower than the gun comes up, and unwinds as it goes down
   ease('bobK', P.sprint && !pv && !(P.skid > 0) ? 1 : 0, 2.5, 4);   // the view's bob dies smoothly away through a turn or a skid, and builds back as you get going (runCam)
   const scr = !!pv && pv.t < PIVOT.brake;
   const sk = P.skid > 0 ? Math.sin(Math.PI * Math.pow(1 - P.skid / SPRINT.skid, 0.7)) : scr ? 1 : 0;
