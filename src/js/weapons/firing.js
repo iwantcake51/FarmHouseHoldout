@@ -169,6 +169,8 @@ function gunFire(id, D, side) {
   let anyHit = false;
   // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
   const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
+  // Sure shot: a gun firing single shots rolls once a shot for a crit, whatever it hits (SURE_CRIT)
+  const sure = S.sureShot && semiAuto(id) && rand() < SURE_CRIT;
   const pellets = (D.pellets || 1) * shots, pierce = D.pierce || 0;
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
@@ -195,9 +197,9 @@ function gunFire(id, D, side) {
       if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
-      // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), or the
-      // revolver's aimed Dead-eye (D.aimCrit)
-      const crit = (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit; headNext = headFade(id, hits[k].t);
+      // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
+      // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
+      const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit; headNext = headFade(id, hits[k].t);
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;

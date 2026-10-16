@@ -1,6 +1,12 @@
 // Dealing, showing and picking upgrade cards, and the upgrade history.
 
 let dealt = [], cardsArmed = false, armTimer = 0;
+// every BONUS_EVERY waves (5, 10, 15...) a second hand follows the first: skills and perks only, no aid or weapons
+const BONUS_EVERY = 5;
+let bonusHand = false;
+const bonusKind = u => ['Skill', 'Perk'].includes(findKind(u, u));
+// (and only while there's a skill or perk left to give)
+const bonusDue = () => run.wave > 0 && run.wave % BONUS_EVERY === 0 && UPG.some(u => (!u.can || u.can()) && bonusKind(u));
 // or take none of them and SKIP_SCRAP scrap instead (from the first to the second, rolled with each hand)
 const SKIP_SCRAP = [5, 10];
 let skipScrap = 0;
@@ -23,21 +29,21 @@ function drawCard(pool, wt) {
 // time and more often the shorter you are of something (AID_CHANCE, upgrades/upgrades.js), and the rest skills, perks
 // and weapons
 const isAid = u => findKind(u, u) === 'Aid';
-function dealCards() {
-  const pool = UPG.filter(u => !u.can || u.can()); dealt = [];
+function dealCards(bonus) {
+  const pool = UPG.filter(u => (!u.can || u.can()) && (!bonus || bonusKind(u))); dealt = [];
   const wt = u => rarWeight(u.r) * (typeof u.w === 'function' ? u.w() : u.w || 1);
   const aid = pool.filter(isAid), rest = pool.filter(u => !isAid(u));
   const kindIn = k => rest.filter(u => findKind(u, u) === k);
   const anchorFrom = kindIn('Skill').length ? kindIn('Skill') : kindIn('Perk');
   let anchor = null;
   if (anchorFrom.length) { anchor = drawCard(anchorFrom, wt); rest.splice(rest.indexOf(anchor), 1); dealt.push(anchor); }
-  const need = aidNeed(), nAid = rand() < AID_CHANCE[0] + (AID_CHANCE[1] - AID_CHANCE[0]) * need ? (rand() < AID_TWO * need ? 2 : 1) : 0;
+  const need = aidNeed(), nAid = bonus ? 0 : rand() < AID_CHANCE[0] + (AID_CHANCE[1] - AID_CHANCE[0]) * need ? (rand() < AID_TWO * need ? 2 : 1) : 0;
   for (let k = 0; k < nAid && aid.length && dealt.length < 3; k++) dealt.push(drawCard(aid, wt));
   while (dealt.length < 3 && rest.length) dealt.push(drawCard(rest, wt));
   while (dealt.length < 3 && aid.length) dealt.push(drawCard(aid, wt));   // (only when there's nothing else left to deal)
   // a gun you're owed (gunDue, upgrades/upgrades.js): if none of the three is a long gun or automatic of that band or
   // better, one becomes one: never the skill, and aid only when there's nothing else to swap
-  const due = gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
+  const due = bonus ? 0 : gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
   if (due && !dealt.some(isDue)) {
     const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
     const swap = [...dealt].reverse().find(u => u !== anchor && !isAid(u)) || [...dealt].reverse().find(u => u !== anchor);
@@ -56,11 +62,10 @@ function dealCards() {
     const info = upgradeInfo(u, c), stats = u.stats && !info.fx.length;
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
-    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${info.use ? '<div class="use"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
+    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
     b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length)); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = chipCls(f); s.textContent = CHIP_MARK[chipCls(f)] + ' ' + f.t; b.querySelector('.fx').appendChild(s); });
-    if (info.use) b.querySelector('.use').textContent = info.use;
     if (stats) b.querySelector('.s').textContent = u.stats();
     if (c.vis) b.querySelector('.v').textContent = c.vis;
     // the card leans toward the cursor as you move over it
@@ -83,10 +88,13 @@ function renderHistory(list, countEl) {
     el.appendChild(r);
   });
 }
-function openUpgrade() {
-  closeStation();
-  $('upEyebrow').textContent = 'Wave ' + run.wave + ' cleared · ' + run.kills + ' kills so far';
-  dealCards(); cardsArmed = false; mouseDown = mouseDownR = false;
+function openUpgrade(bonus) {
+  closeStation(); bonusHand = !!bonus;
+  $('upEyebrow').textContent = bonus ? `Wave ${run.wave} bonus · every ${BONUS_EVERY} waves, one more` : 'Wave ' + run.wave + ' cleared · ' + run.kills + ' kills so far';
+  $('upKinds').textContent = bonus ? 'Skills · Perks' : 'Skills · Perks · Aid';
+  $('upHead').textContent = bonus ? 'One more' : 'Take one';
+  $('upgrade').classList.toggle('bonus', bonusHand);
+  dealCards(bonus); cardsArmed = false; mouseDown = mouseDownR = false;
   setState('upgrade');
   const el = $('upgrade'); el.classList.remove('show', 'armed');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
@@ -171,7 +179,8 @@ function leaveUpgrade(burn) {
   burnCards(burn);
   state = 'leaving';
   setTimeout(() => { el.classList.remove('show'); }, 1250);
-  setTimeout(() => { el.classList.remove('picking'); setState('play'); beginBreak(25); }, 1650);
+  // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
+  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); }, 1650);
 }
 // (a press has to start once the cards are live, like a card's, so a click held over from the wave doesn't take it)
 $('upSkip').addEventListener('pointerdown', () => { if (cardsArmed) $('upSkip').dataset.down = '1'; });

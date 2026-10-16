@@ -26,6 +26,8 @@ const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k]
 // Steady aim stacks up to STEADY_MAX times, and Lucky shot takes LUCK_MISS of the shots that hit nothing out of your
 // reserve instead of the magazine (luckyKeep, weapons/firing.js)
 const STEADY_MAX = 3, LUCK_MISS = 1 / 3;
+// Sure shot: each shot from a gun firing single shots (semiAuto, weapons/firing.js) has this chance to crit
+const SURE_CRIT = 0.05;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
@@ -33,29 +35,30 @@ const UPG = [
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), w: () => needW(NEED.bandages()), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
-  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate. Up to 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
-  { r: 'u', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
-  { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Switch weapons 40% faster.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
-  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: '1 in 3 shots that miss comes out of your reserve ammo instead of the magazine.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
-  { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Ammo pickups give 25% more.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
-  { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Kills in quick succession build up to +25% damage.', can: () => !S.momentum, ap: () => S.momentum = true },
-  { r: 'r', tag: 'Body', name: 'Vault fire', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
-  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
-  { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Scrap drops have a 25% chance to be worth double.', can: () => !S.hoard, ap: () => S.hoard = true },
-  { r: 'u', tag: 'Body', name: 'Iron lungs', text: '+25% stamina. It refills sooner and 25% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
-  { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Kills give a short burst of speed. Once every 4 seconds at most.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
-  { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, heal 50 when you drop below 25% health.', can: () => !S.secondWind, ap: () => S.secondWind = true },
+  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'Every gun\'s shots land closer to the crosshair. Can be taken 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
+  { r: 'u', tag: 'Body', name: 'Tough skin', text: 'Raises your max health, and heals you by as much.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
+  { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Putting a weapon away and drawing the next takes less time.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
+  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: 'Some shots that hit nothing take their round from your reserve instead of the magazine.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
+  { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Every ammo box you pick up holds extra rounds.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
+  { r: 'r', tag: 'Gun', name: 'Sure shot', text: 'Any shot from a semi-auto gun can land as a crit, for double damage.', can: () => !S.sureShot, ap: () => S.sureShot = true },
+  { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Each kill soon after the last raises your damage. Go too long without one and it resets.', can: () => !S.momentum, ap: () => S.momentum = true },
+  { r: 'r', tag: 'Body', name: 'Vault fire', text: 'Vaults are quicker and cheaper, and you can keep shooting while you\'re going over.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
+  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop ammo, planks and bandages more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
+  { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'The scrap from a kill is sometimes doubled.', can: () => !S.hoard, ap: () => S.hoard = true },
+  { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
+  { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
+  { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
-  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots do 3× damage instead of 2.2×.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
-  { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
+  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots hit harder with every weapon.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
+  { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Shots and swings take limbs and heads off far more often.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
   // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and
   // pays SMITH_SCRAP for each of the three that's already maxed, about what a tier costs at the bench
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
-    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest powder, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
+    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `The two lowest of its powder, trigger and magazine go up a tier.` + (sc ? ` Scrap for any already maxed.` : '') }; },
     ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !ownTier(id, k)); magChange(id, () => { ks.sort((a, b) => ownTier(id, a) - ownTier(id, b)).slice(0, 2).forEach(k => fitTier(id, k, ownTier(id, k) + 1)); none.forEach(k => fitTier(id, k, Math.max(1, ownTier(id, k)))); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
-  { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
-  { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Some kills slow time for a moment. Once every 8 seconds at most.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
-  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, deal 60% more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
+  { r: 'l', tag: 'Body', name: 'Stubborn', text: 'Raises your max health, and heals you by as much.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
+  { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Now and then a kill slows everything down for a moment, you included.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
+  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'While your health is low, everything you hit takes more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
@@ -92,7 +95,7 @@ for (const k in TIERS) {
   if (GUN_TIERS.has(k)) continue;
   UPG.push({ tierOf: k, get r() { return L.t[Math.min(T(k), L.t.length - 1)].r; }, w: 1.4,
     can: () => T(k) < L.t.length && (!L.can || L.can()),
-    card: () => { const n = T(k), st = L.t[n]; return { r: st.r, tag: `${L.tag} · Tier ${n + 1} of ${L.t.length}`, name: st.name, text: st.text, vis: n ? 'Upgrades your ' + L.t[n - 1].name.toLowerCase() + (st.vis ? '. ' + st.vis : '') : st.vis }; },
+    card: () => { const n = T(k), st = L.t[n]; return { r: st.r, tag: `${L.tag} · Tier ${n + 1} of ${L.t.length}`, name: st.name, text: st.text }; },
     ap: () => { L.t[T(k)].ap(); S.tier[k]++; } });
 }
 function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }

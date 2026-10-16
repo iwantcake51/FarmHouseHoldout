@@ -1,33 +1,18 @@
-// What an upgrade card actually gives you: before → after stat chips, and a line saying what an attachment is for.
+// What an upgrade card actually gives you: before → after stat chips.
 
-// what each upgrade line is for, shown under the card text
-const TIER_USE = {
-  ammo: 'Powder · a hotter charge behind every round, whichever kind is loaded', trigger: 'Trigger · the gun fires faster', mag: 'Magazine · more shots before you reload',
-  supp: 'Muzzle can · harder hits, much quieter shots, a smaller muzzle flash', sight: 'Sight · tighter shots down the sights, and a bigger headshot multiplier',
-  laser: 'Laser · a beam shows exactly where your shots land, and tightens your shots from the hip', light: 'Light · lights up the ground ahead of you at night',
-  choke: 'Choke · squeezes the pellets into a tighter cone so they reach further', armor: 'Armor · you take less damage',
-  boots: 'Footwear · you move faster', hammer: 'Tool · faster, tougher boarding', eyes: 'Senses · you see more around you',
-  night: 'Night vision · you see in the dark', feed: 'Body · you heal when you kill',
-  strong: 'Melee · harder hits for less stamina', rungun: 'Body · shoot while you sprint', soles: 'Body · getting hit slows you less',
-  walkw: 'Body · bandaging slows you less', quick: 'Body · faster reloads'
-};
-const UPG_USE = {
-  'Bayonet': 'Attachment · a blade under this long gun: shove (V) to stab',
-  'Shoulder stock': 'Attachment · steadies this sidearm\'s kick',
-};
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 20% faster'], 'Quick hands II': ['Reload 20% → 40% faster'], 'Quick hands III': ['Reload 40% → 60% faster'], 'Wood pile': ['+7 planks'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint', 'Reload while sprinting'],
-  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
-  'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%, once a wave'],
-  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of powder, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
+  'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 kills: scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Refills 25% faster'],
+  'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+50 health below 25%'],
+  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Missing ones start at tier 1', '+14 scrap per one already maxed'],
   'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
-  'Last stand': ['+60% damage below 30% health'],
-  'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%', 'Up to 3 times'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
+  'Last stand': ['+60% damage below 30% health'], 'Sure shot': ['5% crit chance a shot'],
+  'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
   'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
   'Momentum': ['+5% damage per quick kill', 'Up to +25%, lost after 2.5 s'],
-  'Canvas jacket': ['+25 max health', 'Heal 25'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
+  'Canvas jacket': ['+25 max health'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
   'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
@@ -179,16 +164,16 @@ function tuneFx(id) {
   if (!D0.melee) { const x = Math.max(D0.critM || 0, 2) + (D0.critUp || 0); fx.push({ t: `CRITS +${Math.round(TUNE.crit * 100)}% of hits`, good: true }, { t: `CRIT DMG ×${x} → ×${x + TUNE.critM}`, good: true }); }
   return fx;
 }
-// everything the card shows besides its text: chips and a "what it's for" line
+// the card's chips: the numbers behind its text (the text says how it works, the chips how much)
 function upgradeInfo(u, c) {
-  let fx = [], use = '';
-  if (u.tierOf && GUN_TIERS.has(u.tierOf)) { fx = tierFx(u.target, u.tierOf); use = TIER_USE[u.tierOf]; }
-  else if (u.tierOf) { fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true })); use = TIER_USE[u.tierOf] || ''; }
+  let fx = [];
+  if (u.tierOf && GUN_TIERS.has(u.tierOf)) { fx = tierFx(u.target, u.tierOf); }
+  else if (u.tierOf) { fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true })); }
   else if (u.weaponOf) fx = weaponFx(u.weaponOf);
   else if (u.modOf) fx = modFx(u.modOf);
-  else { fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true })); use = UPG_USE[c.name] || ''; }
+  else fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true }));
   // stacking on what you already have: the first chip shows the total going up
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], v = st && st.v();
   if (st && Math.abs(v - st.base) > 1e-6) fx[0] = { t: `${st.label} ${st.val(v)} → ${st.val(st.next(v))}`, good: true };
-  return { fx, use };
+  return { fx };
 }
