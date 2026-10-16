@@ -17,11 +17,11 @@
 
 // the guard per weapon: fist and weapon direction, and the body
 const MGUARD = {
-  club:    { F: [0.2, 1.1, 0.4], W: [0.12, 0.92, -0.3], b: { uy: 0.18, ux: 0.02 } },             // crowbar, wrench: up by the shoulder, ready to come down
-  bat:     { F: [0.12, 1.14, 0.3], W: [0.38, 0.78, -0.5], b: { uy: 0.28, ux: 0.03, dip: 0.08 } },  // a batter's stance, the bat cocked over the right shoulder
-  machete: { F: [0.24, 1.02, 0.4], W: [0.02, 0.72, 0.7], b: { uy: 0.12, ux: 0.03 } },             // out in front, the blade up and forward
-  katana:  { F: [0.06, 1.0, 0.4], W: [-0.04, 0.62, 0.78], b: { uy: 0.08, ux: 0.04, dip: 0.1 } },   // two hands at the middle, the point at the throat
-  heavy:   { F: [0.12, 0.9, 0.34], W: [-0.42, 0.82, 0.32], b: { uy: 0.2, ux: 0.05, dip: 0.12 } }   // across the body, the head up by the left shoulder
+  club:    { F: [0.32, 0.84, 0.28], W: [0.26, 0.55, 0.8], b: { uy: 0.1, ux: 0.02 } },               // crowbar, wrench: low at the right hip, angled up and out ahead
+  bat:     { F: [0.14, 0.88, 0.32], W: [0.4, 0.76, 0.5], b: { uy: 0.14, ux: 0.03, dip: 0.04 } },     // both hands low in front, the bat angled up and out to the right
+  machete: { F: [0.32, 0.86, 0.3], W: [0.22, 0.5, 0.84], b: { uy: 0.1, ux: 0.02 } },               // low at the hip, the blade out ahead
+  katana:  { F: [0.05, 0.92, 0.36], W: [-0.02, 0.58, 0.81], b: { uy: 0.06, ux: 0.03, dip: 0.06 } }, // two hands at the middle, the point at the throat
+  heavy:   { F: [0.13, 0.86, 0.3], W: [-0.44, 0.76, 0.48], b: { uy: 0.16, ux: 0.04, dip: 0.06 } }   // across the body, the head up by the left shoulder
 };
 const meleeKind = id => id === 'bat' ? 'bat' : id === 'machete' ? 'machete' : id === 'katana' ? 'katana' : id === 'axe' || id === 'sledge' ? 'heavy' : 'club';
 // three swings per style. Blunt and blades land at p 0.4, the heavy two at 0.55 (HEAVY.hit, melee/melee.js), each
@@ -158,6 +158,8 @@ const MBASH = {
     [0.48, [0.12, 1.1, 0.54], [0.06, 0.92, -0.3], { ux: 0.08, step: 0.25 }],
     [1, 'G', 'G']]
 };
+// how much further the fist is thrown out from the shoulder through the front of a swing (at full reach ahead)
+const MEXTEND = 0.3;
 // how far ahead (seconds) each part is sampled: the hips and legs lead, then the chest, the arm, and the weapon last
 const MCHAIN = { body: 0.06, F: 0.035, W: 0.012 };
 // the springs each part rides on (stiffness, damping): the weapon loosest, so it lags into a swing and whips past
@@ -221,7 +223,7 @@ function meleeImpact(heavy, hard) {
 // long. Of the two ways to hold it pointing the same way (rolled over or not), the one with the least roll. The
 // weapon hangs off the arm, so it's scaled back by wy, wz along its length and across it to keep its own size
 // (melee/melee-models.js built them on an arm ARM_THIN thick and FIST long)
-const MREACH = [0.62, 1.15];
+const MREACH = [0.62, 1.42];
 function meleeSolve(F, Wd, out) {
   const s = SHOULDER_REST.R, dx = F.x - s[0], dy = F.y - s[1], dz = F.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
   out.rx = Math.atan2(-dy / len, dz / len); out.ry = Math.asin(clamp(dx / len, -1, 1)); out.sc = clamp(len / FIST, MREACH[0], MREACH[1]);
@@ -233,6 +235,16 @@ function meleeSolve(F, Wd, out) {
   const sh = Math.sin(out.hrx), ch = Math.cos(out.hrx);
   out.wy = ARM_THIN / Math.hypot(ARM_THIN * ch, out.sc * sh); out.wz = 1 / Math.hypot(ARM_THIN * sh, out.sc * ch);
   return out;
+}
+// running with it: a one-hander carried down at your side, the arm pumping like a runner's and the weapon riding
+// forward along the forearm; the two-handers held across the chest (port arms), both hands on, the tip swaying a
+// little with the stride. F and W into f, w
+const MRUN = { pump: 0.42, lean: 0.28, w1: 0.95, port: { F: [0.1, 0.98, 0.26], W: [-0.55, 0.7, 0.46] } };
+function meleeRun(kind, ph, f, w) {
+  if (kind === 'club' || kind === 'machete') {
+    const s = SHOULDER_REST.R, th = MRUN.lean - MRUN.pump * Math.sin(ph), fi = th + MRUN.w1;   // (angles forward from straight down)
+    f.set(s[0] + 0.02, s[1] - 0.46 * Math.cos(th), s[2] + 0.46 * Math.sin(th)); w.set(0.05, -Math.cos(fi), Math.sin(fi));
+  } else { const P_ = MRUN.port; f.set(P_.F[0], P_.F[1], P_.F[2]); w.set(P_.W[0] + 0.05 * Math.sin(ph), P_.W[1], P_.W[2]); }
 }
 // this frame's melee pose: what the swing, the draw or the bash wants, run through the springs. Returns the solved
 // arm and weapon angles and the body (MS.b)
@@ -249,6 +261,8 @@ function meleePose(id, D, rdt, now, sh) {
   } else if (W8.swing > 0) {
     const p = 1 - W8.swing / dur, sw = curSwing(D);
     sampleFast(sw.keys, g, p + MCHAIN.F / dur, p + MCHAIN.W / dur, p + MCHAIN.body / dur, _maF, _maW, _mTB);
+    // out in front, the arm throws itself out to its full length (MEXTEND), so the blow reaches as far as it hits
+    const s = SHOULDER_REST.R, fz = _maF.z - s[2]; if (fz > 0) { const k = 1 + MEXTEND * clamp(fz / 0.5, 0, 1); _maF.set(s[0] + (_maF.x - s[0]) * k, s[1] + (_maF.y - s[1]) * k, s[2] + fz * k); }
   } else if (ANIM.mDrawT !== undefined && ANIM.mDrawT >= 0) {
     // the flourish once it's drawn
     const fl = MDRAW[kind], t = ANIM.mDrawT;
@@ -260,11 +274,15 @@ function meleePose(id, D, rdt, now, sh) {
     if (t0 < 0.2 && ANIM.mDrawT >= 0.2 && t0 >= 0) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
     if (W8.swing > 0 || sh) ANIM.mDrawT = undefined;   // a swing or a bash straight away cuts it short (the springs carry it over)
   }
-  // breathing and the stride move the guard a touch; at rest the weapon's never quite still
+  // between swings: the guard holds steady in the hands, the chest's own bob carrying it (the fist doesn't bob on
+  // top of that); walking, the tip only sways a little side to side with the stride. At a sprint it's carried
+  // (meleeRun) instead, eased in with the low ready (ANIM.ready, player/sprint.js)
   if (!(W8.swing > 0) && !sh) {
     const run = Math.min(1, Math.hypot(P.vx || 0, P.vz || 0) / 3), ph = P.phase || 0;
-    _maF.y += Math.sin(now * 1.7) * 0.006 + Math.abs(Math.cos(ph)) * 0.02 * run; _maF.x += Math.sin(ph) * 0.015 * run;
-    _maW.x += Math.sin(now * 1.1 + 0.4) * 0.02 + Math.sin(ph) * 0.06 * run; _maW.z += Math.sin(now * 0.8) * 0.015; _maW.normalize();
+    _maF.y += Math.sin(now * 1.7) * 0.004;
+    _maW.x += Math.sin(ph) * 0.035 * run + Math.sin(now * 0.9) * 0.008; _maW.normalize();
+    const rd = smooth(clamp(ANIM.ready || 0, 0, 1)) * (ANIM.mDrawT === undefined ? 1 : 0);
+    if (rd > 0.001) { meleeRun(kind, ph, _maA, _maB); _maF.lerp(_maA, rd); _maW.lerp(_maB, rd).normalize(); }
   }
   // the springs, a few small steps a frame so the stiff ones stay steady
   if (rdt > 0) {

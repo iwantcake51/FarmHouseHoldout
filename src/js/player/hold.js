@@ -582,23 +582,29 @@ function poseHands(D, up, ph, runF, rdt, now) {
   bandagePose(pm, up, now, sh);
 }
 
+// how far forward the body goes as the weight comes onto the front foot in a swing (m, at full step)
+const MLUNGE = 0.55;
 // a melee weapon in your hands: the pose (the guard, a swing, the flourish once it's drawn, or a bash) comes from
 // melee/melee-anim.js as the fist's place and the weapon's direction, already through its springs; here it goes onto
 // the rig. The body twists, leans and bends with it, the hips turn under it, the weight goes onto the front foot and
 // the knees give (dip); the head stays on what you're hitting
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, mh = gunMeshes.melee, a = meleePose(curId(), D, rdt, now, sh), b = MS.b;
-  const walk = Math.sin(ph) * (0.06 * Math.min(1, runF) + 0.38 * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (W8.swing > 0 || sh ? 0 : 1);   // the arms pump at a sprint
+  const rd = smooth(clamp(ANIM.ready || 0, 0, 1)), swing = W8.swing > 0 || !!sh;
+  const walk = Math.sin(ph) * (0.18 * Math.min(1, runF) * (1 - rd) + 0.5 * rd) * (swing ? 0 : 1);   // the free arm swings as you walk and pumps at a sprint
   up.y += b.uy; up.x += b.ux; up.z += b.uz;
   pm.lower.rotation.y += b.hy;
   const st = b.step, dp = Math.max(0, b.dip);
   pm.legL.rotation.x -= 0.3 * st + 0.42 * dp; pm.legR.rotation.x += 0.2 * st - 0.2 * dp;
   pm.shinL.rotation.x += 0.75 * dp + 0.06 * Math.abs(st); pm.shinR.rotation.x += 0.55 * dp + 0.18 * Math.max(0, st);
   pm.g.position.y -= 0.085 * dp;
+  // stepping in to it: the body goes forward with the weight (MLUNGE, further for a longer weapon), so a swing reaches
+  // out as far as it hits
+  { const lg = Math.max(0, st) * MLUNGE * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
   pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2; pm.head.rotation.x -= b.ux * 0.45;
   // the weapon in the right fist (shaking at low health: player/shaky-hands.js)
   const q = shakyTremor();
-  armRest(pm.armR, 'R', a.rx + walk + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);
+  armRest(pm.armR, 'R', a.rx + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);
   pm.armR.rotation.z = a.rz; pm.armR.scale.z = a.sc;
   mh.rotation.set(a.hrx + q.r * SHAKY_TREM.r * 0.6, 0, 0); mh.scale.set(1, a.wy, a.wz);
   // two-handed, the left fist closes on the handle just above the right (further up it for a bash, the haft held
@@ -607,7 +613,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
     pm.armR.updateMatrix(); mh.updateMatrix();
     _fL.set(0, sh ? 0.42 : 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
     reach(pm.armL, 'L', _fL, 0, true);
-  } else armRest(pm.armL, 'L', 1.22 - walk * 2 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
+  } else armRest(pm.armL, 'L', 1.22 - walk * 1.6 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
 }
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {
