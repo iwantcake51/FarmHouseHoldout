@@ -44,7 +44,7 @@ const UPG = [
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Scrap drops have a 25% chance to be worth double.', can: () => !S.hoard, ap: () => S.hoard = true },
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: '+25% stamina. It refills sooner and 25% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Kills give a short burst of speed. Once every 4 seconds at most.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
-  { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, heal 50 when you drop below 25% health.', can: () => !S.secondWind, ap: () => S.secondWind = true },
+  { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, heal 25 when you drop below 25% health.', can: () => !S.secondWind, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
   { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots do 3× damage instead of 2.2×.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
