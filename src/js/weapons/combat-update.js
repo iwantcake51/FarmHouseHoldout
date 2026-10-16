@@ -73,6 +73,7 @@ function updateCombat(dt) {
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
   W8.heat = Math.max(0, (W8.heat || 0) - dt * 0.55); W8.wispT = (W8.wispT || 0) - dt;
   W8.sprayT = (W8.sprayT || 0) + dt; if (W8.sprayT > 0.3) W8.spray = Math.max(0, (W8.spray || 0) - dt * 1.8);
+  if (W8.sprayT > HEAVY_FIRE.hold) W8.heavyK = Math.max(0, (W8.heavyK || 0) - dt * HEAVY_FIRE.ease);   // a heavy gun's slowdown eases off once you stop firing
   if (W8.heat > 0.7 && W8.wispT <= 0 && !W(curId()).melee && !P.dead) { W8.wispT = 0.09; const mw = muzzleWorld(); smoke(mw.x, mw.y + 0.02, mw.z, rr(-0.1, 0.1), rr(0.25, 0.5), rr(-0.1, 0.1), 0.04, 0.22, rr(0.9, 1.4), 0.16 * Math.min(1, W8.heat - 0.5)); }
   if (P.bleed > 0 && !P.dead) {
     P.bleed = Math.max(0, P.bleed - dt); P.hp -= 1.7 * dt * S.dmgTaken; P.dripT = (P.dripT || 0) - dt;

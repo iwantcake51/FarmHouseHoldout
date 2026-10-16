@@ -9,6 +9,8 @@
 
 const SWAP_T = { put: 0.16, cross: 0.25, end: 0.5 };   // the old weapon is away, the hand is at the new one, it's up
 const SWAP_FIRE = 0.34;                                 // how soon you can use the weapon you're drawing
+// a heavy gun (the auto shotgun, the LMG: D.heavy, weapons/gun-stats.js) takes this much longer to swap to and to fire
+const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
 const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
 let swapSt = null;
 const _sw = { m: new THREE.Matrix4(), toUp: new THREE.Matrix4(), a: new THREE.Matrix4(), b: new THREE.Matrix4(), c: new THREE.Matrix4(),
@@ -89,7 +91,7 @@ function armToward(arm, q, p, s, w) { arm.quaternion.slerp(q, w); arm.position.l
 function updateSwap(dt, rdt) {
   const st = swapSt; if (!st) return;
   if (P.dead || P.vault || P.shove || P.bandT > 0 || W8.cur !== st.to) { endSwap(); return; }
-  st.t += dt > 0 ? rdt * S.swapMul : 0;   // it holds still while the game is paused (Quick draw speeds it up)
+  st.t += dt > 0 ? rdt * S.swapMul / drawMul(W8.slot[st.to]) : 0;   // it holds still while the game is paused (Quick draw speeds it up, a heavy gun slows it)
   const t = st.t, T = SWAP_T;
   if (t >= T.end) { endSwap(); return; }
   const pm = PM, newMelee = isMelee(st.to), oldMelee = isMelee(st.from);

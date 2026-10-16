@@ -342,7 +342,7 @@ function gripMag(g, y, z, tilt, w, h, d) {
 }
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.
-// a shotgun's loaded shells by kind (weapons/rounds.js): the pump's side saddle, and a band round the drum shotgun's mag
+// a shotgun's loaded shells by kind (weapons/rounds.js): the pump's side saddle, and a band round the auto shotgun's mag
 const SHELL_MAT = { fire: GM.shellO, slug: GM.shellY, flech: GM.steel };
 const GUN_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
