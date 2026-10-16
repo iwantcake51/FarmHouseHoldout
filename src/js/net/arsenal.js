@@ -112,31 +112,52 @@ function avPart(a, src) {
   if (src === packBack) { if (!a.packBack) { a.packBack = new THREE.Group(); a.partMap.get(packBody).add(a.packBack); } return a.packBack; }
   return a.partMap.get(src) || a.upper;
 }
-// their whole arsenal, rebuilt whenever their loadout changes
+// a copy of a built weapon, its pieces sharing the original's geometry and materials (building it again, pulling its
+// faces apart and all, is the slow part), with only the plain values of each piece's notes
+function copyModel(o) {
+  const u = o.userData; o.userData = {}; const c = o.clone(false); o.userData = u;
+  for (const k in u) if (u[k] === null || typeof u[k] !== 'object') c.userData[k] = u[k];
+  o.children.forEach(q => c.add(copyModel(q)));
+  return c;
+}
+// their arsenal, kept up to date with their loadout: only a weapon that's changed (a new attachment, mod or rounds, or a
+// weapon swapped in) is built again, once, and its stowed copies are copied from that one; a weapon that has only moved
+// where it rides on them is moved
 function buildArsenal(a, lo, lk) {
-  for (const k in a.held || {}) { const h = a.held[k]; if (h.g.parent) h.g.parent.remove(h.g); }
-  for (const k in a.stowed || {}) { const o = a.stowed[k]; [o.outer, o.twin && o.twin.outer].forEach(q => { if (q && q.parent) q.parent.remove(q); }); }
-  (a.belt || []).forEach(o => o.parent && o.parent.remove(o));
-  a.held = {}; a.stowed = {}; a.belt = []; a.lk = lk;
-  const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
+  a.held = a.held || {}; a.stowed = a.stowed || {}; a.armKey = a.armKey || {}; a.lk = lk;
+  const drop = s => {
+    if (a.held[s]) binModel(a.held[s].g);
+    const st = a.stowed[s]; if (st) { [st.outer, st.twin && st.twin.outer].forEach(q => { if (q) binModel(q); }); (st.belt || []).forEach(o => o.parent && o.parent.remove(o)); }
+    delete a.held[s]; delete a.stowed[s]; delete a.armKey[s];
+  };
+  const keyOf = (s, id, gl) => JSON.stringify([id, gl, s === 'side' ? lo.hol || 0 : 0]);
   for (const s of SLOTS) {
-    const id = lo.slots[s], gl = id && lo.guns[id]; if (!gl || !GUNS[id]) continue;
+    const id = lo.slots[s], gl = id && lo.guns[id], ok = !!gl && !!GUNS[id], key = ok ? keyOf(s, id, gl) : '';
+    if (a.armKey[s] === key && a.held[s]) {
+      // the same weapon as it was: just where it rides on them, if that's moved
+      const st = a.stowed[s], put = (o, pose) => { if (o && pose) { o.outer.position.fromArray(pose, 0); o.outer.children[0].quaternion.fromArray(pose, 3); o.copy.position.fromArray(pose, 7); } };
+      if (st) { put(st, lo.stow && lo.stow[s]); put(st.twin, lo.stow && lo.stow[s + '2']); }
+      continue;
+    }
+    drop(s); if (!ok) continue;
+    a.armKey[s] = key;
+    const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
     // to hold: hidden until a pose says it's out
-    const h = teamWeapon(gl, id); foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
+    const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
     const place = (at, hand, pose) => {
-      const w = teamWeapon(gl, id);
-      if (w.holds.L && hand === 'R') w.g.remove(w.holds.L); else if (w.holds.R && hand === 'L') w.g.remove(w.holds.R);
-      Object.values(w.holds).forEach(hd => hd.position.set(0, 0, 0));
-      const outer = new THREE.Group(), inner = new THREE.Group(), copy = w.g, pv = at.pivot(id, new THREE.Box3().setFromObject(copy));
+      const copy = copyModel(proto), holds = {}; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
+      if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
+      Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
+      const outer = new THREE.Group(), inner = new THREE.Group(), pv = at.pivot(id, new THREE.Box3().setFromObject(copy));
       if (pose) { outer.position.fromArray(pose, 0); inner.quaternion.fromArray(pose, 3); copy.position.fromArray(pose, 7); }
       else { outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]); }
       inner.add(copy); outer.add(inner); avPart(a, at.part()).add(outer);
       let hol = null;
       if (s === 'side') {
         hol = new THREE.Group(); inner.add(hol); const hg = hand === 'L' ? new THREE.Group() : hol; if (hand === 'L') { hg.scale.x = -1; hol.add(hg); }
-        buildHolster(hg, id, pv, w.muz, rig);
+        buildHolster(hg, id, pv, h.muz, rig);
         hol.traverse(o => { if (o.isMesh) { if (o.material === HOLSTER_M) o.material = holM; else if (o.material === HOOD_M) o.material = hoodM; } });
         foldStatic(hol, []);
       }
@@ -148,7 +169,7 @@ function buildArsenal(a, lo, lk) {
     const at2 = gl.ak && (rig ? STOW_RIG.L : STOW_AK[s]);
     if (at2) st.twin = place(at2, 'L', lo.stow && lo.stow[s + '2']);
     a.stowed[s] = st;
-    if (s === 'side') a.belt.push(box(a.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(a.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158));
+    if (s === 'side') st.belt = [box(a.upper, 0.512, 0.05, 0.312, BELT_M, 0, 0.6, 0), box(a.upper, 0.07, 0.054, 0.008, BUCKLE_M, 0, 0.6, 0.158)];
   }
   // the speed loader and the shells in their hand
   if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }

@@ -28,6 +28,7 @@ function loop(now) {
   netTick(rdt);   // co-op: your pose out, theirs in, the host's farm to the others (net/)
   visuals(state === 'play' || state === 'dead' || coop ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);
   R.render(scene, cam);
+  flushModels();   // (old weapon models let go of once nothing draws them: binModel, core/geometry.js)
   requestAnimationFrame(loop);
 }
 last = performance.now();
