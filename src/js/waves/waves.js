@@ -48,7 +48,8 @@ function updateWaves(dt) {
   if (phase === 'break' && CHEAT.noWaves) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
     setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
     waveBar(1, 'break');
-  } else if (phase === 'break' && netWaiting()) {   // co-op: the break waits for everyone still choosing their find
+  } else if (phase === 'break' && netWaiting()) {
+    respawnCheck();   // co-op: the break waits for everyone still choosing their find
     setH('wSub', netWaiting());
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'break') {
@@ -66,7 +67,7 @@ function updateWaves(dt) {
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
     if (!spawnQ.length && !zombies.length && !netAllDown()) waveCleared();
   } else if (phase === 'cleared') {
-    setH('wSub', 'Wave cleared'); waveBar(1, 'clear');
+    setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();   // (co-op: anyone down is back, net/sync.js)
     clearT -= dt / Math.max(timeScale, 0.3);
     if (clearT <= 0) { openUpgrade(); return true; }
   }

@@ -88,6 +88,6 @@ const bandRolls = [], bandPouch2 = new THREE.Group();
 // built from it (net/avatars.js), the rig's parts found again by these names
 ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'].forEach(k => { PM[k].name = 'pm.' + k; });
 packPivot.name = 'pm.pack';
-const PM_BASE = PM.g.clone(true);
+const PM_BASE = PM.g.clone(true), PM_BASE_SRC = []; PM.g.traverse(o => PM_BASE_SRC.push(o));   // (in the same order as the copy's own traverse: a part of yours to its part of theirs)
 // a barely-there light rim round your own character, just enough to pick yourself out in the dark or in a crowd
 const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.01, null, o => !o.userData.fine); pOutline.opacity = 0.1; pOutline.depthWrite = false;

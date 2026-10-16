@@ -1,35 +1,56 @@
 /* Co-op: the lobby on the title, the team list under the clock, and teammates' nameplates over their heads. */
 
-/* the lobby: another grimy sheet like the controls, under the start button */
-.coop{position:relative;display:grid;gap:12px;padding:16px 18px 14px;max-width:520px;
+/* the lobby: another grimy sheet like the controls, taped up under the start button, with the game code stamped on it
+   like the title's night; it slides in and back out, and what's on it eases from one state to the next */
+.coop{position:relative;display:grid;gap:12px;padding:20px 18px 14px;max-width:520px;
   background:var(--tex-specks),var(--tex-grime),linear-gradient(172deg,rgba(26,22,18,.88),rgba(14,12,11,.86) 60%,rgba(20,15,12,.9));background-size:240px,cover,auto;
   box-shadow:inset 0 0 0 1px rgba(236,230,216,.05),inset 0 0 46px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.35)}
+.coop::before{content:"";position:absolute;top:-10px;right:18%;width:84px;height:21px;rotate:2.5deg;pointer-events:none;
+  background:var(--tex-specks),linear-gradient(180deg,rgba(214,198,160,.42),rgba(184,166,126,.36));background-size:240px,auto;
+  clip-path:polygon(0 8%,4% 0,8% 14%,12% 2%,88% 0,92% 12%,96% 0,100% 10%,98% 30%,100% 52%,97% 74%,100% 100%,94% 90%,90% 100%,10% 98%,6% 88%,2% 100%,0 76%,3% 50%,0 28%)}
 .coop[hidden]{display:none}
-#title .coop:not([hidden]){animation:screenIn .35s cubic-bezier(.2,.9,.3,1) both}
-.coopHead{font-family:var(--f-type);font-size:15px;color:#c9643a}
-.coopHead span{margin-left:10px;font-family:var(--f-ui);font-size:11px;color:var(--dim)}
-.coop input{font:600 13px var(--f-ui);color:var(--ink);background:rgba(236,230,216,.06);border:1px solid rgba(236,230,216,.18);border-bottom-width:2px;border-bottom-color:rgba(0,0,0,.55);border-radius:2px;padding:6px 8px;outline:none;user-select:text;-webkit-user-select:text}
-.coop input:focus-visible{border-color:var(--orange)}
+#title .coop:not([hidden]){animation:coopIn .4s cubic-bezier(.2,.9,.3,1) both}
+#title .coop.closing{animation:coopOut .2s ease-in both;pointer-events:none}
+@keyframes coopIn{from{opacity:0;translate:0 -10px;rotate:-.6deg}}
+@keyframes coopOut{to{opacity:0;translate:0 -8px}}
+.coopHead{display:flex;align-items:baseline;gap:10px;font-family:var(--f-type);font-size:15px;color:#c9643a}
+.coopHead span{font-family:var(--f-ui);font-size:11px;color:var(--dim)}
+.coop input{font:600 13px var(--f-ui);color:var(--ink);background:rgba(236,230,216,.06);border:1px solid rgba(236,230,216,.18);border-bottom-width:2px;border-bottom-color:rgba(0,0,0,.55);border-radius:2px;padding:6px 8px;outline:none;user-select:text;-webkit-user-select:text;transition:border-color .15s ease,background-color .15s ease}
+.coop input:focus-visible{border-color:var(--orange);background:rgba(236,230,216,.09)}
 .coopName{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--dim);letter-spacing:.06em}
 .coopName input{width:13em}
 .coopPick{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
-.coopPick .or{font-size:11px;color:var(--dim)}
+.coopPick:not([hidden]),.coopRoom:not([hidden]){animation:coopPart .35s cubic-bezier(.2,.9,.3,1) both}
+@keyframes coopPart{from{opacity:0;translate:0 6px}}
+.coopPick[hidden]{display:none}
+.coopPick .or{font-family:var(--f-type);font-size:12px;color:var(--dim)}
 #coopCode{width:5.2em;text-transform:uppercase;letter-spacing:.3em;text-align:center}
 .btn.sm{font-size:19px;padding:6px 16px 4px}
 .btn.sm kbd{font-size:11px;padding:2px 5px}
 .btn:disabled{opacity:.45;cursor:default;translate:none}
-.coopRoom{display:grid;gap:10px}
+.coopRoom{display:grid;gap:12px}
 .coopRoom[hidden]{display:none}
-.coopCode{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--dim);letter-spacing:.08em}
-.coopCode b{font-family:var(--f-num);font-weight:800;font-size:34px;line-height:.9;letter-spacing:.16em;color:#efe4cc;user-select:text;-webkit-user-select:text}
-.coopCopy{font:600 11px var(--f-ui);color:var(--ink);background:rgba(236,230,216,.06);border:1px solid rgba(236,230,216,.18);border-radius:2px;padding:3px 8px;cursor:pointer}
-.coopCopy:hover{border-color:var(--orange)}
-.coopList{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.coopList li{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);padding:5px 8px;background:rgba(236,230,216,.035);border-left:3px solid var(--pc,#777)}
-.coopList li.empty{color:rgba(163,158,144,.55);border-left-color:rgba(236,230,216,.1);font-style:italic}
+.coopCode{display:flex;align-items:center;gap:14px;font-family:var(--f-type);font-size:12px;color:var(--dim)}
+/* the code: a rubber stamp, slammed on as the room opens */
+.coopCode b{display:inline-block;padding:4px 10px 1px 13px;border:2px solid currentColor;color:#d4472f;font-family:var(--f-num);font-weight:800;font-size:30px;line-height:1;letter-spacing:.2em;rotate:-3deg;filter:url(#fxWorn);user-select:text;-webkit-user-select:text;animation:stampOn .45s cubic-bezier(.3,1.4,.5,1) .12s both}
+@keyframes stampOn{0%{opacity:0;scale:1.7;rotate:-9deg}60%{opacity:1}100%{scale:1;rotate:-3deg}}
+.coopCopy{font:600 11px var(--f-ui);color:var(--ink);background:rgba(236,230,216,.06);border:1px solid rgba(236,230,216,.18);border-radius:2px;padding:3px 8px;cursor:pointer;transition:border-color .15s ease,background-color .15s ease,color .15s ease}
+.coopCopy:hover{border-color:var(--orange);background:rgba(236,230,216,.1)}
+/* the seats: each survivor in their colour, numbered, sliding in as they arrive; the open ones wait */
+.coopList{list-style:none;margin:0;padding:0;display:grid;gap:4px;counter-reset:seat}
+.coopList li{counter-increment:seat;display:flex;align-items:center;gap:10px;min-height:30px;font-size:13px;color:var(--ink);padding:4px 10px 4px 8px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--pc,#777) 16%,transparent),rgba(236,230,216,.03) 45%);border-left:3px solid var(--pc,#777);transition:background-color .2s ease}
+.coopList li::before{content:counter(seat);width:1.4em;font-family:var(--f-num);font-weight:800;font-size:15px;color:var(--pc,#777);text-align:center}
+.coopList li.new{animation:seatIn .45s cubic-bezier(.2,.9,.3,1) both}
+@keyframes seatIn{0%{opacity:0;translate:-18px 0;background-color:rgba(236,230,216,.18)}100%{background-color:transparent}}
+.coopList li.empty{color:rgba(163,158,144,.5);border-left-color:rgba(236,230,216,.1);background:repeating-linear-gradient(135deg,rgba(236,230,216,.025) 0 6px,transparent 6px 12px);font-family:var(--f-type);font-size:12px}
+.coopList li.empty::before{color:rgba(163,158,144,.35)}
+.coopList li.empty::after{content:"";width:5px;height:5px;margin-left:-4px;border-radius:50%;background:currentColor;animation:seatWait 1.6s ease-in-out infinite}
+@keyframes seatWait{50%{opacity:.15}}
 .coopList li em{margin-left:auto;font-style:normal;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-.coopMsg{min-height:1.2em;font-size:11.5px;color:#e09a6a}
+.coopMsg{min-height:1.2em;font-family:var(--f-type);font-size:12px;color:#e09a6a;animation:coopPart .3s ease both}
 .coopMsg:empty{display:none}
+@media (prefers-reduced-motion:reduce){.coop,.coop *{animation-duration:.01s!important;animation-delay:0s!important}}
 
 /* friends: your code, the list (who's around, hosting or in a run, with Join and Invite), and adding one by code */
 .coopFriends{display:grid;gap:8px;padding-top:12px;border-top:1px solid rgba(236,230,216,.1)}
@@ -51,24 +72,41 @@
 .frDel{font:600 14px var(--f-ui);line-height:1;color:var(--dim);background:none;border:0;padding:2px 4px;cursor:pointer}
 .frDel:hover{color:#e06a52}
 .frAdd{display:flex;gap:8px;align-items:center}
-#frCode{width:8.5em;text-transform:uppercase;letter-spacing:.24em;text-align:center}
+#frCode{width:10.5em;text-transform:uppercase;letter-spacing:.16em;text-align:center}
 .coopList li .coopCopy{margin-left:8px}
 
-/* the team: everyone else in the run, under the clock, with their health */
-#team{top:calc(124px + env(safe-area-inset-top,0px));left:20px;display:grid;gap:5px;zoom:1.12}
+/* the team: each teammate over your own health, a smaller copy of it in their colour (ui: renderTeam, net/lobby.js) */
+#team{display:grid;gap:7px;margin-bottom:6px;width:60%}
 #team[hidden]{display:none}
-#team .tm{display:grid;grid-template-columns:auto 1fr;align-items:center;column-gap:7px;row-gap:3px;width:148px;padding:4px 7px 5px;background:rgba(10,10,9,.55);border-left:3px solid var(--pc)}
-#team .tm i{width:7px;height:7px;border-radius:50%;background:var(--pc)}
-#team .tm b{font:600 11px var(--f-ui);color:#e8e1d2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#team .tm s{grid-column:1/-1;display:block;height:4px;background:rgba(236,230,216,.12);text-decoration:none;overflow:hidden}
-#team .tm s u{display:block;height:100%;background:#c8453a;transform-origin:left;transition:transform .25s ease;text-decoration:none}
-#team .tm.down{opacity:.7}
-#team .tm.down b::after{content:" · down";color:#e06a52}
-#team .tm.gone{opacity:.4}
+#team .tm{display:grid;gap:3px;padding-left:8px;border-left:2px solid var(--pc);animation:tmIn .35s cubic-bezier(.2,.9,.3,1) both}
+@keyframes tmIn{from{opacity:0;translate:-12px 0}}
+#team .tmTop{display:flex;align-items:baseline;gap:7px}
+#team .tmTop i{width:6px;height:6px;border-radius:50%;background:var(--pc);box-shadow:0 0 6px var(--pc);align-self:center}
+#team .tmName{font:600 10.5px var(--f-ui);color:#ece4d4;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;filter:drop-shadow(0 1px 0 rgba(0,0,0,.6))}
+#team .tmHp{margin-left:auto;display:flex;align-items:baseline;gap:3px}
+#team .tmHp em{font-style:normal;font-size:15px;filter:drop-shadow(0 1px 0 rgba(0,0,0,.5))}
+#team .tmHp span{font-family:var(--f-num);font-weight:600;font-size:10.5px;color:var(--dim)}
+#team .bar{height:3px}
+#team .bar i{transition:width .25s ease}
+#team .res{gap:10px}
+#team .res svg{width:10px;height:10px}
+#team .res b{font-size:12.5px}
+#team .tm.low .bar i{background:var(--blood)}
+#team .tm.down{opacity:.6}
+#team .tm.down .tmHp span{font-family:var(--f-ui);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#e0634a}
+#team .tm.down .bar i{width:0!important}
 
-/* nameplates: a teammate's name floating over them, in their colour */
-#tags{position:fixed;inset:0;pointer-events:none;z-index:3}
-#tags .tag{position:absolute;left:0;top:0;translate:-50% -100%;font:600 11px var(--f-ui);color:var(--pc);white-space:nowrap;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.8);transition:opacity .2s ease}
-#tags .tag s{display:block;width:34px;height:3px;margin:2px auto 0;background:rgba(0,0,0,.55);text-decoration:none}
+/* nameplates: a dot in their colour over their head with their name and health under it; off the screen, just the
+   dot, at the edge on the line toward them with an arrow pointing their way (net/avatars.js) */
+#tags{position:fixed;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+#tags .tag{position:absolute;left:0;top:0;display:grid;justify-items:center;gap:2px;translate:-50% -100%;font:600 11px var(--f-ui);color:var(--pc);white-space:nowrap;text-shadow:0 1px 2px #000,0 0 6px rgba(0,0,0,.8);transition:opacity .2s ease}
+#tags .tag .dot{position:relative;width:10px;height:10px;border-radius:50%;background:var(--pc);box-shadow:0 0 0 2px rgba(10,10,9,.75),0 0 10px var(--pc);transition:scale .25s ease}
+#tags .tag s{display:block;width:34px;height:3px;background:rgba(0,0,0,.55);text-decoration:none}
 #tags .tag s u{display:block;height:100%;background:var(--pc);transform-origin:left;text-decoration:none}
+#tags .tag.down{opacity:.55}
+#tags .tag.down .dot{background:#5c5850;box-shadow:0 0 0 2px rgba(10,10,9,.75)}
+#tags .tag.edge{translate:-50% -50%}
+#tags .tag.edge .nm,#tags .tag.edge s{display:none}
+#tags .tag.edge .dot{scale:1.35}
+#tags .tag.edge .dot::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border:5px solid transparent;border-left:7px solid var(--pc);translate:-50% -50%;rotate:var(--a);transform:translateX(12px);transform-origin:center;filter:drop-shadow(0 0 2px rgba(0,0,0,.9))}
 body:not(.playing) #tags{display:none}

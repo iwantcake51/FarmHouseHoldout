@@ -165,12 +165,15 @@ NET_ON.bb = m => { const o = openings[m.o]; if (!o || NET.host || !o.boards.leng
 NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
 NET_ON.skip = () => { if (NET.host && phase === 'break') breakT = 0; };
-// wave cleared: everyone down gets back up, and the host tells the rest
-function netCleared() { if (!netLink()) return; if (NET.host) netSend('clear', {}); if (P.dead) netRevive(); }
+// wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
+let clearAt = 0;
+function netCleared() { if (!netLink()) return; clearAt = performance.now(); if (NET.host) netSend('clear', {}); }
+const RESPAWN_AFTER = 1100;   // ms after the last kill: the clear's slow motion (waves/waves.js) is over
+function respawnCheck() { if (netLink() && P.dead && ((phase === 'cleared' && performance.now() - clearAt > RESPAWN_AFTER) || (phase === 'break' && P.deathT > 2))) netRespawn(); }
 // a joiner's wave display, from the host's word for it
 function clientWaves(dt) {
   if (phase === 'break') {
-    const w = netWaiting();
+    const w = netWaiting(); respawnCheck();
     setH('wSub', w || `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'wave') {
@@ -178,17 +181,21 @@ function clientWaves(dt) {
     setH('wSub', `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left'));
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
   } else if (phase === 'cleared') {
-    setH('wSub', 'Wave cleared'); waveBar(1, 'clear');
+    setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();
     clearT -= dt / Math.max(timeScale, 0.3);
     if (clearT <= 0) { openUpgrade(); return true; }
   }
   return false;
 }
 // who's still choosing their find after a wave ('' if nobody): the next wave waits for them
+// and before the first wave, for everyone to have loaded in: the break doesn't start counting till they're all on the farm
 function netWaiting() {
   if (!netLink()) return '';
-  const names = [...NET.peers.values()].filter(p => p.picking).map(p => p.name);
-  return names.length ? 'Waiting for ' + names.join(', ') + ' to choose' : '';
+  const ps = [...NET.peers.values()], list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n[0];
+  const loading = run.wave === 0 ? ps.filter(p => !p.loaded).map(p => p.name) : [];
+  if (loading.length) return 'Waiting for ' + list(loading) + ' to load in';
+  const names = ps.filter(p => p.picking).map(p => p.name);
+  return names.length ? 'Waiting for ' + list(names) + ' to choose' : '';
 }
 
 // ---- going down in co-op: the farm goes on without you; you watch a teammate till the wave's cleared and you're back
@@ -196,13 +203,25 @@ function netDown() {
   timeScale = 1;
   if (!downTold) { downTold = true; setTimeout(() => { if (P.dead && netLink()) announce('You’re down', 'Back on your feet when the wave is cleared', { eye: 'Co-op', kind: 'red' }); }, 1600); }
 }
-function netRevive() {
-  P.dead = false; P.deathT = 0; P.hp = Math.max(1, Math.round(S.maxHp * 0.5)); P.bleed = 0; P.slow = P.stun = 0; P.vx = P.vz = 0; P.kbx = P.kbz = 0; P.conc = 0;
+// back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and the guns
+// you had gone (the melee weapon you keep), only the pistol everyone starts with; then the cards like everyone else
+function netRespawn() {
+  for (const s of ['side', 'long', 'auto']) {
+    const id = W8.slot[s]; W8.slot[s] = null; if (!id) continue;
+    [W8.mods, W8.gt, W8.own, W8.ownAtt, W8.att, W8.rounds, W8.relSave, W8.pin, W8.mag, W8.fm, W8.tune, W8.akMag, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
+  }
+  W8.slot.side = 'pistol'; W8.mag.pistol = 13; W8.reserve = { p9: 65, magnum: 0, shells: 0, rifle: 0 }; W8.reloading = null; W8.cur = 'side';
+  recomputeEff();
+  const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
+  Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   downTold = false;
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
+  rollLook(); buildGuns();
+  netSend('look', { look: LOOK.cur });   // (your teammates rebuild you as you are now)
   feed('med', P.hp, 'back on your feet'); SFX.upgrade();
 }
+NET_ON.look = m => { const p = NET.peers.get(m.f); if (!p) return; p.look = m.look; netDropAvatar(p); p.av = null; };
 // who the camera's on: you, or once you're down, the first teammate still standing
 function camFocus() {
   if (!netLink() || !P.dead || P.deathT < 1.4) return P;
@@ -232,5 +251,5 @@ function netRunStart() {
   if (!netLink()) return;
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   P.x += off[0]; P.z += off[1];
-  for (const p of NET.peers.values()) { p.dead = false; p.picking = false; if (p.av) p.av.cur = null; }
+  for (const p of NET.peers.values()) { p.dead = false; p.picking = false; p.loaded = false; if (p.av) p.av.cur = null; }
 }

@@ -5,7 +5,7 @@
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
-const POSE_N = POSE_K.length + 3;   // and the weapon: its holder, and the right and left hand's hold inside it
+const POSE_N = POSE_K.length;   // (the weapons come separately: net/arsenal.js)
 const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100;
 
 // ---- your pose, sent out POSE_HZ times a second: the joints to the centimetre and the hundredth of a radian (eased on
@@ -16,26 +16,30 @@ let poseT = 0, poseX = 0, poseZ = 0, poseAt = 0;
 function poseOut(rdt) {
   if (!netLink()) return;
   poseT -= rdt; if (poseT > 0) return; poseT = 1 / POSE_HZ;
-  const s = W8.cur, gg = gunMeshes[s], hs = HOLDS[s] || {}, j = [];
-  const put = (o, fine) => { if (!o) { j.push(0, 0, 0, 0, 0, 0); return; } const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
-  POSE_K.forEach((k, n) => put(PM[k], n === 0)); put(gg); put(hs.R); put(hs.L);
+  const j = [];
+  const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
+  POSE_K.forEach((k, n) => put(PM[k], n === 0));
+  j[0] = r3(P.x); j[2] = r3(P.z);   // (where you are this frame: the rig only catches up when it's drawn, after this)
   j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
-  const id = curId(), D = W(id) || {}, now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
+  const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
-  netSend('p', { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, w: id, ak: D.akimbo ? 1 : 0, gv: gg && gg.visible ? 1 : 0, pk: state === 'upgrade' || state === 'leaving' ? 1 : 0, j });
+  const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: state === 'upgrade' || state === 'leaving' ? 1 : 0, j,
+    st: [S.planks | 0, S.scrap | 0, run.kills | 0] };   // (what the team list shows of you: planks, scrap and kills)
+  weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
+  netSend('p', msg);
 }
 
 // ---- their survivors
 const AV_SWAP = ['skin', 'shirt', 'pants', 'shirtDk', 'skinDk'];
 function buildAvatar(p) {
   const L = p.look || dealLook();
-  const g = PM_BASE.clone(true);
+  const g = PM_BASE.clone(true), partMap = new Map(); { let k = 0; g.traverse(o => { partMap.set(PM_BASE_SRC[k++], o); }); }
   // their own materials for everything coloured by the look; the rest (the belt, the buckles, the webbing) is shared
   const mats = { skin: lam(L.skin), shirt: lam(L.topCol), pants: lam(L.pants), shirtDk: lam(shade(L.topCol, 0.76)), skinDk: lam(shade(L.skin, 0.86)) };
   const pack = { canvas: lam(L.pack), canvasDk: lam(shade(L.pack, 0.78)), canvasLt: lam(shade(L.pack, 1.22)), roll: lam(L.roll) };
   const swap = new Map(); AV_SWAP.forEach(k => swap.set(PM.mats[k], mats[k])); Object.keys(PACK).forEach(k => swap.set(PACK[k], pack[k]));
   g.traverse(o => { if (o.isMesh && swap.has(o.material)) o.material = swap.get(o.material); if (o.isMesh) o.castShadow = true; });
-  const rig = { g, mats };
+  const rig = { g, mats, partMap };
   POSE_K.forEach(k => { rig[k] = g.getObjectByName('pm.' + k); });
   // the look, built onto their rig: buildLook works on whatever LOOK.g and PM.mats hold, so for a moment they hold theirs
   const groups = {}, on = { head: rig.head, hat: rig.head, torso: rig.torso, armL: rig.armL, armR: rig.armR, legL: rig.legL, legR: rig.legR, shinL: rig.shinL, shinR: rig.shinR, shoeL: rig.shinL, shoeR: rig.shinR };
@@ -52,19 +56,20 @@ function buildAvatar(p) {
     parts.forEach(o => { o.castShadow = true; });
     if (parts.length > 1) mergeInto(J, parts);
   }
-  // the weapon in their hands: a holder on the upper body for guns (with a hold for each hand), on the right arm for melee
-  rig.gunU = new THREE.Group(); rig.upper.add(rig.gunU);
-  rig.gunM = new THREE.Group(); rig.armR.add(rig.gunM);
-  rig.holdR = new THREE.Group(); rig.holdL = new THREE.Group(); rig.gunU.add(rig.holdR, rig.holdL);
-  rig.w = null;
+  // their weapons, from their loadout (net/arsenal.js), once it's come
+  if (p.lo) buildArsenal(rig, p.lo, p.lk);
   rig.blob = blobShadow(1.15, 0.38);
-  // a faint rim in their colour, so you can pick them out in the dark and in a crowd
-  rig.ol = outline(g, new THREE.Color(NET_COL[p.idx] || '#888').getHex(), 0, 0.012, null, o => !o.userData.fine); rig.ol.opacity = 0.35; rig.ol.depthWrite = false;
+  // an outline in their colour, and through walls, trees and anything else in the way their shape in it, as your own
+  // shows grey (effects/outlines.js)
+  const col = new THREE.Color(NET_COL[p.idx] || '#888').getHex();
+  rig.ol = outline(g, col, 0, 0.022, null, o => !o.userData.fine); rig.ol.opacity = 0.9; rig.ol.depthWrite = false;
+  rig.xr = xray(g, col, false, col, o => !o.userData.fine && !o.userData.isOutline, 1.0); rig.xr.rim.opacity = 0.85; rig.xr.sil.opacity = 0.22;
   scene.add(g);
   g.position.set(P.x, 0, P.z);
   // their name over their head
   const tag = document.createElement('div'); tag.className = 'tag'; tag.style.setProperty('--pc', NET_COL[p.idx] || '#888');
-  tag.textContent = p.name; const bar = document.createElement('s'); bar.innerHTML = '<u></u>'; tag.appendChild(bar); $('tags').appendChild(tag);
+  tag.innerHTML = '<i class="dot"></i><span class="nm"></span><s><u></u></s>'; tag.querySelector('.nm').textContent = p.name; $('tags').appendChild(tag);
+  const bar = tag.querySelector('s');
   rig.tag = tag; rig.tagBar = bar.firstChild;
   rig.cur = null; rig.tgt = null;
   p.av = rig;
@@ -75,29 +80,12 @@ function netDropAvatar(p) {
   scene.remove(a.g); if (a.blob) scene.remove(a.blob); if (a.tag) a.tag.remove();
   p.av = null;
 }
-// their weapon changed: build the new one's model (as it comes, without their mods) into the hands
-function avatarWeapon(a, id, ak) {
-  if (a.w === id && a.ak === ak) return;
-  a.w = id; a.ak = ak;
-  [a.gunM, a.holdR, a.holdL].forEach(h => { while (h.children.length) h.remove(h.children[0]); });
-  const D = WEAP[id]; if (!D || !GUNS[id]) return;
-  const build = h => {
-    const mg = new THREE.Group(); h.add(mg); h.userData.magG = mg;
-    tierCtx = null;
-    let info = null;
-    try { info = GUNS[id](h, {}); } catch (e) { console.warn('avatar weapon', id, e); }
-    if (info && info.baseMag && !info.ownMags) magBox(mg, 0.056, info.baseMag, 0.08, X, info.magY - info.baseMag / 2, info.magZ);
-    // nothing on it moves in their hands here, so the whole weapon folds into a mesh or two
-    const parts = []; h.traverse(o => { if (o.isMesh && o.visible && !o.userData.isFlash) { o.castShadow = true; parts.push(o); } });
-    if (parts.length > 1) mergeInto(h, parts);
-  };
-  if (D.melee) build(a.gunM);
-  else { build(a.holdR); if (ak) build(a.holdL); }
-}
 // a pose in: kept as where they're headed; their survivor eases there over the next frames
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, w: m.w, ak: !!m.ak, gv: !!m.gv });
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, loaded: true });
+  // a loadout we haven't got (or an old one): ask for it, once a second at most
+  if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
 };
 // every frame: each teammate's survivor eased toward their last pose, their name over them
@@ -108,7 +96,6 @@ function updateAvatars(rdt) {
     if (!show || !p.tgt) { if (p.av) { p.av.g.visible = false; p.av.tag.style.opacity = 0; if (p.av.blob) p.av.blob.visible = false; } continue; }
     const a = p.av || buildAvatar(p), t = p.tgt;
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
-    avatarWeapon(a, p.w, p.ak);
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -121,19 +108,27 @@ function updateAvatars(rdt) {
     }
     const set = (o, n) => { const b = n * 6; o.position.set(c[b], c[b + 1], c[b + 2]); o.rotation.set(c[b + 3], c[b + 4], c[b + 5]); };
     POSE_K.forEach((key, n) => set(a[key], n));
-    const melee = WEAP[p.w] && WEAP[p.w].melee, holder = melee ? a.gunM : a.gunU;
-    set(holder, POSE_K.length); (melee ? a.gunU : a.gunM).visible = false; holder.visible = p.gv && !p.dead;
-    if (!melee) { set(a.holdR, POSE_K.length + 1); set(a.holdL, POSE_K.length + 2); a.holdL.visible = p.ak; }
+    arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
     // their footsteps, from their feet: a step every stride's length they cover, a run's when they're moving fast
     { const gx = a.g.position.x, gz = a.g.position.z, d = a.lx === undefined ? 0 : Math.hypot(gx - a.lx, gz - a.lz); a.lx = gx; a.lz = gz;
       if (d < 1 && !p.dead && !p.vault) { const sp = Math.hypot(p.vx || 0, p.vz || 0), run = sp > 4.2; a.walked = (a.walked || 0) + d; if (a.walked > (run ? 1.05 : 0.72)) { a.walked = 0; footstep(run ? 'run' : 'walk', 0.85, gx, gz); } } }
     // the name: over the head, gone while they're out of sight or past the edge of the screen
+    // the dot over their head (and their name); when they're off the screen, it waits at its edge on the line toward
+    // them, pointing their way
     a.head.getWorldPosition(_tagV); _tagV.y += 0.42; _tagV.project(cam);
-    const sx = (_tagV.x * 0.5 + 0.5) * innerWidth, sy = (-_tagV.y * 0.5 + 0.5) * innerHeight, inView = _tagV.z < 1 && sx > -40 && sx < innerWidth + 40 && sy > -20 && sy < innerHeight + 20;
-    a.tag.style.opacity = inView ? (p.dead ? 0.5 : 1) : 0;
-    if (inView) a.tag.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
+    const W_ = innerWidth, H_ = innerHeight, M = 30, sx = (_tagV.x * 0.5 + 0.5) * W_, sy = (-_tagV.y * 0.5 + 0.5) * H_;
+    const inView = sx > M && sx < W_ - M && sy > M + 20 && sy < H_ - M;
+    let tx = sx, ty = sy;
+    if (!inView) {
+      const cx = W_ / 2, cy = H_ / 2, dx = sx - cx, dy = sy - cy, t = Math.min((cx - M) / Math.max(1e-3, Math.abs(dx)), (cy - M) / Math.max(1e-3, Math.abs(dy)));
+      tx = cx + dx * t; ty = cy + dy * t; a.tag.style.setProperty('--a', Math.atan2(dy, dx).toFixed(3) + 'rad');
+    }
+    if (a.edge !== !inView) { a.edge = !inView; a.tag.classList.toggle('edge', a.edge); }
+    a.tag.classList.toggle('down', !!p.dead);
+    a.tag.style.opacity = 1;
+    a.tag.style.transform = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px)`;
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
   }
 }

@@ -438,12 +438,18 @@ let slIdx = 0;
 function dropLoader() {
   if (!SLM.visible) return;
   SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.getWorldQuaternion(_bq); SLM.getWorldScale(_slS); SLM.visible = false;
-  const c = SL_DROPS[slIdx = (slIdx + 1) % SL_DROPS.length], s = _slS.x;
+  const r2 = v => Math.round(v * 1000) / 1000, m = { p: [_slW.x, _slW.y, _slW.z].map(r2), q: [_bq.x, _bq.y, _bq.z, _bq.w].map(r2), s: r2(_slS.x),
+    v: [P.vx * 0.6 + rr(-0.4, 0.4), rr(-0.6, 0.2), P.vz * 0.6 + rr(-0.4, 0.4)].map(r2), spin: r2(rr(4, 9) * (rand() < 0.5 ? -1 : 1)), roll: r2(rr(-5, 5)) };
+  placeLoader(m); netSend('ld', m);   // (co-op: dropped on your teammates' screens too, net/arsenal.js)
+}
+// the empty speed loader falling from where it was let go (yours, or a co-op teammate's)
+function placeLoader(m) {
+  _slW.set(m.p[0], m.p[1], m.p[2]); _bq.set(m.q[0], m.q[1], m.q[2], m.q[3]);
+  const c = SL_DROPS[slIdx = (slIdx + 1) % SL_DROPS.length], s = m.s;
   c.sz.scale.setScalar(s); c.sz.position.set(0, 0, -0.01 * s);   // (turning about its middle, the knob and all)
   c.r = REV_CYL.r * 0.97 * s; c.restY = c.r;
   c.g.position.copy(_slW).addScaledVector(_slAx.set(0, 0, 0.01 * s).applyQuaternion(_bq), 1); c.g.quaternion.copy(_bq); c.g.scale.setScalar(1); c.g.visible = true;
-  c.vx = P.vx * 0.6 + rr(-0.4, 0.4); c.vz = P.vz * 0.6 + rr(-0.4, 0.4); c.vy = rr(-0.6, 0.2);
-  c.spin = rr(4, 9) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-5, 5); c.bounces = 0; c.life = 14;
+  c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin; c.roll = m.roll; c.bounces = 0; c.life = 14;
 }
 
 // bandaging: first the weapon goes away, carried by the right hand to where it rides (bandP, player/swap.js), then the

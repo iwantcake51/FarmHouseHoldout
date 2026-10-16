@@ -31,9 +31,19 @@ four-letter code. Your friends open the game, press **Co-op**, type the code and
 - The host's game runs the farm: the zombies, the waves, the boards and the clock. Everyone else's shows what the
   host's has. Each player's survivor, health, weapons, scrap and cards are their own.
 - Zombies go for whoever is nearest. Waves are 60% bigger for each extra player.
-- A player who goes down watches a teammate and is back on their feet, at half health, when the wave is cleared. The
-  run ends when everyone is down.
-- After a wave the next break waits until everyone has picked their card. Pausing doesn't stop the farm.
+- A player who goes down watches a teammate for the rest of the wave. The moment the wave's last zombie falls and the
+  slow motion has played out, they're back in the farmhouse at full health as a new survivor (a new face and clothes),
+  with their melee weapon and only the starting pistol, and they pick a card like everyone else. The run ends when
+  everyone is down.
+- The first break doesn't start counting down until everyone has loaded onto the farm. After a wave the next break
+  waits until everyone has picked their card. Pausing doesn't stop the farm.
+- Teammates are outlined in their colour, with a dot over their heads. When one is off the screen, the dot waits at
+  the screen's edge with an arrow pointing their way. Their health, planks, scrap and kills sit over your own health
+  in the bottom left, in smaller bars.
+- You see each teammate's own weapons, attachments and all: what they hold, what's stowed on their pack and hip,
+  swaps, reloads (the mag out, in the hand, seated), the mags and speed loaders they drop, and the slides, bolts and
+  pumps working. Gore is shared: a head split open, crushed or shot through, a limb or forearm taken off, and bullet
+  holes show on everyone's screen (the holes land in roughly the same place, not exactly).
 - The host should keep the game's tab in view: a browser stops a hidden tab, and the farm stops with it for everyone.
 - Players connect directly to each other over WebRTC (PeerJS, in `dist/vendor/`). PeerJS's free public server only
   introduces them. If it's down, run your own (`npx peerjs --port 9000`) and add `?peer=yourhost:9000` to everyone's
@@ -215,9 +225,10 @@ Every source file starts with a one-line comment saying what is in it.
 | The white melee-weapon silhouette shown in place of the ammo count | `src/js/ui/melee-art.js` |
 | The icons (HUD, pickups, stations, status icons) | `src/js/ui/game-icons.js` |
 | Co-op connection: hosting and joining, the four-letter codes, the most players (`NET_MAX`), how long a quiet player has before they count as gone (`NET_QUIET`), another PeerJS server (`PEER_OPTS`, `?peer=`), the same-browser test link (`?net=local`), and the messages each kind of event sends (`NET_ON`) | `src/js/net/net.js` |
-| The co-op lobby on the title (name, host, join, who's in, start) and the team list with health under the clock | `src/js/net/lobby.js`, `src/styles/coop.css` |
-| Teammates on your screen: their survivor built from the same rig and look as yours (`buildAvatar`, from `PM_BASE` in `src/js/player/player.js`), the pose sent twenty times a second (`poseOut`, the joints in `POSE_K`) and eased to, their weapon, nameplate and outline, their shots (tracers, flash, the sound quieter with distance: `heardFrom`) | `src/js/net/avatars.js` |
-| Keeping everyone's farm the same: zombies spawned from the host's seed (`netSpawn`, `withSeed` in `src/js/core/math.js`), the host's snapshot a dozen times a second (`snapOut`) and joiners' zombies eased to it (`puppetMove`, `puppetBoard`), climbs, swings at teammates (`netLunge`), hits and kills replayed from the hitter's record of them (`netAct`, `netOp`: the damage, what came off, how it fell, what it dropped), boards, drops picked up, the waves and their breaks, going down and getting back up (`netDown`, `netRevive`), and the run's end | `src/js/net/sync.js` |
+| The co-op lobby on the title (name, host, join, the numbered seats, the stamped game code, start; its open, close and seat animations) and the teammates' cards over your health (`renderTeam`: their health and its bar, planks, scrap and kills, `TEAM_RES`) | `src/js/net/lobby.js`, `src/styles/coop.css` |
+| Teammates' weapons: their loadout sent when it changes (`loadoutTick`, `lo`), each gun built from it the same way as yours (`withLoadout`, `buildWeapon` in `src/js/weapons/build-weapons.js`), what's in their hands and its moving parts sent with each pose (`weaponPose`: mags, slides, bolts, pumps, cylinders, the break-open action, the belt) and what's stowed (`sv`), drawn on their survivor (`arsenalFrame`); dropped mags and speed loaders (`md`, `ld` → `placeMag` in `src/js/weapons/casings.js`, `placeLoader` in `src/js/player/hold.js`) | `src/js/net/arsenal.js` |
+| Teammates on your screen: their survivor built from the same rig and look as yours (`buildAvatar`, from `PM_BASE` in `src/js/player/player.js`), the pose sent twenty times a second (`poseOut`, the joints in `POSE_K`) and eased to, their outline in their colour (`xray`), the dot over their head and the marker at the screen's edge when they're off it, their shots (tracers, flash, the sound quieter with distance: `heardFrom`) | `src/js/net/avatars.js` |
+| Keeping everyone's farm the same: zombies spawned from the host's seed (`netSpawn`, `withSeed` in `src/js/core/math.js`), the host's snapshot a dozen times a second (`snapOut`) and joiners' zombies eased to it (`puppetMove`, `puppetBoard`), climbs, swings at teammates (`netLunge`), hits and kills replayed from the hitter's record of them (`netAct`, `netOp`: the damage, what came off, how it fell, what it dropped), boards, drops picked up, the waves and their breaks, the first break waiting for everyone to load in (`netWaiting`), going down and coming back after the wave as someone new with the starting pistol (`netDown`, `respawnCheck`, `netRespawn`, `RESPAWN_AFTER`), and the run's end | `src/js/net/sync.js` |
 | Who a zombie goes for (the nearest survivor still standing), and what its swing does to you (`zStrike`) | `updateZombies`, `zStrike` in `src/js/zombies/ai.js` |
 | How much bigger a co-op wave is (`teamK`) | `src/js/waves/waves.js` |
 | Friends: friend codes, the list and each friend's status (`frRender`), reaching them (`friendsUp`, an always-on PeerJS peer at `fhh-pal-CODE`; `FR_QUIET` and `FR_RETRY`), invites and joining | `src/js/net/friends.js` |

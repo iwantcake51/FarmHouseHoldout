@@ -123,6 +123,7 @@
   "ui/cheats.js",
   "game/visuals.js",
   "net/sync.js",
+  "net/arsenal.js",
   "net/avatars.js",
   "net/lobby.js",
   "net/friends.js",

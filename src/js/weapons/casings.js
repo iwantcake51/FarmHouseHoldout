@@ -198,33 +198,41 @@ function dropMag(id, side) {
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
   // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
   // drum (its radius and thickness, and which way its axis runs: along the gun or across it)
-  const mt = T('mag'), c = mags[mIdx = (mIdx + 1) % mags.length];
-  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2, dr = null;
-  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = GM.poly; } }
+  const mt = T('mag');
+  let w = 0.05, h = 0.15, d = 0.07, mat = 'metal2', dr = null;
+  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = 'poly'; } }
   else if (id === 'deagle') { w = 0.026; h = [0.17, 0.22, 0.32][Math.min(2, mt)]; d = 0.065; }
-  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
+  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = 'poly'; } }
   else if (id === 'sub') { w = 0.026; h = [0.24, 0.29, 0.34, 0.4][mt]; d = 0.042; }
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') { if (mt >= 1) dr = { r: 0.114, t: 0.078, ax: 'z' }; else { w = 0.05; h = 0.215; d = 0.095; } }   // the drum, or its box
-  else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = GM.olive; }
+  else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = 'olive'; }
+  // an akimbo pair's left gun drops its own mag, from its own hand
+  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
+  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
+  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100,
+    v: [P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3), rr(-0.2, 0.6), P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3)].map(v => Math.round(v * 100) / 100), spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
+  placeMag(m);
+  netSend('md', m);   // (co-op: it falls out of your survivor on your teammates' screens too, net/arsenal.js)
+}
+// a falling mag of the shape and colour given, from where and how it was let go (yours, or a co-op teammate's)
+function placeMag(m) {
+  const c = mags[mIdx = (mIdx + 1) % mags.length], mat = GM[m.mat] || GM.metal2, dr = m.shape.length === 4 ? { r: m.shape[0], t: m.shape[1], ax: m.shape[2] } : null, small = m.shape[3] === 1;
+  const [w, h, d] = m.shape;
   c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = c.neck.material = mat; c.pv.rotation.set(0, 0, 0); c.neck.visible = !!dr;
   if (dr) {
     // the drum, its axis along or across the gun, and its stick standing up out of it, as long as the drum's radius
     c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0);
-    const nh = dr.r * 1.05, nw = id === 'pistol' ? 0.026 : 0.044, nd = id === 'pistol' ? 0.05 : 0.07;
+    const nh = dr.r * 1.05, nw = small ? 0.026 : 0.044, nd = small ? 0.05 : 0.07;
     c.neck.scale.set(dr.ax === 'x' ? Math.min(nw, dr.t * 0.8) : nw, nh, dr.ax === 'z' ? Math.min(nd, dr.t * 0.8) : nd); c.neck.position.set(0, dr.r * 0.75 + nh / 2, 0);
     c.r = dr.r * 0.6; c.restY = dr.t / 2;
     c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.pv.rotation.set(dr.ax === 'z' ? -Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); };   // flat on its face
   }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
-  // an akimbo pair's left gun drops its own mag, from its own hand
-  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
-  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
-  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
-  c.g.position.copy(_cv); c.g.rotation.set(0.2, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
-  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
-  c.vx = P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vz = P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vy = rr(-0.2, 0.6);
-  c.spin = rr(3, 7) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-4, 4); c.bounces = 0; c.life = 14; c.kind = 'mag';
+  c.g.position.set(m.p[0], m.p[1], m.p[2]); c.g.rotation.set(0.2, m.ry, 0); c.g.scale.setScalar(1); c.g.visible = true;
+  c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin; c.roll = m.roll; c.bounces = 0; c.life = 14; c.kind = 'mag';
 }
 function stepDebris(list, dt) {
   tinkT -= dt;

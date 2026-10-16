@@ -13,6 +13,37 @@ function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y
 // only: a change to one gun (an attachment, rounds or a mod bought or swapped at the bench) rebuilds just that gun,
 // not every weapon you carry and your gear with them: building a gun and pulling its faces apart is the slow part. A
 // slot whose model isn't the weapon in it now (one just put in it, or emptied) is built too
+// what moves on a weapon once it's built, gathered as it's built: the mag groups, the slides and bolts, the revolver's
+// crane, the charging handle, the double barrel's barrels and rims, the belt, and where the mag sits (for dropping it)
+const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null });
+// one weapon's model built into parent (a hold group for a gun, the holder itself for a melee weapon), its moving parts
+// noted in rec. It reads the gun's mods, tiers, attachments and rounds from W8 (tierCtx is the gun): a co-op teammate's
+// are swapped in for the moment by withLoadout (net/arsenal.js)
+function buildWeapon(parent, id, D, mods, rec) {
+  const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
+  // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
+  const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
+  const info = GUNS[id](parent, mods);
+  if (info && info.crane) rec.crane.push(info.crane);
+  if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
+  parent.userData.charge = info && info.charge ? { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 } : null;   // each gun of a pair its own
+  if (info && !rec.magpos && (info.magZ || info.mz)) rec.magpos = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
+  if (D.melee) { unfight(parent); return 0; }
+  let front = info.front; const y = info.y;
+  if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
+  else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
+  else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
+  const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
+  // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
+  // sawn-off's forend), so it all swings down with them when it's broken open
+  if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
+  if (info.brk) rec.brk = { g: info.brk, rims: info.rims || [] };
+  if (info.belt) rec.belt = info.belt;   // a belt-fed gun's rounds, shown by what's left (player/hold.js)
+  // pull apart faces that would z-fight, then let the slides and bolts note their rest positions
+  unfight(parent);
+  if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel }; });
+  return muz;
+}
 function buildGuns(only) {
   recomputeEff();
   const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS;
@@ -24,32 +55,9 @@ function buildGuns(only) {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
-    SLIDES[s] = []; MAGPOS[s] = null; MAGG[s] = []; CRANE[s] = []; HOLDS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; tierCtx = id;
-    const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
-    const build = parent => {
-      // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-      const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; MAGG[s].push(mg);
-      const info = GUNS[id](parent, mods);
-      if (info && info.crane) CRANE[s].push(info.crane);
-      if (info && info.charge && !CHARGE[s]) CHARGE[s] = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
-      parent.userData.charge = info && info.charge ? { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 } : null;   // each gun of a pair its own
-      if (info && !MAGPOS[s] && (info.magZ || info.mz)) MAGPOS[s] = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
-      if (D.melee) { unfight(parent); return 0; }
-      let front = info.front; const y = info.y;
-      if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
-      else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
-      else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
-      const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
-      // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
-      // sawn-off's forend), so it all swings down with them when it's broken open
-      if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
-      if (info.brk) { BRK[s] = { g: info.brk, rims: info.rims || [] }; }
-      if (info.belt) BELT[s] = info.belt;   // a belt-fed gun's rounds, shown by what's left (player/hold.js)
-      // pull apart faces that would z-fight, then let the slides and bolts note their rest positions
-      unfight(parent);
-      if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { SLIDES[s].push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel }; });
-      return muz;
-    };
+    HOLDS[s] = null; tierCtx = id;
+    const rec = weaponRec(), build = parent => buildWeapon(parent, id, D, mods, rec);
+    SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null;
     const g = gunMeshes[s];
     // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
     const hold = (x0, side) => { const h = new THREE.Group(); h.position.x = x0; h.userData.x0 = x0; h.userData.side = side; g.add(h); return h; };
@@ -57,6 +65,7 @@ function buildGuns(only) {
     else if (D.akimbo) { const a = hold(AKX - X, 'R'), b = hold(-AKX - X, 'L'); MUZ[s] = build(a); build(b); HOLDS[s] = { R: a, L: b }; }
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
+    MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt;
     stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
