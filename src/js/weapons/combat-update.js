@@ -9,7 +9,8 @@ const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) {
-    W8.swing = Math.max(0, W8.swing - dt); const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
+    if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)
+    const p = 1 - W8.swing / W8.swingDur, D = W(curId()) || {}, heavy = heavySwing(D);
     if (heavy && !W8.whoosh && p >= HEAVY.whoosh) { W8.whoosh = true; SFX.swingHeavy(!D.blunt); }   // the heavy ones are heard coming down, before they land
     if (!W8.hitDone && p >= (heavy ? HEAVY.hit : 0.4)) { W8.hitDone = true; meleeHit(); }
   }
@@ -46,7 +47,7 @@ function updateCombat(dt) {
   // or near, at its chest and head (AIM_CHEST of its height, up a touch if it's close); a crawler down on the ground; or
   // over open ground a point at waist height where the cursor is. It tips down, and up only as far as AIM_UP at a
   // zombie standing close, never at a roof
-  ANIM.pitchT = 0; ANIM.aimY = GUN_Y;
+  ANIM.pitchT = 0; ANIM.aimY = GUN_Y; ANIM.lookDnT = 0;
   if (!P.dead && !W(curId()).melee) {
     let ty = null, tx = aimPt.x, tz = aimPt.z;
     const ct = cursorTarget();
@@ -69,6 +70,9 @@ function updateCombat(dt) {
       ANIM.aimY = Math.min(GUN_Y, ty);
     }
   }
+  // how far down at the ground near your feet you're looking, 0 to 1 (LOOK_DOWN: the knees bend for it,
+  // player/animation.js): from the cursor's distance on the ground, whatever's in your hands
+  if (!P.dead && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp) && !cursorTarget()) ANIM.lookDnT = 1 - smooth(clamp((Math.hypot(_gp.x - P.x, _gp.z - P.z) - LOOK_DOWN.near) / (LOOK_DOWN.far - LOOK_DOWN.near), 0, 1));
   if (P.kbx || P.kbz) { moveCircle(P, P.kbx * dt, P.kbz * dt, 0.3, true); const f = Math.exp(-dt * 7); P.kbx *= f; P.kbz *= f; if (Math.abs(P.kbx) + Math.abs(P.kbz) < 0.05) P.kbx = P.kbz = 0; }
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
   W8.heat = Math.max(0, (W8.heat || 0) - dt * 0.55); W8.wispT = (W8.wispT || 0) - dt;

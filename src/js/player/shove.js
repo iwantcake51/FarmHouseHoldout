@@ -1,6 +1,7 @@
 // Shoving zombies away with F, and the bayonet stab that rides on it.
 
-// the shove has a shape: a quick wind-up, a hard strike with a half step forward, then the recovery
+// the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
+// MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
 const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
 // while you wrap a bandage you can still bash one-handed, but slower: a longer wind-up and a longer wait before the next
 const SHOVE_BAND = 1.65;
@@ -18,13 +19,11 @@ function shove() {
   exitScope(); cutReload(); W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();
 }
-// runs every frame from updatePlayer: the lunge, and the hit landing at the end of the wind-up
+// runs every frame from updatePlayer: the hit landing at the end of the wind-up
 function tickShove(dt) {
   const s = P.shove; if (!s) return;
   s.t += dt;
   const p = s.t / s.dur;
-  // half a step into it during the strike
-  if (p > 0.18 && p < 0.42 && !P.vault) moveCircle(P, Math.sin(P.aim) * 2.2 * dt * s.power, Math.cos(P.aim) * 2.2 * dt * s.power, 0.3, true);
   if (!s.hit && s.t >= s.hitT) { s.hit = true; landShove(s); }
   if (p >= 1) { P.shove = null; if (aimHeld) startAim(); }   // still holding aim: back down the sights
 }
@@ -58,5 +57,6 @@ function landShove(s) {
     shake = Math.max(shake, brute ? 0.2 : 0.3);
     camKick.x += Math.sin(P.aim) * 0.22; camKick.z += Math.cos(P.aim) * 0.22; camRoll = clamp(camRoll + (rand() < 0.5 ? -1 : 1) * 0.04, -0.1, 0.1);
     ANIM.shoveHit = 1;
+    if ((W(curId()) || {}).melee) meleeImpact(false, 0.8); else relKnock(-3.2, rr(-1, 1), 0.25, -1.1);   // the weapon rebounds off what it hit
   } else { camKick.x += Math.sin(P.aim) * 0.08; camKick.z += Math.cos(P.aim) * 0.08; }
 }

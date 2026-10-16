@@ -399,15 +399,20 @@ function handTarget(out, side, onGun, free, wt, rdt, stiff) {
 }
 
 // the shove's shape, shared by guns and melee: q how far into it, push how far the hands drive out, lean and twist of the torso
+// a shove with a gun is a blow with the gun itself, not a lunge with the whole body: it's drawn back a hand's width
+// with the muzzle tipped up and the shoulder turned in (SHOVE_WIND), then driven out hard, the muzzle chopping down
+// onto whatever's there (SHOVE_STRIKE), and eased back to the aim. The body only leans into it a little; there's no
+// step. (A melee weapon bashes instead: MBASH, melee/melee-anim.js.) Each pose is [push, lean, twist, pitch, roll]
+const SHOVE_WIND = [-0.07, -0.02, -0.12, -0.32, 0.14], SHOVE_STRIKE = [0.25, 0.07, 0.08, 0.2, -0.06];
 function shovePose() {
   const sv = P.shove;
   if (!sv) return null;
-  const p = clamp(sv.t / sv.dur, 0, 1), WP = [-0.1, -0.2, 0.28], SP = [0.26, 0.46, -0.14];
+  const p = clamp(sv.t / sv.dur, 0, 1);
   let pose, q;
-  if (p < 0.2) { const w = smooth(p / 0.2); pose = WP.map(v => v * w); q = w; }
-  else if (p < 0.36) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.16, 3); pose = WP.map((v, i) => v + (SP[i] - v) * e); q = 1; }
-  else { const r = 1 - smooth((p - 0.36) / 0.64); pose = SP.map(v => v * r); q = r; }
-  return { q, push: pose[0], lean: pose[1], tw: pose[2] };
+  if (p < 0.2) { const w = smooth(p / 0.2); pose = SHOVE_WIND.map(v => v * w); q = w; }
+  else if (p < 0.34) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.14, 3); pose = SHOVE_WIND.map((v, i) => v + (SHOVE_STRIKE[i] - v) * e); q = 1; }
+  else { const u = (p - 0.34) / 0.66, r = 1 - smooth(u), o = Math.sin(Math.PI * clamp(u / 0.45, 0, 1)) * 0.12; pose = SHOVE_STRIKE.map((v, i) => v * r - (i === 0 || i === 3 ? v * o : 0)); q = r; }   // (carried back a touch past the aim, then settling)
+  return { q, push: pose[0], lean: pose[1], tw: pose[2], pit: pose[3], roll: pose[4] };
 }
 
 // the revolver's speed loader, off a photo of one: a squat black polymer body with fine turned grooves round it, its
@@ -568,73 +573,41 @@ function poseHands(D, up, ph, runF, rdt, now) {
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
   if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = 0; ANIM.relEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
   const sh = shovePose();
-  if (sh) {
-    up.x += sh.lean - ANIM.shoveHit * 0.08; up.y = up.y * (1 - sh.q) + sh.tw;
-    const step = Math.max(0, sh.lean) / 0.46; pm.legL.rotation.x -= 0.45 * step; pm.legR.rotation.x += 0.3 * step;
+  if (sh && !D.melee) {
+    up.x += sh.lean; up.y += sh.tw;
+    pm.legL.rotation.x -= 0.12 * Math.max(0, sh.lean) / 0.07; pm.shinR.rotation.x += 0.1 * Math.max(0, sh.lean) / 0.07;   // just the weight onto the front foot
   }
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
   bandagePose(pm, up, now, sh);
 }
 
-// a melee weapon, just drawn (player/swap.js draws it, weapons/reload.js starts this): a one-hander is spun once
-// round in the hand, the katana's blade is flicked out and back, and the heavy two-handers are hefted up toward the
-// shoulder and brought down into the ready
-const MELEE_EQ = 0.5;
-function meleeFlourish(D, rdt, swinging) {
-  if (ANIM.meleeEqT === undefined || ANIM.meleeEqT >= MELEE_EQ) return null;
-  const t0 = ANIM.meleeEqT; ANIM.meleeEqT += rdt;
-  ANIM.flCut = false;
-  if (swinging) { ANIM.meleeEqT = MELEE_EQ; ANIM.flCut = t0 >= 0; return null; }   // a swing straight away cuts it short (and it fades out)
-  if (t0 < 0) return null;
-  const k = clamp(t0 / MELEE_EQ, 0, 1), a = Math.sin(Math.PI * k);
-  if (t0 < 0.22 && ANIM.meleeEqT >= 0.22) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
-  if (!D.two) return { arx: -0.35 * a, hrx: Math.PI * 2 * smooth(k), uy: 0.12 * a, ux: 0 };              // the twirl
-  if (D.style === 'slash') { const f = Math.sin(Math.PI * Math.min(1, k * 1.4)); return { arx: -0.25 * a, hrx: -0.9 * f + 0.25 * Math.sin(Math.PI * 2 * k), uy: -0.18 * a, ux: 0 }; }   // the flick
-  return { arx: -0.75 * a, hrx: 0.95 * a, uy: 0.2 * a, ux: -0.08 * a };                                          // the heft
-}
-// what the swing and flourish added to the pose last frame, so one that's cut off (a swing interrupted by a bandage,
-// a flourish by a swing) fades out over a moment instead of jumping
-const MCUT = { v: [0, 0, 0, 0, 0], t: 1, last: [0, 0, 0, 0, 0], lastP: 0 };
+// a melee weapon in your hands: the pose (the guard, a swing, the flourish once it's drawn, or a bash) comes from
+// melee/melee-anim.js as the fist's place and the weapon's direction, already through its springs; here it goes onto
+// the rig. The body twists, leans and bends with it, the hips turn under it, the weight goes onto the front foot and
+// the knees give (dip); the head stays on what you're hitting
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
-  const pm = PM, mh = gunMeshes.melee;
-  const keys = heavySwing(D) ? SWING.heavy : SWING[D.style || 'swing'], p = W8.swing > 0 ? 1 - W8.swing / W8.swingDur : 0;
-  let [, uy, ux, arx, ary, hrx] = sampleSwing(keys, p);
-  const fl = meleeFlourish(D, rdt, p > 0 || !!sh);
-  if (fl) { arx += fl.arx; hrx += fl.hrx; uy += fl.uy; ux += fl.ux; }
-  {
-    const k0 = keys[0], now5 = [uy - k0[1], ux - k0[2], arx - k0[3], ary - k0[4], hrx - k0[5]];
-    const cut = (MCUT.lastP > 0 && MCUT.lastP < 0.93 && p === 0) || (ANIM.flPrev && !fl && ANIM.meleeEqT >= MELEE_EQ && ANIM.flCut);
-    if (cut) { MCUT.v = MCUT.last.slice(); MCUT.t = 0; }
-    if (MCUT.t < 1) { MCUT.t = Math.min(1, MCUT.t + rdt / 0.16); const w = 1 - smooth(MCUT.t); uy += MCUT.v[0] * w; ux += MCUT.v[1] * w; arx += MCUT.v[2] * w; ary += MCUT.v[3] * w; hrx += MCUT.v[4] * w; }
-    MCUT.last = now5; MCUT.lastP = p; ANIM.flPrev = !!fl;
-  }
-  const walk = Math.sin(ph) * (0.06 * Math.min(1, runF) + 0.38 * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (p ? 0 : 1);   // the arms pump at a sprint
-  up.y += uy; up.x += ux;
-  // the weapon rides in the right fist on its keyframes
-  { const q = shakyTremor(); arx += q.p * SHAKY_TREM.p; ary += q.y * SHAKY_TREM.y; hrx += q.r * SHAKY_TREM.r * 0.6; }   // shaking at low health (player/shaky-hands.js)
-  armRest(pm.armR, 'R', arx + walk, ary);
-  mh.rotation.set(hrx, 0, D.style === 'chop' ? 0 : 0.15);
-  {
-    // the left arm's own pose first: two-handed, the fist closes on the handle just above the right, wherever the
-    // swing takes it; one-handed, it hangs loose
-    if (D.two) {
-      pm.armR.updateMatrix(); mh.updateMatrix();
-      _fL.set(0, 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
-      reach(pm.armL, 'L', _fL, 0, true);
-    } else armRest(pm.armL, 'L', 0.25 - walk * 2, 0.25);
-    if (sh) {
-      // a shove: both hands drive straight out from the chest, each blended in from (and back out to) where it was,
-      // so the left hand leaves the handle and comes back to it rather than jumping
-      const w = sh.q, j = ANIM.shoveHit * 0.06;
-      _fR.set(0.14, 1.04, 0.28 + sh.push + j); _fL.set(-0.14, 1.04, 0.28 + sh.push + j);
-      const [rxR, ryR] = armAim('R', _fR, true); pm.armR.rotation.set(pm.armR.rotation.x * (1 - w) + rxR * w, pm.armR.rotation.y * (1 - w) + ryR * w, pm.armR.rotation.z * (1 - w));
-      const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
-      reach(a, 'L', _fL, 0, true);
-      a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz * (1 - w));
-      a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
-    }
-  }
+  const pm = PM, mh = gunMeshes.melee, a = meleePose(curId(), D, rdt, now, sh), b = MS.b;
+  const walk = Math.sin(ph) * (0.06 * Math.min(1, runF) + 0.38 * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (W8.swing > 0 || sh ? 0 : 1);   // the arms pump at a sprint
+  up.y += b.uy; up.x += b.ux; up.z += b.uz;
+  pm.lower.rotation.y += b.hy;
+  const st = b.step, dp = Math.max(0, b.dip);
+  pm.legL.rotation.x -= 0.3 * st + 0.42 * dp; pm.legR.rotation.x += 0.2 * st - 0.2 * dp;
+  pm.shinL.rotation.x += 0.75 * dp + 0.06 * Math.abs(st); pm.shinR.rotation.x += 0.55 * dp + 0.18 * Math.max(0, st);
+  pm.g.position.y -= 0.085 * dp;
+  pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2; pm.head.rotation.x -= b.ux * 0.45;
+  // the weapon in the right fist (shaking at low health: player/shaky-hands.js)
+  const q = shakyTremor();
+  armRest(pm.armR, 'R', a.rx + walk + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);
+  pm.armR.rotation.z = a.rz; pm.armR.scale.z = a.sc;
+  mh.rotation.set(a.hrx + q.r * SHAKY_TREM.r * 0.6, 0, 0); mh.scale.set(1, a.wy, a.wz);
+  // two-handed, the left fist closes on the handle just above the right (further up it for a bash, the haft held
+  // like a bar); one-handed, the free arm swings out against the turn for balance
+  if (D.two) {
+    pm.armR.updateMatrix(); mh.updateMatrix();
+    _fL.set(0, sh ? 0.42 : 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+    reach(pm.armL, 'L', _fL, 0, true);
+  } else armRest(pm.armL, 'L', 1.22 - walk * 2 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
 }
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {
@@ -669,7 +642,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6), rd = smooth(clamp(ANIM.ready || 0, 0, 1));   // (rd: down at a low ready, sprinting)
-  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd), yaw = 0, roll = idle * 0.5, ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
   // gun never quite still in the hands while they work on it
   const J = W8.relJit || REL_JIT0, AT = _actT;

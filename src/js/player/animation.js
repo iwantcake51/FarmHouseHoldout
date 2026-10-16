@@ -3,7 +3,6 @@
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
 const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
-// swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
 const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
 // how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
@@ -19,6 +18,11 @@ const TURN_TWIST = 0.045, TURN_BANK = 0.012, TURN_MAX = 0.42;
 // walking backwards (animatePlayer): the whole body tips back from the ankles by body and the chest by chest more (radians),
 // eased in over a moment as you back off; the head tucks back down to keep looking level
 const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
+// looking down at the ground close to your feet (ANIM.lookDnT, weapons/combat-update.js: full with the cursor nearer
+// than near, none past far, metres) you sink a little into your knees to see it: the knees bend by knee, the thighs
+// come forward by thigh, the body drops by drop (metres) and the chest leans in by chest, eased in and out at ease.
+// Less on the move, none at a sprint or a climb
+const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.34, thigh: 0.17, drop: 0.045, chest: 0.07, ease: 5 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 // Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
 // twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
@@ -29,20 +33,6 @@ const RG_TWIST = { max: 1.3, k: 230, damp: 28, roll: 0.05 };
 // player/movement.js), up to max off the way the body faces (about 60°, as at a sprint); with the cursor right behind
 // you (past behind) it stays turned to the shoulder it was looking over, and when the panel shuts it comes back round
 const MENU_LOOK = { max: 1.05, behind: 2.7 };
-const SWING = {
-  swing: [[0, 0.35, 0, -0.35, -0.35, -0.7], [0.3, 1.0, -0.1, -0.85, 0.55, -1.45], [0.46, -0.95, 0.12, -0.2, -0.85, 1.2], [0.62, -1.15, 0.1, -0.15, -1.0, 1.3], [1, 0.35, 0, -0.35, -0.35, -0.7]],
-  slash: [[0, 0.3, 0, -0.3, -0.3, -0.5], [0.26, 1.1, -0.05, -1.25, 0.6, -1.1], [0.42, -1.0, 0.15, -0.1, -0.95, 1.45], [0.6, -1.2, 0.12, 0.05, -1.05, 1.5], [1, 0.3, 0, -0.3, -0.3, -0.5]],
-  chop: [[0, 0.25, 0, -0.35, -0.3, -0.6], [0.36, 0.2, -0.28, -2.45, -0.1, 0.35], [0.5, 0.05, 0.32, 0.05, -0.15, 1.95], [0.68, 0.05, 0.3, 0.1, -0.15, 2.0], [1, 0.25, 0, -0.35, -0.3, -0.6]],
-  // the fire axe and the sledgehammer (heavySwing, melee/melee.js): hauled up over the shoulder, a beat at the top
-  // gathering it a touch higher and further back, then brought down all at once, quickening right into the hit (a 1 on
-  // the key: it eases in and doesn't slow before it lands), and left buried there a moment before it's dragged back up
-  heavy: [[0, 0.25, 0, -0.35, -0.3, -0.6], [0.34, 0.22, -0.3, -2.4, -0.1, 0.3], [0.46, 0.2, -0.4, -2.68, -0.08, 0.02], [0.55, 0.02, 0.42, 0.14, -0.15, 2.08, 1], [0.76, 0.04, 0.36, 0.12, -0.15, 2.0], [1, 0.25, 0, -0.35, -0.3, -0.6]]
-};
-function sampleSwing(keys, p) {
-  let k = 0; while (k < keys.length - 2 && keys[k + 1][0] <= p) k++;
-  const a = keys[k], b = keys[k + 1], u = clamp((p - a[0]) / (b[0] - a[0]), 0, 1), t = b[6] ? u * u : smooth(u);
-  return a.slice(0, 6).map((v, i) => v + (b[i] - v) * t);
-}
 function animateDeath(dt) {
   const pm = PM, t = P.deathT, sg = ANIM.deathSign;
   // knees go (0-.35), topple (.35-.85), slap down with a small rebound, then lie still and breathe out
@@ -251,6 +241,12 @@ function animatePlayer(dt, rdt) {
       pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.06);
     }
   }
+  // looking down at the ground by your feet (LOOK_DOWN): down a little into the knees
+  ANIM.lookDn = (ANIM.lookDn || 0) + ((P.vault ? 0 : ANIM.lookDnT || 0) * (1 - 0.6 * Math.min(1, runF)) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) - (ANIM.lookDn || 0)) * Math.min(1, rdt * LOOK_DOWN.ease);
+  if (!P.vault && ANIM.lookDn > 0.001) {
+    const k = smooth(clamp(ANIM.lookDn, 0, 1)), L = LOOK_DOWN;
+    pm.shinL.rotation.x += L.knee * k; pm.shinR.rotation.x += L.knee * k * 0.9; pm.legL.rotation.x -= L.thigh * k; pm.legR.rotation.x -= L.thigh * k * 0.85; pm.g.position.y -= L.drop * k;
+  }
   // sprinting you lean into it from the ankles; skidding to a stop, back against the slide and down onto the back leg
   if (!P.vault) {
     const rel = angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw), sl = skid * Math.min(1, spd / 1.5);   // (leaning on the slide, less as it dies)
@@ -314,7 +310,7 @@ function animatePlayer(dt, rdt) {
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
   const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
-  let urx = bpx + ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
+  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4 - bpx * BACKPEDAL.head + BACKPEDAL.body * ANIM.backK * BACKPEDAL.head, 0, -sway * 0.6 - alz * 0.5);
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body

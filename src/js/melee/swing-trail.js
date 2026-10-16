@@ -24,8 +24,8 @@ function stepTrail(rdt) {
   while (trailS.length && trailS[0].age > 0.12) trailS.shift();
   if (D && D.melee && W8.swing > 0 && !P.dead) {
     const p = 1 - W8.swing / W8.swingDur;
-    const hv = heavySwing(D);
-    if (hv ? p > HEAVY.whoosh - 0.04 && p < HEAVY.hit + 0.04 : p > 0.12 && p < 0.75) {   // only the fast part of the swing smears (the heavy ones: just the drop)
+    const fw = curSwing(D).fast;
+    if (p > fw[0] && p < fw[1]) {   // only the fast part of the swing smears (MSWINGS' fast)
       const g = gunMeshes.melee, L = meleeLen(id); PM.g.updateMatrixWorld(true);
       const b = (trailS.length >= TRAIL_N ? trailS.shift().b : new V3()).set(0, L * 0.4, 0), t = new V3(0, L, 0); g.localToWorld(b); g.localToWorld(t);
       trailS.push({ b, t, age: 0 }); if (trailS.length > TRAIL_N) trailS.shift();

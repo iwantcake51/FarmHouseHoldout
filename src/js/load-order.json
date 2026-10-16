@@ -78,6 +78,7 @@
   "weapons/akimbo.js",
   "weapons/firing.js",
   "melee/melee.js",
+  "melee/melee-anim.js",
   "player/shove.js",
   "player/bandages.js",
   "waves/waves.js",

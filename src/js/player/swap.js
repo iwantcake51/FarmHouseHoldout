@@ -69,6 +69,19 @@ function blendFrame(out, a, b, k) {
   p.y += 0.035 * arc;
   return out.compose(p, _sw.q0.slerp(_sw.q1, k), _sw.s1.set(1, 1, 1));
 }
+// a melee weapon coming off your back or hip: first slid out along its own handle (MDRAW_PULL, clear of the straps),
+// then swung up and round in a higher arc than a gun's (MDRAW_ARC) into the hand, carried a touch past where it's
+// held and back (MDRAW_OVER), so it lands in the fist with some weight instead of stopping dead
+const MDRAW_PULL = 0.26, MDRAW_ARC = 0.14, MDRAW_OVER = 0.12;
+const _mdT = new THREE.Matrix4();
+function meleeDrawFrame(out, stow, live, u) {
+  const pull = smooth(clamp(u / 0.3, 0, 1)), v = clamp((u - 0.12) / 0.88, 0, 1);
+  const k = 1 + (1 + MDRAW_OVER * 10) * Math.pow(v - 1, 3) + MDRAW_OVER * 10 * Math.pow(v - 1, 2);   // (an ease out that overshoots)
+  blendFrame(out, stow.clone().multiply(_mdT.makeTranslation(0, -MDRAW_PULL * pull, 0)), live, clamp(k, 0, 1));
+  if (k > 1) { const e = out.elements; e[12] += (live.elements[12] - stow.elements[12]) * (k - 1) * 0.5; e[14] += (live.elements[14] - stow.elements[14]) * (k - 1) * 0.5; }
+  out.elements[13] += MDRAW_ARC * Math.sin(Math.PI * v);
+  return out;
+}
 // put an object at a character-frame matrix, whatever its parent
 function placeAt(o, bodyM) {
   _sw.m.copy(o.parent.matrixWorld).invert().multiply(_sw.c.copy(PM.g.matrixWorld).multiply(bodyM));
@@ -141,7 +154,7 @@ function updateSwap(dt, rdt) {
   } else if (stowNew) {
     // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch
     const u = clamp((t - T.cross) / (T.end - T.cross), 0, 1), k = 1 - Math.pow(1 - smooth(u), 1.7);   // out quick, settling gently
-    const f = blendFrame(new THREE.Matrix4(), stowNew, live, k);
+    const f = newMelee ? meleeDrawFrame(new THREE.Matrix4(), stowNew, live, u) : blendFrame(new THREE.Matrix4(), stowNew, live, k);
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);
       placeAt(gunMeshes.melee, f);
