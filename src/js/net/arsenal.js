@@ -175,5 +175,10 @@ function arsenalFrame(p, a, rdt) {
   // the speed loader or the shells in their hand
   const ex = p.ex || [0, 0]; let i = 0;
   if (ex[i]) { a.slm.visible = true; a.slm.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.slm.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.slm.children[a.slm.children.length - 1].visible = !!ex[i + 8]; i += 9; } else { a.slm.visible = false; i++; }
-  if (ex[i]) { a.hsh.visible = true; a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); }); } else a.hsh.visible = false;
+  if (ex[i]) {
+    a.hsh.visible = true; a.hsh.position.set(ex[i + 1], ex[i + 2], ex[i + 3]); a.hsh.quaternion.set(ex[i + 4], ex[i + 5], ex[i + 6], ex[i + 7]); a.hsh.children.forEach((c, j) => { c.visible = !!(ex[i + 8] & (1 << j)); });
+    // their shells in the colour of the kind their gun has loaded (SHELL_MAT, weapons/gun-models.js)
+    const e = (p.wp || [])[0], lo = p.lo, id = e && lo && lo.slots[SLOTS[e[0]]], r = id && lo.guns[id] && lo.guns[id].rnd, sm = SHELL_MAT[r && r.on] || GM.shell;
+    a.hsh.children.forEach((c, j) => { if (j < 3 && c.children[0]) c.children[0].material = sm; });
+  } else a.hsh.visible = false;
 }

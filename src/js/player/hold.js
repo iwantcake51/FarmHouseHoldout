@@ -1021,6 +1021,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       // each goes in
       const fed = brkG ? 0 : Math.min(n - 1, Math.floor(n * clamp((rp - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
       HSH_R.visible = rifle;
+      const sm = shellMat(id); HSH_S.forEach(g => { g.children[0].material = sm; });   // in the colour of the kind loaded (weapons/gun-models.js)
       HSH_S.forEach((g, k) => { g.visible = k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else g.position.set(0, (fed - k) * HSH_GAP, 0); });
       if (!(brkG && brkG.rims.length)) { _bq.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq); }
       HSH.quaternion.copy(_bq); HSH.position.copy(_fL).addScaledVector(_slAx, 0.04);

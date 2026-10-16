@@ -131,15 +131,16 @@ function magFall(el, n) {
 // rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
 // like reading, and the last round left is always bottom right; a part row sits on top. A big one is a bar
 const magGlyphs = (n, have, fired) => { fired = Math.max(0, Math.min(fired || 0, n - have)); return n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i></i>'.repeat(Math.max(0, Math.min(have, n))) + '<i class="fired"></i>'.repeat(fired) + '<i class="off"></i>'.repeat(Math.max(0, n - have - fired)); };
-const roundsCls = D => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '');
+// (a shotgun's shells take the colour of the kind loaded: rflech, rfire, rslug)
+const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '') + (D.ammo === 'shells' && SHELL_HULL[roundOn(id)] ? ' r' + roundOn(id) : '');
 // an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
 // being reloaded dims
 function renderRoundsAk(id, D) {
   popCheck(id);
-  const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + ':' + akBusy('L') + akBusy('R');
+  const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + roundOn(id) + ':' + akBusy('L') + akBusy('R');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
-  el.className = roundsCls(D) + ' ak';
+  el.className = roundsCls(D, id) + ' ak';
   if (!el.firstElementChild || !el.firstElementChild.classList.contains('mag')) el.innerHTML = '<div class="mag"></div><div class="mag"></div>';
   [AK_ON.left, AK_ON.right].forEach((s, k) => {
     const g = el.children[k];
@@ -153,7 +154,7 @@ function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
   popCheck(id);
   const n = magCap(id), hm = hudMag(id), have = hm.have, out = !!hm.out, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
-  const key = id + n + ':' + have + ':' + fired + ':' + T('ammo') + (out ? ':out' : '');   // the mag that's in it (game/run-state.js, through a mag change: hudMag), and the fired cases it's kept
+  const key = id + n + ':' + have + ':' + fired + ':' + T('ammo') + roundOn(id) + (out ? ':out' : '');   // the mag that's in it (game/run-state.js, through a mag change: hudMag), and the fired cases it's kept
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev, same = pr && pr.id === id && pr.n === n && state === 'play', swapMag = same && out !== !!pr.out;
   if (swapMag && out) magFall(el, pr.have);   // the mag's out, and its rounds with it
@@ -163,7 +164,7 @@ function renderRounds(id, D) {
     if (!keeps && have < pr.have) for (let i = have; i < pr.have && k < 6; i++, k++) { if (kids[i]) dropRound(kids[i]); }   // thrown out as they're fired
     if (fired < pr.fired) for (let i = pr.have + fired; i < pr.have + pr.fired && k < 8; i++, k++) { if (kids[i]) dropRound(kids[i], true); }   // the kept ones, thrown out as the gun throws them
   }
-  cache.roundsPrev = { id, n, have, fired, out }; el.className = roundsCls(D);
+  cache.roundsPrev = { id, n, have, fired, out }; el.className = roundsCls(D, id);
   el.innerHTML = magGlyphs(n, have, fired);
   if (same && n <= 40 && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
   popRounds(el);   // a gun just drawn: after the kick, so it adds on top

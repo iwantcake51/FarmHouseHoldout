@@ -139,7 +139,7 @@ function pouchFill(g, id, x, y, z, w, d) {
     gc(g, 0.011, 0.018, GEAR.steelDk, x, y + 0.032, z, null, 12); gc(g, 0.0125, 0.005, GEAR.steelDk, x, y + 0.038, z, null, 12);   // the knurled knob
   } else if (f.k === 'shells') {
     for (let k = 0; k < 4; k++) {
-      const sx = x + (k - 1.5) * w * 0.245; gc(g, 0.0118, 0.062, GM.shell, sx, y + 0.016, z, null, 12); gc(g, 0.0125, 0.016, GM.brass, sx, y + 0.053, z, null, 12);
+      const sx = x + (k - 1.5) * w * 0.245; gc(g, 0.0118, 0.062, shellMat(id), sx, y + 0.016, z, null, 12); gc(g, 0.0125, 0.016, GM.brass, sx, y + 0.053, z, null, 12);
       gc(g, 0.0128, 0.0025, GM.brass, sx, y + 0.0623, z, null, 12); gc(g, 0.004, 0.002, GM.steel, sx, y + 0.0635, z, null, 8);   // the rim and the primer
     }
     gb(g, w * 0.96, 0.016, 0.004, GEAR.tanDk, x, y + 0.016, z + 0.0138);   // the elastic loop across them

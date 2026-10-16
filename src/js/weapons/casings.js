@@ -33,6 +33,11 @@ const CASE_PROF = {
     [9.45, 62, 'hullIn'], [9.4, 19, 'hullIn'], [9.4, 19, 'wad'], [9.1, 18.4, 'wad'], [0, 18.2, 'wad']] }
 };
 const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
+// a hull in the colour of the kind of shell (SHELL_MAT in weapons/gun-models.js): the same hull turned again with its
+// plastic recoloured, white for flechettes, orange for dragon's breath, blue for slugs
+const SHELL_HULL = { flech: 'W', fire: 'O', slug: 'B' };
+Object.assign(CC, { hullW: 0xd8d4c8, hullLipW: 0xece8de, hullInW: 0x7a766c, hullO: 0xb8400e, hullLipO: 0xd2561a, hullInO: 0x52200a, hullB: 0x1a3f8a, hullLipB: 0x2c58a8, hullInB: 0x0a1a3a });
+for (const s of Object.values(SHELL_HULL)) { const q = CASE_PROF.shells; CASE_PROF['shells' + s] = { ...q, prof: q.prof.map(v => v[2].startsWith('hull') ? [v[0], v[1], v[2] + s] : v) }; CASE_SCALE['shells' + s] = CASE_SCALE.shells; }
 // turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
 // the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
 const CASE_PLEAT = 8;
@@ -104,7 +109,7 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
   if (!now && openFor(mode) < 0.8) { if (heldEject && heldEject.id === id) heldEject.n += n; else heldEject = { id, ammo, n, mode, t: 0 }; return; }
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
   if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
-  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);

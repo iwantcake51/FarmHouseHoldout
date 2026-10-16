@@ -342,8 +342,12 @@ function gripMag(g, y, z, tilt, w, h, d) {
 }
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.
-// a shotgun's loaded shells by kind (weapons/rounds.js): the pump's side saddle, and a band round the drum shotgun's mag
-const SHELL_MAT = { fire: GM.shellO, slug: GM.shellY, flech: GM.steel };
+// a shotgun shell's hull by the kind loaded (weapons/rounds.js): flechettes white, dragon's breath orange, slugs blue,
+// buckshot red. Everywhere a shell shows: the pump's side saddle, a band round the drum shotgun's mag, the shells in the
+// hand as they're fed in (player/hold.js), the chest rig's shell pouch (player/gear.js), the hulls thrown out
+// (SHELL_HULL, weapons/casings.js) and the HUD's shells (#rounds.rflech and the rest, styles/hud-weapon.css)
+const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
+const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
 const GUN_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
@@ -565,7 +569,7 @@ const GUN_MODELS = {
     // ---- the bolt in the port, which runs back with the forend
     const bolt = box(g, 0.004, 0.017, 0.074, GM.steel, X - 0.0176, 1.148, 0.656);
     // a side saddle of spare shells on the left of the receiver, longer with each magazine tier
-    const sm = SHELL_MAT[roundOn(tierCtx)] || GM.shell;   // in the colour of the shells loaded
+    const sm = shellMat(tierCtx);   // in the colour of the shells loaded
     const n = Math.min(8, 4 + T('mag') * 2);
     box(g, 0.006, 0.05, 0.024 * n + 0.01, GM.poly, X + 0.025, 1.132, 0.51 + n * 0.012);
     for (let k = 0; k < n; k++) { const z = 0.522 + k * 0.024; cyl(g, 0.0105, 0.054, sm, X + 0.039, 1.14, z, 10).rotation.set(0, 0, 0); cyl(g, 0.0112, 0.014, GM.brass, X + 0.039, 1.106, z, 10).rotation.set(0, 0, 0); }   // stood upright in it
@@ -664,7 +668,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.598, 1.047], [0.607, 1.047], [0.612, 1.035], [0.609, 1.022], [0.602, 1.016], [0.604, 1.03], [0.6, 1.04]]), 0.007, St, X, 0.0008);   // the trigger
     // ---- the magazine (in the mag group, so the reload can drop it): its own 8-shell box, raked a little forward with
     // ribs down its sides and a base plate; or, with its one magazine upgrade, the drum: face forward, a hub in the
-    // middle, the chrome band round its back edge (flechettes put a yellow stripe on either)
+    // middle, the chrome band round its back edge (a stripe on either in the colour of the shells loaded, if they aren't buckshot)
     const dy = 0.956, dz = 0.735, dr = 0.114;
     if (T('mag')) {
       cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
