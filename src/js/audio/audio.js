@@ -1,6 +1,7 @@
 // Web Audio setup and the two synth building blocks (noise and tone).
 
 let AC = null, master = null, noiseBuf = null, muff = null;
+const MASTER_VOL = 0.5;   // the master bus, before the zoom's fade (zoomEars, audio/spatial.js)
 // where the sound being made comes from, while soundAt runs (audio/spatial.js): the synth's noise and tones below, and
 // the recorded ones (playS, audio/samples.js), are then quieter with distance and muffled through the house's walls
 let SND_AT = null;
@@ -8,7 +9,7 @@ function audioInit() {
   if (AC) return;
   try {
     AC = new (window.AudioContext || window.webkitAudioContext)();
-    master = AC.createGain(); master.gain.value = 0.5; muff = AC.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = 20000; master.connect(muff); muff.connect(AC.destination);
+    master = AC.createGain(); master.gain.value = MASTER_VOL; muff = AC.createBiquadFilter(); muff.type = 'lowpass'; muff.frequency.value = 20000; master.connect(muff); muff.connect(AC.destination);
     noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   } catch (e) { AC = null; }
   if (AC) samplesInit();   // the recorded sounds and the house's reverb (audio/samples.js)

@@ -44,7 +44,7 @@ function updateCrosshair(rdt, D) {
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
-    xh.classList.toggle('healing', P.bandT > 0);   // both hands are on the bandage: no reticle, just the ring filling
+    xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
     // shotguns get a ring the width of their spread; other guns four ticks
     const sg = !D.melee && D.ammo === 'shells';
@@ -81,13 +81,15 @@ function updateCrosshair(rdt, D) {
       const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
       if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
     }
-    // bandage ring: shown only while a bandage is going on, filling as it does
-    { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
+    // bandage ring: shown only while a bandage is going on, filling as it does, and full for a moment once it's done
+    // (or stopped at full health: BAND_DONE, player/bandages.js), so it always ends at 100%
+    const bandPct = P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : ANIM.bandDone > 0 ? 1 : -1;
+    { const L = 2 * Math.PI * 23, band = bandPct >= 0, hp = Math.max(0, bandPct);
       const hk = band ? String(Math.round(hp * 200)) : '';
       if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.style.opacity = band ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
-    if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); awText(aw, t, true); } }
+    if (bandPct >= 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round(bandPct * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); awText(aw, t, true); } }
     else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
-    if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
+    if (D.melee && cache.aw && bandPct < 0) { cache.aw = ''; $('ammoWarn').hidden = true; }
     xhAmmo.style.display = xhAmmoBg.style.display = D.melee ? 'none' : '';
     const ak = !D.melee && !!D.akimbo; [xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.toggleAttribute('hidden', !ak));
     bloom *= Math.exp(-rdt * 9);
@@ -114,7 +116,7 @@ function updateCrosshair(rdt, D) {
     if (!D.melee) {
       // two guns: each arc is its own gun's mag (the one on your right on the right, AK_ON), each turning yellow under a quarter
       const am = ak && akMags(id), n = ak ? akPer(id) : magCap(id), have = ak ? am[AK_ON.right] : W8.mag[id] || 0, haveL = ak ? am[AK_ON.left] : 0, key = n + ':' + have + ':' + aR + (ak ? ':' + haveL : '');
-      const healing = P.bandT > 0, lowAt = Math.max(1, n * 0.25);
+      const healing = bandPct >= 0, lowAt = Math.max(1, n * 0.25);
       if (cache.ammoKey !== key) {
         cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg);
         if (ak) { const [fgL, bgL] = ammoDash(n, haveL); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', haveL <= lowAt); }

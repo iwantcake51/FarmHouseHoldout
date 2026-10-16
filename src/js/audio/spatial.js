@@ -5,8 +5,14 @@ const HEAR = { h: 5.4, ref: 3, pan: 0.6 };   // listener height at zoom 1 (m), t
 function hearAt(x, z) {
   const zm = Math.max(0.1, cam.zoom || 1), dx = x - camTarget.x, dz = z - camTarget.z;
   const halfW = VIEW * (innerWidth / Math.max(1, innerHeight)) / zm, across = dx * RIGHT.x + dz * RIGHT.z;
-  return { gain: Math.min(1, HEAR.ref / Math.hypot(dx, dz, HEAR.h / zm)), pan: clamp(across / halfW, -1, 1) * HEAR.pan };
+  // (divided by the master's own zoom fade, zoomVol, which these already have from the listener's height)
+  return { gain: Math.min(1, HEAR.ref / Math.hypot(dx, dz, HEAR.h / zm)) / zoomVol(), pan: clamp(across / halfW, -1, 1) * HEAR.pan };
 }
+// every sound quieter the further out you zoom: full from the default zoom in, down to ZOOM_EAR.low at the furthest out,
+// set on the master bus each frame (zoomEars, from game/visuals.js)
+const ZOOM_EAR = { from: 1, low: 0.45 };
+const zoomVol = () => 1 - (1 - ZOOM_EAR.low) * smooth(clamp((ZOOM_EAR.from - zoom) / (ZOOM_EAR.from - ZOOM_MIN), 0, 1));
+function zoomEars() { if (master) master.gain.setTargetAtTime(MASTER_VOL * zoomVol(), AC.currentTime, 0.08); }
 // The farmhouse's walls between you and a sound muffle it: each one it comes through takes the top off it (a lowpass
 // down to WALL_MUFF.lp, then lower again for a second) and turns it down (WALL_MUFF.vol). A board-up window counts as a
 // wall, an open one or a doorway doesn't. Counted along the straight line from you (or the teammate you're watching)
