@@ -8,12 +8,12 @@
 // is applied last in recomputeEff (game/run-state.js), over everything else on the gun
 const ROUNDS = {
   std: { name: 'Standard rounds', as: { shells: 'Buckshot' }, r: 'c', cost: 0, text: D => D.ammo === 'shells' ? 'Plain buckshot.' : 'Plain full-metal-jacket rounds.' },
-  slug: { name: 'Slugs', r: 'u', cost: 12, fits: D => D.ammo === 'shells', vis: 'Yellow slug shells',
+  slug: { name: 'Slugs', r: 'u', cost: 12, fits: D => D.ammo === 'shells', vis: 'Blue slug shells',
     text: 'One heavy slug instead of shot: huge damage, slams zombies back and staggers them, goes through 3, and barely loses damage at range.',
     // a slug hits like a rifle, slams the zombie back and staggers it, keeps most of its punch through each body, and
     // holds its damage far further out than any other load (its own drop-off, D.fall: SLUG_FALL, weapons/gun-mods.js)
     fx: (D, id) => { const W0 = WEAP[id]; D.dmg = SLUG_DMG * D.dmg / W0.dmg; D.spread = SLUG_SPREAD * D.spread / W0.spread; D.pellets = 1; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.85; D.kick = 14; D.stagger = 0.6; D.fall = SLUG_FALL; } },
-  flech: { name: 'Flechettes', r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'Steel-grey flechette shells',
+  flech: { name: 'Flechettes', r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'White flechette shells',
     text: 'A tight cloud of thin darts: each hits lighter, but they go through 2 more zombies, barely push them back, and every dart makes them bleed more.',
     // the opposite of a slug: thin steel darts, each one weak, that zip through 2 more zombies with hardly any loss and
     // barely push them, leaving them bleeding. Every dart that lands opens the bleed further (D.bleed per hit,
