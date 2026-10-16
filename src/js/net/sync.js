@@ -190,14 +190,20 @@ function clientWaves(dt) {
 }
 // who's still choosing their find after a wave ('' if nobody): the next wave waits for them
 // and before the first wave, for everyone to have loaded in: the break doesn't start counting till they're all on the farm
+const listNames = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n[0];
 function netWaiting() {
   if (!netLink()) return '';
-  const ps = [...NET.peers.values()], list = n => n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n[0];
+  const ps = [...NET.peers.values()], list = listNames;
   const loading = run.wave === 0 ? ps.filter(p => !p.loaded).map(p => p.name) : [];
   if (loading.length) return 'Waiting for ' + list(loading) + ' to load in';
   const names = ps.filter(p => p.picking).map(p => p.name);
   return names.length ? 'Waiting for ' + list(names) + ' to choose' : '';
 }
+// the teammates who haven't chosen their card for this wave yet (by the wave they last chose for, from their pose)
+const netChoosing = () => netLink() ? [...NET.peers.values()].filter(p => (p.cw || 0) < run.wave).map(p => p.name) : [];
+// you've chosen: told straight away, not left to your next pose
+function netPicked() { if (netLink()) netSend('picked', { w: run.wave }); }
+NET_ON.picked = m => { const p = NET.peers.get(m.f); if (p) p.cw = Math.max(p.cw || 0, m.w | 0); };
 
 // ---- going down in co-op: the farm goes on without you; you watch a teammate till the wave's cleared and you're back
 // (their health and weapon on your HUD, and that you're down: net/spectate.js)
@@ -246,5 +252,5 @@ function netRunStart() {
   if (!netLink()) return;
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   P.x += off[0]; P.z += off[1];
-  for (const p of NET.peers.values()) { p.dead = false; p.picking = false; p.loaded = false; if (p.av) p.av.cur = null; }
+  for (const p of NET.peers.values()) { p.dead = false; p.picking = false; p.cw = 0; p.loaded = false; if (p.av) p.av.cur = null; }
 }

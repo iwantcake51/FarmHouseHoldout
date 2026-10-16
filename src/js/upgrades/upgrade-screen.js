@@ -88,7 +88,7 @@ function openUpgrade() {
   $('upEyebrow').textContent = 'Wave ' + run.wave + ' cleared · ' + run.kills + ' kills so far';
   dealCards(); cardsArmed = false; mouseDown = mouseDownR = false;
   setState('upgrade');
-  const el = $('upgrade'); el.classList.remove('show', 'armed');
+  const el = $('upgrade'); el.classList.remove('show', 'armed', 'waiting');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
   $('announce').style.opacity = 0; annT = 0;
   clearTimeout(armTimer);
@@ -127,7 +127,7 @@ function pickCard(i) {
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out
   const cards = [...$('cards').children];
-  cards[i].classList.add('picked'); leaveUpgrade(cards.filter((b, k) => k !== i));
+  cards[i].classList.add('picked'); settleUpgrade(cards.filter((b, k) => k !== i));
 }
 // none of them: the scrap shown under the cards instead, and all three burn
 function skipCards() {
@@ -138,7 +138,7 @@ function skipCards() {
   // the button's stamped with what you took, and the scrap flies off it into your scrap count
   const btn = $('upSkip'); btn.innerHTML = `<b>+${skipScrap} scrap</b> taken`; btn.classList.add('taken');
   scrapFly(btn, skipScrap);
-  leaveUpgrade([...$('cards').children]);
+  settleUpgrade([...$('cards').children]);
 }
 // bits of scrap thrown up off el and arcing down into the scrap count at the top of the screen, a few at a time, each
 // one bumping the count as it lands (one bit for every scrap or so, up to SCRAP_BITS); or into another element (to),
@@ -164,6 +164,27 @@ function scrapFly(el, n, to) {
     ], { duration: rr(820, 1050), delay: k * 55, easing: 'cubic-bezier(.3,.05,.45,1)', fill: 'both' });
     an.onfinish = () => { b.remove(); land(); };
   }
+}
+// co-op: once you've chosen, the screen stays up, your card stamped and the rest still lying there, with "Waiting for
+// other players" under them, till every teammate has chosen too (their pose says which wave they last chose for: cw,
+// net/avatars.js); then the rest burn and it goes. Not past PICK_WAIT_MAX seconds after your own clock ran out, for
+// someone who stops answering
+const PICK_WAIT_MAX = 12;
+let pickWait = null, waitClock = 0;
+function settleUpgrade(burn) {
+  run.cardWave = run.wave; netPicked();
+  if (!netLink() || !netChoosing().length) { leaveUpgrade(burn); return; }
+  pickWait = burn; clearInterval(cardClock);
+  const el = $('upgrade'); el.classList.remove('armed'); el.classList.add('waiting');
+  const tick = () => {
+    if (state !== 'upgrade') { clearInterval(waitClock); el.classList.remove('waiting'); pickWait = null; return; }
+    const who = netChoosing();
+    $('upWaitWho').textContent = who.length ? listNames(who) + (who.length > 1 ? ' are' : ' is') + ' still choosing' : '';
+    if (who.length && performance.now() < cardEnd + PICK_WAIT_MAX * 1000) return;
+    clearInterval(waitClock); el.classList.remove('waiting');
+    const b = pickWait; pickWait = null; leaveUpgrade(b);
+  };
+  clearInterval(waitClock); tick(); waitClock = setInterval(tick, 100);
 }
 function leaveUpgrade(burn) {
   const el = $('upgrade'); clearInterval(cardClock);
