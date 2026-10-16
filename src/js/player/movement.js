@@ -14,7 +14,9 @@ function updatePlayer(dt) {
   if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
-  if (P.sprint && !P.vault && state === 'play') sprintVault(mx, my);   // sprinting at a window or a fence takes you over it (player/sprint.js)
+  // the way you're pushing, on the ground
+  const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml, go = sprintStart(!!(mx || my));
+  if ((P.sprint || go) && !P.vault && state === 'play') sprintVault(wx, wz, go);   // sprinting at a window or a fence takes you over it (player/sprint.js)
   if (P.vault) {
     const v = P.vault;
     if (v.pre < v.preDur) {
@@ -37,8 +39,6 @@ function updatePlayer(dt) {
     }
     if (P.vault) { P.moving = false; P.vx = P.vz = 0; }
   } else {
-    // the way you're pushing, on the ground
-    const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml;
     updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
