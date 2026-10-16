@@ -17,8 +17,8 @@ function reachBlocked(x0, z0, x1, z1) {
 }
 // which side of an opening a point's on (1: the side its normal points to, the outside)
 const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 1;
-// a window takes one zombie at a time: the next waits its turn while one climbs through
-function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !b.vault) { o.busy = null; return true; } return false; }
+// a window takes one zombie at a time, but only just: the next goes in as soon as the one ahead is halfway through
+function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !b.vault || b.vault.t > 0.5) { o.busy = null; return true; } return false; }
 // at a window: the boards to tear down first (returned), then it climbs in (zombies/climb.js)
 function atWindow(z, o) {
   if (!winFree(o, z)) return null;
@@ -40,6 +40,10 @@ function fenceCross(z, i, j, bi, bj, fl) {
   else { dx = cxw(ei) - fx; dz = cxw(ej) - fz; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L; }
   startClimb(z, 'fence', fx, fz, dx, dz, cxw(ei), cxw(ej), null);
 }
+// how fast bunched-up zombies drift apart (metres a second when right on top of each other)
+const SPREAD = 2.6;
+// a window or doorway in this cell or any next to it
+function nearOpening(i, j) { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (inb(i + a, j + b) && cell[idx(i + a, j + b)] === OPEN) return true; return false; }
 // a hit flashes the body white-hot, cooling through red as the flash runs out; burning, just a flicker of warmth (the
 // char's embers do the glowing: effects/body-blood.js)
 function zFlash(z, dt) {
@@ -91,9 +95,10 @@ function updateZombies(dt) {
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       }
     }
-    const fl = z.type === 'brute' ? distB : dist, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
+    // (outside while you're indoors, the field for the window or door it was given: zombies/pathfinding.js)
+    const fl = pup ? dist : zField(z, t), via = !!z.via, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
     let tx = t.x, tz = t.z, attackingBoard = null;
-    if (here > 1.6 && !z.out && !pup) {
+    if ((via || here > 1.6) && !z.out && !pup) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
@@ -134,16 +139,12 @@ function updateZombies(dt) {
         if (z.dead) continue;
       }
     }
-    // crowding: the one further back along the way in gives way to the one ahead of it (a fixed rank settles a tie), so
-    // two arriving at a doorway side by side don't hold each other off it forever
-    if (!pup) for (const o2 of zombies) {
-      if (o2 === z || o2.vault) continue; const sx = z.x - o2.x, sz = z.z - o2.z, sd = Math.hypot(sx, sz), md = z.T.r + o2.T.r;
-      if (sd < md && sd > 0.001) {
-        const oi = ci(o2.x), oj = ci(o2.z), there = inb(oi, oj) ? fl[idx(oi, oj)] : 1e9;
-        const ahead = there < here - 0.05 || (Math.abs(there - here) <= 0.05 && (o2.rank || 0) > (z.rank || 0));
-        const px = sx / sd * (md - sd) * (ahead ? 0.9 : 0.1), pz = sz / sd * (md - sd) * (ahead ? 0.9 : 0.1);
-        if (z.out) { z.x += px; z.z += pz; } else moveCircle(z, px, pz, z.T.r);   // out in the fog there's nothing to bump into
-      }
+    // they don't block each other: a crowd pours through a doorway or a broken window and floods the room. Where they
+    // bunch up they only drift apart a little (SPREAD, metres a second at full overlap), so they don't all stand in one
+    // spot, and not at all in a window or a doorway or the cells round one, where it would only hold them up
+    if (!pup && !z.out && !nearOpening(i, j)) for (const o2 of zombies) {
+      if (o2 === z || o2.vault || o2.out) continue; const sx = z.x - o2.x, sz = z.z - o2.z, sd = Math.hypot(sx, sz), md = z.T.r + o2.T.r;
+      if (sd < md && sd > 0.001) { const k = (1 - sd / md) * SPREAD * dt / sd; moveCircle(z, sx * k, sz * k, z.T.r); }
     }
     { const ex = P.x - z.x, ez = P.z - z.z; if (!P.vault && !P.dead && dme < z.T.r + 0.3 && dme > 0.001) { const push = (z.T.r + 0.3 - dme) * 0.5; moveCircle(P, ex / dme * push, ez / dme * push, 0.3, true); } }
     if (z.hp < z.maxHp * 0.5) { z.drip -= dt; if (z.drip <= 0) { z.drip = rr(0.4, 0.9); splat(z.x + rr(-.15, .15), z.z + rr(-.15, .15), 'drop', rr(0.15, 0.3)); } }
