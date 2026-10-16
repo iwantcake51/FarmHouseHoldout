@@ -27,16 +27,16 @@ function renderSpec() {
   if (!on) return;
   const am = f.am || [], hp = Math.max(0, Math.round(f.hp ?? 100)), mx = f.maxHp || 100, st = f.stats || [];
   let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) up++;
-  const key = [f.id, f.name, hp, mx, f.wn, JSON.stringify(am), st.join(), up].join('|');
+  const key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
-  const q = s => el.querySelector(s), fr = clamp(hp / mx, 0, 1) * 100 + '%';
+  const q = s => el.querySelector(s);
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
   q('.spWho em').textContent = f.name || 'Survivor';
   q('.spHint').hidden = up < 2;
   // their health
   q('.spName b').textContent = f.name || 'Survivor';
   q('.spHp').textContent = hp; q('.spMax').textContent = '/ ' + mx;
-  q('.spVit .bar i').style.width = fr; q('.spVit .bar b').style.width = fr;
+  paintBar(q('.spVit .bar'), hp, mx, f.heal, false);   // (net/lobby.js)
   q('.spVit').classList.toggle('low', hp / mx < 0.3);
   el.querySelectorAll('.spVit .res b').forEach((b, i) => { b.textContent = st[i] ?? 0; });
   // their weapon

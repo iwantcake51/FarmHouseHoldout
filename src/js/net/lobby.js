@@ -56,28 +56,37 @@ $('coopCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $
 // ---- in the run: your teammates over your own health, each a smaller copy of it (no heart trace): their name, their
 // health and its bar, and their planks, scrap and kills
 const TEAM_RES = ['planks', 'scrap', 'kills'];
+// a teammate's health bar drawn like yours (ui/hud.js): the fill, with anything past the base 100 (armour, Tough skin,
+// Stubborn) in its own colour; the red that trails a hit away (the .bar b's slower width); and the blue of healing
+// still to come from a bandage or a medkit
+function paintBar(bar, hp, mx, heal, dead) {
+  const f = dead ? 0 : clamp(hp / mx, 0, 1), inc = dead ? 0 : Math.min(1 - f, (heal || 0) / mx), i = bar.querySelector('i');
+  i.style.width = f * 100 + '%'; bar.querySelector('b').style.width = f * 100 + '%';
+  i.style.setProperty('--b', (f > 0 ? Math.min(100, (BASE_HP / mx) / f * 100) : 100).toFixed(1) + '%');
+  const s = bar.querySelector('s'); s.style.left = f * 100 + '%'; s.style.width = inc * 100 + '%';
+}
 function renderTeam() {
   const el = $('team'), on = netLink() && state !== 'title';
   if (el.hidden === on) el.hidden = !on;
   if (!on) return;
   const ps = [...NET.peers.values()].sort((a, b) => a.idx - b.idx);
-  const key = ps.map(p => [p.id, p.name, Math.round(p.hp ?? 100), p.maxHp, p.dead ? 1 : 0, ...(p.stats || [])].join(':')).join('|');
+  const key = ps.map(p => [p.id, p.name, Math.round(p.hp ?? 100), p.maxHp, p.heal || 0, p.dead ? 1 : 0, ...(p.stats || [])].join(':')).join('|');
   if (cache.team === key) return; cache.team = key;
   if (el.childElementCount !== ps.length || [...el.children].some((c, k) => c.dataset.id !== ps[k].id)) {
     el.textContent = '';
     for (const p of ps) {
       const d = document.createElement('div'); d.className = 'tm'; d.dataset.id = p.id; d.style.setProperty('--pc', NET_COL[p.idx] || '#888');
-      d.innerHTML = '<div class="tmTop"><i></i><b class="tmName"></b><span class="tmHp"><em class="big"></em><span></span></span></div><div class="bar"><b></b><i></i></div>' +
+      d.innerHTML = '<div class="tmTop"><i></i><b class="tmName"></b><span class="tmHp"><em class="big"></em><span></span></span></div><div class="bar"><b></b><i></i><s></s></div>' +
         '<div class="res">' + TEAM_RES.map(r => `<span title="${r[0].toUpperCase() + r.slice(1)}"><svg viewBox="${GI_VB}">${GI[r] || ''}</svg><b></b></span>`).join('') + '</div>';
       el.appendChild(d);
     }
   }
   ps.forEach((p, k) => {
-    const d = el.children[k], hp = Math.max(0, Math.round(p.hp ?? 100)), mx = p.maxHp || 100, f = clamp(hp / mx, 0, 1) * 100 + '%';
+    const d = el.children[k], hp = Math.max(0, Math.round(p.hp ?? 100)), mx = p.maxHp || 100;
     d.classList.toggle('down', !!p.dead); d.classList.toggle('low', !p.dead && hp / mx < 0.3);
     d.querySelector('.tmName').textContent = p.name;
     d.querySelector('.tmHp em').textContent = p.dead ? '' : hp; d.querySelector('.tmHp span').textContent = p.dead ? 'Down' : '/ ' + mx;
-    d.querySelector('.bar i').style.width = f; d.querySelector('.bar b').style.width = f;
+    paintBar(d.querySelector('.bar'), hp, mx, p.heal, p.dead);
     d.querySelectorAll('.res b').forEach((b, i) => { b.textContent = (p.stats || [])[i] ?? 0; });
   });
 }
