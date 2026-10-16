@@ -25,11 +25,12 @@ function updateHUD(rdt, D) {
       const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
-    const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
+    // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
+    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
     // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
-    const grey = Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
-    { const rt = Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
+    const grey = spec ? 0.4 : Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
+    { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, fk = grey + ':' + blur + ':' + slow;
     if (cache.grey !== fk) {
       cache.grey = fk;

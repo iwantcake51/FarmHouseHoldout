@@ -127,6 +127,7 @@
   "net/arsenal.js",
   "net/avatars.js",
   "net/lobby.js",
+  "net/spectate.js",
   "net/friends.js",
   "game/loop.js"
 ]

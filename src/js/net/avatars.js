@@ -12,7 +12,7 @@ const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100
 // their side, that's finer than shows), where you are to the millimetre and how fast you're going, so your survivor can
 // be drawn a moment ahead on their screens instead of a moment behind
 const POSE_HZ = 15;
-let poseT = 0, poseX = 0, poseZ = 0, poseAt = 0;
+let poseT = 0, poseX = 0, poseZ = 0, poseAt = 0, poseWid = '', poseWnAt = 0;
 function poseOut(rdt) {
   if (!netLink()) return;
   poseT -= rdt; if (poseT > 0) return; poseT = 1 / POSE_HZ;
@@ -26,7 +26,22 @@ function poseOut(rdt) {
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: state === 'upgrade' || state === 'leaving' ? 1 : 0, j,
     st: [S.planks | 0, S.scrap | 0, run.kills | 0] };   // (what the team list shows of you: planks, scrap and kills)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
+  ammoOut(msg, now);
   netSend('p', msg);
+}
+
+// what a teammate watching you while they're down sees on their HUD (net/spectate.js): what's in the gun as your HUD
+// shows it (-1 for a melee weapon; a pair, left then right, for akimbo), what's left to load, how much it holds,
+// whether you're reloading (1) or loading shells (2), and your bandages. The weapon's name only when it changes, and
+// every couple of seconds in case that one went missing
+function ammoOut(msg, now) {
+  const id = curId(), D = W(id) || {};
+  let have, res = 0, cap = 0;
+  if (D.melee) have = -1;
+  else if (D.akimbo) { const m = akMags(id); have = [m[AK_ON.left], m[AK_ON.right]]; res = W8.reserve[D.ammo] | 0; cap = akPer(id); }
+  else { const h = hudMag(id); have = h.have; res = h.res | 0; cap = magCap(id); }
+  msg.am = [have, res, cap, W8.reloading === 'shell' ? 2 : W8.reloading ? 1 : 0, P.band | 0];
+  if (id !== poseWid || now - poseWnAt > 2000) { poseWid = id; poseWnAt = now; msg.wn = D.name || ''; }
 }
 
 // ---- their survivors
@@ -83,7 +98,7 @@ function netDropAvatar(p) {
 // a pose in: kept as where they're headed; their survivor eases there over the next frames
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, loaded: true });
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();

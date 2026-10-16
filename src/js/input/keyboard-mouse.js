@@ -42,6 +42,7 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; a
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
+cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && e.button === 0 && spectating()) { specNext(); return; }   // down in co-op: a click watches the next teammate (net/spectate.js)
+  if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; aimHeld = false; exitScope(); aiming = false; } });

@@ -110,3 +110,45 @@
 #tags .tag.edge .dot{scale:1.35}
 #tags .tag.edge .dot::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border:5px solid transparent;border-left:7px solid var(--pc);translate:-50% -50%;rotate:var(--a);transform:translateX(12px);transform-origin:center;filter:drop-shadow(0 0 2px rgba(0,0,0,.9))}
 body:not(.playing) #tags{display:none}
+
+/* down in co-op, watching a teammate (net/spectate.js): the edges of the screen darkened, a "Down" stamp up top with
+   who you're watching, and their health and weapon where yours were, edged in their colour. The wave count stays */
+#spec{position:fixed;inset:0;z-index:2;pointer-events:none;color:var(--ink);text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.5)}
+#spec[hidden]{display:none}
+#spec::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 85% 80% at center,transparent 58%,rgba(8,6,6,.55) 100%);animation:specFade .8s ease both}
+@keyframes specFade{from{opacity:0}}
+body.dying.spectating #waveBox{opacity:1!important}
+#spec .spTop{position:absolute;top:calc(18px + env(safe-area-inset-top,0px));left:50%;translate:-50% 0;display:flex;align-items:center;gap:14px;padding:8px 16px 8px 12px;
+  background:linear-gradient(90deg,rgba(10,8,8,.15),rgba(10,8,8,.7) 18%,rgba(10,8,8,.7) 82%,rgba(10,8,8,.15));animation:specDrop .5s cubic-bezier(.2,.9,.3,1.1) .1s both}
+@keyframes specDrop{from{opacity:0;translate:-50% -14px}}
+#spec .spStamp{display:inline-block;padding:3px 9px 1px;border:2px solid currentColor;color:#d4472f;font-family:var(--f-num);font-weight:800;font-size:24px;letter-spacing:.16em;text-transform:uppercase;rotate:-3deg;filter:url(#fxWorn);text-shadow:none;animation:stampOn .45s cubic-bezier(.3,1.4,.5,1) .3s both}
+#spec .spText{display:grid;gap:2px}
+#spec .spWho{font:400 15px var(--f-type);color:#efe4cc}
+#spec .spWho em{font-style:normal;color:var(--pc);filter:brightness(1.15)}
+#spec .spText small{font-size:11px;color:var(--dim);letter-spacing:.04em}
+#spec .spHint{color:rgba(163,158,144,.7)}
+#spec .spHint[hidden]{display:none}
+/* their health, a copy of yours (styles/hud-vitals.css) without the heart trace, their colour down its edge */
+#spec .spVit{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px;display:grid;gap:7px;width:min(260px,44vw);zoom:1.12;padding-left:10px;border-left:3px solid var(--pc);animation:specIn .45s cubic-bezier(.2,.9,.3,1) .15s both}
+@keyframes specIn{from{opacity:0;translate:-14px 0}}
+#spec .spName{display:flex;align-items:center;gap:7px;font:600 12px var(--f-ui);letter-spacing:.06em;text-transform:uppercase}
+#spec .spName i{width:8px;height:8px;border-radius:50%;background:var(--pc);box-shadow:0 0 8px var(--pc)}
+#spec .spHp{font-size:42px;min-width:2.1ch;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#spec .spMax{font-family:var(--f-num);font-weight:600;font-size:18px;color:var(--dim);margin:0 0 3px -8px}
+#spec .spVit .bar i{transition:width .25s ease}
+#spec .spVit.low .bar i{background:var(--blood)}
+#spec .spVit.low .spHp{color:#e2412c}
+/* their weapon, a copy of yours (styles/hud-weapon.css) */
+#spec .spArms{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));right:20px;display:grid;gap:5px;justify-items:end;text-align:right;zoom:1.12;padding-right:10px;border-right:3px solid var(--pc);animation:specInR .45s cubic-bezier(.2,.9,.3,1) .15s both}
+@keyframes specInR{from{opacity:0;translate:14px 0}}
+#spec .spWName{font-family:var(--f-num);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase;line-height:1}
+#spec .spAmmo{font-size:68px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#spec .spAmmo.low{color:#e8b84a}#spec .spAmmo.out{color:#e2412c}
+#spec .spRes{font-family:var(--f-num);font-weight:600;font-size:24px;color:var(--dim)}
+#spec .spRel{min-height:1em;font:600 11px var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--orange)}
+#spec .spRel:empty{display:none}
+#spec .spBand{display:flex;align-items:center;gap:7px;padding:3px 8px 3px 5px;background:linear-gradient(90deg,rgba(10,12,13,.4),rgba(10,12,13,.78));border:1px solid rgba(236,230,216,.16);border-right:3px solid #d0432c;text-shadow:none}
+#spec .spBand svg{width:18px;height:18px;padding:3px;background:#b8352a;border-radius:3px;fill:#fbf7ee}
+#spec .spBand b{font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1}
+#spec .spBand.empty{opacity:.5;border-right-color:rgba(236,230,216,.25)}#spec .spBand.empty svg{background:#4a3a36}
+@media (prefers-reduced-motion:reduce){#spec,#spec *,#spec::before{animation-duration:.01s!important;animation-delay:0s!important}}

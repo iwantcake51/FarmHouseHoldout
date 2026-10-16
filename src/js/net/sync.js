@@ -9,7 +9,7 @@
 
 let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 const NZ = new Map();           // zombies by the id the host gave them
-let zSeq = 0, dropSeq = 0, snapT = 0, overT = 0, downTold = false;
+let zSeq = 0, dropSeq = 0, snapT = 0, overT = 0;
 const nr = v => Math.round(v * 100) / 100;
 const netTeam = () => netLink() ? 1 + NET.peers.size : 1;
 // whoever's left standing: you, and in co-op your teammates (their latest pose: where they are, whether they're down)
@@ -199,10 +199,8 @@ function netWaiting() {
 }
 
 // ---- going down in co-op: the farm goes on without you; you watch a teammate till the wave's cleared and you're back
-function netDown() {
-  timeScale = 1;
-  if (!downTold) { downTold = true; setTimeout(() => { if (P.dead && netLink()) announce('You’re down', 'Back on your feet when the wave is cleared', { eye: 'Co-op', kind: 'red' }); }, 1600); }
-}
+// (their health and weapon on your HUD, and that you're down: net/spectate.js)
+function netDown() { timeScale = 1; SPEC.id = ''; }
 // back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and the guns
 // you had gone (the melee weapon you keep), only the pistol everyone starts with; then the cards like everyone else
 function netRespawn() {
@@ -214,7 +212,6 @@ function netRespawn() {
   recomputeEff();
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
-  downTold = false;
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
   rollLook(); buildGuns();
@@ -222,12 +219,6 @@ function netRespawn() {
   feed('med', P.hp, 'back on your feet'); SFX.upgrade();
 }
 NET_ON.look = m => { const p = NET.peers.get(m.f); if (!p) return; p.look = m.look; netDropAvatar(p); p.av = null; };
-// who the camera's on: you, or once you're down, the first teammate still standing
-function camFocus() {
-  if (!netLink() || !P.dead || P.deathT < 1.4) return P;
-  for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) return p;
-  return P;
-}
 // everyone down: the run's over for all of you (the host calls it)
 NET_ON.over = () => { if (state === 'play' || state === 'paused') die(); };
 
@@ -243,11 +234,11 @@ function netTick(rdt) {
     }
   }
   updateAvatars(rdt);
-  renderTeam();
+  renderTeam(); renderSpec();
 }
 // a fresh co-op run: no zombies known, each survivor starting a step apart from the others
 function netRunStart() {
-  NZ.clear(); zSeq = 0; overT = 0; downTold = false;
+  NZ.clear(); zSeq = 0; overT = 0;
   if (!netLink()) return;
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   P.x += off[0]; P.z += off[1];
