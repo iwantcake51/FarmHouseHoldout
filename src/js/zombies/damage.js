@@ -236,6 +236,8 @@ function blowApart(z, dx, dz) {
 const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
 // Momentum keeps building while each kill comes within MOM_T seconds of the last
 const MOM_T = 2.5;
+// how loud a kill is: every one sounds the skull bursting (SFX.headPop), from the zombie (killEnd)
+const KILL_VOL = 0.5;
 // (a kill that's not part of a hit, a burn or a bleed running out, is sent on its own in co-op)
 function killZombie(z, dx, dz, wId, part, overkill) { return netAct(z, dx, dz, () => killZombie0(z, dx, dz, wId, part, overkill)); }
 function killZombie0(z, dx, dz, wId, part, overkill) {
@@ -298,7 +300,7 @@ function killBegin(z, dx, dz) {
 function killEnd(z) {
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   if (z.id) NZ.delete(z.id);
-  soundAt(z.x, z.z, () => SFX.kill());
+  soundAt(z.x, z.z, () => SFX.headPop(KILL_VOL));   // every kill sounds the same: the skull bursting, from the zombie itself
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
 function dmgNumber(z, dmg, head, y, crit, kind) {

@@ -20,13 +20,13 @@ const SFX = {
   tick() { if (playS(['flesh_1', 'flesh_2'], { gap: 0.035, jit: 0.08 })) return; tn(0.035, 'square', 2300, 1900, 0.07); nz(0.05, 'lowpass', 900, 200, 0.26); tn(0.06, 'sine', 160, 70, 0.2); },
   headHit() { if (playS('head_hit', { gap: 0.05, rate: 1.1 })) return; tn(0.05, 'triangle', 1700, 1100, 0.09); nz(0.04, 'bandpass', 2600, 1400, 0.14, 3); },
   shove(stab) { if (playS(['swing_light_1', 'swing_light_2'], { rate: 1.1 })) return; nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
-  kill() { if (playS(['kill_1', 'kill_2'], { gap: 0.05 })) return; tn(0.16, 'sine', 120, 40, 0.55); nz(0.12, 'lowpass', 1400, 160, 0.4); tn(0.05, 'square', 1500, 900, 0.05); },
   sever() { if (playS('sever', { gap: 0.06, jit: 0.08 })) return; nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
   // a skull caving in under the sledgehammer: a sharp crack, a deep wet crunch, then the spatter
   crush() { nz(0.07, 'bandpass', 1900, 600, 0.6, 1.4); tn(0.14, 'sine', 120, 42, 0.6); setTimeout(() => nz(0.24, 'lowpass', 1200, 180, 0.5, 1), 20); setTimeout(() => nz(0.18, 'bandpass', 2600, 900, 0.22, 1.8), 60); },
   // a skull split by the fire axe: a hard crack of bone, then a wet tearing as it comes apart
   split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
-  headPop() { if (playS('head_pop', { gap: 0.05, rate: 1.12 })) return; nz(0.12, 'bandpass', 900, 260, 0.5, 1.6); tn(0.05, 'triangle', 760, 240, 0.14); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22, 1), 30); },
+  // a zombie's skull bursting: every kill (zombies/damage.js killEnd), from the zombie, at v
+  headPop(v = 1) { if (playS('head_pop', { gap: 0.05, rate: 1.12, vol: v })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
