@@ -150,7 +150,7 @@ Every source file starts with a one-line comment saying what is in it.
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Blood on you, zombies and your weapons (a stain shader that builds up with hits), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
 | The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
-| Sounds | `src/js/audio/sfx.js` |
+| Sounds, and playing one from a spot on the farm instead of from you (`sfxAt`: how it pans round the player and fades with distance, full volume within `SFX_NEAR`; every zombie kill plays the skull-burst `headPop` this way) | `src/js/audio/sfx.js` |
 | Controls | `src/js/input/keyboard-mouse.js`, `src/js/input/touch.js` |
 | Day length and night colours, and how your eyes adjust to the dark (`DARK_EYES`) | `src/js/lighting/day-night.js` |
 | The flashlight's beam: drawn per pixel in the lit shader (`flCone` in `src/js/core/shaders.js`) with a soft rim and a brighter middle, set every frame from each tier's reach, width and strength (`FLASH`, `flashUniforms`; an akimbo pair has a beam per gun); its shadows are rays cast out across the beam every frame (`flashShadows`, `flRay`, `FL_RAYS`), each stopped by what stops sight, so a beam through a window or past a corner has clean edges; smoke catches it too (`flashAt`). It's only on while the gun's out in your hands: off while it's put away for a vault without Run and gun, and on again once the hand has it on the draw (`gunOut`, `flOn`) | `src/js/lighting/lightmap.js` |

@@ -195,7 +195,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
-  SFX.kill();
+  sfxAt(z.x, z.z, 'headPop');   // every kill sounds the same: the skull bursting, from the zombie itself
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
   const big = z.type === 'brute' ? 2 : 1;
   // Hoarder: a scrap drop has a HOARD_X chance to be worth double

@@ -11,9 +11,9 @@ const SFX = {
   tick() { tn(0.035, 'square', 2300, 1900, 0.07); nz(0.05, 'lowpass', 900, 200, 0.26); tn(0.06, 'sine', 160, 70, 0.2); },
   headHit() { tn(0.05, 'triangle', 1700, 1100, 0.09); nz(0.04, 'bandpass', 2600, 1400, 0.14, 3); },
   shove(stab) { nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
-  kill() { tn(0.16, 'sine', 120, 40, 0.55); nz(0.12, 'lowpass', 1400, 160, 0.4); tn(0.05, 'square', 1500, 900, 0.05); },
   sever() { nz(0.18, 'bandpass', 700, 200, 0.5, 2); tn(0.08, 'triangle', 200, 80, 0.25); },
-  headPop() { nz(0.12, 'bandpass', 900, 260, 0.5, 1.6); tn(0.05, 'triangle', 760, 240, 0.14); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22, 1), 30); },
+  // a zombie's skull bursting: every kill (zombies/damage.js killZombie), heard from the zombie (sfxAt)
+  headPop() { nz(0.12, 'bandpass', 900, 260, 0.5, 1.6); tn(0.05, 'triangle', 760, 240, 0.14); sfxLater(30, () => nz(0.16, 'lowpass', 1400, 300, 0.22, 1)); },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
@@ -75,3 +75,18 @@ const SFX = {
   cleared() { tn(0.9, 'sine', 196, 196, 0.12); setTimeout(() => tn(1.2, 'sine', 294, 294, 0.1), 180); }
 };
 const GUN_SFX = { pistol: 'light', revolver: 'heavy', deagle: 'heavy', pump: 'shotgun', dbl: 'shotgun', auto12: 'shotgun', hunting: 'rifle', smg: 'auto', sub: 'auto', ar: 'rifle', lmg: 'rifle' };
+// a sound played from a spot on the farm rather than from you: panned to where (x, z) sits on screen round the player
+// (left, right, ahead, behind) and quieter the further it is, at full volume within SFX_NEAR metres
+const SFX_NEAR = 3;
+function sfxAt(x, z, name, ...a) {
+  if (!AC || !SFX[name]) return;
+  const dx = x - P.x, dz = z - P.z, p = AC.createPanner();
+  p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = SFX_NEAR; p.rolloffFactor = 1;
+  // the listener stays at the origin facing -z (the Web Audio default), so the spot goes in screen terms: x along
+  // screen right, -z along screen up
+  const sx = dx * RIGHT.x + dz * RIGHT.z, sz = -(dx * FWD.x + dz * FWD.z);
+  if (p.positionX) { p.positionX.value = sx; p.positionY.value = 0; p.positionZ.value = sz; } else p.setPosition(sx, 0, sz);
+  p.connect(master);
+  const prev = sfxOut; sfxOut = p;
+  try { SFX[name](...a); } finally { sfxOut = prev; }
+}

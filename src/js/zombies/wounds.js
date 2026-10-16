@@ -73,8 +73,7 @@ function headShot(z, dx, dz) {
     gibs.push({ m: c, vx: dx * rr(2.5, 4.5) + rr(-1, 1), vy: rr(1.5, 3.2), vz: dz * rr(2.5, 4.5) + rr(-1, 1), spin: rr(8, 16), life: 6, landed: false });
   }
   spray(bx, bz, dx, dz, rr(1.5, 2.3)); splatLater(0.3, bx + dx * rr(1.2, 2), bz + dz * rr(1.2, 2), 'spray', rr(0.8, 1.2), Math.atan2(dz, dx));
-  z.spurts.push({ part: 'head', t: 1.2, o: head, p: [0, 0, 0] });
-  SFX.headPop();
+  z.spurts.push({ part: 'head', t: 1.2, o: head, p: [0, 0, 0] });   // (its sound is the kill's own: zombies/damage.js killZombie)
 }
 // an arm's forearm or a leg's shin shot off at the joint: it flies off like a severed limb, the end left raw with the
 // bone showing (a stump wound and a stub of bone), and the limb can still come off whole later. A leg without its
