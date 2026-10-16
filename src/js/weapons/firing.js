@@ -237,8 +237,7 @@ function gunFire(id, D, side) {
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16); }
-  ANIM.recoil = Math.min(1.4, ANIM.recoil + (0.3 + pw * 0.9) * (D.akimbo ? 0.6 : 1));
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16, racked(id)); }
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)

@@ -2,7 +2,7 @@
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, recoil: 0, sw: 0, relEnv: 0 };
+const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
 // swing keyframes: upper-body twist, upper lean, right arm pitch/yaw, weapon pitch in the hand
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
 const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
