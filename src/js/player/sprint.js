@@ -114,16 +114,19 @@ function updateSprint(dt, moving, wx, wz) {
 }
 
 // running flat out at an open window or a fence takes you straight over it, no key needed: when you're pushing at it
-// and going at it (within about 60 degrees of straight across, SPRINT.autoVault) at better than a walk
-function sprintVault(mx, my) {
-  const ml = Math.hypot(mx, my), sp = Math.hypot(P.vx, P.vz); if (!ml || sp < WALK_SPEED * 0.6 || P.pivot || P.skid > 0) return;
+// (wx, wz: the way you're pushing) and going at it (within about 60 degrees of straight across, SPRINT.autoVault) at
+// better than a walk. Breaking into a sprint at it (start: sprintStart) takes you over too, even from a standstill
+// up against it, as the vault key would.
+function sprintVault(wx, wz, start) {
+  const sp = Math.hypot(P.vx, P.vz); if (!(wx || wz) || P.pivot || P.skid > 0 || P.dead || P.stun > 0 || (!start && sp < WALK_SPEED * 0.6)) return;
   const o = nearestOpening(), win = vaultTarget(o), t = win || fenceTarget(); if (!t) return;
   let jx, jz;
   if (win) { const side = Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1; jx = -o.nx * side; jz = -o.nz * side; }
   else if (Math.abs(t.x1 - P.x) > Math.abs(t.z1 - P.z)) { jx = Math.sign(t.x1 - P.x); jz = 0; } else { jx = 0; jz = Math.sign(t.z1 - P.z); }   // (straight across the fence, as tryVault takes it)
-  const wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml;
-  if (wx * jx + wz * jz > SPRINT.autoVault && (P.vx * jx + P.vz * jz) / sp > SPRINT.autoVault) tryVault();
+  if (wx * jx + wz * jz > SPRINT.autoVault && (start || (P.vx * jx + P.vz * jz) / sp > SPRINT.autoVault)) tryVault();
 }
+// the moment you break into a sprint: pressing sprint as you move, or moving off with it held (moving: you're pushing)
+function sprintStart(moving) { const go = sprintKey() && moving, s = go && !P.sprintGoWas; P.sprintGoWas = go; return s; }
 // the plant and the swing round: your velocity's brought round to what the turn leaves you (nothing, or a cut's share
 // of your pace the new way) at a steady PIVOT.dec, the grip building over the first moment (bite) rather than
 // stopping you dead the instant you plant
