@@ -172,6 +172,12 @@
         <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd>T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
       </div>
       <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
+      <div class="coopFriends">
+        <div class="frHead">Friends <span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
+        <ul class="frList" id="frList"></ul>
+        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
+        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
+      </div>
     </div>
    </div>
     <div class="ctrls">
@@ -202,9 +208,10 @@
     <div class="eyebrow" id="upEyebrow">Wave cleared</div>
     <h3>Take one</h3>
     <div class="kinds">Skills · Perks · Aid</div>
+    <div class="upClock" id="upClock" role="timer" aria-live="off"><span id="upClockT">20</span><i><b id="upClockBar"></b></i></div>
     <div id="cards"></div>
     <button class="btn ghost" id="upSkip" type="button"></button>
-    <div class="note" id="upNote">Click a card or press 1, 2 or 3 · 4 takes the scrap instead</div>
+    <div class="note" id="upNote">Click a card or press 1, 2 or 3 · 4 takes the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
   </div>
 </div>

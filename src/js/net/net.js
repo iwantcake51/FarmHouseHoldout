@@ -88,7 +88,7 @@ async function netJoin(code) {
   code = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 4) { NET.status = 'The code is four letters and numbers'; lobbyRender(); return; }
   netReset(); NET.status = 'Joining ' + code + '…'; lobbyRender();
-  const hello = { t: 'hello', v: NET_V, name: netName(), look: LOOK.cur };
+  const hello = { t: 'hello', v: NET_V, name: netName(), look: LOOK.cur, fid: PALS.me };
   try {
     if (NET.mode === 'local') {
       Object.assign(NET, { on: true, code, id: 'P-' + Math.random().toString(36).slice(2, 8), hostId: 'H-' + code });
@@ -126,7 +126,7 @@ function netGone(id, why) {
   if (state !== 'title') feed('gear', 0, p.name + (why === 'left' ? ' left' : ' lost connection'));
   lobbyRender();
 }
-const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0 }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx })));
+const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid })));
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -136,7 +136,7 @@ NET_ON.hello = m => {
   if (NET.inGame) return turn('That game has already started');
   if (NET.peers.size >= NET_MAX - 1) return turn('That game is full');
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
-  NET.peers.set(m.f, { id: m.f, name: String(m.name || 'Survivor').slice(0, 16), look: m.look, idx, heard: performance.now() });
+  NET.peers.set(m.f, { id: m.f, name: String(m.name || 'Survivor').slice(0, 16), look: m.look, idx, fid: m.fid, heard: performance.now() });
   netOut({ t: 'roster', f: NET.id, list: netRoster() }, null);
   lobbyRender();
 };
@@ -148,7 +148,7 @@ NET_ON.roster = m => {
     if (r.id === NET.id) { NET.idx = r.idx; continue; }
     keep.add(r.id);
     const p = NET.peers.get(r.id);
-    if (p) Object.assign(p, { name: r.name, idx: r.idx }); else NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, heard: performance.now() });
+    if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid }); else NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, heard: performance.now() });
   }
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
   NET.status = ''; lobbyRender();

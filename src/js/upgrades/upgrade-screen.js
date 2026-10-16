@@ -93,6 +93,26 @@ function openUpgrade() {
   $('announce').style.opacity = 0; annT = 0;
   clearTimeout(armTimer);
   armTimer = setTimeout(() => { if (state !== 'upgrade') return; cardsArmed = true; el.classList.add('armed'); }, 1000);
+  startCardClock();
+}
+// you have CARD_TIME seconds to choose: the clock over the cards runs down, red for the last few, and when it's out one
+// of the three cards is taken for you at random (never the scrap)
+const CARD_TIME = 20, CARD_WARN = 5;
+let cardClock = 0, cardEnd = 0;
+function startCardClock() {
+  clearInterval(cardClock); cardEnd = performance.now() + CARD_TIME * 1000;
+  const tick = () => {
+    if (state !== 'upgrade') { clearInterval(cardClock); return; }
+    const left = Math.max(0, (cardEnd - performance.now()) / 1000);
+    $('upClockT').textContent = Math.ceil(left); $('upClockBar').style.transform = `scaleX(${(left / CARD_TIME).toFixed(4)})`;
+    $('upClock').classList.toggle('warn', left <= CARD_WARN);
+    if (left <= 0) {
+      clearInterval(cardClock);
+      const live = dealt.map((u, i) => i).filter(i => dealt[i]);
+      if (live.length) { cardsArmed = true; $('upClock').classList.add('out'); pickCard(live[(Math.random() * live.length) | 0]); }
+    }
+  };
+  tick(); cardClock = setInterval(tick, 100);
 }
 function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
@@ -144,7 +164,7 @@ function scrapFly(el, n) {
   }
 }
 function leaveUpgrade(burn) {
-  const el = $('upgrade');
+  const el = $('upgrade'); clearInterval(cardClock);
   el.classList.remove('armed'); el.classList.add('picking');
   burnCards(burn);
   state = 'leaving';

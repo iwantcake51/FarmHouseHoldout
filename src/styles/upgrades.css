@@ -106,3 +106,16 @@
 .pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px 22px;align-items:start}
 .pLists .hist{max-height:42vh}
 .hrow.gear .ht{color:var(--rc)}
+
+/* the time left to choose: a number and a bar running down under "Skills · Perks · Aid", red for the last few seconds,
+   when it ticks with a pulse; when it's out, a card is taken for you */
+#upgrade .upClock{display:flex;align-items:center;gap:10px;width:min(320px,70vw);margin:-6px auto 0;opacity:0;transition:opacity .4s ease .25s}
+#upgrade.show .upClock{opacity:1}
+#upgrade.picking .upClock{opacity:0;transition-delay:0s}
+.upClock span{min-width:2ch;font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+.upClock i{flex:1;height:4px;background:rgba(236,230,216,.14);overflow:hidden}
+.upClock b{display:block;height:100%;background:var(--orange);transform-origin:left;transition:transform .1s linear,background-color .3s ease}
+.upClock.warn span{color:#e8503a;animation:clockBeat 1s ease-in-out infinite}
+.upClock.warn b{background:#d8402c}
+@keyframes clockBeat{0%,100%{scale:1}15%{scale:1.22}}
+@media (prefers-reduced-motion:reduce){.upClock.warn span{animation:none}}

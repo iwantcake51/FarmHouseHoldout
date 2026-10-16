@@ -145,7 +145,7 @@ function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
   z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
   z.face = Math.atan2(dx, dz);
   if (o) o.busy = z;
-  if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.fenceClimb();
+  if (Math.hypot(z.x - P.x, z.z - P.z) < 14) soundAt(z.x, z.z, () => SFX.fenceClimb());
 }
 // along the climb: the zombie's place on the ground follows the keys' s (starting from wherever it stood, and drawn to
 // the middle of a window as it goes in), the events fire as their keys go by, and the pose goes to the animation

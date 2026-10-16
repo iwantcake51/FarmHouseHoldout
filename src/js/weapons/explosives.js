@@ -7,7 +7,7 @@ const flashes = [];
 // teammate's blast, just the sight and sound of it (what it did to the zombies comes in their hits, net/sync.js)
 function explode(x, z, r, dmg, self, remote) {
   if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r });
-  SFX.boom(Math.hypot(P.x - x, P.z - z), r); shake = Math.max(shake, 0.8);
+  soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true); shake = Math.max(shake, 0.8);
   fx('flash', x, 0.7, z, 0, 0, 0, 0.8, r * 1.5, 0.16, 1);
   for (let k = 0; k < 9; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2); fx('ember', x + Math.sin(a) * 0.2, rr(0.3, 0.8), z + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(1.2, 3.4), Math.cos(a) * sp, rr(0.35, 0.5), rr(0.9, 1.5), rr(0.22, 0.38), 0.95); }
   sparkBurst(x, 0.4, z, 18, 0, 0, 8);

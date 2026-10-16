@@ -125,5 +125,6 @@
   "net/sync.js",
   "net/avatars.js",
   "net/lobby.js",
+  "net/friends.js",
   "game/loop.js"
 ]

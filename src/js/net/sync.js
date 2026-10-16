@@ -59,7 +59,9 @@ NET_ON.w = m => {
   const now = performance.now(), zs = m.z;
   for (let k = 0; k < zs.length; k += 7) {
     const z = NZ.get(zs[k]); if (!z || z.dead) continue;
-    z.nx = zs[k + 1]; z.nz = zs[k + 2]; z.nf = zs[k + 3]; z.seen = now;
+    // how fast it's going between this snapshot and the last, so it can be drawn where it is now, not where it was
+    if (z.nt) { const dt = (now - z.nt) / 1000; if (dt > 0.02) { const k2 = 0.5; z.nvx = (z.nvx || 0) * (1 - k2) + clamp((zs[k + 1] - z.nx) / dt, -8, 8) * k2; z.nvz = (z.nvz || 0) * (1 - k2) + clamp((zs[k + 2] - z.nz) / dt, -8, 8) * k2; } }
+    z.nx = zs[k + 1]; z.nz = zs[k + 2]; z.nf = zs[k + 3]; z.nt = now;
     if (zs[k + 4] < z.hp) z.hp = zs[k + 4];
     z.out = !!zs[k + 5]; z.atkBoard = zs[k + 6] ? openings[zs[k + 6] - 1] : null;
   }
@@ -75,7 +77,8 @@ NET_ON.w = m => {
 // a joiner's zombie each frame: eased to where the host has it (a climb plays out on its own here, from its start)
 function puppetMove(z, dt) {
   if (z.vault || z.nx === undefined) return;
-  const k = 1 - Math.exp(-dt * 11), dx = z.nx - z.x, dz = z.nz - z.z;
+  const ahead = Math.min(0.15, (performance.now() - (z.nt || 0)) / 1000 + 0.04);   // (carried on along its way, a little)
+  const k = 1 - Math.exp(-dt * 13), dx = z.nx + (z.nvx || 0) * ahead - z.x, dz = z.nz + (z.nvz || 0) * ahead - z.z;
   if (dx * dx + dz * dz > 9) { z.x = z.nx; z.z = z.nz; } else { z.x += dx * k; z.z += dz * k; }
   z.face += angDiff(z.nf, z.face) * k;
 }
@@ -83,7 +86,7 @@ function puppetMove(z, dt) {
 function puppetBoard(z, dme) {
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
-  if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)); boardJolt(o, z); }
+  if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
 function netLunge(z, at, armMul) { if (netLink() && z.id) netSend('za', { id: z.id, h: at || '', am: armMul || 1 }); }
@@ -126,6 +129,7 @@ function netOp(z, op, dx, dz) {
       const [, dl, part, kb, w, burn, bleed, bleedR, lhp] = op, D = W(w) || EFF[w] || WEAP[w] || {};
       if (z.dead) return;
       hitFx(z, dl, dx, dz, kb, w, part, D);
+      heardFrom(D.melee ? (D.blunt ? ['hit_blunt_1', 'hit_blunt_2'] : ['hit_blade_1', 'hit_blade_2']) : ['flesh_1', 'flesh_2'], z.x, z.z, 0.55);   // (their hit, heard from where it landed)
       z.burn = Math.max(z.burn || 0, burn); z.bleed = Math.max(z.bleed || 0, bleed); z.bleedR = Math.max(z.bleedR || 0, bleedR);
       if (lhp && z.lhp[part] > lhp) z.lhp[part] = lhp;
       return;
@@ -210,7 +214,7 @@ NET_ON.over = () => { if (state === 'play' || state === 'paused') die(); };
 
 // ---- every frame, playing or not
 function netTick(rdt) {
-  netBeat(rdt);
+  netBeat(rdt); frTick(rdt);
   if (!NET.on) return;
   if (NET.inGame && state !== 'title') {
     poseOut(rdt);

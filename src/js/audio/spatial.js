@@ -7,12 +7,43 @@ function hearAt(x, z) {
   const halfW = VIEW * (innerWidth / Math.max(1, innerHeight)) / zm, across = dx * RIGHT.x + dz * RIGHT.z;
   return { gain: Math.min(1, HEAR.ref / Math.hypot(dx, dz, HEAR.h / zm)), pan: clamp(across / halfW, -1, 1) * HEAR.pan };
 }
-// play part of a buffer (o.at for o.dur seconds, or all of it) at a point on the ground (o.x, o.z), at o.vol and o.rate
+// The farmhouse's walls between you and a sound muffle it: each one it comes through takes the top off it (a lowpass
+// down to WALL_MUFF.lp, then lower again for a second) and turns it down (WALL_MUFF.vol). A board-up window counts as a
+// wall, an open one or a doorway doesn't. Counted along the straight line from you (or the teammate you're watching)
+const WALL_MUFF = { lp: [20000, 1300, 650], vol: [1, 0.6, 0.38] };
+function wallsBetween(x0, z0, x1, z1) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(L / 0.2); let walls = 0, inWall = false;
+  for (let s = 1; s < n; s++) {
+    const i = ci(x0 + (x1 - x0) * s / n), j = ci(z0 + (z1 - z0) * s / n); if (!inb(i, j)) continue;
+    const k = idx(i, j), t = cell[k], o = openAt[k], solid = t === WALL || (t === OPEN && o && o.boards.length >= 2);
+    if (solid && !inWall && ++walls >= 2) return 2;
+    inWall = solid;
+  }
+  return walls;
+}
+// how a sound from (x, z) reaches you: its volume for how far off it is (EAR_FAR: past this it's at its quietest) and the
+// walls it comes through, its lowpass, and how far it sits to one side. wallsOnly: a sound that already sets its own
+// volume by distance (a blast, a groan) takes only the walls' muffling
+const EAR_FAR = 34;
+function earFrom(x, z, wallsOnly) {
+  const f = typeof camFocus === 'function' ? camFocus() : P, d = Math.hypot(x - f.x, z - f.z), w = d < 0.5 ? 0 : wallsBetween(f.x, f.z, x, z);
+  if (wallsOnly) return { vol: WALL_MUFF.vol[w], lp: WALL_MUFF.lp[w], pan: 0, walls: w };
+  return { vol: clamp(1.1 - d / EAR_FAR, 0.18, 1) * WALL_MUFF.vol[w], lp: d > 10 ? Math.min(WALL_MUFF.lp[w], clamp(16000 - d * 450, 2500, 16000)) : WALL_MUFF.lp[w], pan: clamp(((x - f.x) * RIGHT.x + (z - f.z) * RIGHT.z) / 14, -0.6, 0.6), walls: w };
+}
+// a synth sound through its walls' lowpass on its way to the master bus
+function earOut(e) {
+  if (e.lp >= 20000) return master;
+  const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = e.lp; f.Q.value = 0.6; f.connect(master); return f;
+}
+// make whatever sounds fn plays come from (x, z)
+function soundAt(x, z, fn, wallsOnly) { const o = SND_AT; SND_AT = { x, z, w: !!wallsOnly }; try { fn(); } finally { SND_AT = o; } }
+// play part of a buffer (o.at for o.dur seconds, or all of it) at a point on the ground (o.x, o.z), at o.vol and o.rate;
+// through the house's walls, muffled
 function playAt(buf, o) {
   if (!AC || !buf) return;
-  const h = hearAt(o.x, o.z), src = AC.createBufferSource(), g = AC.createGain();
-  src.buffer = buf; src.playbackRate.value = o.rate || 1; g.gain.value = (o.vol ?? 1) * h.gain;
-  src.connect(g);
+  const h = hearAt(o.x, o.z), src = AC.createBufferSource(), g = AC.createGain(), f = typeof camFocus === 'function' ? camFocus() : P, w = wallsBetween(f.x, f.z, o.x, o.z);
+  src.buffer = buf; src.playbackRate.value = o.rate || 1; g.gain.value = (o.vol ?? 1) * h.gain * WALL_MUFF.vol[w];
+  if (w) { const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = WALL_MUFF.lp[w]; lp.Q.value = 0.6; src.connect(lp); lp.connect(g); } else src.connect(g);
   if (AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = h.pan; g.connect(p); p.connect(master); } else g.connect(master);
   if (o.dur) src.start(AC.currentTime, o.at || 0, o.dur); else src.start(AC.currentTime, o.at || 0);
 }

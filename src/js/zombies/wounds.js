@@ -94,7 +94,7 @@ function severLower(z, part, dx, dz) {
   z.m[part].add(b);
   z.spurts.push({ part, t: 1.2, o: z.m[part], p: arm ? [0, 0, 0.28] : [0, -0.3, 0] });   // from the stump
   if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER * 0.7);
-  SFX.sever();
+  soundAt(z.x, z.z, () => SFX.sever());
   if (!arm && !z.crawl && !z.dead) goCrawl(z);
   return true;
 }

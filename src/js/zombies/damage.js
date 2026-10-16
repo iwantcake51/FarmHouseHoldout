@@ -17,7 +17,7 @@ function sever(z, part, dx, dz, blast) {
   flingPart(z, z.m[part], dx, dz, 1);
   z.spurts.push({ part, t: 1.4 });
   if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
-  if (!blast) SFX.sever();   // a blast plays one sound for the lot
+  if (!blast) soundAt(z.x, z.z, () => SFX.sever());   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
 }
 // a piece of a zombie torn off (a limb, or just a forearm or shin: zombies/wounds.js) thrown out as a gib, a burst of
@@ -106,7 +106,7 @@ function splitHead(z, dx, dz) {
   splatLater(0.3, z.x + dx * 0.25, z.z + dz * 0.25, 'pool', rr(0.6, 0.8), undefined, 0.8);
   // the hit: a crack through the skull and a wet split under the blade's own sound, a hard shake and a jolt of zoom, the
   // view driven on along the blow, and your weapon and you spattered
-  SFX.sever(); SFX.hitBlade(true); SFX.split();
+  soundAt(z.x, z.z, () => { SFX.sever(); SFX.hitBlade(true); SFX.split(); });
   if (!NREP) { shake = Math.max(shake, 0.6); camPunch = Math.max(camPunch, 0.05); camKick.x += dx * 0.15; camKick.z += dz * 0.15; addBlood(0.05, 'axe', 0.15); run.heads++; run.limbs++; }
   return true;
 }
@@ -137,7 +137,7 @@ function crushHead(z, dx, dz) {
   splatLater(0.32, z.x + dx * 0.35, z.z + dz * 0.35, 'pool', rr(0.8, 1.0), undefined, 0.9);
   for (let k = 0; k < 5; k++) { const a = Math.atan2(dx, dz) + (k - 2) * 1.1 + rr(-0.3, 0.3); spray(x, hz, Math.sin(a), Math.cos(a), rr(0.9, 1.5) * (k === 2 ? 1.3 : 1), 1.6); }
   for (let k = 0; k < 12; k++) { const a = rand() * 6.28, d = rr(0.3, 1.8); splatLater(0.25 + d * rr(0.1, 0.18), z.x + Math.sin(a) * d, z.z + Math.cos(a) * d, 'drop', rr(0.25, 0.5)); }
-  SFX.crush(); if (!NREP) { shake = Math.max(shake, 0.5); run.heads++; }
+  soundAt(z.x, z.z, () => SFX.crush()); if (!NREP) { shake = Math.max(shake, 0.5); run.heads++; }
   return true;
 }
 function pickPart(z, rel, side, D) {
@@ -198,7 +198,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
     if (D.melee) addBlood(0.025 + (z.limbs[part] === false ? 0.04 : 0), wId, 0.08 + (D.sever ? 0.04 : 0));
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
   if (z.hp <= 0) { killZombie(z, dx, dz, wId, part, -z.hp); return true; }
-  SFX.tick(); if (part === 'head') SFX.headHit();
+  soundAt(z.x, z.z, () => { SFX.tick(); if (part === 'head') SFX.headHit(); });
   return false;
 }
 // what a hit does to the body, whoever's it was: the health off it, the flash, the hole, the jolt, the blood, and the
@@ -229,7 +229,7 @@ function blowApart(z, dx, dz) {
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
   for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
-  SFX.sever(); NREC = rec;
+  soundAt(x, zz, () => SFX.sever()); NREC = rec;
 }
 // Hoarder's odds of a doubled scrap drop, and Bullet time's: how likely a kill sets it off, how slow, how long, and the wait
 // before it can go again
@@ -298,7 +298,7 @@ function killBegin(z, dx, dz) {
 function killEnd(z) {
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   if (z.id) NZ.delete(z.id);
-  SFX.kill();
+  soundAt(z.x, z.z, () => SFX.kill());
 }
 // a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
 function dmgNumber(z, dmg, head, y, crit, kind) {

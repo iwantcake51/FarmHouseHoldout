@@ -31,6 +31,29 @@
 .coopMsg{min-height:1.2em;font-size:11.5px;color:#e09a6a}
 .coopMsg:empty{display:none}
 
+/* friends: your code, the list (who's around, hosting or in a run, with Join and Invite), and adding one by code */
+.coopFriends{display:grid;gap:8px;padding-top:12px;border-top:1px solid rgba(236,230,216,.1)}
+.frHead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;font-family:var(--f-type);font-size:14px;color:#c9643a}
+.frHead span{display:flex;align-items:center;gap:8px;font-family:var(--f-ui);font-size:11px;color:var(--dim)}
+.frHead b{font-family:var(--f-num);font-weight:800;font-size:20px;letter-spacing:.14em;color:#efe4cc;user-select:text;-webkit-user-select:text}
+.frList{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:220px;overflow-y:auto}
+.frList li{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;column-gap:8px;padding:5px 8px;background:rgba(236,230,216,.035);font-size:12.5px}
+.frList li.empty{display:block;color:rgba(163,158,144,.7);font-style:italic;font-size:11.5px}
+.frList li i{width:8px;height:8px;border-radius:50%;background:#5c5850}
+.frList li.on i{background:#6fd07a;box-shadow:0 0 6px rgba(111,208,122,.6)}
+.frList li.busy i{background:#e0a050}
+.frList li b{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frList li small{font-size:10px;letter-spacing:.12em;color:rgba(163,158,144,.6)}
+.frList li em{grid-column:2/4;grid-row:2;font-style:normal;font-size:10.5px;color:var(--dim)}
+.frList li.off b{color:var(--dim)}
+.frBtns{grid-column:4;grid-row:1/3;display:flex;gap:5px;align-items:center}
+.coopCopy.go{color:#170d06;background:var(--orange);border-color:var(--orange)}
+.frDel{font:600 14px var(--f-ui);line-height:1;color:var(--dim);background:none;border:0;padding:2px 4px;cursor:pointer}
+.frDel:hover{color:#e06a52}
+.frAdd{display:flex;gap:8px;align-items:center}
+#frCode{width:8.5em;text-transform:uppercase;letter-spacing:.24em;text-align:center}
+.coopList li .coopCopy{margin-left:8px}
+
 /* the team: everyone else in the run, under the clock, with their health */
 #team{top:calc(124px + env(safe-area-inset-top,0px));left:20px;display:grid;gap:5px;zoom:1.12}
 #team[hidden]{display:none}

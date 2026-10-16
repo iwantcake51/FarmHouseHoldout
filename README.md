@@ -40,6 +40,11 @@ four-letter code. Your friends open the game, press **Co-op**, type the code and
   address. Some strict networks block direct connections; there's no relay server for those.
 - `?net=local` connects tabs of the same browser instead, with no network at all. It's useful for testing.
 
+**Friends.** The Co-op panel has your friend code (six letters, kept in your browser). Add a friend by theirs, and you're
+added to their list too. Each friend shows as away, online, in a lobby, hosting (with how full it is) or in a run. **Join**
+takes you straight into a friend's lobby. While you host, **Invite** sends them yours. Anyone in your lobby who isn't a
+friend yet has an **Add friend** button. You can be reached at your code whenever the game is open.
+
 ## Deploying to Netlify
 
 1. In Netlify, choose **Add new site → Import an existing project** and pick this repository.
@@ -215,6 +220,10 @@ Every source file starts with a one-line comment saying what is in it.
 | Keeping everyone's farm the same: zombies spawned from the host's seed (`netSpawn`, `withSeed` in `src/js/core/math.js`), the host's snapshot a dozen times a second (`snapOut`) and joiners' zombies eased to it (`puppetMove`, `puppetBoard`), climbs, swings at teammates (`netLunge`), hits and kills replayed from the hitter's record of them (`netAct`, `netOp`: the damage, what came off, how it fell, what it dropped), boards, drops picked up, the waves and their breaks, going down and getting back up (`netDown`, `netRevive`), and the run's end | `src/js/net/sync.js` |
 | Who a zombie goes for (the nearest survivor still standing), and what its swing does to you (`zStrike`) | `updateZombies`, `zStrike` in `src/js/zombies/ai.js` |
 | How much bigger a co-op wave is (`teamK`) | `src/js/waves/waves.js` |
+| Friends: friend codes, the list and each friend's status (`frRender`), reaching them (`friendsUp`, an always-on PeerJS peer at `fhh-pal-CODE`; `FR_QUIET` and `FR_RETRY`), invites and joining | `src/js/net/friends.js` |
+| How long you have to pick a card after a wave (`CARD_TIME`) before one is taken for you, and when the clock turns red (`CARD_WARN`) | `startCardClock` in `src/js/upgrades/upgrade-screen.js` |
+| How often your pose goes to your teammates (`POSE_HZ`) and how far ahead they're drawn from how fast they were going; zombies on a joiner's screen carried on along their way between snapshots (`puppetMove`) | `src/js/net/avatars.js`, `src/js/net/sync.js` |
+| How sounds reach you: quieter and duller with distance (`EAR_FAR`), and muffled through each of the farmhouse's walls between you and them (`WALL_MUFF`: a boarded-up window counts as a wall, an open one doesn't); a sound with a place on the farm plays through `soundAt` or `playS(name, { at })` | `earFrom`, `wallsBetween` in `src/js/audio/spatial.js` |
 
 ### Adding a new gun
 

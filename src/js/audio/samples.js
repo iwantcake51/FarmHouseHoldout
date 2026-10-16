@@ -70,20 +70,24 @@ function playS(name, o) {
   const key = Array.isArray(name) ? name[0] : name;
   if (Array.isArray(name)) { const ok = name.filter(n => sbuf[n]); if (!ok.length) return false; name = ok.length > 1 ? pick(ok.filter(n => n !== sLast[key])) : ok[0]; sLast[key] = name; }
   const b = sbuf[name], d = SAMPLES[name]; if (!b) return false;
+  // from somewhere on the farm (o.at, or soundAt's SND_AT): quieter with distance, off to its side, muffled through walls
+  const at = o.at || SND_AT, ear = at ? earFrom(at.x ?? at[0], at.z ?? at[1], at.w) : null;
   const t = AC.currentTime, gap = o.gap ?? d.gap;
   if (gap && t - (sGapT[key] ?? -9) < gap) return true;   // one just played: this is covered by it
   if (sVoices > 48) return true;
   sGapT[key] = t;
   const s = AC.createBufferSource(), g = AC.createGain(), jit = o.jit ?? 0.04;
   s.buffer = b; s.playbackRate.value = (o.rate || 1) * rr(1 - jit, 1 + jit);
-  g.gain.value = d.vol * (o.vol ?? 1) * rr(0.9, 1);
+  g.gain.value = d.vol * (o.vol ?? 1) * rr(0.9, 1) * (ear ? ear.vol : 1);
   let n = s;
-  if (o.lp) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; f.Q.value = 0.6; n.connect(f); n = f; }
+  const lp = Math.min(o.lp || 20000, ear ? ear.lp : 20000);
+  if (lp < 20000) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.6; n.connect(f); n = f; }
   if (o.tone) { const f = AC.createBiquadFilter(); f.type = 'peaking'; f.frequency.value = rr(350, 3200); f.Q.value = 0.9; f.gain.value = rr(-o.tone, o.tone); n.connect(f); n = f; }
   n.connect(g); n = g;
-  if (o.pan && AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = o.pan; n.connect(p); n = p; }
+  const pan = o.pan ?? (ear ? ear.pan : 0);
+  if (pan && AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = pan; n.connect(p); n = p; }
   n.connect(master);
-  if (o.verb && verbIn) { const v = AC.createGain(); v.gain.value = o.verb; n.connect(v); v.connect(verbIn); }
+  if (o.verb && verbIn && !(ear && ear.walls)) { const v = AC.createGain(); v.gain.value = o.verb; n.connect(v); v.connect(verbIn); }
   sVoices++; s.onended = () => { sVoices--; };
   s.start(t);
   return true;

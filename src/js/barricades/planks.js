@@ -53,7 +53,7 @@ function addBoard(o, hp, sd) {
   m.userData.rz0 = m.rotation.z; m.userData.x0 = m.position.x; m.userData.z0 = m.position.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
   if (mine) run.boards++;
-  SFX.board(); setTimeout(() => SFX.board(), 110);
+  soundAt(o.x, o.z, () => SFX.board()); setTimeout(() => soundAt(o.x, o.z, () => SFX.board()), 110);
   burst(o.x + o.nx * side * .55, o.ys[n], o.z + o.nz * side * .55, 4, 'dust');
   flowDirty = true; lightsDirty = true;
 }
@@ -111,7 +111,7 @@ function breakBoard(o, z) {
     while (loosePlanks.length > 24) { const q = loosePlanks.shift(); scene.remove(q.g); }
   }
   burst(o.x + ox * 0.5, 1.3, o.z + oz * 0.5, 12, 'wood', ox, oz, 3);
-  SFX.crack(); setTimeout(() => SFX.crack(), 60); flowDirty = true; lightsDirty = true;
+  soundAt(o.x, o.z, () => SFX.crack()); setTimeout(() => soundAt(o.x, o.z, () => SFX.crack()), 60); flowDirty = true; lightsDirty = true;
 }
 // boards knocked about and pieces of them lying about, each frame
 function stepBoards(dt, rdt) {

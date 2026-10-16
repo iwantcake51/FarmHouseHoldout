@@ -17,14 +17,17 @@ function lobbyRender() {
   for (const p of list) {
     const li = document.createElement('li'); li.style.setProperty('--pc', NET_COL[p.idx] || '#888'); li.textContent = p.name || 'Survivor';
     const tag = document.createElement('em'); tag.textContent = (p.id === NET.hostId ? 'Host' : '') + (p.id === NET.id ? (p.id === NET.hostId ? ' · You' : 'You') : ''); li.appendChild(tag);
+    // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
+    if (p.id !== NET.id && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
     ol.appendChild(li);
   }
   for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Open'; ol.appendChild(li); }
+  frAnnounce(); frRender();
 }
 function toggleCoop(open) {
   const el = $('coop'), show = open ?? el.hidden;
   el.hidden = !show; $('coopBtn').setAttribute('aria-expanded', String(show));
-  if (show) { $('coopName').value = NET.name; lobbyRender(); }
+  if (show) { $('coopName').value = NET.name; friendsUp(); lobbyRender(); }
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
 $('coopName').addEventListener('input', e => {

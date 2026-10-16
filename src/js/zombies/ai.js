@@ -52,7 +52,7 @@ function zFlash(z, dt) {
 // eased to where the host's game has it (net/sync.js), only the body and the blood played out here
 function updateZombies(dt) {
   const pup = netClient(), tg = netTargets(), allDown = tg.every(q => q.dead);
-  let nearest = 99; zHitMe = false;
+  let nearest = 99, nearZ = null; zHitMe = false;
   for (let k = zombies.length - 1; k >= 0; k--) {
     const z = zombies[k], m = z.m;
     if (pup) puppetMove(z, dt);
@@ -62,7 +62,7 @@ function updateZombies(dt) {
     for (const q of tg) { if (q.dead && !allDown) continue; const d = (q.x - z.x) * (q.x - z.x) + (q.z - z.z) * (q.z - z.z); if (d < td) { td = d; t = q; } }
     const dxp = t.x - z.x, dzp = t.z - z.z, dp = Math.hypot(dxp, dzp), relP = angDiff(Math.atan2(dxp, dzp), z.face);
     const dme = t.me ? dp : Math.hypot(P.x - z.x, P.z - z.z);
-    if (dme < nearest) nearest = dme;
+    if (dme < nearest) { nearest = dme; nearZ = z; }
     if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
     // on fire (dragon's breath): flames on it while you can see it, and the fire hurts in ticks, every
     // half second, each shown as an orange damage number like any other hit (the host's game burns it in co-op)
@@ -117,7 +117,7 @@ function updateZombies(dt) {
       const top = attackingBoard.boards.length - 1;
       attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt;
       // a blow lands on the boards each beat: a thump, the plank jumps, a little dust off it
-      if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)); boardJolt(attackingBoard, z); }
+      if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(attackingBoard, z); }
       if (attackingBoard.boards[top] <= 0) { breakBoard(attackingBoard, z); if (z.an) z.an.rip = 1; netBoardBroke(attackingBoard, z); }
     } else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
@@ -153,7 +153,7 @@ function updateZombies(dt) {
       const t0 = z.crawlT; z.crawlT = Math.min(1, z.crawlT + dt / 0.8);
       if (t0 < 0.62 && z.crawlT >= 0.62) {
         burst(z.x + Math.sin(z.face) * 0.9, 0.1, z.z + Math.cos(z.face) * 0.9, 6, 'dust', Math.sin(z.face), Math.cos(z.face), 1.2);
-        SFX.thud(); if (dme < 6) shake = Math.max(shake, 0.06);
+        soundAt(z.x, z.z, () => SFX.thud()); if (dme < 6) shake = Math.max(shake, 0.06);
       }
     } else if (z.crawl && (z.tx === undefined || Math.hypot(z.x - z.tx, z.z - z.tz) > 0.38)) { z.tx = z.x; z.tz = z.z; splat(z.x - Math.sin(z.face) * 0.2, z.z - Math.cos(z.face) * 0.2, 'drop', rr(0.22, 0.34)); }   // dragging itself along, leaving a smear
     if (z.blob) { const c = z.crawl ? 0.5 : 0; z.blob.position.set(z.x + Math.sin(z.face) * c, 0.02, z.z + Math.cos(z.face) * c); z.blob.scale.set(1.1 * z.T.scale * (z.type === 'brute' ? 1.25 : 1), 1, 1.1 * z.T.scale * (z.crawl ? 1.8 : 1)); z.blob.rotation.y = z.face; }
@@ -162,7 +162,7 @@ function updateZombies(dt) {
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
   if (zHitMe) zStruckFx();
   playerChecks();
-  groanT -= dt; if (groanT <= 0 && nearest < 30) { SFX.groan(clamp(1 - nearest / 16, 0.1, 1)); groanT = rr(1.5, 4); }
+  groanT -= dt; if (groanT <= 0 && nearest < 30) { soundAt(nearZ.x, nearZ.z, () => SFX.groan(clamp(1 - nearest / 16, 0.1, 1)), true); groanT = rr(1.5, 4); }
 }
 // a zombie's swing landing on you: the damage, the tilt toward it, and what it does by kind: a brute's knocks you back
 // concussed, a crawler's trips you, the rest can open a bleed. In co-op a swing at you from the host's zombie comes here
