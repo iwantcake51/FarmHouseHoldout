@@ -51,8 +51,8 @@ function nearOpening(i, j) { for (let a = -1; a <= 1; a++) for (let b = -1; b <=
 // char's embers do the glowing: effects/body-blood.js)
 function zFlash(z, dt) {
   const m = z.m; z.flash = Math.max(0, z.flash - dt);
-  if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of [m.mats.skin, m.mats.shirt, m.mats.pants]) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
-  else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x2c1003 : 0x1c0902) : 0x000000; m.mats.skin.emissive.setHex(e); m.mats.shirt.emissive.setHex(e); m.mats.pants.emissive.setHex(e); }
+  if (z.flash > 0) { const k = z.flash / 0.14; for (const mt of Object.values(m.mats)) mt.emissive.setRGB(0.35 + 0.6 * k, 0.1 + 0.55 * k, 0.07 + 0.45 * k); }
+  else { const e = z.burn > 0 ? (rand() < 0.5 ? 0x2c1003 : 0x1c0902) : 0x000000; for (const mt of Object.values(m.mats)) mt.emissive.setHex(e); }
 }
 // zombie AI: the way to you, climbing and breaking in, attacks; then the body's animated (zombies/zombie-anim.js). In
 // co-op each goes for whichever survivor still standing is nearest, and on a joiner's screen they're the host's: each

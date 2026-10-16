@@ -21,9 +21,9 @@ function setState(s) {
 }
 // wipe the farm back to a fresh run: bodies, drops, debris, boards, stats, your character
 function resetRun(keepLook) {
-  zombies.forEach(z => { scene.remove(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
-  ragdolls.forEach(r => { scene.remove(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0;
-  gibs.forEach(g => scene.remove(g.m)); gibs.length = 0;
+  zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
+  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0;
+  gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0;
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)

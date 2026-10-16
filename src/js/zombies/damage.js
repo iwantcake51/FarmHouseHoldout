@@ -91,7 +91,7 @@ function splitHead(z, dx, dz) {
     scene.add(half);
     gibs.push({ m: half, vx: across.x * sd * rr(1.4, 2.2) + dx * rr(0.6, 1.4), vy: rr(1.8, 2.8), vz: across.z * sd * rr(1.4, 2.2) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
   });
-  head.parent.remove(head); bloodZombie(z, 0.35);
+  head.parent.remove(head); zFree(head); bloodZombie(z, 0.35);
   // the blood: a burst on along the blow and one off each side with the halves, a red mist where the head was, chunks of
   // brain and bone thrown out, and the ground painted both ways
   burst(wp.x, wp.y, wp.z, 24, 'blood', dx, dz, 4); burst(wp.x, wp.y + 0.1, wp.z, 12, 'blood', across.x, across.z, 3); burst(wp.x, wp.y + 0.1, wp.z, 12, 'blood', -across.x, -across.z, 3);
@@ -120,13 +120,13 @@ function crushHead(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return false;
   z.limbs.head = false; netRec('c');
   head.getWorldPosition(_wB); const x = _wB.x, y = _wB.y, hz = _wB.z;
-  head.parent.remove(head); bloodZombie(z, 0.4);
+  head.parent.remove(head); zFree(head); bloodZombie(z, 0.4);
   // the burst: most of it driven on along the blow, the rest thrown out all round, and a red mist hanging where it was
   burst(x, y, hz, 22, 'blood', dx, dz, 3);
   for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28 + rr(-0.3, 0.3); burst(x, y, hz, 4, 'blood', Math.sin(a), Math.cos(a), rr(2.5, 4.5)); }
   for (let k = 0; k < 8; k++) { const a = rand() * 6.28, sp = rr(0.6, 1.8); fx('mist', x + Math.sin(a) * 0.08, y + rr(-0.1, 0.1), hz + Math.cos(a) * 0.08, Math.sin(a) * sp + dx * 0.6, rr(-0.4, 0.6), Math.cos(a) * sp + dz * 0.6, rr(0.12, 0.2), rr(0.7, 1.1), rr(0.5, 0.8), 0.6); }
   // what's left of it: chips of skull, scalp in the zombie's own skin, brains and gore, tumbling off and bleeding as they go
-  const scalp = lam(z.m.mats.skin.color.getHex()); scalp.userData.mobile = true;
+  const scalp = lam(z.m.skinCol); scalp.userData.mobile = true;
   for (let k = 0; k < 10; k++) {
     const a = rand() * 6.28, sp = rr(1.2, 3.2), c = new THREE.Mesh(CRUSH_G, k < 2 ? scalp : CRUSH_M[k % 4]);
     c.position.set(x + rr(-0.06, 0.06), y + rr(-0.05, 0.05), hz + rr(-0.06, 0.06)); c.rotation.set(rr(0, 6), rr(0, 6), rr(0, 6)); c.scale.setScalar(rr(0.5, 1.3)); c.castShadow = true; scene.add(c);
@@ -229,7 +229,7 @@ function blowApart(z, dx, dz) {
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
   for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
-  scene.remove(z.m.g); if (z.blob) scene.remove(z.blob);
+  scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob);
   soundAt(x, zz, () => SFX.sever()); NREC = rec;
 }
 // Hoarder's odds of a doubled scrap drop, and Bullet time's: how likely a kill sets it off, how slow, how long, and the wait

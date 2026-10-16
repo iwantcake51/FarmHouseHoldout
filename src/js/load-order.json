@@ -52,6 +52,7 @@
   "zombies/deaths.js",
   "zombies/zombie-types.js",
   "zombies/zombie-anim.js",
+  "zombies/zombie-looks.js",
   "zombies/climb.js",
   "zombies/spawn.js",
   "effects/outlines.js",
