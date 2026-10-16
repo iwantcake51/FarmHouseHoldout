@@ -621,8 +621,15 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
     _fL.set(0, 0.15 + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
     if (MS.lOn < 1) _fL.lerpVectors(SWAP_REST_L, _fL, MS.lOn);   // (not on it yet through the draw flourish)
     reach(pm.armL, 'L', _fL, 0, true);
-  } else armRest(pm.armL, 'L', 1.22 - walk * 1.6 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
+  } else {
+    armRest(pm.armL, 'L', 1.22 - walk * 1.6 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
+    // ...unless the swing or the bash has a use for it (meleeOffHand, melee/melee-anim.js)
+    pm.armL.updateMatrix(); pm.armR.updateMatrix(); mh.updateMatrix();
+    const t = meleeOffHand(D, curId(), sh, fistOf(pm.armL, _mlR), (off, o) => o.set(0, off, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix), rdt);
+    if (t) reach(pm.armL, 'L', t, 0, true);
+  }
 }
+const _mlR = new V3();
 
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];

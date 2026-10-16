@@ -26,10 +26,13 @@ const MGUARD = {
 const meleeKind = id => id === 'bat' ? 'bat' : id === 'machete' ? 'machete' : id === 'katana' ? 'katana' : id === 'axe' || id === 'sledge' ? 'heavy' : 'club';
 // three swings per style. Blunt and blades land at p 0.4, the heavy two at 0.55 (HEAVY.hit, melee/melee.js), each
 // whipping through the point it lands at; side is which way it goes across you (the view tips with it: melee.js), and
-// fast the stretch of it that smears a trail (melee/swing-trail.js)
+// fast the stretch of it that smears a trail (melee/swing-trail.js). L is what a one-hander's free hand does through it
+// (meleeOffHand), so it isn't just hanging there: reaching out ahead to line the blow up and then yanked back to the
+// hip as it lands (the pull that turns the shoulders through it), taking the haft for the wind-up of a backhand, or
+// both hands on the handle for the machete's straight cut
 const MSWINGS = {
   swing: [
-    { side: 1, fast: [0.24, 0.56], keys: [   // the forehand: wound up behind the right shoulder, swept flat across the front, wrapped round the left
+    { side: 1, fast: [0.24, 0.56], L: [[0, 'R'], [0.2, [-0.12, 1.22, 0.44]], [0.4, [-0.42, 0.74, -0.2]], [0.62, [-0.38, 0.74, -0.1]], [1, 'R']], keys: [   // the forehand: wound up behind the right shoulder, swept flat across the front, wrapped round the left
       [0, 'G', 'G'],
       [0.2, [0.5, 1.38, -0.12], [0.7, 0.42, -0.58], { uy: 0.62, hy: 0.3, ux: -0.04, step: -0.35, dip: 0.16 }, 1],
       [0.31, [0.34, 1.14, 0.3], [0.96, 0.12, 0.22], { uy: 0.22, hy: -0.05, step: 0.2 }],
@@ -37,7 +40,7 @@ const MSWINGS = {
       [0.52, [-0.26, 1.14, 0.3], [-0.92, 0.18, -0.3], { uy: -0.72, hy: -0.55, ux: 0.06 }],
       [0.66, [-0.18, 1.3, 0.12], [-0.42, 0.62, -0.66], { uy: -0.55, hy: -0.4, step: 0.4, dip: 0.12 }],
       [1, 'G', 'G']] },
-    { side: -1, fast: [0.24, 0.56], keys: [  // the backhand: back across from the left, the knuckles leading
+    { side: -1, fast: [0.24, 0.56], L: [[0, 'R'], [0.12, 0.3], [0.3, 0.3], [0.4, [-0.5, 0.84, -0.22]], [0.62, [-0.44, 0.76, -0.12]], [1, 'R']], keys: [  // the backhand: back across from the left, the knuckles leading
       [0, 'G', 'G'],
       [0.2, [-0.14, 1.2, 0.14], [-0.72, 0.52, -0.46], { uy: -0.5, hy: -0.25, step: -0.2, dip: 0.14 }, 1],
       [0.31, [-0.08, 1.12, 0.4], [-0.92, 0.1, 0.32], { uy: -0.2, hy: 0, step: 0.25 }],
@@ -45,7 +48,7 @@ const MSWINGS = {
       [0.52, [0.52, 1.2, 0.3], [0.94, 0.2, -0.22], { uy: 0.6, hy: 0.42 }],
       [0.68, [0.44, 1.36, 0.2], [0.5, 0.6, -0.6], { uy: 0.45, hy: 0.25, step: 0.3, dip: 0.1 }],
       [1, 'G', 'G']] },
-    { side: 1, fast: [0.26, 0.58], keys: [   // overhand: raised high behind the head and brought down across the body
+    { side: 1, fast: [0.26, 0.58], L: [[0, 'R'], [0.21, [-0.1, 1.32, 0.42]], [0.4, [-0.42, 0.76, -0.16]], [0.62, [-0.38, 0.76, -0.06]], [1, 'R']], keys: [   // overhand: raised high behind the head and brought down across the body
       [0, 'G', 'G'],
       [0.21, [0.34, 1.56, -0.04], [0.22, 0.46, -0.86], { uy: 0.32, hy: 0.15, ux: -0.1, step: -0.3, dip: 0.04 }, 1],
       [0.32, [0.26, 1.46, 0.3], [0.32, 0.92, 0.22], { uy: 0.12, ux: 0.02, step: 0.1 }],
@@ -55,7 +58,7 @@ const MSWINGS = {
       [1, 'G', 'G']] }
   ],
   slash: [
-    { side: 1, fast: [0.24, 0.56], keys: [   // the forehand diagonal: high over the right shoulder down to the left hip
+    { side: 1, fast: [0.24, 0.56], L: [[0, 'R'], [0.2, [-0.14, 1.26, 0.44]], [0.4, [-0.4, 0.78, -0.18]], [0.66, [-0.36, 0.78, -0.06]], [1, 'R']], keys: [   // the forehand diagonal: high over the right shoulder down to the left hip
       [0, 'G', 'G'],
       [0.2, [0.36, 1.44, 0.04], [0.52, 0.62, -0.58], { uy: 0.48, hy: 0.22, ux: -0.05, step: -0.3, dip: 0.08 }, 1],
       [0.31, [0.3, 1.32, 0.34], [0.62, 0.62, 0.48], { uy: 0.2, step: 0.15 }],
@@ -63,7 +66,7 @@ const MSWINGS = {
       [0.52, [-0.2, 0.84, 0.3], [-0.72, -0.62, -0.22], { uy: -0.6, hy: -0.45, ux: 0.22, dip: 0.3 }],
       [0.68, [-0.06, 0.96, 0.3], [-0.3, 0.3, 0.4], { uy: -0.3, ux: 0.1, step: 0.35, dip: 0.15 }],
       [1, 'G', 'G']] },
-    { side: -1, fast: [0.24, 0.56], keys: [  // the rising backhand: from low on the left up past the right shoulder
+    { side: -1, fast: [0.24, 0.56], L: [[0, 'R'], [0.2, [-0.06, 1.3, 0.36]], [0.4, [-0.5, 0.86, -0.2]], [0.62, [-0.44, 0.78, -0.1]], [1, 'R']], keys: [  // the rising backhand: from low on the left up past the right shoulder
       [0, 'G', 'G'],
       [0.2, [-0.12, 0.86, 0.28], [-0.8, -0.42, 0.24], { uy: -0.5, hy: -0.25, ux: 0.12, step: -0.15, dip: 0.24 }, 1],
       [0.31, [-0.04, 0.94, 0.48], [-0.6, -0.1, 0.78], { uy: -0.22, step: 0.2, dip: 0.2 }],
@@ -71,7 +74,7 @@ const MSWINGS = {
       [0.52, [0.4, 1.44, 0.22], [0.72, 0.6, -0.32], { uy: 0.52, hy: 0.38, ux: -0.04 }],
       [0.68, [0.3, 1.3, 0.24], [0.3, 0.8, 0.1], { uy: 0.3, step: 0.3, dip: 0.08 }],
       [1, 'G', 'G']] },
-    { side: 1, fast: [0.26, 0.58], keys: [   // the straight cut: the blade lifted behind the head and brought down the middle
+    { side: 1, fast: [0.26, 0.58], L: [[0, 'R'], [0.22, -0.12], [0.4, -0.12], [0.58, -0.12], [0.76, [-0.3, 0.84, 0.26]], [1, 'R']], keys: [   // the straight cut: the blade lifted behind the head and brought down the middle
       [0, 'G', 'G'],
       [0.22, [0.14, 1.6, 0.02], [0.04, 0.32, -0.95], { uy: 0.12, ux: -0.12, step: -0.25, dip: 0.02 }, 1],
       [0.32, [0.12, 1.5, 0.32], [0.04, 0.96, 0.2], { uy: 0.06, step: 0.1 }],
@@ -81,24 +84,24 @@ const MSWINGS = {
       [1, 'G', 'G']] }
   ],
   heavy: [
-    { side: 1, fast: [0.44, 0.6], keys: [    // overhead: hauled up and back over the head, a beat at the top, then down into the ground in front
+    { side: 1, fast: [0.34, 0.6], keys: [    // overhead: hauled up and back over the head, a beat at the top, then down into the ground in front
       [0, 'G', 'G'],
-      [0.3, [0.16, 1.46, 0.14], [0.12, 0.82, -0.52], { uy: 0.18, ux: -0.08, step: -0.25, dip: 0.04 }],
-      [0.44, [0.1, 1.6, 0.0], [0.04, 0.24, -0.97], { uy: 0.12, ux: -0.16, step: -0.38, dip: 0 }, 1],
+      [0.17, [0.16, 1.46, 0.14], [0.12, 0.82, -0.52], { uy: 0.18, ux: -0.08, step: -0.25, dip: 0.04 }],
+      [0.3, [0.1, 1.6, 0.0], [0.04, 0.24, -0.97], { uy: 0.12, ux: -0.16, step: -0.38, dip: 0 }, 1],
       [0.55, [0.04, 0.96, 0.56], [0, -0.58, 0.82], { uy: 0, ux: 0.3, step: 0.6, dip: 0.44 }],
       [0.74, [0.04, 0.9, 0.52], [0, -0.66, 0.75], { ux: 0.27, step: 0.55, dip: 0.4 }, 1],
       [1, 'G', 'G']] },
-    { side: 1, fast: [0.44, 0.62], keys: [   // over the right shoulder and down across to the left
+    { side: 1, fast: [0.34, 0.62], keys: [   // over the right shoulder and down across to the left
       [0, 'G', 'G'],
-      [0.3, [0.36, 1.38, 0.06], [0.52, 0.66, -0.54], { uy: 0.5, hy: 0.25, ux: -0.05, step: -0.25 }],
-      [0.44, [0.42, 1.52, -0.06], [0.62, 0.42, -0.66], { uy: 0.66, hy: 0.36, ux: -0.1, step: -0.35, dip: 0.06 }, 1],
+      [0.17, [0.36, 1.38, 0.06], [0.52, 0.66, -0.54], { uy: 0.5, hy: 0.25, ux: -0.05, step: -0.25 }],
+      [0.3, [0.42, 1.52, -0.06], [0.62, 0.42, -0.66], { uy: 0.66, hy: 0.36, ux: -0.1, step: -0.35, dip: 0.06 }, 1],
       [0.55, [0.02, 1.0, 0.56], [-0.42, -0.36, 0.83], { uy: -0.3, hy: -0.3, ux: 0.3, step: 0.65, dip: 0.4 }],
       [0.72, [-0.14, 0.86, 0.36], [-0.72, -0.62, 0.3], { uy: -0.5, hy: -0.42, ux: 0.32, dip: 0.42 }, 1],
       [1, 'G', 'G']] },
-    { side: -1, fast: [0.44, 0.62], keys: [  // the side swing: everything turned back to the right, then round flat across the front
+    { side: -1, fast: [0.34, 0.62], keys: [  // the side swing: everything turned back to the right, then round flat across the front
       [0, 'G', 'G'],
-      [0.3, [0.52, 1.3, 0.12], [0.72, 0.36, -0.6], { uy: 0.62, hy: 0.36, step: -0.3, dip: 0.16 }],
-      [0.44, [0.56, 1.34, 0.02], [0.66, 0.22, -0.72], { uy: 0.82, hy: 0.46, step: -0.38, dip: 0.2 }, 1],
+      [0.17, [0.52, 1.3, 0.12], [0.72, 0.36, -0.6], { uy: 0.62, hy: 0.36, step: -0.3, dip: 0.16 }],
+      [0.3, [0.56, 1.34, 0.02], [0.66, 0.22, -0.72], { uy: 0.82, hy: 0.46, step: -0.38, dip: 0.2 }, 1],
       [0.55, [0.04, 1.04, 0.56], [-0.18, -0.06, 1], { uy: -0.24, hy: -0.36, ux: 0.12, step: 0.65, dip: 0.24 }],
       [0.7, [-0.34, 1.08, 0.26], [-0.9, 0.08, -0.36], { uy: -0.85, hy: -0.6, ux: 0.1, dip: 0.2 }, 1],
       [1, 'G', 'G']] }
@@ -162,9 +165,9 @@ const MBASH = {
     [0.48, [0.04, 1.08, 0.52], [-0.94, 0.28, 0.12], { ux: 0.08, step: 0.25 }],
     [1, 'G', 'G']],
   one: [[0, 'G', 'G'],
-    [0.18, [0.3, 1.2, 0.3], [0.06, 0.96, 0.2], { uy: 0.18, step: -0.1 }, 1],
-    [0.3, [0.1, 1.1, 0.6], [0.04, 0.9, -0.4], { uy: -0.08, ux: 0.1, step: 0.3 }],
-    [0.48, [0.12, 1.1, 0.54], [0.06, 0.92, -0.3], { ux: 0.08, step: 0.25 }],
+    [0.18, [0.16, 1.18, 0.3], [0.06, 0.96, 0.2], { uy: 0.18, step: -0.1 }, 1],
+    [0.3, [0.02, 1.1, 0.58], [0.04, 0.9, -0.4], { uy: -0.08, ux: 0.1, step: 0.3 }],
+    [0.48, [0.04, 1.1, 0.52], [0.06, 0.92, -0.3], { ux: 0.08, step: 0.25 }],
     [1, 'G', 'G']]
 };
 // how far up the haft a two-hander's left hand has slid for the bash (1: holding it like a bar), sliding up as it's
@@ -174,19 +177,63 @@ function meleeBashHand() {
   const p = clamp(sv.t / sv.dur, 0, 1);
   return smooth(clamp(p / 0.18, 0, 1)) * (1 - smooth(clamp((p - 0.42) / 0.5, 0, 1)));
 }
+// a one-hander's bash has both hands on it, driven out like a bar (the free hand further up the haft; on the machete,
+// over the pommel)
+const MBASH_L = [[0, 'R'], [0.18, 0.22], [0.5, 0.22], [1, 'R']];
+// the free hand of a one-hander through a swing or a bash: a track of [t, where] keys (L on each of MSWINGS, MBASH_L),
+// where is 'R' (hanging free for balance, as between swings), a number (on the handle, that far up it from the right
+// fist; below it, over the pommel, on the machete, whose handle is short) or a place in upper-body space. Run through on
+// the same curve as the rest, on a spring of its own (MOFF). rest is where it hangs free this frame, handleAt finds a
+// point on the handle; returns null when there's nothing for it to do (the free arm's left hanging)
+const MOFF = { k: 480, c: 33, near: 0.36, far: 0.64 };
+const _offPts = [], _offT = new V3(), _offB = new V3(), _offG = new V3();
+function meleeOffTrack(D, sh) { if (D.two) return null; if (sh) return MBASH_L; return W8.swing > 0 ? curSwing(D).L || null : null; }
+function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
+  const keys = meleeOffTrack(D, sh);
+  if (!keys) { MS.L.copy(rest); MS.vL.set(0, 0, 0); return null; }
+  const kind = meleeKind(id);
+  let p; if (sh) p = clamp(P.shove.t / P.shove.dur, 0, 1);
+  else { const dur = W8.swingDur || 0.5; p = meleeWarp(1 - W8.swing / dur, curSwing(D).keys, heavySwing(D) ? HEAVY.hit : 0.4, meleeWeight(id)[0]); }
+  const pts = keys.map((k, j) => { const o = _offPts[j] || (_offPts[j] = new V3()), v = k[1]; return v === 'R' ? o.copy(rest) : typeof v === 'number' ? handleAt(kind === 'machete' ? Math.min(v, -0.12) : v, o) : o.set(v[0], v[1], v[2]); });
+  _offT.set(meleeCurve(keys, p, j => pts[j].x), meleeCurve(keys, p, j => pts[j].y), meleeCurve(keys, p, j => pts[j].z));
+  // (kept out at arm's length from the shoulder, MOFF.near: going from out in front to back at the hip it swings round
+  // in an arc, as a straight arm does, not in past the shoulder where the arm can't follow)
+  { const s = SHOULDER_REST.L; _offB.set(_offT.x - s[0], _offT.y - s[1], _offT.z - s[2]); const d = _offB.length(); if (d < MOFF.near && d > 1e-4) _offT.set(s[0], s[1], s[2]).addScaledVector(_offB, MOFF.near / d); }
+  if (rdt > 0) { const n = Math.ceil(rdt / (1 / 240)), h = rdt / n; for (let i = 0; i < n; i++) { MS.vL.addScaledVector(_offB.copy(MS.L).sub(_offT), -MOFF.k * h).addScaledVector(MS.vL, -MOFF.c * h); MS.L.addScaledVector(MS.vL, h); } }
+  // (and the hand itself, swinging past, kept between the arm's shortest and longest: MOFF.near, MOFF.far)
+  { const s = SHOULDER_REST.L; _offB.set(MS.L.x - s[0], MS.L.y - s[1], MS.L.z - s[2]); const d = _offB.length() || 1, c = clamp(d, MOFF.near * 0.85, MOFF.far);
+    if (c !== d) { _offB.multiplyScalar(1 / d); MS.vL.addScaledVector(_offB, -MS.vL.dot(_offB)); MS.L.set(s[0], s[1], s[2]).addScaledVector(_offB, c); } }
+  // on the handle it holds on: the hand's put right on its grip, eased on and off it either side (the spring alone
+  // would leave it trailing behind a handle that's moving fast)
+  const gw = clamp(meleeCurve(keys, p, j => typeof keys[j][1] === 'number' ? 1 : 0), 0, 1);
+  if (gw > 0.001) { let off = 0; for (const k of keys) if (typeof k[1] === 'number') { off = k[1]; break; } handleAt(kind === 'machete' ? Math.min(off, -0.12) : off, _offB); return _offG.copy(MS.L).lerp(_offB, smooth(gw)); }
+  return MS.L;
+}
 // how much further the fist is thrown out from the shoulder through the front of a swing (at full reach ahead)
 const MEXTEND = 0.3;
 // how far ahead (seconds) each part is sampled: the hips and legs lead, then the chest, the arm, and the weapon last
 const MCHAIN = { body: 0.06, F: 0.035, W: 0.012 };
 // the springs each part rides on (stiffness, damping): the weapon loosest, so it lags into a swing and whips past
 const MSPRING = { F: [620, 36], W: [380, 21], turn: [360, 28], lean: [300, 24], legs: [260, 25] };
-// a blow landing: how long the swing stops dead on it (seconds, a light swing and a heavy one), and how hard the
-// springs are thrown back off it
-const MSTOP = { light: 0.055, heavy: 0.09 };
+// how each weapon handles, by its weight: m how heavy it is to swing (0 a machete, 1 the sledge) and head how much of
+// that is out at the end of it (a sledgehammer's all head, a katana's balanced). The heavier it is, the slower it comes
+// up and the harder it falls into the blow, the more it lags in the hands and carries on past, the more of the body goes
+// into it, the more its head sags while it's moving slowly, and the deader it stops on what it hits, where a light one
+// bounces off (meleeWeight, MHEFT)
+const MWEIGHT = { machete: [0.1, 0.35], katana: [0.25, 0.2], crowbar: [0.4, 0.45], bat: [0.4, 0.65], wrench: [0.6, 0.85], axe: [0.75, 0.85], sledge: [1, 1] };
+const meleeWeight = id => MWEIGHT[id] || [0.4, 0.5];
+// what the weight does: lift (how much slower a heavy one comes up off the guard), fall (how much it gathers speed into
+// the blow and carries on after it), body (how much more of the body goes into a heavy swing, less into a light one),
+// sag (how far a heavy head droops while it's moving slowly), the springs it rides on (stiffer and better damped for a
+// light one: it goes where it's sent; looser for a heavy one: it lags and swings past), and how it lands
+const MHEFT = { lift: 0.4, fall: 0.85, body: [0.82, 1.22], sag: 0.34, wK: [1.35, 0.6], wZeta: [0.66, 0.42], fK: [1.12, 0.82] };
+// a blow landing: how long the swing stops dead on it (seconds, from the lightest weapon to the heaviest), and how hard
+// the springs are thrown back off it (a light one bounces off, the heaviest stops dead and stays)
+const MSTOP = { light: 0.045, heavy: 0.1, bounce: 0.9 };
 const MBODY = ['uy', 'ux', 'uz', 'hy', 'step', 'dip'];
 // the springs' state: the fist and the weapon's direction with their speeds, and the body (MS.b, each part's speed
 // beside it as v + its name)
-const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1 };
+const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1, L: new V3(-0.36, 0.6, 0), vL: new V3() };
 MBODY.forEach(k => { MS.b[k] = 0; MS.b['v' + k] = 0; });
 const _maF = new V3(), _maW = new V3(), _maA = new V3(), _maB = new V3(), _maQ = new THREE.Quaternion(), _maE = new THREE.Euler();
 // a key's F or W, with 'G' the guard
@@ -208,14 +255,53 @@ function trackVecs(keys, g) {
   let c = _trkCache.get(keys); if (c && c.g === g) return c;
   c = { g, fv: keys.map(k => keyVec(k[1], g.F, new V3())), wv: keys.map(k => keyVec(k[2], g.W, new V3()).normalize()), bv: {} };
   for (const ch of MBODY) { let cur = g.b[ch] || 0; c.bv[ch] = keys.map((k, j) => (cur = (k[1] === 'G' && (j === 0 || j === keys.length - 1)) ? (g.b[ch] || 0) : k[3] && k[3][ch] !== undefined ? k[3][ch] : cur)); }
+  wayKeys(keys, c);
   _trkCache.set(keys, c); return c;
 }
+// the weapon's way round between two keys. Its direction is run through the keys on a curve, which takes the short way
+// between two directions; but a blow turns the weapon further than that (an overhead goes from pointing behind you, up
+// over the top and down in front: more than half a turn), and the short way between nearly opposite directions would
+// swing it round underneath instead. So a turn of more than MWAY.step between keys gets keys put in between, and where
+// it's more than MWAY.flip, which way round it goes is the arm's: halfway through, the weapon's flung out along the arm
+// (it pulls straight out from the shoulder as it's swung), so it goes round the side the arm points to. c.wk, c.wkv
+// are the weapon's own keys
+const MWAY = { step: 1.0, flip: 1.6 };
+const _wyS = new V3(), _wyR = new V3();
+function wayKeys(keys, c) {
+  const fv = c.fv, wv = c.wv, T = [], V = [], s = SHOULDER_REST.R;
+  const split = (ta, a, tb, b, depth) => {
+    const ang = a.angleTo(b); if (ang <= MWAY.step || depth > 3) return;
+    const tm = (ta + tb) / 2, m = a.clone().add(b);
+    if (ang > MWAY.flip) {
+      _wyR.set(meleeCurve(keys, tm, j => fv[j].x) - s[0], meleeCurve(keys, tm, j => fv[j].y) - s[1], meleeCurve(keys, tm, j => fv[j].z) - s[2]).normalize();
+      if (m.lengthSq() < 1e-4) m.copy(_wyR).addScaledVector(a, -_wyR.dot(a));   // (dead opposite: straight out along the arm)
+      else if (m.dot(_wyR) < 0) m.negate();
+    }
+    m.normalize();
+    split(ta, a, tm, m, depth + 1); T.push([tm, 0, 0, 0, 0]); V.push(m); split(tm, m, tb, b, depth + 1);
+  };
+  keys.forEach((k, j) => { if (j) split(keys[j - 1][0], wv[j - 1], k[0], wv[j], 0); T.push([k[0], 0, 0, 0, k[4] || 0]); V.push(wv[j]); });
+  c.wk = T; c.wkv = V;
+}
 function sampleFast(keys, g, tF, tW, tB, oF, oW, ob) {
-  const c = trackVecs(keys, g), fv = c.fv, wv = c.wv;
+  const c = trackVecs(keys, g), fv = c.fv, wk = c.wk, wv = c.wkv;
   oF.set(meleeCurve(keys, tF, j => fv[j].x), meleeCurve(keys, tF, j => fv[j].y), meleeCurve(keys, tF, j => fv[j].z));
-  oW.set(meleeCurve(keys, tW, j => wv[j].x), meleeCurve(keys, tW, j => wv[j].y), meleeCurve(keys, tW, j => wv[j].z));
+  oW.set(meleeCurve(wk, tW, j => wv[j].x), meleeCurve(wk, tW, j => wv[j].y), meleeCurve(wk, tW, j => wv[j].z));
   if (oW.lengthSq() < 1e-6) oW.set(0, 1, 0); oW.normalize();
   for (const ch of MBODY) { const bv = c.bv[ch]; ob[ch] = meleeCurve(keys, tB, j => bv[j]); }
+}
+// a swing's own time (its keys') at p of the way through it, for a weapon of weight w. It lands at hit either way.
+// Up to the top of the wind-up (the held key before the blow) a heavy one's slow to get moving (MHEFT.lift); from
+// there to the blow it gathers speed all the way (MHEFT.fall), falling into it rather than pushed at an even pace;
+// and after it the momentum carries it on, quick at first and slowing as it comes round (the same, mirrored, so it
+// goes through the blow without a change of pace)
+function meleeWarp(p, keys, hit, w) {
+  p = clamp(p, 0, 1);
+  let top = 0; for (const k of keys) if (k[4] && k[0] < hit) top = k[0];
+  const a = 1 + MHEFT.fall * w * w;   // (with the square of the weight: the light and middling ones are swung, the heaviest fall)
+  if (top > 0 && p <= top) return top * Math.pow(p / top, 1 + MHEFT.lift * w);
+  if (p <= hit) { const u = (p - top) / (hit - top); return top + (hit - top) * Math.pow(u, a); }
+  const u = (p - hit) / (1 - hit); return hit + (1 - hit) * (1 - Math.pow(1 - u, a));
 }
 // the next swing: one of the style's three, never the same one twice running
 function pickSwing(D) {
@@ -229,8 +315,9 @@ const curSwing = D => { const s = MSWINGS[meleeStyle(D)] || MSWINGS.swing; retur
 // a blow landing (melee/melee.js): the swing stopped on it a moment and the springs thrown back off it; hard is how
 // solid (1 for a hit, less for the ground)
 function meleeImpact(heavy, hard) {
-  ANIM.mStop = Math.max(ANIM.mStop || 0, (heavy ? MSTOP.heavy : MSTOP.light) * hard);
-  MS.vF.multiplyScalar(-0.3 * hard); MS.vW.multiplyScalar(-0.45 * hard);
+  const w = meleeWeight(curId())[0], rb = hard * (1 - MSTOP.bounce * w);
+  ANIM.mStop = Math.max(ANIM.mStop || 0, mix(MSTOP.light, MSTOP.heavy, w) * hard);
+  MS.vF.multiplyScalar(-0.3 * rb); MS.vW.multiplyScalar(-0.45 * rb);
   const b = MS.b; b.vuy *= -0.25 * hard; b.vhy *= -0.2; b.vux -= 1.4 * hard; b.vdip += (heavy ? 1.6 : 0.6) * hard;
 }
 // the arm's angles for a fist at F holding a weapon pointing W (upper-body space): rx, ry aim the arm at the fist and
@@ -275,10 +362,17 @@ function meleePose(id, D, rdt, now, sh) {
     const keys = D.two ? MBASH.two : MBASH.one, p = clamp(P.shove.t / P.shove.dur, 0, 1), L = P.shove.dur;
     sampleFast(keys, g, p + MCHAIN.F / L, p + MCHAIN.W / L, p + MCHAIN.body / L, _maF, _maW, _mTB);
   } else if (W8.swing > 0) {
-    const p = 1 - W8.swing / dur, sw = curSwing(D);
-    sampleFast(sw.keys, g, p + MCHAIN.F / dur, p + MCHAIN.W / dur, p + MCHAIN.body / dur, _maF, _maW, _mTB);
+    // the swing, run on the weapon's weight (meleeWarp): the same keys, landing at the same moment, but a heavy one
+    // heaved up slowly, falling faster and faster into the blow and carried on by it, a light one flicked through
+    const p = 1 - W8.swing / dur, sw = curSwing(D), wt = meleeWeight(id), hit = heavySwing(D) ? HEAVY.hit : 0.4, wp = t => meleeWarp(t, sw.keys, hit, wt[0]);
+    sampleFast(sw.keys, g, wp(p + MCHAIN.F / dur), wp(p + MCHAIN.W / dur), wp(p + MCHAIN.body / dur), _maF, _maW, _mTB);
+    // more of the body in a heavy one, more arm and wrist in a light one (the turn, the lean and the knees; not the step
+    // in, which goes with how far the weapon reaches)
+    const bs = mix(MHEFT.body[0], MHEFT.body[1], wt[0]); MBODY.forEach(k => { if (k === 'step') return; const g0 = g.b[k] || 0; _mTB[k] = g0 + (_mTB[k] - g0) * bs; });
     // out in front, the arm throws itself out to its full length (MEXTEND), so the blow reaches as far as it hits
     const s = SHOULDER_REST.R, fz = _maF.z - s[2]; if (fz > 0) { const k = 1 + MEXTEND * clamp(fz / 0.5, 0, 1); _maF.set(s[0] + (_maF.x - s[0]) * k, s[1] + (_maF.y - s[1]) * k, s[2] + fz * k); }
+    // a heavy head sags under its own weight wherever it's moving slowly (at the top of the wind-up, coming back)
+    const slow = 1 - smooth(clamp(MS.vW.length() / 6, 0, 1)); _maW.y -= MHEFT.sag * wt[0] * wt[1] * slow; _maW.normalize();
   } else if (ANIM.mDrawT !== undefined && ANIM.mDrawT >= 0) {
     // the flourish
     const fl = MDRAW[kind], t = ANIM.mDrawT;
@@ -305,11 +399,15 @@ function meleePose(id, D, rdt, now, sh) {
     if (rd > 0.001) { meleeRun(kind, ph, _maA, _maB); _maF.lerp(_maA, rd); _maW.lerp(_maB, rd).normalize(); }
   }
   // the springs, a few small steps a frame so the stiff ones stay steady
+  // (the fist's and the weapon's by its weight: a light one stiff and well damped, a heavy one looser, lagging into a
+  // swing and carrying on past where it's sent)
   if (rdt > 0) {
-    const n = Math.ceil(rdt / (1 / 240)), h = rdt / n, S_ = MSPRING;
+    const n = Math.ceil(rdt / (1 / 240)), h = rdt / n, S_ = MSPRING, w = meleeWeight(id)[0];
+    const kW = S_.W[0] * mix(MHEFT.wK[0], MHEFT.wK[1], w), cW = 2 * mix(MHEFT.wZeta[0], MHEFT.wZeta[1], w) * Math.sqrt(kW);
+    const kF = S_.F[0] * mix(MHEFT.fK[0], MHEFT.fK[1], w), cF = S_.F[1] * Math.sqrt(kF / S_.F[0]);
     for (let i = 0; i < n; i++) {
-      MS.vF.addScaledVector(_maB.copy(MS.F).sub(_maF), -S_.F[0] * h).addScaledVector(MS.vF, -S_.F[1] * h); MS.F.addScaledVector(MS.vF, h);
-      MS.vW.addScaledVector(_maB.copy(MS.W).sub(_maW), -S_.W[0] * h).addScaledVector(MS.vW, -S_.W[1] * h); MS.W.addScaledVector(MS.vW, h);
+      MS.vF.addScaledVector(_maB.copy(MS.F).sub(_maF), -kF * h).addScaledVector(MS.vF, -cF * h); MS.F.addScaledVector(MS.vF, h);
+      MS.vW.addScaledVector(_maB.copy(MS.W).sub(_maW), -kW * h).addScaledVector(MS.vW, -cW * h); MS.W.addScaledVector(MS.vW, h);
       for (const k of MBODY) { const sp = k === 'uy' || k === 'hy' ? S_.turn : k === 'step' || k === 'dip' ? S_.legs : S_.lean; springTo(MS.b, k, 'v' + k, _mTB[k], sp[0], sp[1], h); }
     }
   }
