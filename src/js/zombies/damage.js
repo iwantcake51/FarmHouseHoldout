@@ -162,6 +162,8 @@ function blowApart(z, dx, dz) {
 const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
 // Momentum keeps building while each kill comes within MOM_T seconds of the last
 const MOM_T = 2.5;
+// how loud a kill's sound is (it plays from the zombie: audio/sfx.js sfxAt)
+const KILL_VOL = 0.5;
 function killZombie(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
   z.dead = true; run.kills++; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
@@ -195,7 +197,7 @@ function killZombie(z, dx, dz, wId, part, overkill) {
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz); else makeRagdoll(z, dx, dz, part, force, wId);
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
-  sfxAt(z.x, z.z, 'headPop');   // every kill sounds the same: the skull bursting, from the zombie itself
+  sfxAt(z.x, z.z, KILL_VOL, 'headPop');   // every kill sounds the same: the skull bursting, from the zombie itself
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
   const big = z.type === 'brute' ? 2 : 1;
   // Hoarder: a scrap drop has a HOARD_X chance to be worth double

@@ -76,9 +76,9 @@ const SFX = {
 };
 const GUN_SFX = { pistol: 'light', revolver: 'heavy', deagle: 'heavy', pump: 'shotgun', dbl: 'shotgun', auto12: 'shotgun', hunting: 'rifle', smg: 'auto', sub: 'auto', ar: 'rifle', lmg: 'rifle' };
 // a sound played from a spot on the farm rather than from you: panned to where (x, z) sits on screen round the player
-// (left, right, ahead, behind) and quieter the further it is, at full volume within SFX_NEAR metres
+// (left, right, ahead, behind) and quieter the further it is, at its full volume (vol) within SFX_NEAR metres
 const SFX_NEAR = 3;
-function sfxAt(x, z, name, ...a) {
+function sfxAt(x, z, vol, name, ...a) {
   if (!AC || !SFX[name]) return;
   const dx = x - P.x, dz = z - P.z, p = AC.createPanner();
   p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = SFX_NEAR; p.rolloffFactor = 1;
@@ -86,7 +86,7 @@ function sfxAt(x, z, name, ...a) {
   // screen right, -z along screen up
   const sx = dx * RIGHT.x + dz * RIGHT.z, sz = -(dx * FWD.x + dz * FWD.z);
   if (p.positionX) { p.positionX.value = sx; p.positionY.value = 0; p.positionZ.value = sz; } else p.setPosition(sx, 0, sz);
-  p.connect(master);
+  const g = AC.createGain(); g.gain.value = vol; p.connect(g); g.connect(master);
   const prev = sfxOut; sfxOut = p;
   try { SFX[name](...a); } finally { sfxOut = prev; }
 }
