@@ -201,14 +201,17 @@ function netWaiting() {
 // ---- going down in co-op: the farm goes on without you; you watch a teammate till the wave's cleared and you're back
 // (their health and weapon on your HUD, and that you're down: net/spectate.js)
 function netDown() { timeScale = 1; SPEC.id = ''; }
-// back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and the guns
-// you had gone (the melee weapon you keep), only the pistol everyone starts with; then the cards like everyone else
+// back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and every
+// weapon you had, mods, attachments and rounds and all, but no ammo: the mags empty (and anything half done to them,
+// a staged reload, a gun left open, spent cases, gone with it) and nothing in reserve. The melee weapon comes out, the
+// one thing ready to use; then the cards like everyone else
 function netRespawn() {
   for (const s of ['side', 'long', 'auto']) {
-    const id = W8.slot[s]; W8.slot[s] = null; if (!id) continue;
-    [W8.mods, W8.gt, W8.own, W8.ownAtt, W8.att, W8.rounds, W8.relSave, W8.pin, W8.mag, W8.fm, W8.tune, W8.akMag, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
+    const id = W8.slot[s]; if (!id) continue;
+    W8.mag[id] = 0; [W8.akMag, W8.relSave, W8.pin, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
   }
-  W8.slot.side = 'pistol'; W8.mag.pistol = 13; W8.reserve = { p9: 65, magnum: 0, shells: 0, rifle: 0 }; W8.reloading = null; W8.cur = 'side';
+  for (const k in W8.reserve) W8.reserve[k] = 0;
+  W8.reloading = null; W8.akRel = null; W8.cur = 'melee';
   recomputeEff();
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
