@@ -49,13 +49,14 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : 0);
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
   if (Math.abs(angDiff(m.td / 24 * 6.2832, tod / 24 * 6.2832)) > 0.02) tod = m.td; else tod += (m.td - tod) * 0.3;
   if (phase === 'break') { breakT = m.bt; breakMax = m.bm; }
   if (spawnQ.length !== m.sq) spawnQ = new Array(m.sq).fill('walker');
+  surge.lull = m.lu ? 1 : 0;   // (the host's lull between surges, waves/waves.js: shown under the wave number)
   const now = performance.now(), zs = m.z;
   for (let k = 0; k < zs.length; k += 7) {
     const z = NZ.get(zs[k]); if (!z || z.dead) continue;
@@ -86,7 +87,9 @@ function puppetMove(z, dt) {
 function puppetBoard(z, dme) {
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
-  if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
+  if (z.atk > 0) return;
+  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z); boardJolt(o, z); shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)); }   // (a brute's smash, zombies/ai.js)
+  else { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
 function netLunge(z, at, armMul) { if (netLink() && z.id) netSend('za', { id: z.id, h: at || '', am: armMul || 1 }); }
@@ -179,7 +182,7 @@ function clientWaves(dt) {
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'wave') {
     const left = spawnQ.length + zombies.length;
-    setH('wSub', `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left'));
+    waveSub(left, surge.lull > 0 && spawnQ.length > 0);
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();

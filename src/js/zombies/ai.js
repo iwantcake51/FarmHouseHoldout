@@ -21,6 +21,7 @@ const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 
 function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !b.vault || b.vault.t > 0.5) { o.busy = null; return true; } return false; }
 // at a window: the boards to tear down first (returned), then it climbs in (zombies/climb.js)
 function atWindow(z, o) {
+  if (z.type === 'brute') return o.boards.length ? o : null;   // a brute smashes the boards but never climbs in (zombies/pathfinding.js sends it round to the door)
   if (!winFree(o, z)) return null;
   if (o.boards.length) return o;
   const zs = openSide(o, z.x, z.z), dx = -o.nx * zs, dz = -o.nz * zs, x1 = o.x + dx, z1 = o.z + dz;
@@ -40,6 +41,8 @@ function fenceCross(z, i, j, bi, bj, fl) {
   else { dx = cxw(ei) - fx; dz = cxw(ej) - fz; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L; }
   startClimb(z, 'fence', fx, fz, dx, dz, cxw(ei), cxw(ej), null);
 }
+// a brute on the boards: a blow every t seconds, each taking dmg off the plank on top (a plain board has 70)
+const BRUTE_SMASH = { t: 1.25, dmg: 75 };
 // how fast bunched-up zombies drift apart (metres a second when right on top of each other)
 const SPREAD = 2.6;
 // a window or doorway in this cell or any next to it
@@ -120,9 +123,19 @@ function updateZombies(dt) {
     if (attackingBoard) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 8);
       const top = attackingBoard.boards.length - 1;
-      attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt;
-      // a blow lands on the boards each beat: a thump, the plank jumps, a little dust off it
-      if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(attackingBoard, z); }
+      if (z.type === 'brute') {
+        // a brute doesn't claw at the boards, it smashes them: both fists down every BRUTE_SMASH.t, each blow enough to
+        // break a plain board outright, with a heavy crack you feel if you're near
+        if (z.atk <= 0) {
+          z.atk = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
+          soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z); boardJolt(attackingBoard, z);
+          shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1));
+        }
+      } else {
+        attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt;
+        // a blow lands on the boards each beat: a thump, the plank jumps, a little dust off it
+        if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(attackingBoard, z); }
+      }
       if (attackingBoard.boards[top] <= 0) { breakBoard(attackingBoard, z); if (z.an) z.an.rip = 1; netBoardBroke(attackingBoard, z); }
     } else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);

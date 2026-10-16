@@ -1,12 +1,15 @@
 // Flow field toward the player, or every player in co-op (Dijkstra over the grid); fences and boards cost extra.
 
-// brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door
+// brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door. A boarded
+// window's on their way too (they smash the boards off it, zombies/ai.js), but once it's bare it's shut to them again
 const dist = new Float32Array(N * N), distB = new Float32Array(N * N);
 const hp_ = [], hd_ = [];
 function hpush(c, d) { hp_.push(c); hd_.push(d); let k = hp_.length - 1; while (k) { const p = (k - 1) >> 1; if (hd_[p] <= hd_[k]) break; [hp_[p], hp_[k]] = [hp_[k], hp_[p]]; [hd_[p], hd_[k]] = [hd_[k], hd_[p]]; k = p; } }
 function hpop() { const c = hp_[0], d = hd_[0], lc = hp_.pop(), ld = hd_.pop(); if (hp_.length) { hp_[0] = lc; hd_[0] = ld; let k = 0; for (;;) { const a = 2 * k + 1, b = a + 1; let m = k; if (a < hp_.length && hd_[a] < hd_[m]) m = a; if (b < hp_.length && hd_[b] < hd_[m]) m = b; if (m === k) break; [hp_[m], hp_[k]] = [hp_[k], hp_[m]]; [hd_[m], hd_[k]] = [hd_[k], hd_[m]]; k = m; } } return [c, d]; }
+// what each board in its way costs a brute's route, against 5 for anyone else's: they make short work of boards
+const BRUTE_BOARD_COST = 2.5;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window') return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = o.boards.length; return b ? 1 + b * 5 : o.kind === 'window' ? 2.2 : 1; } return 1; }
+function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window' && !openAt[idx(i, j)].boards.length) return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = o.boards.length; return b ? 1 + b * (big ? BRUTE_BOARD_COST : 5) : o.kind === 'window' ? 2.2 : 1; } return 1; }
 function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i, j + dj); }
 function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
 function flowInto(dist, big) {
