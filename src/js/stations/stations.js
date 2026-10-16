@@ -1,4 +1,5 @@
-// The four house stations (workbench, sawhorse, medicine cabinet, radio) and their highlight outlines.
+// The house stations (workbench, sawhorse, medicine cabinet, radio, and in co-op the strongbox) and their highlight
+// outlines.
 
 // ---- stations inside the house ----
 // The big pieces of each station stay whole (userData.sil) so the highlight outline can trace them;
@@ -139,5 +140,19 @@ const STATIONS = [];
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(24, 25, true);   // a desk: low, like the bench
   STATIONS.push({ g, id: 'radio', name: 'Ham radio', x: cxw(24), z: cxw(25) - 0.95 });
+
+  // ---- the strongbox in the north-west corner (co-op only: net/teamwork.js): a dented olive cash box with a brass lock
+  // and a carry handle, on an upturned crate turned to face the room, a few bits of scrap left beside it ----
+  g = new THREE.Group(); g.position.set(cxw(17) + 0.04, 0, cxw(18) + 0.04); g.rotation.y = Math.PI / 4; scene.add(g);
+  sil(box(g, 0.64, 0.56, 0.64, M.crate, 0, 0.28, 0)); [0.08, 0.48].forEach(y => box(g, 0.66, 0.06, 0.66, M.wood, 0, y, 0));
+  sil(box(g, 0.46, 0.2, 0.32, HM.oliveDk, 0, 0.66, 0)); sil(box(g, 0.47, 0.05, 0.33, HM.olive, 0, 0.785, 0));
+  box(g, 0.47, 0.012, 0.012, HM.iron, 0, 0.758, 0.165);   // the lid's seam
+  box(g, 0.07, 0.08, 0.012, HM.brass, 0, 0.7, 0.166); ycyl(g, 0.012, 0.012, 0.014, HM.iron, 0, 0.705, 0.174, 8).rotation.x = Math.PI / 2;   // the lock and its keyhole
+  [-0.15, 0.15].forEach(x => box(g, 0.05, 0.03, 0.012, HM.iron, x, 0.77, -0.166));   // hinges
+  [-0.07, 0.07].forEach(x => box(g, 0.015, 0.04, 0.015, HM.steel, x, 0.825, 0)); box(g, 0.17, 0.016, 0.022, HM.steel, 0, 0.848, 0);   // the handle
+  [[0.25, -0.18, 0.6], [0.22, 0.2, 1.9], [-0.26, -0.2, 2.6]].forEach(([x, z, r]) => { const m = box(g, 0.08, 0.025, 0.05, HM.steel, x, 0.575, z); m.rotation.y = r; });   // scrap left on the crate
+  unfight(g); mergeInto(g, finePieces(g));
+  obstacle(17, 18, true);   // waist high, like the bench
+  STATIONS.push({ g, id: 'box', name: 'Strongbox', x: cxw(18) - 0.15, z: cxw(19) - 0.15, coop: true });
 }
 STATIONS.forEach(s => { s.om = outline(s.g, 0xf0a04a, 0, 0.035, null, o => !o.userData.fine); s.om.visible = false; });

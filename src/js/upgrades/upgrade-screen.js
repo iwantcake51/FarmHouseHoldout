@@ -141,11 +141,13 @@ function skipCards() {
   leaveUpgrade([...$('cards').children]);
 }
 // bits of scrap thrown up off el and arcing down into the scrap count at the top of the screen, a few at a time, each
-// one bumping the count as it lands (one bit for every scrap or so, up to SCRAP_BITS)
+// one bumping the count as it lands (one bit for every scrap or so, up to SCRAP_BITS); or into another element (to),
+// which flashes as each lands (its 'got' class: a teammate's card at the strongbox, net/teamwork.js)
 const SCRAP_BITS = 10;
-function scrapFly(el, n) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { popEl('scrap'); return; }
-  const a = el.getBoundingClientRect(), t = $('scrap').getBoundingClientRect(), tx = t.width ? t.left + t.width / 2 : 40, ty = t.height ? t.top + t.height / 2 : 30;
+function scrapFly(el, n, to) {
+  const land = () => { if (!to) { popEl('scrap'); return; } to.classList.remove('got'); void to.offsetWidth; to.classList.add('got'); };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { land(); return; }
+  const a = el.getBoundingClientRect(), t = (to || $('scrap')).getBoundingClientRect(), tx = t.width ? t.left + t.width / 2 : 40, ty = t.height ? t.top + t.height / 2 : 30;
   const sx = a.left + a.width / 2, sy = a.top + a.height / 2, cols = ['#c9b48e', '#a88a5a', '#d8c7a0', '#8f7b5c'];
   for (let k = 0, N = Math.min(SCRAP_BITS, Math.max(5, n)); k < N; k++) {
     const b = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), sz = rr(20, 30);
@@ -160,7 +162,7 @@ function scrapFly(el, n) {
       { offset: 0.55, transform: `translate(${mx}px,${my}px) scale(.95) rotate(${r0 + (r1 - r0) * 0.6}deg)`, opacity: 1 },
       { transform: `translate(${ex}px,${ey}px) scale(.45) rotate(${r1}deg)`, opacity: 0.85 }
     ], { duration: rr(820, 1050), delay: k * 55, easing: 'cubic-bezier(.3,.05,.45,1)', fill: 'both' });
-    an.onfinish = () => { b.remove(); popEl('scrap'); };
+    an.onfinish = () => { b.remove(); land(); };
   }
 }
 function leaveUpgrade(burn) {

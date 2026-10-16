@@ -25,6 +25,7 @@ addEventListener('keydown', e => {
   if (k === ' ' && state === 'play') tryVault();                                    // Space climbs through windows and hops fences
   if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
   if (k === 'g') throwGrenade();
+  if (k === 'enter' && openSt && openSt.id === 'box') giftSend();   // the strongbox: give what's picked (net/teamwork.js)
   if (k === 'i') toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)
   if (k === 'x' && state === 'play') swapRounds();   // the next kind of round you own for this gun, with a reload (weapons/rounds.js)
   if (k === 'b' && state === 'play') {

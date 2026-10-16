@@ -179,6 +179,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
+  z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
   dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit);
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
@@ -244,7 +245,7 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   if (z.dead) return;
   netRec('k', wId, part);
   killBegin(z, dx, dz);
-  if (NREP) return;   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js)
+  if (NREP) { teamAssist(z); return; }   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js); yours an assist if you'd hurt it (net/teamwork.js)
   run.kills++; popEl('kills');
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)

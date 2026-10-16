@@ -107,7 +107,8 @@ function netAct(z, dx, dz, fn) {
     if (ops.length) {
       // and what it dropped, each with an id of its own so whoever picks it up can say so
       const dr = [];
-      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid) continue; p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z), p.hoard ? 1 : 0]); }
+      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid || p.kind === 'scrap') continue;   // (scrap is the killer's own: net/teamwork.js)
+        p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z), p.hoard ? 1 : 0]); }
       netSend('hit', { id: z.id, dx: nr(dx), dz: nr(dz), ops, dr });
     }
   }
@@ -167,7 +168,7 @@ NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase 
 NET_ON.skip = () => { if (NET.host && phase === 'break') breakT = 0; };
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;
-function netCleared() { if (!netLink()) return; clearAt = performance.now(); if (NET.host) netSend('clear', {}); }
+function netCleared() { if (!netLink()) return; clearAt = performance.now(); teamBonus(); if (NET.host) netSend('clear', {}); }
 const RESPAWN_AFTER = 1100;   // ms after the last kill: the clear's slow motion (waves/waves.js) is over
 function respawnCheck() { if (netLink() && P.dead && ((phase === 'cleared' && performance.now() - clearAt > RESPAWN_AFTER) || (phase === 'break' && P.deathT > 2))) netRespawn(); }
 // a joiner's wave display, from the host's word for it

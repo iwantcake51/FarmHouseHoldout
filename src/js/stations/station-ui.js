@@ -9,7 +9,7 @@ function stationDist(s) {
   const [cx, cz, hw, hd] = s.foot, dx = Math.max(0, Math.abs(P.x - cx) - hw), dz = Math.max(0, Math.abs(P.z - cz) - hd);
   return Math.hypot(dx, dz) * STATION_REACH / FOOT_REACH;   // scaled so both kinds compare on the same footing
 }
-function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }
+function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { if (s.coop && !netLink()) continue; const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }   // (the strongbox is for co-op only)
 // the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
@@ -50,6 +50,7 @@ function cardChips(r) {
 let stStruct = '';
 function renderStation() {
   if (!openSt) return;
+  if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
   const rows = RECIPES[openSt.id], struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
   const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
@@ -81,9 +82,10 @@ function renderStation() {
   });
   { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
-$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) craft(+b.dataset.i); });
+$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else craft(+b.dataset.i); });
 function craft(i) {
-  if (!openSt) return; const r = RECIPES[openSt.id][i]; if (!r) return;
+  if (!openSt) return; if (openSt.id === 'box') { giftPick(i); return; }
+  const r = RECIPES[openSt.id][i]; if (!r) return;
   if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();
   const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }

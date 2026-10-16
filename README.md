@@ -47,6 +47,12 @@ four-letter code. Your friends open the game, press **Co-op**, type the code and
   swaps, reloads (the mag out, in the hand, seated), the mags and speed loaders they drop, and the slides, bolts and
   pumps working. Gore is shared: a head split open, crushed or shot through, a limb or forearm taken off, and bullet
   holes show on everyone's screen (the holes land in roughly the same place, not exactly).
+- Scrap is your own. A zombie you kill drops its scrap on your farm only, so nobody else can pick it up. Hurt a
+  zombie for at least a fifth of its health and it dies to a teammate within 8 seconds, and you get 1 scrap for the
+  assist (2 for a brute). When a wave is cleared, everyone gets 2 scrap for each teammate still standing.
+- To give scrap away, use the **strongbox** in the corner by the workbench (it's only there in co-op). Pick who gets it (click,
+  or press 1 to 3), set how much with − and +, or 5, 10, 25, Half or All, and press **Give** (or Enter). The scrap
+  flies off to their card and lands in their count, and they get a note saying who sent it.
 - The host should keep the game's tab in view: a browser stops a hidden tab, and the farm stops with it for everyone.
 - Players connect directly to each other over WebRTC (PeerJS, in `dist/vendor/`). PeerJS's free public server only
   introduces them. If it's down, run your own (`npx peerjs --port 9000`) and add `?peer=yourhost:9000` to everyone's
@@ -82,7 +88,7 @@ src/
     zombies/          zombie types, spawning, AI, pathfinding, damage, death falls
     waves/            how each wave is built and scheduled
     upgrades/         the skills, perks and aid you pick after a wave, gun and character tiers
-    stations/         workbench, sawhorse, medicine cabinet, radio, supply drops
+    stations/         workbench, sawhorse, medicine cabinet, radio, strongbox, supply drops
     barricades/       boarding doors and windows
     pickups/          ammo, scrap, medkits and other drops
     effects/          blood, particles, smoke, tracers, muzzle flash, outlines
@@ -229,6 +235,9 @@ Every source file starts with a one-line comment saying what is in it.
 | The icons (HUD, pickups, stations, status icons) | `src/js/ui/game-icons.js` |
 | Co-op connection: hosting and joining, the four-letter codes, the most players (`NET_MAX`), how long a quiet player has before they count as gone (`NET_QUIET`), another PeerJS server (`PEER_OPTS`, `?peer=`), the same-browser test link (`?net=local`), and the messages each kind of event sends (`NET_ON`) | `src/js/net/net.js` |
 | The co-op lobby on the title (name, host, join, the numbered seats, the stamped game code, start; its open, close and seat animations) and the teammates' cards over your health (`renderTeam`: their health and its bar, drawn like yours by `paintBar` with the bonus past 100 in its own colour, the red trailing a hit and the blue of healing to come, their planks, scrap and kills, `TEAM_RES`) | `src/js/net/lobby.js`, `src/styles/coop.css` |
+| Co-op scrap (`src/js/net/teamwork.js`): the assist (`teamAssist`: at least `ASSIST_MIN` of a zombie's health within `ASSIST_T` seconds of it dying pays `ASSIST_SCRAP`, twice for a brute; the damage you've done it is `z.myDmg`, set in `hurtZombie0` in `src/js/zombies/damage.js`), the bonus for clearing a wave (`teamBonus`: `TEAM_BONUS` for each teammate still standing), and kill scrap dropping only on the killer's farm (the drop loop in `netAct`, `src/js/net/sync.js`) | `src/js/net/teamwork.js` |
+| The strongbox for giving scrap: its model and where it stands (`id: 'box'`, `coop: true`, in `src/js/stations/stations.js`; a `coop` station only shows up while you're connected: `nearestStation` in `station-ui.js`), its panel (`renderGift`: who, how much, the quick picks `GIFT_QUICK`, the give button), sending it (`giftSend`, the `gift` message in `NET_ON`) and the bits flying to their card (`scrapFly` in `src/js/upgrades/upgrade-screen.js`, given a target) | `src/js/net/teamwork.js`, `src/styles/coop.css` |
+| The kill feed lifting clear of the teammates' cards (`liftFeed`, `--lift`) | `src/js/net/lobby.js`, `src/styles/hud-feed.css` |
 | Down in co-op: who you watch (`camFocus`, a click for the next: `specNext`) and the HUD that shows them (`renderSpec`: the "Down" stamp, their health and stats, their weapon, ammo, reload and bandages, sent with their pose by `ammoOut` in `src/js/net/avatars.js`) | `src/js/net/spectate.js`, `src/styles/coop.css` |
 | Teammates' weapons: their loadout sent when it changes (`loadoutTick`, `lo`), each gun built from it the same way as yours (`withLoadout`, `buildWeapon` in `src/js/weapons/build-weapons.js`), what's in their hands and its moving parts sent with each pose (`weaponPose`: mags, slides, bolts, pumps, cylinders, the break-open action, the belt) and what's stowed (`sv`), drawn on their survivor (`arsenalFrame`); dropped mags and speed loaders (`md`, `ld` → `placeMag` in `src/js/weapons/casings.js`, `placeLoader` in `src/js/player/hold.js`) | `src/js/net/arsenal.js` |
 | Teammates on your screen: their survivor built from the same rig and look as yours (`buildAvatar`, from `PM_BASE` in `src/js/player/player.js`), the pose sent twenty times a second (`poseOut`, the joints in `POSE_K`) and eased to, their outline in their colour (`xray`), the dot over their head and the marker at the screen's edge when they're off it, their shots (tracers, flash, the sound quieter with distance: `heardFrom`) | `src/js/net/avatars.js` |
@@ -301,7 +310,7 @@ Shared state:
 | V | Shove the zombies in front of you (stabs with a bayonet fitted) |
 | F (hold) | Board up the door or window you're at |
 | Space | Climb through an open window or hop a fence (costs stamina, more if you chain them) |
-| E | Use the workbench, sawhorse, medicine cabinet or radio |
+| E | Use the workbench, sawhorse, medicine cabinet, radio or (in co-op) the strongbox |
 | G | Underbarrel grenade, once you have one |
 | B | Switch fire mode: the assault rifle between full auto and semi, and guns with a burst or full-auto mod (single → burst → full auto) |
 | X | Load the next kind of round you own for the gun in your hands (it empties the gun and reloads) |

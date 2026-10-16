@@ -67,7 +67,7 @@ function paintBar(bar, hp, mx, heal, dead) {
 }
 function renderTeam() {
   const el = $('team'), on = netLink() && state !== 'title';
-  if (el.hidden === on) el.hidden = !on;
+  if (el.hidden === on) { el.hidden = !on; liftFeed(); }
   if (!on) return;
   const ps = [...NET.peers.values()].sort((a, b) => a.idx - b.idx);
   const key = ps.map(p => [p.id, p.name, Math.round(p.hp ?? 100), p.maxHp, p.heal || 0, p.dead ? 1 : 0, ...(p.stats || [])].join(':')).join('|');
@@ -89,4 +89,11 @@ function renderTeam() {
     paintBar(d.querySelector('.bar'), hp, mx, p.heal, p.dead);
     d.querySelectorAll('.res b').forEach((b, i) => { b.textContent = (p.stats || [])[i] ?? 0; });
   });
+  liftFeed();
+}
+// the pickup feed sits over your health; the team cards make that taller, so it goes up by as much (both are zoomed the
+// same, styles/hud-feed.css, so the cards' height on screen is taken back out of it)
+function liftFeed() {
+  const el = $('team'), h = el.hidden ? 0 : el.getBoundingClientRect().height / 1.12 + 8;
+  $('feed').style.setProperty('--lift', h.toFixed(0) + 'px');
 }
