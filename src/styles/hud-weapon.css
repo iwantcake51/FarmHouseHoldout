@@ -56,7 +56,8 @@
 .roundPuff{position:fixed;z-index:3;pointer-events:none;display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,rgba(210,205,195,.55),rgba(210,205,195,0) 70%);animation:roundPuff .9s ease-out forwards}
 .roundPuff.wisp{width:14px;height:14px;animation-duration:.75s}
 @keyframes roundPuff{from{transform:scale(.5);opacity:.9}to{transform:translate(var(--px),-26px) scale(2.4);opacity:0}}
-#rounds .belt{width:200px;height:6px;background:rgba(0,0,0,.5)}
+/* a big mag's bar, full from the right: it empties from the left, like a row of rounds (ui/rounds.js: setBelt) */
+#rounds .belt{display:flex;justify-content:flex-end;width:200px;height:6px;background:rgba(0,0,0,.5)}
 #rounds .belt span{display:block;height:100%;background:#c9a043}
 /* akimbo: each gun's mag, the left's on the left, by the mouse button that fires it (a little mouse with that side lit),
    over two groups of rounds split by a rule. The gun being reloaded dims and its rounds fade back */
