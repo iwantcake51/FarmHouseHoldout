@@ -43,7 +43,7 @@ function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
   if (showXh) {
-    xh.style.transform = `translate(${mouseX}px,${mouseY}px)`;
+    xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
     xh.classList.toggle('healing', P.bandT > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
     // shotguns get a ring the width of their spread; other guns four ticks

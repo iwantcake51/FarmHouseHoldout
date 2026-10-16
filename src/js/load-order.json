@@ -97,6 +97,7 @@
   "weapons/laser.js",
   "game/update.js",
   "player/sprint.js",
+  "player/shaky-hands.js",
   "player/movement.js",
   "weapons/combat-update.js",
   "barricades/interactions.js",

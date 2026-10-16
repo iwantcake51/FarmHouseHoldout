@@ -100,7 +100,7 @@ function muzzle(sideSign) {
 const partRay = new THREE.Raycaster(), _pn = new THREE.Vector2();
 function cursorTarget() {
   if (!hasMouse || tStick.R || scoped) return null;
-  _pn.set(mouseX / innerWidth * 2 - 1, -(mouseY / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);
+  _pn.set(aimSX() / innerWidth * 2 - 1, -(aimSY() / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);   // under the crosshair, which wanders at low health
   const objs = [];
   for (const z of zombies) { if (z.dead || z.vis < 0.15) continue; for (const p of ['head', 'torso', 'armL', 'armR', 'legL', 'legR']) if (p === 'torso' || z.limbs[p]) objs.push(z.m[p]); }
   const hit = partRay.intersectObjects(objs, true)[0]; if (!hit) return null;
