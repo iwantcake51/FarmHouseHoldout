@@ -221,7 +221,7 @@ function netRespawn() {
   W8.reloading = null; W8.akRel = null; W8.cur = 'melee';
   recomputeEff();
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
-  Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
+  Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
   rollLook(); buildGuns();

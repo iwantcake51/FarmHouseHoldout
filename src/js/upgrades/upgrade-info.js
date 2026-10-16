@@ -22,7 +22,7 @@ const UPG_FX = {
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 scrap drops 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Recovers sooner', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+25 health below 25%, once a wave'],
   'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['2 of powder, trigger and mag +1 tier', 'Any missing ones at tier 1', '+14 scrap per one already maxed'],
-  'Stubborn': ['+50 max health'], 'Bullet time': ['1 in 5 kills slows time', 'Every 8 s at most'],
+  'Stubborn': ['+50 max health'], 
   'Last stand': ['+60% damage below 30% health'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%', 'Up to 3 times'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
   'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
@@ -34,6 +34,8 @@ const UPG_FX = {
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
 };
+// Bullet time does something else in co-op, where slowing time would slow everyone's (zombies/damage.js: BT_EYE)
+Object.defineProperty(UPG_FX, 'Bullet time', { enumerable: true, get: () => netLink() ? ['1 in 5 kills: 3 s dead eye', 'Every hit a headshot', 'Every 8 s at most'] : ['1 in 5 kills slows time', 'Every 8 s at most'] });
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same
 // line: once you have some, the card's first chip shows your total before and after (Melee +25% → +56%) instead of
 // just the step, and the upgrade history says what it all adds up to. v reads the stat, next is what one more pick

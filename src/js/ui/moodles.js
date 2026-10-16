@@ -11,6 +11,7 @@ function renderMoodles() {
   if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35) list.push(['warn', 'lungs', 'Tired']);
   if (P.conc > 0.15) list.push(['bad', 'pinned', 'Concussed']);
   if (P.adr > 0) list.push(['good', 'adren', 'Adrenaline']);
+  if (P.eye > 0) list.push(['good', 'fire', 'Dead eye']);
   if (S.lastStand && hp < 0.3) list.push(['good', 'fire', 'Last stand']);
   if (S.secondWind && !S.windUsed) list.push(['good', 'wind', 'Second wind ready']);
   const D = W(curId()); if (D && D.slow) list.push(['warn', 'heavy', 'Heavy load']);

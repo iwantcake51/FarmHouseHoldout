@@ -28,6 +28,7 @@ function updateHUD(rdt, D) {
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
     const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
+    { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
     // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
     const grey = spec ? 0.4 : Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
     { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
