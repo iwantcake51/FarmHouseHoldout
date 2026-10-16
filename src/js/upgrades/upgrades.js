@@ -109,6 +109,9 @@ function giveWeapon(id) {
 // better turns up less
 const WEAP_POW = { bat: 0.5, pistol: 1, crowbar: 1, wrench: 1, machete: 1, revolver: 1, smg: 1, dbl: 2, pump: 2, sub: 2, deagle: 2, axe: 2, sledge: 2, ar: 3, hunting: 3, katana: 3, auto12: 4, lmg: 4 };
 const WEAP_OPEN = [0, 1, 5, 8, 11];
+// the heaviest guns turn up less again on top of their rarity: the assault rifle, the LMG and the drum shotgun (the
+// guaranteed gun card leans away from them too: dealCards, upgrades/upgrade-screen.js)
+const CARD_RARE = { ar: 0.75, lmg: 0.45, auto12: 0.45 };
 const weapPow = id => id ? WEAP_POW[id] || 1 : 0;
 function weapWeight(id) {
   const p = weapPow(id), w = run.wave, open = WEAP_OPEN[p];
@@ -126,7 +129,7 @@ function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= 
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id) * (CARD_RARE[id] || 1), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons

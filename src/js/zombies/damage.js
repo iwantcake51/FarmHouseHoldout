@@ -278,8 +278,9 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   killEnd(z);
   // a brute's drops are doubled: twice the scrap, and an ammo box, planks or bandages that hold twice as much
   const big = z.type === 'brute' ? 2 : 1;
-  // Hoarder: a scrap drop has a HOARD_X chance to be worth double
-  if (rand() < (z.type === 'brute' ? 1 : 0.5)) { const hoard = S.hoard && rand() < HOARD_X; dropPickup(z.x + rr(-.3, .3), z.z + rr(-.3, .3), 'scrap', ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * (hoard ? 2 : 1)); if (hoard) pickups[pickups.length - 1].hoard = true; }
+  // scrap goes straight into yours, with the same odds and amounts it used to drop with (a brute always, others half
+  // the time); Hoarder: a HOARD_X chance it's worth double
+  if (rand() < (z.type === 'brute' ? 1 : 0.5)) { const hoard = S.hoard && rand() < HOARD_X; killScrap(z, ((z.type === 'brute' ? 3 : 1) + (rand() < 0.4 ? 1 : 0)) * big * (hoard ? 2 : 1), hoard); }
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
     // rounds pays you back a little). Planks are the rarest roll, and the last 6.5% of the roll drops nothing, so a
@@ -288,6 +289,12 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
     if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
     else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
   }
+}
+// a kill's scrap, into yours there and then (only ever the killer's: a teammate's kill is played back without it,
+// net/sync.js), shown rising off the body and rolled into the counter
+function killScrap(z, n, hoard) {
+  S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
+  floatText(z.x, z.z, '+' + n + (hoard ? ' ×2' : '') + ' scrap', '#d4b25c');
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list

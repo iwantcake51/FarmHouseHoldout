@@ -110,8 +110,8 @@ function netAct(z, dx, dz, fn) {
     if (ops.length) {
       // and what it dropped, each with an id of its own so whoever picks it up can say so
       const dr = [];
-      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid || p.kind === 'scrap') continue;   // (scrap is the killer's own: net/teamwork.js)
-        p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z), p.hoard ? 1 : 0]); }
+      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid) continue;
+        p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z)]); }
       netSend('hit', { id: z.id, dx: nr(dx), dz: nr(dz), ops, dr });
     }
   }
@@ -124,7 +124,7 @@ NET_ON.hit = m => {
     try { for (const op of m.ops) netOp(z, op, m.dx, m.dz); if (z.dead) killEnd(z); }
     catch (e) { console.error('net hit', e); }
     finally { NREP = null; }
-    if (m.dr) for (const d of m.dr) { dropPickup(d[4], d[5], d[1], d[2], d[3] || undefined); const p = pickups[pickups.length - 1]; p.nid = d[0]; if (d[6]) p.hoard = true; }
+    if (m.dr) for (const d of m.dr) { dropPickup(d[4], d[5], d[1], d[2], d[3] || undefined); const p = pickups[pickups.length - 1]; p.nid = d[0]; }
   }
 };
 function netOp(z, op, dx, dz) {

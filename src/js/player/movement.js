@@ -36,7 +36,7 @@ function updatePlayer(dt) {
         // the weapon was put away for the jump (unless Vault fire kept it in hand): it's drawn again as you land, the
         // hands coming off the sill to it rather than it appearing in them (player/swap.js)
         const kept = vaultGun(); P.vault = null; vaultLand(v);
-        if (!kept && W8.slot[W8.cur] && !swapSt) { startSwap(null, W8.cur); W8.cd = Math.max(W8.cd, SWAP_FIRE / S.swapMul); }
+        if (!kept && W8.slot[W8.cur] && !swapSt) { startSwap(null, W8.cur); W8.cd = Math.max(W8.cd, swapFire(W8.cur) / S.swapMul); }
         if (aimHeld) startAim();   // still holding aim (or pressed it on the way through): back down the sights
       }
     }

@@ -127,7 +127,12 @@ function resetDrops() { supplyT = 0; supplyCargo = null; supplySpot = null; heli
 // band is open (WEAP_OPEN, a wave ahead of the cards), never one you have, nor one already on its way or lying in its
 // crate (and those don't turn up as cards after a wave either)
 const RADIO_GUNS = Object.keys(GUN_WEAPONS).filter(id => GUN_WEAPONS[id].rar), RADIO_MELEE = Object.keys(MELEE_WEAPONS).filter(id => MELEE_WEAPONS[id].rar);
-const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 58, 82], top: [0, 30, 55, 85, 120], meleeUp: [0, 14, 24, 36] };
+// what the radio charges: a care package (a random weapon), and the crates priced by the band of what's in them, the
+// heavy guns (band 3: the assault rifle, the hunting rifle) and the top of the pile (band 4: the LMG, the drum
+// shotgun) a good deal dearer than the rest
+const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 78, 120], top: [0, 30, 55, 112, 165], meleeUp: [0, 14, 24, 36] };
+// how likely a care package is to bring a gun of each band: the heavy ones rarely, for the price
+const CARE_W = [0, 3, 2, 0.7, 0.3];
 const BAND_WORD = ['', 'light', 'solid', 'heavy', 'top-tier'], SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 const radioOpen = id => run.wave + 1 >= WEAP_OPEN[weapPow(id)];
 // the two care packages: what each brings, and how its card reads
@@ -164,7 +169,7 @@ function radioCards() {
   const guns = pk => RADIO_GUNS.filter(id => radioFree(id) && CARE[pk].slots.includes(WEAP[id].slot)), mels = () => RADIO_MELEE.filter(radioFree);
   for (const pk in CARE) { const c = CARE[pk];
     out.push({ ic: 'supply', group, for: () => c.for, cost: RADIO_COST[pk], title: () => c.title, desc: () => c.desc,
-      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => [0, 3, 2, 1.2, 0.7][weapPow(id)]), c.title) }); }
+      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => CARE_W[weapPow(id)]), c.title) }); }
   if (o.up) { const id = o.up, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better ' + SLOT_WORD[WEAP[id].slot], fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.up[b], title: () => 'Upgrade crate',
     desc: () => `A ${BAND_WORD[b]} ${SLOT_WORD[WEAP[id].slot]} that ${than(id)}. Which one is a surprise.`, why: busyWhy, make: () => order(id, 'Upgrade crate') }); }
   if (o.top) { const id = o.top, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'The best out there', fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'BEST YET', good: true }], cost: RADIO_COST.top[b], title: () => 'Top-shelf crate',

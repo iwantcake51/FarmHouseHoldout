@@ -41,7 +41,7 @@ function dealCards() {
   if (due && !dealt.some(isDue)) {
     const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
     const swap = [...dealt].reverse().find(u => u !== anchor && !isAid(u)) || [...dealt].reverse().find(u => u !== anchor);
-    if (owed.length && swap) dealt[dealt.indexOf(swap)] = drawCard(owed, u => rarWeight(u.r));
+    if (owed.length && swap) dealt[dealt.indexOf(swap)] = drawCard(owed, u => rarWeight(u.r) * (CARD_RARE[u.weaponOf] || 1));
   }
   // shuffled, so the skill isn't always the first card
   for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }

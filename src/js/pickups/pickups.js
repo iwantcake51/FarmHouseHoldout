@@ -10,7 +10,7 @@ const DROP_LIFE = 40, CRATE_LIFE = 90;
 // Every ammo box, whatever it holds, is the same bright brass yellow, a colour no other drop uses, so ammo reads as ammo
 // at a glance (the box itself shows which kind: blue 9mm card, red magnum card, green shell box, olive rifle can)
 const AMMO_COL = 0xffd23a;
-const PICK_COL = { scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, ammo: AMMO_COL };
+const PICK_COL = { planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, ammo: AMMO_COL };
 const RAR_COL = { c: 0xc4bcad, u: 0x6fd07a, r: 0x5f9ee8, e: 0x9f7af2, l: 0xf0a050 };
 const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'u'];
 const pickCol = (kind, ammoType, cargo) => kind === 'gun' ? weaponCol(cargo && cargo.id) : kind === 'supply' && cargo && cargo.kind === 'weapon' ? weaponCol(cargo.id) : PICK_COL[kind];
@@ -45,7 +45,7 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
-  if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
+  if (kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
   pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
@@ -60,7 +60,7 @@ function greyDrop(p, dt) {
   p.mats.forEach(m => greyOf(m.userData.c0, p.grey, m.color));
   greyOf(p.col, p.grey, _gc); p.ringMat.color.copy(_gc); p.discMat.color.copy(_gc); p.glow.material.color.copy(_gc); p.om.color.copy(_gc); p.xr.rim.color.copy(_gc);
 }
-// drops: bob, glow, magnet scrap, and collecting them
+// drops: bob, glow, and collecting them
 function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
@@ -95,7 +95,6 @@ function updatePickups(dt) {
       if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
       if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
     }
-    if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
@@ -103,7 +102,6 @@ function updatePickups(dt) {
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
-      else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount + (p.hoard ? ' ×2' : ''); SFX.scrap(); }
       else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.crate(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
