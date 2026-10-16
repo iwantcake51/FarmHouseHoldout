@@ -84,7 +84,8 @@ function boardShake(rdt) {
     m.position.z = u.z0 + (u.pull || 0) * 0.08 * smooth(loose);
   });
 }
-// a board torn down: wrenched off toward whoever broke it, zombie or not, either whole or snapped in two where the
+// a board torn down: wrenched off toward whoever broke it (z: a zombie, or any point on the side it goes to: a shot's
+// far side, the far side from you when you tear it down yourself; none, away from you), either whole or snapped in two where the
 // blows landed (each half with long splinters standing out of the break), splinters flying; the pieces clatter to the
 // ground and lie there a while (weapons/casings.js's debris)
 const loosePlanks = [];
@@ -113,6 +114,43 @@ function breakBoard(o, z) {
   }
   burst(o.x + ox * 0.5, 1.3, o.z + oz * 0.5, 12, 'wood', ox, oz, 3);
   soundAt(o.x, o.z, () => SFX.crack()); setTimeout(() => soundAt(o.x, o.z, () => SFX.crack()), 60); flowDirty = true; lightsDirty = true;
+}
+// shots through the boards: every bullet or pellet that crosses a boarded door or window on its way (weapons/firing.js)
+// takes BOARD_SHOT of its damage off the board on top, so each shot works it a little looser (boardShake) till it splits
+// and is knocked out the way the shot was going. A 9mm round takes about 7 off a 70 board, a pump shell about 36
+const BOARD_SHOT = 0.25;
+// the boarded openings a bullet crosses before it stops at T, each with BOARD_SHOT of its damage added to what acc
+// already has for it (a shot's pellets all go into one acc, so each opening takes one blow a shot: shootBoard)
+function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
+  let last = null;
+  for (let t = 0.1; t < T; t += 0.1) {
+    const i = ci(ox + dx * t), j = ci(oz + dz * t); if (!inb(i, j)) continue;
+    const o = openAt[idx(i, j)]; if (!o || o === last || !o.boards.length) continue;
+    last = o; const h = acc.get(o);
+    if (h) h.d += dmg * BOARD_SHOT; else acc.set(o, { d: dmg * BOARD_SHOT, dx, dz });
+  }
+}
+// a shot's worth of damage on an opening's boards: the top one jumps and splinters fly out the far side; in co-op the
+// host's game keeps the boards, so a joiner's shots are sent to it and it says when one breaks (net/sync.js)
+function shootBoard(o, d, dx, dz) {
+  if (!o.boards.length) return;
+  const at = { x: o.x + dx, z: o.z + dz, vis: visAt(o.x, o.z) };
+  boardJolt(o, at); netBoardShot(o, d, dx, dz);
+  if (!netClient()) hurtBoard(o, d, at);
+}
+// d off the top board; if that's the last of it, it breaks and flies toward at
+function hurtBoard(o, d, at) {
+  const top = o.boards.length - 1; if (top < 0) return;
+  o.boards[top] -= d;
+  if (o.boards[top] <= 0) { breakBoard(o, at); netBoardBroke(o, null, at); }
+}
+// tearing the top board down yourself (hold C: barricades/interactions.js): wrenched off and thrown out of the frame
+// on the far side from you. You don't get the plank back: it's broken
+function tearBoard(o) {
+  if (!o.boards.length) return;
+  const at = { x: 2 * o.x - P.x, z: 2 * o.z - P.z };
+  if (netClient()) { netBoardTear(o, at); return; }   // (the host breaks it and says so)
+  breakBoard(o, at); netBoardBroke(o, null, at);
 }
 // boards knocked about and pieces of them lying about, each frame
 function stepBoards(dt, rdt) {
