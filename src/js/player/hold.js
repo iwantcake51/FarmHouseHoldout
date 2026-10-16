@@ -242,7 +242,7 @@ function magToFist(fist, want) {
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
 const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
 const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3(), _akH = new V3();
-const SUPPORT_REACH = 1.27, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
+const SUPPORT_REACH = 1.27, SUPPORT_KNEE = 0.03, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
 function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
@@ -257,11 +257,12 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
 // eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
 // weapons/firing.js). rd (a sprint's low ready) takes it away. A pair are two guns: each is pushed back and tipped
 // on its own (GP[side], put on its hold in poseGun), so one up against a wall leaves the other out, and each fires
-// from its own muzzle (ANIM.barrelS)
+// from its own muzzle (ANIM.barrelS). A shove driving the gun out at what's there (shv) isn't pushed back off it: it's
+// measured from where the gun would be without the shove, so the blow lands and eases back to the hold on its own
 const GUN_BACK = { long: 0.4, hand: 0.2 }, GUN_TIP = 1.2;
 const _gbM = new V3(), _gbF = new V3(), _gbG = new V3(), _gbQ = new THREE.Quaternion();
 const GP = { R: { back: 0, tip: 0, a: 0 }, L: { back: 0, tip: 0, a: 0 } };
-function gunPush(gg, s, H, ak, rd, rdt) {
+function gunPush(gg, s, H, ak, rd, rdt, shv) {
   _gbF.set(0, 0, 1).applyQuaternion(gg.quaternion); const fl = Math.hypot(_gbF.x, _gbF.z) || 1, fx = _gbF.x / fl, fz = _gbF.z / fl;
   const fwdOf = v => v.x * fx + v.z * fz, lg = H.kind === 'long' ? 'long' : 'hand', k = 1 - rd;
   const ease = (o, key, t) => { const c = o[key] || 0; return (o[key] = c + (t - c) * (1 - Math.exp(-rdt * (t > c ? 28 : 10)))); };
@@ -271,7 +272,7 @@ function gunPush(gg, s, H, ak, rd, rdt) {
   ANIM.barrelS = ANIM.barrelS || { R: Infinity, L: Infinity };
   for (const side of ak ? ['R', 'L'] : ['R']) {
     at(_gbM, side, X, GUN_Y + 0.03, (MUZ[s] || 0.9) + 0.02);
-    const fwd = fwdOf(_gbM), f = barrelFree(_gbM.x * fz - _gbM.z * fx, fwd + BARREL.clear + 0.05), nW = fwd + BARREL.clear - f.wall, nZ = fwd + BARREL.clear - f.zom;
+    const fwd = fwdOf(_gbM), fs = fwd - (shv || 0), f = barrelFree(_gbM.x * fz - _gbM.z * fx, fs + BARREL.clear + 0.05), nW = fs + BARREL.clear - f.wall, nZ = fs + BARREL.clear - f.zom;
     ANIM.barrelS[side] = Math.min(f.wall, f.zom);
     if (ak) {   // this gun on its own: back along its barrel, then tipped about its grip
       const p = GP[side], tW = Math.max(0, nW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, nZ) * k));
@@ -411,7 +412,13 @@ function shovePose() {
   let pose, q;
   if (p < 0.2) { const w = smooth(p / 0.2); pose = SHOVE_WIND.map(v => v * w); q = w; }
   else if (p < 0.34) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.14, 3); pose = SHOVE_WIND.map((v, i) => v + (SHOVE_STRIKE[i] - v) * e); q = 1; }
-  else { const u = (p - 0.34) / 0.66, r = 1 - smooth(u), o = Math.sin(Math.PI * clamp(u / 0.45, 0, 1)) * 0.12; pose = SHOVE_STRIKE.map((v, i) => v * r - (i === 0 || i === 3 ? v * o : 0)); q = r; }   // (carried back a touch past the aim, then settling)
+  else {
+    // back to the hold on one long ease, slow off the blow, quickest halfway and settling in gently, the push and the
+    // muzzle drawn back a little further than the rest so it eases down onto the aim (nothing in it stops or starts
+    // at a corner, so it runs into the hold without a jolt when the shove ends)
+    const u = (p - 0.34) / 0.66, r = 1 - u * u * u * (u * (6 * u - 15) + 10), o = 0.1 * u * Math.pow(Math.sin(Math.PI * u), 2);
+    pose = SHOVE_STRIKE.map((v, i) => v * r - (i === 0 || i === 3 ? v * o : 0)); q = r;
+  }
   return { q, push: pose[0], lean: pose[1], tw: pose[2], pit: pose[3], roll: pose[4] };
 }
 
@@ -611,7 +618,8 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // like a bar); one-handed, the free arm swings out against the turn for balance
   if (D.two) {
     pm.armR.updateMatrix(); mh.updateMatrix();
-    _fL.set(0, sh ? 0.42 : 0.15, 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+    _fL.set(0, 0.15 + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+    if (MS.lOn < 1) _fL.lerpVectors(SWAP_REST_L, _fL, MS.lOn);   // (not on it yet through the draw flourish)
     reach(pm.armL, 'L', _fL, 0, true);
   } else armRest(pm.armL, 'L', 1.22 - walk * 1.6 - 0.6 * b.uy - 0.3 * st, -0.12 + 0.5 * Math.max(0, b.uy));   // (hanging; across the front as you wind up, back behind you as you follow through)
 }
@@ -729,7 +737,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
-  gunPush(gg, s, H, ak, rd, rdt);   // pushed back off a wall or a zombie in front of you
+  gunPush(gg, s, H, ak, rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
   // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away
@@ -780,11 +788,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   // the support hand can't reach further than its arm: a turn's free-aim swing that would carry the forend beyond
   // SUPPORT_REACH arm-lengths from the left shoulder is held in, the whole gun drawn back toward that shoulder so the
-  // hand stays on it (not while the hand's off the gun anyway, reloading or working the action)
+  // hand stays on it (not while the hand's off the gun anyway, reloading or working the action). The limit's soft, taking
+  // hold over 2 SUPPORT_KNEE past it, so a gun driven out to it (a shove) and coming back doesn't jolt as it leaves it
   if (!ak && H.fore) {
     const fh = H.kind === 'hand' && H.hand || HAND_0;
     gunPt(_sup, s, 'R', H.fore[0], H.fore[1] + fh[0] - foreDrop(s, H), H.fore[2] + fh[1]);
-    const sL = SHOULDER.L, dx = _sup.x - sL[0], dy = _sup.y - sL[1], dz = _sup.z - sL[2], d = Math.hypot(dx, dy, dz), over = d - FIST * SUPPORT_REACH;
+    const sL = SHOULDER.L, dx = _sup.x - sL[0], dy = _sup.y - sL[1], dz = _sup.z - sL[2], d = Math.hypot(dx, dy, dz), x = d - FIST * SUPPORT_REACH, kn = SUPPORT_KNEE;
+    const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
   up.x -= SR.x; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)

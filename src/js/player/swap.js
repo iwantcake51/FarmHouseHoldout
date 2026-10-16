@@ -69,16 +69,24 @@ function blendFrame(out, a, b, k) {
   p.y += 0.035 * arc;
   return out.compose(p, _sw.q0.slerp(_sw.q1, k), _sw.s1.set(1, 1, 1));
 }
-// a melee weapon coming off your back or hip: first slid out along its own handle (MDRAW_PULL, clear of the straps),
-// then swung up and round in a higher arc than a gun's (MDRAW_ARC) into the hand, carried a touch past where it's
-// held and back (MDRAW_OVER), so it lands in the fist with some weight instead of stopping dead
-const MDRAW_PULL = 0.26, MDRAW_ARC = 0.14, MDRAW_OVER = 0.12;
-const _mdT = new THREE.Matrix4();
-function meleeDrawFrame(out, stow, live, u) {
-  const pull = smooth(clamp(u / 0.3, 0, 1)), v = clamp((u - 0.12) / 0.88, 0, 1);
-  const k = 1 + (1 + MDRAW_OVER * 10) * Math.pow(v - 1, 3) + MDRAW_OVER * 10 * Math.pow(v - 1, 2);   // (an ease out that overshoots)
-  blendFrame(out, stow.clone().multiply(_mdT.makeTranslation(0, -MDRAW_PULL * pull, 0)), live, clamp(k, 0, 1));
-  if (k > 1) { const e = out.elements; e[12] += (live.elements[12] - stow.elements[12]) * (k - 1) * 0.5; e[14] += (live.elements[14] - stow.elements[14]) * (k - 1) * 0.5; }
+// a melee weapon coming off the pack: first slid out along its own handle (MDRAW_PULL, clear of the straps), then
+// swung up and round in a higher arc than a gun's (MDRAW_ARC) toward the hand, easing in and out so it's lifted off
+// rather than snatched. Where it's going moves (the flourish it runs on into: melee/melee-anim.js, MDRAW), so it
+// arrives already moving with it. The weapon's turned from the pack toward there on the same side all the way (st.rel
+// is last frame's turn): a weapon hanging point down turned nearly right over could otherwise flip to going round
+// the other way as where it's going moves
+const MDRAW_PULL = 0.26, MDRAW_ARC = 0.14;
+const _mdT = new THREE.Matrix4(), _mdP = new V3(), _mdQ = new THREE.Quaternion(), _mdR = new THREE.Quaternion(), _mdO = new THREE.Quaternion(), _mdS = new V3();
+function meleeDrawFrame(out, stow, live, u, st) {
+  const pull = smooth(clamp(u / 0.35, 0, 1)), v = clamp((u - 0.06) / 0.94, 0, 1), k = v * v * (3 - 2 * v);
+  blendFrame(out, stow.clone().multiply(_mdT.makeTranslation(0, -MDRAW_PULL * pull, 0)), live, k);
+  stow.decompose(_mdP, _mdQ, _mdS); live.decompose(_mdP, _mdR, _mdS);
+  const rel = _mdR.premultiply(_mdQ.clone().invert());   // (the turn from the pack to the hand, in the weapon's frame)
+  if (!st.rel) st.rel = rel.clone(); else if (rel.dot(st.rel) < 0) rel.set(-rel.x, -rel.y, -rel.z, -rel.w);
+  st.rel.copy(rel);
+  const w = clamp(rel.w, -1, 1), ang = 2 * Math.acos(w), sn = Math.sqrt(1 - w * w);
+  if (sn > 1e-5) { _mdS.set(rel.x / sn, rel.y / sn, rel.z / sn); rel.setFromAxisAngle(_mdS, ang * k); } else rel.identity();
+  out.decompose(_mdP, _mdO, _mdS); out.compose(_mdP, _mdQ.multiply(rel), _mdS);
   out.elements[13] += MDRAW_ARC * Math.sin(Math.PI * v);
   return out;
 }
@@ -154,7 +162,7 @@ function updateSwap(dt, rdt) {
   } else if (stowNew) {
     // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch
     const u = clamp((t - T.cross) / (T.end - T.cross), 0, 1), k = 1 - Math.pow(1 - smooth(u), 1.7);   // out quick, settling gently
-    const f = newMelee ? meleeDrawFrame(new THREE.Matrix4(), stowNew, live, u) : blendFrame(new THREE.Matrix4(), stowNew, live, k);
+    const f = newMelee ? meleeDrawFrame(new THREE.Matrix4(), stowNew, live, u, st) : blendFrame(new THREE.Matrix4(), stowNew, live, k);
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);
       placeAt(gunMeshes.melee, f);

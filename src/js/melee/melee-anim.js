@@ -104,44 +104,53 @@ const MSWINGS = {
       [1, 'G', 'G']] }
   ]
 };
-// the draw: once the weapon's out (player/swap.js brings it from where it rides), what you do with it, by weapon, over
-// dur seconds. A one-hander's spun round in the fist and caught; the machete flipped over and given a flick; the bat
-// laid on the shoulder and bounced; the katana's blade flicked out to the side and brought up to the guard; the heavy
-// two let sag with their weight, hauled onto the shoulder, then down into the guard
+// the draw: what you do with the weapon as it comes off the pack, by weapon, over dur seconds from when the hand
+// closes on it (player/swap.js carries it from the straps toward the first key, so the motion runs on from the draw
+// without stopping at the guard first). Each runs through on one loose curve with no holds and lands in the guard,
+// the springs letting it settle there with its weight. The crowbar's twirled forward once round in the fist and
+// caught; the machete tipped out and flicked down to the right; the bat laid on the shoulder, lifted off it and let
+// fall forward into both hands; the katana drawn up over the shoulder and flicked out and down to the right; the heavy
+// two brought onto the shoulder, the knees taking the weight, hitched up and let swing down across into the left
+// hand. L is when a two-hander's left hand comes onto the handle (off it before, at SWAP_REST_L), snd when it whooshes
 const MDRAW = {
-  club: { dur: 0.72, keys: [
-    [0, 'G', 'G'],
-    [0.16, [0.24, 1.18, 0.42], [0.1, 0.3, 0.95], { uy: 0.1 }],
-    [0.3, [0.26, 1.24, 0.44], [0.08, -0.9, 0.4], { uy: 0.08 }],
-    [0.44, [0.24, 1.22, 0.42], [0.06, -0.2, -0.98]],
-    [0.58, [0.2, 1.06, 0.4], [0.12, 0.92, -0.3], { uy: 0.2, dip: 0.08 }],
-    [0.72, 'G', 'G']] },
-  machete: { dur: 0.76, keys: [
-    [0, 'G', 'G'],
-    [0.14, [0.3, 1.14, 0.44], [0.1, -0.4, 0.9], { uy: 0.14 }],
-    [0.28, [0.3, 1.18, 0.42], [0.12, -0.6, -0.8]],
-    [0.42, [0.28, 1.08, 0.4], [0.08, 0.8, -0.5], { dip: 0.06 }],
-    [0.56, [0.18, 1.0, 0.5], [-0.5, 0.2, 0.84], { uy: -0.12, ux: 0.06 }],
-    [0.76, 'G', 'G']] },
-  bat: { dur: 0.9, keys: [
-    [0, 'G', 'G'],
-    [0.22, [0.2, 1.32, 0.22], [0.26, 0.24, -0.93], { uy: 0.18, dip: 0.04 }],
-    [0.36, [0.2, 1.27, 0.22], [0.26, 0.3, -0.92], { uy: 0.16, dip: 0.1 }],
-    [0.48, [0.2, 1.33, 0.22], [0.26, 0.24, -0.93], { uy: 0.18, dip: 0.04 }],
-    [0.6, [0.2, 1.28, 0.23], [0.26, 0.3, -0.92], { dip: 0.09 }, 1],
-    [0.9, 'G', 'G']] },
-  katana: { dur: 0.82, keys: [
-    [0, 'G', 'G'],
-    [0.18, [0.32, 1.14, 0.4], [0.62, 0.42, 0.66], { uy: 0.3, hy: 0.12 }],
-    [0.32, [0.42, 0.96, 0.38], [0.88, -0.36, 0.3], { uy: 0.4, hy: 0.18, dip: 0.14 }],
-    [0.46, [0.4, 0.96, 0.38], [0.86, -0.4, 0.32], { dip: 0.16 }, 1],
-    [0.82, 'G', 'G']] },
-  heavy: { dur: 1.0, keys: [
-    [0, 'G', 'G'],
-    [0.18, [0.14, 0.8, 0.36], [-0.3, 0.4, 0.86], { uy: 0.12, ux: 0.12, dip: 0.3 }],
-    [0.42, [0.18, 1.36, 0.22], [0.18, 0.5, -0.85], { uy: 0.26, ux: -0.04, dip: 0.04 }],
-    [0.58, [0.18, 1.32, 0.22], [0.2, 0.46, -0.86], { dip: 0.1 }, 1],
-    [1.0, 'G', 'G']] }
+  club: { dur: 0.95, snd: 0.3, keys: [
+    [0, [0.28, 1.3, 0.14], [0.1, 0.87, -0.5], { uy: 0.12 }],
+    [0.2, [0.3, 1.18, 0.32], [0.08, 0.94, 0.34], { uy: 0.1 }],
+    [0.32, [0.31, 1.08, 0.4], [0.08, 0.34, 0.94]],
+    [0.42, [0.31, 1.03, 0.41], [0.08, -0.47, 0.88], { uy: 0.06, ux: 0.03 }],
+    [0.51, [0.31, 1.01, 0.4], [0.08, -0.97, 0.22]],
+    [0.6, [0.31, 1.0, 0.38], [0.08, -0.64, -0.77], { dip: 0.02 }],
+    [0.7, [0.32, 0.95, 0.34], [0.12, 0.6, -0.79], { uy: 0.14, dip: 0.06 }],
+    [0.8, [0.32, 0.9, 0.31], [0.2, 0.96, 0.17], { dip: 0.02 }],
+    [0.95, 'G', 'G']] },
+  machete: { dur: 0.92, snd: 0.38, keys: [
+    [0, [0.28, 1.3, 0.14], [0.1, 0.87, -0.5], { uy: 0.12 }],
+    [0.22, [0.32, 1.2, 0.34], [0.3, 0.85, 0.4], { uy: 0.12 }],
+    [0.36, [0.36, 1.08, 0.42], [0.7, 0.2, 0.68], { uy: 0.16 }],
+    [0.48, [0.4, 0.99, 0.38], [0.85, -0.35, 0.4], { uy: 0.2, dip: 0.05 }],
+    [0.62, [0.36, 0.94, 0.34], [0.55, 0.15, 0.82], { uy: 0.13, dip: 0.02 }],
+    [0.92, 'G', 'G']] },
+  bat: { dur: 1.15, snd: 0.55, L: [0.62, 0.86], keys: [
+    [0, [0.22, 1.3, 0.18], [0.3, 0.5, -0.81], { uy: 0.12 }],
+    [0.3, [0.22, 1.27, 0.2], [0.32, 0.42, -0.85], { uy: 0.15, dip: 0.07 }],
+    [0.5, [0.24, 1.22, 0.28], [0.45, 0.85, -0.25], { uy: 0.2, dip: 0.02 }],
+    [0.66, [0.2, 1.04, 0.36], [0.62, 0.6, 0.5], { uy: 0.22, dip: 0.07 }],
+    [0.82, [0.15, 0.92, 0.33], [0.45, 0.72, 0.53], { uy: 0.16, dip: 0.05 }],
+    [1.15, 'G', 'G']] },
+  katana: { dur: 1.0, snd: 0.42, L: [0.62, 0.84], keys: [
+    [0, [0.26, 1.34, 0.14], [0.15, 0.6, -0.78], { uy: 0.1 }],
+    [0.24, [0.3, 1.3, 0.3], [0.4, 0.9, 0.1], { uy: 0.14 }],
+    [0.4, [0.38, 1.12, 0.4], [0.85, 0.3, 0.42], { uy: 0.25, hy: 0.1 }],
+    [0.52, [0.42, 0.98, 0.38], [0.8, -0.35, 0.5], { uy: 0.3, hy: 0.12, dip: 0.1 }],
+    [0.68, [0.2, 0.94, 0.38], [0.3, 0.2, 0.93], { uy: 0.12, hy: 0.04, dip: 0.06 }],
+    [1.0, 'G', 'G']] },
+  heavy: { dur: 1.15, snd: 0.7, L: [0.66, 0.9], keys: [
+    [0, [0.2, 1.3, 0.16], [0.2, 0.45, -0.87], { uy: 0.12 }],
+    [0.3, [0.2, 1.24, 0.18], [0.22, 0.4, -0.89], { uy: 0.16, ux: 0.06, dip: 0.14 }],
+    [0.46, [0.2, 1.3, 0.22], [0.15, 0.8, -0.55], { uy: 0.14, ux: 0, dip: 0.04 }],
+    [0.62, [0.15, 1.12, 0.32], [-0.1, 0.95, 0.2], { uy: 0.12 }],
+    [0.78, [0.13, 0.9, 0.32], [-0.4, 0.75, 0.5], { uy: 0.2, ux: 0.06, dip: 0.1 }],
+    [1.15, 'G', 'G']] }
 };
 // the bash (a shove with a melee weapon in your hands, player/shove.js): both hands drive the haft out flat across
 // you, the weapon crosswise like a bar, and back to the guard; a one-hander's driven out pommel first. Over the
@@ -158,6 +167,13 @@ const MBASH = {
     [0.48, [0.12, 1.1, 0.54], [0.06, 0.92, -0.3], { ux: 0.08, step: 0.25 }],
     [1, 'G', 'G']]
 };
+// how far up the haft a two-hander's left hand has slid for the bash (1: holding it like a bar), sliding up as it's
+// drawn back and down again as it comes back to the guard, gone by the time the shove ends (player/hold.js)
+function meleeBashHand() {
+  const sv = P.shove; if (!sv) return 0;
+  const p = clamp(sv.t / sv.dur, 0, 1);
+  return smooth(clamp(p / 0.18, 0, 1)) * (1 - smooth(clamp((p - 0.42) / 0.5, 0, 1)));
+}
 // how much further the fist is thrown out from the shoulder through the front of a swing (at full reach ahead)
 const MEXTEND = 0.3;
 // how far ahead (seconds) each part is sampled: the hips and legs lead, then the chest, the arm, and the weapon last
@@ -170,7 +186,7 @@ const MSTOP = { light: 0.055, heavy: 0.09 };
 const MBODY = ['uy', 'ux', 'uz', 'hy', 'step', 'dip'];
 // the springs' state: the fist and the weapon's direction with their speeds, and the body (MS.b, each part's speed
 // beside it as v + its name)
-const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '' };
+const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1 };
 MBODY.forEach(k => { MS.b[k] = 0; MS.b['v' + k] = 0; });
 const _maF = new V3(), _maW = new V3(), _maA = new V3(), _maB = new V3(), _maQ = new THREE.Quaternion(), _maE = new THREE.Euler();
 // a key's F or W, with 'G' the guard
@@ -264,16 +280,20 @@ function meleePose(id, D, rdt, now, sh) {
     // out in front, the arm throws itself out to its full length (MEXTEND), so the blow reaches as far as it hits
     const s = SHOULDER_REST.R, fz = _maF.z - s[2]; if (fz > 0) { const k = 1 + MEXTEND * clamp(fz / 0.5, 0, 1); _maF.set(s[0] + (_maF.x - s[0]) * k, s[1] + (_maF.y - s[1]) * k, s[2] + fz * k); }
   } else if (ANIM.mDrawT !== undefined && ANIM.mDrawT >= 0) {
-    // the flourish once it's drawn
+    // the flourish
     const fl = MDRAW[kind], t = ANIM.mDrawT;
     if (t >= fl.dur) ANIM.mDrawT = undefined;
     else sampleFast(fl.keys, g, t + MCHAIN.F, t + MCHAIN.W, t + MCHAIN.body, _maF, _maW, _mTB);
   }
-  if (ANIM.mDrawT !== undefined && !swapSt) {   // (it waits while the draw itself is on: player/swap.js)
-    const t0 = ANIM.mDrawT; ANIM.mDrawT += rdt;
-    if (t0 < 0.2 && ANIM.mDrawT >= 0.2 && t0 >= 0) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
+  // it starts as the hand closes on the weapon (until then the arm's putting the old one away and reaching for this
+  // one: player/swap.js), at the swap's pace while the swap's on
+  if (ANIM.mDrawT !== undefined && (!swapSt || swapSt.t >= SWAP_T.cross)) {
+    const t0 = ANIM.mDrawT, snd = MDRAW[kind].snd; ANIM.mDrawT += rdt * (swapSt ? S.swapMul : 1);
+    if (t0 < snd && ANIM.mDrawT >= snd) { if (D.blunt) SFX.swingBlunt(false); else SFX.swingBlade(false); }
     if (W8.swing > 0 || sh) ANIM.mDrawT = undefined;   // a swing or a bash straight away cuts it short (the springs carry it over)
   }
+  // a two-hander's left hand: off the handle through the flourish until its L, then onto it (player/hold.js)
+  { const L = MDRAW[kind].L; MS.lOn = ANIM.mDrawT !== undefined && L ? smooth(clamp((ANIM.mDrawT - L[0]) / (L[1] - L[0]), 0, 1)) : 1; }
   // between swings: the guard holds steady in the hands, the chest's own bob carrying it (the fist doesn't bob on
   // top of that); walking, the tip only sways a little side to side with the stride. At a sprint it's carried
   // (meleeRun) instead, eased in with the low ready (ANIM.ready, player/sprint.js)
