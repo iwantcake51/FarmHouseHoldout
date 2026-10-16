@@ -1,5 +1,5 @@
 // What a zombie looks like: a body a little more like a person's than a stack of boxes (a chest over a narrower waist,
-// a neck, a jaw hanging open over the teeth, sunken eyes, hands with clawed fingers, feet in whatever shoes they died
+// a neck, a face dealt like the survivor's and set unevenly, plain block hands, feet in whatever shoes they died
 // in), dressed for the job it had before (ZJOBS: a cop, a SWAT officer, a track runner, a nurse, a farmer, a chef, a
 // firefighter...), the way Project Zomboid dresses its dead, and everything it wears gone ragged: rips through to the
 // grey skin, hems and cuffs torn into strips, a sleeve torn off, a trouser leg ripped away, dirt and old blood.
@@ -36,7 +36,10 @@ function zFree(root) { if (root) root.traverse(o => { if (o.isMesh && o.geometry
 // ---- colours ----
 const zc = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
 const zmix = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), t).getHex();
-const zhsl = (h, s, l) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l).getHex();
+// the colours clothes are really dyed (heathers, navies, olives, maroons, khakis, faded reds, stone), picked from
+// rather than any hue at all, which gives magentas and limes nobody wears; and the colours a sneaker's flash comes in
+const ZDYE = [0x6e7a8a, 0x8a8478, 0x5a2e2e, 0x2e3e5e, 0x4a5a3a, 0x9a8a5a, 0x6a3a2a, 0x3a5a6a, 0x8a4a3a, 0x5a4a6a, 0x7a8a9a, 0x4a3a2e, 0xb0a890, 0x9a3a32, 0x3e4a3e];
+const ZFLASH = [0x9a2a22, 0x2a4a8a, 0x2a2a2c, 0x8a8a8a, 0x3a6a3a, 0xb8902a, 0xd8d4cc];
 // clothes that have been through it: a little faded toward the colour of dirt, a little darker
 const ZDIRT = 0x4e4636, worn = (c, k) => zc(zmix(c, ZDIRT, k === undefined ? rr(0.12, 0.28) : k), rr(0.86, 0.96));
 // the living colour of someone's skin, gone grey-green, sallow or bruise-blue with death
@@ -68,12 +71,12 @@ const zbandWaist = (k, y, h, c, out) => zb(k, 0.42 + 2 * out, h, 0.26 + 2 * out,
 // added once the body's built, given the kits). w is how often each turns up among walkers, runners and brutes
 const ZJOBS = {
   casual: { w: [10, 5, 3], f: o => {
-    o.top = worn(pick([0x8a8a86, 0x2e2e30, 0xa83a2a, 0x3a5a7a, 0xd8d2c4, 0x4e5a3c, zhsl(rand(), rr(0.25, 0.6), rr(0.25, 0.55))])); o.sleeve = rand() < 0.75 ? 'short' : 'long';
+    o.top = worn(pick([0x8a8a86, 0x2e2e30, 0xa83a2a, 0x3a5a7a, 0xd8d2c4, 0x4e5a3c, pick(ZDYE)])); o.sleeve = rand() < 0.75 ? 'short' : 'long';
     o.legs = rand() < 0.15 ? 'shorts' : 'long'; o.pants = worn(pick([0x3a4a64, 0x2f3a52, 0x4a5a74, 0x2f3238, 0x6a5e44, 0x1e1e22])); o.shoes = pick(['sneakers', 'sneakers', 'boots']);
     if (rand() < 0.4) { const pc = pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]); o.add.push(K => { zfront(K.torso, rr(0.12, 0.2), rr(0.08, 0.14), worn(pc, 0.2), 0, 0.14, ZF.chest); }); }   // something printed on the front
   } },
   hoodie: { w: [5, 4, 2], f: o => {
-    o.top = worn(pick([0x6a6a6a, 0x2e3a54, 0x4a5236, 0x5e2a2a, 0x2a2a2c, zhsl(rand(), 0.35, 0.35)])); o.sleeve = 'long'; o.legs = 'long'; o.pants = worn(pick([0x3a4a64, 0x2f3238, 0x5a5a5e])); o.shoes = 'sneakers';
+    o.top = worn(pick([0x6a6a6a, 0x2e3a54, 0x4a5236, 0x5e2a2a, 0x2a2a2c, pick(ZDYE)])); o.sleeve = 'long'; o.legs = 'long'; o.pants = worn(pick([0x3a4a64, 0x2f3238, 0x5a5a5e])); o.shoes = 'sneakers';
     const c = o.top; o.add.push(K => {
       zb(K.torso, 0.3, 0.09, 0.12, zc(c, 0.85), 0, 0.31, -0.1);   // the hood, down at the back of the neck
       zfront(K.torso, 0.3, 0.1, zc(c, 0.88), 0, -0.2, ZF.waist);   // the front pocket
@@ -148,7 +151,7 @@ const ZJOBS = {
     });
   } },
   jogger: { w: [3, 6, 0], f: o => {
-    o.top = worn(pick([0x3a3c42, 0x8a8a8e, 0x2a4a7a, 0x7a2a3a, 0x2a2a2c, zhsl(rand(), 0.5, 0.45)]), 0.15); o.sleeve = rand() < 0.5 ? 'long' : 'short'; o.legs = 'long'; o.pants = worn(pick([0x1e1e22, 0x2a2c34, 0x4a4a50]), 0.1); o.shoes = 'sneakers'; o.thin = true;
+    o.top = worn(pick([0x3a3c42, 0x8a8a8e, 0x2a4a7a, 0x7a2a3a, 0x2a2a2c, pick(ZDYE)]), 0.15); o.sleeve = rand() < 0.5 ? 'long' : 'short'; o.legs = 'long'; o.pants = worn(pick([0x1e1e22, 0x2a2c34, 0x4a4a50]), 0.1); o.shoes = 'sneakers'; o.thin = true;
     const stripe = pick([0xe8e6e0, 0xc82a22, 0xe8c020]);
     o.add.push(K => {
       ['L', 'R'].forEach(s => { const x = (s === 'L' ? -1 : 1); zside(K['leg' + s], x, 0.03, 0.28, stripe, 0, -0.145, 0.095, 0.004); zside(K['shin' + s], x, 0.03, 0.2, stripe, 0, -0.1, 0.092, 0.004); });   // the stripe down the side of each leg
@@ -332,7 +335,7 @@ const ZJOBS = {
     });
   } },
   dress: { w: [4, 2, 0], f: o => {
-    const c = worn(pick([0x8a2a3a, 0x2a4a7a, 0x3a5a3a, 0x1e1e20, 0x9a7a4a, zhsl(rand(), 0.45, 0.4)]), 0.15);
+    const c = worn(pick([0x8a2a3a, 0x2a4a7a, 0x3a5a3a, 0x1e1e20, 0x9a7a4a, pick(ZDYE)]), 0.15);
     o.top = c; o.sleeve = rand() < 0.5 ? 'none' : 'short'; o.legs = 'bare'; o.pants = c; o.shoes = 'slip'; o.slip = pick([0x1e1e20, 0x6a2a2a, 0xb8a888]); o.gown = c; o.hair = pick(['long', 'long', 'pony']);
     o.add.push(K => { if (rand() < 0.5) for (let i = 0; i < 9; i++) zfront(K.torso, 0.018, 0.018, zc(c, 1.6), rr(-0.18, 0.18), rr(-0.25, 0.25), i % 2 ? ZF.chest : ZF.waist, 0.004); });   // a little floral print, sometimes
   } }
@@ -353,9 +356,10 @@ function zPickJob(type) {
 }
 function zDeal(type, job) {
   const live = pick(ZSKIN_LIVE), dead = pick(ZROT);
-  const o = { job: job || zPickJob(type), add: [], skin: zc(zmix(live, dead, rr(0.66, 0.84)), rr(0.78, 0.9)), hair: pick(['short', 'short', 'long', 'bald', 'balding', 'patchy', 'short']), hairCol: pick([0x2a2018, 0x3a2a1e, 0x5a4630, 0x8a8478, 0x1a1a1a, 0x6a3a1e, 0xa8a49c]),
+  const o = { job: job || zPickJob(type), add: [], skin: zc(zmix(live, dead, rr(0.5, 0.74)), rr(0.8, 0.92)), rotCol: dead, hair: pick(['short', 'short', 'long', 'bald', 'balding', 'patchy', 'short']), hairCol: pick([0x2a2018, 0x3a2a1e, 0x5a4630, 0x8a8478, 0x1a1a1a, 0x6a3a1e, 0xa8a49c]),
     hat: 'none', hatCol: 0x2a2a2a, sleeve: 'short', legs: 'long', shoes: 'sneakers', gloves: 0, beard: rand() < 0.2, wear: rr(0.6, 1.3) };
   ZJOBS[o.job].f(o);
+  o.face = zDealFace(o);
   o.skinDk = zc(o.skin, 0.8); o.bruise = zmix(o.skin, 0x4a3a5a, 0.45);
   return o;
 }
@@ -371,7 +375,7 @@ function zBuild(o, brute) {
   [-1, 1].forEach(s => zb(K.torso, 0.15, 0.05, 0.26, zc(cover, 0.95), s * 0.12, 0.3, 0, 0, 0, -s * 0.32));
   if (brute || rand() < 0.15) zb(K.torso, 0.36, 0.2, 0.06, o.coat ? cover : top, 0, -0.14, 0.14);
   if (o.coat && o.coat !== top) ztall(K.torso, 'f', 0.12, -0.28, 0.28, top, 0, 0.002);
-  // the arms: the sleeves as far as they go, then skin; the hands, clawed
+  // the arms: the sleeves as far as they go, then skin; the hands, plain blocks with no fingers
   ['L', 'R'].forEach(S => {
     const s = S === 'L' ? -1 : 1, up = K['arm' + S], fo = K['fore' + S], sl = o.sleeveCol || cover, hand = o.gloves || sk;
     const upCol = o.sleeve === 'none' ? sk : o.sleeve === 'short' ? sk : sl, foCol = o.sleeve === 'long' ? sl : sk;
@@ -379,10 +383,7 @@ function zBuild(o, brute) {
     if (o.sleeve === 'short') zb(up, 0.152, 0.152, 0.17, sl, 0, 0, 0.065);
     if (o.sleeve === 'rolled') zb(fo, 0.146, 0.146, 0.05, zc(sl, 0.9), 0, 0, 0.0);
     if (o.sleeve === 'long') zb(fo, 0.138, 0.138, 0.03, zc(sl, 0.85), 0, 0, 0.27);   // the cuff
-    zb(fo, 0.11, 0.065, 0.1, hand, 0, -0.005, 0.33);   // the hand
-    for (let f = 0; f < 4; f++) zb(fo, 0.022, 0.025, 0.065, hand, -0.04 + f * 0.027, -0.012, 0.395, 0.45 + rr(-0.15, 0.25), 0, 0);   // fingers, curled into claws
-    zb(fo, 0.025, 0.025, 0.05, hand, -s * 0.06, -0.01, 0.35, 0.3, -s * 0.5, 0);   // the thumb
-    if (!o.gloves) for (let f = 0; f < 4; f++) zb(fo, 0.018, 0.012, 0.02, 0x3a3428, -0.04 + f * 0.027, -0.035, 0.42, 0.9, 0, 0);   // filthy nails
+    zb(fo, 0.11, 0.07, 0.13, hand, 0, -0.005, 0.345);   // the hand
   });
   // the legs: trousers, shorts or bare skin, and what's on the feet
   ['L', 'R'].forEach(S => {
@@ -409,39 +410,118 @@ function zShoe(sh, o, s) {
   const y = -0.2375, foot = (c, h) => zb(sh, 0.198, h || 0.085, 0.29, c, 0, -0.28 + (h || 0.085) / 2, 0.035);
   if (o.socks && o.shoes !== 'bare') zb(sh, 0.19, 0.05, 0.22, o.socks, 0, -0.18, 0);
   if (o.shoes === 'boots') { const b = o.boot || worn(pick([0x3a2a1e, 0x2a2420, 0x6a4a2a])); zb(sh, 0.196, 0.13, 0.226, b, 0, -0.19, 0); foot(b, 0.09); zb(sh, 0.204, 0.02, 0.296, 0x161412, 0, -0.272, 0.035); for (let i = 0; i < 3; i++) zb(sh, 0.06, 0.008, 0.012, 0x161412, 0, -0.16 - i * 0.025, 0.114); }
-  else if (o.shoes === 'sneakers') { const sn = o.sneak || [worn(pick([0xe8e6e0, 0x8a8a8e, 0x2a2a2c, zhsl(rand(), 0.55, 0.45)]), 0.25), 0xe0dcd2, worn(zhsl(rand(), 0.7, 0.5))]; foot(sn[0], 0.075); zb(sh, 0.204, 0.025, 0.296, worn(sn[1], 0.3), 0, -0.268, 0.035); zb(sh, 0.006, 0.03, 0.12, sn[2], s * 0.102, -0.245, 0.04); }
+  else if (o.shoes === 'sneakers') { const sn = o.sneak || [worn(pick([0xe8e6e0, 0x8a8a8e, 0x2a2a2c, pick(ZDYE)]), 0.25), 0xe0dcd2, worn(pick(ZFLASH))]; foot(sn[0], 0.075); zb(sh, 0.204, 0.025, 0.296, worn(sn[1], 0.3), 0, -0.268, 0.035); zb(sh, 0.006, 0.03, 0.12, sn[2], s * 0.102, -0.245, 0.04); }
   else if (o.shoes === 'dress') { const c = pick([0x141416, 0x3e1a16, 0x4e2e1a]); foot(c, 0.065); zb(sh, 0.2, 0.012, 0.294, 0x0e0c0a, 0, -0.274, 0.035); }
   else if (o.shoes === 'slip') foot(o.slip || worn(0x2a2a2c), 0.05);
   else if (o.shoes === 'socks') foot(o.socks || 0xd8d4c8, 0.06);
   else { foot(o.skin, 0.06); for (let i = 0; i < 4; i++) zb(sh, 0.035, 0.035, 0.03, o.skinDk, -0.06 + i * 0.04, -0.262, 0.185); }   // bare feet, toes and all
 }
-// the head: a skull over a jaw hanging open, a neck, the brow, sunken eye sockets (the eyes that glow in them are their
-// own meshes: zombies/spawn.js), a nose (or the hole where it was), ears, teeth, hair, a hat
+// the face, dealt the way the survivor's is (player/look.js): eyes, brows, nose and mouth each one of a few shapes, set
+// a little unevenly so no two halves match; then what dying did to it. ZFACE weights each by how often it turns up
+const ZFACE = {
+  eye: ['milky', 'milky', 'milky', 'half', 'half', 'wide', 'squint', 'bloodshot'],
+  brow: ['flat', 'flat', 'furrow', 'furrow', 'heavy', 'thin', 'sparse', 'raised'],
+  nose: ['straight', 'straight', 'straight', 'wide', 'wide', 'long', 'crooked', 'crooked', 'broken', 'button', 'button', 'gone'],
+  mouth: ['slack', 'slack', 'slack', 'grim', 'grim', 'snarl', 'snarl', 'gaping']
+};
+// how far the jaw hangs (the gap between the lips) and how wide the mouth is, for each mouth
+const ZMOUTH = { slack: [0.018, 0.028, 0.07, 0.09], gaping: [0.034, 0.044, 0.09, 0.11], snarl: [0.012, 0.02, 0.06, 0.08], grim: [0, 0, 0.06, 0.075] };
+const ZTEETH = [0xbcb08a, 0xa89a72, 0xc8bc98, 0x8a7a58, 0xb0a07a];
+function zDealFace(o) {
+  const eye = pick(ZFACE.eye), M = pick(ZFACE.mouth), m = ZMOUTH[M];
+  return { hw: rr(0.265, 0.29), jw: rr(0.2, 0.235), jx: rr(-0.01, 0.01), jr: rr(-0.07, 0.07), mouth: M, drop: rr(m[0], m[1]), mw: rr(m[2], m[3]),
+    eyes: [eye, rand() < 0.25 ? pick(ZFACE.eye) : eye], gap: rr(0.056, 0.066), eyeY: rr(0.022, 0.04), lop: rr(-0.009, 0.009), ex: rr(-0.006, 0.006),
+    brow: pick(ZFACE.brow), nose: pick(ZFACE.nose), side: rand() < 0.5 ? -1 : 1, torn: rand() < 0.2, drool: rand() < 0.6, neckBite: rand() < 0.25 };
+}
+// the head: a skull down to the upper lip, a jaw hung below it as far as the mouth is open with the cheeks carried down
+// to it either side, the dark of the mouth and a few bad teeth showing between; the neck; brow ridges over the eye
+// sockets, the eyes in them (and the glowing pupils, their own meshes at o.eyeAt: zombies/spawn.js), the brows, nose
+// and ears; then the hair (and a front hairline, so the forehead isn't a bare box), the beard, glasses, mask and hat
 function zHead(H, o) {
-  const sk = o.skin, dk = o.skinDk;
-  zb(H, 0.28, 0.28, 0.3, sk, 0, 0.02, 0);                    // the skull
-  zb(H, 0.23, 0.09, 0.23, sk, 0, -0.135, 0.03);              // the jaw, dropped open
-  zb(H, 0.12, 0.09, 0.12, sk, 0, -0.18, -0.01);              // the neck
-  zb(H, 0.25, 0.03, 0.02, dk, 0, 0.065, 0.152);              // the brow
-  [-1, 1].forEach(s => {
-    zb(H, 0.075, 0.055, 0.006, ZDARK, s * 0.06, 0.03, 0.152);                                  // the sunken sockets
-    zb(H, 0.05, 0.03, 0.006, zc(dk, 0.8), s * 0.095, -0.045, 0.152);                           // hollow cheeks
-    if (rand() < 0.88) zb(H, 0.02, 0.065, 0.05, dk, s * 0.148, 0.0, -0.01);                    // ears (one sometimes gone)
-    else zb(H, 0.006, 0.04, 0.04, ZMEAT, s * 0.142, 0.0, -0.01);
+  const sk = o.skin, F = o.face, hx = F.hw / 2, f = 0.15, lip = -0.075, d = F.drop, jh = 0.09 - d, jy = lip - d - jh / 2;
+  const fr = (w, h, c, x, y, lay, rz) => zb(H, w, h, 0.006, c, x, y, f + lay, 0, 0, rz || 0);   // a thin piece on the face
+  const jf = (w, h, c, x, y, lay) => zb(H, w, h, 0.006, c, x, y, 0.145 + lay);                   // ... on the front of the jaw
+  const hc = o.hairCol, dkLip = zmix(sk, 0x4a2e3a, 0.4), blood = zmix(sk, ZBLOOD, 0.78);
+  zb(H, F.hw, 0.16 - lip, 0.3, sk, 0, (0.16 + lip) / 2, 0);                  // the skull, down to the upper lip
+  zb(H, F.jw, jh, 0.22, sk, F.jx, jy, 0.035, 0, 0, F.jr);                    // the jaw
+  zb(H, 0.125, 0.1, 0.12, zc(sk, 0.92), 0, -0.19, -0.015);                   // the neck
+  if (d > 0) {   // the mouth hanging open: the cheeks down to the jaw either side, the dark inside, the teeth
+    const cw = (F.jw - F.mw) / 2;
+    [-1, 1].forEach(s => zb(H, cw, d + 0.01, 0.2, sk, F.jx + s * (F.mw / 2 + cw / 2), lip - d / 2, 0.045));
+    zb(H, F.mw, d + 0.012, 0.03, 0x2a1210, F.jx, lip - d / 2, 0.115);
+    const nt = Math.round(F.mw / 0.017);
+    for (let i = 0; i < nt; i++) { if (rand() < 0.28) continue; const th = rr(0.01, Math.min(0.02, d * 0.8)); zb(H, rr(0.011, 0.015), th, 0.016, pick(ZTEETH), F.jx - F.mw / 2 + (i + 0.5) * F.mw / nt + rr(-0.002, 0.002), lip - th / 2, 0.137, 0, 0, rr(-0.15, 0.15)); }
+    for (let i = 0; i < nt - 1; i++) { if (rand() < 0.45) continue; const th = rr(0.008, Math.min(0.014, d * 0.6)); zb(H, rr(0.01, 0.014), th, 0.014, pick(ZTEETH), F.jx - F.mw / 2 + (i + 1) * F.mw / nt, lip - d + th / 2, 0.133); }
+    jf(F.mw * 0.9, 0.012, dkLip, F.jx, lip - d - 0.006, 0.004);              // the lower lip
+  } else fr(F.mw, 0.008, 0x2a1810, F.jx, lip + 0.008, 0.004, F.jr);          // shut: just the line of it
+  fr(F.mw + 0.012, 0.012, dkLip, F.jx, lip + 0.006, 0.003, F.jr * 0.5);      // the upper lip
+  if (F.mouth === 'snarl') fr(0.03, 0.01, dkLip, F.jx + F.side * F.mw * 0.3, lip + 0.016, 0.005, F.side * 0.35);   // the lip curled up at one side
+  // dead skin: one side of the face gone a shade greyer than the other, where the blood settled
+  fr(rr(0.09, 0.12), rr(0.1, 0.15), zmix(sk, o.rotCol, 0.22), F.side * rr(0.05, 0.07), rr(-0.02, 0.04), 0.002);
+  // the eyes: a shadowed socket, the eye in it (filmed over, bloodshot, staring, narrowed or the lid half down), and
+  // its pupil, which is what glows; the brow over it, standing a little proud
+  o.eyeAt = [];
+  [-1, 1].forEach((s, i) => {
+    const t = F.eyes[i], x = s * F.gap + F.ex, y = F.eyeY + (s === F.side ? F.lop : 0);
+    fr(0.064, 0.044, zmix(zc(sk, 0.66), 0x3a2a3a, 0.2), x, y - 0.003, 0.004);
+    const ew = t === 'wide' ? 0.05 : 0.045, eh = t === 'wide' ? 0.032 : t === 'squint' ? 0.013 : 0.026;
+    fr(ew, eh, t === 'bloodshot' ? 0xa8786a : t === 'wide' ? 0xc0baa2 : 0xb2ae98, x, y, 0.008);
+    if (t === 'half') fr(0.052, 0.017, zc(sk, 0.84), x, y + 0.006, 0.02);
+    if (t === 'squint') { fr(0.052, 0.01, zc(sk, 0.84), x, y + 0.011, 0.02); fr(0.05, 0.008, zc(sk, 0.8), x, y - 0.011, 0.02); }
+    const gw = t === 'wide' ? 0.022 : t === 'squint' ? 0.018 : 0.02, gh = t === 'wide' ? 0.02 : t === 'squint' ? 0.008 : t === 'half' ? 0.011 : 0.016;
+    o.eyeAt.push([x + rr(-0.006, 0.006), t === 'half' ? y - 0.005 : y + rr(-0.002, 0.002), gw, gh, f + 0.015]);
+    // the brow: flat, drawn down in a frown, heavy, thin, thinned out, or raised
+    const B = F.brow, bc = o.hair === 'bald' && rand() < 0.5 ? zc(sk, 0.62) : hc;
+    const bw = B === 'heavy' ? 0.072 : B === 'sparse' ? 0.04 : 0.062, bh = B === 'heavy' ? 0.022 : B === 'thin' || B === 'sparse' ? 0.01 : 0.015;
+    const tilt = B === 'furrow' ? s * 0.24 : B === 'raised' ? -s * 0.16 : s * rr(-0.06, 0.06);
+    zb(H, bw, bh, 0.016, bc, x + (B === 'sparse' ? -s * 0.012 : 0), y + 0.034 + (s === F.side ? rr(0, 0.006) : 0), f + 0.008, 0, 0, tilt);
   });
-  if (rand() < 0.82) zb(H, 0.04, 0.055, 0.03, dk, 0, -0.02, 0.163); else zb(H, 0.04, 0.04, 0.006, ZDARK, 0, -0.025, 0.152);   // the nose, or the hole
-  zb(H, 0.13, 0.05, 0.008, ZDARK, 0, -0.1, 0.15);             // the open mouth
-  zb(H, 0.11, 0.014, 0.01, 0xc8b88a, 0, -0.081, 0.152); zb(H, 0.1, 0.012, 0.01, 0xb8a87a, 0, -0.117, 0.152);   // the teeth, top and bottom
-  if (rand() < 0.35) { const s = rand() < 0.5 ? -1 : 1; zb(H, 0.06, 0.05, 0.006, ZMEAT, s * 0.085, -0.07, 0.152); zb(H, 0.03, 0.012, 0.008, 0xc8b88a, s * 0.08, -0.07, 0.155); }   // the cheek torn away to the teeth
-  if (o.beard) { zb(H, 0.235, 0.06, 0.03, o.hairCol, 0, -0.155, 0.135); [-1, 1].forEach(s => zb(H, 0.02, 0.1, 0.12, o.hairCol, s * 0.118, -0.11, 0.06)); }
-  if (o.glasses) { [-1, 1].forEach(s => zb(H, 0.07, 0.045, 0.006, 0x141416, s * 0.06, 0.03, 0.158)); zb(H, 0.04, 0.008, 0.006, 0x141416, 0, 0.04, 0.158); }
-  if (o.mask) { zb(H, 0.22, 0.1, 0.012, worn(o.mask, 0.1), 0, -0.07, 0.156); [-1, 1].forEach(s => zb(H, 0.006, 0.012, 0.16, 0xd8d8d8, s * 0.142, 0.0, 0.06)); }   // a surgical mask, pulled half down
+  // the nose, catching the light, with the nostrils under it; or crooked, broken, a button, or rotted to a hole
+  const nc = zc(sk, 1.05), N = F.nose, nx = F.ex * 0.5;
+  if (N === 'gone') { zb(H, 0.03, 0.026, 0.02, nc, nx, -0.008, f + 0.01); fr(0.034, 0.028, zmix(ZMEAT, 0x2a1210, 0.5), nx, -0.036, 0.004); fr(0.022, 0.02, 0x2a1210, nx, -0.037, 0.006); }   // the tip rotted away to the hole
+  else {
+    const [w, h, dz, y, rz] = N === 'wide' ? [0.05, 0.045, 0.03, -0.028, 0] : N === 'long' ? [0.03, 0.068, 0.03, -0.03, 0] : N === 'button' ? [0.03, 0.035, 0.024, -0.036, 0]
+      : N === 'crooked' ? [0.034, 0.055, 0.03, -0.024, F.side * 0.16] : N === 'broken' ? [0.034, 0.03, 0.028, -0.008, -F.side * 0.3] : [0.034, 0.055, 0.03, -0.024, 0];
+    zb(H, w, h, dz, nc, nx + (N === 'crooked' ? F.side * 0.006 : 0), y, f + dz / 2, 0, 0, rz);
+    if (N === 'broken') zb(H, 0.036, 0.028, 0.032, nc, nx + F.side * 0.008, -0.04, f + 0.016, 0, 0, F.side * 0.2);
+    [-1, 1].forEach(s => fr(0.009, 0.006, 0x2a1810, nx + s * 0.009 + (N === 'crooked' ? F.side * 0.008 : 0), -0.054, N === 'wide' ? 0.026 : 0.024));
+  }
+  // the ears (one sometimes torn away)
+  [-1, 1].forEach(s => { if (rand() < 0.9) zb(H, 0.02, 0.058, 0.045, zc(sk, 0.9), s * (hx + 0.008), -0.005, -0.01); else zb(H, 0.006, 0.04, 0.04, ZMEAT, s * (hx + 0.002), -0.005, -0.01); });
+  // what it last ate, down its chin; a cheek torn open to the teeth; the bite that turned it, in the side of the neck
+  if (F.drool) {   // run out of one corner of the mouth and down the chin, now and then the other too
+    const ds = rand() < 0.5 ? -1 : 1, l = rr(0.03, jh);
+    jf(rr(0.012, 0.018), l, blood, F.jx + ds * F.mw * rr(0.15, 0.4), lip - d - l / 2, 0.006);
+    if (rand() < 0.3) { const l2 = rr(0.02, jh * 0.6); jf(0.01, l2, blood, F.jx - ds * F.mw * rr(0.2, 0.4), lip - d - l2 / 2, 0.006); }
+    jf(F.mw * rr(0.3, 0.5), 0.012, blood, F.jx + ds * F.mw * 0.2, lip - d - 0.01, 0.005);
+  }
+  if (F.torn) {   // the cheek torn open from the corner of the mouth back toward the ear, the teeth along it
+    const s = F.side, w = rr(0.035, 0.05), x = F.jx + s * (F.mw / 2 + w / 2 - 0.004), y = lip - Math.max(d, 0.012) / 2 + 0.004, h = Math.max(d, 0.012) + 0.012;
+    fr(w + 0.01, h + 0.01, zmix(sk, ZMEAT, 0.55), x, y, 0.004); fr(w, h, 0x2a1210, x, y, 0.006);
+    for (let i = 0; i < 3; i++) fr(0.009, 0.01, pick(ZTEETH), x - s * w / 2 + s * (i + 0.5) * w / 3, y + h / 2 - 0.006, 0.008);
+  }
+  if (F.neckBite) { const s = -F.side; zb(H, 0.006, 0.06, 0.07, zc(sk, 0.55), s * 0.066, -0.19, 0.0); zb(H, 0.006, 0.045, 0.05, ZMEAT, s * 0.069, -0.19, 0.0); }
+  if (o.beard) {   // stubble gone long: over the jaw, up the cheeks to the ears, and a moustache
+    jf(F.jw + 0.004, jh * 0.85, hc, F.jx, jy - jh * 0.07, 0.002); [-1, 1].forEach(s => { zb(H, 0.01, jh, 0.16, hc, F.jx + s * (F.jw / 2 + 0.004), jy, 0.04); zb(H, 0.01, 0.1, 0.09, hc, s * (hx + 0.004), -0.03, 0.03); });
+    fr(F.mw + 0.02, 0.016, hc, F.jx, lip + 0.016, 0.006);
+  }
+  if (o.glasses) o.eyeAt.forEach(([x, y]) => { const c = 0x18181a; fr(0.068, 0.006, c, x, y + 0.022, 0.026); fr(0.068, 0.006, c, x, y - 0.02, 0.026); [-1, 1].forEach(s => fr(0.006, 0.046, c, x + s * 0.034, y, 0.026)); });
+  if (o.glasses) { fr(0.03, 0.006, 0x18181a, 0, o.eyeAt[0][1] + 0.016, 0.026); [-1, 1].forEach(s => zb(H, 0.006, 0.008, 0.17, 0x18181a, s * (hx + 0.004), F.eyeY + 0.02, 0.07)); }
+  if (o.mask) { fr(0.2, 0.09, worn(o.mask, 0.1), 0, -0.1, 0.012); [-1, 1].forEach(s => zb(H, 0.006, 0.012, 0.16, 0xd8d8d8, s * (hx + 0.003), -0.02, 0.06)); }   // a surgical mask, pulled half down
   // the hair (under a hat only what shows below it)
-  const hc = o.hairCol, hat = o.hat !== 'none' && o.hat !== 'headband' && o.hat !== 'bandana';
+  const hat = o.hat !== 'none' && o.hat !== 'headband' && o.hat !== 'bandana';
   if (o.hair !== 'bald') {
-    if (!hat && o.hair !== 'balding') { zb(H, 0.286, 0.035, 0.306, hc, 0, 0.175, 0); if (o.hair === 'patchy') zb(H, 0.1, 0.006, 0.1, zmix(sk, ZMEAT, 0.4), rr(-0.06, 0.06), 0.196, rr(-0.06, 0.06)); }
-    zb(H, 0.286, 0.14, 0.03, hc, 0, 0.09, -0.158); [-1, 1].forEach(s => zb(H, 0.012, 0.09, 0.16, hc, s * 0.146, 0.11, -0.07));
-    if (o.hair === 'long') { zb(H, 0.29, 0.26, 0.04, hc, 0, -0.02, -0.168); [-1, 1].forEach(s => zb(H, 0.016, 0.22, 0.12, hc, s * 0.15, -0.02, -0.08)); }
+    if (!hat && o.hair !== 'balding') {
+      zb(H, F.hw + 0.006, 0.026, 0.306, hc, 0, 0.172, 0);
+      for (let i = 0; i < 3; i++) zb(H, rr(0.05, 0.1), rr(0.012, 0.024), rr(0.06, 0.12), hc, rr(-hx + 0.05, hx - 0.05), 0.186, rr(-0.1, 0.1), 0, rr(-0.5, 0.5), 0);   // uncombed
+      if (o.hair === 'patchy') zb(H, 0.1, 0.006, 0.1, zmix(sk, ZMEAT, 0.4), rr(-0.06, 0.06), 0.188, rr(-0.06, 0.06));
+      // the hairline over the forehead, ragged; long hair falls over it and down either side of the face
+      fr(F.hw - 0.02, 0.02, hc, 0, 0.15, 0.003);
+      for (let i = 0; i < 3; i++) fr(rr(0.03, 0.06), rr(0.008, 0.018), hc, rr(-hx + 0.04, hx - 0.04), 0.136, 0.003);
+      if (o.hair === 'long') { for (let i = 0; i < 2; i++) { const h = rr(0.03, 0.06); fr(rr(0.04, 0.07), h, hc, rr(-0.06, 0.06), 0.14 - h / 2, 0.005, rr(-0.2, 0.2)); } [-1, 1].forEach(s => fr(0.035, rr(0.14, 0.2), hc, s * (hx - 0.02), 0.06, 0.006)); }
+    }
+    zb(H, F.hw + 0.006, 0.14, 0.03, hc, 0, 0.09, -0.158); [-1, 1].forEach(s => zb(H, 0.012, 0.09, 0.16, hc, s * (hx + 0.006), 0.11, -0.07));
+    if (o.hair === 'long') { zb(H, F.hw + 0.01, 0.26, 0.04, hc, 0, -0.02, -0.168); [-1, 1].forEach(s => zb(H, 0.016, 0.22, 0.12, hc, s * (hx + 0.01), -0.02, -0.08)); }
     if (o.hair === 'pony') zb(H, 0.06, 0.18, 0.06, hc, 0, 0.0, -0.19, -0.3, 0, 0);
   }
   zHat(H, o);
@@ -487,56 +567,88 @@ function zPlaid(K, o) {
   ['armL', 'armR'].forEach(p => { if (o.sleeve !== 'none') [0.04, 0.14].forEach(z => zb(K[p], 0.146, 0.146, 0.025, c, 0, 0, z)); });
   if (o.sleeve === 'long') ['foreL', 'foreR'].forEach(p => [0.08, 0.18].forEach(z => zb(K[p], 0.136, 0.136, 0.025, c, 0, 0, z)));
 }
-// ---- the wear: rips, ragged hems and cuffs, a sleeve or a trouser leg torn off, dirt ----
+// ---- the wear: each mark somewhere it would come from, not scattered evenly over it ----
+// rips where cloth gives (the shoulder seam, the side, the hem, the elbow, the knee), the skin showing grey through
+// them; the hem and cuffs torn into strips, a sleeve or a trouser leg torn off; what it ate run down the front of it
+// from the mouth; the bite that turned it, bled down the cloth under it; its hands red to the wrist; the knees muddy
+// from going down on them, the back dirty from lying on it (and the grime that builds toward the hems and the feet is in
+// the vertex colours: ZGRIME)
+const ZRIP_AT = [[0.17, 0.24, 1], [0.13, -0.2, 1], [0.0, -0.24, 1], [0.06, 0.12, 0.4]];   // [x, y, how often] on the front, mirrored at random
+function zRip(T, fn, cover, skin, x, y, f, lay, sz) {
+  const w = sz * rr(0.9, 1.4), h = sz * rr(0.6, 1);
+  fn(T, w + 0.014, h + 0.012, zc(cover, 0.72), x, y, f, lay - 0.003);   // the frayed edge, a shade darker
+  fn(T, w, h, zc(skin, 0.82), x, y, f, lay);                           // the skin through it
+  fn(T, w * 0.5, h * rr(0.4, 0.8), zc(skin, 0.82), x + rr(-0.5, 0.5) * w * 0.6, y - h * 0.45, f, lay);   // not a neat square: a second tear off it
+  if (rand() < 0.5) fn(T, w * 0.7, h * 0.5, zc(cover, 0.9), x + rr(-0.3, 0.3) * w, y - h * 0.65, f, lay + 0.003);   // a flap hanging off it
+}
 function zTatter(K, o) {
-  const w = o.wear, T = K.torso, cover = o.coat || o.top;
-  // the hem torn into strips hanging at the bottom of the shirt, front and back
-  const nh = Math.round(rr(2, 5) * w);
-  for (let i = 0; i < nh; i++) { const sd = rand() < 0.6 ? 1 : -1, len = rr(0.03, 0.08); zb(T, rr(0.03, 0.06), len, 0.008, zc(cover, rr(0.85, 1)), rr(-0.18, 0.18), -0.3 - len / 2 + 0.01, sd * (ZF.waist + 0.004), rr(-0.15, 0.15), 0, rr(-0.25, 0.25)); }
-  // rips through to the skin, and holes gone black with blood at their edges
-  const nr = Math.round(rr(2, 5) * w);
-  for (let i = 0; i < nr; i++) {
-    const sz = rr(0.03, 0.07), chest = rand() < 0.5, y = chest ? rr(0.02, 0.26) : rr(-0.26, -0.06), f = chest ? ZF.chest : ZF.waist, x = rr(-0.16, 0.16), fr = rand() < 0.65;
-    const fn = fr ? zfront : zback, lay = (o.shell || 0) + 0.012;
-    fn(T, sz + 0.016, sz * 0.8 + 0.016, zc(cover, 0.6), x, y, f, lay - 0.002); fn(T, sz, sz * 0.8, rand() < 0.3 ? ZMEAT : o.bruise, x, y, f, lay);
+  const w = o.wear, T = K.torso, cover = o.coat || o.top, lay = (o.shell || 0) + 0.012, blood = c => zmix(c, ZBLOOD, rr(0.55, 0.7)), mud = c => zmix(c, ZDIRT, rr(0.4, 0.55));
+  // the rips, at the places cloth tears
+  let nr = Math.round(rr(0.6, 2.2) * w);
+  for (const [x, y, p] of ZRIP_AT) { if (nr <= 0) break; if (rand() > p * 0.6) continue; nr--; const sd = rand() < 0.5 ? -1 : 1, chest = y > -0.02;
+    zRip(T, rand() < 0.7 ? zfront : zback, cover, o.skin, sd * x + rr(-0.02, 0.02), y + rr(-0.02, 0.02), chest ? ZF.chest : ZF.waist, lay, rr(0.035, 0.055)); }
+  // the hem torn into a strip or two
+  const nh = Math.round(rr(0.5, 2.5) * w);
+  for (let i = 0; i < nh; i++) { const len = rr(0.03, 0.07); zb(T, rr(0.03, 0.055), len, 0.008, cover, rr(-0.17, 0.17), -0.3 - len / 2 + 0.012, (rand() < 0.6 ? 1 : -1) * (ZF.waist + 0.005), rr(-0.1, 0.1), 0, rr(-0.2, 0.2)); }
+  // down the front from the mouth: a bib of it under the chin, run down in a stripe or two, drying darker at the top
+  if (o.face.drool) {
+    const x = o.face.jx + rr(-0.03, 0.03), b1 = blood(cover), l = rr(0.08, 0.2);
+    zfront(T, rr(0.07, 0.11), rr(0.05, 0.08), zc(b1, 0.85), x, 0.27, ZF.chest, lay + 0.002);
+    zfront(T, rr(0.04, 0.06), l, b1, x + rr(-0.015, 0.015), 0.25 - l / 2, ZF.chest, lay + 0.004);
+    if (rand() < 0.6) { const l2 = rr(0.05, 0.12); zfront(T, 0.016, l2, b1, x + rr(0.03, 0.05) * (rand() < 0.5 ? -1 : 1), 0.24 - l2 / 2, ZF.chest, lay + 0.006); }
   }
-  // the arms: a ragged end to each sleeve, and now and then one torn clean off at the shoulder
+  // the bite that turned it, and what it bled down the cloth under it (on a shoulder, a forearm or the side)
+  const bite = pick(['shoulder', 'shoulder', 'fore', 'side', 'none']), bs = rand() < 0.5 ? -1 : 1, S = bs < 0 ? 'L' : 'R';
+  if (bite === 'shoulder') { const b1 = blood(cover); zfront(T, 0.07, 0.06, zc(b1, 0.8), bs * 0.17, 0.25, ZF.chest, lay + 0.002); zfront(T, 0.05, rr(0.12, 0.22), b1, bs * 0.17, 0.12, ZF.chest, lay + 0.001); zfront(T, 0.03, 0.025, ZMEAT, bs * 0.17, 0.26, ZF.chest, lay + 0.006); }
+  if (bite === 'side') { const b1 = blood(cover); zside(T, bs, 0.12, 0.2, b1, rr(-0.04, 0.04), -0.14, ZF.waistW, lay); zside(T, bs, 0.04, 0.035, ZMEAT, 0, -0.08, ZF.waistW, lay + 0.004); }
+  if (bite === 'fore') { const fo = K['fore' + S], c = o.sleeve === 'long' ? blood(o.sleeveCol || cover) : zmix(o.skin, ZBLOOD, 0.5); zb(fo, 0.006, 0.07, 0.12, c, bs * 0.069, 0, 0.15); zb(fo, 0.006, 0.04, 0.045, ZMEAT, bs * 0.072, 0, 0.12); }
+  // the arms: a ragged end to each sleeve, a sleeve torn away below the elbow, an elbow worn through
   ['L', 'R'].forEach(S => {
-    const up = K['arm' + S], fo = K['fore' + S], sl = o.sleeveCol || cover;
-    if (o.sleeve === 'short') for (let i = 0; i < 3; i++) zb(up, 0.025, 0.006, rr(0.025, 0.05), zc(sl, 0.9), rr(-0.05, 0.05), (rand() < 0.5 ? 1 : -1) * 0.079, 0.16, 0, 0, 0);
+    const s = S === 'L' ? -1 : 1, up = K['arm' + S], fo = K['fore' + S], sl = o.sleeveCol || cover;
+    if (o.sleeve === 'short') for (let i = 0; i < 2; i++) zb(up, 0.025, 0.006, rr(0.02, 0.04), sl, rr(-0.05, 0.05), (rand() < 0.5 ? 1 : -1) * 0.079, 0.158);
     if (o.sleeve === 'long') {
-      if (rand() < 0.22 * w) { zb(fo, 0.136, 0.136, 0.2, o.skin, 0, 0, 0.17); for (let i = 0; i < 3; i++) zb(fo, 0.025, 0.006, rr(0.03, 0.06), zc(sl, 0.85), rr(-0.05, 0.05), (rand() < 0.5 ? 1 : -1) * 0.071, 0.07, 0, 0, 0); }   // the sleeve torn away below the elbow
-      else for (let i = 0; i < 2; i++) zb(fo, 0.025, 0.006, rr(0.02, 0.04), zc(sl, 0.85), rr(-0.05, 0.05), (rand() < 0.5 ? 1 : -1) * 0.071, 0.27, 0, 0, 0);
+      if (rand() < 0.2 * w) { zb(fo, 0.136, 0.136, 0.2, o.skin, 0, 0, 0.17); for (let i = 0; i < 3; i++) zb(fo, 0.025, 0.006, rr(0.03, 0.05), sl, rr(-0.05, 0.05), (rand() < 0.5 ? 1 : -1) * 0.071, 0.075); }
+      else if (rand() < 0.3 * w) { zb(up, 0.006, 0.05, 0.05, zc(sl, 0.7), 0, -0.074, 0.25); zb(up, 0.006, 0.036, 0.036, zc(o.skin, 0.82), 0, -0.077, 0.25); }   // the elbow worn through
     }
-    if (rand() < 0.3 * w) zb(fo, 0.006, 0.05, 0.06, ZMEAT, (S === 'L' ? -1 : 1) * 0.072, rr(-0.02, 0.02), rr(0.08, 0.2));   // a bite
   });
-  // the legs: a knee ripped through, frayed cuffs, sometimes a leg of the trousers torn off below the knee
+  // the hands red to the wrist (or the gloves dark with it)
+  if (rand() < 0.55) ['foreL', 'foreR'].forEach(p => { if (rand() < 0.8) zb(K[p], 0.114, 0.074, 0.134, zmix(o.gloves || o.skin, ZBLOOD, rr(0.4, 0.6)), 0, -0.005, 0.345); });
+  // the legs: muddy knees, a knee torn through, frayed cuffs, sometimes a leg of the trousers torn off below the knee
   if (o.legs === 'long') ['L', 'R'].forEach(S => {
     const th = K['leg' + S], sh = K['shin' + S], pc = o.pants;
-    if (rand() < 0.45 * w) { zfront(th, 0.08, 0.06, zc(pc, 0.6), rr(-0.03, 0.03), -0.26, 0.11, 0.008); zfront(th, 0.065, 0.045, o.bruise, rr(-0.03, 0.03), -0.26, 0.11, 0.012); }
-    if (rand() < 0.18 * w) { zb(sh, 0.19, 0.12, 0.22, o.skin, 0, -0.16, 0); for (let i = 0; i < 4; i++) zb(sh, 0.03, rr(0.03, 0.06), 0.006, zc(pc, 0.85), rr(-0.07, 0.07), -0.1, (i % 2 ? 1 : -1) * 0.111); }
-    else if (o.shoes !== 'boots') for (let i = 0; i < 3; i++) zb(sh, 0.025, rr(0.02, 0.04), 0.006, zc(pc, 0.85), rr(-0.07, 0.07), -0.2, (i % 2 ? 1 : -1) * 0.111);
-    for (let i = 0; i < 2; i++) zSpot(sh, 'shin', zmix(pc, ZDIRT, 0.7), rr(0.04, 0.08), 0.006);   // mud up the shins
+    if (rand() < 0.6) zb(sh, 0.15, rr(0.05, 0.09), 0.006, mud(pc), rr(-0.01, 0.01), -0.04, 0.111);
+    if (rand() < 0.35 * w) { zfront(th, 0.075, 0.05, zc(pc, 0.7), rr(-0.02, 0.02), -0.255, 0.11, 0.008); zfront(th, 0.06, 0.036, zc(o.skin, 0.82), rr(-0.02, 0.02), -0.255, 0.11, 0.012); }
+    if (rand() < 0.15 * w) { zb(sh, 0.19, 0.12, 0.22, o.skin, 0, -0.16, 0); for (let i = 0; i < 3; i++) zb(sh, 0.03, rr(0.03, 0.05), 0.006, pc, rr(-0.07, 0.07), -0.1, (i % 2 ? 1 : -1) * 0.111); }
+    else if (o.shoes !== 'boots') for (let i = 0; i < 2; i++) zb(sh, 0.025, rr(0.02, 0.035), 0.006, pc, rr(-0.07, 0.07), -0.2, (i % 2 ? 1 : -1) * 0.111);
   });
-  // dirt and old blood over the clothes
-  for (let i = 0; i < Math.round(4 * w); i++) zSpot(T, 'torso', rand() < 0.5 ? zmix(cover, ZDIRT, 0.6) : zmix(cover, ZBLOOD, 0.6), rr(0.04, 0.1), (o.shell || 0) + 0.008);
+  // the back: dirt from lying on it
+  if (rand() < 0.6) zback(T, rr(0.22, 0.34), rr(0.14, 0.24), zmix(cover, ZDIRT, rr(0.25, 0.4)), rr(-0.05, 0.05), rr(-0.15, 0.05), ZF.chest, lay - 0.004);
 }
-// ---- the rot: bruising, wounds to the bone, the ribs showing through a torn belly ----
+// ---- the rot: a bruise or two on bare skin, now and then a belly torn open to the ribs or bone at the temple ----
 function zRot(K, o) {
-  for (let i = 0; i < 3; i++) { const p = pick(['foreL', 'foreR', 'shinL', 'shinR', 'armL', 'armR']); if ((p[0] === 's' && o.legs === 'long') || (p[0] === 'a' && o.sleeve !== 'none')) continue; zSpot(K[p], p, o.bruise, rr(0.04, 0.07), 0.003); }
-  if (rand() < 0.3 * o.wear) {   // the belly torn open, ribs showing
-    const x = rr(-0.1, 0.1), y = rr(-0.08, 0.12), f = y > -0.02 ? ZF.chest : ZF.waist;
-    const L = (o.shell || 0) + 0.016;
-    zfront(K.torso, 0.15, 0.13, zc(o.coat || o.top, 0.55), x, y, f, L); zfront(K.torso, 0.13, 0.11, ZMEAT, x, y, f, L + 0.002);
-    for (let i = 0; i < 3; i++) zfront(K.torso, 0.11, 0.012, ZBONE, x, y + 0.035 - i * 0.035, f, L + 0.005);
+  const bare = ['foreL', 'foreR', 'shinL', 'shinR', 'armL', 'armR'].filter(p => !((p[0] === 's' && o.legs === 'long') || (p[0] === 'a' && o.sleeve !== 'none') || (p[0] === 'f' && o.sleeve === 'long')));
+  for (let i = 0; i < 2 && bare.length; i++) if (rand() < 0.6) { const p = pick(bare); zSpot(K[p], p, zmix(o.skin, o.bruise, 0.7), rr(0.05, 0.08), 0.003); }
+  if (rand() < 0.15 * o.wear) {   // the belly torn open, bled down the front of what it's wearing
+    const x = rr(-0.08, 0.08), y = rr(-0.12, 0.04), f = y > -0.02 ? ZF.chest : ZF.waist, L = (o.shell || 0) + 0.016, cv = o.coat || o.top, ry = Math.max(-0.22, y - 0.08);
+    zfront(K.torso, 0.07, rr(0.1, 0.2), zmix(cv, ZBLOOD, 0.6), x + rr(-0.01, 0.01), ry, ry > -0.02 ? ZF.chest : ZF.waist, L - 0.004);
+    zRip(K.torso, zfront, cv, ZMEAT, x, y, f, L, 0.08);
+    zfront(K.torso, 0.04, 0.025, 0x2a1210, x + rr(-0.01, 0.01), y, f, L + 0.006);
   }
-  if (rand() < 0.25) { const s = rand() < 0.5 ? -1 : 1; zb(K.head, 0.006, 0.06, 0.08, ZMEAT, s * 0.143, 0.05, -0.04); zb(K.head, 0.006, 0.03, 0.04, ZBONE, s * 0.146, 0.05, -0.04); }   // the skull showing at the temple
+  if (rand() < 0.12) { const s = rand() < 0.5 ? -1 : 1, hx = o.face.hw / 2; zb(K.head, 0.006, 0.06, 0.08, ZMEAT, s * (hx + 0.003), 0.06, -0.04); zb(K.head, 0.006, 0.03, 0.04, ZBONE, s * (hx + 0.006), 0.06, -0.04); }   // the skull showing at the temple
+}
+// the grime that builds up toward the ends of things, in the vertex colours: [axis, where it starts, where it's
+// heaviest, how heavy]; the head's is the shadow under the jaw
+const ZGRIME = { torso: [1, 0.1, -0.3, 0.22], head: [1, -0.1, -0.24, 0.4], foreL: [2, 0.12, 0.42, 0.22], foreR: [2, 0.12, 0.42, 0.22], legL: [1, -0.05, -0.29, 0.1], legR: [1, -0.05, -0.29, 0.1], shinL: [1, -0.02, -0.28, 0.32], shinR: [1, -0.02, -0.28, 0.32] };
+const _zgD = new THREE.Color(zc(ZDIRT, 0.55));
+function zGrime(k, gr) {
+  if (!gr) return; const [ax, a, b, amt] = gr;
+  for (let i = 0; i < k.p.length; i += 3) { const t = clamp((k.p[i + ax] - a) / (b - a), 0, 1), m = amt * t * t * (3 - 2 * t); if (m <= 0) continue; for (let j = 0; j < 3; j++) k.c[i + j] += ((j === 0 ? _zgD.r : j === 1 ? _zgD.g : _zgD.b) - k.c[i + j]) * m; }
 }
 
 // ---- dressing a zombie that's just been built: its parts get their geometry, all of them its own material ----
 function dressZombie(m, type, job) {
   const o = zDeal(type, job), K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
-  ZPARTS.forEach(p => { m[p].geometry = zBake(K[p]); m[p].material = mat; });
+  ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); m[p].material = mat; });
   m.mats = { body: mat }; m.look = o; m.skinCol = o.skin;
   return o;
 }

@@ -14,8 +14,8 @@ function spawnZombie(type, job) {
   dressZombie(m, type, job);   // its body and what it was wearing when it turned (zombies/zombie-looks.js)
   const sc = T_.scale * rr(0.94, 1.06);
   m.g.scale.setScalar(sc);
-  // glowing eyes, deep in their sockets; effects/eye-glow.js gives them a halo and a light trail
-  m.eyes = [-0.06, 0.06].map(x => box(m.head, 0.042, 0.026, 0.008, basic(EYE_COL), x, 0.03, 0.156));
+  // the pupils glow, deep in their sockets; effects/eye-glow.js gives them a halo and a light trail
+  m.eyes = m.look.eyeAt.map(([x, y, w, h, z]) => box(m.head, w, h, 0.008, basic(EYE_COL), x, y, z));   // (where each eye is, and how open: zHead)
   const stain = stainZombie(m);   // blood on them, like on you (effects/body-blood.js)
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) { o.material.userData.mobile = true; fm.add(o.material); } }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
