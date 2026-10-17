@@ -4,10 +4,14 @@ const flashes = [];
 // a blast: a white-hot flash, a fireball that balloons and burns out in a blink, sparks and shrapnel, a ring of dust
 // and dirt thrown out along the ground, then a column of smoke that hangs. Zombies near the middle that it kills
 // are blown apart (blowApart in zombies/damage.js); further out they lose limbs and are thrown. remote: a co-op
-// teammate's blast, just the sight and sound of it (what it did to the zombies comes in their hits, net/sync.js)
-function explode(x, z, r, dmg, self, remote) {
-  if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r });
-  soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true); shake = Math.max(shake, 0.8);
+// teammate's blast, just the sight and sound of it (what it did to the zombies comes in their hits, net/sync.js).
+// small: a hand cannon's explosive tip, which only shakes the view when it goes off right by you (TIP_SHAKE)
+// instead of the full shake of a grenade wherever it lands
+const TIP_SHAKE = { near: 2.5, max: 0.12 };
+function explode(x, z, r, dmg, self, remote, small) {
+  if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r, s: small ? 1 : 0 });
+  soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true);
+  { const d = Math.hypot(P.x - x, P.z - z), k = small ? TIP_SHAKE.max * Math.pow(Math.max(0, 1 - d / TIP_SHAKE.near), 2) : 0.8; shake = Math.max(shake, k); }
   fx('flash', x, 0.7, z, 0, 0, 0, 0.8, r * 1.5, 0.16, 1);
   for (let k = 0; k < 9; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2); fx('ember', x + Math.sin(a) * 0.2, rr(0.3, 0.8), z + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(1.2, 3.4), Math.cos(a) * sp, rr(0.35, 0.5), rr(0.9, 1.5), rr(0.22, 0.38), 0.95); }
   sparkBurst(x, 0.4, z, 18, 0, 0, 8);

@@ -152,7 +152,7 @@ function netOp(z, op, dx, dz) {
 // a drop someone picked up: gone from everyone's farm
 NET_ON.pt = m => { const k = pickups.findIndex(p => p.nid === m.n); if (k >= 0) { scene.remove(pickups[k].g); pickups.splice(k, 1); } };
 // a blast somewhere: the bang and the fire (the damage is the thrower's, in their hits)
-NET_ON.boom = m => { if (state !== 'title') explode(m.x, m.z, m.r, 0, false, true); };
+NET_ON.boom = m => { if (state !== 'title') explode(m.x, m.z, m.r, 0, false, true, m.s); };
 NET_ON.nade = m => { if (state === 'title') return; const g = m.g; grenades.push({ m: box(scene, 0.12, 0.12, 0.18, GM.olive, g[0], GUN_Y, g[1]), x0: g[0], z0: g[1], x1: g[2], z1: g[3], t: 0, dur: g[4], h: g[5], net: true }); };
 
 // ---- boards: whoever puts one up says so; the host says when a zombie tears one down

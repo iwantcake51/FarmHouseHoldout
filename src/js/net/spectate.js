@@ -1,5 +1,5 @@
 // Down in co-op, you watch a teammate till the wave's cleared (camFocus: the camera, the roof and walls fading round
-// them, what you hear). Click to watch the next one still standing. Your own HUD gives way to theirs: a "Down" stamp up
+// them, what you hear). Q or a left click watches the one before, E or a right click the next one still standing. Your own HUD gives way to theirs: a "Down" stamp up
 // top with who you're watching, their health and planks, scrap and kills bottom left, their weapon and its ammo bottom
 // right (sent with their pose: ammoOut in net/avatars.js)
 
@@ -16,10 +16,11 @@ function camFocus() {
   return first || P;
 }
 const spectating = () => camFocus() !== P;
-function specNext() {
+// step to the next teammate still standing (dir 1) or the one before (-1), round and round
+function specStep(dir) {
   const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined).sort((a, b) => a.idx - b.idx);
   if (up.length < 2) return;
-  SPEC.id = up[(up.indexOf(camFocus()) + 1) % up.length].id; SPEC.key = '';
+  SPEC.id = up[(up.indexOf(camFocus()) + dir + up.length) % up.length].id; SPEC.key = '';
 }
 function renderSpec() {
   const f = camFocus(), on = f !== P && (state === 'play' || state === 'paused'), el = $('spec');

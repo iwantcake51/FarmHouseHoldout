@@ -16,6 +16,8 @@ addEventListener('keydown', e => {
   if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
   if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
   if (state !== 'play') return;
+  // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
+  if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
   if (e.repeat && k !== 'f') return;
   keys.add(k);
   if (k === 'e') { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
@@ -43,7 +45,7 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; a
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && e.button === 0 && spectating()) { specNext(); return; }   // down in co-op: a click watches the next teammate (net/spectate.js)
+cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
   if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; aimHeld = false; exitScope(); aiming = false; } });
