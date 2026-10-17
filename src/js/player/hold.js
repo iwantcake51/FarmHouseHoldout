@@ -450,6 +450,19 @@ function speedLoader(g, rnd) {
 const SLM = new THREE.Group(), SL_RND = new THREE.Group();
 speedLoader(SLM, SL_RND); SLM.add(SL_RND); SLM.visible = false; SLM.userData.slot = 'loader'; PM.upper.add(SLM);   // (slot: kept out of your clothes' blood, effects/body-blood.js)
 const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3(), _slS = new V3();
+// the rounds in the revolver's chambers (the case heads, weapons/gun-models.js): the ones loaded at the top of the
+// count, the ones fired below them till they're dumped (W8.hudSpent, which drops as each case leaves: weapons/casings.js
+// dumps them from these same chambers), the rest empty, so a reload only empties the chambers that were fired and the
+// new rounds fill those
+const CHAMBERS = 6, BRASS_FIRED = lam(0x6f5a30);
+const cylLive = id => Math.min(CHAMBERS, W8.mag[id] | 0), cylFired = id => Math.min(CHAMBERS - cylLive(id), W8.hudSpent[id] | 0);
+function cylHeads(cr, id) {
+  const live = cylLive(id), fired = cylFired(id);
+  for (const c of cr) {
+    const hd = c.children[0] && c.children[0].userData.heads; if (!hd) continue;
+    hd.forEach((h, k) => { const st = k >= CHAMBERS - live ? 1 : k >= CHAMBERS - live - fired ? 2 : 0; h.visible = st > 0; if (st) { h.userData.rim.material = st === 2 ? BRASS_FIRED : GM.brass; h.userData.primer.material = st === 2 ? GM.metal2 : GM.steel; } });
+  }
+}
 // a round in the support hand while it's fed in by hand: up to three shotgun shells (one, both side by side for the
 // double barrel's Sleight of Hand, or three in a row down the palm for the pump's Triple Load, thumbed up into the
 // tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
@@ -909,6 +922,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       if (ANIM.crane > 1.12) { ANIM.crane = 1.12; ANIM.vcrane = -Math.abs(ANIM.vcrane) * 0.3; }   // and out against its stop
     }
     cr.forEach(c => { const p0 = c.userData.p0 || (c.userData.p0 = c.position.clone()), o = ANIM.crane; c.rotation.z = -o * REV_SWING; c.position.set(p0.x + REV_OUT[0] * o, p0.y - REV_OUT[1] * o, p0.z); c.updateMatrix(); });
+    cylHeads(cr, id);
   }
   // ---- hands: start from their places on the gun
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand, hh = H.hand || HAND_0, fh = H.kind === 'hand' ? hh : HAND_0;   // a handgun's support hand cups the trigger hand, so it moves with it
@@ -1027,7 +1041,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const slOn = rel === 'mag' && D.speedload && rp > 0.25 && rp < SL_DROP;
     if (slOn) {
       SLM.visible = true; SL_RND.visible = true;
-      SLM.position.copy(_fL).addScaledVector(_slAx, SL_HAND); SLM.quaternion.copy(_slQ);
+      // turned with the cylinder on its crane, so each round lines up with a chamber; it carries only the rounds for the
+      // chambers that are empty (the ones loaded at the start stay where they are: cylHeads)
+      { const free = CHAMBERS - Math.min(CHAMBERS, W8.slLive | 0); SL_RND.children.forEach((m, j) => { m.visible = Math.floor(j / 3) < free; }); }
+      SLM.position.copy(_fL).addScaledVector(_slAx, SL_HAND); SLM.quaternion.copy(_slQ); if (cr[0]) SLM.rotateZ(cr[0].rotation.z);
       SLM.rotateZ(smooth(clamp((rp - SL_IN - 0.02) / 0.08, 0, 1)) * Math.PI / 3);
     } else if (SLM.visible && !(rel === 'mag' && D.speedload)) SLM.visible = false;   // cut short (a swap, a vault)
   } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);

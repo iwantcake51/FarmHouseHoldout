@@ -480,6 +480,13 @@ const GUN_MODELS = {
     cyl(cg, cr, 0.08, S2, 0, 0, 0, 24);
     for (let k = 0; k < 6; k++) { const a = (k + 0.5) * Math.PI / 3; const f = box(cg, 0.007, 0.004, 0.048, D, Math.cos(a) * (cr - 0.0005), Math.sin(a) * (cr - 0.0005), -0.004); f.rotation.z = a + Math.PI / 2; }   // the flutes
     for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; cyl(cg, 0.0052, 0.003, GM.rubber, Math.cos(a) * REV_CYL.ch, Math.sin(a) * REV_CYL.ch, -0.04, 10); }   // chamber mouths, seen when it swings out
+    // and a round's case head in each chamber, its rim and primer: the ones loaded and the ones fired till they're
+    // dumped (a fired one's primer struck and its brass smoked), the rest left empty (cylHeads, player/hold.js)
+    cg.userData.heads = [0, 1, 2, 3, 4, 5].map(k => {
+      const a = k * Math.PI / 3, h = new THREE.Group(); h.position.set(Math.cos(a) * REV_CYL.ch, Math.sin(a) * REV_CYL.ch, -0.0418); cg.add(h);
+      const rim = cyl(h, 0.0057, 0.0012, GM.brass, 0, 0, 0, 12), pr = cyl(h, 0.0019, 0.0006, GM.steel, 0, 0, -0.0008, 8);
+      h.userData.rim = rim; h.userData.primer = pr; return h;
+    });
     cyl(cg, 0.0035, 0.07, GM.steel, 0, 0, 0.074, 10); cyl(cg, 0.005, 0.008, GM.steel, 0, 0, 0.11, 10);   // ejector rod and its knob
     box(crane, 0.008, 0.02, 0.012, S2, -0.006, 0.006, 0.042);   // the crane's arm
     // ---- barrel: tube, rib, full underlug round the ejector rod, the front sight, the bore

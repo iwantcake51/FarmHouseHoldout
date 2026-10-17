@@ -21,6 +21,10 @@ function reloadSlow() {
 const AK_WALK = 0.14;
 // each reload's own feel (player/hold.js): how far the gun's turned for it, a bulge in the hand's way there, a wobble
 const relJitter = () => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: rr(0, 20) }; };
+// how much Quick hands shortens a reload: the revolver's no more than REV_QUICK (game/run-state.js), so it always takes its time
+const relMul = id => id === 'revolver' ? Math.max(REV_QUICK, S.reloadMul) : S.reloadMul;
+// the time before the first round goes in: the revolver's cylinder swung out and its empties dumped first
+const firstShell = id => id === 'revolver' ? REV_OPEN_T : 0.12;
 const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 0; };
 function startReload() {
   const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;   // hands are busy with the bandage, or still drawing
@@ -40,8 +44,8 @@ function startReload() {
     if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
     if (EJECT[id] === 'bolt') { W8.open[id] = true; W8.boltOpen = true; }
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
-    W8.reloadT = D.perShell * S.reloadMul + (id === 'revolver' ? 0.3 : 0.12); W8.reloadMax = W8.reloadT;
-  } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * S.reloadMul; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
+    W8.reloadT = D.perShell * relMul(id) + firstShell(id); W8.reloadMax = W8.reloadT;
+  } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * relMul(id); W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
     // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer
@@ -139,7 +143,7 @@ function tickReload(dt) {
     // one shell a go, or two or three with a speed loader
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
     W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * S.reloadMul; W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * relMul(id); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
     // done: a pump or bolt gun that's open is racked next (weapons/casings.js), one that's chambered is ready as it is;
     // anything else snaps shut
     else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); }

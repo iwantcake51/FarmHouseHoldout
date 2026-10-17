@@ -107,6 +107,7 @@ function tickHeldEject(dt) {
 function ejectCasing(ammo, n, mode, sideSign, now) {
   const id = curId(), BK = mode === 'breach' && BRK[W8.cur];
   if (!now && openFor(mode) < 0.8) { if (heldEject && heldEject.id === id) heldEject.n += n; else heldEject = { id, ammo, n, mode, t: 0 }; return; }
+  const ch0 = mode === 'dump' ? Math.max(0, CHAMBERS - cylLive(id) - cylFired(id)) : 0;   // the fired chambers, below the loaded ones (cylHeads, player/hold.js)
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
   if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
   const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
@@ -127,7 +128,7 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
     c.body.geometry = K.geo;
-    c.g.position.copy(chambers.length ? chambers[k % chambers.length] : _cv); c.g.visible = true; c.g.scale.setScalar(1);
+    c.g.position.copy(chambers.length ? chambers[(ch0 + k) % chambers.length] : _cv); c.g.visible = true; c.g.scale.setScalar(1);
     c.g.rotation.set(rr(0, 3), P.aim + rr(-0.5, 0.5), rr(0, 3));
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
