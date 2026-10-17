@@ -27,13 +27,18 @@
 <div id="xh" hidden>
   <svg width="160" height="160" viewBox="-80 -80 160 160" aria-hidden="true">
     <circle id="xhSpread" class="spread" r="12"></circle>
-    <circle id="xhAmmoBg" class="ammoBg" r="30" transform="rotate(-42)"></circle>
-    <circle id="xhAmmo" class="ammo" r="30" transform="rotate(-42)"></circle>
-    <circle id="xhReload" class="reload" r="30" transform="rotate(-42)" stroke-dasharray="0 999"></circle>
+    <!-- the mag on the right, drawn from the bottom up: rounds leave from the top, the reload fills from the bottom -->
+    <circle id="xhAmmoBg" class="ammoBg" r="30" transform="scale(1,-1) rotate(-42)"></circle>
+    <circle id="xhAmmo" class="ammo" r="30" transform="scale(1,-1) rotate(-42)"></circle>
+    <circle id="xhRTrack" class="reloadTrack" r="30" transform="scale(1,-1) rotate(-42)" stroke-dasharray="0 999"></circle>
+    <circle id="xhReload" class="reload" r="30" transform="scale(1,-1) rotate(-42)" stroke-dasharray="0 999"></circle>
+    <circle id="xhRHead" class="reloadHead" r="3.2"></circle>
     <!-- akimbo: the left gun's mag and reload, mirrored on the left -->
     <circle id="xhAmmoBgL" class="ammoBg" r="30" transform="rotate(138)" hidden></circle>
     <circle id="xhAmmoL" class="ammo" r="30" transform="rotate(138)" hidden></circle>
+    <circle id="xhRTrackL" class="reloadTrack" r="30" transform="rotate(138)" stroke-dasharray="0 999" hidden></circle>
     <circle id="xhReloadL" class="reload" r="30" transform="rotate(138)" stroke-dasharray="0 999" hidden></circle>
+    <circle id="xhRHeadL" class="reloadHead" r="3.2" hidden></circle>
     <circle id="xhGl" class="gl" r="36" transform="rotate(138)" stroke-dasharray="0 999"></circle>
     <circle id="xhHealBg" class="healBg" r="23"></circle>
     <circle id="xhHeal" class="heal" r="23" transform="rotate(-90)" stroke-dasharray="0 999"></circle>

@@ -159,7 +159,7 @@ function gunFire(id, D, side) {
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
   W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++; delete W8.relSave[id];
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
-  else if (!W8.inBurst && semiAuto(id)) W8.trigLock = true;   // one shot a pull
+  else if (!W8.inBurst && (semiAuto(id) || D.breakOpen)) W8.trigLock = true;   // one shot a pull (the double barrel too: as fast as you can pull, with no wait between, D.rate)
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();

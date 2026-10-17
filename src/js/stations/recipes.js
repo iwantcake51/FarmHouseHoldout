@@ -15,6 +15,7 @@ function tierMax(k, id) {
   if (k === 'sight') return SCOPE_TOP[id] || 2;
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return MAG_STEPS[id];
   if (k === 'trigger' && NO_TRIGGER.has(id)) return 0;
+  if (k === 'supp' && NO_SUPP.has(id)) return 0;
   return n;
 }
 function attachmentCards() {

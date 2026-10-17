@@ -71,15 +71,20 @@ const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
-// tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum
-const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1 };
+// tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
+// the double barrel none (two barrels are two shells)
+const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0 };
 // the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
-// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that
-const NO_TRIGGER = new Set(['pump', 'hunting']);
+// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that.
+// The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
+const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
+// the guns that take no can: the double barrel's twin muzzles
+const NO_SUPP = new Set(['dbl']);
 function tierFits(k, id) {
   const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;
   if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
+  if (k === 'supp' && NO_SUPP.has(id)) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
   if (k === 'loader') return id === 'revolver' || (D.ammo === 'shells' && !!D.perShell);   // the revolver's speed loader; a technique on the shotguns fed shell by shell
   if (k === 'supp') return !(W8.mods[id] || []).some(m => MODS[m].muzzle) && (n > 0 || !muzzleTaken(id));   // a better can replaces the one you have; otherwise the muzzle must be free (a can taken off a shotgun for its choke still goes back on)
