@@ -24,7 +24,43 @@ function zb(k, w, h, d, c, x, y, z, rx, ry, rz) {
     _zkN.set(_zkNA[i], _zkNA[i + 1], _zkNA[i + 2]).applyQuaternion(_zkQ); k.n.push(_zkN.x, _zkN.y, _zkN.z); k.c.push(_zkC.r, _zkC.g, _zkC.b);
   }
 }
+// no two boxes' faces share a plane where they overlap (a sleeve's over the arm's, a pocket's over the shirt's, the
+// hair's over the skull's), or they'd flicker through each other as the zombie moves: each face that lies on another
+// box's face is lifted off it along its normal, ZLAYER for every layer under it, so whatever was added later (the
+// sleeve, the pocket, the hair) sits on top, as built. Faces are found every 6 vertices, boxes every 36 (zb)
+const ZLAYER = 0.0007;
+function zLayer(k) { for (let pass = 0; pass < 4 && zLayerPass(k); pass++); }
+// one pass; true if it moved anything (a lifted face can land on a third one's plane, so it's run till nothing moves)
+function zLayerPass(k) {
+  const P = k.p, F = []; let moved = false;
+  for (let v = 0; v + 5 < P.length / 3; v += 6) {
+    const i = v * 3, ux = P[i + 3] - P[i], uy = P[i + 4] - P[i + 1], uz = P[i + 5] - P[i + 2], wx = P[i + 6] - P[i], wy = P[i + 7] - P[i + 1], wz = P[i + 8] - P[i + 2];
+    let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx; const l = Math.hypot(nx, ny, nz); if (l < 1e-12) continue; nx /= l; ny /= l; nz /= l;
+    // the face's extent in two directions across it
+    let ax = Math.abs(nx) < 0.9 ? 0 : -nz, ay = Math.abs(nx) < 0.9 ? nz : 0, az = Math.abs(nx) < 0.9 ? -ny : nx; const la = Math.hypot(ax, ay, az); ax /= la; ay /= la; az /= la;
+    const bx = ny * az - nz * ay, by = nz * ax - nx * az, bz = nx * ay - ny * ax;
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (let q = 0; q < 6; q++) { const j = i + q * 3, x = P[j] * ax + P[j + 1] * ay + P[j + 2] * az, y = P[j] * bx + P[j + 1] * by + P[j + 2] * bz; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    F.push({ v, box: Math.floor(v / 36), nx, ny, nz, d: P[i] * nx + P[i + 1] * ny + P[i + 2] * nz, x0, x1, y0, y1, key: Math.abs(nx) >= Math.abs(ny) && Math.abs(nx) >= Math.abs(nz) ? (nx > 0 ? 0 : 1) : Math.abs(ny) >= Math.abs(nz) ? (ny > 0 ? 2 : 3) : (nz > 0 ? 4 : 5), lay: 0 });   // (grouped by the way it mostly faces; nearly the same way is checked below)
+  }
+  const groups = new Map(); for (const f of F) { const g = groups.get(f.key); if (g) g.push(f); else groups.set(f.key, [f]); }
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    g.sort((a, b) => a.d - b.d);
+    for (let s = 0; s < g.length;) {   // runs of faces on (all but) the same plane, layered in the order they were built
+      let e = s + 1; while (e < g.length && g[e].d - g[e - 1].d < 2e-4) e++;
+      if (e - s > 1) {
+        const run = g.slice(s, e).sort((a, b) => a.v - b.v);
+        for (let a = 1; a < run.length; a++) { const A = run[a]; for (let b = 0; b < a; b++) { const B = run[b]; if (B.box === A.box || A.nx * B.nx + A.ny * B.ny + A.nz * B.nz < 0.9998 || Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) <= 1e-5 || Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0) <= 1e-5) continue; A.lay = Math.max(A.lay, B.lay + 1); } }
+        for (const A of run) if (A.lay) { moved = true; const o = A.lay * ZLAYER; for (let q = 0; q < 6; q++) { const j = (A.v + q) * 3; P[j] += A.nx * o; P[j + 1] += A.ny * o; P[j + 2] += A.nz * o; } }
+      }
+      s = e;
+    }
+  }
+  return moved;
+}
 function zBake(k) {
+  zLayer(k);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(k.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(k.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(k.c, 3));
   g.computeBoundingBox(); g.computeBoundingSphere(); g.userData.zg = true;

@@ -112,9 +112,10 @@ function netAct(z, dx, dz, fn) {
   try { r = fn(); } finally {
     const ops = NREC.ops; NREC = null;
     if (ops.length) {
-      // and what it dropped, each with an id of its own so whoever picks it up can say so
+      // and what it dropped, each with an id of its own so whoever picks it up can say so. An ammo box is the killer's
+      // alone: it's rolled for their guns and only ever on their farm, so each player's ammo is their own
       const dr = [];
-      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid) continue;
+      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid || p.kind === 'ammo') continue;
         p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z)]); }
       netSend('hit', { id: z.id, dx: nr(dx), dz: nr(dz), ops, dr });
     }
