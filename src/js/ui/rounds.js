@@ -17,7 +17,7 @@ function dropRound(src, spent) {
   else {
     const h = r.height * CASE_OF[cal], brass = cs.getPropertyValue('--cs').trim() || '#d8b45a';
     g.className = 'fallRound case' + (cal === 'rf' ? ' rf' : '');
-    Object.assign(g.style, { left: r.left + 'px', top: (r.top + r.height - h) + 'px', width: r.width + 'px', height: h + 'px', background: `linear-gradient(${brass} 0 86%, #9c7a34 86%)` });
+    Object.assign(g.style, { left: r.left + 'px', top: (r.top + r.height - h) + 'px', width: r.width + 'px', height: h + 'px', background: `linear-gradient(${brass} 0 86%, ${cs.getPropertyValue('--cb').trim() || '#9c7a34'} 86%)` });
   }
   // a real arc: flicked up and sideways, gravity takes over gradually, tumbling the whole way down
   const vx = dir * rr(70, 190), vy = -rr(240, 380), grav = 1500, spin = dir * rr(380, 900), drop = innerHeight - r.top + 40;

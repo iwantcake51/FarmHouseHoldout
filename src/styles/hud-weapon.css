@@ -29,29 +29,29 @@
    as it's wide with a round-nosed bullet; a rifle round (5.56, .30) a long bottlenecked case, its shoulder stepping in
    to the neck, with a slim spitzer bullet to a sharp point; a magnum (.357, .50) a longer straight case with a
    flat-nosed bullet; a shotgun shell a red hull on a brass head */
-#rounds i{display:block;width:5px;height:15px;--bl:#c47838;--cs:#d8b45a;background:linear-gradient(var(--bl) 0 36%,var(--cs) 36% 89%,#9c7a34 89%);box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:2.5px 2.5px .5px .5px / 4.5px 4.5px .5px .5px}
-#rounds.rf i{height:25px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 93%,#9c7a34 93%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
-#rounds.mg i{width:6px;height:17px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 91%,#9c7a34 91%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}
+#rounds i{display:block;width:5px;height:15px;--bl:#c47838;--cs:#d8b45a;background:linear-gradient(var(--bl) 0 36%,var(--cs) 36% 89%,var(--cb,#9c7a34) 89%);box-shadow:0 1px 0 rgba(0,0,0,.6);border-radius:2.5px 2.5px .5px .5px / 4.5px 4.5px .5px .5px}
+#rounds.rf i{height:25px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 93%,var(--cb,#9c7a34) 93%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
+#rounds.mg i{width:6px;height:17px;border-radius:0;background:linear-gradient(var(--bl) 0 30%,var(--cs) 30% 91%,var(--cb,#9c7a34) 91%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}
 #rounds.sh i{--hl:#a8342a;--hd:#9a3c32;--hp:#8f3a30;--hi:#4a1712;width:7px;height:13px;background:var(--hl);border-radius:0;border-bottom:3px solid #c9a43a}
 /* the kind of shell loaded (weapons/rounds.js), its hull as in the world (SHELL_MAT, weapons/gun-models.js): flechettes
    white, dragon's breath orange, slugs blue */
 #rounds.rflech i{--hl:#e2ded4;--hd:#c6c2b8;--hp:#b4b0a6;--hi:#5a5650}
 #rounds.rfire i{--hl:#de6a2a;--hd:#c45a24;--hp:#b0501e;--hi:#4e1e08}
 #rounds.rslug i{--hl:#3a72c8;--hd:#3062ae;--hp:#2a5698;--hi:#0e2348}
-/* and a bullet round by its kind: 9mm hollow points in nickel cases with a dark cupped tip (as they fly out of the gun,
-   weapons/casings.js), piercing rounds black-tipped, explosive tips a red band */
-#rounds.rhollow:not(.rf):not(.mg):not(.sh) i{--cs:#c8ccd0;--bl:#6e4a2c}
+/* and a bullet round by its kind: hollow points (every calibre) in nickel cases with a dark cupped tip (as they fly out
+   of the gun, weapons/casings.js), piercing rounds black-tipped, explosive tips red in a blackened steel case */
+#rounds.rhollow:not(.sh) i{--cs:#c8ccd0;--cb:#8e9398;--bl:#6e4a2c}
 #rounds.rpierce i{--bl:#2a2b30}
-#rounds.rboom i{--bl:#c8342a}
+#rounds.rboom i{--bl:#c8342a;--cs:#3a3a40;--cb:#26262a}
 /* better rounds change the bullet: hollow points a darker copper, +P loads a hot orange with a glow, match-grade a
    bright bullet in a nickel case. A shell has no bullet, so it stays just a shell */
 #rounds.hp i{--bl:#8f4f28}#rounds.hp2 i{--bl:#e8842e}#rounds.hp2:not(.sh) i:not(.off){box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i{--bl:#e09a62;--cs:#c8ccd0}
 #rounds i.off{background:rgba(236,230,216,.14);border-color:transparent;box-shadow:none}
 /* fired and kept in the gun: a case with no bullet in it, its mouth dark (the brass's own colours, the bullet's part clear);
    a shotgun hull blown open at the crimp, its petals splayed and the inside showing, the plastic gone dull */
-#rounds i.fired{background:linear-gradient(transparent 0 33%,#3a2c14 33% 38%,var(--cs) 38% 89%,#9c7a34 89%)}
-#rounds.rf i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 34%,var(--cs) 34% 93%,#9c7a34 93%)}
-#rounds.mg i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 35%,var(--cs) 35% 91%,#9c7a34 91%)}
+#rounds i.fired{background:linear-gradient(transparent 0 33%,#3a2c14 33% 38%,var(--cs) 38% 89%,var(--cb,#9c7a34) 89%)}
+#rounds.rf i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 34%,var(--cs) 34% 93%,var(--cb,#9c7a34) 93%)}
+#rounds.mg i.fired{background:linear-gradient(transparent 0 30%,#3a2c14 30% 35%,var(--cs) 35% 91%,var(--cb,#9c7a34) 91%)}
 #rounds.sh i.fired{background:linear-gradient(var(--hi) 0 22%,var(--hp) 22% 30%,var(--hd) 30%);clip-path:polygon(0 100%,0 22%,6% 2%,18% 16%,32% 0,50% 15%,68% 0,82% 16%,94% 2%,100% 22%,100% 100%)}
 .fallRound{position:fixed;z-index:3;pointer-events:none;display:block;animation:roundFall .9s cubic-bezier(.45,0,.9,.55) forwards;box-shadow:0 1px 0 rgba(0,0,0,.6)}
 /* a spent case, bullet gone: an open mouth at the top, and a rifle case's neck and shoulder (ui/rounds.js) */

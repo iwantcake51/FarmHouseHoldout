@@ -37,9 +37,12 @@ const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
 // plastic recoloured, white for flechettes, orange for dragon's breath, blue for slugs
 const SHELL_HULL = { flech: 'W', fire: 'O', slug: 'B' };
 Object.assign(CC, { hullW: 0xd8d4c8, hullLipW: 0xece8de, hullInW: 0x7a766c, hullO: 0xb8400e, hullLipO: 0xd2561a, hullInO: 0x52200a, hullB: 0x1a3f8a, hullLipB: 0x2c58a8, hullInB: 0x0a1a3a });
-// 9mm hollow points come in nickel cases: the p9 case turned again in silver (p9N)
-Object.assign(CC, { nickel: 0xc4c8cc, nickelHead: 0x9ea3a8, nickelLip: 0xe6e9ec });
-{ const NK = { brass: 'nickel', head: 'nickelHead', lip: 'nickelLip' }; CASE_PROF.p9N = { ...CASE_PROF.p9, prof: CASE_PROF.p9.prof.map(v => NK[v[2]] ? [v[0], v[1], NK[v[2]]] : v) }; CASE_SCALE.p9N = CASE_SCALE.p9; }
+// a bullet's case by its kind of round (CASE_TINT): hollow points come in nickel cases, every calibre of them, turned
+// again in silver (p9N, rifleN...), and explosive tips in blackened steel (magnumX)
+const CASE_TINT = { hollow: 'N', boom: 'X' };
+Object.assign(CC, { nickel: 0xc4c8cc, nickelHead: 0x9ea3a8, nickelLip: 0xe6e9ec, black: 0x2e2e32, blackHead: 0x232326, blackLip: 0x4a4a50 });
+{ const TK = { N: { brass: 'nickel', head: 'nickelHead', lip: 'nickelLip' }, X: { brass: 'black', head: 'blackHead', lip: 'blackLip' } };
+  for (const kd of ['p9', 'magnum', 'rimmed', 'rifle']) for (const t in TK) { CASE_PROF[kd + t] = { ...CASE_PROF[kd], prof: CASE_PROF[kd].prof.map(v => TK[t][v[2]] ? [v[0], v[1], TK[t][v[2]]] : v) }; CASE_SCALE[kd + t] = CASE_SCALE[kd]; } }
 for (const s of Object.values(SHELL_HULL)) { const q = CASE_PROF.shells; CASE_PROF['shells' + s] = { ...q, prof: q.prof.map(v => v[2].startsWith('hull') ? [v[0], v[1], v[2] + s] : v) }; CASE_SCALE['shells' + s] = CASE_SCALE.shells; }
 // turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
 // the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
@@ -113,7 +116,7 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
   const ch0 = mode === 'dump' ? Math.max(0, CHAMBERS - cylLive(id) - cylFired(id)) : 0;   // the fired chambers, below the loaded ones (cylHeads, player/hold.js)
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
   if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
-  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : ammo === 'p9' && roundOn(id) === 'hollow' ? 'p9N' : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const K = CASE_KIND[ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : (ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo) + (CASE_TINT[roundOn(id)] || '')] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);

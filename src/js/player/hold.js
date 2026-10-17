@@ -457,13 +457,13 @@ const _slAx = new V3(), _slQ = new THREE.Quaternion(), _slW = new V3(), _slS = n
 // count, the ones fired below them till they're dumped (W8.hudSpent, which drops as each case leaves: weapons/casings.js
 // dumps them from these same chambers), the rest empty, so a reload only empties the chambers that were fired and the
 // new rounds fill those
-const CHAMBERS = 6, BRASS_FIRED = lam(0x6f5a30);
+const CHAMBERS = 6, BRASS_FIRED = lam(0x6f5a30), NICKEL = lam(0xc4c8cc), NICKEL_FIRED = lam(0x7c8084);   // (hollow points' cases are nickel, weapons/casings.js)
 const cylLive = id => Math.min(CHAMBERS, W8.mag[id] | 0), cylFired = id => Math.min(CHAMBERS - cylLive(id), W8.hudSpent[id] | 0);
 function cylHeads(cr, id) {
-  const live = cylLive(id), fired = cylFired(id);
+  const live = cylLive(id), fired = cylFired(id), nk = roundOn(id) === 'hollow';
   for (const c of cr) {
     const hd = c.children[0] && c.children[0].userData.heads; if (!hd) continue;
-    hd.forEach((h, k) => { const st = k >= CHAMBERS - live ? 1 : k >= CHAMBERS - live - fired ? 2 : 0; h.visible = st > 0; if (st) { h.userData.rim.material = st === 2 ? BRASS_FIRED : GM.brass; h.userData.primer.material = st === 2 ? GM.metal2 : GM.steel; } });
+    hd.forEach((h, k) => { const st = k >= CHAMBERS - live ? 1 : k >= CHAMBERS - live - fired ? 2 : 0; h.visible = st > 0; if (st) { h.userData.rim.material = st === 2 ? (nk ? NICKEL_FIRED : BRASS_FIRED) : nk ? NICKEL : GM.brass; h.userData.primer.material = st === 2 ? GM.metal2 : GM.steel; } });
   }
 }
 // a round in the support hand while it's fed in by hand: up to three shotgun shells (one, both side by side for the
