@@ -852,12 +852,12 @@ const GUN_MODELS = {
       [-1, 1].forEach(sd => { for (let k = 0; k < 3 + mt; k++) box(mg, 0.001, 0.016, 0.007, GM.rubber, X + sd * 0.0149, 0.885 - k * 0.04, 0.646); });
     } else {
       profile(mg, shp(inset([[0.5993, 0.925], [0.66, 0.925], [0.66, 0.885], [0.5993, 0.885]], 0.002)), 0.026, P, X, 0.002);
-      // a drum under the neck, its round face to either side of the gun as a real one's is (its axis across the gun),
-      // the hub showing in the middle of each face, a seam round each edge and the winding key on its right face
-      const cy = 0.814, r = 0.072, dw = 0.05, across = m => { m.rotation.set(0, Math.PI / 2, 0); return m; };
-      across(cyl(mg, r, dw, P, X, cy, 0.629, 32)); across(cyl(mg, 0.026, dw + 0.006, K, X, cy, 0.629, 18));
-      [-1, 1].forEach(e => across(ring(mg, r + 0.0015, 0.006, K, X + e * (dw / 2 - 0.004), cy, 0.629)));
-      box(mg, 0.006, 0.034, 0.008, GM.rubber, X + dw / 2 + 0.006, cy, 0.629);   // the winding key
+      // a drum lying along the gun under the neck, its face forward like the pistol's (its axis down the gun), the hub
+      // showing at either end, a seam round each rim and the winding key at the back
+      const cy = 0.885 - 0.07, r = 0.07, dl = 0.07, along = m => { m.rotation.set(Math.PI / 2, 0, 0); return m; };
+      along(cyl(mg, r, dl, P, X, cy, 0.629, 32)); along(cyl(mg, 0.026, dl + 0.006, K, X, cy, 0.629, 18));
+      [-1, 1].forEach(e => along(ring(mg, r + 0.0015, 0.006, K, X, cy, 0.629 + e * (dl / 2 - 0.006))));
+      box(mg, 0.034, 0.008, 0.006, GM.rubber, X, cy, 0.629 - dl / 2 - 0.006);   // the winding key
     }
     return { front, y: 1.113, magZ: 0.629, magY: 0.89, slide: bc, bolts: [], travel: 0.085, lock: true, top: 1.1656, sz: 0.7, ownMags: true, charge: ch, chargeAt: [X, 1.163, 0.503], laser: { side: -1, x: X - 0.0215, y: 1.1, z: 0.83 } };   // the laser on the right-hand rail
   },
