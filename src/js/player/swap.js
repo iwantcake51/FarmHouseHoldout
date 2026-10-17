@@ -98,21 +98,24 @@ function meleeDrawFrame(out, stow, live, u, st) {
   return out;
 }
 // a gun's draw: not a straight blend from where it rides to the hold, which took a long gun straight through your
-// chest and spun it round at over 1,000 degrees a second, but the way it's done. The pistol's lifted straight up out
-// of the holster, rocked muzzle forward at your hip and pushed out into the hold. A long gun's pulled out past the
-// pack's edge to your right, twisted in the hand while it hangs barrel down beside you (so the barrel never swings in
-// across you), then swung muzzle forward into a low ready and raised to the shoulder. The automatic's pulled off the back, carried behind your right shoulder and up beside it
-// muzzle up, then tipped forward and down into the hold.
+// chest and spun it round at over 1,000 degrees a second, but the way it's done, kept close to the body. The pistol's
+// lifted straight up out of the holster, rocked muzzle forward at your hip and pushed out into the hold. A long gun's
+// pulled out past the pack's edge to your right, twisted in the hand while it hangs barrel down beside you (so the
+// barrel never swings in across you), then swung muzzle forward into a low ready in front of you and raised to the
+// shoulder. The automatic's lifted off the back and pulled up over your right shoulder, muzzle up and back, then
+// brought down over it into a low ready across the chest and up into the hold. The left hand comes up to meet the
+// handguard as the gun comes round in front of you (DRAW_LEFT: from, to, through the draw) and rides on it from there.
 // DRAW_KEYS: for each carry, the keys between where it rides and the hold: when it comes (u, through the draw); where
-// the grip is ([x, y, z] off where it rides, 'at'; off the hold, 'hold'; or in the body frame, 'body': x right, y up,
-// z forward); and how the gun's turned ([barrel, top] in the body frame, or a number: that much of the way from how it
-// rides to the next key's turn). Grip and turn both run through the keys on smooth curves, starting and finishing at
+// the grip is ([x, y, z] off where it rides, 'at'; off the hold, 'hold'; off your right shoulder, 'sh'; or in the body
+// frame, 'body': x right, y up, z forward); and how the gun's turned ([barrel, top] in the body frame, or a number:
+// that much of the way from how it rides to the next key's turn). Grip and turn both run through the keys on smooth curves, starting and finishing at
 // rest, so it never stops dead at one and never snaps
 const DRAW_KEYS = {
   side: [[0.32, 'at', [0.025, 0.15, 0.0], 0.1], [0.62, 'at', [0.05, 0.25, 0.13], [[0, -0.15, 1], [0, 1, 0.15]]]],
-  long: [[0.16, 'at', [0.14, 0.05, 0.02], 0], [0.45, 'at', [0.3, 0.1, 0.06], [[0.08, -1, 0.04], [-0.9, 0, 0.45]]], [0.74, 'hold', [0.22, -0.2, -0.12], [[0, -0.55, 0.84], [0, 0.84, 0.55]]]],
-  auto: [[0.22, 'at', [0.12, 0.2, -0.3], 0.3], [0.46, 'body', [0.38, 1.05, -0.6], [[0.1, 0.95, -0.2], [0, -0.2, -0.98]]], [0.72, 'body', [0.44, 1.0, -0.06], [[0, 0.9, 0.4], [0, 0.4, -0.9]]]]
+  long: [[0.16, 'at', [0.1, 0.06, 0.03], 0], [0.42, 'at', [0.18, 0.12, 0.08], [[0.08, -1, 0.04], [-0.9, 0, 0.45]]], [0.7, 'hold', [0.06, -0.12, -0.15], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]],
+  auto: [[0.2, 'at', [0.05, 0.14, -0.05], 0.25], [0.44, 'sh', [0.0, 0.1, -0.13], [[0.12, 0.75, -0.65], [0.05, 0.65, 0.76]]], [0.68, 'hold', [0.06, -0.12, -0.17], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]]
 };
+const DRAW_LEFT = { long: [0.5, 0.7], auto: [0.5, 0.68] };
 const DRAW_STEP = 3;
 const _dk = { m: new THREE.Matrix4(), p: new V3(), q: new THREE.Quaternion(), s: new V3(), d: new V3(), u: new V3(), x: new V3(), g: new V3() };
 const dkQ = (d, u) => { const D = _dk.d.set(d[0], d[1], d[2]).normalize(), U = _dk.u.set(u[0], u[1], u[2]); U.addScaledVector(D, -U.dot(D)).normalize(); return new THREE.Quaternion().setFromRotationMatrix(_dk.m.makeBasis(_dk.x.crossVectors(U, D), U, D)); };
@@ -131,7 +134,8 @@ function gunDrawFrame(out, slot, stow, live, u) {
   const qOf = m => { m.decompose(_dk.p, _dk.q, _dk.s); return _dk.q.clone(); };
   const g0 = G(stow), g3 = G(live), q0 = qOf(stow), q3 = qOf(live);
   const ts = [0], ps = [g0.toArray()], qs = [q0];
-  K.forEach(([t, ref, o, turn]) => { ts.push(t); const b = ref === 'at' ? g0 : ref === 'hold' ? g3 : _dk.g.set(0, 0, 0); ps.push([b.x + o[0], b.y + o[1], b.z + o[2]]); qs.push(turn); });
+  const sh = PM.armR.position.clone().applyMatrix4(_dk.m.copy(_sw.toUp).invert());   // the right shoulder, in the body frame
+  K.forEach(([t, ref, o, turn]) => { ts.push(t); const b = ref === 'at' ? g0 : ref === 'hold' ? g3 : ref === 'sh' ? sh : _dk.g.set(0, 0, 0); ps.push([b.x + o[0], b.y + o[1], b.z + o[2]]); qs.push(turn); });
   ts.push(1); ps.push(g3.toArray()); qs.push(q3);
   // a turn given as a fraction is that much of the way from how it rides to the next turn that's given
   for (let i = 1; i < qs.length - 1; i++) if (!(qs[i] instanceof THREE.Quaternion)) {
@@ -234,8 +238,17 @@ function updateSwap(dt, rdt) {
       placeAt(gunMeshes[st.to], f);
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), false); armToward(pm.armR, rQ, rP, rS, u * u);
     }
-    const kl = smooth(clamp((u - (newMelee ? 0.45 : 0.55)) / (newMelee ? 0.55 : 0.45), 0, 1));
-    armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(liveL, kl), newMelee); armToward(pm.armL, lQ, lP, lS, kl * kl);
+    const dl = !newMelee && DRAW_LEFT[st.to];
+    if (dl) {
+      // a long gun: the left hand comes up to the handguard as the gun comes round in front of you and rides on it, then
+      // settles into the hold's own grip at the very end
+      const kl = smooth(clamp((u - dl[0]) / (dl[1] - dl[0]), 0, 1)), fp = (HOLD[W8.slot[st.to]] || HOLD_DEF).fore;
+      _sw.h.set(fp[0], fp[1], fp[2]).applyMatrix4(holdOf(st.to, 'R').matrix).applyMatrix4(f).applyMatrix4(_sw.toUp);
+      armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(_sw.h, kl), false); armToward(pm.armL, lQ, lP, lS, smooth(clamp((u - 0.86) / 0.14, 0, 1)));
+    } else {
+      const kl = smooth(clamp((u - (newMelee ? 0.45 : 0.55)) / (newMelee ? 0.55 : 0.45), 0, 1));
+      armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(liveL, kl), newMelee); armToward(pm.armL, lQ, lP, lS, kl * kl);
+    }
   }
 }
 // bandaging (player/hold.js): before the hands come up to the wrap, the right hand carries the weapon back to where it

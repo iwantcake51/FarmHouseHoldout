@@ -1,8 +1,9 @@
 // Carrying and applying bandages, healing over time.
 
 const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
-// how long a finished bandage stays on the crosshair at 100% before it goes (ui/crosshair.js)
-const BAND_DONE = 0.6;
+// how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
+// gone as the bandage is
+const BAND_DONE = 0.12;
 // how many bandages you can carry: 3 in the pouch on your side, 2 more with the Med pouch upgrade's second pouch
 const bandMax = () => BAND_BASE + (S.pouch ? 2 : 0);
 // medicine cabinet upgrades: steadier hands wrap faster, better dressings heal more, a tonic heals quicker
