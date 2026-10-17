@@ -87,6 +87,8 @@ function updateZombies(dt) {
     // climbing over a fence or in through a window: nothing else till it's done
     if (z.vault) { stepClimb(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     if (pup) puppetBoard(z, dme);   // tearing at the boards the host says it's at
+    // a brute's dash (zombies/brute-dash.js): while it crouches, charges and pulls up, nothing else
+    if (dashStep(z, dt, pup) || (!pup && dashMaybe(z, dt, t, dp))) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); dashGlow(z); continue; }
     // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
     // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
     if (z.out && !pup) {
@@ -174,6 +176,7 @@ function updateZombies(dt) {
     animateZombie(z, dt, dp, relP); zFlash(z, dt);
   }
   if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
+  stepDashMarks(dt);
   if (zHitMe) zStruckFx();
   playerChecks();
   groanT -= dt; if (groanT <= 0 && nearest < 30) { soundAt(nearZ.x, nearZ.z, () => SFX.groan(clamp(1 - nearest / 16, 0.1, 1)), true); groanT = rr(1.5, 4); }
@@ -185,7 +188,7 @@ let zHitMe = false;
 function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
   P.hitFrom = z.face; hitFromAt(z.x, z.z);
-  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken; zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
+  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg(); zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
   // tilt the view toward whoever hit you
   const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);
   camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;

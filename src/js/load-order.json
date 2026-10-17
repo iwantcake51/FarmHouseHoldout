@@ -105,6 +105,7 @@
   "barricades/interactions.js",
   "stations/supply-drop.js",
   "zombies/ai.js",
+  "zombies/brute-dash.js",
   "game/camera.js",
   "world/cutaway.js",
   "ui/crosshair.js",

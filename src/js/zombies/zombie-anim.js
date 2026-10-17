@@ -267,7 +267,7 @@ function animateZombie(z, dt, dp, relP) {
     // the swing at you and the wind-up for it as it closes in
     const ready = !z.atkBoard && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
     a.wu += ((ready ? 1 - z.atk / 0.4 : 0) - a.wu) * Math.min(1, dt * 10);
-    if (!z.crawl) zAttackPose(z, a, T, K);
+    if (!z.crawl) { zAttackPose(z, a, T, K); if (z.dash) zDashPose(z, a, T, K); }   // (a brute's dash: zombies/brute-dash.js)
     else if (a.atkT < 0.6) { const st = a.atkT < 0.1 ? smooth(a.atkT / 0.1) : 1 - _zsm(0.1, 0.6, a.atkT); zMix(T, { rx: 0.85, alx: -2.1 + 0.4 * st, arx: -1.9, elL: -0.2, hx: -0.2 }, st); zBoost(K, ['alx', 'rx', 'hx'], 2.4); }
     a.bw += ((z.atkBoard ? 1 : 0) - a.bw) * Math.min(1, dt * 6); zBoardPose(z, a, T, K);
     a.rip = Math.max(0, a.rip - dt * 1.8); zRipPose(z, a, T, K);

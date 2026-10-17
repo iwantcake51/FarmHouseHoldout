@@ -99,6 +99,10 @@ NET_ON.za = m => {
   if (m.h === NET.id && !P.dead && state !== 'title') { zStrike(z, m.am); zStruckFx(); }
 };
 
+// a brute's dash (zombies/brute-dash.js): everyone sees the crouch and the stripe; if it runs into you, you take it
+NET_ON.zdw = m => { if (NET.host) return; const z = NZ.get(m.id); if (z && !z.dead && !z.dash) dashStart(z, m.dx, m.dz, m.L); };
+NET_ON.zdh = m => { const z = NZ.get(m.id); if (z && m.h === NET.id && !P.dead && state !== 'title') { dashHit(z, m.dx, m.dz); zStruckFx(); } };
+
 // ---- hits: written down as they happen here, played out the same everywhere else
 function netRec(...op) { if (NREC) NREC.ops.push(op); }
 function netHitRec(z, dealt, part, kb, wId) { if (NREC) NREC.ops.push(['d', nr(dealt), part, nr(kb), wId, nr(z.burn || 0), nr(z.bleed || 0), nr(z.bleedR || 0), part !== 'torso' && part !== 'head' ? nr(z.lhp[part]) : 0]); }
