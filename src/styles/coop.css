@@ -94,9 +94,25 @@
 #team .res svg{width:10px;height:10px}
 #team .res b{font-size:12.5px}
 #team .tm.low .bar i{background:var(--blood)}
-#team .tm.down{opacity:.6}
+/* a teammate who's down: greyed, their dot dimmed, their name struck through in red, the bar a dull red track with
+   nothing left on it, and a red flash through the card the moment they fall (.fell: teamDown, net/lobby.js) */
+#team .tm.down{opacity:.72;border-left-color:#c2412e}
+#team .tm.down .tmTop i{background:#5a5550;box-shadow:none}
+#team .tm.down .tmName{color:#b9b0a2;text-decoration:line-through;text-decoration-color:#e0634a;text-decoration-thickness:1.5px}
 #team .tm.down .tmHp span{font-family:var(--f-ui);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#e0634a}
+#team .tm.down .bar{background:rgba(194,65,46,.35)}
 #team .tm.down .bar i{width:0!important}
+#team .tm.fell{animation:tmFell 1.1s ease-out}
+@keyframes tmFell{0%{background:rgba(224,70,50,.55);opacity:1}100%{background:transparent}}
+/* the notice that one's gone down: a small dark pill at the top, their colour down its left edge, a skull in red and
+   "Name is down", sliding in and fading out on its own */
+#teamNotes{left:50%;top:calc(6% + env(safe-area-inset-top,0px));transform:translateX(-50%);display:grid;justify-items:center;gap:6px;z-index:3}
+#teamNotes .tdNote{display:flex;align-items:center;gap:7px;padding:5px 13px 5px 10px;border-left:3px solid var(--pc);border-radius:6px;background:linear-gradient(90deg,rgba(60,16,12,.88),rgba(18,13,10,.82));box-shadow:0 4px 14px rgba(0,0,0,.45);font:600 12px var(--f-ui);letter-spacing:.04em;color:#ece4d4;white-space:nowrap;text-shadow:none;animation:tdIn .4s cubic-bezier(.2,.9,.3,1.2) both;transition:opacity .4s ease,transform .4s ease}
+#teamNotes .tdNote svg{width:13px;height:13px;fill:#e0634a}
+#teamNotes .tdNote b{color:var(--pc)}
+#teamNotes .tdNote span{color:#d8cfc0}
+#teamNotes .tdNote.out{opacity:0;transform:translateY(-6px)}
+@keyframes tdIn{from{opacity:0;transform:translateY(-8px) scale(.94)}}
 
 /* nameplates: a dot in their colour over their head with their name and health under it; off the screen, just the
    dot, at the edge on the line toward them with an arrow pointing their way (net/avatars.js) */

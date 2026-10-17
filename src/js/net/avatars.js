@@ -102,6 +102,7 @@ function netDropAvatar(p) {
 // a pose in: kept as where they're headed; their survivor eases there over the next frames
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
+  if (m.dead && !p.dead && p.x !== undefined && state !== 'title') teamDown(p);   // they've just gone down (net/lobby.js)
   Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }

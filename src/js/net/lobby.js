@@ -91,6 +91,19 @@ function renderTeam() {
   });
   liftFeed();
 }
+// a teammate going down: their card flashes red as it greys out (the bar left red and empty, their name struck
+// through: styles/coop.css), and a small notice slides in at the top of the screen in their colour for TEAM_DOWN_T
+// seconds; more than one at once stack under each other
+const TEAM_DOWN_T = 3.6;
+function teamDown(p) {
+  const d = [...$('team').children].find(c => c.dataset.id === p.id);
+  if (d) { d.classList.remove('fell'); void d.offsetWidth; d.classList.add('fell'); }
+  const box = $('teamNotes'), n = document.createElement('div');
+  n.className = 'tdNote'; n.style.setProperty('--pc', NET_COL[p.idx] || '#888');
+  n.innerHTML = `<svg viewBox="${GI_VB}">${GI.kills}</svg><b></b><span>is down</span>`; n.querySelector('b').textContent = p.name;
+  box.appendChild(n); setTimeout(() => { n.classList.add('out'); setTimeout(() => n.remove(), 450); }, TEAM_DOWN_T * 1000);
+  SFX.click();
+}
 // the pickup feed sits over your health; the team cards make that taller, so it goes up by as much (both are zoomed the
 // same, styles/hud-feed.css, so the cards' height on screen is taken back out of it)
 function liftFeed() {
