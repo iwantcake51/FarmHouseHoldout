@@ -164,6 +164,9 @@ const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body s
 // pushed home as it seats (MAG_SEAT, when the reload hears it: weapons/reload.js). Its tip is keyed with it, so it turns
 // as it goes rather than at the end. The way is worked out in the gun's own frame, so it stays with the gun as the reload
 // rolls and tips it, and the hand is put where the mag is held: never off it
+// how far the old mag slides down out of the well before it falls free (it speeds up all the way: weapons/casings.js
+// carries that speed on into its fall)
+const MAG_SLIDE = 0.12;
 const MAG_TAKE = 0.42, MAG_GRIP = 0.68, MAG_DRAW = new V3(0.03, 0.08, 0.1);   // (out of the pouch: up and forward, clear of the shoulder)
 // by reload style (W8.relStyle), after the pouch and the draw up out of it (the first key, at the pouch plus MAG_DRAW):
 // [u, where the mag's top is off the well's mouth (x out to the right, y up, z forward, along the mag's own seated
@@ -870,7 +873,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     let md = 0, show = true;
     // (the fresh one is carried up in the hand from MAG_TAKE: magInHand, below)
     if (!rel && relHeld(id) && W8.relSave[id].st === 'out') show = false;
-    else if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rpm < tOut) md = smooth(rpm / tOut) * 0.12; else if (rpm < MAG_TAKE && !D.speedload) show = false; }
+    else if (rel === 'mag') { const tOut = Math.min(0.3, 0.14 / Math.max(0.3, W8.reloadMax)); if (rpm < tOut) { const u = rpm / tOut; md = u * u * MAG_SLIDE; } else if (rpm < MAG_TAKE && !D.speedload) show = false; }   // (gathering speed as it slides, so it falls on at that speed: dropMag)
     mgs.forEach(m => { m.visible = show; m.position.set(0, -md, 0); m.rotation.set(0, 0, 0); });
     ANIM.magDrop = show ? md : 0.22;
   }

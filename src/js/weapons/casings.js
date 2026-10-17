@@ -225,17 +225,20 @@ function dropMag(id, side) {
   else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
   else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  // falling on down the gun's axis at the speed it was sliding out of the well (MAG_SLIDE over MAG_DROP_T, eased in:
+  // player/hold.js), so it never stops between the two
+  _cd.set(0, -1, 0).transformDirection(gg.matrixWorld).multiplyScalar(2 * MAG_SLIDE / MAG_DROP_T);
   // it slips out of the well and drops: carried on with you, barely pushed (DROP_PUSH), tumbling slowly, so it leaves the
   // gun where the gun's mag was rather than leaping away from it
   const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100, s: W8.cur, sd: side === 'L' ? 1 : 0,
-    v: [P.vx * 0.9 + fx * rr(0, DROP_PUSH), rr(-0.6, -0.1), P.vz * 0.9 + fz * rr(0, DROP_PUSH)].map(v => Math.round(v * 100) / 100), slow: 1, spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
+    v: [P.vx * 0.9 + fx * rr(0, DROP_PUSH) + _cd.x, _cd.y, P.vz * 0.9 + fz * rr(0, DROP_PUSH) + _cd.z].map(v => Math.round(v * 100) / 100), slow: 1, spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
   placeMag(m, (MAGG[W8.cur] || [])[m.sd]);
   netSend('md', m);   // (co-op: it falls out of your survivor on your teammates' screens too, net/arsenal.js)
 }
 // a falling mag, from where and how it was let go (yours, or a co-op teammate's): a copy of the gun's own magazine
 // (src: its group on the model, weapons/build-weapons.js), the same pieces and colours, starting exactly where it was
 // on the gun; or, without one, a plain one of the shape and colour given
-const DROP_PUSH = 0.15;
+const DROP_PUSH = 0.15, _cd = new V3();
 const _mgB = new THREE.Box3(), _mgC = new V3(), _mgS = new V3(), _mgQ = new THREE.Quaternion();
 function placeMag(m, src) {
   const c = mags[mIdx = (mIdx + 1) % mags.length];
@@ -248,7 +251,7 @@ function placeMag(m, src) {
       c.model.add(cp); c.body.visible = c.neck.visible = false; c.pv.rotation.set(0, 0, 0);
       c.g.quaternion.copy(_mgQ); c.g.scale.setScalar(1); c.g.visible = true;
       const th = _mgS.x / 2; c.r = th + 0.005; c.restY = th; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); };   // down on its side
-      c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin * (m.slow ? 0.4 : 1); c.roll = m.roll * (m.slow ? 0.4 : 1); c.bounces = 0; c.life = 14; c.kind = 'mag';
+      c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin * (m.slow ? 0.4 : 1); c.roll = m.roll * (m.slow ? 0.4 : 1); c.bounces = 0; c.life = 14; c.kind = 'mag'; c.settle = null;
       return;
     }
   }
@@ -266,7 +269,16 @@ function placeMag(m, src) {
   }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
   c.g.position.set(m.p[0], m.p[1], m.p[2]); c.g.rotation.set(0.2, m.ry, 0); c.g.scale.setScalar(1); c.g.visible = true;
-  c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin; c.roll = m.roll; c.bounces = 0; c.life = 14; c.kind = 'mag';
+  c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin; c.roll = m.roll; c.bounces = 0; c.life = 14; c.kind = 'mag'; c.settle = null;
+}
+// a mag coming to rest: it tips over onto whichever of its sides is nearest the way it landed (the rest pose turned half
+// a turn round any of its axes lies just as flat), over MAG_SETTLE seconds, rather than snapping onto it
+const MAG_SETTLE = 0.24, _stO = new THREE.Object3D(), _stQ = new THREE.Quaternion(), _stF = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];
+function settleMag(c, g, fy) {
+  _stO.rotation.copy(g.rotation); if (c.rest) c.rest(_stO); else _stO.rotation.set(Math.PI / 2, g.rotation.y, 0);
+  const base = _stO.quaternion.clone(); let best = base.clone(), bd = Math.abs(base.dot(g.quaternion));
+  for (const ax of _stF) { const q = base.clone().multiply(_stQ.setFromAxisAngle(ax, Math.PI)), d = Math.abs(q.dot(g.quaternion)); if (d > bd) { bd = d; best = q; } }
+  c.settle = { t: 0, q0: g.quaternion.clone(), q1: best, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r) };
 }
 function stepDebris(list, dt) {
   tinkT -= dt;
@@ -287,10 +299,18 @@ function stepDebris(list, dt) {
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little
-          if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
+          if (c.kind === 'mag') settleMag(c, g, fy);   // (a mag tips over onto its side, not snapped there)
+          else if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
           c.vx *= 0.6; c.vz *= 0.6;
         }
       }
+    } else if (c.settle && c.settle.t < 1) {
+      // tipping over onto its side (settleMag): eased round to the face it lies on and down onto the ground
+      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / MAG_SETTLE); const k = smooth(S0.t);
+      g.quaternion.slerpQuaternions(S0.q0, S0.q1, k); g.position.y = S0.y0 + (S0.y1 - S0.y0) * k;
+      const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
+      if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }
+      const f = Math.exp(-dt * 5); c.vx *= f; c.vz *= f;
     } else if (Math.abs(c.vx) + Math.abs(c.vz) > 0.02) {
       const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
       if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }
