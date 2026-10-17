@@ -13,7 +13,7 @@ function visuals(dt, rdt) {
   stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
   stepParticles(dt); stepFx(dt);
   stepFloats(rdt);
-  updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateWeaponStats(); updateLoadout();
+  updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateBenchTips(rdt); updateWeaponStats(); updateLoadout();
   updateCrosshair(rdt, D);
   tickMessages(rdt);
 }

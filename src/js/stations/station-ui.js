@@ -14,6 +14,7 @@ function nearestStation() { let best = null, bd = STATION_REACH; for (const s of
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
 function openStation(s) {
+  benchTipUsed(s.id);   // its label from the start of the run goes (ui/bench-tips.js)
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
   openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();

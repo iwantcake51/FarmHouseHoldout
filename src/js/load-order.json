@@ -123,6 +123,7 @@
   "ui/hud.js",
   "ui/weapon-stats.js",
   "ui/loadout.js",
+  "ui/bench-tips.js",
   "ui/gear-popup.js",
   "ui/cheats.js",
   "game/visuals.js",

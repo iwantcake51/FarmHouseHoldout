@@ -155,4 +155,4 @@ const STATIONS = [];
   obstacle(17, 18, true);   // waist high, like the bench
   STATIONS.push({ g, id: 'box', name: 'Strongbox', x: cxw(18) - 0.15, z: cxw(19) - 0.15, coop: true });
 }
-STATIONS.forEach(s => { s.om = outline(s.g, 0xf0a04a, 0, 0.035, null, o => !o.userData.fine); s.om.visible = false; });
+STATIONS.forEach(s => { s.om = outline(s.g, 0xf4f1ea, 0, 0.035, null, o => !o.userData.fine); s.om.visible = false; });
