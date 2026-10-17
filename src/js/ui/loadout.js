@@ -18,13 +18,18 @@ function wlGroups(id) {
   if (a) out.push({ g: 'ammo', label: 'Powder', opts: Array.from({ length: a + 1 }, (_, n) => ({ k: 'ammo', n,
     name: n ? line('ammo', n) : 'Factory loads', sub: n ? pctPlus(AMMO_DMG[n]) + ' damage' + (n >= 3 ? ' · headshots +' + HEAD_UP.ammo + '×' : '') : 'As the gun comes' })) });
   // a shotgun's can and choke share the muzzle: one group, so picking one takes the other off
-  const mz = ['supp', 'choke'].flatMap(k => Array.from({ length: ownTier(id, k) }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) })));
+  // (and the muzzle devices from mods, weapons/gun-mods.js)
+  const mods = (W8.mods[id] || []).concat(modsOff(id)).filter(m => MODS[m] && MODS[m].w === id && !modReplaced(m));
+  const mz = ['supp', 'choke'].flatMap(k => Array.from({ length: ownTier(id, k) }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) })))
+    .concat(mods.filter(m => MODS[m].muzzle).map(m => ({ mod: m, n: 1, name: modName(m) })));
   if (mz.length) out.push({ g: 'muzzle', label: 'Muzzle', opts: [{ k: 'muzzle', n: 0, name: 'Bare muzzle' }, ...mz] });
   for (const k of ['sight', 'laser', 'light', 'loader']) {
     const n = ownTier(id, k); if (!n) continue;
     const label = k === 'loader' && D.breakOpen ? 'Reload' : WL_LINE[k], off = { sight: 'Iron sights', laser: 'No laser', light: 'No light', loader: D.breakOpen ? 'One shell at a time' : 'Load by hand' }[k];
     out.push({ g: k, label, opts: [{ k, n: 0, name: off }, ...Array.from({ length: n }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) }))] });
   }
+  // every other mod on its own line, on or off (the Navy trigger group, the drum, the long barrel...)
+  for (const m of mods) if (!MODS[m].muzzle) out.push({ g: 'mod:' + m, label: MODS[m].fm ? 'Trigger' : 'Upgrade', opts: [{ mod: m, n: 0, name: 'Off' }, { mod: m, n: 1, name: modName(m) }] });
   // the bayonet on a long gun, the stock on a sidearm (each bought for that gun alone)
   if (D.slot === 'long' && ownAtt(id, 'bayonet')) out.push({ g: 'bayonet', label: 'Bayonet', opts: [{ att: 'bayonet', n: 0, name: 'Off' }, { att: 'bayonet', n: 1, name: 'Bayonet', sub: 'Shove stabs for 45' }] });
   if (D.slot === 'side' && ownAtt(id, 'stock')) out.push({ g: 'stock', label: 'Stock', opts: [{ att: 'stock', n: 0, name: 'Off' }, { att: 'stock', n: 1, name: 'Shoulder stock', sub: 'Less kick' }] });
@@ -34,7 +39,8 @@ function wlGroups(id) {
 function wlIsOn(id, o) {
   if (o.rk) return roundOn(id) === o.rk;
   if (o.att) return gunAtt(id, o.att) === !!o.n;
-  if (o.k === 'muzzle') return !gunTier(id, 'supp') && !gunTier(id, 'choke');
+  if (o.mod) return hasMod(o.mod) === !!o.n;
+  if (o.k === 'muzzle') return !gunTier(id, 'supp') && !gunTier(id, 'choke') && !(W8.mods[id] || []).some(m => MODS[m].muzzle);
   return gunTier(id, o.k) === o.n;
 }
 function wlPick(i) {
@@ -43,9 +49,11 @@ function wlPick(i) {
   exitScope();
   if (o.rk) loadRound(id, o.rk, true);   // (the mag's emptied and filled again with the new kind)
   else magChange(id, () => {
+    const mzOff = () => (W8.mods[id] || []).filter(m => MODS[m].muzzle).forEach(m => setMod(id, m, false));
     if (o.att) setAtt(id, o.att, !!o.n);
-    else if (o.k === 'muzzle') { fitTier(id, 'supp', 0); fitTier(id, 'choke', 0); }
-    else fitTier(id, o.k, o.n);
+    else if (o.mod) setMod(id, o.mod, !!o.n);
+    else if (o.k === 'muzzle') { fitTier(id, 'supp', 0); fitTier(id, 'choke', 0); mzOff(); }
+    else { if (o.k === 'supp' || o.k === 'choke') mzOff(); fitTier(id, o.k, o.n); }
     recomputeEff();
   });
   if (!o.rk) buildGuns(id);

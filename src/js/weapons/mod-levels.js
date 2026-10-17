@@ -38,8 +38,11 @@ const modName = m => modNameAt(m, modLv(m));
 const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < MOD_MAX) : [];
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
 // level it asks for) fitted
-const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && hasMod(k));
-const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
+const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && (hasMod(k) || modIsOff(k)));
+// mods taken off a gun at the loadout panel (ui/loadout.js): still yours, never sold to you again, and put back for nothing
+const modsOff = id => (W8.modOff && W8.modOff[id]) || [];
+const modIsOff = m => modsOff(MODS[m].w).includes(m);
+const modOffer = m => !hasMod(m) && !modIsOff(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
 // one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
@@ -48,6 +51,24 @@ function addMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
   if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
   recomputeEff();
+}
+// take a mod off a gun or put it back. Off, the mod it replaced comes back on (you had it), what needs it comes off with
+// it, and a fire mode it gave goes. Back on, it's fitted as when bought (addMod), with what it needs first; a muzzle device
+// takes the can or choke and any other muzzle device off (one thing on the end of the barrel)
+function setMod(id, m, on) {
+  const off = W8.modOff = W8.modOff || {}, l = off[id] = (off[id] || []).filter(k => k !== m), M = MODS[m];
+  if (on) {
+    if (M.need && !hasMod(M.need)) setMod(id, M.need, true);
+    if (M.muzzle) { fitTier(id, 'supp', 0); fitTier(id, 'choke', 0); (W8.mods[id] || []).filter(k => k !== m && MODS[k].muzzle).forEach(k => setMod(id, k, false)); }
+    addMod(id, m);
+  } else {
+    if (!hasMod(m)) return;
+    W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
+    if (W8.fm[id] === m) W8.fm[id] = null;
+    if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
+    W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
+    recomputeEff();
+  }
 }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)
