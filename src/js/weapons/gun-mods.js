@@ -17,8 +17,9 @@ const DART_BLEED = 1.5;
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Tighter, harder-hitting shots that keep more of their damage at range.', vis: 'A longer, heavier slide', stat: D => { D.spread *= 0.7; D.dmg *= 1.15; D.reach = (D.reach || 1) + 0.3; } },
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
-  // the auto sear takes the burst conversion's place once that's at level II: B switches between single shots and full auto
-  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, replaces: 'burst', name: 'Auto sear', text: 'Full auto in place of the burst: hold to fire. B switches modes.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
+  // the auto sear is the burst conversion's third step (MOD_LINE, weapons/mod-levels.js): it goes in once that's at level
+  // II and adds full auto alongside the burst, so B steps from single shots to the burst to full auto
+  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, name: 'Auto sear', text: 'Adds full auto alongside the burst: hold to fire. B steps from single shots to burst to full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; D.spread *= AK_SPREAD; } },
   // named for its length at each level, as the model grows (weapons/gun-models.js: snub, then 4", 6" and 8")
   longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: 'Hits harder and keeps its damage much further out.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.25; D.reach = (D.reach || 1) + 0.4; } },

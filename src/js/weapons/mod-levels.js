@@ -2,10 +2,13 @@
 // each level adds its step below on top of the mod itself. Mods with a fire mode (fm) are picked with B.
 
 const MOD_MAX = 3;
+// mods that make one line of upgrades between them, shown with that line's stars at the bench: the pistol's burst
+// conversion is its first two (its level II the second) and the auto sear its third (MOD_LINE: where each comes in and
+// how many steps the line has; MOD_CAP: how far a mod's own levels go in it)
+const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2 };
 const MOD_UP = {
   match: { t: 'Spread −10%, +6% damage, less drop-off at range', up: D => { D.spread *= 0.9; D.dmg *= 1.06; D.reach += 0.3; } },
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
-  auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
   longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
   comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
   slam: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
@@ -35,7 +38,7 @@ const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
 const modNameAt = (m, lv) => MODS[m].names ? MODS[m].names[Math.min(lv, MODS[m].names.length) - 1] : MODS[m].name + (lv > 1 ? ' ' + roman(lv) : '');
 const modName = m => modNameAt(m, modLv(m));
 // the weapon's mods that tinkering could still improve
-const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < MOD_MAX) : [];
+const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < (MOD_CAP[m] || MOD_MAX)) : [];
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
 // level it asks for) fitted
 const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && (hasMod(k) || modIsOff(k)));
