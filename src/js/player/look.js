@@ -182,12 +182,12 @@ function facePart(H, n, x, y, z, s, most = 99) {
   H.add(g); return g;
 }
 function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.brows, f.mouth].filter(Boolean) : []; }
-// Firing for a while sets your face: the brows come down and in at the middle, the eyes narrow and the mouth tightens
+// Firing for a while sets your face: the brows come down, their inner ends lower, the eyes narrow and the mouth tightens
 // into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js)
 const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mouthH: 2.1 };
 function faceAnger(H, a) {
   const f = H.userData.face; if (!f || f.a === a) return; f.a = a;
-  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a; g.rotation.z = -g.userData.s * ANGER.browTilt * a; });
+  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a; g.rotation.z = g.userData.s * ANGER.browTilt * a; });
   f.eyes.forEach(g => { g.scale.y = 1 - ANGER.squint * a; });
   if (f.mouth) f.mouth.scale.set(1 - (1 - ANGER.mouthW) * a, 1 + (ANGER.mouthH - 1) * a, 1);
 }

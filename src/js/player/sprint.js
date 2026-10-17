@@ -53,7 +53,7 @@ function sprintKey() { return keys.has('shift') || !!(usingTouch && tStick.L && 
 function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
 // a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
 // hands and a stop; it goes a little slower on the run, and so do you (RUN_RELOAD: the reload's pace, your speed)
-const RUN_RELOAD = { rel: 0.85, run: 0.92 };
+const RUN_RELOAD = { rel: 0.78, run: 0.87 };
 const rgReload = () => { const id = curId(), D = W(id); return !!D && !D.melee && id !== 'lmg'; };
 const runReloading = () => !!P.sprint && !!W8.reloading;
 // Run and gun, aiming within its arc of the way you're running: a sprint keeps the gun up, and it fires
