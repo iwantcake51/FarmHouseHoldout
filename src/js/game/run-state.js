@@ -104,7 +104,7 @@ const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75
 // swing the cylinder out, and Quick hands takes no more than REV_QUICK off either: relMul, weapons/reload.js); and Triple Load, the pump's loader step: three shells a go,
 // each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: about twice as fast overall,
 // 6 shells in 1.3 s against 2.6 s)
-const REV_LOAD = 2.3, REV_OPEN_T = 0.45, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.36 };
+const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.36 };
 // Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it

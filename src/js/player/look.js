@@ -75,6 +75,9 @@ function rollSneak() {
   return [up, pick([0xe8e4dc, 0xd8d2c4, 0xb08a5a, 0x2a2a2a]), stripe];
 }
 const lookMats = {}, lm = c => lookMats[c] || (lookMats[c] = lam(c));
+// the hair's shell, outside to outside (the head is 0.32), and how high it comes under each hat: just inside the hat's
+// band, every hat wider than the hair
+const HAIR_W = { hair: 0.336, buzz: 0.328 }, HAIR_CROWN = 0.13, HAT_TUCK = { cap: 0.13, beanie: 0.105, cowboy: 0.15 };
 // deal a look: anything in opt is kept as given (handy for testing), the rest is random
 function dealLook(opt) {
   const o = opt || {}, L = {};
@@ -110,7 +113,43 @@ function dealLook(opt) {
   for (let k = 0; k < 8 && o.roll === undefined && near(L.roll, L.pack); k++) L.roll = rollCol();
   L.holster = o.holster ?? pick(LOOKS.holster);
   L.glove = o.glove ?? pick(Object.keys(GLOVE_COLS));
+  L.wrist = o.wrist ?? dealWrists();
   return L;
+}
+// ---- on the wrists, now and then: a watch, a chain, beads, a rubber band or two, a leather cuff, a paracord band or
+// braided strings. Each wrist gets something WRIST_ODDS of the time, never the same kind as the other wrist, in colours
+// of its own; a watch is now and then gold (WATCH_GOLD) or, rarer still, iced out with diamonds round the bezel
+// (WATCH_ICE). Built by buildWrists
+const WRIST_KINDS = ['watch', 'watch', 'chain', 'beads', 'band', 'cuff', 'paracord', 'string'], WRIST_ODDS = 0.3, WATCH_GOLD = 0.08, WATCH_ICE = 0.03;
+const METALS = { steel: 0xb8bcc0, gold: 0xd4a83a, rose: 0xc88a6a, gun: 0x4a4c50, black: 0x202124, platinum: 0xe2e4e8 };
+const LEATHERS = [0x4a2e1c, 0x2a1c14, 0x6a4226, 0x1a1a1c, 0x7a5a3a];
+function dealWrist(kind) {
+  const muted = () => hsl(rand(), rr(0.15, 0.5), rr(0.15, 0.4)), bright = () => hsl(rand(), rr(0.55, 0.9), rr(0.4, 0.6));
+  switch (kind) {
+    case 'watch': {
+      const r = rand(), style = r < WATCH_ICE ? 'ice' : r < WATCH_ICE + WATCH_GOLD ? 'gold' : pick(['field', 'field', 'sport', 'digital', 'leather', 'steel']);
+      const metal = style === 'gold' ? METALS.gold : style === 'ice' ? pick([METALS.platinum, METALS.platinum, METALS.gold]) : style === 'sport' || style === 'digital' ? METALS.black : pick([METALS.steel, METALS.steel, METALS.gun, METALS.gold, METALS.rose]);
+      const strap = style === 'sport' ? bright() : style === 'field' ? muted() : style === 'leather' ? pick(LEATHERS) : style === 'digital' ? (rand() < 0.6 ? pick([0x1c1c1e, 0x2a3a2a, 0x3a3a40]) : bright()) : metal;
+      const face = style === 'digital' ? 0x9aa88a : style === 'gold' ? pick([0xe8d8a8, 0x1c1c1e, 0x2a3a5a]) : style === 'ice' ? pick([0xeaf2f8, 0x1a1c22, 0x2a4a7a]) : pick([0xece8de, 0xece8de, 0x1c1c1e, 0x2a3a5a, 0x2e4a32, bright()]);
+      return { kind, style, metal, strap, face, turn: rr(0, Math.PI * 2), turn2: rr(0, Math.PI * 2) };
+    }
+    case 'chain': return { kind, metal: pick([METALS.steel, METALS.steel, METALS.gold, METALS.rose, METALS.gun]) };
+    case 'beads': { const c = rand() < 0.4 ? pick([0x6a4426, 0x2a2a2e, 0xd8d0c0, 0x8a6a4a]) : bright(), mixed = rand() < 0.5; return { kind, cols: Array.from({ length: 24 }, (_, k) => mixed ? (rand() < 0.5 ? c : bright()) : k % 4 === 3 ? shade(c, 0.6) : c) }; }
+    case 'band': return { kind, col: bright(), col2: rand() < 0.35 ? bright() : 0 };
+    case 'cuff': return { kind, col: rand() < 0.6 ? pick(LEATHERS) : muted(), metal: pick([METALS.steel, METALS.gold, METALS.gun]) };
+    case 'paracord': return { kind, col: rand() < 0.5 ? pick([0x4a5236, 0x8a7656, 0x1c1c1e, 0xc0302a]) : bright(), col2: rand() < 0.5 ? 0 : bright() };
+    default: return { kind, cols: [bright(), bright(), bright()] };
+  }
+}
+function dealWrists() {
+  const w = { L: null, R: null };
+  for (const s of rand() < 0.5 ? ['L', 'R'] : ['R', 'L']) {
+    if (rand() >= WRIST_ODDS) continue;
+    const other = w[s === 'L' ? 'R' : 'L']; let k;
+    do k = pick(WRIST_KINDS); while (other && k === other.kind);
+    w[s] = dealWrist(k);
+  }
+  return w;
 }
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)
 function shirtColours(jacket) {
@@ -189,18 +228,32 @@ function buildLook(L) {
   if (F.mole) box(H, 0.012, 0.012, 0.008, lm(shade(L.skin, 0.5)), F.mole[0], F.mole[1], 0.1625);
   if (F.cleft) box(H, 0.006, 0.026, 0.006, PM.mats.skinDk, 0, -0.145, 0.1615);
   if (F.grime) { const gr = lm(new THREE.Color(L.skin).multiplyScalar(0.62).lerp(new THREE.Color(0x3a3020), 0.35).getHex()); box(H, 0.05, 0.03, 0.006, gr, F.side * 0.095, -0.06, 0.1612).rotation.z = 0.3; box(H, 0.04, 0.016, 0.006, gr, -F.side * 0.06, 0.12, 0.1612); }
-  // ---- hair: short, long, buzzed or none; the top only shows without a hat (or under a bandana)
+  // ---- hair: short, long, buzzed or none, as one shell round the back and sides of the head (HAIR_W across, a few mm
+  // proud of it) that runs up into a top over the crown when there's no hat (or only a bandana, worn as a headband
+  // round it). Under a hat the shell stops tucked just inside the hat's band (HAT_TUCK), narrower than every hat, so
+  // the hair shows below it all the way round and nothing of it comes through the hat or flickers against it
   const top = L.hat === 'none' || L.hat === 'bandana';
-  if (L.hairStyle === 'buzz') {
-    box(H, 0.326, 0.014, 0.326, hair, 0, 0.165, 0); box(H, 0.326, 0.12, 0.012, hair, 0, 0.06, -0.165);
-    [-1, 1].forEach(s => box(H, 0.012, 0.1, 0.12, hair, s * 0.165, 0.06, -0.08));
-  } else if (L.hairStyle !== 'bald') {
-    box(H, 0.33, 0.13, 0.05, hair, 0, 0.05, -0.15);
-    [-1, 1].forEach(s => box(H, 0.012, 0.12, 0.1, hair, s * 0.166, 0.03, -0.077));
-    if (L.hairStyle === 'long') { box(H, 0.34, 0.24, 0.07, hair, 0, -0.03, -0.155); [-1, 1].forEach(s => box(H, 0.016, 0.2, 0.14, hair, s * 0.168, -0.02, -0.07)); }
-    if (top) { box(H, 0.334, 0.05, 0.334, hair, 0, 0.18, 0); box(H, 0.3, 0.045, 0.03, hair, 0.02, 0.15, 0.17).rotation.z = 0.06; }
+  const hairTop = L.hairStyle === 'bald' ? 0.16 : top ? (L.hairStyle === 'buzz' ? 0.168 : 0.195) : 0.16;
+  if (L.hairStyle !== 'bald') {
+    const buzz = L.hairStyle === 'buzz', hw = buzz ? HAIR_W.buzz : HAIR_W.hair, up = top ? HAIR_CROWN : HAT_TUCK[L.hat], d = 0.02 + (hw - 0.32) / 2;   // (each piece runs a way into the head, so nothing's flush with it)
+    const lo = buzz ? -0.02 : -0.05, sideLo = buzz ? 0.0 : -0.03;
+    box(H, hw, up - lo, d, hair, 0, (up + lo) / 2, -hw / 2 + d / 2);                                        // the back, up to the top
+    [-1, 1].forEach(sg => {
+      const z0 = -hw / 2 + d, z1 = -0.035;   // (from where the back ends, so their faces meet rather than overlap)
+      box(H, d, up - sideLo, z1 - z0, hair, sg * (hw / 2 - d / 2), (up + sideLo) / 2, (z0 + z1) / 2);        // the sides, behind the ears
+      box(H, d, up - 0.05, 0.115, hair, sg * (hw / 2 - d / 2), (up + 0.05) / 2, z1 + 0.0575);                 // and above them, to the temples
+    });
+    if (top) {
+      box(H, hw, hairTop - HAIR_CROWN, hw, hair, 0, (hairTop + HAIR_CROWN) / 2, 0);                           // over the crown, from where the back and sides stop (meeting them edge to edge, not overlapping)
+      if (!buzz) box(H, 0.3, 0.045, 0.03, hair, 0.02, 0.15, 0.17).rotation.z = 0.06;                          // the fringe
+    }
+    if (L.hairStyle === 'long') {
+      // long hair falls past the collar behind, and down the sides behind the ears (below any hat's band)
+      const ly = Math.min(up, 0.09);
+      box(H, hw + 0.012, ly + 0.15, 0.06, hair, 0, (ly - 0.15) / 2, -hw / 2 - 0.006 + 0.03);
+      [-1, 1].forEach(sg => box(H, 0.02, ly + 0.11, 0.14, hair, sg * (hw / 2 - 0.004), (ly - 0.11) / 2, -0.09));
+    }
   }
-  const hairTop = L.hairStyle === 'bald' ? 0.16 : L.hairStyle === 'buzz' ? 0.172 : top ? 0.205 : 0.16;
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
   const stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
   const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
@@ -245,8 +298,8 @@ function buildLook(L) {
     LOOK.mirrorY = 0.235;
   } else if (L.hat === 'cowboy') {
     sil(box(HT, 0.5, 0.018, 0.46, lm(hc), 0, 0.138, 0));
-    sil(box(HT, 0.26, 0.12, 0.24, lm(hc), 0, 0.2, 0));
-    box(HT, 0.266, 0.026, 0.246, hcDk, 0, 0.157, 0); box(HT, 0.06, 0.012, 0.2, hcDk, 0, 0.257, 0);
+    sil(box(HT, 0.35, 0.13, 0.35, lm(hc), 0, 0.205, 0));                                     // the crown, round the head and its hair
+    box(HT, 0.356, 0.026, 0.356, hcDk, 0, 0.157, 0); box(HT, 0.08, 0.012, 0.24, hcDk, 0, 0.266, 0);
     [-1, 1].forEach(s => box(HT, 0.05, 0.022, 0.452, lm(hc), s * 0.235, 0.155, 0).rotation.z = s * 0.45);   // the brim's sides curl up
     LOOK.mirrorY = 0.16;
   } else if (L.hat === 'bandana') {
@@ -354,6 +407,59 @@ function buildLook(L) {
       box(l, 0.11, 0.012, 0.09, lm(lace), 0, -0.444, 0.1); box(l, 0.204, 0.025, 0.232, lm(up), 0, -0.445, 0.0);
     }
   });
+  buildWrists(L);
   return sils;
+}
+// what's on the wrists (L.wrist, dealWrists): just back from the hand (WRIST_Z), on the bare wrist or over a long
+// sleeve's cuff, its face or clasp on top
+const WRIST_Z = 0.405;
+let iceMat = null;
+function buildWrists(L) {
+  const w = L.wrist; if (!w) return;
+  const long = !!L.under || ['hoodie', 'poloLong', 'suit'].includes(L.top), W0 = long ? 0.176 : 0.15, top = W0 / 2, z = WRIST_Z;
+  for (const s of ['L', 'R']) {
+    const it = w[s], a = LOOK.g['arm' + s], out = s === 'L' ? -1 : 1; if (!it) continue;
+    const band = (wd, len, c, dz) => box(a, wd, wd, len, lm(c), 0, 0, z + (dz || 0));
+    if (it.kind === 'watch') {
+      const st = it.style, m = it.metal, dig = st === 'digital', cw = dig ? 0.052 : 0.046, dark = new THREE.Color(it.face).getHSL({}).l < 0.4;
+      // the strap, or a bracelet of links (steel, gold, platinum) with its links picked out
+      if (st === 'gold' || st === 'ice' || st === 'steel') { band(W0, 0.022, m); [-0.006, 0.006].forEach(dz => band(W0 + 0.002, 0.003, shade(m, 0.72), dz)); }
+      else { band(W0, 0.018, it.strap); if (st === 'leather') band(W0 + 0.002, 0.004, shade(it.strap, 0.7), 0); }
+      box(a, cw, 0.014, cw, lm(m), 0, top + 0.007, z);                                           // the case
+      box(a, 0.008, 0.008, 0.007, lm(shade(m, 0.85)), out * (cw / 2 + 0.003), top + 0.007, z);   // the crown, on the outside
+      box(a, cw - 0.012, 0.003, cw - 0.012, lm(it.face), 0, top + 0.0155, z);                     // the face
+      if (dig) { box(a, 0.026, 0.0014, 0.012, lm(0x2a2e26), 0, top + 0.0172, z); [-1, 1].forEach(k => box(a, 0.006, 0.006, 0.006, lm(0x5a5a5e), k * 0.017, top + 0.016, z - cw / 2 - 0.001)); }   // the digits; the buttons
+      else {
+        const hc = lm(dark ? 0xeceae4 : 0x1a1a1c), mk = (len, turn) => { const o = len / 2 - 0.002; box(a, 0.003, 0.0014, len, hc, Math.sin(turn) * o, top + 0.0175, z + Math.cos(turn) * o).rotation.y = turn; };
+        mk(0.011, it.turn); mk(0.016, it.turn2);   // the hands, at their own time
+        [0, 1, 2, 3].forEach(k => { const an = k * Math.PI / 2; box(a, 0.004, 0.0012, 0.004, hc, Math.sin(an) * 0.014, top + 0.0172, z + Math.cos(an) * 0.014); });   // twelve, three, six, nine
+      }
+      if (st === 'ice') {
+        // diamonds set all the way round the bezel, catching the light (lit by nothing, so they always shine)
+        iceMat = iceMat || basic(0xf2faff);
+        for (let k = 0; k < 16; k++) { const an = k * Math.PI / 8, rr2 = cw / 2 - 0.003, c = Math.max(Math.abs(Math.cos(an)), Math.abs(Math.sin(an))); box(a, 0.005, 0.004, 0.005, iceMat, Math.sin(an) / c * rr2, top + 0.0155, z + Math.cos(an) / c * rr2); }
+        [-0.006, 0.006].forEach(dz => [-1, 1].forEach(k => box(a, 0.004, 0.003, 0.004, iceMat, k * 0.03, top + 0.0012, z + dz)));   // and down the bracelet
+      }
+    } else if (it.kind === 'chain') {
+      band(W0, 0.009, it.metal); band(W0 + 0.003, 0.004, shade(it.metal, 0.7), 0.0025); band(W0 + 0.003, 0.004, shade(it.metal, 1.15), -0.0025);   // links, light and dark
+      box(a, 0.012, 0.006, 0.01, lm(it.metal), 0, top + 0.003, z);                                // the clasp
+    } else if (it.kind === 'beads') {
+      // beads strung tight round the wrist, a few to a side (as many as it has colours for)
+      const h = top + 0.006, per = it.cols.length / 4, sp = 2 * h / per, sz = sp * 0.9;
+      it.cols.forEach((c, k) => { const side = Math.floor(k / per), t = -h + sp * (k % per + 0.5), x = side === 0 ? t : side === 2 ? -t : side === 1 ? h : -h, y = side === 0 ? h : side === 2 ? -h : side === 1 ? -t : t; box(a, sz, sz, sz, lm(c), x, y, z); });
+    } else if (it.kind === 'band') {
+      band(W0, 0.014, it.col); if (it.col2) band(W0 - 0.002, 0.012, it.col2, -0.018);   // a rubber band, and now and then another behind it
+    } else if (it.kind === 'cuff') {
+      band(W0 + 0.002, 0.042, it.col); band(W0 + 0.004, 0.004, shade(it.col, 0.7), 0.017); band(W0 + 0.004, 0.004, shade(it.col, 0.7), -0.017);   // a leather cuff, its edges stitched
+      box(a, 0.012, 0.006, 0.012, lm(it.metal), 0, top + 0.004, z);                               // the snap
+    } else if (it.kind === 'paracord') {
+      band(W0, 0.022, it.col); const c2 = lm(it.col2 || shade(it.col, 0.62));
+      for (let k = 0; k < 5; k++) { const b = box(a, 0.007, 0.004, 0.02, c2, -0.024 + k * 0.012, top + 0.001, z); b.rotation.y = 0.5; }   // the weave
+      box(a, 0.024, 0.008, 0.018, lm(0x1c1c1e), out * (top + 0.002), 0, z);                        // the buckle, on the outside
+    } else {
+      // braided strings, three together
+      it.cols.forEach((c, k) => band(W0 + 0.001 * k, 0.004, c, (k - 1) * 0.005));
+    }
+  }
 }
 rollLook();

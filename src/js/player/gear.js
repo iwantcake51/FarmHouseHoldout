@@ -243,7 +243,8 @@ function gearPieces() {
     const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2, hel = !!S.stubborn, L = LOOK.cur || {};
     if (!hel) {
       // the hair the hat was hiding, so the straps sit on hair, not a bare scalp
-      if (L.hat !== 'none' && L.hat !== 'bandana' && L.hairStyle !== 'bald' && L.hairStyle !== 'buzz') gb(g, 0.334, 0.045, 0.334, lam(L.hair ?? 0x3a2a1a), 0, 0.182, 0);
+      // (from just under where it stopped for the hat, HAT_TUCK in player/look.js, up over the crown, so it joins up)
+      if (L.hat !== 'none' && L.hat !== 'bandana' && L.hairStyle !== 'bald') { const bz = L.hairStyle === 'buzz', t = bz ? 0.168 : 0.2, w = (bz ? HAIR_W.buzz : HAIR_W.hair) - 0.002; gb(g, w, t - 0.1, w, lam(L.hair ?? 0x3a2a1a), 0, (t + 0.1) / 2, 0); }
       const by = 0.125, bh = 0.04;
       gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, 0.178); gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, -0.2);            // the band, front and back
       [-1, 1].forEach(sd => gb(g, 0.026, bh, 0.404, GEAR.black, sd * 0.187, by, -0.011));                     // and its sides
