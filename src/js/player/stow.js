@@ -217,7 +217,9 @@ function buildRig(on) {
 }
 function buildStow() {
   if (LOOK.cur) { HOLSTER_M.color.setHex(LOOK.cur.holster); HOOD_M.color.setHex(shade(LOOK.cur.holster, 0.72)); }   // the hood a shade darker
-  for (const s in STOW) { const o = STOW[s]; if (o && o.parent) o.parent.remove(o); const t = o && o.userData.twin; if (t && t.parent) t.parent.remove(t); delete STOW[s]; }
+  // the old copies taken down, and what was made for them alone (the holster) let go of; the guns in them are your
+  // weapons' own pieces, still drawn in your hands (binModel, core/geometry.js)
+  for (const s in STOW) { const o = STOW[s]; [o, o && o.userData.twin].forEach(q => { if (!q) return; const g = q.userData.gun; if (g && g.parent) g.parent.remove(g); binModel(q); }); delete STOW[s]; }
   buildBelt(!!W8.slot.side);
   // one stowed copy of a slot's weapon (for a pair, of one of its guns: hand), centred where a lone gun would be
   const place = (s, id, at, hand) => {

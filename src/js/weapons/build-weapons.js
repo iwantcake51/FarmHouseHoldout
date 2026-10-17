@@ -47,7 +47,7 @@ function buildWeapon(parent, id, D, mods, rec) {
 function buildGuns(only) {
   recomputeEff();
   const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS;
-  sl.forEach(s => { const g = gunMeshes[s]; while (g.children.length) g.remove(g.children[0]); g.userData.bloodId = null; });
+  sl.forEach(s => { const g = gunMeshes[s]; while (g.children.length) binModel(g.children[0]); g.userData.bloodId = null; });   // (the old model let go of: core/geometry.js)
   // body armour by tier: a canvas jacket, then a vest over it, then a plate carrier (player/gear.js builds them)
   const ar = T('armor');
   shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)

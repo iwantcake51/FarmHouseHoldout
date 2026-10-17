@@ -15,10 +15,26 @@ const REV_RAIL = { z0: 0.55, z1: 0.8 };
 const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, Math.max(seg || 10, r >= 0.008 ? Math.min(48, Math.round(r * 900)) : 0)); m.position.set(x, y, z); g.add(m); return m; };
 const ring = (g, r, w, mat, x, y, z) => cyl(g, r, w, mat, x, y, z, 14);
 const hi = (g, w, d, x, y, z) => box(g, w, 0.007, d, GM.hi, x, y, z);
+// A gun's pieces come out the same every time it's built, and it's built again whenever anything on it changes (an
+// attachment, a mod), for you and for every teammate who sees it; so the slow ones (the profiles, the stippling, the
+// squeezed stocks) are kept once made, by what they were made from, and shared by every build after. Nothing changes a
+// piece once it's built, and the cached boxes' rule holds for them: binModel (core/geometry.js) leaves them be
+function kept(M, cap, key, make) {
+  let geo = M.get(key);
+  if (geo !== undefined) { M.delete(key); M.set(key, geo); return geo; }   // (the most recently used last)
+  geo = make(); if (geo) sharedGeo.add(geo); M.set(key, geo);
+  if (M.size > cap) { const k0 = M.keys().next().value, g0 = M.get(k0); if (g0) sharedGeo.delete(g0); M.delete(k0); }   // (let go of with its gun, then)
+  return geo;
+}
+const PROFILES = new Map();
 // a side profile (points in z, y) pushed out to width w across the gun and centred on x, with a soft bevel if asked
 function profile(g, shape, w, mat, x, bev, segs) {
-  const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: segs || 1, curveSegments: 8 } : { depth: w, bevelEnabled: false, curveSegments: 8 });
-  geo.translate(0, 0, -w / 2); geo.rotateY(-Math.PI / 2);   // the outline's x runs down the gun (+z), the width across it
+  const pts = (Array.isArray(shape) ? shape : [shape]).map(sh => { const e = sh.extractPoints(8); return [e.shape.map(v => [v.x, v.y]), e.holes.map(h => h.map(v => [v.x, v.y]))]; });
+  const geo = kept(PROFILES, 2000, JSON.stringify([pts, w, bev || 0, segs || 1]), () => {
+    const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: segs || 1, curveSegments: 8 } : { depth: w, bevelEnabled: false, curveSegments: 8 });
+    geo.translate(0, 0, -w / 2); geo.rotateY(-Math.PI / 2);   // the outline's x runs down the gun (+z), the width across it
+    return geo;
+  });
   const m = new THREE.Mesh(geo, mat); m.position.x = x; m.castShadow = true; g.add(m); return m;
 }
 // a port cut through a profile (w wide, bevel bev) should only show on the shooter's right: plug the left half of the
@@ -65,7 +81,7 @@ function zAt(P, y) { for (let i = 0; i < P.length - 1; i++) if ((y - P[i][1]) * 
 // steps, and still the traced size from the side (grips, stocks and forends, so they don't read as flat slabs)
 function solid(g, pts, W, mat, x, r, holes) { return profile(g, shp(inset(pts, r), holes), Math.max(0.001, W - 2 * r), mat, x, r, 3); }
 // a smooth function through [z, value] points, eased between them (flat past the ends)
-const pw = P => z => { if (z <= P[0][0]) return P[0][1]; for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const t = (z - P[i - 1][0]) / (P[i][0] - P[i - 1][0]); return P[i - 1][1] + (P[i][1] - P[i - 1][1]) * (1 - Math.cos(Math.PI * t)) / 2; } return P[P.length - 1][1]; };
+const pw = P => Object.assign(z => { if (z <= P[0][0]) return P[0][1]; for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const t = (z - P[i - 1][0]) / (P[i][0] - P[i - 1][0]); return P[i - 1][1] + (P[i][1] - P[i - 1][1]) * (1 - Math.cos(Math.PI * t)) / 2; } return P[P.length - 1][1]; }, { key: JSON.stringify(P) });   // (its key: taperX keeps what it squeezed by it)
 // the part of the outline P (points in z, y) inside the convex polygon C, so a panel can never run past the edge
 function clipTo(P, C) {
   let out = P; const n = C.length; let a = 0; for (let i = 0; i < n; i++) a += C[i][0] * C[(i + 1) % n][1] - C[(i + 1) % n][0] * C[i][1];
@@ -94,19 +110,23 @@ function pullInside(P, O) {
   });
 }
 // stippling on both sides: a lighter patch (poly, points in z, y) on the faces at X +- xo, dotted all over with tiny
-// bumps on a jittered grid gap apart (one mesh)
+// bumps on a jittered grid gap apart (one mesh, kept)
+const STIPPLE = new Map();
 function stipple(g, poly, xo, gap, mat, dotMat) {
   if (poly.length < 3) return;
   [-1, 1].forEach(sd => profile(g, shp(poly), 0.0008, mat, X + sd * xo, 0.0002));
+  const geo = kept(STIPPLE, 200, JSON.stringify([poly, xo, gap, X]), () => stippleDots(poly, xo, gap)); if (geo) g.add(new THREE.Mesh(geo, dotMat));
+}
+function stippleDots(poly, xo, gap) {
   const zs = poly.map(p => p[0]), ys = poly.map(p => p[1]), pos = [], bx = new THREE.BoxGeometry(0.0011, 0.0011, 0.0011).toNonIndexed(); let k = 0;
   for (let y = Math.min(...ys) + gap / 2; y < Math.max(...ys); y += gap * 0.87) for (let z = Math.min(...zs) + gap / 2 + (k++ % 2) * gap / 2; z < Math.max(...zs); z += gap) {
     const jz = z + (Math.sin(z * 9137 + y * 4271) * 0.3) * gap, jy = y + (Math.sin(z * 3571 - y * 7919) * 0.3) * gap; if (!inPoly(poly, jz, jy)) continue;
     [-1, 1].forEach(sd => { const gg = bx.clone(); gg.translate(X + sd * (xo + 0.0006), jy, jz); pos.push(gg.attributes.position.array); });
   }
-  if (!pos.length) return;
+  if (!pos.length) return null;
   const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo, dotMat));
+  return geo;
 }
 // checkering on both sides of a stock: a dark panel (poly, points in z, y) lying on the faces at X +- xo, and two
 // crossing sets of fine raised lines over it (gap apart, at +-ang to the gun), each cut off at the panel's edge so none
@@ -150,21 +170,38 @@ function boxes(g, B, mat) {
   const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
 }
 // slim a stock down the gun: every piece in the group has its width about X scaled by wf(z), so the wrist can be
-// narrower than the butt and the panels and lines on the faces stay on them
+// narrower than the butt and the panels and lines on the faces stay on them. Each squeezed piece is kept (by a hash of
+// the piece as it went in, and the squeeze's own key): splitting and bending them is most of what a pump, a double
+// barrel or a hunting rifle takes to build
+const TAPERED = new Map();
 function taperX(grp, wf) {
   grp.children.forEach(o => {
-    if (!o.isMesh) return; o.updateMatrix(); let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(o.matrix);
-    geo = tessZ(geo, 0.008);   // fine enough down the gun that every surface bends with the squeeze, together
-    const p = geo.attributes.position, nm = geo.attributes.normal;
-    for (let i = 0; i < p.count; i++) {
-      // squeeze the point, and carry its normal through the squeeze (so a flat face that now bends gently stays smooth
-      // instead of showing every triangle)
-      const z = p.getZ(i), f = wf(z), df = (wf(z + 0.002) - wf(z - 0.002)) / 0.004, dx = p.getX(i) - X;
-      if (nm) { const nx = nm.getX(i) / f, ny = nm.getY(i), nz = nm.getZ(i) - dx * df / f * nm.getX(i), l = Math.hypot(nx, ny, nz) || 1; nm.setXYZ(i, nx / l, ny / l, nz / l); }
-      p.setX(i, X + dx * f);
-    }
-    o.geometry = geo; o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1);
+    if (!o.isMesh) return; o.updateMatrix(); const g0 = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g0.applyMatrix4(o.matrix);
+    const squeeze = () => {
+      const geo = tessZ(g0, 0.008);   // fine enough down the gun that every surface bends with the squeeze, together
+      const p = geo.attributes.position, nm = geo.attributes.normal;
+      for (let i = 0; i < p.count; i++) {
+        // squeeze the point, and carry its normal through the squeeze (so a flat face that now bends gently stays smooth
+        // instead of showing every triangle)
+        const z = p.getZ(i), f = wf(z), df = (wf(z + 0.002) - wf(z - 0.002)) / 0.004, dx = p.getX(i) - X;
+        if (nm) { const nx = nm.getX(i) / f, ny = nm.getY(i), nz = nm.getZ(i) - dx * df / f * nm.getX(i), l = Math.hypot(nx, ny, nz) || 1; nm.setXYZ(i, nx / l, ny / l, nz / l); }
+        p.setX(i, X + dx * f);
+      }
+      return geo;
+    };
+    o.geometry = wf.key ? kept(TAPERED, 300, wf.key + geoKey(g0), squeeze) : squeeze();
+    o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.scale.set(1, 1, 1);
   });
+}
+// a hash of a geometry's points (and whatever else it carries), to know a piece seen before
+function geoKey(geo) {
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9, k = '';
+  for (const n of Object.keys(geo.attributes)) {
+    const a = geo.attributes[n].array, u = new Uint32Array(a.buffer, a.byteOffset, a.byteLength >> 2);
+    for (let i = 0; i < u.length; i++) { h1 = Math.imul(h1 ^ u[i], 16777619); h2 = Math.imul(h2 + u[i], 2246822519) ^ (h2 >>> 13); }
+    k += '|' + n + ':' + u.length;
+  }
+  return k + '|' + (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
 }
 // split a (non-indexed) mesh's triangles until no edge runs more than maxDz along the gun. Whether an edge is split
 // (at its middle) depends only on its two ends, so the triangles either side of it split it the same way and no seams
