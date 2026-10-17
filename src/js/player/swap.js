@@ -8,7 +8,7 @@
 // character's own frame so they travel with you as you move and turn.
 
 const isMelee = s => { const id = W8.slot[s]; return !!(id && WEAP[id] && WEAP[id].melee); };
-const SWAP_T = { put: 0.16, cross: 0.25, end: 0.5 };   // the old weapon is away, the hand is at the new one, it's up (a melee weapon)
+const SWAP_T = { put: 0.3, cross: 0.4, end: 0.65 };   // the old weapon is away, the hand is at the new one, it's up (a melee weapon)
 const SWAP_FIRE = 0.34;                                 // how soon you can use a melee weapon you're drawing
 // a gun's draw takes longer, how long by where it rides (DRAW_T: from the hand closing on it to the hold), and it can
 // fire DRAW_FIRE before it's all the way up
@@ -100,10 +100,11 @@ function meleeDrawFrame(out, stow, live, u, st) {
 // a gun's draw: not a straight blend from where it rides to the hold, which took a long gun straight through your
 // chest and spun it round at over 1,000 degrees a second, but the way it's done, kept close to the body. The pistol's
 // lifted straight up out of the holster, rocked muzzle forward at your hip and pushed out into the hold. A long gun's
-// pulled out past the pack's edge to your right, twisted in the hand while it hangs barrel down beside you (so the
-// barrel never swings in across you), then swung muzzle forward into a low ready in front of you and raised to the
-// shoulder. The automatic's lifted off the back and pulled up over your right shoulder, muzzle up and back, then
-// brought down over it into a low ready across the chest and up into the hold. The left hand comes up to meet the
+// pulled out past the pack's edge to your right and turned on the way, then swung muzzle forward into a low ready in
+// front of you and raised to the shoulder. The automatic's lifted off the back and pulled up past your right shoulder,
+// then brought down into a low ready across the chest and up into the hold. Between where it rides and the low ready
+// the gun only turns the short way (a fraction of the way there, not a turn of its own), so it never rolls over on
+// the way out. The left hand comes up to meet the
 // handguard as the gun comes round in front of you (DRAW_LEFT: from, to, through the draw) and rides on it from there.
 // DRAW_KEYS: for each carry, the keys between where it rides and the hold: when it comes (u, through the draw); where
 // the grip is ([x, y, z] off where it rides, 'at'; off the hold, 'hold'; off your right shoulder, 'sh'; or in the body
@@ -112,8 +113,8 @@ function meleeDrawFrame(out, stow, live, u, st) {
 // rest, so it never stops dead at one and never snaps
 const DRAW_KEYS = {
   side: [[0.32, 'at', [0.025, 0.15, 0.0], 0.1], [0.62, 'at', [0.05, 0.25, 0.13], [[0, -0.15, 1], [0, 1, 0.15]]]],
-  long: [[0.16, 'at', [0.1, 0.06, 0.03], 0], [0.42, 'at', [0.18, 0.12, 0.08], [[0.08, -1, 0.04], [-0.9, 0, 0.45]]], [0.7, 'hold', [0.06, -0.12, -0.15], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]],
-  auto: [[0.2, 'at', [0.05, 0.14, -0.05], 0.25], [0.44, 'sh', [0.0, 0.1, -0.13], [[0.12, 0.75, -0.65], [0.05, 0.65, 0.76]]], [0.68, 'hold', [0.06, -0.12, -0.17], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]]
+  long: [[0.16, 'at', [0.1, 0.06, 0.03], 0], [0.42, 'at', [0.18, 0.12, 0.08], 0.5], [0.7, 'hold', [0.06, -0.12, -0.15], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]],
+  auto: [[0.2, 'at', [0.05, 0.14, -0.05], 0.25], [0.44, 'sh', [0.0, 0.1, -0.13], 0.5], [0.68, 'hold', [0.06, -0.12, -0.17], [[0, -0.3, 0.95], [0, 0.95, 0.3]]]]
 };
 const DRAW_LEFT = { long: [0.5, 0.7], auto: [0.5, 0.68] };
 const DRAW_STEP = 3;

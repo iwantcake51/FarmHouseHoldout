@@ -168,18 +168,37 @@ function rollLook(opt) {
   const pieces = new Set(); Object.values(LOOK.g).forEach(g => g.traverse(o => { if (o.isMesh) pieces.add(o); }));
   unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]) });
   const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, PM.mats.pants]) };
-  Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g), live));
+  const faceParts = new Set(faceGroups(LOOK.g.head));   // (kept whole, so they can move: faceAnger)
+  Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g, faceParts), live));
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
   sils.forEach(m => outline(m, 0, 0, 0.01, pOutline));
   if (LOOK.xrayReady) xrayAttach(sils);
+}
+// the pieces built on H since its n'th child, moved into a group pivoted at (x, y, z) on the face so they can turn and
+// squash as one (faceAnger); s is the side, -1 left, 1 right, 0 the middle (at most the first `most` of them)
+function facePart(H, n, x, y, z, s, most = 99) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.userData.s = s;
+  H.children.slice(n, n + most).forEach(c => { c.position.x -= x; c.position.y -= y; c.position.z -= z; g.add(c); });
+  H.add(g); return g;
+}
+function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.brows, f.mouth].filter(Boolean) : []; }
+// Firing for a while sets your face: the brows come down and in at the middle, the eyes narrow and the mouth tightens
+// into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js)
+const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mouthH: 2.1 };
+function faceAnger(H, a) {
+  const f = H.userData.face; if (!f || f.a === a) return; f.a = a;
+  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a; g.rotation.z = -g.userData.s * ANGER.browTilt * a; });
+  f.eyes.forEach(g => { g.scale.y = 1 - ANGER.squint * a; });
+  if (f.mouth) f.mouth.scale.set(1 - (1 - ANGER.mouthW) * a, 1 + (ANGER.mouthH - 1) * a, 1);
 }
 function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
   const hair = lm(L.hair), beard = lm(L.beardCol), skinDk = PM.mats.skinDk, shirt = PM.mats.shirt, shirtDk = PM.mats.shirtDk;
   // ---- face: eyes, brows, nose, mouth and ears, each dealt one of a few shapes (L.face), set a little unevenly
   const F = L.face, brow = L.hairStyle === 'bald' ? beard : hair, dark = lm(0x141010), white = lm(0xe2dccf), scarM = lm(shade(L.skin, 1.16)), circ = lm(shade(L.skin, 0.68));
+  const face = H.userData.face = { eyes: [], brows: [], mouth: null };
   [-1, 1].forEach(s => {
-    const x = s * F.gap, y = F.eyeY + (s > 0 ? F.lop : 0), eyeM = lm(s > 0 ? L.eyes2 || L.eyes : L.eyes);
+    const x = s * F.gap, y = F.eyeY + (s > 0 ? F.lop : 0), eyeM = lm(s > 0 ? L.eyes2 || L.eyes : L.eyes), n0 = H.children.length;
     if (F.patch && s === F.side) {   // a patch over this eye, its strap round the head
       box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = -s * 0.22;
       [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * s * 0.036, 0));
@@ -199,6 +218,8 @@ function buildLook(L) {
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) box(H, 0.046, 0.007, 0.012, PM.mats.skinDk, x, y - 0.026, 0.163);
+    if (!(F.patch && s === F.side)) face.eyes.push(facePart(H, n0, x, y, 0.165, s));   // (a patch doesn't narrow)
+    const n1 = H.children.length;
     // brows: flat, raised at the middle, drawn down in a frown, heavy or thin; sometimes one with a slit shaved in it
     const by = y + (F.eye === 'tired' || F.eye === 'deepset' ? 0.04 : 0.046) + (F.brow === 'skeptic' && s === F.side ? 0.014 : 0);
     const bh = F.brow === 'heavy' || F.brow === 'bushy' ? 0.03 : F.brow === 'thin' || F.brow === 'sparse' ? 0.012 : F.brow === 'unibrow' ? 0.022 : 0.02, bw = F.brow === 'heavy' || F.brow === 'bushy' ? 0.088 : F.brow === 'sparse' ? 0.058 : 0.076;
@@ -212,6 +233,7 @@ function buildLook(L) {
       p1.rotation.z = p2.rotation.z = tilt;
     } else box(H, bw, bh, 0.02, brow, x, by, 0.165).rotation.z = tilt;
     if (F.brow === 'bushy') box(H, 0.02, 0.014, 0.02, brow, x - s * 0.03, by + 0.018, 0.166).rotation.z = s * 0.5;   // a wild tuft at the inner end
+    face.brows.push(facePart(H, n1, x, by, 0.165, s));
     box(H, 0.03 * F.ears, 0.08 * F.ears, 0.07, PM.mats.skinDk, s * (0.172 + 0.012 * (F.ears - 1)), 0.0, -0.01);   // ears
   });
   // the nose: small, long, wide, broken and set crooked, a button or hooked
@@ -276,11 +298,12 @@ function buildLook(L) {
   // the mouth: no lips, just the line of it, dark and all but flush with the face (in front of a full beard): plain,
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
   const mY = -0.098, mZ = bd === 'full' || bd === 'longBeard' ? 0.187 : 0.1615, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
-  const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0;
+  const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0, n2 = H.children.length;
   box(H, mw, mh, 0.004, mouthM, mx, mY, mZ);
   if (F.mouth === 'frown') [-1, 1].forEach(s => box(H, 0.012, 0.006, 0.004, mouthM, s * (mw / 2 + 0.003), mY - 0.005, mZ).rotation.z = s * 0.6);
   else if (F.mouth === 'smirk') box(H, 0.016, 0.006, 0.004, mouthM, mx + F.side * (mw / 2 + 0.005), mY + 0.004, mZ).rotation.z = F.side * 0.55;
   else if (F.mouth === 'grim') box(H, 0.034, 0.005, 0.004, PM.mats.skinDk, 0, mY - 0.026, mZ);   // the chin set under it
+  face.mouth = facePart(H, n2, 0, mY, mZ, 0, F.mouth === 'grim' ? 1 : 3);   // (the line and its corners; the chin's crease stays put)
   if (F.scar === 'lip') box(H, 0.007, 0.04, 0.004, scarM, F.side * 0.02, mY + 0.004, mZ + 0.001);
   // ---- hat
   const hc = L.hatCol, hcDk = lm(shade(hc, 0.72));

@@ -10,6 +10,8 @@ const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL
 const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42, dir: -1, on: false, u: 0 }, L: { ring: xhRingL, track: $('xhRTrackL'), head: $('xhRHeadL'), a0: 138, dir: 1, on: false, u: 0 } };
 function reloadDraw(side, on, u) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
+  // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
+  if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
   if (!on && r.on && r.u > 0.85) { r.ring.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }   // finished: a flash
   else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
   if (!r.ring.classList.contains('done') || on) r.ring.style.opacity = on ? 1 : 0;

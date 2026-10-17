@@ -116,6 +116,21 @@ function vaultHands(pm, v) {
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
   });
 }
+// Keep firing and your face sets angry (faceAnger, player/look.js): shots close enough together (within ANGER_T.gap,
+// or a third again the gun's own time between shots for a slow one) are one run of fire, and from the run's
+// ANGER_T.shots'th shot it comes in quickly; stop and it eases straight back off
+const ANGER_T = { gap: 0.2, shots: 3, rise: 12, fall: 9 };
+function angerShot(rate) {
+  const gap = Math.max(ANGER_T.gap, rate * 1.3);
+  ANIM.runShots = (ANIM.shotT ?? 9) < gap ? (ANIM.runShots || 0) + 1 : 1; ANIM.shotT = 0; ANIM.shotGap = gap;
+}
+function angerStep(rdt) {
+  ANIM.shotT = (ANIM.shotT ?? 9) + rdt;
+  const want = !P.dead && ANIM.shotT < (ANIM.shotGap || ANGER_T.gap) && (ANIM.runShots || 0) >= ANGER_T.shots ? 1 : 0, a = ANIM.anger || 0;
+  ANIM.anger = a + (want - a) * (1 - Math.exp(-rdt * (want > a ? ANGER_T.rise : ANGER_T.fall)));
+  if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
+  faceAnger(LOOK.g.head, ANIM.anger);
+}
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) { animateDeath(P.deathDt || 0); return; }
@@ -141,6 +156,7 @@ function animatePlayer(dt, rdt) {
   pm.g.position.set(P.x, ANIM.standY, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, ANIM.standY + 0.02, P.z); pBlob.scale.setScalar(1.15);
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / WALK_SPEED, 0, 1.3), sk = smooth(clamp(ANIM.sprintK || 0, 0, 1)), skid = smooth(clamp(ANIM.skidK || 0, 0, 1));
   const hpF = P.hp / S.maxHp, limp = hpF < 0.4 ? (0.4 - hpF) / 0.4 : 0;
+  angerStep(rdt);
   ANIM.flinch = Math.max(0, ANIM.flinch - rdt * 4); ANIM.sw = Math.max(0, ANIM.sw - rdt * 4.5); ANIM.stumble = Math.max(0, (ANIM.stumble || 0) - rdt * 2.2);
   // hips turn a little toward the direction you walk (no more than HIP_TWIST, so the legs stay under the torso); walking
   // away from your aim plays the stride backwards. Whatever's left over the legs side-step (ANIM.r2, below): walking
