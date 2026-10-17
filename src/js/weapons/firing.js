@@ -126,6 +126,14 @@ function zRay(z, ox, oz, dx, dz, tMin = -Infinity) {
   }
   return best;
 }
+// how much smoke a round leaves hanging along its path, by calibre (SMOKE_CAL: a 9mm none, the .357 a wisp, the .50 and a
+// slug more, a rifle round most, a rifle on full auto less, its trails overlapping), and through a can SMOKE_SUPP: thicker
+// and longer-lasting, still faintest for a 9mm (effects/tracers.js: smokeTrail)
+const SMOKE_CAL = { p9: 0, rimmed: 0.5, magnum: 0.8, rifle: 1, slug: 0.85 }, SMOKE_SUPP = { p9: 0.4, rimmed: 0.8, magnum: 1.05, rifle: 1.35, slug: 1.15, shells: 0.9 };
+function smokeOf(D, id, supp, slug) {
+  const k = D.ammo === 'shells' ? (slug ? 'slug' : 'shells') : D.ammo === 'magnum' && id === 'revolver' ? 'rimmed' : D.ammo;
+  return supp ? SMOKE_SUPP[k] || 0 : (SMOKE_CAL[k] || 0) * (D.ammo === 'rifle' && D.rate < 0.15 ? 0.45 : 1);
+}
 const bodyOf = z => z.crawl ? [z.x + Math.sin(z.face) * 0.55 * z.T.scale, z.z + Math.cos(z.face) * 0.55 * z.T.scale] : [z.x, z.z];
 function aimRay(ox, oz, a, maxL) {
   const dx = Math.sin(a), dz = Math.cos(a); let L = maxL, hitZ = null;
@@ -216,7 +224,7 @@ function gunFire(id, D, side) {
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
     if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT]); }
-    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, quietR ? 1.1 + 0.4 * Math.min(1, trPw) : D.ammo === 'rifle' ? (D.rate < 0.15 ? 0.45 : 1) : D.ammo === 'magnum' || (D.ammo === 'shells' && pellets === shots) ? 0.85 : 0);   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
+    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, smokeOf(D, id, quietR, pellets === shots));   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);

@@ -121,7 +121,7 @@ function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
   const L = Math.hypot(x1 - x0, z1 - z0); if (L < 0.6 || !strength) return;
   const t = trails.reduce((a, b) => b.life < a.life ? b : a);
   t.m.position.set(x0, (y0 + y1) / 2, z0); t.m.rotation.set(0, Math.atan2(x1 - x0, z1 - z0), 0); t.m.scale.set(0.05, 1, L); t.m.visible = true;
-  t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.18 + 0.2 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2;
+  t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.05 + 0.33 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2;
 }
 function stepTrails(dt) {
   for (const t of trails) {
