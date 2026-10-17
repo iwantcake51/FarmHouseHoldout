@@ -90,3 +90,30 @@ function teamBonus() {
   if (!up) return;
   const n = TEAM_BONUS * up; S.scrap += n; popEl('scrap'); feed('scrap', n, 'team bonus');
 }
+
+// ---- sharing a gun you've put down (gunDrop, pickups/pickups.js). It's yours alone till you share it (H, standing at
+// it): then your teammates see it on their farm where it lies and can pick it up for themselves, with everything that
+// was on it (gunTakeLo). H again takes it back to just yours. Whoever picks it up, it's gone for everyone ('gtk')
+function gunShare(p) {
+  if (!netLink() || !p || p.kind !== 'gun' || !p.cargo.own) return;
+  const c = p.cargo; c.shared = !c.shared;
+  if (c.shared) netSend('gsh', { g: c.gid, id: c.id, x: nr(p.x), z: nr(p.z), lo: c.lo, mag: c.mag, ak: c.ak, until: c.until, who: netName() });
+  else netSend('gtk', { g: c.gid });
+  feed('gear', 0, (c.shared ? 'Shared the ' : 'Stopped sharing the ') + WEAP[c.id].name.toLowerCase());
+  SFX.click();
+}
+// a shared gun's picked up (by you or anyone): gone from every farm it was on
+function gunGone(p) { if (netLink() && (p.cargo.shared || !p.cargo.own)) netSend('gtk', { g: p.cargo.gid }); }
+NET_ON.gsh = m => {
+  if (state === 'title' || pickups.some(q => q.kind === 'gun' && q.cargo.gid === m.g)) return;
+  const w = teamWeapon(m.lo || {}, m.id); foldStatic(w.g, w.moving);
+  dropPickup(m.x, m.z, 'gun', 1, null, { id: m.id, model: layGun(w.g), mag: m.mag | 0, ak: m.ak || null, until: m.until, own: false, gid: m.g, lo: m.lo, who: m.who || (NET.peers.get(m.f) || {}).name });
+};
+NET_ON.gtk = m => { const k = pickups.findIndex(q => q.kind === 'gun' && q.cargo.gid === m.g); if (k >= 0) { scene.remove(pickups[k].g); pickups.splice(k, 1); } };   // (taken by a teammate, or no longer shared)
+// what was on a teammate's gun, now on yours: its tiers, mods, attachments and rounds, owned as well as fitted
+function gunTakeLo(id, lo) {
+  W8.mods[id] = (lo.mods || []).slice(); if (W8.modOff) delete W8.modOff[id]; (lo.mods || []).forEach(m => { W8.modLv[m] = (lo.lv || {})[m] || 1; });
+  W8.gt[id] = { ...(lo.gt || {}) }; W8.own[id] = Object.assign({}, W8.own[id], lo.gt || {});
+  W8.att[id] = { ...(lo.att || {}) }; W8.ownAtt[id] = Object.assign({}, W8.ownAtt[id]); for (const k in lo.att || {}) W8.ownAtt[id][k] = true;
+  if (lo.rnd) W8.rounds[id] = JSON.parse(JSON.stringify(lo.rnd));
+}

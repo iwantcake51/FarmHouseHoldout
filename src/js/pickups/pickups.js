@@ -132,25 +132,36 @@ function nearestTake() {
 const GUN_KEEP = 2;   // rounds a gun you've put down stays on the ground
 function gunDrop(id) {
   const s = WEAP[id].slot, src = gunMeshes[s]; if (!src) return;
-  const copy = src.clone(true);
+  const a = rr(0, Math.PI * 2);
+  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
+  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
+  // (yours, so you can share it with your team: gunShare, net/teamwork.js; gid names it to them, lo is what's on it)
+  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: layGun(src.clone(true)), mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until,
+    own: true, gid: (NET.id || 'me') + ':' + (++gunSeq), lo: gunLo(id), shared: false });
+}
+let gunSeq = 0;
+// what's on one of your guns, as a teammate's game needs it to build it and to hand it over (as in myLoadout, net/arsenal.js)
+function gunLo(id) { const mods = (W8.mods[id] || []).slice(), lv = {}; mods.forEach(m => { lv[m] = modLv(m); }); return { mods, lv, gt: { ...(W8.gt[id] || {}) }, pin: null, att: { ...(W8.att[id] || {}) }, rnd: W8.rounds && W8.rounds[id] ? JSON.parse(JSON.stringify(W8.rounds[id])) : null, ak: !!(W(id) || {}).akimbo }; }
+// a gun model laid on its side on the ground, its holds put back square and its flash and outlines left off
+function layGun(copy) {
   copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });
   copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.scale.set(1, 1, 1); copy.visible = true;
   copy.children.forEach(h => { if (h.userData.side) { h.position.x = h.userData.x0 || 0; h.position.y = h.position.z = 0; h.rotation.set(0, 0, 0); h.visible = true; } });
   copy.updateMatrixWorld(true); const c = new THREE.Box3().setFromObject(copy).getCenter(new V3());
   const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
-  const a = rr(0, Math.PI * 2);
-  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
-  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
-  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: lay, mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until });
+  return lay;
 }
 function takeIt(p) {
   const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];
   if (old) gunDrop(old);
+  if (p.kind === 'gun' && p.cargo.gid) gunGone(p);   // (gone for the rest of the team too: net/teamwork.js)
   if (p.kind === 'gun') {
+    // one a teammate shared: it comes to you with everything that was on it, yours to keep from now on
+    if (!p.cargo.own && p.cargo.lo) gunTakeLo(id, p.cargo.lo);
     // your own gun back: as you left it, no fresh ammo with it
     W8.slot[D.slot] = id; recomputeEff(); delete W8.pin[id]; W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
     equip(D.slot, true); buildGuns(); gunGlow = 1;
-    gotGear({ ic: 'gear', kind: 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
+    gotGear({ ic: 'gear', kind: p.cargo.own === false ? 'From ' + (p.cargo.who || 'a teammate') : 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
   } else { deliverWeapon(id, p.cargo.from); if (p.cargo.from !== 'card') flareDone(); }
   floatText(p.x, p.z, D.name, '#f0c060'); SFX.pick();
   scene.remove(p.g); const k = pickups.indexOf(p); if (k >= 0) pickups.splice(k, 1);

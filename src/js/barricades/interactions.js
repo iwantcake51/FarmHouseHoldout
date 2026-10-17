@@ -33,7 +33,10 @@ function updateInteractions(dt) {
   const showPrompt = !!(o || st || fv || tk) && !P.vault && !openSt;
   if (showPrompt) {
     const rows = [], row = (k, t, extra) => `<div class="pr"><kbd>${k}</kbd><span>${t}</span>${extra || ''}</div>`;
-    if (tk) { const id = takeId(tk), old = W8.slot[WEAP[id].slot]; rows.push(row('E', `${tk.kind === 'gun' ? 'Pick up' : 'Take'} the ${WEAP[id].name.toLowerCase()}`, old && old !== id ? `<em>drops your ${WEAP[old].short || WEAP[old].name}</em>` : '')); }
+    if (tk) { const id = takeId(tk), old = W8.slot[WEAP[id].slot]; rows.push(row('E', `${tk.kind === 'gun' ? 'Pick up' : 'Take'} the ${WEAP[id].name.toLowerCase()}`, old && old !== id ? `<em>drops your ${WEAP[old].short || WEAP[old].name}</em>` : ''));
+      // co-op: one you put down can be shared with your team (gunShare, net/teamwork.js); it's yours alone till you do
+      if (tk.kind === 'gun' && tk.cargo.own && netLink()) rows.push(row('H', tk.cargo.shared ? 'Stop sharing it' : 'Share it with your team', tk.cargo.shared ? '<em>your team can take it</em>' : ''));
+      else if (tk.kind === 'gun' && tk.cargo.own === false) rows.push(`<div class="pr off"><span>Shared by ${tk.cargo.who || 'a teammate'}</span></div>`); }
     else if (st) rows.push(row('E', `Use the ${st.name.toLowerCase()}`));
     if (fv) rows.push(row('Space', 'Hop the fence'));
     if (o) {
