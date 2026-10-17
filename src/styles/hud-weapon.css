@@ -38,6 +38,11 @@
 #rounds.rflech i{--hl:#e2ded4;--hd:#c6c2b8;--hp:#b4b0a6;--hi:#5a5650}
 #rounds.rfire i{--hl:#de6a2a;--hd:#c45a24;--hp:#b0501e;--hi:#4e1e08}
 #rounds.rslug i{--hl:#3a72c8;--hd:#3062ae;--hp:#2a5698;--hi:#0e2348}
+/* and a bullet round by its kind: 9mm hollow points in nickel cases with a dark cupped tip (as they fly out of the gun,
+   weapons/casings.js), piercing rounds black-tipped, explosive tips a red band */
+#rounds.rhollow:not(.rf):not(.mg):not(.sh) i{--cs:#c8ccd0;--bl:#6e4a2c}
+#rounds.rpierce i{--bl:#2a2b30}
+#rounds.rboom i{--bl:#c8342a}
 /* better rounds change the bullet: hollow points a darker copper, +P loads a hot orange with a glow, match-grade a
    bright bullet in a nickel case. A shell has no bullet, so it stays just a shell */
 #rounds.hp i{--bl:#8f4f28}#rounds.hp2 i{--bl:#e8842e}#rounds.hp2:not(.sh) i:not(.off){box-shadow:0 0 3px rgba(224,138,58,.6)}#rounds.hp3 i{--bl:#e09a62;--cs:#c8ccd0}

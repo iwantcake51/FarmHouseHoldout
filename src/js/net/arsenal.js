@@ -69,7 +69,7 @@ function weaponPose(rdt, msg) {
   Object.assign(msg, { wp, sv, ex, lk: loNow ? loNow.lk : 0 });
 }
 // dropped mags and speed loaders fall from where they did for them
-NET_ON.md = m => { if (state !== 'title') placeMag(m); };
+NET_ON.md = m => { if (state === 'title') return; const p = NET.peers.get(m.f), h = p && p.av && p.av.held && m.s && p.av.held[m.s]; placeMag(m, h && h.rec && h.rec.magg[m.sd | 0]); };   // (a copy of the mag on their gun, as on yours)
 NET_ON.ld = m => { if (state !== 'title') placeLoader(m); };
 
 // ---- building a teammate's: their loadout swapped in for a moment, so the models read their mods, tiers,

@@ -146,8 +146,9 @@ function shakeBelt(el) { if (!calmHud.matches) el.querySelectorAll('.belt').forE
 // rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
 // like reading, and the last round left is always bottom right; a part row sits on top. A big one is a bar
 const magGlyphs = (n, have, fired) => { fired = Math.max(0, Math.min(fired || 0, n - have)); return n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i></i>'.repeat(Math.max(0, Math.min(have, n))) + '<i class="fired"></i>'.repeat(fired) + '<i class="off"></i>'.repeat(Math.max(0, n - have - fired)); };
-// (a shotgun's shells take the colour of the kind loaded: rflech, rfire, rslug)
-const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '') + (D.ammo === 'shells' && SHELL_HULL[roundOn(id)] ? ' r' + roundOn(id) : '');
+// (the kind of round loaded too: a shotgun's shells take its colour, rflech, rfire, rslug; 9mm hollow points come in
+// silver cases, rhollow; piercing and explosive tips colour the bullet)
+const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '') + (roundOn(id) !== 'std' ? ' r' + roundOn(id) : '');
 // an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
 // being reloaded dims
 function renderRoundsAk(id, D) {

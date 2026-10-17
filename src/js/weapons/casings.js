@@ -37,6 +37,9 @@ const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
 // plastic recoloured, white for flechettes, orange for dragon's breath, blue for slugs
 const SHELL_HULL = { flech: 'W', fire: 'O', slug: 'B' };
 Object.assign(CC, { hullW: 0xd8d4c8, hullLipW: 0xece8de, hullInW: 0x7a766c, hullO: 0xb8400e, hullLipO: 0xd2561a, hullInO: 0x52200a, hullB: 0x1a3f8a, hullLipB: 0x2c58a8, hullInB: 0x0a1a3a });
+// 9mm hollow points come in nickel cases: the p9 case turned again in silver (p9N)
+Object.assign(CC, { nickel: 0xc4c8cc, nickelHead: 0x9ea3a8, nickelLip: 0xe6e9ec });
+{ const NK = { brass: 'nickel', head: 'nickelHead', lip: 'nickelLip' }; CASE_PROF.p9N = { ...CASE_PROF.p9, prof: CASE_PROF.p9.prof.map(v => NK[v[2]] ? [v[0], v[1], NK[v[2]]] : v) }; CASE_SCALE.p9N = CASE_SCALE.p9; }
 for (const s of Object.values(SHELL_HULL)) { const q = CASE_PROF.shells; CASE_PROF['shells' + s] = { ...q, prof: q.prof.map(v => v[2].startsWith('hull') ? [v[0], v[1], v[2] + s] : v) }; CASE_SCALE['shells' + s] = CASE_SCALE.shells; }
 // turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
 // the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
@@ -110,7 +113,7 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
   const ch0 = mode === 'dump' ? Math.max(0, CHAMBERS - cylLive(id) - cylFired(id)) : 0;   // the fired chambers, below the loaded ones (cylHeads, player/hold.js)
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
   if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
-  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const K = CASE_KIND[ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : ammo === 'p9' && roundOn(id) === 'hollow' ? 'p9N' : ammo] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);
@@ -195,7 +198,8 @@ const mags = [];
 for (let k = 0; k < 10; k++) {
   const g = new THREE.Group(), pv = new THREE.Group(); g.visible = false; scene.add(g); g.add(pv);
   const body = new THREE.Mesh(UBOX_D, GM.metal2), neck = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = neck.castShadow = true; pv.add(body, neck);
-  mags.push({ g, pv, body, neck, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
+  const model = new THREE.Group(); pv.add(model);   // (or a copy of the gun's own magazine: placeMag)
+  mags.push({ g, pv, body, neck, model, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
 }
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
@@ -218,14 +222,35 @@ function dropMag(id, side) {
   else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
   else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
-  const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100,
-    v: [P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3), rr(-0.2, 0.6), P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3)].map(v => Math.round(v * 100) / 100), spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
-  placeMag(m);
+  // it slips out of the well and drops: carried on with you, barely pushed (DROP_PUSH), tumbling slowly, so it leaves the
+  // gun where the gun's mag was rather than leaping away from it
+  const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100, s: W8.cur, sd: side === 'L' ? 1 : 0,
+    v: [P.vx * 0.9 + fx * rr(0, DROP_PUSH), rr(-0.6, -0.1), P.vz * 0.9 + fz * rr(0, DROP_PUSH)].map(v => Math.round(v * 100) / 100), slow: 1, spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
+  placeMag(m, (MAGG[W8.cur] || [])[m.sd]);
   netSend('md', m);   // (co-op: it falls out of your survivor on your teammates' screens too, net/arsenal.js)
 }
-// a falling mag of the shape and colour given, from where and how it was let go (yours, or a co-op teammate's)
-function placeMag(m) {
-  const c = mags[mIdx = (mIdx + 1) % mags.length], mat = GM[m.mat] || GM.metal2, dr = m.shape.length === 4 ? { r: m.shape[0], t: m.shape[1], ax: m.shape[2] } : null, small = m.shape[3] === 1;
+// a falling mag, from where and how it was let go (yours, or a co-op teammate's): a copy of the gun's own magazine
+// (src: its group on the model, weapons/build-weapons.js), the same pieces and colours, starting exactly where it was
+// on the gun; or, without one, a plain one of the shape and colour given
+const DROP_PUSH = 0.15;
+const _mgB = new THREE.Box3(), _mgC = new V3(), _mgS = new V3(), _mgQ = new THREE.Quaternion();
+function placeMag(m, src) {
+  const c = mags[mIdx = (mIdx + 1) % mags.length];
+  while (c.model.children.length) c.model.remove(c.model.children[0]);   // (the copy shares the model's geometry: nothing to free)
+  if (src && src.children.length) {
+    const cp = src.clone(true); cp.position.set(0, 0, 0); cp.quaternion.identity(); cp.scale.set(1, 1, 1); cp.visible = true; cp.updateMatrixWorld(true);
+    _mgB.setFromObject(cp); if (!_mgB.isEmpty()) {
+      _mgB.getCenter(_mgC); _mgB.getSize(_mgS); cp.position.copy(_mgC).negate();
+      src.updateWorldMatrix(true, false); src.matrixWorld.decompose(c.g.position, _mgQ, c.g.scale); c.g.position.copy(_mgC).applyMatrix4(src.matrixWorld);
+      c.model.add(cp); c.body.visible = c.neck.visible = false; c.pv.rotation.set(0, 0, 0);
+      c.g.quaternion.copy(_mgQ); c.g.scale.setScalar(1); c.g.visible = true;
+      const th = _mgS.x / 2; c.r = th + 0.005; c.restY = th; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); };   // down on its side
+      c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin * (m.slow ? 0.4 : 1); c.roll = m.roll * (m.slow ? 0.4 : 1); c.bounces = 0; c.life = 14; c.kind = 'mag';
+      return;
+    }
+  }
+  c.body.visible = true;
+  const mat = GM[m.mat] || GM.metal2, dr = m.shape.length === 4 ? { r: m.shape[0], t: m.shape[1], ax: m.shape[2] } : null, small = m.shape[3] === 1;
   const [w, h, d] = m.shape;
   c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = c.neck.material = mat; c.pv.rotation.set(0, 0, 0); c.neck.visible = !!dr;
   if (dr) {

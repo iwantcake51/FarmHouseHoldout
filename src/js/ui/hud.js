@@ -63,7 +63,10 @@ function updateHUD(rdt, D) {
     // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
-    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
+    // the count in the colour of the kind of round loaded, as its shells and cartridges show (ROUND_HUE; low and out
+    // still turn it yellow and red)
+    const rc = !D.melee && roundHue(id, D);
+    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); if (el.dataset.rc !== (rc || '')) { el.dataset.rc = rc || ''; el.style.color = rc || ''; } };
     if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
     const hm = !D.melee && !ak && hudMag(id);   // through a mag change, what's in the gun as you'd see it (ui/rounds.js)
     if (!ak) { setRoll('ammo', D.melee ? '—' : String(hm.have)); ammoEl($('ammo'), D.melee ? 0 : hm.have, D.melee ? 0 : magCap(id), false); }

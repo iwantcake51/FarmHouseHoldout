@@ -37,6 +37,11 @@ const ROUNDS = {
 const SLUG_DMG = 140, SLUG_SPREAD = 0.012;
 // the order they're offered in, and the price of buying one for a gun (loading one you own is free)
 const ROUND_ORDER = ['std', 'slug', 'flech', 'fire', 'hollow', 'pierce', 'boom'];
+// the colour each kind shows in on the HUD's ammo count (ui/hud.js), matching its shells or cartridges: flechettes
+// white, dragon's breath orange, slugs blue, 9mm hollow points nickel (in silver cases, weapons/casings.js), piercing
+// rounds steel, explosive tips red
+const ROUND_HUE = { flech: '#e2ded4', fire: '#e8742e', slug: '#5a8ee0', hollow: '#cdd2d8', pierce: '#a9b0ba', boom: '#e0503a' };
+const roundHue = (id, D) => { const k = roundOn(id); return k === 'hollow' && D.ammo !== 'p9' ? '' : ROUND_HUE[k] || ''; };
 const roundOn = id => (id && W8.rounds && W8.rounds[id] && W8.rounds[id].on) || 'std';
 const roundOwned = (id, k) => k === 'std' || !!(W8.rounds[id] && W8.rounds[id].own.includes(k));
 const roundFits = (id, k) => { const D = WEAP[id]; return !!D && !D.melee && !!D.ammo && (k === 'std' || ROUNDS[k].fits(D, id)); };
