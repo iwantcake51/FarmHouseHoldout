@@ -291,6 +291,20 @@ function tapeWrap(g, x, y, z, r, tx, ty, sx) {
 }
 const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
 function guard(g, y, z0, z1, mat) { box(g, 0.016, 0.012, z1 - z0, mat, X, y, (z0 + z1) / 2); box(g, 0.016, 0.05, 0.012, mat, X, y + 0.025, z1); box(g, 0.009, 0.034, 0.01, GM.metal2, X, y + 0.025, z0 + (z1 - z0) * 0.45).rotation.x = 0.25; }
+// the MP5's 50-round drum: a short feed tower out of the well, curving forward a touch as the stick does, into a round
+// drum lying across the gun under it, its two shells meeting at a raised seam, a hub each side and a winding key on the
+// left one
+function mp5Drum(mg, K) {
+  solid(mg, [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7925, 1.0], [0.7985, 0.968], [0.744, 0.968], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286]], 0.026, K, X, 0.004);   // the feed tower
+  const cz = 0.79, cy = 0.895, R = 0.082, W = 0.074;
+  cyl(mg, R, W, K, X, cy, cz, 28).rotation.set(0, 0, Math.PI / 2);                                       // the drum
+  cyl(mg, R + 0.003, 0.012, GM.metal2, X, cy, cz, 28).rotation.set(0, 0, Math.PI / 2);                     // the seam between its shells
+  [-1, 1].forEach(s => {
+    cyl(mg, R * 0.72, 0.004, GM.metal2, X + s * (W / 2 + 0.001), cy, cz, 24).rotation.set(0, 0, Math.PI / 2);   // the pressed face
+    cyl(mg, 0.02, 0.012, GM.metal2, X + s * (W / 2 + 0.005), cy, cz, 14).rotation.set(0, 0, Math.PI / 2);     // the hub
+  });
+  const key = box(mg, 0.006, 0.05, 0.012, GM.steel, X - W / 2 - 0.013, cy, cz); key.rotation.x = 0.6;          // the winding key
+}
 // the MP5 (sub, below), built round on the lines traced off its side photo: the barrel's axis (ax), the cocking tube's
 // axis and radius (ct), the receiver's half width, top and bottom (rw, top, bot) and where it ends at the front
 // (rcvEnd), where the front sight block starts (fs), the muzzle, where the cocking handle rests, and how far back the
@@ -931,6 +945,8 @@ const GUN_MODELS = {
     { const lv = box(g, 0.003, 0.006, 0.026, St, X + 0.0215, 1.085, 0.66); lv.rotation.x = 0.5; cyl(g, 0.006, 0.003, St, X + 0.021, 1.085, 0.655, 12).rotation.set(0, 0, Math.PI / 2); }
     // ---- the curved magazine (in the mag group so the reload drops it), longer with each magazine upgrade: its spines
     // rounded front and back, a raised panel pressed down each side, the floor plate on its foot with the pin through it
+    // (its last step's no longer stick but a round 50-round drum under a short feed tower: mp5Drum)
+    if (T('mag') >= 2) { mp5Drum(mg, K); return { front, y: 1.119, magZ: 0.772, magY: 1.07, slide: bc, bolts: [], travel: 0.065, lock: true, top: 1.1742, sz: 0.66, ownMags: true, laser: { y: sd ? 1.088 : 1.0867, z: 0.88 } }; }
     const k = [1, 1.3, 1.6, 1.9][T('mag')], dd = [0.085, -0.218], ext = ([z, y]) => { const f = clamp((1.05 - y) / 0.21, 0, 1) * (k - 1); return [z + dd[0] * f, y + dd[1] * f]; };
     const MO = [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7907, 1.0248], [0.8017, 0.9825], [0.8103, 0.9563], [0.8253, 0.9181], [0.8405, 0.8865], [0.8583, 0.8542], [0.8573, 0.849], [0.8223, 0.8286], [0.8162, 0.8315], [0.8099, 0.842], [0.7895, 0.8815], [0.7756, 0.9123], [0.7582, 0.9606], [0.7477, 0.9966], [0.743, 1.0183], [0.738, 1.0315], [0.7271, 1.0286], [0.7225, 1.03]].map(ext);
     solid(mg, MO, 0.026, K, X, 0.005);

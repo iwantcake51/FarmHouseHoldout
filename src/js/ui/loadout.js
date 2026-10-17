@@ -23,6 +23,9 @@ function wlGroups(id) {
   const mz = ['supp', 'choke'].flatMap(k => Array.from({ length: ownTier(id, k) }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) })))
     .concat(mods.filter(m => MODS[m].muzzle).map(m => ({ mod: m, n: 1, name: modName(m) })));
   if (mz.length) out.push({ g: 'muzzle', label: 'Muzzle', opts: [{ k: 'muzzle', n: 0, name: 'Bare muzzle' }, ...mz] });
+  // the magazine: any size you've bought for it, or the one it came with (swapping empties it into your reserve: wlPick)
+  { const n = ownTier(id, 'mag'); if (n) { const cap = t => Math.max(1, Math.round(WEAP[id].mag * (MAG_UP[id] || MAG_UP.all)[t] * S.magMul));
+    out.push({ g: 'mag', label: 'Magazine', note: 'Swapping empties it', opts: Array.from({ length: n + 1 }, (_, t) => ({ k: 'mag', n: t, name: t ? line('mag', t) : 'Standard', sub: cap(t) + ' rounds' })) }); } }
   for (const k of ['sight', 'laser', 'light', 'loader']) {
     const n = ownTier(id, k); if (!n) continue;
     const label = k === 'loader' && D.breakOpen ? 'Reload' : WL_LINE[k], off = { sight: 'Iron sights', laser: 'No laser', light: 'No light', loader: D.breakOpen ? 'One shell at a time' : 'Load by hand' }[k];
@@ -43,6 +46,17 @@ function wlIsOn(id, o) {
   if (o.k === 'muzzle') return !gunTier(id, 'supp') && !gunTier(id, 'choke') && !(W8.mods[id] || []).some(m => MODS[m].muzzle);
   return gunTier(id, o.k) === o.n;
 }
+// a different magazine: the one in the gun comes out with whatever's in it, back into your reserve, and the new one
+// goes in empty, so it needs a reload (no mag still in it to wait for: W8.pin, game/run-state.js)
+function magUnload(id, fit) {
+  const D = W(id), left = W8.mag[id] || 0;
+  if (D.ammo && left) { W8.reserve[D.ammo] += left; feed('ammo', left, 'back in your pouch'); }
+  W8.mag[id] = 0; if (W8.akMag && W8.akMag[id]) W8.akMag[id] = { L: 0, R: 0 };
+  W8.hudSpent[id] = 0; if (W8.spent) W8.spent[id] = 0;
+  if (W8.reloading && curId() === id) { W8.reloading = null; W8.reloadT = 0; }
+  delete W8.relSave[id];
+  fit(); delete W8.pin[id];
+}
 function wlPick(i) {
   const id = curId(), o = wlOpts[i]; if (!id || !o || wlIsOn(id, o)) return;
   const was = wlGrps[o.gi].opts.find(q => wlIsOn(id, q));   // (what it was, for the feed's line when it comes off)
@@ -53,9 +67,11 @@ function wlPick(i) {
     if (o.att) setAtt(id, o.att, !!o.n);
     else if (o.mod) setMod(id, o.mod, !!o.n);
     else if (o.k === 'muzzle') { fitTier(id, 'supp', 0); fitTier(id, 'choke', 0); mzOff(); }
+    else if (o.k === 'mag') magUnload(id, () => fitTier(id, 'mag', o.n));
     else { if (o.k === 'supp' || o.k === 'choke') mzOff(); fitTier(id, o.k, o.n); }
     recomputeEff();
   });
+  if (o.k === 'mag') delete W8.pin[id];   // (emptied and swapped: there's no old mag left in it for magChange to keep)
   if (!o.rk) buildGuns(id);
   gunGlow = 1; SFX.click();
   feed(o.rk ? 'ammo' : 'gear', 0, o.n ? o.name + (o.rk || o.k === 'ammo' ? ' loaded' : ' on') : (was ? was.name : o.name) + (o.k === 'ammo' ? ' unloaded' : ' off'));

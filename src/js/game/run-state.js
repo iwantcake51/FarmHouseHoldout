@@ -61,7 +61,7 @@ const W = id => EFF[id];
 const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
 // how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
-const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5] };
+const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30] };   // (the MP5: a 40-round mag, then a 50-round drum)
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
 // each attachment does its own job, none of them the same thing twice: a sight (red dot, holo, then the scopes)
