@@ -12,7 +12,7 @@
 const BDASH = { wave: 8, min: 4.5, max: 13, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
 // running into a wall: stunned for stun seconds (reeling, its head lolling), a cloud of dust and smoke thrown up off the
 // wall, and the view shaken by up to shake, in full within near metres and trailing off to nothing at far
-const BDASH_WALL = { stun: 2.4, shake: 0.6, near: 3, far: 11 };
+const BDASH_WALL = { stun: 2.4, shake: 0.95, near: 5, far: 16 };
 // the stripe is drawn by a shader (DASH_VS, DASH_FS): a soft red lane with brighter edges, chevrons streaming along it
 // the way it'll come, an arrow point at the far end, and a fill that runs out from the brute as the crouch counts down.
 // It unrolls out of the brute's feet (grow) as it widens in with a little overshoot, flashes as the charge starts,

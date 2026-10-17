@@ -61,9 +61,14 @@
 .roundPuff{position:fixed;z-index:3;pointer-events:none;display:block;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,rgba(210,205,195,.55),rgba(210,205,195,0) 70%);animation:roundPuff .9s ease-out forwards}
 .roundPuff.wisp{width:14px;height:14px;animation-duration:.75s}
 @keyframes roundPuff{from{transform:scale(.5);opacity:.9}to{transform:translate(var(--px),-26px) scale(2.4);opacity:0}}
-/* a big mag's bar, full from the right: it empties from the left, like a row of rounds (ui/rounds.js: setBelt) */
+/* a big mag's bar, full from the right: it empties from the left, like a row of rounds (ui/rounds.js: setBelt). It's
+   the colour of what's loaded (--bc): brass yellow for plain rounds, the hull's colour for shells (buckshot red,
+   flechettes white, dragon's breath orange, slugs blue), silver for hollow points, red for explosive tips */
+#rounds{--bc:#e0bc52}
+#rounds.sh{--bc:#c0392c}#rounds.rflech{--bc:#e2ded4}#rounds.rfire{--bc:#e8742e}#rounds.rslug{--bc:#3f7ad2}
+#rounds.rhollow:not(.sh){--bc:#c8ccd0}#rounds.rboom{--bc:#d23a2c}
 #rounds .belt{display:flex;justify-content:flex-end;width:200px;height:6px;background:rgba(0,0,0,.5)}
-#rounds .belt span{display:block;height:100%;background:#c9a043}
+#rounds .belt span{display:block;height:100%;background:var(--bc);transition:background-color .25s}
 /* akimbo: each gun's mag, the left's on the left, by the mouse button that fires it (a little mouse with that side lit),
    over two groups of rounds split by a rule. The gun being reloaded dims and its rounds fade back */
 #arms:not(.ak) .akOnly{display:none}

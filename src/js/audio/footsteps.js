@@ -35,7 +35,7 @@ const ZSTEP = { near: 2, far: 6, level: 0.4, gap: 0.25, max: 3, wide: 0.3 };
 const zStepT = [];
 // a brute's foot coming down: a scuff of dust under it you can see, and, close by, the ground thumping through the view
 // (BRUTE_STEP: full shake within near metres, none past far)
-const BRUTE_STEP = { near: 2.5, far: 7, shake: 0.2, dust: 0.25 };
+const BRUTE_STEP = { near: 3.5, far: 11, shake: 0.42, dust: 0.25 };   // (the view's shake goes by its square: camera.js)
 function bruteStep(z) {
   z.footSide = -(z.footSide || 1);
   const f = z.face || 0, s = 0.17 * z.T.scale * z.footSide, fx = z.x + Math.cos(f) * s, fz = z.z - Math.sin(f) * s;
