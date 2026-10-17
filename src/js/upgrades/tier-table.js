@@ -8,6 +8,8 @@ const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 
 const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
 // Quick hands: your reload time at each step (a share of the usual): each step takes another 20% off it
 const QUICK = [1, 0.8, 0.6, 0.4];
+// how much each trigger step quickens the fire rate: about a quarter faster in all, maxed (it was over 60%)
+const TRIG_UP = [1.08, 1.07, 1.08];
 const quickTo = n => { S.reloadMul *= QUICK[n] / QUICK[n - 1]; };
 const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
@@ -17,9 +19,9 @@ const TIERS = {
     { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers.', ap: () => S.dmgMul *= 1.2 },
     { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: harder hits, and headshots count for more.', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
-    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= 1.18 },
-    { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= 1.15 },
-    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets.', ap: () => S.rateMul *= 1.2 }] },
+    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= TRIG_UP[0] },
+    { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= TRIG_UP[1] },
+    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets.', ap: () => S.rateMul *= TRIG_UP[2] }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
     // the auto shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)

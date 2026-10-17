@@ -38,7 +38,7 @@ function recomputeEff() {
     D.headX = (D.headX || 0) + (ammo >= 3 ? HEAD_UP.ammo : 0) + (D.sniper ? HEAD_UP.sight[sight] : 0);
     // a sniper looking through a scope: every headshot is a crit, harder with each scope (SCOPES; weapons/firing.js)
     if (D.sniper && sight >= 3) { D.headCrit = true; D.critM = Math.max(D.critM || 0, SCOPES[sight].crit); }
-    D.rate /= [1, 1.18, 1.357, 1.628][trig];
+    for (let k = 0; k < trig; k++) D.rate /= TRIG_UP[k];   // each trigger step a little quicker (TRIG_UP, upgrades/tier-table.js)
     if (D.mag) D.mag *= (MAG_UP[id] || MAG_UP.all)[mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one

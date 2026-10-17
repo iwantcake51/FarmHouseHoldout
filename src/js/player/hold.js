@@ -127,15 +127,18 @@ const RK = { R: kickState(), L: kickState() };
 // gun (act) thumps hardest: more flip, a harder shove back into the shoulder, the hands lifted further and the
 // shoulders rocked much further (KICK_ACT)
 const SR = { x: 0, vx: 0, y: 0, vy: 0 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15, back: 2, lift: 2, rock: 2.2 };
+// how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
+// automatic, whose kicks come too fast to settle between
+const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
 function gunKick(side, pw, kind, auto, act) {
-  const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6);
+  const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6), rot = KICK_ROT * (auto ? KICK_ROT_AUTO : 1);
   const room = 1 - KICK_ROOM * clamp(-k.p / KICK_UP, 0, 1);
   const A = act ? KICK_ACT : null;
-  const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1);
+  const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot;
   k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1); k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
-  const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1));   // (less room to rock the further back they already are)
+  const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot;   // (less room to rock the further back they already are)
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
-  k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2); k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8);
+  k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2) * rot; k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8) * rot;
   if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
 }
 function stepKick(k, dt) {
