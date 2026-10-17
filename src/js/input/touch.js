@@ -21,6 +21,9 @@ cv.addEventListener('pointercancel', endTouch);
 let touchBoard = false;
 $('tbBoard').addEventListener('pointerdown', () => touchBoard = true);
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('tbBoard').addEventListener(ev, () => touchBoard = false));
+let touchTear = false;   // held, tears the top board down (barricades/interactions.js)
+$('tbTear').addEventListener('pointerdown', () => touchTear = true);
+['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('tbTear').addEventListener(ev, () => touchTear = false));
 $('tbClimb').onclick = () => { const t = nearestTake(); if (t && !openSt) { takeIt(t); return; } const s = nearestStation(); if (s && !vaultTarget(nearestOpening())) { openSt ? closeStation() : openStation(s); } else spaceAction(); };
 $('tbReload').onclick = () => startReload();
 $('tbAlt').onclick = () => throwGrenade();

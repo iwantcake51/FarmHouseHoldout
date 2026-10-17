@@ -178,6 +178,7 @@ function gunFire(id, D, side) {
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
   const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
   const ends = [];   // where the tracers end, for your teammates' screens (net/avatars.js)
+  const shotB = new Map();   // the boards the shot goes through, and how hard (barricades/planks.js)
   for (let p = 0; p < pellets; p++) {
     // a shotgun's pattern is centred on what the crosshair sits on (the first pellet lands exactly there), not on the
     // ground under the cursor, which from this camera is off to one side of a zombie's head
@@ -206,6 +207,8 @@ function gunFire(id, D, side) {
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
     if (n) anyHit = true;
+    // boards on its way, up to where it stops: the zombie that takes its last pierce, or the wall or its range
+    boardsCrossed(ox, oz, dx, dz, n && n === 1 + pierce ? hits[n - 1].t : endR, D.dmg, shotB);
     const endT = n ? Math.max(0.2, hits[n - 1].t) : endR, lastZ = n ? hits[n - 1].z : null;
     const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
@@ -220,6 +223,7 @@ function gunFire(id, D, side) {
     }
   }
   if (anyHit) run.hits++;
+  shotB.forEach((h, o) => shootBoard(o, h.d, h.dx, h.dz));
   const quiet = suppressed(D);
   SFX.fire(id, quiet, D.ammo === 'shells');
   shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);

@@ -162,8 +162,24 @@ function netBoardUp(o) {
   netSend('ba', { o: openings.indexOf(o), hp: Math.round(o.boards[o.boards.length - 1]), sd: Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1 });
 }
 NET_ON.ba = m => { const o = openings[m.o]; if (!o || state === 'title' || o.boards.length >= 3) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd); };
-function netBoardBroke(o, z) { if (netLink() && NET.host) { o.netT = performance.now() + 600; netSend('bb', { o: openings.indexOf(o), id: z ? z.id : 0 }); } }
-NET_ON.bb = m => { const o = openings[m.o]; if (!o || NET.host || !o.boards.length) return; o.netT = performance.now() + 1500; const z = NZ.get(m.id); breakBoard(o, z || null); if (z && z.an) z.an.rip = 1; };
+// (at: which side a board shot or torn down goes flying to, for one no zombie broke)
+function netBoardBroke(o, z, at) {
+  if (!netLink() || !NET.host) return;
+  o.netT = performance.now() + 600;
+  const m = { o: openings.indexOf(o), id: z ? z.id : 0 }; if (at) { m.x = nr(at.x); m.z = nr(at.z); }
+  netSend('bb', m);
+}
+NET_ON.bb = m => { const o = openings[m.o]; if (!o || NET.host || !o.boards.length) return; o.netT = performance.now() + 1500; const z = NZ.get(m.id); breakBoard(o, z || (m.x !== undefined ? { x: m.x, z: m.z } : null)); if (z && z.an) z.an.rip = 1; };
+// a shot through the boards: everyone sees the board jump; the host takes the damage off it (barricades/planks.js)
+function netBoardShot(o, d, dx, dz) { if (netLink()) netSend('bs', { o: openings.indexOf(o), d: nr(d), dx: nr(dx), dz: nr(dz) }); }
+NET_ON.bs = m => {
+  const o = openings[m.o]; if (!o || state === 'title' || !o.boards.length) return;
+  const at = { x: o.x + m.dx, z: o.z + m.dz, vis: visAt(o.x, o.z) };
+  boardJolt(o, at); if (NET.host) hurtBoard(o, m.d, at);
+};
+// a joiner tearing a board down: the host breaks it, and its 'bb' breaks it everywhere, theirs included
+function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x: nr(at.x), z: nr(at.z) }); }
+NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; const at = { x: m.x, z: m.z }; breakBoard(o, at); netBoardBroke(o, null, at); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
 NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };
