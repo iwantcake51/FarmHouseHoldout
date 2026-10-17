@@ -62,7 +62,7 @@ const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nun
 // and runs down walls in soft organic stains rather than texels. Things that move (you, zombies, weapons, pickups)
 // opt out with userData.mobile, and carry their own stains.
 const BMU = { uBloodMap: { value: null }, uBloodNoise: { value: null } };
-const WB_DECL = 'uniform sampler2D uBloodMap;\n';
+const WB_DECL = 'uniform sampler2D uBloodMap;\nconst vec2 SOOT = vec2(1.0, 0.17);\n';
 const WB_BODY = `
   {
     vec4 bm = texture2D(uBloodMap, vLmUv);
@@ -84,7 +84,10 @@ const WB_BODY = `
       float foot = smoothstep(0.3, 0.05, y + (nz - 0.5) * 0.14) * smoothstep(0.2, 0.5, bm.r);
       float a = mix(aFlat, max(max(spat, drip * 0.9), foot), vert);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.38, 0.04, 0.03) * (0.82 + 0.3 * nz), a * 0.92);   // (no darker pooling where it's thick)
-      float soot = smoothstep(0.1, 0.5, bm.b * (0.6 + nz * 0.8)) * smoothstep(1.6, 0.5, y);
+      // soot: soaked into the ground where it lies flat; up a wall only round where the blast struck, SOOT.x up, as tall
+      // as SOOT.y at its middle and narrowing to its rim (the map's blue falls off from the middle out, so this rounds it)
+      float sk = smoothstep(0.1, 0.5, bm.b * (0.6 + nz * 0.8)), sr = SOOT.y * sqrt(max(0.0, 1.0 - (1.0 - bm.b) * (1.0 - bm.b))) * (0.8 + nz * 0.4);
+      float soot = sk * mix(smoothstep(0.6, 0.3, y), smoothstep(sr, sr * 0.55, abs(y - SOOT.x)), vert);
       diffuseColor.rgb *= 1.0 - soot * 0.78;
     }
   }`;

@@ -8,6 +8,9 @@ const flashes = [];
 // small: a hand cannon's explosive tip, which only shakes the view when it goes off right by you (TIP_SHAKE)
 // instead of the full shake of a grenade wherever it lands
 const TIP_SHAKE = { near: 2.5, max: 0.12 };
+// how wide the scorch a blast leaves is (metres across): a tip's no more than a dark smudge where it struck, a
+// grenade's a patch the size of a doormat (the soot itself, and how it lies on walls: SOOT in core/shaders.js)
+const SCORCH = { tip: 0.35, blast: 1.0 };
 function explode(x, z, r, dmg, self, remote, small) {
   if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r, s: small ? 1 : 0 });
   soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true);
@@ -18,7 +21,7 @@ function explode(x, z, r, dmg, self, remote, small) {
   burst(x, 0.5, z, 10, 'ember', 0, 0, 6);
   groundDust(x, z, 2.4, 0, 0); cubeBurst(x, 0.15, z, 12, 'dust', 0, 0, 5, 0.6);
   for (let k = 0; k < 12; k++) fx('smoke', x + rr(-0.5, 0.5), rr(0.3, 1.1), z + rr(-0.5, 0.5), rr(-0.7, 0.7), rr(0.7, 1.8), rr(-0.7, 0.7), rr(0.5, 0.8), rr(2.2, 3.4), rr(2.4, 3.8), rr(0.65, 0.8));
-  splat(x, z, 'scorch', r * 0.9, undefined, 0.12);
+  splat(x, z, 'scorch', small ? SCORCH.tip : SCORCH.blast, undefined, 0.12);
   flashes.push({ x, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
   if (remote) return;
   for (const zb of zombies.slice()) {
