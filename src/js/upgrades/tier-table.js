@@ -10,6 +10,7 @@ const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[
 const QUICK = [1, 0.8, 0.6, 0.4];
 // how much each trigger step quickens the fire rate: about a quarter faster in all, maxed (it was over 60%)
 const TRIG_UP = [1.08, 1.07, 1.08];
+const BOOTS = [1.06, 1.05, 1.05];
 const quickTo = n => { S.reloadMul *= QUICK[n] / QUICK[n - 1]; };
 const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
@@ -63,10 +64,11 @@ const TIERS = {
     { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
     { r: 'r', name: 'Kevlar vest', text: 'Every hit on you does less damage.', ap: () => S.dmgTaken *= 0.8 },
     { r: 'e', name: 'Plate carrier', text: 'Hits do less again, and your max health goes up.', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp += 25; } }] },
+  // footwear: each step a little faster (BOOTS: about +17% in all), green, blue, then epic
   boots: { tag: 'Body', t: [
-    { r: 'u', name: 'Good boots', text: 'Faster walking and sprinting.', ap: () => S.speedMul *= 1.12 },
-    { r: 'u', name: 'Running shoes', text: 'Faster again.', ap: () => S.speedMul *= 1.1 },
-    { r: 'r', name: 'Trail runners', text: 'Faster again.', ap: () => S.speedMul *= 1.1 }] },
+    { r: 'u', name: 'Good boots', text: 'Faster walking and sprinting.', ap: () => S.speedMul *= BOOTS[0] },
+    { r: 'r', name: 'Running shoes', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[1] },
+    { r: 'e', name: 'Trail runners', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[2] }] },
   hammer: { tag: 'Tools', t: [
     { r: 'u', name: 'Claw hammer', text: 'Each board takes half the time to nail up.', ap: () => S.boardSpeed *= 2 },
     { r: 'u', name: 'Framing hammer', text: 'Boards go up quicker and take more blows before they break.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },

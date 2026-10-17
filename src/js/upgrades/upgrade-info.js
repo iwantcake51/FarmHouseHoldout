@@ -13,7 +13,7 @@ const UPG_FX = {
   'Lucky shot': ['1 in 4 misses: no ammo used'], 'Ammo pouch': ['Ammo pickups +25%'],
   'Momentum': ['+5% damage per quick kill', 'Up to +25%, lost after 2.5 s'],
   'Canvas jacket': ['+25 max health'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
-  'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%'],
+  'Good boots': ['Speed +6%'], 'Running shoes': ['Speed +5%'], 'Trail runners': ['Speed +5%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
@@ -37,7 +37,7 @@ const STACKS = {
   'Scavenger': stackOf('Drops', 1, () => S.dropMul, v => v * 1.5, v => '+' + pctUp(v) + '%'),
   'Painkillers': stackOf('Regen', 0, () => S.regen, v => v + 1, v => v + ' health/s'),
   'Thick soles II': slowStack('soles'),
-  'Running shoes': speedStack(1.1), 'Trail runners': speedStack(1.1),
+  'Running shoes': speedStack(BOOTS[1]), 'Trail runners': speedStack(BOOTS[2]),
   'Plate carrier': stackOf('Damage taken', 1, () => S.dmgTaken, v => v * 0.75, v => '−' + pctDown(v) + '%'),
   'Framing hammer': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 1.5, xTimes),
   'Nail gun': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 2, xTimes)
