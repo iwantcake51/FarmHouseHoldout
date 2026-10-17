@@ -241,8 +241,9 @@ function animatePlayer(dt, rdt) {
       pm.lower.rotation.z = mix(pm.lower.rotation.z, (lR - lL) * 0.06);
     }
   }
-  // looking down at the ground by your feet (LOOK_DOWN): down a little into the knees
-  ANIM.lookDn = (ANIM.lookDn || 0) + ((P.vault ? 0 : ANIM.lookDnT || 0) * (1 - 0.6 * Math.min(1, runF)) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) - (ANIM.lookDn || 0)) * Math.min(1, rdt * LOOK_DOWN.ease);
+  // looking down at the ground by your feet (LOOK_DOWN): down a little into the knees (and straightening up out of it
+  // behind a menu: the cards, a pause)
+  ANIM.lookDn = (ANIM.lookDn || 0) + ((P.vault || state !== 'play' ? 0 : ANIM.lookDnT || 0) * (1 - 0.6 * Math.min(1, runF)) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) - (ANIM.lookDn || 0)) * Math.min(1, rdt * LOOK_DOWN.ease);
   if (!P.vault && ANIM.lookDn > 0.001) {
     const k = smooth(clamp(ANIM.lookDn, 0, 1)), L = LOOK_DOWN;
     pm.shinL.rotation.x += L.knee * k; pm.shinR.rotation.x += L.knee * k * 0.9; pm.legL.rotation.x -= L.thigh * k; pm.legR.rotation.x -= L.thigh * k * 0.85; pm.g.position.y -= L.drop * k;

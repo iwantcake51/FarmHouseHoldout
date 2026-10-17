@@ -79,7 +79,7 @@ function updatePlayer(dt) {
   } else if (scoped) {
     if (!hasScope()) exitScope();
     aimPt.copy(scopePt); if (Math.hypot(aimPt.x - P.x, aimPt.z - P.z) > 0.2) P.aim = Math.atan2(aimPt.x - P.x, aimPt.z - P.z);
-  } else if (hasMouse) {
+  } else if (hasMouse && state === 'play') {   // (paused in co-op the farm runs on, but the cursor's on the menu)
     ndc.set(aimSX() / innerWidth * 2 - 1, -(aimSY() / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);   // (where the crosshair is, wandering off the cursor at low health)
     // a small dead zone round the character on screen, so sweeping the cursor across him never flips you round
     _pv.set(P.x, GUN_Y, P.z).project(cam);

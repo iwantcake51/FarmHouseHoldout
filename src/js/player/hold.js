@@ -635,7 +635,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
-  ANIM.pitch = (ANIM.pitch || 0) + ((ANIM.pitchT || 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
+  ANIM.pitch = (ANIM.pitch || 0) + ((state === 'play' ? ANIM.pitchT || 0 : 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
