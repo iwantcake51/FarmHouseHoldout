@@ -9,7 +9,7 @@
 
 let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 const NZ = new Map();           // zombies by the id the host gave them
-let zSeq = 0, dropSeq = 0, snapT = 0, overT = 0;
+let zSeq = 0, snapT = 0, overT = 0;
 const nr = v => Math.round(v * 100) / 100;
 const netTeam = () => netLink() ? 1 + NET.peers.size : 1;
 // whoever's left standing: you, and in co-op your teammates (their latest pose: where they are, whether they're down)
@@ -112,12 +112,12 @@ function netAct(z, dx, dz, fn) {
   try { r = fn(); } finally {
     const ops = NREC.ops; NREC = null;
     if (ops.length) {
-      // and what it dropped, each with an id of its own so whoever picks it up can say so. An ammo box is the killer's
-      // alone: it's rolled for their guns and only ever on their farm, so each player's ammo is their own
-      const dr = [];
-      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.nid || p.kind === 'ammo') continue;
-        p.nid = NET.id + '.' + (++dropSeq); p.own = true; dr.push([p.nid, p.kind, p.amount, p.ammoType || '', nr(p.x), nr(p.z)]); }
-      netSend('hit', { id: z.id, dx: nr(dx), dz: nr(dz), ops, dr });
+      // what it dropped is the killer's alone, only ever on their farm (ammo rolled for their guns, planks, bandages),
+      // so nobody takes anyone else's. If it dropped ammo, anyone who'd worked on it (an assist) gets an ammo box of
+      // their own, rolled for their guns, on their farm (am: how big; NET_ON.hit)
+      let am = 0;
+      for (let k = np; k < pickups.length; k++) { const p = pickups[k]; if (p.kind === 'ammo') am = Math.max(am, p.amount || 1); }
+      netSend('hit', { id: z.id, dx: nr(dx), dz: nr(dz), ops, am });
     }
   }
   return r;
@@ -129,7 +129,7 @@ NET_ON.hit = m => {
     try { for (const op of m.ops) netOp(z, op, m.dx, m.dz); if (z.dead) killEnd(z); }
     catch (e) { console.error('net hit', e); }
     finally { NREP = null; }
-    if (m.dr) for (const d of m.dr) { dropPickup(d[4], d[5], d[1], d[2], d[3] || undefined); const p = pickups[pickups.length - 1]; p.nid = d[0]; }
+    if (m.am && z.assist) ammoDrop(z.x, z.z, m.am);   // an assist on a kill that dropped ammo: a box of your own
   }
 };
 function netOp(z, op, dx, dz) {
@@ -154,8 +154,6 @@ function netOp(z, op, dx, dz) {
     case 'v': shoveZombie(z, dx, dz, op[1], op[2], !!op[3]); return;
   }
 }
-// a drop someone picked up: gone from everyone's farm
-NET_ON.pt = m => { const k = pickups.findIndex(p => p.nid === m.n); if (k >= 0) { scene.remove(pickups[k].g); pickups.splice(k, 1); } };
 // a blast somewhere: the bang and the fire (the damage is the thrower's, in their hits)
 NET_ON.boom = m => { if (state !== 'title') explode(m.x, m.z, m.r, 0, false, true, m.s); };
 NET_ON.nade = m => { if (state === 'title') return; const g = m.g; grenades.push({ m: box(scene, 0.12, 0.12, 0.18, GM.olive, g[0], GUN_Y, g[1]), x0: g[0], z0: g[1], x1: g[2], z1: g[3], t: 0, dur: g[4], h: g[5], net: true }); };
@@ -244,10 +242,11 @@ function netWaiting() {
   const names = ps.filter(p => p.picking).map(p => p.name);
   return names.length ? 'Waiting for ' + list(names) + ' to choose' : '';
 }
-// the teammates who haven't chosen their card for this wave yet (by the wave they last chose for, from their pose)
-const netChoosing = () => netLink() ? [...NET.peers.values()].filter(p => (p.cw || 0) < run.wave).map(p => p.name) : [];
+// the teammates who haven't chosen from the hand you're looking at yet (by the hand they last chose from, from their
+// pose: handNo, upgrades/upgrade-screen.js)
+const netChoosing = () => netLink() ? [...NET.peers.values()].filter(p => (p.cw || 0) < handNo()).map(p => p.name) : [];
 // you've chosen: told straight away, not left to your next pose
-function netPicked() { if (netLink()) netSend('picked', { w: run.wave }); }
+function netPicked() { if (netLink()) netSend('picked', { w: run.cardHand }); }
 NET_ON.picked = m => { const p = NET.peers.get(m.f); if (p) p.cw = Math.max(p.cw || 0, m.w | 0); };
 
 // ---- going down in co-op: the farm goes on without you; you watch a teammate till the wave's cleared and you're back

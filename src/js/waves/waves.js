@@ -4,8 +4,8 @@
 // tenth of the wave, rising to three in ten by wave 12), brutes from wave 5 (one in twenty-five, up to one in eight),
 // and every fifth wave two more brutes on top. They come in a shuffled order.
 const waveMix = n => ({ runner: n >= 3 ? Math.min(0.3, 0.1 + (n - 3) * 0.022) : 0, brute: n >= 5 ? Math.min(0.125, 0.04 + (n - 5) * 0.0085) : 0 });
-// In co-op the horde grows with the team: 60% more for each survivor past the first
-const teamK = () => 1 + 0.6 * (netTeam() - 1);
+// In co-op the horde grows with the team: 35% more for each survivor past the first
+const teamK = () => 1 + 0.35 * (netTeam() - 1);
 function buildWave(n) {
   const count = Math.round((5 + Math.round(n * 3.4)) * teamK()), mix = waveMix(n);
   const runners = Math.round(count * mix.runner), brutes = Math.round(count * mix.brute);

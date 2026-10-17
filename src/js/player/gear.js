@@ -5,6 +5,7 @@
 // pieces are pulled apart where they'd z-fight and each item is merged into a mesh or two (core/geometry.js).
 
 const gearParts = [];
+let gearList = gearParts;   // where each item's group is noted (a teammate's own list while theirs is built: gearOnAvatar)
 const GEAR = {
   leather: lam(0x4a3524), leatherDk: lam(0x33241a), leatherLt: lam(0x6a4c32), sole: lam(0x1e1a16), solePale: lam(0xd8d0c0), lace: lam(0x2a2018),
   white: lam(0xd8d2c4), offWhite: lam(0xbcb6a8), red: lam(0xb8382a), redDk: lam(0x8a2a20), blue: lam(0x34607e), blueDk: lam(0x24465e), amber: lam(0xe0a030),
@@ -14,7 +15,7 @@ const GEAR = {
   pill: lam(0xd8742a), label: lam(0xe8e2d0), nail: lam(0xa8a8a0), foam: lam(0x3a3c40)
 };
 // a group on a body part, holding one item's pieces
-function gearItem(part, x, y, z) { const g = new THREE.Group(); g.position.set(x || 0, y || 0, z || 0); part.add(g); gearParts.push(g); return g; }
+function gearItem(part, x, y, z) { const g = new THREE.Group(); g.position.set(x || 0, y || 0, z || 0); part.add(g); gearList.push(g); return g; }
 const gb = (g, w, h, d, mat, x, y, z) => box(g, w, h, d, mat, x, y, z);
 function gc(g, r, len, mat, x, y, z, axis, seg) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 12), mat); m.position.set(x, y, z); m.castShadow = true;
@@ -211,12 +212,17 @@ function buildGloves(armoured, C) {
 function buildGear() {
   gearParts.forEach(m => m.parent && m.parent.remove(m)); gearParts.length = 0;
   charBloodDirty = true;   // the blood on you is laid again on the new gear next frame (effects/body-blood.js)
-  buildArmor(T('armor'));
   // footwear (the look's own shoes hide under it)
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
   LOOK.g.hat.visible = !S.stubborn && !T('night');   // the helmet, or the night vision's head mount, goes on instead of your hat
+  gearPieces();
+}
+// every item your upgrades put on you, onto whatever PM's parts are (yours, or for a moment a teammate's: gearOnAvatar)
+function gearPieces() {
+  buildArmor(T('armor'));
+  const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   if (bt || thick) buildBoots(bt, thick);
   // Vault fire: hard-shell knee pads on elastic straps
   if (S.vaultMul < 1) [PM.shinL, PM.shinR].forEach(l => {
@@ -327,5 +333,29 @@ function buildGear() {
   // pull apart any flush faces, then fold each item into a mesh or two
   const pieces = []; gearParts.forEach(g => g.traverse(o => { if (o.isMesh) pieces.push(o); }));
   unfight(PM.g, { only: new Set(pieces) });
-  gearParts.forEach(g => mergeInto(g, finePieces(g)));
+  gearList.forEach(g => mergeInto(g, finePieces(g)));
+}
+
+// ---- co-op: a teammate's survivor in the gear they've earned. Your loadout carries what decides it (gearSpec: the
+// tiers and the perks the items come from); their game builds the same items onto their survivor with the same code,
+// their tiers and perks, look and weapons standing in for yours while it runs (net/avatars.js)
+const GEAR_T = ['armor', 'boots', 'night', 'quick', 'eyes', 'hammer'], GEAR_S = ['pouch', 'slowRes', 'stubborn', 'vaultMul', 'healOnKill', 'regen', 'adrenaline', 'secondWind', 'speedMul'];
+const GEAR_PM = ['g', 'upper', 'torso', 'head', 'armL', 'armR', 'shinL', 'shinR'];
+function gearSpec() { const t = {}, s = {}; GEAR_T.forEach(k => { t[k] = T(k) | 0; }); GEAR_S.forEach(k => { s[k] = S[k]; }); return { t, s }; }
+function gearOnAvatar(a, spec, slots, L) {
+  (a.gear || []).forEach(g => g.parent && g.parent.remove(g)); a.gear = [];
+  if (!spec) return;
+  const keep = { S, W8, cur: LOOK.cur, y: LOOK.mirrorY, pm: {} };
+  try {
+    S = Object.assign({}, S, spec.s, { tier: Object.assign({}, S.tier, spec.t) }); W8 = Object.assign({}, W8, { slot: slots || {} });
+    LOOK.cur = L; LOOK.mirrorY = a.mirrorY ?? 0.214; gearList = a.gear;
+    GEAR_PM.forEach(k => { keep.pm[k] = PM[k]; PM[k] = a[k]; });
+    gearPieces();
+  } catch (e) { console.warn('teammate gear', e); }
+  finally { S = keep.S; W8 = keep.W8; LOOK.cur = keep.cur; LOOK.mirrorY = keep.y; gearList = gearParts; GEAR_PM.forEach(k => { PM[k] = keep.pm[k]; }); }
+  // what the gear covers: their shoes under boots, their hat under the helmet or the night vision's mount
+  const t = spec.t, s = spec.s;
+  if (a.shoes) a.shoes.forEach(o => { o.visible = !(t.boots || s.slowRes > 0); });
+  if (a.hat) a.hat.visible = !s.stubborn && !t.night;
+  if (a.pouch2) a.pouch2.visible = !!s.pouch;
 }

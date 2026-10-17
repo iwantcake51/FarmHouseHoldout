@@ -1,5 +1,5 @@
 // Co-op teamwork with scrap. What a kill drops is the killer's alone: it lies on their farm, not their teammates', so
-// nobody races anyone else for it (netAct in net/sync.js keeps scrap out of the drops it sends). Hurting a zombie a
+// nobody races anyone else for it (netAct in net/sync.js sends none of it; an assist gets its own ammo box). Hurting a zombie a
 // teammate then finishes is an assist, paid straight into your scrap (teamAssist). At the strongbox in the house you
 // pick a teammate and an amount and send them scrap (renderGift). And a wave cleared with teammates still on their feet
 // pays a team bonus (teamBonus).
@@ -79,6 +79,7 @@ NET_ON.gift = m => {
 // your share of a zombie (zombies/damage.js counts it as you hurt it); a teammate's kill of one you'd worked on pays you
 function teamAssist(z) {
   if (!netLink() || !(z.myDmg >= z.maxHp * ASSIST_MIN) || run.time - (z.myAt || -99) > ASSIST_T) return;
+  z.assist = true;   // (and if the kill dropped ammo, a box of your own: NET_ON.hit, net/sync.js)
   const n = ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1);
   S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c');
 }

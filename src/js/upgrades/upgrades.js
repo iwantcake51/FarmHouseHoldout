@@ -109,6 +109,13 @@ function giveWeapon(id) {
   W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; delete W8.relSave[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
   equip(s, true);
 }
+// a weapon taken off the cards is set down by your feet in its case, to take with E like one off the radio (takeIt,
+// pickups/pickups.js): you pick when to swap, and what it replaces goes down where you stand. It waits there till you do
+function cardWeapon(id) {
+  const a = P.aim || 0; dropPickup(P.x + Math.sin(a) * 0.9, P.z + Math.cos(a) * 0.9, 'supply', 1, undefined, { kind: 'weapon', id, from: 'card' });
+  pickups[pickups.length - 1].t = Infinity;
+  toast(WEAP[id].name + ' is at your feet', { kind: 'good', icon: 'gear', sub: 'E to pick it up' });
+}
 // weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you
 // can scrape together early (a better melee weapon, a revolver, a machine pistol), 2 real guns (the shotguns, the SMG,
 // the .50, the axe and sledgehammer), 3 heavy ones (the assault rifle, the hunting rifle, the katana) and 4 the top of
@@ -137,7 +144,7 @@ function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= 
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id) * (CARD_RARE[id] || 1), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id) * (CARD_RARE[id] || 1), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => cardWeapon(id) });   // not one that's on its way by radio
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons

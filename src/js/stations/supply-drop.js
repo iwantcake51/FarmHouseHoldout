@@ -78,12 +78,12 @@ function stepFlare(dt) {
   if ((f.smokeT -= dt) <= 0 && k > 0.15) { f.smokeT = 0.09; smoke(f.tip.x + rr(-0.03, 0.03), f.tip.y + 0.05, f.tip.z + rr(-0.03, 0.03), rr(-0.07, 0.07) + 0.12, rr(0.45, 0.75), rr(-0.07, 0.07), 0.05, rr(0.45, 0.8), rr(2.4, 3.4), 0.32 * k, 0xc8463a); }
   if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.18, 0.45); sparkBurst(f.tip.x, f.tip.y + 0.02, f.tip.z, 1 + (rand() * 2 | 0), 0, 0, 0.9); }
 }
-// a weapon off the radio, out of its crate (taken with E: takeIt in pickups/pickups.js, which puts down the one it
+// a weapon off the radio or the cards, out of its case (taken with E: takeIt in pickups/pickups.js, which puts down the one it
 // replaces): it goes into your hands, and the card says what you got
-function deliverWeapon(id) {
+function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
-  gotGear({ ic: 'supply', kind: 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
+  gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
 function updateSupplyDrop(dt) {
   const sp = supplySpot;

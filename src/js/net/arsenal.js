@@ -29,7 +29,7 @@ function myLoadout() {
     guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo };
     const o = STOW[s]; if (o) { stow[s] = stowPose(o); if (o.userData.twin) stow[s + '2'] = stowPose(o.userData.twin); }
   }
-  return { slots: Object.assign({}, W8.slot), guns, stow, hol: LOOK.cur ? LOOK.cur.holster : 0x1d1d1f };
+  return { slots: Object.assign({}, W8.slot), guns, stow, hol: LOOK.cur ? LOOK.cur.holster : 0x1d1d1f, gear: gearSpec() };
 }
 // a short hash of it, sent with every pose, so a teammate who's missing it (or has an old one) asks for it
 let loAt = 0, loKey = '', loNow = null;
@@ -39,7 +39,12 @@ function loadoutTick() {
   if (key !== loKey) { loKey = key; let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0; loNow = { lo, lk: h }; netSend('lo', loNow); }
 }
 NET_ON.loq = m => { if (loNow) netTo(m.f, 'lo', loNow); };
-NET_ON.lo = m => { const p = NET.peers.get(m.f); if (!p) return; p.lo = m.lo; p.lk = m.lk; if (p.av) buildArsenal(p.av, m.lo, m.lk); };
+// (and the gear they've earned on them, built again only when it's changed: gearOnAvatar, player/gear.js)
+NET_ON.lo = m => {
+  const p = NET.peers.get(m.f); if (!p) return; p.lo = m.lo; p.lk = m.lk; if (!p.av) return;
+  buildArsenal(p.av, m.lo, m.lk);
+  const gk = JSON.stringify([m.lo.gear, m.lo.slots]); if (gk !== p.av.gearKey) { p.av.gearKey = gk; gearOnAvatar(p.av, m.lo.gear, m.lo.slots, p.av.look); }
+};
 
 // your weapons this pose: each one out (in the body's own frame), with its moving parts whenever they've changed (and
 // every second regardless, for anyone who's just built your weapons); what's stowed and showing; what's in your hand
@@ -144,6 +149,7 @@ function buildArsenal(a, lo, lk) {
     const holM = lam(lo.hol || 0x1d1d1f), hoodM = lam(shade(lo.hol || 0x1d1d1f, 0.72));
     // to hold: hidden until a pose says it's out
     const h = teamWeapon(gl, id), proto = copyModel(h.g); foldStatic(h.g, h.moving); h.g.visible = false; a.g.add(h.g); a.held[s] = h;
+    h.lasers = []; h.g.traverse(o => { if (o.userData.isLaser) h.lasers.push(o); }); h.laserT = ((gl.gt || {}).laser | 0);   // its laser's lens, shining when it's out (weapons/laser.js)
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
     const place = (at, hand, pose) => {

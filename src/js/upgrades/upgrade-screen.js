@@ -115,7 +115,7 @@ function startCardClock() {
     $('upClockT').textContent = Math.ceil(left); $('upClockBar').style.transform = `scaleX(${(left / CARD_TIME).toFixed(4)})`;
     $('upClock').classList.toggle('warn', left <= CARD_WARN);
     if (left <= 0) {
-      clearInterval(cardClock);
+      clearInterval(cardClock); if (pickWait !== null) return;
       const live = dealt.map((u, i) => i).filter(i => dealt[i]);
       if (live.length) { cardsArmed = true; $('upClock').classList.add('out'); pickCard(live[(Math.random() * live.length) | 0]); }
     }
@@ -174,15 +174,17 @@ function scrapFly(el, n, to) {
   }
 }
 // co-op: once you've chosen, the screen stays up, your card stamped and the rest still lying there, with "Waiting for
-// other players" under them, till every teammate has chosen too (their pose says which wave they last chose for: cw,
-// net/avatars.js); then the rest burn and it goes. Not past PICK_WAIT_MAX seconds after your own clock ran out, for
-// someone who stops answering
+// other players" under them and the clock still running down (the time they have left), till every teammate has chosen
+// too (their pose says which hand they last chose from: cw, net/avatars.js); then the rest burn and it goes. Not past
+// PICK_WAIT_MAX seconds after your own clock ran out, for someone who stops answering. Hands are counted, not waves, so
+// a bonus wave's second hand waits for everyone like the first
+const handNo = () => run.wave * 2 + (bonusHand ? 1 : 0);
 const PICK_WAIT_MAX = 12;
 let pickWait = null, waitClock = 0;
 function settleUpgrade(burn) {
-  run.cardWave = run.wave; netPicked();
+  run.cardHand = handNo(); netPicked();
   if (!netLink() || !netChoosing().length) { leaveUpgrade(burn); return; }
-  pickWait = burn; clearInterval(cardClock);
+  pickWait = burn;
   const el = $('upgrade'); el.classList.remove('armed'); el.classList.add('waiting');
   const tick = () => {
     if (state !== 'upgrade') { clearInterval(waitClock); el.classList.remove('waiting'); pickWait = null; return; }

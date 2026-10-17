@@ -295,10 +295,12 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
     // rounds pays you back a little). Planks are the rarest roll, and the last 6.5% of the roll drops nothing, so a
     // plank comes off about one walker in 26 and bandages about one in 21
     const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
-    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) dropPickup(z.x, z.z, 'ammo', big, curA && rand() < 0.6 ? curA : pick(opts)); }
+    if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) ammoDrop(z.x, z.z, big); }
     else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
   }
 }
+// an ammo box for your guns: most often for the one in your hands
+function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if (opts.length) dropPickup(x, z, 'ammo', amount, curA && rand() < 0.6 ? curA : pick(opts)); }
 // a kill's scrap, into yours there and then (only ever the killer's: a teammate's kill is played back without it,
 // net/sync.js), shown rising off the body and rolled into the counter
 function killScrap(z, n, hoard) {

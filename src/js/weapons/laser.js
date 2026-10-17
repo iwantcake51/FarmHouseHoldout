@@ -64,6 +64,11 @@ function updateLaser(D) {
     const hs = HOLDS[W8.cur], tier = T('laser');
     if (hs && tier > 0 && !D.melee && !scoped) for (const side of ['R', 'L']) { const em = hs[side] && hs[side].userData.laserEm; if (em && em.isObject3D) lens('h' + side, em, tier, used); }
   }
+  // co-op: a teammate's too, on the gun they're holding (their copy of it: net/arsenal.js), wherever it points
+  if (state === 'play') for (const p of netLink() ? NET.peers.values() : []) {
+    const a = p.av; if (!a || !a.held || p.dead) continue;
+    for (const s in a.held) { const h = a.held[s]; if (h.laserT > 0 && h.g.visible) h.lasers.forEach((em, i) => lens('p' + p.id + s + i, em, h.laserT, used)); }
+  }
   beams.forEach((B, k) => { if (!used.has(k)) B.b.visible = B.d.visible = B.lens.visible = false; });
 }
 // one lens: shown only if it is (a gun hidden or put away somewhere out of sight has nothing to shine from)

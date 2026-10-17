@@ -23,7 +23,7 @@ function poseOut(rdt) {
   j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
   const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
-  const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: state === 'upgrade' && pickWait === null ? 1 : 0, cw: run.cardWave | 0, j,
+  const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
     st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()) };   // (hl: healing still to come, the blue on your bar)   // (what the team list shows of you: planks, scrap and kills)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
   ammoOut(msg, now);
@@ -61,18 +61,22 @@ function buildAvatar(p) {
   for (const k in on) { const q = new THREE.Group(); on[k].add(q); groups[k] = q; if (k.startsWith('shin') || k.startsWith('shoe')) q.position.y = -KNEE_Y; }
   const keepG = LOOK.g, keepM = PM.mats, keepY = LOOK.mirrorY;
   try { LOOK.g = groups; PM.mats = Object.assign({}, keepM, mats); buildLook(L); } catch (e) { console.warn('avatar look', e); }
-  finally { LOOK.g = keepG; PM.mats = keepM; LOOK.mirrorY = keepY; }
+  finally { rig.mirrorY = LOOK.mirrorY; LOOK.g = keepG; PM.mats = keepM; LOOK.mirrorY = keepY; }
   // then everything that rides on each joint (the look, the pack, the belt, the pouches) folded into a mesh or two:
   // their colours never change, so it all bakes into one vertex-coloured material per joint (mergeInto,
   // core/geometry.js) and a teammate costs a few dozen draws, not a couple of hundred
-  const joints = new Set(POSE_K.map(k => rig[k]));
-  for (const J of joints) {
-    const parts = []; (function walk(o) { o.children.forEach(c => { if (joints.has(c)) return; if (c.isMesh && c.visible) parts.push(c); else if (!c.isMesh && !c.visible) return; walk(c); }); })(J);
+  // (all but their hat and shoes, which their gear can cover and hide: gearOnAvatar, player/gear.js)
+  const joints = new Set(POSE_K.map(k => rig[k])), own = [groups.hat, groups.shoeL, groups.shoeR], ownSet = new Set(own);
+  rig.hat = groups.hat; rig.shoes = [groups.shoeL, groups.shoeR]; rig.pouch2 = partMap.get(bandPouch2) || null;
+  rig.rolls = bandRolls.map(m => partMap.get(m)).filter(Boolean);   // their bandages in the pouches, one roll each (am[4])
+  for (const J of [...joints, ...own]) {
+    const parts = []; (function walk(o) { o.children.forEach(c => { if (joints.has(c) || (ownSet.has(c) && c !== J)) return; if (!c.visible) return; if (c.isMesh) parts.push(c); walk(c); }); })(J);
     parts.forEach(o => { o.castShadow = true; });
     if (parts.length > 1) mergeInto(J, parts);
   }
   // their weapons, from their loadout (net/arsenal.js), once it's come
-  if (p.lo) buildArsenal(rig, p.lo, p.lk);
+  rig.look = L;
+  if (p.lo) { buildArsenal(rig, p.lo, p.lk); rig.gearKey = JSON.stringify([p.lo.gear, p.lo.slots]); gearOnAvatar(rig, p.lo.gear, p.lo.slots, L); }
   rig.blob = blobShadow(1.15, 0.38);
   // an outline in their colour, and through walls, trees and anything else in the way their shape in it, as your own
   // shows grey (effects/outlines.js)
@@ -124,6 +128,7 @@ function updateAvatars(rdt) {
     const set = (o, n) => { const b = n * 6; o.position.set(c[b], c[b + 1], c[b + 2]); o.rotation.set(c[b + 3], c[b + 4], c[b + 5]); };
     POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
+    if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
     // their footsteps, from their feet: a step every stride's length they cover, a run's when they're moving fast
