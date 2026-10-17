@@ -116,13 +116,17 @@ function splitHead(z, dx, dz) {
 const CRUSH_G = new THREE.BoxGeometry(0.06, 0.03, 0.05), CRUSH_M = [lam(0xd8cdb6), lam(0x7a1410), lam(0x4e0b08), lam(0xc98a86)];
 CRUSH_M.forEach(m => { m.userData.mobile = true; });
 const NECK_PUMP = 2.6;
+const HEAD_MIST = { n: 14, s0: [0.22, 0.34], s1: [0.8, 1.25], life: [1.3, 2.1] };
 function crushHead(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return false;
   z.limbs.head = false; netRec('c');
   head.getWorldPosition(_wB); const x = _wB.x, y = _wB.y, hz = _wB.z;
   head.parent.remove(head); zFree(head); bloodZombie(z, 0.4);
-  // the burst: most of it driven on along the blow, the rest thrown out all round, and a red mist hanging where it was
+  // the burst: most of it driven on along the blow, the rest thrown out all round, and the head gone to a cloud of red
+  // mist where it was (HEAD_MIST: how many puffs, how big they start and swell to, how long it hangs), pushed on a little
+  // along the blow and sinking slowly as it thins
   burst(x, y, hz, 22, 'blood', dx, dz, 3);
+  for (let k = 0; k < HEAD_MIST.n; k++) { const a = rand() * 6.28, sp = rr(0.2, 1.1), u = rand(); fx('redMist', x + Math.sin(a) * 0.1 * u, y + rr(-0.12, 0.12), hz + Math.cos(a) * 0.1 * u, Math.sin(a) * sp + dx * rr(0.4, 1.4), rr(-0.2, 0.7), Math.cos(a) * sp + dz * rr(0.4, 1.4), rr(HEAD_MIST.s0[0], HEAD_MIST.s0[1]), rr(HEAD_MIST.s1[0], HEAD_MIST.s1[1]), rr(HEAD_MIST.life[0], HEAD_MIST.life[1]), rr(0.7, 0.9)); }
   for (let k = 0; k < 8; k++) { const a = k / 8 * 6.28 + rr(-0.3, 0.3); burst(x, y, hz, 4, 'blood', Math.sin(a), Math.cos(a), rr(2.5, 4.5)); }
   for (let k = 0; k < 8; k++) { const a = rand() * 6.28, sp = rr(0.6, 1.8); fx('mist', x + Math.sin(a) * 0.08, y + rr(-0.1, 0.1), hz + Math.cos(a) * 0.08, Math.sin(a) * sp + dx * 0.6, rr(-0.4, 0.6), Math.cos(a) * sp + dz * 0.6, rr(0.12, 0.2), rr(0.7, 1.1), rr(0.5, 0.8), 0.6); }
   // what's left of it: chips of skull, scalp in the zombie's own skin, brains and gore, tumbling off and bleeding as they go
