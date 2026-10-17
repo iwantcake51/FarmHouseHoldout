@@ -27,6 +27,20 @@ function sgRing(r) {
   const dash = (el, gap) => { el.setAttribute('r', r); el.setAttribute('stroke-dasharray', `${(seg - gap).toFixed(2)} ${gap.toFixed(2)}`); el.setAttribute('stroke-dashoffset', (seg - gap / 2).toFixed(2)); };
   dash(xhSgSh, gs); dash(xhSgR, g);
 }
+// flechettes: NEEDLE_N needles, each NEEDLE_LEN long, pointing in to the middle from the spread's edge
+const NEEDLE_N = 8, NEEDLE_LEN = 5, xhFl = $('xhFl');
+xhFl.innerHTML = Array.from({ length: NEEDLE_N }, (_, k) => `<g transform="rotate(${k * 360 / NEEDLE_N})"><line class="flSh" y1="0" y2="${NEEDLE_LEN}"></line><line class="fl" y1="0" y2="${NEEDLE_LEN}"></line></g>`).join('');
+const flNeedles = [...xhFl.children];
+function flRing(r) { flNeedles.forEach((g, k) => g.setAttribute('transform', `rotate(${k * 360 / NEEDLE_N}) translate(0,${-r})`)); }
+// dragon's breath: three arcs, each DB_ARC of its third, centred on the top and the two lower diagonals
+const DB_ARC = 0.42, xhDbSh = $('xhDbSh'), xhDbR = $('xhDbR');
+function dbRing(r) {
+  const seg = 2 * Math.PI * r / 3, top = (Math.PI * r / 6) % seg;   // (the top of the circle, 270° round from its start, within a third)
+  const dash = (el, d) => { el.setAttribute('r', r); el.setAttribute('stroke-dasharray', `${d.toFixed(2)} ${(seg - d).toFixed(2)}`); el.setAttribute('stroke-dashoffset', (d / 2 - top).toFixed(2)); };
+  const d = Math.max(3, seg * DB_ARC); dash(xhDbSh, d + 2.4); dash(xhDbR, d);
+}
+// which reticle a shotgun shows for the shell in it (weapons/rounds.js): slugs the four ticks, like a rifle
+const SG_XH = { std: 'ring', slug: null, flech: 'needle', fire: 'tri' };
 let gapCur = 10, lastGap = -1;
 // the ammo arc (on the right) and the stamina arc (underneath) ride just outside the reticle, so it never reaches into
 // or over them: their radius grows from where they sit when it's tight (aR, sR) to keep a clear gap outside its outer
@@ -59,9 +73,9 @@ function updateCrosshair(rdt, D) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
-    // shotguns get a ring the width of their spread; other guns four ticks
-    const sg = !D.melee && D.ammo === 'shells';
-    $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', !sg); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
+    // shotguns get a ring the width of their spread, drawn by the shell they're loaded with (SG_XH); other guns four ticks
+    const sgk = !D.melee && D.ammo === 'shells' ? SG_XH[roundOn(id)] === undefined ? 'ring' : SG_XH[roundOn(id)] : null, sg = !!sgk;
+    $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', sgk !== 'ring'); xhFl.toggleAttribute('hidden', sgk !== 'needle'); $('xhDb').toggleAttribute('hidden', sgk !== 'tri'); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
     // stamina under the reticle, with any weapon: it shows as soon as you use some (a swing, a shove, a vault) and fades
     // away once it's full again
     {
@@ -113,7 +127,7 @@ function updateCrosshair(rdt, D) {
     const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
-    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
+    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); flRing(gap); dbRing(gap); }
     if (xk !== lastXh) {
       lastXh = xk;
       const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
