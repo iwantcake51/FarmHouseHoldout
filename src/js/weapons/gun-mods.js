@@ -30,13 +30,14 @@ const GUN_MODS = {
   slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires as you pump, so it goes quicker, a touch looser.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
   sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
-  well: { w: 'auto12', r: 'u', name: 'Flared mag well', text: 'Mags slide in faster.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.7; } },
   bolt: { w: 'hunting', r: 'c', name: 'Straight-pull bolt', text: 'A straight pull back and forth: less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.6; } },
   akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)
   navy: { w: 'sub', r: 'u', fm: 'Burst', name: 'Navy trigger group', text: 'Adds a 3-round burst (B switches), quicker and tighter than full auto.', vis: 'A burst-marked selector', stat: D => { D.burst = 3; D.rate = 0.3; D.spread *= 0.75; } },
   gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G fires a grenade, then it recharges.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
+  // a small edge, not a big one: about 8% off a mag change, a few % more a level (weapons/mod-levels.js)
+  well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well, so mag changes go a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder and spreads less.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } }
 };
