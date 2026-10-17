@@ -7,10 +7,13 @@ const camTarget = new V3(P.x, 0, P.z);
 const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
 // firing: each shot kicks three springs, the view tipping (mostly one way, like a gun climbing), pushing back against
 // the aim and punching in a touch; their size follows the gun's power, so a 9mm barely nudges and a rifle thumps
+// The tip is CAM_ROLL of what it once was, and a gun firing fast (auto) only CAM_ROLL_AUTO of that again, since its
+// kicks come too quickly to settle and would otherwise rock the whole view
 const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-function fireCam(pw, aim) {
+const CAM_ROLL = 0.6, CAM_ROLL_AUTO = 0.5;
+function fireCam(pw, aim, auto) {
   const c = camRec, sg = rand() < 0.7 ? 1 : -1;
-  c.vr += sg * pw * rr(0.5, 0.75); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
+  c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
   if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks

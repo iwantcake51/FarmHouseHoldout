@@ -232,7 +232,7 @@ function gunFire(id, D, side) {
   shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);
   const st = stocked(id) ? STOCK.kick : 1;
   const pw = gunPower(D, shots) * st;
-  fireCam(pw, P.aim); bloom = Math.min(18, bloom + D.shake * 34 * st);
+  fireCam(pw, P.aim, fireRate(D) < 0.16); bloom = Math.min(18, bloom + D.shake * 34 * st);
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
   if (!quiet) {
     // flash parented to the gun so it sits on the real muzzle, wherever the animation has the gun
