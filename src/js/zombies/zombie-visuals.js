@@ -13,6 +13,8 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 const RED_NEAR = 4, RED_FAR = 12;
 // the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
 const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
+// how solid (z.vis) a zombie has to be before the rim starts to show, and by when it's full
+const LIGHT_SOLID = [0.6, 0.92];
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
 // standing behind a tree or a wall still reads as in reach; a burning one is orange (BURN_COL)
 const _xrRed = new THREE.Color(0xff3322), _xrSil = new THREE.Color(0xd8382a), _xrGreen = new THREE.Color(REACH_COL), _xrBurn = new THREE.Color(0xff8a1e);
@@ -70,6 +72,8 @@ function updateZombieVisuals(dt, rdt) {
         a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75 * flOn;
       }
       a = Math.max(a, tb * z.vis * 0.75);   // a teammate's light outlines it the same way
+      // only once it's all but solid: through a body still fading in, every box's rim behind it shows (LIGHT_SOLID)
+      a *= smooth(clamp((z.vis - LIGHT_SOLID[0]) / (LIGHT_SOLID[1] - LIGHT_SOLID[0]), 0, 1));
       if (a > 0.01 && !z.lightOl) z.lightOl = outline(z.m.g, 0, 0, 0.022, rimMat(LIGHT_COL));
       if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }
   }
