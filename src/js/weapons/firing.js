@@ -22,19 +22,22 @@ const stocked = id => gunAtt(id, 'stock');
 // than this either side of where it's aimed (about 40°): past a right angle it would go sideways or behind you, and the
 // crosshair (tan of it, ui/crosshair.js) would fold down to nothing
 const SPREAD_MAX = 0.7;
+// a shotgun's pattern stays usable to about 7 m: moving opens it only SG_RUN as much as it does a bullet's, holding the
+// trigger only SG_SPRAY as much, and it never opens past SG_MAX (about 20° either side)
+const SG_RUN = 0.35, SG_SPRAY = 0.4, SG_MAX = 0.35;
 // your pace while a heavy gun's firing (D.heavy, weapons/gun-stats.js): it eases back once you let go (weapons/combat-update.js)
 function heavyFireSlow() { return 1 - (W8.heavyF || 0) * (W8.heavyK || 0); }
 function spreadOf(id) {
   // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
   // less with a sight: D.aimMove), holding the trigger opens it further
   const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id); let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1))) * (1 + (W8.spray || 0) * 1.3);
+  const D = W(id), pel = (D.pellets || 1) > 1; let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1) * (pel ? SG_RUN : 1))) * (1 + (W8.spray || 0) * 1.3 * (pel ? SG_SPRAY : 1));
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
-  return Math.min(s, SPREAD_MAX);
+  return Math.min(s, pel ? SG_MAX : SPREAD_MAX);
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
 // aim), and from there it tightens until, about ten metres out, the shot goes exactly where it's laid. Pellets still
@@ -164,9 +167,9 @@ function gunFire(id, D, side) {
   // into it), as can a body a touch behind the muzzle
   const back = -Math.max(0.3, (ox - P.x) * Math.sin(P.aim) + (oz - P.z) * Math.cos(P.aim) - 0.25);
   // the first round goes exactly where the crosshair sits on a body, and hits that part (only sometimes on the run
-  // from the hip: RUN_MISS)
+  // from the hip: RUN_MISS; a shotgun's pattern always centres on it, as its spread already opens on the move)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
-  if (tgt && !aiming && !scoped && !(P.eye > 0) && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
+  if (tgt && !aiming && !scoped && !(P.eye > 0) && (D.pellets || 1) === 1 && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
   // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
