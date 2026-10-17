@@ -128,6 +128,26 @@ function dkCurve(ts, vs, u, out) {
   for (let c = 0; c < vs[i].length; c++) out[c] = (2 * s3 - 3 * s2 + 1) * vs[i][c] + (s3 - 2 * s2 + s) * h * (m0 ? m0[c] : 0) + (-2 * s3 + 3 * s2) * vs[i + 1][c] + (s3 - s2) * h * (m1 ? m1[c] : 0);
   return out;
 }
+// a draw's keys come at uneven speeds (a long gun barely moves while it's pulled clear, then whips round), so the time
+// through it is mapped onto the distance along its path instead: DRAW_EVEN samples of it, the grip's travel plus its
+// turn (DRAW_TURN metres a radian), and the draw run along that at a pace that eases up from the start and down into
+// the hold (smootherstep), so the gun moves evenly with no lurch partway and no snap at the end
+const DRAW_EVEN = 24, DRAW_TURN = 0.5, _de = { m: new THREE.Matrix4(), p: [], q: [], L: new Float32Array(DRAW_EVEN + 1), s: new V3() };
+function drawEven(x, frameAt) {
+  if (x <= 0 || x >= 1) return x;
+  const L = _de.L; let tot = 0;
+  for (let j = 0; j <= DRAW_EVEN; j++) {
+    const p = _de.p[j] || (_de.p[j] = new V3()), q = _de.q[j] || (_de.q[j] = new THREE.Quaternion());
+    frameAt(j / DRAW_EVEN, _de.m).decompose(p, q, _de.s);
+    if (j) tot += p.distanceTo(_de.p[j - 1]) + DRAW_TURN * q.angleTo(_de.q[j - 1]);
+    L[j] = tot;
+  }
+  if (tot < 1e-4) return x;
+  const want = tot * x * x * x * (x * (x * 6 - 15) + 10);
+  let j = 1; while (j < DRAW_EVEN && L[j] < want) j++;
+  const seg = L[j] - L[j - 1];
+  return (j - 1 + (seg > 1e-6 ? (want - L[j - 1]) / seg : 0)) / DRAW_EVEN;
+}
 function gunDrawFrame(out, slot, stow, live, u) {
   const K = DRAW_KEYS[slot]; if (!K) return blendFrame(out, stow, live, 1 - Math.pow(1 - smooth(u), 1.7));
   const gp = (HOLD[W8.slot[slot]] || HOLD_DEF).grip, G = m => new V3(gp[0], gp[1], gp[2]).applyMatrix4(m);
@@ -181,6 +201,10 @@ function updateSwap(dt, rdt) {
   st.t += dt > 0 ? rdt * S.swapMul / drawMul(W8.slot[st.to]) : 0;   // it holds still while the game is paused (Quick draw speeds it up, a heavy gun slows it)
   const t = st.t, T = SWAP_T, end = st.end;
   if (t >= end) { endSwap(); return; }
+  // the melee pose only turns the weapon in the fist (player/hold.js), so whatever this moved last frame goes back to
+  // the fist first: the hold it's drawn into is then the real one, not last frame's draw, and it lands in it without a
+  // jump when the swap ends (endSwap does the same)
+  gunMeshes.melee.position.set(0, 0, 0.5); gunMeshes.melee.updateMatrix();
   const pm = PM, newMelee = isMelee(st.to), oldMelee = isMelee(st.from);
   // the body eases from the pose you had when the swap began to the new hold's
   { const e = smooth(clamp(t / end, 0, 1)); pm.upper.quaternion.copy(_sw.qa.copy(st.upQ).slerp(pm.upper.quaternion, e)); pm.head.quaternion.copy(_sw.qb.copy(st.headQ).slerp(pm.head.quaternion, e)); }
@@ -228,9 +252,11 @@ function updateSwap(dt, rdt) {
     rigCarry(st.to, rigAt, liveP, k);
     armToward(pm.armR, rQ, rP, rS, u * u); armToward(pm.armL, lQ, lP, lS, u * u);
   } else if (stowNew) {
-    // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch
-    const u = clamp((t - T.cross) / (end - T.cross), 0, 1);
-    const f = newMelee ? meleeDrawFrame(new THREE.Matrix4(), stowNew, live, u, st) : gunDrawFrame(new THREE.Matrix4(), st.to, stowNew, live, u);
+    // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch. Run
+    // at an even pace along its path (drawEven), so it never lurches between its keys or snaps into the hold
+    const frameAt = (uu, out) => newMelee ? meleeDrawFrame(out, stowNew, live, uu, st) : gunDrawFrame(out, st.to, stowNew, live, uu);
+    const u = drawEven(clamp((t - T.cross) / (end - T.cross), 0, 1), frameAt);
+    const f = frameAt(u, new THREE.Matrix4());
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);
       placeAt(gunMeshes.melee, f);
