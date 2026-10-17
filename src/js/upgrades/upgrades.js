@@ -71,7 +71,7 @@ const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
-// tube is what it holds; the tube extension mod is how it takes more), the drum shotgun one: from its box straight to the drum
+// tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum
 const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1 };
 // the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
 // as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that
@@ -107,12 +107,12 @@ function giveWeapon(id) {
 // weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you
 // can scrape together early (a better melee weapon, a revolver, a machine pistol), 2 real guns (the shotguns, the SMG,
 // the .50, the axe and sledgehammer), 3 heavy ones (the assault rifle, the hunting rifle, the katana) and 4 the top of
-// the pile (the drum shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
+// the pile (the auto shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
 // band above it is open it turns up less and less. A weapon better than the one in its slot turns up more, one no
 // better turns up less
 const WEAP_POW = { bat: 0.5, pistol: 1, crowbar: 1, wrench: 1, machete: 1, revolver: 1, smg: 1, dbl: 2, pump: 2, sub: 2, deagle: 2, axe: 2, sledge: 2, ar: 3, hunting: 3, katana: 3, auto12: 4, lmg: 4 };
 const WEAP_OPEN = [0, 1, 5, 8, 11];
-// the heaviest guns turn up less again on top of their rarity: the assault rifle, the LMG and the drum shotgun (the
+// the heaviest guns turn up less again on top of their rarity: the assault rifle, the LMG and the auto shotgun (the
 // guaranteed gun card leans away from them too: dealCards, upgrades/upgrade-screen.js)
 const CARD_RARE = { ar: 0.75, lmg: 0.45, auto12: 0.45 };
 const weapPow = id => id ? WEAP_POW[id] || 1 : 0;

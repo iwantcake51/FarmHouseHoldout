@@ -15,7 +15,7 @@ function freshStats() {
 function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, mods: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, boltOpen: false, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -43,7 +43,8 @@ function recomputeEff() {
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
-    if (D.reload && !D.perShell && !D.speedload && D.mag) { const r = D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)); if (r > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(r); }
+    D.magX = D.mag && WEAP[id].mag ? D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own
+    if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(D.magX);
     if (D.akimbo) D.reload *= AK_ONE;
     D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
@@ -53,9 +54,12 @@ function recomputeEff() {
   }
 }
 const W = id => EFF[id];
-// how much longer a mag change takes for each doubling of the magazine, and one of a pair's reload against a lone gun's
-const MAG_SLOW = 0.3, AK_ONE = 1;
-// how much each magazine tier holds against the gun's own: most guns step up through three, the drum shotgun's one step is
+// a bigger magazine (Extended mags, a drum, a casket, the auto shotgun's drum) has its cost, worse the more it holds over
+// the gun's own: for each doubling a mag change takes MAG_SLOW longer (about +40% for an extended mag, +85% for a drum,
+// +120% for a casket or the auto shotgun's drum), and you walk MAG_WALK slower with it in your hands (about 5%, 10%, 14%:
+// carryMul). AK_ONE: one of a pair's reload against a lone gun's
+const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
+// how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
 const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5] };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
@@ -147,14 +151,16 @@ const hasMod = m => (W8.mods[MODS[m].w] || []).includes(m);
 const held = id => W8.slot[WEAP[id].slot] === id;
 const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 // how the weapon in your hands sets your pace: a blade or a bat is lighter than nothing much (the two-handers less so);
-// primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't count.
+// primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't
+// count, but a bigger magazine than its own slows you with any gun (MAG_WALK)
 function carryMul(id) {
   const D = id && W(id); if (!D) return 1;
   if (D.melee) return D.two ? 1.03 : 1.07;
-  if (D.slot !== 'long' && D.slot !== 'auto') return 1;
+  const big = D.magX > 1.01 ? 1 - MAG_WALK * Math.log2(D.magX) : 1;
+  if (D.slot !== 'long' && D.slot !== 'auto') return big;
   const gt = W8.gt[id] || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] || 0), 0) + (gunAtt(id, 'bayonet') ? 1 : 0);
   const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, magSize(id) / 30 * 0.03);
-  return clamp(1 - cal - mag - att * 0.008, 0.8, 1);
+  return clamp((1 - cal - mag - att * 0.008) * big, 0.7, 1);
 }
 const suppressed = D => !!D.quiet || (T('supp') > 0 && !(D.ammo === 'shells' && T('choke') > 0));
 const suppMul = D => D.quiet ? 1 : suppressed(D) ? [1, 1.1, 1.2, 1.3][T('supp')] : 1;

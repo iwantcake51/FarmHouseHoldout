@@ -22,12 +22,12 @@ const TIERS = {
     { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets.', ap: () => S.rateMul *= 1.2 }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
-    // the drum shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
+    // the auto shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
     // the pump's are its tube extended toward the muzzle, the M60's a longer belt in a deeper box, the SMG's longer
     // curved mags (they used to be mods of their own: weapons/gun-mods.js)
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag', pump: 'Tube extension', lmg: '140-round belt' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum.' : 'More rounds before you reload.', ap: () => S.magMul *= 1.4 },
-    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag', pump: 'Long tube', lmg: '200-round belt', sub: 'Double-stack mags' }, text: 'Twice what it holds stock.', ap: () => S.magMul *= 1.43 },
-    { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag', pump: 'Full-length tube', lmg: '270-round belt' }, text: 'Nearly three times what it holds stock.', ap: () => S.magMul *= 1.35 }] },
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag', pump: 'Tube extension', lmg: '140-round belt' }, rAs: { auto12: 'r' }, text: D => D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum. Mag changes take twice as long, and you walk slower with it.' : 'More rounds before you reload, but mag changes take longer and you walk a little slower.', ap: () => S.magMul *= 1.4 },
+    { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag', pump: 'Long tube', lmg: '200-round belt', sub: 'Double-stack mags' }, text: 'Twice what it holds stock. Slower again to change, and to walk with.', ap: () => S.magMul *= 1.43 },
+    { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag', pump: 'Full-length tube', lmg: '270-round belt' }, text: 'Nearly three times what it holds stock. The slowest to change, and to walk with.', ap: () => S.magMul *= 1.35 }] },
   // the SMG's is the SD's integral can, its barrel swapped for it (weapons/gun-models.js)
   supp: { tag: 'Attachment', t: [
     { r: 'u', name: 'Oil-filter can', as: { sub: 'Integral suppressor' }, text: 'Muffles your shots and adds a little damage. Takes the muzzle.', ap: () => {} },

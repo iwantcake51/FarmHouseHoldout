@@ -343,7 +343,7 @@ function gripMag(g, y, z, tilt, w, h, d) {
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.
 // a shotgun shell's hull by the kind loaded (weapons/rounds.js): flechettes white, dragon's breath orange, slugs blue,
-// buckshot red. Everywhere a shell shows: the pump's side saddle, a band round the drum shotgun's mag, the shells in the
+// buckshot red. Everywhere a shell shows: the pump's side saddle, a band round the auto shotgun's mag, the shells in the
 // hand as they're fed in (player/hold.js), the chest rig's shell pouch (player/gear.js), the hulls thrown out
 // (SHELL_HULL, weapons/casings.js) and the HUD's shells (#rounds.rflech and the rest, styles/hud-weapon.css)
 const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };

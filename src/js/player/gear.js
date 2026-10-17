@@ -104,7 +104,7 @@ function buildArmor(ar) {
 // a handgun, with a divider), each held by a shock cord over its plate down to a pull tab; the revolver's speed loader;
 // shotgun shells brass up through an elastic loop; rifle rounds tip up; or a fold of the machine gun's belt. Each mag
 // is the gun's own: the AR's grey STANAG with its two pressed ribs, the MP5's curved steel one, the MP9's polymer one
-// with its count windows, the drum shotgun's box, the pistol's polymer one with its flared base, the hand cannon's steel
+// with its count windows, the auto shotgun's box, the pistol's polymer one with its flared base, the hand cannon's steel
 const POUCH_FILL = {
   ar: { k: 'mag', w: 0.082, h: 0.092, d: 0.03, body: 'magAl', plate: 'metal2', ribs: 2, tilt: 0.07 },
   sub: { k: 'mag', w: 0.062, h: 0.09, d: 0.024, body: 'metal', plate: 'metal', ribs: 2, tilt: 0.2 },
