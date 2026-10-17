@@ -292,18 +292,19 @@ function tapeWrap(g, x, y, z, r, tx, ty, sx) {
 const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
 function guard(g, y, z0, z1, mat) { box(g, 0.016, 0.012, z1 - z0, mat, X, y, (z0 + z1) / 2); box(g, 0.016, 0.05, 0.012, mat, X, y + 0.025, z1); box(g, 0.009, 0.034, 0.01, GM.metal2, X, y + 0.025, z0 + (z1 - z0) * 0.45).rotation.x = 0.25; }
 // the MP5's 50-round drum: a short feed tower out of the well, slanting forward as the stick curves, into a round
-// drum lying across the gun under it, its two shells meeting at a raised seam, a hub each side and a winding key on the
-// left one
+// drum under it facing forward, as drums do (its round faces to the front and back, along the barrel): its two shells
+// meeting at a raised seam, a hub on each face and the winding key on the front one
 function mp5Drum(mg, K) {
   solid(mg, [[0.7225, 1.0578], [0.7879, 1.0573], [0.7887, 1.0528], [0.7859, 1.0474], [0.7965, 1.0], [0.8135, 0.958], [0.762, 0.958], [0.745, 1.0183], [0.738, 1.0315], [0.7271, 1.0286]], 0.026, K, X, 0.004);   // the feed tower
-  const cz = 0.835, cy = 0.885, R = 0.082, W = 0.074;   // (ahead of the well, the way the stick curves forward)
-  cyl(mg, R, W, K, X, cy, cz, 28).rotation.set(0, 0, Math.PI / 2);                                       // the drum
-  cyl(mg, R + 0.003, 0.012, GM.metal2, X, cy, cz, 28).rotation.set(0, 0, Math.PI / 2);                     // the seam between its shells
+  const cz = 0.79, cy = 0.885, R = 0.074, D = 0.085;   // (centred under the tower, its axis along the gun)
+  const along = m => { m.rotation.set(Math.PI / 2, 0, 0); return m; };
+  along(cyl(mg, R, D, K, X, cy, cz, 28));                                                        // the drum
+  along(cyl(mg, R + 0.003, 0.012, GM.metal2, X, cy, cz, 28));                                    // the seam between its shells
   [-1, 1].forEach(s => {
-    cyl(mg, R * 0.72, 0.004, GM.metal2, X + s * (W / 2 + 0.001), cy, cz, 24).rotation.set(0, 0, Math.PI / 2);   // the pressed face
-    cyl(mg, 0.02, 0.012, GM.metal2, X + s * (W / 2 + 0.005), cy, cz, 14).rotation.set(0, 0, Math.PI / 2);     // the hub
+    along(cyl(mg, R * 0.72, 0.004, GM.metal2, X, cy, cz + s * (D / 2 + 0.001), 24));             // the pressed face
+    along(cyl(mg, 0.019, 0.012, GM.metal2, X, cy, cz + s * (D / 2 + 0.005), 14));                // the hub
   });
-  const key = box(mg, 0.006, 0.05, 0.012, GM.steel, X - W / 2 - 0.013, cy, cz); key.rotation.x = 0.6;          // the winding key
+  const key = box(mg, 0.05, 0.012, 0.006, GM.steel, X, cy, cz + D / 2 + 0.013); key.rotation.z = 0.6;   // the winding key, on the front
 }
 // the MP5 (sub, below), built round on the lines traced off its side photo: the barrel's axis (ax), the cocking tube's
 // axis and radius (ct), the receiver's half width, top and bottom (rw, top, bot) and where it ends at the front
