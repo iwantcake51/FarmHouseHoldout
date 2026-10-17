@@ -33,7 +33,19 @@ function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
 // (on top of what audio/spatial.js takes off for everything): down to wide of themselves at ZOOM_MIN
 const ZSTEP = { near: 2, far: 6, level: 0.4, gap: 0.25, max: 3, wide: 0.3 };
 const zStepT = [];
+// a brute's foot coming down: a scuff of dust under it you can see, and, close by, the ground thumping through the view
+// (BRUTE_STEP: full shake within near metres, none past far)
+const BRUTE_STEP = { near: 2.5, far: 7, shake: 0.2, dust: 0.25 };
+function bruteStep(z) {
+  z.footSide = -(z.footSide || 1);
+  const f = z.face || 0, s = 0.17 * z.T.scale * z.footSide, fx = z.x + Math.cos(f) * s, fz = z.z - Math.sin(f) * s;
+  if (z.vis > 0.3) groundDust(fx, fz, BRUTE_STEP.dust, 0, 0);
+  if (P.dead) return;
+  const k = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - BRUTE_STEP.near) / (BRUTE_STEP.far - BRUTE_STEP.near), 0, 1));
+  if (k > 0) shake = Math.max(shake, BRUTE_STEP.shake * k);
+}
 function zombieStep(z) {
+  if (z.type === 'brute' && !z.crawl) bruteStep(z);
   if (P.dead || !AC) return;
   const d = Math.hypot(z.x - P.x, z.z - P.z); if (d > ZSTEP.far) return;
   const now = AC.currentTime; while (zStepT.length && now - zStepT[0] > ZSTEP.gap) zStepT.shift();

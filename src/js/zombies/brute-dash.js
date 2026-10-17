@@ -10,6 +10,9 @@
 // one while it can; cd: the wait after one (seconds); wind: the crouch; speed, over: how fast it goes, and how far past
 // where you stood; rec: the stumble to a halt after; w: the stripe's width; dmg, stun, kb: what it does to you
 const BDASH = { wave: 8, min: 4.5, max: 13, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
+// running into a wall: stunned for stun seconds (reeling, its head lolling), a cloud of dust and smoke thrown up off the
+// wall, and the view shaken by up to shake, in full within near metres and trailing off to nothing at far
+const BDASH_WALL = { stun: 2.4, shake: 0.6, near: 3, far: 11 };
 // the stripe is drawn by a shader (DASH_VS, DASH_FS): a soft red lane with brighter edges, chevrons streaming along it
 // the way it'll come, an arrow point at the far end, and a fill that runs out from the brute as the crouch counts down.
 // It unrolls out of the brute's feet (grow) as it widens in with a little overshoot, flashes as the charge starts,
@@ -104,17 +107,27 @@ function dashStep(z, dt, pup) {
         if (q.dead || d.hit.has(q.id || 'me')) continue;
         if (Math.hypot(q.x - z.x, q.z - z.z) < z.T.r + 0.45) { d.hit.add(q.id || 'me'); if (q.me) dashHit(z, d.dx, d.dz); else netSend('zdh', { id: z.id, h: q.id, dx: nr(d.dx), dz: nr(d.dz) }); }
       }
-      if (moved < step * 0.4 && step > 0.01) d.gone = d.L;   // ran into something
+      if (moved < step * 0.4 && step > 0.01) { d.gone = d.L; d.wall = true; }   // ran into something
     } else d.gone += step;
     if (rand() < dt * 18) burst(z.x - d.dx * 0.4, 0.1, z.z - d.dz * 0.4, 1, 'dust', -d.dx, -d.dz, 1.4);
     if (d.gone >= d.L - 1e-3) {   // pulling up: it skids to a halt in a spray of dirt
-      d.ph = 'rec'; d.t = 0; shake = Math.max(shake, 0.25 * clamp(1 - Math.hypot(P.x - z.x, P.z - z.z) / 10, 0, 1)); soundAt(z.x, z.z, () => SFX.thud(), true);
-      burst(z.x + d.dx * 0.5, 0.1, z.z + d.dz * 0.5, 9, 'dust', d.dx, d.dz, 2.2);
+      d.ph = 'rec'; d.t = 0; d.recT = d.wall ? BDASH_WALL.stun : BDASH.rec; soundAt(z.x, z.z, () => SFX.thud(), true);
+      const pd = Math.hypot(P.x - z.x, P.z - z.z);
+      if (d.wall) { if (!P.dead) shake = Math.max(shake, BDASH_WALL.shake * (1 - smooth(clamp((pd - BDASH_WALL.near) / (BDASH_WALL.far - BDASH_WALL.near), 0, 1)))); dashWallFx(z, d); }
+      else { shake = Math.max(shake, 0.25 * clamp(1 - pd / 10, 0, 1)); burst(z.x + d.dx * 0.5, 0.1, z.z + d.dz * 0.5, 9, 'dust', d.dx, d.dz, 2.2); }
     }
     return true;
   }
-  if (d.t >= BDASH.rec) { z.dash = null; z.dashCd = rr(BDASH.cd[0], BDASH.cd[1]); return false; }
+  if (d.t >= (d.recT || BDASH.rec)) { z.dash = null; z.dashCd = rr(BDASH.cd[0], BDASH.cd[1]); return false; }
   return true;
+}
+// slamming into a wall: dust and grit blown out off it and back along the run, a ring of it along the ground, and a slow
+// cloud of smoke rolling up where it hit
+function dashWallFx(z, d) {
+  const wx = z.x + d.dx * z.T.r, wz = z.z + d.dz * z.T.r;
+  burst(wx, 0.6, wz, 14, 'dust', -d.dx, -d.dz, 3); groundDust(wx, wz, 1, -d.dx, -d.dz);
+  for (let k = 0; k < 18; k++) fx('smoke', wx + rr(-0.6, 0.6), rr(0.2, 1.8), wz + rr(-0.6, 0.6), -d.dx * rr(0.3, 1.4) + rr(-0.7, 0.7), rr(0.3, 1.2), -d.dz * rr(0.3, 1.4) + rr(-0.7, 0.7), rr(0.5, 0.8), rr(2, 3.2), rr(2, 3.2), rr(0.7, 0.9));
+  for (let k = 0; k < 16; k++) fx('dust', wx + rr(-0.4, 0.4), rr(0.3, 1.9), wz + rr(-0.4, 0.4), -d.dx * rr(1, 2.8) + rr(-1.2, 1.2), rr(-0.2, 0.9), -d.dz * rr(1, 2.8) + rr(-1.2, 1.2), rr(0.3, 0.5), rr(1.1, 1.8), rr(1, 1.6), rr(0.6, 0.85));
 }
 // caught by it: a hit as hard as a brute's swing, flung along its line and out to the side you were on, stunned for
 // a second and concussed
@@ -146,8 +159,13 @@ function zDashPose(z, a, T, K) {
     zBoost(K, ['rx', 'ux', 'hx', 'alx', 'arx'], 2.4);
   } else {
     // the skid: thrown back on its heels, the arms out for balance, then it straightens and turns on
-    const k = 1 - smooth(Math.min(1, d.t / BDASH.rec)), j = Math.min(1, d.t / 0.15);
-    zMix(T, { y: -0.12, rx: -0.22, ux: -0.25, hx: 0.2, alx: -0.9, arx: -0.9, alz: 0.55, arz: -0.55, klx: 0.6, krx: 0.6, llx: 0.35, lrx: 0.25 }, k * j);
+    const R = d.recT || BDASH.rec, j = Math.min(1, d.t / 0.15);
+    if (!d.wall) { const k = 1 - smooth(Math.min(1, d.t / R)); zMix(T, { y: -0.12, rx: -0.22, ux: -0.25, hx: 0.2, alx: -0.9, arx: -0.9, alz: 0.55, arz: -0.55, klx: 0.6, krx: 0.6, llx: 0.35, lrx: 0.25 }, k * j); return; }
+    // off a wall: knocked back off it, then stood reeling, slumped with the arms hanging and the head lolling round, till it
+    // shakes it off over the last half second
+    const back = 1 - smooth(clamp((d.t - 0.1) / 0.4, 0, 1)), daze = smooth(clamp((d.t - 0.15) / 0.35, 0, 1)) * (1 - smooth(clamp((d.t - (R - 0.5)) / 0.5, 0, 1))), w = d.t * 3.2;
+    zMix(T, { y: -0.12, rx: -0.3, ux: -0.3, hx: 0.3, alx: -0.9, arx: -0.9, alz: 0.55, arz: -0.55, klx: 0.6, krx: 0.6, llx: 0.35, lrx: 0.25 }, back * j);
+    zMix(T, { y: -0.1, rx: 0.25 + Math.sin(w * 0.7) * 0.06, ux: 0.3, uz: Math.sin(w * 0.5) * 0.12, hx: 0.45 + Math.sin(w) * 0.15, hz: Math.cos(w * 0.9) * 0.3, alx: 0.15, arx: 0.1, alz: 0.12, arz: -0.12, elL: -0.25, elR: -0.3, klx: 0.35, krx: 0.25 }, daze);
   }
 }
 // zombie hits harden as the waves go on: ZDMG_WAVE more a wave past the first (wave 10 about +27%, wave 20 +57%)
