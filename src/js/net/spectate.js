@@ -16,6 +16,15 @@ function camFocus() {
   return first || P;
 }
 const spectating = () => camFocus() !== P;
+// whose eyes the screen sees through: yours, or watching a teammate, theirs: where they stand and look, how wide they see
+// round them (Wide eyes) and their night vision, sent with their pose (vw: net/avatars.js). The fog of war
+// (lighting/vision.js) and night vision (lighting/lightmap.js, day-night.js) read it
+const _view = { x: 0, z: 0, aim: 0, cone: 1.2, near: 2.4, nv: 0, night: 0 };
+function viewer() {
+  const f = camFocus();
+  if (f === P || !f.vw) return Object.assign(_view, { x: P.x, z: P.z, aim: P.aim, cone: S.cone, near: S.near, nv: S.nightVis || 0, night: T('night') || 0 });
+  return Object.assign(_view, { x: f.x, z: f.z, aim: f.vw[0], cone: f.vw[1], near: f.vw[2], nv: f.vw[3], night: f.vw[4] });
+}
 // step to the next teammate still standing (dir 1) or the one before (-1), round and round
 function specStep(dir) {
   const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined).sort((a, b) => a.idx - b.idx);

@@ -4,22 +4,23 @@
 let visKey = '', visAge = 0;
 function computeVision(on) {
   let bsum = 0; for (const o of openings) bsum = bsum * 4 + o.boards.length;
-  const key = on ? [Math.round(P.x * 16), Math.round(P.z * 16), Math.round(P.aim * 48), S.cone, S.near, bsum].join(',') : 'off';
+  const V = viewer();   // (you, or the teammate you're watching: net/spectate.js)
+  const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), Math.round(V.aim * 48), V.cone, V.near, bsum].join(',') : 'off';
   visAge += 0.07; if (key === visKey && visAge < 0.6) return;
   visKey = key; visAge = 0;
-  const HALFCONE = S.cone, NEAR = S.near;
+  const HALFCONE = V.cone, NEAR = V.near;
   // standing at a window or the door, you can look out through it even when the line from your eyes clips the frame
   let peek = null, pd = 2.1;
-  for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (d < pd) { pd = d; peek = o; } }
-  const peekSide = peek ? Math.sign((P.x - peek.x) * peek.nx + (P.z - peek.z) * peek.nz) || 1 : 0;
+  for (const o of openings) { const d = Math.hypot(o.x - V.x, o.z - V.z); if (d < pd) { pd = d; peek = o; } }
+  const peekSide = peek ? Math.sign((V.x - peek.x) * peek.nx + (V.z - peek.z) * peek.nz) || 1 : 0;
   for (let b = 0; b < FN; b++) {
     const wz = sampleX(b);
     for (let a = 0; a < FN; a++) {
       const k = b * FN + a;
       if (!on) { visTgt[k] = 1; continue; }
-      const wx = sampleX(a), dx = wx - P.x, dz = wz - P.z, d = Math.hypot(dx, dz);
-      let v = d < NEAR ? 1 : clamp((HALFCONE - Math.abs(angDiff(Math.atan2(dx, dz), P.aim))) / 0.18, 0, 1);
-      if (v > 0 && d > 0.7 && !los(P.x, P.z, wx, wz)) {
+      const wx = sampleX(a), dx = wx - V.x, dz = wz - V.z, d = Math.hypot(dx, dz);
+      let v = d < NEAR ? 1 : clamp((HALFCONE - Math.abs(angDiff(Math.atan2(dx, dz), V.aim))) / 0.18, 0, 1);
+      if (v > 0 && d > 0.7 && !los(V.x, V.z, wx, wz)) {
         const nb = peek ? peek.boards.length : 0, far = peek ? Math.hypot(wx - peek.x, wz - peek.z) : 0;
         // through the gaps between heavy boards you only make out what's close to the window
         if (peek && ((wx - peek.x) * peek.nx + (wz - peek.z) * peek.nz) * peekSide < -0.3 && (nb < 2 || far < 5.5) && los(peek.x - peek.nx * peekSide * 0.45, peek.z - peek.nz * peekSide * 0.45, wx, wz)) v *= nb === 0 ? 1 : nb === 1 ? 0.9 : nb === 2 ? 0.8 : 0.7;

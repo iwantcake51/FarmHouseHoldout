@@ -39,7 +39,8 @@ function computeLight() {
   // night vision lifts the dark (NV_MONO of a light's worth for each of S.nightVis) without lighting it, so it stays
   // mostly black and white: the monocular brings back a little of its colour, the goggles more, never all of it
   // (NV_SAT by step; uNvMono, uNvSat in core/shaders.js)
-  LMU.uNvMono.value = on ? S.nightVis * dark * NV_MONO : 0; LMU.uNvSat.value = on ? NV_SAT[T('night')] || 0 : 0;
+  const V = viewer();   // (watching a teammate, their night vision: net/spectate.js)
+  LMU.uNvMono.value = on ? V.nv * dark * NV_MONO : 0; LMU.uNvSat.value = on ? NV_SAT[V.night] || 0 : 0;
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
   if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
@@ -55,7 +56,7 @@ function computeLight() {
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
   }
-  computeVision(on && !P.dead);   // as you die the fog of war lifts and every zombie fades into view
+  computeVision(on && (!P.dead || spectating()));   // as you die the fog of war lifts and every zombie fades into view, till you're watching a teammate: then it's theirs
 }
 // the flashlight isn't in the light map: the lit shader draws it per pixel (core/shaders.js, flCone), set here every
 // frame so it swings round with you smoothly. An akimbo pair has one on each gun, each a cone of its own from that gun,
@@ -159,7 +160,7 @@ function updateLightmap(rdt) {
   flashUniforms(rdt);
   for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); lmT = 0; } }
   lmT -= rdt; if (lmT <= 0) { computeLight(); lmT = 0.07; }
-  const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead ? 1.1 : 9));
+  const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead && !spectating() ? 1.1 : 9));
   for (let k = 0; k < FNN; k++) {
     for (let c = 0; c < 3; c++) { const i = k * 3 + c, t = lmTgt[i], cur = lmCur[i]; const n = lmCur[i] = cur + (t - cur) * (t > cur ? up : down); lmData[k * 4 + c] = n >= 2 ? 255 : n * 127.5; }
     const v = visCur[k] += (visTgt[k] - visCur[k]) * vk; lmData[k * 4 + 3] = v * 255;
