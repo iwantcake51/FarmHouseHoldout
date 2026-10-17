@@ -32,7 +32,8 @@ function updateZombieVisuals(dt, rdt) {
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
     updateZombieStain(z.stain, rdt, dt);
-    const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
+    // (and in co-op, picked out by a teammate's light even where you can't see: teamBeam, lighting/lightmap.js)
+    const tb = state === 'title' ? 0 : teamBeam(z), v = state === 'title' ? 1 : Math.max(visAt(z.x, z.z) * fogSee(z.x, z.z), tb);   // and out past the edge, only as it comes clear of the fog
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
@@ -68,6 +69,7 @@ function updateZombieVisuals(dt, rdt) {
         const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), P.aim));
         a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75 * flOn;
       }
+      a = Math.max(a, tb * z.vis * 0.75);   // a teammate's light outlines it the same way
       if (a > 0.01 && !z.lightOl) z.lightOl = outline(z.m.g, 0, 0, 0.022, rimMat(LIGHT_COL));
       if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }
   }

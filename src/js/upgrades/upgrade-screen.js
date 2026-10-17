@@ -126,7 +126,8 @@ function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
   const u = dealt[i], c = u.shown; cardsArmed = false;
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
-  u.ap(); buildGuns(); gunGlow = 1; SFX.upgrade();
+  u.ap(); buildGuns(); SFX.upgrade();
+  if (u.weaponOf || ((u.target || u.modOf) && (u.target || u.modOf) === curId())) gunGlow = 1;   // the gun in your hands glows only if the card did something to it (a body perk doesn't)
   P.wraps = 0;   // the wave's bandages come off your arm while the cards are covering you
   // in the history: what it was and, for one that went on a gun, which gun (by its plain name: your pistol, not your 9mm)
   { const nm = u.weaponOf ? WEAP[u.weaponOf].name : c.name, on = u.target ? 'On your ' + gunCall(u.target) : '', prev = run.taken.find(h => h.name === nm && (h.on || '') === on), total = st ? stackTotal(c.name, before) : '';

@@ -464,7 +464,7 @@ function cylHeads(cr, id) {
   }
 }
 // a round in the support hand while it's fed in by hand: up to three shotgun shells (one, both side by side for the
-// double barrel's Sleight of Hand, or three in a row down the palm for the pump's Triple Load, thumbed up into the
+// double barrel's Sleight of Hand, or two or three in a row down the palm for the pump with Quick hands II or III, thumbed up into the
 // tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1, 2].map(() => { const g = new THREE.Group(); cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
 const HSH_GAP = 0.026, HSH_FEED = [0.62, 0.72];   // shells' spacing in the hand; when a row of them is thumbed in, one after another

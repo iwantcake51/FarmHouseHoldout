@@ -9,7 +9,7 @@ const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // cheapest, the cans and the scope dearest, and each step up costs a bit more than the last without running away
 const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18, 22, 26], laser: [10, 14], light: [8, 12], loader: [12] };
 // how many steps a line has on this gun: the scopes only on the rifles and the revolver, as far as SCOPE_TOP says, the mags as far as MAG_STEPS says, the revolver
-// has one speed loader, the double barrel one Sleight of Hand and the pump one Triple Load (TIERS.loader has one step)
+// has one speed loader and the double barrel one Sleight of Hand (TIERS.loader has one step)
 function tierMax(k, id) {
   const n = TIERS[k].t.length;
   if (k === 'sight') return SCOPE_TOP[id] || 2;
@@ -28,13 +28,13 @@ function attachmentCards() {
     out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
-  // rounds for the gun in your hands: every kind it takes, only one loaded at a time (weapons/rounds.js). One you don't
-  // have yet is bought and loaded; one you have is loaded for nothing (X swaps between them in the field); the one in
-  // the gun shows as loaded. Plain rounds only show once there's something else to go back from
-  const on = roundOn(id), types = roundTypes(id), owns = types.filter(k => roundOwned(id, k));
+  // rounds for the gun in your hands: every kind it takes that you don't have yet, bought and loaded (only one kind is
+  // loaded at a time: weapons/rounds.js). The ones you own aren't sold again: you load them for nothing from the panel
+  // beside the bench (ui/loadout.js), or X swaps between them in the field
+  const on = roundOn(id), types = roundTypes(id);
   for (const k of types) {
-    if (k === 'std' && owns.length < 2) continue;
-    const own = roundOwned(id, k), nm = roundName(id, k), txt = roundText(id, k);
+    if (roundOwned(id, k)) continue;
+    const own = false, nm = roundName(id, k), txt = roundText(id, k);
     out.push({ ic: 'ammo', group, for: () => forYour(id), fx: () => k === roundOn(id) ? [] : roundFx(id, k), cost: own ? 0 : ROUNDS[k].cost,
       title: () => (k === on ? 'Loaded: ' : own ? 'Load ' : '') + nm, desc: () => txt + (own || k === 'std' ? '' : ' · One kind loaded at a time'), why: () => k === roundOn(id) ? 'Loaded' : '',
       make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); gunGlow = 1; feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });

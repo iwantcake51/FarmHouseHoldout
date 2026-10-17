@@ -1,10 +1,11 @@
 // Boarding, station prompts and the on-screen hint.
 
-// boarding under attack without a hammer is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed, unless
-// you've got any of the hammer line (upgrades/tier-table.js). In the break between waves there's time to do it properly
-const BOARD_WAVE = 0.3;
-const boardSlow = () => phase === 'wave' && !T('hammer');
-const boardRate = () => S.boardSpeed * (boardSlow() ? BOARD_WAVE : 1);
+// boarding under attack is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed. The hammer line
+// (upgrades/tier-table.js: S.boardSpeed) speeds it up in full in the break between waves, when there's time to do it
+// properly; mid-wave only to the power BOARD_TOOL of it, so even the nail gun is quicker but never instant (about 0.9 of
+// the break's bare-handed speed)
+const BOARD_WAVE = 0.3, BOARD_TOOL = 0.6;
+const boardRate = () => phase === 'wave' ? BOARD_WAVE * Math.pow(S.boardSpeed, BOARD_TOOL) : S.boardSpeed;
 // an opening you could board up right now (holding F boards it)
 function boardable(o) { return !!(o && o.boards.length < 3 && S.planks > 0 && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault); }
 // tearing a board down yourself (hold C, or the touch Tear button): one board a TEAR_T hold, the one on top first, with
@@ -40,7 +41,7 @@ function updateInteractions(dt) {
       if (vaultTarget(o)) rows.push(row('Space', 'Climb through the window'));
       if (o.boards.length >= 3) rows.push(`<div class="pr off"><span>The ${what} is fully boarded</span></div>`);
       else if (S.planks <= 0) rows.push('<div class="pr off"><span>No planks left. Cut some at the sawhorse.</span></div>');
-      else rows.push(row('Hold F', `Board up the ${what}`, `<em>${o.boards.length}/3${boardSlow() ? ' · slow without a hammer' : ''}</em>`));
+      else rows.push(row('Hold F', `Board up the ${what}`, `<em>${o.boards.length}/3</em>`));
       if (o.boards.length) rows.push(row('Hold C', 'Tear a board down'));
     }
     setH('pRows', rows.join(''));

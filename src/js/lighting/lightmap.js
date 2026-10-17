@@ -59,21 +59,55 @@ function computeLight() {
 }
 // the flashlight isn't in the light map: the lit shader draws it per pixel (core/shaders.js, flCone), set here every
 // frame so it swings round with you smoothly. An akimbo pair has one on each gun, each a cone of its own from that gun,
-// a bit dimmer apiece. FLASH: each tier's reach, half-angle and strength
+// a bit dimmer apiece. In co-op each teammate's light is drawn the same way, from their survivor along where they're
+// aiming, while their pose says it's on (p.fl: its tier and their aim, myLight, net/avatars.js), up to FL_N beams in
+// all. FLASH: each tier's reach, half-angle and strength
 const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
 // the light is on the gun, so it's only on while the gun's out in your hands: put away for a vault (without Vault fire)
 // it goes off, and it comes back on as the gun's drawn again, once the hand has it (SWAP_T.cross, player/swap.js).
 // flOn eases it off and on over a few frames, like a switch clicked
 let flOn = 0;
 const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
+// the tier of your light while it's on (0 when it isn't), for your teammates (sent with your pose: net/avatars.js)
+function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
+const FL_N = 6, teamFl = [];   // (teamFl: this frame's teammate lights, { x, z, dir, tier, on }: teamBeam)
 function flashUniforms(rdt) {
-  const K = LMU.uFlK.value, F = FLASH[T('light')], D = W(curId());
+  const F = FLASH[T('light')], D = W(curId()), cones = [], dark = state !== 'title' && curDark > 0.05;
   flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0;
-  if (!F || state === 'title' || curDark <= 0.05 || !D || D.melee || flOn <= 0) { K.z = 0; return; }
-  const [lr, half, k] = F, li = k * curDark * flOn;
-  if (D.akimbo && !P.vault) { [-1, 1].forEach((sg, i) => { const mz = muzzle(sg); LMU.uFl.value[i].set(mz.ox, mz.oz, Math.sin(mz.a), Math.cos(mz.a)); flashShadows(i, mz.ox, mz.oz, mz.a, half * 0.9, lr); }); K.set(lr, half * 0.9, li * 0.62, 2); }
-  else { LMU.uFl.value[0].set(P.x, P.z, Math.sin(P.aim), Math.cos(P.aim)); flashShadows(0, P.x, P.z, P.aim, half, lr); K.set(lr, half, li, 1); }
-  flShTex.needsUpdate = true;
+  if (dark && F && D && !D.melee && flOn > 0) {
+    const [lr, half, k] = F, li = k * curDark * flOn;
+    if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62]); });
+    else cones.push([P.x, P.z, P.aim, lr, half, li]);
+  }
+  // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
+  teamFl.length = 0;
+  if (netLink()) for (const p of NET.peers.values()) {
+    const a = p.av, t = p.fl ? p.fl[0] : 0, Fp = FLASH[t];
+    if (!Fp || !a || !a.g.visible || p.dead) { p.flOn = 0; continue; }
+    p.flOn = Math.min(1, (p.flOn || 0) + (rdt || 0) * 14);
+    p.flA = p.flA === undefined ? p.fl[1] : p.flA + angDiff(p.fl[1], p.flA) * Math.min(1, (rdt || 0) * 14);
+    const x = a.g.position.x, z = a.g.position.z;
+    teamFl.push({ x, z, dir: p.flA, tier: t, on: p.flOn });
+    if (dark && cones.length < FL_N) cones.push([x, z, p.flA, Fp[0], Fp[1], Fp[2] * curDark * p.flOn]);
+  }
+  LMU.uFlK.value.w = cones.length;
+  cones.forEach((c, i) => { LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
+  if (cones.length) flShTex.needsUpdate = true;
+}
+// how strongly a teammate's light picks a zombie out (0 to 1): in the middle of their beam and in its reach, with
+// nothing in the way; it shows you that zombie even outside your own sight, and outlines it as your own light would
+// (zombies/zombie-visuals.js, LIGHT_OL)
+function teamBeam(z) {
+  if (!teamFl.length || curDark <= 0.05) return 0;
+  let b = 0;
+  for (const c of teamFl) {
+    const L = LIGHT_OL[c.tier]; if (!L) continue;
+    const dx = z.x - c.x, dz = z.z - c.z, d = Math.hypot(dx, dz); if (d > L.r) continue;
+    const off = Math.abs(angDiff(Math.atan2(dx, dz), c.dir));
+    const s = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, curDark * 1.6) * c.on;
+    if (s > b && los(c.x, c.z, z.x, z.z)) b = s;
+  }
+  return b;
 }
 // the flashlight's shadows: rays cast out from each beam's lens across its cone every frame (FL_RAYS a beam, spread a
 // little wider than the cone), each stopping where it meets something that stops sight (a wall, a tall prop, a window
@@ -82,11 +116,10 @@ function flashUniforms(rdt) {
 // keeps how far out it crossed the line of the first window it went through (or where it stopped, if sooner): the
 // shader lets the beam on past that line only between the sill and the head, so it doesn't light the ground just
 // outside under the sill or the top of the wall over it
-const FL_RAYS = 256, FL_PAST = 0.4, flSh = new Uint8Array(FL_RAYS * 2 * 4), flShTex = new THREE.DataTexture(flSh, FL_RAYS, 2, THREE.RGBAFormat);
+const FL_RAYS = 256, FL_PAST = 0.4, flSh = new Uint8Array(FL_RAYS * 6 * 4), flShTex = new THREE.DataTexture(flSh, FL_RAYS, 6, THREE.RGBAFormat);
 flShTex.magFilter = flShTex.minFilter = THREE.LinearFilter; LMU.uFlSh.value = flShTex;
 function flashShadows(k, x, z, dir, half, reach) {
-  const h = half + 0.3, A = LMU.uFlA.value;
-  if (k) { A.z = dir; A.w = h; } else { A.x = dir; A.y = h; }
+  const h = half + 0.3;   // (the shader centres beam k's row on dir and spreads it this far either side: flCone)
   for (let r = 0; r < FL_RAYS; r++) {
     const d = flRay(x, z, dir - h + 2 * h * (r + 0.5) / FL_RAYS, Math.min(FL_MAX, reach + 1)), o = (k * FL_RAYS + r) * 4;
     flSh[o] = Math.round(d / FL_MAX * 255); flSh[o + 1] = Math.round(Math.min(d, flRayWin) / FL_MAX * 255);
@@ -113,14 +146,13 @@ function flRay(x, z, a, max) {
 }
 // how much of the flashlight falls at a point (for what isn't drawn by the lit shader, like smoke): the same cone
 function flashAt(x, z) {
-  const K = LMU.uFlK.value; if (K.z <= 0.001) return 0;
   let s = 0;
-  for (let i = 0; i < K.w; i++) {
-    const f = LMU.uFl.value[i], dx = x - f.x, dz = z - f.y, r = Math.hypot(dx, dz), a = Math.acos(clamp((dx * f.z + dz * f.w) / Math.max(r, 1e-3), -1, 1));
+  for (let i = 0; i < LMU.uFlK.value.w; i++) {
+    const f = LMU.uFl.value[i], K = LMU.uFlP.value[i], dx = x - f.x, dz = z - f.y, r = Math.hypot(dx, dz), a = Math.acos(clamp((dx * f.z + dz * f.w) / Math.max(r, 1e-3), -1, 1));
     const cone = (1 - smooth(clamp((a - K.y + 0.2) / 0.25, 0, 1))) * (1 + 0.5 * (1 - smooth(clamp(a / (K.y * 0.6), 0, 1)))), fall = 1 - clamp(r / K.x, 0, 1);
-    s += mix(0.3, cone, smooth(clamp((r - 0.15) / 0.75, 0, 1))) * fall * fall;
+    s += mix(0.3, cone, smooth(clamp((r - 0.15) / 0.75, 0, 1))) * fall * fall * K.z;
   }
-  return s * K.z;
+  return s;
 }
 // blend the light/vision map toward its target and upload it
 function updateLightmap(rdt) {

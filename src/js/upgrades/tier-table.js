@@ -48,11 +48,11 @@ const TIERS = {
     { r: 'u', name: 'Taped flashlight', text: 'At night it lights the ground ahead and outlines zombies caught in the beam.', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider beam that reaches further.', ap: () => {} }] },
   // one step on each gun that takes it: the revolver's speed loader, all six rounds in at once from a loader you then
-  // drop (weapons/reload.js); on the shotguns a technique, nothing on the gun: the double barrel's Sleight of Hand, both
-  // shells palmed and pushed in together, and the pump's Triple Load, three shells grabbed in one hand and fed into the
-  // tube one after another in one go (game/run-state.js: SOH, TRIPLE)
+  // drop (weapons/reload.js); on the double barrel a technique, nothing on the gun: Sleight of Hand, both shells palmed
+  // and pushed in together (game/run-state.js: SOH). (The pump's two or three shells a go come with Quick hands II and
+  // III instead: PAIR_LOAD, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', pump: 'Triple Load' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },
@@ -95,8 +95,8 @@ const TIERS = {
   // trade the fingerless gloves for full work gloves (player/gear.js)
   quick: { tag: 'Body', t: [
     { r: 'u', name: 'Quick hands', text: 'Every reload is quicker.', ap: () => quickTo(1) },
-    { r: 'r', name: 'Quick hands II', text: 'Quicker again.', ap: () => quickTo(2) },
-    { r: 'e', name: 'Quick hands III', text: 'Quicker again.', ap: () => quickTo(3) }] },
+    { r: 'r', name: 'Quick hands II', text: 'Quicker again, and the pump takes two shells a go.', ap: () => quickTo(2) },
+    { r: 'e', name: 'Quick hands III', text: 'Quicker again, and the pump takes three shells a go.', ap: () => quickTo(3) }] },
   // bandaging slows you less (BAND_SLOW in player/movement.js): each step replaces the one before, it doesn't add to it
   walkw: { tag: 'Body', t: [
     { r: 'u', name: 'Walking wounded', text: 'You keep more of your speed while bandaging.', ap: () => { S.bandLess = 0.1; } },
