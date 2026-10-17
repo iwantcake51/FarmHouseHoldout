@@ -28,4 +28,4 @@ $('tbClimb').onclick = () => { const t = nearestTake(); if (t && !openSt) { take
 $('tbReload').onclick = () => startReload();
 $('tbAlt').onclick = () => throwGrenade();
 $('tbSwap').onclick = () => { const owned = SLOTS.filter(s => W8.slot[s]); switchSlot(owned[(owned.indexOf(W8.cur) + 1) % owned.length]); };
-$('tbWave').onclick = () => { if (phase === 'break') breakT = 0; };
+$('tbWave').onclick = () => skipBreak();

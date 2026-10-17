@@ -184,7 +184,28 @@ NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.len
 // ---- the waves: the host's start them, clear them and runs the breaks
 NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
-NET_ON.skip = () => { if (NET.host && phase === 'break') breakT = 0; };
+// starting the next wave early: alone, T does it; in co-op it's a vote, and the wave starts once SKIP_VOTE of everyone
+// in the game (rounded up, the downed too) has pressed T. Pressing it again takes your vote back. The host counts them
+// (skipVotes) and tells everyone the tally ('sv'), and a new wave clears them
+const SKIP_VOTE = 0.75, skipVotes = new Set();
+const skipNeed = () => Math.ceil(SKIP_VOTE * netTeam() - 1e-9);
+function skipBreak() { if (phase !== 'break') return; if (!netLink()) { breakT = 0; return; } if (NET.host) castSkip(NET.id); else netSend('skip', {}); }
+function castSkip(id) {
+  if (phase !== 'break') return;
+  if (skipVotes.has(id)) skipVotes.delete(id); else skipVotes.add(id);
+  for (const v of skipVotes) if (v !== NET.id && !NET.peers.has(v)) skipVotes.delete(v);   // (anyone who's left)
+  netSend('sv', { v: [...skipVotes] });
+  if (skipVotes.size >= skipNeed()) breakT = 0;
+}
+NET_ON.skip = m => { if (NET.host) castSkip(m.f); };
+NET_ON.sv = m => { if (NET.host) return; skipVotes.clear(); m.v.forEach(v => skipVotes.add(v)); };
+// the break's line under the wave number: the countdown, and how to start it early (in co-op, the vote so far)
+function breakSub() {
+  const t = `Next wave in ${Math.ceil(Math.max(0, breakT))}s`;
+  if (!netLink()) return t + ' · <kbd>T</kbd> to start now';
+  const n = skipVotes.size, need = skipNeed();
+  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · <kbd>T</kbd> takes it back` : ` · <kbd>T</kbd> vote to start ${n}/${need}`);
+}
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;
 function netCleared() { if (!netLink()) return; clearAt = performance.now(); teamBonus(); if (NET.host) netSend('clear', {}); }
@@ -194,7 +215,7 @@ function respawnCheck() { if (netLink() && P.dead && ((phase === 'cleared' && pe
 function clientWaves(dt) {
   if (phase === 'break') {
     const w = netWaiting(); respawnCheck();
-    setH('wSub', w || `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
+    setH('wSub', w || breakSub());
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'wave') {
     const left = spawnQ.length + zombies.length;

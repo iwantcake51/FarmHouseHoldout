@@ -37,7 +37,8 @@ function startWave() {
 }
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does
 function waveBegins(n, total) {
-  run.wave = n; phase = 'wave'; spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
+  run.wave = n; phase = 'wave'; skipVotes.clear();   // (the vote to start it early, net/sync.js)
+  spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
   run.waveTotal = total;
@@ -69,8 +70,8 @@ function updateWaves(dt) {
     setH('wSub', netWaiting());
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'break') {
-    breakT -= dt;
-    setH('wSub', `Next wave in ${Math.ceil(Math.max(0, breakT))}s · <kbd>T</kbd> to start now`);
+    breakT -= dt; if (netLink() && skipVotes.size >= skipNeed()) breakT = 0;   // (someone who hadn't voted left)
+    setH('wSub', breakSub());
     waveBar(breakT / breakMax, 'break');
     if (breakT <= 0) startWave();
   } else if (phase === 'wave') {

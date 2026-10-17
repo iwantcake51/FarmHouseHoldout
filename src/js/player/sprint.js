@@ -23,8 +23,8 @@
 // Anything further round than that, the gun comes down and the chest unwinds as usual. Its second step adds the shotguns (pumped on the run too) and
 // the assault rifle, never the hunting rifle or the LMG, and lets you reload any of them without breaking the sprint.
 
-const WALK_SPEED = 3.5;
-const SPRINT = { mul: 1.6, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
+const WALK_SPEED = 3.0;
+const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
 // what a sprint burnt starts coming back only once you've stopped sprinting for wait seconds (Iron lungs shortens it),
 // then at rate a second standing still (exh: while you're blown), and a quarter slower while you walk: about 9 s
 // standing, 12 s walking, to win back a whole tank you ran off, against the 7 s it took to run it off
