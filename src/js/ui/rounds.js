@@ -79,7 +79,8 @@ const calmHud = matchMedia('(prefers-reduced-motion: reduce)');
 // which gun the rounds are drawn for; a different one (or one back from a melee weapon) starts its pop
 function popCheck(id) {
   const was = cache.rounds === 'melee' ? 'melee' : cache.roundsGun; cache.roundsGun = id;
-  if (was !== id) { cache.popAt = performance.now(); cache.popN = Infinity; }
+  if (was !== id) { cache.popAt = performance.now(); cache.popN = Infinity; return true; }
+  return false;
 }
 function popRounds(el) {
   const gone = performance.now() - (cache.popAt || -1e9);
@@ -87,7 +88,7 @@ function popRounds(el) {
   for (const box of el.classList.contains('ak') ? el.children : [el]) {
     const kids = box.children, n = Math.min(kids.length, cache.popN), step = Math.min(26, POP_SPAN / Math.max(1, n - 1));
     for (let i = 0; i < n; i++) {
-      const g = kids[i], delay = i * step - gone; if (delay + POP_MS <= 0) continue;
+      const g = kids[i], delay = i * step - gone; if (delay + POP_MS <= 0 || g.classList.contains('belt')) continue;   // (a big mag's bar shakes instead: shakeBelt)
       g.style.transformOrigin = '50% 100%';
       g.animate(POP_FRAMES, { duration: POP_MS, delay, easing: 'linear', fill: 'backwards', composite: 'add' });
       g.animate(POP_FADE, { duration: POP_MS, delay, easing: 'ease-out', fill: 'backwards' });
@@ -126,6 +127,20 @@ function magFall(el, n) {
     g.animate(frames, { duration: FALL_MS, delay: i * step, easing: 'linear', fill: 'both' }).onfinish = () => g.remove();
   });
 }
+// a big mag (over 40) is a bar, full from the right, so it empties from the left like the rounds do: it's kept, not
+// redrawn, and eased from one width to the next. A shot takes a sliver off quickly; a mag pulled out drains it to
+// nothing, and a new one seated fills it back up; a gun drawn shows it at once, and the bar gives a little shake
+// (side to side, settling) instead of the rounds' pop
+const BELT_TICK = [90, 'ease-out'], BELT_DRAIN = [420, 'cubic-bezier(.45,0,.55,1)'], BELT_FILL = [460, 'cubic-bezier(.2,.8,.3,1)'];
+function setBelt(el, f, how) {
+  let b = el.children.length === 1 && el.firstElementChild.classList.contains('belt') ? el.firstElementChild : null;
+  if (!b) { el.innerHTML = '<div class="belt"><span></span></div>'; b = el.firstElementChild; how = null; }
+  const s = b.firstElementChild; s.style.transition = how && !calmHud.matches ? `width ${how[0]}ms ${how[1]}` : 'none';
+  s.style.width = (f * 100).toFixed(1) + '%';
+}
+const SHAKE_MS = 460, SHAKE_FRAMES = [];
+for (let k = 0; k <= 30; k++) { const t = k / 30 * SHAKE_MS / 1000; SHAKE_FRAMES.push({ transform: `translate(${(3.2 * caseSpring(t, 8.5, 0.24)).toFixed(2)}px,${(-1.1 * caseSpring(t - 0.015, 12, 0.32)).toFixed(2)}px) rotate(${(0.9 * caseSpring(t - 0.01, 7, 0.26)).toFixed(2)}deg)` }); }
+function shakeBelt(el) { if (!calmHud.matches) el.querySelectorAll('.belt').forEach(b => b.animate(SHAKE_FRAMES, { duration: SHAKE_MS, easing: 'linear' })); }
 // the glyphs for one magazine, in the order they're laid out from the bottom right (styles/hud-weapon.css: right to
 // left along a row, rows stacking upward): the last round in the mag first, so it sits at the bottom right, then the
 // rest up to the next one to fire, then the spent ones. So a mag empties top-left first, across and down, row by row,
@@ -136,7 +151,7 @@ const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo
 // an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
 // being reloaded dims
 function renderRoundsAk(id, D) {
-  popCheck(id);
+  const drawn = popCheck(id);
   const n = akPer(id), m = akMags(id), key = 'ak' + id + n + ':' + m.L + ':' + m.R + ':' + T('ammo') + roundOn(id) + ':' + akBusy('L') + akBusy('R');
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev;
@@ -148,24 +163,25 @@ function renderRoundsAk(id, D) {
     g.innerHTML = magGlyphs(n, m[s]); g.classList.toggle('rl', akBusy(s));
   });
   cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
-  popRounds(el);
+  popRounds(el); if (drawn && n > 40) shakeBelt(el);
 }
 function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
-  popCheck(id);
+  const drawn = popCheck(id);
   const n = magCap(id), hm = hudMag(id), have = hm.have, out = !!hm.out, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
   const key = id + n + ':' + have + ':' + fired + ':' + T('ammo') + roundOn(id) + (out ? ':out' : '');   // the mag that's in it (game/run-state.js, through a mag change: hudMag), and the fired cases it's kept
   if (cache.rounds === key) return; cache.rounds = key;
   const el = $('rounds'), pr = cache.roundsPrev, same = pr && pr.id === id && pr.n === n && state === 'play', swapMag = same && out !== !!pr.out;
-  if (swapMag && out) magFall(el, pr.have);   // the mag's out, and its rounds with it
-  else if (swapMag && have > 0) { cache.popAt = performance.now(); cache.popN = have; }   // a mag's in (or the old one kept, the reload cut short): its rounds pop up
+  if (swapMag && out && n <= 40) magFall(el, pr.have);   // the mag's out, and its rounds with it (a bar drains instead: setBelt)
+  else if (swapMag && have > 0 && n <= 40) { cache.popAt = performance.now(); cache.popN = have; }   // a mag's in (or the old one kept, the reload cut short): its rounds pop up
   else if (same && n <= 40) {
     const kids = el.children; let k = 0;
     if (!keeps && have < pr.have) for (let i = have; i < pr.have && k < 6; i++, k++) { if (kids[i]) dropRound(kids[i]); }   // thrown out as they're fired
     if (fired < pr.fired) for (let i = pr.have + fired; i < pr.have + pr.fired && k < 8; i++, k++) { if (kids[i]) dropRound(kids[i], true); }   // the kept ones, thrown out as the gun throws them
   }
   cache.roundsPrev = { id, n, have, fired, out }; el.className = roundsCls(D, id);
-  el.innerHTML = magGlyphs(n, have, fired);
+  if (n > 40) { setBelt(el, have / n, !same ? null : swapMag ? (out ? BELT_DRAIN : BELT_FILL) : BELT_TICK); if (drawn) shakeBelt(el); }
+  else el.innerHTML = magGlyphs(n, have, fired);
   if (same && n <= 40 && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
   popRounds(el);   // a gun just drawn: after the kick, so it adds on top
 }
