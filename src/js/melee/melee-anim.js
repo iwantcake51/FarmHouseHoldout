@@ -184,13 +184,29 @@ const MBASH_L = [[0, 'R'], [0.18, 0.22], [0.5, 0.22], [1, 'R']];
 // where is 'R' (hanging free for balance, as between swings), a number (on the handle, that far up it from the right
 // fist; below it, over the pommel, on the machete, whose handle is short) or a place in upper-body space. Run through on
 // the same curve as the rest, on a spring of its own (MOFF). rest is where it hangs free this frame, handleAt finds a
-// point on the handle; returns null when there's nothing for it to do (the free arm's left hanging)
-const MOFF = { k: 480, c: 33, near: 0.36, far: 0.64 };
+// point on the handle; returns null when there's nothing for it to do (the free arm's left hanging). It eases onto the
+// swing's track over its first MOFF.in seconds rather than jumping onto it, and once the swing's done it drifts back to
+// where it hangs on a softer, slower spring (MOFF.back: stiffness, damping) instead of snapping there, slower than the
+// swing itself comes back to the guard
+const MOFF = { k: 480, c: 33, near: 0.36, far: 0.64, in: 0.15, back: [70, 15] };
 const _offPts = [], _offT = new V3(), _offB = new V3(), _offG = new V3();
+// the free hand's spring toward target (stiffness k, damping c), stepped finely so it stays stable at any frame rate
+function offSpring(target, k, c, rdt) {
+  if (!(rdt > 0)) return;
+  const n = Math.ceil(rdt / (1 / 240)), h = rdt / n;
+  for (let i = 0; i < n; i++) { MS.vL.addScaledVector(_offB.copy(MS.L).sub(target), -k * h).addScaledVector(MS.vL, -c * h); MS.L.addScaledVector(MS.vL, h); }
+}
 function meleeOffTrack(D, sh) { if (D.two) return null; if (sh) return MBASH_L; return W8.swing > 0 ? curSwing(D).L || null : null; }
 function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
   const keys = meleeOffTrack(D, sh);
-  if (!keys) { MS.L.copy(rest); MS.vL.set(0, 0, 0); return null; }
+  if (!keys) {
+    MS.lW = 0;
+    if (!MS.lLive) { MS.L.copy(rest); MS.vL.set(0, 0, 0); return null; }
+    offSpring(rest, MOFF.back[0], MOFF.back[1], rdt);
+    if (MS.L.distanceTo(rest) < 0.004 && MS.vL.length() < 0.03) { MS.lLive = false; return null; }   // settled: hanging free again
+    return MS.L;
+  }
+  MS.lLive = true; MS.lW = Math.min(1, (MS.lW || 0) + rdt / MOFF.in);
   const kind = meleeKind(id);
   let p; if (sh) p = clamp(P.shove.t / P.shove.dur, 0, 1);
   else { const dur = W8.swingDur || 0.5; p = meleeWarp(1 - W8.swing / dur, curSwing(D).keys, heavySwing(D) ? HEAVY.hit : 0.4, meleeWeight(id)[0]); }
@@ -199,7 +215,8 @@ function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
   // (kept out at arm's length from the shoulder, MOFF.near: going from out in front to back at the hip it swings round
   // in an arc, as a straight arm does, not in past the shoulder where the arm can't follow)
   { const s = SHOULDER_REST.L; _offB.set(_offT.x - s[0], _offT.y - s[1], _offT.z - s[2]); const d = _offB.length(); if (d < MOFF.near && d > 1e-4) _offT.set(s[0], s[1], s[2]).addScaledVector(_offB, MOFF.near / d); }
-  if (rdt > 0) { const n = Math.ceil(rdt / (1 / 240)), h = rdt / n; for (let i = 0; i < n; i++) { MS.vL.addScaledVector(_offB.copy(MS.L).sub(_offT), -MOFF.k * h).addScaledVector(MS.vL, -MOFF.c * h); MS.L.addScaledVector(MS.vL, h); } }
+  if (MS.lW < 1) _offT.lerpVectors(rest, _offT, smooth(MS.lW));   // (easing onto the track as the swing starts)
+  offSpring(_offT, MOFF.k, MOFF.c, rdt);
   // (and the hand itself, swinging past, kept between the arm's shortest and longest: MOFF.near, MOFF.far)
   { const s = SHOULDER_REST.L; _offB.set(MS.L.x - s[0], MS.L.y - s[1], MS.L.z - s[2]); const d = _offB.length() || 1, c = clamp(d, MOFF.near * 0.85, MOFF.far);
     if (c !== d) { _offB.multiplyScalar(1 / d); MS.vL.addScaledVector(_offB, -MS.vL.dot(_offB)); MS.L.set(s[0], s[1], s[2]).addScaledVector(_offB, c); } }

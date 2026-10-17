@@ -44,6 +44,19 @@ function meleeTargets(D) {
 // arrives. A hit staggers what it doesn't kill for stagger seconds and shakes, punches and kicks the view harder; one
 // that meets nothing slams into the ground in front of you
 const HEAVY = { whoosh: 0.45, hit: 0.55, stagger: 0.55 };
+// a swing on the boards: BOARD_MELEE of its damage off the top one, so a run of swings does take a board down, just
+// slower than shooting it (BOARD_SHOT); the opening must be in reach and in front of you
+const BOARD_MELEE = 0.15;
+function boardInReach(D) {
+  let best = null, bd = 1e9;
+  for (const o of openings) {
+    if (!o.boards.length) continue;
+    const dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz);
+    if (d > D.range + 0.6 || (d > 0.5 && Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + 0.2) || d >= bd) continue;
+    best = o; bd = d;
+  }
+  return best;
+}
 function heavySwing(D) { return D.style === 'chop' && !!D.two; }
 function meleeHit() {
   const id = curId(), D = W(id); if (!D || !D.melee) return;
@@ -58,7 +71,11 @@ function meleeHit() {
       else if (heavy && z.type !== 'brute') z.stagger = Math.max(z.stagger, HEAVY.stagger);
       hit = true; near = Math.min(near, d);
     }
-    if (hit) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR)); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
+    // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it (a swing's slower
+    // going than a shot's BOARD_SHOT, barricades/planks.js), the boards jumping and splintering as they do under fire
+    const bo = !hit && boardInReach(D);
+    if (bo) { shootBoard(bo, D.dmg * S.meleeMul * BOARD_MELEE, fx0, fz0); meleeImpact(heavy, 0.75); shake = Math.max(shake, heavy ? 0.3 : 0.16); SFX.thud(); if (!blade || heavy) SFX.hitBlunt(heavy); }
+    if (hit || bo) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR)); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     if (hit) meleeImpact(heavy, Math.min(1.3, 0.85 + 0.15 * kills));   // it stops on the blow and rebounds off it (melee/melee-anim.js)
     // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side
     if (hit && !heavy) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += fx0 * 0.12; camKick.z += fz0 * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
@@ -72,9 +89,9 @@ function meleeHit() {
       SFX.heavyHit(sl);
       if (sl) { const d = Math.min(D.range * 0.8, near + 0.2); groundDust(P.x + fx0 * d, P.z + fz0 * d, 0.45, fx0, fz0); }
     }
-    // a swing through open air: the weight carries on past where it would have landed, so the view follows it through a
+    // a swing through open air (not into the boards): the weight carries on past where it would have landed, so the view follows it through a
     // little and leans with it, softer than a hit and with no shake (heavier weapons pull it further)
-    else { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += fx0 * 0.07 * w; camKick.z += fz0 * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1);
+    else if (!bo) { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += fx0 * 0.07 * w; camKick.z += fz0 * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1);
       // a heavy one that meets nothing carries on down into the ground in front of you: a thud, a kick of dust and a bump
       if (heavy) { const d = D.range * 0.8, gx = P.x + fx0 * d, gz = P.z + fz0 * d; if (!bulletBlocked(gx, gz)) { groundDust(gx, gz, 0.6, fx0, fz0); SFX.thud(); shake = Math.max(shake, 0.2); meleeImpact(true, 0.6); } } }
   }
