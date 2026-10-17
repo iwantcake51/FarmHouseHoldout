@@ -95,10 +95,11 @@ const TIERS = {
     { r: 'r', name: 'Thick soles II', text: 'Less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },
   // Quick hands: each step sets how much faster you reload in all (QUICK), not on top of the one before; tier 2 and 3
   // trade the fingerless gloves for full work gloves (player/gear.js)
+  // (all three steps rare: blue)
   quick: { tag: 'Body', t: [
-    { r: 'u', name: 'Quick hands', text: 'Every reload is quicker.', ap: () => quickTo(1) },
+    { r: 'r', name: 'Quick hands', text: 'Every reload is quicker.', ap: () => quickTo(1) },
     { r: 'r', name: 'Quick hands II', text: 'Quicker again, and the pump takes two shells a go.', ap: () => quickTo(2) },
-    { r: 'e', name: 'Quick hands III', text: 'Quicker again, and the pump takes three shells a go.', ap: () => quickTo(3) }] },
+    { r: 'r', name: 'Quick hands III', text: 'Quicker again, and the pump takes three shells a go.', ap: () => quickTo(3) }] },
   // bandaging slows you less (BAND_SLOW in player/movement.js): each step replaces the one before, it doesn't add to it
   walkw: { tag: 'Body', t: [
     { r: 'u', name: 'Walking wounded', text: 'You keep more of your speed while bandaging.', ap: () => { S.bandLess = 0.1; } },

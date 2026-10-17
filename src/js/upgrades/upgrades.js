@@ -23,9 +23,9 @@ const NEED = {
 const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, planks: 0.6 };
 // how short you are of anything, 0 to 1: the worst of them
 const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
-// Steady aim stacks up to STEADY_MAX times, and Lucky shot takes LUCK_MISS of the shots that hit nothing out of your
-// reserve instead of the magazine (luckyKeep, weapons/firing.js)
-const STEADY_MAX = 3, LUCK_MISS = 1 / 3;
+// Steady aim stacks up to STEADY_MAX times, and Lucky shot (rare) makes LUCK_MISS of the shots that hit nothing cost no
+// ammo at all (luckyKeep, weapons/firing.js)
+const STEADY_MAX = 3, LUCK_MISS = 1 / 4;
 // Sure shot: each shot from a gun firing single shots (semiAuto, weapons/firing.js) has this chance to crit
 const SURE_CRIT = 0.05;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
@@ -38,7 +38,7 @@ const UPG = [
   { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'Every gun\'s shots land closer to the crosshair. Can be taken 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
   { r: 'u', tag: 'Body', name: 'Tough skin', text: 'Raises your max health, and heals you by as much.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
   { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Putting a weapon away and drawing the next takes less time.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
-  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: 'Some shots that hit nothing take their round from your reserve instead of the magazine.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
+  { r: 'r', tag: 'Luck', name: 'Lucky shot', text: 'Some shots that miss cost no ammo at all.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
   { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Every ammo box you pick up holds extra rounds.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
   { r: 'r', tag: 'Gun', name: 'Sure shot', text: 'Any shot from a semi-auto gun can land as a crit, for double damage.', can: () => !S.sureShot, ap: () => S.sureShot = true },
   { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Each kill soon after the last raises your damage. Go too long without one and it resets.', can: () => !S.momentum, ap: () => S.momentum = true },

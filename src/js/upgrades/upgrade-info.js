@@ -10,7 +10,7 @@ const UPG_FX = {
   'Stubborn': ['+50 max health'],
   'Last stand': ['+60% damage below 30% health'], 'Sure shot': ['5% crit chance a shot'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
-  'Lucky shot': ['1 in 3 misses: round from reserve'], 'Ammo pouch': ['Ammo pickups +25%'],
+  'Lucky shot': ['1 in 4 misses: no ammo used'], 'Ammo pouch': ['Ammo pickups +25%'],
   'Momentum': ['+5% damage per quick kill', 'Up to +25%, lost after 2.5 s'],
   'Canvas jacket': ['+25 max health'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
   'Good boots': ['Speed +12%'], 'Running shoes': ['Speed +10%'], 'Trail runners': ['Speed +10%'],

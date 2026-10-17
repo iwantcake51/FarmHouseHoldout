@@ -264,14 +264,14 @@ function gunFire(id, D, side) {
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)
   else if (ej === 'pump' || ej === 'bolt') { W8.hudSpent[id] = (W8.hudSpent[id] || 0) + 1; startCycle(id); }
   else if (ej === 'breach') { W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots); W8.hudSpent[id] = Math.min(magSize(id), (W8.hudSpent[id] || 0) + shots); }
-  if (S.luck && !anyHit && rand() < S.luck && (W8.reserve[D.ammo] || 0) > 0) luckyKeep(id, D);
+  if (S.luck && !anyHit && rand() < S.luck) luckyKeep(id, D);
   }
 }
-// Lucky shot: a shot that hit nothing (no bullet or pellet of it) sometimes comes out of your reserve instead, so the
-// round goes back in the magazine (the pair's gun that fired, for akimbo) and one less empty sits in a breech
+// Lucky shot: a shot that hit nothing (no bullet or pellet of it) sometimes costs nothing at all: the round goes back in
+// the magazine (the pair's gun that fired, for akimbo) and one less empty sits in a breech
 function luckyKeep(id, D) {
-  W8.reserve[D.ammo]--; W8.mag[id]++;
+  W8.mag[id]++;
   if (D.akimbo) akMags(id)[W8.akSide < 0 ? 'L' : 'R']++;
   if (EJECT[id] === 'breach') { W8.spent[id] = Math.max(0, (W8.spent[id] || 0) - 1); W8.hudSpent[id] = Math.max(0, (W8.hudSpent[id] || 0) - 1); }
-  feed('ammo', 1, 'kept by Lucky shot');
+  feed('ammo', 1, 'saved by Lucky shot');
 }
