@@ -47,7 +47,7 @@ function waveBegins(n, total) {
   SFX.wave();
 }
 // the count under the wave number; in a lull between surges, a word that they've let up for now
-function waveSub(left, lull) { setH('wSub', (lull ? '<em class="lull">Lull</em> · ' : '') + `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left')); }
+function waveSub(left) { setH('wSub', `<b>${left}</b>` + (left === 1 ? ' zombie left' : ' zombies left')); }
 function beginBreak(t) { phase = 'break'; breakT = breakMax = t; }
 // the thin bar under the wave number: the break running out, then the wave's zombies being whittled down
 let breakMax = 20;
@@ -82,7 +82,7 @@ function updateWaves(dt) {
       if (++surge.done >= surge.n && spawnQ.length) surge.lull = rr(SURGE.lull[0], SURGE.lull[1]);
     }
     const left = spawnQ.length + zombies.length;
-    waveSub(left, surge.lull > 0);
+    waveSub(left);
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
     if (!spawnQ.length && !zombies.length && !netAllDown()) waveCleared();
   } else if (phase === 'cleared') {

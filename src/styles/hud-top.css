@@ -46,7 +46,3 @@
 .mood.good{--mc:#7fae5a}.mood.warn{--mc:#d8a24a}.mood.bad{--mc:#d0432c}.mood.info{--mc:#7f9cc9}
 @keyframes moodIn{from{opacity:0;transform:translateX(10px)}}
 #scrim{transition:opacity 1.4s ease}
-/* the lull between a wave's surges (waves/waves.js): a quiet word before the count, breathing slowly */
-#wSub .lull{font-style:normal;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a9cbb6;animation:lullBreath 1.8s ease-in-out infinite}
-@keyframes lullBreath{50%{opacity:.45}}
-@media (prefers-reduced-motion:reduce){#wSub .lull{animation:none}}

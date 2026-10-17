@@ -681,10 +681,14 @@ function zGrime(k, gr) {
   for (let i = 0; i < k.p.length; i += 3) { const t = clamp((k.p[i + ax] - a) / (b - a), 0, 1), m = amt * t * t * (3 - 2 * t); if (m <= 0) continue; for (let j = 0; j < 3; j++) k.c[i + j] += ((j === 0 ? _zgD.r : j === 1 ? _zgD.g : _zgD.b) - k.c[i + j]) * m; }
 }
 
+// the same between parts, which are meshes of their own: the left and right legs meet as it walks, the forearm runs up
+// inside the upper arm, and their faces would line up on one plane and flicker. Each limb is shifted by its own
+// fraction of a millimetre (too little to see), so no two parts ever share a plane
+const ZNUDGE = { legL: [0.0004, 0.0003, 0.0009], legR: [-0.0004, 0.0006, -0.0005], shinL: [0.0006, -0.0004, 0.0013], shinR: [-0.0006, 0.0008, -0.0011], armL: [0.0005, 0.0009, 0.0006], armR: [-0.0005, -0.0007, 0.0012], foreL: [-0.0011, 0.0005, -0.0008], foreR: [0.0011, -0.0010, 0.0007] };
 // ---- dressing a zombie that's just been built: its parts get their geometry, all of them its own material ----
 function dressZombie(m, type, job) {
   const o = zDeal(type, job), K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
-  ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); m[p].material = mat; });
+  ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); if (ZNUDGE[p]) m[p].geometry.translate(...ZNUDGE[p]); m[p].material = mat; });
   m.mats = { body: mat }; m.look = o; m.skinCol = o.skin;
   return o;
 }

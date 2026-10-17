@@ -224,7 +224,7 @@ function clientWaves(dt) {
     waveBar(breakT / breakMax, 'break');
   } else if (phase === 'wave') {
     const left = spawnQ.length + zombies.length;
-    waveSub(left, surge.lull > 0 && spawnQ.length > 0);
+    waveSub(left);
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();
