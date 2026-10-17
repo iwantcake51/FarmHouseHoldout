@@ -120,3 +120,18 @@
 .upClock.warn b{background:#d8402c}
 @keyframes clockBeat{0%,100%{scale:1}15%{scale:1.22}}
 @media (prefers-reduced-motion:reduce){.upClock.warn span{animation:none}}
+
+/* co-op, once you've chosen and a teammate hasn't (settleUpgrade, upgrades/upgrade-screen.js): your card stays stamped,
+   the rest sit dimmed till everyone's done and they burn, and under them it says who you're waiting on */
+#upgrade.waiting .card:not(.picked){opacity:.5!important;filter:saturate(.55);transition:opacity .4s ease,filter .4s ease!important;transition-delay:0s!important}
+#upgrade.waiting .upClock{opacity:0;transition-delay:0s}
+#upgrade.waiting #upSkip{opacity:0;transition-delay:0s}
+#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
+.upWait{display:none;flex-direction:column;align-items:center;gap:6px;text-align:center}
+#upgrade.waiting .upWait{display:flex;animation:waitIn .35s ease both}
+.upWait b{font-family:var(--f-ui);font-weight:700;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink)}
+.upWait b::after{content:"";display:inline-block;width:1.4em;text-align:left;animation:waitDots 1.4s steps(4,end) infinite}
+.upWait span{font-family:var(--f-ui);font-size:13px;letter-spacing:.06em;color:var(--dim)}
+@keyframes waitIn{from{opacity:0;transform:translateY(6px)}}
+@keyframes waitDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (prefers-reduced-motion:reduce){.upWait b::after{animation:none;content:"..."}}

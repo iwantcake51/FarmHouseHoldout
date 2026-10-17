@@ -235,6 +235,11 @@ function blowApart(z, dx, dz) {
 // Hoarder's odds of a doubled scrap drop, and Bullet time's: how likely a kill sets it off, how slow, how long, and the wait
 // before it can go again
 const HOARD_X = 0.25, BT = { chance: 0.2, to: 0.55, hold: 0.3, cd: 8 };
+// Bullet time in co-op: time can't slow for you without slowing it for everyone, so the same kills give you a dead eye
+// instead (P.eye), for BT_EYE.t seconds: every round goes exactly where you aim, even on the run, and every bullet or
+// pellet that hits a zombie counts as a headshot (weapons/firing.js). Its glow fades over the last BT_EYE.fade seconds
+const BT_EYE = { t: 3, fade: 0.6 };
+const eyeK = () => clamp((P.eye || 0) / BT_EYE.fade, 0, 1);
 // Momentum keeps building while each kill comes within MOM_T seconds of the last
 const MOM_T = 2.5;
 // how loud a kill is: every one sounds the skull bursting (SFX.headPop), from the zombie (killEnd)
@@ -252,8 +257,12 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h), '#ef6a52'); } }
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
   if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
-  // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds
-  if (S.bulletTime && timeScale > 0.8 && !(run.time < (S.btNext || 0)) && rand() < BT.chance) { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; S.btNext = run.time + BT.cd; }
+  // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds;
+  // in co-op it gives you a dead eye instead (BT_EYE)
+  if (S.bulletTime && (netLink() || timeScale > 0.8) && !(run.time < (S.btNext || 0)) && rand() < BT.chance) {
+    S.btNext = run.time + BT.cd;
+    if (netLink()) { P.eye = BT_EYE.t; SFX.upgrade(); } else { slowTo = BT.to; slowIn = 0.15; slowHold = BT.hold; }
+  }
   const shells = D.ammo === 'shells' && !D.dart, heavy = (D.dmg || 0) >= 80 || wId === 'boom';
   // the sledgehammer crushes the head of whatever it kills, wherever the blow landed: it comes down from overhead
   // (and the fire axe often splits it: either leaves no head for the rest of this to take)

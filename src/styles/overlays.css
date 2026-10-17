@@ -57,6 +57,11 @@
 
 #slowmo{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at center,transparent 50%,rgba(20,32,44,.55) 100%)}
 #slowmo::before,#slowmo::after{content:"";position:absolute;left:0;right:0;height:calc(5.5vh * var(--bar,0));background:rgba(5,7,9,.85)}#slowmo::before{top:0}#slowmo::after{bottom:0}
+/* a dead eye (co-op Bullet time, zombies/damage.js): a warm glow at the edges of your sight that beats with it and eases off */
+#eyeVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(255,150,50,.16) 82%,rgba(230,90,30,.38) 100%)}
+#eyeVig.on{animation:eyeBeat .5s ease-in-out infinite alternate}
+@keyframes eyeBeat{to{filter:brightness(1.35)}}
+@media (prefers-reduced-motion:reduce){#eyeVig.on{animation:none}}
 /* film grain: a small noise tile (ui, made at load) jittered every frame-ish, faint and over everything in the world */
 #grain{position:fixed;inset:-20%;z-index:1;pointer-events:none;opacity:.055;mix-blend-mode:overlay;background-size:160px 160px;animation:grain .45s steps(4) infinite}
 @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-1%)}100%{transform:translate(1%,3%)}}

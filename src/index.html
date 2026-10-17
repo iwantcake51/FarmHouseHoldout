@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -231,6 +231,7 @@
     <div class="upClock" id="upClock" role="timer" aria-live="off"><span id="upClockT">20</span><i><b id="upClockBar"></b></i></div>
     <div id="cards"></div>
     <button class="btn ghost" id="upSkip" type="button"></button>
+    <div class="upWait" id="upWait" role="status"><b>Waiting for other players</b><span id="upWaitWho"></span></div>
     <div class="note" id="upNote">Click a card or press 1, 2 or 3 · 4 takes the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
   </div>

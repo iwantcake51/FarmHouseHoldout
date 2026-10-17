@@ -204,8 +204,9 @@ function zStruckFx() {
   zHitMe = false; if (P.dead) return;
   addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35));
 }
+const WIND_HEAL = 25;   // what Second wind gives back
 // your health, after whatever hit you this frame: Second wind once a wave below a quarter, and going down at none
 function playerChecks() {
-  if (S.secondWind && !S.windUsed && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; P.hp = Math.min(S.maxHp, P.hp + 50); P.slow = 0; feed('med', 50, 'second wind'); SFX.upgrade(); }
+  if (S.secondWind && !S.windUsed && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', WIND_HEAL, 'second wind'); SFX.upgrade(); }
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }

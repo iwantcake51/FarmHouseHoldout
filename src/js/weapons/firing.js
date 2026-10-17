@@ -164,11 +164,11 @@ function gunFire(id, D, side) {
   // the first round goes exactly where the crosshair sits on a body, and hits that part (only sometimes on the run
   // from the hip: RUN_MISS)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
-  if (tgt && !aiming && !scoped && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
+  if (tgt && !aiming && !scoped && !(P.eye > 0) && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
   if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
   let anyHit = false;
   // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
-  const scopeOn = scopeUse(), sp = scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
+  const scopeOn = scopeUse(), sp = P.eye > 0 && (D.pellets || 1) === 1 ? 0 : scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
   // Sure shot: a gun firing single shots rolls once a shot for a crit, whatever it hits (SURE_CRIT)
   const sure = S.sureShot && semiAuto(id) && rand() < SURE_CRIT;
   const pellets = (D.pellets || 1) * shots, pierce = D.pierce || 0;
@@ -196,6 +196,7 @@ function gunFire(id, D, side) {
       let part = hits[k].part;
       if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
+      if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)
       if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
