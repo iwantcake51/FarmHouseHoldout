@@ -190,11 +190,18 @@ function zAttackPose(z, a, T, K) {
 }
 // pounding on boards (z.atkBoard): a fist raised high and brought down on them every beat (when the AI's swing timer
 // comes round, zombies/ai.js), the arms taking turns, the other clawing at the planks; the body rocks into each blow.
-// A crawler does it from the ground, propped up and reaching
+// A crawler does it from the ground, propped up and reaching; a brute brings both fists down together, slower and harder
+// (its beat is BRUTE_SMASH.t)
 function zBoardPose(z, a, T, K) {
   const w = a.bw; if (w < 0.01) return;
-  const u = 1 - clamp(z.atk / 0.9, 0, 1), sg = a.pside, H = sg < 0 ? 'l' : 'r', Oo = sg < 0 ? 'r' : 'l', E = sg < 0 ? 'elL' : 'elR', EO = sg < 0 ? 'elR' : 'elL';
+  const brute = z.type === 'brute', u = 1 - clamp(z.atk / (brute ? BRUTE_SMASH.t : 0.9), 0, 1), sg = a.pside, H = sg < 0 ? 'l' : 'r', Oo = sg < 0 ? 'r' : 'l', E = sg < 0 ? 'elL' : 'elR', EO = sg < 0 ? 'elR' : 'elL';
   const up = _zsm(0.2, 0.85, u), hit = u < 0.16 ? 1 - u / 0.16 : 0, o = {};
+  if (brute) {
+    o.alx = o.arx = -0.5 - 2.0 * up + 0.2 * hit; o.aly = 0.1; o.ary = -0.1; o.elL = o.elR = -0.35 - 0.9 * up;
+    o.ux = 0.16 + 0.32 * hit - 0.14 * up; o.hx = 0.08 - 0.2 * up + 0.1 * hit; o.fw = 0.1 * hit;
+    o.llx = -0.28; o.lrx = 0.22; o.klx = 0.3; o.krx = 0.16;
+    zMix(T, o, w); zBoost(K, ['alx', 'arx', 'elL', 'elR', 'ux'], 1 + 2.2 * hit + 0.4 * up); return;
+  }
   if (z.crawl) {
     o.rx = 0.62; o.ux = 0.1; o.hx = -0.5;
     o['a' + H + 'x'] = -1.55 - 0.85 * up + 0.2 * hit; o[E] = -0.25 - 0.8 * up; o['a' + Oo + 'x'] = -1.7 + 0.05 * Math.sin(a.t * 13); o[EO] = -0.5;
@@ -227,7 +234,9 @@ function animateZombie(z, dt, dp, relP) {
   a.acc = (a.acc || 0) + (acc - (a.acc || 0)) * Math.min(1, dt * 6);
   const tw = clamp(angDiff(z.face, a.pf ?? z.face) / dt, -6, 6); a.pf = z.face; a.tw = (a.tw || 0) + (tw - (a.tw || 0)) * Math.min(1, dt * 6);
   const kind = z.crawl ? 'crawl' : z.type;
+  const ph0 = z.phase;
   if (!z.vault) z.phase += d * 2 * Math.PI / (Z_STRIDE[kind] * (z.type === 'runner' ? 1 : z.T.scale));
+  if (!z.vault && !z.dead && Math.floor(z.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) zombieStep(z);   // a foot down (audio/footsteps.js)
   const ref = Math.max(0.05, z.speed * (z.crawl ? 0.32 : 1)), k = a.spd / ref, mv = smooth(clamp(a.spd / (ref * 0.3), 0, 1)), ph = z.phase;
   // the lunge counter going back up to 1 is a new swing (at you or at the boards)
   if (z.lunge > a.lastLunge + 0.5) {
@@ -258,7 +267,7 @@ function animateZombie(z, dt, dp, relP) {
     // the swing at you and the wind-up for it as it closes in
     const ready = !z.atkBoard && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
     a.wu += ((ready ? 1 - z.atk / 0.4 : 0) - a.wu) * Math.min(1, dt * 10);
-    if (!z.crawl) zAttackPose(z, a, T, K);
+    if (!z.crawl) { zAttackPose(z, a, T, K); if (z.dash) zDashPose(z, a, T, K); }   // (a brute's dash: zombies/brute-dash.js)
     else if (a.atkT < 0.6) { const st = a.atkT < 0.1 ? smooth(a.atkT / 0.1) : 1 - _zsm(0.1, 0.6, a.atkT); zMix(T, { rx: 0.85, alx: -2.1 + 0.4 * st, arx: -1.9, elL: -0.2, hx: -0.2 }, st); zBoost(K, ['alx', 'rx', 'hx'], 2.4); }
     a.bw += ((z.atkBoard ? 1 : 0) - a.bw) * Math.min(1, dt * 6); zBoardPose(z, a, T, K);
     a.rip = Math.max(0, a.rip - dt * 1.8); zRipPose(z, a, T, K);

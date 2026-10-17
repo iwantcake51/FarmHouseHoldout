@@ -1,7 +1,17 @@
 // Geometry helpers: cached boxes, flat-shaded meshes, cylinders and soft blob shadows.
 
-const geoCache = {};
-const bgeo = (w, h, d) => { const k = w.toFixed(3) + ',' + h.toFixed(3) + ',' + d.toFixed(3); return geoCache[k] || (geoCache[k] = new THREE.BoxGeometry(w, h, d)); };
+const geoCache = {}, sharedGeo = new WeakSet();
+const bgeo = (w, h, d) => { const k = w.toFixed(3) + ',' + h.toFixed(3) + ',' + d.toFixed(3); if (!geoCache[k]) sharedGeo.add(geoCache[k] = new THREE.BoxGeometry(w, h, d)); return geoCache[k]; };
+// a model taken down for good (a weapon rebuilt for a new attachment, yours or a teammate's): its own geometry is let go
+// of a few frames on (once the copies drawn from it are gone too), so the GPU doesn't keep every old model it was sent.
+// The cached boxes stay, as other models still use them
+function binModel(o) {
+  if (o.parent) o.parent.remove(o);
+  o.traverse(q => { if (q.isMesh && q.geometry && !sharedGeo.has(q.geometry)) modelBin.add(q.geometry); });
+  modelBinT = 3;
+}
+const modelBin = new Set(); let modelBinT = 0;
+function flushModels() { if (modelBin.size && --modelBinT <= 0) { modelBin.forEach(g => g.dispose()); modelBin.clear(); } }
 function box(parent, w, h, d, mat, x, y, z) {
   const m = new THREE.Mesh(bgeo(w, h, d), mat);
   m.position.set(x || 0, y || 0, z || 0); m.castShadow = true; m.receiveShadow = true;
@@ -59,12 +69,31 @@ function finePieces(g, stop) {
 // the thinner of the two pieces is pulled back 0.6 mm on that face: a box loses a sliver off that side, a
 // cylinder off its end cap, or a hair of its radius for its flat sides. Three passes catch pieces with more than one.
 // opt.fixed: meshes never to resize (the rig); opt.only: only these may be resized, and only pairs with one of them count.
+// A pass after the first only has to look at pairs with a piece the pass before moved (and whatever rides on it): every
+// other pair is just as it was, and it was settled then
 const _ufV = new THREE.Vector3(), _ufN = new THREE.Vector3(), _ufE1 = new THREE.Vector3(), _ufE2 = new THREE.Vector3();
-function unfight(root, opt, pass) {
-  const fixed = (opt && opt.fixed) || null, only = (opt && opt.only) || null, gap = 0.0006, T = [];
+function unfight(root, opt) {
+  const fixed = (opt && opt.fixed) || null, only = (opt && opt.only) || null, gap = 0.0006;
   root.updateWorldMatrix(true, true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4();
+  let T = ufTris(root, inv, M, null), moved = null, n = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    const todo = ufPass(T, fixed, only, moved);
+    todo.forEach(E => {
+      if (E.face.radial) { const b = E.o.geometry.boundingBox, r = (b.max.x - b.min.x) / 2 * Math.abs(E.o.scale.x); if (r > gap * 3) { const f = 1 - gap / r; E.o.scale.x *= f; E.o.scale.z *= f; E.o.updateMatrixWorld(true); } }
+      else shrinkFace(E.o, E.face.c, E.face.side, gap);
+    });
+    n += todo.size; if (!todo.size || pass === 2) break;
+    moved = new Set(); todo.forEach(E => E.o.traverse(q => moved.add(q)));
+    T = T.filter(t => !moved.has(t.o)).concat(ufTris(root, inv, M, moved));
+  }
+  return n;
+}
+// the triangles that could fight under root (only those of the meshes in just, if given), in root's frame
+function ufTris(root, inv, M, just) {
+  const T = [];
   root.traverse(o => {
+    if (just && !just.has(o)) return;
     if (!o.isMesh || o.userData.isOutline || o.userData.isFlash || o.userData.fine || !o.visible) return;
     const m = o.material; if (!m || m.transparent || m.side !== THREE.FrontSide || m.colorWrite === false) return;
     const type = o.geometry.type; if (type !== 'BoxGeometry' && type !== 'CylinderGeometry') return;
@@ -80,9 +109,14 @@ function unfight(root, opt, pass) {
       let face;
       if (type === 'BoxGeometry') { const a = [ln.x, ln.y, ln.z].map(Math.abs), c = a.indexOf(Math.max(...a)); face = { c, side: Math.sign([ln.x, ln.y, ln.z][c]) }; }
       else face = Math.abs(ln.y) > 0.99 ? { c: 1, side: Math.sign(ln.y) } : { radial: true };
-      T.push({ o, v, n: wn, d: wn.dot(v[0]), face });
+      const b = [0, 1, 2].map(c => Math.min(v[0].getComponent(c), v[1].getComponent(c), v[2].getComponent(c)) - 1e-3).concat([0, 1, 2].map(c => Math.max(v[0].getComponent(c), v[1].getComponent(c), v[2].getComponent(c)) + 1e-3));
+      T.push({ o, v, n: wn, d: wn.dot(v[0]), face, b });   // (b: its bounds, a millimetre over: two that don't meet can't fight)
     }
   });
+  return T;
+}
+// one pass: which face of which piece gives way (only pairs with a piece in moved count, if given)
+function ufPass(T, fixed, only, moved) {
   // bucket by direction, then sweep by plane offset
   const B = new Map();
   T.forEach(t => { const k = Math.round(t.n.x * 40) + ',' + Math.round(t.n.y * 40) + ',' + Math.round(t.n.z * 40); (B.get(k) || B.set(k, []).get(k)).push(t); });
@@ -99,8 +133,11 @@ function unfight(root, opt, pass) {
     list.sort((a, b) => a.d - b.d);
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length && list[j].d - list[i].d < 0.02; j++) {
       const A = list[i], C = list[j];
-      if (A.o === C.o || A.o.material === C.o.material || A.n.dot(C.n) < 0.9999) continue;
+      if (A.o === C.o || A.o.material === C.o.material) continue;
+      const a = A.b, c = C.b; if (a[0] > c[3] || c[0] > a[3] || a[1] > c[4] || c[1] > a[4] || a[2] > c[5] || c[2] > a[5]) continue;
+      if (A.n.dot(C.n) < 0.9999) continue;
       if (only && !only.has(A.o) && !only.has(C.o)) continue;
+      if (moved && !moved.has(A.o) && !moved.has(C.o)) continue;
       if (C.v.some(p => Math.abs(A.n.dot(p) - A.d) > tol)) continue;
       // overlap in the plane
       const u = Math.abs(A.n.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0); u.sub(_ufN.copy(A.n).multiplyScalar(u.dot(A.n))).normalize();
@@ -116,11 +153,7 @@ function unfight(root, opt, pass) {
       if (!todo.has(key)) todo.set(key, E);
     }
   });
-  todo.forEach(E => {
-    if (E.face.radial) { const b = E.o.geometry.boundingBox, r = (b.max.x - b.min.x) / 2 * Math.abs(E.o.scale.x); if (r > gap * 3) { const f = 1 - gap / r; E.o.scale.x *= f; E.o.scale.z *= f; E.o.updateMatrixWorld(true); } }
-    else shrinkFace(E.o, E.face.c, E.face.side, gap);
-  });
-  return todo.size && (pass || 0) < 2 ? todo.size + unfight(root, opt, (pass || 0) + 1) : todo.size;
+  return todo;
 }
 // move one face of a mesh inward by d, keeping the opposite face where it is
 function shrinkFace(o, c, side, d) {

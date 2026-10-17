@@ -9,22 +9,23 @@ function stationDist(s) {
   const [cx, cz, hw, hd] = s.foot, dx = Math.max(0, Math.abs(P.x - cx) - hw), dz = Math.max(0, Math.abs(P.z - cz) - hd);
   return Math.hypot(dx, dz) * STATION_REACH / FOOT_REACH;   // scaled so both kinds compare on the same footing
 }
-function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }
+function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { if (s.coop && !netLink()) continue; const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }   // (the strongbox is for co-op only)
 // the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
 function openStation(s) {
+  benchTipUsed(s.id);   // its label from the start of the run goes (ui/bench-tips.js)
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
   openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();
-  updateWeaponStats();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
+  updateWeaponStats(); updateLoadout();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
   if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
 }
 function closeStation() {
   if (!openSt) return; openSt = null;
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
-  updateWeaponStats();   // the stats slide back in behind it as it rolls up
+  updateWeaponStats(); updateLoadout();   // the stats and the loadout slide back in behind it as it rolls up
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
@@ -39,7 +40,7 @@ const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">$
 const chipCache = new Map(); let chipKey = '';
 function cardChips(r) {
   if (!r.fx) return '';
-  const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], S.att, S.magMul, S.reloadMul]);
+  const id = curId(), key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.rounds[id], W8.att[id], W8.own[id], W8.ownAtt[id], S.magMul, S.reloadMul]);
   if (key !== chipKey) { chipKey = key; chipCache.clear(); }
   const ck = r.title();
   if (!chipCache.has(ck)) chipCache.set(ck, r.fx().filter(Boolean).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join(''));
@@ -50,6 +51,7 @@ function cardChips(r) {
 let stStruct = '';
 function renderStation() {
   if (!openSt) return;
+  if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
   const rows = RECIPES[openSt.id], struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
   const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
@@ -81,11 +83,12 @@ function renderStation() {
   });
   { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
-$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (b) craft(+b.dataset.i); });
+$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else craft(+b.dataset.i); });
 function craft(i) {
-  if (!openSt) return; const r = RECIPES[openSt.id][i]; if (!r) return;
+  if (!openSt) return; if (openSt.id === 'box') { giftPick(i); return; }
+  const r = RECIPES[openSt.id][i]; if (!r) return;
   if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
-  S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.board(); renderStation();
+  S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();
   const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
 }
 // the wheel eases the cards along instead of jumping a notch at a time (core/dom.js)

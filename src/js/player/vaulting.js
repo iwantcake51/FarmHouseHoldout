@@ -84,14 +84,14 @@ function tryVault() {
     C, L, s0, s1, lat0, lat1, twistSide, sx: P.x, sz: P.z, obs: vaultObstacle(kind, false), plant, ground: new V3(C[0] + dx * (s1 + 0.15) + L[0] * 0.14, 0.04, C[1] + dz * (s1 + 0.15) + L[1] * 0.14),
     x0: P.x, z0: P.z, x1: C[0] + dx * s1 + L[0] * lat1, z1: C[1] + dz * s1 + L[1] * lat1, face: Math.atan2(dx, dz), dx, dz, side: clamp(dx * RIGHT.x + dz * RIGHT.z, -1, 1) };
   buildVaultPlan(P.vault);
-  W8.reloading = null; W8.reloadT = 0; P.shove = null;
+  cutReload(); P.shove = null;
   nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
 }
 // push off (the camera's tilt follows the jump on its own, see vaultCam in game/camera.js)
-function vaultTakeoff(v) { SFX.vault(); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
+function vaultTakeoff(v) { SFX.vault(); footstep('jump', 1); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
 // touch down: a thump, dust, the knees soak it up and the camera dips and settles on a spring
 function vaultLand(v) {
-  SFX.thud(); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1; ANIM.landHeavy = !!v.scramble;
+  SFX.thud(); footstep('land', v.scramble ? 1.2 : 1); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1; ANIM.landHeavy = !!v.scramble;
   // carry the vault's momentum out of it (movement.js ends the jump still moving), so you run on instead of stopping dead
   const sp = Math.min(3, v.endSpeed || 0); P.vx = v.dx * sp; P.vz = v.dz * sp;
   camVault.vb -= 1.1; camVault.vr += v.side * 0.35; camVault.vpx += v.dx * 0.9; camVault.vpz += v.dz * 0.9;

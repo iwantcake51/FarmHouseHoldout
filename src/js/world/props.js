@@ -1,6 +1,7 @@
 // House furniture (table, pantry shelf, bed, hanging lamps) and yard props (cars, crates, hay bales, burn barrel).
 
-// low ones (crates, hay bales) stop feet but not eyes or bullets: you see and shoot over them (world/collision.js)
+// low ones (crates, hay bales, and the furniture in the house but the medicine cabinet) stop feet but not eyes or
+// bullets: you see and shoot over them (world/collision.js)
 const lowObst = new Set();
 function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
@@ -62,7 +63,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
   chair(t, -0.3, 0.88, 0.12); chair(t, -0.25, -0.86, Math.PI - 0.2);
   box(t, 0.36, 0.04, 0.34, HM.red, -0.3 + 0.0, 0.495, 0.88).rotation.y = 0.12;
   unfight(t); mergeInto(t, finePieces(t));
-  obstacle(24, 20); obstacle(25, 20);
+  obstacle(24, 20, true); obstacle(25, 20, true);   // table height: you see and shoot across it
 
   // ---- the pantry shelf on the west wall: open front, two bays, three shelves of stores and a few things on top ----
   const s = new THREE.Group(); s.position.set(cxw(17), 0, (cxw(23) + cxw(24)) / 2); scene.add(s);
@@ -97,7 +98,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
   [-1, 1].forEach(d => { const f = box(s, 0.34, 0.005, 0.14, HM.kraft, 0.0, 1.44, 0.08 + d * 0.2); f.rotation.x = d * 0.6; });
   torus(s, 0.1, 0.028, HM.rope, 0.03, 1.24, 0.62).rotation.x = Math.PI / 2; torus(s, 0.08, 0.026, HM.rope, 0.04, 1.29, 0.6).rotation.x = Math.PI / 2;
   unfight(s); mergeInto(s, finePieces(s));
-  obstacle(17, 23); obstacle(17, 24);
+  obstacle(17, 23, true); obstacle(17, 24, true);   // chest high and open fronted: you see and shoot over it
 
   // ---- the bed in the north-east corner: a turned-post frame, mattress, patchwork quilt, pillow, a suitcase under it, boots beside it ----
   const bed = new THREE.Group(); bed.position.set(cxw(26), 0, (cxw(18) + cxw(19)) / 2); scene.add(bed);
@@ -122,7 +123,7 @@ function book(g, w, h, d, mat, x, y, z, ry) { const b = box(g, w, h, d, mat, x, 
     box(b, 0.09, 0.03, 0.22, HM.leatherDk, 0, 0.015, 0.02); box(b, 0.085, 0.16, 0.1, HM.leather, 0, 0.11, -0.03); box(b, 0.085, 0.06, 0.12, HM.leather, 0, 0.06, 0.07);
   });
   unfight(bed); mergeInto(bed, finePieces(bed));
-  obstacle(26, 18); obstacle(26, 19);
+  obstacle(26, 18, true); obstacle(26, 19, true);   // low, like the table
 
   // ---- on the walls you can see from inside (north and west): a painting, a clock, antlers over the bed, coat hooks, a calendar ----
   const wd = new THREE.Group(); scene.add(wd);

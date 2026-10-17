@@ -78,12 +78,12 @@ function stepFlare(dt) {
   if ((f.smokeT -= dt) <= 0 && k > 0.15) { f.smokeT = 0.09; smoke(f.tip.x + rr(-0.03, 0.03), f.tip.y + 0.05, f.tip.z + rr(-0.03, 0.03), rr(-0.07, 0.07) + 0.12, rr(0.45, 0.75), rr(-0.07, 0.07), 0.05, rr(0.45, 0.8), rr(2.4, 3.4), 0.32 * k, 0xc8463a); }
   if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.18, 0.45); sparkBurst(f.tip.x, f.tip.y + 0.02, f.tip.z, 1 + (rand() * 2 | 0), 0, 0, 0.9); }
 }
-// a weapon off the radio, out of its crate (taken with E: takeIt in pickups/pickups.js, which puts down the one it
+// a weapon off the radio or the cards, out of its case (taken with E: takeIt in pickups/pickups.js, which puts down the one it
 // replaces): it goes into your hands, and the card says what you got
-function deliverWeapon(id) {
+function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
-  gotGear({ ic: 'supply', kind: 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
+  gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
 function updateSupplyDrop(dt) {
   const sp = supplySpot;
@@ -127,7 +127,12 @@ function resetDrops() { supplyT = 0; supplyCargo = null; supplySpot = null; heli
 // band is open (WEAP_OPEN, a wave ahead of the cards), never one you have, nor one already on its way or lying in its
 // crate (and those don't turn up as cards after a wave either)
 const RADIO_GUNS = Object.keys(GUN_WEAPONS).filter(id => GUN_WEAPONS[id].rar), RADIO_MELEE = Object.keys(MELEE_WEAPONS).filter(id => MELEE_WEAPONS[id].rar);
-const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 58, 82], top: [0, 30, 55, 85, 120], meleeUp: [0, 14, 24, 36] };
+// what the radio charges: a care package (a random weapon), and the crates priced by the band of what's in them, the
+// heavy guns (band 3: the assault rifle, the hunting rifle) and the top of the pile (band 4: the LMG, the drum
+// shotgun) a good deal dearer than the rest
+const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 78, 120], top: [0, 30, 55, 112, 165], meleeUp: [0, 14, 24, 36] };
+// how likely a care package is to bring a gun of each band: the heavy ones rarely, for the price
+const CARE_W = [0, 3, 2, 0.7, 0.3];
 const BAND_WORD = ['', 'light', 'solid', 'heavy', 'top-tier'], SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 const radioOpen = id => run.wave + 1 >= WEAP_OPEN[weapPow(id)];
 // the two care packages: what each brings, and how its card reads
@@ -164,7 +169,7 @@ function radioCards() {
   const guns = pk => RADIO_GUNS.filter(id => radioFree(id) && CARE[pk].slots.includes(WEAP[id].slot)), mels = () => RADIO_MELEE.filter(radioFree);
   for (const pk in CARE) { const c = CARE[pk];
     out.push({ ic: 'supply', group, for: () => c.for, cost: RADIO_COST[pk], title: () => c.title, desc: () => c.desc,
-      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => [0, 3, 2, 1.2, 0.7][weapPow(id)]), c.title) }); }
+      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => CARE_W[weapPow(id)]), c.title) }); }
   if (o.up) { const id = o.up, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better ' + SLOT_WORD[WEAP[id].slot], fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.up[b], title: () => 'Upgrade crate',
     desc: () => `A ${BAND_WORD[b]} ${SLOT_WORD[WEAP[id].slot]} that ${than(id)}. Which one is a surprise.`, why: busyWhy, make: () => order(id, 'Upgrade crate') }); }
   if (o.top) { const id = o.top, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'The best out there', fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'BEST YET', good: true }], cost: RADIO_COST.top[b], title: () => 'Top-shelf crate',

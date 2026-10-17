@@ -9,6 +9,8 @@ const FXK = {
   dust: { tex: TEX_SMOKE, add: false, col: 0xa08e74, lit: true, grav: 0, drag: 3.2, rise: 0.25 },
   smoke: { tex: TEX_SMOKE, add: false, col: 0x5a5652, lit: true, grav: 0, drag: 2.2, rise: 0.6 },
   mist: { tex: TEX_SMOKE, add: false, col: 0x8a1812, lit: true, grav: 1.2, drag: 4, rise: 0 },
+  // a head burst into a cloud of blood (zombies/damage.js: crushHead): a brighter red that hangs, darkening as it settles
+  redMist: { tex: TEX_SMOKE, add: false, col: 0xc0261c, col2: 0x6e120c, lit: true, grav: 0.35, drag: 3.2, rise: 0 },
   spark: { tex: TEX_SPARK, add: true, col: 0xffd890, lit: false, grav: 9, drag: 1.6, rise: 0 },
   flash: { tex: TEX_CORE, add: true, col: 0xffe2a8, lit: false, grav: 0, drag: 0, rise: 0 },
   ember: { tex: TEX_CORE, add: true, col: 0xff8a32, lit: false, grav: -0.6, drag: 1.5, rise: 0 },
@@ -102,7 +104,7 @@ function stepFx(dt) {
       m.rotation = Math.atan2(sy, sx); const sp = Math.hypot(p.vx, p.vy, p.vz);
       if (p.kind === 'dragon') { s.scale.set(0.09 + sp * 0.045, 0.05, 1); op = p.a * Math.pow(1 - k, 0.7); } else s.scale.set(0.05 + sp * 0.035, 0.028, 1);
     } else { const e = 1 - Math.pow(1 - k, 2.2); s.scale.setScalar(p.s0 + (p.s1 - p.s0) * e); m.rotation += p.spin * dt; }
-    if (K.lit) { const L = lightLevelAt(s.position.x, s.position.z); m.color.copy(_fc.setHex(K.col)).multiplyScalar(Math.min(1.15, 0.16 + L * 0.85)); op *= 0.3 + 0.7 * visAt(s.position.x, s.position.z); }
+    if (K.lit) { const L = lightLevelAt(s.position.x, s.position.z); m.color.copy(_fc.setHex(K.col)); if (K.col2) m.color.lerp(_fc2.setHex(K.col2), k); m.color.multiplyScalar(Math.min(1.15, 0.16 + L * 0.85)); op *= 0.3 + 0.7 * visAt(s.position.x, s.position.z); }
     else if (K.col2) m.color.setHex(K.col).lerp(_fc2.setHex(K.col2), k);
     else m.color.setHex(K.col);
     m.opacity = op;

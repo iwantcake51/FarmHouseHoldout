@@ -7,10 +7,13 @@ const camTarget = new V3(P.x, 0, P.z);
 const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
 // firing: each shot kicks three springs, the view tipping (mostly one way, like a gun climbing), pushing back against
 // the aim and punching in a touch; their size follows the gun's power, so a 9mm barely nudges and a rifle thumps
+// The tip is CAM_ROLL of what it once was, and a gun firing fast (auto) only CAM_ROLL_AUTO of that again, since its
+// kicks come too quickly to settle and would otherwise rock the whole view
 const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-function fireCam(pw, aim) {
+const CAM_ROLL = 0.6, CAM_ROLL_AUTO = 0.5;
+function fireCam(pw, aim, auto) {
   const c = camRec, sg = rand() < 0.7 ? 1 : -1;
-  c.vr += sg * pw * rr(0.5, 0.75); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
+  c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
   if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
@@ -72,7 +75,7 @@ function updateCamera(rdt) {
       camEdge.x += (ex - camEdge.x) * Math.min(1, rdt * 3); camEdge.y += (ey - camEdge.y) * Math.min(1, rdt * 3);
       const m = EDGE_PAN * 2 * VIEW / zoom;   // screen right is RIGHT on the ground; screen down is back toward the camera, stretched by the tilt
       px += (RIGHT.x * camEdge.x - FWD.x * camEdge.y / Math.sin(EL)) * m; pz += (RIGHT.z * camEdge.x - FWD.z * camEdge.y / Math.sin(EL)) * m; }
-    const gx = P.x + px - vd.x * k, gz = P.z + pz - vd.z * k;
+    const fo = camFocus(), gx = fo.x + px - vd.x * k, gz = fo.z + pz - vd.z * k;   // (down in co-op: a teammate, net/sync.js)
     if (state === 'play') tickIntro(rdt);
     if (introCamOn()) introCam(gx, gz, rdt);   // the glide in at the start of a run (game/intro.js)
     else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }
@@ -89,7 +92,7 @@ function updateCamera(rdt) {
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, vx = camKick.x + cv.px + cr.px + ck.px + cu.px, vz = camKick.z + cv.pz + cr.pz + ck.pz + cu.pz;
-  cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom;
+  camPunch *= Math.exp(-rdt * 9); cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom + camPunch;
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
   cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + introRoll()); cam.updateProjectionMatrix();
 }

@@ -57,6 +57,11 @@
 
 #slowmo{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at center,transparent 50%,rgba(20,32,44,.55) 100%)}
 #slowmo::before,#slowmo::after{content:"";position:absolute;left:0;right:0;height:calc(5.5vh * var(--bar,0));background:rgba(5,7,9,.85)}#slowmo::before{top:0}#slowmo::after{bottom:0}
+/* a dead eye (co-op Bullet time, zombies/damage.js): a warm glow at the edges of your sight that beats with it and eases off */
+#eyeVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(255,150,50,.16) 82%,rgba(230,90,30,.38) 100%)}
+#eyeVig.on{animation:eyeBeat .5s ease-in-out infinite alternate}
+@keyframes eyeBeat{to{filter:brightness(1.35)}}
+@media (prefers-reduced-motion:reduce){#eyeVig.on{animation:none}}
 /* film grain: a small noise tile (ui, made at load) jittered every frame-ish, faint and over everything in the world */
 #grain{position:fixed;inset:-20%;z-index:1;pointer-events:none;opacity:.055;mix-blend-mode:overlay;background-size:160px 160px;animation:grain .45s steps(4) infinite}
 @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-2%,-1%)}100%{transform:translate(1%,3%)}}
@@ -134,3 +139,19 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 #gearPop.in .gpTx>*{animation:stRise .32s cubic-bezier(.2,.8,.3,1) backwards}
 #gearPop.in .gpName{animation-delay:.08s}#gearPop.in .gpText{animation-delay:.14s}#gearPop.in .gpFx{animation-delay:.2s}
 @media (prefers-reduced-motion:reduce){#gearPop.in,#gearPop.out,#gearPop.in .gpTx>*{animation-duration:.01s;animation-delay:0s}}
+/* the first prep's labels over each station (ui/bench-tips.js): a pulsing dot on the station, a thin stem up from it and
+   a small dark card with its name and a few words on what it's for. They pop up in turn (--d) once the intro's over, the
+   card rising off the dot as the stem draws up to it, and fade out together */
+.benchTip{left:0;top:0;z-index:2;will-change:transform;transition:opacity .6s ease;--lift:26px;--dx:0px;text-shadow:none}
+.benchTip.out{opacity:0}
+.benchTip .btDot{position:absolute;left:-4.5px;top:-4.5px;width:9px;height:9px;border-radius:50%;background:#f4f1ea;box-shadow:0 0 0 2px rgba(20,15,11,.55),0 0 10px rgba(244,241,234,.7);animation:btDot .45s var(--d) cubic-bezier(.2,.9,.3,1.4) both,btPulse 1.8s calc(var(--d) + .45s) ease-in-out infinite}
+.benchTip .btStem{position:absolute;left:-.5px;bottom:4px;width:1px;height:calc(var(--lift) - 4px);background:linear-gradient(rgba(244,241,234,.75),rgba(244,241,234,.15));transform-origin:50% 100%;animation:btStem .35s calc(var(--d) + .12s) cubic-bezier(.3,.7,.3,1) both;transition:height .25s ease}
+.benchTip .btCard{position:absolute;left:0;bottom:var(--lift);transform:translateX(calc(-50% + var(--dx)));display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;padding:6px 12px 7px;
+  background:linear-gradient(rgba(30,23,17,.86),rgba(18,13,10,.86));border:1px solid rgba(244,241,234,.22);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);
+  animation:btCard .5s calc(var(--d) + .3s) cubic-bezier(.2,.9,.3,1.2) both;transition:bottom .25s ease}
+.benchTip .btCard b{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#f4f1ea}
+.benchTip .btCard span{font-size:11.5px;color:#cfc6b4;letter-spacing:.02em}
+@keyframes btDot{from{transform:scale(0);opacity:0}}
+@keyframes btStem{from{transform:scaleY(0);opacity:0}}
+@keyframes btCard{from{opacity:0;transform:translate(calc(-50% + var(--dx)),8px) scale(.9)}}
+@keyframes btPulse{50%{box-shadow:0 0 0 2px rgba(20,15,11,.55),0 0 0 7px rgba(244,241,234,.12),0 0 16px rgba(244,241,234,.85)}}

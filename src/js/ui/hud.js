@@ -3,18 +3,35 @@
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
 const BASE_HP = 100;
+// the stamina you've used and not yet won back (everything past the fill), and whether it's coming back yet ('back',
+// dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
+function stamDrain(rdt) {
+  const up = P.stam > (ANIM.stamPrev ?? P.stam) + 1e-5, down = P.stam < (ANIM.stamPrev ?? P.stam) - 1e-5; ANIM.stamPrev = P.stam;
+  ANIM.drainD = Math.max(0, 1 - ANIM.stamD);
+  if (ANIM.drainD < 0.004) ANIM.drainSt = '';
+  else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
+  else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
+}
 function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
-  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, key = Math.round(ANIM.stamD * 400) + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
-    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`; sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
+  // and what you've used (a sprint, a swing, a shove, a vault) shows just past the fill, here and on the crosshair's ring
+  // (ui/crosshair.js): bright while you're using it and till it starts coming back, then dimmed, the fill easing on
+  // into it till it's gone
+  stamDrain(rdt);
+  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
+    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
+    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
+      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
-    const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
+    // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
+    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
+    { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
     // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
-    const grey = Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
-    { const rt = Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
+    const grey = spec ? 0.4 : Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
+    { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, fk = grey + ':' + blur + ':' + slow;
     if (cache.grey !== fk) {
       cache.grey = fk;
@@ -46,10 +63,14 @@ function updateHUD(rdt, D) {
     // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
-    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
+    // the count in the colour of the kind of round loaded, as its shells and cartridges show (ROUND_HUE; low and out
+    // still turn it yellow and red)
+    const rc = !D.melee && roundHue(id, D);
+    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); if (el.dataset.rc !== (rc || '')) { el.dataset.rc = rc || ''; el.style.color = rc || ''; } };
     if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
-    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magCap(id), false); }
-    setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
+    const hm = !D.melee && !ak && hudMag(id);   // through a mag change, what's in the gun as you'd see it (ui/rounds.js)
+    if (!ak) { setRoll('ammo', D.melee ? '—' : String(hm.have)); ammoEl($('ammo'), D.melee ? 0 : hm.have, D.melee ? 0 : magCap(id), false); }
+    setRoll('ammoRes', D.melee ? '' : '/ ' + (hm ? hm.res : W8.reserve[D.ammo]));
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
@@ -78,6 +99,11 @@ function fireModeSwitched(id) {
   const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
+}
+// X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
+function roundSwitched(id) {
+  SFX.click(); setTimeout(() => SFX.click(), 90);
+  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
 }
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)

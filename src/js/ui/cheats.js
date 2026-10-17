@@ -36,14 +36,14 @@ const CHEAT_FX = {
   slowed: { name: 'Slowed', text: 'A hit has you stumbling.', on: () => P.slow > 0.15 && P.slow <= 0.45, ap: () => { P.slow = 0.4; }, hold: () => { P.slow = Math.max(P.slow, 0.3); }, off: () => { P.slow = 0; } },
   pinned: { name: 'Pinned', text: 'Grabbed and barely moving.', on: () => P.slow > 0.45, ap: () => { P.slow = 1; }, hold: () => { P.slow = Math.max(P.slow, 0.9); }, off: () => { P.slow = 0; P.stun = 0; } },
   conc: { name: 'Concussed', text: 'The screen swims and your aim goes wide.', on: () => P.conc > 0.15, ap: () => { P.conc = 1; }, hold: () => { P.conc = Math.max(P.conc || 0, 0.8); }, off: () => { P.conc = 0; } },
-  winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = 1; P.exh = P.sprintLock = P.fatigued = false; } },
+  winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = 1; P.runDebt = 0; P.exh = P.sprintLock = P.fatigued = false; } },
   healing: { name: 'Healing', text: 'Health coming back over time, as after a bandage.', on: () => P.bandT <= 0 && P.heal > 0, ap: () => { if (P.hp >= S.maxHp) fxHp(0.5); P.heal = (P.heal || 0) + 50; }, hold: () => { P.heal = Math.max(P.heal || 0, 5); }, off: () => { P.heal = 0; } },
   bandaging: { name: 'Bandaging', text: 'A bandage going on (one is added to your bag if you have none).', on: () => P.bandT > 0, ap: () => { P.band = Math.max(P.band || 0, 1); if (P.hp >= S.maxHp && !(P.bleed > 0)) fxHp(0.9); startBandage(); popEl('bands'); }, off: () => { if (P.bandT > 0) { P.bandT = 0; ANIM.healCut = true; } } },
   hurt: { name: 'Hurt', text: 'Down to 60% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.7 && P.hp / S.maxHp >= 0.35, ap: () => fxHp(0.6), off: () => { P.hp = S.maxHp; } },
   badly: { name: 'Badly hurt', text: 'Down to 20% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.35, ap: () => fxHp(0.2), off: () => { P.hp = S.maxHp; } },
   last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = S.maxHp; } },
   wind: { name: 'Second wind ready', text: 'Gives you the Second wind perk if you haven\'t got it, ready to go again.', on: () => S.secondWind && !S.windUsed, ap: () => { if (!S.secondWind) chSkill('p:Second wind', 1); S.windUsed = false; }, off: () => { S.windUsed = true; } },
-  heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else giveWeapon('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
+  heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else chGive('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
   dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { tod = 0; }, off: () => { tod = 12; } }
 };
 // held effects: kept on every frame until you let go (for this page only)
@@ -124,10 +124,16 @@ const CHEAT_TABS = {
     if (!D.melee) {
       const lines = CH_GUN_LINES.filter(k => chLineFits(k, id));
       h += lines.map(k => {
-        const n = gunTier(id, k), max = tierMax(k, id), up = tierFits(k, id) && (k !== 'choke' || D.ammo === 'shells');
+        const n = ownTier(id, k), max = tierMax(k, id), up = tierFits(k, id) && (k !== 'choke' || D.ammo === 'shells');
         const why = !up && n < max ? (k === 'supp' || k === 'choke' ? 'The muzzle is taken' : '') : '';
         return `<div class="chRow"><span class="chK">${CH_LINE[k]}</span><span class="chTier">${n ? esc(tierName(k, n - 1, id)) : '<i>None</i>'}<small>${n}/${max}${why ? ' · ' + why : ''}</small></span>${chStep('tier', { k }, '', n > 0, up)}</div>`;
       }).join('');
+    }
+    // the kinds of round it takes: give and load any of them (weapons/rounds.js)
+    if (!D.melee && roundTypes(id).length > 1) {
+      h += chHead('Rounds');
+      h += roundTypes(id).map(k => { const own = roundOwned(id, k), on = roundOn(id) === k;
+        return `<div class="chRow${own ? ' have' : ''}"><span class="chK chMod" title="${esc(roundText(id, k))}">${esc(roundName(id, k))}<small>${on ? 'Loaded' : own ? 'Owned' : esc(roundText(id, k))}</small></span>${chBtn(on ? 'Loaded' : 'Load', 'round', { k }, '', on)}</div>`; }).join('');
     }
     const mods = Object.keys(MODS).filter(m => MODS[m].w === id);
     if (mods.length) {
@@ -167,12 +173,12 @@ const CHEAT_TABS = {
 
 // ---- the gun in your hands ----------------------------------------------------------------------------------------
 const CH_GUN_LINES = ['ammo', 'trigger', 'mag', 'supp', 'choke', 'sight', 'laser', 'light', 'loader'];
-const CH_LINE = { ammo: 'Ammo', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
+const CH_LINE = { ammo: 'Powder', trigger: 'Trigger', mag: 'Magazine', supp: 'Suppressor', choke: 'Choke', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Speed loader' };
 function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
   if (k === 'choke') return D.ammo === 'shells';
-  if (k === 'loader') return id === 'revolver' || (D.ammo === 'shells' && !!D.perShell);
+  if (k === 'loader') return id === 'revolver' || !!D.breakOpen;
   return true;
 }
 // change the weapon, then let it take the change at once: a new magazine goes straight in, topped up
@@ -182,6 +188,9 @@ function chGun(id, fn) {
   delete W8.pin[id]; recomputeEff(); buildGuns(); gunGlow = 1;
   if (!W(id).melee) W8.mag[id] = magSize(id);
 }
+// a weapon into its slot and your hands, the way one off the radio arrives (stations/supply-drop.js): giveWeapon only
+// changes the stats, so the models in your hands and on your back are rebuilt for it too
+function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1; }
 function chRemoveMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== m && MODS[k].need !== m);   // and anything that needed it
   Object.keys(MODS).forEach(k => { if (!(W8.mods[id] || []).includes(k) && MODS[k].w === id) delete W8.modLv[k]; });
@@ -193,7 +202,7 @@ function chRemoveMod(id, m) {
 // every skill and perk the cards after a wave can give you (not aid, weapons or the Gunsmith, which works on a gun), and
 // the tiered lines (armour, boots, hammer, senses, feeding). A plain one counts how often you took it (run.taken), a
 // tiered one its step
-const CH_TIER_NAME = { armor: 'Body armour', boots: 'Footwear', hammer: 'Hammer', eyes: 'Awareness', night: 'Night vision', feed: 'Feeding' };
+const CH_TIER_NAME = { armor: 'Body armour', boots: 'Footwear', hammer: 'Hammer', eyes: 'Awareness', night: 'Night vision', feed: 'Feeding', strong: 'Strong arms', rungun: 'Run and gun', soles: 'Thick soles', walkw: 'Walking wounded', quick: 'Quick hands' };
 const chPlain = () => UPG.filter(u => !u.weaponOf && !u.tierOf && !u.card && !AID.has(u.name));
 const chTiers = () => UPG.filter(u => u.tierOf).map(u => u.tierOf);
 const takenN = name => { const h = run.taken.find(t => t.name === name && !t.on); return h ? h.n : 0; };
@@ -267,19 +276,20 @@ const CHEAT_ACTS = {
   scrap: d => { S.scrap = +d.n ? S.scrap + +d.n : 0; popEl('scrap'); },
   planks: () => { S.planks = PLANK_MAX; popEl('planks'); },
   ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[WEAP[id].ammo] = Math.max(W8.reserve[WEAP[id].ammo], 3 * AMMO_CAN[WEAP[id].ammo]); } }); },
-  give: d => { exitScope(); giveWeapon(d.id); feed('gear', 0, WEAP[d.id].name); },
+  give: d => { chGive(d.id); feed('gear', 0, WEAP[d.id].name); },
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
-  tier: d => { const id = curId(), k = d.k, n = gunTier(id, k), dd = +d.d;
+  tier: d => { const id = curId(), k = d.k, n = ownTier(id, k), dd = +d.d;
     if (dd > 0 ? !tierFits(k, id) : n <= 0) return;
-    chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + dd; if (!W8.gt[id][k]) delete W8.gt[id][k]; }); },
+    chGun(id, () => { fitTier(id, k, n + dd); W8.own[id][k] = n + dd; }); },   // down a step is gone, not just taken off
   mod: d => { const id = curId(), m = d.m, dd = +d.d;
     if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m)); return; }
     const lv = modLv(m);
     if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
-  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; }); },
-  maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) W8.gt[id][k] = gunTier(id, k) + 1; recomputeEff(); }); },
+  stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },
+  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); gunGlow = 1; },
+  maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) fitTier(id, k, ownTier(id, k) + 1); recomputeEff(); }); },
   skill: d => chSkill(d.key, +d.d),
   noskills: () => chNoSkills(),
   wave: d => { run.wave = Math.max(0, run.wave + +d.d); },

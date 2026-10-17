@@ -1,6 +1,9 @@
 // Carrying and applying bandages, healing over time.
 
 const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
+// how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
+// gone as the bandage is
+const BAND_DONE = 0.12;
 // how many bandages you can carry: 3 in the pouch on your side, 2 more with the Med pouch upgrade's second pouch
 const bandMax = () => BAND_BASE + (S.pouch ? 2 : 0);
 // medicine cabinet upgrades: steadier hands wrap faster, better dressings heal more, a tonic heals quicker
@@ -17,8 +20,8 @@ function startBandage() {
   if (P.dead || P.vault || P.bandT > 0 || openSt) return;
   if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: 'Buy them at the medicine cabinet' }); return; }
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
-  exitScope(); W8.reloading = null; W8.burstLeft = 0; W8.swing = 0;
-  P.bandT = P.bandMax = bandTime(); SFX.rip();
+  exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
+  P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0; SFX.rip();
   P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
@@ -45,11 +48,19 @@ function switchSlot(s) {
   equip(s);
 }
 function tickBandage(dt) {
+  ANIM.bandDone = Math.max(0, (ANIM.bandDone || 0) - dt);
   if (P.bandT > 0) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    // back to full health before it's on (healing from the last one, or regen): the wrap stops there, done. The bandage
+    // goes back in the bag, unless it went on to stop a bleed (then it's on your arm like any other)
+    else if (P.hp >= S.maxHp && P.bandMax - P.bandT > 0.25) {
+      P.bandT = 0; ANIM.bandDone = BAND_DONE;
+      if (P.bandBleed) { P.band--; P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
+    }
   }
-  if (P.heal > 0 && !P.dead) { const r = healRate(), h = Math.min(P.heal, dt * r, S.maxHp - P.hp); P.hp += h; P.heal -= Math.max(h, dt * r * (P.hp >= S.maxHp ? 1 : 0)); if (P.heal < 0.01) P.heal = 0; }
+  // healing over time, till you're at full health: then whatever's left of it is gone, and so is its blue
+  if (P.heal > 0 && !P.dead) { const h = Math.min(P.heal, dt * healRate(), S.maxHp - P.hp); P.hp += h; P.heal -= h; if (P.heal < 0.01 || P.hp >= S.maxHp) P.heal = 0; }
 }

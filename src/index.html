@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -24,16 +24,23 @@
     <text id="scopeRng" class="rng" x="40" y="-6"></text>
   </svg>
 </div>
+<div id="teamNotes" class="hud"></div>
 <div id="xh" hidden>
   <svg width="160" height="160" viewBox="-80 -80 160 160" aria-hidden="true">
     <circle id="xhSpread" class="spread" r="12"></circle>
-    <circle id="xhAmmoBg" class="ammoBg" r="30" transform="rotate(-42)"></circle>
-    <circle id="xhAmmo" class="ammo" r="30" transform="rotate(-42)"></circle>
-    <circle id="xhReload" class="reload" r="30" transform="rotate(-42)" stroke-dasharray="0 999"></circle>
+    <!-- the mag on the right, drawn from the bottom up: rounds leave from the top, the reload fills from the bottom -->
+    <circle id="xhAmmoBg" class="ammoBg" r="30" transform="scale(1,-1) rotate(-42)"></circle>
+    <circle id="xhAmmo" class="ammo" r="30" transform="scale(1,-1) rotate(-42)"></circle>
+    <circle id="xhRTrack" class="reloadTrack" r="30" transform="scale(1,-1) rotate(-42)" stroke-dasharray="0 999"></circle>
+    <circle id="xhReload" class="reload" r="30" transform="scale(1,-1) rotate(-42)" stroke-dasharray="0 999"></circle>
+    <circle id="xhRPing" class="reloadPing" r="3"></circle>
+    <circle id="xhRHead" class="reloadHead" r="3.2"></circle>
     <!-- akimbo: the left gun's mag and reload, mirrored on the left -->
     <circle id="xhAmmoBgL" class="ammoBg" r="30" transform="rotate(138)" hidden></circle>
     <circle id="xhAmmoL" class="ammo" r="30" transform="rotate(138)" hidden></circle>
+    <circle id="xhRTrackL" class="reloadTrack" r="30" transform="rotate(138)" stroke-dasharray="0 999" hidden></circle>
     <circle id="xhReloadL" class="reload" r="30" transform="rotate(138)" stroke-dasharray="0 999" hidden></circle>
+    <circle id="xhRHeadL" class="reloadHead" r="3.2" hidden></circle>
     <circle id="xhGl" class="gl" r="36" transform="rotate(138)" stroke-dasharray="0 999"></circle>
     <circle id="xhHealBg" class="healBg" r="23"></circle>
     <circle id="xhHeal" class="heal" r="23" transform="rotate(-90)" stroke-dasharray="0 999"></circle>
@@ -43,10 +50,17 @@
       <g id="tk2"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
-    <!-- shotguns: four arcs of a ring as wide as the pellet spread, on the diagonals, in place of the four ticks -->
+    <!-- shotguns, by the shell loaded (slugs take the four ticks): buckshot four arcs of a ring as wide as the pellet spread,
+         on the diagonals; flechettes eight thin needles pointing in from it; dragon's breath three arcs, one on top and two
+         below like a flame's tips -->
     <g id="xhSg" hidden>
       <circle id="xhSgSh" class="sgSh" r="12"></circle>
       <circle id="xhSgR" class="sg" r="12"></circle>
+    </g>
+    <g id="xhFl" hidden></g>
+    <g id="xhDb" hidden>
+      <circle id="xhDbSh" class="sgSh" r="12"></circle>
+      <circle id="xhDbR" class="sg db" r="12"></circle>
     </g>
     <g id="xhMelee" hidden>
       <!-- two curved brackets round a dot: they close in while you recover from a swing, ease back open as you can swing again, and twist a little with each swing -->
@@ -59,6 +73,7 @@
     <!-- stamina: a short arc under the reticle, with any weapon, while it's being used and until it's full again -->
     <g id="xhStamG">
       <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
+      <circle id="xhStamRun" class="stRun" r="22" transform="rotate(58)"></circle>
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
@@ -91,10 +106,12 @@
   </div>
 </div>
 <div class="hud" id="moodles" hidden></div>
+<div id="tags" aria-hidden="true"></div>
 <div class="hud" id="vitals" hidden>
+  <div id="team" hidden aria-label="Your team"></div>
   <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
   <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
-  <div id="stamBar"><i id="stamFill"></i></div>
+  <div id="stamBar"><b id="stamRun"></b><i id="stamFill"></i></div>
   <div class="res">
     <span title="Planks"><svg data-gi="planks"></svg><b id="planks">6</b></span>
     <span title="Scrap"><svg data-gi="scrap"></svg><b id="scrap">0</b></span>
@@ -110,8 +127,29 @@
   <div id="rounds"></div>
   <div class="slots" id="slots"></div>
 </div>
+<!-- down in co-op: the teammate you're watching (net/spectate.js) -->
+<div id="spec" hidden>
+  <div class="spTop"><span class="spStamp">Down</span><div class="spText"><b class="spWho">Watching <em></em></b><small>Back on your feet when the wave is cleared</small><small class="spHint" hidden>Q / left click · E / right click: watch someone else</small></div></div>
+  <div class="spVit">
+    <div class="spName"><i></i><b></b></div>
+    <div class="hpRow"><span class="big spHp">100</span><span class="spMax">/ 100</span></div>
+    <div class="bar"><b></b><i></i><s></s></div>
+    <div class="res">
+      <span title="Planks"><svg data-gi="planks"></svg><b>0</b></span>
+      <span title="Scrap"><svg data-gi="scrap"></svg><b>0</b></span>
+      <span title="Kills"><svg data-gi="kills"></svg><b>0</b></span>
+    </div>
+  </div>
+  <div class="spArms">
+    <div class="spBand" title="Bandages"><svg data-gi="bandage" aria-hidden="true"></svg><b>0</b></div>
+    <div class="spRel"></div>
+    <div class="spWName"></div>
+    <div class="ammoRow"><span class="big spAmmo"></span><span class="spRes"></span></div>
+  </div>
+</div>
 <div class="hud" id="feed"></div>
 <div class="hud" id="wStats" hidden></div>
+<div class="hud" id="wLoad" hidden></div>
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
 <div id="cheat" hidden role="dialog" aria-label="Cheat menu">
@@ -135,6 +173,7 @@
   <div class="tbtns">
     <button type="button" id="tbClimb">Climb</button>
     <button type="button" id="tbBoard">Board</button>
+    <button type="button" id="tbTear">Tear</button>
     <button type="button" id="tbReload">Reload</button>
     <button type="button" id="tbAlt">Grenade</button>
     <button type="button" id="tbSwap">Swap</button>
@@ -145,14 +184,36 @@
 <div class="screen" id="title">
   <div class="inner">
    <div class="lead">
-    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky · Night 1</div>
+    <div class="eyebrow">Route 9 · Ashby Hollow, Kentucky <span class="stamp">Night 1</span></div>
     <h1>Kessler Farm</h1>
     <div class="story">
       <p>Forty acres of soybean and rust off Route 9, three miles outside Ashby Hollow, Kentucky. The radio stopped making sense on Tuesday. By Thursday the Kesslers were gone, and the people who used to wave from passing trucks had started walking the fence line instead.</p>
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><span class="note" id="best"></span></div>
+    <div class="coop" id="coop" hidden>
+      <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
+      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
+      <div class="coopPick" id="coopPick">
+        <button class="btn ghost sm" id="coopHost" type="button">Host a game</button>
+        <span class="or">or join one</span>
+        <input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code">
+        <button class="btn ghost sm" id="coopJoin" type="button">Join</button>
+      </div>
+      <div class="coopRoom" id="coopRoom" hidden>
+        <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy</button></div>
+        <ol class="coopList" id="coopList"></ol>
+        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd>T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
+      </div>
+      <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
+      <div class="coopFriends">
+        <div class="frHead">Friends <span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
+        <ul class="frList" id="frList"></ul>
+        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
+        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
+      </div>
+    </div>
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
@@ -165,13 +226,14 @@
       <kbd>Q</kbd><span>Bandage yourself: slow, then heals over time</span>
       <kbd>V</kbd><span>Shove zombies back (stabs with a bayonet)</span>
       <kbd>Hold F</kbd><span>Board up a door or window</span>
+      <kbd>Hold C</kbd><span>Tear a board down. Shots through boards wear them down too</span>
       <kbd>Space</kbd><span>Climb through a window or hop a fence</span>
       <kbd>E</kbd><span>Workbench, sawhorse, medicine cabinet, radio</span>
       <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
       <kbd>B</kbd><span>Switch fire mode</span>
       <kbd>I</kbd><span>Your weapon's stats, and what's changing them</span>
       <kbd>Wheel</kbd><span>Zoom in and out</span>
-      <kbd>T</kbd><span>Start the run, or the next wave early</span>
+      <kbd>T</kbd><span>Start the run, or the next wave early (in co-op, a vote: 3 in 4 of you)</span>
       <kbd>Esc</kbd><span>Pause</span>
     </div>
   </div>
@@ -180,10 +242,13 @@
 <div class="screen" id="upgrade" hidden>
   <div class="wrap">
     <div class="eyebrow" id="upEyebrow">Wave cleared</div>
-    <h3>Take one</h3>
-    <div class="kinds">Skills · Perks · Aid</div>
+    <h3 id="upHead">Take one</h3>
+    <div class="kinds" id="upKinds">Skills · Perks · Aid</div>
+    <div class="upClock" id="upClock" role="timer" aria-live="off"><span id="upClockT">20</span><i><b id="upClockBar"></b></i></div>
     <div id="cards"></div>
-    <div class="note" id="upNote">Click a card or press 1, 2 or 3</div>
+    <button class="btn ghost" id="upSkip" type="button"></button>
+    <div class="upWait" id="upWait" role="status"><b>Waiting for other players</b><span id="upWaitWho"></span></div>
+    <div class="note" id="upNote">Click a card or press 1, 2 or 3 · 4 takes the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
   </div>
 </div>
@@ -209,6 +274,23 @@
     <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
+<!-- menu wear (styles/screens.css): worn print for the big titles and the stamp, a wobble for brush strokes -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="fxWorn" x="-4%" y="-8%" width="108%" height="116%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="3" result="warp"/>
+    <feDisplacementMap in="SourceGraphic" in2="warp" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="edge"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.3" numOctaves="2" seed="11" result="fine"/>
+    <feColorMatrix in="fine" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -9 0 0 0 7" result="pits"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.011 0.03" numOctaves="3" seed="5" result="coarse"/>
+    <feColorMatrix in="coarse" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.2 0 0 0 1.5" result="fade"/>
+    <feComposite in="pits" in2="fade" operator="in" result="wear"/>
+    <feComposite in="edge" in2="wear" operator="in"/>
+  </filter>
+  <filter id="fxBrush" x="-60%" y="-2%" width="220%" height="104%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.02 0.09" numOctaves="2" seed="7" result="warp"/>
+    <feDisplacementMap in="SourceGraphic" in2="warp" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 <div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>

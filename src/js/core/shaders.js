@@ -4,16 +4,18 @@
 const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 },
   // how far your eyes have got used to the dark (lighting/day-night.js): it lifts the black-and-white dark a little
   uAdapt: { value: 0 },
+  // night vision (lighting/lightmap.js): how much it lifts the black-and-white dark, and how much of the colour it
+  // brings back there (a little through the monocular, more through the goggles, never all of it)
+  uNvMono: { value: 0 }, uNvSat: { value: 0 },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
-  // the flashlight, drawn here per pixel rather than baked into the light map (lighting/lightmap.js, flashUniforms):
-  // each beam's origin and direction (x, z, dx, dz), up to two for an akimbo pair, and (reach, half-angle, strength,
-  // how many beams)
-  uFl: { value: [new THREE.Vector4(), new THREE.Vector4()] }, uFlK: { value: new THREE.Vector4() },
-  // and its shadows: how far each ray across each beam got before something stopped it (a row a beam), and the angle
-  // each beam's rays are centred on and how far either side of it they go (lighting/lightmap.js, flashShadows)
-  uFlSh: { value: null }, uFlA: { value: new THREE.Vector4() } };
+  // the weapon lights, drawn here per pixel rather than baked into the light map (lighting/lightmap.js, flashUniforms):
+  // up to FL_N beams (yours, two for an akimbo pair, and in co-op your teammates'), each one's origin and direction
+  // (x, z, dx, dz) and its (reach, half-angle, strength, the angle its shadow rays are centred on); uFlK.w how many
+  uFl: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlP: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlK: { value: new THREE.Vector4() },
+  // and their shadows: how far each ray across each beam got before something stopped it (a row a beam: flashShadows)
+  uFlSh: { value: null } };
 const VERT_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
 const VERT_BODY = `
   vec4 lmW = vec4(transformed, 1.0);
@@ -32,28 +34,35 @@ const VERT_BODY = `
 // the baked light map did, but per pixel, so the rim is a smooth curve and it swings round with you every frame). Close
 // to the lens it spills a little all round. It stops where its ray across the beam was stopped (row: the beam's row of
 // the shadow texture, a0 and h the angle its rays are centred on and how far either side they go), a clean edge past a
-// window frame or a corner
+// window frame or a corner. Past the middle line of a window (tw, how far out its ray crossed it) the beam only goes on
+// where it passed between the sill and the head: a beam from gun height through a window only just over the sill
+// lights what stands up outside, not the ground just under it or the top of the wall over it
 const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
+const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
 const FL_FN = `
-float flCone(vec4 f, vec2 p, float a0, float h, float row) {
-  vec2 d = p - f.xy; float r = length(d);
+float flCone(vec4 f, vec4 k, vec2 p, float row) {
+  vec2 d = p - f.xy; float r = length(d), a0 = k.w, h = k.y + 0.3;
   float a = acos(clamp(dot(d / max(r, 1e-3), f.zw), -1.0, 1.0));
-  float cone = (1.0 - smoothstep(uFlK.y - 0.2, uFlK.y + 0.05, a)) * (1.0 + 0.5 * (1.0 - smoothstep(0.0, uFlK.y * 0.6, a)));
-  float fall = 1.0 - clamp(r / uFlK.x, 0.0, 1.0);
+  float cone = (1.0 - smoothstep(k.y - 0.2, k.y + 0.05, a)) * (1.0 + 0.5 * (1.0 - smoothstep(0.0, k.y * 0.6, a)));
+  float fall = 1.0 - clamp(r / k.x, 0.0, 1.0);
   float rel = mod(atan(d.x, d.y) - a0 + 9.424778, 6.283185) - 3.141593;
-  float reach = texture2D(uFlSh, vec2(clamp((rel + h) / (2.0 * h), 0.0, 1.0), row)).r * ${FL_MAX.toFixed(1)};
+  vec4 sh = texture2D(uFlSh, vec2(clamp((rel + h) / (2.0 * h), 0.0, 1.0), row));
+  float reach = sh.r * ${FL_MAX.toFixed(1)}, tw = sh.g * ${FL_MAX.toFixed(1)};
   float lit = r < 0.7 ? 1.0 : 1.0 - smoothstep(reach - 0.08, reach + 0.08, r);
+  float hw = ${GUN_Y.toFixed(2)} + (vWp.y - ${GUN_Y.toFixed(2)}) * tw / max(r, 1e-3);   // how high its line from the lens crossed the window
+  float gap = smoothstep(${FL_WIN[0].toFixed(2)} - 0.03, ${FL_WIN[0].toFixed(2)} + 0.03, hw) * (1.0 - smoothstep(${FL_WIN[1].toFixed(2)} - 0.03, ${FL_WIN[1].toFixed(2)} + 0.03, hw));
+  lit *= mix(1.0, gap, smoothstep(tw - 0.02, tw + 0.1, r));
   return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform vec4 uFl[2];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform vec4 uFlA;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
 // and runs down walls in soft organic stains rather than texels. Things that move (you, zombies, weapons, pickups)
 // opt out with userData.mobile, and carry their own stains.
 const BMU = { uBloodMap: { value: null }, uBloodNoise: { value: null } };
-const WB_DECL = 'uniform sampler2D uBloodMap;\n';
+const WB_DECL = 'uniform sampler2D uBloodMap;\nconst vec2 SOOT = vec2(1.0, 0.17);\n';
 const WB_BODY = `
   {
     vec4 bm = texture2D(uBloodMap, vLmUv);
@@ -75,21 +84,29 @@ const WB_BODY = `
       float foot = smoothstep(0.3, 0.05, y + (nz - 0.5) * 0.14) * smoothstep(0.2, 0.5, bm.r);
       float a = mix(aFlat, max(max(spat, drip * 0.9), foot), vert);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.38, 0.04, 0.03) * (0.82 + 0.3 * nz), a * 0.92);   // (no darker pooling where it's thick)
-      float soot = smoothstep(0.1, 0.5, bm.b * (0.6 + nz * 0.8)) * smoothstep(1.6, 0.5, y);
+      // soot: soaked into the ground where it lies flat; up a wall only round where the blast struck, SOOT.x up, as tall
+      // as SOOT.y at its middle and narrowing to its rim (the map's blue falls off from the middle out, so this rounds it)
+      float sk = smoothstep(0.1, 0.5, bm.b * (0.6 + nz * 0.8)), sr = SOOT.y * sqrt(max(0.0, 1.0 - (1.0 - bm.b) * (1.0 - bm.b))) * (0.8 + nz * 0.4);
+      float soot = sk * mix(smoothstep(0.6, 0.3, y), smoothstep(sr, sr * 0.55, abs(y - SOOT.x)), vert);
       diffuseColor.rgb *= 1.0 - soot * 0.78;
     }
   }`;
 const FRAG_BODY = `
   vec4 lmS = texture2D(uLightMap, vLmUv);
-  if (uFlK.z > 0.001) {
-    float fl = flCone(uFl[0], vWp.xz, uFlA.x, uFlA.y, 0.25) + (uFlK.w > 1.5 ? flCone(uFl[1], vWp.xz, uFlA.z, uFlA.w, 0.75) : 0.0);
-    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * uFlK.z * 0.5, vec3(1.0));
+  if (uFlK.w > 0.5) {
+    float fl = 0.0;
+    for (int i = 0; i < 6; i++) { if (float(i) >= uFlK.w) break; fl += flCone(uFl[i], uFlP[i], vWp.xz, (float(i) + 0.5) / 6.0) * uFlP[i].z; }
+    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(1.0));
   }
-  vec3 lmC = gl_FragColor.rgb * lmS.rgb * 2.0;
+  vec3 lmBase = gl_FragColor.rgb, lmC = lmBase * lmS.rgb * 2.0;
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);
-  lmC *= mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
-  float lmG = dot(lmC, vec3(0.299, 0.587, 0.114)) * (1.0 + uAdapt) + uAdapt * 0.016;   // eyes used to the dark see a bit more of it
-  gl_FragColor.rgb = mix(vec3(lmG), lmC, lmL);   // colour only where there's light: the dark goes black and white
+  float lmV = mix(mix(uUnseen, 0.92, lmL), 1.0, lmS.a);
+  lmC *= lmV;
+  // eyes used to the dark see a bit more of it, and night vision lifts it more, bringing back some of its colour
+  float lmBL = dot(lmBase, vec3(0.299, 0.587, 0.114));
+  float lmG = (dot(lmC, vec3(0.299, 0.587, 0.114)) + lmBL * uNvMono * lmV) * (1.0 + uAdapt) + uAdapt * 0.016;
+  vec3 lmD = mix(vec3(lmG), min(lmBase * (lmG / max(lmBL, 0.02)), vec3(1.0)), uNvSat);
+  gl_FragColor.rgb = mix(lmD, lmC, lmL);   // colour only where there's light: the dark goes black and white
   // clouds passing over: their shade drifts across the farm by day (not indoors)
   if (uCloud.z > 0.001) {
     vec2 cq = vWp.xz * 0.022 + uCloud.xy;
@@ -131,7 +148,7 @@ const TREE_BODY = `
 function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uFl: LMU.uFl, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlA: LMU.uFlA });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }
@@ -149,21 +166,35 @@ function lit(mat, cut) {
 }
 const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
 const WIND = { value: 0 };
-// instanced foliage sways in the wind; the higher up a vertex sits the more it moves
-function windy(mat, amp) {
+// grass and bushes part round whoever's walking through them: up to four at a time (you, and the zombies nearest you),
+// each [x, z, reach, strength], set every frame by updatePushers (world/trees.js)
+const PUSHERS = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) };
+// instanced foliage sways in the wind; the higher up a vertex sits the more it moves. With push, it also leans away
+// from anyone walking through it (PUSHERS), the tops furthest and pressed down a little, the roots staying put: all in
+// the shader, so it costs nothing on the CPU however much grass there is
+function windy(mat, amp, push) {
   const base = mat.onBeforeCompile, baseKey = mat.customProgramCacheKey;
   mat.onBeforeCompile = function (sh, r) {
-    base.call(this || mat, sh, r); sh.uniforms.uWind = WIND;
-    sh.vertexShader = 'uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    base.call(this || mat, sh, r); sh.uniforms.uWind = WIND; if (push) sh.uniforms.uPush = PUSHERS;
+    sh.vertexShader = 'uniform float uWind;\n' + (push ? 'uniform vec4 uPush[4];\n' : '') + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
   vec3 ip = instanceMatrix[3].xyz; float hh = max(0.0, ip.y + transformed.y * 0.9);
   float ph = uWind + ip.x * 0.37 + ip.z * 0.23;
   float gust = 0.6 + 0.4 * sin(uWind * 0.31 + ip.x * 0.05);
   transformed.x += (sin(ph) * 0.7 + sin(ph * 2.3) * 0.3) * ${amp.toFixed(4)} * hh * gust;
-  transformed.z += cos(ph * 0.8) * ${(amp * 0.5).toFixed(4)} * hh * gust;
+  transformed.z += cos(ph * 0.8) * ${(amp * 0.5).toFixed(4)} * hh * gust;${push ? `
+  vec3 pOff = vec3(0.0);
+  for (int q = 0; q < 4; q++) {
+    vec4 pu = uPush[q]; vec2 dv = ip.xz - pu.xy; float dd = length(dv);
+    float k = pu.w * (1.0 - smoothstep(pu.z * 0.3, pu.z, dd));
+    pOff.xz += dv / max(dd, 0.04) * k; pOff.y -= k * 0.4;
+  }
+  pOff *= hh * ${push.toFixed(3)};
+  vec3 ic0 = instanceMatrix[0].xyz, ic1 = instanceMatrix[1].xyz, ic2 = instanceMatrix[2].xyz;
+  transformed += vec3(dot(ic0, pOff) / dot(ic0, ic0), dot(ic1, pOff) / dot(ic1, ic1), dot(ic2, pOff) / dot(ic2, ic2));` : ''}
 #endif`);
   };
-  mat.customProgramCacheKey = function () { return baseKey.call(this || mat) + '-wind-' + amp; };
+  mat.customProgramCacheKey = function () { return baseKey.call(this || mat) + '-wind-' + amp + (push ? '-push-' + push : ''); };
   return mat;
 }
 const basic = c => new THREE.MeshBasicMaterial({ color: c });

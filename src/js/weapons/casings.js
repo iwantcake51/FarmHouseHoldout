@@ -33,6 +33,17 @@ const CASE_PROF = {
     [9.45, 62, 'hullIn'], [9.4, 19, 'hullIn'], [9.4, 19, 'wad'], [9.1, 18.4, 'wad'], [0, 18.2, 'wad']] }
 };
 const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
+// a hull in the colour of the kind of shell (SHELL_MAT in weapons/gun-models.js): the same hull turned again with its
+// plastic recoloured, white for flechettes, orange for dragon's breath, blue for slugs
+const SHELL_HULL = { flech: 'W', fire: 'O', slug: 'B' };
+Object.assign(CC, { hullW: 0xd8d4c8, hullLipW: 0xece8de, hullInW: 0x7a766c, hullO: 0xb8400e, hullLipO: 0xd2561a, hullInO: 0x52200a, hullB: 0x1a3f8a, hullLipB: 0x2c58a8, hullInB: 0x0a1a3a });
+// a bullet's case by its kind of round (CASE_TINT): hollow points come in nickel cases, every calibre of them, turned
+// again in silver (p9N, rifleN...), and explosive tips in blackened steel (magnumX)
+const CASE_TINT = { hollow: 'N', boom: 'X' };
+Object.assign(CC, { nickel: 0xc4c8cc, nickelHead: 0x9ea3a8, nickelLip: 0xe6e9ec, black: 0x2e2e32, blackHead: 0x232326, blackLip: 0x4a4a50 });
+{ const TK = { N: { brass: 'nickel', head: 'nickelHead', lip: 'nickelLip' }, X: { brass: 'black', head: 'blackHead', lip: 'blackLip' } };
+  for (const kd of ['p9', 'magnum', 'rimmed', 'rifle']) for (const t in TK) { CASE_PROF[kd + t] = { ...CASE_PROF[kd], prof: CASE_PROF[kd].prof.map(v => TK[t][v[2]] ? [v[0], v[1], TK[t][v[2]]] : v) }; CASE_SCALE[kd + t] = CASE_SCALE[kd]; } }
+for (const s of Object.values(SHELL_HULL)) { const q = CASE_PROF.shells; CASE_PROF['shells' + s] = { ...q, prof: q.prof.map(v => v[2].startsWith('hull') ? [v[0], v[1], v[2] + s] : v) }; CASE_SCALE['shells' + s] = CASE_SCALE.shells; }
 // turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
 // the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
 const CASE_PLEAT = 8;
@@ -76,36 +87,68 @@ for (let k = 0; k < 90; k++) {
 }
 let cIdx = 0, tinkT = 0;
 const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
+// where each gun's spent brass comes out, in its own model's coordinates (weapons/gun-models.js): the middle of the
+// ejection port on its right side, just proud of the face, so the case leaves from the port and not from somewhere
+// along the barrel. On the hand cannon it's the mouth the slide opens between itself and the barrel block
+const EJECT_PORT = {
+  pistol: [X - 0.022, 1.149, 0.712], deagle: [X - 0.024, 1.162, 0.655], smg: [X - 0.03, 1.136, 0.64], sub: [X - 0.029, 1.145, 0.63],
+  ar: [X - 0.031, 1.143, 0.668], lmg: [X - 0.039, 1.12, 0.52], auto12: [X - 0.041, 1.149, 0.705], pump: [X - 0.028, 1.151, 0.65],
+  hunting: [X - 0.022, 1.143, 0.69]
+};
+// the double barrel throws its empties as it falls open, and the revolver's slide out of the cylinder once it's swung
+// out, not with the gun still shut: held here till the barrels are most of the way down or the cylinder most of the way
+// out (ANIM.brk, ANIM.crane: player/hold.js), and given back to the gun if the reload's dropped first
+let heldEject = null;
+const openFor = mode => mode === 'breach' ? (BRK[W8.cur] ? ANIM.brk || 0 : 1) : mode === 'dump' ? ((CRANE[W8.cur] || []).length ? ANIM.crane || 0 : 1) : 1;
+function tickHeldEject(dt) {
+  const q = heldEject; if (!q) return;
+  q.t += dt;
+  if (curId() !== q.id || !W8.reloading) { W8.spent[q.id] = (W8.spent[q.id] || 0) + q.n; heldEject = null; return; }
+  if (openFor(q.mode) < 0.8 && q.t < 0.6) return;
+  heldEject = null; ejectCasing(q.ammo, q.n, q.mode, null, true);
+}
 // mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
-// 'breach' pops shells up and back, 'dump' drops them at your feet. Everything starts at the real port on the posed gun
-function ejectCasing(ammo, n, mode, sideSign) {
+// 'breach' kicks shells out of the double barrel's chambers back over your shoulder, 'dump' drops them out of the
+// revolver's cylinder at your feet. Everything starts where it really comes out of the posed gun
+function ejectCasing(ammo, n, mode, sideSign, now) {
+  const id = curId(), BK = mode === 'breach' && BRK[W8.cur];
+  if (!now && openFor(mode) < 0.8) { if (heldEject && heldEject.id === id) heldEject.n += n; else heldEject = { id, ammo, n, mode, t: 0 }; return; }
+  const ch0 = mode === 'dump' ? Math.max(0, CHAMBERS - cylLive(id) - cylFired(id)) : 0;   // the fired chambers, below the loaded ones (cylHeads, player/hold.js)
   // a case the gun had kept (racked out, broken open, dumped from the cylinder) leaves the HUD as it leaves the gun
-  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : curId(); if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
-  const K = CASE_KIND[ammo === 'magnum' && curId() === 'revolver' ? 'rimmed' : ammo] || CASE_KIND.p9, D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
-  const port = (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38), right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
+  if (mode !== 'fire') { const gid = (mode === 'pump' || mode === 'bolt') && W8.cyc ? W8.cyc.id : id; if (W8.hudSpent[gid]) W8.hudSpent[gid] = Math.max(0, W8.hudSpent[gid] - n); }
+  const K = CASE_KIND[ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : (ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo) + (CASE_TINT[roundOn(id)] || '')] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
+  const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, side);
   // the gun's own axes in the world: the shooter's right is the gun's -x (the hand holding it is the rig's left)
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
-  _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, port); h.localToWorld(_cv);
+  // the revolver's chambers, wherever the cylinder has swung out to on its crane; the double barrel's, on its barrels
+  const cyl = mode === 'dump' && (CRANE[W8.cur] || []).find(c => c.parent === h), chambers = [];
+  if (cyl && cyl.children[0]) { const cg = cyl.children[0]; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; chambers.push(cg.localToWorld(new V3(Math.cos(a) * REV_CYL.ch, Math.sin(a) * REV_CYL.ch, -0.045))); } _cF.set(0, 0, 1).transformDirection(cg.matrixWorld); }
+  else if (BK) { BK.rims.forEach(r => chambers.push(r.getWorldPosition(new V3()))); _cF.set(0, 0, 1).transformDirection(BK.g.matrixWorld); }
+  const pt = EJECT_PORT[id];
+  if (pt) _cv.set(pt[0], pt[1], pt[2]); else _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38));
+  h.localToWorld(_cv);
   if (right) smoke(_cv.x, _cv.y, _cv.z, _cR.x * 0.5, 0.3, _cR.z * 0.5, 0.04, 0.2, rr(0.6, 0.9), 0.22, 0xb8b0a4);   // a breath of smoke from the port
   for (let k = 0; k < n; k++) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
     c.body.geometry = K.geo;
-    c.g.position.copy(_cv); c.g.visible = true; c.g.scale.setScalar(1);
+    c.g.position.copy(chambers.length ? chambers[(ch0 + k) % chambers.length] : _cv); c.g.visible = true; c.g.scale.setScalar(1);
     c.g.rotation.set(rr(0, 3), P.aim + rr(-0.5, 0.5), rr(0, 3));
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
     else if (mode === 'pump' || mode === 'bolt') { side = rr(2.3, 3.3); up = rr(2.2, 3.2); back = rr(0.2, 0.8); }   // racked out hard
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
-    else {   // dump: the whole cylinder's worth tumbles out together, each case falling its own way
-      side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8); c.g.position.y -= rr(0.04, 0.12);
-      c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
+    else {   // dump: the whole cylinder's worth slides out of the chambers together, each case falling its own way
+      side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8);
+      if (!chambers.length) { c.g.position.y -= rr(0.04, 0.12); c.g.position.x += rr(-0.04, 0.04); c.g.position.z += rr(-0.04, 0.04); }
+      c.g.rotation.set(rr(-0.6, 0.6) + Math.PI / 2, P.aim + rr(-1, 1), rr(-0.5, 0.5));
     }
     // right is toward the shooter's right for every mode; the breach and dump modes keep their old feel through their own numbers
     const sx = right ? side : -side;
     c.vx = _cR.x * sx + _cU.x * up * 0.15 - _cF.x * back + P.vx * 0.8 + rr(-0.3, 0.3); c.vz = _cR.z * sx + _cU.z * up * 0.15 - _cF.z * back + P.vz * 0.8 + rr(-0.3, 0.3); c.vy = up;
+    if (mode === 'breach' && chambers.length) c.vy = up * 0.7 - _cF.y * back;   // kicked out along the bores, which point up at you with the barrels down
     c.spin = rr(9, 17) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-6, 6);
     c.age = 0; c.hot = right || mode === 'breach' ? 1 : 0.4;   // freshly fired brass: a glowing trail and a thread of smoke for a moment
   }
@@ -151,14 +194,15 @@ function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-function stepCasings(dt) { stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
 const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
 for (let k = 0; k < 10; k++) {
   const g = new THREE.Group(), pv = new THREE.Group(); g.visible = false; scene.add(g); g.add(pv);
   const body = new THREE.Mesh(UBOX_D, GM.metal2), neck = new THREE.Mesh(UBOX_D, GM.metal2); body.castShadow = neck.castShadow = true; pv.add(body, neck);
-  mags.push({ g, pv, body, neck, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
+  const model = new THREE.Group(); pv.add(model);   // (or a copy of the gun's own magazine: placeMag)
+  mags.push({ g, pv, body, neck, model, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.03, bounces: 4, kind: 'mag' });
 }
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
@@ -167,33 +211,74 @@ function dropMag(id, side) {
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
   // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
   // drum (its radius and thickness, and which way its axis runs: along the gun or across it)
-  const mt = T('mag'), c = mags[mIdx = (mIdx + 1) % mags.length];
-  let w = 0.05, h = 0.15, d = 0.07, mat = GM.metal2, dr = null;
-  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = GM.poly; } }
+  const mt = T('mag');
+  let w = 0.05, h = 0.15, d = 0.07, mat = 'metal2', dr = null;
+  if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = 'poly'; } }
   else if (id === 'deagle') { w = 0.026; h = [0.17, 0.22, 0.32][Math.min(2, mt)]; d = 0.065; }
-  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = GM.poly; } }
-  else if (id === 'sub') { w = 0.026; h = hasMod('stack') ? 0.36 : 0.24; d = 0.042; }
+  else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = 'poly'; } }
+  else if (id === 'sub') { w = 0.026; h = [0.24, 0.29, 0.34, 0.4][mt]; d = 0.042; }
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') { if (mt >= 1) dr = { r: 0.114, t: 0.078, ax: 'z' }; else { w = 0.05; h = 0.215; d = 0.095; } }   // the drum, or its box
-  else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.018 * mt; d = 0.174; mat = GM.olive; }
+  else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = 'olive'; }
+  // an akimbo pair's left gun drops its own mag, from its own hand
+  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
+  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
+  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  // falling on down the gun's axis at the speed it was sliding out of the well (MAG_SLIDE over MAG_DROP_T, eased in:
+  // player/hold.js), so it never stops between the two
+  _cd.set(0, -1, 0).transformDirection(gg.matrixWorld).multiplyScalar(2 * MAG_SLIDE / MAG_DROP_T);
+  // it slips out of the well and drops: carried on with you, barely pushed (DROP_PUSH), tumbling slowly, so it leaves the
+  // gun where the gun's mag was rather than leaping away from it
+  const m = { shape: dr ? [dr.r, dr.t, dr.ax, id === 'pistol' ? 1 : 0] : [w, h, d], mat, p: [_cv.x, _cv.y, _cv.z].map(v => Math.round(v * 1000) / 1000), ry: Math.round(P.aim * 100) / 100, s: W8.cur, sd: side === 'L' ? 1 : 0,
+    v: [P.vx * 0.9 + fx * rr(0, DROP_PUSH) + _cd.x, _cd.y, P.vz * 0.9 + fz * rr(0, DROP_PUSH) + _cd.z].map(v => Math.round(v * 100) / 100), slow: 1, spin: Math.round(rr(3, 7) * (rand() < 0.5 ? -1 : 1) * 100) / 100, roll: Math.round(rr(-4, 4) * 100) / 100 };
+  placeMag(m, (MAGG[W8.cur] || [])[m.sd]);
+  netSend('md', m);   // (co-op: it falls out of your survivor on your teammates' screens too, net/arsenal.js)
+}
+// a falling mag, from where and how it was let go (yours, or a co-op teammate's): a copy of the gun's own magazine
+// (src: its group on the model, weapons/build-weapons.js), the same pieces and colours, starting exactly where it was
+// on the gun; or, without one, a plain one of the shape and colour given
+const DROP_PUSH = 0.15, _cd = new V3();
+const _mgB = new THREE.Box3(), _mgC = new V3(), _mgS = new V3(), _mgQ = new THREE.Quaternion();
+function placeMag(m, src) {
+  const c = mags[mIdx = (mIdx + 1) % mags.length];
+  while (c.model.children.length) c.model.remove(c.model.children[0]);   // (the copy shares the model's geometry: nothing to free)
+  if (src && src.children.length) {
+    const cp = src.clone(true); cp.position.set(0, 0, 0); cp.quaternion.identity(); cp.scale.set(1, 1, 1); cp.visible = true; cp.updateMatrixWorld(true);
+    _mgB.setFromObject(cp); if (!_mgB.isEmpty()) {
+      _mgB.getCenter(_mgC); _mgB.getSize(_mgS); cp.position.copy(_mgC).negate();
+      src.updateWorldMatrix(true, false); src.matrixWorld.decompose(c.g.position, _mgQ, c.g.scale); c.g.position.copy(_mgC).applyMatrix4(src.matrixWorld);
+      c.model.add(cp); c.body.visible = c.neck.visible = false; c.pv.rotation.set(0, 0, 0);
+      c.g.quaternion.copy(_mgQ); c.g.scale.setScalar(1); c.g.visible = true;
+      const th = _mgS.x / 2; c.r = th + 0.005; c.restY = th; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); };   // down on its side
+      c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin * (m.slow ? 0.4 : 1); c.roll = m.roll * (m.slow ? 0.4 : 1); c.bounces = 0; c.life = 14; c.kind = 'mag'; c.settle = null;
+      return;
+    }
+  }
+  c.body.visible = true;
+  const mat = GM[m.mat] || GM.metal2, dr = m.shape.length === 4 ? { r: m.shape[0], t: m.shape[1], ax: m.shape[2] } : null, small = m.shape[3] === 1;
+  const [w, h, d] = m.shape;
   c.body.geometry = dr ? DRUM_G : UBOX_D; c.body.material = c.neck.material = mat; c.pv.rotation.set(0, 0, 0); c.neck.visible = !!dr;
   if (dr) {
     // the drum, its axis along or across the gun, and its stick standing up out of it, as long as the drum's radius
     c.body.scale.set(dr.r, dr.t, dr.r); c.body.rotation.set(dr.ax === 'z' ? Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0);
-    const nh = dr.r * 1.05, nw = id === 'pistol' ? 0.026 : 0.044, nd = id === 'pistol' ? 0.05 : 0.07;
+    const nh = dr.r * 1.05, nw = small ? 0.026 : 0.044, nd = small ? 0.05 : 0.07;
     c.neck.scale.set(dr.ax === 'x' ? Math.min(nw, dr.t * 0.8) : nw, nh, dr.ax === 'z' ? Math.min(nd, dr.t * 0.8) : nd); c.neck.position.set(0, dr.r * 0.75 + nh / 2, 0);
     c.r = dr.r * 0.6; c.restY = dr.t / 2;
     c.rest = g => { g.rotation.set(0, g.rotation.y, 0); c.pv.rotation.set(dr.ax === 'z' ? -Math.PI / 2 : 0, 0, dr.ax === 'x' ? Math.PI / 2 : 0); };   // flat on its face
   }
   else { c.body.scale.set(w, h, d); c.body.rotation.set(0, 0, 0); c.r = w / 2; c.rest = g => { g.rotation.set(0, g.rotation.y, Math.PI / 2); }; c.restY = w / 2; }
-  // an akimbo pair's left gun drops its own mag, from its own hand
-  if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
-  else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }
-  else { _cv.set(mp[0], mp[1], mp[2]); gg.localToWorld(_cv); }
-  c.g.position.copy(_cv); c.g.rotation.set(0.2, P.aim, 0); c.g.scale.setScalar(1); c.g.visible = true;
-  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
-  c.vx = P.vx * 0.6 + fx * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vz = P.vz * 0.6 + fz * rr(0.2, 0.6) + rr(-0.3, 0.3); c.vy = rr(-0.2, 0.6);
-  c.spin = rr(3, 7) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-4, 4); c.bounces = 0; c.life = 14; c.kind = 'mag';
+  c.g.position.set(m.p[0], m.p[1], m.p[2]); c.g.rotation.set(0.2, m.ry, 0); c.g.scale.setScalar(1); c.g.visible = true;
+  c.vx = m.v[0]; c.vy = m.v[1]; c.vz = m.v[2]; c.spin = m.spin; c.roll = m.roll; c.bounces = 0; c.life = 14; c.kind = 'mag'; c.settle = null;
+}
+// a mag coming to rest: it tips over onto whichever of its sides is nearest the way it landed (the rest pose turned half
+// a turn round any of its axes lies just as flat), over MAG_SETTLE seconds, rather than snapping onto it
+const MAG_SETTLE = 0.24, _stO = new THREE.Object3D(), _stQ = new THREE.Quaternion(), _stF = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];
+function settleMag(c, g, fy) {
+  _stO.rotation.copy(g.rotation); if (c.rest) c.rest(_stO); else _stO.rotation.set(Math.PI / 2, g.rotation.y, 0);
+  const base = _stO.quaternion.clone(); let best = base.clone(), bd = Math.abs(base.dot(g.quaternion));
+  for (const ax of _stF) { const q = base.clone().multiply(_stQ.setFromAxisAngle(ax, Math.PI)), d = Math.abs(q.dot(g.quaternion)); if (d > bd) { bd = d; best = q; } }
+  c.settle = { t: 0, q0: g.quaternion.clone(), q1: best, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r) };
 }
 function stepDebris(list, dt) {
   tinkT -= dt;
@@ -214,10 +299,18 @@ function stepDebris(list, dt) {
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little
-          if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
+          if (c.kind === 'mag') settleMag(c, g, fy);   // (a mag tips over onto its side, not snapped there)
+          else if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
           c.vx *= 0.6; c.vz *= 0.6;
         }
       }
+    } else if (c.settle && c.settle.t < 1) {
+      // tipping over onto its side (settleMag): eased round to the face it lies on and down onto the ground
+      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / MAG_SETTLE); const k = smooth(S0.t);
+      g.quaternion.slerpQuaternions(S0.q0, S0.q1, k); g.position.y = S0.y0 + (S0.y1 - S0.y0) * k;
+      const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
+      if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }
+      const f = Math.exp(-dt * 5); c.vx *= f; c.vz *= f;
     } else if (Math.abs(c.vx) + Math.abs(c.vz) > 0.02) {
       const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
       if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }

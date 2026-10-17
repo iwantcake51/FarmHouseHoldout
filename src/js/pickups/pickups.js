@@ -6,11 +6,14 @@ const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 // (the supply crate off the radio, ammo for everything, in teal so it stands apart). A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
-// purple epic, orange legendary (a weapon with none, the starting pistol and bat, is uncommon: grey is only for aid)
-const PICK_COL = { scrap: 0xa9bccf, planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, p9: 0xc8d2dc, magnum: 0xe0503a, shells: 0xd8483a, rifle: 0xe4c46a };
+// purple epic, orange legendary (a weapon with none, the starting pistol and bat, is uncommon: grey is only for aid).
+// Every ammo box, whatever it holds, is the same bright brass yellow, a colour no other drop uses, so ammo reads as ammo
+// at a glance (the box itself shows which kind: blue 9mm card, red magnum card, green shell box, olive rifle can)
+const AMMO_COL = 0xffd23a;
+const PICK_COL = { planks: 0xe0a86a, med: 0xef6a52, supply: 0x4fd0c2, ammo: AMMO_COL };
 const RAR_COL = { c: 0xc4bcad, u: 0x6fd07a, r: 0x5f9ee8, e: 0x9f7af2, l: 0xf0a050 };
 const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'u'];
-const pickCol = (kind, ammoType, cargo) => kind === 'gun' ? weaponCol(cargo && cargo.id) : kind === 'supply' && cargo && cargo.kind === 'weapon' ? weaponCol(cargo.id) : PICK_COL[kind === 'ammo' ? ammoType || 'rifle' : kind];
+const pickCol = (kind, ammoType, cargo) => kind === 'gun' ? weaponCol(cargo && cargo.id) : kind === 'supply' && cargo && cargo.kind === 'weapon' ? weaponCol(cargo.id) : PICK_COL[kind];
 const ringGeo = new THREE.RingGeometry(0.34, 0.44, 28), discGeo = new THREE.CircleGeometry(0.44, 28);
 // a tall, soft shaft of light in the crate's colour standing up out of a supply crate, fading toward the top, so it stands out across
 // the yard and through the dark
@@ -42,7 +45,7 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
-  if (kind !== 'scrap' && kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
+  if (kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
   pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
@@ -57,7 +60,7 @@ function greyDrop(p, dt) {
   p.mats.forEach(m => greyOf(m.userData.c0, p.grey, m.color));
   greyOf(p.col, p.grey, _gc); p.ringMat.color.copy(_gc); p.discMat.color.copy(_gc); p.glow.material.color.copy(_gc); p.om.color.copy(_gc); p.xr.rim.color.copy(_gc);
 }
-// drops: bob, glow, magnet scrap, and collecting them
+// drops: bob, glow, and collecting them
 function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
@@ -87,12 +90,11 @@ function updatePickups(dt) {
     // a drop out past the edge of the farm, where you can't walk, flies in to you once it's landed, picking up speed;
     // one you can't take yet (a full bag or stack) stops just short of you
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun') {
+    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun') {   // (in co-op, every drop is only ever on its own player's farm)
       const sp = Math.min(10, 2 + (p.age - 0.5) * 6), full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom()), stop = full ? 1.4 : 0;
       if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
       if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
     }
-    if (p.kind === 'scrap' && d < 2.2 && d > 0.3) { p.x += (P.x - p.x) * Math.min(1, dt * 6); p.z += (P.z - p.z) * Math.min(1, dt * 6); p.g.position.x = p.x; p.g.position.z = p.z; }
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
@@ -100,8 +102,7 @@ function updatePickups(dt) {
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
-      else if (p.kind === 'scrap') { S.scrap += p.amount; feed('scrap', p.amount, 'scrap'); popEl('scrap'); ft = '+' + p.amount + (p.hoard ? ' ×2' : ''); SFX.scrap(); }
-      else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.upgrade(); }
+      else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.crate(); }
       else {
         // an ammo box has rounds for every gun you carry, whichever kind it looks like
         const opts = ammoTypes();
@@ -131,26 +132,37 @@ function nearestTake() {
 const GUN_KEEP = 2;   // rounds a gun you've put down stays on the ground
 function gunDrop(id) {
   const s = WEAP[id].slot, src = gunMeshes[s]; if (!src) return;
-  const copy = src.clone(true);
+  const a = rr(0, Math.PI * 2);
+  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
+  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
+  // (yours, so you can share it with your team: gunShare, net/teamwork.js; gid names it to them, lo is what's on it)
+  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: layGun(src.clone(true)), mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until,
+    own: true, gid: (NET.id || 'me') + ':' + (++gunSeq), lo: gunLo(id), shared: false });
+}
+let gunSeq = 0;
+// what's on one of your guns, as a teammate's game needs it to build it and to hand it over (as in myLoadout, net/arsenal.js)
+function gunLo(id) { const mods = (W8.mods[id] || []).slice(), lv = {}; mods.forEach(m => { lv[m] = modLv(m); }); return { mods, lv, gt: { ...(W8.gt[id] || {}) }, pin: null, att: { ...(W8.att[id] || {}) }, rnd: W8.rounds && W8.rounds[id] ? JSON.parse(JSON.stringify(W8.rounds[id])) : null, ak: !!(W(id) || {}).akimbo }; }
+// a gun model laid on its side on the ground, its holds put back square and its flash and outlines left off
+function layGun(copy) {
   copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });
   copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.scale.set(1, 1, 1); copy.visible = true;
   copy.children.forEach(h => { if (h.userData.side) { h.position.x = h.userData.x0 || 0; h.position.y = h.position.z = 0; h.rotation.set(0, 0, 0); h.visible = true; } });
   copy.updateMatrixWorld(true); const c = new THREE.Box3().setFromObject(copy).getCenter(new V3());
   const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
-  const a = rr(0, Math.PI * 2);
-  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
-  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
-  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: lay, mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until });
+  return lay;
 }
 function takeIt(p) {
   const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];
   if (old) gunDrop(old);
+  if (p.kind === 'gun' && p.cargo.gid) gunGone(p);   // (gone for the rest of the team too: net/teamwork.js)
   if (p.kind === 'gun') {
+    // one a teammate shared: it comes to you with everything that was on it, yours to keep from now on
+    if (!p.cargo.own && p.cargo.lo) gunTakeLo(id, p.cargo.lo);
     // your own gun back: as you left it, no fresh ammo with it
     W8.slot[D.slot] = id; recomputeEff(); delete W8.pin[id]; W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
     equip(D.slot, true); buildGuns(); gunGlow = 1;
-    gotGear({ ic: 'gear', kind: 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
-  } else { deliverWeapon(id); flareDone(); }
+    gotGear({ ic: 'gear', kind: p.cargo.own === false ? 'From ' + (p.cargo.who || 'a teammate') : 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
+  } else { deliverWeapon(id, p.cargo.from); if (p.cargo.from !== 'card') flareDone(); }
   floatText(p.x, p.z, D.name, '#f0c060'); SFX.pick();
   scene.remove(p.g); const k = pickups.indexOf(p); if (k >= 0) pickups.splice(k, 1);
 }
