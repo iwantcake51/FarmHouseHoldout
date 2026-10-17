@@ -123,7 +123,7 @@ function tickReload(dt) {
   if (!W8.reloading) return;
   const id = curId(), D = W(id);
   if (W8.reloading === 'mag' && D.akimbo && !D.speedload) { akTickReload(dt, id, D); return; }   // one gun at a time (weapons/akimbo.js)
-  W8.reloadT -= dt;
+  W8.reloadT -= dt * (runReloading() ? RUN_RELOAD.rel : 1);   // (a little slower at a sprint: player/sprint.js)
   if (W8.reloading === 'mag' && D.speedload) {
     const p = 1 - W8.reloadT / W8.reloadMax;
     if (!W8.seated && p >= SL_IN) { W8.seated = true; fillMag(id, D); SFX.shell(); setTimeout(() => SFX.shell(), 45); reloadJolt(0.2); }
@@ -142,7 +142,7 @@ function tickReload(dt) {
   if (W8.reloading === 'shell') {
     // one shell a go, or two or three with a speed loader
     const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
-    W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
+    W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; reloadTick(); SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * relMul(id); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); }   // the next shell, its own way
     // done: a pump or bolt gun that's open is racked next (weapons/casings.js), one that's chambered is ready as it is;
     // anything else snaps shut

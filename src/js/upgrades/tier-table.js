@@ -91,7 +91,7 @@ const TIERS = {
     { r: 'r', name: 'Strong arms III', text: 'Harder hits and cheaper swings again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } }] },
   rungun: { tag: 'Body', t: [
     { r: 'r', name: 'Run and gun', text: 'Pistols and SMGs fire while you sprint, with a lot more spread.', ap: () => { S.runGun = 1; } },
-    { r: 'r', name: 'Run and gun II', text: 'Adds shotguns and the assault rifle, and you can reload without stopping. Not the hunting rifle or LMG.', ap: () => { S.runGun = 2; } }] },
+    { r: 'r', name: 'Run and gun II', text: 'Adds shotguns and the assault rifle. Not the hunting rifle or LMG.', ap: () => { S.runGun = 2; } }] },
   soles: { tag: 'Body', t: [
     { r: 'u', name: 'Thick soles', text: 'Getting hit slows you down for less.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } },
     { r: 'r', name: 'Thick soles II', text: 'Less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },

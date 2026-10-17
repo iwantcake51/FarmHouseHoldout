@@ -21,7 +21,7 @@
 // of the way you're running: the gun stays up, the shots far looser (RG_SPREAD), and while your legs keep running the
 // way you're going your upper body twists round from the hips to shoot over that way (ANIM.rgK, player/animation.js).
 // Anything further round than that, the gun comes down and the chest unwinds as usual. Its second step adds the shotguns (pumped on the run too) and
-// the assault rifle, never the hunting rifle or the LMG, and lets you reload any of them without breaking the sprint.
+// the assault rifle, never the hunting rifle or the LMG.
 
 const WALK_SPEED = 3.0;
 const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
@@ -51,8 +51,11 @@ const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and f
 function sprintKey() { return keys.has('shift') || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
 function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
-// and from its second step, a reload carries on through a sprint (and doesn't stop one starting)
-const rgReload = () => S.runGun >= 2 && runGunOK();
+// a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
+// hands and a stop; it goes a little slower on the run, and so do you (RUN_RELOAD: the reload's pace, your speed)
+const RUN_RELOAD = { rel: 0.85, run: 0.92 };
+const rgReload = () => { const id = curId(), D = W(id); return !!D && !D.melee && id !== 'lmg'; };
+const runReloading = () => !!P.sprint && !!W8.reloading;
 // Run and gun, aiming within its arc of the way you're running: a sprint keeps the gun up, and it fires
 const rgArc = () => runGunOK() && Math.abs(angDiff(P.aim, ANIM.runYaw ?? P.aim)) < RG_ARC;
 function runGunning() { return !!P.sprint && rgArc(); }

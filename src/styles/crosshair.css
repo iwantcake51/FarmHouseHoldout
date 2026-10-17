@@ -28,6 +28,17 @@
 #xh .reloadHead{fill:#fff3dc;filter:drop-shadow(0 0 4px rgba(255,170,80,1));transition:opacity .12s}
 #xh .reload.done{stroke:#ffe4b4;animation:relDone .42s ease-out forwards}
 @keyframes relGlow{50%{filter:drop-shadow(0 0 6px rgba(255,165,70,1))}}
+/* a round going in (a shell, a cartridge, a speed loader's worth: reloadTick, ui/crosshair.js): the arc flashes pale and
+   swells for a beat, the bead on its end pops, the track brightens under it, and a ring ripples out from the bead */
+#xh .reload.tick{animation:relTick .28s cubic-bezier(.2,.8,.3,1),relGlow .9s ease-in-out infinite}
+#xh .reloadHead.tick{animation:relBead .3s cubic-bezier(.2,.9,.3,1.4)}
+#xh .reloadTrack.tick{animation:relTrack .32s ease-out}
+#xh .reloadPing{fill:none;stroke:#ffe9c4;stroke-width:1.6;opacity:0;pointer-events:none}
+#xh .reloadPing.tick{animation:relPing .38s cubic-bezier(.2,.7,.3,1)}
+@keyframes relTick{0%{stroke:#fff6e2;stroke-width:6.5;filter:drop-shadow(0 0 7px rgba(255,200,120,1))}100%{stroke:#f39042;stroke-width:4}}
+@keyframes relBead{0%{r:3.2px}35%{r:6px;fill:#fff}100%{r:3.2px}}
+@keyframes relTrack{0%{stroke:rgba(255,190,110,.55)}100%{stroke:rgba(240,140,60,.2)}}
+@keyframes relPing{0%{r:3px;opacity:.95;stroke-width:2.2}100%{r:13px;opacity:0;stroke-width:.6}}
 @keyframes relDone{0%{opacity:1;stroke-width:4}30%{opacity:1;stroke-width:7.5}100%{opacity:0;stroke-width:10}}
 #xh .dot{fill:var(--ink);stroke:rgba(0,0,0,.75);stroke-width:1}
 #xh .gl{fill:none;stroke:var(--gold);stroke-width:2}

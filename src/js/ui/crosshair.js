@@ -16,7 +16,12 @@ function reloadDraw(side, on, u) {
   r.track.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.track.style.opacity = on ? 1 : 0;
   const a = (r.a0 + r.dir * 84 * u) * Math.PI / 180; r.head.setAttribute('cx', (aR * Math.cos(a)).toFixed(1)); r.head.setAttribute('cy', (aR * Math.sin(a)).toFixed(1)); r.head.style.opacity = on && u > 0.02 ? 1 : 0;
   r.on = on; if (on) r.u = u;
+  // a round just went in: the pulse, from where the bead is now (reloadTick)
+  if (!on) r.tick = false;   // (the last one in finishes it: that's the .done flash instead)
+  if (r.tick && on) { r.tick = false; const P0 = $('xhRPing'); P0.setAttribute('cx', r.head.getAttribute('cx')); P0.setAttribute('cy', r.head.getAttribute('cy')); [r.ring, r.head, r.track, P0].forEach(el => { el.classList.remove('tick'); void el.getBBox(); el.classList.add('tick'); }); }
 }
+// a shell or cartridge loaded by hand (weapons/reload.js): the reload arc pulses as it goes in (styles/crosshair.css)
+function reloadTick() { RL.R.tick = true; }
 const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
 // the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
 // wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
