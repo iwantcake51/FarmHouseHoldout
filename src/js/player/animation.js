@@ -23,13 +23,15 @@ const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
 // come forward by thigh, the body drops by drop (metres) and the chest leans in by chest, eased in and out at ease.
 // Less on the move, none at a sprint or a climb
 // hurt (from LIMP.from of your health, worst by LIMP.to; eased in and out over a moment, so a hit or a bandage doesn't
-// snap it): the right leg's the bad one. Walking, you favour it: the step onto it comes quicker and shorter than the
-// other (warp: the stride's timing pushed on through it), the body leaning over it as it takes the weight (lean) and
-// dipping onto it, the leg itself swung out stiff round the side (out) rather than bent through, and the head nodding
-// onto each bad step (nod). Standing, the weight's off it (rest: its knee bent and the hip dropped that side), the
-// shoulders hunched a little over the hurt (hunch), the breathing quicker and deeper (breath: how much more, how much
-// quicker), and now and then a wince (wince: how often, seconds, at the worst; the knee buckling a little with it)
-const LIMP = { from: 0.45, to: 0.08, warp: 0.28, lean: 0.07, out: 0.14, nod: 0.07, rest: 0.26, hunch: 0.09, breath: [1.4, 1.1], wince: [3, 7] };
+// snap it): the right leg's the bad one, and you walk the way anyone does on a leg that hurts. The time on it is cut
+// short (warp: the stride hurried through the bad leg's stance, unhurried over the good one's) and its step is shorter
+// (short); it's kept stiff, the knee hardly bending as it comes through (stiff), and swung round a little to clear the
+// ground (out). You ride up over it, stiff, and sink onto the good leg (rise, sink, metres), the trunk leaning over the
+// bad leg as it takes the weight (lean) and the hip on the good side dropping (hip), the head held level through it all.
+// Standing, the weight's off it (rest: its knee bent and the hip dropped that side), upright, the breathing quicker and
+// deeper (breath: how much more, how much quicker), and now and then a wince (wince: how often, seconds, at the worst;
+// the knee buckling a little with it)
+const LIMP = { from: 0.45, to: 0.08, warp: 0.3, short: 0.35, stiff: 0.65, out: 0.1, rise: 0.018, sink: 0.028, lean: 0.075, hip: 0.07, rest: 0.26, breath: [1.4, 1.1], wince: [3, 7] };
 const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.22, thigh: 0.11, drop: 0.03, chest: 0.045, ease: 3.5 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 // Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
@@ -139,6 +141,7 @@ function angerStep(rdt) {
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
   faceAnger(LOOK.g.head, ANIM.anger);
 }
+const BODY_YAW = { k: 420, z: 0.72, max: 20 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) { animateDeath(P.deathDt || 0); return; }
@@ -146,8 +149,21 @@ function animatePlayer(dt, rdt) {
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
   const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 11;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
-  // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it
-  ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim + angDiff(ANIM.runYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1)), ANIM.yaw) * Math.min(1, rdt * turnRate);
+  // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it. Your aim
+  // itself is where the cursor is, at once; it's the body that comes round to it, quickly, on a spring (BODY_YAW: how stiff,
+  // how damped, a hair under 1 so a long turn carries a touch past and settles, and the fastest it turns, radians a
+  // second), the chest and arms taking up what it hasn't yet (rgTw below); over a vault, just after one and in a hard
+  // sprint turn it's eased round at turnRate instead
+  const yawTo = P.vault ? P.vault.face : P.aim + angDiff(ANIM.runYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1));
+  if (P.vault || ANIM.postVault > 0 || P.pivot || !(rdt > 0)) { ANIM.yaw += angDiff(yawTo, ANIM.yaw) * Math.min(1, rdt * turnRate); ANIM.yawV = 0; }
+  else {
+    const w = Math.sqrt(BODY_YAW.k);
+    for (let n = Math.ceil(Math.min(rdt, 0.05) / (1 / 120)), h = Math.min(rdt, 0.05) / n, i = 0; i < n; i++) {
+      ANIM.yawV = clamp((ANIM.yawV || 0) + (BODY_YAW.k * angDiff(yawTo, ANIM.yaw) - 2 * BODY_YAW.z * w * (ANIM.yawV || 0)) * h, -BODY_YAW.max, BODY_YAW.max);
+      ANIM.yaw += ANIM.yawV * h;
+    }
+    ANIM.yaw = Math.atan2(Math.sin(ANIM.yaw), Math.cos(ANIM.yaw));
+  }
   // Vault fire: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
   // after the landing it stays there while the hips come back round under it; then it lets go (ANIM.rg), by when there's
   // nothing left to make up. chestYaw is where the chest faces
@@ -203,7 +219,8 @@ function animatePlayer(dt, rdt) {
   // the stride's size follows your speed on a short lag, so turning round on the spot (your speed dipping through
   // nothing for a frame) doesn't snap the legs together
   ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
-  const ph = P.phase + LIMP.warp * limp * (1 - Math.cos(P.phase)), s = Math.sin(ph), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk);   // a sprint reaches further each step
+  // (the bad leg's stance is when cos(ph) < 0: bs below; the good leg's when it's above, gs)
+  const ph = P.phase - LIMP.warp * limp * Math.sin(P.phase), s = Math.sin(ph), bs = Math.max(0, -Math.cos(ph)), gs = Math.max(0, Math.cos(ph)), stride = 0.65 * ANIM.strideK * (1 - 0.2 * ads) * (1 + 0.28 * sk);   // a sprint reaches further each step
   // how much you're backing off: going away from where you face, at a walk or better (full at an aimed backpedal's pace)
   { const back = spd > 0.3 && !P.vault ? Math.max(0, -Math.cos(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw))) * Math.min(1, spd / 1.4) : 0;
     ANIM.backK = (ANIM.backK || 0) + (back - (ANIM.backK || 0)) * Math.min(1, rdt * BACKPEDAL.ease); }
@@ -215,21 +232,22 @@ function animatePlayer(dt, rdt) {
     // comes back in, so you walk straight out of it (a winded landing sinks deeper)
     const p = 1 - ANIM.land, k = Math.sin(Math.PI * p) * (ANIM.landHeavy ? 1.45 : 1), back = smooth(p);
     pm.g.position.y = ANIM.standY - k * 0.1; pm.g.rotation.x = k * 0.2;
-    pm.legL.rotation.x = ANIM.legDirS * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDirS * s * stride * back * (1 - limp * 0.7) + k * 0.32;
+    pm.legL.rotation.x = ANIM.legDirS * s * stride * back - k * 0.5; pm.legR.rotation.x = -ANIM.legDirS * s * stride * back * (1 - limp * LIMP.short) + k * 0.32;
     pm.shinL.rotation.x = k * 0.75; pm.shinR.rotation.x = k * 0.45;   // the knees give
     pm.legL.rotation.z = pm.legR.rotation.z = 0; pm.lower.rotation.z = 0; pm.lower.rotation.y = ANIM.legYaw;
   } else {
     // the stride runs along the line you're going: fore and aft as far as the hips face it, and the rest a side step,
     // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
     // a little and the steps shorten
-    const st = ANIM.legDirS * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * 0.7, splay = 0.045 * ads;
+    const st = ANIM.legDirS * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * LIMP.short, splay = 0.045 * ads;
     pm.legL.rotation.x = st * sc;
-    pm.legR.rotation.x = -st * sc * bad;   // the bad leg hardly swings
+    pm.legR.rotation.x = -st * sc * bad;   // (the bad leg's step shorter)
     const zl = -st * sn * 0.5, zr = st * sn * 0.5 * bad;
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
     pm.legL.rotation.z = (zl > 0 ? zl * 0.35 : zl) - splay; pm.legR.rotation.z = (zr < 0 ? zr * 0.35 : zr) + splay; pm.lower.rotation.z = spd <= 0.3 ? ANIM.legYaw * 0.035 : 0;
-    // limping: the bad leg swung out round the side as it comes through, stiff (LIMP.out)
-    if (limp > 0.001) pm.legR.rotation.z += LIMP.out * limp * Math.max(0, -s) * Math.min(1, runF);
+    // limping: the stiff bad leg swung round the side a little as it comes through (LIMP.out), and the hip on the good
+    // side dropping while the bad one has the weight (LIMP.hip)
+    if (limp > 0.001) { const m = Math.min(1, runF); pm.legR.rotation.z += LIMP.out * limp * gs * gs * m; pm.lower.rotation.z += LIMP.hip * limp * smooth(bs) * m; }
     // the shuffle round eases in and, once the feet have caught up, settles out over a moment (stepW) instead of the
     // legs snapping straight from mid-step
     ANIM.stepW = (ANIM.stepW || 0) + ((ANIM.stepping && spd <= 0.3 ? 1 : 0) - (ANIM.stepW || 0)) * Math.min(1, rdt * (ANIM.stepping ? 14 : 7));
@@ -242,9 +260,9 @@ function animatePlayer(dt, rdt) {
     }
     // the knees: each bends as its leg swings through, most just after it leaves the ground, so the heel lifts clear;
     // at a sprint it kicks right up behind. A little give in the standing knee too
-    const kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads) * bad, give = 0.06 * Math.min(1, runF) + 0.08 * sk;
+    const kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.08 * sk;
     pm.shinL.rotation.x = kn * Math.pow(Math.max(0, -Math.cos(ph + 0.35)), 1.3) + give;
-    pm.shinR.rotation.x = kn * Math.pow(Math.max(0, Math.cos(ph + 0.35)), 1.3) * bad + give;
+    pm.shinR.rotation.x = kn * Math.pow(Math.max(0, Math.cos(ph + 0.35)), 1.3) * (1 - limp * LIMP.stiff) + give * (1 - limp);   // (the bad knee kept stiff)
     // hurt and standing: the weight off the bad leg, its knee bent and the hip dropped that side (LIMP.rest), buckling a
     // little more with a wince
     { const r = limp * (1 - Math.min(1, runF)) * (1 - (ANIM.stepW || 0));
@@ -308,7 +326,7 @@ function animatePlayer(dt, rdt) {
   // away as you plant and builds back as you set off instead of cutting out and snapping back in)
   ANIM.bobSlow = P.pivot || P.skid > 0 ? 1 : Math.max(0, (ANIM.bobSlow || 0) - rdt * 1.6);
   ANIM.bobRun = (ANIM.bobRun ?? run1) + (run1 - (ANIM.bobRun ?? run1)) * Math.min(1, rdt * (12 - 9 * ANIM.bobSlow));
-  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? Math.max(0, s) * 0.08 * limp * Math.min(1, runF + 0.3) : 0);
+  const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? limp * run1 * (LIMP.rise * smooth(bs) - LIMP.sink * smooth(gs)) : 0);   // (limping: up over the stiff bad leg, down onto the good)
   const breathe = Math.sin(now * 1.7 * (1 + LIMP.breath[1] * limp)) * 0.01 * (1 + LIMP.breath[0] * limp) * still;   // (quicker and deeper hurt: LIMP.breath)
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
@@ -328,7 +346,7 @@ function animatePlayer(dt, rdt) {
   else if (dt > 0) { const k = Math.min(1, dt * 7); ANIM.ax += (clamp((P.vx - ANIM.pvx) / dt, -30, 30) - ANIM.ax) * k; ANIM.az += (clamp((P.vz - ANIM.pvz) / dt, -30, 30) - ANIM.az) * k; ANIM.pvx = P.vx; ANIM.pvz = P.vz; }
   const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), aF = ANIM.ax * sy + ANIM.az * cy, aS = ANIM.ax * cy - ANIM.az * sy;
   const alx = clamp(aF * 0.0042, -0.09, 0.1) * (1 - 0.6 * ads), alz = clamp(-aS * 0.003, -0.07, 0.07) * (1 - 0.6 * ads);
-  const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + limp * Math.max(0, s) * LIMP.lean * 2 * run1 + Math.sin(now * 0.55 + 0.6) * 0.012 * still;   // (limping, leant over the bad leg as it takes the weight)
+  const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + Math.sin(now * 0.55 + 0.6) * 0.012 * still, limpLean = -LIMP.lean * limp * smooth(bs) * run1;   // (limping, the trunk leant over the bad leg as it takes the weight)
   // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
   if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
   // sprinting, you look where the cursor is (SPRINT_LOOK): ahead of you the chest turns a little toward it and the head
@@ -348,11 +366,12 @@ function animatePlayer(dt, rdt) {
   // (the chest jolts forward on each of a scramble's choppy steps)
   const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
   let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
-  // hurt: hunched a little over it (and more for a wince), and standing, leant off the bad leg (LIMP)
-  urx += (LIMP.hunch * limp + 0.14 * wince) * (0.5 + 0.5 * still); urz -= 0.035 * limp * still;
+  // hurt: upright, standing leant a touch off the bad leg, and walking leant over it as it takes the weight (LIMP); a
+  // wince only catches you a little
+  urx += 0.04 * wince; urz += limpLean - 0.035 * limp * still;
   // the head steadies itself against the sway and nods a little as the chest settles onto each step
   pm.head.rotation.set(-ANIM.flinch * 0.2 + Math.sin(now * 1.3) * 0.02 * (1 - ads) - (ANIM.uy - bob) * 1.4 - alx * 0.4 - bpx * BACKPEDAL.head + BACKPEDAL.body * ANIM.backK * BACKPEDAL.head, 0, -sway * 0.6 - alz * 0.5);
-  pm.head.rotation.x += limp * LIMP.nod * Math.max(0, s) * run1 + 0.05 * limp * still + 0.12 * wince;   // (hurt: nodding onto each bad step, the head a little low standing, dropped with a wince)
+  pm.head.rotation.x += 0.06 * wince; pm.head.rotation.z -= limpLean * 0.7;   // (hurt: the head held level over the limp, dipped a little with a wince)
   // arms, hands and the weapon (player/hold.js): it adds its own lean and twist to the upper body
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)

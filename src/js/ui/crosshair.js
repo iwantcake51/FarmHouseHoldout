@@ -15,7 +15,7 @@ function reloadDraw(side, on, u) {
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
   // course on the gun still in your hands: not one cut short by putting the gun away)
   const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
-  if (done) { r.ring.setAttribute('stroke-dasharray', (side === 'L' ? xhAmmoL : xhAmmo).getAttribute('stroke-dasharray') || A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }
+  if (done) { r.ring.setAttribute('stroke-dasharray', ammoNow(side)); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }
   else if (!on && r.on) r.ring.classList.remove('done');
   if (on) r.id = id;
   else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
@@ -62,6 +62,12 @@ let gapCur = 10, lastGap = -1;
 let aR = 30, sR = 22, lastXh = '';
 const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 }, XH_SG_MAX = 150;
 const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
+// the rounds in the gun this moment, drawn as its ammo arc is (side: an akimbo pair's left gun's, or the right's), so the
+// flash as a reload finishes always shows what's just gone in, never what was there a frame before
+function ammoNow(side) {
+  const id = curId(), D = W(id) || {}, ak = !!D.akimbo, am = ak && akMags(id), n = ak ? akPer(id) : magCap(id);
+  return ammoDash(n, ak ? am[side === 'L' ? AK_ON.left : AK_ON.right] : W8.mag[id] || 0)[0];
+}
 function ammoDash(n, filled) {
   const A = ARC();
   if (n > 40) return [`${(A * filled / n).toFixed(2)} 999`, `${A.toFixed(2)} 999`];
@@ -177,6 +183,9 @@ function updateCrosshair(rdt, D) {
         if (ak) { const [fgL, bgL] = ammoDash(n, haveL); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', haveL <= lowAt); }
         xhAmmo.classList.toggle('low', have <= lowAt);
       }
+      // (a reload's finishing flash kept to the arc as it is now: the same rounds, the same size as the crosshair opens or
+      // closes under it)
+      for (const [side, arc] of [['R', xhAmmo], ['L', xhAmmoL]]) { const rg = RL[side].ring; if (rg.classList.contains('done')) { const d = arc.getAttribute('stroke-dasharray'); if (rg.getAttribute('stroke-dasharray') !== d) rg.setAttribute('stroke-dasharray', d); } }
       // yellow under a quarter, red and asking for a reload when empty. With two guns it's both mags together: low once
       // they add up to a quarter or less, and "No ammo" (with the reload key, if there's any to load) only when both are
       // empty; a single empty gun is shown by its own arc flashing red

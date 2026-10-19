@@ -10,7 +10,14 @@ function adaptResolution(rdt) {
   else if (frameAvg < 1 / 57 && renderScale < DPR) next = Math.min(DPR, renderScale + 0.25);
   if (next !== renderScale) { renderScale = next; R.setPixelRatio(renderScale); resize(); scaleT = 0; }
 }
+// the next frame's asked for first, and anything that goes wrong in this one is caught (and told once, in the console),
+// so one bad frame can never stop the game dead
+const frameErrs = new Set();
 function loop(now) {
+  requestAnimationFrame(loop);
+  try { frame(now); } catch (e) { const k = String(e && e.message); if (!frameErrs.has(k)) { frameErrs.add(k); console.error('frame error:', e); } }
+}
+function frame(now) {
   const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
   if (document.visibilityState === 'visible') adaptResolution(rdt);
   let simDt = 0;
@@ -32,7 +39,6 @@ function loop(now) {
   R.render(scene, cam);
   outlinePass(cam);   // the outlines round whole models, over the frame (effects/outlines.js)
   flushModels();   // (old weapon models let go of once nothing draws them: binModel, core/geometry.js)
-  requestAnimationFrame(loop);
 }
 last = performance.now();
 computeFlow();
