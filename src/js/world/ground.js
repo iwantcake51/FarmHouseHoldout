@@ -28,15 +28,17 @@ function groundMask() {
   [[cxw(21), cxw(HZ0) - 1, cxw(21.5), cxw(11)], [cxw(HX0) - 1, cxw(21), cxw(10), cxw(21.5)], [cxw(HX1) + 1, cxw(22), cxw(33), cxw(21.5)]].forEach(([a, b, c2, d]) => { for (let t = 0; t <= 1; t += 0.03) blot(px(a + (c2 - a) * t + rr(-.3, .3)), px(b + (d - b) * t + rr(-.3, .3)), pm(rr(0.35, 0.7)), '255,0,0', 0.3); });
   const t = new THREE.CanvasTexture(c); t.flipY = false; t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;   // (row by row along z, as drawn)
 }
-// the ground's textures, each tiled over the ground at its own size (metres a tile)
-const GROUND_TEX = {}, GROUND_TILE = { grass: 1.6, patchy: 1.4, thin: 1.7, dry: 1.5, earth: 1.6, drive: 1.8 };
+// the ground's textures, each tiled over the ground at its own size (metres a tile), and how soft they're drawn
+// (GROUND_BLUR: 1 as sharp as the screen allows, 2 a mip level softer)
+const GROUND_TEX = {}, GROUND_TILE = { grass: 2.6, patchy: 2.3, thin: 2.8, dry: 2.5, earth: 2.4, drive: 2.6 }, GROUND_BLUR = 2.2;
 for (const k in GROUND_TILE) {
   const t = GROUND_TEX[k] = new THREE.TextureLoader().load(GROUND_ART[k]);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = R.capabilities.getMaxAnisotropy();
 }
-// Perlin (gradient) noise, and a texture tiled with no repeat to see: the tiling noise picks an offset for each patch
-// of ground, and where two patches meet their copies of the texture fade into each other (the darker one wins first,
-// so the seams follow its shapes), drawn with the gradients the plain tiling would have so its mip level never jumps
+// Perlin (gradient) noise, and a texture tiled with no repeat to see: the tiling noise picks an offset and a turn for
+// each patch of ground (gPick), and where two patches meet their copies of the texture fade into each other (the
+// darker one wins first, so the seams follow its shapes), drawn with the gradients the plain tiling would have, turned
+// with it, so its mip level never jumps
 const GROUND_DECL = `
 uniform sampler2D uGMask;
 uniform sampler2D uGT[6];
@@ -54,10 +56,14 @@ float gNoise(vec2 p) {
              mix(dot(gHash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)), dot(gHash(i + 1.0), f - 1.0), u.x), u.y);
 }
 float gFbm(vec2 p) { return gNoise(p) * 0.6 + gNoise(p * 2.03 + 7.1) * 0.28 + gNoise(p * 4.07 + 3.7) * 0.12; }
+vec3 gPick(sampler2D s, vec2 x, vec2 dx, vec2 dy, float i) {
+  float r = fract(sin(i * 12.9898 + 4.1) * 43758.5453) * 6.2832; mat2 m = mat2(cos(r), sin(r), -sin(r), cos(r));
+  return G_TEX(s, m * x + sin(vec2(3.0, 7.0) * i), m * dx, m * dy).rgb;
+}
 vec3 gTile(sampler2D s, vec2 x, vec2 dx, vec2 dy, float tl) {
-  float l = tl * 8.0, f = fract(l), ia = floor(l);
-  vec3 a = G_TEX(s, x + sin(vec2(3.0, 7.0) * ia), dx, dy).rgb, b = G_TEX(s, x + sin(vec2(3.0, 7.0) * (ia + 1.0)), dx, dy).rgb;
-  return mix(a, b, smoothstep(0.2, 0.8, f - 0.1 * dot(a - b, vec3(1.0))));
+  float l = tl * 14.0, f = fract(l), ia = floor(l);
+  vec3 a = gPick(s, x, dx, dy, ia), b = gPick(s, x, dx, dy, ia + 1.0);
+  return mix(a, b, smoothstep(0.15, 0.85, f - 0.1 * dot(a - b, vec3(1.0))));
 }
 `;
 // the ground's colour at p: the four grasses faded in and out of each other on their own slow noise fields, bare earth
@@ -65,10 +71,10 @@ vec3 gTile(sampler2D s, vec2 x, vec2 dx, vec2 dy, float tl) {
 // dark of it drifting a little, and past the farm's edge darkening into the floor of the woods
 const GROUND_FS = `
   {
-    vec2 gp = vWp.xz, gdx = dFdx(gp), gdy = dFdy(gp);
+    vec2 gp = vWp.xz, gdx = dFdx(gp) * ${GROUND_BLUR.toFixed(2)}, gdy = dFdy(gp) * ${GROUND_BLUR.toFixed(2)};
     vec4 gm = texture2D(uGMask, gp / uGSpan + 0.5);
-    float n1 = gFbm(gp * 0.075), n2 = gFbm(gp * 0.11 + 19.3), n3 = gFbm(gp * 0.06 + 47.1), n4 = gFbm(gp * 0.45 + 3.3);
-    float tl = gNoise(gp * 0.21 + 71.0) * 0.5 + 0.5;
+    float n1 = gFbm(gp * 0.1), n2 = gFbm(gp * 0.14 + 19.3), n3 = gFbm(gp * 0.085 + 47.1), n4 = gFbm(gp * 0.45 + 3.3);
+    float tl = gFbm(gp * 0.32 + 71.0) * 0.6 + 0.5;
     vec3 gc = gTile(uGT[0], gp / ${GROUND_TILE.grass.toFixed(2)}, gdx / ${GROUND_TILE.grass.toFixed(2)}, gdy / ${GROUND_TILE.grass.toFixed(2)}, tl);
     float w = smoothstep(-0.12, 0.2, n1);
     if (w > 0.002) gc = mix(gc, gTile(uGT[1], gp / ${GROUND_TILE.patchy.toFixed(2)} + 0.37, gdx / ${GROUND_TILE.patchy.toFixed(2)}, gdy / ${GROUND_TILE.patchy.toFixed(2)}, tl), w);
