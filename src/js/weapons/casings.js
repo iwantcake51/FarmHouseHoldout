@@ -93,7 +93,7 @@ const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
 const EJECT_PORT = {
   pistol: [X - 0.022, 1.149, 0.712], deagle: [X - 0.024, 1.162, 0.655], smg: [X - 0.03, 1.136, 0.64], sub: [X - 0.029, 1.145, 0.63],
   ar: [X - 0.031, 1.143, 0.668], lmg: [X - 0.039, 1.12, 0.52], auto12: [X - 0.041, 1.149, 0.705], pump: [X - 0.028, 1.151, 0.65],
-  hunting: [X - 0.022, 1.143, 0.69]
+  hunting: [X - 0.022, 1.143, 0.655]
 };
 // the double barrel throws its empties as it falls open, and the revolver's slide out of the cylinder once it's swung
 // out, not with the gun still shut: held here till the barrels are most of the way down or the cylinder most of the way
