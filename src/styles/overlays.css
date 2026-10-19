@@ -95,8 +95,12 @@
   -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
 #bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 82% 78% at center,transparent 50%,rgba(180,12,6,.32) 70%,rgba(130,4,2,.7) 100%),radial-gradient(ellipse 80% 76% at center,transparent 62%,rgba(40,0,0,.22) 100%)}
-/* blood on the screen (ui/screen-blood.js): splats from a hit and drops while you bleed, drawn at half size and scaled up */
-#scrBlood{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+/* hurt vision (ui/hud.js damageVignettes): the edge of your sight goes soft, out of focus and a little washed red,
+   on the side a blow came from (#hitBlur, clearing as the sting does), and all the way round in slow breaths while you
+   bleed (#bleedBlur); the middle where you're looking always stays sharp */
+.hurtBlur{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;visibility:hidden;-webkit-backdrop-filter:blur(7px) saturate(.55) brightness(1.04);backdrop-filter:blur(7px) saturate(.55) brightness(1.04);background:rgba(150,24,14,.1)}
+#hitBlur{--hx:50%;--hy:100%;-webkit-mask-image:radial-gradient(ellipse 70% 85% at var(--hx) var(--hy),#000 0%,rgba(0,0,0,.6) 40%,transparent 75%);mask-image:radial-gradient(ellipse 70% 85% at var(--hx) var(--hy),#000 0%,rgba(0,0,0,.6) 40%,transparent 75%)}
+#bleedBlur{-webkit-mask-image:radial-gradient(ellipse 72% 70% at center,transparent 48%,rgba(0,0,0,.55) 74%,#000 100%);mask-image:radial-gradient(ellipse 72% 70% at center,transparent 48%,rgba(0,0,0,.55) 74%,#000 100%)}
 #vitals.bleed #hpTxt{color:color-mix(in srgb,#ff3a26 calc(var(--bp,0) * 100%),var(--ink))}
 #vitals.bleed .bar{box-shadow:0 0 calc(var(--bp,0) * 12px) rgba(224,40,24,.8)}
 #vitals.bleed #hpFill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#ff4a32,#c81e12);box-shadow:0 0 8px rgba(255,60,40,.7);opacity:var(--bp,0)}

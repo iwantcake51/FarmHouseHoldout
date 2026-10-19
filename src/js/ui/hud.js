@@ -109,20 +109,29 @@ function roundSwitched(id) {
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
+// how strong the hurt blur is on the side of a blow, how long it takes to clear (seconds, for a normal hit), and how
+// strong all round while you bleed, between throbs and at the height of one
+const HURT_BLUR = { hit: 0.95, clear: 1.1, bleed: [0.3, 0.55] };
+function hurtBlur(id, key, v) {
+  v = Math.round(v * 50) / 50; if (cache[key] === v) return; cache[key] = v;
+  const el = $(id); el.style.opacity = v; el.style.visibility = v > 0 ? 'visible' : 'hidden';   // (hidden, it costs nothing)
+}
 // low health: the health it starts going grey at and is fully grey by, how much brighter it's lifted when fully grey,
 // how much of the red edge is left, and the faint pulse at the edges under a third health
 const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] };
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
-// (amount: how hard the blow, for how much blood it throws on the screen; 1 a zombie's swipe)
+// the side a blow came from, for the red flash and the blur on that side
+function setHitSide(x, y) { for (const id of ['hitVig', 'hitBlur']) { const el = $(id); el.style.setProperty('--hx', x); el.style.setProperty('--hy', y); } }
+// (amount: how hard the blow, for how hard your sight blurs on that side and how long it takes to clear; 1 a zombie's swipe)
 function hitFromAt(x, z, amount) {
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
-  if (l < 2) { hurtFx = 1; heartStartle(); const a = Math.random() * 6.28; screenBlood(0.5 + Math.cos(a) * 0.45, 0.5 + Math.sin(a) * 0.45, amount); return; }
+  hitBlurK = clamp(amount || 1, 0.5, 2);
+  if (l < 2) { hurtFx = 1; heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
   const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;
-  el.style.setProperty('--hx', (hx * 100).toFixed(1) + '%'); el.style.setProperty('--hy', (hy * 100).toFixed(1) + '%');
-  hitVigUp = true; heartStartle();
-  screenBlood(clamp(0.5 + (hx - 0.5) * 0.85, 0, 1), clamp(0.5 + (hy - 0.5) * 0.85, 0, 1), amount);   // splats on that side (ui/screen-blood.js)
+  setHitSide((hx * 100).toFixed(1) + '%', (hy * 100).toFixed(1) + '%');
+  hitVigUp = true; heartStartle(); hitBlurV = Math.max(hitBlurV, Math.min(1, 0.55 + 0.25 * hitBlurK));
 }
 // the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
 // health number, health bar and Bleeding icon throb with it
@@ -132,8 +141,13 @@ function damageVignettes(rdt) {
   const bleeding = P.bleed > 0 && !P.dead;
   if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
   bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
-  { const was = bleedPh; bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1; if (bleeding && bleedPh < was && Math.random() < 0.7) screenBleedDrop(); }   // a drop on the screen with most beats
-  stepScreenBlood(rdt);
+  bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1;
+  // your sight blurring at the edges (HURT_BLUR): on the side of a blow, clearing over a moment or so (longer for a
+  // harder one), and all round while you bleed, swelling with each throb
+  hitBlurV = Math.max(0, hitBlurV - rdt / (HURT_BLUR.clear * hitBlurK));
+  const beatB = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65);
+  hurtBlur('hitBlur', 'hb', smooth(Math.min(1, hitBlurV)) * HURT_BLUR.hit);
+  hurtBlur('bleedBlur', 'bb', bleedVig * (HURT_BLUR.bleed[0] + HURT_BLUR.bleed[1] * beatB));
   const beat = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
