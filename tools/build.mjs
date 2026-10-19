@@ -31,6 +31,7 @@ const cheats = process.env.CHEATS ? process.env.CHEATS !== 'off' : process.env.C
 const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false }, cheatOn = false;
 function cheatTick() {}
 function cheatSaves() { return false; }
+function cheatIs() { return false; }
 function toggleCheats() {}
 `;
 

@@ -3,16 +3,18 @@
 // Below SHAKY_HP.from of your health it starts, and it gets worse the nearer you are to dying, all of it by
 // SHAKY_HP.to. It eases in and out over a second or so, so a hit brings it on and a bandage settles it gradually.
 // Two parts:
-//  - the arms (and the weapon in them) tremble: a fine, quick shake, like hands that won't keep still, and each
-//    heartbeat (ui/vitals.js) jolts them a little;
+//  - the arms (and the weapon in them) tremble the way weak, hurt hands do: a very fine, quick tremor you barely see,
+//    under a slower, heavier sway of arms that won't hold still (it grows faster than the tremor the nearer you are
+//    to dying), and each heartbeat (ui/vitals.js) jolts them a little;
 //  - the crosshair drifts slowly off the cursor and back, a lazy wander that never quite repeats, nudged by each
 //    heartbeat too. Shots go where the drifted crosshair is (SHAKY.x/y feed the aim: player/movement.js,
 //    weapons/firing.js), so you steer against it. Down the sights it's steadier (SHAKY_ADS)
 const SHAKY_HP = { from: 0.3, to: 0.05 };
 // the crosshair's wander at its worst (screen px at 1080 high, scaled with the window), and how hard a heartbeat kicks it
 const SHAKY_SWAY = 30, SHAKY_BEAT = 55, SHAKY_ADS = 0.5;
-// the arms' tremble at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved
-const SHAKY_TREM = { p: 0.1, y: 0.09, r: 0.12, m: 0.018 };
+// the arms' tremble at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved (all of it, the fine
+// tremor's share SHAKY_FINE and the slow sway's the rest; the heartbeat's thump SHAKY_THUMP of it)
+const SHAKY_TREM = { p: 0.05, y: 0.045, r: 0.045, m: 0.008 }, SHAKY_FINE = 0.22, SHAKY_THUMP = 0.45;
 const SHAKY = { k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thump: 0, ph: Array.from({ length: 12 }, () => rand() * 6.283) };
 // the aim on screen: where the cursor is, plus the wander
 const aimSX = () => mouseX + SHAKY.x, aimSY = () => mouseY + SHAKY.y;
@@ -35,15 +37,19 @@ function updateShaky(dt) {
   sk.x = clamp(wx * amp + sk.bx, -mouseX, innerWidth - mouseX);
   sk.y = clamp(wy * amp + sk.by, -mouseY, innerHeight - mouseY);
 }
-// the arms' tremble this frame, out of 1 on each axis (scaled by SHAKY_TREM where it's used): a fast shake made of a
-// few quick rates that beat against each other, so it stutters rather than buzzing evenly, plus the heartbeat's thump
+// the arms' tremble this frame, out of 1 on each axis (scaled by SHAKY_TREM where it's used): a fine tremor of a few
+// quick rates (8 to 12 a second) beating against each other, so it stutters rather than buzzing evenly, small and much
+// the same however hurt you are; under it a slow sway (a third of a second to two seconds a swing) that comes on
+// harder the nearer you are to dying; and the heartbeat's thump. Steadier down the sights
 const _trem = { p: 0, y: 0, r: 0, x: 0, h: 0 };
 function shakyTremor() {
   const T_ = _trem, k = SHAKY.k;
   if (k < 0.002) { T_.p = T_.y = T_.r = T_.x = T_.h = 0; return T_; }
-  const t = SHAKY.t, ph = SHAKY.ph, q = k * (aiming ? 0.6 : 1), th = SHAKY.thump * SHAKY.thump;
-  const f = (a, b, c) => Math.sin(t * 47 + a) * 0.5 + Math.sin(t * 61 + b) * 0.3 + Math.sin(t * 79 + c) * 0.2;
-  T_.p = (f(ph[6], ph[7], ph[8]) - th * 0.8) * q; T_.y = f(ph[9], ph[10], ph[11]) * q; T_.r = f(ph[8], ph[6], ph[10]) * q;
-  T_.x = f(ph[11], ph[9], ph[7]) * q; T_.h = (f(ph[7], ph[11], ph[6]) + th * 0.6) * q;
+  const t = SHAKY.t, ph = SHAKY.ph, a = aiming ? 0.6 : 1, fine = SHAKY_FINE * Math.sqrt(k) * a, slow = (1 - SHAKY_FINE) * Math.pow(k, 1.4) * a, th = SHAKY.thump * SHAKY.thump * SHAKY_THUMP * k;
+  const f = (a, b, c) => Math.sin(t * 52 + a) * 0.5 + Math.sin(t * 63 + b) * 0.3 + Math.sin(t * 75 + c) * 0.2;
+  const s = (a, b, c) => Math.sin(t * 3.4 + a) * 0.5 + Math.sin(t * 7.3 + b) * 0.3 + Math.sin(t * 13.1 + c) * 0.2;
+  const m = (a, b, c) => f(a, b, c) * fine + s(c, a, b) * slow;
+  T_.p = m(ph[6], ph[7], ph[8]) - th * 0.8; T_.y = m(ph[9], ph[10], ph[11]); T_.r = m(ph[8], ph[6], ph[10]);
+  T_.x = m(ph[11], ph[9], ph[7]); T_.h = m(ph[7], ph[11], ph[6]) + th * 0.6;
   return T_;
 }

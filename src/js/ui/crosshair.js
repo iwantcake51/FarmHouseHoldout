@@ -73,6 +73,16 @@ function awText(aw, t, plain) {
   if (plain || t.includes('<')) { sp._rt = sp._roll = null; sp.innerHTML = t; } else rollText(sp, t);
 }
 // the crosshair: spread ticks, ammo arc, reload ring, melee ring, stamina arc
+// whether a shot from your muzzle would be stopped short of where you're aiming: something that stops bullets (a wall, a
+// tall prop: bulletBlocked) on the line before the cell the cursor's on. Zombies, boards and the low furniture you shoot
+// across don't count; aiming at a wall itself doesn't either (that's what you'd hit)
+function blockedShot() {
+  const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
+  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
+  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
+  return false;
+}
+const xhX = $('xhX');
 function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
@@ -80,6 +90,7 @@ function updateCrosshair(rdt, D) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
+    { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); } }
     // shotguns get a ring the width of their spread, drawn by the shell they're loaded with (SG_XH); other guns four ticks
     const sgk = !D.melee && D.ammo === 'shells' ? SG_XH[roundOn(id)] === undefined ? 'ring' : SG_XH[roundOn(id)] : null, sg = !!sgk;
     $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', sgk !== 'ring'); xhFl.toggleAttribute('hidden', sgk !== 'needle'); $('xhDb').toggleAttribute('hidden', sgk !== 'tri'); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';

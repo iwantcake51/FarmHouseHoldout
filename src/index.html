@@ -77,6 +77,8 @@
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
+    <!-- a shot from here can't reach where you're aiming: something solid is in the way -->
+    <g id="xhX" class="blockX"><line x1="-6" y1="-6" x2="6" y2="6"></line><line x1="6" y1="-6" x2="-6" y2="6"></line></g>
   </svg>
   <div id="xhMode"></div>
   <div id="ammoWarn" hidden onanimationend="if(event.animationName==='awKick')this.classList.remove('kick')"></div>

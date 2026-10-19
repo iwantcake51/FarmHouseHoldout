@@ -62,7 +62,7 @@ function updateWaves(dt) {
   if (netClient()) return clientWaves(dt);   // co-op, someone else hosting: their game runs the waves (net/sync.js)
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
 
-  if (phase === 'break' && CHEAT.noWaves) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
+  if (phase === 'break' && cheatIs('noWaves')) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
     setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
     waveBar(1, 'break');
   } else if (phase === 'break' && netWaiting()) {
@@ -77,7 +77,7 @@ function updateWaves(dt) {
   } else if (phase === 'wave') {
     if (surge.lull > 0) { surge.lull -= dt; if (surge.lull <= 0) { nextSurge(); spawnT = 0; } }   // the lull between surges
     else spawnT -= dt;
-    if (spawnQ.length && surge.lull <= 0 && spawnT <= 0 && zombies.length < 40 + 12 * (netTeam() - 1) && !CHEAT.noWaves) {
+    if (spawnQ.length && surge.lull <= 0 && spawnT <= 0 && zombies.length < 40 + 12 * (netTeam() - 1) && !cheatIs('noWaves')) {
       netSpawn(spawnQ.shift()); spawnT = Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4) / Math.sqrt(netTeam()) * surgeGap();
       if (++surge.done >= surge.n && spawnQ.length) surge.lull = rr(SURGE.lull[0], SURGE.lull[1]);
     }
