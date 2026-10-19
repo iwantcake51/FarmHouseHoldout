@@ -45,6 +45,7 @@ function startReload() {
     if (EJECT[id] === 'bolt') { W8.open[id] = true; W8.boltOpen = true; }
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
     W8.reloadT = D.perShell * relMul(id) + firstShell(id); W8.reloadMax = W8.reloadT;
+    W8.relRing = { id, el: 0, tot: W8.reloadT + D.perShell * relMul(id) * (Math.ceil(W8.shellsNeed / (D.loadN || 1)) - 1), tail: relTail(id, D), p0: -1, t0: -1 };
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * relMul(id); W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
@@ -123,7 +124,9 @@ function tickReload(dt) {
   if (!W8.reloading) return;
   const id = curId(), D = W(id);
   if (W8.reloading === 'mag' && D.akimbo && !D.speedload) { akTickReload(dt, id, D); return; }   // one gun at a time (weapons/akimbo.js)
-  W8.reloadT -= dt * (runReloading() ? RUN_RELOAD.rel : 1);   // (a little slower at a sprint: player/sprint.js)
+  const rdt = dt * (runReloading() ? RUN_RELOAD.rel : 1);
+  W8.reloadT -= rdt;   // (a little slower at a sprint: player/sprint.js)
+  if (W8.reloading === 'shell' && W8.relRing) W8.relRing.el += rdt;
   if (W8.reloading === 'mag' && D.speedload) {
     const p = 1 - W8.reloadT / W8.reloadMax;
     if (!W8.seated && p >= SL_IN) { W8.seated = true; fillMag(id, D); SFX.shell(); setTimeout(() => SFX.shell(), 45); reloadJolt(0.2); }
@@ -154,6 +157,30 @@ function tickReload(dt) {
     W8.reloading = null; magSwapIn(id);
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, 0.12); }   // (seated already, unless it was cut short)
   }
+}
+// the crosshair's reload ring for a shell-at-a-time reload (ui/crosshair.js), by time rather than by shells, so it
+// fills evenly however many go in a go (both at once with Sleight of Hand, two or three in the pump with Quick hands)
+// and doesn't end till the gun will fire: W8.relRing, set as it starts, holds the time the shells take (tot: the first
+// go, with the gun opened, then one go per loadN of them), the time spent so far (el), and what comes after the last
+// shell (tail: the double barrel closed, or a pump or bolt gun racked, as long as that takes with its fire rate). The
+// shells fill the ring up to where the tail starts; once they're in (or it's stopped part way), what's left of it (from
+// p0) runs out over the tail as it actually goes. 0 to 1, or -1 when there's no ring
+const relTail = (id, D) => D.breakOpen ? BRK_SHUT * S.reloadMul * (D.shutMul || 1) : racked(id) && needsRack(id) ? chamberT(id) : 0;
+function relRingP() {
+  const R = W8.relRing, id = curId(); if (!R) return -1;
+  const shellK = R.tot / (R.tot + R.tail);
+  if (W8.reloading === 'shell' && R.id === id) return Math.min(shellK, R.el / (R.tot + R.tail));
+  if (W8.reloading || R.id !== id) { W8.relRing = null; return -1; }
+  if (R.p0 < 0) R.p0 = Math.min(shellK, R.el / (R.tot + R.tail));
+  let f = -1;
+  if (W8.shutT > 0) f = 1 - W8.shutT / W8.shutMax;   // the barrels being closed
+  else if (W8.brkOpen) f = 0;   // (they start closing this frame)
+  else if (W8.cyc && W8.cyc.id === id && !W8.cyc.homed) {   // racked: done as the round's driven home
+    const c = W8.cyc, end = c.delay + c.v.beat.home * c.dur; if (R.t0 < 0) R.t0 = c.t;
+    f = clamp((c.t - R.t0) / Math.max(0.01, end - R.t0), 0, 1);
+  } else if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && R.t0 < 0) f = 0;   // (it's racked once your hands are free)
+  if (f < 0) { W8.relRing = null; return -1; }
+  return R.p0 + (1 - R.p0) * f;
 }
 // the double barrel's shell reload (D.breakOpen): one shell a go, or both together with Sleight of Hand (the loader
 // tier, game/run-state.js). Pulling the trigger part way through stops it: with a shell already in, at once (unless

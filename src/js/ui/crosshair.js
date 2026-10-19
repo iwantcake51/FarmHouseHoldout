@@ -180,10 +180,11 @@ function updateCrosshair(rdt, D) {
       }
     } else {
     xhAmmo.classList.remove('flash'); xhAmmoBg.classList.remove('out');
-    if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
-    else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
-    reloadDraw('R', !!W8.reloading, rp); reloadDraw('L', false, 0);
-    xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
+    // a shell at a time: by time, through to the gun closed or racked after (weapons/reload.js: relRingP)
+    const sp = relRingP(), on = W8.reloading === 'mag' || sp >= 0;
+    if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax; else if (sp >= 0) rp = sp;
+    reloadDraw('R', on, rp); reloadDraw('L', false, 0);
+    xhAmmo.style.opacity = on ? 0.25 : 1;
     }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';
