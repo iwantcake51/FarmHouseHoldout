@@ -76,7 +76,7 @@ function dashGlow(z) {
 const dashCan = () => run.wave >= BDASH.wave;
 // a brute that might start one (the host's game, or alone): far enough off, a clear line to you, not busy
 function dashMaybe(z, dt, t, dp) {
-  if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
+  if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || z.atkDoor || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
   if (z.dashCd === undefined) z.dashCd = rr(3, 7);
   z.dashCd -= dt; if (z.dashCd > 0 || dp < BDASH.min || dp > BDASH.max || rand() > BDASH.rate * dt) return false;
   const dx = (t.x - z.x) / dp, dz = (t.z - z.z) / dp, room = dashRoom(z.x, z.z, dx, dz, dp + BDASH.over);

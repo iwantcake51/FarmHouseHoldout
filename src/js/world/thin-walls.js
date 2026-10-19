@@ -7,10 +7,12 @@ const wX = new Uint8Array((N + 1) * N), wZ = new Uint8Array(N * (N + 1));
 const THIN = { n: 0, t: 0.12, box: [0, 0, 0, 0] };
 const wxAt = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] === 1;
 const wzAt = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] === 1;
-// and what stops sight, a shot or a sound: a wall, or a door between rooms while it's shut (2: world/interior.js). A
-// door never stops you or a zombie: it swings open as anyone comes up to it
-const wxSee = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] > 0;
-const wzSee = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] > 0;
+// and what stops sight, a shot or a sound: a wall, or a door between rooms while it's shut (2: world/interior.js), but
+// not one beaten through (3). A door never stops you, as it swings open as you come up to it; a zombie it does, holed or
+// not, till it breaks it down (zombies/ai.js)
+const wxSee = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && (wX[j * (N + 1) + i] === 1 || wX[j * (N + 1) + i] === 2);
+const wzSee = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && (wZ[j * N + i] === 1 || wZ[j * N + i] === 2);
+const wxStop = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] > 0, wzStop = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] > 0;
 // a thin wall between two cells next to each other; diagonally, if one stands on either way round (nothing squeezes
 // past the end of a wall)
 function wallBetween(i0, j0, i1, j1) {
@@ -19,6 +21,15 @@ function wallBetween(i0, j0, i1, j1) {
   if (!dj) return di ? wxAt(im, j0) : false;
   if (!di) return wzAt(i0, jm);
   return wxAt(im, j0) || wxAt(im, j1) || wzAt(i0, jm) || wzAt(i1, jm);
+}
+// a shut door between two cells next to each other; diagonally, one on any of the edges round the corner between them
+function doorBetween(i0, j0, i1, j1) {
+  if (!THIN.n) return false;
+  const di = i1 - i0, dj = j1 - j0, im = Math.max(i0, i1), jm = Math.max(j0, j1);
+  const dx = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] >= 2, dz = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] >= 2;
+  if (!dj) return di ? dx(im, j0) : false;
+  if (!di) return dz(i0, jm);
+  return dx(im, j0) || dx(im, j1) || dz(i0, jm) || dz(i1, jm);
 }
 // along the line from (x0, z0) to (x1, z1), cell by cell: how far along it (0 to 1) it first goes through a thin wall
 // (or a shut door)
@@ -47,16 +58,18 @@ function thinNear(x, z, d) {
 }
 // a circle (e: x and z; r its radius) pushed back out of the thin walls round it, to the side it was on before it
 // moved (px, pz): round the ends of a wall, so whatever's walking slides on round a door frame rather than catching.
-// Nothing's taken as wider than 0.4 m, so a brute still squeezes through a doorway
-function thinPush(e, r, px, pz) {
+// Nothing's taken as wider than 0.4 m, so a brute still squeezes through a doorway. shut: a shut door stops it too (a
+// zombie)
+function thinPush(e, r, px, pz, shut) {
   if (!THIN.n) return;
+  const X = shut ? wxStop : wxAt, Z = shut ? wzStop : wzAt;
   const R = Math.min(r, 0.4) + THIN.t / 2, i0 = ci(e.x - R), i1 = ci(e.x + R), j0 = ci(e.z - R), j1 = ci(e.z + R);
-  for (let ie = i0 + 1; ie <= i1; ie++) for (let j = j0; j <= j1; j++) if (wxAt(ie, j)) {
+  for (let ie = i0 + 1; ie <= i1; ie++) for (let j = j0; j <= j1; j++) if (X(ie, j)) {
     const lx = ie - HALF, a = j - HALF, cz = clamp(e.z, a, a + 1), s = Math.sign(px - lx) || 1;
     if (cz === e.z && Math.sign(e.x - lx) !== s) { e.x = lx + s * R; continue; }   // went right through: back out
     thinOut(e, lx, cz, R);
   }
-  for (let je = j0 + 1; je <= j1; je++) for (let i = i0; i <= i1; i++) if (wzAt(i, je)) {
+  for (let je = j0 + 1; je <= j1; je++) for (let i = i0; i <= i1; i++) if (Z(i, je)) {
     const lz = je - HALF, a = i - HALF, cx = clamp(e.x, a, a + 1), s = Math.sign(pz - lz) || 1;
     if (cx === e.x && Math.sign(e.z - lz) !== s) { e.z = lz + s * R; continue; }
     thinOut(e, cx, lz, R);

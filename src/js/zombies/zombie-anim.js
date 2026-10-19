@@ -240,7 +240,7 @@ function animateZombie(z, dt, dp, relP) {
   const ref = Math.max(0.05, z.speed * (z.crawl ? 0.32 : 1)), k = a.spd / ref, mv = smooth(clamp(a.spd / (ref * 0.3), 0, 1)), ph = z.phase;
   // the lunge counter going back up to 1 is a new swing (at you or at the boards)
   if (z.lunge > a.lastLunge + 0.5) {
-    if (z.atkBoard) a.pside = -a.pside;
+    if (z.atkBoard || z.atkDoor) a.pside = -a.pside;
     else { a.atkT = 0; a.kind = a.g.next; a.aside = rand() < 0.5 ? -1 : 1; a.g.next = z.crawl ? 'claw' : pick(Z_ATTACKS[z.type]); }
   }
   a.lastLunge = z.lunge; a.atkT += dt;
@@ -265,11 +265,11 @@ function animateZombie(z, dt, dp, relP) {
     // thrown back by a shove, still finding its feet
     if (z.shoved > 0 && !z.crawl) { const q = Math.sin(Math.min(1, z.shoved) * Math.PI * 0.5); T[ZJ.rx] -= q * 0.18; T[ZJ.ux] -= q * 0.4; T[ZJ.hx] -= q * 0.3; T[ZJ.alx] -= q * 0.6; T[ZJ.arx] -= q * 0.5; T[ZJ.fw] -= q * 0.1; }
     // the swing at you and the wind-up for it as it closes in
-    const ready = !z.atkBoard && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
+    const ready = !z.atkBoard && !z.atkDoor && dp < z.T.r + 1.15 && z.atk > 0 && z.atk < 0.4 && !(z.stagger > 0) && !P.dead;
     a.wu += ((ready ? 1 - z.atk / 0.4 : 0) - a.wu) * Math.min(1, dt * 10);
     if (!z.crawl) { zAttackPose(z, a, T, K); if (z.dash) zDashPose(z, a, T, K); }   // (a brute's dash: zombies/brute-dash.js)
     else if (a.atkT < 0.6) { const st = a.atkT < 0.1 ? smooth(a.atkT / 0.1) : 1 - _zsm(0.1, 0.6, a.atkT); zMix(T, { rx: 0.85, alx: -2.1 + 0.4 * st, arx: -1.9, elL: -0.2, hx: -0.2 }, st); zBoost(K, ['alx', 'rx', 'hx'], 2.4); }
-    a.bw += ((z.atkBoard ? 1 : 0) - a.bw) * Math.min(1, dt * 6); zBoardPose(z, a, T, K);
+    a.bw += ((z.atkBoard || z.atkDoor ? 1 : 0) - a.bw) * Math.min(1, dt * 6); zBoardPose(z, a, T, K);
     a.rip = Math.max(0, a.rip - dt * 1.8); zRipPose(z, a, T, K);
   }
   // now and then a twitch: the head jerks, a shoulder hitches

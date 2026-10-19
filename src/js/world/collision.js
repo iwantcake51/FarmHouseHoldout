@@ -22,5 +22,5 @@ function moveCircle(e, dx, dz, r, isPlayer) {
     if (!a && !b) e.z = nz;
     else if (!isPlayer && a !== b) { const s = (a ? 1 : -1) * Math.abs(dz), nx = e.x + s; if (!B(nx + Math.sign(s) * r, e.z - r * .75) && !B(nx + Math.sign(s) * r, e.z + r * .75)) e.x = nx; }
   }
-  thinPush(e, r, px, pz);   // and off the house's inside walls (world/thin-walls.js)
+  thinPush(e, r, px, pz, !isPlayer);   // and off the house's inside walls, and a zombie off a shut door (world/thin-walls.js)
 }

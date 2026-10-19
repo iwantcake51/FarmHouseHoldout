@@ -1,5 +1,5 @@
-// Zombie AI: the way to you, climbing fences and breaking in through windows (tearing the boards off first), attacks on
-// you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
+// Zombie AI: the way to you, climbing fences and breaking in through windows (tearing the boards off first), beating
+// down the doors between rooms, attacks on you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
 // zombies/climb.js.
 
 // a wall, a fence or a window frame between a zombie and you stops its swing: it can catch you while you're climbing
@@ -50,6 +50,16 @@ function fenceCross(z, i, j, bi, bj, fl) {
 }
 // a brute on the boards: a blow every t seconds, each taking dmg off the plank on top (a plain board has 70)
 const BRUTE_SMASH = { t: 1.25, dmg: 75 };
+// a shut door between rooms in its way: it beats on it till it gives (DOOR.hp, world/interior.js), as it would on the
+// boards (a brute in a few blows: BRUTE_SMASH), each blow a thump and the door jumping in its frame, and it's broken
+// up a piece at a time as it goes (doorWear)
+function bashDoor(z, d, armMul, dme, dt) {
+  z.face += angDiff(Math.atan2(d.cx - z.x, d.cz - z.z), z.face) * Math.min(1, dt * 8);
+  if (z.type === 'brute') { if (z.atk <= 0) { z.atk = BRUTE_SMASH.t; z.lunge = 1; d.hp -= BRUTE_SMASH.dmg * armMul; doorBlow(d, z, true, dme); } }
+  else { d.hp -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt; if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; doorBlow(d, z, false, dme); } }
+  doorWear(d, z);
+  if (d.hp <= 0) { breakDoor(d, z); if (z.an) z.an.rip = 1; netDoorBroke(d, z); }
+}
 // how fast bunched-up zombies drift apart (metres a second when right on top of each other)
 const SPREAD = 2.6;
 // a window or doorway in this cell or any next to it
@@ -109,12 +119,12 @@ function updateZombies(dt) {
     }
     // (outside while you're indoors, the field for the window or door it was given: zombies/pathfinding.js)
     const fl = pup ? dist : zField(z, t), via = !!z.via, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
-    let tx = t.x, tz = t.z, attackingBoard = null;
+    let tx = t.x, tz = t.z, attackingBoard = null, attackingDoor = null;
     if ((via || here > 1.6) && !z.out && !pup) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
-        if ((di && dj && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
+        if ((di && dj && (!diagOk(i, j, di, dj) || doorBetween(i, j, ni, nj))) || wallBetween(i, j, ni, nj)) continue;
         const d = fl[idx(ni, nj)]; if (d < bestD) { bestD = d; bi = ni; bj = nj; }
       }
       if (bi >= 0) {
@@ -123,12 +133,13 @@ function updateZombies(dt) {
         if (cell[idx(bi, bj)] === FENCE && dn < (z.crawl ? 1.35 : 0.85) + z.T.r) fenceCross(z, i, j, bi, bj, fl);
         else if (op && op.kind === 'window' && dn < (z.crawl ? 1.3 : 0.8) + z.T.r) attackingBoard = atWindow(z, op);
         else if (op && op.boards.length && dn < 0.95 + z.T.r) attackingBoard = op;
+        else { const dr = doorOn(i, j, bi, bj); if (dr && Math.hypot(dr.cx - z.x, dr.cz - z.z) < z.T.r + 0.4) attackingDoor = dr; }   // (a shut door: world/interior.js)
         if (z.vault) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
         tx = cxw(bi); tz = cxw(bj);
       }
     }
     const arms = (z.limbs.armL ? 1 : 0) + (z.limbs.armR ? 1 : 0), armMul = arms === 2 ? 1 : arms === 1 ? 0.7 : 0.4;
-    if (!pup) z.atkBoard = attackingBoard;
+    if (!pup) { z.atkBoard = attackingBoard; z.atkDoor = attackingDoor; }
     if (attackingBoard) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 8);
       const top = attackingBoard.boards.length - 1;
@@ -146,7 +157,8 @@ function updateZombies(dt) {
         if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(attackingBoard, z); }
       }
       if (attackingBoard.boards[top] <= 0) { breakBoard(attackingBoard, z); if (z.an) z.an.rip = 1; netBoardBroke(attackingBoard, z); }
-    } else if (!z.out && !pup) {
+    } else if (attackingDoor) bashDoor(z, attackingDoor, armMul, dme, dt);
+    else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
         const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)) * (z.pushSlow > 0 ? 0.2 + 0.8 * Math.pow(1 - z.pushSlow / (z.pushMax || SHOVE_SLOW), 2) : 1);   // still reeling from a shove: slow, and only getting going again toward the end (player/shove.js)

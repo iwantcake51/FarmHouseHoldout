@@ -241,7 +241,7 @@ const DOOR_COLS = [0x6a4a34, 0xd8d0c0, 0x8a6a4a, 0x4e5a52, 0x7a3a2c];
 function buildInWalls(W, doors, rnd) {
   const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols, dc = DOOR_COLS[(rnd() * DOOR_COLS.length) | 0];
   while (g.children.length) { const m = g.children.pop(); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
-  IW_MATS.forEach(m => m.dispose()); IW_MATS.length = 0; IW_LINES.length = 0; HOUSE_DOORS.list.length = 0;
+  IW_MATS.forEach(m => m.dispose()); IW_MATS.length = 0; IW_LINES.length = 0; HOUSE_DOORS.list.length = 0; DOOR_DEBRIS.length = 0;
   const t = THIN.t, H = IW.h;
   // a line's own materials, by colour, each with its fade
   const lines = new Map(), lineOf = (ax, L) => {
@@ -316,39 +316,137 @@ function buildDoor(ln, u, dc, rnd) {
   const nx = ax === 'x' ? side : 0, nz = ax === 'x' ? 0 : side, sw = Math.sign(-Math.sin(th0) * nx - Math.cos(th0) * nz) || 1;
   const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; HOUSE_PLAN.g.add(pv);
   const paint = ln.mat(dc), panel = ln.mat(_dcShade.setHex(dc).multiplyScalar(0.8).getHex()), brass = ln.mat(0xb08a3a), w = DOOR.w;
+  // the leaf, built in pieces it can be broken into (DOOR_BITS): an uneven grid of them, every door's its own (the
+  // stiles a little wider or narrower, the middle split off centre, each row a little higher or lower), each piece with
+  // its share of the leaf, the raised panels on both faces, the knob or a hinge
   const leaf = new THREE.Group(); leaf.position.set(w / 2, DOOR.h / 2 + 0.025, 0); pv.add(leaf);
-  box(leaf, w, DOOR.h, 0.036, paint, 0, 0, 0);
+  const J = DOOR_BITS.jit, jr = a => (rnd() * 2 - 1) * a;
+  const xs = [-w / 2, -w / 2 + DOOR_BITS.stile + jr(J.stile), jr(J.mid), w / 2 - DOOR_BITS.stile - jr(J.stile), w / 2];
+  const ys = DOOR_BITS.rows.map((y, k, a) => (k > 0 && k < a.length - 1 ? y + jr(J.row) : y) * DOOR.h / 2), bits = [];
+  for (let a = 0; a < xs.length - 1; a++) for (let b = 0; b < ys.length - 1; b++) {
+    const x0 = xs[a], x1 = xs[a + 1], y0 = ys[b], y1 = ys[b + 1], bg = new THREE.Group(); bg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0); leaf.add(bg);
+    const part = (pw, ph, pd, mat, px, py, pz) => {
+      const l = Math.max(x0, px - pw / 2), r = Math.min(x1, px + pw / 2), lo = Math.max(y0, py - ph / 2), hi = Math.min(y1, py + ph / 2);
+      if (r - l > 0.004 && hi - lo > 0.004) box(bg, r - l, hi - lo, pd, mat, (l + r) / 2 - bg.position.x, (lo + hi) / 2 - bg.position.y, pz);
+    };
+    part(w, DOOR.h, 0.036, paint, 0, 0, 0);
+    [-1, 1].forEach(f => [[-0.2, 0.43], [0.2, 0.43], [-0.2, -0.4], [0.2, -0.4]].forEach(([x, y]) => part(0.3, y > 0 ? 0.68 : 0.78, 0.008, panel, x, y, f * 0.022)));
+    bits.push({ g: bg, inner: a > 0 && a < xs.length - 2 && b > 0 && b < ys.length - 2, x0, x1, y0, y1 });
+  }
+  const bitAt = (x, y) => bits.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1);
+  const fit = (m, x, y, z) => { const q = bitAt(x, y); m.position.set(x - q.g.position.x, y - q.g.position.y, z); q.g.add(m); };
   [-1, 1].forEach(f => {
-    [[-0.2, 0.43], [0.2, 0.43], [-0.2, -0.4], [0.2, -0.4]].forEach(([x, y]) => box(leaf, 0.3, y > 0 ? 0.68 : 0.78, 0.008, panel, x, y, f * 0.022));
-    const kb = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brass); kb.position.set(w / 2 - 0.08, -0.06, f * 0.05); leaf.add(kb);
-    box(leaf, 0.012, 0.012, 0.03, brass, w / 2 - 0.08, -0.06, f * 0.03);
+    fit(new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brass), w / 2 - 0.08, -0.06, f * 0.05);
+    fit(new THREE.Mesh(bgeo(0.012, 0.012, 0.03), brass), w / 2 - 0.08, -0.06, f * 0.03);
   });
-  [0.6, -0.6].forEach(y => box(leaf, 0.03, 0.1, 0.044, brass, -w / 2 + 0.01, y, 0));   // hinges
-  mergeInto(leaf, finePieces(leaf));
-  HOUSE_DOORS.list.push({ ax, i: ax === 'x' ? L : u, j: ax === 'x' ? u : L, cx: ax === 'x' ? ln.p : c, cz: ax === 'x' ? c : ln.p, pv, th0, sw, open: 0, t: 0, shut: false });
+  [0.6, -0.6].forEach(y => fit(new THREE.Mesh(bgeo(0.03, 0.1, 0.044), brass), -w / 2 + 0.01, y, 0));   // hinges
+  for (const q of bits) mergeInto(q.g, finePieces(q.g));
+  // the order the middle ones go in as it's beaten, and how beaten it has to be for each (of its hp), all at random
+  const order = bits.filter(q => q.inner).map(q => [q, rnd()]).sort((p, q) => p[1] - q[1]).map(p => p[0]);
+  const at = order.map(() => DOOR_BITS.first + rnd() * (1 - DOOR_BITS.first) * 0.95).sort((p, q) => p - q);
+  const cx = ax === 'x' ? ln.p : c, cz = ax === 'x' ? c : ln.p;
+  HOUSE_DOORS.list.push({ ax, i: ax === 'x' ? L : u, j: ax === 'x' ? u : L, cx, cz, x: cx, z: cz, nx, nz, pv, leaf, bits, order, at, out: 0, holed: false, dc, th0, sw, open: 0, t: 0, shut: false, hp: DOOR.hp, jolt: 0, js: 1, broken: false });
 }
+// how a door's built to break (buildDoor): its stiles (the uprights at either edge, metres) and its rows, as parts of its
+// half height from the bottom up, each door's a little off those (jit: the stiles' width and where the middle's split,
+// metres; the rows, of the half height). The pieces in the middle are broken out one after another as it's beaten, in
+// a random order and each once it's taken its own random share of a beating, the first at least first of its hp
+// (doorWear); once DOOR_BITS.see of them are gone there's a hole right through, and you can see, hear and shoot through
+// it, though nothing can get through it yet; the stiles and the top and bottom rails go when it gives (breakDoor). Each
+// piece breaks off with up to slivers loose splinters of its paint
+const DOOR_BITS = { stile: 0.17, rows: [-1, -0.82, -0.4, 0.05, 0.45, 0.82, 1], see: 2, first: 0.08, slivers: 3, jit: { stile: 0.035, mid: 0.11, row: 0.07 } };
 const _dcShade = new THREE.Color();
-// the doors between the rooms swing open as anyone comes up to them (you, a teammate or a zombie, either side) and
-// fall to again a moment after they've gone (DOOR: how near, how long it stays open after, how quick it opens and
-// closes, how far round it swings, and below how open it counts as shut). Shut, a door stops sight, shots and sound
-// like a wall (world/thin-walls.js: 2 in the grid); it never stops anyone, as it's open by the time they reach it
-const DOOR = { near: 1.35, hold: 0.9, opens: 7, closes: 2.2, swing: 1.68, shut: 0.25, w: 0.94, h: 2.0, reach: 0.47 };
+// the doors between the rooms swing open as you or a teammate come up to them (either side) and fall to again a moment
+// after you've gone (DOOR: how near, how long it stays open after, how quick it opens and closes, how far round it
+// swings, and below how open it counts as shut); one a zombie's standing in (inside DOOR.jam of it) is held open. Shut,
+// a door stops sight, shots and sound like a wall (world/thin-walls.js: 2 in the grid), and a zombie: it's open by the
+// time you reach it, but a zombie has to beat it down (zombies/ai.js: bashDoor), its hp, which costs the zombies' way
+// to you DOOR.cost cells (zombies/pathfinding.js). Each blow jolts it in its frame (jolt: how far it jumps, radians)
+// and it's broken up a piece at a time, holes opening in it (doorWear); broken, it comes apart on the floor and it's an
+// open doorway for the rest of the run
+const DOOR = { near: 1.35, jam: 0.6, hold: 0.9, opens: 7, closes: 2.2, swing: 1.68, shut: 0.25, w: 0.94, h: 2.0, reach: 0.47, hp: 150, cost: 6, jolt: 0.05 };
 const HOUSE_DOORS = { list: [], key: '' };
 function updateDoors(dt) {
   let key = '';
   const near = (d, x, z) => { const a = x - d.cx, b = z - d.cz; return a * a + b * b < DOOR.near * DOOR.near; };
   for (const d of HOUSE_DOORS.list) {
+    if (d.broken) { key += '0'; continue; }
     let by = state === 'play' && !P.dead && near(d, P.x, P.z);
-    if (!by) for (const z of zombies) if (!z.dead && !z.out && near(d, z.x, z.z)) { by = true; break; }
     if (!by && netLink()) for (const p of NET.peers.values()) if (p.av && p.av.g.visible && !p.dead && near(d, p.av.g.position.x, p.av.g.position.z)) { by = true; break; }
+    if (!by && d.open > DOOR.shut) for (const z of zombies) if (!z.dead && !z.out && Math.hypot(z.x - d.cx, z.z - d.cz) < DOOR.jam) { by = true; break; }
     d.t = by ? DOOR.hold : Math.max(0, d.t - dt);
     const want = d.t > 0 ? 1 : 0; d.open += (want - d.open) * Math.min(1, dt * (want ? DOOR.opens : DOOR.closes));
-    d.pv.rotation.y = d.th0 + d.sw * smooth(clamp(d.open, 0, 1)) * DOOR.swing;
+    d.jolt = Math.max(0, d.jolt - dt * 7);
+    d.pv.rotation.y = d.th0 + d.sw * (smooth(clamp(d.open, 0, 1)) * DOOR.swing + d.js * DOOR.jolt * Math.sin(d.jolt * Math.PI));
     const shut = d.open < DOOR.shut;
-    if (shut !== d.shut) { d.shut = shut; if (d.ax === 'x') wX[d.j * (N + 1) + d.i] = shut ? 2 : 0; else wZ[d.j * N + d.i] = shut ? 2 : 0; }
-    key += shut ? '1' : '0';
+    if (shut !== d.shut) { d.shut = shut; doorGrid(d); }
+    key += shut ? (d.holed ? '2' : '1') : '0';
   }
   HOUSE_DOORS.key = key;
+  stepDebris(DOOR_DEBRIS, dt);   // (the pieces of the broken ones, falling: weapons/casings.js)
+}
+// which side of a door's line a point's on: 1, the side it swings open into
+const doorSide = (d, x, z) => Math.sign((x - d.cx) * d.nx + (z - d.cz) * d.nz) || 1;
+// the shut door on the edge between two cells side by side, if there is one
+function doorOn(i0, j0, i1, j1) {
+  if (!doorBetween(i0, j0, i1, j1) || (i0 !== i1 && j0 !== j1)) return null;
+  const ax = i0 !== i1 ? 'x' : 'z', i = ax === 'x' ? Math.max(i0, i1) : i0, j = ax === 'x' ? j0 : Math.max(j0, j1);
+  return HOUSE_DOORS.list.find(d => d.ax === ax && d.i === i && d.j === j) || null;
+}
+// a zombie's blow on a door (z: who; heavy: a brute's): a thump through the house, the door jumping in its frame (in
+// from the side it's hit on, or back against its stop) and dust shaken out round it
+function doorBlow(d, z, heavy, dme) {
+  d.jolt = 1; d.js = doorSide(d, z.x, z.z) < 0 ? 1 : -0.35;
+  soundAt(d.cx, d.cz, () => nz(heavy ? 0.16 : 0.09, 'lowpass', heavy ? 420 : 620, heavy ? 90 : 160, (heavy ? 0.42 : 0.24) * clamp(1 - dme / 20, 0, 1)), true);
+  if (heavy) shake = Math.max(shake, 0.18 * clamp(1 - dme / 9, 0, 1));
+  if (z.vis > 0.2) { const s = doorSide(d, z.x, z.z) * 0.12; burst(d.cx + d.nx * s, rr(0.6, 1.8), d.cz + d.nz * s, heavy ? 4 : 2, 'dust'); if (heavy || rand() < 0.4) burst(d.cx + d.nx * s, rr(0.8, 1.6), d.cz + d.nz * s, 2, 'wood', d.nx * Math.sign(s), d.nz * Math.sign(s), 1.5); }
+}
+// a door beaten on (its hp gone down): the pieces in the middle of it broken out one by one as it goes, in its own
+// order (DOOR_BITS), each splintering off away from whoever's hitting it (z, or null: away from you); past
+// DOOR_BITS.see of them it's holed through (3 in the grid shut: world/thin-walls.js)
+function doorWear(d, z) {
+  if (d.broken) return;
+  const worn = 1 - Math.max(0, d.hp) / DOOR.hp;
+  while (d.out < d.order.length && worn >= d.at[d.out]) doorBit(d, d.order[d.out++], z, false);
+  if (!d.holed && d.out >= DOOR_BITS.see) { d.holed = true; if (d.shut) doorGrid(d); }
+}
+// a door's edge in the grid: open (0), shut (2), shut but holed through (3)
+function doorGrid(d) { const v = d.broken || !d.shut ? 0 : d.holed ? 3 : 2; if (d.ax === 'x') wX[d.j * (N + 1) + d.i] = v; else wZ[d.j * N + d.i] = v; }
+// one piece knocked out of a door, onto the floor (DOOR_DEBRIS): out away from whoever hit it, thrown hard (a piece
+// beaten out of the middle) or just let drop (fall: the rest of it, as it gives), with splinters and dust
+const DOOR_DEBRIS = [], _dbMat = new Map();
+// (on the floor, out of the wall's line, a piece doesn't fade with it: world/cutaway.js)
+const plainMat = m => { if (!m.userData || !m.userData.cut) return m; const k = m.vertexColors ? 'v' : m.color.getHex(); let p = _dbMat.get(k); if (!p) _dbMat.set(k, p = m.vertexColors ? lamV() : lam(m.color.getHex())); return p; };
+function doorBit(d, q, z, fall) {
+  if (q.gone) return; q.gone = true;
+  const by = z || P, away = -doorSide(d, by.x, by.z), ox = d.nx * away, oz = d.nz * away, g = q.g;
+  HOUSE_PLAN.g.attach(g); g.rotation.reorder('YXZ');
+  g.traverse(o => { if (o.isMesh) { o.material = plainMat(o.material); o.castShadow = true; } });
+  const p = g.position, k = fall ? rr(0.3, 1.1) : rr(1.4, 2.6);
+  DOOR_DEBRIS.push({ g, life: 8, vx: ox * k + rr(-0.5, 0.5), vy: fall ? rr(-0.2, 0.6) : rr(0.4, 1.4), vz: oz * k + rr(-0.5, 0.5), spin: rr(-6, 6), roll: rr(-5, 5), r: 0.03, bounces: 0, kind: 'plank', quiet: rand() < 0.6, restY: 0.022,
+    rest: o => { o.rotation.set(Math.PI / 2, rr(0, Math.PI * 2), 0); } });
+  // and a few splinters of it, long and thin, every one its own size, thrown out with it
+  const n = (rand() * (DOOR_BITS.slivers + 1)) | 0, sm = _dbMat.get(d.dc) || (_dbMat.set(d.dc, lam(d.dc)), _dbMat.get(d.dc));
+  for (let k = 0; k < n; k++) {
+    const sg = new THREE.Group(); sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
+    const m = box(sg, rr(0.015, 0.04), rr(0.08, 0.32), rr(0.012, 0.03), sm, 0, 0, 0); m.castShadow = false; HOUSE_PLAN.g.add(sg);
+    const kk = k * 0.3 + (fall ? rr(0.3, 1) : rr(1.6, 3.2));
+    DOOR_DEBRIS.push({ g: sg, life: 8, vx: ox * kk + rr(-0.9, 0.9), vy: rr(0.3, 2), vz: oz * kk + rr(-0.9, 0.9), spin: rr(-14, 14), roll: rr(-12, 12), r: 0.015, bounces: 0, kind: 'plank', quiet: true, restY: 0.012,
+      rest: o => { o.rotation.set(Math.PI / 2, rr(0, Math.PI * 2), 0); } });
+  }
+  burst(p.x, p.y, p.z, fall ? 3 : 6, 'wood', ox, oz, fall ? 1.5 : 3); if (!fall) burst(p.x, p.y, p.z, 3, 'dust');
+  if (!fall) soundAt(p.x, p.z, () => SFX.crack());
+}
+// broken down (z: who broke it, or null): the doorway's open from now on, and what's left of the door comes apart,
+// every piece down on the floor
+function breakDoor(d, z) {
+  if (d.broken) return;
+  d.broken = true; d.shut = false; d.hp = 0; doorGrid(d);
+  for (const q of d.bits) doorBit(d, q, z, true);
+  burst(d.cx, 0.6, d.cz, 10, 'dust');
+  soundAt(d.cx, d.cz, () => SFX.crack()); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.crack()), 70); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.thud()), 320);
+  if (Math.hypot(P.x - d.cx, P.z - d.cz) < 7) shake = Math.max(shake, 0.12);
+  flowDirty = true;
 }
 // a new house: the plan for this seed (the first that keeps every rule; failing that, none), its walls in the grid
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways

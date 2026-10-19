@@ -1,4 +1,5 @@
-// Flow field toward the player, or every player in co-op (Dijkstra over the grid); fences and boards cost extra.
+// Flow field toward the player, or every player in co-op (Dijkstra over the grid); fences, boards and a shut door
+// between rooms (DOOR.cost, world/interior.js: it's broken down on the way) cost extra.
 
 // brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door. A boarded
 // window's on their way too (they smash the boards off it, zombies/ai.js), but once it's bare it's shut to them again
@@ -23,7 +24,8 @@ function flowInto(dist, big) {
       const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
       const cost = enterCost(ni, nj, big); if (cost === Infinity) continue;
       const diag = di && dj; if ((diag && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
-      const nd = d + cost * (diag ? 1.414 : 1), n = idx(ni, nj);
+      const dr = doorBetween(i, j, ni, nj); if (dr && diag) continue;
+      const nd = d + cost * (diag ? 1.414 : 1) + (dr ? DOOR.cost : 0), n = idx(ni, nj);
       // queue the value as stored: the field is 32-bit, and queuing the unrounded one made the pop below skip any cell
       // whose distance rounded down, so the search never went on from it and most of the farm went unmapped
       if (nd < dist[n]) { dist[n] = nd; hpush(n, dist[n]); }
