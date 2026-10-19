@@ -73,10 +73,10 @@ function renderRack() {
   setT('stTitle', 'Gun rack'); setT('stScrap', String(S.scrap)); $('station').classList.add('wide');
   const rows = $('stRows');
   if (stStruct !== 'rack') {
-    stStruct = 'rack'; GUN_RACK.pane = '';
+    stStruct = 'rack'; GUN_RACK.pane = ''; GUN_RACK.can = '';
     rows.innerHTML = `<div class="rack" style="--k:0"><div class="rkTabs" role="tablist" style="--k:1;--n:${ARMORY_TABS.length}"><i class="rkPill"></i>${ARMORY_TABS.map((T, i) =>
-      `<button type="button" role="tab" data-tab="${i}"><span><kbd>${i + 1}</kbd>${T.name}</span><span class="rkPips">${tabIds(T).map(id => `<i data-pip="${id}"></i>`).join('')}</span></button>`).join('')}</div>
-      <div class="rkPanes">${ARMORY_TABS.map((T, i) => `<div class="rkPane" data-pane="${i}"></div>`).join('')}</div></div>`;
+      `<button type="button" role="tab" data-tab="${i}"><i class="rkCan">Buy</i><span><kbd>${i + 1}</kbd>${T.name}</span><span class="rkPips">${tabIds(T).map(id => `<i data-pip="${id}"></i>`).join('')}</span></button>`).join('')}</div>
+      <div class="rkAfford" hidden></div><div class="rkPanes">${ARMORY_TABS.map((T, i) => `<div class="rkPane" data-pane="${i}"></div>`).join('')}</div></div>`;
   }
   const rk = rows.querySelector('.rack'), t = GUN_RACK.tab;
   if (rk.style.getPropertyValue('--i') !== String(t)) {
@@ -95,6 +95,15 @@ function renderRack() {
     const id = b.dataset.buy, c = UNLOCK_COST[id], short = S.scrap < c, txt = short ? `Need ${c - S.scrap} more` : 'Unlock';
     if (b._t !== txt) { b._t = txt; b.classList.toggle('short', short); b.querySelector('.rkNeed').textContent = txt; const p = rows.querySelector(`[data-pip="${id}"]`); if (p) p.classList.toggle('can', !short); }
   });
+  // a line with something you can afford to unlock right now: a gold badge on its tab, and over the open line a banner
+  // saying what
+  { const can = ARMORY_TABS.map(T => [...nextIds()].filter(id => tabIds(T).includes(id) && S.scrap >= UNLOCK_COST[id])), k = can.map(c => c.join(',')).join('|') + '#' + t;
+    if (GUN_RACK.can !== k) {
+      GUN_RACK.can = k;
+      rows.querySelectorAll('.rkTabs button').forEach((b, i) => b.classList.toggle('can', can[i].length > 0));
+      const ban = rows.querySelector('.rkAfford'), here = can[t];
+      ban.hidden = !here.length; if (here.length) ban.innerHTML = `${SCRAP_IC()}<span>You can unlock ${here.map(id => `<b>${WEAP[id].name}</b>`).join(' or ')} now</span>`;
+    } }
   setT('stNote', 'Each line unlocks in order, first to last · 1–5 or Tab picks a line · E to step away');
 }
 let rackSwapT = 0;

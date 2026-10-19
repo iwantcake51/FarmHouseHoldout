@@ -77,6 +77,9 @@ function awText(aw, t, plain) {
 // tall prop: bulletBlocked) on the line before the cell the cursor's on. Zombies, boards and the low furniture you shoot
 // across don't count; aiming at a wall itself doesn't either (that's what you'd hit)
 function blockedShot() {
+  // the gun's muzzle itself jammed into a wall or past a corner (muzzle(), weapons/firing.js, falls back to just in front
+  // of you then): blocked whatever you're aiming at
+  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (bulletBlocked(tx, tz) || !los(P.x, P.z, tx, tz)) return true; }
   const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
   const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
   for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
@@ -90,7 +93,7 @@ function updateCrosshair(rdt, D) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
-    { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); } }
+    { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); xh.classList.toggle('blocked', bx); } }   // (the whole reticle goes red with it)
     // shotguns get a ring the width of their spread, drawn by the shell they're loaded with (SG_XH); other guns four ticks
     const sgk = !D.melee && D.ammo === 'shells' ? SG_XH[roundOn(id)] === undefined ? 'ring' : SG_XH[roundOn(id)] : null, sg = !!sgk;
     $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', sgk !== 'ring'); xhFl.toggleAttribute('hidden', sgk !== 'needle'); $('xhDb').toggleAttribute('hidden', sgk !== 'tri'); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';

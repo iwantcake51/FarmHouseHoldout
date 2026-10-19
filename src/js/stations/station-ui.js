@@ -52,6 +52,7 @@ let stStruct = '';
 function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
+  $('station').classList.toggle('isRack', openSt.id === 'rack');
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
