@@ -136,7 +136,7 @@ function updateWeaponStats() {
   const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
   if (!st.classList.contains('closing')) { const dock = (on && wsAtBench()) || rkSideOn(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
-    clearTimeout(wsCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; void el.offsetWidth; el.classList.add('opening');
+    clearTimeout(wsCloseT); const was = !el.hidden; el.classList.remove('closing', 'opening'); el.hidden = false; if (was) void el.offsetWidth; el.classList.add('opening');
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {
     el.classList.remove('opening'); el.classList.add('closing');
     clearTimeout(wsCloseT); wsCloseT = setTimeout(() => { el.classList.remove('closing'); el.hidden = true; }, 200);

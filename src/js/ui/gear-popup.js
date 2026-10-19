@@ -29,7 +29,7 @@ function nextGear() {
   el.querySelector('.gpEye').textContent = '';   // (just the name and its changes; what it is and what it's on are in the pause list)
   el.querySelector('.gpName').textContent = o.name; el.querySelector('.gpText').textContent = o.text || '';
   el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 3).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('');
-  el.hidden = false; el.classList.remove('out', 'in'); void el.offsetWidth; el.classList.add('in');
+  el.classList.remove('out', 'in'); el.hidden = false; el.classList.add('in');   // (hidden till now, so it animates in as it's shown: no forced layout)
   SFX.pick && SFX.pick();
   clearTimeout(gearT); gearT = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); gearT = setTimeout(() => { el.hidden = true; el.classList.remove('out'); nextGear(); }, 220); }, hold * 1000);
 }

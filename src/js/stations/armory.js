@@ -134,7 +134,7 @@ function updateRackSide() {
   if (!GUN_RACK.built) rackGuns();
   const el = $('rkLoad'), on = rkSideOn();
   if (on && (el.hidden || el.classList.contains('closing'))) {
-    clearTimeout(rkSideCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; GUN_RACK.side = ''; void el.offsetWidth; el.classList.add('opening');
+    clearTimeout(rkSideCloseT); const was = !el.hidden; el.classList.remove('closing', 'opening'); el.hidden = false; GUN_RACK.side = ''; if (was) void el.offsetWidth; el.classList.add('opening');
     clearTimeout(rkSideOpenT); rkSideOpenT = setTimeout(() => el.classList.remove('opening'), 900);
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {
     el.classList.remove('opening'); el.classList.add('closing');

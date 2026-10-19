@@ -227,7 +227,8 @@ Every source file starts with a one-line comment saying what is in it.
 | The zombies' eye glow and the streaks behind it (`EYE_GLOW`, `EYE_HALO`, `EYE_STREAK`); a body that went down without its head has no eyes to glow (`eyes` on the ragdoll, `makeRagdoll` in `src/js/zombies/deaths.js`) | `src/js/effects/eye-glow.js` |
 | How far the view eases toward an edge of the screen when the cursor is near it (`EDGE_IN`, `EDGE_PAN`) | `src/js/game/camera.js` |
 | Blood on you, zombies and your weapons (a stain shader that builds up with hits; each splash stays `BLOOD_HOLD` seconds, then fades over `BLOOD_FADE`), and the blood droplets | `src/js/effects/body-blood.js`, `src/js/effects/particles.js` |
-| The cards you pass on burning away when you pick an upgrade | `src/js/upgrades/card-burn.js` |
+| The cards you pass on burning away when you pick an upgrade (its mask canvases kept on the CPU, `willReadFrequently`, since the mask's encoded every frame) | `src/js/upgrades/card-burn.js` |
+| Rebuilding weapon models and gear without a hitch: a full rebuild (a card taken, a weapon swapped in) leaves any model whose inputs haven't changed (`modelSig`, `gearSig`), and a model built in play has its fighting faces pulled apart in a quiet moment just after rather than in the frame you clicked (`unfightSoon`) | `src/js/weapons/build-weapons.js` |
 | Sounds: what plays for what (`SFX`, with a synthesized sound for each that plays till its recording's loaded); every zombie kill plays the skull-burst `headPop` from the zombie, at `KILL_VOL` (`killEnd` in `src/js/zombies/damage.js`) | `src/js/audio/sfx.js` |
 | Which recordings are used and how each is cut (`SOUNDS`) | `tools/make-sounds.mjs` |
 | How loud each recording plays (`SAMPLES`), how a gunshot's varied every shot (`SFX.fire`), and the house's reverb (`houseIR`, `indoors`) | `src/js/audio/samples.js`, `src/js/audio/sfx.js` |

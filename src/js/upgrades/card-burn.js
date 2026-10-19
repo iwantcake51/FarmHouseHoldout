@@ -41,7 +41,9 @@ function burnCards(cards) {
   cards.forEach((card, k) => {
     const F = burnField(), mask = document.createElement('canvas'), fx = document.createElement('canvas');
     mask.width = fx.width = BURN_W; mask.height = fx.height = BURN_H;
-    const mc = mask.getContext('2d'), xc = fx.getContext('2d'), mi = mc.createImageData(BURN_W, BURN_H), xi = xc.createImageData(BURN_W, BURN_H);
+    // (kept on the CPU, willReadFrequently: the mask's encoded every frame, and reading back a canvas the GPU holds
+    // stalled the frame for every card burning)
+    const mc = mask.getContext('2d', { willReadFrequently: true }), xc = fx.getContext('2d', { willReadFrequently: true }), mi = mc.createImageData(BURN_W, BURN_H), xi = xc.createImageData(BURN_W, BURN_H);
     fx.className = 'burnFx'; card.appendChild(fx); card.classList.add('burning');
     const t0 = performance.now(), delay = k * 0.09, edge = [];
     const step = () => {
