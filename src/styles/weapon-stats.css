@@ -7,7 +7,7 @@
 :root{--wsW:252px;--wsGap:10px;--wlW:224px;--dkL:0px;--dkR:0px;--stDockW:min(820px,calc(100vw - 32px - var(--dkL) - var(--dkR)))}
 :root.dkS{--dkL:calc(var(--wsW) + var(--wsGap))}
 :root.dkL{--dkR:calc(var(--wlW) + var(--wsGap))}
-#wStats{left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wsW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
+#wStats{z-index:4;left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wsW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
   pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.45);text-shadow:none}
 #wStats.docked{left:calc(50% - (var(--dkL) + var(--stDockW) + var(--dkR)) / 2);transition:left .28s cubic-bezier(.2,.8,.3,1)}
 #station.withStats,#station.withLoad{left:calc(50% + (var(--dkL) - var(--dkR)) / 2);width:var(--stDockW)}

@@ -1,7 +1,7 @@
 /* The loadout panel (ui/loadout.js): docked against the workbench's right side, the stats sheet's mirror. It comes out
    from behind the bench as that unrolls (or pops out once there's something to show), its lines rising in one after
    another, and tucks back in as the bench rolls up. A marker slides to the choice you pick in each group */
-#wLoad{left:calc(50% + (var(--dkL) + var(--stDockW) + var(--dkR)) / 2 - var(--wlW));bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wlW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
+#wLoad{z-index:4;left:calc(50% + (var(--dkL) + var(--stDockW) + var(--dkR)) / 2 - var(--wlW));bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wlW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
   pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.45);text-shadow:none;
   transition:left .28s cubic-bezier(.2,.8,.3,1)}
 @media (prefers-reduced-transparency:reduce){#wLoad{background:rgba(12,14,15,.95);-webkit-backdrop-filter:none;backdrop-filter:none}}
