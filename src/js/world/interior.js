@@ -29,7 +29,7 @@ const TILE_M = new Map(), tileMat = c => TILE_M.get(c) || (TILE_M.set(c, lam(c, 
 scene.add(HOUSE_PLAN.g);
 const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
 const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
-const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1;
+const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1 && HOUSE_FP[idx(i, j)] === 1;   // (a room's floor in this run's footprint: world/house.js)
 // the lines no wall may stand on (the furniture goes in after the walls, round them: world/furniture.js)
 const HOUSE_NO = (() => {
   const no = new Set();
@@ -50,11 +50,14 @@ function planHouse(rnd) {
   const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const obst = () => false;   // (no furniture yet: it goes in round the walls after, world/furniture.js)
   const lk = (ax, L, u) => ax === 'x' ? eKey('x', L, u) : eKey('z', u, L);   // (the edge u along the line ax = L)
+  // (and whether there's a room's floor either side of it: there's no wall to put out past the footprint's own)
+  const both = (ax, L, u) => ax === 'x' ? inPlan(L - 1, u) && inPlan(L, u) : inPlan(u, L - 1) && inPlan(u, L);
   // a doorway somewhere on the line ax = L from u = a to b: on the one spot that mustn't be wall if there is one (more
   // than one and it can't be done), never with furniture in the way on either side
   const gapOn = (ax, L, a, b) => {
     const must = [], ok = [];
     for (let u = a; u <= b; u++) {
+      if (!both(ax, L, u)) continue;
       if (no.has(lk(ax, L, u))) must.push(u);
       if (ax === 'x' ? !obst(L - 1, u) && !obst(L, u) : !obst(u, L - 1) && !obst(u, L)) ok.push(u);
     }
@@ -66,6 +69,7 @@ function planHouse(rnd) {
   const run = (ax, L, a, b, gaps) => {
     for (let u = a; u <= b; u++) {
       const k = lk(ax, L, u);
+      if (!both(ax, L, u)) continue;
       if (gaps.includes(u)) { doors.push(k); continue; }
       if (no.has(k)) return false;
       W.add(k);
@@ -111,6 +115,7 @@ function planHouse(rnd) {
     if (w >= pub[2] - pub[0] || h >= pub[3] - pub[1]) continue;   // (the living room keeps a way round it)
     if (HOUSE_DOOR[0] >= r[0] - 1 && HOUSE_DOOR[0] <= r[2] + 1 && HOUSE_DOOR[1] >= r[1] - 1 && HOUSE_DOOR[1] <= r[3] + 1) continue;
     if (boxes.some(b => b[0] <= r[2] + 1 && r[0] <= b[2] + 1 && b[1] <= r[3] + 1 && r[1] <= b[3] + 1)) continue;
+    { let out = false; for (let i = r[0] - 1; i <= r[2] + 1; i++) for (let j = r[1] - 1; j <= r[3] + 1; j++) if (!inPlan(i, j) && i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1) out = true; if (out) continue; }   // (nor up against where the footprint's notched)
     // its two open sides: one along x (L), one along z, and the doorway on the longer
     const Lx = cx ? r[2] + 1 : r[0], Lz = cz ? r[3] + 1 : r[1], onX = h > w || (h === w && rnd() < 0.5);
     const g = onX ? gapOn('x', Lx, r[1], r[3]) : gapOn('z', Lz, r[0], r[2]); if (g === null) return null;
@@ -118,9 +123,13 @@ function planHouse(rnd) {
     boxes.push(r);
   }
   if (!W.size) return null;
-  // and every room reached from the front door
+  // and every room reached from the front door, and none of it narrower than two metres (each cell in a two by two of
+  // its own room)
   const seen = planReach(W);
-  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (!seen[idx(i, j)]) return null;
+  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (inPlan(i, j) && !seen[idx(i, j)]) return null;
+  const rm = new Int16Array(N * N).fill(-1); planRooms(W, doors).forEach((cs, r) => cs.forEach(([i, j]) => { rm[idx(i, j)] = r; }));
+  const sq = (i, j, r) => [[0, 0], [1, 0], [0, 1], [1, 1]].every(([a, b]) => rm[idx(i + a, j + b)] === r);
+  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) { const r = rm[idx(i, j)]; if (r >= 0 && !(sq(i, j, r) || sq(i - 1, j, r) || sq(i, j - 1, r) || sq(i - 1, j - 1, r))) return null; }
   return { walls: W, doors };
 }
 // a room with nothing in it (not the living room) opened up into the room beside it, a bedroom or a small room if one
@@ -167,19 +176,19 @@ function planReach(W) {
 const WIN = { min: 3, max: 6, porch: [19, 23], live2: 0.6, small: 0.5 };
 function chooseWindows(rnd, rooms, kinds) {
   const runsOf = cells => {
-    const has = new Set(cells.map(([i, j]) => idx(i, j))), out = [];
-    // each side: the cells along it, and the wall cell outside each
-    const sides = [['N', c => c[1] === IN.j0, c => [c[0], HZ0], c => c[0], [0, -1]], ['S', c => c[1] === IN.j1, c => [c[0], HZ1], c => c[0], [0, 1]],
-      ['W', c => c[0] === IN.i0, c => [HX0, c[1]], c => c[1], [-1, 0]], ['E', c => c[0] === IN.i1, c => [HX1, c[1]], c => c[1], [1, 0]]];
-    for (const [nm, on, wall, u, o] of sides) {
-      const cs = cells.filter(on).sort((a, b) => u(a) - u(b));
+    const out = [];
+    // each way out: the room's cells with an outer wall that way that can take a window (world/house.js: wallForm), in
+    // runs along that wall's line, and the wall cell outside each
+    for (const [nm, di, dj] of [['N', 0, -1], ['S', 0, 1], ['W', -1, 0], ['E', 1, 0]]) {
+      const line = c => di ? c[0] : c[1], u = c => di ? c[1] : c[0], wall = c => [c[0] + di, c[1] + dj];
+      const cs = cells.filter(c => { const w = WALL_AT.get(idx(...wall(c))); return w && w.win && w.faces[0] === nm; }).sort((a, b) => line(a) - line(b) || u(a) - u(b));
       for (let s = 0; s < cs.length;) {
-        let e = s; while (e + 1 < cs.length && u(cs[e + 1]) === u(cs[e]) + 1) e++;
+        let e = s; while (e + 1 < cs.length && line(cs[e + 1]) === line(cs[s]) && u(cs[e + 1]) === u(cs[e]) + 1) e++;
         const run = cs.slice(s, e + 1), L = run.length; s = e + 1;
         if (L < 3) continue;
         const mid = L % 2 ? [run[(L - 1) >> 1]] : [run[L / 2 - 1], run[L / 2]];
         const ok = mid.every(c => {
-          const [wi, wj] = wall(c), oi = wi + o[0], oj = wj + o[1];
+          const [wi, wj] = wall(c), oi = wi + di, oj = wj + dj;
           if (nm === 'S' && wi >= WIN.porch[0] && wi <= WIN.porch[1]) return false;
           return inb(oi, oj) && cell[idx(oi, oj)] === EMPTY;
         });
@@ -206,7 +215,7 @@ function planRooms(W, doors) {
   W = new Set([...W, ...doors]);
   const room = new Int16Array(N * N).fill(-1), rooms = [];
   for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) {
-    if (room[idx(i, j)] >= 0) continue;
+    if (room[idx(i, j)] >= 0 || !inPlan(i, j)) continue;
     const cells = [], q = [[i, j]], r = rooms.length; room[idx(i, j)] = r;
     while (q.length) {
       const [a, b] = q.pop(); cells.push([a, b]);
@@ -453,6 +462,7 @@ function breakDoor(d, z) {
 // round the house and what you can see are all worked out again for it
 function houseLayout(seed, live) {
   const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
+  houseFootprint(rnd, live);   // (its footprint first: whole, or notched at the back, world/house.js)
   yardLayout(rnd, live);   // (the yard round it first: what's outside a window decides whether one can go there, world/yard.js)
   // its rooms (what each is, and which cells are in which), and the furniture placed in them (world/furniture.js);
   // a plan the furniture won't all go into is passed over for the next
@@ -474,7 +484,8 @@ function houseLayout(seed, live) {
   }
   if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
   // its windows, and whatever hangs on the walls where they've gone taken down
-  setWindows(wins.keys, true); for (const d of WALL_DECOR) d.g.visible = !wins.keys.has(d.k);
+  // (and anything hung on a wall that isn't there this run, or isn't facing the same way)
+  setWindows(wins.keys, true); for (const d of WALL_DECOR) { const w = WALL_AT.get(d.k); d.g.visible = !wins.keys.has(d.k) && !!w && w.faces.length === 1 && w.faces[0] === d.dir; }
   HOUSE_PLAN.seed = seed;
   wX.fill(0); wZ.fill(0);
   const W = plan ? plan.walls : new Set();
@@ -487,7 +498,7 @@ function houseLayout(seed, live) {
   const used = new Set();
   HOUSE_PLAN.cols = HOUSE_PLAN.kinds.map(k => { const free = ROOM_PAINT[k].filter(c => !used.has(c)), c = free.length ? free[(rnd() * free.length) | 0] : ROOM_PAINT[k][0]; used.add(c); return c; });
   HOUSE_PLAN.tile = HOUSE_PLAN.kinds.map(() => TILE[(rnd() * TILE.length) | 0]);
-  for (const w of walls) if (w.ii >= 0) { const r = ro[idx(w.ii, w.ij)]; w.mats.inner.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
+  for (const w of walls) for (const [a, b, m] of w.inner) { const r = ro[idx(a, b)]; m.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
   buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
   if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }

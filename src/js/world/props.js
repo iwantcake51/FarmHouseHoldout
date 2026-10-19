@@ -88,7 +88,7 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   // each piece in its own group, on the wall cell it hangs on, so a window put in there takes it down (WALL_DECOR:
   // world/interior.js)
   // (and out off the wall a little, clear of the plaster over it: world/house.js, IN_M)
-  const dec = (i, j) => { const g = new THREE.Group(); g.position.set(i === HX0 ? 0.022 : 0, 0, j === HZ0 ? 0.022 : 0); scene.add(g); WALL_DECOR.push({ g, k: idx(i, j) }); return g; };
+  const dec = (i, j) => { const g = new THREE.Group(); g.position.set(i === HX0 ? 0.022 : 0, 0, j === HZ0 ? 0.022 : 0); scene.add(g); WALL_DECOR.push({ g, k: idx(i, j), dir: i === HX0 ? 'W' : 'N' }); return g; };
   const pic = dec(20, HZ0), clk = dec(23, HZ0), ant = dec(26, HZ0), hooks = dec(HX0, 19), cal = dec(HX0, 22);
   const zN = cxw(HZ0) + 0.5, xW = cxw(HX0) + 0.5;
   box(pic, 0.52, 0.42, 0.03, HM.oakDk, cxw(20), 1.55, zN + 0.015); box(pic, 0.44, 0.34, 0.01, lam(0x9aa6a4), cxw(20), 1.55, zN + 0.032);

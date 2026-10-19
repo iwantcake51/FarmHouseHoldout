@@ -95,14 +95,14 @@ function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
     const c = q.pop(), i = c % N, j = (c / N) | 0;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ni = i + di, nj = j + dj, n = idx(ni, nj); if (!inPlan(ni, nj) || seen[n] || occ[n] || furnWall(W, i, j, di, dj)) continue; seen[n] = 1; q.push(n); }
   }
-  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (!occ[idx(i, j)] && !seen[idx(i, j)]) return null;
+  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (inPlan(i, j) && !occ[idx(i, j)] && !seen[idx(i, j)]) return null;
   return out;
 }
 // put each piece where the plan says (or back where it was built, with none): its cells in the grid (low or tall: what
 // you see and shoot over), its model moved and turned (nudged and twisted a little: FURN_JIT), and its station's spot
 // and footprint with it
 function applyFurniture(placed, rnd) {
-  for (const f of FURN) for (const [i, j] of f.at) { const k = idx(i, j); cell[k] = EMPTY; lowObst.delete(k); blockArr[k] = 0; }
+  for (const f of FURN) for (const [i, j] of f.at) { const k = idx(i, j); if (cell[k] !== OBST) continue; cell[k] = EMPTY; lowObst.delete(k); blockArr[k] = 0; }   // (where it stood last run, if that's not a wall now: world/house.js)
   for (const f of FURN) {
     const c = placed ? placed.get(f) : furnAt(f, f.c0[0][0], f.c0[0][1], 0);
     f.at = c.cells;

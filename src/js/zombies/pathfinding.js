@@ -39,7 +39,7 @@ function flowInto(dist, big) {
 // walk to it from anywhere outside with the house's other openings shut, worked out the first time it's wanted (the
 // fences and furniture don't move; boards are torn at when it gets there)
 const viaF = new Map();
-const houseCell = (i, j) => i >= HX0 && i <= HX1 && j >= HZ0 && j <= HZ1;
+const houseCell = (i, j) => inb(i, j) && HOUSE_FP[idx(i, j)] > 0;   // (this run's footprint: world/house.js)
 function viaField(o) {
   let f = viaF.get(o); if (f) return f;
   f = new Float32Array(N * N).fill(1e9); viaF.set(o, f);

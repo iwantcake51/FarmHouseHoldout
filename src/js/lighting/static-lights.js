@@ -17,16 +17,14 @@ const STATIC_LIGHTS = [
   // warm light spilling out through each window and the doorway; one board dims it, two shut it off
   ...openings.map(spillLight)
 ];
-STATIC_LIGHTS.forEach(L => {
-  if (!L.fill) { L.field = lightField(L.x, L.z, L.r, L.cone, true); return; }
-  L.field = [];   // even warm fill across the rooms
-  for (let b = 0; b < FN; b++) for (let a = 0; a < FN; a++) { const x = sampleX(a), z = sampleX(b); if (x > HOUSE.x0 + 0.5 && x < HOUSE.x1 - 0.5 && z > HOUSE.z0 + 0.5 && z < HOUSE.z1 - 0.5) L.field.push(b * FN + a, 1); }
-});
+// (an even warm fill across the rooms, inside this run's footprint: world/house.js)
+const fillField = () => { const out = []; for (let b = 0; b < FN; b++) for (let a = 0; a < FN; a++) if (inHouseRect(sampleX(a), sampleX(b), -0.5)) out.push(b * FN + a, 1); return out; };
+STATIC_LIGHTS.forEach(L => { L.field = L.fill ? fillField() : lightField(L.x, L.z, L.r, L.cone, true); });
 // a new floor plan (world/interior.js): the lamps rehung where its rooms are, the windows' spill where they are, and every
 // fixed light worked out again
 // round its walls
 function relightHouse() {
   for (let k = STATIC_LIGHTS.length - 1; k >= 0; k--) if (STATIC_LIGHTS[k].hang || STATIC_LIGHTS[k].spill) STATIC_LIGHTS.splice(k, 1);
   STATIC_LIGHTS.push(...HANG.map(hangLight), ...openings.map(spillLight));   // (and the spill out of this run's windows)
-  STATIC_LIGHTS.forEach(L => { if (L.barrel) { L.x = BURN_BARREL.x; L.z = BURN_BARREL.z; } if (!L.fill) L.field = lightField(L.x, L.z, L.r, L.cone, true); });   // (the burn barrel where the yard has it this run: world/yard.js)
+  STATIC_LIGHTS.forEach(L => { if (L.barrel) { L.x = BURN_BARREL.x; L.z = BURN_BARREL.z; } L.field = L.fill ? fillField() : lightField(L.x, L.z, L.r, L.cone, true); });   // (the burn barrel where the yard has it this run: world/yard.js)
 }

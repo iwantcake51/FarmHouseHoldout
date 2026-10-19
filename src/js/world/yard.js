@@ -2,8 +2,8 @@
 // seed, so in co-op everyone's is alike). The gap in the fence at the front, where the drive goes out, stays; the one
 // in each other side moves along it, and now and then a side has a second (FENCE_GAPS, world/fence.js). The cars, the
 // crates, the hay bales and the burn barrel (YARD_PROPS, world/props.js) are set down round the yard and just outside
-// the fence: the crates stacked three together, a pair and two on their own, the hay in a pair and two on their own,
-// the barrel inside the fence. Nothing goes up against the house (its windows need their way in: YARD.house), on the
+// the fence: the cars and the hay bales out past it (a pair and two on their own), never in the yard; the crates stacked
+// three together, a pair and two on their own, anywhere; the barrel inside the fence. Nothing goes up against the house (its windows need their way in: YARD.house), on the
 // porch or the drive, in or in front of a gap in the fence (YARD.gap), on the trodden paths out to the gaps, or right
 // against another prop; and every cell a zombie could walk on round the yard is still reached from the edge of the map.
 // The trodden earth out to the gaps is painted in again where they are now (world/ground.js: groundMask)
@@ -11,13 +11,14 @@
 // YARD: how far a side gap stays from the corners, the chance a side gets a second and how far apart the two; how many
 // cells props keep from the house (more off the front, for the porch), from a fence gap and from a path; how far out past
 // the fence they go; and how many tries at a yard where everything can still be got to
-const YARD = { gapEnd: 3, second: 0.35, apart: 5, house: 2, porch: 3, gap: 2, path: 1, out: 3, tries: 80 };
+const YARD = { gapEnd: 3, second: 0.35, apart: 5, house: 2, porch: 3, gap: 2, path: 1, out: 5, tries: 80 };
 // what goes where: each group's kind, the shape of its cells (before it's turned), and whether it stays inside the fence
+// or out past it
 const YARD_SETS = [
-  { kind: 'car', shape: [[0, 0]] }, { kind: 'car', shape: [[0, 0]] },
+  { kind: 'car', shape: [[0, 0]], outside: true }, { kind: 'car', shape: [[0, 0]], outside: true },
   { kind: 'barrel', shape: [[0, 0]], inside: true },
   { kind: 'crate', shape: [[0, 0], [1, 0], [0, 1]] }, { kind: 'crate', shape: [[0, 0], [1, 0]] }, { kind: 'crate', shape: [[0, 0]] }, { kind: 'crate', shape: [[0, 0]] },
-  { kind: 'hay', shape: [[0, 0], [1, 0]] }, { kind: 'hay', shape: [[0, 0]] }, { kind: 'hay', shape: [[0, 0]] }
+  { kind: 'hay', shape: [[0, 0], [1, 0]], outside: true }, { kind: 'hay', shape: [[0, 0]], outside: true }, { kind: 'hay', shape: [[0, 0]], outside: true }
 ];
 // the trodden path from the house out to each gap but the front one (the drive): from the middle of the gap straight in
 // to the nearest point of the house's wall, x, z to x, z
@@ -53,7 +54,7 @@ function yardLayout(rnd, live) {
     if (no) keep[idx(i, j)] = 1;
   }
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) if (fenceGap(i, j)) for (let a = -YARD.gap; a <= YARD.gap; a++) for (let b = -YARD.gap; b <= YARD.gap; b++) if (inb(i + a, j + b)) keep[idx(i + a, j + b)] = 1;
-  const inFence = (i, j) => i > FX0 && i < FX1 && j > FZ0 && j < FZ1;
+  const inFence = (i, j) => i > FX0 && i < FX1 && j > FZ0 && j < FZ1, outFence = (i, j) => i < FX0 || i > FX1 || j < FZ0 || j > FZ1;
   // the cells round the yard you can walk to from the edge of the map, with nothing set down (taken) and with it
   const reach = taken => {
     const seen = new Uint8Array(N * N), st = [];
@@ -76,7 +77,7 @@ function yardLayout(rnd, live) {
         const i0 = (rnd() * N) | 0, j0 = (rnd() * N) | 0, q = (rnd() * 4) | 0, cs = [];
         // (the group's shape turned, each of its props on its own cell or, a car, its four by two)
         set.shape.forEach(([a, b], k) => { const [da, db] = quarter(a, b, q); cs.push(...yardCells(props[k], i0 + da, j0 + db, q).map(c => [...c, k])); });
-        const fits = cs.every(([i, j]) => inb(i, j) && cell[idx(i, j)] === EMPTY && !keep[idx(i, j)] && (!set.inside || inFence(i, j)) &&
+        const fits = cs.every(([i, j]) => inb(i, j) && cell[idx(i, j)] === EMPTY && !keep[idx(i, j)] && (!set.inside || inFence(i, j)) && (!set.outside || outFence(i, j)) &&
           [-1, 0, 1].every(a => [-1, 0, 1].every(b => !inb(i + a, j + b) || !taken[idx(i + a, j + b)])));
         if (!fits) continue;
         set.shape.forEach(([a, b], k) => { const [da, db] = quarter(a, b, q); put.push({ p: props[k], i: i0 + da, j: j0 + db, q }); });

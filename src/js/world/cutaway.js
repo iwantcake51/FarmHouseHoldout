@@ -3,15 +3,13 @@
 const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };   // flat direction from the scene toward the camera
 const SQ = Math.SQRT1_2, latOf = (x, z) => SQ * (x - z);
 const HLAT = [latOf(HOUSE.x0, HOUSE.z1), latOf(HOUSE.x1, HOUSE.z0)];
-function faceCut(F) {
-  // a wall face fades only if the line from you (F: or the teammate you're watching) toward the camera actually passes through it
-  const c = { N: false, S: false, E: false, W: false };
-  if (state === 'title') return c;
+// a wall face (f: which way it looks, N S W E; at: the line of the wall cells it's on) fades only if the line from you (F:
+// or the teammate you're watching) toward the camera actually passes through it
+function faceCut(F, f, at) {
+  if (state === 'title') return false;
   const d = SQ, m = 0.7, maxT = 7.5;
-  const hitX = xw => { const t = (xw - F.x) / d; if (t < 0.05 || t > maxT) return false; const z = F.z + d * t; return z > HOUSE.z0 - m && z < HOUSE.z1 + m; };
-  const hitZ = zw => { const t = (zw - F.z) / d; if (t < 0.05 || t > maxT) return false; const x = F.x + d * t; return x > HOUSE.x0 - m && x < HOUSE.x1 + m; };
-  c.E = hitX(HOUSE.xE); c.W = hitX(HOUSE.xW); c.S = hitZ(HOUSE.zS); c.N = hitZ(HOUSE.zN);
-  return c;
+  if (f === 'E' || f === 'W') { const t = (at - F.x) / d; if (t < 0.05 || t > maxT) return false; const z = F.z + d * t; return z > HOUSE.z0 - m && z < HOUSE.z1 + m; }
+  const t = (at - F.z) / d; if (t < 0.05 || t > maxT) return false; const x = F.x + d * t; return x > HOUSE.x0 - m && x < HOUSE.x1 + m;
 }
 // roof and wall-face fading so you can see inside: round you, or once you're down in co-op, round the teammate the
 // camera's on (camFocus, net/spectate.js)
@@ -25,11 +23,11 @@ function lineCut(ln, F) {
 }
 function updateCutaway(rdt) {
   stepPaint(rdt);   // (a new run's paint easing in: world/house.js)
-  const F = camFocus(), fc = faceCut(F);
-  const inside = F.x > HOUSE.x0 + 0.35 && F.x < HOUSE.x1 - 0.35 && F.z > HOUSE.z0 + 0.35 && F.z < HOUSE.z1 - 0.35;
+  const F = camFocus(), fN = faceCut(F, 'N', HOUSE.zN), fW = faceCut(F, 'W', HOUSE.xW);
+  const inside = inHouseRect(F.x, F.z, -0.35);
   // roof: off when you're indoors or tucked behind the house, back on outside
   {
-    const want = state === 'title' ? 1 : inside || fc.N || fc.W ? 0 : 1;
+    const want = state === 'title' ? 1 : inside || fN || fW ? 0 : 1;
     // as a run starts, the roof lifts away with the camera's glide (ROOF_INTRO: from and to, in seconds of it) on an
     // ease in and out, rather than most of the way in the first few frames
     if (want === 0 && introCamOn()) roof.op = Math.min(roof.op, 1 - smooth(clamp((INTRO.t - ROOF_INTRO[0]) / (ROOF_INTRO[1] - ROOF_INTRO[0]), 0, 1)));
@@ -53,7 +51,7 @@ function updateCutaway(rdt) {
   // doors between the rooms swing (world/interior.js)
   for (const ln of IW_LINES) { const t = state !== 'title' && inside && lineCut(ln, F) ? 1 : 0; ln.cut.value += (t - ln.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - ln.cut.value) < 0.003) ln.cut.value = t; }
   updateDoors(rdt);
-  for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
+  for (const w of walls) { const t = w.fl.some(([f, at]) => faceCut(F, f, at)) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(F.x, 1.0, F.z).project(cam);
   LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);
   LMU.uPZ.value = projV.z * 0.5 + 0.5 - 0.0015;   // your (or their) depth on screen, a little toward the camera so the spot itself never cuts
@@ -73,7 +71,7 @@ function updateCutaway(rdt) {
 // fading roof still stands in front in depth till it's nearly gone, so the see-through outlines of whatever's under it
 // fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see
 function roofOver(x, z) {
-  if (x > HOUSE.x0 - 0.4 && x < HOUSE.x1 + 0.4 && z > HOUSE.z0 - 0.4 && z < HOUSE.z1 + 0.4) return roof.op;
+  if (inHouseRect(x, z, 0.4)) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
   return 1;
 }

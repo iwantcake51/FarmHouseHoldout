@@ -1,7 +1,7 @@
 // Moths, pollen motes, night mist and fireflies.
 
 // inside the house's walls (plus a margin): the bugs and motes keep out
-const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m;
+const inHouse = (x, z, m) => inHouseRect(x, z, m);
 // moths that circle the lamps and the fire after dark
 const moths = (() => {
   const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], BURN_BARREL.moths];   // outdoor lights only (the barrel's moves each run: world/yard.js)
@@ -76,7 +76,7 @@ function stepAtmos(realDt) {
     }
     motes.pts.geometry.attributes.position.needsUpdate = motes.pts.geometry.attributes.color.needsUpdate = true;
   }
-  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
+  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1); { const c = HOUSE.cut; if (c) LMU.uHouseCut.value.set(c[0], c[1], c[2], c[3]); else LMU.uHouseCut.value.set(-1e3, -1e3, -1e3, -1e3); }
   LMU.uFogT.value = t % 10000;   // the edge fog's clock, wrapped where every drift in EDGE_BODY comes round whole, so it never jumps
   { const cs = (0.4 + 2.5 * WX.str) * 0.022; LMU.uCloud.value.x -= rdt * cs * WX.x; LMU.uCloud.value.y -= rdt * cs * WX.z; }   // the clouds' shade sails over with the wind (0.022: the shade's scale, core/shaders.js), quicker up there than down here
   LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
@@ -103,7 +103,7 @@ function stepAtmos(realDt) {
     const env = Math.sin(Math.PI * u.life / u.max);
     if (sp.position.x - camTarget.x > wx) sp.position.x -= 2 * wx; if (sp.position.x - camTarget.x < -wx) sp.position.x += 2 * wx;
     if (sp.position.z - camTarget.z > wz) sp.position.z -= 2 * wz; if (sp.position.z - camTarget.z < -wz) sp.position.z += 2 * wz;
-    const inside = sp.position.x > HOUSE.x0 - 1 && sp.position.x < HOUSE.x1 + 1 && sp.position.z > HOUSE.z0 - 1 && sp.position.z < HOUSE.z1 + 1;
+    const inside = inHouseRect(sp.position.x, sp.position.z, 1);
     sp.material.opacity = inside ? 0 : mo * env * (0.7 + 0.3 * Math.sin(t * 0.2 + u.ph));
     sp.visible = sp.material.opacity > 0.005;
   }

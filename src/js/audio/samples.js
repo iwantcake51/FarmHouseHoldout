@@ -93,7 +93,7 @@ function samplesInit() {
   }
 }
 // whether you're inside the farmhouse
-const indoors = () => P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1;
+const indoors = () => inHouseRect(P.x, P.z, 0);
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
 // time), echo (how much goes to the farm's echo: FAR_ECHO), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the

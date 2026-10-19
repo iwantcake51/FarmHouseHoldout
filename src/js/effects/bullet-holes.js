@@ -13,7 +13,7 @@ const TEX_HOLE = glowTex(64, 64, x => {
 const holeMat = new THREE.MeshBasicMaterial({ map: TEX_HOLE, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const holeMesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), holeMat, HOLE_MAX);
 holeMesh.count = 0; holeMesh.frustumCulled = false; holeMesh.renderOrder = 1; scene.add(holeMesh);
-const holes = [], wallAt = new Map(walls.map(w => [w.k, w]));
+const holes = [], wallAt = WALL_AT;   // (this run's outer walls, by cell: world/house.js)
 let holeIdx = 0;
 const _hm = new THREE.Matrix4(), _hq = new THREE.Quaternion(), _hv = new V3(), _hs = new V3(), _hZ = new V3(0, 0, 1), _hn = new V3();
 // a round from (ox, oz) along (dx, dz) that stopped at t (the first point found inside a blocked cell; the point before

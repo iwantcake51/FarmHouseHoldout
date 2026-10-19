@@ -23,7 +23,7 @@ function windMood() {
 windMood(); WX.str = WX.ts;
 // how strong a gust is at a point right now, 0 to 1
 const gustAt = (x, z) => Math.pow(0.5 + 0.5 * Math.sin((x * WX.x + z * WX.z) * WIND_GUST.k - WX.gp), WIND_GUST.sharp);
-const windIndoors = (x, z) => x > HOUSE.x0 && x < HOUSE.x1 && z > HOUSE.z0 && z < HOUSE.z1;
+const windIndoors = (x, z) => inHouseRect(x, z, 0);
 // the air's speed at a point (into out.x, out.z, metres a second): what carries smoke, dust and anything light along
 function windAt(x, z, out) {
   const v = (WIND_CARRY.base + WIND_CARRY.str * WX.str) * (1 + WIND_CARRY.gust * gustAt(x, z)) * (windIndoors(x, z) ? WIND_CARRY.inside : 1);
