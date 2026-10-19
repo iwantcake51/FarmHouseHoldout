@@ -139,12 +139,19 @@ const _cp = new Float32Array(ZJ_N + 1);
 // over a fence (fx, fz: where it crosses the rail) or through a window (o), from where the zombie stands along (dx, dz)
 // to (x1, z1) on the far side
 // (startClimb, net/sync.js, calls this: in co-op the host's climbs go to the others with their seed)
+const WIN_LANE = 0.24;
 function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
   const c = pick(CLIMBS[kind + (z.crawl ? 'Crawl' : z.type === 'runner' ? 'Runner' : 'Walker')]);
   const s0 = (z.x - fx) * dx + (z.z - fz) * dz, lat = (z.x - fx) * -dz + (z.z - fz) * dx;
   z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
   z.face = Math.atan2(dx, dz);
-  if (o) o.busy = z;
+  // through a window alongside others: into a lane of its own across it (WIN_LANE either side of the middle), the one
+  // nearest where it stands that's free, so they go through side by side rather than inside each other
+  if (o) {
+    const c = o.climbers || (o.climbers = []), used = c.filter(b => b !== z && b.vault && b.vault.o === o).map(b => b.vault.lane || 0);
+    z.vault.lane = [0, -WIN_LANE, WIN_LANE].filter(l => !used.some(u => Math.abs(u - l) < 0.05)).sort((a, b) => Math.abs(a - lat) - Math.abs(b - lat))[0] || 0;
+    if (!c.includes(z)) c.push(z);
+  }
   if (Math.hypot(z.x - P.x, z.z - P.z) < 14) soundAt(z.x, z.z, () => SFX.fenceClimb());
 }
 // along the climb: the zombie's place on the ground follows the keys' s (starting from wherever it stood, and drawn to
@@ -152,7 +159,7 @@ function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
 function stepClimb(z, dt) {
   const v = z.vault, c = v.c; v.t += dt / v.dur; const t = climbT(v);
   climbAt(c, t, _cp);
-  const s = _cp[ZJ_N] + v.ds * (1 - _zsm(0, 0.22, t)), lat = v.keepLat ? v.lat : v.lat * (1 - _zsm(0, 0.3, t));
+  const s = _cp[ZJ_N] + v.ds * (1 - _zsm(0, 0.22, t)), lat = v.keepLat ? v.lat : (v.lane || 0) + (v.lat - (v.lane || 0)) * (1 - _zsm(0, 0.3, t));
   z.x = v.fx + v.dx * s - v.dz * lat; z.z = v.fz + v.dz * s + v.dx * lat; z.face = Math.atan2(v.dx, v.dz);
   if (z.blob) z.blob.position.set(z.x, 0.02, z.z);
   while (v.ev < c.k.length && c.k[v.ev].t <= t) {
@@ -160,7 +167,7 @@ function stepClimb(z, dt) {
     if (e === 'land') { burst(z.x + v.dx * 0.5, 0.1, z.z + v.dz * 0.5, z.crawl ? 4 : 6, 'dust', v.dx, v.dz, 1.2); if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.thud(); }
   }
   // done: it carries on from where the climb left it (or from the far cell's middle, if that left it somewhere it can't stand)
-  if (v.t >= 1) { z.vault = null; if (hardBlocked(ci(z.x), ci(z.z))) { z.x = v.x1; z.z = v.z1; } if (v.o && v.o.busy === z) v.o.busy = null; }
+  if (v.t >= 1) { z.vault = null; if (hardBlocked(ci(z.x), ci(z.z))) { z.x = v.x1; z.z = v.z1; } if (v.o && v.o.climbers) { const k = v.o.climbers.indexOf(z); if (k >= 0) v.o.climbers.splice(k, 1); } }
 }
 // the climb's pose for the animation (zombies/zombie-anim.js): the keys' joints (a crawler's height scaled to it), held
 // to them a little more firmly than usual

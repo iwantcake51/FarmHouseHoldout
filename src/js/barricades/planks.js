@@ -170,7 +170,7 @@ function stepBoards(dt, rdt) {
   for (const q of loosePlanks) if (q.life > 0) q.g.visible = visAt(q.g.position.x, q.g.position.z) > 0.15;
 }
 function resetBoards() {
-  openings.forEach(o => { while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.busy = null; });
+  openings.forEach(o => { while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.climbers = []; });
   loosePlanks.forEach(q => scene.remove(q.g)); loosePlanks.length = 0;
   lightsDirty = true;
 }

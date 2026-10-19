@@ -17,8 +17,14 @@ function reachBlocked(x0, z0, x1, z1) {
 }
 // which side of an opening a point's on (1: the side its normal points to, the outside)
 const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 1;
-// a window takes one zombie at a time, but only just: the next goes in as soon as the one ahead is halfway through
-function winFree(o, z) { const b = o.busy; if (!b || b === z) return true; if (b.dead || !b.vault || b.vault.t > 0.5) { o.busy = null; return true; } return false; }
+// a window takes up to WIN_AT_ONCE zombies at a time, side by side (each in its own lane across it: zombies/climb.js),
+// the next starting in as soon as every one already climbing is WIN_GAP of the way through
+const WIN_AT_ONCE = 3, WIN_GAP = 0.12;
+function winFree(o, z) {
+  const c = o.climbers || (o.climbers = []);
+  for (let k = c.length - 1; k >= 0; k--) { const b = c[k]; if (b === z) return true; if (b.dead || !b.vault || b.vault.o !== o) c.splice(k, 1); }
+  return c.length < WIN_AT_ONCE && c.every(b => b.vault.t > WIN_GAP);
+}
 // at a window: the boards to tear down first (returned), then it climbs in (zombies/climb.js)
 function atWindow(z, o) {
   if (z.type === 'brute') return o.boards.length ? o : null;   // a brute smashes the boards but never climbs in (zombies/pathfinding.js sends it round to the door)
