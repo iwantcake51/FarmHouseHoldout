@@ -3,6 +3,10 @@
 // low ones (crates, hay bales, and the furniture in the house but the medicine cabinet) stop feet but not eyes or
 // bullets: you see and shoot over them (world/collision.js)
 const lowObst = new Set();
+// the furniture in the house, placed afresh each run (world/furniture.js): its group, the cells it stands on, whether
+// it's low enough to see and shoot over, which way it faces the room (away from the wall at its back; a corner piece
+// diagonally), and the station it is, if it's one
+const FURN = [];
 function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
 const HM = {
@@ -52,6 +56,7 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   torus(s, 0.1, 0.028, HM.rope, 0.03, 1.24, 0.62).rotation.x = Math.PI / 2; torus(s, 0.08, 0.026, HM.rope, 0.04, 1.29, 0.6).rotation.x = Math.PI / 2;
   unfight(s); mergeInto(s, finePieces(s));
   obstacle(17, 23, true); obstacle(17, 24, true);   // chest high and open fronted: you see and shoot over it
+  FURN.push({ g: s, id: 'shelf', cells: [[17, 23], [17, 24]], low: true, face: [1, 0] });
 
   // ---- the bed in the north-east corner: a turned-post frame, mattress, patchwork quilt, pillow, a suitcase under it, boots beside it ----
   const bed = new THREE.Group(); bed.position.set(cxw(26), 0, (cxw(18) + cxw(19)) / 2); scene.add(bed);
@@ -77,6 +82,7 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   });
   unfight(bed); mergeInto(bed, finePieces(bed));
   obstacle(26, 18, true); obstacle(26, 19, true);   // low, like the table
+  FURN.push({ g: bed, id: 'bed', cells: [[26, 18], [26, 19]], low: true, face: [-1, 0], head: [0, -1] });   // (head: the end its headboard's at)
 
   // ---- on the walls you can see from inside (north and west): a painting, a clock, antlers over the bed, coat hooks, a calendar ----
   const wd = new THREE.Group(); scene.add(wd);

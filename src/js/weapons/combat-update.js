@@ -1,7 +1,7 @@
 // Per-frame weapon handling: trigger, swings, reloads, bursts, stamina, bleeding, smoke wisps.
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
-const PITCH_MAX = 1.0;    // how far down (radians) the arms will point a gun
+const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
 const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you look (of its height), how near the aim it counts, how far up you'll point
 
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages

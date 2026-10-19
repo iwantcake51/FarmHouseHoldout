@@ -233,7 +233,8 @@ function buildStow() {
     if (at.flip && at.flip(id)) inner.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), Math.PI));   // turned over on its length
     inner.add(copy); outer.add(inner); at.part().add(outer);
     outer.userData.gun = copy; outer.userData.inner = inner; outer.userData.q0 = inner.quaternion.clone();
-    const sls = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); });
+    const sls = [], mags = [], belt = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); if (o.userData.isMag) mags.push(o); if (o.userData.beltK !== undefined) belt.push(o); });
+    outer.userData.mags = mags; outer.userData.belt = belt;
     return { outer, inner, copy, pv, sls };
   };
   const rig = !!(W8.slot.side && (W(W8.slot.side) || {}).akimbo && HOLDS.side && HOLDS.side.L);
@@ -310,6 +311,27 @@ function showStowed(s, on, on2 = on) {
   const o = STOW[s]; if (!o) return; o.userData.gun.visible = on; o.visible = (on || s === 'side') && !P.dead;
   const t = o.userData.twin; if (t) { o.userData.gun2.visible = on2; t.visible = (on2 || s === 'side') && !P.dead; }
 }
+// a stowed gun as it was put away: a slide or bolt that locks open on the last round locked back if it's empty (each
+// of a pair by its own mag), a pump's or a bolt's action left open to load still open (W8.held: the bolt's handle up
+// too), no mag in it if it went away with the mag out mid reload (W8.relSave), and a belt showing what's left in it
+function stowState(o, t) {
+  const id = o.userData.id, D = W(id); if (!D || D.melee || !D.ammo) return;
+  const held = !!W8.held[id], out = !!(W8.relSave[id] && W8.relSave[id].st === 'out'), bolt = EJECT[id] === 'bolt';
+  const pose = (sls, dry) => sls.forEach(m => {
+    const r = m.userData.slideRest, off = r.cyc ? (held ? 1 : 0) : r.lock && dry ? 1 : 0, zc = r.z0 - r.travel * off, cl = m.userData.clip;
+    if (cl === undefined) m.position.z = zc;
+    else {   // (a bolt seen through a port in the side: what's run back past the port's edge is inside, out of sight)
+      const L = 2 * (m.geometry.boundingBox || (m.geometry.computeBoundingBox(), m.geometry.boundingBox)).max.z, f = zc + L / 2, rr_ = Math.max(cl, zc - L / 2);
+      m.visible = f - rr_ > 0.001; if (m.visible) { m.scale.z = (f - rr_) / L; m.position.z = (f + rr_) / 2; }
+    }
+    if (r.cyc && bolt) m.rotation.z = -BOLT_TURN * off;
+    m.updateMatrix();
+  });
+  pose(o.userData.slides, D.akimbo ? akMags(id).R <= 0 : (W8.mag[id] || 0) <= 0);
+  if (t) pose(o.userData.slides2, akMags(id).L <= 0);
+  [o, t].forEach(q => q && q.userData.mags.forEach(m => { m.visible = !out; }));
+  const nb = out ? 0 : W8.mag[id] || 0; o.userData.belt.forEach(r => { r.visible = r.userData.beltK < nb; });
+}
 // every frame: show what's stowed, and let it swing a little with your steps and your changes of pace
 function updateStow(rdt) {
   if (stowDirty) { stowDirty = false; buildStow(); }
@@ -331,14 +353,9 @@ function updateStow(rdt) {
       const rk = o.userData.rig ? 0.2 : 1;   // (strapped under the arms, the rig's holsters hardly move)
       o.rotation.set(stowSw.x * 0.6 * rk, 0, -Math.abs(stowSw.z) * 0.3 * rk);   // the holster rides the hip and rocks fore and aft
       if (t) t.rotation.set(stowSw.x * 0.6 * rk, 0, Math.abs(stowSw.z) * 0.3 * rk);
-      // an empty pistol goes in with its slide locked back (each of a pair by its own mag)
-      if (stowed && SLIDE_PISTOLS[o.userData.id]) {
-        const lock = (sls, back) => sls.forEach(m => { const r = m.userData.slideRest; m.position.z = r.z0 - r.travel * back; m.updateMatrix(); });
-        lock(o.userData.slides, slideLocked(o.userData.id) ? 1 : 0);
-        if (t) lock(o.userData.slides2, akMags(o.userData.id).L <= 0 ? 1 : 0);
-      }
     }
     else if (s === 'long') o.rotation.set(stowSw.x * 0.5, 0, stowSw.z * 0.8);   // the long gun swings about its straps on the pack's side
+    if (stowed) stowState(o, t);
   }
   const n = Math.min(plankStack.length, S.planks | 0);
   plankStack.forEach((p, k) => { if (k < n && !p.visible) p.material.color.setHex(plankTint(p.userData.wood)); p.visible = k < n; }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;

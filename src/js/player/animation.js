@@ -30,7 +30,7 @@ const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
 // shoulders hunched a little over the hurt (hunch), the breathing quicker and deeper (breath: how much more, how much
 // quicker), and now and then a wince (wince: how often, seconds, at the worst; the knee buckling a little with it)
 const LIMP = { from: 0.45, to: 0.08, warp: 0.28, lean: 0.07, out: 0.14, nod: 0.07, rest: 0.26, hunch: 0.09, breath: [1.4, 1.1], wince: [3, 7] };
-const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.34, thigh: 0.17, drop: 0.045, chest: 0.07, ease: 5 };
+const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.22, thigh: 0.11, drop: 0.03, chest: 0.045, ease: 3.5 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 // Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
 // twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
@@ -145,7 +145,7 @@ function animatePlayer(dt, rdt) {
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
-  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 16;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
+  const turnRate = P.vault ? 20 : ANIM.postVault > 0 ? 5 + (1 - ANIM.postVault / 0.45) * 9 : P.pivot ? PIVOT.yawRate : 11;   // ease back round to your aim after a vault; a hard turn's loose, the body trailing the hips round
   // sprinting you turn to face where you're running (faceK), and back round to your aim as you come out of it
   ANIM.yaw += angDiff(P.vault ? P.vault.face : P.aim + angDiff(ANIM.runYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1)), ANIM.yaw) * Math.min(1, rdt * turnRate);
   // Vault fire: the chest keeps the gun on your aim the whole way over, the hips turning to the sill beneath it, and
@@ -389,7 +389,7 @@ function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
-  { const k = 1 - titleBlend(); if (pXray.rim.opacity !== 0.75 * k) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * k; } }
+  { const t = 1 - titleBlend(), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; } }   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js)
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)

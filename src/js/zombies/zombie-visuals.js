@@ -61,7 +61,7 @@ function updateZombieVisuals(dt, rdt) {
     // a zombie behind something is just hidden. The last few of a wave keep their pulsing outline, and their see-through
     // one, at any distance
     const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0;
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)

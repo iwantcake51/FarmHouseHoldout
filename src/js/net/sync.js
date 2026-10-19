@@ -145,6 +145,7 @@ function netOp(z, op, dx, dz) {
     }
     case 's': sever(z, op[1], dx, dz, !!op[2]); return;
     case 'l': severLower(z, op[1], dx, dz); return;
+    case 'c': if (!z.crawl) goCrawl(z); return;   // a leg shot out from under it (zombies/damage.js: LEG_DROP)
     case 'c': crushHead(z, dx, dz); return;
     case 'p': splitHead(z, dx, dz); return;
     case 'h': headShot(z, dx, dz); return;

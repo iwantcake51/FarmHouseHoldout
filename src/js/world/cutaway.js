@@ -58,3 +58,11 @@ function updateCutaway(rdt) {
   }
   LMU.uRad.value = 150 * zoom * renderScale;
 }
+// how much a roof over (x, z) still hides it: the main roof's or the porch's opacity there (1 out from under either). A
+// fading roof still stands in front in depth till it's nearly gone, so the see-through outlines of whatever's under it
+// fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see
+function roofOver(x, z) {
+  if (x > HOUSE.x0 - 0.4 && x < HOUSE.x1 + 0.4 && z > HOUSE.z0 - 0.4 && z < HOUSE.z1 + 0.4) return roof.op;
+  if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
+  return 1;
+}

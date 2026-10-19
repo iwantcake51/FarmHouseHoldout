@@ -1,5 +1,9 @@
 // Fixed lights: porch lamp, barrel fire, bulbs, window and door spill.
 
+// the house's first floor plan, now the grid's blocking is all set up (world/interior.js): its lamps are hung before the
+// lights below are worked out
+houseLayout((Math.random() * 2147483647) | 0, false);
+
 const hangLight = ([x, z]) => ({ hang: true, x, z, r: 6.5, col: [1, 0.68, 0.36], int: 1.3, inside: true });
 const STATIC_LIGHTS = [
   { x: cxw(21) + 0.7, z: cxw(HZ1) + 0.7, r: 8.5, col: [1, 0.6, 0.28], int: 1.55 },

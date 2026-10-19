@@ -164,7 +164,8 @@ function stepClimb(z, dt) {
   if (z.blob) z.blob.position.set(z.x, 0.02, z.z);
   while (v.ev < c.k.length && c.k[v.ev].t <= t) {
     const e = c.k[v.ev].ev; v.ev++;
-    if (e === 'land') { burst(z.x + v.dx * 0.5, 0.1, z.z + v.dz * 0.5, z.crawl ? 4 : 6, 'dust', v.dx, v.dz, 1.2); if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.thud(); }
+    if (e === 'land') { if (z.vis > 0.2) burst(z.x + v.dx * 0.5, 0.1, z.z + v.dz * 0.5, z.crawl ? 4 : 6, 'dust', v.dx, v.dz, 1.2);   // (no dust off one you can't see: behind you, out of your sight)
+      if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.thud(); }
   }
   // done: it carries on from where the climb left it (or from the far cell's middle, if that left it somewhere it can't stand)
   if (v.t >= 1) { z.vault = null; if (hardBlocked(ci(z.x), ci(z.z))) { z.x = v.x1; z.z = v.z1; } if (v.o && v.o.climbers) { const k = v.o.climbers.indexOf(z); if (k >= 0) v.o.climbers.splice(k, 1); } }

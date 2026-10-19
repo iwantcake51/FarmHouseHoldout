@@ -203,22 +203,30 @@ function gunFire(id, D, side) {
     for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
     hits.sort((a, b) => a.t - b.t);
-    const n = Math.min(hits.length, 1 + pierce);
-    for (let k = 0; k < n; k++) {
+    // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
+    // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it
+    // goes through, and any in front of the one it was aimed at, is hit where that height meets it (partAt), or not at
+    // all if it passes over; what it misses doesn't use up a pierce
+    const y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY || GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    let m = 0;
+    for (let k = 0; k < hits.length && m <= pierce; k++) {
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
       // pattern scatters over the body as before (PELLET_CORE)
       let part = hits[k].part;
       if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
+      if (!part && (m > 0 || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
+      hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)
       if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit; headNext = headFade(id, hits[k].t);
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, m - 1) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
+    const n = m;   // (the ones it went into, now at the front of hits)
     if (n) anyHit = true;
     // boards on its way, up to where it stops: the zombie that takes its last pierce, or the wall or its range
     boardsCrossed(ox, oz, dx, dz, n && n === 1 + pierce ? hits[n - 1].t : endR, D.dmg, shotB);

@@ -51,7 +51,7 @@ const nextIds = () => new Set(ARMORY_LINES.map(lineNext).filter(Boolean));
 // one weapon's card: yours (and in your hands, or on the rack), the next to buy, or padlocked behind the one before it
 function rackNode(L, id, k, nxt, full) {
   const D = WEAP[id], own = owns(id), tier = `<small class="rkTier">${k + 1}</small>`, desc = full && D.desc ? `<p class="rkDesc">${D.desc}</p>` : '';
-  if (!own && id === nxt) return `<button type="button" class="rkNode next" data-buy="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b><i class="rkNeed"></i></span></button>`;
+  if (!own && id === nxt) return `<button type="button" class="rkNode next" data-buy="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b><i class="rkNeed"></i></span><i class="rkProg"><i></i></i></button>`;
   const on = own && W8.slot[D.slot] === id;
   const tag = own ? `<span class="rkTag">${TICK_IC}${on ? 'Carrying' : 'On the rack'}</span>` : `<span class="rkTag">${LOCK_IC}After the ${WEAP[L.ids[k - 1]].short || WEAP[L.ids[k - 1]].name}</span><span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b></span>`;
   return `<div class="rkNode ${own ? 'own' : 'lock'}${on ? ' on' : ''}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}${tag}</div>`;
@@ -93,7 +93,7 @@ function renderRack() {
   // each buy button, and its tab's pip: lit when you can afford it, saying how much more you need when you can't
   rows.querySelectorAll('[data-buy]').forEach(b => {
     const id = b.dataset.buy, c = UNLOCK_COST[id], short = S.scrap < c, txt = short ? `Need ${c - S.scrap} more` : 'Unlock';
-    if (b._t !== txt) { b._t = txt; b.classList.toggle('short', short); b.querySelector('.rkNeed').textContent = txt; const p = rows.querySelector(`[data-pip="${id}"]`); if (p) p.classList.toggle('can', !short); }
+    if (b._t !== txt) { b._t = txt; b.classList.toggle('short', short); b.querySelector('.rkNeed').textContent = txt; b.querySelector('.rkProg i').style.width = (Math.min(1, S.scrap / c) * 100).toFixed(1) + '%'; const p = rows.querySelector(`[data-pip="${id}"]`); if (p) p.classList.toggle('can', !short); }   // (and how near you are to it, along its foot)
   });
   // a line with something you can afford to unlock right now: a gold badge on its tab, and over the open line a banner
   // saying what
@@ -206,4 +206,5 @@ function rackGuns() {
   const st = { g, id: 'rack', name: 'Gun rack', x: cxw(25), z: cxw(HZ0 + 1) + 0.95 };
   st.om = outline(g, 0xf4f1ea, 0, 0.035, null, o => !o.userData.fine); st.om.visible = false;   // (as the others get theirs: stations/stations.js)
   STATIONS.push(st);
+  FURN.push({ g, id: 'rack', cells: [[25, HZ0 + 1]], low: false, face: [0, 1], st });
 }

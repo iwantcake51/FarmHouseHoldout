@@ -12,9 +12,15 @@ function reloadDraw(side, on, u) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
   if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
-  if (!on && r.on && r.u > 0.85) { r.ring.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }   // finished: a flash
+  // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
+  // course on the gun still in your hands: not one cut short by putting the gun away)
+  const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
+  if (done) { r.ring.setAttribute('stroke-dasharray', (side === 'L' ? xhAmmoL : xhAmmo).getAttribute('stroke-dasharray') || A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }
+  else if (!on && r.on) r.ring.classList.remove('done');
+  if (on) r.id = id;
   else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
   if (!r.ring.classList.contains('done') || on) r.ring.style.opacity = on ? 1 : 0;
+  else r.ring.style.opacity = 1;
   r.track.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.track.style.opacity = on ? 1 : 0;
   const a = (r.a0 + r.dir * 84 * u) * Math.PI / 180; r.head.setAttribute('cx', (aR * Math.cos(a)).toFixed(1)); r.head.setAttribute('cy', (aR * Math.sin(a)).toFixed(1)); r.head.style.opacity = on && u > 0.02 ? 1 : 0;
   r.on = on; if (on) r.u = u;

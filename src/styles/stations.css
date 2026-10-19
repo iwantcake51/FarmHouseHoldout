@@ -126,14 +126,24 @@
 #stRows button.rkNode{all:unset;position:relative;flex:1.25 1 0;min-width:0;box-sizing:border-box;display:grid;align-content:start;gap:4px;padding:11px 12px 10px;cursor:pointer;border:1px solid var(--gold);background:linear-gradient(180deg,rgba(240,191,76,.14),rgba(240,191,76,.04));box-shadow:inset 0 0 0 1px rgba(240,191,76,.12);animation:rkGlow 2.4s ease-in-out infinite;transition:background .15s,translate .15s,border-color .2s}
 #stRows button.rkNode .rkTier{color:rgba(240,191,76,.6)}
 #stRows button.rkNode:hover,#stRows button.rkNode:focus-visible{background:linear-gradient(180deg,rgba(240,191,76,.24),rgba(240,191,76,.08));translate:0 -2px}
-#stRows button.rkNode.short{border-color:rgba(240,191,76,.35);animation:none}
+/* one you can't afford yet: struck through with hatching, greyed, its price in red, and a bar along its foot of how near
+   you are to it; it doesn't lift under the cursor */
+#stRows button.rkNode.short{border-color:rgba(224,128,92,.5);border-style:dashed;background:repeating-linear-gradient(135deg,rgba(224,128,92,.08) 0 7px,transparent 7px 14px),rgba(14,12,11,.55);box-shadow:none;animation:none;cursor:not-allowed}
+#stRows button.rkNode.short:hover,#stRows button.rkNode.short:focus-visible{translate:none;background:repeating-linear-gradient(135deg,rgba(224,128,92,.11) 0 7px,transparent 7px 14px),rgba(14,12,11,.55)}
+#stRows button.rkNode.short > b,#stRows button.rkNode.short > em,#stRows button.rkNode.short .rkDesc{opacity:.55}
+#stRows button.rkNode.short .rkTier{color:rgba(224,128,92,.55)}
+.short .rkBuy b{color:#e0805c}
+.short .rkBuy svg{fill:#e0805c}
+.rkProg{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(224,128,92,.16)}
+.rkProg i{display:block;height:100%;width:0;background:#e0805c;transition:width .3s ease-out}
+.short .rkProg{display:block}
 #stRows button.rkNode.shake{animation:shake .25s}
 @keyframes rkGlow{50%{box-shadow:inset 0 0 0 1px rgba(240,191,76,.12),0 0 16px rgba(240,191,76,.22)}}
 .rkBuy{display:flex;align-items:center;gap:4px;margin-top:5px;color:#c8d2dc}
 .rkBuy svg{fill:#8fa3b8}
 .rkBuy b{font-family:var(--f-num);font-size:16px;font-weight:800}
 .rkNeed{font-style:normal;margin-left:auto;padding:2px 7px 1px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#140c06;background:#7fae5a}
-.short .rkNeed{color:#e0805c;background:rgba(224,128,92,.12)}
+.short .rkNeed{color:#f4d0c0;background:rgba(200,80,50,.55)}
 .rkLink{flex:0 0 18px;align-self:center;height:2px;background:rgba(236,230,216,.18)}
 .rkLink.own{background:rgba(127,174,90,.7)}
 .rkLink.next{background:linear-gradient(90deg,rgba(127,174,90,.7),var(--gold))}

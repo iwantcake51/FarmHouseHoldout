@@ -1270,7 +1270,7 @@ const GUN_MODELS = {
         const rd = new THREE.Group(); mg.add(rd);
         cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);
         [-0.021, 0.021].forEach(o => ring(rd, 0.0099, 0.007, GM.metal2, x, yy, 0.535 + o));   // its link's loops, hooked into the next
-        belt.push(rd);
+        rd.userData.beltK = belt.length; belt.push(rd);
       });
     }
     // ---- optics sit on the feed cover

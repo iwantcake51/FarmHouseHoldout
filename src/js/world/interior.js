@@ -31,24 +31,9 @@ scene.add(HOUSE_PLAN.g);
 const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
 const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
 const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1;
-// the lines no wall may stand on (worked out once: the furniture doesn't move)
+// the lines no wall may stand on (the furniture goes in after the walls, round them: world/furniture.js)
 const HOUSE_NO = (() => {
   const no = new Set();
-  const shut = (i0, j0, i1, j1) => {
-    for (let i = i0 + 1; i <= i1; i++) for (let j = j0; j <= j1; j++) no.add(eKey('x', i, j));
-    for (let j = j0 + 1; j <= j1; j++) for (let i = i0; i <= i1; i++) no.add(eKey('z', i, j));
-  };
-  // a station and the spot it's used from stay in one room
-  for (const s of STATIONS) {
-    const ui = ci(s.x), uj = ci(s.z);
-    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const i = ui + a, j = uj + b; if (inPlan(i, j) && cell[idx(i, j)] === OBST) shut(Math.min(i, ui), Math.min(j, uj), Math.max(i, ui), Math.max(j, uj)); }
-  }
-  // furniture more than a cell long isn't cut in two
-  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) {
-    if (cell[idx(i, j)] !== OBST) continue;
-    if (i < IN.i1 && cell[idx(i + 1, j)] === OBST) no.add(eKey('x', i + 1, j));
-    if (j < IN.j1 && cell[idx(i, j + 1)] === OBST) no.add(eKey('z', i, j + 1));
-  }
   // no wall ends on a window or the door, or stands right across the way in from the door
   for (const o of openings) {
     const fi = o.i - o.nx, fj = o.j - o.nz;
@@ -64,7 +49,7 @@ const HOUSE_DOOR = (() => { const o = openings.find(q => q.kind === 'door'); ret
 function planHouse(rnd) {
   const W = new Set(), doors = [], no = HOUSE_NO;
   const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
-  const obst = (i, j) => cell[idx(i, j)] === OBST;
+  const obst = () => false;   // (no furniture yet: it goes in round the walls after, world/furniture.js)
   const lk = (ax, L, u) => ax === 'x' ? eKey('x', L, u) : eKey('z', u, L);   // (the edge u along the line ax = L)
   // a doorway somewhere on the line ax = L from u = a to b: on the one spot that mustn't be wall if there is one (more
   // than one and it can't be done), never with furniture in the way on either side
@@ -134,10 +119,9 @@ function planHouse(rnd) {
     boxes.push(r);
   }
   if (!W.size) return null;
-  // and it all has to be walkable: everywhere you could get to in the house with no walls in it (so every station)
-  // still reached from the front door
+  // and every room reached from the front door
   const seen = planReach(W);
-  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (HOUSE_REACH[idx(i, j)] && !seen[idx(i, j)]) return null;
+  for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (!seen[idx(i, j)]) return null;
   return { walls: W, doors };
 }
 // the cells you can walk to from the front door between the walls W
@@ -147,13 +131,12 @@ function planReach(W) {
     const c = q.pop(), i = c % N, j = (c / N) | 0;
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ni = i + di, nj = j + dj, n = idx(ni, nj);
-      if (!inPlan(ni, nj) || seen[n] || cell[n] === OBST || (di ? W.has(eKey('x', Math.max(i, ni), j)) : W.has(eKey('z', i, Math.max(j, nj))))) continue;
+      if (!inPlan(ni, nj) || seen[n] || (di ? W.has(eKey('x', Math.max(i, ni), j)) : W.has(eKey('z', i, Math.max(j, nj))))) continue;
       seen[n] = 1; q.push(n);
     }
   }
   return seen;
 }
-const HOUSE_REACH = planReach(new Set());
 // the rooms a plan makes: each a list of its cells, flooded out between the walls and their doorways
 function planRooms(W, doors) {
   W = new Set([...W, ...doors]);
@@ -218,17 +201,21 @@ function buildInWalls(W, doors) {
       let e = s; while (e + 1 < us.length && us[e + 1] === us[e] + 1) e++;
       const u0 = us[s] - HALF - t / 2, u1 = us[e] + 1 - HALF + t / 2, len = u1 - u0, c = (u0 + u1) / 2, p = L - HALF;
       const piece = (w, h, d, mat, y) => ax === 'x' ? add(d, h, w, mat, p, y, c) : add(w, h, d, mat, c, y, p);
-      piece(len, H, t, IW_M.plaster, H / 2);
-      piece(len, IW.base, t + 0.03, IW_M.base, IW.base / 2);
-      piece(len + 0.02, IW.cap, t + 0.04, IW_M.trim, H - IW.cap / 2);
+      // (no two faces in one plane where pieces meet: the plaster's top tucked up inside the trim, and the walls one
+      // way a hair higher and thicker in their trim and skirting than the other, where they cross at a corner)
+      const z = ax === 'z' ? 1 : 0;
+      piece(len, H - 0.02, t, IW_M.plaster, (H - 0.02) / 2);
+      piece(len, IW.base + z * 0.003, t + 0.03 + z * 0.004, IW_M.base, (IW.base + z * 0.003) / 2);
+      piece(len + 0.02, IW.cap, t + 0.04 + z * 0.004, IW_M.trim, H + z * 0.003 - IW.cap / 2);
       s = e + 1;
     }
   }
   for (const k of doors) {
     const [ax, i, j] = eDec(k), p = (ax === 'x' ? i : j) - HALF, c = (ax === 'x' ? j : i) + 0.5 - HALF;
     const piece = (w, h, d, mat, y, off, face) => ax === 'x' ? add(d, h, w, mat, p + (face || 0), y, c + (off || 0)) : add(w, h, d, mat, c + (off || 0), y, p + (face || 0));
-    piece(1, H - IW.head, t, IW_M.plaster, (H + IW.head) / 2);                 // the header over it
-    piece(1.02, IW.cap, t + 0.04, IW_M.trim, H - IW.cap / 2);                   // the top trim carried across
+    const z = ax === 'z' ? 1 : 0;
+    piece(1, H - 0.02 - IW.head, t - 0.004, IW_M.plaster, (H - 0.02 + IW.head) / 2);   // the header over it
+    piece(1, IW.cap, t + 0.048 + z * 0.004, IW_M.trim, H + 0.0015 + z * 0.003 - IW.cap / 2);   // the top trim carried across
     [-1, 1].forEach(f => {
       const face = f * (t / 2 + 0.011);
       [-1, 1].forEach(sd => piece(IW.case, IW.head + 0.02, 0.022, IW_M.trim, (IW.head + 0.02) / 2, sd * (0.5 - IW.case / 2), face));   // side casings
@@ -243,19 +230,23 @@ function buildInWalls(W, doors) {
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways
 // round the house and what you can see are all worked out again for it
 function houseLayout(seed, live) {
-  const rnd = seeded(seed); let plan = null;
-  for (let k = 0; k < 400 && !plan; k++) plan = planHouse(rnd);
+  const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
+  // its rooms (what each is, and which cells are in which), and the furniture placed in them (world/furniture.js);
+  // a plan the furniture won't all go into is passed over for the next
+  const roomsOf = (W, doors) => { const rooms = planRooms(W, doors); ro.fill(-1); rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; })); return { rooms, kinds: rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed') }; };
+  let plan = null, rk = null, placed = null;
+  for (let k = 0; k < 400 && !placed; k++) { plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors); placed = placeFurniture(rnd, plan.walls, plan.doors, ro, rk.kinds); }
+  if (!placed) { plan = null; rk = roomsOf(new Set(), []); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds); }   // (no rooms: an open house)
   HOUSE_PLAN.seed = seed;
   wX.fill(0); wZ.fill(0);
   const W = plan ? plan.walls : new Set();
   for (const k of W) { const [ax, i, j] = eDec(k); if (ax === 'x') wX[j * (N + 1) + i] = 1; else wZ[j * N + i] = 1; }
   THIN.n = W.size; THIN.box = [cxw(HX0) - 0.5, cxw(HZ0) - 0.5, cxw(HX1) + 0.5, cxw(HZ1) + 0.5];
-  HOUSE_PLAN.doors = plan ? plan.doors : []; HOUSE_PLAN.rooms = planRooms(W, HOUSE_PLAN.doors);
+  HOUSE_PLAN.doors = plan ? plan.doors : []; HOUSE_PLAN.rooms = rk.rooms; HOUSE_PLAN.kinds = rk.kinds;
+  applyFurniture(placed, rnd);
   // the paint, outside (world/house.js: paintHouse) and in each room, the inside of the outer walls included
   paintHouse(rnd);
-  const ro = HOUSE_PLAN.roomOf.fill(-1), used = new Set();
-  HOUSE_PLAN.rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; }));
-  HOUSE_PLAN.kinds = HOUSE_PLAN.rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed');
+  const used = new Set();
   HOUSE_PLAN.cols = HOUSE_PLAN.kinds.map(k => { const free = ROOM_PAINT[k].filter(c => !used.has(c)), c = free.length ? free[(rnd() * free.length) | 0] : ROOM_PAINT[k][0]; used.add(c); return c; });
   HOUSE_PLAN.tile = HOUSE_PLAN.kinds.map(() => TILE[(rnd() * TILE.length) | 0]);
   for (const w of walls) if (w.ii >= 0) { const r = ro[idx(w.ii, w.ij)]; w.mats.inner.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
@@ -263,4 +254,3 @@ function houseLayout(seed, live) {
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
   if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
 }
-houseLayout((Math.random() * 2147483647) | 0, false);

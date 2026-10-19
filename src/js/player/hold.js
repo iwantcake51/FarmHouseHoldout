@@ -674,11 +674,16 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
 }
 const _mlR = new V3();
 
+// the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
+const ARM_AIM = { k: 38, d: 12.3 };
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
-  ANIM.pitch = (ANIM.pitch || 0) + ((state === 'play' ? ANIM.pitchT || 0 : 0) - (ANIM.pitch || 0)) * Math.min(1, rdt * 8);   // how far down you're pointing (weapons/combat-update.js)
+  // how far down you're pointing (weapons/combat-update.js): eased onto on a spring (ARM_AIM), so the arms settle onto
+  // whatever the aim finds rather than snapping to it; never down at a sprint, with the gun at the low ready
+  { const pT = state === 'play' ? (ANIM.pitchT || 0) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) : 0; if (ANIM.vPitch === undefined) ANIM.vPitch = 0;
+    for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, ARM_AIM.k, ARM_AIM.d, h); }
   const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
@@ -919,9 +924,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     brkG.rims.forEach((r, k) => { r.visible = k < loaded; });
   }
   // a belt-fed gun shows what's left in its belt: the rounds go from the box end first under ten, and none are left
-  // when it's empty; the old box slides out as it was, the fresh one rising in on a reload is full
+  // when it's empty; the old box slides out as it was, the fresh one is full from the moment it's out of the pouch
+  // (MAG_TAKE: the belt rides in the box, magInHand)
   const belt = BELT[s];
-  if (belt) { const n = rel === 'mag' && rpm >= 0.6 ? belt.length : Math.min(belt.length, W8.mag[id] || 0); belt.forEach((r, k) => { r.visible = k < n; }); beltJiggle(belt, holdOf(s, 'R'), rdt); } else BJ.on = false;
+  if (belt) { const n = rel === 'mag' && rpm >= MAG_TAKE ? belt.length : Math.min(belt.length, W8.mag[id] || 0); belt.forEach((r, k) => { r.visible = k < n; }); beltJiggle(belt, holdOf(s, 'R'), rdt); } else BJ.on = false;
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
   // revolver: a beat after the reload starts (REV_OPEN, the thumb on the release) the cylinder's flicked out to the left
@@ -1098,7 +1104,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   const hr = HAND_ROLL[H.kind] || HAND_ROLL.hand;
   reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w)); reach(pm.armL, 'L', _fL, ak ? -hr.R * (1 - HAND.L.w) : hr.L * (1 - HAND.L.w));   // (turned back straight while a hand's off the gun)
-  pm.head.rotation.x += ANIM.pitch * 0.85 + ads * 0.1 + ACT.hp; pm.head.rotation.y += ACT.hy;
+  pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp; pm.head.rotation.y += ACT.hy;
   pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
-  up.x += ANIM.pitch * 0.4 + ads * 0.05;
+  up.x += ANIM.pitch * 0.26 + ads * 0.05;
 }

@@ -48,7 +48,7 @@ const UPG = [
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind, ap: () => S.secondWind = true },
-  { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
+  { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second, once you\'ve gone 5 seconds without being hurt.', can: () => S.regen < 2, ap: () => S.regen += 1 },
   { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots hit harder with every weapon.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Shots and swings take limbs and heads off far more often.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
   // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and

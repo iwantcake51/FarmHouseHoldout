@@ -22,7 +22,7 @@ const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos
 function buildWeapon(parent, id, D, mods, rec) {
   const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-  const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
+  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
   const info = GUNS[id](parent, mods);
   if (info && info.crane) rec.crane.push(info.crane);
   if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
@@ -42,7 +42,7 @@ function buildWeapon(parent, id, D, mods, rec) {
   // pull apart faces that would z-fight (a moment later for a weapon built in play: unfightSoon), then let the slides
   // and bolts note their rest positions
   if (rec.soon) unfightSoon(parent); else unfight(parent);
-  if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel }; });
+  if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc }; });
   return muz;
 }
 // what a weapon's model is built from: the weapon and everything on it that shows (its mods and their levels, its
