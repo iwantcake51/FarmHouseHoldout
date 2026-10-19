@@ -9,6 +9,7 @@
   "core/geometry.js",
   "world/grid.js",
   "world/materials.js",
+  "world/ground-art.js",
   "world/ground.js",
   "world/house.js",
   "world/props.js",
