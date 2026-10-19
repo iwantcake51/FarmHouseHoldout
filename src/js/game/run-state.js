@@ -67,7 +67,7 @@ const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50
 // the hunting rifle's detachable 10-round box (its second mag step): a whole reload takes reload seconds, the mag
 // change and then bolt seconds of working the bolt back and forward to chamber a round (weapons/reload.js, chamberCycle
 // in weapons/casings.js)
-const DETACH = { reload: 1.65, bolt: 0.6 };
+const DETACH = { reload: 2.2, bolt: 0.75 };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
 // each attachment does its own job, none of them the same thing twice: a sight (red dot, holo, then the scopes)
