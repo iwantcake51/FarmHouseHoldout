@@ -26,7 +26,7 @@ function nextGear() {
   gearShowing = true; const el = gearEl, hold = gearQ.length ? 1.6 : 2.8;
   el.style.setProperty('--gc', GEAR_COL[o.ic] || GEAR_COL.gear); el.style.setProperty('--hold', hold + 's');
   el.querySelector('svg').innerHTML = GI[o.ic] || GI.gear;
-  el.querySelector('.gpEye').textContent = o.on || o.kind;   // (what it is shows in the name; the pause list has both)
+  el.querySelector('.gpEye').textContent = '';   // (just the name and its changes; what it is and what it's on are in the pause list)
   el.querySelector('.gpName').textContent = o.name; el.querySelector('.gpText').textContent = o.text || '';
   el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 3).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('');
   el.hidden = false; el.classList.remove('out', 'in'); void el.offsetWidth; el.classList.add('in');

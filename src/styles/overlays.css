@@ -127,7 +127,7 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 #gearPop .gpIc svg{width:14px;height:14px;fill:var(--gc)}
 #gearPop .gpTx{display:flex;align-items:baseline;gap:8px;min-width:0}
 #gearPop .gpName{font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.03em;line-height:1;text-transform:uppercase;color:var(--ink);order:0}
-#gearPop .gpEye{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gc);order:1;overflow:hidden;text-overflow:ellipsis}
+#gearPop .gpEye{display:none}
 #gearPop .gpText{display:none}
 #gearPop .gpFx{display:flex;gap:4px;order:2}
 #gearPop .gpFx:empty{display:none}
