@@ -338,7 +338,11 @@ function animatePlayer(dt, rdt) {
   ANIM.bobSlow = P.pivot || P.skid > 0 ? 1 : Math.max(0, (ANIM.bobSlow || 0) - rdt * 1.6);
   ANIM.bobRun = (ANIM.bobRun ?? run1) + (run1 - (ANIM.bobRun ?? run1)) * Math.min(1, rdt * (12 - 9 * ANIM.bobSlow));
   const bob = Math.abs(Math.cos(ph)) * (0.045 * ANIM.bobRun * (1 - 0.5 * ads) + 0.03 * sk) + (limp ? limp * run1 * (LIMP.rise * smooth(bs) - LIMP.sink * smooth(gs)) : 0);   // (limping: up over the stiff bad leg, down onto the good)
-  const breathe = Math.sin(now * 1.7 * (1 + LIMP.breath[1] * limp)) * 0.01 * (1 + LIMP.breath[0] * limp) * still;   // (quicker and deeper hurt: LIMP.breath)
+  // (the breath's phase is run on, a little further each frame the quicker you're breathing: worked out from the clock
+  // times a rate that changes with your health, every change of health would throw it to a new spot each frame, a
+  // wild shudder through the body that got worse the longer the game had been running)
+  ANIM.brPh = ((ANIM.brPh || 0) + rdt * 1.7 * (1 + LIMP.breath[1] * limp)) % (Math.PI * 2);
+  const breathe = Math.sin(ANIM.brPh) * 0.01 * (1 + LIMP.breath[0] * limp) * still;   // (quicker and deeper hurt: LIMP.breath)
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
   const shift = P.vault ? 0 : -ANIM.legDirS * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
