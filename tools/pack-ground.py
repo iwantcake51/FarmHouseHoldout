@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# Packs the ground textures out of the SBS Tiny Texture Packs in assets/textures (the .rar files, read as they come with
+# Packs the ground textures (and the rocks' and hay bales') out of the SBS Tiny Texture Packs in assets/textures (the .rar files, read as they come with
 # bsdtar or unar) into src/js/world/ground-art.js: each one graded part of the way toward the farm's muted colours (so
 # the ground keeps the look it had, with the packs' detail in it), as a JPEG in a data: URL (GROUND_ART, drawn by the
 # ground's and the rocks' shaders in world/ground.js). Run it again after changing PICK:  python3 tools/pack-ground.py
-import base64, io, os, shutil, subprocess
+import base64, io, math, os, shutil, subprocess
 from PIL import Image, ImageStat
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,7 +22,33 @@ PICK = {
     # a mid grey so they only add their grain to each rock's own colour and moss
     'rock': (3, '128x128/Stone/Stone_05-128x128.png', (128, 128, 128), 1),
     'rock2': (2, '128x128/Stone/Stone_09-128x128.png', (128, 128, 128), 1),
+    # the round hay bales (world/props.js): a straw thatch, turned so its strands run round the bale, graded to the bales'
+    # straw colour; its ends (hayEnd) are made from it too, rolled up into a spiral (spiral)
+    'hay': (1, '128x128/Roofs/Roofs_13-128x128.png', (170, 146, 82), 0.9),
 }
+# turned a quarter (so the strands run along u, round the bale), and how much of the contrast each keeps
+TURN = {'hay'}
+SOFT = {'hay': 0.65}
+# the flat end of a round bale, made from another texture: the straw wound round into a spiral, the coils' edges
+# darker (SPIRAL: its size, how many coils, how dark between them)
+SPIRAL = {'hayEnd': ('hay', 256, 8, 0.3)}
+
+
+def spiral(src, size, coils, dark):
+    w, h = src.size
+    px = src.load()
+    out = Image.new('RGB', (size, size))
+    op = out.load()
+    for y in range(size):
+        for x in range(size):
+            dx, dy = (x + 0.5) / size * 2 - 1, (y + 0.5) / size * 2 - 1
+            r, a = math.hypot(dx, dy), math.atan2(dy, dx) / (2 * math.pi) % 1
+            # across the strands as it winds out, along them round it (in the turned texture the strands run along x)
+            c = px[int(a * w * 3) % w, int(r * h * 1.5) % h]
+            k = 1 - dark * (0.5 - 0.5 * math.cos(2 * math.pi * (r * coils - a)))
+            k *= 1 - 0.25 * max(0.0, r - 0.9) / 0.1   # the rim a touch darker
+            op[x, y] = tuple(min(255, round(v * k)) for v in c)
+    return out
 # how far toward its colour each is graded (0 as it comes, 1 all the way)
 GRADE = 0.75
 
@@ -36,11 +62,19 @@ def read(pack, name):
 
 def pack():
     out, total = [], 0
+    made = {}
     for key, (pk, name, want, *grade) in PICK.items():
         im = Image.open(io.BytesIO(read(pk, name))).convert('RGB')
+        if key in TURN: im = im.transpose(Image.Transpose.ROTATE_90)
         mean = ImageStat.Stat(im).mean
         gain = [(w / max(m, 1)) ** (grade[0] if grade else GRADE) for w, m in zip(want, mean)]
         im = Image.merge('RGB', [b.point(lambda v, g=g: min(255, round(v * g))) for b, g in zip(im.split(), gain)])
+        if key in SOFT: im = Image.blend(Image.new('RGB', im.size, tuple(round(v) for v in ImageStat.Stat(im).mean)), im, SOFT[key])
+        made[key] = im
+    for key, (src, *opts) in SPIRAL.items():
+        size, *rest = opts   # (drawn at twice the size and brought down, so the fine strands at its middle don't alias)
+        made[key] = spiral(made[src].resize((512, 512), Image.LANCZOS), size * 2, *rest).resize((size, size), Image.LANCZOS)
+    for key, im in made.items():
         buf = io.BytesIO(); im.save(buf, 'JPEG', quality=90, optimize=True)
         total += buf.tell()
         out.append(f"  {key}: 'data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}'")
@@ -48,7 +82,7 @@ def pack():
           'const GROUND_ART = {\n' + ',\n'.join(out) + '\n};\n')
     with open(os.path.join(ROOT, 'src', 'js', 'world', 'ground-art.js'), 'w') as f:
         f.write(js)
-    print(f'{len(PICK)} textures, {total // 1024} KB')
+    print(f'{len(out)} textures, {total // 1024} KB')
 
 
 if __name__ == '__main__':

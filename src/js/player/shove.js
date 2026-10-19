@@ -27,12 +27,15 @@ function tickShove(dt) {
   if (!s.hit && s.t >= s.hitT) { s.hit = true; landShove(s); }
   if (p >= 1) { P.shove = null; if (aimHeld) startAim(); }   // still holding aim: back down the sights
 }
-// a zombie shoved: thrown back (a brute barely budges), its swing lost, stumbling slowly for a few seconds. A co-op
-// teammate's shove lands here too (net/sync.js)
+// a zombie shoved: thrown back (a brute barely budges), its swing lost, stumbling for a moment and then slow for a few
+// seconds, only picking its pace back up toward the end (zombies/ai.js). A runner, thrown off its stride, reels longer
+// before it gets going again (SHOVE_RUNNER: how much longer). A co-op teammate's shove lands here too (net/sync.js)
+const SHOVE_RUNNER = { stagger: 1.9, slow: 1.5 };
 function shoveZombie(z, nx, nz, f, power, big) {
   z.vx += nx * 9 * f; z.vz += nz * 9 * f;
-  if (!big) { z.stagger = Math.max(z.stagger, 0.8 * power); z.atk = Math.max(z.atk, 0.8 * power); z.lunge = 0; z.pushSlow = SHOVE_SLOW * power; z.shoved = 1; zAnimShove(z); }
-  else { z.pushSlow = Math.max(z.pushSlow || 0, 0.8); z.shoved = 0.35; }
+  const rk = z.type === 'runner' ? SHOVE_RUNNER : { stagger: 1, slow: 1 };
+  if (!big) { z.stagger = Math.max(z.stagger, 0.8 * rk.stagger * power); z.atk = Math.max(z.atk, 0.8 * rk.stagger * power); z.lunge = 0; z.pushSlow = z.pushMax = SHOVE_SLOW * rk.slow * power; z.shoved = 1; zAnimShove(z); }
+  else { z.pushSlow = z.pushMax = Math.max(z.pushSlow || 0, 0.8); z.shoved = 0.35; }
   z.squash = 1; z.flash = Math.max(z.flash, 0.1);
   const [bx, bz] = bodyOf(z), hy = 1.0 * z.T.scale * (z.crawl ? 0.35 : 1);
   burst(bx - nx * 0.25, hy, bz - nz * 0.25, 6, 'dust', nx, nz, 2.4); burst(bx, 0.08, bz, 4, 'dust', nx, nz, 1.4);

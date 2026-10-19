@@ -2,10 +2,11 @@
 
 // you slow down while a swing comes through; heavier weapons more, and more again when you're winded
 const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) || {}, p = 1 - W8.swing / W8.swingDur, k = Math.sin(Math.min(1, p * 1.15) * Math.PI); return 1 - Math.min(0.85, k * (D.style === 'chop' && D.two ? 0.6 : D.two ? 0.45 : 0.35) * (P.exh ? 1.55 : 1)); };
-// heavier weapons cost more stamina per swing, and one that only hits a single zombie costs SINGLE_STAM of that: it
+// heavier weapons cost more stamina per swing (SWING_STAM: a one-hander, a two-hander like the bat or katana, a heavy
+// chopper like the axe or sledge, of a full tank), and one that only hits a single zombie costs SINGLE_STAM of that: it
 // has to land more swings to clear a crowd (one made long enough to sweep through more, melee/melee-stats.js, pays in full)
-const SINGLE_STAM = 0.7;
-const stamCost = D => stamUse((D.style === 'chop' && D.two ? 0.25 : D.two ? 0.17 : 0.12) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
+const SWING_STAM = { one: 0.07, two: 0.095, chop: 0.15 }, SINGLE_STAM = 0.7;
+const stamCost = D => stamUse((D.style === 'chop' && D.two ? SWING_STAM.chop : D.two ? SWING_STAM.two : SWING_STAM.one) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
 // winded, a swing comes slower (TIRED.swing) and the next one waits longer (TIRED.cd); one that only hits a single
 // zombie (weapons/firing.js) is slowed by just TIRED.single of that, as it's lighter in the hand
 const TIRED = { cd: 1.6, swing: 1.45, single: 2 / 3 };
