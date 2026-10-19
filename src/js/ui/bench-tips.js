@@ -6,7 +6,7 @@
 
 const BTIP_T = 7.5, BTIP_FADE = 0.6;
 const BTIP_TEXT = { bench: 'Upgrade and fit out your guns', saw: 'Cut planks to board up windows', med: 'Bandages and healing',
-  radio: 'Call in supply and weapon drops', box: 'Give scrap to a teammate' };
+  radio: 'Call in a supply drop', rack: 'Unlock weapons, and swap to ones you have', box: 'Give scrap to a teammate' };
 const BTIP = { on: false, t: 0, gone: {}, els: null, top: {} };
 // a new run (ui/screens.js)
 function benchTipsStart() { BTIP.on = true; BTIP.t = 0; BTIP.gone = {}; }

@@ -41,14 +41,6 @@ function dealCards(bonus) {
   for (let k = 0; k < nAid && aid.length && dealt.length < 3; k++) dealt.push(drawCard(aid, wt));
   while (dealt.length < 3 && rest.length) dealt.push(drawCard(rest, wt));
   while (dealt.length < 3 && aid.length) dealt.push(drawCard(aid, wt));   // (only when there's nothing else left to deal)
-  // a gun you're owed (gunDue, upgrades/upgrades.js): if none of the three is a long gun or automatic of that band or
-  // better, one becomes one: never the skill, and aid only when there's nothing else to swap
-  const due = bonus ? 0 : gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
-  if (due && !dealt.some(isDue)) {
-    const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
-    const swap = [...dealt].reverse().find(u => u !== anchor && !isAid(u)) || [...dealt].reverse().find(u => u !== anchor);
-    if (owed.length && swap) dealt[dealt.indexOf(swap)] = drawCard(owed, u => rarWeight(u.r) * (CARD_RARE[u.weaponOf] || 1));
-  }
   // shuffled, so the skill isn't always the first card
   for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
   skipScrap = SKIP_SCRAP[0] + Math.floor(rand() * (SKIP_SCRAP[1] - SKIP_SCRAP[0] + 1));

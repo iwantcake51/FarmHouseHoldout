@@ -1,4 +1,4 @@
-// The radio's drops: the supply crate, and weapons ordered over the air (stations/recipes.js). A helicopter you hear
+// The radio's drop: the supply crate, called over the air (stations/recipes.js). A helicopter you hear
 // coming brings each one in low over the yard, its shadow sweeping across the ground as it lets the crate go, and a red
 // flare lit beside the crate where it lands burns, smoking, until a while after it's opened.
 
@@ -91,8 +91,9 @@ function stepFlare(dt) {
   }
   if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.25, 0.6); sparkBurst(T.x, T.y + 0.02, T.z, 1 + (rand() * 2 | 0), D.x, D.z, 1.2); }
 }
-// a weapon off the radio or the cards, out of its case (taken with E: takeIt in pickups/pickups.js, which puts down the one it
-// replaces): it goes into your hands, and the card says what you got
+// a weapon out of its case (taken with E: takeIt in pickups/pickups.js; the one it replaces goes on your gun rack,
+// stations/armory.js): it goes into your hands, and the card says what you got
+const SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
@@ -145,66 +146,8 @@ function updateSupplyDrop(dt) {
 }
 // a new run: nothing on its way, no flare, no shadow
 function resetDrops() { HELI_PUSH.w = 0; supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
-// ---- weapons by radio: a gamble or a sure thing. A care package brings a gun of the kind you ask for, a sidearm
-// (secondary) or a long gun or automatic (primary), whichever of that kind has turned up so far (it may not beat
-// yours); an upgrade crate a gun guaranteed to beat the one you carry in its slot, priced by how good it is; a
-// top-shelf crate the best gun out there yet, dearer still. Melee the same, any or better. A weapon only comes once its
-// band is open (WEAP_OPEN, a wave ahead of the cards), never one you have, nor one already on its way or lying in its
-// crate (and those don't turn up as cards after a wave either)
-const RADIO_GUNS = Object.keys(GUN_WEAPONS).filter(id => GUN_WEAPONS[id].rar), RADIO_MELEE = Object.keys(MELEE_WEAPONS).filter(id => MELEE_WEAPONS[id].rar);
-// what the radio charges: a care package (a random weapon), and the crates priced by the band of what's in them, the
-// heavy guns (band 3: the assault rifle, the hunting rifle) and the top of the pile (band 4: the LMG, the drum
-// shotgun) a good deal dearer than the rest
-const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 78, 120], top: [0, 30, 55, 112, 165], meleeUp: [0, 14, 24, 36] };
-// how likely a care package is to bring a gun of each band: the heavy ones rarely, for the price
-const CARE_W = [0, 3, 2, 0.7, 0.3];
-const BAND_WORD = ['', 'light', 'solid', 'heavy', 'top-tier'], SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
-const radioOpen = id => run.wave + 1 >= WEAP_OPEN[weapPow(id)];
-// the two care packages: what each brings, and how its card reads
-const CARE = {
-  side: { slots: ['side'], title: 'Sidearm care package', for: 'A secondary', desc: 'A random sidearm from whatever\'s turned up so far. It might not beat yours.' },
-  primary: { slots: ['long', 'auto'], title: 'Primary care package', for: 'A primary', desc: 'A random long gun or automatic from whatever\'s turned up so far. It might not beat what you carry.' }
-};
-const radioPending = id => !!((supplyCargo && supplyCargo.id === id) || (supplyFall && supplyFall.cargo && supplyFall.cargo.id === id) || pickups.some(p => p.cargo && p.cargo.id === id));
-const radioFree = id => radioOpen(id) && !held(id) && !radioPending(id);
-const beats = id => weapPow(id) > weapPow(W8.slot[WEAP[id].slot]);
-function radioPick(list, wt) { const tot = list.reduce((a, id) => a + wt(id), 0); let r = rand() * tot; for (const id of list) { r -= wt(id); if (r <= 0) return id; } return list[list.length - 1]; }
-// the upgrade and top-shelf crates (and the better melee weapon) are settled once a wave, so their price holds; one
-// that's been got another way since is settled again
-let radioStock = { wave: -1 };
-function radioOffer() {
-  const st = radioStock, ok = id => id && radioFree(id) && beats(id);
-  if (st.wave !== run.wave || (st.up && !ok(st.up)) || (st.top && !ok(st.top)) || (st.mel && !ok(st.mel))) {
-    st.wave = run.wave;
-    const ups = RADIO_GUNS.filter(id => radioFree(id) && beats(id));
-    st.up = ups.length ? radioPick(ups, id => [0, 4, 1.6, 0.7, 0.3][weapPow(id) - weapPow(W8.slot[WEAP[id].slot])] || 0.2) : null;
-    const free = RADIO_GUNS.filter(radioFree), topB = Math.max(0, ...free.map(weapPow)), tops = free.filter(id => weapPow(id) === topB && beats(id));
-    st.top = tops.length && (!st.up || topB > weapPow(st.up)) ? radioPick(tops, () => 1) : null;
-    const mels = RADIO_MELEE.filter(id => radioFree(id) && beats(id));
-    st.mel = mels.length ? radioPick(mels, id => [0, 4, 1.5, 0.6][weapPow(id) - weapPow(W8.slot.melee)] || 0.3) : null;
-  }
-  return st;
-}
 const dropBusy = () => supplyT > 0 || !!supplyFall;
 const busyWhy = () => dropBusy() ? 'A drop is already on its way' : '';
-function radioCards() {
-  const o = radioOffer(), out = [], group = 'Weapons by air';
-  const sCur = id => W8.slot[WEAP[id].slot], than = id => sCur(id) ? `beats your ${gunCall(sCur(id))}` : `for your empty ${SLOT_NAME[WEAP[id].slot].toLowerCase()} slot`;
-  const order = (id, label) => { callDrop({ kind: 'weapon', id }); feed('supply', 0, label + ' called'); toast(label + ' on its way', { kind: 'good', icon: 'supply', sub: 'Listen for the helicopter · it lands in the yard' }); };
-  const guns = pk => RADIO_GUNS.filter(id => radioFree(id) && CARE[pk].slots.includes(WEAP[id].slot)), mels = () => RADIO_MELEE.filter(radioFree);
-  for (const pk in CARE) { const c = CARE[pk];
-    out.push({ ic: 'supply', group, for: () => c.for, cost: RADIO_COST[pk], title: () => c.title, desc: () => c.desc,
-      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => CARE_W[weapPow(id)]), c.title) }); }
-  if (o.up) { const id = o.up, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better ' + SLOT_WORD[WEAP[id].slot], fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.up[b], title: () => 'Upgrade crate',
-    desc: () => `A ${BAND_WORD[b]} ${SLOT_WORD[WEAP[id].slot]} that ${than(id)}. Which one is a surprise.`, why: busyWhy, make: () => order(id, 'Upgrade crate') }); }
-  if (o.top) { const id = o.top, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'The best out there', fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'BEST YET', good: true }], cost: RADIO_COST.top[b], title: () => 'Top-shelf crate',
-    desc: () => `The best ${SLOT_WORD[WEAP[id].slot]} anyone's found yet: ${BAND_WORD[b]}, and it ${than(id)}.`, why: busyWhy, make: () => order(id, 'Top-shelf crate') }); }
-  out.push({ ic: 'supply', group, for: () => 'A melee weapon, any', cost: RADIO_COST.melee, title: () => 'Melee crate', desc: () => 'A random melee weapon from what\'s about. It might not beat yours.',
-    why: () => busyWhy() || (mels().length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(mels(), id => [0, 3, 1.6, 0.8][weapPow(id)]), 'Melee crate') });
-  if (o.mel) { const id = o.mel, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better melee weapon', fx: () => [{ t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.meleeUp[b] || 36, title: () => 'Better blade crate',
-    desc: () => `A ${BAND_WORD[b]} melee weapon that beats your ${gunCall(W8.slot.melee)}.`, why: busyWhy, make: () => order(id, 'Better blade crate') }); }
-  return out;
-}
 // the crate's marker, from the moment it's called down until it's opened: a crate icon and how far off it is, floating
 // over where it'll land (or the crate itself), or pinned to the edge of the screen with an arrow pointing to it while
 // it's off screen

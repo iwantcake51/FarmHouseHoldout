@@ -105,47 +105,14 @@ for (const k in TIERS) {
     ap: () => { L.t[T(k)].ap(); S.tier[k]++; } });
 }
 function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }
+// a weapon into its slot and your hands, fresh and full, with its starting ammo: one unlocked at the gun rack
+// (stations/armory.js), or given by the cheat menu. It's yours from then on, on the rack whenever it's not in your hands
 function giveWeapon(id) {
   const D = WEAP[id], s = D.slot;
+  if (!W8.owned.includes(id)) W8.owned.push(id);
   W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; delete W8.relSave[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
   equip(s, true);
 }
-// a weapon taken off the cards is set down by your feet in its case, to take with E like one off the radio (takeIt,
-// pickups/pickups.js): you pick when to swap, and what it replaces goes down where you stand. It waits there till you do
-function cardWeapon(id) {
-  const a = P.aim || 0; dropPickup(P.x + Math.sin(a) * 0.9, P.z + Math.cos(a) * 0.9, 'supply', 1, undefined, { kind: 'weapon', id, from: 'card' });
-  pickups[pickups.length - 1].t = Infinity;
-  toast(WEAP[id].name + ' is at your feet', { kind: 'good', icon: 'gear', sub: 'E to pick it up' });
-}
-// weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you
-// can scrape together early (a better melee weapon, a revolver, a machine pistol), 2 real guns (the shotguns, the SMG,
-// the .50, the axe and sledgehammer), 3 heavy ones (the assault rifle, the hunting rifle, the katana) and 4 the top of
-// the pile (the auto shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
-// band above it is open it turns up less and less. A weapon better than the one in its slot turns up more, one no
-// better turns up less
-const WEAP_POW = { bat: 0.5, pistol: 1, crowbar: 1, wrench: 1, machete: 1, revolver: 1, smg: 1, dbl: 2, pump: 2, sub: 2, deagle: 2, axe: 2, sledge: 2, ar: 3, hunting: 3, katana: 3, auto12: 4, lmg: 4 };
-const WEAP_OPEN = [0, 1, 5, 8, 11];
-// the heaviest guns turn up less again on top of their rarity: the assault rifle, the LMG and the auto shotgun (the
-// guaranteed gun card leans away from them too: dealCards, upgrades/upgrade-screen.js)
-const CARD_RARE = { ar: 0.75, lmg: 0.45, auto12: 0.45 };
-const weapPow = id => id ? WEAP_POW[id] || 1 : 0;
-function weapWeight(id) {
-  const p = weapPow(id), w = run.wave, open = WEAP_OPEN[p];
-  if (w < open) return 0;
-  const inK = Math.min(1, (w - open + 1) / 3), next = WEAP_OPEN[p + 1], fade = next && w >= next ? Math.max(0.2, 1 - (w - next + 1) * 0.2) : 1;
-  const cur = weapPow(W8.slot[WEAP[id].slot]), better = p > cur ? 1.1 + 0.4 * (p - cur) : p === cur ? 0.5 : 0.2;
-  return inK * fade * better;
-}
-// and a run never stalls on weak guns: from each GUN_DUE wave on, while the best long gun or automatic you carry is
-// below its band, one card at the end of every wave is a long gun or automatic of that band (dealCards,
-// upgrades/upgrade-screen.js), until you take one
-const GUN_DUE = [[6, 2], [10, 3]];
-const bestGun = () => Math.max(weapPow(W8.slot.long), weapPow(W8.slot.auto));
-function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= w && bestGun() < b) band = b; return band; }
-for (const id in WEAP) {
-  const D = WEAP[id]; if (!D.rar) continue;
-  UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id) * (CARD_RARE[id] || 1), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => cardWeapon(id) });   // not one that's on its way by radio
-}
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
-// workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons
+// workbench for the weapon in your hands (stations/recipes.js), nor weapons, which are unlocked at the gun rack
+// (stations/armory.js), so the cards after a wave are all about you

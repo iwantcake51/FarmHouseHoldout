@@ -7,7 +7,7 @@
 // shown at the workbench unless you hide it there (wsBench), and elsewhere only once you ask for it (wsOn)
 let wsOn = false, wsBench = true, wsKey = '';
 const wsAtBench = () => !!openSt && openSt.id === 'bench';
-const wsShown = () => state === 'play' && !P.dead && (wsAtBench() ? wsBench : wsOn);
+const wsShown = () => state === 'play' && !P.dead && (wsAtBench() ? wsBench : wsOn && !rkSideOn());   // (the gun rack has your loadout there instead)
 // the numbers for a weapon as it stands (stats this sheet shows; the same sums the game uses)
 function wsNumbers(id) {
   const D = W(id); if (!D) return null;
@@ -127,13 +127,14 @@ function wsHTML(id) {
   h += '<div class="wsSub">What\'s improving it</div>' + (src.length ? '<div class="wsSrc">' + src.map(s => `<div><span>${s.name}</span><p>${s.fx.map(f => `<i><b>${f.label}</b> ${f.t}</i>`).join('')}</p></div>`).join('') + '</div>' : '<div class="wsNone">Stock: nothing fitted or learned yet</div>');
   return h;
 }
-// every frame: shown or hidden, docked against the workbench while it's open, and rebuilt only when something it
+// every frame: shown or hidden, docked against the workbench while it's open (the gun rack's loadout, stations/armory.js,
+// docks in the same place, so this makes room for it too), and rebuilt only when something it
 // shows changes. It comes in and goes out with a slide and a fade (styles/weapon-stats.css): docked, out from behind
 // the bench as it unrolls and back in as it rolls up, the bench keeping its place till it's gone so neither jumps
 let wsCloseT = 0;
 function updateWeaponStats() {
   const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
-  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
+  if (!st.classList.contains('closing')) { const dock = (on && wsAtBench()) || rkSideOn(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
     clearTimeout(wsCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; void el.offsetWidth; el.classList.add('opening');
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {

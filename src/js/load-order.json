@@ -14,6 +14,7 @@
   "world/house.js",
   "world/props.js",
   "stations/stations.js",
+  "stations/armory.js",
   "world/fence.js",
   "world/trees.js",
   "world/collision.js",

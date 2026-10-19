@@ -128,10 +128,10 @@ const RECIPES = {
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   get med() { return shown(MED); },
-  // the ham radio: a supply drop, and weapons by air (stations/supply-drop.js), all brought in by helicopter
+  // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
     return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and bandages lands in the yard', why: busyWhy,
-      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }, ...radioCards()];
+      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }];
   }
 };
 // a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)
