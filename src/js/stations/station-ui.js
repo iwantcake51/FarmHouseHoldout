@@ -51,6 +51,7 @@ function cardChips(r) {
 let stStruct = '';
 function renderStation() {
   if (!openSt) return;
+  benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
@@ -82,8 +83,32 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
+  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
+// ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
+// Picking one draws it, and the bench's cards (and the stats beside it) change over to it, so you can upgrade each
+// without stepping away; Tab and Shift+Tab step through them
+let bgKey = '', bgSwapT = 0;
+function benchGuns() {
+  const el = $('stGuns'), on = openSt && openSt.id === 'bench', st = $('station');
+  st.classList.toggle('withGuns', !!on); if (el.hidden === !!on) el.hidden = !on;
+  if (!on) { bgKey = ''; return; }
+  const have = SLOTS.filter(s => W8.slot[s]), key = have.map(s => W8.slot[s]).join(',');
+  if (key !== bgKey) {
+    bgKey = key; el.style.setProperty('--n', have.length); el.style.removeProperty('--i');
+    el.innerHTML = '<i class="sgPill"></i>' + have.map(s => { const D = WEAP[W8.slot[s]]; return `<button type="button" role="tab" data-slot="${s}"><span>${SLOT_NAME[s]}</span><b>${D.short || D.name}</b></button>`; }).join('');
+  }
+  const i = have.indexOf(W8.cur);
+  if (el.style.getPropertyValue('--i') !== String(i)) { el.style.setProperty('--i', i); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', b.dataset.slot === W8.cur)); }
+}
+function benchGun(s) {
+  if (!openSt || openSt.id !== 'bench' || !W8.slot[s] || W8.cur === s) return;
+  equip(s); renderStation();
+  // the new weapon's cards rise in one after another (the class is taken off again after, as the rack's are)
+  const r = $('stRows'); r.scrollTop = 0; r.classList.remove('swap'); void r.offsetWidth; r.classList.add('swap'); clearTimeout(bgSwapT); bgSwapT = setTimeout(() => r.classList.remove('swap'), 700);
+}
+function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
+$('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {
   if (!openSt) return; if (openSt.id === 'box') { giftPick(i); return; } if (openSt.id === 'rack') { rackKey(i); return; }

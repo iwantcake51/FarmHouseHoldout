@@ -22,6 +22,7 @@ addEventListener('keydown', e => {
   keys.add(k);
   if (k === 'e') { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) { craft(k === '0' ? 9 : +k - 1); return; }
+  if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
   if (k === 'tab' && openSt && openSt.id === 'rack') { e.preventDefault(); rackTab(GUN_RACK.tab + (e.shiftKey ? -1 : 1)); return; }   // the gun rack's lines (stations/armory.js)
   if (k === 'r') startReload();
   if (k === 'q' && state === 'play') startBandage();
