@@ -132,29 +132,33 @@ function planHouse(rnd) {
   for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) { const r = rm[idx(i, j)]; if (r >= 0 && !(sq(i, j, r) || sq(i - 1, j, r) || sq(i, j - 1, r) || sq(i - 1, j - 1, r))) return null; }
   return { walls: W, doors };
 }
-// a room with nothing in it (not the living room) opened up into the room beside it, a bedroom or a small room if one
-// shares a wall with it (the most wall), else the one its doorway leads to: the walls between the two and the doorways
-// through them taken down, and any bit of wall left standing in the middle of a room after (the furniture's all placed
-// again after, round the walls that are left). The new walls and doorways, or null if there's no such room. MERGE_MAX:
-// how many go in one layout
-const MERGE_MAX = 3;
+// a room with nothing in it (not the living room) opened up into a room beside it: a bedroom or a small room it shares
+// a wall with first (the most wall first), then whichever its doorways lead to, the living room included. The walls
+// between the two and the doorways through them come down, and any bit of wall left standing in the middle of a room
+// after (the furniture's all placed again after, round the walls that are left). Every way of doing it, the most likely
+// to suit first (houseLayout takes the first the windows and the furniture still go into). MERGE_MAX: how many rooms
+// go in one layout
+const MERGE_MAX = 6;
 function mergeEmpty(plan, rk, placed) {
-  const ro = HOUSE_PLAN.roomOf, used = new Set();
+  const ro = HOUSE_PLAN.roomOf, used = new Set(), out = [];
   const sidesIn = (o, k) => { const [ax, i, j] = eDec(k); return ax === 'x' ? [o[idx(i - 1, j)], o[idx(i, j)]] : [o[idx(i, j - 1)], o[idx(i, j)]]; }, sides = k => sidesIn(ro, k);
   for (const c of placed.values()) { for (const [i, j] of c.cells) used.add(ro[idx(i, j)]); if (c.use) used.add(ro[idx(ci(c.use[0]), ci(c.use[1]))]); }
   for (let r = 0; r < rk.rooms.length; r++) {
     if (rk.kinds[r] === 'live' || used.has(r)) continue;
-    const d = plan.doors.find(k => sides(k).includes(r)); if (d === undefined) continue;
-    const share = new Map(); for (const k of plan.walls) { const [a, b] = sides(k), o = a === r ? b : b === r ? a : -1; if (o >= 0 && o !== r && rk.kinds[o] !== 'live') share.set(o, (share.get(o) || 0) + 1); }
-    const r2 = share.size ? [...share].sort((a, b) => b[1] - a[1])[0][0] : sides(d).find(x => x !== r);
-    const both = k => { const [a, b] = sides(k); return (a === r && b === r2) || (a === r2 && b === r); };
-    const W = new Set([...plan.walls].filter(k => !both(k))), doors = plan.doors.filter(k => !both(k));
-    // (what's left with the same room either side of it)
-    const o = new Int16Array(N * N).fill(-1); planRooms(W, doors).forEach((cs, n) => cs.forEach(([i, j]) => { o[idx(i, j)] = n; }));
-    const lone = k => { const [a, b] = sidesIn(o, k); return a === b; };
-    return { walls: new Set([...W].filter(k => !lone(k))), doors: doors.filter(k => !lone(k)) };
+    // the rooms beside it, by how much wall (and doorway) they share with it, the bedrooms and small rooms first
+    const share = new Map();
+    for (const k of [...plan.walls, ...plan.doors]) { const [a, b] = sides(k), o = a === r ? b : b === r ? a : -1; if (o >= 0 && o !== r) share.set(o, (share.get(o) || 0) + 1); }
+    const order = [...share].sort((p, q) => (rk.kinds[p[0]] === 'live') - (rk.kinds[q[0]] === 'live') || q[1] - p[1]).map(p => p[0]);
+    for (const r2 of order) {
+      const both = k => { const [a, b] = sides(k); return (a === r && b === r2) || (a === r2 && b === r); };
+      const W = new Set([...plan.walls].filter(k => !both(k))), doors = plan.doors.filter(k => !both(k));
+      // (what's left with the same room either side of it)
+      const o = new Int16Array(N * N).fill(-1); planRooms(W, doors).forEach((cs, n) => cs.forEach(([i, j]) => { o[idx(i, j)] = n; }));
+      const lone = k => { const [a, b] = sidesIn(o, k); return a === b; };
+      out.push({ walls: new Set([...W].filter(k => !lone(k))), doors: doors.filter(k => !lone(k)) });
+    }
   }
-  return null;
+  return out;
 }
 // the cells you can walk to from the front door between the walls W
 function planReach(W) {
@@ -325,45 +329,121 @@ function buildDoor(ln, u, dc, rnd) {
   const nx = ax === 'x' ? side : 0, nz = ax === 'x' ? 0 : side, sw = Math.sign(-Math.sin(th0) * nx - Math.cos(th0) * nz) || 1;
   const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; HOUSE_PLAN.g.add(pv);
   const paint = ln.mat(dc), panel = ln.mat(_dcShade.setHex(dc).multiplyScalar(0.8).getHex()), brass = ln.mat(0xb08a3a), w = DOOR.w;
-  // the leaf, built in pieces it can be broken into (DOOR_BITS): an uneven grid of them, every door's its own (the
-  // stiles a little wider or narrower, the middle split off centre, each row a little higher or lower), each piece with
-  // its share of the leaf, the raised panels on both faces, the knob or a hinge
+  // the leaf, shattered ahead of time into the pieces it'll break into (doorShards: its own pattern, every door), the
+  // knob and hinges each on the piece it's fixed to; whole, it's drawn as one (doorLeaf)
   const leaf = new THREE.Group(); leaf.position.set(w / 2, DOOR.h / 2 + 0.025, 0); pv.add(leaf);
-  const J = DOOR_BITS.jit, jr = a => (rnd() * 2 - 1) * a;
-  const xs = [-w / 2, -w / 2 + DOOR_BITS.stile + jr(J.stile), jr(J.mid), w / 2 - DOOR_BITS.stile - jr(J.stile), w / 2];
-  const ys = DOOR_BITS.rows.map((y, k, a) => (k > 0 && k < a.length - 1 ? y + jr(J.row) : y) * DOOR.h / 2), bits = [];
-  for (let a = 0; a < xs.length - 1; a++) for (let b = 0; b < ys.length - 1; b++) {
-    const x0 = xs[a], x1 = xs[a + 1], y0 = ys[b], y1 = ys[b + 1], bg = new THREE.Group(); bg.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0); leaf.add(bg);
-    const part = (pw, ph, pd, mat, px, py, pz) => {
-      const l = Math.max(x0, px - pw / 2), r = Math.min(x1, px + pw / 2), lo = Math.max(y0, py - ph / 2), hi = Math.min(y1, py + ph / 2);
-      if (r - l > 0.004 && hi - lo > 0.004) box(bg, r - l, hi - lo, pd, mat, (l + r) / 2 - bg.position.x, (lo + hi) / 2 - bg.position.y, pz);
-    };
-    part(w, DOOR.h, 0.036, paint, 0, 0, 0);
-    [-1, 1].forEach(f => [[-0.2, 0.43], [0.2, 0.43], [-0.2, -0.4], [0.2, -0.4]].forEach(([x, y]) => part(0.3, y > 0 ? 0.68 : 0.78, 0.008, panel, x, y, f * 0.022)));
-    bits.push({ g: bg, inner: a > 0 && a < xs.length - 2 && b > 0 && b < ys.length - 2, x0, x1, y0, y1 });
-  }
-  const bitAt = (x, y) => bits.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1);
-  const fit = (m, x, y, z) => { const q = bitAt(x, y); m.position.set(x - q.g.position.x, y - q.g.position.y, z); q.g.add(m); };
+  const F = DOOR_FRAC, imp = [rr0(rnd, -0.12, 0.2), rr0(rnd, -0.05, 0.35)], shards = doorShards(rnd, w, DOOR.h, imp);
+  const extra = (m, x, y, z) => { m.position.set(x, y, z); m.castShadow = true; leaf.add(m); const q = shards.find(q => shardHas(q.cell, x, y)) || shards[0]; q.extras.push(m); };
   [-1, 1].forEach(f => {
-    fit(new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brass), w / 2 - 0.08, -0.06, f * 0.05);
-    fit(new THREE.Mesh(bgeo(0.012, 0.012, 0.03), brass), w / 2 - 0.08, -0.06, f * 0.03);
+    extra(new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brass), w / 2 - 0.08, -0.06, f * 0.05);
+    extra(new THREE.Mesh(bgeo(0.012, 0.012, 0.03), brass), w / 2 - 0.08, -0.06, f * 0.03);
   });
-  [0.6, -0.6].forEach(y => fit(new THREE.Mesh(bgeo(0.03, 0.1, 0.044), brass), -w / 2 + 0.01, y, 0));   // hinges
-  for (const q of bits) mergeInto(q.g, finePieces(q.g));
-  // the order the middle ones go in as it's beaten, and how beaten it has to be for each (of its hp), all at random
-  const order = bits.filter(q => q.inner).map(q => [q, rnd()]).sort((p, q) => p[1] - q[1]).map(p => p[0]);
-  const at = order.map(() => DOOR_BITS.first + rnd() * (1 - DOOR_BITS.first) * 0.95).sort((p, q) => p - q);
+  [0.6, -0.6].forEach(y => extra(new THREE.Mesh(bgeo(0.03, 0.1, 0.044), brass), -w / 2 + 0.01, y, 0));   // hinges
+  const mats = [paint, ln.mat(F.raw), panel], mesh = new THREE.Mesh(new THREE.BufferGeometry(), mats); mesh.castShadow = mesh.receiveShadow = true; leaf.add(mesh);
+  // the order the middle ones go in as it's beaten: out from where it's being hit, a little at random; and how beaten
+  // it has to be for each (of its hp)
+  const order = shards.filter(q => q.inner).map(q => [q, Math.hypot(q.c[0] - imp[0], (q.c[1] - imp[1]) * 0.7) + rnd() * 0.12]).sort((p, q) => p[1] - q[1]).map(p => p[0]);
+  const at = order.map(() => F.first + rnd() * (1 - F.first) * 0.95).sort((p, q) => p - q);
   const cx = ax === 'x' ? ln.p : c, cz = ax === 'x' ? c : ln.p;
-  HOUSE_DOORS.list.push({ ax, i: ax === 'x' ? L : u, j: ax === 'x' ? u : L, cx, cz, x: cx, z: cz, nx, nz, pv, leaf, bits, order, at, out: 0, holed: false, dc, th0, sw, open: 0, t: 0, shut: false, hp: DOOR.hp, jolt: 0, js: 1, broken: false });
+  const d = { ax, i: ax === 'x' ? L : u, j: ax === 'x' ? u : L, cx, cz, x: cx, z: cz, nx, nz, pv, leaf, mesh, mats, bits: shards, order, at, out: 0, holed: false, dc, th0, sw, open: 0, t: 0, shut: false, hp: DOOR.hp, jolt: 0, js: 1, broken: false };
+  doorLeaf(d); HOUSE_DOORS.list.push(d);
 }
-// how a door's built to break (buildDoor): its stiles (the uprights at either edge, metres) and its rows, as parts of its
-// half height from the bottom up, each door's a little off those (jit: the stiles' width and where the middle's split,
-// metres; the rows, of the half height). The pieces in the middle are broken out one after another as it's beaten, in
-// a random order and each once it's taken its own random share of a beating, the first at least first of its hp
-// (doorWear); once DOOR_BITS.see of them are gone there's a hole right through, and you can see, hear and shoot through
-// it, though nothing can get through it yet; the stiles and the top and bottom rails go when it gives (breakDoor). Each
-// piece breaks off with up to slivers loose splinters of its paint
-const DOOR_BITS = { stile: 0.17, rows: [-1, -0.82, -0.4, 0.05, 0.45, 0.82, 1], see: 2, first: 0.08, slivers: 3, jit: { stile: 0.035, mid: 0.11, row: 0.07 } };
+// how a door breaks (buildDoor, doorShards): like a wooden door does, along its grain. It's shattered into tall, narrow
+// pieces (a jittered grid, cols by rows, of points each piece grows from, stretched across the grain by stretch, and
+// impact more of them close round where it's hit, within near: smaller pieces there), and every break between them is
+// torn, not cut: ragged along it (jag, metres) and, across the grain, in long splinter teeth (tooth), the same either
+// side so the pieces still fit (seg: how fine). Where it's broken it shows the raw wood (raw) under the paint, and the
+// raised panels break with the pieces they're on. The pieces in the middle (in from the stiles and the top and bottom
+// rails: frame) are knocked out one at a time as it's beaten, outward from where it's hit, each once it's taken its own
+// random share of a beating, the first at least first of its hp (doorWear); once see of them are out there's a hole
+// right through, and you can see, hear and shoot through it, though nothing can get through it yet; what's left goes
+// when it gives (breakDoor). Each piece breaks off with up to slivers loose splinters
+const DOOR_FRAC = { cols: 4, rows: 5, jit: 0.38, impact: 6, near: 0.24, stretch: 2.4, seg: 0.022, jag: 0.006, tooth: 0.032, frame: [0.15, 0.2], raw: 0xc9a777, see: 3, first: 0.08, slivers: 3 };
+const rr0 = (rnd, a, b) => a + rnd() * (b - a);
+// a little value noise, the same wherever it's asked at the same point (each door its own: s)
+const _dfh = (i, j, s) => { let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(s, 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296 * 2 - 1; };
+function dfNoise(x, y, s) {
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = _dfh(i, j, s), b = _dfh(i + 1, j, s), c = _dfh(i, j + 1, s), e = _dfh(i + 1, j + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + e) * u * v;
+}
+const shardHas = (poly, x, y) => { let n = false; for (let k = 0, m = poly.length - 1; k < poly.length; m = k++) { const [ax, ay] = poly[k], [bx, by] = poly[m]; if ((ay > y) !== (by > y) && x < (bx - ax) * (y - ay) / (by - ay) + ax) n = !n; } return n; };
+// a polygon cut down to the side of a line where a x + b y <= c (Sutherland-Hodgman, one edge)
+function clipHalf(poly, a, b, c) {
+  const out = [];
+  for (let k = 0; k < poly.length; k++) {
+    const p = poly[k], q = poly[(k + 1) % poly.length], dp = a * p[0] + b * p[1] - c, dq = a * q[0] + b * q[1] - c;
+    if (dp <= 0) out.push(p);
+    if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) { const t = dp / (dp - dq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
+  }
+  return out;
+}
+// a door w by h shattered (imp: where it's hit, from its middle): its pieces, each with its cell (the clean outline),
+// its torn outline, its middle, whether it's in from the frame, the knob or hinges on it, and its faces ready to draw
+// (buf: for the paint, the raw wood, the panels, each the triangles' points and normals about its middle)
+function doorShards(rnd, w, h, imp) {
+  const F = DOOR_FRAC, S = F.stretch, seed = (rnd() * 1e9) | 0, seeds = [];
+  for (let a = 0; a < F.cols; a++) for (let b = 0; b < F.rows; b++) seeds.push([-w / 2 + (a + 0.5 + rr0(rnd, -F.jit, F.jit)) * w / F.cols, -h / 2 + (b + 0.5 + rr0(rnd, -F.jit, F.jit)) * h / F.rows]);
+  for (let k = 0; k < F.impact; k++) { const t = rnd() * 6.283, r = Math.sqrt(rnd()) * F.near; seeds.push([clamp(imp[0] + Math.cos(t) * r * 0.6, -w / 2 + 0.02, w / 2 - 0.02), imp[1] + Math.sin(t) * r]); }
+  const on = (x, y) => Math.abs(Math.abs(x) - w / 2) < 1e-6 || Math.abs(Math.abs(y) - h / 2) < 1e-6;
+  // each piece's cell (in the stretched space, then back), then its torn outline: each edge but the door's own split
+  // fine and pushed about by the noise, more across the grain the more the edge runs across it, less near its ends
+  const tear = (p, q) => {
+    const out = [p], dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy); if (L < 1e-5 || (on(...p) && on(...q) && (Math.abs(p[0] - q[0]) < 1e-6 || Math.abs(p[1] - q[1]) < 1e-6))) return out;
+    const n = Math.max(1, Math.ceil(L / F.seg)), across = Math.abs(dx) / L;
+    for (let k = 1; k < n; k++) {
+      const t = k / n, x = p[0] + dx * t, y = p[1] + dy * t, taper = Math.min(1, t * L / 0.03, (1 - t) * L / 0.03);
+      const ny = dfNoise(x / 0.021, y / 0.09, seed), nx = dfNoise(x / 0.05, y / 0.05, seed + 7);
+      out.push([clamp(x + nx * F.jag * taper, -w / 2, w / 2), clamp(y + Math.sign(ny) * Math.pow(Math.abs(ny), 0.6) * F.tooth * across * taper + (dfNoise(x / 0.04, y / 0.04, seed + 3)) * F.jag * taper, -h / 2, h / 2)]);
+    }
+    return out;
+  };
+  const panels = [[-0.2, 0.43, 0.3, 0.68], [0.2, 0.43, 0.3, 0.68], [-0.2, -0.4, 0.3, 0.78], [0.2, -0.4, 0.3, 0.78]];
+  const out = [];
+  seeds.forEach((si, k) => {
+    let poly = [[-w / 2 * S, -h / 2], [w / 2 * S, -h / 2], [w / 2 * S, h / 2], [-w / 2 * S, h / 2]];
+    const a0 = [si[0] * S, si[1]];
+    seeds.forEach((sj, m) => { if (m === k || !poly.length) return; const b0 = [sj[0] * S, sj[1]], ax = b0[0] - a0[0], ay = b0[1] - a0[1]; poly = clipHalf(poly, ax, ay, (b0[0] * b0[0] + b0[1] * b0[1] - a0[0] * a0[0] - a0[1] * a0[1]) / 2); });
+    if (poly.length < 3) return;
+    const cell = poly.map(([x, y]) => [x / S, y]);
+    const torn = []; cell.forEach((p, n) => torn.push(...tear(p, cell[(n + 1) % cell.length])));
+    let cx = 0, cy = 0; cell.forEach(([x, y]) => { cx += x; cy += y; }); cx /= cell.length; cy /= cell.length;
+    // its faces: the slab (painted faces, raw broken edges) and its share of each raised panel on both faces
+    const bufs = [[[], []], [[], []], [[], []]];
+    const add = (geo, dz, mi) => {
+      const g = geo.index ? geo.toNonIndexed() : geo, P = g.attributes.position.array, Nn = g.attributes.normal.array;
+      for (const gr of g.groups.length ? g.groups : [{ start: 0, count: P.length / 3, materialIndex: 0 }]) {
+        const b = bufs[mi >= 0 ? mi : gr.materialIndex];
+        for (let v = gr.start; v < gr.start + gr.count; v++) { b[0].push(P[v * 3] - cx, P[v * 3 + 1] - cy, P[v * 3 + 2] + dz); b[1].push(Nn[v * 3], Nn[v * 3 + 1], Nn[v * 3 + 2]); }
+      }
+      if (g !== geo) g.dispose(); geo.dispose();
+    };
+    add(new THREE.ExtrudeGeometry(new THREE.Shape(torn.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 0.036, bevelEnabled: false }), -0.018, -1);
+    for (const [px, py, pw, ph] of panels) {
+      let pp = torn;
+      pp = clipHalf(pp, 1, 0, px + pw / 2); pp = clipHalf(pp, -1, 0, -(px - pw / 2)); pp = clipHalf(pp, 0, 1, py + ph / 2); pp = clipHalf(pp, 0, -1, -(py - ph / 2));
+      if (pp.length < 3) continue;
+      let ar = 0; for (let n = 0; n < pp.length; n++) { const p = pp[n], q = pp[(n + 1) % pp.length]; ar += p[0] * q[1] - q[0] * p[1]; } if (Math.abs(ar) < 2e-5) continue;
+      for (const f of [-1, 1]) add(new THREE.ExtrudeGeometry(new THREE.Shape(pp.map(([x, y]) => new THREE.Vector2(x, y))), { depth: 0.008, bevelEnabled: false }), f * 0.022 - 0.004, 2);
+    }
+    const buf = bufs.map(([p, n]) => [new Float32Array(p), new Float32Array(n)]);
+    out.push({ cell, torn, c: [cx, cy], inner: Math.abs(cx) < w / 2 - F.frame[0] && Math.abs(cy) < h / 2 - F.frame[1], extras: [], buf, gone: false });
+  });
+  return out;
+}
+// the faces of pieces (each about its middle, set where it is on the leaf if at), as one geometry with a group a material
+function shardGeo(list, at) {
+  const g = new THREE.BufferGeometry(), P = [], Nn = []; let n = 0;
+  for (let mi = 0; mi < 3; mi++) {
+    const s0 = n;
+    for (const q of list) { const [p, nr] = q.buf[mi], ox = at ? q.c[0] : 0, oy = at ? q.c[1] : 0; for (let v = 0; v < p.length; v += 3) { P.push(p[v] + ox, p[v + 1] + oy, p[v + 2]); Nn.push(nr[v], nr[v + 1], nr[v + 2]); } n += p.length / 3; }
+    if (n > s0) g.addGroup(s0, n - s0, mi);
+  }
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); g.computeBoundingSphere();
+  g.userData.fine = true; return g;
+}
+// a door's leaf drawn again from the pieces still in it
+function doorLeaf(d) { const old = d.mesh.geometry; d.mesh.geometry = shardGeo(d.bits.filter(q => !q.gone), true); old.dispose(); }
 const _dcShade = new THREE.Color();
 // the doors between the rooms swing open as you or a teammate come up to them (either side) and fall to again a moment
 // after you've gone (DOOR: how near, how long it stays open after, how quick it opens and closes, how far round it
@@ -411,13 +491,14 @@ function doorBlow(d, z, heavy, dme) {
   if (z.vis > 0.2) { const s = doorSide(d, z.x, z.z) * 0.12; burst(d.cx + d.nx * s, rr(0.6, 1.8), d.cz + d.nz * s, heavy ? 4 : 2, 'dust'); if (heavy || rand() < 0.4) burst(d.cx + d.nx * s, rr(0.8, 1.6), d.cz + d.nz * s, 2, 'wood', d.nx * Math.sign(s), d.nz * Math.sign(s), 1.5); }
 }
 // a door beaten on (its hp gone down): the pieces in the middle of it broken out one by one as it goes, in its own
-// order (DOOR_BITS), each splintering off away from whoever's hitting it (z, or null: away from you); past
-// DOOR_BITS.see of them it's holed through (3 in the grid shut: world/thin-walls.js)
+// order (DOOR_FRAC), each splintering off away from whoever's hitting it (z, or null: away from you); past
+// DOOR_FRAC.see of them it's holed through (3 in the grid shut: world/thin-walls.js)
 function doorWear(d, z) {
   if (d.broken) return;
   const worn = 1 - Math.max(0, d.hp) / DOOR.hp;
-  while (d.out < d.order.length && worn >= d.at[d.out]) doorBit(d, d.order[d.out++], z, false);
-  if (!d.holed && d.out >= DOOR_BITS.see) { d.holed = true; if (d.shut) doorGrid(d); }
+  let any = false; while (d.out < d.order.length && worn >= d.at[d.out]) { doorBit(d, d.order[d.out++], z, false); any = true; }
+  if (any) doorLeaf(d);
+  if (!d.holed && d.out >= DOOR_FRAC.see) { d.holed = true; if (d.shut) doorGrid(d); }
 }
 // a door's edge in the grid: open (0), shut (2), shut but holed through (3)
 function doorGrid(d) { const v = d.broken || !d.shut ? 0 : d.holed ? 3 : 2; if (d.ax === 'x') wX[d.j * (N + 1) + d.i] = v; else wZ[d.j * N + d.i] = v; }
@@ -428,14 +509,17 @@ const DOOR_DEBRIS = [], _dbMat = new Map();
 const plainMat = m => { if (!m.userData || !m.userData.cut) return m; const k = m.vertexColors ? 'v' : m.color.getHex(); let p = _dbMat.get(k); if (!p) _dbMat.set(k, p = m.vertexColors ? lamV() : lam(m.color.getHex())); return p; };
 function doorBit(d, q, z, fall) {
   if (q.gone) return; q.gone = true;
-  const by = z || P, away = -doorSide(d, by.x, by.z), ox = d.nx * away, oz = d.nz * away, g = q.g;
+  const by = z || P, away = -doorSide(d, by.x, by.z), ox = d.nx * away, oz = d.nz * away;
+  // (its own mesh now, where it was on the leaf, with the knob or a hinge if it had one)
+  const g = new THREE.Group(); d.leaf.updateMatrixWorld(true); g.position.set(q.c[0], q.c[1], 0); d.leaf.add(g);
+  const m = new THREE.Mesh(shardGeo([q], false), d.mats.map(plainMat)); m.castShadow = true; g.add(m);
+  for (const e of q.extras) { e.position.x -= q.c[0]; e.position.y -= q.c[1]; e.material = plainMat(e.material); g.add(e); }
   HOUSE_PLAN.g.attach(g); g.rotation.reorder('YXZ');
-  g.traverse(o => { if (o.isMesh) { o.material = plainMat(o.material); o.castShadow = true; } });
   const p = g.position, k = fall ? rr(0.3, 1.1) : rr(1.4, 2.6);
   DOOR_DEBRIS.push({ g, life: 8, vx: ox * k + rr(-0.5, 0.5), vy: fall ? rr(-0.2, 0.6) : rr(0.4, 1.4), vz: oz * k + rr(-0.5, 0.5), spin: rr(-6, 6), roll: rr(-5, 5), r: 0.03, bounces: 0, kind: 'plank', quiet: rand() < 0.6, restY: 0.022,
     rest: o => { o.rotation.set(Math.PI / 2, rr(0, Math.PI * 2), 0); } });
   // and a few splinters of it, long and thin, every one its own size, thrown out with it
-  const n = (rand() * (DOOR_BITS.slivers + 1)) | 0, sm = _dbMat.get(d.dc) || (_dbMat.set(d.dc, lam(d.dc)), _dbMat.get(d.dc));
+  const n = (rand() * (DOOR_FRAC.slivers + 1)) | 0, sm = _dbMat.get(d.dc) || (_dbMat.set(d.dc, lam(d.dc)), _dbMat.get(d.dc));
   for (let k = 0; k < n; k++) {
     const sg = new THREE.Group(); sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
     const m = box(sg, rr(0.015, 0.04), rr(0.08, 0.32), rr(0.012, 0.03), sm, 0, 0, 0); m.castShadow = false; HOUSE_PLAN.g.add(sg);
@@ -443,7 +527,7 @@ function doorBit(d, q, z, fall) {
     DOOR_DEBRIS.push({ g: sg, life: 8, vx: ox * kk + rr(-0.9, 0.9), vy: rr(0.3, 2), vz: oz * kk + rr(-0.9, 0.9), spin: rr(-14, 14), roll: rr(-12, 12), r: 0.015, bounces: 0, kind: 'plank', quiet: true, restY: 0.012,
       rest: o => { o.rotation.set(Math.PI / 2, rr(0, Math.PI * 2), 0); } });
   }
-  burst(p.x, p.y, p.z, fall ? 3 : 6, 'wood', ox, oz, fall ? 1.5 : 3); if (!fall) burst(p.x, p.y, p.z, 3, 'dust');
+  if (!fall || rand() < 0.3) burst(p.x, p.y, p.z, fall ? 1 : 3, 'wood', ox, oz, fall ? 1.5 : 3); if (!fall) burst(p.x, p.y, p.z, 3, 'dust');
   if (!fall) soundAt(p.x, p.z, () => SFX.crack());
 }
 // broken down (z: who broke it, or null): the doorway's open from now on, and what's left of the door comes apart,
@@ -452,6 +536,7 @@ function breakDoor(d, z) {
   if (d.broken) return;
   d.broken = true; d.shut = false; d.hp = 0; doorGrid(d);
   for (const q of d.bits) doorBit(d, q, z, true);
+  doorLeaf(d);
   burst(d.cx, 0.6, d.cz, 10, 'dust');
   soundAt(d.cx, d.cz, () => SFX.crack()); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.crack()), 70); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.thud()), 320);
   if (Math.hypot(P.x - d.cx, P.z - d.cz) < 7) shake = Math.max(shake, 0.12);
@@ -468,7 +553,9 @@ function houseLayout(seed, live) {
   // a plan the furniture won't all go into is passed over for the next
   const roomsOf = (W, doors) => { const rooms = planRooms(W, doors); ro.fill(-1); rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; })); return { rooms, kinds: rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed') }; };
   let plan = null, rk = null, placed = null, wins = null;
-  for (let k = 0; k < 400 && !placed; k++) {
+  // (and if none will on a notched footprint, the whole rectangle instead)
+  for (let k = 0; k < 1200 && !placed; k++) {
+    if (k === 700 && HOUSE.notch) setFootprint(null, live);
     plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors);
     wins = chooseWindows(rnd, rk.rooms, rk.kinds); if (wins.keys.size < WIN.min) { placed = null; continue; }
     placed = placeFurniture(rnd, plan.walls, plan.doors, ro, rk.kinds, wins.fronts);
@@ -476,11 +563,15 @@ function houseLayout(seed, live) {
   // a room nothing went in is opened up into the one it leads to, and the windows and furniture gone over again for the
   // bigger rooms (kept as it was if they won't go)
   for (let m = 0; placed && plan && m < MERGE_MAX; m++) {
-    const nx = mergeEmpty(plan, rk, placed); if (!nx) break;
-    const rk2 = roomsOf(nx.walls, nx.doors), w2 = chooseWindows(rnd, rk2.rooms, rk2.kinds);
-    const p2 = w2.keys.size >= WIN.min && placeFurniture(rnd, nx.walls, nx.doors, ro, rk2.kinds, w2.fronts);
-    if (!p2) { roomsOf(plan.walls, plan.doors); break; }
-    plan = nx; rk = rk2; wins = w2; placed = p2;
+    let done = false;
+    for (const nx of mergeEmpty(plan, rk, placed)) {
+      const rk2 = roomsOf(nx.walls, nx.doors), w2 = chooseWindows(rnd, rk2.rooms, rk2.kinds);
+      const p2 = w2.keys.size >= WIN.min && placeFurniture(rnd, nx.walls, nx.doors, ro, rk2.kinds, w2.fronts);
+      if (!p2) continue;
+      plan = nx; rk = rk2; wins = w2; placed = p2; done = true; break;
+    }
+    roomsOf(plan.walls, plan.doors);   // (the rooms as they stand)
+    if (!done) break;
   }
   if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
   // its windows, and whatever hangs on the walls where they've gone taken down

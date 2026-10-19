@@ -5,7 +5,7 @@
 // wall and turned a hair off square (FURN_JIT), so no two runs set it just alike. It never stands in a doorway or
 // either side of one, in front of a window or the door, or where you start; a station keeps the spot it's used from
 // clear and in its own room; and everywhere you could walk, and every station, can still be reached from the front
-// door. The gun rack goes in the same room as the workbench, near it, so a gun's bought and kitted out in one place
+// door, and a piece more than a cell long never across a wall. The gun rack goes in the same room as the workbench, near it, so a gun's bought and kitted out in one place
 // (FURN_WITH). Where it goes is weighed (furnScore): the bed in a bedroom, its headboard to a wall if it can be; the pantry
 // shelf in a small room or the kitchen; the stations mostly in the living room; and all of it with room round it,
 // rather than packed up against the next piece.
@@ -41,6 +41,8 @@ const furnWall = (W, i, j, di, dj) => !inPlan(i + di, j + dj) || (di ? W.has(eKe
 // to a wall (both sides of a corner, for a corner piece), and its station's spot free and in the same room
 function furnFits(c, W, occ, keep, ro) {
   for (const [i, j] of c.cells) if (!inPlan(i, j) || occ[idx(i, j)] || keep[idx(i, j)]) return false;
+  // (a piece more than a cell long never straddles a wall between its own cells: the bed half through one)
+  for (const [i, j] of c.cells) for (const [a, b] of c.cells) if (Math.abs(a - i) + Math.abs(b - j) === 1 && furnWall(W, i, j, a - i, b - j)) return false;
   const [fx, fz] = c.face;
   for (const [i, j] of c.cells) {
     if (fx && fz) { if (!furnWall(W, i, j, -fx, 0) || !furnWall(W, i, j, 0, -fz)) return false; }
@@ -69,10 +71,11 @@ function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
   for (const [i, j] of fronts) keep[idx(i, j)] = 1;   // in front of each window
   // the way in from the front door: the cell inside it, those either side of that and the row beyond
   for (let a = -1; a <= 1; a++) for (let b = 0; b <= 1; b++) keep[idx(HOUSE_DOOR[0] + a, HOUSE_DOOR[1] - b)] = 1;
-  // either side of each doorway, and beside those along the wall, where its door swings
+  // in front of each doorway on both sides (two deep straight out from it) and beside it along the wall, where its door
+  // swings and the way through it goes: nothing's ever stood in the way of a door
   for (const k of doors) {
     const [ax, i, j] = eDec(k);
-    for (let s = -1; s <= 1; s++) { if (ax === 'x') { keep[idx(i, j + s)] = 1; keep[idx(i - 1, j + s)] = 1; } else { keep[idx(i + s, j)] = 1; keep[idx(i + s, j - 1)] = 1; } }
+    for (let s = -1; s <= 1; s++) for (let t = 0; t < (s ? 1 : 2); t++) { if (ax === 'x') { keep[idx(i + t, j + s)] = 1; keep[idx(i - 1 - t, j + s)] = 1; } else { keep[idx(i + s, j + t)] = 1; keep[idx(i + s, j - 1 - t)] = 1; } }
   }
   keep[idx(ci(cxw(21)), ci(cxw(22)))] = 1;   // where you start
   for (const f of FURN) {
