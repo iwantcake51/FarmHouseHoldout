@@ -40,6 +40,8 @@ function updateCutaway(rdt) {
     const lv = Math.max(amb[0], amb[1], amb[2]);
     pr.mats.forEach(m => { m.opacity = pr.op; m.depthWrite = pr.op > 0.98; m.colorWrite = pr.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
   }
+  // the inside walls: while you're indoors, whatever of them stands between the camera and you dithers away round you
+  { const want = state !== 'title' && inside ? 1 : 0; INWALL_CUT.value += (want - INWALL_CUT.value) * Math.min(1, rdt * 6); if (Math.abs(want - INWALL_CUT.value) < 0.003) INWALL_CUT.value = want; }
   for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(F.x, 1.0, F.z).project(cam);
   LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);

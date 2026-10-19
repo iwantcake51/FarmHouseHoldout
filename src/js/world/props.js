@@ -138,14 +138,19 @@ const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff
   obstacle(14, 16, true);   // waist high, like the crates: you see and shoot over it
 }
 // ---- hanging bulbs in the house ----
-const HANG = [[cxw(19), cxw(20.5)], [cxw(23.5), cxw(23)], [cxw(21.5), cxw(19.6)]];
-HANG.forEach(([x, z]) => {
-  // a green enamel shade on a cord, with its socket and a rolled rim
-  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
-  box(g, 0.012, 0.36, 0.012, M.metal, 0, 2.32, 0).castShadow = false;
-  ycyl(g, 0.026, 0.026, 0.07, HM.iron, 0, 2.12, 0); ycyl(g, 0.045, 0.05, 0.02, HM.iron, 0, 2.085, 0);
-  ycyl(g, 0.055, 0.22, 0.14, lam(0x3a4a3a, { side: THREE.DoubleSide }), 0, 2.02, 0, 16, true);
-  torus(g, 0.22, 0.01, HM.iron, 0, 1.95, 0).rotation.x = Math.PI / 2;
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), basic(0xffd59a)); bulb.position.y = 1.97; g.add(bulb);
-  unfight(g); mergeInto(g, finePieces(g));
-});
+// the hanging lamps, one or two a room: where each hangs is laid out with the rooms each run (world/interior.js)
+const HANG = [], hangG = new THREE.Group(), HANG_M = { shade: lam(0x3a4a3a, { side: THREE.DoubleSide }), bulb: basic(0xffd59a) };
+scene.add(hangG);
+function hangLamps() {
+  while (hangG.children.length) { const g = hangG.children.pop(); g.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
+  HANG.forEach(([x, z]) => {
+    // a green enamel shade on a cord, with its socket and a rolled rim
+    const g = new THREE.Group(); g.position.set(x, 0, z); hangG.add(g);
+    box(g, 0.012, 0.36, 0.012, M.metal, 0, 2.32, 0).castShadow = false;
+    ycyl(g, 0.026, 0.026, 0.07, HM.iron, 0, 2.12, 0); ycyl(g, 0.045, 0.05, 0.02, HM.iron, 0, 2.085, 0);
+    ycyl(g, 0.055, 0.22, 0.14, HANG_M.shade, 0, 2.02, 0, 16, true);
+    torus(g, 0.22, 0.01, HM.iron, 0, 1.95, 0).rotation.x = Math.PI / 2;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), HANG_M.bulb); bulb.position.y = 1.97; g.add(bulb);
+    unfight(g); mergeInto(g, finePieces(g));
+  });
+}

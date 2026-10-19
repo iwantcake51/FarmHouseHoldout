@@ -32,6 +32,7 @@ function meleeTargets(D) {
     // the sill, so you can reach it as you could through your boards
     if (!thru && z.vault && z.vault.kind === 'window') thru = 0.9;
     if (d > D.range + z.T.r + thru) continue;
+    if (thinHit(P.x, P.z, bx, bz) <= 1) continue;   // not through an inside wall (world/thin-walls.js)
     if (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + (thru ? 0.25 : 0) && d > 0.6) continue;
     const t = _mtPool[_mt.length] || (_mtPool[_mt.length] = {});
     t.z = z; t.d = d; t.dx = dx; t.dz = dz; _mt.push(t);

@@ -165,6 +165,7 @@ function ragWorld(r, last) {
   for (let k = 0; k < on.length; k++) {
     if (!on[k]) continue;
     const i = k * 3, rad = RAG_R[k] * s;
+    if (THIN.n && thinHit(q[i], q[i + 2], p[i], p[i + 2]) <= 1) { p[i] = q[i]; p[i + 2] = q[i + 2]; }   // an inside wall (world/thin-walls.js)
     let top = ragTop(p[i], p[i + 2]), floor = 0;
     if (r.ghost[k]) { if (top <= p[i + 1] - rad) r.ghost[k] = 0; else top = 0; }
     if (top > 0 && p[i + 1] - rad < top) {

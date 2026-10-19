@@ -82,6 +82,7 @@ function blockedShot() {
   { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (bulletBlocked(tx, tz) || !los(P.x, P.z, tx, tz)) return true; }
   const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
   const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
+  if (thinRay(m.ox, m.oz, ux, uz, L) < L - 0.05) return true;   // an inside wall on the way (world/thin-walls.js)
   for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
   return false;
 }

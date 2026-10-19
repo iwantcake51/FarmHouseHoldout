@@ -87,7 +87,7 @@ function laserReach(o, d, max) {
   for (let t = 0.04; t < max; t += 0.06) {
     const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t, g = surfaceY(x, z);
     if (y <= g) { L = d.y < -1e-4 ? Math.min(t, Math.max(0, (o.y - g) / -d.y)) : t; hit = true; break; }
-    if (y < 2.4 && bulletBlocked(x, z)) { L = t; hit = true; break; }
+    if (y < 2.4 && (bulletBlocked(x, z) || thinNear(x, z, 0.07))) { L = t; hit = true; break; }
   }
   const h = Math.hypot(d.x, d.z);
   if (h > 1e-3) for (const zb of zombies) {

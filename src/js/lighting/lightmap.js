@@ -9,6 +9,7 @@ LMU.uLightMap.value = lmTex; LMU.uLmRes.value = FN;
 const lmTgt = new Float32Array(FNN * 3).fill(0.5), lmCur = new Float32Array(FNN * 3).fill(0.5), visTgt = new Float32Array(FNN).fill(1), visCur = new Float32Array(FNN).fill(1);
 const sampleX = a => -HALF + (a + 0.5) / FR;
 function los(x0, z0, x1, z1) {
+  if (THIN.n && thinHit(x0, z0, x1, z1) <= 1) return false;   // the inside walls (world/thin-walls.js)
   const dx = x1 - x0, dz = z1 - z0, d = Math.hypot(dx, dz), steps = Math.ceil(d / 0.33);
   const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1);
   for (let s = 1; s < steps; s++) {
@@ -169,7 +170,7 @@ function flRay(x, z, a, max) {
   let nx = dx ? (i - HALF + (dx > 0 ? 1 : 0) - x) / dx : Infinity, nz = dz ? (j - HALF + (dz > 0 ? 1 : 0) - z) / dz : Infinity;
   const ex = dx ? Math.abs(1 / dx) : Infinity, ez = dz ? Math.abs(1 / dz) : Infinity;
   while (t < max) {
-    if (nx < nz) { t = nx; nx += ex; i += sx; } else { t = nz; nz += ez; j += sz; }
+    if (nx < nz) { t = nx; nx += ex; if (t < max && wxAt(sx > 0 ? i + 1 : i, j)) return Math.min(max, t + THIN.t / 2); i += sx; } else { t = nz; nz += ez; if (t < max && wzAt(i, sz > 0 ? j + 1 : j)) return Math.min(max, t + THIN.t / 2); j += sz; }
     if (t >= max) return max;
     if (i < 0 || j < 0 || i >= N || j >= N) return t;
     const ob = openAt[j * N + i];

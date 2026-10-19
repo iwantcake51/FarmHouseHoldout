@@ -11,7 +11,7 @@ const bulletBlocked = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) re
 // zombies caught on a corner by one shoulder (the other side is clear) slip sideways toward the clear side as they push,
 // so they line up with a doorway or a gap instead of grinding on its frame
 function moveCircle(e, dx, dz, r, isPlayer) {
-  const B = isPlayer ? (x, z) => playerBlocked(ci(x), ci(z)) : (x, z) => hardBlocked(ci(x), ci(z));
+  const px = e.x, pz = e.z, B = isPlayer ? (x, z) => playerBlocked(ci(x), ci(z)) : (x, z) => hardBlocked(ci(x), ci(z));
   if (dx) {
     const nx = e.x + dx, sx = nx + Math.sign(dx) * r, a = B(sx, e.z - r * .75), b = B(sx, e.z + r * .75);
     if (!a && !b) e.x = nx;
@@ -22,4 +22,5 @@ function moveCircle(e, dx, dz, r, isPlayer) {
     if (!a && !b) e.z = nz;
     else if (!isPlayer && a !== b) { const s = (a ? 1 : -1) * Math.abs(dz), nx = e.x + s; if (!B(nx + Math.sign(s) * r, e.z - r * .75) && !B(nx + Math.sign(s) * r, e.z + r * .75)) e.x = nx; }
   }
+  thinPush(e, r, px, pz);   // and off the house's inside walls (world/thin-walls.js)
 }

@@ -36,6 +36,7 @@ const dashMarks = [];
 const easeOut = t => 1 - Math.pow(1 - t, 3), easeBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
 // how far a dash can run from (x, z) along (dx, dz) before a wall, a fence, a tall prop, a window or a boarded door stops it
 function dashRoom(x, z, dx, dz, L) {
+  L = Math.max(0, thinRay(x, z, dx, dz, L + 0.25) - 0.25);   // an inside wall (world/thin-walls.js)
   for (let t = 0.25; t < L; t += 0.2) { const px = x + dx * t, pz = z + dz * t, i = ci(px), j = ci(pz); if (!inb(i, j) || bulletBlocked(px, pz) || cell[idx(i, j)] === FENCE || hardBlocked(i, j)) return t - 0.25; const o = openAt[idx(i, j)]; if (o && (o.kind === 'window' || o.boards.length)) return t - 0.25; }
   return L;
 }

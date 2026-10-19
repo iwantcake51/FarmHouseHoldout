@@ -6,6 +6,7 @@
 // through a window or over a fence (you're in that cell then, and the cells you're each in don't count), but not once
 // you're past it and the frame is between you
 function reachBlocked(x0, z0, x1, z1) {
+  if (thinHit(x0, z0, x1, z1) <= 1) return true;   // an inside wall between (world/thin-walls.js)
   const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1), n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.1);
   for (let s = 1; s < n; s++) {
     const i = ci(x0 + (x1 - x0) * s / n), j = ci(z0 + (z1 - z0) * s / n);
@@ -113,7 +114,7 @@ function updateZombies(dt) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
-        if (di && dj && !diagOk(i, j, di, dj)) continue;
+        if ((di && dj && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
         const d = fl[idx(ni, nj)]; if (d < bestD) { bestD = d; bi = ni; bj = nj; }
       }
       if (bi >= 0) {

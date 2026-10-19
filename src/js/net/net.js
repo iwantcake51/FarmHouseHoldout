@@ -159,9 +159,10 @@ NET_ON.beat = () => {};
 // the host starts the run for everyone
 function netStart() {
   if (!NET.host || NET.inGame) return;
-  netSend('start', { roster: netRoster() }); netBegin();
+  NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
+  netSend('start', { roster: netRoster(), house: NET.houseSeed }); netBegin();
 }
-NET_ON.start = m => { if (NET.host) return; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
+NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
 function netBegin() { NET.inGame = true; lobbyRender(); enterRun(); }
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 function netBeat(rdt) {

@@ -7,22 +7,10 @@ const walls = [], openings = [];
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(HX1 - HX0 - 1, HZ1 - HZ0 - 1), M.floor);
   fl.rotation.x = -Math.PI / 2; fl.position.set((cxw(HX0) + cxw(HX1)) / 2, 0.015, (cxw(HZ0) + cxw(HZ1)) / 2); fl.receiveShadow = true; scene.add(fl);
   for (let i = HX0 + 1; i < HX1; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.03, HZ1 - HZ0 - 1), M.wood); l.rotation.x = -Math.PI / 2; l.position.set(cxw(i) - 0.5, 0.02, fl.position.z); scene.add(l); }
-  // rugs: a woven one in the middle room (border, stripe, red field, diamond medallion, fringe), a braided oval by the bed, a doormat
+  // a doormat inside the front door
   const rugM = {}, RM = c => rugM[c] || (rugM[c] = lam(c));
   const rugP = (g, geo, col, y, x, z) => { const m = new THREE.Mesh(geo, RM(col)); m.rotation.x = -Math.PI / 2; m.position.set(x || 0, y, z || 0); m.receiveShadow = true; g.add(m); return m; };
-  const sq = (w, d) => new THREE.PlaneGeometry(w, d), dia = (w, d) => new THREE.PlaneGeometry(1, 1).rotateZ(Math.PI / 4).scale(w / Math.SQRT2, d / Math.SQRT2, 1);
-  const rug = new THREE.Group(); rug.position.set(cxw(21.5), 0, cxw(22)); scene.add(rug);
-  rugP(rug, sq(3, 2), 0x4a1c1a, 0.021); rugP(rug, sq(2.8, 1.8), 0xa8803a, 0.0225); rugP(rug, sq(2.72, 1.72), 0x4a1c1a, 0.024); rugP(rug, sq(2.56, 1.56), 0x7a2e26, 0.0255);
-  for (let k = 0; k < 9; k++) [-0.82, 0.82].forEach(z => rugP(rug, dia(0.07, 0.07), 0xd2c4a2, 0.0252, -1.2 + k * 0.3, z));
-  [[-1.06, -0.56], [1.06, -0.56], [-1.06, 0.56], [1.06, 0.56]].forEach(([x, z]) => { rugP(rug, dia(0.26, 0.26), 0xa8803a, 0.027, x, z); rugP(rug, dia(0.12, 0.12), 0x4a1c1a, 0.0285, x, z); });
-  rugP(rug, dia(1.4, 0.9), 0xa8803a, 0.027); rugP(rug, dia(1.2, 0.74), 0x4a1c1a, 0.0285); rugP(rug, dia(0.98, 0.58), 0x9a3a2e, 0.03); rugP(rug, dia(0.34, 0.22), 0xd2c4a2, 0.0315);
-  [-0.45, 0.45].forEach(x => rugP(rug, dia(0.18, 0.18), 0xd2c4a2, 0.0315, x, 0));
-  for (let k = 0; k < 14; k++) [-1.55, 1.55].forEach(x => rugP(rug, sq(0.1, 0.028), 0xd8ccb0, 0.0205, x, -0.9 + k * 0.1385));
-  mergeInto(rug, finePieces(rug));
-  const oval = new THREE.Group(); oval.position.set(cxw(24.9), 0, cxw(18.75)); oval.scale.x = 1.35; scene.add(oval);
-  [[0.62, 0, 0x6a5a48, 0.021], [0.54, 0.48, 0x4a5a6a, 0.0222], [0.4, 0.34, 0x8a4a34, 0.0234], [0.26, 0.2, 0x4a5a6a, 0.0246], [0.1, 0, 0xb08a4a, 0.0258]].forEach(([r1, r0, col, y]) =>
-    rugP(oval, r0 ? new THREE.RingGeometry(r0, r1, 28) : new THREE.CircleGeometry(r1, 28), col, y));
-  mergeInto(oval, finePieces(oval));
+  const sq = (w, d) => new THREE.PlaneGeometry(w, d);
   const mat = new THREE.Group(); mat.position.set(cxw(21), 0, cxw(25.15)); scene.add(mat);
   rugP(mat, sq(1.0, 0.56), 0x3e2e22, 0.021); rugP(mat, sq(0.9, 0.46), 0x8a6a3a, 0.0225); [-0.12, 0, 0.12].forEach(z => rugP(mat, sq(0.8, 0.02), 0x6a4e2c, 0.024, 0, z));
   mergeInto(mat, finePieces(mat));
@@ -157,7 +145,7 @@ const porchRoof = (() => {
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
 })();
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and
-// indoors the floorboards and the rugs on them a touch above it, so blood and brass land on top of them instead of
+// indoors the floorboards and the doormat a touch above it, so blood and brass land on top of them instead of
 // under the boards, and you stand on them (player/animation.js)
 function surfaceY(x, z) {
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
@@ -165,9 +153,6 @@ function surfaceY(x, z) {
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
   if (ci(x) === 21 && ci(z) === HZ1) return 0.27;   // the top of the threshold
   if (x > cxw(HX0) + 0.5 && x < cxw(HX1) - 0.5 && z > cxw(HZ0) + 0.5 && z < cxw(HZ1) - 0.5) {
-    const ox = (x - cxw(24.9)) / 1.35, oz = z - cxw(18.75);
-    if (Math.abs(x - cxw(21.5)) < 1.5 && Math.abs(z - cxw(22)) < 1) return 0.032;   // the woven rug
-    if (ox * ox + oz * oz < 0.62 * 0.62) return 0.026;                             // the braided oval by the bed
     if (Math.abs(x - cxw(21)) < 0.5 && Math.abs(z - cxw(25.15)) < 0.28) return 0.025;   // the doormat
     return 0.015;                                                                  // the floorboards
   }

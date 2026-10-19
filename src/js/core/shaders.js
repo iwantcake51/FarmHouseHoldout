@@ -160,6 +160,8 @@ const CUT_BODY = `
   #include <clipping_planes_fragment>`;
 // trees: only the parts standing between the camera and you (nearer than you in depth) dither away, in a soft hole round you
 const TREE_CUT = { value: 0 };
+// the house's inside walls the same way, while you're indoors (world/interior.js, world/cutaway.js)
+const INWALL_CUT = { value: 0 };
 const TREE_DECL = 'uniform float uTreeCut;\nuniform vec2 uPScr;\nuniform float uRad;\nuniform float uPZ;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const TREE_BODY = `
   if (uTreeCut > 0.001 && gl_FragCoord.z < uPZ) {
@@ -176,8 +178,8 @@ function lit(mat, cut) {
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }
-    if (cut === 'tree') {
-      Object.assign(sh.uniforms, { uTreeCut: TREE_CUT, uPScr: LMU.uPScr, uRad: LMU.uRad, uPZ: LMU.uPZ });
+    if (cut === 'tree' || cut === 'inwall') {
+      Object.assign(sh.uniforms, { uTreeCut: cut === 'tree' ? TREE_CUT : INWALL_CUT, uPScr: LMU.uPScr, uRad: LMU.uRad, uPZ: LMU.uPZ });
       f = TREE_DECL + f.replace('#include <clipping_planes_fragment>', TREE_BODY);
     } else if (cut) {
       Object.assign(sh.uniforms, { uCut: mat.userData.cut, uPScr: LMU.uPScr, uRad: LMU.uRad });
@@ -185,7 +187,7 @@ function lit(mat, cut) {
     }
     sh.fragmentShader = f;
   };
-  mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
+  mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + (cut === 'tree' || cut === 'inwall' ? 'lit-' + cut : cut ? 'lit-cut' : 'lit'); };
   return mat;
 }
 const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));

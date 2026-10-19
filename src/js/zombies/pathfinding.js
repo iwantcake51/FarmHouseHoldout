@@ -22,7 +22,7 @@ function flowInto(dist, big) {
     for (const [di, dj] of DIRS) {
       const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
       const cost = enterCost(ni, nj, big); if (cost === Infinity) continue;
-      const diag = di && dj; if (diag && !diagOk(i, j, di, dj)) continue;
+      const diag = di && dj; if ((diag && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
       const nd = d + cost * (diag ? 1.414 : 1), n = idx(ni, nj);
       // queue the value as stored: the field is 32-bit, and queuing the unrounded one made the pop below skip any cell
       // whose distance rounded down, so the search never went on from it and most of the farm went unmapped
@@ -49,7 +49,7 @@ function viaField(o) {
       const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
       const n = idx(ni, nj); if (cell[n] === OPEN) continue;   // (its own opening's the start; the others are shut)
       const cost = enterCost(ni, nj, false); if (cost === Infinity) continue;
-      const diag = di && dj; if (diag && !diagOk(i, j, di, dj)) continue;
+      const diag = di && dj; if ((diag && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
       const nd = d + cost * (diag ? 1.414 : 1); if (nd < f[n]) { f[n] = nd; hpush(n, f[n]); }
     }
   }
