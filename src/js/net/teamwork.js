@@ -96,18 +96,59 @@ function teamBonus() {
 // was on it (gunTakeLo). H again takes it back to just yours. Whoever picks it up, it's gone for everyone ('gtk')
 function gunShare(p) {
   if (!netLink() || !p || p.kind !== 'gun' || !p.cargo.own) return;
-  const c = p.cargo; c.shared = !c.shared;
+  const c = p.cargo; c.shared = !c.shared; c.pc = NET_COL[NET.idx];
   if (c.shared) netSend('gsh', { g: c.gid, id: c.id, x: nr(p.x), z: nr(p.z), lo: c.lo, mag: c.mag, ak: c.ak, until: c.until, who: netName() });
   else netSend('gtk', { g: c.gid });
-  feed('gear', 0, (c.shared ? 'Shared the ' : 'Stopped sharing the ') + WEAP[c.id].name.toLowerCase());
+  const nm = WEAP[c.id].name.toLowerCase();
+  feed('gear', 0, (c.shared ? 'Shared the ' : 'Stopped sharing the ') + nm);
+  toast(c.shared ? 'Shared the ' + nm : 'Stopped sharing the ' + nm, { kind: 'info', icon: 'gear', sub: c.shared ? 'Your team can see it and pick it up' : "It's yours alone again" });
   SFX.click();
+}
+// a shared gun on the ground shows it from across the farm (shareFx, called by updatePickups): its ring, glow and
+// outline turn the colour of whoever shared it, and a label stands over it saying so (yours: shared with your team,
+// H to stop; a teammate's: shared by them, E to take it). SHARE: how high the label stands, how quickly it all comes
+// and goes
+const SHARE = { lift: 0.95, fade: 6 };
+const shEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const shareTags = new Map(), _shC = new THREE.Color(), _shB = new THREE.Color(), _shV = new V3();
+function shareFx(p, dt) {
+  const c = p.cargo, on = !!c.shared || c.own === false;
+  p.shareK = (p.shareK || 0) + ((on ? 1 : 0) - (p.shareK || 0)) * Math.min(1, dt * SHARE.fade);
+  if (!on && p.shareK < 0.003) p.shareK = 0;
+  if (!p.shareK && !p.shareTinted) return;
+  _shC.copy(p.col).lerp(_shB.set(c.pc || NET_COL[1]), p.shareK); p.shareTinted = p.shareK > 0;
+  p.ringMat.color.copy(_shC); p.discMat.color.copy(_shC); p.glow.material.color.copy(_shC); p.om.color.copy(_shC); p.xr.rim.color.copy(_shC);
+  p.ring.scale.multiplyScalar(1 + 0.18 * p.shareK); p.discMat.opacity = 0.16 + 0.14 * p.shareK;
+  let t = shareTags.get(p);
+  if (!t && on) {
+    const el = document.createElement('div'); el.className = 'shareTag hud'; el.style.setProperty('--pc', c.pc || NET_COL[1]);
+    el.innerHTML = c.own === false ? `<div class="stCard"><b>Shared by ${shEsc(c.who || 'a teammate')}</b><span>${shEsc(WEAP[c.id].name)} · <kbd>E</kbd> to take it</span></div><i class="stStem"></i><i class="stDot"></i>`
+      : `<div class="stCard"><b>Shared with your team</b><span>${shEsc(WEAP[c.id].name)} · <kbd>H</kbd> to stop sharing</span></div><i class="stStem"></i><i class="stDot"></i>`;
+    document.body.appendChild(el); shareTags.set(p, t = { el });
+  }
+  if (t) t.el.classList.toggle('out', !on);
+}
+// the labels over shared guns, kept over them on screen; a label goes once its gun's taken, gone, or no longer shared
+function updateShareTags() {
+  for (const [p, t] of shareTags) {
+    if (!pickups.includes(p) || (!p.shareK && t.el.classList.contains('out'))) { t.el.remove(); shareTags.delete(p); continue; }
+    const show = state === 'play' || state === 'paused';
+    p.g.getWorldPosition(_shV); _shV.y += SHARE.lift; _shV.project(cam);
+    const off = !show || _shV.z > 1 || Math.abs(_shV.x) > 1.1 || Math.abs(_shV.y) > 1.1;
+    t.el.hidden = off; if (off) continue;
+    t.el.style.transform = `translate(${((_shV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - _shV.y) / 2 * innerHeight).toFixed(1)}px)`;
+  }
 }
 // a shared gun's picked up (by you or anyone): gone from every farm it was on
 function gunGone(p) { if (netLink() && (p.cargo.shared || !p.cargo.own)) netSend('gtk', { g: p.cargo.gid }); }
 NET_ON.gsh = m => {
   if (state === 'title' || pickups.some(q => q.kind === 'gun' && q.cargo.gid === m.g)) return;
   const w = teamWeapon(m.lo || {}, m.id); foldStatic(w.g, w.moving);
-  dropPickup(m.x, m.z, 'gun', 1, null, { id: m.id, model: layGun(w.g), mag: m.mag | 0, ak: m.ak || null, until: m.until, own: false, gid: m.g, lo: m.lo, who: m.who || (NET.peers.get(m.f) || {}).name });
+  const pr = NET.peers.get(m.f) || {}, who = m.who || pr.name || 'A teammate';
+  dropPickup(m.x, m.z, 'gun', 1, null, { id: m.id, model: layGun(w.g), mag: m.mag | 0, ak: m.ak || null, until: m.until, own: false, gid: m.g, lo: m.lo, who, pc: NET_COL[pr.idx] || NET_COL[1] });
+  const nm = WEAP[m.id].name.toLowerCase();
+  feed('gear', 0, who + ' shared a ' + nm);
+  toast(who + ' shared a ' + nm, { kind: 'info', icon: 'gear', sub: 'Look for their colour on the ground · E to take it' });
 };
 NET_ON.gtk = m => { const k = pickups.findIndex(q => q.kind === 'gun' && q.cargo.gid === m.g); if (k >= 0) { scene.remove(pickups[k].g); pickups.splice(k, 1); } };   // (taken by a teammate, or no longer shared)
 // what was on a teammate's gun, now on yours: its tiers, mods, attachments and rounds, owned as well as fitted

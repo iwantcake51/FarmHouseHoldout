@@ -83,6 +83,7 @@ function updatePickups(dt) {
     p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
     p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
     if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
+    if (p.kind === 'gun') shareFx(p, dt);   // shared with your team: in the sharer's colour, labelled (net/teamwork.js)
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
     const seen = visAt(p.x, p.z); p.g.visible = true;
     p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
@@ -114,6 +115,7 @@ function updatePickups(dt) {
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }
+  updateShareTags();
 }
 
 // weapons are taken on purpose, with E (or the touch button), never just by walking over them: a weapon's case off the
