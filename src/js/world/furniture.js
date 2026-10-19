@@ -5,12 +5,15 @@
 // wall and turned a hair off square (FURN_JIT), so no two runs set it just alike. It never stands in a doorway or
 // either side of one, in front of a window or the door, or where you start; a station keeps the spot it's used from
 // clear and in its own room; and everywhere you could walk, and every station, can still be reached from the front
-// door. Where it goes is weighed (furnScore): the bed in a bedroom, its headboard to a wall if it can be; the pantry
+// door. The gun rack goes in the same room as the workbench, near it, so a gun's bought and kitted out in one place
+// (FURN_WITH). Where it goes is weighed (furnScore): the bed in a bedroom, its headboard to a wall if it can be; the pantry
 // shelf in a small room or the kitchen; the stations mostly in the living room; and all of it with room round it,
 // rather than packed up against the next piece.
 
 const FURN_JIT = { slide: 0.1, turn: 0.045 };
 const FURN_ORDER = ['box', 'bed', 'bench', 'saw', 'shelf', 'rack', 'med', 'radio'];
+// a piece that goes in the same room as one placed before it, and how much each cell further from it counts against a spot
+const FURN_WITH = { rack: 'bench' }, FURN_NEAR = 0.6;
 // each piece as it was built: where, how turned, on which cells, and its station's spot and footprint
 FURN.forEach(f => {
   f.p0 = f.g.position.clone(); f.r0 = f.g.rotation.y; f.c0 = f.cells.map(c => c.slice()); f.at = f.c0.map(c => c.slice());
@@ -29,6 +32,9 @@ function furnAt(f, pi, pj, q) {
   const use = f.u0 ? (([dx, dz]) => [px + dx, pz + dz])(quarter(f.u0[0] - f.piv[0], f.u0[1] - f.piv[1], q)) : null;
   return { f, cells, face, head, use, q, pi, pj };
 }
+// the cells a station's spot is on: two (or four) if it's on the line between them, as along a two-cell piece, since it's
+// slid a little along the wall after (FURN_JIT)
+const useCells = c => { const out = new Set(); for (const a of [-0.15, 0.15]) for (const b of [-0.15, 0.15]) out.add(idx(ci(c.use[0] + a), ci(c.use[1] + b))); return [...out]; };
 // a wall (or the outside wall) on the (di, dj) side of cell (i, j), between these walls W
 const furnWall = (W, i, j, di, dj) => !inPlan(i + di, j + dj) || (di ? W.has(eKey('x', Math.max(i, i + di), j)) : W.has(eKey('z', i, Math.max(j, j + dj))));
 // whether a piece can stand there: on cells inside and free (occ: taken by another piece, keep: kept clear), its back
@@ -40,8 +46,8 @@ function furnFits(c, W, occ, keep, ro) {
     if (fx && fz) { if (!furnWall(W, i, j, -fx, 0) || !furnWall(W, i, j, 0, -fz)) return false; }
     else if (!furnWall(W, i, j, -fx, -fz)) return false;
   }
-  if (c.use) {
-    const ui = ci(c.use[0]), uj = ci(c.use[1]), u = idx(ui, uj);
+  if (c.use) for (const u of useCells(c)) {
+    const ui = u % N, uj = (u / N) | 0;
     if (!inPlan(ui, uj) || occ[u] || c.cells.some(([i, j]) => i === ui && j === uj) || ro[u] !== ro[idx(c.cells[0][0], c.cells[0][1])]) return false;
   }
   return true;
@@ -71,13 +77,17 @@ function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
   keep[idx(ci(cxw(21)), ci(cxw(22)))] = 1;   // where you start
   for (const f of FURN) {
     let best = null, bs = -Infinity;
+    const w = FURN_WITH[f.id] && [...out.values()].find(c => c.f.id === FURN_WITH[f.id]), wr = w ? ro[idx(w.cells[0][0], w.cells[0][1])] : -1;
     for (let pj = IN.j0; pj <= IN.j1; pj++) for (let pi = IN.i0; pi <= IN.i1; pi++) for (let q = 0; q < 4; q++) {
       const c = furnAt(f, pi, pj, q); if (!furnFits(c, W, occ, keep, ro)) continue;
-      const s = furnScore(c, W, occ, ro, kinds, rnd); if (s > bs) { bs = s; best = c; }
+      if (w && ro[idx(c.cells[0][0], c.cells[0][1])] !== wr) continue;
+      let s = furnScore(c, W, occ, ro, kinds, rnd);
+      if (w) s -= FURN_NEAR * Math.min(...c.cells.flatMap(([i, j]) => w.cells.map(([a, b]) => Math.abs(i - a) + Math.abs(j - b))));
+      if (s > bs) { bs = s; best = c; }
     }
     if (!best) return null;
     out.set(f, best); for (const [i, j] of best.cells) occ[idx(i, j)] = 1;
-    if (best.use) keep[idx(ci(best.use[0]), ci(best.use[1]))] = 1;   // (its spot stays clear of what comes after)
+    if (best.use) for (const u of useCells(best)) keep[u] = 1;   // (its spot stays clear of what comes after)
   }
   // and the house still all gets round: every free cell, and so every station's spot, reached from the front door
   const seen = new Uint8Array(N * N), q = [idx(HOUSE_DOOR[0], HOUSE_DOOR[1])]; seen[q[0]] = 1;

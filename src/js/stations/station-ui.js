@@ -57,7 +57,8 @@ function renderStation() {
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
-  const rows = RECIPES[openSt.id], struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
+  // (the ammo has no card of its own at the workbench: it's the quick buttons, quickAmmo below)
+  const all = RECIPES[openSt.id], ids = all.map((r, i) => i).filter(i => !all[i].quick), rows = ids.map(i => all[i]), struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
   const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
@@ -65,7 +66,7 @@ function renderStation() {
     // a heading above the first card of each group (everything for the weapon in your hands)
     $('stRows').innerHTML = rows.map((r, i) => {
       const head = r.group && r.group !== group ? `<div class="stGroup" style="--k:${Math.min(8, k++)}">${r.group}</div>` : ''; group = r.group || null;
-      return head + `<button type="button" data-i="${i}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
+      return head + `<button type="button" data-i="${ids[i]}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
       <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic] || FEED_ICON.gear}</svg></span>
       <span class="tx"></span>
       <span class="ft"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
@@ -85,7 +86,7 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  quickAmmo(rows);
+  quickAmmo(all);
   { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 // ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
@@ -112,9 +113,9 @@ function benchGun(s) {
 }
 function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
-// at the workbench, ammo is always a click away, whatever card you've scrolled to: for the gun in your hands, or a load
-// for every gun you carry, each showing what it gives and its price, and lit when you can buy it (the same cards as at
-// the top of the list: recipes.js, quick)
+// at the workbench, ammo is always a click away along the bottom, wherever you've scrolled the cards to: for the gun in
+// your hands, or a load for every gun you carry, each showing what it gives and its price, and lit when you can buy it
+// (the bench's ammo recipes, recipes.js: quick)
 function quickAmmo(rows) {
   const el = $('stQuick'), on = openSt.id === 'bench'; el.hidden = !on; if (!on) return;
   if (!el.firstElementChild) el.innerHTML = ['hand', 'all'].map(q => `<button type="button" data-q="${q}"><svg viewBox="${GI_VB}">${FEED_ICON.ammo}</svg><span><b></b><em></em></span><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span></button>`).join('');

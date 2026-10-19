@@ -28,10 +28,11 @@
 /* the workbench's weapon tabs (stations/station-ui.js): one for each weapon you carry, the pill easing along under the
    one in your hands */
 #station.withGuns{grid-template-rows:auto auto minmax(0,1fr) auto}
-#station.withQuick{grid-template-rows:auto auto minmax(0,1fr) auto}
-#station.withGuns.withQuick{grid-template-rows:auto auto auto minmax(0,1fr) auto}
-/* the workbench's quick ammo: two buttons pinned under its weapon tabs, lit gold when you can buy */
-#stQuick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 2px}
+#station.withQuick{grid-template-rows:auto minmax(0,1fr) auto auto}
+#station.withGuns.withQuick{grid-template-rows:auto auto minmax(0,1fr) auto auto}
+/* the workbench's quick ammo: two buttons pinned along the bottom under its cards, lit gold when you can buy */
+#stQuick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
+#stQuick[hidden]{display:none}
 #stQuick button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 9px;border:1px solid rgba(236,230,216,.14);background:rgba(0,0,0,.25);color:var(--dim);transition:background .15s,border-color .15s,color .15s,translate .15s}
 #stQuick button > svg{width:18px;height:18px;fill:#d4b25c;opacity:.5}
 #stQuick button span b{display:block;font-size:12px;font-weight:600;letter-spacing:.04em}

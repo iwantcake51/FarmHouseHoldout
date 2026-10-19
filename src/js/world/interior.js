@@ -1,7 +1,8 @@
 // The farmhouse's rooms: a new floor plan inside the same four walls every run, the way a small farmhouse is laid out.
 // The front door opens into the living room and kitchen, the biggest room; down one side or across the back the
 // bedrooms, a bath, a box room, each opening off it (a small one sometimes off the bedroom next to it instead); and
-// often a pantry or a closet boxed off in one of its corners. Every room has a way in, nothing's narrower than two
+// sometimes a pantry or a closet boxed off in one of its corners. A room nothing goes in is opened up into the next
+// (mergeEmpty), so there are no empty box rooms. Every room has a way in, nothing's narrower than two
 // metres, and nothing stands where it can't: no wall cuts a piece of furniture in two or shuts it away from where it's
 // used, ends on a window or the door, or hangs over the pictures. The walls are thin ones on the lines between cells
 // (world/thin-walls.js), plastered, with a skirting board, a picture rail of trim along the top, and a cased frame
@@ -88,7 +89,7 @@ function planHouse(rnd) {
   if (HOUSE_DOOR[0] < pub[0] || HOUSE_DOOR[0] > pub[2] || HOUSE_DOOR[1] < pub[1] || HOUSE_DOOR[1] > pub[3]) return null;
   // its rooms, split across it, each opening onto the living room (or, a small one, onto the room beside it)
   const along = side ? [wing[1], wing[3]] : [wing[0], wing[2]], span = along[1] - along[0] + 1;
-  const n = span >= 8 && rnd() < 0.55 ? 3 : 2, sz = sizes(span, n), segs = [];
+  const n = span >= 8 && rnd() < 0.45 ? 3 : 2, sz = sizes(span, n), segs = [];
   let at = along[0]; for (const s of sz) { segs.push([at, at + s - 1]); at += s; }
   const across = side ? [wing[0], wing[2]] : [wing[1], wing[3]], wide = across[1] - across[0] + 1;
   const suite = segs.map((s, k) => (s[1] - s[0] + 1) * wide <= 8 && rnd() < 0.35 ? (k > 0 ? k - 1 : k + 1) : -1);
@@ -103,7 +104,7 @@ function planHouse(rnd) {
     if (!run(ax, L, across[0], across[1], gaps)) return null;
   }
   // a pantry or a closet boxed off in a corner of the living room, now and then a second
-  const closets = rnd() < 0.7 ? (rnd() < 0.3 ? 2 : 1) : 0, boxes = [];
+  const closets = rnd() < 0.55 ? (rnd() < 0.25 ? 2 : 1) : 0, boxes = [];
   for (let c = 0; c < closets; c++) {
     const w = ri(2, 3), h = ri(2, 3), cx = rnd() < 0.5, cz = rnd() < 0.5;
     const r = [cx ? pub[0] : pub[2] - w + 1, cz ? pub[1] : pub[3] - h + 1, 0, 0]; r[2] = r[0] + w - 1; r[3] = r[1] + h - 1;
@@ -121,6 +122,30 @@ function planHouse(rnd) {
   const seen = planReach(W);
   for (let j = IN.j0; j <= IN.j1; j++) for (let i = IN.i0; i <= IN.i1; i++) if (!seen[idx(i, j)]) return null;
   return { walls: W, doors };
+}
+// a room with nothing in it (not the living room) opened up into the room beside it, a bedroom or a small room if one
+// shares a wall with it (the most wall), else the one its doorway leads to: the walls between the two and the doorways
+// through them taken down, and any bit of wall left standing in the middle of a room after (the furniture's all placed
+// again after, round the walls that are left). The new walls and doorways, or null if there's no such room. MERGE_MAX:
+// how many go in one layout
+const MERGE_MAX = 3;
+function mergeEmpty(plan, rk, placed) {
+  const ro = HOUSE_PLAN.roomOf, used = new Set();
+  const sidesIn = (o, k) => { const [ax, i, j] = eDec(k); return ax === 'x' ? [o[idx(i - 1, j)], o[idx(i, j)]] : [o[idx(i, j - 1)], o[idx(i, j)]]; }, sides = k => sidesIn(ro, k);
+  for (const c of placed.values()) { for (const [i, j] of c.cells) used.add(ro[idx(i, j)]); if (c.use) used.add(ro[idx(ci(c.use[0]), ci(c.use[1]))]); }
+  for (let r = 0; r < rk.rooms.length; r++) {
+    if (rk.kinds[r] === 'live' || used.has(r)) continue;
+    const d = plan.doors.find(k => sides(k).includes(r)); if (d === undefined) continue;
+    const share = new Map(); for (const k of plan.walls) { const [a, b] = sides(k), o = a === r ? b : b === r ? a : -1; if (o >= 0 && o !== r && rk.kinds[o] !== 'live') share.set(o, (share.get(o) || 0) + 1); }
+    const r2 = share.size ? [...share].sort((a, b) => b[1] - a[1])[0][0] : sides(d).find(x => x !== r);
+    const both = k => { const [a, b] = sides(k); return (a === r && b === r2) || (a === r2 && b === r); };
+    const W = new Set([...plan.walls].filter(k => !both(k))), doors = plan.doors.filter(k => !both(k));
+    // (what's left with the same room either side of it)
+    const o = new Int16Array(N * N).fill(-1); planRooms(W, doors).forEach((cs, n) => cs.forEach(([i, j]) => { o[idx(i, j)] = n; }));
+    const lone = k => { const [a, b] = sidesIn(o, k); return a === b; };
+    return { walls: new Set([...W].filter(k => !lone(k))), doors: doors.filter(k => !lone(k)) };
+  }
+  return null;
 }
 // the cells you can walk to from the front door between the walls W
 function planReach(W) {
@@ -338,6 +363,15 @@ function houseLayout(seed, live) {
     plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors);
     wins = chooseWindows(rnd, rk.rooms, rk.kinds); if (wins.keys.size < WIN.min) { placed = null; continue; }
     placed = placeFurniture(rnd, plan.walls, plan.doors, ro, rk.kinds, wins.fronts);
+  }
+  // a room nothing went in is opened up into the one it leads to, and the windows and furniture gone over again for the
+  // bigger rooms (kept as it was if they won't go)
+  for (let m = 0; placed && plan && m < MERGE_MAX; m++) {
+    const nx = mergeEmpty(plan, rk, placed); if (!nx) break;
+    const rk2 = roomsOf(nx.walls, nx.doors), w2 = chooseWindows(rnd, rk2.rooms, rk2.kinds);
+    const p2 = w2.keys.size >= WIN.min && placeFurniture(rnd, nx.walls, nx.doors, ro, rk2.kinds, w2.fronts);
+    if (!p2) { roomsOf(plan.walls, plan.doors); break; }
+    plan = nx; rk = rk2; wins = w2; placed = p2;
   }
   if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
   // its windows, and whatever hangs on the walls where they've gone taken down
