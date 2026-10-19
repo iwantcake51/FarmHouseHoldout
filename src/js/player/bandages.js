@@ -21,13 +21,14 @@ function startBandage() {
   if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: 'Buy them at the medicine cabinet' }); return; }
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
-  P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0; SFX.rip();
+  P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;
+  bandSnd = loopS('medkit'); if (!bandSnd) SFX.rip();   // its sound goes round till it's on (bandSound)
   P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
-  P.bandT = 0; ANIM.healCut = true; SFX.click();   // the view snaps back out of the lean-in (player/hold.js)
+  P.bandT = 0; ANIM.healCut = true; SFX.click(); bandSound(BAND_FADE.hit);   // the view snaps back out of the lean-in (player/hold.js)
   toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
 }
 // how far the bandage going on has got (0 to 1)
@@ -37,7 +38,7 @@ const bandProg = () => P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1)
 function cancelBandage() {
   if (!(P.bandT > 0)) return;
   const k = bandProg(), h = Math.round(bandHeal() * k);
-  P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click();
+  P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click(); bandSound(BAND_FADE.cancel);
   if (h > 0) { P.heal = (P.heal || 0) + h; feed('med', h, 'health over time'); }   // just the heal in the feed, no warning
 }
 // a weapon key or the touch swap button: during a bandage it cancels it and takes that weapon out instead, carried
@@ -47,7 +48,13 @@ function switchSlot(s) {
   if (P.bandT > 0 || ANIM.bandP > 0) { if (P.bandT > 0) cancelBandage(); if (s !== W8.cur) ANIM.bandSwitch = s; return; }
   equip(s);
 }
+// the bandage's sound, looping while it goes on (loopS, audio/samples.js), and eased out however it ends: finished
+// (BAND_FADE.done), knocked out of your hands by a hit (.hit), stopped with a click or a weapon key (.cancel)
+const BAND_FADE = { done: 0.45, hit: 0.18, cancel: 0.25 };
+let bandSnd = null;
+function bandSound(fade) { if (bandSnd) { bandSnd.stop(fade); bandSnd = null; } }
 function tickBandage(dt) {
+  if (bandSnd) { if (P.bandT > 0 && !P.dead) bandSnd.tick(); else bandSound(BAND_FADE.done); }
   ANIM.bandDone = Math.max(0, (ANIM.bandDone || 0) - dt);
   if (P.bandT > 0) {
     P.bandT -= dt;

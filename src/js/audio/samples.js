@@ -92,6 +92,37 @@ function playS(name, o) {
   s.start(t);
   return true;
 }
+// a recording played round and round for as long as something lasts (the bandage going on): each pass a touch
+// faster or slower than the last and faded in over the tail of the one before (LOOP_XF), so the join can't be heard.
+// Its tick() lines up the next pass shortly before it's due (call it every frame while it should keep going); stop()
+// fades the whole thing out over fade seconds and then cuts it. Null if the recording isn't loaded
+const LOOP_XF = 0.16;
+function loopS(name, o) {
+  if (!AC || !sbuf[name]) return null;
+  o = o || {};
+  const b = sbuf[name], out = AC.createGain(), xf = Math.min(LOOP_XF, b.duration * 0.3);
+  out.gain.value = SAMPLES[name].vol * (o.vol ?? 1); out.connect(master);
+  const h = { on: true, srcs: [], next: 0 };
+  const pass = (t, first) => {
+    const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; s.playbackRate.value = rr(0.95, 1.05);
+    const d = b.duration / s.playbackRate.value, fin = first ? 0.04 : xf;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + fin); g.gain.setValueAtTime(1, t + d - xf); g.gain.linearRampToValueAtTime(0, t + d);
+    s.connect(g); g.connect(out); s.start(t); s.stop(t + d + 0.02); h.srcs.push(s); sVoices++;
+    s.onended = () => { sVoices--; const i = h.srcs.indexOf(s); if (i >= 0) h.srcs.splice(i, 1); };
+    return t + d - xf;
+  };
+  h.tick = () => { if (h.on && AC.currentTime > h.next - 0.25) h.next = pass(Math.max(h.next, AC.currentTime)); };
+  h.stop = fade => {
+    if (!h.on) return; h.on = false;
+    const t = AC.currentTime, f = Math.max(0.03, fade ?? 0.3);
+    // eased away (most of it gone in the first half), then cut once it's silent
+    out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(out.gain.value, t); out.gain.setTargetAtTime(0, t, f / 4);
+    h.srcs.forEach(s => { try { s.stop(t + f + 0.05); } catch (e) {} });
+    setTimeout(() => out.disconnect(), (f + 0.2) * 1000);
+  };
+  h.next = pass(AC.currentTime, true); h.tick();
+  return h;
+}
 // which family of gun the one in your hands is, for its reload and dry-fire sounds
 const GUN_KIND = { pistol: 'pistol', revolver: 'pistol', deagle: 'pistol', smg: 'smg', sub: 'smg', ar: 'rifle', lmg: 'rifle', hunting: 'rifle', auto12: 'rifle', pump: 'shotgun', dbl: 'shotgun' };
 const gunKind = () => GUN_KIND[curId()] || 'rifle';
