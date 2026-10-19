@@ -7,7 +7,7 @@ const ZT = {
 };
 const PART_Y = { head: 1.35, torso: 0.95, armL: 1.05, armR: 1.05, legL: 0.35, legR: 0.35 };
 // a bullet's damage by where it lands: the head by Headhunter and the like, the body in full, an arm half, a leg less
-// than half (it goes through the meat of it; what a leg shot does is bring one down: LEG_DROP in zombies/damage.js)
+// than half (it goes through the meat of it; what a leg shot does is slow one down: LEG_SLOW in zombies/damage.js)
 const partMult = p => p === 'head' ? S.headMul : p === 'torso' ? 1 : p === 'armL' || p === 'armR' ? 0.5 : 0.42;
 const STUMP = { head: [0, 1.18, 0], armL: [-0.33, 1.08, 0], armR: [0.33, 1.08, 0], legL: [-0.13, 0.55, 0], legR: [0.13, 0.55, 0] };
 const zombies = [];

@@ -181,7 +181,13 @@ function burnHurt(z) {
 // second), and the most flechettes can make it bleed however many land
 const BLEED_T = 4, BLEED_R = 8, DART_BLEED_MAX = 12;
 // in co-op the hit, and whatever it takes off or kills, goes to the other players as it happened here (netAct, net/sync.js)
-const LEG_DROP = { p: 0.45, from: 0.3 };
+// a leg shot that doesn't take the leg off slows it down: the worse its worst leg's been hurt, the slower it goes, down
+// to LEG_SLOW.most of its pace (a brute, LEG_SLOW.brute); only a leg taken off (or the shin off it) puts it down crawling
+const LEG_SLOW = { most: 0.5, brute: 0.25 };
+function legSlow(z) {
+  let h = 0; for (const L of ['legL', 'legR']) if (z.limbs[L]) h = Math.max(h, 1 - z.lhp[L] / (z.maxHp * 0.4));
+  return 1 - clamp(h, 0, 1) * (z.type === 'brute' ? LEG_SLOW.brute : LEG_SLOW.most);
+}
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) { return netAct(z, dx, dz, () => hurtZombie0(z, dmg, dx, dz, kb, wId, part)); }
 function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   const crit = critNext, headK = headNext; critNext = false; headNext = 1;
@@ -206,13 +212,6 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
     if ((z.lhp[part] <= 0 || D.alwaysSever) && canSever(wId)) {
       if (!(z.cut && z.cut[part]) && !D.alwaysSever && rand() < 0.65 && severLower(z, part, dx, dz)) z.lhp[part] = z.maxHp * (part[0] === 'a' ? 0.12 : 0.16);
       else sever(z, part, dx, dz);
-    }
-    // a leg shot that doesn't take the leg off can still take it out from under it: the worse that leg's been hurt,
-    // the likelier each hit is to drop it to crawling (LEG_DROP: the chance at its worst, how hurt it has to be first);
-    // never a brute, and the hit has to do something (not a melee weapon's, which lands where it lands)
-    else if (part[0] === 'l' && z.limbs[part] && !z.crawl && !z.dead && z.hp > 0 && z.type !== 'brute' && !D.melee) {
-      const hurt = 1 - z.lhp[part] / (z.maxHp * 0.4);
-      if (hurt > LEG_DROP.from && rand() < LEG_DROP.p * clamp((hurt - LEG_DROP.from) / (1 - LEG_DROP.from), 0, 1)) { goCrawl(z); netRec('c'); }
     }
   }
   // a serrated blade opens one steady bleed; flechettes stack it, each dart that lands bleeding it a little harder

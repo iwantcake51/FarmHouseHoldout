@@ -102,7 +102,7 @@ function updateZombies(dt) {
       const ax = z.gx - z.x, az = z.gz - z.z, al = Math.hypot(ax, az);
       if (al < 0.2) z.out = false;
       else {
-        const sp = Math.min(al, z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : 1));
+        const sp = Math.min(al, z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)));
         z.x += ax / al * sp; z.z += az / al * sp;
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       }
@@ -149,7 +149,7 @@ function updateZombies(dt) {
     } else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
-        const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : 1) * (z.pushSlow > 0 ? 0.2 + 0.8 * Math.pow(1 - z.pushSlow / (z.pushMax || SHOVE_SLOW), 2) : 1);   // still reeling from a shove: slow, and only getting going again toward the end (player/shove.js)
+        const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)) * (z.pushSlow > 0 ? 0.2 + 0.8 * Math.pow(1 - z.pushSlow / (z.pushMax || SHOVE_SLOW), 2) : 1);   // still reeling from a shove: slow, and only getting going again toward the end (player/shove.js)
         moveCircle(z, ax / al * sp, az / al * sp, z.T.r);
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * (z.type === 'runner' ? 7 : z.type === 'brute' ? 3.5 : 5));
       } else z.face += angDiff(Math.atan2(dxp, dzp), z.face) * Math.min(1, dt * 6);

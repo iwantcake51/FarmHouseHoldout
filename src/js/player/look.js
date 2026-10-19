@@ -342,7 +342,7 @@ function buildLook(L) {
   if (L.under) {
     const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
     [LOOK.g.armL, LOOK.g.armR].forEach(a => {
-      box(a, 0.15, 0.15, WRIST + 0.03, th, 0, 0, -0.03 + (WRIST + 0.03) / 2);
+      box(a, 0.15, 0.15, WRIST + 0.024, th, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
       box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
       [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
     });

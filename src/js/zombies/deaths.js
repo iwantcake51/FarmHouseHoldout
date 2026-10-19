@@ -18,10 +18,10 @@ const RAG_MASS = [3, 3, 2.4, 2.4, 1.5, 0.9, 0.6, 0.9, 0.6, 1.5, 1, 1.5, 1];
 const RAG_R = [0.1, 0.1, 0.09, 0.09, 0.15, 0.07, 0.06, 0.07, 0.06, 0.09, 0.08, 0.09, 0.08];
 // the sticks: two points, held at their standing distance, or (with lo and hi, as parts of it) kept within that: the
 // head off the hips (how far it can nod), a hand off its shoulder and a foot off its hip (how far an elbow or a knee
-// folds), the knees and feet off each other, and a knee off its shoulder (a leg can't fold up into the chest)
+// folds), and the knees and feet off each other
 const RAG_STICKS = [[0, 1], [2, 3], [0, 2], [1, 3], [0, 3], [1, 2], [4, 2], [4, 3], [4, 0, 0.86, 1.03], [4, 1, 0.86, 1.03],
   [2, 5], [5, 6], [3, 7], [7, 8], [2, 6, 0.4, 9], [3, 8, 0.4, 9],
-  [0, 9], [9, 10], [1, 11], [11, 12], [0, 10, 0.45, 9], [1, 12, 0.45, 9], [9, 11, 0.5, 9], [10, 12, 0.35, 9], [9, 2, 0.62, 9], [11, 3, 0.62, 9]];
+  [0, 9], [9, 10], [1, 11], [11, 12], [0, 10, 0.45, 9], [1, 12, 0.45, 9], [9, 11, 0.5, 9], [10, 12, 0.35, 9]];
 const RAG_LIMB = { armL: [5, 6, 2], armR: [7, 8, 3], legL: [9, 10, 0], legR: [11, 12, 1] };
 // where the killing hit lands: the points it throws hardest, then the ones next to them
 const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6], [2]], armR: [[7, 8], [3]], legL: [[9, 10], [0]], legR: [[11, 12], [1]], crush: [[4, 2, 3], [0, 1]] };
@@ -32,9 +32,11 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 // body counts as still (under sleepV m/s for sleepT s) and is left as it lies; the most bodies worked out at once
 // (live: past that the oldest is left as it is); and how hard a hit throws what it lands on (hit), what's next to it
 // (near), and the whole body (all), times the weapon's force. A body that's down settles: what touches the ground stops
-// dead in it (no bounce under bounceV m/s down), and once it's mostly down (settle s in) it's damped hard (still), so
-// it slumps and lies there rather than twitching about
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, tone: 0.5, toneT: 0.5, legTone: 0.3, grip: 0.5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, settle: 0.9, sleepV: 0.14, sleepT: 0.35, live: 16, hit: 0.62, near: 0.28, all: 0.16 };
+// dead in it (no bounce under bounceV m/s down), and once its trunk's down it's damped (land, then still), nothing on
+// it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
+// and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
+// down (yawDown), so it never spins on the floor
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, legTone: 0.3, grip: 0.5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.14, sleepT: 0.35, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 0.3 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
@@ -43,6 +45,7 @@ const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
 const HEAD_DROP = { tone: 0.16, toneT: 0.22, keep: 0.25 };
 const _rgV = new V3(), _rgM = new THREE.Matrix4(), _rgQ = new THREE.Quaternion(), _rgQi = new THREE.Quaternion(), _rgQ2 = new THREE.Quaternion();
 const _rgX = new V3(), _rgY = new V3(), _rgZ = new V3(), _rgH = new V3(), _rgD = new V3(), _rgP = new V3();
+const _rgS = new V3(), _rgT = new V3(), _rgU = new V3(), _rgN = new V3();
 const _rgUp = new V3(0, 1, 0), _rgDn = new V3(0, -1, 0), _rgFw = new V3(0, 0, 1);
 
 // how high whatever stands in this spot is (0: nothing, it's floor): a wall, a tall or a low prop, a fence, a window's
@@ -122,8 +125,12 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
 function ragStep(r, h) {
   const p = r.p, q = r.q, on = r.on, n = on.length, s = r.s, g = RAG.grav * h * h;
   r.st += h;
-  const tn = r.tone * Math.pow(Math.max(0, 1 - r.st / r.toneT), 2);
-  const air = r.st > RAG.settle && r.down ? RAG.still : RAG.air;   // (down: damped hard, so it lies still)
+  // (the stiffness it has left goes the moment the trunk's down: holding the pose any longer flings the limbs as the
+  // body turns over on the ground)
+  if (r.down && !r.landT) r.landT = r.st;
+  const tn = r.landT ? 0 : r.tone * Math.pow(Math.max(0, 1 - r.st / r.toneT), 2);
+  // down, it's damped hard (a slump, then still), and nothing on it slides faster than RAG.slide (vmax in the air)
+  const air = r.landT ? (r.st - r.landT > 0.15 ? RAG.still : RAG.land) : RAG.air, vcap = (r.landT ? RAG.slide : RAG.vmax) * h;
   ragFrame(p);
   if (tn > 0) for (let k = 4; k < n; k++) {
     if (!on[k]) continue;
@@ -132,9 +139,18 @@ function ragStep(r, h) {
     p[i + 1] += (_rgH.y + _rgX.y * l[i] + _rgY.y * l[i + 1] + _rgZ.y * l[i + 2] - p[i + 1]) * w;
     p[i + 2] += (_rgH.z + _rgX.z * l[i] + _rgY.z * l[i + 1] + _rgZ.z * l[i + 2] - p[i + 2]) * w;
   }
+  // its spin round the upright through its middle (ω, from how it's all moving round there), part of it taken off
+  let M = 0, mx = 0, mz = 0, Ly = 0, Iy = 0;
+  for (let k = 0; k < n; k++) if (on[k]) { const w = RAG_MASS[k]; M += w; mx += p[k * 3] * w; mz += p[k * 3 + 2] * w; }
+  mx /= M; mz /= M;
+  for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k], rx = p[i] - mx, rz = p[i + 2] - mz; Ly += w * (rz * (p[i] - q[i]) - rx * (p[i + 2] - q[i + 2])); Iy += w * (rx * rx + rz * rz); }
+  const wy = Iy > 1e-6 ? Ly / Iy * (r.landT ? RAG.yawDown : RAG.yaw) : 0;
   for (let k = 0; k < n; k++) {
     if (!on[k]) continue;
-    const i = k * 3, vx = (p[i] - q[i]) * air, vy = (p[i + 1] - q[i + 1]) * air, vz = (p[i + 2] - q[i + 2]) * air;
+    const i = k * 3;
+    if (wy) { q[i] += wy * (p[i + 2] - mz); q[i + 2] -= wy * (p[i] - mx); }
+    let vx = (p[i] - q[i]) * air, vy = (p[i + 1] - q[i + 1]) * air, vz = (p[i + 2] - q[i + 2]) * air;
+    const hv = Math.hypot(vx, vz); if (hv > vcap && r.st > 0.05) { vx *= vcap / hv; vz *= vcap / hv; }
     q[i] = p[i]; q[i + 1] = p[i + 1]; q[i + 2] = p[i + 2];
     p[i] += vx; p[i + 1] += vy - g; p[i + 2] += vz;
   }
@@ -157,31 +173,46 @@ function ragStep(r, h) {
 }
 // how far each joint goes: a knee bends only forward of the line from hip to foot and an elbow only the other way (no
 // limb ever folds backwards), a thigh goes only a little back behind the hip or out to the side, and an upper arm only
-// a little behind the back. Each is put right part of the way a pass, moving where the point was a step ago with it, so
-// holding a joint in never throws it about (RAG_LIM: how far back and out, of the zombie's size)
-const RAG_LIM = { thighBack: 0.14, thighOut: 0.2, armBack: 0.2, give: 0.6 };
+// a little behind the back, and a knee comes up only so far toward the chest (thighUp: how far above the hip). Every fix keeps the bones their length (a joint bent the wrong way is flipped over the line
+// rather than pulled onto it, a limb held in is swung round its socket with what hangs off it carried along), so the
+// sticks never fight the limits, which pumped the body round and round on the floor; and a joint only a hair the
+// wrong way (dead: of the zombie's size) is let be, so a straight leg doesn't flick from side to side
+const RAG_LIM = { thighBack: 0.14, thighOut: 0.2, thighUp: 0.1, armBack: 0.2, give: 0.6, dead: 0.015 };
 function ragLimits(r) {
-  const p = r.p, q = r.q, on = r.on, s = r.s, X = _rgX, Z = _rgZ;
-  const move = (k, x, y, z) => { const i = k * 3; x *= RAG_LIM.give; y *= RAG_LIM.give; z *= RAG_LIM.give; p[i] += x; p[i + 1] += y; p[i + 2] += z; q[i] += x; q[i + 1] += y; q[i + 2] += z; };
-  // the middle joint of a limb (a to b to c) kept to its own side of the line from a to c: sign 1 bends forward (a knee)
+  const p = r.p, q = r.q, on = r.on, s = r.s, X = _rgX, Y = _rgY, Z = _rgZ;
+  // point k (with what hangs off it, c) moved by (x, y, z), part of the way, then put back its length from a; where it
+  // was a step ago moves with it, so it keeps the way it was going
+  const swing = (k, a, c, x, y, z) => {
+    const i = k * 3, A = a * 3, L = Math.hypot(p[i] - p[A], p[i + 1] - p[A + 1], p[i + 2] - p[A + 2]), g = RAG_LIM.give;
+    let nx = p[i] + x * g - p[A], ny = p[i + 1] + y * g - p[A + 1], nz = p[i + 2] + z * g - p[A + 2]; const d = Math.hypot(nx, ny, nz) || 1;
+    nx = p[A] + nx * L / d - p[i]; ny = p[A + 1] + ny * L / d - p[i + 1]; nz = p[A + 2] + nz * L / d - p[i + 2];
+    for (const j of c >= 0 && on[c] ? [i, c * 3] : [i]) { p[j] += nx; p[j + 1] += ny; p[j + 2] += nz; }
+  };
+  // the middle joint of a limb (a to b to c) kept to its own side of the line from a to c (sign 1: forward, a knee): b
+  // past it is mirrored back over the plane through a and c across the trunk, and stops moving through it
   const hinge = (a, b, c, sign) => {
-    const A = a * 3, B = b * 3, C = c * 3, tx = p[B] - p[A], ty = p[B + 1] - p[A + 1], tz = p[B + 2] - p[A + 2], sx = p[C] - p[B], sy = p[C + 1] - p[B + 1], sz = p[C + 2] - p[B + 2];
-    if (((ty * sz - tz * sy) * X.x + (tz * sx - tx * sz) * X.y + (tx * sy - ty * sx) * X.z) * sign >= 0) return;
-    const ux = p[C] - p[A], uy = p[C + 1] - p[A + 1], uz = p[C + 2] - p[A + 2], u = (tx * ux + ty * uy + tz * uz) / (ux * ux + uy * uy + uz * uz || 1), e = 0.01 * s * sign;
-    move(b, p[A] + ux * u + Z.x * e - p[B], p[A + 1] + uy * u + Z.y * e - p[B + 1], p[A + 2] + uz * u + Z.z * e - p[B + 2]);
+    const A = a * 3, B = b * 3, C = c * 3, ux = p[C] - p[A], uy = p[C + 1] - p[A + 1], uz = p[C + 2] - p[A + 2];
+    let nx = uy * X.z - uz * X.y, ny = uz * X.x - ux * X.z, nz = ux * X.y - uy * X.x; const nl = Math.hypot(nx, ny, nz); if (nl < 1e-6) return;
+    nx /= nl; ny /= nl; nz /= nl;
+    const d = (p[B] - p[A]) * nx + (p[B + 1] - p[A + 1]) * ny + (p[B + 2] - p[A + 2]) * nz;
+    if (d * sign > -RAG_LIM.dead * s) return;
+    p[B] -= 2 * d * nx; p[B + 1] -= 2 * d * ny; p[B + 2] -= 2 * d * nz;
+    const vx = p[B] - q[B], vy = p[B + 1] - q[B + 1], vz = p[B + 2] - q[B + 2], vn = vx * nx + vy * ny + vz * nz;
+    q[B] = p[B] - (vx - vn * nx); q[B + 1] = p[B + 1] - (vy - vn * ny); q[B + 2] = p[B + 2] - (vz - vn * nz);
   };
   // how far b is from a along an axis of the trunk
   const along = (a, b, ax) => (p[b * 3] - p[a * 3]) * ax.x + (p[b * 3 + 1] - p[a * 3 + 1]) * ax.y + (p[b * 3 + 2] - p[a * 3 + 2]) * ax.z;
   for (const [hp, kn, ft, sd] of [[0, 9, 10, -1], [1, 11, 12, 1]]) {
     if (!on[kn]) continue;
     if (on[ft]) hinge(hp, kn, ft, 1);
-    const back = along(hp, kn, Z), lim = -RAG_LIM.thighBack * s; if (back < lim) move(kn, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
-    const out = along(hp, kn, X) * sd, lo = RAG_LIM.thighOut * s; if (out > lo) move(kn, -X.x * sd * (out - lo), -X.y * sd * (out - lo), -X.z * sd * (out - lo));
+    const back = along(hp, kn, Z), lim = -RAG_LIM.thighBack * s; if (back < lim) swing(kn, hp, ft, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
+    const out = along(hp, kn, X) * sd, lo = RAG_LIM.thighOut * s; if (out > lo) swing(kn, hp, ft, -X.x * sd * (out - lo), -X.y * sd * (out - lo), -X.z * sd * (out - lo));
+    const up = along(hp, kn, Y), hi = RAG_LIM.thighUp * s; if (up > hi) swing(kn, hp, ft, -Y.x * (up - hi), -Y.y * (up - hi), -Y.z * (up - hi));
   }
   for (const [sh, el, hd] of [[2, 5, 6], [3, 7, 8]]) {
     if (!on[el]) continue;
     if (on[hd]) hinge(sh, el, hd, -1);
-    const back = along(sh, el, Z), lim = -RAG_LIM.armBack * s; if (back < lim) move(el, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
+    const back = along(sh, el, Z), lim = -RAG_LIM.armBack * s; if (back < lim) swing(el, sh, hd, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
   }
 }
 // the world against each point: out of a wall or a prop the way it came, onto the top of a sill or a fence it came
@@ -225,14 +256,25 @@ function ragPose(r, v) {
   g.position.copy(_rgH).addScaledVector(_rgY, -ZHIP * s); _rgP.copy(g.position);   // (the rig's hips are ZHIP up off its feet)
   m.lower.rotation.set(0, 0, 0); m.upper.rotation.set(0, 0, 0);
   _rgQi.copy(_rgQ).invert();
-  const aim = (o, k0, k1, rest, qi) => { _rgD.set(v[k1 * 3] - v[k0 * 3], v[k1 * 3 + 1] - v[k0 * 3 + 1], v[k1 * 3 + 2] - v[k0 * 3 + 2]).applyQuaternion(qi).normalize(); o.quaternion.setFromUnitVectors(rest, _rgD); };
+  // a bone pointed from point k0 to k1 (in its parent's frame: qi), its length along rest, and turned on that length so
+  // its own sideways (x) stays as near its parent's as it can: a whole frame, never the shortest turn from rest, which
+  // flips a limb round when it points back past the parent (a leg up in the air, an arm behind the back)
+  const aim = (o, k0, k1, rest, qi) => {
+    _rgD.set(v[k1 * 3] - v[k0 * 3], v[k1 * 3 + 1] - v[k0 * 3 + 1], v[k1 * 3 + 2] - v[k0 * 3 + 2]).applyQuaternion(qi).normalize();
+    const d = _rgD, sx = _rgS.set(1, 0, 0).addScaledVector(d, -d.x); if (sx.lengthSq() < 0.02) sx.set(0, 0, 1).addScaledVector(d, -d.z); sx.normalize();
+    if (rest === _rgFw) _rgM.makeBasis(sx, _rgT.crossVectors(d, sx), d);                        // (its length along +z: an arm)
+    else if (rest === _rgDn) _rgM.makeBasis(sx, _rgT.copy(d).negate(), _rgU.crossVectors(sx, _rgT));   // (along -y: a leg)
+    else _rgM.makeBasis(sx, d, _rgU.crossVectors(sx, d));                                       // (along +y: the head)
+    o.quaternion.setFromRotationMatrix(_rgM);
+  };
   for (const sd of ['L', 'R']) {
     const [e, hd, sh] = RAG_LIMB['arm' + sd], [kn, ft, hp] = RAG_LIMB['leg' + sd];
     if (on[e] && lb['arm' + sd]) { const a = m['arm' + sd]; aim(a, sh, e, _rgFw, _rgQi); if (on[hd]) aim(m['fore' + sd], e, hd, _rgFw, _rgQ2.copy(a.quaternion).invert().multiply(_rgQi)); }
     if (on[kn] && lb['leg' + sd]) { const l = m['leg' + sd]; aim(l, hp, kn, _rgDn, _rgQi); if (on[ft]) aim(m['shin' + sd], kn, ft, _rgDn, _rgQ2.copy(l.quaternion).invert().multiply(_rgQi)); }
   }
   if (on[4]) {
-    _rgD.set(v[12] - (v[6] + v[9]) / 2, v[13] - (v[7] + v[10]) / 2, v[14] - (v[8] + v[11]) / 2).applyQuaternion(_rgQi).normalize(); m.head.quaternion.setFromUnitVectors(_rgUp, _rgD);
+    const nk = [(v[6] + v[9]) / 2, (v[7] + v[10]) / 2, (v[8] + v[11]) / 2]; _rgN.set(nk[0], nk[1], nk[2]);
+    { const save = [v[6], v[7], v[8]]; v[6] = nk[0]; v[7] = nk[1]; v[8] = nk[2]; aim(m.head, 2, 4, _rgUp, _rgQi); v[6] = save[0]; v[7] = save[1]; v[8] = save[2]; }   // (from between the shoulders)
     _rgD.set(v[12], v[13], v[14]).sub(_rgP).applyQuaternion(_rgQi).divideScalar(s); m.head.position.set(_rgD.x, _rgD.y - ZHIP, _rgD.z);
   }
   r.gy = g.position.y; r.x = _rgH.x; r.z = _rgH.z;
