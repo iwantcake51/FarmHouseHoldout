@@ -16,6 +16,7 @@
   "world/fence.js",
   "world/trees.js",
   "world/collision.js",
+  "world/wind.js",
   "world/atmosphere.js",
   "zombies/pathfinding.js",
   "characters/rig.js",

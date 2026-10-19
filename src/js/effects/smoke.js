@@ -5,9 +5,11 @@
 const smokes = [];
 for (let k = 0; k < 120; k++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_SMOKE, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; m.renderOrder = 2; scene.add(m); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
 let smIdx = 0;
-// SMOKE_MOVE: how quickly it's slowed by the air (drag), how fast it rises as it cools (rise), how far the breeze
-// carries it (wind, metres a second, and its wander) and how sharply it swells at first (swell)
-const SMOKE_MOVE = { drag: 3.4, rise: 0.32, wind: [0.16, 0.06], wander: 0.12, swell: 2.6 };
+// SMOKE_MOVE: how quickly the air takes it over (drag: it slows to the wind's speed, not to a stop), how fast it rises
+// as it cools (rise, flattened in a strong wind), how much of the wind's speed it takes (wind: world/wind.js), how it
+// wanders about it, and how sharply it swells at first (swell)
+const SMOKE_MOVE = { drag: 3.4, rise: 0.32, wind: 1, wander: 0.12, swell: 2.6 };
+const _smw = { x: 0, z: 0 };
 function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint) {
   const p = smokes[smIdx = (smIdx + 1) % smokes.length], m = p.m.material, tex = pick(TEX_SMOKES);
   if (m.map !== tex) m.map = tex;
@@ -19,11 +21,12 @@ function stepSmoke(dt) {
   for (const p of smokes) {
     if (p.life <= 0) continue; p.life -= dt; if (p.life <= 0) { p.m.visible = false; continue; }
     const k = 1 - p.life / p.max, drag = Math.exp(-dt * SMOKE_MOVE.drag), age = p.max - p.life, M = SMOKE_MOVE;
-    p.vx *= drag; p.vz *= drag; p.vy = p.vy * drag + dt * M.rise;
-    // once it's lost the push it came out with, the breeze takes it, wandering a little
-    const w = Math.min(1, age * 1.5);
-    p.m.position.x += (p.vx + w * (M.wind[0] + Math.sin(age * 1.7 + p.ph) * M.wander)) * dt; p.m.position.y += p.vy * dt;
-    p.m.position.z += (p.vz + w * (M.wind[1] + Math.cos(age * 1.3 + p.ph) * M.wander)) * dt;
+    // the air slows the push it came out with down to the wind's own speed, so it's carried off with it, gusts and all
+    windAt(p.m.position.x, p.m.position.z, _smw);
+    p.vx = _smw.x * M.wind + (p.vx - _smw.x * M.wind) * drag; p.vz = _smw.z * M.wind + (p.vz - _smw.z * M.wind) * drag;
+    p.vy = p.vy * drag + dt * M.rise * (1 - 0.5 * WX.str);
+    p.m.position.x += (p.vx + Math.sin(age * 1.7 + p.ph) * M.wander) * dt; p.m.position.y += p.vy * dt;
+    p.m.position.z += (p.vz + Math.cos(age * 1.3 + p.ph) * M.wander) * dt;
     const sc = p.s0 + (p.s1 - p.s0) * (1 - Math.pow(1 - k, M.swell)); p.m.scale.set(sc, sc, 1);
     p.m.material.rotation += p.spin * dt * (1 - k * 0.7);
     smokeLight(p.m.material.color.setHex(p.tint), p.m.position);

@@ -9,24 +9,24 @@
 const TEX_DIRT = partSet('dirt1', 'dirt2', 'dirt3'), TEX_FLAMES = partSet('flame1', 'flame2', 'flame3', 'flame4', 'flame5', 'flame6'), TEX_FIRE = partSet('fire1', 'fire2');
 const TEX_TRACE = partSet('trace1', 'trace2', 'trace6', 'trace7'), TEX_BURST = partSet('burst1', 'burst2'), TEX_DOT = [partTex('dot')], TEX_GLOWS = [partTex('glowSoft')];
 const FXK = {
-  dust: { tex: TEX_SMOKES, col: 0x9c8a70, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 3.2, rise: 0.22, fin: 0.1, fade: 1.5 },
-  smoke: { tex: TEX_SMOKES, col: 0x4a4642, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 2.2, rise: 0.6, fin: 0.14, fade: 1.3 },
-  mist: { tex: TEX_SMOKES, col: 0x7a140e, lit: true, gain: SMOKE_GAIN, grav: 1.2, drag: 4, rise: 0, fin: 0.08, fade: 1.6 },
+  dust: { tex: TEX_SMOKES, col: 0x9c8a70, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 3.2, rise: 0.22, fin: 0.1, fade: 1.5, wind: 1 },
+  smoke: { tex: TEX_SMOKES, col: 0x4a4642, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 2.2, rise: 0.6, fin: 0.14, fade: 1.3, wind: 1 },
+  mist: { tex: TEX_SMOKES, col: 0x7a140e, lit: true, gain: SMOKE_GAIN, grav: 1.2, drag: 4, rise: 0, fin: 0.08, fade: 1.6, wind: 0.5 },
   // a head burst into a cloud of blood (zombies/damage.js: crushHead): a brighter red that hangs, darkening as it settles
-  redMist: { tex: TEX_SMOKES, col: 0xb8221a, col2: 0x5e100a, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4 },
+  redMist: { tex: TEX_SMOKES, col: 0xb8221a, col2: 0x5e100a, lit: true, gain: SMOKE_GAIN, grav: 0.35, drag: 3.2, rise: 0, fin: 0.06, fade: 1.4, wind: 0.6 },
   // a spray of fine drops thrown off a hit, flung out and gone in a moment (the drops that land are effects/particles.js)
-  spray: { tex: TEX_DIRT, col: 0x6e0f0a, lit: true, gain: 1.25, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8 },
+  spray: { tex: TEX_DIRT, col: 0x6e0f0a, lit: true, gain: 1.25, grav: 2, drag: 7, rise: 0, fin: 0.04, fade: 1.8, wind: 0.1 },
   // grit and splinters thrown off a wall or the ground by a round or a blast
-  debris: { tex: TEX_DIRT, col: 0x8a7860, lit: true, gain: 1.2, grav: 3, drag: 5, rise: 0, fin: 0.04, fade: 1.6 },
+  debris: { tex: TEX_DIRT, col: 0x8a7860, lit: true, gain: 1.2, grav: 3, drag: 5, rise: 0, fin: 0.04, fade: 1.6, wind: 0.08 },
   spark: { tex: TEX_TRACE, add: true, col: 0xffc878, boost: 1.3, grav: 9, drag: 1.6, rise: 0, streak: true, fin: 0.05, fade: 1.6 },
   // the bright burst where a round strikes something hard
   flash: { tex: TEX_BURST, add: true, col: 0xffc070, boost: 1.3, grav: 0, drag: 0, rise: 0, fin: 0.02, fade: 1 },
   // a soft bloom of light (round a flash, a fire)
   glow: { tex: TEX_GLOWS, add: true, col: 0xff9a40, grav: 0, drag: 0, rise: 0, fin: 0.05, fade: 1.2 },
-  ember: { tex: TEX_DOT, add: true, col: 0xff8a32, col2: 0xb8300a, boost: 1.4, grav: -0.6, drag: 1.5, rise: 0, fin: 0.05, fade: 1.2 },
-  flame: { tex: TEX_FLAMES, add: true, col: 0xffa040, col2: 0xc02c08, boost: 1.5, grav: -3.2, drag: 2.4, rise: 0, upright: true, fin: 0.12, fade: 1.4 },
+  ember: { tex: TEX_DOT, add: true, col: 0xff8a32, col2: 0xb8300a, boost: 1.4, grav: -0.6, drag: 1.5, rise: 0, fin: 0.05, fade: 1.2, wind: 0.9 },
+  flame: { tex: TEX_FLAMES, add: true, col: 0xffa040, col2: 0xc02c08, boost: 1.5, grav: -3.2, drag: 2.4, rise: 0, upright: true, fin: 0.12, fade: 1.4, wind: 0.45 },
   // a ball of fire rolling up out of a blast or a dragon's breath shell, cooling from yellow-white to a dull red
-  fireball: { tex: TEX_FIRE, add: true, col: 0xffb050, col2: 0x7a1a04, boost: 1.05, grav: -1.4, drag: 3, rise: 0, fin: 0.04, fade: 1.3 },
+  fireball: { tex: TEX_FIRE, add: true, col: 0xffb050, col2: 0x7a1a04, boost: 1.05, grav: -1.4, drag: 3, rise: 0, fin: 0.04, fade: 1.3, wind: 0.3 },
   // a burning magnesium pellet from a dragon's breath shell: a white-hot streak that cools to orange as it arcs down,
   // and burns a moment where it lands
   dragon: { tex: TEX_TRACE, add: true, col: 0xfff4c8, col2: 0xff5410, boost: 1.6, grav: 3.2, drag: 0.9, rise: 0, streak: true, fin: 0.03, fade: 0.7 },
@@ -137,13 +137,17 @@ function blastFx(x, z, r, small) {
   groundDust(x, z, 2.4 * k, 0, 0); cubeBurst(x, 0.15, z, Math.round(12 * k), 'dust', 0, 0, 5 * k, 0.6);
   for (let n = 0, c = Math.round(12 * k) + 1; n < c; n++) fx('smoke', x + rr(-0.5, 0.5) * k, rr(0.3, 1.1), z + rr(-0.5, 0.5) * k, rr(-0.7, 0.7), rr(0.7, 1.8) * k, rr(-0.7, 0.7), rr(0.5, 0.8) * k, rr(2.2, 3.4) * k + 0.4, rr(3, 4.5), rr(0.75, 0.9));
 }
+const _fw = { x: 0, z: 0 };
 function stepFx(dt) {
   if (dt <= 0) return;
   for (const p of fxs) {
     if (p.life <= 0) continue; p.life -= dt;
     const s = p.s, m = s.material; if (p.life <= 0) { s.visible = false; continue; }
     const K = FXK[p.kind], k = 1 - p.life / p.max, dr = Math.exp(-dt * K.drag);
-    p.vx *= dr; p.vz *= dr; p.vy = p.vy * dr - K.grav * dt + K.rise * dt;
+    // the air slows it to the wind's speed (wind: how much of it a kind takes up; world/wind.js), not to a stop
+    if (K.wind) { windAt(s.position.x, s.position.z, _fw); const ax = _fw.x * K.wind, az = _fw.z * K.wind; p.vx = ax + (p.vx - ax) * dr; p.vz = az + (p.vz - az) * dr; }
+    else { p.vx *= dr; p.vz *= dr; }
+    p.vy = p.vy * dr - K.grav * dt + K.rise * dt;
     // burning pellets, flame and sparks stop at a wall (and die there) rather than going through it
     if ((p.kind === 'dragon' || p.kind === 'flame' || p.kind === 'fireball' || p.kind === 'spark') && s.position.y < 2.4 && bulletBlocked(s.position.x + p.vx * dt, s.position.z + p.vz * dt)) { p.vx = p.vz = 0; p.life = Math.min(p.life, 0.05); }
     s.position.x += p.vx * dt; s.position.y += p.vy * dt; s.position.z += p.vz * dt;

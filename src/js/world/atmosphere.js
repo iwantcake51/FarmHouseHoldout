@@ -53,9 +53,10 @@ for (let k = 0; k < 14; k++) {
 }
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
+const _aw = { x: 0, z: 0 };
 function stepAtmos(realDt) {
   const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
-  WIND.value = t * 1.6;
+  stepWind(rdt);   // which way the wind blows and how hard (world/wind.js)
   updatePushers();   // the grass and bushes parting round you and the zombies near you (world/trees.js)
   const tb = titleBlend();
   measureView();
@@ -63,7 +64,8 @@ function stepAtmos(realDt) {
   if (motes.m.opacity > 0.01) {
     const W = MOTE_W, ease = Math.min(1, realDt * 1.5);
     for (let k = 0; k < motes.MAX; k++) {
-      const q = motes.seed[k]; q.x += (0.25 + Math.sin(t * 0.3 + q.p) * 0.15) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * 0.05 * rdt; q.z += Math.cos(t * 0.4 + q.p) * 0.12 * rdt;
+      const q = motes.seed[k]; windAt(q.x, q.z, _aw);   // carried on the wind, wandering about it
+      q.x += (_aw.x * 0.8 + Math.sin(t * 0.3 + q.p) * 0.12) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * (0.05 + 0.1 * WX.str) * rdt; q.z += (_aw.z * 0.8 + Math.cos(t * 0.4 + q.p) * 0.12) * rdt;
       // wrap round the field, out of sight past the edge of the view; one that wrapped fades back in, in case the view jumped
       const rx = q.x - camTarget.x, rz = q.z - camTarget.z;
       if (Math.abs(rx) > W || Math.abs(rz) > W) { q.x = camTarget.x + ((rx % (2 * W)) + 3 * W) % (2 * W) - W; q.z = camTarget.z + ((rz % (2 * W)) + 3 * W) % (2 * W) - W; q.a = 0; }
@@ -74,7 +76,7 @@ function stepAtmos(realDt) {
     motes.pts.geometry.attributes.position.needsUpdate = motes.pts.geometry.attributes.color.needsUpdate = true;
   }
   LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
-  LMU.uCloud.value.x += rdt * 0.0042; LMU.uCloud.value.y += rdt * 0.0017;
+  { const cs = (0.4 + 2.5 * WX.str) * 0.022; LMU.uCloud.value.x -= rdt * cs * WX.x; LMU.uCloud.value.y -= rdt * cs * WX.z; }   // the clouds' shade sails over with the wind (0.022: the shade's scale, core/shaders.js), quicker up there than down here
   LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
@@ -83,7 +85,7 @@ function stepAtmos(realDt) {
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
   for (const sp of roadFog) {
-    const u = sp.userData; sp.position.x += u.vx * rdt;
+    const u = sp.userData; sp.position.x += (u.vx * (1 - WX.str * 0.6) + WX.x * (0.2 + 1.2 * WX.str)) * rdt;   // drifting along the road, pushed by the wind's pull along it
     const wx = viewExt.x + 7;   // wrapped and placed out past the edge of the view, with room for the bank's own size
     u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(24, 44); placeRoadFog(sp, camTarget.x + rr(-wx, wx)); }
     if (sp.position.x - camTarget.x > wx) sp.position.x -= 2 * wx; if (sp.position.x - camTarget.x < -wx) sp.position.x += 2 * wx;
@@ -92,7 +94,7 @@ function stepAtmos(realDt) {
     sp.visible = sp.material.opacity > 0.005;
   }
   for (const sp of mists) {
-    const u = sp.userData; sp.position.x += u.vx * rdt; sp.position.z += u.vz * rdt;
+    const u = sp.userData, wv = 0.12 + 0.8 * WX.str; sp.position.x += (u.vx * 0.4 + WX.x * wv) * rdt; sp.position.z += (u.vz + WX.z * wv) * rdt;   // creeping along on the wind
     // each patch lives a while: it thickens out of nothing, hangs, thins away, and comes back somewhere else
     const wx = viewExt.x + 6, wz = viewExt.z + 6;   // wrapped out past the edge of the view, with room for the patch's own size
     u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(18, 34); sp.position.set(camTarget.x + rr(-wx, wx), rr(0.25, 0.6), camTarget.z + rr(-wz, wz)); }
