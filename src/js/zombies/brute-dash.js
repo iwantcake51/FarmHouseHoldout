@@ -133,7 +133,7 @@ function dashWallFx(z, d) {
 // a second and concussed
 function dashHit(z, dx, dz) {
   const sx = P.x - z.x, sz = P.z - z.z, side = Math.sign(sx * dz - sz * dx) || 1;
-  P.hitFrom = z.face; hitFromAt(z.x, z.z); interruptBandage(); zHitMe = true;
+  P.hitFrom = z.face; hitFromAt(z.x, z.z, 2.2); interruptBandage(); zHitMe = true;
   P.hp -= BDASH.dmg * waveDmg() * S.dmgTaken;
   P.kbx = (dx * 0.85 + dz * side * 0.5) * BDASH.kb; P.kbz = (dz * 0.85 - dx * side * 0.5) * BDASH.kb;
   P.conc = 1; P.stun = BDASH.stun; P.slow = Math.min(1, P.slow + 0.7); P.sprint = false; P.runUp = 0;

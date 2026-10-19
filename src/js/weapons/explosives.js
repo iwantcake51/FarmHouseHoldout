@@ -29,7 +29,7 @@ function explode(x, z, r, dmg, self, remote, small) {
     });
     zb.gib = false;
   }
-  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hitFromAt(x, z); interruptBandage(); } }
+  if (self) { const d = Math.hypot(P.x - x, P.z - z); if (d < r * 0.8) { P.hp -= 25 * (1 - d / r) * S.dmgTaken; hitFromAt(x, z, 1.5); interruptBandage(); } }
 }
 EFF.boom = { dmg: 100, kick: 6 };
 EFF.fire = {};

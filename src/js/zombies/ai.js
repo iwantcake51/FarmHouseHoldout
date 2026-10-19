@@ -187,7 +187,7 @@ function updateZombies(dt) {
 let zHitMe = false;
 function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
-  P.hitFrom = z.face; hitFromAt(z.x, z.z);
+  P.hitFrom = z.face; hitFromAt(z.x, z.z, z.T.dmg * armMul * (z.crawl ? 0.25 : 1) / 25);
   P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg(); zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
   // tilt the view toward whoever hit you
   const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);

@@ -88,20 +88,22 @@
 #conc{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,250,235,.55),rgba(255,240,215,.2) 50%,rgba(40,30,25,.55) 100%);opacity:0}
 #conc.on{animation:concFx 2.8s ease-out}
 @keyframes concFx{0%{opacity:1}12%{opacity:.75}100%{opacity:0}}
-#hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(140,14,8,.6) 100%);opacity:0}
+#hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 62%,rgba(170,22,12,.42) 100%);opacity:0}
 /* getting hit (ui/hud.js hitFromAt): red from the side the blow came from, kept off the middle of the screen */
 #hitVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;--hx:50%;--hy:100%;
   background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
   -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
-#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 76% at center,transparent 40%,rgba(170,6,2,.5) 64%,rgba(90,0,0,.95) 100%),radial-gradient(ellipse 78% 74% at center,transparent 50%,rgba(20,0,0,.55) 100%)}
+#bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 82% 78% at center,transparent 50%,rgba(180,12,6,.32) 70%,rgba(130,4,2,.7) 100%),radial-gradient(ellipse 80% 76% at center,transparent 62%,rgba(40,0,0,.22) 100%)}
+/* blood on the screen (ui/screen-blood.js): splats from a hit and drops while you bleed, drawn at half size and scaled up */
+#scrBlood{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 #vitals.bleed #hpTxt{color:color-mix(in srgb,#ff3a26 calc(var(--bp,0) * 100%),var(--ink))}
 #vitals.bleed .bar{box-shadow:0 0 calc(var(--bp,0) * 12px) rgba(224,40,24,.8)}
 #vitals.bleed #hpFill::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#ff4a32,#c81e12);box-shadow:0 0 8px rgba(255,60,40,.7);opacity:var(--bp,0)}
 .mood.bleed{color:color-mix(in srgb,#ff5a40 calc(var(--bp,0) * 100%),var(--ink))}
 .mood.bleed i{box-shadow:inset 0 0 0 2px rgba(0,0,0,.35),0 0 calc(var(--bp,0) * 14px) rgba(230,40,24,.9);background:color-mix(in srgb,rgba(150,12,6,.85) calc(var(--bp,0) * 100%),rgba(10,12,13,.7))}
-/* near death: a red wash over the drained world, stronger toward the edges; it tints without darkening */
-#lowTint{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(190,24,12,.14) 30%,rgba(190,24,12,.3) 100%);mix-blend-mode:screen;transition:opacity .4s}
+/* near death: the faintest warm red at the very edges of the greyed-out world; it tints without darkening */
+#lowTint{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,30,16,.16) 100%);mix-blend-mode:screen;transition:opacity .4s}
 /* the start of a run (game/intro.js): the screen lifts out of the dark, then the HUD slides in a piece at a time */
 #introVeil{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse 70% 65% at center,rgba(12,8,6,.55),#0b0807 100%)}
 body.intro #introVeil{animation:introVeil 1.5s cubic-bezier(.3,.1,.3,1) both}

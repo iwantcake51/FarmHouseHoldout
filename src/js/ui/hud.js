@@ -26,16 +26,17 @@ function updateHUD(rdt, D) {
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
-    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
+    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
     { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
-    // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
-    const grey = spec ? 0.4 : Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
-    { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
+    // the world drains to grey as you bleed out (LOW_HP: from what health it starts and where it's all grey), lifted
+    // brighter as it goes so you can still see what's coming, with only a touch of red at the very edges
+    const grey = spec ? 0.4 : Math.round(clamp((LOW_HP.grey[0] - hpF) / (LOW_HP.grey[0] - LOW_HP.grey[1]), 0, 1) * 50) / 50;
+    { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * LOW_HP.red * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, fk = grey + ':' + blur + ':' + slow;
     if (cache.grey !== fk) {
       cache.grey = fk;
-      cv.style.filter = (grey ? `grayscale(${(grey * 0.85).toFixed(2)}) contrast(${(1 + grey * 0.08).toFixed(2)}) brightness(${(1 + grey * 0.1).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
+      cv.style.filter = (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
       $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
@@ -109,14 +110,19 @@ function roundSwitched(id) {
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
 let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+// low health: the health it starts going grey at and is fully grey by, how much brighter it's lifted when fully grey,
+// how much of the red edge is left, and the faint pulse at the edges under a third health
+const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] };
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
-function hitFromAt(x, z) {
+// (amount: how hard the blow, for how much blood it throws on the screen; 1 a zombie's swipe)
+function hitFromAt(x, z, amount) {
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
-  if (l < 2) { hurtFx = 1; heartStartle(); return; }
-  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig');
-  el.style.setProperty('--hx', ((w + dx / l * t) / innerWidth * 100).toFixed(1) + '%'); el.style.setProperty('--hy', ((h + dy / l * t) / innerHeight * 100).toFixed(1) + '%');
+  if (l < 2) { hurtFx = 1; heartStartle(); const a = Math.random() * 6.28; screenBlood(0.5 + Math.cos(a) * 0.45, 0.5 + Math.sin(a) * 0.45, amount); return; }
+  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;
+  el.style.setProperty('--hx', (hx * 100).toFixed(1) + '%'); el.style.setProperty('--hy', (hy * 100).toFixed(1) + '%');
   hitVigUp = true; heartStartle();
+  screenBlood(clamp(0.5 + (hx - 0.5) * 0.85, 0, 1), clamp(0.5 + (hy - 0.5) * 0.85, 0, 1), amount);   // splats on that side (ui/screen-blood.js)
 }
 // the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
 // health number, health bar and Bleeding icon throb with it
@@ -126,7 +132,8 @@ function damageVignettes(rdt) {
   const bleeding = P.bleed > 0 && !P.dead;
   if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
   bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
-  bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1;
+  { const was = bleedPh; bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1; if (bleeding && bleedPh < was && Math.random() < 0.7) screenBleedDrop(); }   // a drop on the screen with most beats
+  stepScreenBlood(rdt);
   const beat = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
