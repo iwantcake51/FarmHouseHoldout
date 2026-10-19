@@ -4,7 +4,7 @@
 const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m;
 // moths that circle the lamps and the fire after dark
 const moths = (() => {
-  const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], [cxw(14), 1.4, cxw(16)]];   // outdoor lights only
+  const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], BURN_BARREL.moths];   // outdoor lights only (the barrel's moves each run: world/yard.js)
   const seed = [];
   // a few round each light, not a swarm
   centres.forEach((c, i) => { const n = i === 1 ? 6 : 4; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });

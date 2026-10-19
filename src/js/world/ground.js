@@ -11,10 +11,12 @@ const onRoad = (x, z, m) => Math.abs(z - ROAD.z) < ROAD.w / 2 + 0.8 + m || (z > 
 // faded in and out of each other by Perlin noise in the shader (GROUND_FS), so it's sharp however close you zoom and
 // never repeats. Where it's bare earth rather than grass is painted into a mask that runs out past the farm's edge to
 // the road (GROUND_SPAN metres across, centred on the farm): red the trodden earth (the yard round the house, the paths
-// to the fence gaps and the drive), green the drive's wheel ruts, blue how much of that earth is the drive's brown dirt
-const GROUND_SPAN = 104;
-function groundMask() {
-  const S2 = 2048, c = document.createElement('canvas'); c.width = c.height = S2; const x = c.getContext('2d');
+// to the fence gaps and the drive), green the drive's wheel ruts, blue how much of that earth is the drive's brown dirt.
+// It's painted again each run, for the paths out to where the fence gaps are this time (paths: each from x, z to x, z;
+// world/yard.js), into the same texture (GROUND_MASK)
+const GROUND_SPAN = 104, GROUND_MASK = { c: null, t: null };
+function groundMask(paths) {
+  const S2 = 2048, c = GROUND_MASK.c || (GROUND_MASK.c = document.createElement('canvas')); c.width = c.height = S2; const x = c.getContext('2d');
   const px = v => (v + GROUND_SPAN / 2) / GROUND_SPAN * S2, pm = m => m / GROUND_SPAN * S2;
   x.fillStyle = '#000'; x.fillRect(0, 0, S2, S2);
   x.globalCompositeOperation = 'lighter';   // (each channel adds up on its own)
@@ -25,8 +27,9 @@ function groundMask() {
   x.strokeStyle = 'rgba(0,255,0,.6)'; x.lineWidth = pm(0.26);
   [-0.6, 0.6].forEach(o => { x.beginPath(); for (let z = cxw(HZ1) + 2; z <= ROAD.z - ROAD.w / 2 + 0.3; z += 0.25) x.lineTo(px(ROAD.x(z) + o), px(z)); x.stroke(); });
   // trampled paths to the fence gaps
-  [[cxw(21), cxw(HZ0) - 1, cxw(21.5), cxw(11)], [cxw(HX0) - 1, cxw(21), cxw(10), cxw(21.5)], [cxw(HX1) + 1, cxw(22), cxw(33), cxw(21.5)]].forEach(([a, b, c2, d]) => { for (let t = 0; t <= 1; t += 0.03) blot(px(a + (c2 - a) * t + rr(-.3, .3)), px(b + (d - b) * t + rr(-.3, .3)), pm(rr(0.35, 0.7)), '255,0,0', 0.3); });
-  const t = new THREE.CanvasTexture(c); t.flipY = false; t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;   // (row by row along z, as drawn)
+  (paths || []).forEach(([a, b, c2, d]) => { for (let t = 0; t <= 1; t += 0.03) blot(px(a + (c2 - a) * t + rr(-.3, .3)), px(b + (d - b) * t + rr(-.3, .3)), pm(rr(0.35, 0.7)), '255,0,0', 0.3); });
+  if (GROUND_MASK.t) { GROUND_MASK.t.needsUpdate = true; return GROUND_MASK.t; }
+  const t = GROUND_MASK.t = new THREE.CanvasTexture(c); t.flipY = false; t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;   // (row by row along z, as drawn)
 }
 // the ground's textures, each tiled over the ground at its own size (metres a tile), and how soft they're drawn
 // (GROUND_BLUR: 1 as sharp as the screen allows, 2 a mip level softer)

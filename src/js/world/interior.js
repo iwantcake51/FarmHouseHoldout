@@ -453,6 +453,7 @@ function breakDoor(d, z) {
 // round the house and what you can see are all worked out again for it
 function houseLayout(seed, live) {
   const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
+  yardLayout(rnd, live);   // (the yard round it first: what's outside a window decides whether one can go there, world/yard.js)
   // its rooms (what each is, and which cells are in which), and the furniture placed in them (world/furniture.js);
   // a plan the furniture won't all go into is passed over for the next
   const roomsOf = (W, doors) => { const rooms = planRooms(W, doors); ro.fill(-1); rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; })); return { rooms, kinds: rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed') }; };

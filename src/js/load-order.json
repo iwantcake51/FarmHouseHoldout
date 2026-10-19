@@ -23,6 +23,7 @@
   "world/collision.js",
   "world/wind.js",
   "world/atmosphere.js",
+  "world/yard.js",
   "zombies/pathfinding.js",
   "characters/rig.js",
   "player/player.js",

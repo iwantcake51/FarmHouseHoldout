@@ -114,18 +114,30 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   box(cal, 0.014, 0.05, 0.05, HM.inkR, xW + 0.009, 1.42, cxw(22.2) + 0.05).rotation.x = 0.785;
   for (const d of WALL_DECOR) { unfight(d.g); mergeInto(d.g, finePieces(d.g)); }
 }
-function car(i0, j0, along) {
+// the yard's props (the cars, crates, hay bales and the burn barrel), built here and set out round the yard afresh each
+// run (world/yard.js): what each is, its model, its footprint in cells (w across x and d along z, as it's built),
+// whether you see and shoot over it, how it's stood on a spot (put: its first cell, turned q quarters) and the cells
+// it's on (at)
+const YARD_PROPS = [];
+const yardProp = (kind, g, w, d, low, put) => { const p = { kind, g, w, d, low, put, at: [] }; YARD_PROPS.push(p); return p; };
+// a prop's cells with its first at (i, j), turned q quarters
+const yardCells = (p, i, j, q) => { const odd = q & 1, w = odd ? p.d : p.w, d = odd ? p.w : p.d, out = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) out.push([i + a, j + b]); return out; };
+// set down there, on the grid (live: in a game, so what stops shots is kept up too: world/collision.js)
+function yardSet(p, i, j, q, live) {
+  p.at = yardCells(p, i, j, q); p.put(i, j, q); if (!p.home) p.home = [i, j, q];
+  for (const [a, b] of p.at) { obstacle(a, b, p.low); if (live) blockArr[idx(a, b)] = p.low ? 0 : 1; }
+}
+function car(i0, j0, q) {
   const g = new THREE.Group(); scene.add(g);
-  const w = along === 'z' ? 2 : 4, d = along === 'z' ? 4 : 2;
-  g.position.set(cxw(i0) - 0.5 + w / 2, 0, cxw(j0) - 0.5 + d / 2); g.rotation.y = along === 'z' ? 0 : Math.PI / 2 + 0.06;
   box(g, 1.75, 0.7, 3.8, M.rust, 0, 0.6, 0); box(g, 1.55, 0.55, 1.9, M.rust2, 0, 1.22, -0.2); box(g, 1.58, 0.42, 1.7, M.glass, 0, 1.24, -0.2);
   box(g, 1.8, 0.12, 0.2, M.metal, 0, 0.42, 1.92); box(g, 1.8, 0.12, 0.2, M.metal, 0, 0.42, -1.92);
   [[-.85, 1.2], [.85, 1.2], [-.85, -1.25], [.85, -1.25]].forEach(([a, b]) => box(g, 0.25, 0.55, 0.55, M.tire, a, 0.28, b));
-  for (let i = i0; i < i0 + w; i++) for (let j = j0; j < j0 + d; j++) obstacle(i, j);
+  // (its length along z, as built: a quarter turn lays it across x, and a car's a little off square where it was left)
+  yardSet(yardProp('car', g, 2, 4, false, (i, j, q) => { const odd = q & 1; g.position.set(cxw(i) - 0.5 + (odd ? 2 : 1), 0, cxw(j) - 0.5 + (odd ? 1 : 2)); g.rotation.y = q * Math.PI / 2 + rr(-0.07, 0.07); }), i0, j0, q);
 }
-car(8, 29, 'z');
-car(32, 9, 'x');
-function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45, cxw(j)); c.rotation.y = rr(-.2, .2); box(c, 0.92, 0.08, 0.92, M.wood, 0, 0.3, 0); box(c, 0.92, 0.08, 0.92, M.wood, 0, -0.3, 0); obstacle(i, j, true); }
+car(8, 29, 0);
+car(32, 9, 1);
+function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45, cxw(j)); box(c, 0.92, 0.08, 0.92, M.wood, 0, 0.3, 0); box(c, 0.92, 0.08, 0.92, M.wood, 0, -0.3, 0); yardSet(yardProp('crate', c, 1, 1, true, (a, b) => { c.position.set(cxw(a), 0.45, cxw(b)); c.rotation.y = rr(-.2, .2); }), i, j, 0); }
 [[12, 14], [13, 14], [12, 15], [31, 31], [6, 21], [35, 24], [36, 24]].forEach(p => crate(...p));
 // the round hay bales: straw from the SBS packs (tools/pack-ground.py) rolled round the side, and wound into a spiral on
 // each flat end; side and ends each lit (core/shaders.js) and sharing the textures
@@ -134,18 +146,20 @@ const HAY_M = (() => {
   const end = lam(0xffffff, { map: tex('hayEnd') });
   return [lam(0xffffff, { map: tex('hay', 3) }), end, end];   // (side, top, bottom: CylinderGeometry's groups)
 })();
-function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1, 18), HAY_M); m.rotation.z = Math.PI / 2; m.rotation.y = rr(-.4, .4); m.position.set(cxw(i), 0.48, cxw(j)); m.castShadow = m.receiveShadow = true; scene.add(m); obstacle(i, j, true); }
+function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1, 18), HAY_M); m.rotation.z = Math.PI / 2; m.castShadow = m.receiveShadow = true; scene.add(m); yardSet(yardProp('hay', m, 1, 1, true, (a, b, q) => { m.position.set(cxw(a), 0.48, cxw(b)); m.rotation.y = rr(-.4, .4) + (q & 1) * Math.PI / 2; }), i, j, 0); }
 [[28, 34], [29, 34], [14, 8], [26, 10]].forEach(p => hay(...p));
 // the burn barrel: its fire is particles (barrelFire, effects/puffs.js) over a bed of glowing coals and charred logs
 // inside the rim, which flicker with the light it throws (lighting/lightmap.js). BURN_BARREL: where its mouth is, how wide
-const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff7a24), ember: basic(0x9a2a0c) };
+// (and where its moths circle: world/atmosphere.js)
+const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff7a24), ember: basic(0x9a2a0c), moths: [cxw(14), 1.4, cxw(16)] };
 {
-  const g = new THREE.Group(); g.position.set(BURN_BARREL.x, 0, BURN_BARREL.z); scene.add(g);
+  const g = new THREE.Group(); scene.add(g);
   const b = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12, 1, true), M.barrel); b.position.y = 0.45; b.castShadow = true; g.add(b);
   const bed = new THREE.Mesh(new THREE.CircleGeometry(0.31, 14), BURN_BARREL.ember); bed.rotation.x = -Math.PI / 2; bed.position.y = 0.8; g.add(bed);
   for (let k = 0; k < 7; k++) { const a = k * 0.9 + rr(-0.2, 0.2), d = rr(0.04, 0.2), c = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.045, 0.075)), BURN_BARREL.coal); c.position.set(Math.sin(a) * d, 0.81, Math.cos(a) * d); c.rotation.set(rand() * 3, rand() * 3, 0); g.add(c); }
   [[0.5, 0.15], [2.3, -0.1], [4.1, 0.2]].forEach(([a, t]) => { const l = box(g, 0.07, 0.07, 0.42, M.tire, Math.sin(a) * 0.05, 0.88, Math.cos(a) * 0.05); l.rotation.set(0.5 + t, a, 0); });   // charred logs propped in the coals
-  obstacle(14, 16, true);   // waist high, like the crates: you see and shoot over it
+  // waist high, like the crates: you see and shoot over it
+  yardSet(yardProp('barrel', g, 1, 1, true, (a, b) => { const B = BURN_BARREL; B.x = B.moths[0] = cxw(a); B.z = B.moths[2] = cxw(b); g.position.set(B.x, 0, B.z); g.rotation.y = rr(0, 6.3); }), 14, 16, 0);
 }
 // ---- hanging bulbs in the house ----
 // the hanging lamps, one or two a room: where each hangs is laid out with the rooms each run (world/interior.js)
