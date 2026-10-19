@@ -446,6 +446,15 @@ function chamberCycle(id) {
   if (W8.held[id]) { c.q0 = c.bolt ? B.fwd - B.reach : B.fwd; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
   else if (W(id).detach) { const f = W(id).detach / (c.dur + c.delay); c.dur *= f; c.delay *= f; }
 }
+// how long racking a loaded gun takes (chamberCycle) till the round's home and it'll fire, on average over its ways
+// (the crosshair's reload ring counts it in: weapons/reload.js, relRingP)
+function chamberT(id) {
+  const bolt = EJECT[id] === 'bolt', list = RACKS[bolt ? 'bolt' : 'pump'], r = W(id).rate / S.rateMul;
+  return list.reduce((a, v) => {
+    const k = Math.min(1, r / (v.dur + v.delay) * 0.92), B = v.beat, q0 = bolt && W8.boltOpen ? B.fwd - B.reach : 0;
+    return a + (q0 ? 0 : 0.04) + (B.home - q0) * v.dur * k;
+  }, 0) / list.length;
+}
 function tickCycle(dt) {
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
