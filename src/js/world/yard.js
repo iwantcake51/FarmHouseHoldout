@@ -10,8 +10,8 @@
 //
 // YARD: how far a side gap stays from the corners, the chance a side gets a second and how far apart the two; how many
 // cells props keep from the house (more off the front, for the porch), from a fence gap and from a path; how far out past
-// the fence they go; and how many tries at a yard where everything can still be got to
-const YARD = { gapEnd: 3, second: 0.35, apart: 5, house: 2, porch: 3, gap: 2, path: 1, out: 5, tries: 80 };
+// the fence they go; how many clear cells between one prop (or stack of them) and the next; and how many tries at a yard where everything can still be got to
+const YARD = { gapEnd: 3, second: 0.35, apart: 5, house: 2, porch: 3, gap: 2, path: 1, out: 5, apartProps: 2, tries: 80 };
 // what goes where: each group's kind, the shape of its cells (before it's turned), and whether it stays inside the fence
 // or out past it
 const YARD_SETS = [
@@ -77,8 +77,12 @@ function yardLayout(rnd, live) {
         const i0 = (rnd() * N) | 0, j0 = (rnd() * N) | 0, q = (rnd() * 4) | 0, cs = [];
         // (the group's shape turned, each of its props on its own cell or, a car, its four by two)
         set.shape.forEach(([a, b], k) => { const [da, db] = quarter(a, b, q); cs.push(...yardCells(props[k], i0 + da, j0 + db, q).map(c => [...c, k])); });
+        // (on clear ground, with a clear ring round it: nothing solid against it, a fence, a tree, the house, and no
+        // other prop within YARD.apartProps cells, so props never run together into a wall across the way)
+        const own = (a, b) => cs.some(c => c[0] === a && c[1] === b), R = YARD.apartProps;
         const fits = cs.every(([i, j]) => inb(i, j) && cell[idx(i, j)] === EMPTY && !keep[idx(i, j)] && (!set.inside || inFence(i, j)) && (!set.outside || outFence(i, j)) &&
-          [-1, 0, 1].every(a => [-1, 0, 1].every(b => !inb(i + a, j + b) || !taken[idx(i + a, j + b)])));
+          [-1, 0, 1].every(a => [-1, 0, 1].every(b => !inb(i + a, j + b) || own(i + a, j + b) || cell[idx(i + a, j + b)] === EMPTY)) &&
+          [...Array(2 * R + 1).keys()].every(a => [...Array(2 * R + 1).keys()].every(b => !inb(i + a - R, j + b - R) || !taken[idx(i + a - R, j + b - R)])));
         if (!fits) continue;
         set.shape.forEach(([a, b], k) => { const [da, db] = quarter(a, b, q); put.push({ p: props[k], i: i0 + da, j: j0 + db, q }); });
         for (const [i, j] of cs) taken[idx(i, j)] = 1;
