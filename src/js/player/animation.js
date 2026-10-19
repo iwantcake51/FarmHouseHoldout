@@ -126,7 +126,7 @@ function vaultHands(pm, v) {
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
   });
 }
-// Keep firing and your face sets angry (faceAnger, player/look.js): shots close enough together (within ANGER_T.gap,
+// Keep firing and your face sets angry (faceMood, player/look.js): shots close enough together (within ANGER_T.gap,
 // or a third again the gun's own time between shots for a slow one) are one run of fire, and from the run's
 // ANGER_T.shots'th shot it comes in quickly; stop and it eases straight back off
 const ANGER_T = { gap: 0.2, shots: 3, rise: 12, fall: 9 };
@@ -139,7 +139,18 @@ function angerStep(rdt) {
   const want = !P.dead && ANIM.shotT < (ANIM.shotGap || ANGER_T.gap) && (ANIM.runShots || 0) >= ANGER_T.shots ? 1 : 0, a = ANIM.anger || 0;
   ANIM.anger = a + (want - a) * (1 - Math.exp(-rdt * (want > a ? ANGER_T.rise : ANGER_T.fall)));
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
-  faceAnger(LOOK.g.head, ANIM.anger);
+  worryStep(rdt);
+  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry);
+}
+// Pull the trigger on an empty gun and the click startles you (faceMood's w): the face jumps to it at once and holds
+// for WORRY_T.hold, every click starting the hold again, then eases back off over the next second or so
+const WORRY_T = { hold: 0.45, rise: 30, fall: 3.2 };
+function worryShot() { ANIM.worryT = WORRY_T.hold; }
+function worryStep(rdt) {
+  ANIM.worryT = Math.max(0, (ANIM.worryT || 0) - rdt);
+  const want = !P.dead && ANIM.worryT > 0 ? 1 : 0, w = ANIM.worry || 0;
+  ANIM.worry = w + (want - w) * (1 - Math.exp(-rdt * (want > w ? WORRY_T.rise : WORRY_T.fall)));
+  if (ANIM.worry < 0.002 && !want) ANIM.worry = 0;
 }
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
 function animatePlayer(dt, rdt) {

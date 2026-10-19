@@ -128,7 +128,7 @@ function akTriggers(dt, id, D, want) {
 function akShot(id, D, s) {
   if (akBusy(s)) return false;
   const m = akMags(id);
-  if (m[s] <= 0) { W8.akCd[s] = 0.25; if (semiAuto(id)) W8.akLock[s] = true; SFX.dry(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return false; }
+  if (m[s] <= 0) { W8.akCd[s] = 0.25; if (semiAuto(id)) W8.akLock[s] = true; SFX.dry(); worryShot(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return false; }
   m[s]--; W8.mag[id]--; W8.akSide = s === 'L' ? -1 : 1;
   // each gun at its own pace (two guns together fire as fast as D.rate), and a moment before the other can follow
   W8.akCd[s] = D.rate * 2 / S.rateMul; if (!W8.inBurst) W8.cd = D.rate * 0.6 / S.rateMul;
