@@ -31,7 +31,7 @@ function groundMask() {
 // the ground's textures, each tiled over the ground at its own size (metres a tile), and how soft they're drawn
 // (GROUND_BLUR: 1 as sharp as the screen allows, 2 a mip level softer)
 const GROUND_TEX = {}, GROUND_TILE = { grass: 2.6, patchy: 2.3, thin: 2.8, dry: 2.5, earth: 2.4, drive: 2.6 }, GROUND_BLUR = 2.2;
-for (const k in GROUND_TILE) {
+for (const k of [...Object.keys(GROUND_TILE), 'rock', 'rock2']) {
   const t = GROUND_TEX[k] = new THREE.TextureLoader().load(GROUND_ART[k]);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = R.capabilities.getMaxAnisotropy();
 }
@@ -39,11 +39,7 @@ for (const k in GROUND_TILE) {
 // each patch of ground (gPick), and where two patches meet their copies of the texture fade into each other (the
 // darker one wins first, so the seams follow its shapes), drawn with the gradients the plain tiling would have, turned
 // with it, so its mip level never jumps
-const GROUND_DECL = `
-uniform sampler2D uGMask;
-uniform sampler2D uGT[6];
-uniform float uGSpan;
-uniform float uGHalf;
+const GROUND_NOISE = `
 #if defined(texture2DGradEXT) || defined(GL_EXT_shader_texture_lod)
 #define G_TEX(s, x, dx, dy) texture2DGradEXT(s, x, dx, dy)
 #else
@@ -66,6 +62,12 @@ vec3 gTile(sampler2D s, vec2 x, vec2 dx, vec2 dy, float tl) {
   return mix(a, b, smoothstep(0.15, 0.85, f - 0.1 * dot(a - b, vec3(1.0))));
 }
 `;
+const GROUND_DECL = `
+uniform sampler2D uGMask;
+uniform sampler2D uGT[6];
+uniform float uGSpan;
+uniform float uGHalf;
+` + GROUND_NOISE;
 // the ground's colour at p: the four grasses faded in and out of each other on their own slow noise fields, bare earth
 // where the mask says (its edge broken up by finer noise) with the drive's brown dirt and ruts on it, the light and
 // dark of it drifting a little, and past the farm's edge darkening into the floor of the woods
@@ -108,6 +110,34 @@ function groundMat() {
   return m;
 }
 const GROUND_M = groundMat();
+// the rocks and stones round the map (world/trees.js) take the same treatment: two stone textures from the packs, laid
+// over each rock from the three sides it's seen from (triplanar, so nothing stretches down its flanks), faded into
+// each other by Perlin noise and tiled at random like the ground, as soft as it (GROUND_BLUR). They're a mid grey, so
+// they only add their grain to the rock's own colour and moss (in its vertices)
+const ROCK_TILE = 0.6;
+const ROCK_FS = `
+  {
+    vec3 rn = pow(abs(normalize(vWn)), vec3(4.0)); rn /= rn.x + rn.y + rn.z;
+    vec3 rp = vWp / ${ROCK_TILE.toFixed(2)};
+    float tl = gFbm(vWp.xz * 0.8 + vWp.y * 0.6 + 31.0) * 0.6 + 0.5, rw = smoothstep(-0.18, 0.18, gFbm(vWp.xz * 0.55 + vWp.y * 0.5 + 11.0));
+    vec2 pa = rp.yz, pb = rp.xz, pc = rp.xy;
+    vec2 ax = dFdx(pa) * ${GROUND_BLUR.toFixed(2)}, ay = dFdy(pa) * ${GROUND_BLUR.toFixed(2)}, bx = dFdx(pb) * ${GROUND_BLUR.toFixed(2)}, by = dFdy(pb) * ${GROUND_BLUR.toFixed(2)}, cx = dFdx(pc) * ${GROUND_BLUR.toFixed(2)}, cy = dFdy(pc) * ${GROUND_BLUR.toFixed(2)};
+    vec3 r0 = gTile(uGR[0], pa, ax, ay, tl) * rn.x + gTile(uGR[0], pb, bx, by, tl) * rn.y + gTile(uGR[0], pc, cx, cy, tl) * rn.z;
+    vec3 r1 = gTile(uGR[1], pa * 1.15 + 0.3, ax * 1.15, ay * 1.15, tl) * rn.x + gTile(uGR[1], pb * 1.15 + 0.3, bx * 1.15, by * 1.15, tl) * rn.y + gTile(uGR[1], pc * 1.15 + 0.3, cx * 1.15, cy * 1.15, tl) * rn.z;
+    diffuseColor.rgb *= mix(r0, r1, rw) * 2.0;
+  }`;
+function rockMat(m) {
+  const base = m.onBeforeCompile, baseKey = m.customProgramCacheKey;
+  m.extensions = { derivatives: true, shaderTextureLOD: true };
+  m.onBeforeCompile = function (sh, r) {
+    base.call(this || m, sh, r);
+    sh.uniforms.uGR = { value: [GROUND_TEX.rock, GROUND_TEX.rock2] };
+    sh.fragmentShader = 'uniform sampler2D uGR[2];\n' + GROUND_NOISE + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + ROCK_FS);
+  };
+  m.customProgramCacheKey = function () { return baseKey.call(this || m) + '-rock'; };
+  return m;
+}
+rockMat(M.rock);
 {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(N, N), GROUND_M); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
   const far = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), M.groundFar); far.rotation.x = -Math.PI / 2; far.position.y = -0.02; scene.add(far);

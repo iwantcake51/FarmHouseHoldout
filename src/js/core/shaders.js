@@ -10,6 +10,8 @@ const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmHalf: { valu
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
+  // the edge fog's own clock (seconds of world time, world/atmosphere.js): its banks churn and drift on this, never the wind
+  uFogT: { value: 0 },
   // the weapon lights, drawn here per pixel rather than baked into the light map (lighting/lightmap.js, flashUniforms):
   // up to FL_N beams (yours, two for an akimbo pair, and in co-op your teammates'), each one's origin and direction
   // (x, z, dx, dz) and its (reach, half-angle, strength, the angle its shadow rays are centred on); uFlK.w how many
@@ -55,7 +57,7 @@ float flCone(vec4 f, vec4 k, vec2 p, float row) {
   return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -115,15 +117,27 @@ const FRAG_BODY = `
     gl_FragColor.rgb *= 1.0 - uCloud.z * smoothstep(0.46, 0.72, cs) * (1.0 - inH);
   }`;
 // past the edge of the farm everything thins into the haze, so the woods go on into the distance instead of stopping.
-// Banks of thicker fog drift through out there too (the same slow drift as the cloud shade), over the woods and the
-// road, so the road is never quite clear and what comes in from out there comes out of the fog
+// The haze starts at a ragged line round the farm (a rounded square, pushed in and out by the fog's banks) and lies
+// low: thickest on the ground and thinning a few metres up, so the trunks go into it first and the treetops stand out
+// of it a while before they go too. Banks of thicker fog roll through out there, over the woods and the road, so the
+// road is never quite clear and what comes in from out there comes out of the fog. The banks are noise warped by more
+// noise, churning and creeping on their own slow clock (uFogT), not the wind's: fog this heavy hangs where it is
 const EDGE_BODY = `
   #ifdef USE_FOG
-  float edD = max(abs(vWp.x), abs(vWp.z));
-  vec2 fgQ = vWp.xz * 0.05 + uCloud.xy * 6.0;
-  float fgN = texture2D(uBloodNoise, fgQ).r * 0.6 + texture2D(uBloodNoise, fgQ * 2.1 + 0.37).r * 0.4;
-  float haze = smoothstep(uEdge.x, uEdge.y, edD) * 0.9 + smoothstep(uEdge.x, uEdge.x + 5.0, edD) * smoothstep(0.38, 0.72, fgN) * 0.5;
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 0.9, min(haze, 0.94));
+  vec2 edA = abs(vWp.xz) / uEdge.x;
+  float edD = pow(pow(edA.x, 8.0) + pow(edA.y, 8.0), 0.125) * uEdge.x;
+  if (edD > uEdge.x - 4.0) {
+    vec2 fgQ = vWp.xz * 0.021;
+    vec2 fgW = vec2(texture2D(uBloodNoise, fgQ * 0.63 + vec2(uFogT * 0.0021, 0.31)).r, texture2D(uBloodNoise, fgQ * 0.63 + vec2(0.57, -uFogT * 0.0017)).r) - 0.5;
+    vec2 fgP = fgQ + fgW * 0.9 + vec2(uFogT * 0.0009, -uFogT * 0.0007);
+    float fgN = texture2D(uBloodNoise, fgP).r * 0.62 + texture2D(uBloodNoise, fgP * 2.3 + 0.37 - uFogT * 0.0013).r * 0.38;
+    float fgS = uEdge.x + (0.5 - fgN) * 7.0;   // where the haze starts here
+    float fgLow = 1.0 - smoothstep(0.0, 3.5 + fgN * 4.0, vWp.y);
+    float haze = smoothstep(fgS, uEdge.y, edD) * mix(0.6, 1.0, fgLow)
+      + smoothstep(fgS - 2.0, fgS + 5.0, edD) * smoothstep(0.42, 0.75, fgN) * fgLow * 0.6;
+    haze = max(haze, smoothstep(uEdge.y, uEdge.y + 9.0, edD));   // and far out, everything
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor * 0.9, min(haze, 0.95));
+  }
   #endif`;
 const CUT_DECL = 'uniform float uCut;\nuniform vec2 uPScr;\nuniform float uRad;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const CUT_BODY = `
@@ -148,7 +162,7 @@ const TREE_BODY = `
 function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }

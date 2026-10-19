@@ -166,11 +166,15 @@ function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45
 [[12, 14], [13, 14], [12, 15], [31, 31], [6, 21], [35, 24], [36, 24]].forEach(p => crate(...p));
 function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1, 12), M.hay); m.rotation.z = Math.PI / 2; m.rotation.y = rr(-.4, .4); m.position.set(cxw(i), 0.48, cxw(j)); m.castShadow = m.receiveShadow = true; scene.add(m); obstacle(i, j, true); }
 [[28, 34], [29, 34], [14, 8], [26, 10]].forEach(p => hay(...p));
-const flames = [];
+// the burn barrel: its fire is particles (barrelFire, effects/puffs.js) over a bed of glowing coals and charred logs
+// inside the rim, which flicker with the light it throws (lighting/lightmap.js). BURN_BARREL: where its mouth is, how wide
+const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff7a24), ember: basic(0x9a2a0c) };
 {
-  const g = new THREE.Group(); g.position.set(cxw(14), 0, cxw(16)); scene.add(g);
+  const g = new THREE.Group(); g.position.set(BURN_BARREL.x, 0, BURN_BARREL.z); scene.add(g);
   const b = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12, 1, true), M.barrel); b.position.y = 0.45; b.castShadow = true; g.add(b);
-  [[0xff8a2a, 0.22, 0], [0xffc45a, 0.14, 0.05]].forEach(([c, r, o]) => { const f = new THREE.Mesh(new THREE.ConeGeometry(r, 0.6, 6), basic(c)); f.position.set(o, 1.1, -o); g.add(f); flames.push(f); });
+  const bed = new THREE.Mesh(new THREE.CircleGeometry(0.31, 14), BURN_BARREL.ember); bed.rotation.x = -Math.PI / 2; bed.position.y = 0.8; g.add(bed);
+  for (let k = 0; k < 7; k++) { const a = k * 0.9 + rr(-0.2, 0.2), d = rr(0.04, 0.2), c = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.045, 0.075)), BURN_BARREL.coal); c.position.set(Math.sin(a) * d, 0.81, Math.cos(a) * d); c.rotation.set(rand() * 3, rand() * 3, 0); g.add(c); }
+  [[0.5, 0.15], [2.3, -0.1], [4.1, 0.2]].forEach(([a, t]) => { const l = box(g, 0.07, 0.07, 0.42, M.tire, Math.sin(a) * 0.05, 0.88, Math.cos(a) * 0.05); l.rotation.set(0.5 + t, a, 0); });   // charred logs propped in the coals
   obstacle(14, 16, true);   // waist high, like the crates: you see and shoot over it
 }
 // ---- hanging bulbs in the house ----

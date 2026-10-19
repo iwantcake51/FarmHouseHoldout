@@ -2,13 +2,13 @@
 # Packs the ground textures out of the SBS Tiny Texture Packs in assets/textures (the .rar files, read as they come with
 # bsdtar or unar) into src/js/world/ground-art.js: each one graded part of the way toward the farm's muted colours (so
 # the ground keeps the look it had, with the packs' detail in it), as a JPEG in a data: URL (GROUND_ART, drawn by the
-# ground shader in world/ground.js). Run it again after changing PICK:  python3 tools/pack-ground.py
+# ground's and the rocks' shaders in world/ground.js). Run it again after changing PICK:  python3 tools/pack-ground.py
 import base64, io, os, shutil, subprocess
 from PIL import Image, ImageStat
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PACKS = {1: 'SBS - Tiny Texture Pack - 128x128.rar', 2: 'SBS - Tiny Texture Pack 2 - 128x128.rar'}
-# key: (pack, file, the colour it's graded toward)
+PACKS = {1: 'SBS - Tiny Texture Pack - 128x128.rar', 2: 'SBS - Tiny Texture Pack 2 - 128x128.rar', 3: 'SBS - Tiny Texture Pack 3 - Small.rar'}
+# key: (pack, file, the colour it's graded toward, and how far: GRADE unless it says)
 PICK = {
     # the grass, four kinds the shader fades in and out of each other: thick, patchy, thin over bare earth, dry
     'grass': (1, '128x128/Grass/Grass_19-128x128.png', (78, 80, 52)),
@@ -18,6 +18,10 @@ PICK = {
     # bare earth: the trodden yard and paths, and the drive's brown dirt
     'earth': (2, '128x128/Dirt/Dirt_16-128x128.png', (100, 88, 66)),
     'drive': (2, '128x128/Dirt/Dirt_01-128x128.png', (112, 92, 66)),
+    # the rocks and stones round the map (world/trees.js, textured by rockMat in world/ground.js): rough grey stone and a speckled granite, graded all the way to
+    # a mid grey so they only add their grain to each rock's own colour and moss
+    'rock': (3, '128x128/Stone/Stone_05-128x128.png', (128, 128, 128), 1),
+    'rock2': (2, '128x128/Stone/Stone_09-128x128.png', (128, 128, 128), 1),
 }
 # how far toward its colour each is graded (0 as it comes, 1 all the way)
 GRADE = 0.75
@@ -32,10 +36,10 @@ def read(pack, name):
 
 def pack():
     out, total = [], 0
-    for key, (pk, name, want) in PICK.items():
+    for key, (pk, name, want, *grade) in PICK.items():
         im = Image.open(io.BytesIO(read(pk, name))).convert('RGB')
         mean = ImageStat.Stat(im).mean
-        gain = [(w / max(m, 1)) ** GRADE for w, m in zip(want, mean)]
+        gain = [(w / max(m, 1)) ** (grade[0] if grade else GRADE) for w, m in zip(want, mean)]
         im = Image.merge('RGB', [b.point(lambda v, g=g: min(255, round(v * g))) for b, g in zip(im.split(), gain)])
         buf = io.BytesIO(); im.save(buf, 'JPEG', quality=90, optimize=True)
         total += buf.tell()

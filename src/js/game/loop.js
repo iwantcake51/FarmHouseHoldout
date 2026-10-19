@@ -23,7 +23,9 @@ function loop(now) {
     else if (slowHold > 0) { slowHold -= rdt; timeScale += (slowTo - timeScale) * Math.min(1, rdt * 9); }
     else timeScale += (1 - timeScale) * Math.min(1, rdt * 0.95);
   }
-  worldK = state === 'title' || state === 'leaving' ? 1 : state === 'play' || state === 'dead' ? (P.dead && !netLink() ? clamp(timeScale / DEATH_SLOW, 0, 1) : 1) : coop ? 1 : 0;
+  // the world's clock (game/state.js) runs with the game's: slowed with any slow motion (bullet time, a heavy hit, the
+  // death slow-mo, which runs on down to a stop), stopped while paused (in co-op the farm keeps going)
+  worldK = state === 'title' || state === 'leaving' ? 1 : state === 'play' || state === 'dead' ? (netLink() ? 1 : clamp(timeScale, 0, 1)) : coop ? 1 : 0;
   worldT += rdt * worldK;
   netTick(rdt);   // co-op: your pose out, theirs in, the host's farm to the others (net/)
   visuals(state === 'play' || state === 'dead' || coop ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);

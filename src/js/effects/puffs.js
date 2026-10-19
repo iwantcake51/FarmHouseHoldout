@@ -25,6 +25,10 @@ const FXK = {
   glow: { tex: TEX_GLOWS, add: true, col: 0xff9a40, grav: 0, drag: 0, rise: 0, fin: 0.05, fade: 1.2 },
   ember: { tex: TEX_DOT, add: true, col: 0xff8a32, col2: 0xb8300a, boost: 1.4, grav: -0.6, drag: 1.5, rise: 0, fin: 0.05, fade: 1.2, wind: 0.9 },
   flame: { tex: TEX_FLAMES, add: true, col: 0xffa040, col2: 0xc02c08, boost: 1.5, grav: -3.2, drag: 2.4, rise: 0, upright: true, fin: 0.12, fade: 1.4, wind: 0.45 },
+  // the white-hot heart of a steady fire (the burn barrel's), low in the flames, going orange as it rises into them
+  // the body of a fire's flames, drawn solid under the glowing ones so it still shows as fire by day
+  flameBody: { tex: TEX_FLAMES, col: 0xff8a26, col2: 0x8a1c06, grav: -2.8, drag: 2.6, rise: 0, upright: true, fin: 0.12, fade: 1.5, wind: 0.4 },
+  flameCore: { tex: TEX_FLAMES, add: true, col: 0xffe8b0, col2: 0xff7a1c, boost: 1.3, grav: -2.4, drag: 3, rise: 0, upright: true, fin: 0.15, fade: 1.6, wind: 0.25 },
   // a ball of fire rolling up out of a blast or a dragon's breath shell, cooling from yellow-white to a dull red
   fireball: { tex: TEX_FIRE, add: true, col: 0xffb050, col2: 0x7a1a04, boost: 1.05, grav: -1.4, drag: 3, rise: 0, fin: 0.04, fade: 1.3, wind: 0.3 },
   // a burning magnesium pellet from a dragon's breath shell: a white-hot streak that cools to orange as it arcs down,
@@ -116,6 +120,36 @@ function burnFx(x, z, y0, y1, r, dt) {
   if (rand() < dt * 8) fx('glow', x, (y0 + y1) / 2, z, 0, 0.2, 0, rr(1.1, 1.4), rr(1.1, 1.4), 0.3, 0.22);
   if (rand() < dt * 5) fx('ember', x + rr(-r, r), rr(y0, y1), z + rr(-r, r), rr(-0.8, 0.8), rr(0.8, 2.2), rr(-0.8, 0.8), rr(0.05, 0.08), 0.02, rr(0.6, 1.1), 0.9);
   if (rand() < dt * 3) fx('smoke', x + rr(-0.1, 0.1), y1 + 0.15, z + rr(-0.1, 0.1), rr(-0.2, 0.2), rr(0.5, 0.9), rr(-0.2, 0.2), 0.18, rr(0.8, 1.2), rr(1.5, 2.3), 0.3);
+}
+// the burn barrel's fire (world/props.js: BURN_BARREL): tongues of flame licking up out of its mouth, the tallest from the
+// middle, yellow-white at the heart and cooling to red as they climb and bend off on the wind (over a solid body of
+// flame, so it still reads as fire by day); a warm glow breathing
+// round it, embers drifting up on the heat, now and then a crackle that spits a few sparks, a dark column of smoke off
+// the top, and the coals in the barrel flickering with the light it throws (BARREL_FX: how much of each, a second)
+const BARREL_FX = { flame: 30, body: 16, core: 12, glow: 7, ember: 6, crackle: 0.5, smoke: 2.2 };
+function barrelFire(dt) {
+  const B = BURN_BARREL, F = BARREL_FX, at = (d, a) => [B.x + Math.sin(a) * d, B.z + Math.cos(a) * d];
+  for (let n = dt * F.flame; n > 0; n--) {
+    if (n < 1 && rand() > n) break;
+    const a = rand() * 6.28, d = Math.sqrt(rand()) * B.r * 0.85, c = 1 - d / B.r, [x, z] = at(d, a);
+    fx('flame', x, B.y + rr(0, 0.08), z, rr(-0.1, 0.1) - Math.sin(a) * d * 0.4, rr(0.7, 1.3) * (0.55 + 0.6 * c), rr(-0.1, 0.1) - Math.cos(a) * d * 0.4, rr(0.5, 0.8) * (0.7 + 0.5 * c), rr(0.2, 0.32), rr(0.4, 0.75) * (0.7 + 0.5 * c), rr(0.75, 1));
+  }
+  for (let n = dt * F.body; n > 0; n--) {
+    if (n < 1 && rand() > n) break;
+    const [x, z] = at(Math.sqrt(rand()) * B.r * 0.7, rand() * 6.28);
+    fx('flameBody', x, B.y + 0.04, z, rr(-0.08, 0.08), rr(0.6, 1.1), rr(-0.08, 0.08), rr(0.45, 0.65), rr(0.18, 0.26), rr(0.35, 0.6), rr(0.45, 0.6));
+  }
+  for (let n = dt * F.core; n > 0; n--) {
+    if (n < 1 && rand() > n) break;
+    const [x, z] = at(rr(0, B.r * 0.4), rand() * 6.28);
+    fx('flameCore', x, B.y + 0.02, z, 0, rr(0.4, 0.8), 0, rr(0.35, 0.5), rr(0.16, 0.24), rr(0.3, 0.45), rr(0.7, 0.9));
+  }
+  if (rand() < dt * F.glow) fx('glow', B.x, B.y + 0.35, B.z, 0, 0.15, 0, rr(1.5, 1.9), rr(1.7, 2.1), rr(0.3, 0.45), rr(0.16, 0.22));
+  if (rand() < dt * F.ember) { const [x, z] = at(rr(0, B.r), rand() * 6.28); fx('ember', x, B.y + rr(0.1, 0.4), z, rr(-0.4, 0.4), rr(1.2, 2.6), rr(-0.4, 0.4), rr(0.04, 0.07), 0.015, rr(1.2, 2.2), 0.9); }
+  if (rand() < dt * F.crackle) for (let k = 0, n = 3 + Math.floor(rand() * 5); k < n; k++) { const a = rand() * 6.28, v = rr(0.6, 1.6); fx('spark', B.x, B.y + rr(0.1, 0.3), B.z, Math.sin(a) * v, rr(2.5, 4.5), Math.cos(a) * v, 0.05, 0.05, rr(0.4, 0.8), 1); }
+  if (rand() < dt * F.smoke) smoke(B.x + rr(-0.1, 0.1), B.y + rr(0.8, 1.1), B.z + rr(-0.1, 0.1), rr(-0.1, 0.1), rr(0.5, 0.8), rr(-0.1, 0.1), rr(0.2, 0.3), rr(1.1, 1.6), rr(3, 4.5), rr(0.16, 0.24), 0x3a3632, 2.4);
+  const fl = 0.8 + Math.sin(worldT * 11.1) * 0.1 + Math.sin(worldT * 37.3) * 0.05 + Math.sin(worldT * 23.9) * 0.05;   // the light's flicker (lighting/lightmap.js)
+  B.coal.color.setRGB(1, 0.42 * fl + 0.06, 0.12 * fl).multiplyScalar(0.75 + 0.35 * fl); B.ember.color.setRGB(0.6 * fl + 0.05, 0.15 * fl, 0.04);
 }
 // a dragon's breath shell going off: a fireball out of the muzzle, a cone of flame that rolls out a few metres, and a
 // spray of burning pellets that stream out far down the line and arc to the ground, still burning where they land.

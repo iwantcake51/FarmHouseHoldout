@@ -43,13 +43,14 @@ const motes = (() => {
 // low banks of mist that creep across the yard at night
 const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
-// fog lying over the main road out front (world/ground.js): soft banks drifting along it day and night, thicker with the
-// weather, so the road is never quite clear and the zombies crossing it come out of them
+// fog lying over the main road out front (world/ground.js): soft banks drifting slowly along it day and night, thicker
+// with the weather, so the road is never quite clear and the zombies crossing it come out of them. Like the haze round
+// the farm (EDGE_BODY, core/shaders.js), the wind doesn't move them
 const roadFog = [];
 const placeRoadFog = (sp, x) => { sp.position.set(x, rr(0.5, 1.1), ROAD.z + rr(-3.5, 3.5)); const sc = rr(7, 12); sp.scale.set(sc, sc * rr(0.35, 0.5), 1); };
 for (let k = 0; k < 14; k++) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, fog: false }));
-  placeRoadFog(sp, rr(-26, 26)); sp.userData = { vx: rr(0.25, 0.6) * (rand() < 0.5 ? -1 : 1), ph: rand() * 6, life: rr(0, 40), max: rr(24, 44) }; scene.add(sp); roadFog.push(sp);
+  placeRoadFog(sp, rr(-26, 26)); sp.userData = { vx: rr(0.08, 0.22) * (rand() < 0.5 ? -1 : 1), ph: rand() * 6, life: rr(0, 40), max: rr(24, 44) }; scene.add(sp); roadFog.push(sp);
 }
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
@@ -76,6 +77,7 @@ function stepAtmos(realDt) {
     motes.pts.geometry.attributes.position.needsUpdate = motes.pts.geometry.attributes.color.needsUpdate = true;
   }
   LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
+  LMU.uFogT.value = t % 10000;   // the edge fog's clock, wrapped where every drift in EDGE_BODY comes round whole, so it never jumps
   { const cs = (0.4 + 2.5 * WX.str) * 0.022; LMU.uCloud.value.x -= rdt * cs * WX.x; LMU.uCloud.value.y -= rdt * cs * WX.z; }   // the clouds' shade sails over with the wind (0.022: the shade's scale, core/shaders.js), quicker up there than down here
   LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
@@ -85,7 +87,7 @@ function stepAtmos(realDt) {
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
   for (const sp of roadFog) {
-    const u = sp.userData; sp.position.x += (u.vx * (1 - WX.str * 0.6) + WX.x * (0.2 + 1.2 * WX.str)) * rdt;   // drifting along the road, pushed by the wind's pull along it
+    const u = sp.userData; sp.position.x += u.vx * rdt;   // creeping along the road on its own
     const wx = viewExt.x + 7;   // wrapped and placed out past the edge of the view, with room for the bank's own size
     u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(24, 44); placeRoadFog(sp, camTarget.x + rr(-wx, wx)); }
     if (sp.position.x - camTarget.x > wx) sp.position.x -= 2 * wx; if (sp.position.x - camTarget.x < -wx) sp.position.x += 2 * wx;

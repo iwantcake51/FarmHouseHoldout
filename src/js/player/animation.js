@@ -379,5 +379,5 @@ function updatePlayerVisuals(dt, rdt) {
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
   glowMats.forEach(m => m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2));   // a soft, pale yellow pulse
-  if (worldK > 0) flames.forEach((f, k) => { f.scale.set(1 + Math.sin(worldT * 1000 / (60 + k * 20)) * 0.15, 0.8 + rand() * 0.4, 1); });   // the flames freeze with the world
+  if (worldK > 0 && dt > 0) barrelFire(dt);   // (effects/puffs.js; the fire freezes with the world)
 }
