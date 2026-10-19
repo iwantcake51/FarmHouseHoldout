@@ -175,12 +175,15 @@ function chLineFits(k, id) {
   if (k === 'loader') return id === 'revolver' || (D.ammo === 'shells' && !!D.perShell);
   return true;
 }
-// change the weapon, then let it take the change at once: a new magazine goes straight in, topped up
-function chGun(id, fn) {
+// the mods that only change what the gun is loaded with
+const CH_AMMO_MODS = new Set(['boom', 'dragon', 'slug', 'flech', 'expand']);
+// change the weapon, then let it take the change at once: a new magazine goes straight in, topped up. Swapping its
+// rounds (keep) leaves what's loaded as it was, only now of the new kind
+function chGun(id, fn, keep) {
   exitScope();
   magChange(id, fn);
   delete W8.pin[id]; recomputeEff(); buildGuns(); gunGlow = 1;
-  if (!W(id).melee) W8.mag[id] = magSize(id);
+  if (!W(id).melee) W8.mag[id] = keep ? Math.min(magSize(id), W8.mag[id] || 0) : magSize(id);
 }
 function chRemoveMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== m && MODS[k].need !== m);   // and anything that needed it
@@ -271,12 +274,12 @@ const CHEAT_ACTS = {
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
   tier: d => { const id = curId(), k = d.k, n = gunTier(id, k), dd = +d.d;
     if (dd > 0 ? !tierFits(k, id) : n <= 0) return;
-    chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + dd; if (!W8.gt[id][k]) delete W8.gt[id][k]; }); },
+    chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; W8.gt[id][k] = n + dd; if (!W8.gt[id][k]) delete W8.gt[id][k]; }, k === 'ammo'); },
   mod: d => { const id = curId(), m = d.m, dd = +d.d;
-    if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m)); return; }
+    if (!hasMod(m)) { if (dd > 0 && modOffer(m)) chGun(id, () => addMod(id, m), CH_AMMO_MODS.has(m)); return; }
     const lv = modLv(m);
-    if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m)); }
-    else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
+    if (dd > 0) { if (MOD_UP[m] && lv < MOD_MAX) chGun(id, () => improveMod(m), CH_AMMO_MODS.has(m)); }
+    else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }, CH_AMMO_MODS.has(m)); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
   stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; }); },
   maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) W8.gt[id][k] = gunTier(id, k) + 1; recomputeEff(); }); },
