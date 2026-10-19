@@ -104,7 +104,7 @@ function loopS(name, o) {
   out.gain.value = SAMPLES[name].vol * (o.vol ?? 1); out.connect(master);
   const h = { on: true, srcs: [], next: 0 };
   const pass = (t, first) => {
-    const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; s.playbackRate.value = rr(0.95, 1.05);
+    const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = b; s.playbackRate.value = (o.rate || 1) * rr(0.95, 1.05);
     const d = b.duration / s.playbackRate.value, fin = first ? 0.04 : xf;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + fin); g.gain.setValueAtTime(1, t + d - xf); g.gain.linearRampToValueAtTime(0, t + d);
     s.connect(g); g.connect(out); s.start(t); s.stop(t + d + 0.02); h.srcs.push(s); sVoices++;

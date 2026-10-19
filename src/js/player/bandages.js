@@ -22,7 +22,7 @@ function startBandage() {
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
   P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;
-  bandSnd = loopS('medkit'); if (!bandSnd) SFX.rip();   // its sound goes round till it's on (bandSound)
+  bandSnd = loopS('medkit', { rate: bandRate() }); if (!bandSnd) SFX.rip();   // its sound goes round till it's on (bandSound)
   P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
@@ -52,6 +52,10 @@ function switchSlot(s) {
 // (BAND_FADE.done), knocked out of your hands by a hit (.hit), stopped with a click or a weapon key (.cancel)
 const BAND_FADE = { done: 0.45, hit: 0.18, cancel: 0.25 };
 let bandSnd = null;
+// how fast the bandage's sound plays: as much faster as the wrap goes on faster than a plain one (Steady hands,
+// anything that speeds bandaging), so the sound keeps pace with the hands (held within BAND_RATE)
+const BAND_RATE = [0.8, 1.8];
+const bandRate = () => clamp(BAND_TIME / bandTime(), BAND_RATE[0], BAND_RATE[1]);
 function bandSound(fade) { if (bandSnd) { bandSnd.stop(fade); bandSnd = null; } }
 function tickBandage(dt) {
   if (bandSnd) { if (P.bandT > 0 && !P.dead) bandSnd.tick(); else bandSound(BAND_FADE.done); }
