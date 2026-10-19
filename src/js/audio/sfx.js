@@ -1,6 +1,9 @@
 // Every sound effect. Most play a recording (audio/samples.js), and the synthesized sound written after it plays
 // instead until that recording has loaded; the rest (footsteps, vaulting, zombies, the UI) are only synthesized.
 
+// the brute's wall crash (SFX.bruteWall): how far off it's still heard (m), how loud, the lowpass on its body near and
+// at that distance (Hz), and its crack: how loud, its highpass and lowpass (Hz) and how long (s)
+const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, crackLp: 9000, crackDur: 0.09 };
 const SFX = {
   light() { nz(0.2, 'lowpass', 3200, 260, 0.75); tn(0.13, 'sine', 150, 45, 0.6); },
   heavy() { nz(0.32, 'lowpass', 2600, 180, 0.9); tn(0.22, 'sine', 120, 38, 0.8); },
@@ -27,7 +30,16 @@ const SFX = {
   split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
   // a zombie's skull bursting: every kill (zombies/damage.js killEnd), from the zombie, at v
   headPop(v = 1) { if (playS('head_pop', { gap: 0.05, rate: 1.12, vol: v })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
-  bruteWall() { if (playS('brute_wall', { jit: 0.05 })) return; SFX.thud(); },   // a brute's dash ending in a wall (zombies/brute-dash.js)
+  // a brute's dash ending in a wall (zombies/brute-dash.js), heard from where it hit (soundAt): a muffled crash with a
+  // crisp crack on the front of it, both quieter and duller the further off it is and gone by BRUTE_CRASH.far (the
+  // crack, all top, fades out sooner); off to its side, and muffled again through the house's walls
+  bruteWall() {
+    const at = SND_AT, f = typeof camFocus === 'function' ? camFocus() : P, C = BRUTE_CRASH;
+    const dx = at ? at.x - f.x : 0, dz = at ? at.z - f.z : 0, k = clamp(Math.hypot(dx, dz) / C.far, 0, 1); if (k >= 1) return;
+    const v = Math.pow(1 - k, 1.6), pan = clamp((dx * RIGHT.x + dz * RIGHT.z) / 14, -0.6, 0.6);
+    if (!playS('brute_wall', { jit: 0.05, vol: C.vol * v, lp: C.lp[0] * Math.pow(C.lp[1] / C.lp[0], k), pan, gap: 0 })) { SFX.thud(); return; }
+    playS('brute_wall', { jit: 0.02, vol: C.crack * v * (1 - k), hp: C.hp, lp: C.crackLp * Math.pow(0.4, k), dur: C.crackDur, pan, gap: 0 });
+  },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },

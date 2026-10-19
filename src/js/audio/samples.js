@@ -62,8 +62,9 @@ function samplesInit() {
 const indoors = () => P.x > HOUSE.x0 && P.x < HOUSE.x1 && P.z > HOUSE.z0 && P.z < HOUSE.z1;
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
-// time), lp (a lowpass at this), tone (a bump or dip of up to this many dB somewhere in the mids), pan, verb (how
-// much goes to the house's reverb), gap (overrides its own)
+// time), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the
+// back of them), tone (a bump or dip of up to this many dB somewhere in the mids), pan, verb (how much goes to the
+// house's reverb), gap (overrides its own)
 function playS(name, o) {
   if (!AC) return false;
   o = o || {};
@@ -82,6 +83,7 @@ function playS(name, o) {
   let n = s;
   const lp = Math.min(o.lp || 20000, ear ? ear.lp : 20000);
   if (lp < 20000) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.6; n.connect(f); n = f; }
+  if (o.hp) { const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = o.hp; f.Q.value = 0.7; n.connect(f); n = f; }
   if (o.tone) { const f = AC.createBiquadFilter(); f.type = 'peaking'; f.frequency.value = rr(350, 3200); f.Q.value = 0.9; f.gain.value = rr(-o.tone, o.tone); n.connect(f); n = f; }
   n.connect(g); n = g;
   const pan = o.pan ?? (ear ? ear.pan : 0);
@@ -89,6 +91,7 @@ function playS(name, o) {
   n.connect(master);
   if (o.verb && verbIn && !(ear && ear.walls)) { const v = AC.createGain(); v.gain.value = o.verb; n.connect(v); v.connect(verbIn); }
   sVoices++; s.onended = () => { sVoices--; };
+  if (o.dur) { const v = g.gain.value; g.gain.setValueAtTime(v, t + o.dur * 0.35); g.gain.linearRampToValueAtTime(0, t + o.dur); s.start(t); s.stop(t + o.dur + 0.02); return true; }
   s.start(t);
   return true;
 }
