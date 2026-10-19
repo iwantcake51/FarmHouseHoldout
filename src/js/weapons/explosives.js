@@ -15,14 +15,9 @@ function explode(x, z, r, dmg, self, remote, small) {
   if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r, s: small ? 1 : 0 });
   soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true);
   { const d = Math.hypot(P.x - x, P.z - z), k = small ? TIP_SHAKE.max * Math.pow(Math.max(0, 1 - d / TIP_SHAKE.near), 2) : 0.8; shake = Math.max(shake, k); }
-  fx('flash', x, 0.7, z, 0, 0, 0, 0.8, r * 1.5, 0.16, 1);
-  for (let k = 0; k < 9; k++) { const a = rand() * 6.28, sp = rr(1.2, 3.2); fx('ember', x + Math.sin(a) * 0.2, rr(0.3, 0.8), z + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(1.2, 3.4), Math.cos(a) * sp, rr(0.35, 0.5), rr(0.9, 1.5), rr(0.22, 0.38), 0.95); }
-  sparkBurst(x, 0.4, z, 18, 0, 0, 8);
-  burst(x, 0.5, z, 10, 'ember', 0, 0, 6);
-  groundDust(x, z, 2.4, 0, 0); cubeBurst(x, 0.15, z, 12, 'dust', 0, 0, 5, 0.6);
-  for (let k = 0; k < 12; k++) fx('smoke', x + rr(-0.5, 0.5), rr(0.3, 1.1), z + rr(-0.5, 0.5), rr(-0.7, 0.7), rr(0.7, 1.8), rr(-0.7, 0.7), rr(0.5, 0.8), rr(2.2, 3.4), rr(2.4, 3.8), rr(0.65, 0.8));
+  blastFx(x, z, r, small);   // the fire, smoke, sparks and dust (effects/puffs.js)
   splat(x, z, 'scorch', small ? SCORCH.tip : SCORCH.blast, undefined, 0.12);
-  flashes.push({ x, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
+  flashes.push({ x, y: 0.7, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
   if (remote) return;
   for (const zb of zombies.slice()) {
     const dx = zb.x - x, dz = zb.z - z, d = Math.hypot(dx, dz); if (d > r) continue;

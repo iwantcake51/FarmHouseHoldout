@@ -171,7 +171,11 @@ function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
 NET_ON.shot = m => {
   if (state === 'title') return;
   for (const e of m.e) tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
-  if (!m.q) { flashes.push({ x: m.x, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col: [1, 0.78, 0.45], t: 0.07, max: 0.07 }); lmT = 0; fx('flash', m.x, m.y, m.z, 0, 0, 0, 0.35, m.sh ? 0.9 : 0.6, 0.06, 1); }
+  if (!m.q) {   // their flash, in the colour of what they fired, and the light it throws
+    const col = flashRGB(m.dr ? FLASH_COL.dragon : m.sh ? FLASH_COL.shells : FLASH_COL.p9);
+    flashes.push({ x: m.x, y: m.y, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col, t: 0.07, max: 0.07 }); lmT = 0;
+    fx('star', m.x, m.y, m.z, 0, 0, 0, 0.35, m.sh ? 0.8 : 0.55, 0.06, 1).s.material.color.setRGB(col[0], col[1], col[2]); fx('glow', m.x, m.y, m.z, 0, 0, 0, 0.5, 0.7, 0.07, 0.7);
+  }
   if (m.e.length) { const e = m.e[0], L = Math.hypot(e[0] - m.x, e[2] - m.z) || 1; smoke(m.x, m.y, m.z, (e[0] - m.x) / L * 0.8, 0.2, (e[2] - m.z) / L * 0.8, 0.08, m.q ? 0.35 : 0.7, 1.1, m.q ? 0.22 : 0.38); }
   heardFrom(m.q ? SUPP_SFX[m.w] : 'shot_' + m.w, m.x, m.z, m.q ? 0.55 : 1);
 };

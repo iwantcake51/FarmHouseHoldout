@@ -129,7 +129,7 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
   const pt = EJECT_PORT[id];
   if (pt) _cv.set(pt[0], pt[1], pt[2]); else _cv.set(X + (right ? -0.04 : 0.04), GUN_Y + 0.05, (MUZ[W8.cur] || 0.9) * (mode === 'breach' ? 0.18 : 0.38));
   h.localToWorld(_cv);
-  if (right) smoke(_cv.x, _cv.y, _cv.z, _cR.x * 0.5, 0.3, _cR.z * 0.5, 0.04, 0.2, rr(0.6, 0.9), 0.22, 0xb8b0a4);   // a breath of smoke from the port
+  if (right) portFx(_cv, _cR, mode === 'fire', ammo === 'shells');   // the gas and smoke out of the port (effects/puffs.js)
   for (let k = 0; k < n; k++) {
     const c = casings[cIdx = (cIdx + 1) % casings.length];
     c.kind = ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10);
@@ -153,22 +153,28 @@ function ejectCasing(ammo, n, mode, sideSign, now) {
     c.age = 0; c.hot = right || mode === 'breach' ? 1 : 0.4;   // freshly fired brass: a glowing trail and a thread of smoke for a moment
   }
 }
-// a hot casing leaves a short glowing streak and a thread of smoke for its first moments in the air
-// (made on first use: the glow texture is built in effects/textures.js, which loads after this file)
+// a hot casing leaves a short glowing streak drawn out along its flight (one of the trace sprites, turned to its
+// motion on screen) and a thread of smoke for its first moments in the air
+// (made on first use: the sprites are loaded in effects/textures.js, which loads after this file)
 let caseGlows = null, cgIdx = 0;
+const _cg = new V3(), _cg2 = new V3();
 function stepCaseTrails(dt) {
-  if (!caseGlows) { caseGlows = []; const mat = new THREE.SpriteMaterial({ map: TEX_CORE, color: 0xffb860, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); for (let k = 0; k < 110; k++) { const s = new THREE.Sprite(mat.clone()); s.visible = false; scene.add(s); caseGlows.push({ s, t: 0, max: 0.2 }); } }
+  if (!caseGlows) { caseGlows = []; const mat = new THREE.SpriteMaterial({ map: partTex('trace2'), color: 0xff9a48, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); for (let k = 0; k < 110; k++) { const s = new THREE.Sprite(mat.clone()); s.visible = false; scene.add(s); caseGlows.push({ s, t: 0, max: 0.2 }); } }
   for (const c of casings) {
     if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag') continue;
     c.age += dt; if (c.bounces >= 1 || dt <= 0) continue;
     const g = caseGlows[cgIdx = (cgIdx + 1) % caseGlows.length], p = c.g.position, heat = c.hot * (1 - c.age / 0.45);
-    g.s.position.copy(p); g.s.visible = true; g.t = g.max = 0.16 + 0.1 * heat; g.a = 0.55 * heat; g.sc = (c.kind === 'shells' ? 0.11 : 0.075) * (0.6 + heat * 0.6);
-    if (c.wisp === undefined || c.age > c.wisp) { c.wisp = c.age + 0.07; smoke(p.x, p.y, p.z, c.vx * 0.05, 0.12, c.vz * 0.05, 0.02, 0.09, rr(0.45, 0.7), 0.16 * heat + 0.04, 0xc8c0b2); }
+    g.s.position.copy(p); g.s.visible = true; g.t = g.max = 0.1 + 0.08 * heat; g.a = 0.95 * heat;
+    // laid along the way it's flying on screen, as long as it goes in a few hundredths of a second
+    _cg.copy(p).project(cam); _cg2.set(p.x + c.vx * 0.03, p.y + c.vy * 0.03, p.z + c.vz * 0.03).project(cam);
+    g.s.material.rotation = Math.atan2((_cg2.y - _cg.y) * innerHeight, (_cg2.x - _cg.x) * innerWidth);
+    g.len = (0.04 + Math.hypot(c.vx, c.vy, c.vz) * 0.025) / 0.6; g.th = (c.kind === 'shells' ? 0.14 : 0.1) * (0.6 + heat * 0.5);
+    if (c.wisp === undefined || c.age > c.wisp) { c.wisp = c.age + 0.06; smoke(p.x, p.y, p.z, c.vx * 0.05, 0.14, c.vz * 0.05, 0.02, rr(0.08, 0.12), rr(0.5, 0.8), 0.14 * heat + 0.04, 0xc8c0b2); }
   }
   for (const g of caseGlows) {
     if (g.t <= 0) continue; g.t -= dt;
     if (g.t <= 0) { g.s.visible = false; continue; }
-    const k = g.t / g.max; g.s.material.opacity = g.a * k; g.s.scale.setScalar(g.sc * (0.5 + 0.5 * k));
+    const k = g.t / g.max; g.s.material.opacity = g.a * k; g.s.scale.set(g.len * (0.5 + 0.5 * k), g.th, 1);
   }
 }
 // a belt-fed gun throws its spent links as well as its brass: each M13 link is a dark steel clip with two loops,
@@ -295,7 +301,10 @@ function stepDebris(list, dt) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
         else if (c.kind === 'plank') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
-        else if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
+        else {
+          if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
+          if (c.bounces === 1 && c.kind !== 'link' && c.vy < -1.5 && rand() < 0.6) fx('dust', g.position.x, fy + 0.04, g.position.z, c.vx * 0.2, rr(0.1, 0.3), c.vz * 0.2, 0.04, rr(0.12, 0.18), rr(0.35, 0.5), 0.2);   // a little dust kicked up where a case lands
+        }
         c.vy = -c.vy * (c.kind === 'mag' ? 0.2 : c.kind === 'shells' ? 0.25 : 0.38); c.vx *= 0.55; c.vz *= 0.55; c.spin *= 0.5; c.roll *= 0.4;
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little

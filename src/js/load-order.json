@@ -39,6 +39,7 @@
   "weapons/build-weapons.js",
   "weapons/casings.js",
   "melee/swing-trail.js",
+  "effects/particle-art.js",
   "effects/textures.js",
   "effects/muzzle-flash.js",
   "effects/smoke.js",
