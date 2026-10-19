@@ -119,42 +119,49 @@ const bump = (t, a, b) => Math.sin(Math.PI * clamp((t - a) / (b - a), 0, 1));   
 // what it shows is eased into that ceiling (kickPitch) instead of stopping dead against it
 const KICK_UP = 0.24, KICK_ROOM = 0.6;
 const kickPitch = p => p < 0 ? -KICK_UP * Math.tanh(-p / KICK_UP) : p;
-const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0 });
+const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0, ret: 1 });
 const RK = { R: kickState(), L: kickState() };
 // the rest of the kick goes into the body: the shot rocks the shoulders back (x) and twists the shooting shoulder back
 // (y), on a heavier, slower spring than the hands', and the arms ride it, so the gun's thrown up and back by the
 // shoulders while the wrists hold most of the lean off the muzzle (poseGun: SR.x back into the pitch). A pump or a bolt
 // gun (act) thumps hardest: more flip, a harder shove back into the shoulder, the hands lifted further and the
-// shoulders rocked much further (KICK_ACT)
-const SR = { x: 0, vx: 0, y: 0, vy: 0 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15, back: 2, lift: 2, rock: 2.2 };
+// shoulders rocked much further (KICK_ACT). The bolt-action rifle comes back from its kick slower than the rest
+// (KICK_BOLT_RET of the speed, the same height), a heavy gun settling back onto the shoulder
+const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15, back: 2, lift: 2, rock: 2.2 }, KICK_BOLT_RET = 0.55;
 // how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
 // automatic, whose kicks come too fast to settle between
 const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
+// act: how the gun cycles (EJECT in weapons/casings.js)
 function gunKick(side, pw, kind, auto, act) {
   const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6), rot = KICK_ROT * (auto ? KICK_ROT_AUTO : 1);
   const room = 1 - KICK_ROOM * clamp(-k.p / KICK_UP, 0, 1);
-  const A = act ? KICK_ACT : null;
+  const A = act === 'pump' || act === 'bolt' ? KICK_ACT : null, ret = act === 'bolt' ? KICK_BOLT_RET : 1;
+  // a slower return (ret) on a spring as stiff in proportion keeps the kick's height: its impulses are scaled with it
+  const v0 = [k.vp, k.vz, k.vh, k.vr, k.vy, SR.vx, SR.vy]; k.ret = SR.ret = ret;
   const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot;
   k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1); k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
   const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot;   // (less room to rock the further back they already are)
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
   k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2) * rot; k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8) * rot;
-  if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
+  if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05) * ret; k.dropT = rr(0.07, 0.1) / ret; k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
+  if (ret !== 1) { k.vp = v0[0] + (k.vp - v0[0]) * ret; k.vz = v0[1] + (k.vz - v0[1]) * ret; k.vh = v0[2] + (k.vh - v0[2]) * ret; k.vr = v0[3] + (k.vr - v0[3]) * ret; k.vy = v0[4] + (k.vy - v0[4]) * ret; SR.vx = v0[5] + (SR.vx - v0[5]) * ret; SR.vy = v0[6] + (SR.vy - v0[6]) * ret; }
 }
 function stepKick(k, dt) {
+  const s = k.ret, s2 = s * s;   // (the springs' stiffness by s², damping by s: the same motion, s times as fast)
   for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
     if (k.dropT > 0 && (k.dropT -= h) <= 0) { k.vp += k.dP; k.vh += k.dH; k.vz += k.dZ; }   // hauled back down, just past the peak
-    k.vp += (-380 * k.p - 30 * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
-    k.vz += (-380 * k.z - 26 * k.vz) * h; k.z += k.vz * h;
-    k.vh += (-340 * k.h - 25 * k.vh) * h; k.h += k.vh * h;
-    k.vr += (-300 * k.r - 22 * k.vr) * h; k.r += k.vr * h;
-    k.vy += (-320 * k.y - 24 * k.vy) * h; k.y += k.vy * h;
+    k.vp += (-380 * s2 * k.p - 30 * s * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
+    k.vz += (-380 * s2 * k.z - 26 * s * k.vz) * h; k.z += k.vz * h;
+    k.vh += (-340 * s2 * k.h - 25 * s * k.vh) * h; k.h += k.vh * h;
+    k.vr += (-300 * s2 * k.r - 22 * s * k.vr) * h; k.r += k.vr * h;
+    k.vy += (-320 * s2 * k.y - 24 * s * k.vy) * h; k.y += k.vy * h;
   }
 }
 function stepRock(dt) {
+  const s = SR.ret, s2 = s * s;
   for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
-    SR.vx += (-200 * SR.x - 20 * SR.vx) * h; SR.x = clamp(SR.x + SR.vx * h, -0.05, SR_MAX);
-    SR.vy += (-170 * SR.y - 18 * SR.vy) * h; SR.y = clamp(SR.y + SR.vy * h, -SR_MAX, SR_MAX);
+    SR.vx += (-200 * s2 * SR.x - 20 * s * SR.vx) * h; SR.x = clamp(SR.x + SR.vx * h, -0.05, SR_MAX);
+    SR.vy += (-170 * s2 * SR.y - 18 * s * SR.vy) * h; SR.y = clamp(SR.y + SR.vy * h, -SR_MAX, SR_MAX);
   }
 }
 const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
