@@ -42,7 +42,8 @@ function gunUnsteady(D, id) {
 // and how hard you're breathing: winded (as your stamina runs down), at a sprint and for a while after (fade, s), over
 // a vault and just after. Each adds that much again to the sway (times it), which also quickens and takes on the heave
 // of your breathing (breath: radians a second at rest, and more winded); it all eases in and out (ease), never snaps
-const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2.2, breath: 1.7, breathUp: 2.4, heave: 0.9 };
+// (a climb's share fades in at vIn and out at vOut a second; how much you're moving eases at mvEase)
+const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2.2, breath: 1.7, breathUp: 2.4, heave: 0.9, vIn: 5, vOut: 1.6, mvEase: 4 };
 const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, n: 0, dir: 1, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
 function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
@@ -71,16 +72,23 @@ function updateXhRecoil(dt) {
   XR.sk += (want - XR.sk) * Math.min(1, dt * 3);
   // how out of breath you are (XWORK)
   XR.post = P.sprint ? 1 : Math.max(0, XR.post - dt / XWORK.fade);
+  // a climb's own sway eases in as you go over and out after you land (XWORK.vIn, vOut: a second), never all at once
   const vault = P.vault || (ANIM.postVault || 0) > 0 ? 1 : 0;
-  const work = Math.max(Math.pow(clamp(1 - P.stam, 0, 1), 1.3) * XWORK.stam, P.sprint ? XWORK.sprint : smooth(XR.post) * XWORK.run, vault * XWORK.vault);
+  XR.vk = (XR.vk || 0) + (vault - (XR.vk || 0)) * Math.min(1, dt * (vault > (XR.vk || 0) ? XWORK.vIn : XWORK.vOut));
+  const work = Math.max(Math.pow(clamp(1 - P.stam, 0, 1), 1.3) * XWORK.stam, P.sprint ? XWORK.sprint : smooth(XR.post) * XWORK.run, smooth(XR.vk) * XWORK.vault);
   XR.un += (work - XR.un) * Math.min(1, dt * XWORK.ease);
   XR.t += dt * (1 + 0.45 * XR.un); XR.bt += dt * (XWORK.breath + XWORK.breathUp * Math.min(1, XR.un / 2));
-  const t = XR.t, mv = Math.min(1, Math.hypot(P.vx, P.vz) / 3), amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk * (D && !D.melee ? gunUnsteady(D, curId()) : 1) * (1 + XR.un);
+  // (how much you're moving, eased both ways: a climb counts as moving, though it carries you without a velocity, so
+  // the sway doesn't drop away the moment you go over and jump back as you land)
+  XR.mv = (XR.mv || 0) + ((P.vault ? 1 : Math.min(1, Math.hypot(P.vx, P.vz) / 3)) - (XR.mv || 0)) * Math.min(1, dt * XWORK.mvEase);
+  const t = XR.t, mv = XR.mv, amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk * (D && !D.melee ? gunUnsteady(D, curId()) : 1) * (1 + XR.un);
   const heave = Math.sin(XR.bt) * amp * XWORK.heave * Math.min(1, XR.un);   // (the chest rising and falling)
   XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp; XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp + heave;
 }
-// the aim on screen: where the cursor is, plus the wander, the sway and the kick
-const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy, 0, innerHeight);
+// the aim on screen: where the cursor is, plus the wander, the sway and the kick (aimTX, aimTY: where you mean it to
+// be), and where the gun's really pointing as you turn to it (aimSX, aimSY: player/movement.js, TURN)
+const aimTX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx, 0, innerWidth), aimTY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy, 0, innerHeight);
+const aimSX = () => clamp(aimTX() + TURN.ox, 0, innerWidth), aimSY = () => clamp(aimTY() + TURN.oy, 0, innerHeight);
 function updateShaky(dt) {
   const sk = SHAKY, hpF = P.hp / S.maxHp;
   const want = P.dead || state !== 'play' ? 0 : smooth(clamp((SHAKY_HP.from - hpF) / (SHAKY_HP.from - SHAKY_HP.to), 0, 1));

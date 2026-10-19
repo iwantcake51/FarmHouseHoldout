@@ -77,23 +77,47 @@ function updatePlayer(dt) {
   P.still = P.moving ? 0 : P.still + dt;
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
+  // where you mean to aim (the stick's way, or the cursor's: tgt, and how far out), which you turn to on TURN's spring
+  let tgt = null, mouse = false;
   if (P.dead) { /* no more aiming */ }
   else if (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.25) {
-    const sx = tStick.R.x, sy = tStick.R.y; P.aim = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy);
-    aimPt.set(P.x + Math.sin(P.aim) * 6, GUN_Y, P.z + Math.cos(P.aim) * 6);
+    const sx = tStick.R.x, sy = tStick.R.y; tgt = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy); P.aimFar = 6;
   } else if (scoped) {
     if (!hasScope()) exitScope();
     aimPt.copy(scopePt); if (Math.hypot(aimPt.x - P.x, aimPt.z - P.z) > 0.2) P.aim = Math.atan2(aimPt.x - P.x, aimPt.z - P.z);
+    P.aimV = 0; TURN.ox = TURN.oy = 0;
   } else if (hasMouse && state === 'play') {   // (paused in co-op the farm runs on, but the cursor's on the menu)
-    ndc.set(aimSX() / innerWidth * 2 - 1, -(aimSY() / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);   // (where the crosshair is, wandering off the cursor at low health)
+    mouse = true;
+    ndc.set(aimTX() / innerWidth * 2 - 1, -(aimTY() / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);   // (where the crosshair would be, wandering off the cursor at low health)
     // a small dead zone round the character on screen, so sweeping the cursor across him never flips you round
     _pv.set(P.x, GUN_Y, P.z).project(cam);
     const psx = (_pv.x + 1) / 2 * innerWidth, psy = (1 - _pv.y) / 2 * innerHeight;
     // at the workbench or any station, the body and the gun stay where they were and only the head follows the cursor
     // (P.look: animatePlayer); the keys still walk you about. Aiming down the sights turns you to the cursor as ever
-    const held = !!openSt && !aiming, pt = held ? _lookPt : aimPt;
-    if (ray.ray.intersectPlane(aimPlane, pt) && Math.hypot(mouseX - psx, mouseY - psy) > 30 && Math.hypot(pt.x - P.x, pt.z - P.z) > 0.35) { const a = Math.atan2(pt.x - P.x, pt.z - P.z); if (held) P.look = a; else P.aim = a; }
+    const held = !!openSt && !aiming, pt = held ? _lookPt : _aimTo;
+    if (ray.ray.intersectPlane(aimPlane, pt) && Math.hypot(mouseX - psx, mouseY - psy) > 30 && Math.hypot(pt.x - P.x, pt.z - P.z) > 0.35) { const a = Math.atan2(pt.x - P.x, pt.z - P.z); if (held) P.look = a; else { tgt = a; P.aimFar = Math.hypot(pt.x - P.x, pt.z - P.z); } }
+    else if (!held && P.aimTo !== undefined) tgt = P.aimTo;   // (the cursor over you: you settle on where you were turning)
   }
+  if (tgt !== null) turnAim(tgt, dt, mouse);
+  else if (!scoped) { TURN.ox *= 0.8; TURN.oy *= 0.8; }
   if (!openSt || aiming || scoped || P.dead) P.look = null;
 }
-const _lookPt = new V3();
+const _lookPt = new V3(), _aimTo = new V3(), _tp = new V3();
+// you can't turn on the spot in an instant: your aim swings round to where you point it on a spring (TURN: how stiff,
+// how damped, under 1 so a quick or a long turn carries a little past and comes back), no faster than max radians a
+// second (slower with a heavy gun, and down the sights), and the crosshair shows where the gun's really pointing as it
+// comes round (TURN.ox, oy: how far that is on screen from where you've put the cursor), so a shot goes where it is
+const TURN = { k: 150, z: 0.5, max: 11, heavy: 0.6, ads: 0.8, ox: 0, oy: 0 };
+function turnAim(tgt, dt, mouse) {
+  P.aimTo = tgt;
+  if (P.aim === undefined || !(dt > 0)) P.aim = tgt;
+  const D = W(curId()) || {}, cap = TURN.max * (D.heavy ? TURN.heavy : 1) * (aiming ? TURN.ads : 1), w = Math.sqrt(TURN.k);
+  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) {
+    P.aimV = (P.aimV || 0) + (TURN.k * angDiff(tgt, P.aim) - 2 * TURN.z * w * (P.aimV || 0)) * h;
+    P.aimV = clamp(P.aimV, -cap, cap); P.aim += P.aimV * h;
+  }
+  P.aim = Math.atan2(Math.sin(P.aim), Math.cos(P.aim));
+  const far = P.aimFar || 6; aimPt.set(P.x + Math.sin(P.aim) * far, GUN_Y, P.z + Math.cos(P.aim) * far);
+  if (!mouse) { TURN.ox = TURN.oy = 0; return; }
+  _tp.copy(aimPt).project(cam); TURN.ox = (_tp.x + 1) / 2 * innerWidth - aimTX(); TURN.oy = (1 - _tp.y) / 2 * innerHeight - aimTY();
+}
