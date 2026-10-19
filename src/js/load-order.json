@@ -3,6 +3,7 @@
   "ui/game-icons.js",
   "core/renderer.js",
   "core/math.js",
+  "effects/screen-outlines.js",
   "net/net.js",
   "core/shaders.js",
   "core/geometry.js",
