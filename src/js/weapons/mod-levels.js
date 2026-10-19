@@ -15,7 +15,6 @@ const MOD_UP = {
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   well: { t: 'Mag changes 3% faster', up: D => { D.reload *= 0.97; } },
-  bolt: { t: 'Bolt works 12% faster', up: D => { D.rate *= 0.88; } },
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
   navy: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   gl: { t: 'Recharges 25% faster', up: D => { D.glRecharge *= 0.75; } },

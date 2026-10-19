@@ -68,7 +68,7 @@ function updateZombieVisuals(dt, rdt) {
     { const lt = T('light'), L = lt && LIGHT_OL[lt], dk = curDark;
       let a = 0;
       if (L && dk > 0.05 && !P.dead && flOn > 0) {
-        const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), P.aim));
+        const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), flDir()));
         a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75 * flOn;
       }
       a = Math.max(a, tb * z.vis * 0.75);   // a teammate's light outlines it the same way

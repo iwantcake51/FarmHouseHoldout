@@ -72,10 +72,11 @@ const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
 // tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
-// the double barrel none (two barrels are two shells)
-const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2 };
+// the double barrel none (two barrels are two shells), the hunting rifle two: its fixed magazine extended, then a
+// detachable box (game/run-state.js: DETACH)
+const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2, hunting: 2 };
 // the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
-// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that.
+// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the greased bolt) do that.
 // The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
 const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
 // the guns that take no can: the double barrel's twin muzzles

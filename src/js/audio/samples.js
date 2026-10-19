@@ -12,7 +12,7 @@ const SAMPLES = {
   dry_pistol: { vol: 0.45 }, dry_smg: { vol: 0.45 }, dry_rifle: { vol: 0.45 },
   magout_pistol: { vol: 0.42 }, magout_smg: { vol: 0.42 }, magout_rifle: { vol: 0.45 },
   magin_pistol: { vol: 0.5 }, magin_smg: { vol: 0.5 }, magin_rifle: { vol: 0.55 },
-  shell_1: { vol: 0.45 }, shell_2: { vol: 0.45 }, round_in: { vol: 0.42 },
+  shell_load: { vol: 0.5 }, brute_wall: { vol: 0.85 }, round_in: { vol: 0.42 },
   charge_pull_rifle: { vol: 0.4 }, charge_slam_rifle: { vol: 0.55 }, charge_pull_smg: { vol: 0.4 }, charge_slam_smg: { vol: 0.5 },
   slide_pull: { vol: 0.38 }, slide_drop: { vol: 0.5 },
   pump_back: { vol: 0.5 }, pump_home: { vol: 0.6 }, pump_back_2: { vol: 0.5 }, pump_home_2: { vol: 0.6 },

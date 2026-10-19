@@ -768,6 +768,25 @@ const GUN_MODELS = {
     profile(g, shp(inset([[0.531, 1.07], [0.5308, 1.0613], [0.5335, 1.044], [0.5357, 1.0415], [0.5389, 1.0385], [0.5443, 1.0357], [0.5477, 1.0335], [0.5703, 1.0335], [0.5803, 1.0361], [0.586, 1.0399], [0.59, 1.0459], [0.5911, 1.0507], [0.5918, 1.06], [0.5925, 1.07]], 0.0012),
       [shp(inset([[0.5373, 1.0665], [0.5378, 1.0473], [0.542, 1.0419], [0.5478, 1.0399], [0.5535, 1.0394], [0.5611, 1.0392], [0.579, 1.0419], [0.5857, 1.048], [0.5854, 1.0624], [0.585, 1.0665]], -0.0012))]), 0.011, B, X, 0.0012);
     profile(g, shp([[0.5442, 1.068], [0.5502, 1.068], [0.5499, 1.0601], [0.5495, 1.0506], [0.5518, 1.048], [0.5527, 1.0447], [0.5522, 1.0433], [0.5486, 1.0428], [0.5476, 1.0456], [0.5451, 1.0479], [0.5442, 1.063]]), 0.006, GM.metal2, X, 0.0008);
+    // ---- the magazine, by its mag step: the fixed one's floorplate flush in the stock's belly; a deeper floorplate
+    // let down under it (Mag extension, 7 rounds); or a detachable 10-round box, after the polymer AICS-pattern kits: a
+    // bottom-metal plate from the guard forward round the well and the release lever at its back, and the box itself under
+    // the port in line with the bolt, straight
+    // fronted with its sides stepped and ribbed and a flared base plate (in the magazine group, so a reload drops it out and
+    // brings a fresh one in: weapons/build-weapons.js, player/hold.js)
+    const mt = T('mag'), mg = g.userData.magG || g;
+    if (mt === 1) {
+      profile(g, shp([[0.597, 1.0712], [0.744, 1.0805], [0.744, 1.0655], [0.737, 1.0592], [0.606, 1.0545], [0.597, 1.0592]]), 0.031, B, X, 0.002);
+      box(g, 0.004, 0.004, 0.006, GM.metal2, X, 1.057, 0.735);   // its catch
+    } else if (mt >= 2) {
+      profile(g, shp([[0.592, 1.0705], [0.762, 1.0808], [0.762, 1.0695], [0.592, 1.061]]), 0.034, B, X, 0.0015);   // the bottom metal
+      profile(g, shp([[0.594, 1.064], [0.601, 1.064], [0.603, 1.052], [0.596, 1.05]]), 0.012, B, X, 0.001);    // the release lever
+      const MB = [[0.656, 1.1], [0.74, 1.1], [0.74, 1.002], [0.747, 0.994], [0.747, 0.982], [0.649, 0.982], [0.649, 0.991], [0.656, 0.997]];   // straight under the port, where the bolt strips its rounds
+      profile(mg, shp(MB), 0.03, GM.poly, X, 0.0018);
+      profile(mg, shp([[0.6515, 0.982], [0.7455, 0.982], [0.7455, 0.993], [0.739, 0.997], [0.6575, 0.997], [0.6515, 0.991]]), 0.0355, GM.poly, X, 0.002);   // the base plate, flared out
+      [1.044, 1.024, 1.006].forEach(y => box(mg, 0.0362, 0.0035, 0.083, GM.poly, X, y, 0.698));   // the steps down its sides
+      [-1, 1].forEach(sd => { box(mg, 0.0015, 0.03, 0.036, GM.rubber, X + sd * 0.0174, 1.025, 0.677); box(mg, 0.0015, 0.03, 0.036, GM.rubber, X + sd * 0.0174, 1.025, 0.72); });   // the panels recessed in its sides
+    }
     // ---- barrel, tapering to the muzzle, and its sights
     taper(g, 0.0118, 0.0078, 0.552, B, X, 1.14, 1.204);
     profile(g, shp([[1.39, 1.144], [1.415, 1.149], [1.468, 1.151], [1.468, 1.144]]), 0.012, B, X, 0.001);
@@ -806,7 +825,7 @@ const GUN_MODELS = {
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
-    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
+    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.698, magY: 1.075, ownMags: true } : {}) };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the

@@ -831,8 +831,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const st = ANIM.slideT[q.side || 'R'];
       let off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06), held = false, fast = false;   // slammed back, a beat at the end of its stroke, run home
       if (q.cyc) {
-        // the rifle's bolt stays open, handle up, while you feed it; otherwise the action follows the cycle
-        const bolt = EJECT[id] === 'bolt', open = bolt && rel === 'shell';
+        // pulled back to load (the rifle's bolt, handle up, or an empty pump's forend), it stays open while you feed
+        // it (weapons/casings.js: openAction); otherwise the action follows the cycle
+        const bolt = EJECT[id] === 'bolt', open = W8.boltOpen && rel === 'shell' && !cp;
         off = open ? 1 : cp ? cp.off : 0; held = open || !cp;   // eased when nothing's working it (a rack cut short closes, not snaps)
         if (bolt) { q.lift = (q.lift || 0) + ((open ? 1 : cp ? cp.lift : 0) - (q.lift || 0)) * (cp && !open ? 1 : Math.min(1, rdt * 14)); q.m.rotation.z = -BOLT_TURN * q.lift; }
       }
@@ -1013,7 +1014,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       if (st === 1) { _p2.add(_rv.set(-0.03, -0.04, 0)); _p3.copy(_p1).lerp(_p2, -0.12); free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.76, _p3], [0.86, _p1], [1, POUCH]], rp); }   // in low from the left, a firm thumb push
       else if (st === 2) { _p3.copy(POUCH).lerp(_p2, 0.5); _p3.y += 0.05; free = walkPath(_p4, [[0, POUCH], [0.28, _p3], [0.5, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); }   // up and over, then in
       else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp);
-      wt = 1;
+      wt = W8.relWait > 0 ? 0 : 1;   // (on the gun while the action's pulled back: a pump's forend is pulled with it)
     } else if (shP >= 0 && brkG) {
       // closing the double barrel: back from wherever the hand was (the pouch, or the chamber if it was stopped) to the
       // forend where it hangs on the swung-down barrels, under and up onto it, then riding it as it lifts them shut

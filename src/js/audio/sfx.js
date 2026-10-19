@@ -27,6 +27,7 @@ const SFX = {
   split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
   // a zombie's skull bursting: every kill (zombies/damage.js killEnd), from the zombie, at v
   headPop(v = 1) { if (playS('head_pop', { gap: 0.05, rate: 1.12, vol: v })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
+  bruteWall() { if (playS('brute_wall', { jit: 0.05 })) return; SFX.thud(); },   // a brute's dash ending in a wall (zombies/brute-dash.js)
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
@@ -35,7 +36,7 @@ const SFX = {
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   magIn() { if (playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },
-  shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS(['shell_1', 'shell_2'], { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
+  shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS('shell_load', { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
   chargePull() { const k = gunKind(); if (playS(k === 'pistol' ? 'slide_pull' : k === 'smg' ? 'charge_pull_smg' : 'charge_pull_rifle')) return; nz(0.07, 'bandpass', 1700, 900, 0.22, 2); tn(0.03, 'square', 900, 700, 0.05); },
   chargeSlam() { if (playS(gunKind() === 'smg' ? 'charge_slam_smg' : 'charge_slam_rifle')) return; nz(0.05, 'bandpass', 1100, 500, 0.32, 2); tn(0.05, 'triangle', 420, 180, 0.2); },
   slideDrop() { if (playS('slide_drop')) return; nz(0.045, 'bandpass', 1700, 900, 0.34, 2.2); tn(0.04, 'triangle', 560, 220, 0.18); },
@@ -95,6 +96,8 @@ const SFX = {
   pickGun() { if (!playS('equip')) SFX.pick(); },                        // a weapon picked up off the ground
   crate() { if (!playS('crate_open')) SFX.upgrade(); },                  // a supply crate prised open
   craft() { if (!playS('craft')) SFX.board(); },                         // something made at a station
+  // the bass under a brute's footfall (audio/footsteps.js): a deep sine dropping away under a low rumble of the ground
+  bruteStomp(v) { if (v < 0.01) return; tn(0.34, 'sine', 68, 30, 0.55 * v); tn(0.16, 'triangle', 110, 45, 0.22 * v); nz(0.22, 'lowpass', 260, 60, 0.4 * v, 0.7); },
   groan(v) {
     if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), l = AC.createOscillator(), lg = AC.createGain(), f = AC.createBiquadFilter(), g = AC.createGain();
     o.type = 'sawtooth'; o.frequency.value = rr(65, 95); l.frequency.value = rr(4, 7); lg.gain.value = 9; l.connect(lg); lg.connect(o.frequency);

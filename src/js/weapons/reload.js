@@ -39,10 +39,11 @@ function startReload() {
   W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
-    // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js), and the
-    // rifle's bolt is opened to feed it
+    // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js). The
+    // rifle's bolt is pulled back by hand to feed it, and so is an empty pump's forend, held back while it's loaded and
+    // pushed home at the end (openAction, chamberCycle); the first round waits for it (W8.relWait)
     if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
-    if (EJECT[id] === 'bolt') { W8.open[id] = true; W8.boltOpen = true; }
+    W8.relWait = racked(id) && !W8.boltOpen && (EJECT[id] === 'bolt' || (W8.mag[id] || 0) <= 0) ? openAction(id) : 0;
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
     W8.reloadT = D.perShell * relMul(id) + firstShell(id); W8.reloadMax = W8.reloadT;
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * relMul(id); W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
@@ -51,7 +52,7 @@ function startReload() {
     // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer
     const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
     W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
-    W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty ? EMPTY_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;
+    W8.reloadT = W8.reloadMax = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty && !D.detach ? EMPTY_MUL : 1); W8.seated = W8.pulled = W8.slammed = false;   // (the rifle's box: its bolt's worked after, empty or not)
     SFX.magOut(); reloadJolt(0.12);   // (the old mag falls a beat later, at magOutP: tickReload)
   }
 }
@@ -123,6 +124,7 @@ function tickReload(dt) {
   if (!W8.reloading) return;
   const id = curId(), D = W(id);
   if (W8.reloading === 'mag' && D.akimbo && !D.speedload) { akTickReload(dt, id, D); return; }   // one gun at a time (weapons/akimbo.js)
+  if (W8.reloading === 'shell' && W8.relWait > 0) { W8.relWait -= dt; return; }   // the action being pulled back first
   W8.reloadT -= dt * (runReloading() ? RUN_RELOAD.rel : 1);   // (a little slower at a sprint: player/sprint.js)
   if (W8.reloading === 'mag' && D.speedload) {
     const p = 1 - W8.reloadT / W8.reloadMax;
@@ -152,6 +154,7 @@ function tickReload(dt) {
   } else {
     if (!W8.filled) fillMag(id, D);
     W8.reloading = null; magSwapIn(id);
+    if (D.detach) { W8.open[id] = true; W8.boltOpen = false; }   // the rifle's box in: the bolt's worked to chamber a round (tickCycle, weapons/casings.js)
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); shake = Math.max(shake, 0.12); }   // (seated already, unless it was cut short)
   }
 }

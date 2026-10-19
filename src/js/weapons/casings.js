@@ -383,6 +383,7 @@ function cyclePose(c, q) {
   const o = { off: 0, lift: 0, grab: 0 }, B = c.v.beat, ex = c.v.ex;
   const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
   if (!c.bolt) {
+    if (c.q0 && q < B.fwd) { o.off = 1; return o; }                                                     // already back
     if (q < B.back) o.off = run(0, B.back, v => Math.pow(v, ex[0]));                                   // yanked back, quickest as it hits the stop
     else if (q < B.fwd) o.off = run(B.back, B.fwd, v => 1 - 0.08 * Math.sin(v * Math.PI) * (1 - v));   // a little bounce off it
     else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, ex[1]));                      // shoved forward, slamming home
@@ -391,6 +392,7 @@ function cyclePose(c, q) {
   }
   const q0 = c.q0 || 0;
   o.grab = smooth(clamp((q - q0) / B.reach, 0, 1)) * (1 - smooth(clamp((q - B.lock - 0.02) / (1 - B.lock - 0.02), 0, 1)));
+  if (c.stop) o.grab *= 1 - smooth(clamp((q - B.back) / (c.stop - B.back), 0, 1));                     // pulled back to load: let go of it there
   if (c.q0 && q < B.fwd) { o.lift = o.off = 1; return o; }                                              // already open
   if (q < B.reach) o.lift = 0;
   else if (q < B.lift) o.lift = run(B.reach, B.lift, v => 1 - (1 - v) * (1 - v));                     // snapped up
@@ -427,11 +429,20 @@ function cycleFx(v, bolt) {
   return [[B.reach + 0.02, () => { SFX.boltUp(); knock(K.up); }], [B.back, () => { SFX.boltBack(); knock(K.back); }],
     [B.home, () => { SFX.boltHome(); knock(K.home); }], [B.lock, () => { SFX.boltLock(); knock(K.lock); }]];
 }
-// racking a gun that's open to chamber a round, with no case to throw: after a load (the rifle's bolt, open while it
-// was fed, is only driven home and locked), or when a rack was cut short
+// pulling the action back by hand before loading (the rifle's bolt every time, to feed it; a pump only when it's run
+// dry): the first part of a rack, up to the rear stop, where the hand lets go and it's left open while the rounds go in
+// (W8.boltOpen: player/hold.js holds it back). No case to throw, the last one went with the shot. Returns how long it takes
+function openAction(id) {
+  startCycle(id); const c = W8.cyc; c.done = true; c.stop = c.v.beat.fwd; W8.boltOpen = true;
+  return c.delay + c.dur * c.stop;
+}
+// racking a gun that's open to chamber a round, with no case to throw: after a load (an action held open while it was
+// fed is only pushed forward, and a bolt locked), or when a rack was cut short. The rifle's detachable box has its bolt
+// worked in D.detach seconds, the end of its reload (game/run-state.js: DETACH)
 function chamberCycle(id) {
   startCycle(id); const c = W8.cyc, B = c.v.beat; c.done = true; c.delay = 0.04;
-  if (c.bolt && W8.boltOpen) { c.q0 = B.fwd - B.reach; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
+  if (W8.boltOpen) { c.q0 = c.bolt ? B.fwd - B.reach : B.fwd; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
+  else if (W(id).detach) { const f = W(id).detach / (c.dur + c.delay); c.dur *= f; c.delay *= f; }
 }
 function tickCycle(dt) {
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault) { chamberCycle(id); W8.boltOpen = false; } }
@@ -441,6 +452,7 @@ function tickCycle(dt) {
   // the case flies out as the action hits its rear stop
   if (!c.done && p >= B.back) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); }
   while (c.beat < c.fx.length && p >= c.fx[c.beat][0]) c.fx[c.beat++][1]();
+  if (c.stop && p >= c.stop) { W8.cyc = null; return; }   // pulled back to load (openAction): left there
   // home: a round's chambered, if there was one to feed
   if (!c.homed && p >= B.home) { c.homed = true; if ((W8.mag[c.id] || 0) > 0) W8.open[c.id] = false; }
   if (p >= 1) W8.cyc = null;

@@ -38,7 +38,7 @@ function recomputeEff() {
     D.headX = (D.headX || 0) + (ammo >= 3 ? HEAD_UP.ammo : 0) + (D.sniper ? HEAD_UP.sight[sight] : 0);
     // a sniper looking through a scope: every headshot is a crit, harder with each scope (SCOPES; weapons/firing.js)
     if (D.sniper && sight >= 3) { D.headCrit = true; D.critM = Math.max(D.critM || 0, SCOPES[sight].crit); }
-    for (let k = 0; k < trig; k++) D.rate /= TRIG_UP[k];   // each trigger step a little quicker (TRIG_UP, upgrades/tier-table.js)
+    for (let k = 0; k < trig; k++) D.rate /= D.fullAuto ? 1 + (TRIG_UP[k] - 1) * AUTO_SEAR.trig : TRIG_UP[k];   // each trigger step a little quicker (TRIG_UP, upgrades/tier-table.js), more so on the auto sear's full auto
     if (D.mag) D.mag *= (MAG_UP[id] || MAG_UP.all)[mag];
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
@@ -46,6 +46,8 @@ function recomputeEff() {
     D.magX = D.mag && WEAP[id].mag ? D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own
     if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(D.magX);
     if (D.akimbo) D.reload *= AK_ONE;
+    // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after
+    if (id === 'hunting' && mag >= 2) { D.perShell = 0; D.reload = DETACH.reload - DETACH.bolt; D.detach = DETACH.bolt; }
     D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
@@ -61,7 +63,11 @@ const W = id => EFF[id];
 const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
 // how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
-const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30] };   // (the MP5: a 40-round mag, then a 50-round drum)
+const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30], hunting: [1, 7 / 5, 10 / 5] };   // (the MP5: a 40-round mag, then a 50-round drum; the rifle: 7 in its fixed mag extended, then a 10-round box)
+// the hunting rifle's detachable 10-round box (its second mag step): a whole reload takes reload seconds, the mag
+// change and then bolt seconds of working the bolt back and forward to chamber a round (weapons/reload.js, chamberCycle
+// in weapons/casings.js)
+const DETACH = { reload: 1.65, bolt: 0.6 };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
 // each attachment does its own job, none of them the same thing twice: a sight (red dot, holo, then the scopes)
@@ -140,7 +146,7 @@ function magChange(id, fn) {
   const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');
   fn();
   const D = id && W(id); if (!D || !D0) return;
-  if (D.melee || D.perShell || D.speedload || D.akimbo || D0.akimbo) { delete W8.pin[id]; return; }   // these take it at once (a waiting mag too)
+  if (D.melee || D.perShell || D0.perShell || D.speedload || D.akimbo || D0.akimbo) { delete W8.pin[id]; return; }   // these take it at once (a waiting mag too; a fixed magazine swapped for a box)
   if ((magSize(id) !== cap0 || gunTier(id, 'mag') !== t0) && !W8.pin[id]) W8.pin[id] = { cap: cap0, t: t0 };
 }
 // the old mag's out: the new one goes in, model and all

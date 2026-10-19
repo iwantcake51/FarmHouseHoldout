@@ -71,6 +71,10 @@ let flOn = 0;
 const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
 // the tier of your light while it's on (0 when it isn't), for your teammates (sent with your pose: net/avatars.js)
 function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
+// which way your light points: where you aim, but at a sprint (player/animation.js: faceK) the gun's down at a low
+// ready with your chest turned to where you're running, so it lights the way you run, not the cursor behind you
+// (run and gun twists the chest, and the light, back round to the aim)
+const flDir = () => P.aim + angDiff(ANIM.chestYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1));
 const FL_N = 6, teamFl = [];   // (teamFl: this frame's teammate lights, { x, z, dir, tier, on }: teamBeam)
 function flashUniforms(rdt) {
   const F = FLASH[T('light')], D = W(curId()), cones = [], dark = state !== 'title' && curDark > 0.05;
@@ -78,7 +82,7 @@ function flashUniforms(rdt) {
   if (dark && F && D && !D.melee && flOn > 0) {
     const [lr, half, k] = F, li = k * curDark * flOn;
     if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62]); });
-    else cones.push([P.x, P.z, P.aim, lr, half, li]);
+    else cones.push([P.x, P.z, flDir(), lr, half, li]);
   }
   // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
   teamFl.length = 0;
