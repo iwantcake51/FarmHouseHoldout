@@ -117,8 +117,9 @@ function breakBoard(o, z) {
 }
 // shots through the boards: every bullet or pellet that crosses a boarded door or window on its way (weapons/firing.js)
 // takes BOARD_SHOT of its damage off the board on top, so each shot works it a little looser (boardShake) till it splits
-// and is knocked out the way the shot was going. A 9mm round takes about 7 off a 70 board, a pump shell about 36
-const BOARD_SHOT = 0.25;
+// and is knocked out the way the shot was going. A 9mm round takes about 3 off a 70 board, a pump shell about 17, so
+// shooting through your own boards wears them down slowly rather than shredding them
+const BOARD_SHOT = 0.12;
 // the boarded openings a bullet crosses before it stops at T, each with BOARD_SHOT of its damage added to what acc
 // already has for it (a shot's pellets all go into one acc, so each opening takes one blow a shot: shootBoard)
 function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
