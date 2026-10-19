@@ -53,6 +53,7 @@ function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   $('station').classList.toggle('isRack', openSt.id === 'rack');
+  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench');
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
@@ -84,6 +85,7 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
+  quickAmmo(rows);
   { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 // ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
@@ -110,6 +112,22 @@ function benchGun(s) {
 }
 function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
+// at the workbench, ammo is always a click away, whatever card you've scrolled to: for the gun in your hands, or a load
+// for every gun you carry, each showing what it gives and its price, and lit when you can buy it (the same cards as at
+// the top of the list: recipes.js, quick)
+function quickAmmo(rows) {
+  const el = $('stQuick'), on = openSt.id === 'bench'; el.hidden = !on; if (!on) return;
+  if (!el.firstElementChild) el.innerHTML = ['hand', 'all'].map(q => `<button type="button" data-q="${q}"><svg viewBox="${GI_VB}">${FEED_ICON.ammo}</svg><span><b></b><em></em></span><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span></button>`).join('');
+  for (const b of el.children) {
+    const i = rows.findIndex(r => r.quick === b.dataset.q), r = rows[i]; if (!r) continue;
+    const t = b.dataset.q === 'hand' ? (gunAmmo() ? 'Ammo: ' + W(curId()).short : 'Ammo') : 'Ammo for all', d = r.why() || (b.dataset.q === 'hand' ? (gunAmmo() ? `+${gunBatch(curId())} ${AMMO_NAME[gunAmmo()]}` : '') : allAmmo().map(([a, n]) => `+${n}`).join(' · '));
+    const ok = !r.why() && S.scrap >= r.cost, k = t + d + r.cost + ok;
+    if (b._k === k) continue; b._k = k; b.dataset.i = i;
+    b.querySelector('span b').textContent = t; b.querySelector('em').textContent = d; b.querySelector('.cost b').textContent = r.cost;
+    b.classList.toggle('ok', ok); b.querySelector('.cost').classList.toggle('short', S.scrap < r.cost);
+  }
+}
+$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && openSt.id === 'bench') { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {
   if (!openSt) return;

@@ -110,7 +110,7 @@
 #fireMode .fmG.auto i:nth-child(n+3){opacity:.7}#fireMode .fmG.auto i:nth-child(n+4){opacity:.45}#fireMode .fmG.auto i:nth-child(n+5){opacity:.22}
 #fireMode .fmG.burst i{height:12px}
 #fireMode .fmG.fan i:nth-child(1){transform:rotate(-18deg)}#fireMode .fmG.fan i:nth-child(3){transform:rotate(18deg)}
-#fireMode .fmG.action i{width:5px;height:13px;background:#c9a043}
+#fireMode .fmG.action i,#fireMode .fmG.both i{width:5px;height:13px;background:#c9a043}
 /* the badge's rounds are the gun's cartridge too: a rifle round's bottleneck and point, a magnum's flat nose */
 #fireMode .fmG.rf i{width:4px;height:14px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(50% 0,64% 8%,80% 22%,80% 36%,100% 44%,100% 100%,0 100%,0 44%,20% 36%,20% 22%,36% 8%)}
 #fireMode .fmG.mg i{width:5px;height:13px;border-radius:0;background:linear-gradient(#c47838 0 30%,#d8b45a 30%);clip-path:polygon(30% 0,70% 0,100% 24%,100% 100%,0 100%,0 24%)}

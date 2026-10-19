@@ -84,6 +84,7 @@ function fireModeOf(id) {
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
+  if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };
