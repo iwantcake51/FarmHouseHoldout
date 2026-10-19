@@ -67,7 +67,7 @@ function renderStation() {
       return head + `<button type="button" data-i="${i}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
       <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic] || FEED_ICON.gear}</svg></span>
       <span class="tx"></span>
-      <span class="ft">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}<span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
+      <span class="ft"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
     </button>`;
     }).join('');
     btns = $('stRows').querySelectorAll('button');
@@ -84,7 +84,7 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
+  { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 // ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
 // Picking one draws it, and the bench's cards (and the stats beside it) change over to it, so you can upgrade each
@@ -112,7 +112,7 @@ function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {
-  if (!openSt) return; if (openSt.id === 'box') { giftPick(i); return; } if (openSt.id === 'rack') { rackKey(i); return; }
+  if (!openSt) return;
   const r = RECIPES[openSt.id][i]; if (!r) return;
   if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();

@@ -76,18 +76,42 @@ let flOn = 0;
 const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
 // the tier of your light while it's on (0 when it isn't), for your teammates (sent with your pose: net/avatars.js)
 function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
-// which way your light points: where you aim, but at a sprint (player/animation.js: faceK) the gun's down at a low
-// ready with your chest turned to where you're running, so it lights the way you run, not the cursor behind you
-// (run and gun twists the chest, and the light, back round to the aim)
-const flDir = () => P.aim + angDiff(ANIM.chestYaw ?? P.aim, P.aim) * smooth(clamp(ANIM.faceK || 0, 0, 1));
+// which way your light points: where you aim, but at a sprint (player/animation.js: faceK) it's on the gun, down at a
+// low ready, so it goes where the gun does: swinging with the stride and round into the bends with your chest, and
+// with Run and gun swept round after the gun as it comes up onto the aim, a little behind it (FL_FOLLOW: how quickly
+// it catches the gun up at a run, and firing on the run). flOff is how far round off your aim it is right now
+const FL_FOLLOW = { run: 11, rg: 6.5 };
+let flOff = 0, flOx = 0, flOz = 0;
+const flDir = () => P.aim + flOff;
+const _gb0 = new V3(), _gb1 = new V3();
+// the gun in your hands, flat on the ground: where its muzzle is (_gb1) and which way it points, or null with no gun
+// to go by; off its last frame's place, which is plenty for a light. gunYawK is how much that way can be gone by: the
+// steeper down the barrel points the less (its way round goes wild pointing straight down)
+let gunYawK = 0;
+function gunYaw() {
+  const g = gunMeshes[W8.cur]; gunYawK = 0; if (!g || !g.visible) return null;
+  const h = holdOf(W8.cur, 'R'), m = MUZ[W8.cur] || 0.9;
+  _gb0.set(X, GUN_Y, m - 0.4).applyMatrix4(h.matrixWorld); _gb1.set(X, GUN_Y, m).applyMatrix4(h.matrixWorld);
+  const dx = _gb1.x - _gb0.x, dz = _gb1.z - _gb0.z; gunYawK = smooth(clamp((Math.hypot(dx, dz) / 0.4 - 0.3) / 0.35, 0, 1));
+  return gunYawK > 0 ? Math.atan2(dx, dz) : null;
+}
+function stepFlDir(rdt) {
+  const k = smooth(clamp(ANIM.faceK || 0, 0, 1)), gy = k > 0.01 && !P.vault ? gunYaw() : null, ch = ANIM.chestYaw ?? P.aim;
+  const tgt = angDiff(gy === null ? ch : ch + angDiff(gy, ch) * gunYawK, P.aim) * k, rg = smooth(clamp(ANIM.rgK || 0, 0, 1));
+  flOff = k > 0.01 ? flOff + angDiff(tgt, flOff) * Math.min(1, (rdt || 0) * (FL_FOLLOW.run + (FL_FOLLOW.rg - FL_FOLLOW.run) * rg)) : tgt;
+  flOff = angDiff(flOff, 0);
+  // and from the gun, not the middle of you, while it's clear of the walls
+  const go = gy !== null && los(P.x, P.z, _gb1.x, _gb1.z) && !bulletBlocked(_gb1.x, _gb1.z) ? k : 0;
+  flOx = P.x + (_gb1.x - P.x) * go; flOz = P.z + (_gb1.z - P.z) * go;
+}
 const FL_N = 6, teamFl = [];   // (teamFl: this frame's teammate lights, { x, z, dir, tier, on }: teamBeam)
 function flashUniforms(rdt) {
   const F = FLASH[T('light')], D = W(curId()), cones = [], dark = state !== 'title' && curDark > 0.05;
-  flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0;
+  flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0; stepFlDir(rdt);
   if (dark && F && D && !D.melee && flOn > 0) {
     const [lr, half, k] = F, li = k * curDark * flOn;
     if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62]); });
-    else cones.push([P.x, P.z, flDir(), lr, half, li]);
+    else cones.push([flOx, flOz, flDir(), lr, half, li]);
   }
   // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
   teamFl.length = 0;

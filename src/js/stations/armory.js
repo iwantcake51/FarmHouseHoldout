@@ -75,7 +75,7 @@ function renderRack() {
   if (stStruct !== 'rack') {
     stStruct = 'rack'; GUN_RACK.pane = ''; GUN_RACK.can = '';
     rows.innerHTML = `<div class="rack" style="--k:0"><div class="rkTabs" role="tablist" style="--k:1;--n:${ARMORY_TABS.length}"><i class="rkPill"></i>${ARMORY_TABS.map((T, i) =>
-      `<button type="button" role="tab" data-tab="${i}"><i class="rkCan">Buy</i><span><kbd>${i + 1}</kbd>${T.name}</span><span class="rkPips">${tabIds(T).map(id => `<i data-pip="${id}"></i>`).join('')}</span></button>`).join('')}</div>
+      `<button type="button" role="tab" data-tab="${i}"><i class="rkCan">Buy</i><span>${T.name}</span><span class="rkPips">${tabIds(T).map(id => `<i data-pip="${id}"></i>`).join('')}</span></button>`).join('')}</div>
       <div class="rkAfford" hidden></div><div class="rkPanes">${ARMORY_TABS.map((T, i) => `<div class="rkPane" data-pane="${i}"></div>`).join('')}</div></div>`;
   }
   const rk = rows.querySelector('.rack'), t = GUN_RACK.tab;
@@ -104,7 +104,7 @@ function renderRack() {
       const ban = rows.querySelector('.rkAfford'), here = can[t];
       ban.hidden = !here.length; if (here.length) ban.innerHTML = `${SCRAP_IC()}<span>You can unlock ${here.map(id => `<b>${WEAP[id].name}</b>`).join(' or ')} now</span>`;
     } }
-  setT('stNote', 'Each line unlocks in order, first to last · 1–5 or Tab picks a line · E to step away');
+  setT('stNote', 'Each line unlocks in order, first to last · Tab picks a line, or click your loadout · E to step away');
 }
 let rackSwapT = 0;
 function rackTab(t) {
@@ -123,8 +123,6 @@ function rackClick(b) {
   if (S.scrap < c) { SFX.click(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
   S.scrap -= c; popEl('scrap'); unlockWeapon(id); SFX.craft(); renderStation();
 }
-// the number keys in the panel pick a line
-function rackKey(i) { if (i < ARMORY_TABS.length) rackTab(i); }
 // ---- your loadout, docked against the rack's left side while it's open (as the stats sheet is at the workbench:
 // ui/weapon-stats.js docks the panel and makes room for it): your four slots in key order, the weapon in each, the
 // one in your hands edged orange, and the others you've unlocked for each slot to take down for nothing
@@ -133,10 +131,19 @@ const rkSideOn = () => state === 'play' && !P.dead && !!openSt && openSt.id === 
 function rackSideHTML() {
   return `<div class="rlHead" style="--k:0"><b>Loadout</b><span>What you carry</span></div><p class="rlNote" style="--k:1">Take any weapon you've unlocked down off the rack for nothing, as you left it.</p>` + SLOTS.map((s, i) => {
     const id = W8.slot[s], others = W8.owned.filter(o => WEAP[o] && WEAP[o].slot === s && o !== id), cur = s === W8.cur;
-    return `<div class="rlSlot${cur ? ' cur' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd>${i + 1}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
-      ${id ? `<b class="rlGun">${WEAP[id].name}</b><em>${statLine(id)}</em>` : '<b class="rlGun rlEmpty">Empty</b><em>Unlock one from the rack</em>'}
+    return `<div class="rlSlot${cur ? ' cur' : ''}${slotTab(s, id) === GUN_RACK.tab ? ' shown' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd>${i + 1}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
+      <button type="button" class="rlGo" data-go="${slotTab(s, id)}" title="Show its line on the rack">${id ? `<b class="rlGun">${WEAP[id].name}</b><em>${statLine(id)}</em>` : '<b class="rlGun rlEmpty">Empty</b><em>Unlock one from the rack</em>'}<i class="rlArrow">${ARROW_IC}</i></button>
       ${others.length ? `<div class="rlAlt">${others.map(o => `<button type="button" data-take="${o}" title="${statLine(o)}"><span>Swap to</span><b>${WEAP[o].short || WEAP[o].name}</b></button>`).join('')}</div>` : ''}</div>`;
   }).join('');
+}
+// the rack's tab a slot's weapon is on (clicking it in your loadout goes there), or for an empty slot the first tab
+// with anything for it
+const ARROW_IC = '<svg viewBox="0 0 24 24"><path d="M9 5.5 15.5 12 9 18.5 7.6 17.1l5.1-5.1-5.1-5.1z"/></svg>';
+const slotTab = (s, id) => Math.max(0, ARMORY_TABS.findIndex(T => id ? tabIds(T).includes(id) : tabIds(T).some(x => WEAP[x] && WEAP[x].slot === s)));
+function rackGoTab(t) {
+  rackTab(t);
+  const b = $('stRows').querySelector(`.rkTabs button[data-tab="${t}"]`); if (b) { b.classList.remove('rkGoFlash'); void b.offsetWidth; b.classList.add('rkGoFlash'); }
+  updateRackSide();
 }
 // every frame: shown while the rack's open, rebuilt only when what you carry or own changes
 function updateRackSide() {
@@ -150,10 +157,11 @@ function updateRackSide() {
     clearTimeout(rkSideCloseT); rkSideCloseT = setTimeout(() => { el.classList.remove('closing'); el.hidden = true; }, 220);
   }
   if (!on) return;
-  const key = W8.owned.join(',') + '|' + SLOTS.map(s => W8.slot[s]).join(',') + '|' + W8.cur;
+  const key = W8.owned.join(',') + '|' + SLOTS.map(s => W8.slot[s]).join(',') + '|' + W8.cur + '|' + GUN_RACK.tab;
   if (GUN_RACK.side !== key) { GUN_RACK.side = key; el.innerHTML = rackSideHTML(); }
 }
 $('rkLoad').addEventListener('click', e => {
+  const g = e.target.closest('button[data-go]'); if (g && rkSideOn()) { rackGoTab(+g.dataset.go); return; }
   const b = e.target.closest('button[data-take]'); if (!b || !rkSideOn()) return;
   takeFromRack(b.dataset.take); SFX.craft(); renderStation(); updateRackSide();
   const n = $('rkLoad').querySelector(`[data-s="${WEAP[b.dataset.take].slot}"]`); if (n) { n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
