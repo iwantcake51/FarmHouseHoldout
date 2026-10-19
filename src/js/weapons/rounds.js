@@ -56,12 +56,17 @@ function dumpMag(id) {
   W8.reserve[D.ammo] += W8.mag[id] || 0; W8.mag[id] = 0;
   if (W8.akMag[id]) W8.akMag[id] = { L: 0, R: 0 };
 }
-// load kind k into gun id: at the bench the mag is filled straight away from what you carry; in the field (swapRounds)
+// load kind k into gun id: at the bench the rounds in the gun are swapped straight away for as many of the new kind
+// (the mag isn't topped up: it holds what it held, a pair's two mags each their own share); in the field (swapRounds)
 // the gun is emptied and reloaded
 function loadRound(id, k, fill) {
+  const had = W8.mag[id] || 0, ak = W8.akMag[id] && { ...W8.akMag[id] };
   ownRound(id, k); dumpMag(id);
   W8.rounds[id].on = k; recomputeEff();
-  if (fill) { delete W8.pin[id]; const n = Math.min(magSize(id), W8.reserve[WEAP[id].ammo]); W8.mag[id] = n; W8.reserve[WEAP[id].ammo] -= n; }
+  if (fill) {
+    delete W8.pin[id]; const n = Math.min(magSize(id), had, W8.reserve[WEAP[id].ammo]);
+    W8.mag[id] = n; W8.reserve[WEAP[id].ammo] -= n; if (ak && n === had) W8.akMag[id] = ak;
+  }
   buildGuns();
 }
 // X: the next kind of round you own for the gun in your hands, loaded with a reload
