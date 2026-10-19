@@ -13,7 +13,20 @@ const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
 // dither away round you where they're between you and the camera: INWALL_CUT, core/shaders.js)
 const IW = { h: 2.42, base: 0.11, cap: 0.05, head: 2.05, case: 0.075 };
 const IW_M = { plaster: lit(new THREE.MeshLambertMaterial({ color: 0xd6ccb4 }), 'inwall'), trim: lit(new THREE.MeshLambertMaterial({ color: 0x5c4532 }), 'inwall'), base: lit(new THREE.MeshLambertMaterial({ color: 0x4a3828 }), 'inwall') };
-const HOUSE_PLAN = { seed: 0, rooms: [], doors: [], g: new THREE.Group() };
+const HOUSE_PLAN = { seed: 0, rooms: [], doors: [], roomOf: new Int16Array(N * N).fill(-1), cols: [], kinds: [], g: new THREE.Group() };
+// each room's paint, by what it is: the living room (the one the door opens into), a bedroom, or a small room (a bath,
+// a pantry or a closet: six cells or fewer), which has a tiled floor (TILE: its tile colours)
+const ROOM_PAINT = { live: [0xd9c9a8, 0xcdb68e, 0xbcc4a2, 0xd6b9a2, 0xc9c0ae], bed: [0xa9b8c6, 0xc4afbf, 0xb4c6a4, 0xd8ccb0, 0x9fb3a6, 0xcbb69a], small: [0xc9dbd6, 0xe2ddcc, 0xa9c2ba, 0xd8d0e0] };
+const TILE = [0xe8e2d4, 0xcfdcd6, 0xe2d4c0, 0xd2d6dc];
+const IW_PAINT = new Map(), iwPaint = c => IW_PAINT.get(c) || (IW_PAINT.set(c, lit(new THREE.MeshLambertMaterial({ color: c }), 'inwall')), IW_PAINT.get(c));
+// a floor of small square tiles, four to the metre, with grout between them, a little uneven in tone
+const TILE_TEX = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#8a8478'; x.fillRect(0, 0, 128, 128);
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const v = ((a + b) % 2 ? 214 : 250) - ((a * 7 + b * 13) % 5) * 3; x.fillStyle = `rgb(${v},${v},${v - 4})`; x.fillRect(a * 32 + 1.5, b * 32 + 1.5, 29, 29); }
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
+})();
+const TILE_M = new Map(), tileMat = c => TILE_M.get(c) || (TILE_M.set(c, lam(c, { map: TILE_TEX })), TILE_M.get(c));
 scene.add(HOUSE_PLAN.g);
 const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
 const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
@@ -170,12 +183,32 @@ function roomLamps(cells) {
   return [mid(sorted.slice(0, h)), mid(sorted.slice(h))];
 }
 
+const TILE_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 // the walls built: one run of plaster a stretch of wall, its skirting on both sides and the trim along its top, and
 // round each doorway a header over it and a cased frame on both faces
 function buildInWalls(W, doors) {
-  const g = HOUSE_PLAN.g;
+  const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols;
   while (g.children.length) { const m = g.children.pop(); if (m.userData.fine) m.geometry.dispose(); }
   const t = THIN.t, H = IW.h, add = (w, h, d, mat, x, y, z) => box(g, w, h, d, mat, x, y, z);
+  // each face of a wall in the colour of the room it faces, from the skirting up to the trim (over a doorway, above its
+  // casing)
+  const paint = (i, j) => { const r = ro[idx(i, j)]; return iwPaint(r >= 0 ? cols[r] : 0xd6ccb4); };
+  const skins = (k, y0) => {
+    const [ax, i, j] = eDec(k), p = (ax === 'x' ? i : j) - HALF, c = (ax === 'x' ? j : i) + 0.5 - HALF, h = H - IW.cap - y0, y = y0 + h / 2;
+    [-1, 1].forEach(sd => {
+      const m = sd < 0 ? (ax === 'x' ? paint(i - 1, j) : paint(i, j - 1)) : paint(i, j), off = p + sd * (t / 2 + 0.002);
+      if (ax === 'x') add(0.004, h, 1, m, off, y, c); else add(1, h, 0.004, m, c, y, off);
+    });
+  };
+  for (const k of W) skins(k, IW.base);
+  for (const k of doors) skins(k, IW.head + 0.08);
+  // the small rooms' tiled floors
+  FLOOR_TILE.fill(0);
+  HOUSE_PLAN.rooms.forEach((cs, r) => {
+    if (HOUSE_PLAN.kinds[r] !== 'small') return;
+    const m = tileMat(HOUSE_PLAN.tile[r]);
+    for (const [i, j] of cs) { const f = new THREE.Mesh(TILE_G, m); f.position.set(cxw(i), 0.021, cxw(j)); f.receiveShadow = true; g.add(f); FLOOR_TILE[idx(i, j)] = 1; }
+  });
   // runs: each line's walls in unbroken stretches
   const lines = new Map();
   for (const k of W) { const [ax, i, j] = eDec(k), key = ax + (ax === 'x' ? i : j); if (!lines.has(key)) lines.set(key, { ax, L: ax === 'x' ? i : j, us: [] }); lines.get(key).us.push(ax === 'x' ? j : i); }
@@ -218,6 +251,14 @@ function houseLayout(seed, live) {
   for (const k of W) { const [ax, i, j] = eDec(k); if (ax === 'x') wX[j * (N + 1) + i] = 1; else wZ[j * N + i] = 1; }
   THIN.n = W.size; THIN.box = [cxw(HX0) - 0.5, cxw(HZ0) - 0.5, cxw(HX1) + 0.5, cxw(HZ1) + 0.5];
   HOUSE_PLAN.doors = plan ? plan.doors : []; HOUSE_PLAN.rooms = planRooms(W, HOUSE_PLAN.doors);
+  // the paint, outside (world/house.js: paintHouse) and in each room, the inside of the outer walls included
+  paintHouse(rnd);
+  const ro = HOUSE_PLAN.roomOf.fill(-1), used = new Set();
+  HOUSE_PLAN.rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; }));
+  HOUSE_PLAN.kinds = HOUSE_PLAN.rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed');
+  HOUSE_PLAN.cols = HOUSE_PLAN.kinds.map(k => { const free = ROOM_PAINT[k].filter(c => !used.has(c)), c = free.length ? free[(rnd() * free.length) | 0] : ROOM_PAINT[k][0]; used.add(c); return c; });
+  HOUSE_PLAN.tile = HOUSE_PLAN.kinds.map(() => TILE[(rnd() * TILE.length) | 0]);
+  for (const w of walls) if (w.ii >= 0) { const r = ro[idx(w.ii, w.ij)]; w.mats.inner.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
   buildInWalls(W, HOUSE_PLAN.doors);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
   if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }

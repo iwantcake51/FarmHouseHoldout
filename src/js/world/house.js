@@ -17,6 +17,9 @@ const walls = [], openings = [];
 }
 // the door's paint, panels, threshold and brass
 const DOOR_M = { paint: lam(0x7a2e24), panel: lam(0x5e221b), sill: lam(0x7a5434), brass: lam(0xb08a3a) };
+// the plaster and skirting on the inside of the outer walls (each room's own colour: world/interior.js) and the
+// shutters' paint (paintHouse)
+const IN_M = { plaster: lam(0xd6ccb4), base: lam(0x4a3828), shutter: lam(0x2e3a30) };
 const openSpec = { [idx(21, HZ1)]: 'door', [idx(19, HZ0)]: 'window', [idx(24, HZ0)]: 'window', [idx(HX0, 21)]: 'window', [idx(HX1, 22)]: 'window' };
 for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   if (!(i === HX0 || i === HX1 || j === HZ0 || j === HZ1)) continue;
@@ -26,10 +29,27 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   // every cell's pieces fade with its wall faces when you're behind them (world/cutaway.js), the door's included
   const cut = { value: 0 };
   const mk = base => { const m = base.clone(); m.userData.cut = cut; return lit(m, true); };
-  const mats = { wall: mk(M.wall), found: mk(M.found), trim: mk(M.trim) };
+  const mats = { wall: mk(M.wall), clap: mk(M.trim), found: mk(M.found), trim: mk(M.trim), inner: mk(IN_M.plaster), base: mk(IN_M.base), shutter: kind === 'window' ? mk(IN_M.shutter) : null };
   box(g, 1.02, 0.22, 1.02, mats.found, 0, 0.11, 0);
+  // a corner board up each outside corner, wrapped round it
+  if (faces.length === 2) {
+    const nv = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] }, [a, b] = faces.map(f => nv[f]);
+    [[a, b], [b, a]].forEach(([n, o]) => {
+      const cx = 0.5 * (n[0] + o[0]) - o[0] * 0.05 + n[0] * 0.015, cz = 0.5 * (n[1] + o[1]) - o[1] * 0.05 + n[1] * 0.015;
+      box(g, n[0] ? 0.03 : 0.16, 2.2, n[0] ? 0.16 : 0.03, mats.trim, cx, 1.3, cz);
+    });
+  }
+  // inside: the wall plastered over in the colour of the room it's in, with a skirting board (none in a corner, which
+  // has no room on its inside)
+  const ii = faces.length === 1 ? i + (faces[0] === 'W' ? 1 : faces[0] === 'E' ? -1 : 0) : -1, ij = faces.length === 1 ? j + (faces[0] === 'N' ? 1 : faces[0] === 'S' ? -1 : 0) : -1;
+  if (faces.length === 1) {
+    const ox = ii - i, oz = ij - j, d = 0.514, pan = (y0, y1, mat, th, off) => box(g, ox ? th : 1.0, y1 - y0, ox ? 1.0 : th, mat, ox * (off || d), (y0 + y1) / 2, oz * (off || d));
+    if (kind === 'door') pan(2.21, 2.4, mats.inner, 0.004);
+    else if (kind === 'window') { pan(0.015, 0.96, mats.inner, 0.004); pan(1.92, 2.4, mats.inner, 0.004); pan(0.015, 0.125, mats.base, 0.02, 0.524); }
+    else { pan(0.015, 2.4, mats.inner, 0.004); pan(0.015, 0.125, mats.base, 0.02, 0.524); }
+  }
   // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
-  const clap = (y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(g, 1.015, 0.025, 1.015, mats.trim, 0, y, 0); } };
+  const clap = (y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(g, 1.015, 0.025, 1.015, mats.clap, 0, y, 0); } };
   if (kind === 'door') {
     // a full-depth frame flush with the walls: jambs, an oak threshold, the sided wall over the head, and cased
     // trim on both faces with a drip cap outside. The door itself stands open, swung right round against the inside wall.
@@ -55,7 +75,8 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     });
     [0.62, -0.62].forEach(y => box(leaf, 0.035, 0.12, 0.06, dm.brass, -0.41, y, 0));   // hinges
     unfight(g);   // pull apart the trim's flush faces
-    walls.push({ faces, cut, k: idx(i, j) });
+    mats.paint = dm.paint; mats.panel = dm.panel;
+    walls.push({ faces, cut, k: idx(i, j), mats, ii, ij });
   } else {
     if (!kind) { box(g, 1, 2.3, 1, mats.wall, 0, 1.25, 0); clap(0.22, 2.4); }
     else {
@@ -67,10 +88,17 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
       const at = (u, y, f, w, h, d) => box(g, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
       at(0, 0.925, 1, 0.9, 0.08, 0.03);                                                      // apron under the sill, outside
       [-1, 1].forEach(f => [-1, 1].forEach(sd => at(sd * 0.46, 1.445, f, 0.08, 0.86, 0.022)));   // jamb casings on both faces
+      // a louvred shutter folded back either side of it outside, on its hinges
+      const sat = (u, y, w, h, d, off) => box(g, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
+      [-1, 1].forEach(sd => {
+        const u = sd * 0.67; sat(u, 1.445, 0.3, 0.92, 0.024, 0.53);
+        for (let k = 0; k < 7; k++) sat(u, 1.08 + k * 0.105, 0.24, 0.022, 0.012, 0.548);   // the louvres
+        [-0.3, 0.3].forEach(y => sat(sd * 0.505, 1.445 + y, 0.05, 0.035, 0.03, 0.53));     // hinges
+      });
       box(g, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(1.9, 2.4); box(g, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
     }
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
-    walls.push({ faces, cut, k: idx(i, j) });
+    walls.push({ faces, cut, k: idx(i, j), mats, ii, ij });
   }
   cell[idx(i, j)] = kind ? OPEN : WALL;
   if (kind) {
@@ -112,12 +140,17 @@ const roof = (() => {
   const tri = new THREE.Shape(); tri.moveTo(-half, 0); tri.lineTo(half, 0); tri.lineTo(0, ridgeY - base - 0.05); tri.lineTo(-half, 0);
   const tg = new THREE.ShapeGeometry(tri);
   [HOUSE.x0 + 0.02, HOUSE.x1 - 0.02].forEach(x => { const m = new THREE.Mesh(tg, gable); m.rotation.y = Math.PI / 2; m.position.set(x, base, cz); m.castShadow = true; g.add(m); });
+  // a louvred vent high in each gable
+  [HOUSE.x0, HOUSE.x1].forEach(x => {
+    box(g, 0.05, 0.56, 0.66, trimM, x, ridgeY - 0.95, cz);
+    for (let k = 0; k < 5; k++) box(g, 0.07, 0.03, 0.52, ridgeM, x, ridgeY - 1.15 + k * 0.1, cz);
+  });
   box(g, 0.6, 1.6, 0.6, brick, cx + 3.2, ridgeY - 0.2, cz - 1.6);
   box(g, 0.7, 0.1, 0.7, ridgeM, cx + 3.2, ridgeY + 0.62, cz - 1.6);
   // the roof's materials stay transparent so it can fade, which would draw it after the see-through outlines and leave
   // zombies behind it unmarked: drawn first among the see-through things, its depth is there for them to test against
   g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });
-  return { g, mats, op: 1 };
+  return { g, mats, op: 1, paint: { shingle, ridge: ridgeM, gable, trim: trimM } };
 })();
 // porch deck and steps
 {
@@ -142,11 +175,12 @@ const porchRoof = (() => {
   box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
   [-1.6, 1.6].forEach(a => { const sd = -Math.sign(a), br = box(g, 0.42, 0.07, 0.07, beamM, a + sd * 0.17, 2.14, 0.55); br.rotation.z = sd * 0.78; });   // knee braces post to header
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.renderOrder = -10; } });   // drawn before the outlines, like the main roof
-  return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1 };
+  return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1, paint: { shingle, ridge: ridgeM, trim: trimM } };
 })();
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and
 // indoors the floorboards and the doormat a touch above it, so blood and brass land on top of them instead of
 // under the boards, and you stand on them (player/animation.js)
+const FLOOR_TILE = new Uint8Array(N * N);   // (the cells with a tiled floor this run: world/interior.js)
 function surfaceY(x, z) {
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
   if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
@@ -154,7 +188,30 @@ function surfaceY(x, z) {
   if (ci(x) === 21 && ci(z) === HZ1) return 0.27;   // the top of the threshold
   if (x > cxw(HX0) + 0.5 && x < cxw(HX1) - 0.5 && z > cxw(HZ0) + 0.5 && z < cxw(HZ1) - 0.5) {
     if (Math.abs(x - cxw(21)) < 0.5 && Math.abs(z - cxw(25.15)) < 0.28) return 0.025;   // the doormat
+    if (FLOOR_TILE[idx(ci(x), ci(z))]) return 0.022;                              // a tiled floor (world/interior.js)
     return 0.015;                                                                  // the floorboards
   }
   return 0;
+}
+// the farmhouse's paint, a new scheme each run (from its floor plan's seed: world/interior.js): the siding and the
+// shadow lines between its boards, the trim, the shutters, the door, and what the roof's covered in
+const HOUSE_PAINT = [
+  { side: 0xd8d2c4, trim: 0x3a3632, shut: 0x2e3a30, door: 0x7a2e24, roof: 0x4b3d36 },   // white, black-green shutters, a red door
+  { side: 0x8a3a2e, trim: 0xe2dccd, shut: 0x2a2a28, door: 0x2e3a4a, roof: 0x3a3a3a },   // barn red, white trim
+  { side: 0x8e9c7e, trim: 0xe6dfcf, shut: 0x3e4a36, door: 0x8a5a2a, roof: 0x4a4038 },   // sage
+  { side: 0x6e7e8e, trim: 0xe4e0d4, shut: 0x2a3440, door: 0xa8452e, roof: 0x3e3a38 },   // slate blue
+  { side: 0xd6c08a, trim: 0x5a4632, shut: 0x5a3a2a, door: 0x3a4a3a, roof: 0x5a4a3e },   // butter yellow
+  { side: 0x9c968a, trim: 0x4a3e32, shut: 0x6a2e26, door: 0x6a2e26, roof: 0x45403a }    // weathered grey
+];
+const _hc = new THREE.Color();
+function paintHouse(rnd) {
+  const c = HOUSE_PAINT[(rnd() * HOUSE_PAINT.length) | 0], shade = (h, k) => _hc.setHex(h).multiplyScalar(k).getHex();
+  for (const w of walls) {
+    const m = w.mats; m.wall.color.setHex(c.side); m.clap.color.setHex(shade(c.side, 0.7)); m.trim.color.setHex(c.trim);
+    if (m.shutter) m.shutter.color.setHex(c.shut);
+    if (m.paint) { m.paint.color.setHex(c.door); m.panel.color.setHex(shade(c.door, 0.78)); }
+  }
+  // the roofs' colours are set from their base every frame, as the light changes (world/cutaway.js)
+  [roof.paint, porchRoof.paint].forEach(p => { p.shingle.userData.base.setHex(c.roof); p.ridge.userData.base.setHex(shade(c.roof, 0.62)); p.trim.userData.base.setHex(c.trim); });
+  roof.paint.gable.userData.base.setHex(c.side);
 }
