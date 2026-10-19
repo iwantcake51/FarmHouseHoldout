@@ -216,7 +216,7 @@ function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
   if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
-  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head');
+  burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head', dealt);
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
 }
 // a zombie caught right in a blast comes apart: head, arms, legs and torso all thrown out and tumbling, a burst of

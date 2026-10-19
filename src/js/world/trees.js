@@ -200,7 +200,8 @@ function plantTrees(list, shadows) {
   plantTrees(out, false);
 }
 
-// what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet
+// what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet (or
+// two, and a helicopter's downwash while one's overhead)
 const _pz = [];
 function updatePushers() {
   const U = PUSHERS.value, pl = !P.dead && state !== 'title' && !P.vault;
@@ -209,4 +210,5 @@ function updatePushers() {
   for (const z of zombies) { if (z.dead) continue; const d = (z.x - P.x) ** 2 + (z.z - P.z) ** 2; if (d < 400) _pz.push([d, z]); }
   _pz.sort((a, b) => a[0] - b[0]);
   for (let k = 1; k < 4; k++) { const e = _pz[k - 1]; if (e) U[k].set(e[1].x, e[1].z, 0.6 * e[1].T.scale, 0.5); else U[k].w = 0; }
+  if (HELI_PUSH.w > 0) U[3].copy(HELI_PUSH);   // a helicopter's downwash flattening the grass takes the last place (stations/supply-drop.js)
 }

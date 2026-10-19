@@ -10,11 +10,12 @@ let smIdx = 0;
 // wanders about it, and how sharply it swells at first (swell)
 const SMOKE_MOVE = { drag: 3.4, rise: 0.32, wind: 1, wander: 0.12, swell: 2.6 };
 const _smw = { x: 0, z: 0 };
-function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint) {
+// (lift: how much more buoyant than gun smoke it is, for hot smoke that climbs in a column: a flare's)
+function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint, lift) {
   const p = smokes[smIdx = (smIdx + 1) % smokes.length], m = p.m.material, tex = pick(TEX_SMOKES);
   if (m.map !== tex) m.map = tex;
   p.m.position.set(x, y, z); p.vx = vx; p.vy = vy; p.vz = vz; p.s0 = s0 * 1.15; p.s1 = s1 * 1.15; p.life = p.max = life; p.a = a; p.spin = rr(-0.6, 0.6); p.ph = rand() * 6.28;
-  m.rotation = rand() * 6.28; p.tint = tint || 0xc9c4ba; p.m.visible = true;
+  m.rotation = rand() * 6.28; p.tint = tint || 0xc9c4ba; p.lift = lift || 1; p.m.visible = true;
 }
 const _sc = new THREE.Color(), _sl = new THREE.Color();
 function stepSmoke(dt) {
@@ -24,7 +25,7 @@ function stepSmoke(dt) {
     // the air slows the push it came out with down to the wind's own speed, so it's carried off with it, gusts and all
     windAt(p.m.position.x, p.m.position.z, _smw);
     p.vx = _smw.x * M.wind + (p.vx - _smw.x * M.wind) * drag; p.vz = _smw.z * M.wind + (p.vz - _smw.z * M.wind) * drag;
-    p.vy = p.vy * drag + dt * M.rise * (1 - 0.5 * WX.str);
+    p.vy = p.vy * drag + dt * M.rise * p.lift * (1 - 0.5 * WX.str);
     p.m.position.x += (p.vx + Math.sin(age * 1.7 + p.ph) * M.wander) * dt; p.m.position.y += p.vy * dt;
     p.m.position.z += (p.vz + Math.cos(age * 1.3 + p.ph) * M.wander) * dt;
     const sc = p.s0 + (p.s1 - p.s0) * (1 - Math.pow(1 - k, M.swell)); p.m.scale.set(sc, sc, 1);

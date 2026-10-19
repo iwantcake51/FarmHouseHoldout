@@ -32,6 +32,9 @@ const FXK = {
   dragon: { tex: TEX_TRACE, add: true, col: 0xfff4c8, col2: 0xff5410, boost: 1.6, grav: 3.2, drag: 0.9, rise: 0, streak: true, fin: 0.03, fade: 0.7 },
   // a blast's shock ring, thrown out fast and gone
   shock: { tex: [partTex('ring')], add: true, col: 0xffe6c0, grav: 0, drag: 0, rise: 0, fin: 0.02, fade: 1.6 },
+  // a road flare burning: a white-hot jet off its tip reddening as it goes, and molten drips spat out that fall and die
+  flareJet: { tex: TEX_FLAMES, add: true, col: 0xfff0ea, col2: 0xff2414, boost: 1.5, grav: -0.8, drag: 4, rise: 0, fin: 0.05, fade: 1.2, wind: 0.5 },
+  flareDrip: { tex: TEX_DOT, add: true, col: 0xffd8c8, col2: 0xd01808, boost: 1.4, grav: 5, drag: 1.2, rise: 0, fin: 0.03, fade: 1 },
   star: { tex: TEX_STARS, add: true, col: 0xfff0d0, grav: 0, drag: 0, rise: 0, fin: 0.02, fade: 1 }
 };
 const fxs = [];
@@ -78,10 +81,16 @@ function impactFx(x, y, z, nx, nz) {
   for (let k = 0; k < 2; k++) fx('dust', x + nx * 0.05, y, z + nz * 0.05, nx * rr(0.6, 1.4) + rr(-0.3, 0.3), rr(0.1, 0.5), nz * rr(0.6, 1.4) + rr(-0.3, 0.3), 0.08, rr(0.45, 0.7), rr(0.7, 1.0), 0.3);
   cubeBurst(x, y, z, 2 + (rand() * 2 | 0), 'dust', nx, nz, 2.2, 0.35);
 }
-// a hit on flesh, along the shot: a spray of fine drops flung out the far side and a red mist that hangs a moment
-function hitMist(x, y, z, dx, dz, big) {
-  for (let k = 0, n = big ? 2 : 1; k < n; k++) fx('spray', x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.4, 2.6) + rr(-0.4, 0.4), rr(-0.2, 0.6), dz * rr(1.4, 2.6) + rr(-0.4, 0.4), rr(0.07, 0.11), rr(0.35, 0.5) * (big ? 1.3 : 1), rr(0.18, 0.28), 0.85);
-  for (let k = 0, n = big ? 3 : 2; k < n; k++) fx('mist', x + rr(-0.08, 0.08), y + rr(-0.08, 0.08), z + rr(-0.08, 0.08), dx * rr(0.6, 1.6) + rr(-0.3, 0.3), rr(-0.1, 0.5), dz * rr(0.6, 1.6) + rr(-0.3, 0.3), rr(0.1, 0.16), rr(0.4, 0.6) * (big ? 1.3 : 1), rr(0.3, 0.5), 0.34);
+// a hit on flesh, along the shot: a spray of fine drops flung out the far side, a puff of red mist blown out with it
+// that swells, hangs and drifts off on the wind as it thins, and a smaller one coughed back out of the wound toward
+// the shot. The harder the hit (dealt) the more of it; a head hit more again (HIT_MIST: puffs out the far side, how
+// big they start and swell to, how long they hang and how thick, and how much harder hits add, up to a cap)
+const HIT_MIST = { n: 2, s0: [0.1, 0.16], s1: [0.45, 0.75], life: [0.6, 1.05], a: [0.4, 0.55], per: 45, most: 2.2 };
+function hitMist(x, y, z, dx, dz, big, dealt) {
+  const H = HIT_MIST, m = Math.min(H.most, 1 + (dealt || 20) / H.per) * (big ? 1.35 : 1);
+  for (let k = 0, n = Math.round(2 * m); k < n; k++) fx('spray', x + dx * 0.05, y + rr(-0.05, 0.05), z + dz * 0.05, dx * rr(1.6, 3) + rr(-0.5, 0.5), rr(-0.2, 0.7), dz * rr(1.6, 3) + rr(-0.5, 0.5), rr(0.06, 0.1), rr(0.3, 0.5) * m, rr(0.16, 0.26), 0.85);
+  for (let k = 0, n = Math.round(H.n * m); k < n; k++) fx('redMist', x + dx * rr(0.05, 0.15) + rr(-0.05, 0.05), y + rr(-0.06, 0.06), z + dz * rr(0.05, 0.15) + rr(-0.05, 0.05), dx * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(-0.05, 0.4), dz * rr(0.6, 1.8) + rr(-0.35, 0.35), rr(H.s0[0], H.s0[1]), rr(H.s1[0], H.s1[1]) * (0.8 + 0.2 * m), rr(H.life[0], H.life[1]), rr(H.a[0], H.a[1]));
+  fx('redMist', x - dx * 0.08, y + rr(-0.04, 0.04), z - dz * 0.08, -dx * rr(0.3, 0.7), rr(0, 0.25), -dz * rr(0.3, 0.7), 0.08, rr(0.25, 0.4) * m, rr(0.4, 0.6), 0.35);
 }
 // a round going off pushes hot gas out of the ejection port with the case (pos: the port, r: the gun's right, the
 // way the case goes): a brief glow, a few flecks of burning powder flung out with it and a jet of smoke that rolls
