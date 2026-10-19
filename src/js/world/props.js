@@ -6,7 +6,7 @@ const lowObst = new Set();
 // the furniture in the house, placed afresh each run (world/furniture.js): its group, the cells it stands on, whether
 // it's low enough to see and shoot over, which way it faces the room (away from the wall at its back; a corner piece
 // diagonally), and the station it is, if it's one
-const FURN = [];
+const FURN = [], WALL_DECOR = [];
 function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
 const HM = {
@@ -85,30 +85,34 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   FURN.push({ g: bed, id: 'bed', cells: [[26, 18], [26, 19]], low: true, face: [-1, 0], head: [0, -1] });   // (head: the end its headboard's at)
 
   // ---- on the walls you can see from inside (north and west): a painting, a clock, antlers over the bed, coat hooks, a calendar ----
-  const wd = new THREE.Group(); scene.add(wd);
+  // each piece in its own group, on the wall cell it hangs on, so a window put in there takes it down (WALL_DECOR:
+  // world/interior.js)
+  // (and out off the wall a little, clear of the plaster over it: world/house.js, IN_M)
+  const dec = (i, j) => { const g = new THREE.Group(); g.position.set(i === HX0 ? 0.022 : 0, 0, j === HZ0 ? 0.022 : 0); scene.add(g); WALL_DECOR.push({ g, k: idx(i, j) }); return g; };
+  const pic = dec(20, HZ0), clk = dec(23, HZ0), ant = dec(26, HZ0), hooks = dec(HX0, 19), cal = dec(HX0, 22);
   const zN = cxw(HZ0) + 0.5, xW = cxw(HX0) + 0.5;
-  box(wd, 0.52, 0.42, 0.03, HM.oakDk, cxw(20), 1.55, zN + 0.015); box(wd, 0.44, 0.34, 0.01, lam(0x9aa6a4), cxw(20), 1.55, zN + 0.032);
-  box(wd, 0.44, 0.14, 0.012, lam(0x5a6a3a), cxw(20), 1.45, zN + 0.034); box(wd, 0.2, 0.08, 0.012, lam(0x4a5a32), cxw(20) + 0.1, 1.5, zN + 0.035).rotation.z = 0.25;
-  box(wd, 0.07, 0.06, 0.012, HM.red, cxw(20) - 0.08, 1.49, zN + 0.037); box(wd, 0.08, 0.025, 0.012, HM.oakDk, cxw(20) - 0.08, 1.53, zN + 0.038);
-  zcyl(wd, 0.14, 0.04, HM.oakDk, cxw(23), 1.85, zN + 0.02, 16); zcyl(wd, 0.12, 0.012, HM.cream, cxw(23), 1.85, zN + 0.042, 16);
-  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; box(wd, 0.012, 0.02, 0.006, HM.ink, cxw(23) + Math.sin(a) * 0.1, 1.85 + Math.cos(a) * 0.1, zN + 0.05).rotation.z = -a; }
-  const hand = (len, a, w) => { const h = box(wd, w, len, 0.006, HM.ink, cxw(23) + Math.sin(a) * len / 2, 1.85 + Math.cos(a) * len / 2, zN + 0.053); h.rotation.z = -a; };
+  box(pic, 0.52, 0.42, 0.03, HM.oakDk, cxw(20), 1.55, zN + 0.015); box(pic, 0.44, 0.34, 0.01, lam(0x9aa6a4), cxw(20), 1.55, zN + 0.032);
+  box(pic, 0.44, 0.14, 0.012, lam(0x5a6a3a), cxw(20), 1.45, zN + 0.034); box(pic, 0.2, 0.08, 0.012, lam(0x4a5a32), cxw(20) + 0.1, 1.5, zN + 0.035).rotation.z = 0.25;
+  box(pic, 0.07, 0.06, 0.012, HM.red, cxw(20) - 0.08, 1.49, zN + 0.037); box(pic, 0.08, 0.025, 0.012, HM.oakDk, cxw(20) - 0.08, 1.53, zN + 0.038);
+  zcyl(clk, 0.14, 0.04, HM.oakDk, cxw(23), 1.85, zN + 0.02, 16); zcyl(clk, 0.12, 0.012, HM.cream, cxw(23), 1.85, zN + 0.042, 16);
+  for (let k = 0; k < 12; k++) { const a = k / 12 * Math.PI * 2; box(clk, 0.012, 0.02, 0.006, HM.ink, cxw(23) + Math.sin(a) * 0.1, 1.85 + Math.cos(a) * 0.1, zN + 0.05).rotation.z = -a; }
+  const hand = (len, a, w) => { const h = box(clk, w, len, 0.006, HM.ink, cxw(23) + Math.sin(a) * len / 2, 1.85 + Math.cos(a) * len / 2, zN + 0.053); h.rotation.z = -a; };
   hand(0.06, 2.2, 0.014); hand(0.09, -0.6, 0.01);
   const ax = cxw(26), ay = 1.62;
-  box(wd, 0.2, 0.24, 0.03, HM.oak, ax, ay, zN + 0.015); box(wd, 0.08, 0.1, 0.07, HM.cream, ax, ay + 0.03, zN + 0.05);
+  box(ant, 0.2, 0.24, 0.03, HM.oak, ax, ay, zN + 0.015); box(ant, 0.08, 0.1, 0.07, HM.cream, ax, ay + 0.03, zN + 0.05);
   [-1, 1].forEach(d => {
-    const main = box(wd, 0.024, 0.28, 0.024, HM.patchA, ax + d * 0.09, ay + 0.17, zN + 0.07); main.rotation.z = -d * 0.65;
-    [0.06, 0.13].forEach((t, k) => box(wd, 0.018, 0.1, 0.018, HM.patchA, ax + d * (0.07 + t * 0.85), ay + 0.17 + t * 0.6 + 0.05, zN + 0.07).rotation.z = d * (0.2 + k * 0.2));
+    const main = box(ant, 0.024, 0.28, 0.024, HM.patchA, ax + d * 0.09, ay + 0.17, zN + 0.07); main.rotation.z = -d * 0.65;
+    [0.06, 0.13].forEach((t, k) => box(ant, 0.018, 0.1, 0.018, HM.patchA, ax + d * (0.07 + t * 0.85), ay + 0.17 + t * 0.6 + 0.05, zN + 0.07).rotation.z = d * (0.2 + k * 0.2));
   });
-  box(wd, 0.03, 0.06, 0.62, HM.oak, xW + 0.015, 1.62, cxw(19.2)); [-0.22, 0, 0.22].forEach(z => box(wd, 0.06, 0.02, 0.02, HM.iron, xW + 0.05, 1.63, cxw(19.2) + z));
-  box(wd, 0.07, 0.62, 0.34, HM.olive, xW + 0.06, 1.3, cxw(19.2) - 0.11); box(wd, 0.075, 0.12, 0.2, HM.oliveDk, xW + 0.065, 1.56, cxw(19.2) - 0.11);
-  box(wd, 0.06, 0.5, 0.08, HM.olive, xW + 0.07, 1.25, cxw(19.2) - 0.31); box(wd, 0.072, 0.03, 0.34, HM.leather, xW + 0.062, 1.12, cxw(19.2) - 0.11);
-  box(wd, 0.08, 0.06, 0.2, HM.red, xW + 0.07, 1.6, cxw(19.2) + 0.22); box(wd, 0.12, 0.012, 0.15, HM.red, xW + 0.1, 1.575, cxw(19.2) + 0.22);
-  box(wd, 0.01, 0.4, 0.28, HM.paper, xW + 0.005, 1.5, cxw(22.2)); box(wd, 0.012, 0.1, 0.28, HM.inkR, xW + 0.006, 1.65, cxw(22.2));
-  for (let k = 0; k < 4; k++) box(wd, 0.012, 0.004, 0.24, HM.ink, xW + 0.007, 1.33 + k * 0.06, cxw(22.2));
-  for (let k = 0; k < 5; k++) box(wd, 0.012, 0.22, 0.004, HM.ink, xW + 0.007, 1.42, cxw(22.2) - 0.1 + k * 0.05);
-  box(wd, 0.014, 0.05, 0.05, HM.inkR, xW + 0.009, 1.42, cxw(22.2) + 0.05).rotation.x = 0.785;
-  unfight(wd); mergeInto(wd, finePieces(wd));
+  box(hooks, 0.03, 0.06, 0.62, HM.oak, xW + 0.015, 1.62, cxw(19.2)); [-0.22, 0, 0.22].forEach(z => box(hooks, 0.06, 0.02, 0.02, HM.iron, xW + 0.05, 1.63, cxw(19.2) + z));
+  box(hooks, 0.07, 0.62, 0.34, HM.olive, xW + 0.06, 1.3, cxw(19.2) - 0.11); box(hooks, 0.075, 0.12, 0.2, HM.oliveDk, xW + 0.065, 1.56, cxw(19.2) - 0.11);
+  box(hooks, 0.06, 0.5, 0.08, HM.olive, xW + 0.07, 1.25, cxw(19.2) - 0.31); box(hooks, 0.072, 0.03, 0.34, HM.leather, xW + 0.062, 1.12, cxw(19.2) - 0.11);
+  box(hooks, 0.08, 0.06, 0.2, HM.red, xW + 0.07, 1.6, cxw(19.2) + 0.22); box(hooks, 0.12, 0.012, 0.15, HM.red, xW + 0.1, 1.575, cxw(19.2) + 0.22);
+  box(cal, 0.01, 0.4, 0.28, HM.paper, xW + 0.005, 1.5, cxw(22.2)); box(cal, 0.012, 0.1, 0.28, HM.inkR, xW + 0.006, 1.65, cxw(22.2));
+  for (let k = 0; k < 4; k++) box(cal, 0.012, 0.004, 0.24, HM.ink, xW + 0.007, 1.33 + k * 0.06, cxw(22.2));
+  for (let k = 0; k < 5; k++) box(cal, 0.012, 0.22, 0.004, HM.ink, xW + 0.007, 1.42, cxw(22.2) - 0.1 + k * 0.05);
+  box(cal, 0.014, 0.05, 0.05, HM.inkR, xW + 0.009, 1.42, cxw(22.2) + 0.05).rotation.x = 0.785;
+  for (const d of WALL_DECOR) { unfight(d.g); mergeInto(d.g, finePieces(d.g)); }
 }
 function car(i0, j0, along) {
   const g = new THREE.Group(); scene.add(g);

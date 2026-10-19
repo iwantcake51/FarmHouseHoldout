@@ -16,7 +16,15 @@ function faceCut(F) {
 // roof and wall-face fading so you can see inside: round you, or once you're down in co-op, round the teammate the
 // camera's on (camFocus, net/spectate.js)
 const ROOF_INTRO = [0.12, 1.15];
+const IW_CUT = { far: 4.2, end: 0.4 };
+function lineCut(ln, F) {
+  const d = ln.ax === 'x' ? TOWARD_CAM.x : TOWARD_CAM.z; if (Math.abs(d) < 1e-4) return false;
+  const t = (ln.p - (ln.ax === 'x' ? F.x : F.z)) / d; if (t < 0.02 || t > IW_CUT.far) return false;
+  const u = ln.ax === 'x' ? F.z + TOWARD_CAM.z * t : F.x + TOWARD_CAM.x * t;
+  return u > ln.lo - IW_CUT.end && u < ln.hi + IW_CUT.end;
+}
 function updateCutaway(rdt) {
+  stepPaint(rdt);   // (a new run's paint easing in: world/house.js)
   const F = camFocus(), fc = faceCut(F);
   const inside = F.x > HOUSE.x0 + 0.35 && F.x < HOUSE.x1 - 0.35 && F.z > HOUSE.z0 + 0.35 && F.z < HOUSE.z1 - 0.35;
   // roof: off when you're indoors or tucked behind the house, back on outside
@@ -40,8 +48,11 @@ function updateCutaway(rdt) {
     const lv = Math.max(amb[0], amb[1], amb[2]);
     pr.mats.forEach(m => { m.opacity = pr.op; m.depthWrite = pr.op > 0.98; m.colorWrite = pr.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
   }
-  // the inside walls: while you're indoors, whatever of them stands between the camera and you dithers away round you
-  { const want = state !== 'title' && inside ? 1 : 0; INWALL_CUT.value += (want - INWALL_CUT.value) * Math.min(1, rdt * 6); if (Math.abs(want - INWALL_CUT.value) < 0.003) INWALL_CUT.value = want; }
+  // the inside walls: a line of them fades (dithered away round you, as the outer walls do) while it stands between you
+  // and the camera: the line from you toward the camera crosses it, or passes within IW_CUT.end of its ends; and the
+  // doors between the rooms swing (world/interior.js)
+  for (const ln of IW_LINES) { const t = state !== 'title' && inside && lineCut(ln, F) ? 1 : 0; ln.cut.value += (t - ln.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - ln.cut.value) < 0.003) ln.cut.value = t; }
+  updateDoors(rdt);
   for (const w of walls) { const t = w.faces.some(f => fc[f]) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(F.x, 1.0, F.z).project(cam);
   LMU.uPScr.value.set((projV.x + 1) / 2 * innerWidth * renderScale, (projV.y + 1) / 2 * innerHeight * renderScale);

@@ -10,15 +10,13 @@
 
 const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
 // how the walls look: how high, the skirting and the trim along the top, a doorway's frame, and their materials (they
-// dither away round you where they're between you and the camera: INWALL_CUT, core/shaders.js)
+// fade away round you where they're between you and the camera: IW_LINES, world/cutaway.js)
 const IW = { h: 2.42, base: 0.11, cap: 0.05, head: 2.05, case: 0.075 };
-const IW_M = { plaster: lit(new THREE.MeshLambertMaterial({ color: 0xd6ccb4 }), 'inwall'), trim: lit(new THREE.MeshLambertMaterial({ color: 0x5c4532 }), 'inwall'), base: lit(new THREE.MeshLambertMaterial({ color: 0x4a3828 }), 'inwall') };
 const HOUSE_PLAN = { seed: 0, rooms: [], doors: [], roomOf: new Int16Array(N * N).fill(-1), cols: [], kinds: [], g: new THREE.Group() };
 // each room's paint, by what it is: the living room (the one the door opens into), a bedroom, or a small room (a bath,
 // a pantry or a closet: six cells or fewer), which has a tiled floor (TILE: its tile colours)
 const ROOM_PAINT = { live: [0xd9c9a8, 0xcdb68e, 0xbcc4a2, 0xd6b9a2, 0xc9c0ae], bed: [0xa9b8c6, 0xc4afbf, 0xb4c6a4, 0xd8ccb0, 0x9fb3a6, 0xcbb69a], small: [0xc9dbd6, 0xe2ddcc, 0xa9c2ba, 0xd8d0e0] };
 const TILE = [0xe8e2d4, 0xcfdcd6, 0xe2d4c0, 0xd2d6dc];
-const IW_PAINT = new Map(), iwPaint = c => IW_PAINT.get(c) || (IW_PAINT.set(c, lit(new THREE.MeshLambertMaterial({ color: c }), 'inwall')), IW_PAINT.get(c));
 // a floor of small square tiles, four to the metre, with grout between them, a little uneven in tone
 const TILE_TEX = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
@@ -137,6 +135,47 @@ function planReach(W) {
   }
   return seen;
 }
+// where the windows go: in the middle of a room's stretch of outside wall (a pair of them side by side across the
+// middle of an even one), never under the porch or over a fence or a prop outside; one in each bedroom, one or two in
+// the living room, now and then one in a small room, WIN.min to WIN.max in all. Returns the wall cells, and the cells
+// inside in front of them (kept clear of furniture: world/furniture.js)
+const WIN = { min: 3, max: 6, porch: [19, 23], live2: 0.6, small: 0.5 };
+function chooseWindows(rnd, rooms, kinds) {
+  const runsOf = cells => {
+    const has = new Set(cells.map(([i, j]) => idx(i, j))), out = [];
+    // each side: the cells along it, and the wall cell outside each
+    const sides = [['N', c => c[1] === IN.j0, c => [c[0], HZ0], c => c[0], [0, -1]], ['S', c => c[1] === IN.j1, c => [c[0], HZ1], c => c[0], [0, 1]],
+      ['W', c => c[0] === IN.i0, c => [HX0, c[1]], c => c[1], [-1, 0]], ['E', c => c[0] === IN.i1, c => [HX1, c[1]], c => c[1], [1, 0]]];
+    for (const [nm, on, wall, u, o] of sides) {
+      const cs = cells.filter(on).sort((a, b) => u(a) - u(b));
+      for (let s = 0; s < cs.length;) {
+        let e = s; while (e + 1 < cs.length && u(cs[e + 1]) === u(cs[e]) + 1) e++;
+        const run = cs.slice(s, e + 1), L = run.length; s = e + 1;
+        if (L < 3) continue;
+        const mid = L % 2 ? [run[(L - 1) >> 1]] : [run[L / 2 - 1], run[L / 2]];
+        const ok = mid.every(c => {
+          const [wi, wj] = wall(c), oi = wi + o[0], oj = wj + o[1];
+          if (nm === 'S' && wi >= WIN.porch[0] && wi <= WIN.porch[1]) return false;
+          return inb(oi, oj) && cell[idx(oi, oj)] === EMPTY;
+        });
+        if (ok) out.push({ side: nm, L, cells: mid, walls: mid.map(wall) });
+      }
+    }
+    return out.sort((a, b) => b.L - a.L || rnd() - 0.5);
+  };
+  const keys = new Set(), fronts = [], spare = [];
+  // (no more than WIN.max window cells in all: a pair counts as two)
+  const take = r => { if (keys.size + r.walls.length > WIN.max) return false; for (const w of r.walls) keys.add(idx(w[0], w[1])); fronts.push(...r.cells); return true; };
+  rooms.forEach((cells, k) => {
+    const runs = runsOf(cells), kind = kinds[k]; if (!runs.length) return;
+    if (kind === 'live') { take(runs[0]); const r2 = runs.find(r => r.side !== runs[0].side); if (r2 && rnd() < WIN.live2) take(r2); else if (r2) spare.push(r2); }
+    else if (kind === 'bed') { take(runs[0]); spare.push(...runs.slice(1)); }
+    else if (cells.length >= 5 && rnd() < WIN.small) take(runs[0]);
+    else spare.push(runs[0]);
+  });
+  for (const r of spare) { if (keys.size >= WIN.min) break; if (r.walls.every(w => !keys.has(idx(w[0], w[1])))) take(r); }
+  return { keys, fronts };
+}
 // the rooms a plan makes: each a list of its cells, flooded out between the walls and their doorways
 function planRooms(W, doors) {
   W = new Set([...W, ...doors]);
@@ -167,64 +206,124 @@ function roomLamps(cells) {
 }
 
 const TILE_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-// the walls built: one run of plaster a stretch of wall, its skirting on both sides and the trim along its top, and
-// round each doorway a header over it and a cased frame on both faces
-function buildInWalls(W, doors) {
-  const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols;
-  while (g.children.length) { const m = g.children.pop(); if (m.userData.fine) m.geometry.dispose(); }
-  const t = THIN.t, H = IW.h, add = (w, h, d, mat, x, y, z) => box(g, w, h, d, mat, x, y, z);
-  // each face of a wall in the colour of the room it faces, from the skirting up to the trim (over a doorway, above its
-  // casing)
-  const paint = (i, j) => { const r = ro[idx(i, j)]; return iwPaint(r >= 0 ? cols[r] : 0xd6ccb4); };
-  const skins = (k, y0) => {
-    const [ax, i, j] = eDec(k), p = (ax === 'x' ? i : j) - HALF, c = (ax === 'x' ? j : i) + 0.5 - HALF, h = H - IW.cap - y0, y = y0 + h / 2;
-    [-1, 1].forEach(sd => {
-      const m = sd < 0 ? (ax === 'x' ? paint(i - 1, j) : paint(i, j - 1)) : paint(i, j), off = p + sd * (t / 2 + 0.002);
-      if (ax === 'x') add(0.004, h, 1, m, off, y, c); else add(1, h, 0.004, m, c, y, off);
-    });
+// the walls built, a line at a time (every wall and doorway on one line between cells: IW_LINES). Each line has its
+// own materials, carrying its own fade (cut), so a line that stands between you and the camera dithers away round you
+// as a whole, the way the outer walls do (world/cutaway.js): a run of plaster a stretch of wall, its skirting on both
+// sides, the trim along its top, each face in the paint of the room it faces; round each doorway a header over it, a
+// cased frame on both faces and the door itself, hung on one jamb (HOUSE_DOORS: updateDoors)
+const IW_LINES = [], IW_MATS = [], IW_BASE = { plaster: 0xd6ccb4, trim: 0x5c4532, base: 0x4a3828 };
+const DOOR_COLS = [0x6a4a34, 0xd8d0c0, 0x8a6a4a, 0x4e5a52, 0x7a3a2c];
+function buildInWalls(W, doors, rnd) {
+  const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols, dc = DOOR_COLS[(rnd() * DOOR_COLS.length) | 0];
+  while (g.children.length) { const m = g.children.pop(); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
+  IW_MATS.forEach(m => m.dispose()); IW_MATS.length = 0; IW_LINES.length = 0; HOUSE_DOORS.list.length = 0;
+  const t = THIN.t, H = IW.h;
+  // a line's own materials, by colour, each with its fade
+  const lines = new Map(), lineOf = (ax, L) => {
+    const key = ax + L; let ln = lines.get(key);
+    if (!ln) {
+      const cut = { value: 0 }, mm = new Map();
+      ln = { ax, p: L - HALF, us: [], ds: [], cut, lo: Infinity, hi: -Infinity, mat: hex => { let m = mm.get(hex); if (!m) { m = new THREE.MeshLambertMaterial({ color: hex }); m.userData.cut = cut; lit(m, true); mm.set(hex, m); IW_MATS.push(m); } return m; } };
+      lines.set(key, ln); IW_LINES.push(ln);
+    }
+    return ln;
   };
-  for (const k of W) skins(k, IW.base);
-  for (const k of doors) skins(k, IW.head + 0.08);
-  // the small rooms' tiled floors
+  for (const k of W) { const [ax, i, j] = eDec(k); lineOf(ax, ax === 'x' ? i : j).us.push(ax === 'x' ? j : i); }
+  for (const k of doors) { const [ax, i, j] = eDec(k); lineOf(ax, ax === 'x' ? i : j).ds.push(ax === 'x' ? j : i); }
+  const paint = (ln, i, j) => { const r = ro[idx(i, j)]; return ln.mat(r >= 0 ? cols[r] : IW_BASE.plaster); };
+  for (const ln of IW_LINES) {
+    const { ax } = ln, p = ln.p, add = (w, h, d, mat, x, y, z) => box(g, w, h, d, mat, x, y, z);
+    [...ln.us, ...ln.ds].forEach(u => { ln.lo = Math.min(ln.lo, u - HALF); ln.hi = Math.max(ln.hi, u + 1 - HALF); });
+    // each face of it in the colour of the room it faces, from the skirting (over a doorway, its casing) up to the trim
+    const skins = (u, y0) => {
+      const L = ax === 'x' ? ln.p + HALF : 0, c = u + 0.5 - HALF, h = H - IW.cap - y0, y = y0 + h / 2;
+      [-1, 1].forEach(sd => {
+        const m = ax === 'x' ? paint(ln, sd < 0 ? Math.round(ln.p + HALF) - 1 : Math.round(ln.p + HALF), u) : paint(ln, u, sd < 0 ? Math.round(ln.p + HALF) - 1 : Math.round(ln.p + HALF)), off = p + sd * (t / 2 + 0.002);
+        if (ax === 'x') add(0.004, h, 1, m, off, y, c); else add(1, h, 0.004, m, c, y, off);
+      });
+    };
+    ln.us.forEach(u => skins(u, IW.base)); ln.ds.forEach(u => skins(u, IW.head + 0.08));
+    // the runs of it, unbroken stretches (no two faces in one plane where pieces meet: the plaster's top tucked up
+    // inside the trim, and the walls one way a hair higher and thicker in their trim and skirting than the other)
+    const us = ln.us.slice().sort((a, b) => a - b), z = ax === 'z' ? 1 : 0;
+    for (let s = 0; s < us.length;) {
+      let e = s; while (e + 1 < us.length && us[e + 1] === us[e] + 1) e++;
+      const u0 = us[s] - HALF - t / 2, u1 = us[e] + 1 - HALF + t / 2, len = u1 - u0, c = (u0 + u1) / 2;
+      const piece = (w, h, d, mat, y) => ax === 'x' ? add(d, h, w, mat, p, y, c) : add(w, h, d, mat, c, y, p);
+      piece(len, H - 0.02, t, ln.mat(IW_BASE.plaster), (H - 0.02) / 2);
+      piece(len, IW.base + z * 0.003, t + 0.03 + z * 0.004, ln.mat(IW_BASE.base), (IW.base + z * 0.003) / 2);
+      piece(len + 0.02, IW.cap, t + 0.04 + z * 0.004, ln.mat(IW_BASE.trim), H + z * 0.003 - IW.cap / 2);
+      s = e + 1;
+    }
+    // its doorways
+    for (const u of ln.ds) {
+      const c = u + 0.5 - HALF, trim = ln.mat(IW_BASE.trim);
+      const piece = (w, h, d, mat, y, off, face) => ax === 'x' ? add(d, h, w, mat, p + (face || 0), y, c + (off || 0)) : add(w, h, d, mat, c + (off || 0), y, p + (face || 0));
+      piece(1, H - 0.02 - IW.head, t - 0.004, ln.mat(IW_BASE.plaster), (H - 0.02 + IW.head) / 2);   // the header over it
+      piece(1, IW.cap, t + 0.048 + z * 0.004, trim, H + 0.0015 + z * 0.003 - IW.cap / 2);           // the top trim carried across
+      [-1, 1].forEach(f => {
+        const face = f * (t / 2 + 0.011);
+        [-1, 1].forEach(sd => piece(IW.case, IW.head + 0.02, 0.022, trim, (IW.head + 0.02) / 2, sd * (0.5 - IW.case / 2), face));   // side casings
+        piece(1, 0.08, 0.022, trim, IW.head + 0.04, 0, face);              // head casing
+      });
+      [-1, 1].forEach(sd => piece(0.02, IW.head, t + 0.02, trim, IW.head / 2, sd * 0.5));   // the jambs, so you never see into the wall's end
+      buildDoor(ln, u, dc, rnd);
+    }
+  }
+  // the small rooms' tiled floors (up off the floorboards' lines, so the two never lie in one plane)
   FLOOR_TILE.fill(0);
   HOUSE_PLAN.rooms.forEach((cs, r) => {
     if (HOUSE_PLAN.kinds[r] !== 'small') return;
     const m = tileMat(HOUSE_PLAN.tile[r]);
-    for (const [i, j] of cs) { const f = new THREE.Mesh(TILE_G, m); f.position.set(cxw(i), 0.021, cxw(j)); f.receiveShadow = true; g.add(f); FLOOR_TILE[idx(i, j)] = 1; }
+    for (const [i, j] of cs) { const f = new THREE.Mesh(TILE_G, m); f.position.set(cxw(i), 0.026, cxw(j)); f.receiveShadow = true; g.add(f); FLOOR_TILE[idx(i, j)] = 1; }
   });
-  // runs: each line's walls in unbroken stretches
-  const lines = new Map();
-  for (const k of W) { const [ax, i, j] = eDec(k), key = ax + (ax === 'x' ? i : j); if (!lines.has(key)) lines.set(key, { ax, L: ax === 'x' ? i : j, us: [] }); lines.get(key).us.push(ax === 'x' ? j : i); }
-  for (const { ax, L, us } of lines.values()) {
-    us.sort((a, b) => a - b);
-    for (let s = 0; s < us.length;) {
-      let e = s; while (e + 1 < us.length && us[e + 1] === us[e] + 1) e++;
-      const u0 = us[s] - HALF - t / 2, u1 = us[e] + 1 - HALF + t / 2, len = u1 - u0, c = (u0 + u1) / 2, p = L - HALF;
-      const piece = (w, h, d, mat, y) => ax === 'x' ? add(d, h, w, mat, p, y, c) : add(w, h, d, mat, c, y, p);
-      // (no two faces in one plane where pieces meet: the plaster's top tucked up inside the trim, and the walls one
-      // way a hair higher and thicker in their trim and skirting than the other, where they cross at a corner)
-      const z = ax === 'z' ? 1 : 0;
-      piece(len, H - 0.02, t, IW_M.plaster, (H - 0.02) / 2);
-      piece(len, IW.base + z * 0.003, t + 0.03 + z * 0.004, IW_M.base, (IW.base + z * 0.003) / 2);
-      piece(len + 0.02, IW.cap, t + 0.04 + z * 0.004, IW_M.trim, H + z * 0.003 - IW.cap / 2);
-      s = e + 1;
-    }
+  mergeInto(g, finePieces(g, new Set(HOUSE_DOORS.list.map(d => d.pv))));
+}
+// a door in the doorway at u along the line ln: a plain four-panel door, its knob on both faces, hung on one jamb (h:
+// which) and swinging into the bigger of the rooms either side of it (sw), painted dc
+function buildDoor(ln, u, dc, rnd) {
+  const ax = ln.ax, L = Math.round(ln.p + HALF), hs = rnd() < 0.5 ? -1 : 1, c = u + 0.5 - HALF;
+  const hx = ax === 'x' ? ln.p : c + hs * DOOR.reach, hz = ax === 'x' ? c + hs * DOOR.reach : ln.p;
+  const dx = ax === 'x' ? 0 : -hs, dz = ax === 'x' ? -hs : 0, th0 = Math.atan2(-dz, dx);
+  // into the bigger room: the side (along the line's own axis) of the room with more cells
+  const ro = HOUSE_PLAN.roomOf, size = r => r >= 0 ? HOUSE_PLAN.rooms[r].length : 0;
+  const rA = ax === 'x' ? ro[idx(L - 1, u)] : ro[idx(u, L - 1)], rB = ax === 'x' ? ro[idx(L, u)] : ro[idx(u, L)], side = size(rB) >= size(rA) ? 1 : -1;
+  const nx = ax === 'x' ? side : 0, nz = ax === 'x' ? 0 : side, sw = Math.sign(-Math.sin(th0) * nx - Math.cos(th0) * nz) || 1;
+  const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; HOUSE_PLAN.g.add(pv);
+  const paint = ln.mat(dc), panel = ln.mat(_dcShade.setHex(dc).multiplyScalar(0.8).getHex()), brass = ln.mat(0xb08a3a), w = DOOR.w;
+  const leaf = new THREE.Group(); leaf.position.set(w / 2, DOOR.h / 2 + 0.025, 0); pv.add(leaf);
+  box(leaf, w, DOOR.h, 0.036, paint, 0, 0, 0);
+  [-1, 1].forEach(f => {
+    [[-0.2, 0.43], [0.2, 0.43], [-0.2, -0.4], [0.2, -0.4]].forEach(([x, y]) => box(leaf, 0.3, y > 0 ? 0.68 : 0.78, 0.008, panel, x, y, f * 0.022));
+    const kb = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), brass); kb.position.set(w / 2 - 0.08, -0.06, f * 0.05); leaf.add(kb);
+    box(leaf, 0.012, 0.012, 0.03, brass, w / 2 - 0.08, -0.06, f * 0.03);
+  });
+  [0.6, -0.6].forEach(y => box(leaf, 0.03, 0.1, 0.044, brass, -w / 2 + 0.01, y, 0));   // hinges
+  mergeInto(leaf, finePieces(leaf));
+  HOUSE_DOORS.list.push({ ax, i: ax === 'x' ? L : u, j: ax === 'x' ? u : L, cx: ax === 'x' ? ln.p : c, cz: ax === 'x' ? c : ln.p, pv, th0, sw, open: 0, t: 0, shut: false });
+}
+const _dcShade = new THREE.Color();
+// the doors between the rooms swing open as anyone comes up to them (you, a teammate or a zombie, either side) and
+// fall to again a moment after they've gone (DOOR: how near, how long it stays open after, how quick it opens and
+// closes, how far round it swings, and below how open it counts as shut). Shut, a door stops sight, shots and sound
+// like a wall (world/thin-walls.js: 2 in the grid); it never stops anyone, as it's open by the time they reach it
+const DOOR = { near: 1.35, hold: 0.9, opens: 7, closes: 2.2, swing: 1.68, shut: 0.25, w: 0.94, h: 2.0, reach: 0.47 };
+const HOUSE_DOORS = { list: [], key: '' };
+function updateDoors(dt) {
+  let key = '';
+  const near = (d, x, z) => { const a = x - d.cx, b = z - d.cz; return a * a + b * b < DOOR.near * DOOR.near; };
+  for (const d of HOUSE_DOORS.list) {
+    let by = state === 'play' && !P.dead && near(d, P.x, P.z);
+    if (!by) for (const z of zombies) if (!z.dead && !z.out && near(d, z.x, z.z)) { by = true; break; }
+    if (!by && netLink()) for (const p of NET.peers.values()) if (p.av && p.av.g.visible && !p.dead && near(d, p.av.g.position.x, p.av.g.position.z)) { by = true; break; }
+    d.t = by ? DOOR.hold : Math.max(0, d.t - dt);
+    const want = d.t > 0 ? 1 : 0; d.open += (want - d.open) * Math.min(1, dt * (want ? DOOR.opens : DOOR.closes));
+    d.pv.rotation.y = d.th0 + d.sw * smooth(clamp(d.open, 0, 1)) * DOOR.swing;
+    const shut = d.open < DOOR.shut;
+    if (shut !== d.shut) { d.shut = shut; if (d.ax === 'x') wX[d.j * (N + 1) + d.i] = shut ? 2 : 0; else wZ[d.j * N + d.i] = shut ? 2 : 0; }
+    key += shut ? '1' : '0';
   }
-  for (const k of doors) {
-    const [ax, i, j] = eDec(k), p = (ax === 'x' ? i : j) - HALF, c = (ax === 'x' ? j : i) + 0.5 - HALF;
-    const piece = (w, h, d, mat, y, off, face) => ax === 'x' ? add(d, h, w, mat, p + (face || 0), y, c + (off || 0)) : add(w, h, d, mat, c + (off || 0), y, p + (face || 0));
-    const z = ax === 'z' ? 1 : 0;
-    piece(1, H - 0.02 - IW.head, t - 0.004, IW_M.plaster, (H - 0.02 + IW.head) / 2);   // the header over it
-    piece(1, IW.cap, t + 0.048 + z * 0.004, IW_M.trim, H + 0.0015 + z * 0.003 - IW.cap / 2);   // the top trim carried across
-    [-1, 1].forEach(f => {
-      const face = f * (t / 2 + 0.011);
-      [-1, 1].forEach(sd => piece(IW.case, IW.head + 0.02, 0.022, IW_M.trim, (IW.head + 0.02) / 2, sd * (0.5 - IW.case / 2), face));   // side casings
-      piece(1, 0.08, 0.022, IW_M.trim, IW.head + 0.04, 0, face);              // head casing
-    });
-    // the jambs: the doorway's own sides, so you never see into the wall's end
-    [-1, 1].forEach(sd => piece(0.02, IW.head, t + 0.02, IW_M.trim, IW.head / 2, sd * 0.5));
-  }
-  mergeInto(g, finePieces(g));
+  HOUSE_DOORS.key = key;
 }
 // a new house: the plan for this seed (the first that keeps every rule; failing that, none), its walls in the grid
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways
@@ -234,9 +333,15 @@ function houseLayout(seed, live) {
   // its rooms (what each is, and which cells are in which), and the furniture placed in them (world/furniture.js);
   // a plan the furniture won't all go into is passed over for the next
   const roomsOf = (W, doors) => { const rooms = planRooms(W, doors); ro.fill(-1); rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; })); return { rooms, kinds: rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed') }; };
-  let plan = null, rk = null, placed = null;
-  for (let k = 0; k < 400 && !placed; k++) { plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors); placed = placeFurniture(rnd, plan.walls, plan.doors, ro, rk.kinds); }
-  if (!placed) { plan = null; rk = roomsOf(new Set(), []); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds); }   // (no rooms: an open house)
+  let plan = null, rk = null, placed = null, wins = null;
+  for (let k = 0; k < 400 && !placed; k++) {
+    plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors);
+    wins = chooseWindows(rnd, rk.rooms, rk.kinds); if (wins.keys.size < WIN.min) { placed = null; continue; }
+    placed = placeFurniture(rnd, plan.walls, plan.doors, ro, rk.kinds, wins.fronts);
+  }
+  if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
+  // its windows, and whatever hangs on the walls where they've gone taken down
+  setWindows(wins.keys, true); for (const d of WALL_DECOR) d.g.visible = !wins.keys.has(d.k);
   HOUSE_PLAN.seed = seed;
   wX.fill(0); wZ.fill(0);
   const W = plan ? plan.walls : new Set();
@@ -245,12 +350,12 @@ function houseLayout(seed, live) {
   HOUSE_PLAN.doors = plan ? plan.doors : []; HOUSE_PLAN.rooms = rk.rooms; HOUSE_PLAN.kinds = rk.kinds;
   applyFurniture(placed, rnd);
   // the paint, outside (world/house.js: paintHouse) and in each room, the inside of the outer walls included
-  paintHouse(rnd);
+  paintHouse(rnd, live);
   const used = new Set();
   HOUSE_PLAN.cols = HOUSE_PLAN.kinds.map(k => { const free = ROOM_PAINT[k].filter(c => !used.has(c)), c = free.length ? free[(rnd() * free.length) | 0] : ROOM_PAINT[k][0]; used.add(c); return c; });
   HOUSE_PLAN.tile = HOUSE_PLAN.kinds.map(() => TILE[(rnd() * TILE.length) | 0]);
   for (const w of walls) if (w.ii >= 0) { const r = ro[idx(w.ii, w.ij)]; w.mats.inner.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
-  buildInWalls(W, HOUSE_PLAN.doors);
+  buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
   if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
 }

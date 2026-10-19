@@ -58,10 +58,16 @@ function furnScore(c, W, occ, ro, kinds, rnd) {
 }
 // every piece placed, between the walls W (doors: the doorways in them; ro: each cell's room, kinds: what each room is),
 // or null if they won't all go in
-function placeFurniture(rnd, W, doors, ro, kinds) {
+function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
   const occ = new Uint8Array(N * N), keep = new Uint8Array(N * N), out = new Map();
-  for (const o of openings) keep[idx(o.i - o.nx, o.j - o.nz)] = 1;   // in front of each window and the door
-  for (const k of doors) { const [ax, i, j] = eDec(k); keep[idx(i, j)] = 1; keep[ax === 'x' ? idx(i - 1, j) : idx(i, j - 1)] = 1; }   // either side of each doorway
+  for (const [i, j] of fronts) keep[idx(i, j)] = 1;   // in front of each window
+  // the way in from the front door: the cell inside it, those either side of that and the row beyond
+  for (let a = -1; a <= 1; a++) for (let b = 0; b <= 1; b++) keep[idx(HOUSE_DOOR[0] + a, HOUSE_DOOR[1] - b)] = 1;
+  // either side of each doorway, and beside those along the wall, where its door swings
+  for (const k of doors) {
+    const [ax, i, j] = eDec(k);
+    for (let s = -1; s <= 1; s++) { if (ax === 'x') { keep[idx(i, j + s)] = 1; keep[idx(i - 1, j + s)] = 1; } else { keep[idx(i + s, j)] = 1; keep[idx(i + s, j - 1)] = 1; } }
+  }
   keep[idx(ci(cxw(21)), ci(cxw(22)))] = 1;   // where you start
   for (const f of FURN) {
     let best = null, bs = -Infinity;

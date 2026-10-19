@@ -12,7 +12,7 @@ const walls = [], openings = [];
   const rugP = (g, geo, col, y, x, z) => { const m = new THREE.Mesh(geo, RM(col)); m.rotation.x = -Math.PI / 2; m.position.set(x || 0, y, z || 0); m.receiveShadow = true; g.add(m); return m; };
   const sq = (w, d) => new THREE.PlaneGeometry(w, d);
   const mat = new THREE.Group(); mat.position.set(cxw(21), 0, cxw(25.15)); scene.add(mat);
-  rugP(mat, sq(1.0, 0.56), 0x3e2e22, 0.021); rugP(mat, sq(0.9, 0.46), 0x8a6a3a, 0.0225); [-0.12, 0, 0.12].forEach(z => rugP(mat, sq(0.8, 0.02), 0x6a4e2c, 0.024, 0, z));
+  rugP(mat, sq(1.0, 0.56), 0x3e2e22, 0.026); rugP(mat, sq(0.9, 0.46), 0x8a6a3a, 0.029); [-0.12, 0, 0.12].forEach(z => rugP(mat, sq(0.8, 0.02), 0x6a4e2c, 0.032, 0, z));   // (well up off the floorboards' lines: nothing in one plane)
   mergeInto(mat, finePieces(mat));
 }
 // the door's paint, panels, threshold and brass
@@ -20,7 +20,8 @@ const DOOR_M = { paint: lam(0x7a2e24), panel: lam(0x5e221b), sill: lam(0x7a5434)
 // the plaster and skirting on the inside of the outer walls (each room's own colour: world/interior.js) and the
 // shutters' paint (paintHouse)
 const IN_M = { plaster: lam(0xd6ccb4), base: lam(0x4a3828), shutter: lam(0x2e3a30) };
-const openSpec = { [idx(21, HZ1)]: 'door', [idx(19, HZ0)]: 'window', [idx(24, HZ0)]: 'window', [idx(HX0, 21)]: 'window', [idx(HX1, 22)]: 'window' };
+let HOUSE_DOOR_O = null;   // (the front door's opening: setWindows)
+const openSpec = { [idx(21, HZ1)]: 'door' };
 for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   if (!(i === HX0 || i === HX1 || j === HZ0 || j === HZ1)) continue;
   const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); scene.add(g);
@@ -29,7 +30,8 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   // every cell's pieces fade with its wall faces when you're behind them (world/cutaway.js), the door's included
   const cut = { value: 0 };
   const mk = base => { const m = base.clone(); m.userData.cut = cut; return lit(m, true); };
-  const mats = { wall: mk(M.wall), clap: mk(M.trim), found: mk(M.found), trim: mk(M.trim), inner: mk(IN_M.plaster), base: mk(IN_M.base), shutter: kind === 'window' ? mk(IN_M.shutter) : null };
+  const side1 = faces.length === 1 && kind !== 'door';   // (a side cell, not a corner: a window can go in it)
+  const mats = { wall: mk(M.wall), clap: mk(M.trim), found: mk(M.found), trim: mk(M.trim), inner: mk(IN_M.plaster), base: mk(IN_M.base), shutter: side1 ? mk(IN_M.shutter) : null };
   box(g, 1.02, 0.22, 1.02, mats.found, 0, 0.11, 0);
   // a corner board up each outside corner, wrapped round it
   if (faces.length === 2) {
@@ -42,21 +44,17 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
   // inside: the wall plastered over in the colour of the room it's in, with a skirting board (none in a corner, which
   // has no room on its inside)
   const ii = faces.length === 1 ? i + (faces[0] === 'W' ? 1 : faces[0] === 'E' ? -1 : 0) : -1, ij = faces.length === 1 ? j + (faces[0] === 'N' ? 1 : faces[0] === 'S' ? -1 : 0) : -1;
-  if (faces.length === 1) {
-    const ox = ii - i, oz = ij - j, d = 0.514, pan = (y0, y1, mat, th, off) => box(g, ox ? th : 1.0, y1 - y0, ox ? 1.0 : th, mat, ox * (off || d), (y0 + y1) / 2, oz * (off || d));
-    if (kind === 'door') pan(2.21, 2.4, mats.inner, 0.004);
-    else if (kind === 'window') { pan(0.015, 0.96, mats.inner, 0.004); pan(1.92, 2.4, mats.inner, 0.004); pan(0.015, 0.125, mats.base, 0.02, 0.524); }
-    else { pan(0.015, 2.4, mats.inner, 0.004); pan(0.015, 0.125, mats.base, 0.02, 0.524); }
-  }
+  const ox_ = ii - i, oz_ = ij - j, pan = (G, y0, y1, mat, th, off) => box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514));
+  if (kind === 'door') pan(g, 2.21, 2.4, mats.inner, 0.004);
   // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
-  const clap = (y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(g, 1.015, 0.025, 1.015, mats.clap, 0, y, 0); } };
+  const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0); } };
   if (kind === 'door') {
     // a full-depth frame flush with the walls: jambs, an oak threshold, the sided wall over the head, and cased
     // trim on both faces with a drip cap outside. The door itself stands open, swung right round against the inside wall.
     const dm = { frame: mk(M.doorFrame), sill: mk(DOOR_M.sill), paint: mk(DOOR_M.paint), panel: mk(DOOR_M.panel), brass: mk(DOOR_M.brass) };
     [-1, 1].forEach(sd => box(g, 0.1, 1.83, 1.0, dm.frame, sd * 0.45, 1.135, 0));
     box(g, 0.8, 0.05, 1.0, dm.sill, 0, 0.245, 0); box(g, 0.82, 0.03, 0.08, dm.sill, 0, 0.235, 0.52);   // threshold and its nosing
-    box(g, 1, 0.35, 1, mats.wall, 0, 2.225, 0); clap(2.05, 2.4);
+    box(g, 1, 0.35, 1, mats.wall, 0, 2.225, 0); clap(g, 2.05, 2.4);
     [-1, 1].forEach(f => {
       const z = f * 0.512;
       [-1, 1].forEach(sd => box(g, 0.13, 1.95, 0.025, dm.frame, sd * 0.43, 1.2, z));   // side casings
@@ -77,48 +75,71 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     unfight(g);   // pull apart the trim's flush faces
     mats.paint = dm.paint; mats.panel = dm.panel;
     walls.push({ faces, cut, k: idx(i, j), mats, ii, ij });
+    cell[idx(i, j)] = OPEN; HOUSE_DOOR_O = houseOpening(g, i, j, 'door'); openings.push(HOUSE_DOOR_O); openAt[idx(i, j)] = HOUSE_DOOR_O;
   } else {
-    if (!kind) { box(g, 1, 2.3, 1, mats.wall, 0, 1.25, 0); clap(0.22, 2.4); }
-    else {
+    // a plain stretch of wall and, in a side cell, a window that can stand in it instead: which shows is up to the
+    // run's floor plan (setWindows; world/interior.js puts a window in the middle of each room's outside wall)
+    const plain = new THREE.Group(); g.add(plain);
+    box(plain, 1, 2.3, 1, mats.wall, 0, 1.25, 0); clap(plain, 0.22, 2.4);
+    if (side1) { pan(plain, 0.015, 2.4, mats.inner, 0.004); pan(plain, 0.015, 0.125, mats.base, 0.02, 0.524); }
+    let win = null, o = null;
+    if (side1) {
       // a window: wall under the sill and over the head, sided like the rest, with a sill, an apron under it outside
       // and cased jambs on both faces
-      box(g, 1, 0.75, 1, mats.wall, 0, 0.6, 0); clap(0.22, 0.975); box(g, 1.06, 0.06, 1.08, mats.trim, 0, 0.99, 0);
+      win = new THREE.Group(); win.visible = false; g.add(win);
+      box(win, 1, 0.75, 1, mats.wall, 0, 0.6, 0); clap(win, 0.22, 0.975); box(win, 1.06, 0.06, 1.08, mats.trim, 0, 0.99, 0);
       const alongX = j === HZ0 || j === HZ1, ox = alongX ? 0 : (i === HX0 ? -1 : 1), oz = alongX ? (j === HZ0 ? -1 : 1) : 0;
       // a trim piece u along the wall, on the outer face (f 1) or the inner one (f -1)
-      const at = (u, y, f, w, h, d) => box(g, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
+      const at = (u, y, f, w, h, d) => box(win, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
       at(0, 0.925, 1, 0.9, 0.08, 0.03);                                                      // apron under the sill, outside
       [-1, 1].forEach(f => [-1, 1].forEach(sd => at(sd * 0.46, 1.445, f, 0.08, 0.86, 0.022)));   // jamb casings on both faces
       // a louvred shutter folded back either side of it outside, on its hinges
-      const sat = (u, y, w, h, d, off) => box(g, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
+      const sat = (u, y, w, h, d, off) => box(win, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
       [-1, 1].forEach(sd => {
         const u = sd * 0.67; sat(u, 1.445, 0.3, 0.92, 0.024, 0.53);
         for (let k = 0; k < 7; k++) sat(u, 1.08 + k * 0.105, 0.24, 0.022, 0.012, 0.548);   // the louvres
         [-0.3, 0.3].forEach(y => sat(sd * 0.505, 1.445 + y, 0.05, 0.035, 0.03, 0.53));     // hinges
       });
-      box(g, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(1.9, 2.4); box(g, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
+      box(win, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(win, 1.9, 2.4); box(win, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
+      pan(win, 0.015, 0.96, mats.inner, 0.004); pan(win, 1.92, 2.4, mats.inner, 0.004); pan(win, 0.015, 0.125, mats.base, 0.02, 0.524);
+      o = houseOpening(win, i, j, 'window');
     }
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
-    walls.push({ faces, cut, k: idx(i, j), mats, ii, ij });
-  }
-  cell[idx(i, j)] = kind ? OPEN : WALL;
-  if (kind) {
-    const axis = (j === HZ0 || j === HZ1) ? 'x' : 'z';
-    const out = j === HZ0 ? -1 : j === HZ1 ? 1 : i === HX0 ? -1 : 1;
-    const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; g.add(bg);
-    const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
-    const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
-    // outlined in white, as the stations are, when this is the opening you'd board up or climb through: a pane over the
-    // opening on each face, never drawn itself (OPEN_HL), only its outline (effects/screen-outlines.js), and only the
-    // one on the side you're standing (barricades/interactions.js)
-    const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
-    o.hl = [-1, 1].map(sd => {
-      const p = new THREE.Group(); bg.add(p);
-      const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
-      p.om = outline(p, 0xf4f1ea, 0, 0.035); p.om.visible = false; return p;
-    });
-    openings.push(o); openAt[idx(i, j)] = o;
+    walls.push({ faces, cut, k: idx(i, j), mats, ii, ij, plain, win, o });
+    cell[idx(i, j)] = WALL;
   }
 }
+// an opening's own parts: where it is and which way out, the boards across it, and the outline that marks it as the
+// one you'd board up or climb through, a pane over the opening on each face, never drawn itself (OPEN_HL), only its
+// outline (effects/screen-outlines.js), and only the one on the side you're standing (barricades/interactions.js)
+function houseOpening(G, i, j, kind) {
+  const axis = (j === HZ0 || j === HZ1) ? 'x' : 'z';
+  const out = j === HZ0 ? -1 : j === HZ1 ? 1 : i === HX0 ? -1 : 1;
+  const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; G.add(bg);
+  const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
+  const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
+  const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
+  o.hl = [-1, 1].map(sd => {
+    const p = new THREE.Group(); bg.add(p);
+    const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
+    p.om = outline(p, 0xf4f1ea, 0, 0.035); p.om.visible = false; return p;
+  });
+  return o;
+}
+// this run's windows (keys: the wall cells they're in): each shown in its cell in place of the plain wall, and an
+// opening (boarded up from scratch); every other side cell a plain wall again. live: in play, when what stops shots
+// changes with them too
+function setWindows(keys, live) {
+  openings.length = 0; openings.push(HOUSE_DOOR_O);
+  for (const w of walls) {
+    if (!w.win) continue;
+    const on = keys.has(w.k), o = w.o; w.plain.visible = !on; w.win.visible = on;
+    while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.climbers = [];
+    cell[w.k] = on ? OPEN : WALL; openAt[w.k] = on ? o : null; if (live) blockArr[w.k] = on ? 0 : 1;
+    if (on) openings.push(o);
+  }
+}
+setWindows(new Set([idx(19, HZ0), idx(24, HZ0), idx(HX0, 21), idx(HX1, 22)]), false);   // (till the first floor plan's laid out)
 const HOUSE = { x0: cxw(HX0) - 0.5, x1: cxw(HX1) + 0.5, z0: cxw(HZ0) - 0.5, z1: cxw(HZ1) + 0.5, zN: cxw(HZ0), zS: cxw(HZ1), xW: cxw(HX0), xE: cxw(HX1) };
 box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42).castShadow = false;
 // ---- pitched roof: shown from outside, lifted off when you are indoors ----
@@ -133,7 +154,7 @@ const roof = (() => {
     const slope = new THREE.Group(); slope.position.set(cx, ridgeY - rise / 2, cz + s * run / 2); slope.rotation.x = s * th; g.add(slope);
     box(slope, W, 0.12, len, shingle, 0, 0, 0);
     for (let k = 1; k < 9; k++) box(slope, W + 0.02, 0.03, 0.06, ridgeM, 0, 0.075, -len / 2 + k * len / 9);   // shingle rows
-    box(slope, W + 0.04, 0.16, 0.12, trimM, 0, -0.02, s * len / 2);                                          // fascia at the eave
+    box(slope, W + 0.04, 0.16, 0.12, trimM, 0, -0.03, s * len / 2);                                          // fascia at the eave (its top a hair under the shingles', never level with them)
   });
   box(g, W + 0.1, 0.16, 0.26, ridgeM, cx, ridgeY + 0.04, cz);
   // gable ends
@@ -169,7 +190,7 @@ const porchRoof = (() => {
   const slope = new THREE.Group(); slope.position.set(0, (y0 + y1) / 2, (z0 + z1) / 2); slope.rotation.x = th; g.add(slope);
   box(slope, 3.8, 0.08, len, shingle, 0, 0, 0);
   for (let k = 1; k < 4; k++) box(slope, 3.82, 0.025, 0.05, ridgeM, 0, 0.05, -len / 2 + k * len / 4);   // shingle rows
-  box(slope, 3.86, 0.12, 0.08, trimM, 0, -0.02, len / 2);                                              // fascia
+  box(slope, 3.86, 0.12, 0.08, trimM, 0, -0.028, len / 2);                                             // fascia (its top under the shingles')
   for (let k = -3; k <= 3; k++) box(slope, 0.06, 0.08, len - 0.1, beamM, k * 0.6, -0.08, 0);         // rafters underneath
   box(g, 3.4, 0.14, 0.14, beamM, 0, 2.37, 0.55);                                                       // header beam across the posts
   box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
@@ -187,8 +208,8 @@ function surfaceY(x, z) {
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
   if (ci(x) === 21 && ci(z) === HZ1) return 0.27;   // the top of the threshold
   if (x > cxw(HX0) + 0.5 && x < cxw(HX1) - 0.5 && z > cxw(HZ0) + 0.5 && z < cxw(HZ1) - 0.5) {
-    if (Math.abs(x - cxw(21)) < 0.5 && Math.abs(z - cxw(25.15)) < 0.28) return 0.025;   // the doormat
-    if (FLOOR_TILE[idx(ci(x), ci(z))]) return 0.022;                              // a tiled floor (world/interior.js)
+    if (Math.abs(x - cxw(21)) < 0.5 && Math.abs(z - cxw(25.15)) < 0.28) return 0.033;   // the doormat
+    if (FLOOR_TILE[idx(ci(x), ci(z))]) return 0.027;                              // a tiled floor (world/interior.js)
     return 0.015;                                                                  // the floorboards
   }
   return 0;
@@ -204,14 +225,24 @@ const HOUSE_PAINT = [
   { side: 0x9c968a, trim: 0x4a3e32, shut: 0x6a2e26, door: 0x6a2e26, roof: 0x45403a }    // weathered grey
 ];
 const _hc = new THREE.Color();
-function paintHouse(rnd) {
-  const c = HOUSE_PAINT[(rnd() * HOUSE_PAINT.length) | 0], shade = (h, k) => _hc.setHex(h).multiplyScalar(k).getHex();
+// fade: from the scheme it had (the title's, as a run starts) to the new one over PAINT_FADE seconds, eased, rather
+// than all at once (stepPaint, every frame from world/cutaway.js)
+const PAINT_FADE = 2.4, PAINT_TW = { t: 1, list: [] };
+function paintHouse(rnd, fade) {
+  const c = HOUSE_PAINT[(rnd() * HOUSE_PAINT.length) | 0], shade = (h, k) => _hc.setHex(h).multiplyScalar(k).getHex(), list = [];
+  const paint = (col, hex) => { if (fade) list.push([col, col.clone(), new THREE.Color(hex)]); else col.setHex(hex); };
   for (const w of walls) {
-    const m = w.mats; m.wall.color.setHex(c.side); m.clap.color.setHex(shade(c.side, 0.7)); m.trim.color.setHex(c.trim);
-    if (m.shutter) m.shutter.color.setHex(c.shut);
-    if (m.paint) { m.paint.color.setHex(c.door); m.panel.color.setHex(shade(c.door, 0.78)); }
+    const m = w.mats; paint(m.wall.color, c.side); paint(m.clap.color, shade(c.side, 0.7)); paint(m.trim.color, c.trim);
+    if (m.shutter) paint(m.shutter.color, c.shut);
+    if (m.paint) { paint(m.paint.color, c.door); paint(m.panel.color, shade(c.door, 0.78)); }
   }
   // the roofs' colours are set from their base every frame, as the light changes (world/cutaway.js)
-  [roof.paint, porchRoof.paint].forEach(p => { p.shingle.userData.base.setHex(c.roof); p.ridge.userData.base.setHex(shade(c.roof, 0.62)); p.trim.userData.base.setHex(c.trim); });
-  roof.paint.gable.userData.base.setHex(c.side);
+  [roof.paint, porchRoof.paint].forEach(p => { paint(p.shingle.userData.base, c.roof); paint(p.ridge.userData.base, shade(c.roof, 0.62)); paint(p.trim.userData.base, c.trim); });
+  paint(roof.paint.gable.userData.base, c.side);
+  PAINT_TW.list = list; PAINT_TW.t = fade ? 0 : 1;
+}
+function stepPaint(rdt) {
+  if (PAINT_TW.t >= 1) return;
+  PAINT_TW.t = Math.min(1, PAINT_TW.t + rdt / PAINT_FADE); const k = smooth(PAINT_TW.t);
+  for (const [col, a, b] of PAINT_TW.list) col.copy(a).lerp(b, k);
 }

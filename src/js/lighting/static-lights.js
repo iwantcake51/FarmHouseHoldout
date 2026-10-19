@@ -5,6 +5,7 @@
 houseLayout((Math.random() * 2147483647) | 0, false);
 
 const hangLight = ([x, z]) => ({ hang: true, x, z, r: 6.5, col: [1, 0.68, 0.36], int: 1.3, inside: true });
+const spillLight = o => ({ spill: o, x: o.x - o.nx * 0.3, z: o.z - o.nz * 0.3, r: o.kind === 'door' ? 7 : 6, cone: { dir: Math.atan2(o.nx, o.nz), half: o.kind === 'door' ? 0.62 : 0.78 }, col: [1, 0.64, 0.34], int: o.kind === 'door' ? 1.25 : 1.1 });
 const STATIC_LIGHTS = [
   { x: cxw(21) + 0.7, z: cxw(HZ1) + 0.7, r: 8.5, col: [1, 0.6, 0.28], int: 1.55 },
   { x: cxw(14), z: cxw(16), r: 7.5, col: [1, 0.48, 0.18], int: 1.9, flicker: true },
@@ -14,17 +15,18 @@ const STATIC_LIGHTS = [
   ...HANG.map(hangLight),
   { fill: true, col: [1, 0.66, 0.38], int: 0.38, inside: true },
   // warm light spilling out through each window and the doorway; one board dims it, two shut it off
-  ...openings.map(o => ({ spill: o, x: o.x - o.nx * 0.3, z: o.z - o.nz * 0.3, r: o.kind === 'door' ? 7 : 6, cone: { dir: Math.atan2(o.nx, o.nz), half: o.kind === 'door' ? 0.62 : 0.78 }, col: [1, 0.64, 0.34], int: o.kind === 'door' ? 1.25 : 1.1 }))
+  ...openings.map(spillLight)
 ];
 STATIC_LIGHTS.forEach(L => {
   if (!L.fill) { L.field = lightField(L.x, L.z, L.r, L.cone, true); return; }
   L.field = [];   // even warm fill across the rooms
   for (let b = 0; b < FN; b++) for (let a = 0; a < FN; a++) { const x = sampleX(a), z = sampleX(b); if (x > HOUSE.x0 + 0.5 && x < HOUSE.x1 - 0.5 && z > HOUSE.z0 + 0.5 && z < HOUSE.z1 - 0.5) L.field.push(b * FN + a, 1); }
 });
-// a new floor plan (world/interior.js): the lamps rehung where its rooms are, and every fixed light worked out again
+// a new floor plan (world/interior.js): the lamps rehung where its rooms are, the windows' spill where they are, and every
+// fixed light worked out again
 // round its walls
 function relightHouse() {
-  for (let k = STATIC_LIGHTS.length - 1; k >= 0; k--) if (STATIC_LIGHTS[k].hang) STATIC_LIGHTS.splice(k, 1);
-  STATIC_LIGHTS.push(...HANG.map(hangLight));
+  for (let k = STATIC_LIGHTS.length - 1; k >= 0; k--) if (STATIC_LIGHTS[k].hang || STATIC_LIGHTS[k].spill) STATIC_LIGHTS.splice(k, 1);
+  STATIC_LIGHTS.push(...HANG.map(hangLight), ...openings.map(spillLight));   // (and the spill out of this run's windows)
   STATIC_LIGHTS.forEach(L => { if (!L.fill) L.field = lightField(L.x, L.z, L.r, L.cone, true); });
 }

@@ -5,7 +5,7 @@ let visKey = '', visAge = 0;
 function computeVision(on) {
   let bsum = 0; for (const o of openings) bsum = bsum * 4 + o.boards.length;
   const V = viewer();   // (you, or the teammate you're watching: net/spectate.js)
-  const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), Math.round(V.aim * 48), V.cone, V.near, bsum].join(',') : 'off';
+  const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), Math.round(V.aim * 48), V.cone, V.near, bsum, HOUSE_DOORS.key].join(',') : 'off';
   visAge += 0.07; if (key === visKey && visAge < 0.6) return;
   visKey = key; visAge = 0;
   const HALFCONE = V.cone, NEAR = V.near;

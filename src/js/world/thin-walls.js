@@ -7,6 +7,10 @@ const wX = new Uint8Array((N + 1) * N), wZ = new Uint8Array(N * (N + 1));
 const THIN = { n: 0, t: 0.12, box: [0, 0, 0, 0] };
 const wxAt = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] === 1;
 const wzAt = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] === 1;
+// and what stops sight, a shot or a sound: a wall, or a door between rooms while it's shut (2: world/interior.js). A
+// door never stops you or a zombie: it swings open as anyone comes up to it
+const wxSee = (i, j) => i >= 0 && i <= N && j >= 0 && j < N && wX[j * (N + 1) + i] > 0;
+const wzSee = (i, j) => i >= 0 && i < N && j >= 0 && j <= N && wZ[j * N + i] > 0;
 // a thin wall between two cells next to each other; diagonally, if one stands on either way round (nothing squeezes
 // past the end of a wall)
 function wallBetween(i0, j0, i1, j1) {
@@ -17,6 +21,7 @@ function wallBetween(i0, j0, i1, j1) {
   return wxAt(im, j0) || wxAt(im, j1) || wzAt(i0, jm) || wzAt(i1, jm);
 }
 // along the line from (x0, z0) to (x1, z1), cell by cell: how far along it (0 to 1) it first goes through a thin wall
+// (or a shut door)
 // (2 if it never does), or with count, how many it goes through
 function thinWalk(x0, z0, x1, z1, count) {
   if (!THIN.n) return count ? 0 : 2;
@@ -26,8 +31,8 @@ function thinWalk(x0, z0, x1, z1, count) {
   const ti = ci(x1), tj = ci(z1), ddx = si ? 1 / Math.abs(dx) : Infinity, ddz = sj ? 1 / Math.abs(dz) : Infinity;
   let tx = si ? ((si > 0 ? i + 1 : i) - HALF - x0) / dx : Infinity, tz = sj ? ((sj > 0 ? j + 1 : j) - HALF - z0) / dz : Infinity;
   for (let s = 0; s < 4 * N && (i !== ti || j !== tj); s++) {
-    if (tx <= tz) { if (tx > 1) break; if (wxAt(si > 0 ? i + 1 : i, j)) { if (!count) return tx; n++; } i += si; tx += ddx; }
-    else { if (tz > 1) break; if (wzAt(i, sj > 0 ? j + 1 : j)) { if (!count) return tz; n++; } j += sj; tz += ddz; }
+    if (tx <= tz) { if (tx > 1) break; if (wxSee(si > 0 ? i + 1 : i, j)) { if (!count) return tx; n++; } i += si; tx += ddx; }
+    else { if (tz > 1) break; if (wzSee(i, sj > 0 ? j + 1 : j)) { if (!count) return tz; n++; } j += sj; tz += ddz; }
   }
   return count ? n : 2;
 }
@@ -38,7 +43,7 @@ const thinRay = (ox, oz, dx, dz, L) => { const t = thinWalk(ox, oz, ox + dx * L,
 function thinNear(x, z, d) {
   if (!THIN.n) return false;
   const i = ci(x), j = ci(z), fx = x + HALF - i, fz = z + HALF - j;
-  return (fx < d && wxAt(i, j)) || (fx > 1 - d && wxAt(i + 1, j)) || (fz < d && wzAt(i, j)) || (fz > 1 - d && wzAt(i, j + 1));
+  return (fx < d && wxSee(i, j)) || (fx > 1 - d && wxSee(i + 1, j)) || (fz < d && wzSee(i, j)) || (fz > 1 - d && wzSee(i, j + 1));
 }
 // a circle (e: x and z; r its radius) pushed back out of the thin walls round it, to the side it was on before it
 // moved (px, pz): round the ends of a wall, so whatever's walking slides on round a door frame rather than catching.
