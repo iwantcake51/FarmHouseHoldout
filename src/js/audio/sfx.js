@@ -11,10 +11,13 @@ const SFX = {
   auto() { nz(0.09, 'lowpass', 3600, 500, 0.45); tn(0.06, 'sine', 170, 60, 0.35); },
   rifle() { nz(0.4, 'lowpass', 4200, 200, 0.95); tn(0.2, 'sine', 160, 40, 0.7); },
   // a shot: the gun's one recording, a little different every time (its pitch and speed, its tone, how loud it is and
-  // where it sits left to right), and inside the farmhouse the room rings with it
+  // where it sits left to right); inside the farmhouse the room rings with it, harder for the big ones, and wherever you
+  // are it echoes back off the farm (a heavy round more, a suppressed one barely: FAR_ECHO, audio/samples.js), dull
+  // through the walls when you're in
   fire(id, quiet, shells) {
-    const verb = indoors() ? (quiet ? 0.32 : shells || id === 'deagle' || id === 'hunting' ? 0.75 : 0.62) : 0;
-    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb })) return;
+    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'lmg', verb = inside ? (quiet ? 0.36 : big ? 0.9 : 0.74) : 0;
+    echoSet(inside);
+    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
     if (quiet) SFX.supp(shells); else SFX[GUN_SFX[id]]();
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun

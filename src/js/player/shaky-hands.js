@@ -16,14 +16,44 @@ const SHAKY_SWAY = 30, SHAKY_BEAT = 55, SHAKY_ADS = 0.5;
 // tremor's share SHAKY_FINE and the slow sway's the rest; the heartbeat's thump SHAKY_THUMP of it)
 const SHAKY_TREM = { p: 0.05, y: 0.045, r: 0.045, m: 0.008 }, SHAKY_FINE = 0.22, SHAKY_THUMP = 0.45;
 const SHAKY = { k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thump: 0, ph: Array.from({ length: 12 }, () => rand() * 6.283) };
-// the aim on screen: where the cursor is, plus the wander
-const aimSX = () => mouseX + SHAKY.x, aimSY = () => mouseY + SHAKY.y;
+// the crosshair's own sway and recoil, on top of the wander (and like it, they move your aim: shots go where the
+// crosshair is). Firing from the hip it sways slightly and slowly, a touch more on the move (XSWAY). Each shot kicks it
+// (xhKick): out along your aim, away from you on the screen, with a little to the side, on a spring that brings it
+// back. A gun firing a shot at a time kicks and eases home, quick and then slowing, never linear and never past the
+// aim; a full automatic's kicks come too fast for that, so it jostles about the aim on a stiffer spring. How far: by
+// the gun's power, less for every upgrade that tightens its spread (by as much as it tightens it), and down the
+// sights less again, an automatic much less (XREC)
+const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26 };
+const XSWAY = { px: 2.6, move: 2.2 };
+const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, sx: 0, sy: 0, sk: 0 }, _xv = new V3();
+function xhKick(D, id, pw, auto) {
+  if (!hasMouse || tStick.R) return;
+  const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
+  const tight = clamp(sp / Math.max(1e-4, sp0), 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : 1;
+  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads;
+  _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
+  let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
+  if (L < 1) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }
+  const side = rr(-1, 1) * (auto ? XREC.autoSide : XREC.side), out = auto ? rr(0.4, 1) : rr(0.85, 1.1), v = amt * (auto ? 18 : 22);
+  XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; if (auto) XR.autoT = 0.3;
+}
+function updateXhRecoil(dt) {
+  const auto = XR.autoT > 0; XR.autoT -= dt;
+  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) { springTo(XR, 'x', 'vx', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); springTo(XR, 'y', 'vy', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); }
+  // the hip-fire sway: eased on with a gun up off the sights, off down them, with a melee weapon or at a station
+  const D = W(curId()), want = state === 'play' && !P.dead && !aiming && !openSt && D && !D.melee ? 1 : 0;
+  XR.sk += (want - XR.sk) * Math.min(1, dt * 3);
+  const t = SHAKY.t, mv = Math.min(1, Math.hypot(P.vx, P.vz) / 3), amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk;
+  XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp; XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp;
+}
+// the aim on screen: where the cursor is, plus the wander, the sway and the kick
+const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy, 0, innerHeight);
 function updateShaky(dt) {
   const sk = SHAKY, hpF = P.hp / S.maxHp;
   const want = P.dead || state !== 'play' ? 0 : smooth(clamp((SHAKY_HP.from - hpF) / (SHAKY_HP.from - SHAKY_HP.to), 0, 1));
   sk.k += (want - sk.k) * Math.min(1, dt * 1.6);
   if (!(dt > 0)) return;
-  sk.t += dt;
+  sk.t += dt; updateXhRecoil(dt);
   const t = sk.t, ph = sk.ph, k = sk.k;
   // each heartbeat (the R spike, ui/vitals.js): a little kick in a random direction, and a thump through the arms
   const from = beatT < sk.lb ? -1 : sk.lb;

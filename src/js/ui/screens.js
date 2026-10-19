@@ -50,7 +50,7 @@ function backToMenu() {
   resetRun(); setState('title'); $('title').scrollTop = 0;
   if (NET.on) { NET.inGame = false; toggleCoop(true); }   // still in a co-op game: back in its lobby
   // the HUD stops updating on the title, so clear the dying screen effects by hand
-  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
+  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig', 'nearVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; cache.nearVig = null; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
 }
 // Moving between the title and a run is never a cut: the screen you're on slides away, and wherever the farm has to be
