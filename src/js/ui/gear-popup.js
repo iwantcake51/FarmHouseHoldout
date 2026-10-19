@@ -1,6 +1,7 @@
-// Gear you get: a card that rises at the bottom middle of the screen whenever you buy or are given something that stays
+// Gear you get: a slim strip at the bottom middle of the screen whenever you buy or are given something that stays
 // with you (an attachment, a mod, a gun upgrade, a tune-up, rounds, a medicine upgrade, a weapon off the radio),
-// saying what it is, what it's on and what it does; and the list of all of it in the pause screen.
+// saying what it is, what it's on and its main changes, out of the way and gone in a few seconds (what it does in full
+// is in the pause screen's list of all of it, below, and the workbench).
 
 // what a gun's called in a sentence: plain, without its calibre ("your pistol", not "your 9mm pistol")
 const gunCall = id => WEAP[id].name.replace(/^[.\d]+[a-z]*\s+/i, '').toLowerCase();
@@ -22,15 +23,15 @@ const gearEl = (() => {
 // of sight before the next one comes up
 function nextGear() {
   const o = gearQ.shift(); if (!o) { gearShowing = false; return; }
-  gearShowing = true; const el = gearEl, hold = gearQ.length ? 2.6 : 4.6;
+  gearShowing = true; const el = gearEl, hold = gearQ.length ? 1.6 : 2.8;
   el.style.setProperty('--gc', GEAR_COL[o.ic] || GEAR_COL.gear); el.style.setProperty('--hold', hold + 's');
   el.querySelector('svg').innerHTML = GI[o.ic] || GI.gear;
-  el.querySelector('.gpEye').textContent = o.kind + (o.on ? ' · ' + o.on : '');
+  el.querySelector('.gpEye').textContent = o.on || o.kind;   // (what it is shows in the name; the pause list has both)
   el.querySelector('.gpName').textContent = o.name; el.querySelector('.gpText').textContent = o.text || '';
-  el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 4).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('');
+  el.querySelector('.gpFx').innerHTML = (o.fx || []).filter(Boolean).slice(0, 3).map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('');
   el.hidden = false; el.classList.remove('out', 'in'); void el.offsetWidth; el.classList.add('in');
   SFX.pick && SFX.pick();
-  clearTimeout(gearT); gearT = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); gearT = setTimeout(() => { el.hidden = true; el.classList.remove('out'); nextGear(); }, 260); }, hold * 1000);
+  clearTimeout(gearT); gearT = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); gearT = setTimeout(() => { el.hidden = true; el.classList.remove('out'); nextGear(); }, 220); }, hold * 1000);
 }
 function clearGear() { gearQ.length = 0; clearTimeout(gearT); gearShowing = false; gearEl.hidden = true; gearEl.classList.remove('in', 'out'); }
 // the pause screen's list of what you've bought or been given, newest first

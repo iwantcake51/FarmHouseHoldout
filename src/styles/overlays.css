@@ -117,27 +117,24 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 /* gear you get (ui/gear-popup.js): a card at the bottom middle, under the station panel, that rolls up into view from
    its bottom edge, says what it is, what it's on and what it does, with a bar running out along its foot, and rolls
    back down out of sight */
-#gearPop{--gc:#d9a83e;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;width:min(420px,46vw);display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;
-  padding:10px 16px 12px 10px;text-shadow:none;background:linear-gradient(180deg,rgba(18,19,20,.96),rgba(12,13,14,.94));border:1px solid rgba(236,230,216,.12);border-top:2px solid var(--gc);box-shadow:0 14px 34px -10px rgba(0,0,0,.85);overflow:hidden}
-#gearPop.in{animation:gpIn .38s cubic-bezier(.2,.8,.25,1) both}
-#gearPop.out{animation:gpOut .26s cubic-bezier(.55,0,.8,.2) both}
-@keyframes gpIn{from{clip-path:inset(100% 0 0 0);translate:0 12px}to{clip-path:inset(-10px -10px -10px -10px)}}
-@keyframes gpOut{from{clip-path:inset(-10px -10px -10px -10px)}to{clip-path:inset(100% 0 0 0);translate:0 10px}}
-#gearPop .gpIc{display:grid;place-items:center;width:44px;height:44px;background:color-mix(in srgb,var(--gc) 16%,rgba(0,0,0,.4));border:1.5px solid var(--gc)}
-#gearPop .gpIc svg{width:26px;height:26px;fill:var(--gc)}
-#gearPop .gpTx{display:grid;gap:3px;min-width:0}
-#gearPop .gpEye{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--gc)}
-#gearPop .gpName{font-family:var(--f-num);font-weight:800;font-size:24px;letter-spacing:.02em;line-height:1;text-transform:uppercase;color:var(--ink)}
-#gearPop .gpText{font-style:normal;font-size:12px;line-height:1.4;color:#cfc8b8}
-#gearPop .gpText:empty{display:none}
-#gearPop .gpFx{display:flex;flex-wrap:wrap;gap:4px;margin-top:2px}
+#gearPop{--gc:#d9a83e;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:4;max-width:min(430px,44vw);display:flex;align-items:center;gap:8px;
+  padding:4px 12px 5px 5px;text-shadow:none;background:rgba(12,13,14,.8);border:1px solid rgba(236,230,216,.1);border-left:2px solid var(--gc);border-radius:3px;box-shadow:0 8px 20px -10px rgba(0,0,0,.8);overflow:hidden;white-space:nowrap}
+#gearPop.in{animation:gpIn .3s cubic-bezier(.2,.8,.25,1) both}
+#gearPop.out{animation:gpOut .22s cubic-bezier(.55,0,.8,.2) both}
+@keyframes gpIn{from{opacity:0;translate:0 8px}}
+@keyframes gpOut{to{opacity:0;translate:0 6px}}
+#gearPop .gpIc{display:grid;place-items:center;width:22px;height:22px;flex:none;background:color-mix(in srgb,var(--gc) 16%,transparent);border-radius:2px}
+#gearPop .gpIc svg{width:14px;height:14px;fill:var(--gc)}
+#gearPop .gpTx{display:flex;align-items:baseline;gap:8px;min-width:0}
+#gearPop .gpName{font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.03em;line-height:1;text-transform:uppercase;color:var(--ink);order:0}
+#gearPop .gpEye{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gc);order:1;overflow:hidden;text-overflow:ellipsis}
+#gearPop .gpText{display:none}
+#gearPop .gpFx{display:flex;gap:4px;order:2}
 #gearPop .gpFx:empty{display:none}
-#gearPop .gpFx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:10px;line-height:1.3;padding:2px 5px 1px;border:1px solid currentColor;border-radius:2px}
+#gearPop .gpFx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:9.5px;line-height:1.3;padding:1px 4px 0;border:1px solid currentColor;border-radius:2px}
 #gearPop .gpFx .up{color:#8fd49a;background:rgba(80,160,96,.12)}#gearPop .gpFx .down{color:#ec8a72;background:rgba(200,80,60,.12)}#gearPop .gpFx .eq{color:#b8c0c8;background:rgba(184,192,200,.08)}
-#gearPop .gpBar{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--gc);opacity:.65;transform-origin:left center}
-#gearPop.in .gpBar{animation:tBar var(--hold,4.6s) linear .38s both}
-#gearPop.in .gpTx>*{animation:stRise .32s cubic-bezier(.2,.8,.3,1) backwards}
-#gearPop.in .gpName{animation-delay:.08s}#gearPop.in .gpText{animation-delay:.14s}#gearPop.in .gpFx{animation-delay:.2s}
+#gearPop .gpBar{position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--gc);opacity:.5;transform-origin:left center}
+#gearPop.in .gpBar{animation:tBar var(--hold,2.8s) linear .3s both}
 @media (prefers-reduced-motion:reduce){#gearPop.in,#gearPop.out,#gearPop.in .gpTx>*{animation-duration:.01s;animation-delay:0s}}
 /* the first prep's labels over each station (ui/bench-tips.js): a pulsing dot on the station, a thin stem up from it and
    a small dark card with its name and a few words on what it's for. They pop up in turn (--d) once the intro's over, the
@@ -155,17 +152,16 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 @keyframes btStem{from{transform:scaleY(0);opacity:0}}
 @keyframes btCard{from{opacity:0;transform:translate(calc(-50% + var(--dx)),8px) scale(.9)}}
 @keyframes btPulse{50%{box-shadow:0 0 0 2px rgba(20,15,11,.55),0 0 0 7px rgba(244,241,234,.12),0 0 16px rgba(244,241,234,.85)}}
-/* a shared gun's label (net/teamwork.js: shareFx), standing over it on a stem like a bench's, edged and lit in the
-   colour of whoever shared it (--pc); it pops in, and fades when the gun's no longer shared */
-.shareTag{position:fixed;left:0;top:0;z-index:2;pointer-events:none;will-change:transform;transition:opacity .35s ease;--pc:#5fb4e8;--lift:30px}
+/* a shared gun's tag (net/teamwork.js: shareFx): a small pill on a short stem, edged in the colour of whoever shared
+   it (--pc), saying what to press only when you're close (.near); it fades when the gun's no longer shared */
+.shareTag{position:fixed;left:0;top:0;z-index:2;pointer-events:none;will-change:transform;transition:opacity .35s ease;--pc:#5fb4e8;--lift:18px;text-shadow:none}
 .shareTag.out{opacity:0}
-.shareTag .stDot{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--pc);box-shadow:0 0 0 2px rgba(20,15,11,.6),0 0 14px var(--pc);animation:btDot .4s cubic-bezier(.2,.9,.3,1.4) both,stPulse 1.4s .4s ease-in-out infinite}
-.shareTag .stStem{position:absolute;left:-1px;bottom:5px;width:2px;height:calc(var(--lift) - 5px);background:linear-gradient(var(--pc),transparent);opacity:.85;transform-origin:50% 100%;animation:btStem .3s .1s cubic-bezier(.3,.7,.3,1) both}
-.shareTag .stCard{position:absolute;left:0;bottom:var(--lift);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap;padding:6px 12px 7px;
-  background:linear-gradient(rgba(30,23,17,.9),rgba(18,13,10,.9));border:1px solid var(--pc);border-radius:8px;
-  box-shadow:0 6px 18px rgba(0,0,0,.45),0 0 16px color-mix(in srgb,var(--pc) 35%,transparent),inset 0 1px 0 rgba(255,255,255,.06);animation:stCard .45s .2s cubic-bezier(.2,.9,.3,1.2) both}
-.shareTag .stCard b{font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--pc)}
-.shareTag .stCard span{font-size:11.5px;color:#cfc6b4;letter-spacing:.02em}
-.shareTag .stCard kbd{font:inherit;font-weight:700;color:#f4f1ea;padding:0 4px;border:1px solid rgba(244,241,234,.35);border-radius:3px;margin:0 1px}
-@keyframes stCard{from{opacity:0;transform:translate(-50%,8px) scale(.9)}}
-@keyframes stPulse{50%{box-shadow:0 0 0 2px rgba(20,15,11,.6),0 0 22px var(--pc),0 0 0 6px color-mix(in srgb,var(--pc) 25%,transparent)}}
+.shareTag .stDot{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--pc);box-shadow:0 0 0 1.5px rgba(20,15,11,.55);animation:btDot .35s cubic-bezier(.2,.9,.3,1.4) both}
+.shareTag .stStem{position:absolute;left:-.5px;bottom:3px;width:1px;height:calc(var(--lift) - 3px);background:linear-gradient(var(--pc),transparent);opacity:.7;animation:btStem .3s .08s cubic-bezier(.3,.7,.3,1) both}
+.shareTag .stCard{position:absolute;left:0;bottom:var(--lift);transform:translateX(-50%);display:flex;align-items:center;gap:6px;white-space:nowrap;padding:2px 7px 2px;
+  background:rgba(16,12,9,.72);border:1px solid color-mix(in srgb,var(--pc) 65%,transparent);border-radius:999px;animation:stCard .35s .15s cubic-bezier(.2,.9,.3,1.2) both}
+.shareTag .stCard b{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--pc)}
+.shareTag .stHint{display:flex;align-items:center;gap:3px;max-width:0;overflow:hidden;opacity:0;font-size:10px;color:#cfc6b4;transition:max-width .25s ease,opacity .2s ease}
+.shareTag.near .stHint{max-width:80px;opacity:1}
+.shareTag .stHint kbd{font:inherit;font-weight:700;color:#f4f1ea;padding:0 3px;border:1px solid rgba(244,241,234,.3);border-radius:3px}
+@keyframes stCard{from{opacity:0;transform:translate(-50%,5px) scale(.9)}}
