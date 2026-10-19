@@ -2,7 +2,7 @@
 
 // ---- gun models: each gun has its own shape, mods and tiers add their own parts ----
 const GM = {
-  metal: lam(0x2a2b2e), metal2: lam(0x45474a), steel: lam(0x8a8d90), wood: lam(0x5b3f2a), wood2: lam(0x7a5434), brass: lam(0xb08a3e), shell: lam(0x9c2e22), shellY: lam(0xc9a43a), shellO: lam(0xd8682a),
+  metal: lam(0x2a2b2e), metal2: lam(0x45474a), steel: lam(0x8a8d90), wood: lam(0x5b3f2a), wood2: lam(0x7a5434), brass: lam(0xb08a3e), shell: lam(0x9c2e22), shellB: lam(0x2f62b0), shellO: lam(0xd8682a), shellW: lam(0xe2ded4),
   olive: lam(0x4a5236), oliveD: lam(0x3c4330), red: basic(0xff4a32), laserG: basic(0x5cff74), bat: lam(0x9c7a52), nail: lam(0x9a9a94), wire: lam(0x3a3a38), blade: lam(0xb8bcbf), copper: lam(0xb0663a), filter: lam(0xc0682a), filterB: lam(0x1f4f9a), label: lam(0xe6e2d6), tape: lam(0x8a8a82),
   lens: basic(0xfff2c8), lens2: basic(0x5a8aa8), holo: basic(0x6ad0c0), ember: basic(0xff7a2a), orange: lam(0xd8692c),
   hi: lam(0x7c8188), poly: lam(0x1d1e20), rubber: lam(0x131313), blued: lam(0x252b32), park: lam(0x3a3c36), walnut: lam(0x6a4226), pad: lam(0x3c2c2e), glockS: lam(0x222326), glockT: lam(0x232325), stainless: lam(0xc2c6c9), stainlessD: lam(0x8e9296), walnutD: lam(0x4a2d18), walnut2: lam(0x84552f), engr: lam(0x6f6b63), engrD: lam(0x5a5650),

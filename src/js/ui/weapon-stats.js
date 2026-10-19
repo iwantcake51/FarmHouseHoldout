@@ -14,18 +14,18 @@ function wsNumbers(id) {
   if (D.melee) return { melee: true, dmg: D.dmg * S.meleeMul, rate: 1 / D.rate, reach: D.range || 0, hits: D.cleave || 1 };
   const ak = !!D.akimbo, mag = magSize(id), per = ak ? akPer(id) : mag, rate = 1 / (D.rate / S.rateMul);
   const shot = D.dmg * S.dmgMul * suppMul(D);
-  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, hipK: D.hipK || 1, aimK: D.aimK || 1, pierce: (D.pierce || 0) + skillPierce(id), head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
+  const r = { dmg: shot, pel: D.pellets || 1, rate, mag, per, ak, spread: D.spread * S.spreadMul, hipK: D.hipK || 1, aimK: D.aimK || 1, pierce: D.pierce || 0, head: headMulFor(D), crit: D.critT || 0, aimCrit: D.aimCrit || 0, critX: Math.max(D.critM || 0, 2) + (D.critUp || 0) };
   if (D.ammo === 'shells' && gunTier(id, 'choke')) r.spread *= (D.pellets || 1) > 1 ? (gunTier(id, 'choke') === 2 ? 0.49 : 0.7) : (gunTier(id, 'choke') === 2 ? 0.3 : 0.55);
   r.hipSp = r.spread * 1.3 * r.hipK; r.aimSp = r.spread * 0.5 * r.aimK;   // from the hip (a laser) and down the sights (a sight)
   r.aimMv = r.aimSp * (1 + 0.5 * (D.aimMove ?? 1));   // down the sights at a walk (a sight steadies that too: weapons/firing.js, spreadOf)
   // reloads, every kind this gun has
-  if (D.perShell) { r.shell = D.perShell * S.reloadMul; r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + (id === 'revolver' ? 0.3 : 0.12); }
+  if (D.perShell) { r.shell = D.perShell * relMul(id); r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + firstShell(id); }
   else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
-  else { r.reload = D.reload * S.reloadMul; if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; if (!D.speedload) r.empty = r.reload * EMPTY_MUL; }
+  else { r.reload = D.reload * relMul(id); if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; if (!D.speedload) r.empty = r.reload * EMPTY_MUL; }
   // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
   const kind = EJECT[id] === 'pump' ? 'pump' : EJECT[id] === 'bolt' ? 'bolt' : null;
   if (kind) { const v = RACKS[kind], avg = v.reduce((a, q) => a + q.dur + q.delay, 0) / v.length; r.cycle = Math.min(avg, 1 / rate * 0.92); r.cycleKind = kind; }
-  const F = FALLOFF[id]; if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; }
+  const F = fallOf(id); if (F) { const k = D.reach || 1; r.fall = [F[0] * k, F[1] * k, 1 - (1 - F[2]) / k]; r.maxR = D.maxRange; }
   return r;
 }
 // what's changing each number: every source taken away in turn (as the cards do, upgrades/upgrade-info.js), the
@@ -39,7 +39,7 @@ function wsSources(id) {
     const redo = undo(); recomputeEff(); const w = wsNumbers(id); redo(); recomputeEff();
     const fx = [];
     for (const [k, label, dir] of WS_STATS) {
-      const a = w[k], b = full[k]; if (a === undefined || b === undefined || Math.abs(a - b) < 1e-6 || fx.some(f => f.label === label)) continue;
+      const a = k === 'dmg' ? w.dmg * w.pel : w[k], b = k === 'dmg' ? full.dmg * full.pel : full[k]; if (a === undefined || b === undefined || Math.abs(a - b) < 1e-6 || fx.some(f => f.label === label)) continue;
       const pct = k === 'pierce' ? (b - a) : (b / a - 1) * 100, good = (b > a) === (dir > 0);
       fx.push({ label, t: k === 'pierce' ? `${pct > 0 ? '+' : ''}${pct}` : good && WS_GOOD[label] ? WS_GOOD[label](pct) : `${pct > 0 ? '+' : ''}${Math.round(pct)}%`, good });
     }
@@ -52,18 +52,20 @@ function wsSources(id) {
   for (const k of GUN_TIERS) { const n = g[k] || 0; if (n) diff(tierName(k, n - 1, id), () => { g[k] = 0; return () => { g[k] = n; }; }); }
   for (const m of (W8.mods[id] || [])) diff(modName(m), () => { const l = W8.mods[id], i = l.indexOf(m); l.splice(i, 1); return () => l.splice(i, 0, m); });
   if (W8.tune[id]) diff('Tune-up', () => { W8.tune[id] = 0; return () => { W8.tune[id] = 1; }; });
+  // the kind of round loaded (weapons/rounds.js)
+  const rk = roundOn(id); if (rk !== 'std') diff(roundName(id, rk), () => { W8.rounds[id].on = 'std'; return () => { W8.rounds[id].on = rk; }; });
   // your skills and perks, all at once
-  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]), pk = S.pierce;
-  diff('Your skills', () => { ks.forEach(k => { S[k] = 1; }); S.pierce = 0; return () => { ks.forEach((k, i) => { S[k] = keep[i]; }); S.pierce = pk; }; });
+  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]);
+  diff('Your skills', () => { ks.forEach(k => { S[k] = 1; }); return () => { ks.forEach((k, i) => { S[k] = keep[i]; }); }; });
   return out;
 }
 // the gun as it comes: every tier, mod, tune-up and skill taken away at once, the numbers read, and all put back
 function wsStock(id) {
-  const g = W8.gt[id] = W8.gt[id] || {}, keys = [...GUN_TIERS], tiers = keys.map(k => g[k] || 0), mods = (W8.mods[id] || []).slice(), tune = W8.tune[id];
-  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]), pk = S.pierce;
-  keys.forEach(k => { g[k] = 0; }); if (W8.mods[id]) W8.mods[id].length = 0; if (tune) W8.tune[id] = 0; ks.forEach(k => { S[k] = 1; }); S.pierce = 0;
+  const g = W8.gt[id] = W8.gt[id] || {}, keys = [...GUN_TIERS], tiers = keys.map(k => g[k] || 0), mods = (W8.mods[id] || []).slice(), tune = W8.tune[id], rk = roundOn(id);
+  const ks = ['dmgMul', 'rateMul', 'magMul', 'reloadMul', 'spreadMul'], keep = ks.map(k => S[k]);
+  keys.forEach(k => { g[k] = 0; }); if (W8.mods[id]) W8.mods[id].length = 0; if (tune) W8.tune[id] = 0; ks.forEach(k => { S[k] = 1; }); if (rk !== 'std') W8.rounds[id].on = 'std';
   recomputeEff(); const r = wsNumbers(id);
-  keys.forEach((k, i) => { g[k] = tiers[i]; }); if (W8.mods[id]) W8.mods[id].push(...mods); if (tune) W8.tune[id] = tune; ks.forEach((k, i) => { S[k] = keep[i]; }); S.pierce = pk;
+  keys.forEach((k, i) => { g[k] = tiers[i]; }); if (W8.mods[id]) W8.mods[id].push(...mods); if (tune) W8.tune[id] = tune; ks.forEach((k, i) => { S[k] = keep[i]; }); if (rk !== 'std') W8.rounds[id].on = rk;
   recomputeEff(); return r;
 }
 const wsF = (v, d = 1) => v.toFixed(d), wsDeg = v => { const x = v * 57.3; return x.toFixed(x < 2 ? 2 : 1) + '°'; };
@@ -78,11 +80,13 @@ function wsCone(sp, mob, hipK, aimK) {
 // damage per shot over range (ammo.js: falloff)
 function wsFall(id, r) {
   const W_ = 230, H = 64, top = 6, bot = H - 14, max = Math.max(20, Math.ceil(r.fall[1] + 2)), x = d => 8 + d / max * (W_ - 16), y = k => bot - k * (bot - top);
-  const pts = [[0, 1], [r.fall[0], 1], [r.fall[1], r.fall[2]], [max, r.fall[2]]].map(([d, k]) => `${x(d).toFixed(1)},${y(k).toFixed(1)}`).join(' ');
+  // (dragon's breath does nothing at all past its burn-out range: r.maxR)
+  const end = r.maxR ? [[r.maxR, r.fall[2]], [r.maxR, 0], [max, 0]] : [[max, r.fall[2]]], lo = r.maxR ? 0 : r.fall[2];
+  const pts = [[0, 1], [r.fall[0], 1], [r.fall[1], r.fall[2]], ...end].map(([d, k]) => `${x(d).toFixed(1)},${y(k).toFixed(1)}`).join(' ');
   const per = r.dmg * r.pel, ticks = [0, 5, 10, 15, 20, 25, 30].filter(d => d <= max);
   return `<svg class="wsFall" viewBox="0 0 ${W_} ${H}"><polygon points="${x(0)},${bot} ${pts} ${x(max)},${bot}" fill="rgba(240,191,76,.14)"/><polyline points="${pts}" fill="none" stroke="#f0bf4c" stroke-width="1.6"/>
-    ${ticks.map(d => `<text x="${x(d)}" y="${H - 2}">${d}m</text>`).join('')}<text x="${x(0) + 2}" y="${top + 8}" class="hi">${Math.round(per)}</text><text x="${x(max) - 2}" y="${y(r.fall[2]) - 4}" class="lo" text-anchor="end">${Math.round(per * r.fall[2])}</text></svg>
-    <div class="wsKey"><span style="--c:#f0bf4c">Full to ${wsF(r.fall[0], 0)} m, ${Math.round(r.fall[2] * 100)}% from ${wsF(r.fall[1], 0)} m</span></div>`;
+    ${ticks.map(d => `<text x="${x(d)}" y="${H - 2}">${d}m</text>`).join('')}<text x="${x(0) + 2}" y="${top + 8}" class="hi">${Math.round(per)}</text><text x="${x(max) - 2}" y="${y(lo) - 4}" class="lo" text-anchor="end">${Math.round(per * lo)}</text></svg>
+    <div class="wsKey"><span style="--c:#f0bf4c">Full to ${wsF(r.fall[0], 0)} m, ${Math.round(r.fall[2] * 100)}% from ${wsF(r.fall[1], 0)} m${r.maxR ? `, nothing past ${r.maxR} m` : ''}</span></div>`;
 }
 function wsHTML(id) {
   const D = W(id), r = wsNumbers(id); if (!r) return '';
@@ -101,7 +105,7 @@ function wsHTML(id) {
   if (r.melee) return h + '<div class="wsGrid">' + row('Damage', Math.round(r.dmg)) + row('Swings', wsF(r.rate) + '/s') + row('Reach', wsF(r.reach, 2) + ' m') + row('Hits', r.hits > 1 ? 'up to ' + r.hits : 'one') + '</div>';
   const s = wsStock(id) || {}, sRel = s.tac ?? s.reload;
   h += '<div class="wsLegend"><span>Stock</span><span class="up">Better</span><span class="down">Worse</span></div><div class="wsGrid">';
-  h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '', r.dmg, s.dmg);
+  h += row('Damage', Math.round(r.dmg) + (r.pel > 1 ? '×' + r.pel : ''), r.pel > 1 ? Math.round(r.dmg * r.pel) + ' a shell' : '', r.dmg * r.pel, s.dmg * s.pel);   // (a whole shot against a whole shot: a slug against a shell of buckshot)
   h += row('Fire rate', wsF(r.rate) + '/s', r.ak ? wsF(r.rate / 2) + '/s each gun' : D.fan ? wsF(S.rateMul / D.fan.rate) + '/s fanned from the hip' : '', r.rate, s.rate);
   h += row('Magazine', r.ak ? r.per + ' + ' + r.per : String(r.mag), W8.pin[id] ? `${W8.pin[id].cap} in the gun till you reload` : '', r.mag, s.mag);
   if (r.shell !== undefined) h += row('Reload', wsF(r.shell, 2) + ' s', (r.loadN > 1 ? r.loadN + ' at a time · ' : 'a round · ') + wsF(r.full) + ' s from empty', r.shell, s.shell, -1);
@@ -109,9 +113,9 @@ function wsHTML(id) {
   else h += row('Reload', wsF(r.tac !== undefined ? r.tac : r.reload) + ' s', r.empty !== undefined ? wsF(r.empty) + ' s from empty' : (D.speedload ? 'speed loader' : ''), r.tac ?? r.reload, sRel, -1);
   if (r.cycle) h += row(r.cycleKind === 'pump' ? 'Pump' : 'Bolt', wsF(r.cycle, 2) + ' s', 'between shots', r.cycle, s.cycle, -1);
   h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed, ${wsDeg(r.aimMv)} aimed on the move` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
-  if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage', r.fall[0], s.fall && s.fall[0]);
+  if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage' + (D.maxRange ? ` · nothing past ${D.maxRange} m` : ''), r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
-  h += row('Headshots', '×' + wsF(r.head, 2), 'damage multiplier', r.head, s.head);
+  h += row('Headshots', '×' + wsF(r.head, 2), D.ammo === 'shells' && r.fall ? `up close, fading to ×1 by ${wsF(r.fall[1], 0)} m` : 'damage multiplier', r.head, s.head);   // a shotgun's fades with range (headFade, weapons/ammo.js)
   // a sniper's headshots through a scope: every one a crit
   if (D.headCrit) h += row('Scoped', 'Crits', `every headshot while aiming · ×${wsF(r.critX, 2)} damage`);
   // crits a gun lands by chance: a tune-up's on any shot, the revolver's Dead-eye on aimed ones
@@ -129,7 +133,7 @@ function wsHTML(id) {
 let wsCloseT = 0;
 function updateWeaponStats() {
   const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
-  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); if (on) el.classList.toggle('docked', dock); }
+  if (!st.classList.contains('closing')) { const dock = on && wsAtBench(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
     clearTimeout(wsCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; void el.offsetWidth; el.classList.add('opening');
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {
@@ -137,7 +141,7 @@ function updateWeaponStats() {
     clearTimeout(wsCloseT); wsCloseT = setTimeout(() => { el.classList.remove('closing'); el.hidden = true; }, 200);
   }
   if (!on) return;
-  const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.pierce, S.headMul, S.att]);
+  const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.headMul, W8.att[id], W8.rounds[id]]);
   if (key !== wsKey) { wsKey = key; el.innerHTML = wsHTML(id); }
 }
 function toggleWeaponStats() { if (wsAtBench()) { wsBench = !wsBench; stStruct = ''; } else wsOn = !wsOn; wsKey = ''; SFX.click(); }   // (stStruct: the bench's note says which)

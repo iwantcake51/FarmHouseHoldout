@@ -64,6 +64,11 @@ function updateLaser(D) {
     const hs = HOLDS[W8.cur], tier = T('laser');
     if (hs && tier > 0 && !D.melee && !scoped) for (const side of ['R', 'L']) { const em = hs[side] && hs[side].userData.laserEm; if (em && em.isObject3D) lens('h' + side, em, tier, used); }
   }
+  // co-op: a teammate's too, on the gun they're holding (their copy of it: net/arsenal.js), wherever it points
+  if (state === 'play') for (const p of netLink() ? NET.peers.values() : []) {
+    const a = p.av; if (!a || !a.held || p.dead) continue;
+    for (const s in a.held) { const h = a.held[s]; if (h.laserT > 0 && h.g.visible) h.lasers.forEach((em, i) => lens('p' + p.id + s + i, em, h.laserT, used)); }
+  }
   beams.forEach((B, k) => { if (!used.has(k)) B.b.visible = B.d.visible = B.lens.visible = false; });
 }
 // one lens: shown only if it is (a gun hidden or put away somewhere out of sight has nothing to shine from)
@@ -86,7 +91,7 @@ function laserReach(o, d, max) {
   }
   const h = Math.hypot(d.x, d.z);
   if (h > 1e-3) for (const zb of zombies) {
-    const r = zRay(zb, o.x, o.z, d.x / h, d.z / h); if (!r || r.t <= 0) continue;
+    const r = zRay(zb, o.x, o.z, d.x / h, d.z / h, 1e-6); if (!r) continue;
     const t = r.t / h, y = o.y + d.y * t; if (t < L && y > 0.05 && y < 1.85 * (zb.T.scale || 1)) { L = t; hit = true; }
   }
   return { L, hit };

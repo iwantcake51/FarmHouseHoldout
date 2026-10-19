@@ -9,6 +9,11 @@
 #xh .sgSh{fill:none;stroke:rgba(0,0,0,.6);stroke-width:4.2}
 #xh .sg{fill:none;stroke:var(--ink);stroke-width:1.9;transition:stroke .08s}
 #xh.tgt .sg{stroke:var(--orange)}
+/* flechettes' needles and dragon's breath's three arcs (ui/crosshair.js: flRing, dbRing), the same ink on the same dark */
+#xh .flSh{stroke:rgba(0,0,0,.65);stroke-width:3.6;stroke-linecap:round}
+#xh .fl{stroke:var(--ink);stroke-width:1.5;stroke-linecap:round;transition:stroke .08s}
+#xh.tgt .fl{stroke:var(--orange)}
+#xh .sg.db{stroke-width:2.2}
 #xh .ammoBg{fill:none;stroke:rgba(236,230,216,.18);stroke-width:3}
 #xh .ammo{fill:none;stroke:var(--ink);stroke-width:3;filter:drop-shadow(0 0 1px rgba(0,0,0,.9))}
 #xh .ammo.low{stroke:var(--orange)}#xh .ammo.out{stroke:#e2412c}
@@ -16,7 +21,25 @@
 #xh .ammo.flash{stroke:#e8b84a;animation:arcPulse .7s ease-in-out infinite}
 #xh .ammoBg.out{stroke:#e2412c;animation:arcPulse .45s ease-in-out infinite}
 @keyframes arcPulse{50%{opacity:.3}}
-#xh .reload{fill:none;stroke:var(--orange);stroke-width:3}
+/* the reload: a faint orange track over the whole arc, the fill climbing it from the bottom with a glow that breathes,
+   a bright bead riding its leading end, and a flash as it finishes (.done) */
+#xh .reloadTrack{fill:none;stroke:rgba(240,140,60,.2);stroke-width:5.5;stroke-linecap:round;transition:opacity .18s}
+#xh .reload{fill:none;stroke:#f39042;stroke-width:4;stroke-linecap:round;filter:drop-shadow(0 0 2.5px rgba(255,140,50,.8));transition:opacity .15s;animation:relGlow .9s ease-in-out infinite}
+#xh .reloadHead{fill:#fff3dc;filter:drop-shadow(0 0 4px rgba(255,170,80,1));transition:opacity .12s}
+#xh .reload.done{stroke:#ffe4b4;animation:relDone .42s ease-out forwards}
+@keyframes relGlow{50%{filter:drop-shadow(0 0 6px rgba(255,165,70,1))}}
+/* a round going in (a shell, a cartridge, a speed loader's worth: reloadTick, ui/crosshair.js): the arc flashes pale and
+   swells for a beat, the bead on its end pops, the track brightens under it, and a ring ripples out from the bead */
+#xh .reload.tick{animation:relTick .28s cubic-bezier(.2,.8,.3,1),relGlow .9s ease-in-out infinite}
+#xh .reloadHead.tick{animation:relBead .3s cubic-bezier(.2,.9,.3,1.4)}
+#xh .reloadTrack.tick{animation:relTrack .32s ease-out}
+#xh .reloadPing{fill:none;stroke:#ffe9c4;stroke-width:1.6;opacity:0;pointer-events:none}
+#xh .reloadPing.tick{animation:relPing .38s cubic-bezier(.2,.7,.3,1)}
+@keyframes relTick{0%{stroke:#fff6e2;stroke-width:6.5;filter:drop-shadow(0 0 7px rgba(255,200,120,1))}100%{stroke:#f39042;stroke-width:4}}
+@keyframes relBead{0%{r:3.2px}35%{r:6px;fill:#fff}100%{r:3.2px}}
+@keyframes relTrack{0%{stroke:rgba(255,190,110,.55)}100%{stroke:rgba(240,140,60,.2)}}
+@keyframes relPing{0%{r:3px;opacity:.95;stroke-width:2.2}100%{r:13px;opacity:0;stroke-width:.6}}
+@keyframes relDone{0%{opacity:1;stroke-width:4}30%{opacity:1;stroke-width:7.5}100%{opacity:0;stroke-width:10}}
 #xh .dot{fill:var(--ink);stroke:rgba(0,0,0,.75);stroke-width:1}
 #xh .gl{fill:none;stroke:var(--gold);stroke-width:2}
 /* melee reticle: a dot between two curved brackets (with a dark under-stroke so they read on any ground) */

@@ -1,6 +1,8 @@
-// Outlines: inverted-hull rims, x-ray rims through walls, and fading shadows.
+// Outlines: inverted-hull rims for the x-ray through walls, and fading shadows (the outlines round whole models are
+// effects/screen-outlines.js).
 
-function outline(g, col, scl, thick, mat, keep) {
+// an inverted-hull rim: every piece of g drawn again a little bigger, back faces only, in mat (the x-ray's rims, below)
+function hullOutline(g, col, scl, thick, mat, keep) {
   const om = mat || new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 });
   const list = []; g.traverse(o => { if (o.isMesh && !o.userData.isOutline && (!keep || keep(o))) list.push(o); });
   // each rim is the piece grown about its own middle, not its origin: a piece modelled away from its origin (a gun's
@@ -41,7 +43,7 @@ function xray(g, col, noClip, withSil, keep, bias, ht) {
   const ok = o => o.isMesh && !o.userData.isOutline && (!keep || keep(o));
   const list = []; g.traverse(o => { if (ok(o)) list.push(o); });
   list.forEach(o => { const f = new THREE.Mesh(o.geometry, fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f); });
-  outline(g, 0, 0, withSil ? 0.055 : 0.04, rim, keep); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
+  hullOutline(g, 0, 0, withSil ? 0.055 : 0.04, rim, keep); g.traverse(o => { if (o.material === rim) o.renderOrder = -2; });
   if (bias) rim.onBeforeCompile = biasDepth(bias);
   if (ht) halftone(rim, ht * 0.75);
   if (!withSil) return { rim, fill };
@@ -74,7 +76,8 @@ function xrayAttach(list) {
   list.forEach(o => {
     const f = new THREE.Mesh(o.geometry, pXray.fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f);
     const m = new THREE.Mesh(o.geometry, pXray.sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m);
-    outline(o, 0, 0, 0.055, pXray.rim); o.children.forEach(c => { if (c.material === pXray.rim) c.renderOrder = -2; });
+    hullOutline(o, 0, 0, 0.055, pXray.rim); o.children.forEach(c => { if (c.material === pXray.rim) c.renderOrder = -2; });
   });
 }
 LOOK.xrayReady = true;
+

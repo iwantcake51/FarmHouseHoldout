@@ -138,13 +138,14 @@ function climbAt(c, t, out) {
 const _cp = new Float32Array(ZJ_N + 1);
 // over a fence (fx, fz: where it crosses the rail) or through a window (o), from where the zombie stands along (dx, dz)
 // to (x1, z1) on the far side
-function startClimb(z, kind, fx, fz, dx, dz, x1, z1, o) {
+// (startClimb, net/sync.js, calls this: in co-op the host's climbs go to the others with their seed)
+function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
   const c = pick(CLIMBS[kind + (z.crawl ? 'Crawl' : z.type === 'runner' ? 'Runner' : 'Walker')]);
   const s0 = (z.x - fx) * dx + (z.z - fz) * dz, lat = (z.x - fx) * -dz + (z.z - fz) * dx;
   z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
   z.face = Math.atan2(dx, dz);
   if (o) o.busy = z;
-  if (Math.hypot(z.x - P.x, z.z - P.z) < 14) SFX.fenceClimb();
+  if (Math.hypot(z.x - P.x, z.z - P.z) < 14) soundAt(z.x, z.z, () => SFX.fenceClimb());
 }
 // along the climb: the zombie's place on the ground follows the keys' s (starting from wherever it stood, and drawn to
 // the middle of a window as it goes in), the events fire as their keys go by, and the pose goes to the animation

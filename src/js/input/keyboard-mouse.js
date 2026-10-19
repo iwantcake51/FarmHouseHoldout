@@ -10,11 +10,14 @@ addEventListener('keydown', e => {
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
   if (state === 'upgrade' && ['1', '2', '3'].includes(k)) { pickCard(+k - 1); return; }
+  if (state === 'upgrade' && k === '4') { skipCards(); return; }
   if (k === 'escape' || k === 'p') { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused' && !(k === 'escape' && cancelLeave())) resumeRun(); return; }   // Esc backs out of a leave-the-run question first
   // T starts the run from the title, a new run from the death screen, and the next wave during a break
   if (k === 't' && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
   if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
   if (state !== 'play') return;
+  // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
+  if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
   if (e.repeat && k !== 'f') return;
   keys.add(k);
   if (k === 'e') { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
@@ -24,13 +27,16 @@ addEventListener('keydown', e => {
   if (k === ' ' && state === 'play') tryVault();                                    // Space climbs through windows and hops fences
   if (k === 'v' && state === 'play') shove();   // V shoves; F, held at a door or window, boards it up (barricades/interactions.js)
   if (k === 'g') throwGrenade();
+  if (k === 'h' && state === 'play' && !e.repeat) gunShare(nearestTake());   // share a gun you've put down with your team (net/teamwork.js)
+  if (k === 'enter' && openSt && openSt.id === 'box') giftSend();   // the strongbox: give what's picked (net/teamwork.js)
   if (k === 'i') toggleWeaponStats();   // the weapon stats sheet (ui/weapon-stats.js)
+  if (k === 'x' && state === 'play') swapRounds();   // the next kind of round you own for this gun, with a reload (weapons/rounds.js)
   if (k === 'b' && state === 'play') {
     const id = curId(), mode = cycleFireMode(id);
     if (mode) fireModeSwitched(id);   // the selector's click, the new mode by the crosshair and on the HUD (ui/hud.js)
   }
   if (['1', '2', '3', '4'].includes(k)) switchSlot(SLOTS[+k - 1]);
-  if (k === 't' && phase === 'break') breakT = 0;
+  if (k === 't' && phase === 'break' && !e.repeat) skipBreak();   // (co-op: a vote, counted by the host: net/sync.js)
   if (k === '=' || k === '+') zoomT = clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX);
   if (k === '-' || k === '_') zoomT = clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX);
 });
@@ -40,6 +46,7 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; a
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
+cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
+  if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 addEventListener('mouseup', e => { if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; aimHeld = false; exitScope(); aiming = false; } });

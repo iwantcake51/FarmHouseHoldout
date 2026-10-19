@@ -5,6 +5,7 @@
 // pieces are pulled apart where they'd z-fight and each item is merged into a mesh or two (core/geometry.js).
 
 const gearParts = [];
+let gearList = gearParts;   // where each item's group is noted (a teammate's own list while theirs is built: gearOnAvatar)
 const GEAR = {
   leather: lam(0x4a3524), leatherDk: lam(0x33241a), leatherLt: lam(0x6a4c32), sole: lam(0x1e1a16), solePale: lam(0xd8d0c0), lace: lam(0x2a2018),
   white: lam(0xd8d2c4), offWhite: lam(0xbcb6a8), red: lam(0xb8382a), redDk: lam(0x8a2a20), blue: lam(0x34607e), blueDk: lam(0x24465e), amber: lam(0xe0a030),
@@ -14,7 +15,7 @@ const GEAR = {
   pill: lam(0xd8742a), label: lam(0xe8e2d0), nail: lam(0xa8a8a0), foam: lam(0x3a3c40)
 };
 // a group on a body part, holding one item's pieces
-function gearItem(part, x, y, z) { const g = new THREE.Group(); g.position.set(x || 0, y || 0, z || 0); part.add(g); gearParts.push(g); return g; }
+function gearItem(part, x, y, z) { const g = new THREE.Group(); g.position.set(x || 0, y || 0, z || 0); part.add(g); gearList.push(g); return g; }
 const gb = (g, w, h, d, mat, x, y, z) => box(g, w, h, d, mat, x, y, z);
 function gc(g, r, len, mat, x, y, z, axis, seg) {
   const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 12), mat); m.position.set(x, y, z); m.castShadow = true;
@@ -104,7 +105,7 @@ function buildArmor(ar) {
 // a handgun, with a divider), each held by a shock cord over its plate down to a pull tab; the revolver's speed loader;
 // shotgun shells brass up through an elastic loop; rifle rounds tip up; or a fold of the machine gun's belt. Each mag
 // is the gun's own: the AR's grey STANAG with its two pressed ribs, the MP5's curved steel one, the MP9's polymer one
-// with its count windows, the drum shotgun's box, the pistol's polymer one with its flared base, the hand cannon's steel
+// with its count windows, the auto shotgun's box, the pistol's polymer one with its flared base, the hand cannon's steel
 const POUCH_FILL = {
   ar: { k: 'mag', w: 0.082, h: 0.092, d: 0.03, body: 'magAl', plate: 'metal2', ribs: 2, tilt: 0.07 },
   sub: { k: 'mag', w: 0.062, h: 0.09, d: 0.024, body: 'metal', plate: 'metal', ribs: 2, tilt: 0.2 },
@@ -139,7 +140,7 @@ function pouchFill(g, id, x, y, z, w, d) {
     gc(g, 0.011, 0.018, GEAR.steelDk, x, y + 0.032, z, null, 12); gc(g, 0.0125, 0.005, GEAR.steelDk, x, y + 0.038, z, null, 12);   // the knurled knob
   } else if (f.k === 'shells') {
     for (let k = 0; k < 4; k++) {
-      const sx = x + (k - 1.5) * w * 0.245; gc(g, 0.0118, 0.062, GM.shell, sx, y + 0.016, z, null, 12); gc(g, 0.0125, 0.016, GM.brass, sx, y + 0.053, z, null, 12);
+      const sx = x + (k - 1.5) * w * 0.245; gc(g, 0.0118, 0.062, shellMat(id), sx, y + 0.016, z, null, 12); gc(g, 0.0125, 0.016, GM.brass, sx, y + 0.053, z, null, 12);
       gc(g, 0.0128, 0.0025, GM.brass, sx, y + 0.0623, z, null, 12); gc(g, 0.004, 0.002, GM.steel, sx, y + 0.0635, z, null, 8);   // the rim and the primer
     }
     gb(g, w * 0.96, 0.016, 0.004, GEAR.tanDk, x, y + 0.016, z + 0.0138);   // the elastic loop across them
@@ -179,35 +180,88 @@ function buildBoots(bt, thick) {
     }
   });
 }
+// ---- Quick hands II and III: full-finger mechanic's work gloves over the blocky hand (the arm's last 0.13), in this
+// run's colourway (GLOVE_COLS, player/look.js). Up (+y) is the back of the hand and the thumb's on the inside. Tier 2
+// is the plain kind: a stretch-mesh back with the fingers' seams down it, dark synthetic-leather palm and fingertips,
+// piping down the outer side and a wide wrist strap with its logo tab. Tier 3 is the armoured kind over the same glove:
+// a moulded rubber knuckle guard, a pad on each finger, a plate over the back of the hand, a thumb guard, a padded palm
+// and a rubber pull tab on the strap
+const gloveMat = c => lookMats[c] || (lookMats[c] = lam(c));
+function buildGloves(armoured, C) {
+  const m = k => gloveMat(C[k]);
+  [PM.armL, PM.armR].forEach((a, i) => {
+    const g = gearItem(a, 0, 0, 0.47), inS = i ? -1 : 1;   // which way the thumb is (toward the body)
+    gb(g, 0.154, 0.154, 0.096, m('palm'), 0, 0, 0.024);                                   // the glove: palm and fingertips
+    gb(g, 0.132, 0.008, 0.07, m('back'), 0, 0.079, 0.011);                                // the mesh back, stopping short of the fingertips
+    [-0.034, 0, 0.034].forEach(x => gb(g, 0.006, 0.004, 0.03, m('palm'), x, 0.084, 0.034));   // the seams between the fingers
+    if (C.camo) [[-0.04, -0.012, 0.03, 0.022, 0], [0.022, -0.006, 0.038, 0.018, 1], [-0.012, 0.022, 0.032, 0.02, 2], [0.04, 0.03, 0.024, 0.016, 3], [-0.046, 0.032, 0.02, 0.014, 4]]
+      .forEach(([x, z, w, d, k]) => gb(g, w, 0.003, d, gloveMat(C.camo[k]), x, 0.0845, z));
+    gb(g, 0.004, 0.012, 0.09, m('accent'), -inS * 0.079, 0.05, 0.02);                    // piping down the outer side
+    gb(g, 0.11, 0.006, 0.05, gloveMat(shade(C.palm, 1.18)), 0, -0.079, 0.006);            // the palm's reinforcement
+    gb(g, 0.166, 0.166, 0.045, m('strap'), 0, 0, -0.045);                                 // the wrist strap
+    gb(g, 0.034, 0.006, 0.022, m('tab'), inS * 0.03, 0.085, -0.045);                      // its logo tab
+    if (!armoured) return;
+    gb(g, 0.144, 0.022, 0.03, m('armor'), 0, 0.09, 0.03); gb(g, 0.146, 0.006, 0.008, m('accent'), 0, 0.103, 0.03);   // the knuckle guard and its ridge
+    [-0.051, -0.017, 0.017, 0.051].forEach(x => gb(g, 0.026, 0.012, 0.02, m('armor'), x, 0.086, 0.058));           // a pad on each finger
+    gb(g, 0.09, 0.012, 0.04, m('armor'), 0, 0.087, -0.006); gb(g, 0.05, 0.004, 0.012, m('accent'), 0, 0.095, -0.006);   // the plate over the back of the hand
+    gb(g, 0.012, 0.045, 0.05, m('armor'), inS * 0.083, 0.02, 0.004);                     // the thumb guard
+    gb(g, 0.1, 0.01, 0.045, gloveMat(shade(C.palm, 0.8)), 0, -0.081, 0.0);                // the palm pad
+    gb(g, 0.05, 0.012, 0.04, m('armor'), -inS * 0.03, 0.088, -0.045);                               // the strap's rubber pull tab
+  });
+}
 function buildGear() {
   gearParts.forEach(m => m.parent && m.parent.remove(m)); gearParts.length = 0;
   charBloodDirty = true;   // the blood on you is laid again on the new gear next frame (effects/body-blood.js)
-  buildArmor(T('armor'));
   // footwear (the look's own shoes hide under it)
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
-  LOOK.g.hat.visible = !S.stubborn;   // the helmet goes on instead of your hat
+  LOOK.g.hat.visible = !S.stubborn && !T('night');   // the helmet, or the night vision's head mount, goes on instead of your hat
+  gearPieces();
+}
+// every item your upgrades put on you, onto whatever PM's parts are (yours, or for a moment a teammate's: gearOnAvatar)
+function gearPieces() {
+  buildArmor(T('armor'));
+  const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   if (bt || thick) buildBoots(bt, thick);
   // Vault fire: hard-shell knee pads on elastic straps
   if (S.vaultMul < 1) [PM.shinL, PM.shinR].forEach(l => {
     const g = gearItem(l, 0, -0.27 - KNEE_Y, 0); gb(g, 0.2, 0.14, 0.04, GEAR.black, 0, 0, 0.125); gb(g, 0.15, 0.1, 0.02, GEAR.foam, 0, 0, 0.152);
     [-0.05, 0.05].forEach(y => gb(g, 0.205, 0.022, 0.235, GEAR.dark, 0, y, 0));
   });
-  // Quick hands: fingerless shooting gloves, a knuckle pad and a velcro wrist strap
-  if (S.reloadMul < 1) [PM.armL, PM.armR].forEach(a => {
+  // Quick hands: fingerless shooting gloves, a knuckle pad and a velcro wrist strap; then work gloves (buildGloves)
+  const qh = T('quick');
+  if (qh === 1) [PM.armL, PM.armR].forEach(a => {
     const g = gearItem(a, 0, 0, 0.47); gb(g, 0.158, 0.158, 0.1, GEAR.black, 0, 0, 0.01); gb(g, 0.11, 0.03, 0.06, GEAR.dark, 0, 0.08, 0.03); gb(g, 0.164, 0.164, 0.03, GEAR.olive, 0, 0, -0.04);
   });
+  if (qh >= 2) buildGloves(qh === 3, GLOVE_COLS[(LOOK.cur && LOOK.cur.glove) || 'blackRed']);
   // eyes: wraparound shooting glasses, then night-vision goggles on a head mount (one tube, then two)
   if (T('night')) {
-    const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2;
-    gb(g, 0.34, 0.04, 0.34, GEAR.black, 0, 0.12, 0); gb(g, 0.04, 0.2, 0.33, GEAR.black, 0, 0.17, -0.005);   // the head harness
-    gb(g, 0.1, 0.08, 0.05, GEAR.dark, 0, 0.13, 0.19); gb(g, 0.04, 0.06, 0.06, GEAR.steelDk, 0, 0.08, 0.22);  // the mount
-    (n2 ? [-0.065, 0.065] : [0.07]).forEach(x => {
-      gc(g, 0.04, 0.11, GEAR.dark, x, 0.03, 0.25, 'z', 10); gc(g, 0.046, 0.025, GEAR.black, x, 0.03, 0.31, 'z', 10); gc(g, 0.03, 0.005, GEAR.green, x, 0.03, 0.324, 'z', 10);
+    // worn on the bare head (the hat comes off for it, buildGear) or on the Stubborn helmet: a band right round the head
+    // with straps over the crown, a shroud on the front of it with an arm down to the tubes, and the battery pack
+    // clipped to the back of it
+    const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2, hel = !!S.stubborn, L = LOOK.cur || {};
+    if (!hel) {
+      // the hair the hat was hiding, so the straps sit on hair, not a bare scalp
+      // (from just under where it stopped for the hat, HAT_TUCK in player/look.js, up over the crown, so it joins up)
+      if (L.hat !== 'none' && L.hat !== 'bandana' && L.hairStyle !== 'bald') { const bz = L.hairStyle === 'buzz', t = bz ? 0.168 : 0.2, w = (bz ? HAIR_W.buzz : HAIR_W.hair) - 0.002; gb(g, w, t - 0.1, w, lam(L.hair ?? 0x3a2a1a), 0, (t + 0.1) / 2, 0); }
+      const by = 0.125, bh = 0.04;
+      gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, 0.178); gb(g, 0.4, bh, 0.026, GEAR.black, 0, by, -0.2);            // the band, front and back
+      [-1, 1].forEach(sd => gb(g, 0.026, bh, 0.404, GEAR.black, sd * 0.187, by, -0.011));                     // and its sides
+      gb(g, 0.045, 0.018, 0.404, GEAR.black, 0, 0.214, -0.011); gb(g, 0.4, 0.018, 0.045, GEAR.black, 0, 0.214, -0.03);   // the straps over the crown
+      gb(g, 0.045, 0.1, 0.018, GEAR.black, 0, 0.17, 0.186); gb(g, 0.045, 0.1, 0.018, GEAR.black, 0, 0.17, -0.208);       // down to the band, front and back
+      [-1, 1].forEach(sd => gb(g, 0.018, 0.1, 0.045, GEAR.black, sd * 0.195, 0.17, -0.03));
+      gb(g, 0.14, 0.024, 0.14, GEAR.foam, 0, 0.214, -0.02);                                                      // the crown pad under them
+    }
+    const fz = hel ? 0.222 : 0.2, tz = fz + 0.05, tx = n2 ? 0 : 0.07;
+    gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, 0.15, fz);                                                            // the shroud
+    gb(g, 0.045, 0.1, 0.045, GEAR.steelDk, 0, 0.1, fz + 0.03);                                                  // the mount arm, down from it
+    gb(g, n2 ? 0.18 : 0.125, 0.032, 0.05, GEAR.dark, n2 ? 0 : tx / 2, 0.06, tz);                                // the bridge the tubes hang from
+    (n2 ? [-0.065, 0.065] : [tx]).forEach(x => {
+      gc(g, 0.04, 0.11, GEAR.dark, x, 0.03, tz, 'z', 10); gc(g, 0.046, 0.025, GEAR.black, x, 0.03, tz + 0.06, 'z', 10); gc(g, 0.03, 0.005, GEAR.green, x, 0.03, tz + 0.074, 'z', 10);
     });
-    if (n2) gb(g, 0.13, 0.03, 0.03, GEAR.dark, 0, 0.06, 0.24);
-    gb(g, 0.12, 0.07, 0.05, GEAR.dark, 0, 0.04, -0.185); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, 0.06, -0.211);   // the battery pack at the back
+    const bz = hel ? -0.24 : -0.222;
+    gb(g, 0.12, 0.07, 0.04, GEAR.dark, 0, 0.13, bz); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, 0.15, bz - 0.022);   // the battery pack at the back
   } else if (T('eyes')) {
     const g = gearItem(PM.head, 0, 0.035, 0);
     gb(g, 0.31, 0.026, 0.03, GEAR.dark, 0, 0.03, 0.172); [-1, 1].forEach(s => { gb(g, 0.13, 0.055, 0.012, GEAR.lens, s * 0.072, 0, 0.181); gb(g, 0.13, 0.008, 0.014, GEAR.lensDk, s * 0.072, -0.03, 0.18); });
@@ -269,7 +323,7 @@ function buildGear() {
     gb(g, 0.4, 0.1, 0.42, GEAR.olive, 0, 0.04, -0.005); gb(g, 0.36, 0.06, 0.38, GEAR.olive, 0, 0.11, -0.005); gb(g, 0.26, 0.04, 0.28, GEAR.olive, 0, 0.155, -0.005);
     gb(g, 0.42, 0.025, 0.44, GEAR.oliveDk, 0, -0.01, -0.005); gb(g, 0.405, 0.035, 0.425, GEAR.oliveLt, 0, 0.07, -0.005);   // rim and cover band
     [-1, 1].forEach(s => gb(g, 0.012, 0.2, 0.03, GEAR.black, s * 0.17, -0.13, 0.04));                              // chin strap
-    gb(g, 0.3, 0.05, 0.04, GEAR.black, 0, 0.06, 0.21); [-1, 1].forEach(s => gb(g, 0.1, 0.035, 0.012, GEAR.lens, s * 0.065, 0.06, 0.232));   // goggles on the brim
+    if (!T('night')) { gb(g, 0.3, 0.05, 0.04, GEAR.black, 0, 0.06, 0.21); [-1, 1].forEach(s => gb(g, 0.1, 0.035, 0.012, GEAR.lens, s * 0.065, 0.06, 0.232)); }   // goggles on the brim (the night vision's mount takes the front instead)
   }
   // Fleet-footed: a stopwatch clipped to the chest strap on its lanyard
   if (S.speedMul > 1.3) {
@@ -280,5 +334,29 @@ function buildGear() {
   // pull apart any flush faces, then fold each item into a mesh or two
   const pieces = []; gearParts.forEach(g => g.traverse(o => { if (o.isMesh) pieces.push(o); }));
   unfight(PM.g, { only: new Set(pieces) });
-  gearParts.forEach(g => mergeInto(g, finePieces(g)));
+  gearList.forEach(g => mergeInto(g, finePieces(g)));
+}
+
+// ---- co-op: a teammate's survivor in the gear they've earned. Your loadout carries what decides it (gearSpec: the
+// tiers and the perks the items come from); their game builds the same items onto their survivor with the same code,
+// their tiers and perks, look and weapons standing in for yours while it runs (net/avatars.js)
+const GEAR_T = ['armor', 'boots', 'night', 'quick', 'eyes', 'hammer'], GEAR_S = ['pouch', 'slowRes', 'stubborn', 'vaultMul', 'healOnKill', 'regen', 'adrenaline', 'secondWind', 'speedMul'];
+const GEAR_PM = ['g', 'upper', 'torso', 'head', 'armL', 'armR', 'shinL', 'shinR'];
+function gearSpec() { const t = {}, s = {}; GEAR_T.forEach(k => { t[k] = T(k) | 0; }); GEAR_S.forEach(k => { s[k] = S[k]; }); return { t, s }; }
+function gearOnAvatar(a, spec, slots, L) {
+  (a.gear || []).forEach(g => g.parent && g.parent.remove(g)); a.gear = [];
+  if (!spec) return;
+  const keep = { S, W8, cur: LOOK.cur, y: LOOK.mirrorY, pm: {} };
+  try {
+    S = Object.assign({}, S, spec.s, { tier: Object.assign({}, S.tier, spec.t) }); W8 = Object.assign({}, W8, { slot: slots || {} });
+    LOOK.cur = L; LOOK.mirrorY = a.mirrorY ?? 0.214; gearList = a.gear;
+    GEAR_PM.forEach(k => { keep.pm[k] = PM[k]; PM[k] = a[k]; });
+    gearPieces();
+  } catch (e) { console.warn('teammate gear', e); }
+  finally { S = keep.S; W8 = keep.W8; LOOK.cur = keep.cur; LOOK.mirrorY = keep.y; gearList = gearParts; GEAR_PM.forEach(k => { PM[k] = keep.pm[k]; }); }
+  // what the gear covers: their shoes under boots, their hat under the helmet or the night vision's mount
+  const t = spec.t, s = spec.s;
+  if (a.shoes) a.shoes.forEach(o => { o.visible = !(t.boots || s.slowRes > 0); });
+  if (a.hat) a.hat.visible = !s.stubborn && !t.night;
+  if (a.pouch2) a.pouch2.visible = !!s.pouch;
 }

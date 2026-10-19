@@ -2,28 +2,24 @@
 // each level adds its step below on top of the mod itself. Mods with a fire mode (fm) are picked with B.
 
 const MOD_MAX = 3;
+// mods that make one line of upgrades between them, shown with that line's stars at the bench: the pistol's burst
+// conversion is its first two (its level II the second) and the auto sear its third (MOD_LINE: where each comes in and
+// how many steps the line has; MOD_CAP: how far a mod's own levels go in it)
+const MOD_LINE = { burst: [0, 3], auto: [2, 3] }, MOD_CAP = { burst: 2 };
 const MOD_UP = {
-  match: { t: '+12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
+  match: { t: 'Spread −10%, +6% damage, less drop-off at range', up: D => { D.spread *= 0.9; D.dmg *= 1.06; D.reach += 0.3; } },
   burst: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
-  auto: { t: 'Fires 12% faster, +6% damage', up: D => { D.rate *= 0.88; D.dmg *= 1.06; } },
   longbarrel: { t: 'A longer barrel: +12% damage, less drop-off at range', up: D => { D.dmg *= 1.12; D.reach += 0.3; } },
-  boom: { t: 'Bigger blasts', up: D => { D.explode += 0.35; } },
   comp: { t: 'Spread and kick −20%', up: D => { D.spread *= 0.8; D.shake *= 0.8; } },
-  dragon: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
-  slug: { t: '+15% damage', up: D => { D.dmg *= 1.15; } },
   slam: { t: 'Fires 10% faster', up: D => { D.rate *= 0.9; } },
-  tube: { t: '+2 shells', up: D => { D.mag += 2; } },
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
-  flech: { t: 'Pierce +1', up: D => { D.pierce = (D.pierce || 0) + 1; } },
+  well: { t: 'Mag changes 3% faster', up: D => { D.reload *= 0.97; } },
   bolt: { t: 'Bolt works 12% faster', up: D => { D.rate *= 0.88; } },
-  expand: { t: '+12% damage', up: D => { D.dmg *= 1.12; } },
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
-  integral: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
-  stack: { t: '+25% magazine', up: D => { D.mag *= 1.25; } },
+  navy: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   gl: { t: 'Recharges 25% faster', up: D => { D.glRecharge *= 0.75; } },
   heavy: { t: '+10% damage, spread −10%', up: D => { D.dmg *= 1.1; D.spread *= 0.9; } },
-  belt: { t: '+50 rounds', up: D => { D.mag += 50; } },
   bipod: { t: 'Spread −15%', up: D => { D.spread *= 0.85; } },
   nails: { t: '+15% damage', up: D => { D.dmg *= 1.15; } },
   wire: { t: 'Reach +0.15', up: D => { D.range += 0.15; } },
@@ -42,11 +38,14 @@ const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
 const modNameAt = (m, lv) => MODS[m].names ? MODS[m].names[Math.min(lv, MODS[m].names.length) - 1] : MODS[m].name + (lv > 1 ? ' ' + roman(lv) : '');
 const modName = m => modNameAt(m, modLv(m));
 // the weapon's mods that tinkering could still improve
-const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < MOD_MAX) : [];
+const modUps = id => id ? (W8.mods[id] || []).filter(m => MOD_UP[m] && modLv(m) < (MOD_CAP[m] || MOD_MAX)) : [];
 // whether a mod can be offered: not one you have, not one something you have replaced, and its prerequisite (at the
 // level it asks for) fitted
-const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && hasMod(k));
-const modOffer = m => !hasMod(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && muzzleTaken(MODS[m].w));
+const modReplaced = m => Object.keys(MODS).some(k => MODS[k].replaces === m && (hasMod(k) || modIsOff(k)));
+// mods taken off a gun at the loadout panel (ui/loadout.js): still yours, never sold to you again, and put back for nothing
+const modsOff = id => (W8.modOff && W8.modOff[id]) || [];
+const modIsOff = m => modsOff(MODS[m].w).includes(m);
+const modOffer = m => !hasMod(m) && !modIsOff(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
 // one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
@@ -55,6 +54,24 @@ function addMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
   if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
   recomputeEff();
+}
+// take a mod off a gun or put it back. Off, the mod it replaced comes back on (you had it), what needs it comes off with
+// it, and a fire mode it gave goes. Back on, it's fitted as when bought (addMod), with what it needs first; a muzzle device
+// takes the can or choke and any other muzzle device off (one thing on the end of the barrel)
+function setMod(id, m, on) {
+  const off = W8.modOff = W8.modOff || {}, l = off[id] = (off[id] || []).filter(k => k !== m), M = MODS[m];
+  if (on) {
+    if (M.need && !hasMod(M.need)) setMod(id, M.need, true);
+    if (M.muzzle) { fitTier(id, 'supp', 0); fitTier(id, 'choke', 0); (W8.mods[id] || []).filter(k => k !== m && MODS[k].muzzle).forEach(k => setMod(id, k, false)); }
+    addMod(id, m);
+  } else {
+    if (!hasMod(m)) return;
+    W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
+    if (W8.fm[id] === m) W8.fm[id] = null;
+    if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
+    W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
+    recomputeEff();
+  }
 }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
 // B steps through single shots and each fire mode the weapon has (single → burst → full auto → single)

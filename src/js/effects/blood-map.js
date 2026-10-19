@@ -33,7 +33,7 @@ BMU.uBloodNoise.value = (() => {
   const t = new THREE.DataTexture(d, S, S, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
 })();
 const bmScene = new THREE.Scene(), bmCam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
-const BM_KIND = { pool: 0, spray: 1, drop: 2, scorch: 0, foot: 3 };
+const BM_KIND = { pool: 0, spray: 1, drop: 2, foot: 3, scorch: 4 };
 const BM_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const BM_FRAG = `
 uniform float uKind, uStr, uH, uR, uSoot; uniform vec2 uSeed; uniform sampler2D uNoise; varying vec2 vUv;
@@ -54,6 +54,10 @@ void main() {
     // a drop: a small blob and the fine spatter round it
     a = smoothstep(0.52, 0.3, r + (nz - 0.5) * 0.4);
     a = max(a, smoothstep(0.66, 0.74, bn(vUv * 2.6 + uSeed * 3.1)) * smoothstep(1.0, 0.55, r));
+  } else if (uKind > 3.5) {
+    // a scorch: darkest where it went off and thinning out to its ragged rim, so on a wall (core/shaders.js) it reads how
+    // far from the middle each point is and keeps to a round patch
+    a = clamp(1.0 - r + (nz - 0.5) * 0.35, 0.0, 1.0);
   } else {
     // a boot print the size of the boot sole (0.28 m long, 0.2 m wide over the 0.3 m quad), toe along +x: a squared-off
     // sole and heel with a gap between, its tread breaking it up so it reads pressed in rather than painted on

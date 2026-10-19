@@ -16,6 +16,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   let kind;
   if (z.vault) kind = 'vault';
   else if (z.crawl) kind = 'crawl';
+  else if (part === 'crush') kind = rand() < 0.55 ? 'crumple' : 'knees';   // the head crushed or split from above: it drops where it stands
   else if (heavy) kind = along > 0 ? 'forward' : 'blown';
   else if (part === 'head' && rand() < 0.6) kind = 'crumple';
   else if (part === 'legL' || part === 'legR') kind = 'knees';
@@ -42,7 +43,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   }
   if (z.crawl) { fin.ll = p0.ll; fin.lr = p0.lr; fin.kl = p0.kl; fin.kr = p0.kr; }
   const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, x: z.x, z: z.z, vx, vz, spin, t: 0, s, dir, kind, p0, mid, tMid, fin, delay, dur, face: f,
-    pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, bounce: 0, flash: z.flash || 0, eyes: m.eyes, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
+    pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, bounce: 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
   m.g.scale.setScalar(s);
   ragdolls.push(r);
 }
@@ -75,7 +76,7 @@ function stepRagdoll(r, dt) {
     // it hits the ground: a little blood knocked out of it (no pool: what it bled is what the shots threw)
     const hx = r.x - Math.sin(r.face) * r.dir * 0.6 * r.s, hz = r.z - Math.cos(r.face) * r.dir * 0.6 * r.s;
     burst(hx, 0.15, hz, 5, 'blood', 0, 0, 0.6); burst(r.x, 0.1, r.z, 4, 'dust');
-    if (Math.hypot(r.x - P.x, r.z - P.z) < 12) SFX.thud();
+    if (Math.hypot(r.x - P.x, r.z - P.z) < 12) soundAt(r.x, r.z, () => SFX.thud());
   }
   if (r.burn > 0 && r.stain) r.stain.char = Math.min(1, r.stain.char + dt * 0.3);   // a body that went down burning smoulders on until it's black
   if (r.burn > 0) { r.burn -= dt; if (r.vis > 0.3 && r.t > 0.4) burnFx(r.x, r.z, 0.05, 0.45, 0.45 * r.s, dt * Math.min(1, r.burn)); }   // the fire dies down on the body

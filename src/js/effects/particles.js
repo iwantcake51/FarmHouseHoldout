@@ -139,6 +139,6 @@ function stepParticles(dt) {
     }
     g.m.visible = visAt(g.m.position.x, g.m.position.z) > 0.2;
     if (g.life < 1) g.m.position.y -= dt * 0.3;
-    if (g.life <= 0) { scene.remove(g.m); gibs.splice(k, 1); }
+    if (g.life <= 0) { scene.remove(g.m); zFree(g.m); gibs.splice(k, 1); }
   }
 }
