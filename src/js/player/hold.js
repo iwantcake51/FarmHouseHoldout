@@ -118,7 +118,7 @@ const bump = (t, a, b) => Math.sin(Math.PI * clamp((t - a) / (b - a), 0, 1));   
 // held to a few degrees a shot (about 5 for a 9mm, 10 for a hand cannon or a rifle), and however fast you fire, the
 // muzzle never climbs past KICK_UP: each shot has less room to throw it up the higher it already is (KICK_ROOM), and
 // what it shows is eased into that ceiling (kickPitch) instead of stopping dead against it
-const KICK_UP = 0.24, KICK_ROOM = 0.6;
+const KICK_UP = 0.16, KICK_ROOM = 0.6;
 const kickPitch = p => p < 0 ? -KICK_UP * Math.tanh(-p / KICK_UP) : p;
 const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0, ret: 1 });
 const RK = { R: kickState(), L: kickState() };
@@ -128,10 +128,10 @@ const RK = { R: kickState(), L: kickState() };
 // gun (act) thumps hardest: more flip, a harder shove back into the shoulder, the hands lifted further and the
 // shoulders rocked much further (KICK_ACT). The bolt-action rifle comes back from its kick slower than the rest
 // (KICK_BOLT_RET of the speed, the same height), a heavy gun settling back onto the shoulder
-const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15, back: 2, lift: 2, rock: 2.2 }, KICK_BOLT_RET = 0.55;
+const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 0.9, back: 1.6, lift: 0.9, rock: 1.0 }, KICK_BOLT_RET = 0.55;
 // how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
 // automatic, whose kicks come too fast to settle between
-const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
+const KICK_ROT = 0.42, KICK_ROT_AUTO = 0.6;
 // how each kind of gun kicks (recoilFeel picks one): back, how hard it's driven back along the aim; flip, how far the
 // muzzle's thrown up; body, how hard the chest and shoulders take it (the shoulders' rock and the whole upper body shoved
 // back, BR); ret, how quickly it all comes home (the hands' springs stiffer or looser); jit, a kick to the side each shot.
@@ -140,7 +140,7 @@ const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
 // fire chatters: short quick kicks that buzz side to side
 const RECOIL_FEEL = {
   snap: { back: 1.0, flip: 1.15, body: 0.9, ret: 1.25, jit: 0.5 },
-  shove: { back: 1.2, flip: 0.9, body: 1.7, ret: 0.85, jit: 0.35 },
+  shove: { back: 1.2, flip: 0.75, body: 1.1, ret: 0.85, jit: 0.35 },
   thump: { back: 1.15, flip: 1.0, body: 1.35, ret: 0.9, jit: 0.25 },
   chatter: { back: 0.85, flip: 0.85, body: 0.7, ret: 1.4, jit: 1.7 }
 };
@@ -148,7 +148,7 @@ const recoilFeel = (D, kind, auto) => auto ? 'chatter' : kind === 'hand' ? 'snap
 // the upper body shoved back along the aim by a shot (z, metres), and leant back with it (BR_LEAN radians a metre): on
 // a heavier spring than the hands', so the chest takes the shot a beat after the gun and settles back under it. It's
 // what reads from above: the gun driven back with the shooter rocking under it
-const BR = { z: 0, vz: 0 }, BR_LEAN = 1.6, BR_MAX = 0.07;
+const BR = { z: 0, vz: 0 }, BR_LEAN = 0.6, BR_MAX = 0.07;
 // act: how the gun cycles (EJECT in weapons/casings.js)
 function gunKick(side, pw, kind, auto, act, feel) {
   const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6), rot = KICK_ROT * (auto ? KICK_ROT_AUTO : 1);
@@ -158,7 +158,7 @@ function gunKick(side, pw, kind, auto, act, feel) {
   const v0 = [k.vp, k.vz, k.vh, k.vr, k.vy, SR.vx, SR.vy];
   const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot * F.flip;
   k.ret = F.ret * bolt; SR.ret = bolt;
-  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1) * F.back; k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
+  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1) * F.back; k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.4 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
   const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot * F.body;   // (less room to rock the further back they already are)
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
   BR.vz += (hand ? 0.35 * hp : 0.6 * pw) * F.body * (A ? 1.3 : 1) * (1 - 0.5 * (ANIM.ads || 0)) * (1 - 0.7 * clamp(BR.z / BR_MAX, 0, 1)) * rr(0.85, 1.15);

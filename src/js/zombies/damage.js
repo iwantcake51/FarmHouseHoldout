@@ -198,6 +198,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
   if (S.momentum && run.time - S.momT < MOM_T) dmg *= 1 + 0.05 * S.momK;   // Momentum: +5% for each quick kill, up to 5
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
+  if (z.type === 'brute' && D.bruteX) dmg *= D.bruteX;   // the SCAR's heavy rounds (weapons/gun-stats.js)
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
@@ -226,14 +227,15 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   return false;
 }
 // what a hit does to the body, whoever's it was: the health off it, the flash, the hole, the jolt, the blood, and the
-// stagger and knockback (brutes shrug those off). A teammate's hits come through here too (net/sync.js)
+// stagger and knockback (brutes shrug those off, but for the SCAR's stagger). A teammate's hits come through here too (net/sync.js)
 function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
   z.hp -= dealt; z.flash = 0.14; z.squash = 1;
   if (!D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed' && (D.ammo !== 'shells' || rand() < 0.6)) shotWound(z, part, dx, dz, D, dealt, z.hp <= 0);   // the hole it leaves (zombies/wounds.js)
   zAnimHit(z, dx, dz, part, 0.45 + Math.min(1.1, dealt / 55));   // the body rocked by it (zombies/zombie-anim.js)
   bloodZombie(z, (D.melee ? 0.1 : D.ammo === 'shells' ? 0.08 : 0.05) * (part === 'head' ? 1.4 : 1) * (1 + Math.min(1, dealt / 80)));
   for (const o of zombies) if (o !== z && Math.abs(o.x - z.x) < 1.3 && Math.abs(o.z - z.z) < 1.3 && Math.hypot(o.x - z.x, o.z - z.z) < 1.2) bloodZombie(o, 0.025);
-  if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
+  if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug or the SCAR rocks it for longer: D.stagger)
+  else if (D.bruteStagger) z.stagger = Math.max(z.stagger, D.bruteStagger);   // (only the SCAR's rounds stop a brute, and break off its charge: zombies/brute-dash.js)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head', dealt);
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));

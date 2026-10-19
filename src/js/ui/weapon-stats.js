@@ -115,6 +115,8 @@ function wsHTML(id) {
   h += row('Spread', wsDeg(r.hipSp), `from the hip · ${wsDeg(r.aimSp)} aimed, ${wsDeg(r.aimMv)} aimed on the move` + (D.fan ? ` · ${wsDeg(r.hipSp * D.fan.spread)} fanning` : ''), r.hipSp, s.hipSp, -1);
   if (r.fall) h += row('Range', wsF(r.fall[0], 0) + ' m', 'at full damage' + (D.maxRange ? ` · nothing past ${D.maxRange} m` : ''), r.fall[0], s.fall && s.fall[0]);
   if (r.pierce) h += row('Pierce', '+' + r.pierce, 'zombies a round goes through', r.pierce, s.pierce || 0);
+  if (D.stagger && D.pellets === undefined) h += row('Stagger', wsF(D.stagger, 2) + ' s', 'each hit stops a zombie' + (D.bruteStagger ? ' · brutes too, breaking off a charge' : ''));
+  if (D.bruteX) h += row('Vs brutes', '×' + wsF(D.bruteX, 2), 'damage to a brute');
   h += row('Headshots', '×' + wsF(r.head, 2), D.ammo === 'shells' && r.fall ? `up close, fading to ×1 by ${wsF(r.fall[1], 0)} m` : 'damage multiplier', r.head, s.head);   // a shotgun's fades with range (headFade, weapons/ammo.js)
   // a sniper's headshots through a scope: every one a crit
   if (D.headCrit) h += row('Scoped', 'Crits', `every headshot while aiming · ×${wsF(r.critX, 2)} damage`);

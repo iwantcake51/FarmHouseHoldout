@@ -17,9 +17,7 @@ const SFX = {
   fire(id, quiet, shells) {
     const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', verb = inside ? (quiet ? 0.36 : big ? 0.9 : 0.74) : 0;
     echoSet(inside);
-    // (a gun with only its own recording, SUPP_OWN, plays that through a can too, muffled and quieter)
-    const own = quiet && SUPP_OWN[id];
-    if (playS(own ? 'shot_' + id : quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: own ? own.lp : rr(7500, 20000), vol: own ? own.vol : undefined, pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
+    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
     if (quiet) SFX.supp(shells); else SFX[GUN_SFX[id]]();
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun
