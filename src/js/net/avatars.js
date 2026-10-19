@@ -24,7 +24,8 @@ function poseOut(rdt) {
   const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
-    fl: myLight() ? [myLight(), r2(P.aim)] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()) };   // (hl: healing still to come, the blue on your bar)   // (what the team list shows of you: planks, scrap and kills)
+    fl: myLight() ? [myLight(), r2(P.aim)] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()),
+    fc: !P.dead && (ANIM.anger || ANIM.worry) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry and startled, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
   ammoOut(msg, now);
   netSend('p', msg);
@@ -62,6 +63,10 @@ function buildAvatar(p) {
   const keepG = LOOK.g, keepM = PM.mats, keepY = LOOK.mirrorY;
   try { LOOK.g = groups; PM.mats = Object.assign({}, keepM, mats); buildLook(L); } catch (e) { console.warn('avatar look', e); }
   finally { rig.mirrorY = LOOK.mirrorY; LOOK.g = keepG; PM.mats = keepM; LOOK.mirrorY = keepY; }
+  // the eyes, brows and mouth each folded into a mesh of their own and kept off the joint's, so they can move as their
+  // face does (faceMood, player/look.js)
+  rig.faceH = groups.head; const faceParts = new Set(faceGroups(groups.head));
+  faceParts.forEach(f => { const ms = []; f.traverse(o => { if (o.isMesh) ms.push(o); }); if (ms.length) mergeInto(f, ms); });
   // then everything that rides on each joint (the look, the pack, the belt, the pouches) folded into a mesh or two:
   // their colours never change, so it all bakes into one vertex-coloured material per joint (mergeInto,
   // core/geometry.js) and a teammate costs a few dozen draws, not a couple of hundred
@@ -70,7 +75,7 @@ function buildAvatar(p) {
   rig.hat = groups.hat; rig.shoes = [groups.shoeL, groups.shoeR]; rig.pouch2 = partMap.get(bandPouch2) || null;
   rig.rolls = bandRolls.map(m => partMap.get(m)).filter(Boolean);   // their bandages in the pouches, one roll each (am[4])
   for (const J of [...joints, ...own]) {
-    const parts = []; (function walk(o) { o.children.forEach(c => { if (joints.has(c) || (ownSet.has(c) && c !== J)) return; if (!c.visible) return; if (c.isMesh) parts.push(c); walk(c); }); })(J);
+    const parts = []; (function walk(o) { o.children.forEach(c => { if (joints.has(c) || faceParts.has(c) || (ownSet.has(c) && c !== J)) return; if (!c.visible) return; if (c.isMesh) parts.push(c); walk(c); }); })(J);
     parts.forEach(o => { o.castShadow = true; });
     if (parts.length > 1) mergeInto(J, parts);
   }
@@ -103,7 +108,7 @@ function netDropAvatar(p) {
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
   if (m.dead && !p.dead && p.x !== undefined && state !== 'title') teamDown(p);   // they've just gone down (net/lobby.js)
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
@@ -129,6 +134,8 @@ function updateAvatars(rdt) {
     const set = (o, n) => { const b = n * 6; o.position.set(c[b], c[b + 1], c[b + 2]); o.rotation.set(c[b + 3], c[b + 4], c[b + 5]); };
     POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
+    { const f = p.fc || [0, 0]; a.fa = (a.fa || 0) + (f[0] - (a.fa || 0)) * k; a.fw = (a.fw || 0) + (f[1] - (a.fw || 0)) * k;
+      faceMood(a.faceH, a.fa < 0.002 ? 0 : a.fa, a.fw < 0.002 ? 0 : a.fw); }   // their face, angry or startled as they are
     if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
