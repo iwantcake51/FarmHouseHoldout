@@ -27,22 +27,37 @@ const RAG_LIMB = { armL: [5, 6, 2], armR: [7, 8, 3], legL: [9, 10, 0], legR: [11
 const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6], [2]], armR: [[7, 8], [3]], legL: [[9, 10], [0]], legR: [[11, 12], [1]], crush: [[4, 2, 3], [0, 1]] };
 // RAG: gravity (a little over the real thing, so a body comes down with some weight from this high up), the fixed step
 // and the most steps in a frame, solver passes a step; how stiff a body still is as it goes (tone: how hard it's pulled
-// toward the pose it died in) and how soon that's gone (toneT), and how much less the legs hold (legTone, so they give
-// first); how much the ground holds what's on it (grip, each step) and how much a fall bounces back; air drag; when a
-// body counts as still (under sleepV m/s for sleepT s) and is left as it lies; the most bodies worked out at once
-// (live: past that the oldest is left as it is); and how hard a hit throws what it lands on (hit), what's next to it
+// toward the pose it died in; how much each part holds, and for how long, is down to how it falls: FALLS); how much
+// the ground holds what's on it (grip, each step; and what's sliding slower than stick m/s stops dead in it) and how
+// much a fall bounces back; air drag; when a body counts as still (under sleepV m/s for sleepT s, down settle s, or maxT s after it died, on whatever it lies) and
+// is left as it lies; the most bodies worked out at once (live: past that the oldest is left as it is); and how hard a
+// hit throws what it lands on (hit), what's next to it
 // (near), and the whole body (all), times the weapon's force. A body that's down settles: what touches the ground stops
 // dead in it (no bounce under bounceV m/s down), and once its trunk's down it's damped (land, then still), nothing on
 // it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
 // and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
 // down (yawDown), so it never spins on the floor
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, legTone: 0.3, grip: 0.5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.14, sleepT: 0.35, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 0.3 };
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 0.3 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
 // shot through the head (not by buckshot or a blast) it's out at once: it goes limp where it stands (HEAD_DROP: what's
 // left of its stiffness and how soon that's gone, and how much of the way it was going it keeps) and folds down
 const HEAD_DROP = { tone: 0.16, toneT: 0.22, keep: 0.25 };
+// how it goes down: never the same way twice. Each style: how likely (more of some when it's hit from in front or
+// behind: front, back), how much each leg holds (legs: the fold-side leg, the other) and the upper body (up) of the
+// stiffness it has, how long that lasts (toneT), and how the fall's started (m/s): the shoulders and head thrown along
+// its facing (fwd: back is less than nothing) and across it (side), the hips the other way (hip), the shoulders turned
+// against each other (twist: it spins as it drops). A crumple: the knees go and it drops where it stands, slumping one
+// way; toppling back stiff; pitching forward onto its face; going over sideways as the leg that side gives; twisting
+// round as it falls
+const FALLS = [
+  { k: 0.3, legs: [0.1, 0.15], up: 1, toneT: 0.7, fwd: [-0.3, 0.3], side: [0.3, 0.8], hip: 0.1 },
+  { k: 0.2, back: 0.35, legs: [0.7, 0.8], up: 1, toneT: 0.65, fwd: [-2.1, -1.3], side: [0, 0.3], hip: 0.45 },
+  { k: 0.15, front: 0.3, legs: [0.5, 0.6], up: 0.8, toneT: 0.55, fwd: [1.2, 1.9], side: [0, 0.3], hip: 0.35 },
+  { k: 0.2, legs: [0.05, 0.6], up: 0.9, toneT: 0.6, fwd: [-0.3, 0.3], side: [1, 1.7], hip: 0.4 },
+  { k: 0.15, legs: [0.2, 0.35], up: 0.9, toneT: 0.55, fwd: [-0.4, 0.4], side: [0.2, 0.6], hip: 0.2, twist: [1.1, 1.9] }
+];
 const _rgV = new V3(), _rgM = new THREE.Matrix4(), _rgQ = new THREE.Quaternion(), _rgQi = new THREE.Quaternion(), _rgQ2 = new THREE.Quaternion();
 const _rgX = new V3(), _rgY = new V3(), _rgZ = new V3(), _rgH = new V3(), _rgD = new V3(), _rgP = new V3();
 const _rgS = new V3(), _rgT = new V3(), _rgU = new V3(), _rgN = new V3();
@@ -107,13 +122,24 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   if (D.melee && part !== 'crush') { const sg = rand() < 0.5 ? -1 : 1, t = force * 0.25 * sg; push(2, -dz * t, 0, dx * t); push(3, dz * t, 0, -dx * t); }
   // a limb taken off by this blow: its stump jerks with it
   for (const sp of z.spurts) if (sp.t > 1.1) { const L = RAG_LIMB[sp.part], k = L ? L[2] : sp.part === 'head' ? 2 + (rand() < 0.5 ? 1 : 0) : -1; if (k >= 0) push(k, dx * force * 0.3, 0.6, dz * force * 0.3); }
+  // how it goes down (FALLS): picked at random, with more toppling back from a hit in front and pitching forward from
+  // one behind
+  const fF = [Math.sin(z.face), Math.cos(z.face)], fR = [fF[1], -fF[0]], from = -(dx * fF[0] + dz * fF[1]);   // (from: 1 hit square in the front)
+  const wts = FALLS.map(f => f.k + (f.back || 0) * Math.max(0, from) + (f.front || 0) * Math.max(0, -from)), tot = wts.reduce((a, b) => a + b, 0);
+  let pick = rand() * tot, fall = FALLS[0]; for (let k = 0; k < FALLS.length; k++) { pick -= wts[k]; if (pick <= 0) { fall = FALLS[k]; break; } }
+  const sd = rand() < 0.5 ? -1 : 1, fw = rr(...fall.fwd) * (drop ? 0.5 : 1), sw = rr(...fall.side) * sd, tw = fall.twist ? rr(...fall.twist) * (rand() < 0.5 ? -1 : 1) : 0;
+  for (const k of [2, 3, 4]) push(k, fF[0] * fw + fR[0] * sw, 0, fF[1] * fw + fR[1] * sw);
+  for (const k of [0, 1]) push(k, -(fF[0] * fw + fR[0] * sw) * fall.hip, 0, -(fF[1] * fw + fR[1] * sw) * fall.hip);
+  if (tw) { push(2, fF[0] * tw, 0, fF[1] * tw); push(3, -fF[0] * tw, 0, -fF[1] * tw); }
+  // (the leg that folds is the one on the side it goes over to: left points 9, 10, right 11, 12)
+  const legK = sd < 0 ? [fall.legs[0], fall.legs[1]] : [fall.legs[1], fall.legs[0]];
   // a climber goes on over the sill the way it was going
   if (z.vault) { const v = z.vault, L = Math.hypot(v.x1 - v.x0, v.z1 - v.z0) || 1; for (let k = 0; k < n; k++) push(k, (v.x1 - v.x0) / L * 1.6, 0.3, (v.z1 - v.z0) / L * 1.6); }
   // a point that starts inside something (a climber's legs in the wall under the sill) is let through it till it's out
   const ghost = new Uint8Array(n); for (let k = 0; k < n; k++) if (on[k] && ragTop(p[k * 3], p[k * 3 + 2]) > p[k * 3 + 1] - RAG_R[k] * s) ghost[k] = 1;
   // only so many bodies are worked out at once: past that the oldest still moving is left as it lies
   const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true;
-  const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, limbs: z.limbs, s, p, q, tone: drop ? HEAD_DROP.tone : RAG.tone, toneT: drop ? HEAD_DROP.toneT : RAG.toneT, o: new Float32Array(p), v: new Float32Array(p), on, im, loc, sticks, ghost, acc: 0, st: 0, still: 0, sleep: false, gy: 0,
+  const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, limbs: z.limbs, s, p, q, tone: drop ? HEAD_DROP.tone : RAG.tone, toneT: drop ? HEAD_DROP.toneT : fall.toneT, legK, upK: fall.up, o: new Float32Array(p), v: new Float32Array(p), on, im, loc, sticks, ghost, acc: 0, st: 0, still: 0, sleep: false, gy: 0,
     x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
   m.g.scale.setScalar(s);
   ragPose(r, p);
@@ -134,7 +160,7 @@ function ragStep(r, h) {
   ragFrame(p);
   if (tn > 0) for (let k = 4; k < n; k++) {
     if (!on[k]) continue;
-    const i = k * 3, w = tn * (k >= 9 ? RAG.legTone : 1), l = r.loc;
+    const i = k * 3, w = tn * (k >= 11 ? r.legK[1] : k >= 9 ? r.legK[0] : r.upK), l = r.loc;
     p[i] += (_rgH.x + _rgX.x * l[i] + _rgY.x * l[i + 1] + _rgZ.x * l[i + 2] - p[i]) * w;
     p[i + 1] += (_rgH.y + _rgX.y * l[i] + _rgY.y * l[i + 1] + _rgZ.y * l[i + 2] - p[i + 1]) * w;
     p[i + 2] += (_rgH.z + _rgX.z * l[i] + _rgY.z * l[i + 1] + _rgZ.z * l[i + 2] - p[i + 2]) * w;
@@ -169,7 +195,7 @@ function ragStep(r, h) {
   // still? then it's left as it lies
   let vmax = 0; for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3; vmax = Math.max(vmax, Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2])); }
   r.still = vmax / h < RAG.sleepV && r.st > 0.6 ? r.still + h : 0;
-  if (r.still > RAG.sleepT) r.sleep = true;
+  if (r.still > RAG.sleepT || (r.landT && r.st - r.landT > RAG.settle) || r.st > RAG.maxT) r.sleep = true;   // (and down a while, or long enough whatever it's lying on, it's done: no creeping about)
 }
 // how far each joint goes: a knee bends only forward of the line from hip to foot and an elbow only the other way (no
 // limb ever folds backwards), a thigh goes only a little back behind the hip or out to the side, and an upper arm only
@@ -236,7 +262,9 @@ function ragWorld(r, last) {
     if (p[i + 1] - rad >= floor) continue;
     const vy = p[i + 1] - q[i + 1]; p[i + 1] = floor + rad;
     if (!last) continue;
-    q[i] = p[i] - (p[i] - q[i]) * (1 - RAG.grip); q[i + 2] = p[i + 2] - (p[i + 2] - q[i + 2]) * (1 - RAG.grip);
+    // (on the ground it grips: once the body's down, what's sliding slower than RAG.stick m/s stops dead in it)
+    if (r.landT && Math.hypot(p[i] - q[i], p[i + 2] - q[i + 2]) / RAG.h < RAG.stick) { q[i] = p[i]; q[i + 2] = p[i + 2]; }
+    else { q[i] = p[i] - (p[i] - q[i]) * (1 - RAG.grip); q[i + 2] = p[i + 2] - (p[i + 2] - q[i + 2]) * (1 - RAG.grip); }
     q[i + 1] = vy / RAG.h < -RAG.bounceV ? p[i + 1] + vy * RAG.bounce : p[i + 1];   // (a hard landing bounces a little; anything gentler stops dead)
     if (k < 4) down++;
     if (!r.pooled && k < 4 && vy / RAG.h < -1.2) {
