@@ -40,7 +40,7 @@ function updateDayNight(rdt) {
   else sun.position.set(10, 22, -6);
   sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? viewer().nv * curDark * 0.16 : 0));
-  openings.forEach(o => o.meshes.forEach(m => { const d = m.userData.drop; if (d > 0) { const nd = Math.max(0, d - rdt * 1.1); m.position.y -= d - nd; m.userData.drop = nd; } }));
+  openings.forEach(o => o.meshes.forEach(m => { const u = m.userData; if (u.place < 1) { u.place = Math.min(1, u.place + rdt / BOARD_PLACE); boardPlace(m, u.place); } }));   // boards going up (barricades/planks.js)
   if (state !== 'title') {
     // the clock only runs during a wave (game/update.js); between waves it says so and the digits pulse
     const hh = Math.floor(tod), mm = Math.floor((tod % 1) * 6) * 10, stopped = phase !== 'wave';

@@ -474,6 +474,9 @@ function cylHeads(cr, id) {
 // tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1, 2].map(() => { const g = new THREE.Group(); cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
 const HSH_GAP = 0.026, HSH_FEED = [0.62, 0.72];   // shells' spacing in the hand; when a row of them is thumbed in, one after another
+// a round loaded on its own: carried to the port till FEED_IN[0], lined up on it by FEED_IN[1] (out of the fingers), and
+// thumbed all the way in by FEED_IN[2], where it sits (its rim in the chamber's mouth, its head in the cylinder) till it counts; where it goes in (_feedAt) and the gun's axes there (_feedQ, _feedAx, _feedUp)
+const FEED_IN = [0.64, 0.7, 0.82], _feedAt = new V3(), _feedAx = new V3(), _feedUp = new V3(), _feedQ = new THREE.Quaternion(), _feedV = new V3();
 const HSH_R = new THREE.Group(); cyl(HSH_R, 0.0055, 0.056, GM.brass, 0, 0, 0, 10); cyl(HSH_R, 0.0035, 0.016, GM.copper, 0, 0, 0.034, 10); HSH.add(HSH_R);
 HSH.visible = false; HSH.userData.slot = 'loader'; PM.upper.add(HSH);
 const _bq = new THREE.Quaternion();
@@ -832,8 +835,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       let off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06), held = false, fast = false;   // slammed back, a beat at the end of its stroke, run home
       if (q.cyc) {
         // pulled back to load (the rifle's bolt, handle up, or an empty pump's forend), it stays open while you feed
-        // it (weapons/casings.js: openAction); otherwise the action follows the cycle
-        const bolt = EJECT[id] === 'bolt', open = W8.boltOpen && rel === 'shell' && !cp;
+        // it and after, till it's pushed home (weapons/casings.js: openAction); otherwise the action follows the cycle
+        const bolt = EJECT[id] === 'bolt', open = !!W8.held[id] && !cp;
         off = open ? 1 : cp ? cp.off : 0; held = open || !cp;   // eased when nothing's working it (a rack cut short closes, not snaps)
         if (bolt) { q.lift = (q.lift || 0) + ((open ? 1 : cp ? cp.lift : 0) - (q.lift || 0)) * (cp && !open ? 1 : Math.min(1, rdt * 14)); q.m.rotation.z = -BOLT_TURN * q.lift; }
       }
@@ -1008,6 +1011,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         _p1.addScaledVector(_slAx, -0.03);
       }
       else { const pt = H.port || H.grip; gunPt(_p1, s, 'R', pt[0], pt[1], pt[2]); }
+      // where a round goes in, and which way (along the barrels' bore when they're broken open)
+      _feedAt.copy(_p1); if (brkG && brkG.rims.length) _feedQ.copy(_bq); else _feedQ.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion);
+      _feedAx.set(0, 0, 1).applyQuaternion(_feedQ); _feedUp.set(0, 1, 0).applyQuaternion(_feedQ);
       if (brkG && brkG.rims.length) { _p2.copy(_p1).addScaledVector(_slAx, -0.09); _p2.y += 0.03; }   // lined up behind the chamber
       else { _p2.copy(_p1); _p2.y -= 0.1; _p2.x -= 0.05; }
       const st = W8.relStyle || 0;
@@ -1029,19 +1035,31 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
     magToFist(_fL, free);   // the fresh mag, where the fist actually got to
-    // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges)
-    const feed = rel === 'shell' && id !== 'revolver' && rp > 0.12 && rp < 0.72;
+    // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges, the
+    // revolver's rounds). One on its own leaves the fingers at the port and is thumbed in: up into a pump's tube and on
+    // forward, down into the rifle's well and forward under the bolt, along the bore into a barrel or a chamber of the
+    // cylinder (FEED_IN). A row of shells (Sleight of Hand) is thumbed in one after another off the palm (HSH_FEED)
+    const rnd = D.ammo === 'rifle' || D.ammo === 'magnum', n = rnd ? 1 : Math.max(1, Math.min(D.loadN || 1, 3, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));   // as many as are going in
+    const feed = rel === 'shell' && rp > 0.12 && rp < (n === 1 ? 0.995 : HSH_FEED[1]);   // (one on its own stays where it went in till it's counted in: tickReload)
     HSH.visible = feed;
     if (feed) {
-      const rifle = D.ammo === 'rifle', n = rifle ? 0 : Math.max(1, Math.min(D.loadN || 1, 3, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));   // as many as are going in
+      const rifle = rnd;
       // side by side into the two chambers, or a row down the palm whose top one is at the port, the row riding up as
       // each goes in
       const fed = brkG ? 0 : Math.min(n - 1, Math.floor(n * clamp((rp - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
-      HSH_R.visible = rifle;
+      HSH_R.visible = rifle; HSH_R.scale.z = D.ammo === 'magnum' ? 0.6 : 1;   // (a .357's case is short)
       const sm = shellMat(id); HSH_S.forEach(g => { g.children[0].material = sm; });   // in the colour of the kind loaded (weapons/gun-models.js)
-      HSH_S.forEach((g, k) => { g.visible = k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else g.position.set(0, (fed - k) * HSH_GAP, 0); });
-      if (!(brkG && brkG.rims.length)) { _bq.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq); }
-      HSH.quaternion.copy(_bq); HSH.position.copy(_fL).addScaledVector(_slAx, 0.04);
+      HSH_S.forEach((g, k) => { g.visible = !rifle && k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else g.position.set(0, (fed - k) * HSH_GAP, 0); });
+      HSH.quaternion.copy(_feedQ); HSH.position.copy(_fL).addScaledVector(_feedAx, 0.04);
+      if (n === 1 && rp > FEED_IN[0]) {
+        // lined up on the port as the hand gets there, then pushed in: how far, and which way, by the gun
+        const k = smooth(clamp((rp - FEED_IN[1]) / (FEED_IN[2] - FEED_IN[1]), 0, 1)), a = Math.min(1, k * 2), b = Math.max(0, k * 2 - 1);
+        _feedV.copy(_feedAt);
+        if (D.ammo === 'rifle') _feedV.addScaledVector(_feedUp, -0.02 * a).addScaledVector(_feedAx, 0.035 * b);
+        else if (EJECT[id] === 'pump') _feedV.addScaledVector(_feedUp, 0.016 * a).addScaledVector(_feedAx, 0.075 * b);
+        else _feedV.addScaledVector(_feedAx, (D.ammo === 'magnum' ? 0.034 : 0.066) * k);
+        HSH.position.lerp(_feedV, smooth(clamp((rp - FEED_IN[0]) / (FEED_IN[1] - FEED_IN[0]), 0, 1)));
+      }
     }
     // the loader rides in front of the left fist from the pouch until it's let go, rounds pointing into the cylinder,
     // and is twisted a sixth of a turn once they're in

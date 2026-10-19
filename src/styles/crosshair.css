@@ -54,9 +54,14 @@
 #ammoWarn{position:absolute;left:50%;top:118px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:2px 9px 1px;white-space:nowrap;
   font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--aw);text-shadow:0 1px 2px rgba(0,0,0,.9);
   background:linear-gradient(90deg,transparent,rgba(10,10,10,.55) 20%,rgba(10,10,10,.55) 80%,transparent);--aw:#e8b84a}
-#ammoWarn::before,#ammoWarn::after{content:"";width:6px;height:16px;border:2px solid var(--aw);box-shadow:0 0 6px var(--aw)}
+/* the brackets' glow follows their strokes (a drop shadow, not a box shadow, which leaves the inside of each bracket
+   unlit and darker than the band round it) */
+#ammoWarn::before,#ammoWarn::after{content:"";width:6px;height:16px;border:2px solid var(--aw);filter:drop-shadow(0 0 4px var(--aw)) drop-shadow(0 0 1px var(--aw))}
 #ammoWarn::before{border-right:0}#ammoWarn::after{border-left:0}
-#ammoWarn kbd{font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:0;background:var(--aw);color:#140c06;padding:0 5px;text-shadow:none}
+/* the key: as tall as the brackets and its letter centred in it (not on the font's baseline), so it sits level with them
+   and the word whatever font draws it */
+#ammoWarn kbd{display:grid;place-items:center;height:16px;min-width:16px;box-sizing:border-box;align-self:center;font-family:var(--f-ui);font-weight:600;font-size:11px;line-height:1;letter-spacing:0;background:var(--aw);color:#140c06;padding:0 5px;text-shadow:none}
+#ammoWarn .aw{line-height:1}
 #ammoWarn.low::before,#ammoWarn.low::after,#ammoWarn.low .aw{animation:awPulse 1.4s cubic-bezier(.45,0,.55,1) infinite}
 #ammoWarn.out{--aw:#e2412c}
 #ammoWarn.loading{--aw:var(--orange)}

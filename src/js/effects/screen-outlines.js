@@ -10,6 +10,7 @@
 // thickest one showing is the one drawn. thick sets the line's width (OL.w), a width of 0 the default.
 const OL = { w: [0.6, 55, 1, 3], w0: 2.2, glow: 3.5, glowA: 0.3, eps: 0.0015, slots: 64, margin: 10 };
 const olRoots = [];
+const OL_PAD = 9;   // how far out from a pixel (in CSS pixels) the lines and glow look: their widest ring, 7.5, and a pixel spare
 function outline(g, col, scl, thick, mat, keep) {
   const ctl = mat || new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
   ctl.userData.olW = thick ? clamp(OL.w[0] + thick * OL.w[1], OL.w[2], OL.w[3]) : OL.w0;
@@ -90,9 +91,12 @@ function outlinePass(camera) {
   if (x1 <= x0 || y1 <= y0) return;
   if (!olRT || olRT.width !== W || olRT.height !== H) { if (olRT) olRT.dispose(); olRT = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, stencilBuffer: false }); }
   // the mask: every outlined model in the box (and every other one there, so it can stand in front of a line), each a
-  // flat id with its depth; the palette says how each id's line is drawn
+  // flat id with its depth; the palette says how each id's line is drawn. It's cleared a ring wider than the box, as far
+  // out as the lines look from its edge (OL_PAD), so they never read what an earlier frame left there: a model that's
+  // moved on would show as a stray scrap of line in its colour along the box's edge for a moment as you move
   const prevRT = R.getRenderTarget(), ac = R.autoClear, sh = R.shadowMap.autoUpdate, ca = R.getClearAlpha(); R.getClearColor(_olCC);
-  R.setRenderTarget(olRT); olRT.scissor.set(x0, y0, x1 - x0, y1 - y0); olRT.scissorTest = true; R.setRenderTarget(olRT);
+  const pad = Math.ceil(OL_PAD * px), cx0 = Math.max(0, x0 - pad), cy0 = Math.max(0, y0 - pad), cx1 = Math.min(W, x1 + pad), cy1 = Math.min(H, y1 + pad);
+  R.setRenderTarget(olRT); olRT.scissor.set(cx0, cy0, cx1 - cx0, cy1 - cy0); olRT.scissorTest = true; R.setRenderTarget(olRT);
   R.setClearColor(0x000000, 0); R.clear(true, true, false); R.autoClear = false; R.shadowMap.autoUpdate = false;
   let slot = 0;
   for (const r of olRoots) {

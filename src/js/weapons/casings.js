@@ -431,9 +431,11 @@ function cycleFx(v, bolt) {
 }
 // pulling the action back by hand before loading (the rifle's bolt every time, to feed it; a pump only when it's run
 // dry): the first part of a rack, up to the rear stop, where the hand lets go and it's left open while the rounds go in
-// (W8.boltOpen: player/hold.js holds it back). No case to throw, the last one went with the shot. Returns how long it takes
+// (W8.held[id]: player/hold.js holds it back). It stays open till it's pushed home: at the end of the load, or, if the
+// load's cut short (a vault, a sprint, putting the gun away), not till you pull the trigger (tickCycle), so a load
+// picked up again carries on with it still open. No case to throw, the last one went with the shot. Returns how long it takes
 function openAction(id) {
-  startCycle(id); const c = W8.cyc; c.done = true; c.stop = c.v.beat.fwd; W8.boltOpen = true;
+  startCycle(id); const c = W8.cyc; c.done = true; c.stop = c.v.beat.fwd; W8.held[id] = true;
   return c.delay + c.dur * c.stop;
 }
 // racking a gun that's open to chamber a round, with no case to throw: after a load (an action held open while it was
@@ -441,11 +443,11 @@ function openAction(id) {
 // worked in D.detach seconds, the end of its reload (game/run-state.js: DETACH)
 function chamberCycle(id) {
   startCycle(id); const c = W8.cyc, B = c.v.beat; c.done = true; c.delay = 0.04;
-  if (W8.boltOpen) { c.q0 = c.bolt ? B.fwd - B.reach : B.fwd; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
+  if (W8.held[id]) { c.q0 = c.bolt ? B.fwd - B.reach : B.fwd; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
   else if (W(id).detach) { const f = W(id).detach / (c.dur + c.delay); c.dur *= f; c.delay *= f; }
 }
 function tickCycle(dt) {
-  { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault) { chamberCycle(id); W8.boltOpen = false; } }
+  { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }
   c.t += dt; const p = (c.t - c.delay) / c.dur, B = c.v.beat;

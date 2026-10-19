@@ -1,6 +1,7 @@
 // Farmhouse walls, windows, door, porch, lamp and roof.
 
 // ---- house ----
+const OPEN_HL = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });   // (an opening's outline pane: unseen, but drawn into the outlines' mask)
 const walls = [], openings = [];
 {
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(HX1 - HX0 - 1, HZ1 - HZ0 - 1), M.floor);
@@ -90,12 +91,15 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; g.add(bg);
     const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
     const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
-    // a glowing frame shown when this opening is the one you'd board up
-    const hm = new THREE.MeshBasicMaterial({ color: 0xf0a04a, transparent: true, opacity: 0.9, depthTest: false });
-    const hl = new THREE.Group(); hl.visible = false; hl.renderOrder = 5; bg.add(hl);
-    const y0 = kind === 'door' ? 0.22 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9, hh = y1 - y0;
-    [-0.54, 0.54].forEach(zf => [[1.0, 0.05, 0, y0], [1.0, 0.05, 0, y1], [0.05, hh, -0.48, (y0 + y1) / 2], [0.05, hh, 0.48, (y0 + y1) / 2]].forEach(([w, ht, x, y]) => { const m = new THREE.Mesh(bgeo(w, ht, 0.03), hm); m.position.set(x, y, zf); m.renderOrder = 5; hl.add(m); }));
-    o.hl = hl; o.hm = hm;
+    // outlined in white, as the stations are, when this is the opening you'd board up or climb through: a pane over the
+    // opening on each face, never drawn itself (OPEN_HL), only its outline (effects/screen-outlines.js), and only the
+    // one on the side you're standing (barricades/interactions.js)
+    const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
+    o.hl = [-1, 1].map(sd => {
+      const p = new THREE.Group(); p.visible = false; bg.add(p);
+      const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
+      p.om = outline(p, 0xf4f1ea, 0, 0.035); return p;
+    });
     openings.push(o); openAt[idx(i, j)] = o;
   }
 }
