@@ -5,17 +5,16 @@ const camTarget = new V3(P.x, 0, P.z);
 // the jump's progress, so the view leans and settles smoothly instead of snapping or jittering. The push is a 2D spring
 // (px, pz), so a new vault that starts before the last one has settled turns it round smoothly instead of flipping it
 const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
-// firing: each shot punches the view, a hard, instant jolt back against the aim and in a touch (CAM_PUNCH: how far it's
-// knocked at once and how fast it's still going, by the gun's power, so a 9mm barely nudges and a shotgun or a rifle
-// thumps), caught on stiff springs that bring it home quickly without wobbling; and tips it only a little (mostly one
-// way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks come too fast to
-// settle). Only the heaviest guns rattle the screen
+// firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
+// little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
+// come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
+// a shotgun or a rifle thumps), caught on stiff springs that bring it home quickly without wobbling. It doesn't slide
+// back along the aim, which only followed the arms being shoved back. Only the heaviest guns rattle the screen
 const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-const CAM_ROLL = 0.22, CAM_ROLL_AUTO = 0.45, CAM_PUNCH = { at: 0.055, v: 2.6, zoom: 0.02, vz: 0.9, auto: 0.6 };
+const CAM_ROLL = 0.22, CAM_ROLL_AUTO = 0.45, CAM_PUNCH = { zoom: 0.02, vz: 0.9, auto: 0.6 };
 function fireCam(pw, aim, auto) {
-  const c = camRec, sg = rand() < 0.7 ? 1 : -1, P_ = CAM_PUNCH, a = auto ? P_.auto : 1, sx = Math.sin(aim), cz = Math.cos(aim);
+  const c = camRec, sg = rand() < 0.7 ? 1 : -1, P_ = CAM_PUNCH, a = auto ? P_.auto : 1;
   c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1);
-  c.px -= sx * pw * P_.at * a; c.pz -= cz * pw * P_.at * a; c.vpx -= sx * pw * P_.v * a; c.vpz -= cz * pw * P_.v * a;   // knocked back at once, and still going
   c.zoom += pw * P_.zoom * a; c.vz += pw * P_.vz * a;
   if (pw > 0.6) shake = Math.max(shake, 0.03 + (pw - 0.6) * 0.3);
 }
