@@ -5,7 +5,7 @@ const lmData = new Uint8Array(FNN * 4);
 const lmTex = new THREE.DataTexture(lmData, FN, FN, THREE.RGBAFormat);
 lmTex.magFilter = THREE.LinearFilter;
 lmTex.minFilter = THREE.LinearFilter;
-LMU.uLightMap.value = lmTex;
+LMU.uLightMap.value = lmTex; LMU.uLmRes.value = FN;
 const lmTgt = new Float32Array(FNN * 3).fill(0.5), lmCur = new Float32Array(FNN * 3).fill(0.5), visTgt = new Float32Array(FNN).fill(1), visCur = new Float32Array(FNN).fill(1);
 const sampleX = a => -HALF + (a + 0.5) / FR;
 function los(x0, z0, x1, z1) {
@@ -20,14 +20,19 @@ function los(x0, z0, x1, z1) {
   }
   return true;
 }
-function lightField(x, z, r, cone) {
+// soft: a lamp's fixed field, its shadows' edges softened, each sample lit by how many of SOFT_PTS round it (a quarter
+// of a sample's width out) the lamp can see, not all or nothing (too slow for a muzzle flash's, made every frame)
+const SOFT_PTS = [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]];
+function lightField(x, z, r, cone, soft) {
   const out = []; const a0 = clamp(Math.floor((x - r + HALF) * FR), 0, FN - 1), a1 = clamp(Math.ceil((x + r + HALF) * FR), 0, FN - 1);
   const b0 = clamp(Math.floor((z - r + HALF) * FR), 0, FN - 1), b1 = clamp(Math.ceil((z + r + HALF) * FR), 0, FN - 1);
   for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
     const sx = sampleX(a), sz = sampleX(b), dx = sx - x, dz = sz - z, d = Math.hypot(dx, dz); if (d > r) continue;
     let f = 1 - d / r; f *= f;
     if (cone) { const c = clamp((cone.half - Math.abs(angDiff(Math.atan2(dx, dz), cone.dir))) / 0.12, 0, 1); if (!c) continue; f *= c; }
-    if (f < 0.01 || !los(x, z, sx, sz)) continue;
+    if (f < 0.01) continue;
+    if (soft) { let s = 0; for (const [ox, oz] of SOFT_PTS) if (los(x, z, sx + ox, sz + oz)) s++; if (!s) continue; f *= s / SOFT_PTS.length; }
+    else if (!los(x, z, sx, sz)) continue;
     out.push(b * FN + a, f);
   }
   return out;
@@ -42,7 +47,7 @@ function computeLight() {
   const V = viewer();   // (watching a teammate, their night vision: net/spectate.js)
   LMU.uNvMono.value = on ? V.nv * dark * NV_MONO : 0; LMU.uNvSat.value = on ? NV_SAT[V.night] || 0 : 0;
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
-  if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone); }); }
+  if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   STATIC_LIGHTS.forEach(L => {
     if (L.spill) { const b = L.spill.boards.length; if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }

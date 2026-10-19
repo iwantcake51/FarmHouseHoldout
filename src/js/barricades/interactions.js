@@ -22,7 +22,7 @@ function updateInteractions(dt) {
   // the opening you'd work on outlined on your side of it, pulsing as the stations' outlines do (world/house.js)
   openings.forEach(q => {
     const on = q === o && !P.vault && !openSt && (o.boards.length < 3 || !!vaultTarget(o)), sd = (P.x - q.x) * (q.axis === 'x' ? 0 : 1) + (P.z - q.z) * (q.axis === 'x' ? 1 : 0) < 0 ? 0 : 1;
-    q.hl.forEach((p, k) => { p.visible = on && k === sd; if (p.visible) p.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
+    q.hl.forEach((p, k) => { p.om.visible = on && k === sd; if (p.om.visible) p.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });   // (it fades out: effects/screen-outlines.js)
   });
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();

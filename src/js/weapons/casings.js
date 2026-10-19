@@ -450,6 +450,7 @@ function tickCycle(dt) {
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }
+  if (P.vault) return;   // never worked mid-vault (your hands are on the sill or the rail): it waits where it is till you're over
   c.t += dt; const p = (c.t - c.delay) / c.dur, B = c.v.beat;
   // the case flies out as the action hits its rear stop
   if (!c.done && p >= B.back) { c.done = true; ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); }

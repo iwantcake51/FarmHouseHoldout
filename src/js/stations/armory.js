@@ -131,6 +131,7 @@ function rackSideHTML() {
 }
 // every frame: shown while the rack's open, rebuilt only when what you carry or own changes
 function updateRackSide() {
+  if (!GUN_RACK.built) rackGuns();
   const el = $('rkLoad'), on = rkSideOn();
   if (on && (el.hidden || el.classList.contains('closing'))) {
     clearTimeout(rkSideCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; GUN_RACK.side = ''; void el.offsetWidth; el.classList.add('opening');
@@ -150,6 +151,29 @@ $('rkLoad').addEventListener('click', e => {
 });
 // ---- the rack itself: a tall pine gun rack stood against the north wall between the window and the bed, a few long guns
 // standing in it, butts in the notched shelf and barrels in the notched bar above ----
+// the guns in it are the game's own models (RACK_GUNS), built as a teammate's are (teamWeapon, net/arsenal.js) and folded
+// into a mesh or two each. That code loads after this, so they're put up on the first frame (rackGuns, from updateRackSide)
+const RACK_GUNS = ['hunting', 'pump', 'dbl', 'ar'], RACK_W = 0.8, RACK_FACE = new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(1, 0, 0), new V3(0, 1, 0));
+function rackGuns() {
+  const R = GUN_RACK; if (R.built || !R.g) return; R.built = true;
+  // each stood on its butt, muzzle up, its side to the room (its top toward +x); measured, so they're spaced by their
+  // real size along the shelf
+  const guns = RACK_GUNS.map(id => {
+    let t; try { t = teamWeapon({}, id); } catch (e) { console.warn('rack gun', id, e); return null; }
+    foldStatic(t.g, []);
+    const w = new THREE.Group(); t.g.quaternion.setFromRotationMatrix(RACK_FACE); w.add(t.g); w.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(w), c = bb.getCenter(new V3());
+    t.g.position.set(-c.x, -bb.min.y, -c.z); return { w, wide: bb.max.x - bb.min.x };
+  }).filter(Boolean);
+  const total = guns.reduce((a, q) => a + q.wide, 0), gap = (RACK_W - total) / (guns.length + 1);
+  let x = -RACK_W / 2 + gap;
+  guns.forEach(q => {
+    const lean = new THREE.Group(); lean.position.set(x + q.wide / 2, 0.14, 0.02); lean.rotation.x = -0.09; lean.add(q.w); R.g.add(lean);   // leant back against the bar
+    box(R.g, Math.min(0.1, q.wide * 0.7), 0.02, 0.2, HM.hole, x + q.wide / 2, 0.142, 0);   // its notch in the shelf
+    x += q.wide + gap;
+  });
+  R.g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+}
 {
   const g = new THREE.Group(); g.position.set(cxw(25), 0, cxw(HZ0) + 0.5 + 0.2); scene.add(g);
   const sil = m => { m.userData.sil = true; return m; };
@@ -158,16 +182,7 @@ $('rkLoad').addEventListener('click', e => {
   sil(box(g, 0.94, 0.05, 0.36, HM.oakDk, 0, 1.68, -0.02));                                       // the top
   sil(box(g, 0.84, 0.14, 0.3, HM.oak, 0, 0.07, -0.02));                                          // the shelf the butts stand in
   box(g, 0.84, 0.05, 0.1, HM.oakDk, 0, 1.22, 0.07);                                              // the bar the barrels rest in
-  const xs = [-0.3, -0.1, 0.1, 0.3];
-  xs.forEach(x => { box(g, 0.08, 0.02, 0.2, HM.hole, x, 0.142, 0.0); box(g, 0.035, 0.03, 0.06, HM.hole, x, 1.225, 0.11); });   // the notches
-  // the long guns standing in it, leant back against the bar: a stock, the action and the barrel up to the muzzle
-  xs.forEach((x, k) => {
-    const gun = new THREE.Group(); gun.position.set(x, 0.14, 0.02); gun.rotation.x = -0.09; g.add(gun);
-    box(gun, 0.045, 0.36, 0.1, k % 2 ? HM.oakDk : HM.leather, 0, 0.18, 0);                        // the stock
-    box(gun, 0.04, 0.3, 0.06, k % 2 ? HM.oakDk : HM.leather, 0, 0.5, 0.01);                       // the forend
-    box(gun, 0.035, 0.22, 0.05, HM.iron, 0, 0.47, -0.02);                                          // the action
-    ycyl(gun, 0.011, 0.011, 0.52, HM.steel, 0, 0.88, 0.0, 8);                                      // the barrel
-  });
+  GUN_RACK.g = g;   // (the guns go in on the first frame: rackGuns)
   box(g, 0.2, 0.06, 0.012, HM.paper, 0, 1.5, -0.15); box(g, 0.14, 0.008, 0.013, HM.ink, 0, 1.5, -0.149);   // a label tacked to the back board
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(25, HZ0 + 1);   // stood against the wall, tall: you can't see or shoot through it

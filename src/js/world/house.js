@@ -96,9 +96,9 @@ for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
     // one on the side you're standing (barricades/interactions.js)
     const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
     o.hl = [-1, 1].map(sd => {
-      const p = new THREE.Group(); p.visible = false; bg.add(p);
+      const p = new THREE.Group(); bg.add(p);
       const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
-      p.om = outline(p, 0xf4f1ea, 0, 0.035); return p;
+      p.om = outline(p, 0xf4f1ea, 0, 0.035); p.om.visible = false; return p;
     });
     openings.push(o); openAt[idx(i, j)] = o;
   }
