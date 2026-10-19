@@ -31,13 +31,37 @@ function updateDarkEyes(dt) {
   P.adapt = a < want ? Math.min(want, a + dt / DARK_EYES.adjust) : Math.max(want, a - dt / DARK_EYES.lose);
   LMU.uAdapt.value = smooth(P.adapt) * DARK_EYES.lift;
 }
+// the light that throws the shadows: the sun by day and the moon by night, each on its way across the sky, so the
+// shadows creep round all night as they do all day. The moon rises in the east as the sun goes down in the west and
+// sets as it comes up (MOON: its arc, how high it rides), and the light swings over from one to the other through
+// dusk and back through dawn (SKY_SWAP: the hours it takes), dimming as it goes (SKY_SWAP.dip: the twilight between,
+// with no hard shadows), so they never jump. By moonlight its shadows are longer and softer: the shadow map's
+// spread over more ground (SKY_SWAP.soft more), its edges coarser
+const MOON = { arc: 20, low: 6, high: 15, z: -7, min: 0.33 }, SKY_SWAP = { dusk: [18.7, 20.3], dawn: [4.4, 6.0], dip: 0.65, soft: 0.45 };
+const _sunD = new V3(), _moonD = new V3();
+function sunDir(h, out) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); return out.set(-Math.cos(a) * 20, 6 + el * 18, 8).normalize(); }
+function moonDir(h, out) {
+  const a = ((h - 18 + 24) % 24) / 12 * Math.PI, el = Math.max(MOON.min, Math.sin(clamp(a, 0, Math.PI)));
+  return out.set(-Math.cos(clamp(a, 0, Math.PI)) * MOON.arc, MOON.low + el * MOON.high, MOON.z).normalize();
+}
+// how far it's the moon's light (0 by day, 1 by night)
+function moonK(h) {
+  const S = SKY_SWAP;
+  if (h >= S.dusk[0] && h < S.dusk[1]) return smooth((h - S.dusk[0]) / (S.dusk[1] - S.dusk[0]));
+  if (h >= S.dawn[0] && h < S.dawn[1]) return 1 - smooth((h - S.dawn[0]) / (S.dawn[1] - S.dawn[0]));
+  return h >= S.dusk[1] || h < S.dawn[0] ? 1 : 0;
+}
+let skySoft = -1;
 // time of day: sun, ambient, the clock, bugs and mist
 function updateDayNight(rdt) {
   const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
   curDark = lightAt(h);
-  // the sun's way across the sky, aimed at the middle of the farm from far enough out that its shadows take in all of it
-  if (h > 5 && h < 19.6) { const a = (h - 6) / 12 * Math.PI, el = Math.max(0.3, Math.sin(a)); sun.position.set(-Math.cos(a) * 20, 6 + el * 18, 8); }
-  else sun.position.set(10, 22, -6);
+  // the sun or the moon, aimed at the middle of the farm from far enough out that its shadows take in all of it
+  { const w = moonK(h); sunDir(h, _sunD); moonDir(h, _moonD);
+    sun.position.copy(_sunD.multiplyScalar(1 - w).addScaledVector(_moonD, w)); if (sun.position.lengthSq() < 1e-6) sun.position.set(0, 1, 0);
+    sun.intensity *= 1 - SKY_SWAP.dip * Math.sin(Math.PI * w);   // (between the two: twilight)
+    const soft = Math.round((1 + SKY_SWAP.soft * w) * 50) / 50;
+    if (soft !== skySoft) { skySoft = soft; const r = SUN_R * soft, c = sun.shadow.camera; c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }
   sun.position.setLength(SUN_D); sun.target.position.set(0, 0, 0);
   LMU.uUnseen.value = Math.min(0.86, 0.86 - curDark * 0.46 + (state !== 'title' ? viewer().nv * curDark * 0.16 : 0));
   openings.forEach(o => o.meshes.forEach(m => { const u = m.userData; if (u.place < 1) { u.place = Math.min(1, u.place + rdt / BOARD_PLACE); boardPlace(m, u.place); } }));   // boards going up (barricades/planks.js)
