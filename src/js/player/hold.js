@@ -130,31 +130,52 @@ const SR = { x: 0, vx: 0, y: 0, vy: 0 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15,
 // how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
 // automatic, whose kicks come too fast to settle between
 const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
-function gunKick(side, pw, kind, auto, act) {
+// how each kind of gun kicks (recoilFeel picks one): back, how hard it's driven back along the aim; flip, how far the
+// muzzle's thrown up; body, how hard the chest and shoulders take it (the shoulders' rock and the whole upper body shoved
+// back, BR); ret, how quickly it all comes home (the hands' springs stiffer or looser); jit, a kick to the side each shot.
+// A handgun snaps: it flicks up off the wrists and is straight back on the aim. A shotgun shoves: a big push back into
+// the shoulder that rocks the body and takes its time to come back. A rifle thumps: a heavy straight push. Automatic
+// fire chatters: short quick kicks that buzz side to side
+const RECOIL_FEEL = {
+  snap: { back: 1.0, flip: 1.15, body: 0.9, ret: 1.25, jit: 0.5 },
+  shove: { back: 1.2, flip: 0.9, body: 1.7, ret: 0.85, jit: 0.35 },
+  thump: { back: 1.15, flip: 1.0, body: 1.35, ret: 0.9, jit: 0.25 },
+  chatter: { back: 0.85, flip: 0.85, body: 0.7, ret: 1.4, jit: 1.7 }
+};
+const recoilFeel = (D, kind, auto) => auto ? 'chatter' : kind === 'hand' ? 'snap' : D && D.ammo === 'shells' ? 'shove' : 'thump';
+// the upper body shoved back along the aim by a shot (z, metres), and leant back with it (BR_LEAN radians a metre): on
+// a heavier spring than the hands', so the chest takes the shot a beat after the gun and settles back under it. It's
+// what reads from above: the gun driven back with the shooter rocking under it
+const BR = { z: 0, vz: 0 }, BR_LEAN = 1.6, BR_MAX = 0.07;
+function gunKick(side, pw, kind, auto, act, feel) {
   const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6), rot = KICK_ROT * (auto ? KICK_ROT_AUTO : 1);
   const room = 1 - KICK_ROOM * clamp(-k.p / KICK_UP, 0, 1);
-  const A = act ? KICK_ACT : null;
-  const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot;
-  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1); k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
-  const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot;   // (less room to rock the further back they already are)
+  const A = act ? KICK_ACT : null, F = RECOIL_FEEL[feel] || RECOIL_FEEL.thump;
+  const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot * F.flip;
+  k.ret = F.ret;
+  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1) * F.back; k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
+  const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot * F.body;   // (less room to rock the further back they already are)
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
-  k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2) * rot; k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8) * rot;
-  if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
+  BR.vz += (hand ? 0.35 * hp : 0.6 * pw) * F.body * (A ? 1.3 : 1) * (1 - 0.5 * (ANIM.ads || 0)) * (1 - 0.7 * clamp(BR.z / BR_MAX, 0, 1)) * rr(0.85, 1.15);
+  k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2) * rot; k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8) * rot * F.jit;
+  if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05); k.dropT = rr(0.07, 0.1) / F.ret; k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
 }
 function stepKick(k, dt) {
+  const r = k.ret || 1, s = r * r;   // (a gun's feel: its springs stiffer, so it's home sooner, or looser; damped in proportion)
   for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
     if (k.dropT > 0 && (k.dropT -= h) <= 0) { k.vp += k.dP; k.vh += k.dH; k.vz += k.dZ; }   // hauled back down, just past the peak
-    k.vp += (-380 * k.p - 30 * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
-    k.vz += (-380 * k.z - 26 * k.vz) * h; k.z += k.vz * h;
-    k.vh += (-340 * k.h - 25 * k.vh) * h; k.h += k.vh * h;
-    k.vr += (-300 * k.r - 22 * k.vr) * h; k.r += k.vr * h;
-    k.vy += (-320 * k.y - 24 * k.vy) * h; k.y += k.vy * h;
+    k.vp += (-380 * s * k.p - 30 * r * k.vp) * h; k.p = clamp(k.p + k.vp * h, -0.7, 0.25);
+    k.vz += (-380 * s * k.z - 26 * r * k.vz) * h; k.z += k.vz * h;
+    k.vh += (-340 * s * k.h - 25 * r * k.vh) * h; k.h += k.vh * h;
+    k.vr += (-300 * s * k.r - 22 * r * k.vr) * h; k.r += k.vr * h;
+    k.vy += (-320 * s * k.y - 24 * r * k.vy) * h; k.y += k.vy * h;
   }
 }
 function stepRock(dt) {
   for (let n = Math.ceil(dt / (1 / 240)), h = dt / Math.max(1, n), i = 0; i < n; i++) {
     SR.vx += (-200 * SR.x - 20 * SR.vx) * h; SR.x = clamp(SR.x + SR.vx * h, -0.05, SR_MAX);
     SR.vy += (-170 * SR.y - 18 * SR.vy) * h; SR.y = clamp(SR.y + SR.vy * h, -SR_MAX, SR_MAX);
+    BR.vz += (-240 * BR.z - 23 * BR.vz) * h; BR.z = clamp(BR.z + BR.vz * h, -0.02, BR_MAX);
   }
 }
 const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
@@ -826,7 +847,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  up.x -= SR.x; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
+  up.x -= SR.x + BR.z * BR_LEAN; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
+  pm.upper.position.z = -BR.z;   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
   const sl = SLIDES[s];
   if (sl && sl.length) {

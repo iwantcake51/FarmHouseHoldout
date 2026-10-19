@@ -245,7 +245,8 @@ function gunFire(id, D, side) {
   if (!quiet) {
     // flash parented to the gun so it sits on the real muzzle, wherever the animation has the gun
     holdOf(W8.cur, fireSide(D)).add(flash);
-    flash.visible = true; flashT = 0.055; flashSize = big * (1 + T('ammo') * 0.15) * rr(0.85, 1.15); flashLen = D.ammo === 'shells' ? rr(1.1, 1.5) : rr(0.7, 1.2);
+    const L = flashLook(D, fireRate(D) < 0.16), vary = () => 1 + rr(-L.vary, L.vary);   // (each kind of gun's own flash: effects/muzzle-flash.js)
+    flash.visible = true; flashLife = flashT = L.life * rr(0.9, 1.1); flashSize = L.size * (1 + T('ammo') * 0.15) * vary(); flashLen = L.len * vary(); flashWide = L.wide * vary();
     flash.position.set(X, GUN_Y + 0.03, MUZ[W8.cur] + 0.03); flash.rotation.set(0, 0, rand() * 6.28);
     flashStar.material.rotation = rand() * 6.28;
     // the light it throws is the flash's own colour, and lights the smoke coming out with it (effects/smoke.js)
@@ -254,12 +255,13 @@ function gunFire(id, D, side) {
   if (D.dragon) dragonBreath(mw.x, mw.y, mw.z, base, sp);   // dragon's breath: a jet of fire and burning pellets (effects/puffs.js)
   // smoke: a forward billow from the muzzle, a lazy cloud that hangs, more for shotguns, a thin wisp for suppressed guns
   const puffs = quiet ? 1 : D.ammo === 'shells' ? 4 : D.ammo === 'rifle' || D.dmg > 60 ? 3 : 2;
+  if (!quiet && (D.ammo === 'shells' || D.ammo === 'rifle' || D.ammo === 'magnum' || D.dmg > 60)) muzzleWisp(D.ammo === 'shells' ? 1 : 0.75);   // and a wisp that keeps curling off the muzzle after a heavy shot
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16, racked(id)); }
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, racked(id), recoilFeel(D, kind, auto)); }
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)
