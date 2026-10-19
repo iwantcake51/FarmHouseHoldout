@@ -153,16 +153,6 @@ function updateAvatars(rdt) {
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
   }
 }
-// you and a teammate don't stand inside each other: you're eased apart (they do the same on their side)
-function avatarPush() {
-  if (!netLink() || P.vault || P.dead) return;
-  for (const p of NET.peers.values()) {
-    if (p.dead || p.vault || p.x === undefined) continue;
-    const dx = P.x - p.x, dz = P.z - p.z, d = Math.hypot(dx, dz);
-    if (d < 0.55 && d > 0.001) moveCircle(P, dx / d * (0.55 - d) * 0.5, dz / d * (0.55 - d) * 0.5, 0.3, true);
-  }
-}
-
 // ---- their shots: what your own would show, from where they stand
 function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
