@@ -34,6 +34,7 @@ const SOUNDS = {
   shot_dbl: ['Guns/Fire/shotgun_fire_ufx_1.ogg', { fx: GUN, to: 840 }],
   shot_auto12: ['Guns/Fire/old_shotgun_fire_ufx_1.ogg', { fx: GUN, to: 560 }],
   shot_hunting: ['Guns/Fire/old_rifle_fire_ufx_3.ogg', { fx: GUN }],
+  shot_scar: ['Guns/Fire/sniper_rifle_fire_ufx_4.ogg', { fx: GUN }],
   shot_smg: ['Guns/Fire/smg_fire_ufx_1.ogg', { fx: GUN }],
   shot_sub: ['Guns/Fire/smg_fire_ufx_3.ogg', { fx: GUN }],
   shot_ar: ['Guns/Fire/assault_rifle_fire_ufx_2.ogg', { fx: GUN }],

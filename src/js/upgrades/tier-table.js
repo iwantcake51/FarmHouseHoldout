@@ -28,8 +28,8 @@ const TIERS = {
     // the auto shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)
     // the pump's are its tube extended toward the muzzle, the M60's a longer belt in a deeper box, the SMG's longer
     // curved mags (they used to be mods of their own: weapons/gun-mods.js), the hunting rifle's a deeper floorplate on
-    // its fixed magazine and then a detachable box
-    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag', pump: 'Tube extension', lmg: '140-round belt', sub: '40-round mag', hunting: 'Mag extension' }, rAs: { auto12: 'r' }, text: (D, id) => id === 'hunting' ? 'A deeper floorplate: 7 rounds instead of 5, still loaded a round at a time.' : id === 'sub' ? 'A longer curved mag: 40 rounds instead of 30. Mag changes take a little longer.' : D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum. Mag changes take twice as long, and you walk slower with it.' : 'More rounds before you reload, but mag changes take longer and you walk a little slower.', ap: () => S.magMul *= 1.4 },
+    // its fixed magazine and then a detachable box, the SCAR's its 20-round box (its only step: MAG_STEPS), priced as a rare one
+    { r: 'c', name: 'Extended mags', as: { pistol: 'Mag plate', deagle: 'Mag plate', auto12: 'Drum mag', pump: 'Tube extension', lmg: '140-round belt', sub: '40-round mag', hunting: 'Mag extension', scar: '20-round mag' }, rAs: { auto12: 'r', scar: 'r' }, text: (D, id) => id === 'hunting' ? 'A deeper floorplate: 7 rounds instead of 5, still loaded a round at a time.' : id === 'scar' ? 'A 20-round box instead of the 10. Mag changes take a good deal longer, and it\'s heavier again to walk with.' : id === 'sub' ? 'A longer curved mag: 40 rounds instead of 30. Mag changes take a little longer.' : D.drumMag ? 'Swaps the 8-shell box for a 20-shell drum. Mag changes take twice as long, and you walk slower with it.' : 'More rounds before you reload, but mag changes take longer and you walk a little slower.', ap: () => S.magMul *= 1.4 },
     { r: 'r', name: 'Drum magazines', as: { pistol: 'Extended mag', deagle: 'Extended mag', pump: 'Long tube', lmg: '200-round belt', sub: '50-round drum', hunting: 'Detachable magazine' }, text: (D, id) => id === 'hunting' ? `A 10-round detachable box: the whole reload is one mag change in ${DETACH.reload} s, the bolt worked at the end of it.` : id === 'sub' ? 'A round drum holding 50. Slower again to change, and to walk with.' : 'Twice what it holds stock. Slower again to change, and to walk with.', ap: () => S.magMul *= 1.43 },
     { r: 'e', name: 'Casket magazines', as: { pistol: 'Drum mag', pump: 'Full-length tube', lmg: '270-round belt' }, text: 'Nearly three times what it holds stock. The slowest to change, and to walk with.', ap: () => S.magMul *= 1.35 }] },
   // the SMG's is the SD's integral can, its barrel swapped for it (weapons/gun-models.js)
@@ -92,7 +92,7 @@ const TIERS = {
     { r: 'r', name: 'Strong arms III', text: 'Harder hits and cheaper swings again.', ap: () => { S.meleeMul *= 1.25; S.swingStam *= 0.92; } }] },
   rungun: { tag: 'Body', t: [
     { r: 'r', name: 'Run and gun', text: 'Pistols and SMGs fire while you sprint, with a lot more spread.', ap: () => { S.runGun = 1; } },
-    { r: 'r', name: 'Run and gun II', text: 'Adds shotguns and the assault rifle. Not the hunting rifle or LMG.', ap: () => { S.runGun = 2; } }] },
+    { r: 'r', name: 'Run and gun II', text: 'Adds shotguns and the assault rifle. Not the sniper rifles or the LMG.', ap: () => { S.runGun = 2; } }] },
   soles: { tag: 'Body', t: [
     { r: 'u', name: 'Thick soles', text: 'Getting hit slows you down for less.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } },
     { r: 'r', name: 'Thick soles II', text: 'Less again.', ap: () => { S.soles++; slowLess(SLOW_STEP.soles); } }] },

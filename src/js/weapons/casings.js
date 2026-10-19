@@ -2,7 +2,7 @@
 
 // ---- spent casings: semi-autos and automatics throw brass on every shot, the pump and the bolt throw it when cycled,
 // the double barrel and the revolver only drop theirs when opened to reload ----
-const EJECT = { pistol: 'fire', deagle: 'fire', smg: 'fire', sub: 'fire', ar: 'fire', lmg: 'fire', auto12: 'fire', pump: 'pump', hunting: 'bolt', dbl: 'breach', revolver: 'breach' };
+const EJECT = { pistol: 'fire', deagle: 'fire', smg: 'fire', sub: 'fire', ar: 'fire', lmg: 'fire', auto12: 'fire', scar: 'fire', pump: 'pump', hunting: 'bolt', dbl: 'breach', revolver: 'breach' };
 // Each case is turned on a lathe from the real one's profile, in millimetres: from the firing pin's dent in the middle
 // of the primer out across the head to the rim, up the outside past the extractor groove (a revolver's case has a rim
 // standing proud instead), the shoulder and neck on a rifle's, over the mouth and back down inside to the web, each
@@ -93,7 +93,7 @@ const _cv = new V3(), _cR = new V3(), _cU = new V3(), _cF = new V3();
 const EJECT_PORT = {
   pistol: [X - 0.022, 1.149, 0.712], deagle: [X - 0.024, 1.162, 0.655], smg: [X - 0.03, 1.136, 0.64], sub: [X - 0.029, 1.145, 0.63],
   ar: [X - 0.031, 1.143, 0.668], lmg: [X - 0.039, 1.12, 0.52], auto12: [X - 0.041, 1.149, 0.705], pump: [X - 0.028, 1.151, 0.65],
-  hunting: [X - 0.022, 1.143, 0.655]
+  hunting: [X - 0.022, 1.143, 0.655], scar: [X - 0.03, 1.131, 0.688]
 };
 // the double barrel throws its empties as it falls open, and the revolver's slide out of the cylinder once it's swung
 // out, not with the gun still shut: held here till the barrels are most of the way down or the cylinder most of the way
@@ -226,6 +226,7 @@ function dropMag(id, side) {
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') { if (mt >= 1) dr = { r: 0.114, t: 0.078, ax: 'z' }; else { w = 0.05; h = 0.215; d = 0.095; } }   // the drum, or its box
   else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = 'olive'; }
+  else if (id === 'scar') { w = 0.048; h = mt ? 0.18 : 0.105; d = 0.104; mat = 'fdeP'; }
   // an akimbo pair's left gun drops its own mag, from its own hand
   if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
   else if (side === 'R' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.R.localToWorld(_cv); }

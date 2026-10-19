@@ -44,7 +44,7 @@ function recomputeEff() {
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
     D.magX = D.mag && WEAP[id].mag ? D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own
-    if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + MAG_SLOW * Math.log2(D.magX);
+    if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + (MAG_SLOW_OF[id] ?? MAG_SLOW) * Math.log2(D.magX);
     if (D.akimbo) D.reload *= AK_ONE;
     // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after
     if (id === 'hunting' && mag >= 2) { D.perShell = 0; D.reload = DETACH.reload - DETACH.bolt; D.detach = DETACH.bolt; }
@@ -61,9 +61,11 @@ const W = id => EFF[id];
 // +120% for a casket or the auto shotgun's drum), and you walk MAG_WALK slower with it in your hands (about 5%, 10%, 14%:
 // carryMul). AK_ONE: one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
+// a gun whose bigger box costs it less than that: the SCAR's 20 takes about 45% longer to change than its 10
+const MAG_SLOW_OF = { scar: 0.45 };
 // how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
-const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30], hunting: [1, 7 / 5, 10 / 5] };   // (the MP5: a 40-round mag, then a 50-round drum; the rifle: 7 in its fixed mag extended, then a 10-round box)
+const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30], hunting: [1, 7 / 5, 10 / 5], scar: [1, 2] };   // (the MP5: a 40-round mag, then a 50-round drum; the rifle: 7 in its fixed mag extended, then a 10-round box; the SCAR: its 20-round box)
 // the hunting rifle's detachable 10-round box (its second mag step): a whole reload takes reload seconds, the mag
 // change and then bolt seconds of working the bolt back and forward to chamber a round (weapons/reload.js, chamberCycle
 // in weapons/casings.js)
@@ -100,9 +102,9 @@ function tuneUp(D) {
 }
 const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
 // the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
-// scope (on the rail it gets with any optic: weapons/gun-models.js), the assault rifle the ACOG, the hunting rifle the
-// high-power scope
-const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+// scope (on the rail it gets with any optic: weapons/gun-models.js), the assault rifle the ACOG, the hunting rifle and
+// the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
+const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
 // zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
 const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };

@@ -8,15 +8,16 @@
 const ARMORY_LINES = [
   { name: 'Sidearms', ids: ['pistol', 'revolver', 'deagle'] },
   { name: 'Shotguns', ids: ['dbl', 'pump', 'auto12'] },
-  { name: 'Rifles', ids: ['hunting', 'ar', 'lmg'] },
+  { name: 'Snipers', ids: ['hunting', 'scar'] },
+  { name: 'Rifles', ids: ['ar', 'lmg'] },
   { name: 'Submachine guns', ids: ['smg', 'sub'] },
   { name: 'Blunt', ids: ['bat', 'crowbar', 'wrench', 'sledge'] },
   { name: 'Blades', ids: ['bat', 'machete', 'axe', 'katana'] }
 ];
 // what each costs to unlock, in scrap: dearer along its line, a good deal dearer for each better gun, and the heavy
-// ones at the ends (the auto shotgun, the assault rifle, the LMG) far dearer than anything else
+// ones at the ends (the auto shotgun, the SCAR, the assault rifle, the LMG) far dearer than anything else
 // (about 0.7 scrap a kill: some 170 by wave 10 and 400 by wave 15, before what the bench and the cabinet take)
-const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 70, ar: 150, lmg: 260, smg: 18, sub: 60,
+const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 70, scar: 200, ar: 150, lmg: 260, smg: 18, sub: 60,
   crowbar: 10, wrench: 24, sledge: 70, machete: 10, axe: 35, katana: 80 };
 const owns = id => W8.owned.includes(id);
 // each line's next weapon to unlock (null once it's all yours), and how far along it you are
@@ -41,7 +42,7 @@ function takeFromRack(id) {
 // stacked, so switching slides the old one out and the new one in rather than redrawing; they're rebuilt only when what
 // you own changes, and the buy buttons' state (enough scrap or not) is kept up every frame. Your loadout is docked on
 // its left, as the stats are at the workbench (rkSide, below)
-const ARMORY_TABS = [{ name: 'Sidearms', lines: [0] }, { name: 'Shotguns', lines: [1] }, { name: 'Rifles', lines: [2] }, { name: 'SMGs', lines: [3] }, { name: 'Melee', lines: [4, 5] }];
+const ARMORY_TABS = [{ name: 'Sidearms', lines: [0] }, { name: 'Shotguns', lines: [1] }, { name: 'Snipers', lines: [2] }, { name: 'Rifles', lines: [3] }, { name: 'SMGs', lines: [4] }, { name: 'Melee', lines: [5, 6] }];
 const GUN_RACK = { tab: 0, pane: '', side: '' };
 const SCRAP_IC = () => `<svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>`;
 const LOCK_IC = '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';

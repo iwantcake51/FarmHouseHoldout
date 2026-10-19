@@ -110,6 +110,7 @@ const POUCH_FILL = {
   ar: { k: 'mag', w: 0.082, h: 0.092, d: 0.03, body: 'magAl', plate: 'metal2', ribs: 2, tilt: 0.07 },
   sub: { k: 'mag', w: 0.062, h: 0.09, d: 0.024, body: 'metal', plate: 'metal', ribs: 2, tilt: 0.2 },
   smg: { k: 'mag', w: 0.056, h: 0.082, d: 0.026, body: 'poly', plate: 'rubber', windows: true },
+  scar: { k: 'mag', w: 0.09, h: 0.09, d: 0.034, body: 'fdeP', plate: 'fdeP', ribs: 2 },
   auto12: { k: 'mag', w: 0.086, h: 0.078, d: 0.036, body: 'metal2', plate: 'poly', ridges: true },
   pistol: { k: 'mag2', w: 0.036, h: 0.062, d: 0.021, body: 'poly', plate: 'rubber', flare: true },
   deagle: { k: 'mag2', w: 0.039, h: 0.064, d: 0.023, body: 'steelDk', plate: 'poly' },

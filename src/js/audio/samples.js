@@ -6,7 +6,7 @@
 // how loud each plays, and (gap, s) the least time between two of it, so eight pellets into one zombie are one hit
 const SAMPLES = {
   shot_pistol: { vol: 0.9 }, shot_revolver: { vol: 1.0 }, shot_deagle: { vol: 1.15 }, shot_pump: { vol: 1.1 }, shot_dbl: { vol: 1.15 },
-  shot_auto12: { vol: 0.95 }, shot_hunting: { vol: 1.15 }, shot_smg: { vol: 0.72 }, shot_sub: { vol: 0.78 }, shot_ar: { vol: 0.85 },
+  shot_auto12: { vol: 0.95 }, shot_hunting: { vol: 1.15 }, shot_scar: { vol: 1.1 }, shot_smg: { vol: 0.72 }, shot_sub: { vol: 0.78 }, shot_ar: { vol: 0.85 },
   shot_lmg: { vol: 0.9 }, shot_gl: { vol: 0.9 },
   supp_pistol: { vol: 0.6 }, supp_smg: { vol: 0.55 }, supp_rifle: { vol: 0.65 }, supp_sniper: { vol: 0.7 }, supp_shotgun: { vol: 0.7 },
   dry_pistol: { vol: 0.45 }, dry_smg: { vol: 0.45 }, dry_rifle: { vol: 0.45 },
@@ -162,6 +162,8 @@ function loopS(name, o) {
   return h;
 }
 // which family of gun the one in your hands is, for its reload and dry-fire sounds
-const GUN_KIND = { pistol: 'pistol', revolver: 'pistol', deagle: 'pistol', smg: 'smg', sub: 'smg', ar: 'rifle', lmg: 'rifle', hunting: 'rifle', auto12: 'rifle', pump: 'shotgun', dbl: 'shotgun' };
+const GUN_KIND = { pistol: 'pistol', revolver: 'pistol', deagle: 'pistol', smg: 'smg', sub: 'smg', ar: 'rifle', lmg: 'rifle', hunting: 'rifle', scar: 'rifle', auto12: 'rifle', pump: 'shotgun', dbl: 'shotgun' };
 const gunKind = () => GUN_KIND[curId()] || 'rifle';
+// the SCAR fires its one recording whatever's on its muzzle: a can takes the top off it (lp, Hz) and most of its loudness
+const SUPP_OWN = { scar: { lp: 1500, vol: 0.45 } };
 const SUPP_SFX = { pistol: 'supp_pistol', revolver: 'supp_pistol', deagle: 'supp_pistol', smg: 'supp_smg', sub: 'supp_smg', ar: 'supp_rifle', lmg: 'supp_rifle', hunting: 'supp_sniper', pump: 'supp_shotgun', dbl: 'supp_shotgun', auto12: 'supp_shotgun' };
