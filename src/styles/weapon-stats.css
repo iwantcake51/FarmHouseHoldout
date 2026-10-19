@@ -2,11 +2,15 @@
    open (the two centred together: #wStats.docked, #station.withStats) or on the left with I. A little see-through,
    like the bench. It slides out from behind the bench as that unrolls and tucks back in as it rolls up; anywhere else
    it comes in from the left */
-:root{--wsW:252px;--wsGap:10px;--stDockW:min(820px,calc(100vw - 32px - var(--wsW) - var(--wsGap)))}
+/* the bench and what's docked either side of it, centred together: the stats on its left (:root.dkS), the loadout on
+   its right (:root.dkL, ui/loadout.js) */
+:root{--wsW:252px;--wsGap:10px;--wlW:224px;--dkL:0px;--dkR:0px;--stDockW:min(820px,calc(100vw - 32px - var(--dkL) - var(--dkR)))}
+:root.dkS{--dkL:calc(var(--wsW) + var(--wsGap))}
+:root.dkL{--dkR:calc(var(--wlW) + var(--wsGap))}
 #wStats{left:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wsW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
   pointer-events:auto;padding:12px 12px 10px;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.45);text-shadow:none}
-#wStats.docked{left:calc(50% - (var(--wsW) + var(--wsGap)) / 2 - var(--stDockW) / 2)}
-#station.withStats{left:calc(50% + (var(--wsW) + var(--wsGap)) / 2);width:var(--stDockW)}
+#wStats.docked{left:calc(50% - (var(--dkL) + var(--stDockW) + var(--dkR)) / 2);transition:left .28s cubic-bezier(.2,.8,.3,1)}
+#station.withStats,#station.withLoad{left:calc(50% + (var(--dkL) - var(--dkR)) / 2);width:var(--stDockW)}
 #wStats.opening{animation:wsIn .28s cubic-bezier(.2,.8,.3,1) backwards}
 #wStats.docked.opening{animation-name:wsDockIn;animation-duration:.32s;animation-delay:.1s}
 #wStats.closing{animation:wsOut .18s cubic-bezier(.55,0,.8,.2) forwards;pointer-events:none}
@@ -51,4 +55,4 @@
 .wsSrc i{font-style:normal;font-size:10.5px;padding:2px 5px 1px;color:#cdeeb2;background:rgba(120,190,80,.14);border:1px solid rgba(159,211,122,.4);border-radius:2px}
 .wsSrc i b{font-weight:400;color:#9fd37a;margin-right:2px}
 .wsNone{color:var(--dim);font-size:11px}
-@media (max-width:700px){#wStats{display:none}#station.withStats{left:50%;width:min(820px,calc(100vw - 32px))}}
+@media (max-width:700px){#wStats{display:none}#station.withStats,#station.withLoad{left:50%;width:min(820px,calc(100vw - 32px))}}

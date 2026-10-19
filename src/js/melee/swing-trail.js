@@ -24,7 +24,8 @@ function stepTrail(rdt) {
   while (trailS.length && trailS[0].age > 0.12) trailS.shift();
   if (D && D.melee && W8.swing > 0 && !P.dead) {
     const p = 1 - W8.swing / W8.swingDur;
-    if (p > 0.12 && p < 0.75) {   // only the fast part of the swing smears
+    const fw = curSwing(D).fast;
+    if (p > fw[0] && p < fw[1]) {   // only the fast part of the swing smears (MSWINGS' fast)
       const g = gunMeshes.melee, L = meleeLen(id); PM.g.updateMatrixWorld(true);
       const b = (trailS.length >= TRAIL_N ? trailS.shift().b : new V3()).set(0, L * 0.4, 0), t = new V3(0, L, 0); g.localToWorld(b); g.localToWorld(t);
       trailS.push({ b, t, age: 0 }); if (trailS.length > TRAIL_N) trailS.shift();
@@ -32,7 +33,7 @@ function stepTrail(rdt) {
     }
   }
   const n = trailS.length; trail.visible = n >= 2; if (!trail.visible) return;
-  const str = W8.tired ? 0.22 : 0.42;
+  const str = (W8.tired ? 0.22 : 0.42) * (D && heavySwing(D) ? 1.35 : 1);
   for (let k = 0; k < TRAIL_N; k++) {
     const q = trailS[Math.min(k, n - 1)], o = k * 6, live = k < n;
     tPos[o] = q.b.x; tPos[o + 1] = q.b.y; tPos[o + 2] = q.b.z; tPos[o + 3] = q.t.x; tPos[o + 4] = q.t.y; tPos[o + 5] = q.t.z;

@@ -3,22 +3,40 @@
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
 const BASE_HP = 100;
+// the stamina you've used and not yet won back (everything past the fill), and whether it's coming back yet ('back',
+// dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
+function stamDrain(rdt) {
+  const up = P.stam > (ANIM.stamPrev ?? P.stam) + 1e-5, down = P.stam < (ANIM.stamPrev ?? P.stam) - 1e-5; ANIM.stamPrev = P.stam;
+  ANIM.drainD = Math.max(0, 1 - ANIM.stamD);
+  if (ANIM.drainD < 0.004) ANIM.drainSt = '';
+  else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
+  else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
+}
 function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
-  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, key = Math.round(ANIM.stamD * 400) + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
-    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`; sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
+  // and what you've used (a sprint, a swing, a shove, a vault) shows just past the fill, here and on the crosshair's ring
+  // (ui/crosshair.js): bright while you're using it and till it starts coming back, then dimmed, the fill easing on
+  // into it till it's gone
+  stamDrain(rdt);
+  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
+    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
+    if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
+      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
     hurtFx = Math.max(0, hurtFx - rdt * 2);
-    const hpF = P.hp / S.maxHp, low = hpF < 0.3 ? 0.28 + Math.sin(performance.now() / 260) * 0.08 : 0;
+    // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
+    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
-    // the world drains of colour as you bleed out, and goes red at the edges of your sight; you can still see what's coming
-    const grey = Math.round(clamp((0.55 - hpF) / 0.45, 0, 1) * 50) / 50;
-    { const rt = Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
+    { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
+    // the world drains to grey as you bleed out (LOW_HP: from what health it starts and where it's all grey), lifted
+    // brighter as it goes so you can still see what's coming, with only a touch of red at the very edges
+    const grey = spec ? 0.4 : Math.round(clamp((LOW_HP.grey[0] - hpF) / (LOW_HP.grey[0] - LOW_HP.grey[1]), 0, 1) * 50) / 50;
+    { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * LOW_HP.red * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, fk = grey + ':' + blur + ':' + slow;
     if (cache.grey !== fk) {
       cache.grey = fk;
-      cv.style.filter = (grey ? `grayscale(${(grey * 0.85).toFixed(2)}) contrast(${(1 + grey * 0.08).toFixed(2)}) brightness(${(1 + grey * 0.1).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
+      cv.style.filter = (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
       $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(slow ? 20000 - slow * 18800 : 20000, AC.currentTime, 0.12);
     }
@@ -46,10 +64,14 @@ function updateHUD(rdt, D) {
     // a gun in each hand shows each one's mag, the left's on the left (weapons/akimbo.js); a gun being reloaded dims
     const ak = !D.melee && !!D.akimbo, am = ak && akMags(id);
     if (cache.akHud !== ak) { cache.akHud = ak; $('arms').classList.toggle('ak', ak); }
-    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); };
+    // the count in the colour of the kind of round loaded, as its shells and cartridges show (ROUND_HUE; low and out
+    // still turn it yellow and red)
+    const rc = !D.melee && roundHue(id, D);
+    const ammoEl = (el, have, n, rl) => { el.classList.toggle('out', !D.melee && have === 0); el.classList.toggle('low', !D.melee && have > 0 && have <= Math.max(1, Math.floor(n * 0.25))); el.classList.toggle('rl', !!rl); if (el.dataset.rc !== (rc || '')) { el.dataset.rc = rc || ''; el.style.color = rc || ''; } };
     if (ak) { const per = akPer(id), lt = AK_ON.left, rt = AK_ON.right; setRoll('ammoL', String(am[lt])); setRoll('ammo', String(am[rt])); ammoEl($('ammoL'), am[lt], per, akBusy(lt)); ammoEl($('ammo'), am[rt], per, akBusy(rt)); }   // the left-click gun's on the left
-    else { setRoll('ammo', D.melee ? '—' : String(W8.mag[id] || 0)); ammoEl($('ammo'), W8.mag[id] || 0, D.melee ? 0 : magCap(id), false); }
-    setRoll('ammoRes', D.melee ? '' : '/ ' + W8.reserve[D.ammo]);
+    const hm = !D.melee && !ak && hudMag(id);   // through a mag change, what's in the gun as you'd see it (ui/rounds.js)
+    if (!ak) { setRoll('ammo', D.melee ? '—' : String(hm.have)); ammoEl($('ammo'), D.melee ? 0 : hm.have, D.melee ? 0 : magCap(id), false); }
+    setRoll('ammoRes', D.melee ? '' : '/ ' + (hm ? hm.res : W8.reserve[D.ammo]));
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
@@ -79,18 +101,37 @@ function fireModeSwitched(id) {
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
 }
+// X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
+function roundSwitched(id) {
+  SFX.click(); setTimeout(() => SFX.click(), 90);
+  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+}
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0;
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
+// how strong the hurt blur is on the side of a blow, how long it takes to clear (seconds, for a normal hit), and how
+// strong all round while you bleed, between throbs and at the height of one
+const HURT_BLUR = { hit: 0.95, clear: 1.1, bleed: [0.3, 0.55] };
+function hurtBlur(id, key, v) {
+  v = Math.round(v * 50) / 50; if (cache[key] === v) return; cache[key] = v;
+  const el = $(id); el.style.opacity = v; el.style.visibility = v > 0 ? 'visible' : 'hidden';   // (hidden, it costs nothing)
+}
+// low health: the health it starts going grey at and is fully grey by, how much brighter it's lifted when fully grey,
+// how much of the red edge is left, and the faint pulse at the edges under a third health
+const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] };
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
-function hitFromAt(x, z) {
+// the side a blow came from, for the red flash and the blur on that side
+function setHitSide(x, y) { for (const id of ['hitVig', 'hitBlur']) { const el = $(id); el.style.setProperty('--hx', x); el.style.setProperty('--hy', y); } }
+// (amount: how hard the blow, for how hard your sight blurs on that side and how long it takes to clear; 1 a zombie's swipe)
+function hitFromAt(x, z, amount) {
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
-  if (l < 2) { hurtFx = 1; heartStartle(); return; }
-  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig');
-  el.style.setProperty('--hx', ((w + dx / l * t) / innerWidth * 100).toFixed(1) + '%'); el.style.setProperty('--hy', ((h + dy / l * t) / innerHeight * 100).toFixed(1) + '%');
-  hitVigUp = true; heartStartle();
+  hitBlurK = clamp(amount || 1, 0.5, 2);
+  if (l < 2) { hurtFx = 1; heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
+  const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;
+  setHitSide((hx * 100).toFixed(1) + '%', (hy * 100).toFixed(1) + '%');
+  hitVigUp = true; heartStartle(); hitBlurV = Math.max(hitBlurV, Math.min(1, 0.55 + 0.25 * hitBlurK));
 }
 // the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
 // health number, health bar and Bleeding icon throb with it
@@ -101,6 +142,12 @@ function damageVignettes(rdt) {
   if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
   bleedVig = bleeding ? Math.min(1, bleedVig + rdt * 4) : Math.max(0, bleedVig - rdt * 2.5);
   bleedPh = (bleedPh + rdt / BLEED_PULSE) % 1;
+  // your sight blurring at the edges (HURT_BLUR): on the side of a blow, clearing over a moment or so (longer for a
+  // harder one), and all round while you bleed, swelling with each throb
+  hitBlurV = Math.max(0, hitBlurV - rdt / (HURT_BLUR.clear * hitBlurK));
+  const beatB = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65);
+  hurtBlur('hitBlur', 'hb', smooth(Math.min(1, hitBlurV)) * HURT_BLUR.hit);
+  hurtBlur('bleedBlur', 'bb', bleedVig * (HURT_BLUR.bleed[0] + HURT_BLUR.bleed[1] * beatB));
   const beat = bleedPh < 0.35 ? smooth(bleedPh / 0.35) : 1 - smooth((bleedPh - 0.35) / 0.65), bp = Math.round(bleedVig * beat * 50) / 50, bo = Math.round((0.3 * bleedVig + 0.7 * bp) * 50) / 50;
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }

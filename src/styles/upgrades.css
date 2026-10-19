@@ -5,10 +5,26 @@
 #upgrade .wrap{display:grid;gap:22px;justify-items:center;width:min(1000px,100%)}
 #upgrade h3{margin:0;font-family:var(--f-num);font-weight:800;font-size:44px;text-transform:uppercase;letter-spacing:.02em;transform:translateY(10px);opacity:0;transition:all .4s ease .1s}
 #upgrade.show h3{transform:none;opacity:1}
+/* the bonus hand every few waves (BONUS_EVERY): its heading in gold */
+#upgrade.bonus h3,#upgrade.bonus .eyebrow{color:var(--gold)}
 #upgrade .kinds{margin-top:-14px;font-family:var(--f-ui);font-weight:600;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);opacity:0;transition:opacity .4s ease .2s}
 #upgrade.show .kinds{opacity:1}
 #cards{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;pointer-events:none;perspective:1100px}
 #upgrade.armed #cards{pointer-events:auto}
+/* passing on the cards for a little scrap (skipCards, upgrades/upgrade-screen.js): quiet, under them */
+#upSkip{font-size:17px;padding:6px 16px 5px;gap:10px;opacity:0;pointer-events:none;transition:opacity .4s ease .5s}
+#upSkip b{color:var(--orange);font-weight:800}
+#upgrade.show #upSkip{opacity:.8}
+#upgrade.armed #upSkip{pointer-events:auto}
+#upgrade.armed #upSkip:hover{opacity:1;outline-color:var(--orange)}
+#upgrade.picking #upSkip{opacity:0;transition-delay:0s}
+/* taken instead: it swells and glows in the scrap's orange, stamped with what you got, while the bits fly off it
+   (scrapFly) and the cards burn; it goes with the rest of the screen */
+#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);
+  transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease;animation:skipGlow 1.2s ease-in-out .3s}
+#upSkip.taken b{font-size:21px}
+@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(216,105,44,.8)}}
+.scrapBit{position:fixed;left:0;top:0;z-index:60;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 4px rgba(255,180,90,.35));will-change:transform}
 .card{all:unset;box-sizing:border-box;position:relative;cursor:pointer;width:260px;min-height:190px;padding:14px 18px 46px;background:var(--card);color:var(--card-ink);font-family:var(--f-type);box-shadow:0 10px 30px rgba(0,0,0,.5);border-top:7px solid var(--rc,#6d665b);
   background-image:repeating-linear-gradient(180deg,transparent 0 23px,rgba(70,110,150,.22) 23px 24px);background-position:0 46px;--rx:0deg;--ry:0deg;overflow:hidden;
   opacity:0;transform:translateY(60px) rotate(calc(var(--r) * 4)) rotateY(-70deg);transition:transform .55s cubic-bezier(.2,.9,.25,1.15),opacity .35s ease,box-shadow .2s;transition-delay:calc(.25s + var(--i) * .14s)}
@@ -59,7 +75,6 @@
 .card .fx .down{color:#9a3a2a;background:rgba(154,58,42,.08)}
 .card .fx .eq{color:#5a5248;background:rgba(90,82,72,.08)}
 /* what the attachment or upgrade is for */
-.card .use{font-size:12px;line-height:17px;margin:8px 0 2px;padding:6px 9px 5px;background:rgba(40,35,30,.07);border-left:3px solid var(--rc)}
 .card .s{font-family:var(--f-ui);font-size:11px;line-height:24px;color:#4a443c;letter-spacing:.02em}
 .card .stamp{position:absolute;right:12px;bottom:12px;font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--rc);border:2px solid var(--rc);padding:2px 7px;transform:rotate(-8deg);opacity:.85}
 .histBox{width:min(720px,100%);color:var(--dim);opacity:0;transition:opacity .3s}
@@ -92,3 +107,32 @@
 .pLists{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px 22px;align-items:start}
 .pLists .hist{max-height:42vh}
 .hrow.gear .ht{color:var(--rc)}
+
+/* the time left to choose: a number and a bar running down under "Skills · Perks · Aid", red for the last few seconds,
+   when it ticks with a pulse; when it's out, a card is taken for you */
+#upgrade .upClock{position:relative;z-index:5;display:flex;align-items:center;gap:10px;width:min(320px,70vw);margin:-6px auto 0;opacity:0;transition:opacity .4s ease .25s}
+#upgrade.show .upClock{opacity:1}
+#upgrade.picking .upClock{opacity:0;transition-delay:0s}
+.upClock span{min-width:2ch;font-family:var(--f-num);font-weight:800;font-size:22px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+.upClock i{flex:1;height:4px;background:rgba(236,230,216,.14);overflow:hidden}
+.upClock b{display:block;height:100%;background:var(--orange);transform-origin:left;transition:transform .1s linear,background-color .3s ease}
+.upClock.warn span{color:#e8503a;animation:clockBeat 1s ease-in-out infinite}
+.upClock.warn b{background:#d8402c}
+@keyframes clockBeat{0%,100%{scale:1}15%{scale:1.22}}
+@media (prefers-reduced-motion:reduce){.upClock.warn span{animation:none}}
+
+/* co-op, once you've chosen and a teammate hasn't (settleUpgrade, upgrades/upgrade-screen.js): your card stays stamped,
+   the rest sit dimmed till everyone's done and they burn, and under them it says who you're waiting on */
+/* (the card you took sits lower while you wait, clear of the clock still running over the cards) */
+#upgrade.waiting .card.picked{transform:translateY(0) scale(1.04) rotate(0)!important}
+#upgrade.waiting .card:not(.picked){opacity:.5!important;filter:saturate(.55);transition:opacity .4s ease,filter .4s ease!important;transition-delay:0s!important}
+#upgrade.waiting #upSkip{opacity:0;transition-delay:0s}
+#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
+.upWait{display:none;flex-direction:column;align-items:center;gap:6px;text-align:center}
+#upgrade.waiting .upWait{display:flex;animation:waitIn .35s ease both}
+.upWait b{font-family:var(--f-ui);font-weight:700;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink)}
+.upWait b::after{content:"";display:inline-block;width:1.4em;text-align:left;animation:waitDots 1.4s steps(4,end) infinite}
+.upWait span{font-family:var(--f-ui);font-size:13px;letter-spacing:.06em;color:var(--dim)}
+@keyframes waitIn{from{opacity:0;transform:translateY(6px)}}
+@keyframes waitDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (prefers-reduced-motion:reduce){.upWait b::after{animation:none;content:"..."}}

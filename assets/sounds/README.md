@@ -2,5 +2,8 @@
 
 Put sound packs here: Kenney zips as they come (for example `kenney_impact-sounds.zip`), or loose OGG/WAV/MP3 files.
 Say which sounds are for what (gunshots, footsteps, zombie groans, wood breaking...) if you have something in mind;
-otherwise Claude will pick what fits. The game's sounds are synthesized now (`src/js/audio/sfx.js`); a recorded one
-replaces its synthesized one when it's wired in, and only the files that get used are copied into the game (`src/`).
+otherwise Claude will pick what fits. `tools/make-sounds.mjs` picks the recordings the game uses out of these packs, cuts and levels them, and writes them
+to `src/sounds/`; anything not wired in yet is still synthesized (`src/js/audio/sfx.js`).
+
+In use: `Guns and stuffs.zip` (cut into `src/sounds/*.ogg` by `tools/make-sounds.mjs`) and `Footsteps.zip` (the wood, grass
+and dirt sets, packed into `src/sounds/footsteps.mp3` by `tools/pack-footsteps.py`).

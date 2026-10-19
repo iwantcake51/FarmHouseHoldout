@@ -3,7 +3,7 @@
 // zombies and corpses fading in and out of your vision. Their shadows go with them: the shadow-map depth is dithered
 // away as they fade (fadeDepthMat, effects/outlines.js) and the soft blob under them fades too, so nothing you can't
 // see gives itself away by its shadow
-const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826);
+const _eyeLive = new THREE.Color(EYE_COL), _eyeDead = new THREE.Color(0x2a2826), _neckV = new V3();
 // with a melee weapon out, the zombies your next swing would land on get a thin green rim that fades in as they come
 // into reach and out as they leave it: everyone in the arc for a two-hander that cleaves, only the nearest for a
 // one-hander (melee/melee.js). It fades with them, so it never shows a zombie you can't see.
@@ -13,6 +13,8 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 const RED_NEAR = 4, RED_FAR = 12;
 // the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
 const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
+// how solid (z.vis) a zombie has to be before the rim starts to show, and by when it's full
+const LIGHT_SOLID = [0.6, 0.92];
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
 // standing behind a tree or a wall still reads as in reach; a burning one is orange (BURN_COL)
 const _xrRed = new THREE.Color(0xff3322), _xrSil = new THREE.Color(0xd8382a), _xrGreen = new THREE.Color(REACH_COL), _xrBurn = new THREE.Color(0xff8a1e);
@@ -31,8 +33,9 @@ function updateZombieVisuals(dt, rdt) {
   markReach();
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
-    updateZombieStain(z.stain, rdt);
-    const v = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
+    updateZombieStain(z.stain, rdt, dt);
+    // (and in co-op, picked out by a teammate's light even where you can't see: teamBeam, lighting/lightmap.js)
+    const tb = state === 'title' ? 0 : teamBeam(z), v = state === 'title' ? 1 : Math.max(visAt(z.x, z.z) * fogSee(z.x, z.z), tb);   // and out past the edge, only as it comes clear of the fog
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
@@ -68,19 +71,29 @@ function updateZombieVisuals(dt, rdt) {
         const dx = z.x - P.x, dz = z.z - P.z, d = Math.hypot(dx, dz), off = Math.abs(angDiff(Math.atan2(dx, dz), P.aim));
         a = (1 - smooth(clamp((off - L.half * 0.75) / (L.half * 0.35), 0, 1))) * (1 - smooth(clamp((d - L.r * 0.7) / (L.r * 0.3), 0, 1))) * Math.min(1, dk * 1.6) * z.vis * 0.75 * flOn;
       }
+      a = Math.max(a, tb * z.vis * 0.75);   // a teammate's light outlines it the same way
+      // only once it's all but solid: through a body still fading in, every box's rim behind it shows (LIGHT_SOLID)
+      a *= smooth(clamp((z.vis - LIGHT_SOLID[0]) / (LIGHT_SOLID[1] - LIGHT_SOLID[0]), 0, 1));
       if (a > 0.01 && !z.lightOl) z.lightOl = outline(z.m.g, 0, 0, 0.022, rimMat(LIGHT_COL));
       if (z.lightOl) { z.lightOl.opacity = a; z.lightOl.visible = a > 0.01; } }
   }
   for (let k = ragdolls.length - 1; k >= 0; k--) {
-    const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt);
+    const r = ragdolls[k]; stepRagdoll(r, dt); if (r.stain) r.stain.burn = r.burn; updateZombieStain(r.stain, rdt, dt);
+    // a head crushed by the sledgehammer (zombies/damage.js: crushHead): the neck pumps blood as the body goes down, weaker
+    // as it runs out, and a pool spreads from it once it's down
+    if (r.neck > 0) {
+      r.neck -= dt; const v = r.g.localToWorld(_neckV.set(...STUMP.head));
+      if (rand() < 0.65) burst(v.x, Math.max(0.15, v.y), v.z, 1 + (r.neck > 1.6 ? 1 : 0), 'blood', rr(-1, 1), rr(-1, 1), 0.6 + r.neck * 0.5);
+      if (r.pooled && !r.neckPool) { r.neckPool = true; splat(v.x, v.z, 'pool', rr(0.8, 1.1), undefined, 2.4); }
+    }
     // the killing hit's flash cools off (it used to stay lit and leave the body glowing pale), and the eyes go out:
     // their glow fades over a second and a half and they dull to a dead grey
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;
-      for (const mt of [m.skin, m.shirt, m.pants]) if (mt) { if (r.flashOn) mt.emissive.setRGB(0.35 * k2 + 0.6 * k2 * k2, 0.1 * k2 + 0.55 * k2 * k2, 0.07 * k2 + 0.45 * k2 * k2); else mt.emissive.setHex(0); } }
+      for (const mt of Object.values(m)) if (mt) { if (r.flashOn) mt.emissive.setRGB(0.35 * k2 + 0.6 * k2 * k2, 0.1 * k2 + 0.55 * k2 * k2, 0.07 * k2 + 0.45 * k2 * k2); else mt.emissive.setHex(0); } }
     if (r.eyes && r.eyeT < 1.6) { r.eyeT += dt; const e = clamp(r.eyeT / 1.5, 0, 1); r.eyeGlow = Math.pow(1 - e, 1.5); r.eyes.forEach(o => o.material.color.copy(_eyeLive).lerp(_eyeDead, smooth(e))); }
     const v = visAt(r.x, r.z); r.vis += (v - r.vis) * Math.min(1, rdt * 10);
     Object.values(r.mats).forEach(mt => { mt.opacity = r.vis; mt.depthWrite = r.vis > 0.05; mt.colorWrite = r.vis > 0.03; }); if (r.dm) r.dm.userData.u.value = r.vis < 0.03 ? 0 : r.vis; if (r.blob) r.blob.material.opacity = 0.42 * r.vis * Math.max(0, 1 - Math.max(0, r.t - 8) * 0.5);
     r.g.visible = r.vis > 0.03;   // (a body you can't see draws nothing either, as above)
-    if (r.t > 10) { scene.remove(r.g); if (r.blob) scene.remove(r.blob); ragdolls.splice(k, 1); }
+    if (r.t > 10) { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); ragdolls.splice(k, 1); }
   }
 }

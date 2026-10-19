@@ -1,6 +1,9 @@
 // Carrying and applying bandages, healing over time.
 
 const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
+// how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
+// gone as the bandage is
+const BAND_DONE = 0.12;
 // how many bandages you can carry: 3 in the pouch on your side, 2 more with the Med pouch upgrade's second pouch
 const bandMax = () => BAND_BASE + (S.pouch ? 2 : 0);
 // medicine cabinet upgrades: steadier hands wrap faster, better dressings heal more, a tonic heals quicker
@@ -17,14 +20,15 @@ function startBandage() {
   if (P.dead || P.vault || P.bandT > 0 || openSt) return;
   if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: 'Buy them at the medicine cabinet' }); return; }
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
-  exitScope(); W8.reloading = null; W8.burstLeft = 0; W8.swing = 0;
-  P.bandT = P.bandMax = bandTime(); SFX.rip();
+  exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
+  P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;
+  bandSnd = loopS('medkit', { rate: bandRate() }); if (!bandSnd) SFX.rip();   // its sound goes round till it's on (bandSound)
   P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }
 // a hit knocks the bandage out of your hands: the wrap stops and the bandage stays in your bag
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
-  P.bandT = 0; ANIM.healCut = true; SFX.click();   // the view snaps back out of the lean-in (player/hold.js)
+  P.bandT = 0; ANIM.healCut = true; SFX.click(); bandSound(BAND_FADE.hit);   // the view snaps back out of the lean-in (player/hold.js)
   toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
 }
 // how far the bandage going on has got (0 to 1)
@@ -34,7 +38,7 @@ const bandProg = () => P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1)
 function cancelBandage() {
   if (!(P.bandT > 0)) return;
   const k = bandProg(), h = Math.round(bandHeal() * k);
-  P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click();
+  P.bandT = 0; P.band = Math.max(0, (P.band || 0) - 1); ANIM.healCut = true; popEl('bands'); SFX.click(); bandSound(BAND_FADE.cancel);
   if (h > 0) { P.heal = (P.heal || 0) + h; feed('med', h, 'health over time'); }   // just the heal in the feed, no warning
 }
 // a weapon key or the touch swap button: during a bandage it cancels it and takes that weapon out instead, carried
@@ -44,12 +48,30 @@ function switchSlot(s) {
   if (P.bandT > 0 || ANIM.bandP > 0) { if (P.bandT > 0) cancelBandage(); if (s !== W8.cur) ANIM.bandSwitch = s; return; }
   equip(s);
 }
+// the bandage's sound, looping while it goes on (loopS, audio/samples.js), and eased out however it ends: finished
+// (BAND_FADE.done), knocked out of your hands by a hit (.hit), stopped with a click or a weapon key (.cancel)
+const BAND_FADE = { done: 0.45, hit: 0.18, cancel: 0.25 };
+let bandSnd = null;
+// how fast the bandage's sound plays: as much faster as the wrap goes on faster than a plain one (Steady hands,
+// anything that speeds bandaging), so the sound keeps pace with the hands (held within BAND_RATE)
+const BAND_RATE = [0.8, 1.8];
+const bandRate = () => clamp(BAND_TIME / bandTime(), BAND_RATE[0], BAND_RATE[1]);
+function bandSound(fade) { if (bandSnd) { bandSnd.stop(fade); bandSnd = null; } }
 function tickBandage(dt) {
+  if (bandSnd) { if (P.bandT > 0 && !P.dead) bandSnd.tick(); else bandSound(BAND_FADE.done); }
+  ANIM.bandDone = Math.max(0, (ANIM.bandDone || 0) - dt);
   if (P.bandT > 0) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    // back to full health before it's on (healing from the last one, or regen): the wrap stops there, done. The bandage
+    // goes back in the bag, unless it went on to stop a bleed (then it's on your arm like any other)
+    else if (P.hp >= S.maxHp && P.bandMax - P.bandT > 0.25) {
+      P.bandT = 0; ANIM.bandDone = BAND_DONE;
+      if (P.bandBleed) { P.band--; P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
+    }
   }
-  if (P.heal > 0 && !P.dead) { const r = healRate(), h = Math.min(P.heal, dt * r, S.maxHp - P.hp); P.hp += h; P.heal -= Math.max(h, dt * r * (P.hp >= S.maxHp ? 1 : 0)); if (P.heal < 0.01) P.heal = 0; }
+  // healing over time, till you're at full health: then whatever's left of it is gone, and so is its blue
+  if (P.heal > 0 && !P.dead) { const h = Math.min(P.heal, dt * healRate(), S.maxHp - P.hp); P.hp += h; P.heal -= h; if (P.heal < 0.01 || P.hp >= S.maxHp) P.heal = 0; }
 }

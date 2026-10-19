@@ -40,7 +40,7 @@ function introKneel(spd) {
   const [a, b] = INTRO.rise;
   if (spd > 0.3 && INTRO.t < a) INTRO.t = a + (INTRO.t - a) * 0.3 + 0.0001;
   const k = INTRO.t < a ? 1 : 1 - easeIO(clamp((INTRO.t - a) / (b - a), 0, 1));
-  if (!INTRO.stood && k < 0.15) { INTRO.stood = true; groundDust(P.x, P.z, 0.3, 0, 0); SFX.step(0.7, true); }
+  if (!INTRO.stood && k < 0.15) { INTRO.stood = true; groundDust(P.x, P.z, 0.3, 0, 0); footstep('land', 0.6); }
   return k;
 }
 // kneeling pose on top of the normal one: hips down, one knee forward, the other leg back, leaning over the front knee

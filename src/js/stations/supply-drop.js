@@ -6,6 +6,8 @@
 // picked when it's called, with the way the helicopter comes in)
 let supplyCargo = null, supplySpot = null;
 const DROP_LEAD = 9, HELI_IN = 5.5, HELI_OUT = 4.5, HELI_SPEED = 14, HELI_PASS = 2.8;
+const HELI_WASH = { t: 1.3, r: 3.6, push: 1, every: 0.05, n: 3 };
+const HELI_PUSH = new THREE.Vector4(0, 0, 1, 0);   // the downwash's push on the grass (updatePushers, world/trees.js)
 function callDrop(cargo) {
   supplyT = DROP_LEAD; supplyCargo = cargo;
   let x, z; do { x = cxw((rr(FX0 + 2, FX1 - 2)) | 0); z = cxw((rr(FZ0 + 2, FZ1 - 2)) | 0); } while (hardBlocked(ci(x), ci(z)) || (x > HOUSE.x0 - 1 && x < HOUSE.x1 + 1 && z > HOUSE.z0 - 1 && z < HOUSE.z1 + 1));
@@ -48,6 +50,7 @@ const heliShadow = (() => {
 // light round it and a column of red smoke, the odd spark; it burns on a while after the crate's opened, then dies
 const FLARE_M = { tube: lam(0xb02a1e), band: lam(0xe8e2d4), cap: lam(0x262626) };
 let flare = null;
+const FLARE_FX = { smoke: 0.065, size: [0.55, 1.1], a: 0.55, lift: 9, jet: 0.045, drip: 0.12 }, _fq4 = new THREE.Quaternion();
 function lightFlare(x, z) {
   if (flare) flareGone();
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rand() * Math.PI * 2; scene.add(g);
@@ -56,10 +59,10 @@ function lightFlare(x, z) {
   const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0255, 0.0255, 0.07, 10), FLARE_M.band); band.rotation.z = Math.PI / 2; band.position.x = -0.03; t.add(band);
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.03, 10), FLARE_M.cap); cap.rotation.z = Math.PI / 2; cap.position.x = -0.15; t.add(cap);
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff2ea })); core.position.x = 0.16; t.add(core);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: 0xff4a30, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })), halo = glow.clone();
-  halo.material = glow.material.clone(); glow.position.x = halo.position.x = 0.17; glow.scale.setScalar(0.7); halo.scale.setScalar(2.4); t.add(glow, halo);
-  const light = { x, z, r: 6.5, int: 1.5, col: [1, 0.15, 0.09], t: 1, max: 1 }; flashes.push(light); lmT = 0;
-  flare = { g, core, glow, halo, light, t: 0, end: 80, out: -1, smokeT: 0, sparkT: 0, tip: new V3() };
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: partTex('glow'), color: 0xff4a30, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })), halo = glow.clone();
+  halo.material = glow.material.clone(); halo.material.map = partTex('glowSoft'); glow.position.x = halo.position.x = 0.17; glow.scale.setScalar(0.7); halo.scale.setScalar(2.4); t.add(glow, halo);
+  const light = { x, y: 0.15, z, r: 6.5, int: 1.5, col: [1, 0.15, 0.09], t: 1, max: 1 }; flashes.push(light); lmT = 0;
+  flare = { g, core, glow, halo, light, t: 0, end: 80, out: -1, smokeT: 0, sparkT: 0, jetT: 0, tip: new V3(), dir: new V3() };
   nz(0.5, 'highpass', 2600, 1800, 0.14); nz(1.4, 'bandpass', 3000, 2400, 0.05, 0.6);   // struck, and the fizz catching
 }
 // the crate's been opened (or left to rot): the flare burns on a few seconds more, then gutters out
@@ -74,16 +77,26 @@ function stepFlare(dt) {
   const fl = (0.8 + 0.12 * Math.sin(tt * 31) + 0.08 * Math.sin(tt * 57.3 + 1.3)) * (rand() < 0.04 ? 0.75 : 1);   // a fizzing flicker
   f.light.t = f.light.max = 1; f.light.int = 1.5 * fl * k;
   f.glow.material.opacity = 0.95 * fl * k; f.halo.material.opacity = 0.35 * fl * k; f.glow.scale.setScalar(0.62 + 0.14 * fl); f.core.scale.setScalar(0.6 + 0.4 * k);
-  f.core.getWorldPosition(f.tip);
-  if ((f.smokeT -= dt) <= 0 && k > 0.15) { f.smokeT = 0.09; smoke(f.tip.x + rr(-0.03, 0.03), f.tip.y + 0.05, f.tip.z + rr(-0.03, 0.03), rr(-0.07, 0.07) + 0.12, rr(0.45, 0.75), rr(-0.07, 0.07), 0.05, rr(0.45, 0.8), rr(2.4, 3.4), 0.32 * k, 0xc8463a); }
-  if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.18, 0.45); sparkBurst(f.tip.x, f.tip.y + 0.02, f.tip.z, 1 + (rand() * 2 | 0), 0, 0, 0.9); }
+  f.core.getWorldPosition(f.tip); f.dir.set(1, 0, 0).applyQuaternion(f.core.parent.getWorldQuaternion(_fq4)).setY(0).normalize();   // the way its tip points
+  // the burn (FLARE_FX: how often it puffs smoke, how big and thick, and how hard it climbs; how often it spits a tongue of flame off the
+  // tip and a molten drip): a thick column of red smoke, lit by its own light, rolling up and carried off on the wind;
+  // a fizzing white-hot tongue reddening as it leaves the tip, a sparkle at the tip and the odd drip and spark
+  const F = FLARE_FX, T = f.tip, D = f.dir;
+  if ((f.smokeT -= dt) <= 0 && k > 0.15) { f.smokeT = F.smoke; smoke(T.x + D.x * 0.04 + rr(-0.03, 0.03), T.y + 0.05, T.z + D.z * 0.04 + rr(-0.03, 0.03), D.x * rr(0.2, 0.5) + rr(-0.08, 0.08), rr(0.5, 0.85), D.z * rr(0.2, 0.5) + rr(-0.08, 0.08), rr(0.05, 0.08), rr(F.size[0], F.size[1]), rr(2.6, 3.8), F.a * k, 0xd86858, F.lift); }
+  if ((f.jetT -= dt) <= 0 && f.out < 0) {
+    f.jetT = F.jet;
+    fx('flareJet', T.x, T.y + 0.01, T.z, D.x * rr(0.6, 1.3) + rr(-0.15, 0.15), rr(0.15, 0.45), D.z * rr(0.6, 1.3) + rr(-0.15, 0.15), rr(0.07, 0.1), rr(0.14, 0.24), rr(0.14, 0.24), 0.8);
+    if (rand() < 0.35) fx('star', T.x, T.y + 0.02, T.z, 0, 0, 0, rr(0.12, 0.2), 0.05, 0.06, 0.8).s.material.color.setRGB(1.3, 0.6, 0.55);
+    if (rand() < F.drip) fx('flareDrip', T.x, T.y, T.z, D.x * rr(0.4, 1.2) + rr(-0.4, 0.4), rr(0.4, 1.3), D.z * rr(0.4, 1.2) + rr(-0.4, 0.4), 0.035, 0.015, rr(0.25, 0.5), 1);
+  }
+  if ((f.sparkT -= dt) <= 0 && f.out < 0) { f.sparkT = rr(0.25, 0.6); sparkBurst(T.x, T.y + 0.02, T.z, 1 + (rand() * 2 | 0), D.x, D.z, 1.2); }
 }
-// a weapon off the radio, out of its crate (taken with E: takeIt in pickups/pickups.js, which puts down the one it
+// a weapon off the radio or the cards, out of its case (taken with E: takeIt in pickups/pickups.js, which puts down the one it
 // replaces): it goes into your hands, and the card says what you got
-function deliverWeapon(id) {
+function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
-  gotGear({ ic: 'supply', kind: 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
+  gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
 function updateSupplyDrop(dt) {
   const sp = supplySpot;
@@ -101,25 +114,37 @@ function updateSupplyDrop(dt) {
     // the helicopter's shadow sweeps over the spot as it drops the crate, and its downwash kicks up the dust there
     if (supplyT <= 0) sp.t += dt;
     const tr = sp.t, on = Math.abs(tr) < HELI_PASS;
-    heliShadow.visible = on;
+    heliShadow.visible = on; if (!on) HELI_PUSH.w = 0;
     if (on) {
       const vx = -Math.cos(sp.a), vz = Math.sin(sp.a), d = tr * HELI_SPEED;
       heliShadow.position.set(sp.x + vx * d, 0.06, sp.z + vz * d); heliShadow.rotation.set(-Math.PI / 2, 0, sp.a);
       heliShadow.material.opacity = 0.8 * (1 - 0.75 * curDark) * smooth(clamp((HELI_PASS - Math.abs(tr)) / 0.8, 0, 1));
-      if (Math.abs(tr) < 0.7 && (sp.dustT -= dt) <= 0) { sp.dustT = 0.12; groundDust(sp.x + rr(-1.5, 1.5), sp.z + rr(-1.5, 1.5), 0.6, rr(-1, 1), rr(-1, 1)); shake = Math.max(shake, 0.03); }
+      // the downwash under it (HELI_WASH: how wide, how hard and how often it throws dust): the grass flattened out
+      // round under it, dust and grit blasted out along the ground in a ring and swirling up, strongest right overhead
+      const W = HELI_WASH, wk = smooth(clamp(1 - Math.abs(tr) / W.t, 0, 1)), hx = heliShadow.position.x, hz = heliShadow.position.z;
+      HELI_PUSH.set(hx, hz, W.r, W.push * wk);
+      if (wk > 0.05 && (sp.dustT -= dt) <= 0) {
+        sp.dustT = W.every;
+        for (let k = 0, n = Math.round(1 + W.n * wk); k < n; k++) {
+          const a = rand() * 6.28, r = rr(0.4, W.r * 0.8), sx = Math.sin(a), sz = Math.cos(a), v = rr(2.2, 4.4) * wk;
+          fx('dust', hx + sx * r, 0.08, hz + sz * r, sx * v, rr(0.05, 0.35), sz * v, rr(0.16, 0.26), rr(0.7, 1.25), rr(0.8, 1.3), rr(0.2, 0.32) * (0.5 + 0.5 * wk));
+        }
+        if (rand() < 0.5 * wk) { const a = rand() * 6.28, r = rr(0.5, 2); fx('debris', hx + Math.sin(a) * r, 0.1, hz + Math.cos(a) * r, Math.sin(a) * rr(1.5, 3), rr(1, 2.2), Math.cos(a) * rr(1.5, 3), 0.06, rr(0.12, 0.2), rr(0.6, 1), 0.8); }
+        if (Math.hypot(hx - P.x, hz - P.z) < 9) shake = Math.max(shake, 0.035 * wk);
+      }
     } else if (tr >= HELI_PASS && !supplyFall && supplyT <= 0) supplySpot = null;
   }
   if (supplyFall) {
     const f = supplyFall; f.m.position.y -= dt * 9; f.m.rotation.y += dt * 0.6;
     if (f.m.position.y <= 0) {
-      scene.remove(f.m); supplyFall = null; dropPickup(f.x, f.z, 'supply', 1, undefined, f.cargo); burst(f.x, 0.2, f.z, 12, 'dust'); shake = Math.max(shake, 0.25); SFX.thud();
+      scene.remove(f.m); supplyFall = null; dropPickup(f.x, f.z, 'supply', 1, undefined, f.cargo); groundDust(f.x, f.z, 1.3); dustBurst(f.x, 0.25, f.z, 10, 0, 0, 1.2); shake = Math.max(shake, 0.25); SFX.thud();
       lightFlare(f.x + rr(0.8, 1.1) * (rand() < 0.5 ? 1 : -1), f.z + rr(-0.6, 0.6));   // and a flare beside it
     }
   }
   stepFlare(dt);
 }
 // a new run: nothing on its way, no flare, no shadow
-function resetDrops() { supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
+function resetDrops() { HELI_PUSH.w = 0; supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
 // ---- weapons by radio: a gamble or a sure thing. A care package brings a gun of the kind you ask for, a sidearm
 // (secondary) or a long gun or automatic (primary), whichever of that kind has turned up so far (it may not beat
 // yours); an upgrade crate a gun guaranteed to beat the one you carry in its slot, priced by how good it is; a
@@ -127,7 +152,12 @@ function resetDrops() { supplyT = 0; supplyCargo = null; supplySpot = null; heli
 // band is open (WEAP_OPEN, a wave ahead of the cards), never one you have, nor one already on its way or lying in its
 // crate (and those don't turn up as cards after a wave either)
 const RADIO_GUNS = Object.keys(GUN_WEAPONS).filter(id => GUN_WEAPONS[id].rar), RADIO_MELEE = Object.keys(MELEE_WEAPONS).filter(id => MELEE_WEAPONS[id].rar);
-const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 58, 82], top: [0, 30, 55, 85, 120], meleeUp: [0, 14, 24, 36] };
+// what the radio charges: a care package (a random weapon), and the crates priced by the band of what's in them, the
+// heavy guns (band 3: the assault rifle, the hunting rifle) and the top of the pile (band 4: the LMG, the drum
+// shotgun) a good deal dearer than the rest
+const RADIO_COST = { side: 12, primary: 18, melee: 8, up: [0, 22, 38, 78, 120], top: [0, 30, 55, 112, 165], meleeUp: [0, 14, 24, 36] };
+// how likely a care package is to bring a gun of each band: the heavy ones rarely, for the price
+const CARE_W = [0, 3, 2, 0.7, 0.3];
 const BAND_WORD = ['', 'light', 'solid', 'heavy', 'top-tier'], SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 const radioOpen = id => run.wave + 1 >= WEAP_OPEN[weapPow(id)];
 // the two care packages: what each brings, and how its card reads
@@ -164,7 +194,7 @@ function radioCards() {
   const guns = pk => RADIO_GUNS.filter(id => radioFree(id) && CARE[pk].slots.includes(WEAP[id].slot)), mels = () => RADIO_MELEE.filter(radioFree);
   for (const pk in CARE) { const c = CARE[pk];
     out.push({ ic: 'supply', group, for: () => c.for, cost: RADIO_COST[pk], title: () => c.title, desc: () => c.desc,
-      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => [0, 3, 2, 1.2, 0.7][weapPow(id)]), c.title) }); }
+      why: () => busyWhy() || (guns(pk).length ? '' : 'Nothing on the wire yet'), make: () => order(radioPick(guns(pk), id => CARE_W[weapPow(id)]), c.title) }); }
   if (o.up) { const id = o.up, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'A better ' + SLOT_WORD[WEAP[id].slot], fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'GUARANTEED BETTER', good: true }], cost: RADIO_COST.up[b], title: () => 'Upgrade crate',
     desc: () => `A ${BAND_WORD[b]} ${SLOT_WORD[WEAP[id].slot]} that ${than(id)}. Which one is a surprise.`, why: busyWhy, make: () => order(id, 'Upgrade crate') }); }
   if (o.top) { const id = o.top, b = weapPow(id); out.push({ ic: 'supply', group, for: () => 'The best out there', fx: () => [{ t: 'TIER ' + b + ' OF 4', good: true }, { t: 'BEST YET', good: true }], cost: RADIO_COST.top[b], title: () => 'Top-shelf crate',

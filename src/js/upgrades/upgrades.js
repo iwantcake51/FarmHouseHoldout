@@ -2,81 +2,92 @@
 
 const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
 // less slowdown when you're hit (S.slowRes, zombies/ai.js): each thing that helps takes its share off what's left, so
-// they all stack (Thick soles −40% and Stubborn −85% make −91%) and none ever makes you immune to it
-const SLOW_STEP = { soles: 0.4, trail: 0.2, stubborn: 0.85 };
+// both steps of Thick soles stack (−40% twice makes −64%) and never make you immune to it
+const SLOW_STEP = { soles: 0.4 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
 const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
-// aid comes up more often when you're short of what it brings, up to 1 + AID_NEED times as often with none left at
-// all: ammo for the guns you carry (under three mags' worth in reserve), health (below 80%), bandages, scrap (under
-// 30) and planks (under half a stack). Never a sure thing: it only tips the deal
-const AID_NEED = 1.5;
-const needW = f => 1 + AID_NEED * clamp(f, 0, 1);
+// aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
+// have any, from the first number when you're short of nothing to the second when you're out of something, and it
+// never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
+// 80%), bandages and planks (under half a stack); bandages and planks count for a bit less
+const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
+// within the hand's aid, what you're short of comes up far more than the rest
+const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
   ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
   health: () => (0.8 - P.hp / S.maxHp) / 0.55,
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
-  scrap: () => 1 - S.scrap / 30,
   planks: () => 1 - S.planks / (PLANK_MAX / 2)
 };
-// grey (common) is kept for aid (AID, TIER_KIND below): every skill, perk and weapon is uncommon or better
+const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, planks: 0.6 };
+// how short you are of anything, 0 to 1: the worst of them
+const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
+// Steady aim stacks up to STEADY_MAX times, and Lucky shot (rare) makes LUCK_MISS of the shots that hit nothing cost no
+// ammo at all (luckyKeep, weapons/firing.js)
+const STEADY_MAX = 3, LUCK_MISS = 1 / 4;
+// Sure shot: each shot from a gun firing single shots (semiAuto, weapons/firing.js) has this chance to crit
+const SURE_CRIT = 0.05;
+// grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
-  { r: 'u', tag: 'Body', name: 'Quick hands', text: 'Reload 25% faster.', can: () => S.reloadMul > 0.6, ap: () => S.reloadMul *= 0.75 },
   { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
-  { r: 'c', tag: 'Tools', name: 'Scrounger', text: '+10 scrap.', w: () => needW(NEED.scrap()), ap: () => S.scrap += 10 },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
-  { r: 'u', tag: 'Melee', name: 'Strong arms', text: 'Melee hits 25% harder.', can: () => S.meleeMul < 1.9, ap: () => S.meleeMul *= 1.25 },
   { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), w: () => needW(NEED.bandages()), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
-  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'All guns are 12% more accurate.', can: () => S.spreadMul > 0.55, ap: () => S.spreadMul *= 0.88 },
-  { r: 'u', tag: 'Body', name: 'Light step', text: 'Move 6% faster.', can: () => S.speedMul < 1.5, ap: () => S.speedMul *= 1.06 },
-  { r: 'u', tag: 'Body', name: 'Tough skin', text: '+15 max health.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
-  { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Switch weapons 40% faster.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
-  { r: 'u', tag: 'Med', name: 'Field medic', text: 'Bandages go on 30% faster.', can: () => S.bandMul > 0.75, ap: () => S.bandMul = 0.7 },
-  { r: 'u', tag: 'Luck', name: 'Lucky shot', text: '1 in 12 bullet hits does double damage.', can: () => !S.luck, ap: () => S.luck = 1 / 12 },
-  { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Ammo pickups give 25% more.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
-  { r: 'r', tag: 'Body', name: 'Hardened', text: 'Take 12% less damage.', can: () => !S.hardened, ap: () => { S.hardened = true; S.dmgTaken *= 0.88; } },
-  { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Kills in quick succession build up to +25% damage.', can: () => !S.momentum, ap: () => S.momentum = true },
-  { r: 'u', tag: 'Body', name: 'Vault fire', text: 'Vault 25% faster for half the stamina, and shoot while vaulting.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
-  { r: 'u', tag: 'Body', name: 'Run and gun', text: 'Shoot pistols and SMGs while you sprint, far less accurately.', can: () => !S.runGun, ap: () => { S.runGun = true; } },
-  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop supplies 50% more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
-  { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'Scrap drops have a 25% chance to be worth double.', can: () => !S.hoard, ap: () => S.hoard = true },
-  { r: 'u', tag: 'Body', name: 'Thick soles', text: 'Getting hit slows you down 40% less.', can: () => (S.soles || 0) < 2, ap: () => { S.soles = (S.soles || 0) + 1; slowLess(SLOW_STEP.soles); } },
-  { r: 'u', tag: 'Body', name: 'Iron lungs', text: '+25% stamina. It refills sooner and 25% faster.', vis: 'A thicker stamina bar', can: () => !S.lungs, ap: () => { S.lungs = true; } },
-  { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'Kills give a short burst of speed. Once every 4 seconds at most.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
-  { r: 'r', tag: 'Body', name: 'Second wind', text: 'Once per wave, heal 50 when you drop below 25% health.', can: () => !S.secondWind, ap: () => S.secondWind = true },
+  { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'Every gun\'s shots land closer to the crosshair. Can be taken 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
+  { r: 'u', tag: 'Body', name: 'Tough skin', text: 'Raises your max health, and heals you by as much.', can: () => S.maxHp < 190, ap: () => { S.maxHp += 15; P.hp += 15; } },
+  { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Putting a weapon away and drawing the next takes less time.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
+  { r: 'r', tag: 'Luck', name: 'Lucky shot', text: 'Some shots that miss cost no ammo at all.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
+  { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Every ammo box you pick up holds extra rounds.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
+  { r: 'r', tag: 'Gun', name: 'Sure shot', text: 'Any shot from a semi-auto gun can land as a crit, for double damage.', can: () => !S.sureShot, ap: () => S.sureShot = true },
+  { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Each kill soon after the last raises your damage. Go too long without one and it resets.', can: () => !S.momentum, ap: () => S.momentum = true },
+  { r: 'r', tag: 'Body', name: 'Vault fire', text: 'Vaults are quicker and cheaper, and you can keep shooting while you\'re going over.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
+  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop ammo, planks and bandages more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
+  { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'The scrap from a kill is sometimes doubled.', can: () => !S.hoard, ap: () => S.hoard = true },
+  { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
+  { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
+  { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second.', can: () => S.regen < 2, ap: () => S.regen += 1 },
-  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots do 3× damage instead of 2.2×.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
-  { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Limbs and heads come off twice as easily.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
+  { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots hit harder with every weapon.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
+  { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Shots and swings take limbs and heads off far more often.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
   // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and
   // pays SMITH_SCRAP for each of the three that's already maxed, about what a tier costs at the bench
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
-    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `Your ${nm}: its two lowest ammo, trigger and magazine upgrades go up a tier. Any it doesn't have yet start at tier 1.` + (sc ? ` +${sc} scrap for the ${sc > SMITH_SCRAP ? 'two' : 'one'} already maxed.` : ''), vis: 'Changes two or three at once' }; },
-    ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !gunTier(id, k)); magChange(id, () => { ks.sort((a, b) => gunTier(id, a) - gunTier(id, b)).slice(0, 2).forEach(k => { W8.gt[id][k] = gunTier(id, k) + 1; }); none.forEach(k => { W8.gt[id][k] = Math.max(1, gunTier(id, k)); }); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
-  { r: 'l', tag: 'Body', name: 'Stubborn', text: '+50 max health. Getting hit barely slows you, and it adds to anything else that helps.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; slowLess(SLOW_STEP.stubborn); } },
-  { r: 'l', tag: 'Mind', name: 'Bullet time', text: 'Some kills slow time for a moment. Once every 8 seconds at most.', can: () => !S.bulletTime, ap: () => S.bulletTime = true },
-  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'Below 30% health, deal 60% more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
+    card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `The two lowest of its powder, trigger and magazine go up a tier.` + (sc ? ` Scrap for any already maxed.` : '') }; },
+    ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !ownTier(id, k)); magChange(id, () => { ks.sort((a, b) => ownTier(id, a) - ownTier(id, b)).slice(0, 2).forEach(k => fitTier(id, k, ownTier(id, k) + 1)); none.forEach(k => fitTier(id, k, Math.max(1, ownTier(id, k)))); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
+  { r: 'l', tag: 'Body', name: 'Stubborn', text: 'Raises your max health, and heals you by as much.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
+  { r: 'l', tag: 'Mind', name: 'Bullet time', get text() { return netLink() ? 'Now and then a kill gives you a few seconds where every shot goes where you aim and every hit is a headshot.' : 'Now and then a kill slows everything down for a moment, you included.'; }, can: () => !S.bulletTime, ap: () => S.bulletTime = true },
+  { r: 'l', tag: 'Mind', name: 'Last stand', text: 'While your health is low, everything you hit takes more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrounger', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Quick hands', 'Strong arms', 'Vault fire', 'Run and gun', 'Thick soles', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Light step', 'Tough skin', 'Quick draw', 'Field medic']);
-const TIER_KIND = { armor: 'Aid', boots: 'Aid', hammer: 'Aid', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
+const AID = new Set(['Wood pile', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+const TIER_KIND = { quick: 'Skill', armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
-// (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the drum shotgun
-// one: from its box straight to the drum
-const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, auto12: 1 };
+// (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
+// tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
+// the double barrel none (two barrels are two shells)
+const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2 };
+// the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
+// as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the straight-pull bolt) do that.
+// The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
+const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
+// the guns that take no can: the double barrel's twin muzzles
+const NO_SUPP = new Set(['dbl']);
 function tierFits(k, id) {
-  const D = WEAP[id], n = gunTier(id, k);
+  const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;
+  if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
+  if (k === 'supp' && NO_SUPP.has(id)) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
-  if (k === 'loader') return id === 'revolver' || D.breakOpen ? n < 1 : D.ammo === 'shells' && !!D.perShell;   // the revolver's one loader, the double barrel's one Sleight of Hand; shotguns fed shell by shell
-  if (k === 'supp') return n > 0 || !muzzleTaken(id);   // a better can replaces the one there; otherwise the muzzle must be free
+  if (k === 'loader') return id === 'revolver' || !!D.breakOpen;   // the revolver's speed loader; the double barrel's Sleight of Hand (the pump's loading comes with Quick hands: game/run-state.js)
+  if (k === 'supp') return !(W8.mods[id] || []).some(m => MODS[m].muzzle) && (n > 0 || !muzzleTaken(id));   // a better can replaces the one you have; otherwise the muzzle must be free (a can taken off a shotgun for its choke still goes back on)
   if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];
   return true;
@@ -89,23 +100,33 @@ for (const k in TIERS) {
   if (GUN_TIERS.has(k)) continue;
   UPG.push({ tierOf: k, get r() { return L.t[Math.min(T(k), L.t.length - 1)].r; }, w: 1.4,
     can: () => T(k) < L.t.length && (!L.can || L.can()),
-    card: () => { const n = T(k), st = L.t[n]; return { r: st.r, tag: `${L.tag} · Tier ${n + 1} of ${L.t.length}`, name: st.name, text: st.text, vis: n ? 'Upgrades your ' + L.t[n - 1].name.toLowerCase() + (st.vis ? '. ' + st.vis : '') : st.vis }; },
+    card: () => { const n = T(k), st = L.t[n]; return { r: st.r, tag: `${L.tag} · Tier ${n + 1} of ${L.t.length}`, name: st.name, text: st.text }; },
     ap: () => { L.t[T(k)].ap(); S.tier[k]++; } });
 }
 function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }
 function giveWeapon(id) {
   const D = WEAP[id], s = D.slot;
-  W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
+  W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; delete W8.relSave[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;
   equip(s, true);
+}
+// a weapon taken off the cards is set down by your feet in its case, to take with E like one off the radio (takeIt,
+// pickups/pickups.js): you pick when to swap, and what it replaces goes down where you stand. It waits there till you do
+function cardWeapon(id) {
+  const a = P.aim || 0; dropPickup(P.x + Math.sin(a) * 0.9, P.z + Math.cos(a) * 0.9, 'supply', 1, undefined, { kind: 'weapon', id, from: 'card' });
+  pickups[pickups.length - 1].t = Infinity;
+  toast(WEAP[id].name + ' is at your feet', { kind: 'good', icon: 'gear', sub: 'E to pick it up' });
 }
 // weapons after a wave come in firepower bands, so the first waves don't hand you an assault rifle: band 1 is what you
 // can scrape together early (a better melee weapon, a revolver, a machine pistol), 2 real guns (the shotguns, the SMG,
 // the .50, the axe and sledgehammer), 3 heavy ones (the assault rifle, the hunting rifle, the katana) and 4 the top of
-// the pile (the drum shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
+// the pile (the auto shotgun, the LMG). A band opens at its wave in WEAP_OPEN and comes in over three waves; once the
 // band above it is open it turns up less and less. A weapon better than the one in its slot turns up more, one no
 // better turns up less
 const WEAP_POW = { bat: 0.5, pistol: 1, crowbar: 1, wrench: 1, machete: 1, revolver: 1, smg: 1, dbl: 2, pump: 2, sub: 2, deagle: 2, axe: 2, sledge: 2, ar: 3, hunting: 3, katana: 3, auto12: 4, lmg: 4 };
 const WEAP_OPEN = [0, 1, 5, 8, 11];
+// the heaviest guns turn up less again on top of their rarity: the assault rifle, the LMG and the auto shotgun (the
+// guaranteed gun card leans away from them too: dealCards, upgrades/upgrade-screen.js)
+const CARD_RARE = { ar: 0.75, lmg: 0.45, auto12: 0.45 };
 const weapPow = id => id ? WEAP_POW[id] || 1 : 0;
 function weapWeight(id) {
   const p = weapPow(id), w = run.wave, open = WEAP_OPEN[p];
@@ -123,7 +144,7 @@ function gunDue() { let band = 0; for (const [w, b] of GUN_DUE) if (run.wave >= 
 for (const id in WEAP) {
   const D = WEAP[id]; if (!D.rar) continue;
   UPG.push({ r: D.rar, tag: 'Weapon · ' + SLOT_NAME[D.slot], name: D.name, text: D.desc, stats: () => statLine(id), weaponOf: id,
-    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => giveWeapon(id) });   // not one that's on its way by radio
+    vis: () => W8.slot[D.slot] ? 'Replaces your ' + WEAP[W8.slot[D.slot]].name : 'Goes in slot ' + (SLOTS.indexOf(D.slot) + 1), w: () => 1.6 * weapWeight(id) * (CARD_RARE[id] || 1), can: () => !held(id) && !radioPending(id) && weapWeight(id) > 0, ap: () => cardWeapon(id) });   // not one that's on its way by radio
 }
 // weapon mods (the nails in the bat, a gun's barrel) and attachments are never dealt here: you buy them at the
 // workbench for the weapon in your hands (stations/recipes.js), so the cards after a wave are all about you and new weapons

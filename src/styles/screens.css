@@ -11,30 +11,95 @@
 #title .lead{display:grid;gap:clamp(10px,2.1vh,18px)}
 #title h1{font-size:clamp(52px,min(9.4vw,16vh),128px);white-space:nowrap}
 #title .story p{font-size:clamp(12.5px,1.9vh,14px);line-height:1.6}
-#title .ctrls{align-self:center;padding:14px 18px 16px;background:rgba(12,14,15,.62);border:1px solid rgba(236,230,216,.09);border-radius:4px;gap:clamp(3px,.75vh,6px) 14px;font-size:clamp(11px,1.6vh,12px)}
-#title .ctrlHead{grid-column:1/-1;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:4px}
+/* the controls are a grimy sheet taped up beside the story: scuffed and stained, darker toward its edges, a strip of
+   masking tape holding its top, and each key a worn keycap */
+#title .ctrls{position:relative;align-self:center;padding:18px 18px 16px;gap:clamp(3px,.7vh,6px) 14px;font-size:clamp(11px,1.6vh,12px);
+  background:var(--tex-specks),var(--tex-grime),linear-gradient(172deg,rgba(26,22,18,.86),rgba(14,12,11,.84) 60%,rgba(20,15,12,.88));background-size:240px,cover,auto;
+  box-shadow:inset 0 0 0 1px rgba(236,230,216,.05),inset 0 0 46px rgba(0,0,0,.6),0 10px 30px rgba(0,0,0,.35)}
+#title .ctrls::before{content:"";position:absolute;top:-11px;left:22%;width:92px;height:22px;rotate:-3.5deg;pointer-events:none;
+  background:var(--tex-specks),linear-gradient(180deg,rgba(214,198,160,.42),rgba(184,166,126,.36));background-size:240px,auto;
+  clip-path:polygon(0 8%,4% 0,8% 14%,12% 2%,88% 0,92% 12%,96% 0,100% 10%,98% 30%,100% 52%,97% 74%,100% 100%,94% 90%,90% 100%,10% 98%,6% 88%,2% 100%,0 76%,3% 50%,0 28%)}
+#title .ctrls kbd{justify-self:start;align-self:start;padding:1px 6px 0;font-size:11px;line-height:1.55;color:#ddd5c4;background:rgba(236,230,216,.045);border:1px solid rgba(236,230,216,.16);border-bottom-width:2px;border-bottom-color:rgba(0,0,0,.55);border-radius:2px}
+#title .ctrlHead{grid-column:1/-1;font-family:var(--f-type);font-size:14px;color:#c9643a;margin-bottom:6px}
 @media (max-width:760px){#title .inner{grid-template-columns:minmax(0,1fr);width:min(560px,100%);row-gap:18px}#title .ctrls{align-self:start}}
 .screen h2{font-size:clamp(48px,9vw,96px)}
 .screen p{margin:0;font-size:13px;line-height:1.65;color:#cfc9bb;max-width:58ch}
-.screen .story{display:grid;gap:10px;padding-left:14px;border-left:2px solid rgba(216,105,44,.55)}
+.screen .story{position:relative;display:grid;gap:10px;padding-left:16px}
+/* the rule down the story's left is a dragged brush stroke, not a clean line */
+.screen .story::before{content:"";position:absolute;left:-4px;top:-3px;bottom:-3px;width:12px;pointer-events:none;background:linear-gradient(180deg,rgba(190,72,40,.95),rgba(160,50,28,.8) 70%,rgba(150,44,26,.3)) center/3px 100% no-repeat;filter:url(#fxBrush)}
 .screen .story p{font-family:var(--f-type);font-size:14px;line-height:1.7;color:#e2dccd}
 .screen p.brief{font-size:12px;color:#a39e90}
 .ctrls{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;font-size:12px;color:var(--dim)}
 .ctrls kbd{font-family:var(--f-ui);color:var(--ink);white-space:nowrap}
 .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 /* the label and its key side by side, the key centred on the label's capitals rather than sitting on its baseline */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--f-num);font-weight:800;font-size:26px;letter-spacing:.04em;text-transform:uppercase;padding:8px 22px 6px;background:var(--orange);color:#140c06;border:0;cursor:pointer}
-.btn.ghost{background:transparent;color:var(--ink);outline:1px solid rgba(236,230,216,.35)}
-.btn kbd{font-family:var(--f-ui);font-weight:600;font-size:13px;line-height:1;letter-spacing:0;padding:3px 6px;border:1px solid currentColor;opacity:.75}
-.btn:hover{filter:brightness(1.08)}
-.btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+/* buttons are painted slabs with chipped, hand-cut edges and worn paint; the paint is a layer behind the label so the
+   chipped shape never clips the focus ring. Under the pointer the slab warms up and the button eases forward */
+.btn{--chip:polygon(0 5%,3% 0,36% 2%,68% 0,97.5% 1.5%,100% 10%,99.3% 58%,100% 95%,96% 100%,57% 98%,22% 100%,1.2% 97.5%,.6% 52%);
+  position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:9px;font-family:var(--f-num);font-weight:800;font-size:26px;letter-spacing:.04em;text-transform:uppercase;padding:8px 22px 6px;background:none;color:#170d06;border:0;cursor:pointer;
+  transition:translate .22s cubic-bezier(.2,.8,.3,1),color .22s ease}
+.btn::before,.btn::after{content:"";position:absolute;z-index:-1;pointer-events:none;clip-path:var(--chip);transition:background-color .22s ease,filter .22s ease}
+.btn::before{inset:0;background:var(--tex-specks),var(--tex-grime),linear-gradient(176deg,#df7139,#c65a24 55%,#a8481c);background-size:240px,900px 675px,auto}
+.btn.ghost{color:var(--ink)}
+/* a ghost button is the same slab cut from dark board, its pale edge showing round it */
+.btn.ghost::before{background:rgba(236,230,216,.3)}
+.btn.ghost::after{inset:1.5px;background:var(--tex-specks),rgba(16,13,11,.86);background-size:240px,auto}
+.btn kbd{font-family:var(--f-ui);font-weight:600;font-size:13px;line-height:1;letter-spacing:0;padding:3px 6px;border:1px solid currentColor;opacity:.7}
+.btn:hover{translate:3px 0}
+.btn:hover::before{filter:brightness(1.12) saturate(1.06)}
+.btn.ghost:hover{color:#f6e3cf}
+.btn.ghost:hover::before{filter:none;background-color:rgba(216,105,44,.85)}
+.btn:active{translate:3px 1px;transition-duration:.06s}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
 .note{font-size:11px;color:var(--dim);letter-spacing:.08em}
 /* leaving a run from the pause screen asks first: the question where the buttons were, the yes in warning red */
 .pSure:not([hidden]){animation:stRise .2s cubic-bezier(.2,.8,.3,1)}
 .pSureQ{flex-basis:100%;font-size:14px;line-height:1.4;color:#f2d9cc}
-#pSureYes{background:#c2412c;color:#fff4ec}
+#pSureYes{color:#fff4ec}
+#pSureYes::before{background:var(--tex-specks),var(--tex-grime),linear-gradient(176deg,#cf4b33,#a8321f);background-size:240px,900px 675px,auto}
 .tally{display:grid;grid-template-columns:repeat(4,auto);gap:4px 28px;justify-content:start}
 .tally b{font-family:var(--f-num);font-weight:800;font-size:40px;display:block;line-height:1}
+/* the title, pause and death screens sit on a grimy backdrop rather than a clean gradient: dark on the reading side,
+   pitted and stained like an old print, the edges burnt in. A failing light breathes and stutters over it (::before),
+   and ash drifts down through it (::after); both stay behind the text */
+:is(#title,#paused,#dead){
+  background:var(--scr-tint,linear-gradient(transparent,transparent)),var(--tex-specks),var(--tex-grime),
+    radial-gradient(ellipse 120% 95% at 62% 48%,transparent 52%,rgba(8,6,5,.55) 100%),
+    linear-gradient(90deg,rgba(11,10,9,.94) 0%,rgba(12,11,10,.76) 46%,rgba(12,11,10,.32) 100%);
+  background-size:auto,240px,cover,auto,auto}
+#dead{--scr-tint:radial-gradient(ellipse 90% 100% at 0% 62%,rgba(96,10,5,.42),transparent 72%)}
+:is(#title,#paused,#dead)::before,:is(#title,#paused,#dead)::after{content:"";position:fixed;z-index:-1;pointer-events:none}
+:is(#title,#paused,#dead)::before{inset:0;background:radial-gradient(ellipse 85% 80% at 58% 50%,transparent 38%,rgba(6,4,3,.7) 100%);opacity:.6;animation:lampFlicker 13s linear infinite}
+:is(#title,#paused,#dead)::after{top:-600px;left:-24px;right:-24px;bottom:0;opacity:.85;animation:ashFall 70s linear infinite,ashSway 7s ease-in-out infinite alternate;background-size:600px 600px;background-image:
+  radial-gradient(circle at 53px 71px,rgba(214,204,186,0.42) 0 1px,transparent 1.7px),
+  radial-gradient(circle at 431px 38px,rgba(214,204,186,0.3) 0 0.8px,transparent 1.4px),
+  radial-gradient(circle at 262px 149px,rgba(196,186,170,0.34) 0 1.4px,transparent 2.3px),
+  radial-gradient(circle at 538px 214px,rgba(214,204,186,0.26) 0 0.7px,transparent 1.3px),
+  radial-gradient(circle at 118px 302px,rgba(184,174,158,0.3) 0 1.8px,transparent 3px),
+  radial-gradient(circle at 345px 371px,rgba(214,204,186,0.36) 0 0.9px,transparent 1.5px),
+  radial-gradient(circle at 24px 463px,rgba(214,204,186,0.24) 0 0.6px,transparent 1.2px),
+  radial-gradient(circle at 479px 509px,rgba(196,186,170,0.28) 0 1.2px,transparent 2px),
+  radial-gradient(circle at 197px 552px,rgba(214,204,186,0.32) 0 1px,transparent 1.6px),
+  radial-gradient(circle at 572px 431px,rgba(184,174,158,0.22) 0 1.6px,transparent 2.8px),
+  radial-gradient(circle at 301px 23px,rgba(214,204,186,0.28) 0 0.7px,transparent 1.3px),
+  radial-gradient(circle at 88px 188px,rgba(196,186,170,0.3) 0 1.1px,transparent 1.9px),
+  radial-gradient(circle at 402px 286px,rgba(214,204,186,0.24) 0 0.6px,transparent 1.1px),
+  radial-gradient(circle at 236px 431px,rgba(214,204,186,0.3) 0 0.8px,transparent 1.4px),
+  radial-gradient(circle at 511px 588px,rgba(196,186,170,0.26) 0 1.3px,transparent 2.2px),
+  radial-gradient(circle at 163px 97px,rgba(255,150,70,.7) 0 .7px,rgba(255,110,40,.18) 2px,transparent 3.5px),
+  radial-gradient(circle at 447px 357px,rgba(255,150,70,.5) 0 .6px,rgba(255,110,40,.12) 1.8px,transparent 3px)}
+/* the ash falls a whole tile and starts over, swaying a little side to side on its own slower beat */
+@keyframes ashFall{to{translate:0 600px}}
+@keyframes ashSway{from{transform:translate3d(-14px,0,0)}to{transform:translate3d(14px,0,0)}}
+/* mostly a slow breath, then a stutter or two as if the generator caught */
+@keyframes lampFlicker{0%,100%{opacity:.6}30%{opacity:.68}46%{opacity:.62}47%{opacity:.8}47.6%{opacity:.63}48.4%{opacity:.76}49.2%{opacity:.62}72%{opacity:.7}86%{opacity:.64}86.5%{opacity:.74}87%{opacity:.62}}
+/* their eyebrows are typed, not set in a tracked-out label; the title's night is a rubber stamp */
+:is(#title,#paused,#dead) .inner .eyebrow{font-family:var(--f-type);font-size:13px;letter-spacing:.04em;text-transform:none;color:#b8ad98}
+.eyebrow .stamp{display:inline-block;margin-left:12px;padding:3px 8px 1px;vertical-align:-1px;border:2px solid currentColor;color:#d4472f;font-family:var(--f-num);font-weight:800;font-size:17px;letter-spacing:.14em;text-transform:uppercase;rotate:-4deg;filter:url(#fxWorn)}
+/* the big words are worn print: rough at the edges, pitted, thinner where the ink didn't take, over a faint
+   misregistered red */
+:is(#title,#paused,#dead) :is(h1,h2){color:#e8dfca;text-shadow:3px 2px 0 rgba(122,26,16,.45);filter:url(#fxWorn)}
+@media (prefers-reduced-motion:reduce){:is(#title,#paused,#dead)::before,:is(#title,#paused,#dead)::after{animation:none}}
 /* moving between the title and a run (ui/screens.js): the screen you're leaving slides away, the view dips to black
    where the farm gets reset behind it, and the title's pieces come in one after another as the dark lifts */
 /* behind a menu screen (paused, or the finds after a wave) the HUD dims, so the counters don't glare through the

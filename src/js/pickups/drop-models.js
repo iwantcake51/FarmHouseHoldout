@@ -62,23 +62,6 @@ function dmMed(g) {
   dmBox(g, 0.1, 0.004, 0.17, DM.gauze, 0.255, 0.158, 0.17, 0.25);                                    // its tail
   dmFinish(g, keep);
 }
-// ---- scrap: a heap of salvage: a cog, two hex nuts, a bent length of rusty pipe, a rusted plate with its rivets and a
-// bolt
-function dmScrap(g) {
-  const keep = new Set();
-  const cog = dmCyl(g, 0.07, 0.024, DM.steel, -0.05, 0.2, 0.02, 18, 0.12); keep.add(cog);
-  for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; const t = dmBox(cog, 0.026, 0.024, 0.022, DM.steel, Math.cos(a) * 0.08, 0, Math.sin(a) * 0.08); t.rotation.y = -a; }
-  dmCyl(cog, 0.02, 0.026, DM.dark, 0, 0, 0, 10);
-  [[0.09, 0.2, -0.06, 0.4], [0.12, 0.18, 0.07, -0.3]].forEach(([x, y, z, t]) => { const n = dmCyl(g, 0.034, 0.026, DM.grey, x, y, z, 6, t, 0.2); keep.add(n); dmCyl(n, 0.016, 0.028, DM.black, 0, 0, 0, 10); });
-  // the pipe, bent: two lengths meeting at an elbow
-  const pipe = new THREE.Group(); pipe.position.set(-0.02, 0.24, -0.08); pipe.rotation.set(0.1, 0.5, 0.15); g.add(pipe);
-  keep.add(dmCyl(pipe, 0.022, 0.2, DM.rust, -0.1, 0, 0, 10, 0, Math.PI / 2)); keep.add(dmCyl(pipe, 0.022, 0.13, DM.rust2, 0.03, 0.04, 0, 10, 0, -Math.PI / 2 + 0.6));
-  dmCyl(pipe, 0.025, 0.03, DM.rust2, -0.005, 0.005, 0, 10, 0, Math.PI / 2);                          // the elbow's collar
-  const plate = dmBox(g, 0.17, 0.012, 0.11, DM.rust, 0.03, 0.17, 0.09, 0.4, 0.06, -0.1); keep.add(plate);
-  [-0.06, 0.06].forEach(x => dmCyl(plate, 0.009, 0.016, DM.steel, x, 0, 0.035, 8));
-  dmCyl(g, 0.009, 0.13, DM.grey, -0.13, 0.17, -0.05, 8, 0, Math.PI / 2 - 0.3); dmCyl(g, 0.02, 0.014, DM.grey, -0.195, 0.19, -0.05, 6, 0, Math.PI / 2 - 0.3);   // the bolt
-  dmFinish(g, keep);
-}
 // ---- 9mm: a carton of it, blue-grey card with a cream label band, its lid flipped open at the back and the rounds
 // stood in rows in their tray, copper noses up; two loose rounds beside it
 function dmAmmo9(g) {
@@ -164,7 +147,6 @@ function dmCase(g, cargo) {
 function dropModel(g, kind, ammoType, cargo) {
   if (kind === 'planks') dmPlanks(g);
   else if (kind === 'med') dmMed(g);
-  else if (kind === 'scrap') dmScrap(g);
   else if (kind === 'supply') crateModel(g, cargo);
   else if (kind === 'gun') g.add(cargo.model);
   else ({ p9: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);

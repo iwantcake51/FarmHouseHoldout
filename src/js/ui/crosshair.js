@@ -4,6 +4,26 @@ const projV = new V3();
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
 const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');
+// the reload on each side: the track behind the fill, the bead on its leading end, and what it was last frame (for
+// the flash as it finishes). The right arc runs up from its bottom end (42° below the right), the left one up from
+// its bottom end too (138°)
+const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42, dir: -1, on: false, u: 0 }, L: { ring: xhRingL, track: $('xhRTrackL'), head: $('xhRHeadL'), a0: 138, dir: 1, on: false, u: 0 } };
+function reloadDraw(side, on, u) {
+  const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
+  // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
+  if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
+  if (!on && r.on && r.u > 0.85) { r.ring.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }   // finished: a flash
+  else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
+  if (!r.ring.classList.contains('done') || on) r.ring.style.opacity = on ? 1 : 0;
+  r.track.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.track.style.opacity = on ? 1 : 0;
+  const a = (r.a0 + r.dir * 84 * u) * Math.PI / 180; r.head.setAttribute('cx', (aR * Math.cos(a)).toFixed(1)); r.head.setAttribute('cy', (aR * Math.sin(a)).toFixed(1)); r.head.style.opacity = on && u > 0.02 ? 1 : 0;
+  r.on = on; if (on) r.u = u;
+  // a round just went in: the pulse, from where the bead is now (reloadTick)
+  if (!on) r.tick = false;   // (the last one in finishes it: that's the .done flash instead)
+  if (r.tick && on) { r.tick = false; const P0 = $('xhRPing'); P0.setAttribute('cx', r.head.getAttribute('cx')); P0.setAttribute('cy', r.head.getAttribute('cy')); [r.ring, r.head, r.track, P0].forEach(el => { el.classList.remove('tick'); void el.getBBox(); el.classList.add('tick'); }); }
+}
+// a shell or cartridge loaded by hand (weapons/reload.js): the reload arc pulses as it goes in (styles/crosshair.css)
+function reloadTick() { RL.R.tick = true; }
 const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
 // the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
 // wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
@@ -14,13 +34,27 @@ function sgRing(r) {
   const dash = (el, gap) => { el.setAttribute('r', r); el.setAttribute('stroke-dasharray', `${(seg - gap).toFixed(2)} ${gap.toFixed(2)}`); el.setAttribute('stroke-dashoffset', (seg - gap / 2).toFixed(2)); };
   dash(xhSgSh, gs); dash(xhSgR, g);
 }
+// flechettes: NEEDLE_N needles, each NEEDLE_LEN long, pointing in to the middle from the spread's edge
+const NEEDLE_N = 8, NEEDLE_LEN = 5, xhFl = $('xhFl');
+xhFl.innerHTML = Array.from({ length: NEEDLE_N }, (_, k) => `<g transform="rotate(${k * 360 / NEEDLE_N})"><line class="flSh" y1="0" y2="${NEEDLE_LEN}"></line><line class="fl" y1="0" y2="${NEEDLE_LEN}"></line></g>`).join('');
+const flNeedles = [...xhFl.children];
+function flRing(r) { flNeedles.forEach((g, k) => g.setAttribute('transform', `rotate(${k * 360 / NEEDLE_N}) translate(0,${-r})`)); }
+// dragon's breath: three arcs, each DB_ARC of its third, centred on the top and the two lower diagonals
+const DB_ARC = 0.42, xhDbSh = $('xhDbSh'), xhDbR = $('xhDbR');
+function dbRing(r) {
+  const seg = 2 * Math.PI * r / 3, top = (Math.PI * r / 6) % seg;   // (the top of the circle, 270° round from its start, within a third)
+  const dash = (el, d) => { el.setAttribute('r', r); el.setAttribute('stroke-dasharray', `${d.toFixed(2)} ${(seg - d).toFixed(2)}`); el.setAttribute('stroke-dashoffset', (d / 2 - top).toFixed(2)); };
+  const d = Math.max(3, seg * DB_ARC); dash(xhDbSh, d + 2.4); dash(xhDbR, d);
+}
+// which reticle a shotgun shows for the shell in it (weapons/rounds.js): slugs the four ticks, like a rifle
+const SG_XH = { std: 'ring', slug: null, flech: 'needle', fire: 'tri' };
 let gapCur = 10, lastGap = -1;
 // the ammo arc (on the right) and the stamina arc (underneath) ride just outside the reticle, so it never reaches into
 // or over them: their radius grows from where they sit when it's tight (aR, sR) to keep a clear gap outside its outer
 // edge (the ticks reach TICK_L past the spread, the shotgun's arcs sit on it), and the grenade launcher's arc and the
 // warning text move out with them
 let aR = 30, sR = 22, lastXh = '';
-const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 };
+const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 }, XH_SG_MAX = 150;
 const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
 function ammoDash(n, filled) {
   const A = ARC();
@@ -43,17 +77,22 @@ function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
   if (showXh) {
-    xh.style.transform = `translate(${mouseX}px,${mouseY}px)`;
-    xh.classList.toggle('healing', P.bandT > 0);   // both hands are on the bandage: no reticle, just the ring filling
+    xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
+    xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
-    // shotguns get a ring the width of their spread; other guns four ticks
-    const sg = !D.melee && D.ammo === 'shells';
-    $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', !sg); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
+    // shotguns get a ring the width of their spread, drawn by the shell they're loaded with (SG_XH); other guns four ticks
+    const sgk = !D.melee && D.ammo === 'shells' ? SG_XH[roundOn(id)] === undefined ? 'ring' : SG_XH[roundOn(id)] : null, sg = !!sgk;
+    $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', sgk !== 'ring'); xhFl.toggleAttribute('hidden', sgk !== 'needle'); $('xhDb').toggleAttribute('hidden', sgk !== 'tri'); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
     // stamina under the reticle, with any weapon: it shows as soon as you use some (a swing, a shove, a vault) and fades
     // away once it's full again
     {
       const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
-      if (on || cache.xhSt !== false) { st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`); }
+      if (on || cache.xhSt !== false) {
+        st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`);
+        // what you've used, just past it, as on the bar under your health (stamDrain, ui/hud.js)
+        const sr = $('xhStamRun'); sr.setAttribute('stroke-dasharray', `0 ${(sd * M_ARC()).toFixed(2)} ${(ANIM.drainD * M_ARC()).toFixed(2)} 999`);
+        const rc = 'stRun' + (ANIM.drainSt ? ' ' + ANIM.drainSt : ''); if (sr.getAttribute('class') !== rc) sr.setAttribute('class', rc);
+      }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
     }
@@ -76,29 +115,31 @@ function updateCrosshair(rdt, D) {
       const k = XHM.s.toFixed(3) + ':' + XHM.r.toFixed(1) + ':' + Math.round(rd * 50);
       if (cache.xhBr !== k) { cache.xhBr = k; const b = $('xhBr'); b.setAttribute('transform', `rotate(${XHM.r.toFixed(1)}) scale(${XHM.s.toFixed(3)})`); b.style.opacity = (0.45 + 0.55 * smooth(rd)).toFixed(2); }
     }
-    // bandage ring: shown only while a bandage is going on, filling as it does
-    { const L = 2 * Math.PI * 23, band = P.bandT > 0, hp = band ? 1 - P.bandT / (P.bandMax || 1) : 0;
+    // bandage ring: shown only while a bandage is going on, filling as it does, and full for a moment once it's done
+    // (or stopped at full health: BAND_DONE, player/bandages.js), so it always ends at 100%
+    const bandPct = P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : ANIM.bandDone > 0 ? 1 : -1;
+    { const L = 2 * Math.PI * 23, band = bandPct >= 0, hp = Math.max(0, bandPct);
       const hk = band ? String(Math.round(hp * 200)) : '';
       if (cache.xhHeal !== hk) { cache.xhHeal = hk; const el = $('xhHeal'); el.setAttribute('stroke-dasharray', `${(clamp(hp, 0, 1) * L).toFixed(1)} 999`); el.style.opacity = band ? 1 : 0; $('xhHealBg').style.opacity = band ? 1 : 0; } }
-    if (P.bandT > 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round((1 - P.bandT / (P.bandMax || 1)) * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); awText(aw, t, true); } }
+    if (bandPct >= 0) { const aw = $('ammoWarn'), t = 'Bandaging ' + Math.round(bandPct * 100) + '%'; if (cache.aw !== 'heal' + t) { cache.aw = 'heal' + t; aw.hidden = false; aw.classList.remove('low', 'out', 'loading'); aw.classList.add('heal'); awText(aw, t, true); } }
     else if (cache.aw && cache.aw.startsWith('heal')) { cache.aw = null; $('ammoWarn').classList.remove('heal'); $('ammoWarn').hidden = true; }
-    if (D.melee && cache.aw && !(P.bandT > 0)) { cache.aw = ''; $('ammoWarn').hidden = true; }
-    xhAmmo.style.display = xhAmmoBg.style.display = D.melee ? 'none' : '';
-    const ak = !D.melee && !!D.akimbo; [xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.toggleAttribute('hidden', !ak));
+    if (D.melee && cache.aw && bandPct < 0) { cache.aw = ''; $('ammoWarn').hidden = true; }
+    xhAmmo.style.display = xhAmmoBg.style.display = RL.R.track.style.display = RL.R.head.style.display = xhRing.style.display = D.melee ? 'none' : '';
+    const ak = !D.melee && !!D.akimbo; [xhAmmoL, xhAmmoBgL, xhRingL, RL.L.track, RL.L.head].forEach(c => c.toggleAttribute('hidden', !ak));
     bloom *= Math.exp(-rdt * 9);
     const mz = muzzle();
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
     const dpx = Math.hypot(mouseX - px, mouseY - py);
-    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, 56);   // through a scope it tightens with range
+    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
-    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); }
+    if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); flRing(gap); dbRing(gap); }
     if (xk !== lastXh) {
       lastXh = xk;
       const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
       aR = Math.max(30, outer + XH_CLEAR.a); sR = Math.max(22, outer + XH_CLEAR.s);
-      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR);
+      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL, RL.R.track, RL.L.track].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR);
       $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
@@ -109,7 +150,7 @@ function updateCrosshair(rdt, D) {
     if (!D.melee) {
       // two guns: each arc is its own gun's mag (the one on your right on the right, AK_ON), each turning yellow under a quarter
       const am = ak && akMags(id), n = ak ? akPer(id) : magCap(id), have = ak ? am[AK_ON.right] : W8.mag[id] || 0, haveL = ak ? am[AK_ON.left] : 0, key = n + ':' + have + ':' + aR + (ak ? ':' + haveL : '');
-      const healing = P.bandT > 0, lowAt = Math.max(1, n * 0.25);
+      const healing = bandPct >= 0, lowAt = Math.max(1, n * 0.25);
       if (cache.ammoKey !== key) {
         cache.ammoKey = key; const [fg, bg] = ammoDash(n, have); xhAmmo.setAttribute('stroke-dasharray', fg); xhAmmoBg.setAttribute('stroke-dasharray', bg);
         if (ak) { const [fgL, bgL] = ammoDash(n, haveL); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', haveL <= lowAt); }
@@ -133,15 +174,15 @@ function updateCrosshair(rdt, D) {
       // each gun's ring fills through its own turn, and only its arc dims while it's down being reloaded; a gun running low
       // pulses its arc yellow, and an empty one flashes its whole arc red until it's reloaded
       const am2 = akMags(id), lowA = Math.max(1, akPer(id) * 0.25);
-      for (const [s, ring, arc, bg] of [[AK_ON.right, xhRing, xhAmmo, xhAmmoBg], [AK_ON.left, xhRingL, xhAmmoL, xhAmmoBgL]]) {
-        const busy = akBusy(s), n = am2[s]; ring.setAttribute('stroke-dasharray', (ARC() * (busy ? akU(s) : 0)).toFixed(1) + ' 999'); ring.style.opacity = busy ? 1 : 0; arc.style.opacity = busy ? 0.25 : 1;
+      for (const [s, side, arc, bg] of [[AK_ON.right, 'R', xhAmmo, xhAmmoBg], [AK_ON.left, 'L', xhAmmoL, xhAmmoBgL]]) {
+        const busy = akBusy(s), n = am2[s]; reloadDraw(side, busy, busy ? akU(s) : 0); arc.style.opacity = busy ? 0.25 : 1;
         arc.classList.toggle('flash', n > 0 && n <= lowA && !busy); bg.classList.toggle('out', n === 0 && !busy);
       }
     } else {
     xhAmmo.classList.remove('flash'); xhAmmoBg.classList.remove('out');
     if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
     else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
-    xhRing.setAttribute('stroke-dasharray', (ARC() * clamp(rp, 0, 1)).toFixed(1) + ' 999'); xhRing.style.opacity = W8.reloading ? 1 : 0;
+    reloadDraw('R', !!W8.reloading, rp); reloadDraw('L', false, 0);
     xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
     }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
