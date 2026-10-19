@@ -17,15 +17,20 @@ const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves:
 let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
+// never in co-op: the menu won't open (and shuts if it was), and the switches do nothing there, though they're kept
+// for your next game on your own (cheatIs: whether a switch is on and counts, what the rest of the game asks)
+const cheatsOff = () => NET.on;
+const cheatIs = k => !!CHEAT[k] && !cheatsOff();
 // every frame of play (game/update.js): keep what the switches promise
 function cheatTick() {
+  if (cheatsOff()) { if (cheatOn) toggleCheats(false); const t = $('cheatTag'); if (!t.hidden) t.hidden = true; return; }
   CHEAT_HELD.forEach(k => CHEAT_FX[k].hold && CHEAT_FX[k].hold());
   if (CHEAT.god) P.hp = S.maxHp;
   if (CHEAT.scrap && S.scrap < 999) S.scrap = 999;
   if (CHEAT.ammo) for (const a in W8.reserve) if (W8.reserve[a] < 999) W8.reserve[a] = 999;
 }
 // god mode: a hit that would have killed you leaves you standing (ui/screens.js: startDeath)
-const cheatSaves = () => { if (!CHEAT.god) return false; P.hp = S.maxHp; return true; };
+const cheatSaves = () => { if (!cheatIs('god')) return false; P.hp = S.maxHp; return true; };
 
 // ---- status effects: each one the status icons top right can show (ui/moodles.js), what turns it on, what keeps it on
 // while it's held (every frame, ui/cheats.js: cheatTick) and what clears it. on: whether its icon is showing
@@ -52,6 +57,7 @@ const CHEAT_HELD = new Set();
 // ---- the panel ----------------------------------------------------------------------------------------------------
 const chEl = $('cheat'), chBody = $('chBody');
 function toggleCheats(on) {
+  if (cheatsOff() && on !== false) { if (!cheatOn) toast('No cheats in co-op', { kind: 'bad', sub: 'The cheat menu only works in a game on your own' }); return; }
   cheatOn = on === undefined ? !cheatOn : on;
   chEl.hidden = !cheatOn;
   clearInterval(cheatLive);
@@ -89,7 +95,7 @@ function cheatLiveTick() {
 // a small reminder on the HUD while any switch is on
 function cheatTag() {
   const on = Object.keys(CHEAT_SHORT).filter(k => CHEAT[k]);
-  const el = $('cheatTag'); el.hidden = !on.length;
+  const el = $('cheatTag'); el.hidden = !on.length || cheatsOff();
   el.textContent = on.length ? 'Cheats · ' + on.map(k => CHEAT_SHORT[k]).join(' · ') + ' · F9' : '';
 }
 

@@ -12,9 +12,15 @@ const SWAP_T = { put: 0.3, cross: 0.4, end: 0.65 };   // the old weapon is away,
 const SWAP_FIRE = 0.34;                                 // how soon you can use a melee weapon you're drawing
 // a gun's draw takes longer, how long by where it rides (DRAW_T: from the hand closing on it to the hold), and it can
 // fire DRAW_FIRE before it's all the way up
-const DRAW_T = { side: 0.4, long: 0.6, auto: 0.55 }, DRAW_FIRE = 0.08;
+// fire DRAW_FIRE before it's all the way up (a sidearm's draw ends in a slow settle once it's in the hold, DRAW_SET, so
+// it can fire a little further from the end: about when the gun's up)
+const DRAW_T = { side: 0.5, long: 0.6, auto: 0.55 }, DRAW_FIRE = 0.08, DRAW_FIRE_AT = { side: 0.18 };
 const swapEnd = s => isMelee(s) || !DRAW_T[s] ? SWAP_T.end : SWAP_T.cross + DRAW_T[s];
-const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) - DRAW_FIRE;
+const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) - (DRAW_FIRE_AT[s] || DRAW_FIRE);
+// a one-handed gun (a sidearm) is in the hold by DRAW_SET of its draw; the rest is the settle: the left hand, which
+// came up to the gun where it was and rode on it (DRAW_LH: when it leaves its rest and when it has the gun), and both
+// arms easing into the hold's own pose instead of jumping to it
+const DRAW_SET = 0.82, DRAW_LH = [0.4, 0.8];
 // a heavy gun (the auto shotgun, the LMG: D.heavy, weapons/gun-stats.js) takes this much longer to swap to and to fire
 const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
 const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
@@ -256,14 +262,15 @@ function updateSwap(dt, rdt) {
     // the draw: out of the holster or off the sling, up into the hold; the left hand comes on in the last stretch. Run
     // at an even pace along its path (drawEven), so it never lurches between its keys or snaps into the hold
     const frameAt = (uu, out) => newMelee ? meleeDrawFrame(out, stowNew, live, uu, st) : gunDrawFrame(out, st.to, stowNew, live, uu);
-    const u = drawEven(clamp((t - T.cross) / (end - T.cross), 0, 1), frameAt);
+    const x = clamp((t - T.cross) / (end - T.cross), 0, 1), oneH = !newMelee && !DRAW_LEFT[st.to];
+    const u = oneH ? drawEven(clamp(x / DRAW_SET, 0, 1), frameAt) : drawEven(x, frameAt);
     const f = frameAt(u, new THREE.Matrix4());
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);
       placeAt(gunMeshes.melee, f);
     } else {
       placeAt(gunMeshes[st.to], f);
-      armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), false); armToward(pm.armR, rQ, rP, rS, u * u);
+      armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), false); armToward(pm.armR, rQ, rP, rS, oneH ? smooth(x) * smooth(x) : u * u);
     }
     const dl = !newMelee && DRAW_LEFT[st.to];
     if (dl) {
@@ -272,8 +279,15 @@ function updateSwap(dt, rdt) {
       const kl = smooth(clamp((u - dl[0]) / (dl[1] - dl[0]), 0, 1)), fp = (HOLD[W8.slot[st.to]] || HOLD_DEF).fore;
       _sw.h.set(fp[0], fp[1], fp[2]).applyMatrix4(holdOf(st.to, 'R').matrix).applyMatrix4(f).applyMatrix4(_sw.toUp);
       armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(_sw.h, kl), false); armToward(pm.armL, lQ, lP, lS, smooth(clamp((u - 0.86) / 0.14, 0, 1)));
+    } else if (oneH) {
+      // a sidearm: the left hand rises from its rest to where it'll take the gun as the gun is now (its place on the
+      // held gun carried along with it), so it meets the gun on the way up and rides on it rather than waiting in the
+      // air for it; then both hands settle into the hold's grip over the last of the draw
+      const kl = smooth(clamp((x - DRAW_LH[0]) / (DRAW_LH[1] - DRAW_LH[0]), 0, 1));
+      _sw.h.copy(liveL).applyMatrix4(_sw.m.copy(_sw.toUp).invert()).applyMatrix4(_sw.c.copy(live).invert()).applyMatrix4(f).applyMatrix4(_sw.toUp);
+      armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(_sw.h, kl), false); armToward(pm.armL, lQ, lP, lS, smooth(clamp((x - DRAW_SET) / (1 - DRAW_SET), 0, 1)));
     } else {
-      const kl = smooth(clamp((u - (newMelee ? 0.45 : 0.55)) / (newMelee ? 0.55 : 0.45), 0, 1));
+      const kl = smooth(clamp((u - 0.45) / 0.55, 0, 1));
       armTo(pm.armL, 'L', _sw.t2.copy(SWAP_REST_L).lerp(liveL, kl), newMelee); armToward(pm.armL, lQ, lP, lS, kl * kl);
     }
   }

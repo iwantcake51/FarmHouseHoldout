@@ -22,7 +22,7 @@ const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos
 function buildWeapon(parent, id, D, mods, rec) {
   const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-  const mg = new THREE.Group(); parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
+  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
   const info = GUNS[id](parent, mods);
   if (info && info.crane) rec.crane.push(info.crane);
   if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
@@ -39,24 +39,43 @@ function buildWeapon(parent, id, D, mods, rec) {
   if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
   if (info.brk) rec.brk = { g: info.brk, rims: info.rims || [] };
   if (info.belt) rec.belt = info.belt;   // a belt-fed gun's rounds, shown by what's left (player/hold.js)
-  // pull apart faces that would z-fight, then let the slides and bolts note their rest positions
-  unfight(parent);
-  if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel }; });
+  // pull apart faces that would z-fight (a moment later for a weapon built in play: unfightSoon), then let the slides
+  // and bolts note their rest positions
+  if (rec.soon) unfightSoon(parent); else unfight(parent);
+  if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc }; });
   return muz;
+}
+// what a weapon's model is built from: the weapon and everything on it that shows (its mods and their levels, its
+// tiers, attachments and tune-up, the rounds loaded, the mag in it, one or a pair). Building a model takes a while (the
+// meshes, pulling apart their fighting faces, the blood), so a rebuild of everything (a card taken, a weapon swapped
+// in) leaves a slot whose model already matches as it is, and the gear on you too (gearSig); a new run builds all of
+// it afresh, clean of the last one's blood
+const modelSig = id => id ? JSON.stringify([id, !!(W(id) || {}).akimbo, (W8.mods[id] || []).map(m => [m, modLv(m)]), W8.gt[id], W8.att[id], W8.tune[id], W8.rounds && W8.rounds[id], magTierIn(id)]) : '';
+const gearSig = () => JSON.stringify([S.tier, S.stubborn, S.slowRes, S.vaultMul, S.speedMul, S.secondWind, S.regen, S.pouch, S.healOnKill, S.adrenaline, SLOTS.map(s => modelSig(W8.slot[s]))]);
+const gearBuilt = { sig: null, look: null, run: null };
+// pulling a model's fighting faces apart is the slowest part of building it, so for one built in play (a card taken,
+// an attachment bought) it's done in a quiet moment just after (any frame or two it shows first, nobody sees the
+// faces fight), not in the frame you clicked; the copies on your body are made again after it
+const ufSoon = []; let ufSoonT = 0;
+function unfightSoon(g) {
+  ufSoon.push(g); if (ufSoonT) return;
+  const run = () => { ufSoonT = 0; const list = ufSoon.splice(0); list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o === scene) unfight(q); }); stowDirty = true; };
+  ufSoonT = typeof requestIdleCallback === 'function' ? requestIdleCallback(run, { timeout: 300 }) : setTimeout(run, 60);
 }
 function buildGuns(only) {
   recomputeEff();
-  const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS;
-  sl.forEach(s => { const g = gunMeshes[s]; while (g.children.length) binModel(g.children[0]); g.userData.bloodId = null; });   // (the old model let go of: core/geometry.js)
+  const sigOf = s => modelSig(W8.slot[s]), stale = s => gunMeshes[s].userData.sig !== sigOf(s) || gunMeshes[s].userData.sigRun !== run;
+  const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS.filter(stale);
+  sl.forEach(s => { const g = gunMeshes[s]; while (g.children.length) binModel(g.children[0]); g.userData.bloodId = null; g.userData.sig = sigOf(s); g.userData.sigRun = run; });   // (the old model let go of: core/geometry.js)
   // body armour by tier: a canvas jacket, then a vest over it, then a plate carrier (player/gear.js builds them)
-  const ar = T('armor');
-  shirtColours(ar >= 1);   // a canvas jacket over this run's shirt (player/look.js)
+  const gs = !only && gearSig(), gear = !only && (gs !== gearBuilt.sig || gearBuilt.look !== LOOK.cur || gearBuilt.run !== run);
+  if (gear) { Object.assign(gearBuilt, { sig: gs, look: LOOK.cur, run }); shirtColours(T('armor') >= 1); }   // a canvas jacket over this run's shirt (player/look.js)
   for (const s of sl) {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     HOLDS[s] = null; tierCtx = id;
-    const rec = weaponRec(), build = parent => buildWeapon(parent, id, D, mods, rec);
+    const rec = Object.assign(weaponRec(), { soon: state === 'play' || state === 'upgrade' || state === 'paused' }), build = parent => buildWeapon(parent, id, D, mods, rec);
     SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null;
     const g = gunMeshes[s];
     // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
@@ -69,8 +88,8 @@ function buildGuns(only) {
     stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
-  if (!only) buildGear();
-  stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
+  if (gear) buildGear();
+  if (sl.length || gear) stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)

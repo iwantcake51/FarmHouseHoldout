@@ -10,6 +10,11 @@
 // thickest one showing is the one drawn. thick sets the line's width (OL.w), a width of 0 the default.
 const OL = { w: [0.6, 55, 1, 3], w0: 2.2, glow: 3.5, glowA: 0.3, eps: 0.0015, slots: 64, margin: 10 };
 const olRoots = [];
+const OL_PAD = 9;
+// an outline turned on or off eases in and fades out rather than snapping (OL_FADE: how fast, in opacity a second): what
+// it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
+const OL_FADE = { in: 10, out: 4 };
+let olLast = 0;   // how far out from a pixel (in CSS pixels) the lines and glow look: their widest ring, 7.5, and a pixel spare
 function outline(g, col, scl, thick, mat, keep) {
   const ctl = mat || new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
   ctl.userData.olW = thick ? clamp(OL.w[0] + thick * OL.w[1], OL.w[2], OL.w[3]) : OL.w0;
@@ -76,10 +81,16 @@ function outlinePass(camera) {
   R.getDrawingBufferSize(_olSz); const W = _olSz.x, H = _olSz.y, px = R.getPixelRatio();
   // which models are outlined right now, and the box on screen round all of them and their glow
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
+  const now = performance.now(), odt = olLast ? Math.min(0.1, (now - olLast) / 1000) : 0; olLast = now;
   for (let k = olRoots.length - 1; k >= 0; k--) {
     const r = olRoots[k];
     if (!r.g.parent && r.g !== scene) { olRoots.splice(k, 1); delete r.g.userData.ol; r.mat.dispose(); continue; }   // (gone from the farm: a zombie's body cleared away, a pickup taken)
-    r.top = null; for (const c of r.ctls) if (c.visible && c.opacity > 0.004 && (!r.top || c.userData.olW > r.top.userData.olW)) r.top = c;
+    r.top = null;
+    for (const c of r.ctls) {
+      const u = c.userData, want = c.visible ? c.opacity : 0;
+      u.sh = u.sh === undefined ? want : want > u.sh ? Math.min(want, u.sh + odt * OL_FADE.in) : Math.max(want, u.sh - odt * OL_FADE.out);
+      if (u.sh > 0.004 && (!r.top || u.olW > r.top.userData.olW)) r.top = c;
+    }
     r.on = olPlace(r, camera, W, H);
     if (!r.on || !r.top) continue;
     const m = r.sr + OL.margin * px; any = true;
@@ -90,16 +101,19 @@ function outlinePass(camera) {
   if (x1 <= x0 || y1 <= y0) return;
   if (!olRT || olRT.width !== W || olRT.height !== H) { if (olRT) olRT.dispose(); olRT = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, stencilBuffer: false }); }
   // the mask: every outlined model in the box (and every other one there, so it can stand in front of a line), each a
-  // flat id with its depth; the palette says how each id's line is drawn
+  // flat id with its depth; the palette says how each id's line is drawn. It's cleared a ring wider than the box, as far
+  // out as the lines look from its edge (OL_PAD), so they never read what an earlier frame left there: a model that's
+  // moved on would show as a stray scrap of line in its colour along the box's edge for a moment as you move
   const prevRT = R.getRenderTarget(), ac = R.autoClear, sh = R.shadowMap.autoUpdate, ca = R.getClearAlpha(); R.getClearColor(_olCC);
-  R.setRenderTarget(olRT); olRT.scissor.set(x0, y0, x1 - x0, y1 - y0); olRT.scissorTest = true; R.setRenderTarget(olRT);
+  const pad = Math.ceil(OL_PAD * px), cx0 = Math.max(0, x0 - pad), cy0 = Math.max(0, y0 - pad), cx1 = Math.min(W, x1 + pad), cy1 = Math.min(H, y1 + pad);
+  R.setRenderTarget(olRT); olRT.scissor.set(cx0, cy0, cx1 - cx0, cy1 - cy0); olRT.scissorTest = true; R.setRenderTarget(olRT);
   R.setClearColor(0x000000, 0); R.clear(true, true, false); R.autoClear = false; R.shadowMap.autoUpdate = false;
   let slot = 0;
   for (const r of olRoots) {
     if (!r.on || slot >= OL.slots - 1 || r.sx + r.sr < x0 || r.sx - r.sr > x1 || r.sy + r.sr < y0 || r.sy - r.sr > y1) continue;
     r.slot = ++slot; r.mat.uniforms.uSlot.value = slot;
     const c = r.top, i = slot * 4, j = (OL.slots + slot) * 4;
-    if (c) { olPalData[i] = c.color.r * 255; olPalData[i + 1] = c.color.g * 255; olPalData[i + 2] = c.color.b * 255; olPalData[i + 3] = Math.min(1, c.opacity) * 255; olPalData[j] = c.userData.olW / 4 * 255; }
+    if (c) { olPalData[i] = c.color.r * 255; olPalData[i + 1] = c.color.g * 255; olPalData[i + 2] = c.color.b * 255; olPalData[i + 3] = Math.min(1, c.userData.sh) * 255; olPalData[j] = c.userData.olW / 4 * 255; }
     else { olPalData[i + 3] = 0; olPalData[j] = 0; }
     // drawn in its mask material: its own meshes as they stand (anything hidden stays hidden), its rims, glows and
     // sprites left out

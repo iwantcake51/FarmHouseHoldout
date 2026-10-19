@@ -48,8 +48,8 @@ NET_ON.zc = m => { const z = NZ.get(m.id); if (!z || z.dead || NET.host) return;
 function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
-  for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : 0);
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))) });
+  for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
@@ -64,8 +64,10 @@ NET_ON.w = m => {
     if (z.nt) { const dt = (now - z.nt) / 1000; if (dt > 0.02) { const k2 = 0.5; z.nvx = (z.nvx || 0) * (1 - k2) + clamp((zs[k + 1] - z.nx) / dt, -8, 8) * k2; z.nvz = (z.nvz || 0) * (1 - k2) + clamp((zs[k + 2] - z.nz) / dt, -8, 8) * k2; } }
     z.nx = zs[k + 1]; z.nz = zs[k + 2]; z.nf = zs[k + 3]; z.nt = now;
     if (zs[k + 4] < z.hp) z.hp = zs[k + 4];
-    z.out = !!zs[k + 5]; z.atkBoard = zs[k + 6] ? openings[zs[k + 6] - 1] : null;
+    z.out = !!zs[k + 5]; z.atkBoard = zs[k + 6] > 0 ? openings[zs[k + 6] - 1] : null; z.atkDoor = zs[k + 6] < 0 ? HOUSE_DOORS.list[-1 - zs[k + 6]] || null : null;
   }
+  // the doors between rooms: how beaten they are, the same pieces broken out of them (world/interior.js)
+  if (m.dh) m.dh.forEach((h, k) => { const d = HOUSE_DOORS.list[k]; if (d && h < d.hp) { d.hp = h; doorWear(d, null); } });
   // the boards: how many on each opening and how worked loose they are (the host's word for it, unless one went up or
   // came down here a moment ago and the host hasn't caught up yet)
   m.b.forEach((hb, k) => {
@@ -83,8 +85,10 @@ function puppetMove(z, dt) {
   if (dx * dx + dz * dz > 9) { z.x = z.nx; z.z = z.nz; } else { z.x += dx * k; z.z += dz * k; }
   z.face += angDiff(z.nf, z.face) * k;
 }
-// and at the boards the host says it's tearing at: a blow each beat, the plank jumping, a little dust
+// and at the boards (or the door) the host says it's tearing at: a blow each beat, the plank jumping, a little dust
 function puppetBoard(z, dme) {
+  const d = z.atkDoor;
+  if (d && !d.broken) { z.face += angDiff(Math.atan2(d.cx - z.x, d.cz - z.z), z.face) * 0.2; if (z.atk <= 0) { z.atk = z.type === 'brute' ? BRUTE_SMASH.t : 0.9; z.lunge = 1; doorBlow(d, z, z.type === 'brute', dme); } return; }
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
   if (z.atk > 0) return;
@@ -166,6 +170,9 @@ function netBoardUp(o) {
 }
 NET_ON.ba = m => { const o = openings[m.o]; if (!o || state === 'title' || o.boards.length >= 3) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd); };
 // (at: which side a board shot or torn down goes flying to, for one no zombie broke)
+// a door between rooms broken down in the host's game: down in everyone's (world/interior.js)
+function netDoorBroke(d, z) { if (netLink() && NET.host) netSend('db', { d: HOUSE_DOORS.list.indexOf(d), id: z ? z.id : 0 }); }
+NET_ON.db = m => { const d = HOUSE_DOORS.list[m.d]; if (!d || NET.host || d.broken) return; breakDoor(d, NZ.get(m.id) || null); };
 function netBoardBroke(o, z, at) {
   if (!netLink() || !NET.host) return;
   o.netT = performance.now() + 600;

@@ -1,10 +1,10 @@
 // Moths, pollen motes, night mist and fireflies.
 
 // inside the house's walls (plus a margin): the bugs and motes keep out
-const inHouse = (x, z, m) => x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m;
+const inHouse = (x, z, m) => inHouseRect(x, z, m);
 // moths that circle the lamps and the fire after dark
 const moths = (() => {
-  const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], [cxw(14), 1.4, cxw(16)]];   // outdoor lights only
+  const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], BURN_BARREL.moths];   // outdoor lights only (the barrel's moves each run: world/yard.js)
   const seed = [];
   // a few round each light, not a swarm
   centres.forEach((c, i) => { const n = i === 1 ? 6 : 4; for (let k = 0; k < n; k++) seed.push({ c, wall: i === 0, r: rr(0.12, i === 1 ? 0.75 : 0.5), p: rand() * 6.28, s: rr(2.2, 6) * (rand() < 0.5 ? -1 : 1), y: rr(-0.2, i === 1 ? 0.6 : 0.3), w: rr(1.5, 4.5) }); });
@@ -43,13 +43,14 @@ const motes = (() => {
 // low banks of mist that creep across the yard at night
 const mists = [];
 for (let k = 0; k < 20; k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, color: 0xc8b0a0 })); sp.position.set(rr(-20, 20), rr(0.25, 0.6), rr(-20, 20)); const sc = rr(7, 12); sp.scale.set(sc, sc * 0.45, 1); sp.userData = { vx: rr(0.15, 0.35), vz: rr(-0.1, 0.1), ph: rand() * 6, life: rr(0, 30), max: rr(18, 34) }; scene.add(sp); mists.push(sp); }
-// fog lying over the main road out front (world/ground.js): soft banks drifting along it day and night, thicker with the
-// weather, so the road is never quite clear and the zombies crossing it come out of them
+// fog lying over the main road out front (world/ground.js): soft banks drifting slowly along it day and night, thicker
+// with the weather, so the road is never quite clear and the zombies crossing it come out of them. Like the haze round
+// the farm (EDGE_BODY, core/shaders.js), the wind doesn't move them
 const roadFog = [];
 const placeRoadFog = (sp, x) => { sp.position.set(x, rr(0.5, 1.1), ROAD.z + rr(-3.5, 3.5)); const sc = rr(7, 12); sp.scale.set(sc, sc * rr(0.35, 0.5), 1); };
 for (let k = 0; k < 14; k++) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, transparent: true, depthWrite: false, opacity: 0, fog: false }));
-  placeRoadFog(sp, rr(-26, 26)); sp.userData = { vx: rr(0.25, 0.6) * (rand() < 0.5 ? -1 : 1), ph: rand() * 6, life: rr(0, 40), max: rr(24, 44) }; scene.add(sp); roadFog.push(sp);
+  placeRoadFog(sp, rr(-26, 26)); sp.userData = { vx: rr(0.08, 0.22) * (rand() < 0.5 ? -1 : 1), ph: rand() * 6, life: rr(0, 40), max: rr(24, 44) }; scene.add(sp); roadFog.push(sp);
 }
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
@@ -75,7 +76,8 @@ function stepAtmos(realDt) {
     }
     motes.pts.geometry.attributes.position.needsUpdate = motes.pts.geometry.attributes.color.needsUpdate = true;
   }
-  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
+  LMU.uHouse.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1); { const c = HOUSE.cut; if (c) LMU.uHouseCut.value.set(c[0], c[1], c[2], c[3]); else LMU.uHouseCut.value.set(-1e3, -1e3, -1e3, -1e3); }
+  LMU.uFogT.value = t % 10000;   // the edge fog's clock, wrapped where every drift in EDGE_BODY comes round whole, so it never jumps
   { const cs = (0.4 + 2.5 * WX.str) * 0.022; LMU.uCloud.value.x -= rdt * cs * WX.x; LMU.uCloud.value.y -= rdt * cs * WX.z; }   // the clouds' shade sails over with the wind (0.022: the shade's scale, core/shaders.js), quicker up there than down here
   LMU.uCloud.value.z = mix(0.22 * Math.max(0, day - 0.2) * (1 - fogW.lv * 0.6), 0.12, tb);
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
@@ -85,7 +87,7 @@ function stepAtmos(realDt) {
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
   for (const sp of roadFog) {
-    const u = sp.userData; sp.position.x += (u.vx * (1 - WX.str * 0.6) + WX.x * (0.2 + 1.2 * WX.str)) * rdt;   // drifting along the road, pushed by the wind's pull along it
+    const u = sp.userData; sp.position.x += u.vx * rdt;   // creeping along the road on its own
     const wx = viewExt.x + 7;   // wrapped and placed out past the edge of the view, with room for the bank's own size
     u.life += rdt; if (u.life > u.max) { u.life = 0; u.max = rr(24, 44); placeRoadFog(sp, camTarget.x + rr(-wx, wx)); }
     if (sp.position.x - camTarget.x > wx) sp.position.x -= 2 * wx; if (sp.position.x - camTarget.x < -wx) sp.position.x += 2 * wx;
@@ -101,7 +103,7 @@ function stepAtmos(realDt) {
     const env = Math.sin(Math.PI * u.life / u.max);
     if (sp.position.x - camTarget.x > wx) sp.position.x -= 2 * wx; if (sp.position.x - camTarget.x < -wx) sp.position.x += 2 * wx;
     if (sp.position.z - camTarget.z > wz) sp.position.z -= 2 * wz; if (sp.position.z - camTarget.z < -wz) sp.position.z += 2 * wz;
-    const inside = sp.position.x > HOUSE.x0 - 1 && sp.position.x < HOUSE.x1 + 1 && sp.position.z > HOUSE.z0 - 1 && sp.position.z < HOUSE.z1 + 1;
+    const inside = inHouseRect(sp.position.x, sp.position.z, 1);
     sp.material.opacity = inside ? 0 : mo * env * (0.7 + 0.3 * Math.sin(t * 0.2 + u.ph));
     sp.visible = sp.material.opacity > 0.005;
   }

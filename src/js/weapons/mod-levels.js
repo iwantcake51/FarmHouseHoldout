@@ -15,7 +15,6 @@ const MOD_UP = {
   sawn: { t: '+2 pellets', up: D => { D.pellets += 2; } },
   both: { t: '+10% damage', up: D => { D.dmg *= 1.1; } },
   well: { t: 'Mag changes 3% faster', up: D => { D.reload *= 0.97; } },
-  bolt: { t: 'Bolt works 12% faster', up: D => { D.rate *= 0.88; } },
   ported: { t: 'Spread −20%', up: D => { D.spread *= 0.8; } },
   navy: { t: '+1 round a burst, +6% damage', up: D => { D.burst += 1; D.dmg *= 1.06; } },
   gl: { t: 'Recharges 25% faster', up: D => { D.glRecharge *= 0.75; } },
@@ -85,6 +84,7 @@ function fireModeOf(id) {
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
+  if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
   if (WEAP[id].slot === 'auto' || id === 'auto12') return { k: 'auto', t: 'Auto' };
   return { k: 'semi', t: 'Semi' };

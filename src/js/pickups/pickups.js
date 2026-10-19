@@ -118,9 +118,9 @@ function updatePickups(dt) {
   updateShareTags();
 }
 
-// weapons are taken on purpose, with E (or the touch button), never just by walking over them: a weapon's case off the
-// radio, and a gun you've put down for another, lying where you dropped it with its upgrades and the rounds that were
-// in it. Taking one puts down the one in that slot in its place (gunDrop)
+// weapons are taken on purpose, with E (or the touch button), never just by walking over them: a weapon's case, and a
+// gun put down to share with your team (gunDrop), lying where it was dropped with its upgrades and the rounds that were
+// in it. The one it replaces goes on your gun rack (stations/armory.js), to swap back to there
 const TAKE_R = 1.4;
 const isTake = p => p.kind === 'gun' || (p.kind === 'supply' && !!p.cargo && p.cargo.kind === 'weapon');
 const takeId = p => p.kind === 'gun' ? p.cargo.id : p.cargo.id;
@@ -154,8 +154,8 @@ function layGun(copy) {
   return lay;
 }
 function takeIt(p) {
-  const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];
-  if (old) gunDrop(old);
+  const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];   // (what it replaces goes on your gun rack: stations/armory.js)
+  if (!W8.owned.includes(id)) W8.owned.push(id);
   if (p.kind === 'gun' && p.cargo.gid) gunGone(p);   // (gone for the rest of the team too: net/teamwork.js)
   if (p.kind === 'gun') {
     // one a teammate shared: it comes to you with everything that was on it, yours to keep from now on

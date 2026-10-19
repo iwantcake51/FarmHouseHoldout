@@ -21,6 +21,7 @@ function setState(s) {
 }
 // wipe the farm back to a fresh run: bodies, drops, debris, boards, stats, your character
 function resetRun(keepLook) {
+  houseLayout(NET.on && NET.inGame && NET.houseSeed != null ? NET.houseSeed : (Math.random() * 2147483647) | 0, true);   // a new floor plan (world/interior.js), the host's in co-op
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
   ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0;
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
@@ -36,21 +37,23 @@ function resetRun(keepLook) {
   floats.forEach(f => f.el.remove()); floats.length = 0;
   netRunStart();   // (co-op: net/sync.js)
 }
-// soft: straight off the title, where the farm is already fresh and the survivor you see is the one you play, so the
-// camera glides down from the title shot without a cut
-function newRun(soft) {
+// soft: straight off the title, where the survivor you see is the one you play, so the camera glides down from the
+// title shot without a cut; dark: it's coming up out of black instead (cineRun), so it glides in from high up, and the
+// new house's paint is on already
+function newRun(soft, dark) {
   audioInit(); resetRun(soft);
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   R.compile(scene, cam);
   setState('play'); beginBreak(10);
-  startIntro(soft);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
+  if (dark) stepPaint(PAINT_FADE * 2);
+  startIntro(soft && !dark);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced
 }
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
   resetRun(); setState('title'); $('title').scrollTop = 0;
   if (NET.on) { NET.inGame = false; toggleCoop(true); }   // still in a co-op game: back in its lobby
   // the HUD stops updating on the title, so clear the dying screen effects by hand
-  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
+  cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig', 'nearVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; cache.nearVig = null; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
   if (muff && AC) muff.frequency.setTargetAtTime(20000, AC.currentTime, 0.1);
 }
 // Moving between the title and a run is never a cut: the screen you're on slides away, and wherever the farm has to be
@@ -71,9 +74,28 @@ function switchScreens(dark, fn) {
   }, SWITCH_MS);
 }
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
-// start a run: off the title the menu slides away and the camera swoops down onto you; after a death it dips to black
-// in a co-op lobby only the host starts it, for everyone (net/net.js)
-function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); const soft = state === 'title'; switchScreens(!soft, () => newRun(soft)); }
+// start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
+// for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
+function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
+// off the title, cinematically: the menu slides away as the picture slowly dims to black and letterbox bars close in
+// (CINE.out, ms), the run's set up in the dark (the new farm, every shader built), and after a held beat (hold) it
+// opens slowly out of black on the intro's glide down onto you, the bars drawing back over bars ms as you get up
+const CINE = { out: 1000, hold: 300, bars: 1500 };
+function cineRun() {
+  if (switching) return; switching = true;
+  const t = $('title'); t.classList.add('leaving'); t.classList.remove('arrive');
+  $('fadeVeil').classList.add('cine'); $('cineBars').classList.add('on'); veil(true);
+  setTimeout(() => {
+    t.classList.remove('leaving');
+    newRun(true, true);
+    // (two frames, so the new view's been drawn, then the held beat)
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+      veil(false); switching = false;
+      setTimeout(() => $('cineBars').classList.remove('on'), CINE.bars * 0.4);
+      setTimeout(() => $('fadeVeil').classList.remove('cine'), CINE.bars * 1.6);
+    }, CINE.hold)));
+  }, CINE.out);
+}
 // to the title: a dip to black, and the menu comes in piece by piece as it lifts
 function leaveToMenu() { switchScreens(true, () => { backToMenu(); $('title').classList.add('arrive'); }); }
 // the pause screen fades in and out instead of snapping

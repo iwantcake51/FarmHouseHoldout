@@ -49,14 +49,25 @@ function addBoard(o, hp, sd) {
   const side = sd || Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
   const m = makePlank(o.out * side);
   m.position.set(rr(-.06, .06), o.ys[n] + rr(-0.04, 0.04), o.out * side * (0.52 + n * 0.012)); m.rotation.set(rr(-0.03, 0.03), rr(-0.04, 0.04), (n % 2 ? -1 : 1) * rr(.1, .28));
-  m.userData.drop = 0.12; m.position.y += 0.12;   // knocked into place
-  m.userData.rz0 = m.rotation.z; m.userData.x0 = m.position.x; m.userData.z0 = m.position.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
+  { const u = m.userData; u.place = 0; u.pz = o.out * side; u.pSide = rand() < 0.5 ? -1 : 1; u.p0 = { x: m.position.x, y: m.position.y, z: m.position.z, rz: m.rotation.z, ry: m.rotation.y }; boardPlace(m, 0); }   // swung in and nailed (boardPlace)
+  m.userData.rz0 = m.userData.p0.rz; m.userData.x0 = m.userData.p0.x; m.userData.z0 = m.userData.p0.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
   if (mine) run.boards++;
   // your own hammering's right in front of you, never muffled; a teammate's comes from where they are, through the walls
-  const hit = () => mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); hit(); setTimeout(hit, 110);
+  const hit = () => mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); BOARD_NAILS.forEach(k => setTimeout(hit, k * BOARD_PLACE * 1000));
   burst(o.x + o.nx * side * .55, o.ys[n], o.z + o.nz * side * .55, 4, 'dust');
   flowDirty = true; lightsDirty = true;
+}
+// putting a board up takes BOARD_PLACE seconds: it's swung in from your side of the opening, one end leading, low and
+// turned, and eased onto the frame (the first BOARD_SWING of it); then it's nailed, a hammer blow at each of BOARD_NAILS
+// knocking it tight against the frame with a little shiver. k runs 0 to 1 (day-night.js steps it each frame)
+const BOARD_PLACE = 0.45, BOARD_SWING = 0.55, BOARD_NAILS = [0.6, 0.84];
+function boardPlace(m, k) {
+  const u = m.userData, p = u.p0, a = 1 - Math.pow(1 - clamp(k / BOARD_SWING, 0, 1), 3), b = 1 - a;
+  let knock = 0; for (const n of BOARD_NAILS) { const d = (k - n) / 0.12; if (d > 0 && d < 1) knock += Math.sin(d * Math.PI) * (1 - d); }
+  m.position.set(p.x + b * u.pSide * 0.22, p.y - b * 0.16, p.z + u.pz * (b * 0.34 - knock * 0.014));
+  m.rotation.z = p.rz + b * u.pSide * 0.32 + knock * 0.025 * u.pSide;
+  m.rotation.y = p.ry + b * u.pSide * 0.28;
 }
 // a blow on the boards: the one on top jumps and rattles in its nails, chips and a puff of dust fly off it, and it's
 // pulled a little further loose toward whoever's hitting it (boardShake)
@@ -74,7 +85,7 @@ function boardShake(rdt) {
   for (const o of openings) o.meshes.forEach((m, k) => {
     const u = m.userData, loose = clamp(1 - o.boards[k] / (u.hp0 || 1), 0, 1), j = u.jolt || 0;
     if (!(loose > 0) && !(j > 0)) return;
-    if (u.y0 === undefined) { if (u.drop > 0) return; u.y0 = m.position.y; }   // (once it's done being knocked into place)
+    if (u.y0 === undefined) { if (u.place < 1) return; u.y0 = m.position.y; }   // (once it's up and nailed)
     const nj = Math.max(0, j - rdt * 3.2); u.jolt = nj;
     // turned about the end still nailed (half the board's length out from its middle, on the side away from u.sag)
     const L = m.children[0] ? m.children[0].scale.x : 1.3, th = -u.sag * 0.34 * smooth(loose) + Math.sin(nj * 30) * 0.06 * nj * (u.jSide || 1);
@@ -159,7 +170,7 @@ function stepBoards(dt, rdt) {
   for (const q of loosePlanks) if (q.life > 0) q.g.visible = visAt(q.g.position.x, q.g.position.z) > 0.15;
 }
 function resetBoards() {
-  openings.forEach(o => { while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.busy = null; });
+  openings.forEach(o => { while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.climbers = []; });
   loosePlanks.forEach(q => scene.remove(q.g)); loosePlanks.length = 0;
   lightsDirty = true;
 }

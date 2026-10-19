@@ -6,7 +6,9 @@ const ZT = {
   brute: { hp: 240, speed: 0.95, dmg: 58, bdps: 0, r: 0.48, scale: 1.45, shirts: [0x34322e, 0x4a3a2a] }
 };
 const PART_Y = { head: 1.35, torso: 0.95, armL: 1.05, armR: 1.05, legL: 0.35, legR: 0.35 };
-const partMult = p => p === 'head' ? S.headMul : p === 'torso' ? 1 : p === 'armL' || p === 'armR' ? 0.5 : 0.7;
+// a bullet's damage by where it lands: the head by Headhunter and the like, the body in full, an arm half, a leg less
+// than half (it goes through the meat of it; what a leg shot does is slow one down: LEG_SLOW in zombies/damage.js)
+const partMult = p => p === 'head' ? S.headMul : p === 'torso' ? 1 : p === 'armL' || p === 'armR' ? 0.5 : 0.42;
 const STUMP = { head: [0, 1.18, 0], armL: [-0.33, 1.08, 0], armR: [0.33, 1.08, 0], legL: [-0.13, 0.55, 0], legR: [0.13, 0.55, 0] };
 const zombies = [];
 // headshots pay off most with heavy rounds: 9mm only gets about half the head bonus, shotgun loads only a third, and

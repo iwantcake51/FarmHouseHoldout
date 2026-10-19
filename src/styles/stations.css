@@ -1,4 +1,6 @@
-/* The station panel (workbench, sawhorse, medicine cabinet, radio). */
+/* The station panel (workbench, sawhorse, medicine cabinet, radio, gun rack). It and what docks beside it (the stats,
+   the loadout, the rack's loadout) stand at z-index 4, over everything pinned to the farm (the stations' labels, drop
+   markers, teammates' tags and share tags, floating numbers: 2 and 3) and under the full screens (5). */
 #station{z-index:4;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto;box-sizing:border-box;width:min(600px,calc(100vw - 32px));max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));grid-template-rows:auto minmax(0,1fr) auto;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);padding:12px 14px;display:grid;gap:10px;text-shadow:none;box-shadow:0 18px 40px rgba(0,0,0,.45);transition:left .28s cubic-bezier(.2,.8,.3,1),width .28s cubic-bezier(.2,.8,.3,1)}
 @media (prefers-reduced-transparency:reduce){#station{background:rgba(12,14,15,.95);-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* opening: the orange rule draws out from its middle, then the panel unrolls down from it like a sheet let down off a
@@ -18,9 +20,45 @@
 .stScrap svg{width:16px;height:16px;fill:#8fa3b8}
 .stScrap b{font-family:var(--f-num);font-weight:800;font-size:20px;line-height:1}
 #station.wide{width:min(820px,calc(100vw - 32px))}
+/* the gun rack's panels never show a scrollbar: laid out to fit, and if a very short window still can't hold them they
+   scroll on the wheel without one */
+#station.isRack #stRows,#rkLoad{scrollbar-width:none}
+#station.isRack #stRows::-webkit-scrollbar,#rkLoad::-webkit-scrollbar{display:none}
+#station.wide #stRows{grid-template-columns:repeat(auto-fill,minmax(min(330px,100%),1fr))}   /* a long list two across, roomy enough to read */
+/* the workbench's weapon tabs (stations/station-ui.js): one for each weapon you carry, the pill easing along under the
+   one in your hands */
+#station.withGuns{grid-template-rows:auto auto minmax(0,1fr) auto}
+#station.withQuick{grid-template-rows:auto minmax(0,1fr) auto auto}
+#station.withGuns.withQuick{grid-template-rows:auto auto minmax(0,1fr) auto auto}
+/* the workbench's quick ammo: two buttons pinned along the bottom under its cards, lit gold when you can buy */
+#stQuick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
+#stQuick[hidden]{display:none}
+#stQuick button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 9px;border:1px solid rgba(236,230,216,.14);background:rgba(0,0,0,.25);color:var(--dim);transition:background .15s,border-color .15s,color .15s,translate .15s}
+#stQuick button > svg{width:18px;height:18px;fill:#d4b25c;opacity:.5}
+#stQuick button span b{display:block;font-size:12px;font-weight:600;letter-spacing:.04em}
+#stQuick button span em{display:block;font-style:normal;font-size:10px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stQuick .cost{display:flex;align-items:center;gap:3px}#stQuick .cost svg{width:13px;height:13px;fill:#8fa3b8}#stQuick .cost b{font-family:var(--f-num);font-size:15px;font-weight:800;color:#c8d2dc}
+#stQuick .cost.short b{color:#e0805c}
+#stQuick button.ok{color:var(--ink);border-color:rgba(212,178,92,.6);background:linear-gradient(180deg,rgba(212,178,92,.16),rgba(212,178,92,.05))}
+#stQuick button.ok > svg{opacity:1}
+#stQuick button.ok:hover,#stQuick button.ok:focus-visible{background:linear-gradient(180deg,rgba(212,178,92,.26),rgba(212,178,92,.09));translate:0 -1px}
+#stQuick button:not(.ok){cursor:not-allowed}
+#stQuick button.bump{animation:qBump .3s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes qBump{40%{transform:scale(1.04)}}
+#stGuns{position:relative;display:grid;grid-template-columns:repeat(var(--n,1),1fr);padding:3px;background:rgba(0,0,0,.28);border:1px solid rgba(236,230,216,.1);box-shadow:inset 0 1px 6px rgba(0,0,0,.35)}
+#stGuns[hidden]{display:none}
+.sgPill{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / var(--n,1));translate:calc(var(--i,0) * 100%) 0;background:linear-gradient(180deg,rgba(216,105,44,.26),rgba(216,105,44,.12));border:1px solid rgba(216,105,44,.7);border-bottom:2px solid var(--orange);box-sizing:border-box;box-shadow:0 2px 12px rgba(216,105,44,.22);transition:translate .38s cubic-bezier(.2,.9,.25,1);pointer-events:none}
+#stGuns button{all:unset;position:relative;cursor:pointer;display:grid;justify-items:center;gap:1px;padding:6px 6px 7px;color:var(--dim);transition:color .2s}
+#stGuns button:hover{color:#d6d0c2}
+#stGuns button[aria-selected="true"]{color:var(--ink);cursor:default}
+#stGuns button span{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+#stGuns button b{font-family:var(--f-num);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase;line-height:1.05}
+#station.opening #stGuns{animation:stRise .3s cubic-bezier(.2,.8,.3,1) .15s backwards}
+#stRows.swap>*{animation:stRise .3s cubic-bezier(.2,.8,.3,1) backwards;animation-delay:calc(.02s + var(--k,0) * .03s)}
+@media (prefers-reduced-motion:reduce){.sgPill{transition:none}#stRows.swap>*{animation:none}}
 #stRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));align-items:start;gap:8px;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}   /* each card its own height, not stretched to the tallest in its row */
-#stRows button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;gap:6px 10px;padding:10px;background:rgba(236,230,216,.04);border:1px solid rgba(236,230,216,.12);transition:border-color .12s,background .12s,transform .12s,opacity .5s ease,filter .5s ease}
-#stRows button.ok:hover,#stRows button:focus-visible{border-color:var(--ic);background:rgba(236,230,216,.08)}
+#stRows button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;gap:8px 12px;padding:11px 12px 10px;background:linear-gradient(180deg,rgba(236,230,216,.055),rgba(236,230,216,.02));border:1px solid rgba(236,230,216,.12);transition:border-color .12s,background .12s,transform .12s,translate .12s,box-shadow .15s,opacity .5s ease,filter .5s ease}
+#stRows button.ok:hover,#stRows button:focus-visible{border-color:var(--ic);background:rgba(236,230,216,.09);box-shadow:inset 3px 0 0 var(--ic);translate:0 -1px}
 #stRows button.no{opacity:.55;cursor:default}
 /* none to be had because you carry as many as you can: darker still */
 #stRows button.full{opacity:.42;filter:brightness(.6)}
@@ -35,23 +73,157 @@
 #stRows .stars svg{width:11px;height:11px;fill:none;stroke:var(--ic);stroke-width:2;stroke-linejoin:round;opacity:.5}
 #stRows .stars svg.next{opacity:1}
 #stRows .stars svg.on{fill:var(--ic);opacity:1}
-#stRows .tx{display:grid;gap:2px;min-width:0;align-content:start}
-#stRows .tx b{font-size:14px;font-weight:600;color:var(--ink)}
+#stRows .tx{display:grid;gap:3px;min-width:0;align-content:start}
+#stRows .tx b{font-size:15px;font-weight:600;color:var(--ink);line-height:1.25}
 /* who the card is for, above its name: the gun in your hands, all your guns, you */
 #stRows .tx .for{font-style:normal;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ic)}
-#stRows .tx em{font-style:normal;font-size:11px;color:var(--dim);line-height:1.35}
+#stRows .tx em{font-style:normal;font-size:11.5px;color:#bdb7a9;line-height:1.45}
 /* what it does in numbers: green for better, red for worse */
-#stRows .fx{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
-#stRows .fx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:10px;line-height:1.3;letter-spacing:.02em;padding:2px 5px 1px;border:1px solid currentColor;border-radius:2px}
+#stRows .fx{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+#stRows .fx i{font-style:normal;font-family:var(--f-ui);font-weight:600;font-size:10.5px;line-height:1.3;letter-spacing:.02em;padding:2px 6px 1px;border:1px solid currentColor;border-radius:2px}
 #stRows .fx .up{color:#8fd49a;background:rgba(80,160,96,.12)}
 #stRows .fx .down{color:#ec8a72;background:rgba(200,80,60,.12)}
 #stRows .fx .eq{color:#b8c0c8;background:rgba(184,192,200,.08)}
-#stRows .ft{display:flex;align-items:center;gap:8px;font-size:11px}
+#stRows .ft{display:flex;align-items:center;gap:8px;font-size:11px;padding-top:7px;border-top:1px solid rgba(236,230,216,.07)}
 #stRows kbd{font-family:var(--f-ui);font-weight:600;background:var(--ink);color:#111;padding:0 5px}
-#stRows .cost{display:flex;align-items:center;gap:3px;color:#c8d2dc;font-weight:600}
-#stRows .cost b{font-weight:600}
+#stRows .cost{display:flex;align-items:center;gap:4px;padding:1px 7px 1px 5px;color:#dbe2e8;font-weight:600;background:rgba(143,163,184,.1);border:1px solid rgba(143,163,184,.25)}
+#stRows .cost b{font-family:var(--f-num);font-weight:800;font-size:14px}
 #stRows .cost svg{width:13px;height:13px;fill:#8fa3b8}
 #stRows .cost.short{color:#e0604c}
-#stRows .st{margin-left:auto;color:#7fae5a;letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+#stRows .st{margin-left:auto;color:#8fd49a;font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:10px}
 #stRows .st.bad{color:#e0805c}
-#stRows .stGroup{grid-column:1/-1;margin-top:4px;padding-top:8px;border-top:1px solid rgba(236,230,216,.12);font-family:var(--f-num);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+#stRows .stGroup{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:8px;font-family:var(--f-num);font-size:14px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#d6d0c2}
+#stRows .stGroup::before{content:"";width:3px;height:14px;background:var(--orange)}
+#stRows .stGroup::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(236,230,216,.18),transparent)}
+/* the gun rack (stations/armory.js): a tab a line, a pill easing along under the open one and each tab's pips saying how
+   far along that line you are; the panes are stacked and ease across into each other, the open one's cards rising in
+   one after another as it comes up */
+.rack{grid-column:1/-1;display:grid;gap:12px;--i:0}
+.rkTabs{position:relative;display:grid;grid-template-columns:repeat(var(--n),1fr);padding:3px;background:rgba(0,0,0,.28);border:1px solid rgba(236,230,216,.1);box-shadow:inset 0 1px 6px rgba(0,0,0,.35)}
+.rkPill{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / var(--n));translate:calc(var(--i) * 100%) 0;background:linear-gradient(180deg,rgba(216,105,44,.26),rgba(216,105,44,.12));border:1px solid rgba(216,105,44,.7);border-bottom:2px solid var(--orange);box-sizing:border-box;box-shadow:0 2px 12px rgba(216,105,44,.22);transition:translate .38s cubic-bezier(.2,.9,.25,1);pointer-events:none}
+#stRows .rkTabs button{all:unset;position:relative;cursor:pointer;display:grid;justify-items:center;gap:5px;padding:7px 4px 7px;font-family:var(--f-num);font-weight:700;font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);transition:color .2s}
+#stRows .rkTabs button:hover{color:#d6d0c2}
+#stRows .rkTabs button[aria-selected="true"]{color:var(--ink)}
+.rkPips{display:flex;gap:4px}
+.rkPips i{width:14px;height:3px;background:rgba(236,230,216,.16);transition:background .3s,box-shadow .3s}
+.rkPips i.own{background:#7fae5a}
+.rkPips i.next{background:rgba(240,191,76,.45)}
+.rkPips i.next.can{background:var(--gold);box-shadow:0 0 6px rgba(240,191,76,.7)}
+.rkPanes{display:grid}
+.rkPane{grid-area:1/1;display:grid;gap:10px;align-content:start;transition:opacity .24s ease,translate .38s cubic-bezier(.2,.9,.25,1),visibility 0s}
+.rkPane:not([data-at="on"]){opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,translate .38s cubic-bezier(.2,.9,.25,1),visibility 0s .38s}
+.rkPane[data-at="before"]{translate:-32px 0}
+.rkPane[data-at="after"]{translate:32px 0}
+#station.opening .rkTabs,#station.opening .rkPane>*,.rack.swap .rkPane[data-at="on"]>*,.rack.swap .rkPane[data-at="on"] .rkNode{animation:stRise .32s cubic-bezier(.2,.8,.3,1) backwards;animation-delay:calc(.04s + var(--k,0) * .04s)}
+.rkPane .rkNode:nth-child(3){--k:2}.rkPane .rkNode:nth-child(5){--k:3}.rkPane .rkNode:nth-child(7){--k:4}
+.rkPaneHd{position:relative;display:flex;align-items:baseline;gap:10px;padding-bottom:7px}
+.rkPaneHd b{font-family:var(--f-num);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.rkPaneHd span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.rkPaneHd em{margin-left:auto;font-style:normal;font-family:var(--f-num);font-weight:700;font-size:15px;color:var(--dim)}
+.rkProg{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(236,230,216,.1)}
+.rkProg::after{content:"";position:absolute;inset:0;right:auto;width:calc(var(--p) * 100%);background:linear-gradient(90deg,#5d8a42,#8fd49a);transition:width .5s cubic-bezier(.2,.8,.3,1)}
+/* a line's cards joined up in order: the ones you have ticked green (the one you carry brighter), the next lit gold with
+   what it costs, the rest padlocked behind the one before */
+.rkTree{display:flex;align-items:stretch}
+.rkNode{position:relative;flex:1 1 0;min-width:0;box-sizing:border-box;display:grid;align-content:start;gap:4px;padding:11px 12px 10px;border:1px solid rgba(236,230,216,.12);background:linear-gradient(180deg,rgba(236,230,216,.05),rgba(0,0,0,.2));transition:border-color .2s,background .2s,translate .15s,opacity .3s}
+.rkNode>b{font-size:14px;font-weight:600;padding-right:22px}
+.rkNode>em{font-style:normal;font-size:10.5px;color:var(--dim);line-height:1.35}
+.rkDesc{margin:3px 0 2px;padding-top:7px;border-top:1px solid rgba(236,230,216,.08);font-size:11px;line-height:1.45;color:#bdb7a9}
+.rkNode.lock .rkDesc{color:var(--dim)}
+.rkTier{position:absolute;top:8px;right:9px;font-family:var(--f-num);font-weight:800;font-size:13px;color:rgba(236,230,216,.28)}
+.rkNode .rkTag{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.rkNode svg{width:12px;height:12px;fill:currentColor;flex:none}
+.rkNode.own{border-color:rgba(127,174,90,.45);background:linear-gradient(180deg,rgba(127,174,90,.12),rgba(127,174,90,.04))}
+.rkNode.own .rkTag{color:#8fd49a}
+.rkNode.own.on{border-color:rgba(143,212,154,.8);box-shadow:inset 0 0 0 1px rgba(143,212,154,.18)}
+.rkNode.own .rkTier{color:rgba(143,212,154,.55)}
+.rkNode.lock{opacity:.5;border-style:dashed}
+.rkNode.lock .rkTag{color:#c8d2dc}
+.rkNode.lock .rkBuy{margin-top:0}
+#stRows button.rkNode{all:unset;position:relative;flex:1.25 1 0;min-width:0;box-sizing:border-box;display:grid;align-content:start;gap:4px;padding:11px 12px 10px;cursor:pointer;border:1px solid var(--gold);background:linear-gradient(180deg,rgba(240,191,76,.14),rgba(240,191,76,.04));box-shadow:inset 0 0 0 1px rgba(240,191,76,.12);animation:rkGlow 2.4s ease-in-out infinite;transition:background .15s,translate .15s,border-color .2s}
+#stRows button.rkNode .rkTier{color:rgba(240,191,76,.6)}
+#stRows button.rkNode:hover,#stRows button.rkNode:focus-visible{background:linear-gradient(180deg,rgba(240,191,76,.24),rgba(240,191,76,.08));translate:0 -2px}
+/* one you can't afford yet: struck through with hatching, greyed, its price in red, and a bar along its foot of how near
+   you are to it; it doesn't lift under the cursor */
+#stRows button.rkNode.short{border-color:rgba(224,128,92,.5);border-style:dashed;background:repeating-linear-gradient(135deg,rgba(224,128,92,.08) 0 7px,transparent 7px 14px),rgba(14,12,11,.55);box-shadow:none;animation:none;cursor:not-allowed}
+#stRows button.rkNode.short:hover,#stRows button.rkNode.short:focus-visible{translate:none;background:repeating-linear-gradient(135deg,rgba(224,128,92,.11) 0 7px,transparent 7px 14px),rgba(14,12,11,.55)}
+#stRows button.rkNode.short > b,#stRows button.rkNode.short > em,#stRows button.rkNode.short .rkDesc{opacity:.55}
+#stRows button.rkNode.short .rkTier{color:rgba(224,128,92,.55)}
+.short .rkBuy b{color:#e0805c}
+.short .rkBuy svg{fill:#e0805c}
+.rkProg{display:none;position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(224,128,92,.16)}
+.rkProg i{display:block;height:100%;width:0;background:#e0805c;transition:width .3s ease-out}
+.short .rkProg{display:block}
+#stRows button.rkNode.shake{animation:shake .25s}
+@keyframes rkGlow{50%{box-shadow:inset 0 0 0 1px rgba(240,191,76,.12),0 0 16px rgba(240,191,76,.22)}}
+.rkBuy{display:flex;align-items:center;gap:4px;margin-top:5px;color:#c8d2dc}
+.rkBuy svg{fill:#8fa3b8}
+.rkBuy b{font-family:var(--f-num);font-size:16px;font-weight:800}
+.rkNeed{font-style:normal;margin-left:auto;padding:2px 7px 1px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#140c06;background:#7fae5a}
+.short .rkNeed{color:#f4d0c0;background:rgba(200,80,50,.55)}
+.rkLink{flex:0 0 18px;align-self:center;height:2px;background:rgba(236,230,216,.18)}
+.rkLink.own{background:rgba(127,174,90,.7)}
+.rkLink.next{background:linear-gradient(90deg,rgba(127,174,90,.7),var(--gold))}
+/* melee: the bat, forking into the blunt line and the blades */
+.rkFork{display:grid;grid-template-columns:minmax(0,1fr) 20px minmax(0,3.3fr);align-items:center}
+.rkRoot{display:flex}
+.rkSplit{height:2px;background:rgba(127,174,90,.7)}
+/* (the branches' names sit over them out of the flow and the rows are kept the same height, so the bracket joining
+   them runs from the middle of one to the middle of the other, level with the bat) */
+.rkBranches{display:grid;grid-auto-rows:1fr;gap:22px;padding-top:16px}
+.rkBranch{position:relative;display:grid;padding-left:16px}
+.rkBranch .rkTree{position:relative}
+.rkBranch .rkTree::before{content:"";position:absolute;left:-16px;top:50%;width:16px;height:2px;margin-top:-1px;background:linear-gradient(90deg,rgba(127,174,90,.7),var(--gold))}
+.rkBranch.own .rkTree::before{background:rgba(127,174,90,.7)}
+.rkBranch:first-child .rkTree::after{content:"";position:absolute;left:-18px;top:50%;width:2px;height:calc(100% + 22px);margin-top:-1px;background:rgba(127,174,90,.7)}
+.rkBrName{position:absolute;left:16px;top:-15px;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+@media (max-width:620px){.rkTree{flex-direction:column}.rkLink{width:2px;height:10px;flex-basis:10px;align-self:center}.rkFork{grid-template-columns:1fr}.rkSplit,.rkBranch .rkTree::before,.rkBranch .rkTree::after{display:none}.rkBranch{padding-left:0}.rkBrName{left:0}}
+@media (prefers-reduced-motion:reduce){.rkPane,.rkPill,button.rkNode{transition:none;animation:none}}
+/* your loadout, docked against the rack's left side (in the place the stats sheet takes at the workbench, so the rack
+   makes room for it the same way: ui/weapon-stats.js): a row a slot, the one in your hands edged orange, and the others
+   you have for each as teal buttons to take down */
+#rkLoad{z-index:4;left:calc(50% - (var(--dkL) + var(--stDockW) + var(--dkR)) / 2);bottom:calc(140px + env(safe-area-inset-bottom,0px));width:var(--wsW);box-sizing:border-box;max-height:calc(100vh - 164px - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;
+  pointer-events:auto;display:grid;gap:7px;align-content:start;padding:12px 12px 10px;background:rgba(12,14,15,.8);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);border-top:3px solid var(--orange);box-shadow:0 10px 30px rgba(0,0,0,.45);text-shadow:none;transition:left .28s cubic-bezier(.2,.8,.3,1)}
+@media (prefers-reduced-transparency:reduce){#rkLoad{background:rgba(12,14,15,.95);-webkit-backdrop-filter:none;backdrop-filter:none}}
+#rkLoad.opening{animation:wsDockIn .32s cubic-bezier(.2,.8,.3,1) .1s backwards}
+#rkLoad.opening>*{animation:stRise .3s cubic-bezier(.2,.8,.3,1) backwards;animation-delay:calc(.18s + var(--k,0) * .04s)}
+#rkLoad.closing{animation:wsDockOut .18s cubic-bezier(.55,0,.8,.2) forwards;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#rkLoad.opening,#rkLoad.closing,#rkLoad.opening>*{animation-name:wsFade!important;animation-delay:0s!important}}
+@media (max-width:700px){#rkLoad{display:none}}
+.rlHead{display:flex;align-items:baseline;gap:8px}
+.rlHead b{font-family:var(--f-num);font-weight:800;font-size:24px;text-transform:uppercase;line-height:1}
+.rlHead span{color:var(--dim);font-size:11px}
+.rlNote{margin:0 0 2px;color:var(--dim);font-size:10px;line-height:1.3}
+.rlSlot{display:grid;gap:2px;padding:6px 9px 7px;background:rgba(236,230,216,.04);border:1px solid rgba(236,230,216,.1);border-left:3px solid rgba(236,230,216,.22);transition:border-color .2s,background .2s}
+.rlSlot.cur{border-left-color:var(--orange);background:rgba(216,105,44,.08)}
+.rlSlot.pop{animation:rlPop .4s cubic-bezier(.3,1.4,.5,1)}
+@keyframes rlPop{40%{background:rgba(94,194,196,.18);border-color:rgba(94,194,196,.6)}}
+.rlSlotHd{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.rlSlotHd kbd{font-family:var(--f-ui);font-weight:600;font-size:9px;letter-spacing:0;background:rgba(236,230,216,.85);color:#111;padding:0 4px}
+.rlSlotHd i{margin-left:auto;font-style:normal;color:var(--orange)}
+.rlGo{all:unset;cursor:pointer;position:relative;display:grid;gap:2px;margin:0 -5px;padding:2px 22px 3px 5px;transition:background .15s}
+.rlGo:hover,.rlGo:focus-visible{background:rgba(236,230,216,.07)}
+.rlArrow{position:absolute;right:3px;top:50%;width:14px;height:14px;translate:0 -50%;opacity:.35;transition:opacity .15s,translate .15s}
+.rlArrow svg{width:100%;height:100%;fill:var(--ink)}
+.rlGo:hover .rlArrow,.rlGo:focus-visible .rlArrow{opacity:.9;translate:3px -50%}
+.rlSlot.shown{border-color:rgba(236,230,216,.24)}
+.rlSlot.shown .rlArrow{opacity:.7}
+#stRows .rkTabs button.rkGoFlash{animation:rkGoFlash .55s ease-out}
+@keyframes rkGoFlash{0%{box-shadow:inset 0 0 0 2px rgba(255,180,110,.9)}100%{box-shadow:inset 0 0 0 2px rgba(255,180,110,0)}}
+.rlGun{font-size:14px;font-weight:600}
+.rlEmpty{color:var(--dim)}
+.rlSlot em{font-style:normal;font-size:10px;color:var(--dim);line-height:1.3}
+.rlAlt{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.rlAlt button{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:6px;padding:3px 8px 4px;border:1px solid rgba(94,194,196,.45);background:rgba(94,194,196,.08);transition:background .15s,border-color .15s,translate .15s}
+.rlAlt button:hover,.rlAlt button:focus-visible{background:rgba(94,194,196,.2);border-color:#5ec2c4;translate:0 -1px}
+.rlAlt button span{font-size:8.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#5ec2c4}
+.rlAlt button b{font-size:11.5px;font-weight:600}
+/* a line with something you can afford to unlock now: a gold badge on its tab, and a banner over the open line saying
+   what (stations/armory.js) */
+#stRows .rkTabs button .rkCan{position:absolute;top:2px;right:4px;padding:1px 5px 0;font:700 8.5px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:#1a1104;background:var(--gold);box-shadow:0 0 8px rgba(240,191,76,.7);opacity:0;scale:.6;transition:opacity .2s,scale .25s cubic-bezier(.3,1.6,.5,1)}
+#stRows .rkTabs button.can .rkCan{opacity:1;scale:1;animation:rkCanPulse 1.6s ease-in-out infinite}
+@keyframes rkCanPulse{50%{box-shadow:0 0 14px rgba(240,191,76,1)}}
+.rkAfford{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid rgba(240,191,76,.6);background:linear-gradient(90deg,rgba(240,191,76,.18),rgba(240,191,76,.04));font-size:11.5px;color:#f3dfae;animation:stRise .3s cubic-bezier(.2,.8,.3,1) backwards}
+.rkAfford[hidden]{display:none}
+.rkAfford b{color:var(--gold);font-weight:700}
+.rkAfford svg{width:14px;height:14px;fill:var(--gold);flex:none}

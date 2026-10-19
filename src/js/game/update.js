@@ -3,7 +3,7 @@
 // One simulation step. Each system has its own function in its own folder; this just runs them in order.
 function update(dt) {
   run.time += dt; cheatTick();   // the cheat menu's switches (ui/cheats.js)
-  if (phase === 'wave' && !CHEAT.clock) tod = (tod + dt / 12) % 24;   // the clock stands still between waves
+  if (phase === 'wave' && !cheatIs('clock')) tod = (tod + dt / 12) % 24;   // the clock stands still between waves
   updatePlayer(dt);
   updateCombat(dt);
   updateInteractions(dt);

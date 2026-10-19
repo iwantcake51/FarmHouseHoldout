@@ -8,6 +8,7 @@
 // pump's and the bolt rifle's way to fire faster is their own action, not a trigger (NO_TRIGGER, upgrades/upgrades.js)
 // two guns are fired one-handed from the hip: a little looser than one held in both hands
 const AK_SPREAD = 1.15;
+const AUTO_SEAR = { rate: 0.31, trig: 2 };
 // a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
 const SLUG_FALL = [14, 30, 0.85];
 // dragon's breath: full damage to 2 m, down to 20% by 7 m, and nothing at all past 8 m
@@ -19,7 +20,9 @@ const GUN_MODS = {
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
   // the auto sear is the burst conversion's third step (MOD_LINE, weapons/mod-levels.js): it goes in once that's at level
   // II and adds full auto alongside the burst, so B steps from single shots to the burst to full auto
-  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, name: 'Auto sear', text: 'Adds full auto alongside the burst: hold to fire. B steps from single shots to burst to full auto.', vis: 'A longer selector lever', stat: D => { D.rate = 0.075; D.spread *= 1.45; D.fullAuto = true; } },
+  // full auto: the pistol's own pace cut to AUTO_SEAR.rate of it (so whatever else quickens the pistol quickens it too), and
+  // in full auto every trigger step counts AUTO_SEAR.trig times over (game/run-state.js)
+  auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, name: 'Auto sear', text: 'Adds full auto alongside the burst: hold to fire. B steps from single shots to burst to full auto. Trigger upgrades count double in full auto.', vis: 'A longer selector lever', stat: D => { D.rate *= AUTO_SEAR.rate; D.spread *= 1.45; D.fullAuto = true; } },
   akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; D.spread *= AK_SPREAD; } },
   // named for its length at each level, as the model grows (weapons/gun-models.js: snub, then 4", 6" and 8")
   longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: 'Hits harder and keeps its damage much further out.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.25; D.reach = (D.reach || 1) + 0.4; } },
@@ -30,8 +33,9 @@ const GUN_MODS = {
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Holds the muzzle down: less spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires as you pump, so it goes quicker, a touch looser.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
   sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
-  both: { w: 'dbl', r: 'u', name: 'Twin trigger', text: 'Fire both barrels at once.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
-  bolt: { w: 'hunting', r: 'c', name: 'Straight-pull bolt', text: 'A straight pull back and forth: less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.6; } },
+  both: { w: 'dbl', r: 'u', fm: 'Both barrels', name: 'Twin trigger', text: 'Fire both barrels at once, or one at a time: B switches.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
+  // a single step, no levels (it has no MOD_UP: weapons/mod-levels.js)
+  bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'The bolt slicked with gun grease runs smoother: 20% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.8; } },
   akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)

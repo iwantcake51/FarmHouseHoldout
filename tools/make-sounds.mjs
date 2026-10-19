@@ -1,6 +1,7 @@
 // Cuts the game's recorded sounds out of the packs in assets/sounds/ and writes them to src/sounds/.
 //
-//   node tools/make-sounds.mjs
+//   node tools/make-sounds.mjs              (all of them)
+//   node tools/make-sounds.mjs shell_load   (only those named, leaving the rest as they are)
 //
 // Needs ffmpeg and unzip on the PATH. Only run it to change which recordings the game uses (or how they're cut): its
 // output (src/sounds/*.ogg) is committed, so a normal build doesn't need either tool. Each sound is cut to its
@@ -14,13 +15,16 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PACK = path.join(ROOT, 'assets/sounds/Guns and stuffs.zip'), IN = 'Gunshots and stuff/Sounds/';
+// the packs, and the folder in each the paths below start from; a sound is from the first unless it names another (pack).
+// loose: a file uploaded on its own into assets/sounds
+const PACKS = { guns: ['Guns and stuffs.zip', 'Gunshots and stuff/Sounds/'], snake: ["Snake's Authentic Gun Sounds And More.zip", "Snake's Authentic Gun Sounds/"], loose: [null, ''] };
 const OUT = path.join(ROOT, 'src/sounds');
 const SR = 44100;
 
 // gunshots get a touch more weight and a gentle compressor to even out their bodies
 const GUN = 'equalizer=f=110:t=q:w=1:g=2,acompressor=threshold=0.18:ratio=2.2:attack=6:release=140:makeup=1.2';
-// output name: [file in the pack, { from, to (ms), fx (an extra ffmpeg filter), tail (dB under the peak where it ends) }]
+// output name: [file in the pack, { from, to (ms), fx (an extra ffmpeg filter), tail (dB under the peak where it ends),
+// pack (PACKS: guns unless it says) }]
 const SOUNDS = {
   // one recording per gun: the game varies each shot itself (pitch, speed, tone)
   shot_pistol: ['Guns/Fire/pistol_fire_ufx_2.ogg', { fx: GUN }],
@@ -30,6 +34,7 @@ const SOUNDS = {
   shot_dbl: ['Guns/Fire/shotgun_fire_ufx_1.ogg', { fx: GUN, to: 840 }],
   shot_auto12: ['Guns/Fire/old_shotgun_fire_ufx_1.ogg', { fx: GUN, to: 560 }],
   shot_hunting: ['Guns/Fire/old_rifle_fire_ufx_3.ogg', { fx: GUN }],
+  shot_scar: ['Guns/Fire/sniper_rifle_fire_ufx_4.ogg', { fx: GUN }],
   shot_smg: ['Guns/Fire/smg_fire_ufx_1.ogg', { fx: GUN }],
   shot_sub: ['Guns/Fire/smg_fire_ufx_3.ogg', { fx: GUN }],
   shot_ar: ['Guns/Fire/assault_rifle_fire_ufx_2.ogg', { fx: GUN }],
@@ -51,8 +56,9 @@ const SOUNDS = {
   magin_pistol: ['Guns/Reloading/pistol_reloading_mag_in_ufx_1.ogg', {}],
   magin_smg: ['Guns/Reloading/smg_reloading_mag_in_ufx_1.ogg', {}],
   magin_rifle: ['Guns/Reloading/assault_rifle_reloading_mag_in_ufx_2.ogg', {}],
-  shell_1: ['Guns/Reloading/shotgun_reloading_slug_in_ufx_1.ogg', {}],
-  shell_2: ['Guns/Reloading/shotgun_reloading_slug_in_ufx_2.ogg', {}],
+  shell_load: ['Reloads, Cycling & More/WAV/Pump Shell Load WAV.wav', { pack: 'snake' }],   // a shell thumbed into a shotgun
+  // a brute's dash ending in a wall (zombies/brute-dash.js)
+  brute_wall: ['DesignedCarCrash1[1].wav', { pack: 'loose' }],
   round_in: ['Guns/Reloading/sniper_rifle_reloading_round_in_ufx_1.ogg', {}],
   // racking recordings split at the slam, so the pull and the release land on the animation's own beats
   charge_pull_rifle: ['Guns/Racking/assault_rifle_racking_ufx_1.ogg', { to: 270 }],
@@ -145,12 +151,14 @@ function shape(x, o) {
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fh-sounds-'));
 try {
-  execFileSync('unzip', ['-q', '-o', PACK, '-d', tmp]);
+  const only = process.argv.slice(2), todo = Object.entries(SOUNDS).filter(([name]) => !only.length || only.includes(name));
+  for (const k of new Set(todo.map(([, [, o]]) => o.pack || 'guns'))) if (PACKS[k][0]) execFileSync('unzip', ['-q', '-o', path.join(ROOT, 'assets/sounds', PACKS[k][0]), '-d', path.join(tmp, k)]);
   fs.mkdirSync(OUT, { recursive: true });
-  for (const f of fs.readdirSync(OUT)) if (f.endsWith('.ogg')) fs.unlinkSync(path.join(OUT, f));
+  if (!only.length) for (const f of fs.readdirSync(OUT)) if (f.endsWith('.ogg')) fs.unlinkSync(path.join(OUT, f));
   let total = 0;
-  for (const [name, [src, o]] of Object.entries(SOUNDS)) {
-    let x = decode(path.join(tmp, IN, src));
+  for (const [name, [src, o]] of todo) {
+    const pk = o.pack || 'guns';
+    let x = decode(PACKS[pk][0] ? path.join(tmp, pk, PACKS[pk][1], src) : path.join(ROOT, 'assets/sounds', src));
     const pre = path.join(tmp, name + '.f32');
     fs.writeFileSync(pre, Buffer.from(x.buffer, x.byteOffset, x.byteLength));
     x = filter(pre, 'highpass=f=35' + (o.fx ? ',' + o.fx : ''));
@@ -160,5 +168,5 @@ try {
     total += fs.statSync(dst).size;
     console.log(`${name.padEnd(20)} ${(y.length / 2 / SR * 1000).toFixed(0).padStart(5)} ms  ${src}`);
   }
-  console.log(`${Object.keys(SOUNDS).length} sounds, ${(total / 1024).toFixed(0)} KB, in src/sounds/`);
+  console.log(`${todo.length} sounds, ${(total / 1024).toFixed(0)} KB, in src/sounds/`);
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }

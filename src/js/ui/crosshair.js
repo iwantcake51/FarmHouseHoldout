@@ -12,9 +12,15 @@ function reloadDraw(side, on, u) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
   if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
-  if (!on && r.on && r.u > 0.85) { r.ring.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }   // finished: a flash
+  // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
+  // course on the gun still in your hands: not one cut short by putting the gun away)
+  const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
+  if (done) { r.ring.setAttribute('stroke-dasharray', ammoNow(side)); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }
+  else if (!on && r.on) r.ring.classList.remove('done');
+  if (on) r.id = id;
   else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
   if (!r.ring.classList.contains('done') || on) r.ring.style.opacity = on ? 1 : 0;
+  else r.ring.style.opacity = 1;
   r.track.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.track.style.opacity = on ? 1 : 0;
   const a = (r.a0 + r.dir * 84 * u) * Math.PI / 180; r.head.setAttribute('cx', (aR * Math.cos(a)).toFixed(1)); r.head.setAttribute('cy', (aR * Math.sin(a)).toFixed(1)); r.head.style.opacity = on && u > 0.02 ? 1 : 0;
   r.on = on; if (on) r.u = u;
@@ -56,6 +62,12 @@ let gapCur = 10, lastGap = -1;
 let aR = 30, sR = 22, lastXh = '';
 const TICK_L = 10.7, XH_CLEAR = { a: 6, s: 5 }, XH_SG_MAX = 150;
 const ARC = () => 2 * Math.PI * aR * (84 / 360), M_ARC = () => 2 * Math.PI * sR * (64 / 360);
+// the rounds in the gun this moment, drawn as its ammo arc is (side: an akimbo pair's left gun's, or the right's), so the
+// flash as a reload finishes always shows what's just gone in, never what was there a frame before
+function ammoNow(side) {
+  const id = curId(), D = W(id) || {}, ak = !!D.akimbo, am = ak && akMags(id), n = ak ? akPer(id) : magCap(id);
+  return ammoDash(n, ak ? am[side === 'L' ? AK_ON.left : AK_ON.right] : W8.mag[id] || 0)[0];
+}
 function ammoDash(n, filled) {
   const A = ARC();
   if (n > 40) return [`${(A * filled / n).toFixed(2)} 999`, `${A.toFixed(2)} 999`];
@@ -73,6 +85,20 @@ function awText(aw, t, plain) {
   if (plain || t.includes('<')) { sp._rt = sp._roll = null; sp.innerHTML = t; } else rollText(sp, t);
 }
 // the crosshair: spread ticks, ammo arc, reload ring, melee ring, stamina arc
+// whether a shot from your muzzle would be stopped short of where you're aiming: something that stops bullets (a wall, a
+// tall prop: bulletBlocked) on the line before the cell the cursor's on. Zombies, boards and the low furniture you shoot
+// across don't count; aiming at a wall itself doesn't either (that's what you'd hit)
+function blockedShot() {
+  // the gun's muzzle itself jammed into a wall or past a corner (muzzle(), weapons/firing.js, falls back to just in front
+  // of you then): blocked whatever you're aiming at
+  { const len = MUZ[W8.cur] || 0.9, tx = P.x + Math.sin(P.aim) * len, tz = P.z + Math.cos(P.aim) * len; if (bulletBlocked(tx, tz) || !los(P.x, P.z, tx, tz)) return true; }
+  const m = muzzle(), dx = aimPt.x - m.ox, dz = aimPt.z - m.oz, L = Math.hypot(dx, dz); if (L < 0.3) return false;
+  const ux = dx / L, uz = dz / L, ti = ci(aimPt.x), tj = ci(aimPt.z);
+  if (thinRay(m.ox, m.oz, ux, uz, L) < L - 0.05) return true;   // an inside wall on the way (world/thin-walls.js)
+  for (let t = 0.1; t < L; t += 0.1) { const x = m.ox + ux * t, z = m.oz + uz * t; if (bulletBlocked(x, z)) return !(ci(x) === ti && ci(z) === tj); }
+  return false;
+}
+const xhX = $('xhX');
 function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
@@ -80,6 +106,7 @@ function updateCrosshair(rdt, D) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling
     const id = curId();
+    { const bx = !D.melee && !(P.bandT > 0) && blockedShot(); if (cache.xhX !== bx) { cache.xhX = bx; xhX.classList.toggle('on', bx); xh.classList.toggle('blocked', bx); } }   // (the whole reticle goes red with it)
     // shotguns get a ring the width of their spread, drawn by the shell they're loaded with (SG_XH); other guns four ticks
     const sgk = !D.melee && D.ammo === 'shells' ? SG_XH[roundOn(id)] === undefined ? 'ring' : SG_XH[roundOn(id)] : null, sg = !!sgk;
     $('xhTicks').style.display = D.melee || sg ? 'none' : ''; $('xhSg').toggleAttribute('hidden', sgk !== 'ring'); xhFl.toggleAttribute('hidden', sgk !== 'needle'); $('xhDb').toggleAttribute('hidden', sgk !== 'tri'); $('xhMelee').toggleAttribute('hidden', !D.melee); $('xhDot').style.display = D.melee ? 'none' : '';
@@ -156,6 +183,9 @@ function updateCrosshair(rdt, D) {
         if (ak) { const [fgL, bgL] = ammoDash(n, haveL); xhAmmoL.setAttribute('stroke-dasharray', fgL); xhAmmoBgL.setAttribute('stroke-dasharray', bgL); xhAmmoL.classList.toggle('low', haveL <= lowAt); }
         xhAmmo.classList.toggle('low', have <= lowAt);
       }
+      // (a reload's finishing flash kept to the arc as it is now: the same rounds, the same size as the crosshair opens or
+      // closes under it)
+      for (const [side, arc] of [['R', xhAmmo], ['L', xhAmmoL]]) { const rg = RL[side].ring; if (rg.classList.contains('done')) { const d = arc.getAttribute('stroke-dasharray'); if (rg.getAttribute('stroke-dasharray') !== d) rg.setAttribute('stroke-dasharray', d); } }
       // yellow under a quarter, red and asking for a reload when empty. With two guns it's both mags together: low once
       // they add up to a quarter or less, and "No ammo" (with the reload key, if there's any to load) only when both are
       // empty; a single empty gun is shown by its own arc flashing red
@@ -180,10 +210,11 @@ function updateCrosshair(rdt, D) {
       }
     } else {
     xhAmmo.classList.remove('flash'); xhAmmoBg.classList.remove('out');
-    if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax;
-    else if (W8.reloading === 'shell') rp = (W8.shellsIn + (1 - W8.reloadT / W8.reloadMax)) / Math.max(1, W8.shellsNeed);
-    reloadDraw('R', !!W8.reloading, rp); reloadDraw('L', false, 0);
-    xhAmmo.style.opacity = W8.reloading ? 0.25 : 1;
+    // a shell at a time: by time, through to the gun closed or racked after (weapons/reload.js: relRingP)
+    const sp = relRingP(), on = W8.reloading === 'mag' || sp >= 0;
+    if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax; else if (sp >= 0) rp = sp;
+    reloadDraw('R', on, rp); reloadDraw('L', false, 0);
+    xhAmmo.style.opacity = on ? 0.25 : 1;
     }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
     xhGl.style.display = D.gl ? '' : 'none';

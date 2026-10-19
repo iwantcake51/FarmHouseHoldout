@@ -18,14 +18,14 @@ function openStation(s) {
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
   openSt = s; el.hidden = false; stStruct = ''; renderStation(); SFX.click();
-  updateWeaponStats(); updateLoadout();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
+  updateWeaponStats(); updateLoadout(); updateRackSide();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
   if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
 }
 function closeStation() {
   if (!openSt) return; openSt = null;
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
-  updateWeaponStats(); updateLoadout();   // the stats and the loadout slide back in behind it as it rolls up
+  updateWeaponStats(); updateLoadout(); updateRackSide();   // the stats and the loadout slide back in behind it as it rolls up
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
@@ -51,9 +51,14 @@ function cardChips(r) {
 let stStruct = '';
 function renderStation() {
   if (!openSt) return;
+  benchGuns();   // (the workbench's weapon tabs, hidden at the others)
+  $('station').classList.toggle('isRack', openSt.id === 'rack');
+  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench');
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
+  if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
-  const rows = RECIPES[openSt.id], struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
+  // (the ammo has no card of its own at the workbench: it's the quick buttons, quickAmmo below)
+  const all = RECIPES[openSt.id], ids = all.map((r, i) => i).filter(i => !all[i].quick), rows = ids.map(i => all[i]), struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
   const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
@@ -61,10 +66,10 @@ function renderStation() {
     // a heading above the first card of each group (everything for the weapon in your hands)
     $('stRows').innerHTML = rows.map((r, i) => {
       const head = r.group && r.group !== group ? `<div class="stGroup" style="--k:${Math.min(8, k++)}">${r.group}</div>` : ''; group = r.group || null;
-      return head + `<button type="button" data-i="${i}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
+      return head + `<button type="button" data-i="${ids[i]}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
       <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic] || FEED_ICON.gear}</svg></span>
       <span class="tx"></span>
-      <span class="ft">${i < 10 ? `<kbd>${(i + 1) % 10}</kbd>` : ''}<span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
+      <span class="ft"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>
     </button>`;
     }).join('');
     btns = $('stRows').querySelectorAll('button');
@@ -81,11 +86,52 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  { const n = rows.length; setT('stNote', `Press 1–${n >= 10 ? 0 : n} or click a card · ${openSt.id === 'bench' ? `I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
+  quickAmmo(all);
+  { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
-$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else craft(+b.dataset.i); });
+// ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
+// Picking one draws it, and the bench's cards (and the stats beside it) change over to it, so you can upgrade each
+// without stepping away; Tab and Shift+Tab step through them
+let bgKey = '', bgSwapT = 0;
+function benchGuns() {
+  const el = $('stGuns'), on = openSt && openSt.id === 'bench', st = $('station');
+  st.classList.toggle('withGuns', !!on); if (el.hidden === !!on) el.hidden = !on;
+  if (!on) { bgKey = ''; return; }
+  const have = SLOTS.filter(s => W8.slot[s]), key = have.map(s => W8.slot[s]).join(',');
+  if (key !== bgKey) {
+    bgKey = key; el.style.setProperty('--n', have.length); el.style.removeProperty('--i');
+    el.innerHTML = '<i class="sgPill"></i>' + have.map(s => { const D = WEAP[W8.slot[s]]; return `<button type="button" role="tab" data-slot="${s}"><span>${SLOT_NAME[s]}</span><b>${D.short || D.name}</b></button>`; }).join('');
+  }
+  const i = have.indexOf(W8.cur);
+  if (el.style.getPropertyValue('--i') !== String(i)) { el.style.setProperty('--i', i); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', b.dataset.slot === W8.cur)); }
+}
+function benchGun(s) {
+  if (!openSt || openSt.id !== 'bench' || !W8.slot[s] || W8.cur === s) return;
+  equip(s); renderStation();
+  // the new weapon's cards rise in one after another (the class is taken off again after, as the rack's are)
+  const r = $('stRows'); r.scrollTop = 0; r.classList.remove('swap'); void r.offsetWidth; r.classList.add('swap'); clearTimeout(bgSwapT); bgSwapT = setTimeout(() => r.classList.remove('swap'), 700);
+}
+function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
+$('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
+// at the workbench, ammo is always a click away along the bottom, wherever you've scrolled the cards to: for the gun in
+// your hands, or a load for every gun you carry, each showing what it gives and its price, and lit when you can buy it
+// (the bench's ammo recipes, recipes.js: quick)
+function quickAmmo(rows) {
+  const el = $('stQuick'), on = openSt.id === 'bench'; el.hidden = !on; if (!on) return;
+  if (!el.firstElementChild) el.innerHTML = ['hand', 'all'].map(q => `<button type="button" data-q="${q}"><svg viewBox="${GI_VB}">${FEED_ICON.ammo}</svg><span><b></b><em></em></span><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span></button>`).join('');
+  for (const b of el.children) {
+    const i = rows.findIndex(r => r.quick === b.dataset.q), r = rows[i]; if (!r) continue;
+    const t = b.dataset.q === 'hand' ? (gunAmmo() ? 'Ammo: ' + W(curId()).short : 'Ammo') : 'Ammo for all', d = r.why() || (b.dataset.q === 'hand' ? (gunAmmo() ? `+${gunBatch(curId())} ${AMMO_NAME[gunAmmo()]}` : '') : allAmmo().map(([a, n]) => `+${n}`).join(' · '));
+    const ok = !r.why() && S.scrap >= r.cost, k = t + d + r.cost + ok;
+    if (b._k === k) continue; b._k = k; b.dataset.i = i;
+    b.querySelector('span b').textContent = t; b.querySelector('em').textContent = d; b.querySelector('.cost b').textContent = r.cost;
+    b.classList.toggle('ok', ok); b.querySelector('.cost').classList.toggle('short', S.scrap < r.cost);
+  }
+}
+$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && openSt.id === 'bench') { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
+$('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {
-  if (!openSt) return; if (openSt.id === 'box') { giftPick(i); return; }
+  if (!openSt) return;
   const r = RECIPES[openSt.id][i]; if (!r) return;
   if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();

@@ -28,7 +28,7 @@ function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
 }
 // Zombies' footsteps: the same recordings, but you only hear one that's right on you. Past ZSTEP.far there's nothing;
 // it comes in as it closes and is at its loudest within ZSTEP.near, and even then it's well under your own (level). A
-// runner's are a run's, a brute's heavier and lower, a crawler's a soft drag. Only so many a moment (max in any gap
+// runner's are a run's, a crawler's a soft drag; a brute's are their own (BRUTE_SND, below). Only so many a moment (max in any gap
 // seconds), so a crowd at the window doesn't turn into a drumroll. Zoomed out they fall away faster than other sounds
 // (on top of what audio/spatial.js takes off for everything): down to wide of themselves at ZOOM_MIN
 const ZSTEP = { near: 2, far: 6, level: 0.4, gap: 0.25, max: 3, wide: 0.3 };
@@ -44,9 +44,20 @@ function bruteStep(z) {
   const k = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - BRUTE_STEP.near) / (BRUTE_STEP.far - BRUTE_STEP.near), 0, 1));
   if (k > 0) shake = Math.max(shake, BRUTE_STEP.shake * k);
 }
+// a brute's footfalls are nothing like the rest: the step slowed right down into a deep, heavy stomp, a thump of bass
+// under it (SFX.bruteStomp), and heard from far off (BRUTE_SND: loudest within near metres, gone past far; how loud the
+// stomp and the thump, and how slowed). They don't count against the other zombies' steps (ZSTEP.max)
+const BRUTE_SND = { near: 4, far: 18, level: 1.15, rate: 0.55, thump: 0.55 };
+function bruteStomp(z) {
+  const B = BRUTE_SND, d = Math.hypot(z.x - P.x, z.z - P.z); if (d > B.far) return;
+  const near = 1 - smooth(clamp((d - B.near) / (B.far - B.near), 0, 1)), k = near * (0.35 + 0.65 * near);
+  footstep('walk', B.level * k, z.x, z.z, B.rate);
+  soundAt(z.x, z.z, () => SFX.bruteStomp(B.thump * k));
+}
 function zombieStep(z) {
   if (z.type === 'brute' && !z.crawl) bruteStep(z);
   if (P.dead || !AC) return;
+  if (z.type === 'brute' && !z.crawl) { bruteStomp(z); return; }
   const d = Math.hypot(z.x - P.x, z.z - P.z); if (d > ZSTEP.far) return;
   const now = AC.currentTime; while (zStepT.length && now - zStepT[0] > ZSTEP.gap) zStepT.shift();
   if (zStepT.length >= ZSTEP.max) return;
@@ -54,5 +65,5 @@ function zombieStep(z) {
   const near = 1 - smooth(clamp((d - ZSTEP.near) / (ZSTEP.far - ZSTEP.near), 0, 1)), out = smooth(clamp((1 - (cam.zoom || 1)) / (1 - ZOOM_MIN), 0, 1));
   const zk = 1 - (1 - ZSTEP.wide) * out;   // 1 at the default zoom and closer, ZSTEP.wide zoomed all the way out
   const brute = z.type === 'brute', crawl = !!z.crawl;
-  footstep(z.type === 'runner' && !crawl ? 'run' : 'walk', ZSTEP.level * near * zk * (brute ? 1.3 : crawl ? 0.45 : 1), z.x, z.z, brute ? 0.82 : crawl ? 0.9 : 1);
+  footstep(z.type === 'runner' && !crawl ? 'run' : 'walk', ZSTEP.level * near * zk * (brute ? 1.3 : crawl ? 0.45 : 1), z.x, z.z, brute ? 0.82 : crawl ? 0.9 : 1);   // (a crawling brute's)
 }

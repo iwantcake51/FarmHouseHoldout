@@ -12,14 +12,14 @@ Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
 // ground, or at the height it hit whatever it ran into first (dropHits): a wall, a trunk, a fence post or rail, a
 // crate, the bench, a window's sill or the wall over it, or the boards across it.
 // They're all drawn at once, as instances of one mesh (a shotgun on a crowd throws hundreds of them, and each its own
-// mesh was a draw call apiece): each drop keeps its own transform (m, never in the scene itself) and its shade, and
-// the live ones are packed into the instances every frame
-const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_C = [0x6e0f0a, 0x521009, 0x84160f].map(c => new THREE.Color(c)), _dz = new V3(0, 0, 1), _dv = new V3();
-const DROP_N = 640, DROP_MAT = lam(0xffffff); DROP_MAT.userData.mobile = true;
-const dropIM = new THREE.InstancedMesh(DROP_G, DROP_MAT, DROP_N); dropIM.frustumCulled = false; dropIM.count = 0; dropIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-dropIM.setColorAt(0, DROP_C[0]); dropIM.instanceColor.setUsage(THREE.DynamicDrawUsage); scene.add(dropIM);
+// mesh was a draw call apiece): each drop keeps its own transform (m, never in the scene itself), and the live ones
+// are packed into the instances every frame. They're all one colour, DROP_COL: a colour per drop (instance colours)
+// came out black through the farm's lighting, so the blood in the air read as dark specks
+const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_COL = 0x9a1a10, _dz = new V3(0, 0, 1), _dv = new V3();
+const DROP_N = 640, DROP_MAT = lam(DROP_COL); DROP_MAT.userData.mobile = true;
+const dropIM = new THREE.InstancedMesh(DROP_G, DROP_MAT, DROP_N); dropIM.frustumCulled = false; dropIM.count = 0; dropIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dropIM);
 const drops = [];
-for (let k = 0; k < DROP_N; k++) { const m = new THREE.Object3D(); m.visible = false; drops.push({ m, c: DROP_C[k % 3], life: 0, vx: 0, vy: 0, vz: 0, r: 0.01 }); }
+for (let k = 0; k < DROP_N; k++) { const m = new THREE.Object3D(); m.visible = false; drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01, wait: 0 }); }
 let dropIdx = 0;
 const DROP_THROW = 1.7, DROP_SCATTER = 1.5, DROP_DRAG = 0.6;
 function bloodDrops(x, y, z, n, dirx, dirz, force) {
@@ -27,7 +27,22 @@ function bloodDrops(x, y, z, n, dirx, dirz, force) {
     const d = drops[dropIdx = (dropIdx + 1) % drops.length], big = rand() < 0.22, f = (force || 2) * DROP_THROW * (big ? rr(0.3, 0.9) : rr(0.5, 1.45));
     d.r = big ? rr(0.02, 0.036) : rr(0.007, 0.017);
     d.vx = (dirx || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25) * DROP_SCATTER; d.vz = (dirz || 0) * f + rr(-1, 1) * (big ? 0.6 : 1.25) * DROP_SCATTER; d.vy = rr(0.5, 3.4) * (big ? 0.8 : 1);
-    d.life = 2.6; d.m.position.set(x + rr(-0.05, 0.05), y + rr(-0.05, 0.05), z + rr(-0.05, 0.05)); d.m.scale.setScalar(d.r); d.m.visible = true;
+    d.life = 2.6; d.wait = 0; d.m.position.set(x + rr(-0.05, 0.05), y + rr(-0.05, 0.05), z + rr(-0.05, 0.05)); d.m.scale.setScalar(d.r); d.m.visible = true;
+  }
+}
+// a hit's blood gushing out of the body where the round (or the blade) goes through, so you see it leave: a jet of
+// fat, bright drops out of the far side along (dirx, dirz), from the body's surface rather than its middle, let out
+// over SPURT.t seconds instead of all at once so it reads as a stream thrown out, slow enough to follow as it arcs
+// down (SPURT.v metres a second), and a little of it back out of the near side. n: how many drops (a big hit, more)
+const SPURT = { t: 0.12, v: 3.6, out: 0.16, back: 0.25 };
+function bloodSpurt(x, y, z, dirx, dirz, n, power) {
+  const p = power || 1;
+  for (let k = 0; k < n; k++) {
+    const d = drops[dropIdx = (dropIdx + 1) % drops.length], back = k < n * SPURT.back * 0.5, s = back ? -1 : 1;
+    const f = SPURT.v * p * rr(0.55, 1.25) * (back ? 0.45 : 1), sx = rr(-0.3, 0.3), wt = rand() * SPURT.t;
+    d.r = rr(0.016, 0.034) * (back ? 0.8 : 1); d.wait = wt;
+    d.vx = (dirx * s - dirz * sx) * f; d.vz = (dirz * s + dirx * sx) * f; d.vy = rr(0.5, 2.1) * (0.7 + 0.3 * p);
+    d.life = 2.6 + wt; d.m.position.set(x + dirx * s * SPURT.out + rr(-0.03, 0.03), y + rr(-0.04, 0.04), z + dirz * s * SPURT.out + rr(-0.03, 0.03)); d.m.scale.setScalar(d.r); d.m.visible = false;
   }
 }
 // you bleeding: a drop or two falls from the wound (the left arm or your side) carried along at your speed, and spots the
@@ -39,7 +54,7 @@ function bleedDrip() {
   for (let k = 0, n = rand() < 0.3 ? 2 : 1; k < n; k++) {
     const d = drops[dropIdx = (dropIdx + 1) % drops.length];
     d.r = rr(0.012, 0.022); d.vx = P.vx * 0.85 + rr(-0.15, 0.15); d.vz = P.vz * 0.85 + rr(-0.15, 0.15); d.vy = rr(-0.4, 0.2);
-    d.life = 2; d.m.position.copy(_bw); d.m.scale.setScalar(d.r); d.m.visible = true;
+    d.life = 2; d.wait = 0; d.m.position.copy(_bw); d.m.scale.setScalar(d.r); d.m.visible = true;
   }
   if (Math.hypot(P.vx, P.vz) < 0.3 && rand() < 0.22) splat(P.x + rr(-0.12, 0.12), P.z + rr(-0.12, 0.12), 'drop', rr(0.2, 0.32));
 }
@@ -63,13 +78,14 @@ function stepDrops(dt) {
   if (dt > 0) moveDrops(dt);
   // the live ones into the instances (when the world's frozen they hold where they are)
   let n = 0;
-  for (const d of drops) { if (!d.m.visible) continue; d.m.updateMatrix(); dropIM.setMatrixAt(n, d.m.matrix); dropIM.setColorAt(n, d.c); n++; }
+  for (const d of drops) { if (!d.m.visible) continue; d.m.updateMatrix(); dropIM.setMatrixAt(n, d.m.matrix); n++; }
   dropIM.count = n; dropIM.visible = n > 0;
-  if (n) { dropIM.instanceMatrix.needsUpdate = true; dropIM.instanceColor.needsUpdate = true; }
+  if (n) dropIM.instanceMatrix.needsUpdate = true;
 }
 function moveDrops(dt) {
   for (const d of drops) {
     if (d.life <= 0) continue; d.life -= dt;
+    if (d.wait > 0) { d.wait -= dt; if (d.wait > 0) continue; d.m.visible = true; }   // (a spurt's later drops, still to come out)
     const m = d.m, drag = Math.exp(-dt * (0.012 / d.r) * DROP_DRAG);
     d.vx *= drag; d.vz *= drag; d.vy = d.vy * drag - 13 * dt;
     m.position.x += d.vx * dt; m.position.y += d.vy * dt; m.position.z += d.vz * dt;

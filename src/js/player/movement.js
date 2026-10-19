@@ -1,5 +1,7 @@
 // Player movement, statuses and aiming each frame.
 
+// Painkillers' regeneration waits this long (seconds) after you last lost health
+const REGEN_WAIT = 5;
 // how much a bandage going on slows your walk (Walking wounded takes S.bandLess of it off)
 const BAND_SLOW = 0.55;
 
@@ -8,7 +10,10 @@ function updatePlayer(dt) {
   P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt); P.eye = Math.max(0, (P.eye || 0) - dt); P.adrCd = Math.max(0, (P.adrCd || 0) - dt);
   W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down
-  if (S.regen && P.hp < S.maxHp) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
+  // Painkillers: only once you've gone REGEN_WAIT seconds without losing any health (a bleed's included)
+  if (P.hp < (P.hpWas ?? P.hp) - 1e-4) P.calmT = REGEN_WAIT; P.calmT = Math.max(0, (P.calmT || 0) - dt);
+  if (S.regen && P.hp < S.maxHp && P.calmT <= 0) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
+  P.hpWas = P.hp;
   let mx = 0, my = 0;
   if (keys.has('w') || keys.has('arrowup')) my -= 1;
   if (keys.has('s') || keys.has('arrowdown')) my += 1;

@@ -110,6 +110,7 @@ const POUCH_FILL = {
   ar: { k: 'mag', w: 0.082, h: 0.092, d: 0.03, body: 'magAl', plate: 'metal2', ribs: 2, tilt: 0.07 },
   sub: { k: 'mag', w: 0.062, h: 0.09, d: 0.024, body: 'metal', plate: 'metal', ribs: 2, tilt: 0.2 },
   smg: { k: 'mag', w: 0.056, h: 0.082, d: 0.026, body: 'poly', plate: 'rubber', windows: true },
+  scar: { k: 'mag', w: 0.09, h: 0.09, d: 0.034, body: 'fdeP', plate: 'fdeP', ribs: 2 },
   auto12: { k: 'mag', w: 0.086, h: 0.078, d: 0.036, body: 'metal2', plate: 'poly', ridges: true },
   pistol: { k: 'mag2', w: 0.036, h: 0.062, d: 0.021, body: 'poly', plate: 'rubber', flare: true },
   deagle: { k: 'mag2', w: 0.039, h: 0.064, d: 0.023, body: 'steelDk', plate: 'poly' },
@@ -216,9 +217,14 @@ function buildGear() {
   const bt = T('boots'), thick = S.slowRes > 0 ? 0.035 : 0;
   PBOOT.forEach(m => { m.visible = !(bt || thick); });
   bandPouch2.visible = !!S.pouch;
-  LOOK.g.hat.visible = !S.stubborn && !T('night');   // the helmet, or the night vision's head mount, goes on instead of your hat
+  // the helmet goes on instead of your hat; the night vision's head mount goes on under it (a cap turned round back to
+  // front to make room for the tubes, as you would), all but a cowboy hat, which comes off for it
+  const hatL = (LOOK.cur || {}).hat;
+  LOOK.g.hat.visible = !S.stubborn && !(T('night') && hatL === 'cowboy'); LOOK.g.hat.rotation.y = T('night') && hatL === 'cap' ? Math.PI : 0;
   gearPieces();
 }
+// how high round the head the night vision's band goes under a hat that stays on: just below its edge
+const NV_UNDER = { cap: 0.089, beanie: 0.066 };
 // every item your upgrades put on you, onto whatever PM's parts are (yours, or for a moment a teammate's: gearOnAvatar)
 function gearPieces() {
   buildArmor(T('armor'));
@@ -241,7 +247,15 @@ function gearPieces() {
     // with straps over the crown, a shroud on the front of it with an arm down to the tubes, and the battery pack
     // clipped to the back of it
     const g = gearItem(PM.head, 0, 0, 0), n2 = T('night') === 2, hel = !!S.stubborn, L = LOOK.cur || {};
-    if (!hel) {
+    // under a cap or a beanie: just the band, round the hair just below the hat's edge (NV_UNDER: where its middle is),
+    // closer in than the hat so nothing lies in the same place as any of it; the straps over the crown are under the hat
+    const under = !hel && NV_UNDER[L.hat];
+    if (under) {
+      const by = NV_UNDER[L.hat], bh = 0.034, r = 0.171, th = 0.014;
+      gb(g, 2 * r + th, bh, th, GEAR.black, 0, by, r); gb(g, 2 * r + th, bh, th, GEAR.black, 0, by, -r);
+      [-1, 1].forEach(sd => gb(g, th, bh, 2 * r, GEAR.black, sd * r, by, 0));
+    }
+    else if (!hel) {
       // the hair the hat was hiding, so the straps sit on hair, not a bare scalp
       // (from just under where it stopped for the hat, HAT_TUCK in player/look.js, up over the crown, so it joins up)
       if (L.hat !== 'none' && L.hat !== 'bandana' && L.hairStyle !== 'bald') { const bz = L.hairStyle === 'buzz', t = bz ? 0.168 : 0.2, w = (bz ? HAIR_W.buzz : HAIR_W.hair) - 0.002; gb(g, w, t - 0.1, w, lam(L.hair ?? 0x3a2a1a), 0, (t + 0.1) / 2, 0); }
@@ -254,7 +268,7 @@ function gearPieces() {
       gb(g, 0.14, 0.024, 0.14, GEAR.foam, 0, 0.214, -0.02);                                                      // the crown pad under them
     }
     const fz = hel ? 0.222 : 0.2, tz = fz + 0.05, tx = n2 ? 0 : 0.07;
-    gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, 0.15, fz);                                                            // the shroud
+    gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, under ? NV_UNDER[L.hat] + 0.03 : 0.15, fz);                         // the shroud
     gb(g, 0.045, 0.1, 0.045, GEAR.steelDk, 0, 0.1, fz + 0.03);                                                  // the mount arm, down from it
     gb(g, n2 ? 0.18 : 0.125, 0.032, 0.05, GEAR.dark, n2 ? 0 : tx / 2, 0.06, tz);                                // the bridge the tubes hang from
     (n2 ? [-0.065, 0.065] : [tx]).forEach(x => {

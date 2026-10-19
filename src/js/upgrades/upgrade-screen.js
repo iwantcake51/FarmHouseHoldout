@@ -41,18 +41,10 @@ function dealCards(bonus) {
   for (let k = 0; k < nAid && aid.length && dealt.length < 3; k++) dealt.push(drawCard(aid, wt));
   while (dealt.length < 3 && rest.length) dealt.push(drawCard(rest, wt));
   while (dealt.length < 3 && aid.length) dealt.push(drawCard(aid, wt));   // (only when there's nothing else left to deal)
-  // a gun you're owed (gunDue, upgrades/upgrades.js): if none of the three is a long gun or automatic of that band or
-  // better, one becomes one: never the skill, and aid only when there's nothing else to swap
-  const due = bonus ? 0 : gunDue(), isDue = u => u.weaponOf && WEAP[u.weaponOf].slot !== 'side' && !WEAP[u.weaponOf].melee && weapPow(u.weaponOf) >= due;
-  if (due && !dealt.some(isDue)) {
-    const owed = UPG.filter(u => isDue(u) && weapPow(u.weaponOf) === due && !held(u.weaponOf) && !radioPending(u.weaponOf));
-    const swap = [...dealt].reverse().find(u => u !== anchor && !isAid(u)) || [...dealt].reverse().find(u => u !== anchor);
-    if (owed.length && swap) dealt[dealt.indexOf(swap)] = drawCard(owed, u => rarWeight(u.r) * (CARD_RARE[u.weaponOf] || 1));
-  }
   // shuffled, so the skill isn't always the first card
   for (let i = dealt.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [dealt[i], dealt[j]] = [dealt[j], dealt[i]]; }
   skipScrap = SKIP_SCRAP[0] + Math.floor(rand() * (SKIP_SCRAP[1] - SKIP_SCRAP[0] + 1));
-  $('upSkip').innerHTML = `Take none · <b>+${skipScrap} scrap</b> instead <kbd>4</kbd>`; delete $('upSkip').dataset.down; $('upSkip').classList.remove('taken');
+  $('upSkip').innerHTML = `Take none · <b>+${skipScrap} scrap</b> instead`; delete $('upSkip').dataset.down; $('upSkip').classList.remove('taken');
   const wrap = $('cards'); wrap.innerHTML = '';
   const rots = [-1.6, 0.8, -0.4];
   dealt.forEach((u, i) => {
@@ -62,7 +54,7 @@ function dealCards(bonus) {
     const info = upgradeInfo(u, c), stats = u.stats && !info.fx.length;
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
-    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span><span class="key">${i + 1}</span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
+    b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
     b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length)); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = chipCls(f); s.textContent = CHIP_MARK[chipCls(f)] + ' ' + f.t; b.querySelector('.fx').appendChild(s); });

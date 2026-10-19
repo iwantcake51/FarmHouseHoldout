@@ -168,14 +168,14 @@ function rollLook(opt) {
   const pieces = new Set(); Object.values(LOOK.g).forEach(g => g.traverse(o => { if (o.isMesh) pieces.add(o); }));
   unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]) });
   const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, PM.mats.pants]) };
-  const faceParts = new Set(faceGroups(LOOK.g.head));   // (kept whole, so they can move: faceAnger)
+  const faceParts = new Set(faceGroups(LOOK.g.head));   // (kept whole, so they can move: faceMood)
   Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g, faceParts), live));
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
   sils.forEach(m => outline(m, 0, 0, 0.01, pOutline));
   if (LOOK.xrayReady) xrayAttach(sils);
 }
 // the pieces built on H since its n'th child, moved into a group pivoted at (x, y, z) on the face so they can turn and
-// squash as one (faceAnger); s is the side, -1 left, 1 right, 0 the middle (at most the first `most` of them)
+// squash as one (faceMood); s is the side, -1 left, 1 right, 0 the middle (at most the first `most` of them)
 function facePart(H, n, x, y, z, s, most = 99) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.userData.s = s;
   H.children.slice(n, n + most).forEach(c => { c.position.x -= x; c.position.y -= y; c.position.z -= z; g.add(c); });
@@ -183,13 +183,21 @@ function facePart(H, n, x, y, z, s, most = 99) {
 }
 function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.brows, f.mouth].filter(Boolean) : []; }
 // Firing for a while sets your face: the brows come down, their inner ends lower, the eyes narrow and the mouth tightens
-// into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js)
+// into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js). The trigger clicking on an empty gun
+// gives a start, w = 0 to 1 (ANIM.worry): the brows jump up with their inner ends raised in a worried tilt, the eyes
+// go wide and the jaw drops, the mouth open in a little O; that closes first (w squared) as the face eases back, so
+// the worried brows are the last of it to go
 const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mouthH: 2.1 };
-function faceAnger(H, a) {
-  const f = H.userData.face; if (!f || f.a === a) return; f.a = a;
-  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a; g.rotation.z = g.userData.s * ANGER.browTilt * a; });
-  f.eyes.forEach(g => { g.scale.y = 1 - ANGER.squint * a; });
-  if (f.mouth) f.mouth.scale.set(1 - (1 - ANGER.mouthW) * a, 1 + (ANGER.mouthH - 1) * a, 1);
+const WORRY = { browLift: 0.02, browTilt: 0.38, widen: 0.75, mouthW: 0.5, mouthH: 4.5, jaw: 0.009 };
+function faceMood(H, a, w = 0) {
+  const f = H.userData.face; if (!f || (f.a === a && f.w === w)) return; f.a = a; f.w = w;
+  const o = w * w;
+  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w); });
+  f.eyes.forEach(g => { g.scale.y = Math.max(0.3, 1 - ANGER.squint * a + WORRY.widen * w); });
+  const m = f.mouth; if (!m) return;
+  if (m.userData.y0 === undefined) m.userData.y0 = m.position.y;
+  m.position.y = m.userData.y0 - WORRY.jaw * o;
+  m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o), 1);
 }
 function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
@@ -342,7 +350,7 @@ function buildLook(L) {
   if (L.under) {
     const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
     [LOOK.g.armL, LOOK.g.armR].forEach(a => {
-      box(a, 0.15, 0.15, WRIST + 0.03, th, 0, 0, -0.03 + (WRIST + 0.03) / 2);
+      box(a, 0.15, 0.15, WRIST + 0.024, th, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
       box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
       [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
     });

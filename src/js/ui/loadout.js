@@ -92,7 +92,7 @@ function updateLoadout() {
   const el = $('wLoad'), id = curId(), st = $('station'), groups = state === 'play' && !P.dead && wsAtBench() ? wlGroups(id) : [], on = groups.length > 0;
   if (!st.classList.contains('closing')) { st.classList.toggle('withLoad', on); document.documentElement.classList.toggle('dkL', on); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
-    clearTimeout(wlCloseT); el.classList.remove('closing', 'opening'); el.hidden = false; wlKey = ''; void el.offsetWidth; el.classList.add('opening');
+    clearTimeout(wlCloseT); const was = !el.hidden; el.classList.remove('closing', 'opening'); el.hidden = false; wlKey = ''; if (was) void el.offsetWidth; el.classList.add('opening');   // (a forced layout only to restart one still on screen)
     clearTimeout(wlOpenT); wlOpenT = setTimeout(() => el.classList.remove('opening'), 900);
   } else if (!on && !el.hidden && !el.classList.contains('closing')) {
     el.classList.remove('opening'); el.classList.add('closing');
@@ -114,6 +114,6 @@ function updateLoadout() {
   if (sel !== wlSel) {
     const first = !wlSel; wlSel = sel;
     el.querySelectorAll('button[data-i]').forEach(b => { const on = sel[+b.dataset.i] === '1'; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
-    wlMarks(first);
+    requestAnimationFrame(() => wlMarks(first));   // (next frame, before anything's changed: reading where the buttons are now would lay the page out mid-frame)
   }
 }

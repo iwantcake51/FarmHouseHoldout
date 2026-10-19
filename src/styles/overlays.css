@@ -94,6 +94,9 @@
   background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
   -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
+/* close to death the edges of the world darken, a soft dark ring closing in a little, breathing slowly (ui/hud.js:
+   NEAR_DEATH) */
+#nearVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 88% 82% at center,transparent 46%,rgba(6,4,4,.35) 72%,rgba(2,1,1,.82) 100%)}
 #bleedVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 82% 78% at center,transparent 50%,rgba(180,12,6,.32) 70%,rgba(130,4,2,.7) 100%),radial-gradient(ellipse 80% 76% at center,transparent 62%,rgba(40,0,0,.22) 100%)}
 /* hurt vision (ui/hud.js damageVignettes): the edge of your sight goes soft, out of focus and a little washed red,
    on the side a blow came from (#hitBlur, clearing as the sting does), and all the way round in slow breaths while you

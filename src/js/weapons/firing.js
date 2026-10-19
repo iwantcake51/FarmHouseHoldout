@@ -65,7 +65,7 @@ const scopeDist = () => scoped ? Math.hypot(scopePt.x - P.x, scopePt.z - P.z) : 
 const BARREL = { from: 0.2, step: 0.025, clear: 0.04, zr: 0.16, jamb: 0.4 }, _bf = { wall: 0, zom: 0 };
 function barrelHits(x, z) {
   const i = ci(x), j = ci(z); if (!inb(i, j)) return false;
-  const k = idx(i, j); if (blockArr[k]) return true;
+  const k = idx(i, j); if (blockArr[k] || thinNear(x, z, 0.07)) return true;
   const o = cell[k] === OPEN && openAt[k]; if (!o) return false;
   return o.boards.length > 0 || Math.abs(o.axis === 'x' ? x - o.x : z - o.z) > BARREL.jamb;   // boarded up, or past the jambs
 }
@@ -138,6 +138,7 @@ const bodyOf = z => z.crawl ? [z.x + Math.sin(z.face) * 0.55 * z.T.scale, z.z + 
 function aimRay(ox, oz, a, maxL) {
   const dx = Math.sin(a), dz = Math.cos(a); let L = maxL, hitZ = null;
   for (let t = 0.1; t < maxL; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { L = t; break; }
+  L = thinRay(ox, oz, dx, dz, L);
   for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, 1e-6); if (h && h.t < L) { L = h.t; hitZ = z; } }
   return { L, z: hitZ };
 }
@@ -163,7 +164,7 @@ function gunFire(id, D, side) {
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
   if (W8.reloading || relHeld(id)) return;   // (a reload left with its mag out, or in but not charged: weapons/reload.js)
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
-  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.dry(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
+  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.dry(); worryShot(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
   W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++; delete W8.relSave[id];
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
@@ -178,7 +179,7 @@ function gunFire(id, D, side) {
   // from the hip: RUN_MISS; a shotgun's pattern always centres on it, as its spread already opens on the move)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
   if (tgt && !aiming && !scoped && !(P.eye > 0) && (D.pellets || 1) === 1 && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
-  if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } }
+  if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } if (tgt && thinRay(ox, oz, Math.sin(tgtA), Math.cos(tgtA), tgtT) < tgtT) tgt = null; }
   let anyHit = false;
   // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
   const scopeOn = scopeUse(), sp = P.eye > 0 && (D.pellets || 1) === 1 ? 0 : scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);
@@ -196,27 +197,36 @@ function gunFire(id, D, side) {
     const aimed = p === 0 && tgt, a = aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
+    wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
     const endR = Math.min(wallT, D.maxRange || 26);   // how far it can do anything: a wall, or where a dragon's breath pellet burns out
     const hits = [];
     for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
     hits.sort((a, b) => a.t - b.t);
-    const n = Math.min(hits.length, 1 + pierce);
-    for (let k = 0; k < n; k++) {
+    // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
+    // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it
+    // goes through, and any in front of the one it was aimed at, is hit where that height meets it (partAt), or not at
+    // all if it passes over; what it misses doesn't use up a pierce
+    const y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY || GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    let m = 0;
+    for (let k = 0; k < hits.length && m <= pierce; k++) {
       const { z, off, r } = hits[k];
       const hx = -off * dz, hz = off * dx, side = hx * Math.cos(z.face) - hz * Math.sin(z.face);
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
       // pattern scatters over the body as before (PELLET_CORE)
       let part = hits[k].part;
       if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
+      if (!part && (m > 0 || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
+      hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)
       if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); critNext = crit; headNext = headFade(id, hits[k].t);
-      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, k) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, m - 1) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
     }
+    const n = m;   // (the ones it went into, now at the front of hits)
     if (n) anyHit = true;
     // boards on its way, up to where it stops: the zombie that takes its last pierce, or the wall or its range
     boardsCrossed(ox, oz, dx, dz, n && n === 1 + pierce ? hits[n - 1].t : endR, D.dmg, shotB);
@@ -245,7 +255,8 @@ function gunFire(id, D, side) {
   if (!quiet) {
     // flash parented to the gun so it sits on the real muzzle, wherever the animation has the gun
     holdOf(W8.cur, fireSide(D)).add(flash);
-    flash.visible = true; flashT = 0.055; flashSize = big * (1 + T('ammo') * 0.15) * rr(0.85, 1.15); flashLen = D.ammo === 'shells' ? rr(1.1, 1.5) : rr(0.7, 1.2);
+    const L = flashLook(D, fireRate(D) < 0.16), vary = () => 1 + rr(-L.vary, L.vary);   // (each kind of gun's own flash: effects/muzzle-flash.js)
+    flash.visible = true; flashLife = flashT = L.life * rr(0.9, 1.1); flashSize = L.size * (1 + T('ammo') * 0.15) * vary(); flashLen = L.len * vary(); flashWide = L.wide * vary();
     flash.position.set(X, GUN_Y + 0.03, MUZ[W8.cur] + 0.03); flash.rotation.set(0, 0, rand() * 6.28);
     flashStar.material.rotation = rand() * 6.28;
     // the light it throws is the flash's own colour, and lights the smoke coming out with it (effects/smoke.js)
@@ -254,12 +265,13 @@ function gunFire(id, D, side) {
   if (D.dragon) dragonBreath(mw.x, mw.y, mw.z, base, sp);   // dragon's breath: a jet of fire and burning pellets (effects/puffs.js)
   // smoke: a forward billow from the muzzle, a lazy cloud that hangs, more for shotguns, a thin wisp for suppressed guns
   const puffs = quiet ? 1 : D.ammo === 'shells' ? 4 : D.ammo === 'rifle' || D.dmg > 60 ? 3 : 2;
+  if (!quiet && (D.ammo === 'shells' || D.ammo === 'rifle' || D.ammo === 'magnum' || D.dmg > 60)) muzzleWisp(D.ammo === 'shells' ? 1 : 0.75);   // and a wisp that keeps curling off the muzzle after a heavy shot
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
-  { const sd = fireSide(D); ANIM.slideT[sd] = 0; gunKick(sd, pw, (HOLD[id] || HOLD_DEF).kind, fireRate(D) < 0.16, racked(id)); }
+  { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)
   const ej = EJECT[id];
   if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)

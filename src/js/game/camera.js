@@ -5,16 +5,18 @@ const camTarget = new V3(P.x, 0, P.z);
 // the jump's progress, so the view leans and settles smoothly instead of snapping or jittering. The push is a 2D spring
 // (px, pz), so a new vault that starts before the last one has settled turns it round smoothly instead of flipping it
 const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
-// firing: each shot kicks three springs, the view tipping (mostly one way, like a gun climbing), pushing back against
-// the aim and punching in a touch; their size follows the gun's power, so a 9mm barely nudges and a rifle thumps
-// The tip is CAM_ROLL of what it once was, and a gun firing fast (auto) only CAM_ROLL_AUTO of that again, since its
-// kicks come too quickly to settle and would otherwise rock the whole view
+// firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
+// little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
+// come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
+// a shotgun or a rifle thumps), caught on stiff springs that bring it home quickly without wobbling. It doesn't slide
+// back along the aim, which only followed the arms being shoved back. Only the heaviest guns rattle the screen
 const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-const CAM_ROLL = 0.6, CAM_ROLL_AUTO = 0.5;
+const CAM_ROLL = 0.22, CAM_ROLL_AUTO = 0.45, CAM_PUNCH = { zoom: 0.02, vz: 0.9, auto: 0.6 };
 function fireCam(pw, aim, auto) {
-  const c = camRec, sg = rand() < 0.7 ? 1 : -1;
-  c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1); c.vpx -= Math.sin(aim) * pw * 2.1; c.vpz -= Math.cos(aim) * pw * 2.1; c.vz += pw * 1.1;
-  if (pw > 0.4) shake = Math.max(shake, 0.04 + (pw - 0.4) * 0.35);   // only heavy guns rattle the screen
+  const c = camRec, sg = rand() < 0.7 ? 1 : -1, P_ = CAM_PUNCH, a = auto ? P_.auto : 1;
+  c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1);
+  c.zoom += pw * P_.zoom * a; c.vz += pw * P_.vz * a;
+  if (pw > 0.6) shake = Math.max(shake, 0.03 + (pw - 0.6) * 0.3);
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
 // one way and settles, with only a whisper of push; seating a mag tips it the other way from pulling one
@@ -43,8 +45,8 @@ function vaultCam(rdt) {
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
     springTo(c, 'roll', 'vr', roll, 70, 11, dt); springTo(c, 'bob', 'vb', bob, 80, 10, dt);
     springTo(c, 'px', 'vpx', v ? v.dx * push : 0, 40, 11, dt); springTo(c, 'pz', 'vpz', v ? v.dz * push : 0, 40, 11, dt);
-    springTo(camRec, 'roll', 'vr', 0, 110, 12, dt); springTo(camRec, 'zoom', 'vz', 0, 140, 14, dt);
-    springTo(camRec, 'px', 'vpx', 0, 150, 15, dt); springTo(camRec, 'pz', 'vpz', 0, 150, 15, dt);
+    springTo(camRec, 'roll', 'vr', 0, 130, 17, dt); springTo(camRec, 'zoom', 'vz', 0, 260, 27, dt);   // (stiff and near critically damped: the punch comes straight home, no wobble)
+    springTo(camRec, 'px', 'vpx', 0, 230, 26, dt); springTo(camRec, 'pz', 'vpz', 0, 230, 26, dt);
     springTo(camRack, 'roll', 'vr', 0, 55, 6.5, dt); springTo(camRack, 'zoom', 'vz', 0, 70, 7, dt);
     springTo(camRack, 'px', 'vpx', 0, 60, 7.5, dt); springTo(camRack, 'pz', 'vpz', 0, 60, 7.5, dt);
   }

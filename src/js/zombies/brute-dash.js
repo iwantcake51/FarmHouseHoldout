@@ -36,6 +36,7 @@ const dashMarks = [];
 const easeOut = t => 1 - Math.pow(1 - t, 3), easeBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
 // how far a dash can run from (x, z) along (dx, dz) before a wall, a fence, a tall prop, a window or a boarded door stops it
 function dashRoom(x, z, dx, dz, L) {
+  L = Math.max(0, thinRay(x, z, dx, dz, L + 0.25) - 0.25);   // an inside wall (world/thin-walls.js)
   for (let t = 0.25; t < L; t += 0.2) { const px = x + dx * t, pz = z + dz * t, i = ci(px), j = ci(pz); if (!inb(i, j) || bulletBlocked(px, pz) || cell[idx(i, j)] === FENCE || hardBlocked(i, j)) return t - 0.25; const o = openAt[idx(i, j)]; if (o && (o.kind === 'window' || o.boards.length)) return t - 0.25; }
   return L;
 }
@@ -75,7 +76,7 @@ function dashGlow(z) {
 const dashCan = () => run.wave >= BDASH.wave;
 // a brute that might start one (the host's game, or alone): far enough off, a clear line to you, not busy
 function dashMaybe(z, dt, t, dp) {
-  if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
+  if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || z.atkDoor || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
   if (z.dashCd === undefined) z.dashCd = rr(3, 7);
   z.dashCd -= dt; if (z.dashCd > 0 || dp < BDASH.min || dp > BDASH.max || rand() > BDASH.rate * dt) return false;
   const dx = (t.x - z.x) / dp, dz = (t.z - z.z) / dp, room = dashRoom(z.x, z.z, dx, dz, dp + BDASH.over);
@@ -111,7 +112,7 @@ function dashStep(z, dt, pup) {
     } else d.gone += step;
     if (rand() < dt * 18) burst(z.x - d.dx * 0.4, 0.1, z.z - d.dz * 0.4, 1, 'dust', -d.dx, -d.dz, 1.4);
     if (d.gone >= d.L - 1e-3) {   // pulling up: it skids to a halt in a spray of dirt
-      d.ph = 'rec'; d.t = 0; d.recT = d.wall ? BDASH_WALL.stun : BDASH.rec; soundAt(z.x, z.z, () => SFX.thud(), true);
+      d.ph = 'rec'; d.t = 0; d.recT = d.wall ? BDASH_WALL.stun : BDASH.rec; { const r = d.wall ? z.T.r : 0; soundAt(z.x + d.dx * r, z.z + d.dz * r, () => d.wall ? SFX.bruteWall() : SFX.thud(), true); }   // (a crash from where it struck the wall: its own fall-off, SFX.bruteWall)
       const pd = Math.hypot(P.x - z.x, P.z - z.z);
       if (d.wall) { if (!P.dead) shake = Math.max(shake, BDASH_WALL.shake * (1 - smooth(clamp((pd - BDASH_WALL.near) / (BDASH_WALL.far - BDASH_WALL.near), 0, 1)))); dashWallFx(z, d); }
       else { shake = Math.max(shake, 0.25 * clamp(1 - pd / 10, 0, 1)); burst(z.x + d.dx * 0.5, 0.1, z.z + d.dz * 0.5, 9, 'dust', d.dx, d.dz, 2.2); }

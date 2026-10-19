@@ -153,6 +153,18 @@ function pickPart(z, rel, side, D) {
   if (!z.limbs[p]) p = 'torso';
   return p;
 }
+// what of a zombie a shot meets at height y above the ground (null: it goes over it, or through where a lost limb was):
+// the head up top, the body (or an arm out at the side, rel as for pickPart) in the middle, a leg below; a crawler only
+// low down. For a shot whose height on its way is known: one gone through the zombie you aimed at, or one in front of
+// it (weapons/firing.js), so a round through one's head goes on over the next one's, not into its legs
+function partAt(z, y, rel, side) {
+  const h = y / (z.T.scale || 1);
+  if (z.crawl) return h < 0.62 ? (z.limbs.head && Math.abs(rel) < 0.4 && rand() < 0.35 ? 'head' : 'torso') : null;
+  if (h > 1.82 || h < 0) return null;
+  if (h > 1.4) return z.limbs.head ? 'head' : null;
+  if (h > 0.78) { const arm = side > 0 ? 'armR' : 'armL'; return Math.abs(rel) > 0.6 ? (z.limbs[arm] ? arm : null) : 'torso'; }
+  const leg = side > 0 ? 'legR' : 'legL'; return z.limbs[leg] ? leg : z.limbs[side > 0 ? 'legL' : 'legR'] && Math.abs(rel) < 0.3 ? (side > 0 ? 'legL' : 'legR') : null;
+}
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
 let critNext = false, headNext = 1;   // the next hit's crit, and how much of its headshot bonus is left at that range (headFade, weapons/ammo.js)
 // fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
@@ -169,6 +181,13 @@ function burnHurt(z) {
 // second), and the most flechettes can make it bleed however many land
 const BLEED_T = 4, BLEED_R = 8, DART_BLEED_MAX = 12;
 // in co-op the hit, and whatever it takes off or kills, goes to the other players as it happened here (netAct, net/sync.js)
+// a leg shot that doesn't take the leg off slows it down: the worse its worst leg's been hurt, the slower it goes, down
+// to LEG_SLOW.most of its pace (a brute, LEG_SLOW.brute); only a leg taken off (or the shin off it) puts it down crawling
+const LEG_SLOW = { most: 0.5, brute: 0.25 };
+function legSlow(z) {
+  let h = 0; for (const L of ['legL', 'legR']) if (z.limbs[L]) h = Math.max(h, 1 - z.lhp[L] / (z.maxHp * 0.4));
+  return 1 - clamp(h, 0, 1) * (z.type === 'brute' ? LEG_SLOW.brute : LEG_SLOW.most);
+}
 function hurtZombie(z, dmg, dx, dz, kb, wId, part) { return netAct(z, dx, dz, () => hurtZombie0(z, dmg, dx, dz, kb, wId, part)); }
 function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   const crit = critNext, headK = headNext; critNext = false; headNext = 1;
@@ -217,6 +236,7 @@ function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
   if (z.type !== 'brute') { z.stagger = Math.max(part === 'head' ? 0.3 : part === 'legL' || part === 'legR' ? 0.35 : 0.18, D.stagger || 0); z.vx += dx * kb / z.T.scale; z.vz += dz * kb / z.T.scale; }   // (a slug rocks it for longer: D.stagger)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head', dealt);
+  bloodSpurt(z.x, y, z.z, dx, dz, Math.round(clamp(5 + dealt / 6, 5, 16) * (part === 'head' ? 1.3 : 1)), 0.85 + Math.min(0.5, dealt / 120));   // gushing out of it (effects/particles.js)
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
 }
 // a zombie caught right in a blast comes apart: head, arms, legs and torso all thrown out and tumbling, a burst of
@@ -316,7 +336,7 @@ function killScrap(z, n, hoard) {
 function killBegin(z, dx, dz) {
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
-  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
+  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);
   spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
   shake = Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : 0.16);
 }

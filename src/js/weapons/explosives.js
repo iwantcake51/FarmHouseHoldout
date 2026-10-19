@@ -49,8 +49,9 @@ function throwGrenade() {
 function updateGrenades(dt) {
   for (let k = grenades.length - 1; k >= 0; k--) {
     const g = grenades[k]; g.t += dt / g.dur; const t = Math.min(1, g.t);
-    const x = g.x0 + (g.x1 - g.x0) * t, z = g.z0 + (g.z1 - g.z0) * t;
+    let x = g.x0 + (g.x1 - g.x0) * t, z = g.z0 + (g.z1 - g.z0) * t;
+    { const fx = g.px ?? g.x0, fz = g.pz ?? g.z0, th = thinHit(fx, fz, x, z); if (th <= 1) { x = fx + (x - fx) * th * 0.9; z = fz + (z - fz) * th * 0.9; g.t = 1; } g.px = x; g.pz = z; }   // into an inside wall: it goes off there
     g.m.position.set(x, GUN_Y + Math.sin(t * Math.PI) * g.h - t * (GUN_Y - 0.1), z); g.m.rotation.x += dt * 12;
-    if (t >= 1 || bulletBlocked(x, z)) { scene.remove(g.m); grenades.splice(k, 1); if (!g.net) explode(x, z, 3, 150, true); }
+    if (t >= 1 || g.t >= 1 || bulletBlocked(x, z)) { scene.remove(g.m); grenades.splice(k, 1); if (!g.net) explode(x, z, 3, 150, true); }
   }
 }

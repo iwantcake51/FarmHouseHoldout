@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="nearVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -77,6 +77,8 @@
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
+    <!-- a shot from here can't reach where you're aiming: something solid is in the way -->
+    <g id="xhX" class="blockX"><line class="bxSh" x1="-9" y1="-9" x2="9" y2="9"></line><line class="bxSh" x1="9" y1="-9" x2="-9" y2="9"></line><line x1="-9" y1="-9" x2="9" y2="9"></line><line x1="9" y1="-9" x2="-9" y2="9"></line></g>
   </svg>
   <div id="xhMode"></div>
   <div id="ammoWarn" hidden onanimationend="if(event.animationName==='awKick')this.classList.remove('kick')"></div>
@@ -150,6 +152,7 @@
 <div class="hud" id="feed"></div>
 <div class="hud" id="wStats" hidden></div>
 <div class="hud" id="wLoad" hidden></div>
+<div class="hud" id="rkLoad" hidden></div>
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
 <div id="cheat" hidden role="dialog" aria-label="Cheat menu">
@@ -160,8 +163,10 @@
 <!-- /cheats -->
 <div class="hud" id="station" hidden>
   <div class="stHead"><div id="stTitle"></div><div class="stScrap" title="Scrap"><svg data-gi="scrap"></svg><b id="stScrap">0</b></div></div>
+  <div id="stGuns" role="tablist" hidden></div>
   <div id="stRows"></div>
-  <div class="note" id="stNote">Press 1–4 or click a card · E to step away</div>
+  <div id="stQuick" hidden></div>
+  <div class="note" id="stNote">Click a card · E to step away</div>
 </div>
 <div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 512 512" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
@@ -291,6 +296,7 @@
     <feDisplacementMap in="SourceGraphic" in2="warp" scale="5" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
+<div id="cineBars"></div>
 <div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>

@@ -104,9 +104,13 @@ function teamDown(p) {
   box.appendChild(n); setTimeout(() => { n.classList.add('out'); setTimeout(() => n.remove(), 450); }, TEAM_DOWN_T * 1000);
   SFX.click();
 }
-// the pickup feed sits over your health; the team cards make that taller, so it goes up by as much (both are zoomed the
-// same, styles/hud-feed.css, so the cards' height on screen is taken back out of it)
+// the pickup feed sits over your health, FEED_GAP clear of its top; whatever makes that panel taller (the team's cards
+// over it in co-op, anything else on it) lifts the feed by as much, so the two never overlap. Measured whenever the
+// panel changes size (both are zoomed the same, styles/hud-feed.css, so its height on screen is taken back out of it)
+const FEED_GAP = 47, FEED_BASE = 158, HUD_ZOOM = 1.12;
 function liftFeed() {
-  const el = $('team'), h = el.hidden ? 0 : el.getBoundingClientRect().height / 1.12 + 8;
-  $('feed').style.setProperty('--lift', h.toFixed(0) + 'px');
+  const v = $('vitals'); if (v.hidden) return;
+  const top = 18 + v.getBoundingClientRect().height / HUD_ZOOM;   // (its top, up from the bottom of the screen: it stands 18 up, styles/hud-vitals.css; by its height, which its sliding in at the start of a run doesn't change)
+  $('feed').style.setProperty('--lift', Math.max(0, Math.round(top + FEED_GAP - FEED_BASE)) + 'px');
 }
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => liftFeed()).observe($('vitals'));

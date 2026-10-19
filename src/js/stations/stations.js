@@ -60,6 +60,7 @@ const STATIONS = [];
   obstacle(21, 18, true); obstacle(22, 18, true);   // waist high: you shoot and see over it, you can't walk through it
   // usable from the front or either end: you only need to be near the bench itself (its top's footprint, `foot`)
   STATIONS.push({ g, id: 'bench', name: 'Workbench', x: g.position.x, z: cxw(18) + 0.95, foot: [g.position.x, g.position.z, 0.97, 0.38] });
+  FURN.push({ g, id: 'bench', cells: [[21, 18], [22, 18]], low: true, face: [0, 1], st: STATIONS[STATIONS.length - 1] });
 
   // ---- sawhorses by the south-west corner: a board across them with a saw left in the cut, sawdust, and lumber stacked underneath ----
   g = new THREE.Group(); g.position.set((cxw(18) + cxw(19)) / 2, 0, cxw(25)); scene.add(g);
@@ -81,6 +82,7 @@ const STATIONS = [];
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(18, 25, true); obstacle(19, 25, true);   // low, like the bench
   STATIONS.push({ g, id: 'saw', name: 'Sawhorse', x: g.position.x, z: cxw(25) - 0.95 });
+  FURN.push({ g, id: 'saw', cells: [[18, 25], [19, 25]], low: true, face: [0, -1], st: STATIONS[STATIONS.length - 1] });
 
   // ---- medicine cabinet on the east wall: white enamel, a glazed door with the cross, drawers, a towel, supplies on top ----
   g = new THREE.Group(); g.position.set(cxw(26) + 0.15, 0, cxw(24)); scene.add(g);
@@ -107,6 +109,7 @@ const STATIONS = [];
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(26, 24);   // full height: the one piece of furniture in the house that still stops sight and bullets
   STATIONS.push({ g, id: 'med', name: 'Medicine cabinet', x: cxw(26) - 0.95, z: cxw(24) });
+  FURN.push({ g, id: 'med', cells: [[26, 24]], low: false, face: [-1, 0], st: STATIONS[STATIONS.length - 1] });
 
   // ---- ham radio on a side table by the south wall, turned towards the room, running off a car battery ----
   g = new THREE.Group(); g.position.set(cxw(24), 0, cxw(25) + 0.1); scene.add(g);
@@ -140,6 +143,7 @@ const STATIONS = [];
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(24, 25, true);   // a desk: low, like the bench
   STATIONS.push({ g, id: 'radio', name: 'Ham radio', x: cxw(24), z: cxw(25) - 0.95 });
+  FURN.push({ g, id: 'radio', cells: [[24, 25]], low: true, face: [0, -1], st: STATIONS[STATIONS.length - 1] });
 
   // ---- the strongbox in the north-west corner (co-op only: net/teamwork.js): a dented olive cash box with a brass lock
   // and a carry handle, on an upturned crate turned to face the room, a few bits of scrap left beside it ----
@@ -154,5 +158,6 @@ const STATIONS = [];
   unfight(g); mergeInto(g, finePieces(g));
   obstacle(17, 18, true);   // waist high, like the bench
   STATIONS.push({ g, id: 'box', name: 'Strongbox', x: cxw(18) - 0.15, z: cxw(19) - 0.15, coop: true });
+  FURN.push({ g, id: 'box', cells: [[17, 18]], low: true, face: [1, 1], st: STATIONS[STATIONS.length - 1] });   // (in a corner, turned to face the room)
 }
 STATIONS.forEach(s => { s.om = outline(s.g, 0xf4f1ea, 0, 0.035, null, o => !o.userData.fine); s.om.visible = false; });

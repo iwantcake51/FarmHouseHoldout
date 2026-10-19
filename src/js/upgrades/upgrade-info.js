@@ -6,7 +6,7 @@ const UPG_FX = {
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 kills: scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+25 health below 25%'],
-  'Painkillers': ['+1 health a second'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Missing ones start at tier 1', '+14 scrap per one already maxed'],
+  'Painkillers': ['+1 health a second', 'After 5 s unhurt'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Missing ones start at tier 1', '+14 scrap per one already maxed'],
   'Stubborn': ['+50 max health'],
   'Last stand': ['+60% damage below 30% health'], 'Sure shot': ['5% crit chance a shot'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],

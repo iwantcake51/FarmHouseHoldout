@@ -24,7 +24,7 @@ function renderGift() {
     const ic = `<svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>`;
     rows.innerHTML = !ps.length ? '<div class="gift" style="--k:0"><p class="gfNone">No one else is here to give scrap to.</p></div>' : `<div class="gift">
       <div class="stGroup" style="--k:0">Give to</div>
-      <div class="gfWho">${ps.map((p, i) => `<button type="button" class="gfP" data-to="${p.id}" style="--pc:${NET_COL[p.idx] || '#888'};--k:${i + 1}"><i class="dot"></i><b></b><span class="gfHas">${ic}<em></em></span><kbd>${i + 1}</kbd></button>`).join('')}</div>
+      <div class="gfWho">${ps.map((p, i) => `<button type="button" class="gfP" data-to="${p.id}" style="--pc:${NET_COL[p.idx] || '#888'};--k:${i + 1}"><i class="dot"></i><b></b><span class="gfHas">${ic}<em></em></span></button>`).join('')}</div>
       <div class="stGroup" style="--k:4">How much</div>
       <div class="gfAmt" style="--k:5"><button type="button" class="gfStep" data-d="-1" aria-label="One less">−</button><div class="gfNum"><span class="big" id="gfAmt">0</span><small>scrap</small></div><button type="button" class="gfStep" data-d="1" aria-label="One more">+</button></div>
       <div class="gfQuick" style="--k:6">${GIFT_QUICK.map(q => `<button type="button" data-q="${q}">${q}</button>`).join('')}<button type="button" data-q="half">Half</button><button type="button" data-q="all">All</button></div>
@@ -45,10 +45,9 @@ function renderGift() {
   const to = NET.peers.get(GIFT.to), give = rows.querySelector('.gfGive');
   give.disabled = !to || GIFT.amt < 1;
   give.querySelector('span').textContent = have < 1 ? 'No scrap to give' : `Give ${GIFT.amt} scrap to ${to ? to.name : '…'}`;
-  setT('stNote', `${ps.length > 1 ? `Press 1–${ps.length} to pick who · ` : ''}Enter to give · E to step away`);
+  setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · E to step away`);
 }
 const giftQuick = q => { const have = S.scrap | 0; return q === 'all' ? have : q === 'half' ? Math.ceil(have / 2) : Math.min(+q, have); };
-function giftPick(i) { const p = giftTeam()[i]; if (!p) return; GIFT.to = p.id; SFX.click(); renderGift(); }
 function giftClick(b) {
   if (b.disabled) return;
   if (b.classList.contains('gfP')) { GIFT.to = b.dataset.to; SFX.click(); }

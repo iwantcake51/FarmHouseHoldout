@@ -105,7 +105,9 @@ function updateSprint(dt, moving, wx, wz) {
   } else P.pivWait = 0;
   P.sprint = can && !aiming && !P.pivot;
   if (P.sprint) {
-    const use = Math.min(P.stam, stamUse(SPRINT.drain) * dt); P.stam -= use; P.runDebt = (P.runDebt || 0) + use; P.stamT = P.runT = 0;
+    // (a heavy gun in your hands wears you out quicker: its run, weapons/gun-stats.js)
+    const hv = (W(curId()) || {}).heavy, use = Math.min(P.stam, stamUse(SPRINT.drain * (hv ? hv.run || 1 : 1)) * dt);
+    P.stam -= use; P.runDebt = (P.runDebt || 0) + use; P.stamT = P.runT = 0;
     if (P.stam <= 0.001) { P.exh = true; P.sprintLock = true; P.sprint = false; SFX.pant(); }   // blown
   }
   // momentum builds while you're running flat out (not while you're held up against something), and dies away after

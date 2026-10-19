@@ -23,7 +23,7 @@ function windMood() {
 windMood(); WX.str = WX.ts;
 // how strong a gust is at a point right now, 0 to 1
 const gustAt = (x, z) => Math.pow(0.5 + 0.5 * Math.sin((x * WX.x + z * WX.z) * WIND_GUST.k - WX.gp), WIND_GUST.sharp);
-const windIndoors = (x, z) => x > HOUSE.x0 && x < HOUSE.x1 && z > HOUSE.z0 && z < HOUSE.z1;
+const windIndoors = (x, z) => inHouseRect(x, z, 0);
 // the air's speed at a point (into out.x, out.z, metres a second): what carries smoke, dust and anything light along
 function windAt(x, z, out) {
   const v = (WIND_CARRY.base + WIND_CARRY.str * WX.str) * (1 + WIND_CARRY.gust * gustAt(x, z)) * (windIndoors(x, z) ? WIND_CARRY.inside : 1);
@@ -42,8 +42,9 @@ function stepWind(rdt) {
 }
 // what it sounds like where you are: a soft rush of air (filtered noise, looped), louder and brighter as it blows
 // harder and as a gust goes over you, and only a murmur from inside the house (WIND_SND: its loudness still and at
-// full strength, how much louder in a gust, and the low-pass it's heard through, still and at full)
-const WIND_SND = { vol: [0.004, 0.05], gust: 0.8, lp: [320, 1400], inside: 0.3 };
+// full strength, how much louder in a gust, and the low-pass it's heard through, still and at full). It runs on the
+// world's clock (worldK): slower and deeper in slow motion, and silent while the game's paused
+const WIND_SND = { vol: [0.002, 0.022], gust: 0.5, lp: [300, 1100], inside: 0.3 };
 let windNode = null;
 function windSound(rdt) {
   if (!AC || state === 'title') { if (windNode) windNode.g.gain.setTargetAtTime(0, AC.currentTime, 0.4); return; }
@@ -57,6 +58,7 @@ function windSound(rdt) {
   }
   const S = WIND_SND, gu = gustAt(P.x, P.z), k = WX.str * (1 + S.gust * gu), t = AC.currentTime;
   const vol = (S.vol[0] + (S.vol[1] - S.vol[0]) * Math.min(1.5, k)) * (windIndoors(P.x, P.z) ? S.inside : 1) * (P.dead ? 0.5 : 1);
-  windNode.g.gain.setTargetAtTime(vol, t, 0.3);
-  windNode.f.frequency.setTargetAtTime(S.lp[0] + (S.lp[1] - S.lp[0]) * Math.min(1, k), t, 0.3);
+  windNode.g.gain.setTargetAtTime(worldK > 0.01 ? vol : 0, t, worldK > 0.01 ? 0.3 : 0.08);
+  windNode.f.frequency.setTargetAtTime((S.lp[0] + (S.lp[1] - S.lp[0]) * Math.min(1, k)) * (0.4 + 0.6 * worldK), t, 0.15);
+  windNode.s.playbackRate.setTargetAtTime(Math.max(0.25, worldK), t, 0.15);
 }

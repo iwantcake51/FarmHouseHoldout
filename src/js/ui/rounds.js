@@ -95,6 +95,21 @@ function popRounds(el) {
     }
   }
 }
+// a round (or a shell, or a speed loader's six) pushed in by hand slides into the HUD: down into its slot from just
+// above, on a spring that seats it with a small bounce, fading in as it comes, several a beat apart; the rounds already
+// in give a little under it, as the follower spring takes the new one
+const LOAD_MS = 380, LOAD_N = 26, LOAD_FRAMES = [], LOAD_NUDGE = [];
+for (let k = 0; k <= LOAD_N; k++) {
+  const t = k / LOAD_N * LOAD_MS / 1000, s = Math.exp(-0.5 * 6.2832 * 4.2 * t) * Math.cos(6.2832 * 4.2 * t * 0.866);
+  LOAD_FRAMES.push({ transform: `translate(${(4 * s).toFixed(2)}px,${(-12 * s).toFixed(2)}px) scale(${(1 - 0.25 * Math.max(0, s)).toFixed(3)})`, opacity: Math.min(1, t / 0.08).toFixed(3) });
+  LOAD_NUDGE.push({ transform: `translateY(${(1.6 * caseSpring(t - 0.05, 6, 0.4)).toFixed(2)}px)` });
+}
+function loadRounds(el, from, to) {
+  if (calmHud.matches) return;
+  const kids = el.children;
+  for (let i = from; i < to && i < kids.length; i++) { const g = kids[i]; g.style.transformOrigin = '50% 100%'; g.animate(LOAD_FRAMES, { duration: LOAD_MS, delay: (i - from) * 45, easing: 'linear', fill: 'backwards' }); }
+  for (let i = 0; i < from && i < kids.length; i++) kids[i].animate(LOAD_NUDGE, { duration: LOAD_MS, easing: 'linear', composite: 'add' });
+}
 // through a mag change (weapons/reload.js), the mag in the gun as the HUD shows it: the old one's, till it comes out;
 // none, from then till the new one's pushed home (the count at 0, every slot empty); then what the new one holds, and
 // the spare rounds less what went into it. A pair, a revolver's speed loader and a shell at a time show the gun as it is
@@ -184,5 +199,6 @@ function renderRounds(id, D) {
   if (n > 40) { setBelt(el, have / n, !same ? null : swapMag ? (out ? BELT_DRAIN : BELT_FILL) : BELT_TICK); if (drawn) shakeBelt(el); }
   else el.innerHTML = magGlyphs(n, have, fired);
   if (same && n <= 40 && keeps && have < pr.have && fired > pr.fired) kickRounds(el, have, pr.have, fired);   // just fired, and kept
+  if (same && !swapMag && n <= 40 && have > pr.have) loadRounds(el, pr.have, have);   // loaded by hand
   popRounds(el);   // a gun just drawn: after the kick, so it adds on top
 }

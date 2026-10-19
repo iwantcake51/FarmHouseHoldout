@@ -397,6 +397,33 @@ function gripMag(g, y, z, tilt, w, h, d) {
 // buckshot red. Everywhere a shell shows: the pump's side saddle, a band round the auto shotgun's mag, the shells in the
 // hand as they're fed in (player/hold.js), the chest rig's shell pouch (player/gear.js), the hulls thrown out
 // (SHELL_HULL, weapons/casings.js) and the HUD's shells (#rounds.rflech and the rest, styles/hud-weapon.css)
+// the SCAR 17S's outlines, traced off a side-on photo of the FDE one (trace-photo: .claude/skills/trace-photo) at its true
+// length, 953 mm with the stock out, on the assault rifle's scale (z along the gun, y up; each within half a pixel of
+// the photo's edge): the upper with its handguard in one, the lower round its magwell and guard (the guard's opening
+// its hole), the stock and its ribbed butt pad, the hinge, the grip and the vertical foregrip, the 10-round box, the
+// two flip-up sights; the barrel and the brake turned ([r, z]) about the bore. The mag is the 17S's 20-round box; the
+// 10-round one is the same box shorter, measured off the photos of the 20S with its short mag (gun-models: scar)
+const SCAR = {
+  y0: 1.1307, top: 1.1863, rt: 1.1933,
+  up: [[0.4477, 1.1132], [0.4475, 1.1863], [1.1505, 1.1863], [1.1525, 1.1813], [1.1545, 1.1769], [1.1577, 1.1672], [1.1631, 1.1541], [1.1632, 1.112], [1.1559, 1.099], [1.1541, 1.0982], [0.9139, 1.0981], [0.7752, 1.0974], [0.7748, 1.1132]],
+  lo: [[0.4497, 1.1141], [0.7745, 1.1141], [0.7741, 1.1105], [0.767, 1.1105], [0.7664, 1.0994], [0.7628, 1.0937], [0.7587, 1.0914], [0.7502, 1.0907], [0.7443, 1.0876], [0.7409, 1.0832], [0.7394, 1.0782], [0.7396, 1.0601], [0.7408, 1.054], [0.744, 1.0465], [0.7441, 1.0412], [0.7427, 1.0383], [0.7337, 1.0353], [0.6311, 1.0163], [0.6125, 1.0158], [0.5489, 1.0158], [0.5462, 1.0175], [0.5462, 1.0773], [0.4497, 1.0774]],
+  guard: [[0.5631, 1.0215], [0.6145, 1.0215], [0.6204, 1.0244], [0.6247, 1.0301], [0.6247, 1.0508], [0.6232, 1.054], [0.6204, 1.0569], [0.6143, 1.0588], [0.5664, 1.0588], [0.5571, 1.0558], [0.5556, 1.0522], [0.5558, 1.0294], [0.5578, 1.0254]],
+  trig: [[0.5655, 1.059], [0.5715, 1.059], [0.5712, 1.048], [0.5735, 1.035], [0.578, 1.0235], [0.5765, 1.022], [0.5705, 1.032], [0.5665, 1.045]],
+  stock: [[0.1521, 0.9656], [0.1517, 1.1545], [0.1571, 1.1543], [0.2018, 1.1544], [0.2057, 1.1522], [0.2157, 1.1509], [0.2468, 1.1517], [0.2489, 1.1584], [0.2509, 1.1602], [0.2869, 1.1691], [0.3133, 1.1727], [0.3923, 1.1801], [0.4034, 1.1823], [0.4116, 1.1857], [0.417, 1.1844], [0.417, 1.0708], [0.408, 1.0733], [0.2815, 1.0725], [0.2786, 1.0762], [0.2315, 1.0762], [0.2275, 1.0741], [0.2254, 1.0717], [0.223, 1.0676], [0.224, 1.0648], [0.2228, 1.0621], [0.2196, 1.0612], [0.2173, 1.0576], [0.2185, 1.054], [0.2171, 1.0521], [0.2143, 1.0512], [0.2114, 1.0462], [0.2126, 1.0444], [0.2122, 1.0422], [0.2107, 1.0407], [0.2082, 1.0404], [0.2058, 1.0358], [0.2068, 1.034], [0.2064, 1.0316], [0.2032, 1.0305], [0.2002, 1.0261], [0.2015, 1.0222], [0.1997, 1.0201], [0.1968, 1.0194], [0.1946, 1.0154], [0.1957, 1.0136], [0.195, 1.0108], [0.1917, 1.0097], [0.1889, 1.0054], [0.19, 1.0015], [0.1882, 0.9993], [0.1853, 0.9986], [0.1832, 0.9951], [0.1843, 0.9922], [0.1835, 0.9899], [0.1796, 0.9883], [0.1757, 0.9813], [0.1699, 0.9762], [0.1613, 0.9722], [0.1543, 0.9718]],
+  pad: [[0.132, 0.961], [0.1268, 0.9622], [0.1257, 0.9664], [0.126, 0.9741], [0.1281, 0.9875], [0.1261, 0.9904], [0.1284, 0.9929], [0.1268, 0.9958], [0.1291, 0.9986], [0.1274, 1.0011], [0.1291, 1.004], [0.1279, 1.0054], [0.1297, 1.009], [0.1282, 1.0115], [0.1301, 1.014], [0.1283, 1.0165], [0.1304, 1.0194], [0.1286, 1.0215], [0.1307, 1.0244], [0.1289, 1.0269], [0.1312, 1.0297], [0.1293, 1.0319], [0.1313, 1.0351], [0.1295, 1.0376], [0.1316, 1.0401], [0.1297, 1.0433], [0.1317, 1.0455], [0.1297, 1.0487], [0.132, 1.0505], [0.1298, 1.053], [0.1317, 1.0558], [0.1299, 1.0583], [0.132, 1.0612], [0.1299, 1.0637], [0.1319, 1.0662], [0.1296, 1.0694], [0.1317, 1.0715], [0.1295, 1.0744], [0.1316, 1.0769], [0.1293, 1.0798], [0.1315, 1.0823], [0.1292, 1.0848], [0.1311, 1.0876], [0.1287, 1.0898], [0.1308, 1.0926], [0.1285, 1.0948], [0.1306, 1.0976], [0.128, 1.1001], [0.1301, 1.103], [0.1274, 1.1055], [0.1295, 1.1079], [0.1271, 1.1105], [0.1292, 1.113], [0.1265, 1.1159], [0.1285, 1.1191], [0.1258, 1.1209], [0.1279, 1.1234], [0.1253, 1.1259], [0.127, 1.129], [0.1246, 1.1309], [0.1265, 1.1341], [0.1236, 1.1541], [0.1245, 1.159], [0.1263, 1.1607], [0.1292, 1.1614], [0.1485, 1.1584], [0.1528, 1.1534], [0.1576, 1.1523], [0.1576, 0.9725], [0.1542, 0.9717], [0.1528, 0.9665], [0.1497, 0.9643]],
+  hinge: [[0.4098, 1.0737], [0.4098, 1.1845], [0.4152, 1.1842], [0.4249, 1.1845], [0.4306, 1.19], [0.4527, 1.1901], [0.4528, 1.0737]],
+  grip: [[0.5149, 0.9313], [0.5035, 0.932], [0.4749, 0.9362], [0.4531, 0.9398], [0.4484, 0.9422], [0.4484, 0.9466], [0.45, 0.9504], [0.452, 0.9609], [0.4597, 0.9836], [0.4734, 1.014], [0.4846, 1.0312], [0.4874, 1.0397], [0.4874, 1.0501], [0.4867, 1.0548], [0.4831, 1.0635], [0.4789, 1.069], [0.474, 1.0737], [0.474, 1.0799], [0.5494, 1.0799], [0.5494, 1.0165], [0.5407, 1.0147], [0.5369, 1.0126], [0.5328, 1.0077], [0.5307, 1.0031], [0.5261, 0.9811], [0.524, 0.9736], [0.5155, 0.9428], [0.5157, 0.9368], [0.5175, 0.9353], [0.5162, 0.9321]],
+  gripPanel: [[0.4837, 1.0192], [0.5122, 1.0177], [0.5108, 0.9477], [0.4658, 0.9405], [0.4586, 0.9691]],
+  fore: [[0.9979, 0.9985], [0.9933, 0.9993], [0.991, 1.0008], [0.9903, 1.0043], [0.9966, 1.0783], [0.9943, 1.0863], [0.9895, 1.0923], [0.989, 1.0985], [1.0571, 1.0985], [1.0571, 1.0873], [1.054, 1.0793], [1.0518, 1.0572], [1.0475, 1.0011], [1.0447, 0.9993], [1.0394, 0.9986]],
+  forePanel: [[1.0, 1.0589], [1.04, 1.0589], [1.0428, 1.0067], [1.004, 1.0067]],
+  mag: [[0.6305, 1.09], [0.7335, 1.09], [0.7329, 0.9432], [0.7317, 0.9386], [0.7322, 0.9318], [0.7318, 0.9239], [0.734, 0.9207], [0.7342, 0.9164], [0.7301, 0.9142], [0.7241, 0.9134], [0.6833, 0.9117], [0.6518, 0.9122], [0.6365, 0.9134], [0.6343, 0.9142], [0.6347, 0.9218], [0.6315, 0.9224], [0.6292, 0.926]],
+  rear: [[0.4704, 1.187], [0.5135, 1.187], [0.5135, 1.1883], [0.5095, 1.1888], [0.5099, 1.1924], [0.5082, 1.196], [0.5024, 1.2022], [0.4912, 1.2038], [0.4913, 1.236], [0.4905, 1.2417], [0.4881, 1.2452], [0.4799, 1.2457], [0.4791, 1.2403], [0.4798, 1.2274], [0.4792, 1.2035], [0.4768, 1.1981], [0.478, 1.1949], [0.4774, 1.1895], [0.4704, 1.1889]],
+  front: [[1.1053, 1.187], [1.1502, 1.187], [1.1485, 1.1917], [1.1448, 1.1929], [1.144, 1.1963], [1.1376, 1.2031], [1.1382, 1.2156], [1.1395, 1.2246], [1.1379, 1.2296], [1.1375, 1.2392], [1.1355, 1.2409], [1.1255, 1.2414], [1.1247, 1.2389], [1.1247, 1.2263], [1.1275, 1.2238], [1.1275, 1.2196], [1.1289, 1.2138], [1.1283, 1.2078], [1.1302, 1.2049], [1.1269, 1.2035], [1.1255, 1.1983], [1.1113, 1.1985], [1.1088, 1.1949], [1.1088, 1.1902], [1.1055, 1.1888]],
+  barrel: [[0.0001, 0.76], [0.0107, 0.76], [0.0107, 1.248], [0.012, 1.253], [0.0121, 1.263]],
+  brake: [[0.0121, 1.263], [0.0135, 1.2644], [0.0141, 1.2666], [0.0137, 1.268], [0.0141, 1.2823], [0.0135, 1.2837], [0.0141, 1.2852], [0.0135, 1.2866], [0.0141, 1.288], [0.0135, 1.2894], [0.0141, 1.2909], [0.0137, 1.3045], [0.0138, 1.3466], [0.0136, 1.3481], [0.0127, 1.3488], [0.0137, 1.3495], [0.0137, 1.3545], [0.0135, 1.3552], [0.0122, 1.3559], [0.0077, 1.3567], [0.0001, 1.3567]],
+  ports: [[1.301, 1.324], [1.327, 1.3467]],   // the brake's two side ports (z), open right through
+  mlok: [0.8533, 0.8933, 0.9055, 0.9463, 0.9555, 0.997, 1.0084, 1.0499, 1.0607, 1.1021, 1.1129, 1.1544]   // the handguard's slots, each a z0, z1
+};
 const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
 const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
 const GUN_MODELS = {
@@ -759,15 +786,35 @@ const GUN_MODELS = {
     taperX(sg, pw([[0.3, 1], [0.44, 0.8], [0.55, 0.8], [0.65, 0.88], [0.95, 0.88], [1.07, 0.76]]));
     [[0.25, 0.996], [1.0, 1.1]].forEach(([z, yy]) => { box(g, 0.008, 0.008, 0.012, GM.metal2, X, yy + 0.003, z); const t = new THREE.Mesh(new THREE.TorusGeometry(0.0075, 0.002, 6, 10), GM.metal2); t.rotation.y = Math.PI / 2; t.position.set(X, yy - 0.007, z); g.add(t); });
     // ---- receiver: round, its ring in front, the port on the right (cut through, filled behind on the left), the
-    // tang behind; recoil lug and floorplate underneath
-    profile(g, shp([[0.575, 1.124], [0.575, 1.14], [0.6, 1.143], [0.762, 1.14], [0.768, 1.148], [0.86, 1.148], [0.866, 1.152], [0.892, 1.152], [0.9, 1.146], [0.928, 1.145], [0.928, 1.124], [0.827, 1.124], [0.8, 1.128], [0.77, 1.124]], [rrect(0.648, 1.13, 0.752, 1.149, 0.004)]), 0.027, B, X, 0.0025);
-    portFill(g, 0.648, 1.13, 0.752, 1.149, 0.027, 0.0025, B);
+    // tang behind (the port and the bolt set back a little, so the action sits over the magazine, right ahead of the
+    // guard); recoil lug and floorplate underneath
+    profile(g, shp([[0.575, 1.124], [0.575, 1.14], [0.6, 1.143], [0.762, 1.14], [0.768, 1.148], [0.86, 1.148], [0.866, 1.152], [0.892, 1.152], [0.9, 1.146], [0.928, 1.145], [0.928, 1.124], [0.827, 1.124], [0.8, 1.128], [0.77, 1.124]], [rrect(0.613, 1.13, 0.717, 1.149, 0.004)]), 0.027, B, X, 0.0025);
+    portFill(g, 0.613, 1.13, 0.717, 1.149, 0.027, 0.0025, B);
     box(g, 0.02, 0.008, 0.08, B, X, 1.122, 0.6);
     // ---- the guard: an oval loop traced off the photo, its top up in the stock (the floorplate ahead of it lies flush
     // in the stock's belly), the trigger near its back
     profile(g, shp(inset([[0.531, 1.07], [0.5308, 1.0613], [0.5335, 1.044], [0.5357, 1.0415], [0.5389, 1.0385], [0.5443, 1.0357], [0.5477, 1.0335], [0.5703, 1.0335], [0.5803, 1.0361], [0.586, 1.0399], [0.59, 1.0459], [0.5911, 1.0507], [0.5918, 1.06], [0.5925, 1.07]], 0.0012),
       [shp(inset([[0.5373, 1.0665], [0.5378, 1.0473], [0.542, 1.0419], [0.5478, 1.0399], [0.5535, 1.0394], [0.5611, 1.0392], [0.579, 1.0419], [0.5857, 1.048], [0.5854, 1.0624], [0.585, 1.0665]], -0.0012))]), 0.011, B, X, 0.0012);
     profile(g, shp([[0.5442, 1.068], [0.5502, 1.068], [0.5499, 1.0601], [0.5495, 1.0506], [0.5518, 1.048], [0.5527, 1.0447], [0.5522, 1.0433], [0.5486, 1.0428], [0.5476, 1.0456], [0.5451, 1.0479], [0.5442, 1.063]]), 0.006, GM.metal2, X, 0.0008);
+    // ---- the magazine, by its mag step: the fixed one's floorplate flush in the stock's belly; a deeper floorplate
+    // let down under it (Mag extension, 7 rounds); or a detachable 10-round box, after the polymer AICS-pattern kits: a
+    // bottom-metal plate from the guard forward round the well, the release paddle inside the front of the guard, and the
+    // box itself right up against the guard, under the port in line with the bolt and chamber; straight
+    // fronted with its sides stepped and ribbed and a flared base plate (in the magazine group, so a reload drops it out and
+    // brings a fresh one in: weapons/build-weapons.js, player/hold.js)
+    const mt = T('mag'), mg = g.userData.magG || g;
+    if (mt === 1) {
+      profile(g, shp([[0.597, 1.0712], [0.744, 1.0805], [0.744, 1.0655], [0.737, 1.0592], [0.606, 1.0545], [0.597, 1.0592]]), 0.031, B, X, 0.002);
+      box(g, 0.004, 0.004, 0.006, GM.metal2, X, 1.057, 0.735);   // its catch
+    } else if (mt >= 2) {
+      profile(g, shp([[0.5915, 1.0705], [0.702, 1.0775], [0.702, 1.066], [0.5915, 1.061]]), 0.034, B, X, 0.0015);   // the bottom metal
+      profile(g, shp([[0.5835, 1.066], [0.589, 1.066], [0.5885, 1.05], [0.5855, 1.047], [0.5825, 1.05]]), 0.01, B, X, 0.0008);    // the release paddle, inside the front of the guard
+      const MB = [[0.596, 1.1], [0.679, 1.1], [0.679, 1.002], [0.687, 0.994], [0.687, 0.982], [0.596, 0.982]];   // from the guard's front edge, under the port, where the bolt strips its rounds
+      profile(mg, shp(MB), 0.03, GM.poly, X, 0.0018);
+      profile(mg, shp([[0.5965, 0.982], [0.6885, 0.982], [0.6885, 0.993], [0.681, 0.997], [0.5965, 0.997]]), 0.0355, GM.poly, X, 0.002);   // the base plate, flared out
+      [1.044, 1.024, 1.006].forEach(y => box(mg, 0.0362, 0.0035, 0.079, GM.poly, X, y, 0.6375));   // the steps down its sides
+      [-1, 1].forEach(sd => { box(mg, 0.0015, 0.03, 0.034, GM.rubber, X + sd * 0.0174, 1.025, 0.618); box(mg, 0.0015, 0.03, 0.034, GM.rubber, X + sd * 0.0174, 1.025, 0.657); });   // the panels recessed in its sides
+    }
     // ---- barrel, tapering to the muzzle, and its sights
     taper(g, 0.0118, 0.0078, 0.552, B, X, 1.14, 1.204);
     profile(g, shp([[1.39, 1.144], [1.415, 1.149], [1.468, 1.151], [1.468, 1.144]]), 0.012, B, X, 0.001);
@@ -779,7 +826,7 @@ const GUN_MODELS = {
     }
     // ---- the bolt: a polished body in the receiver, the shroud and its safety out the back, the handle out to the
     // right and down to its knob (at BOLT_KNOB). It turns about the bore and runs back and forward (player/hold.js)
-    const bh = new THREE.Group(); bh.position.set(X, 1.14, 0.6); g.add(bh);
+    const bh = new THREE.Group(); bh.position.set(X, 1.14, 0.565); g.add(bh);
     cyl(bh, 0.0115, 0.17, GM.steel, 0, 0, 0.075, 16);
     lathe(bh, [[0.001, -0.052], [0.0105, -0.05], [0.014, -0.04], [0.0145, -0.012], [0.012, 0.0]], B, 0, 0, 18);
     box(bh, 0.005, 0.01, 0.016, GM.steel, 0, 0.015, -0.032);
@@ -806,7 +853,94 @@ const GUN_MODELS = {
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
     }
-    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true };
+    return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };
+  },
+  // battle rifle: the FN SCAR 17S in flat dark earth, its outlines traced off a side-on photo (SCAR, above) and checked
+  // against the three-quarter ones. The aluminium upper and its handguard in one piece, the ejection port cut through
+  // its right side (the bolt carrier in it runs back on each shot); the long top rail and its cross slots, the M-LOK
+  // slots down both sides of the handguard, the QD mounts, the charging handle in its slot on the right and the brass
+  // deflector; the polymer lower round its magwell and guard, the trigger, the selector, the bolt release and the mag
+  // release paddle; the folding stock on its hinge and its ribbed rubber pad; the grip and the vertical foregrip with
+  // their stippled panels; the pencil barrel and the two-port brake (gone under a can); the flip-up sights, standing till
+  // an optic goes on the rail, then folded flat. The magazine: the short 10-round box, or the 20 (MAG_UP, game/run-state.js)
+  scar(g, m) {
+    const { y0, top: UT, rt: RT } = SCAR, mt = T('mag'), sight = T('sight'), mg = g.userData.magG || g;
+    const U = GM.fde, P = GM.fdeP, G = GM.fdeG, K = GM.poly, W = 0.058, R = X - W / 2;   // (R: its right-hand face)
+    // ---- the upper: the port through it on the right (plugged on the left, a dark wall down the middle), the bolt
+    // carrier showing in it; the rail and its slots; the handguard's slots, both sides
+    const PT = [0.639, 1.1211, 0.737, 1.1397];
+    solid(g, SCAR.up, W, U, X, 0.003, [rrect(PT[0] - 0.003, PT[1] - 0.003, PT[2] + 0.003, PT[3] + 0.003, 0.005)]);
+    portFill(g, PT[0], PT[1], PT[2], PT[3], W - 0.006, 0.003, U);
+    const bc = box(g, 0.022, 0.017, 0.094, GM.steelDk, X - 0.013, (PT[1] + PT[3]) / 2, (PT[0] + PT[2]) / 2);
+    xsec(g, shp([[X - 0.0125, UT - 0.001], [X + 0.0125, UT - 0.001], [X + 0.0168, UT + 0.002], [X + 0.0168, UT + 0.0035], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, UT + 0.0035], [X - 0.0168, UT + 0.002]]), 0.428, 1.152, U, 0.0006);
+    { const B = []; for (let z = 0.4365; z < 1.146; z += 0.0129) B.push([0.0338, 0.0034, 0.0055, X, RT - 0.0015, z]); boxes(g, B, GM.rubber); }
+    { const B = [], M = SCAR.mlok; for (let i = 0; i < M.length; i += 2) [-1, 1].forEach(sd => B.push([0.0012, 0.0071, M[i + 1] - M[i], X + sd * W / 2, 1.1246, (M[i] + M[i + 1]) / 2], [0.0012, 0.0057, M[i + 1] - M[i] - 0.006, X + sd * W / 2, 1.1067, (M[i] + M[i + 1]) / 2])); boxes(g, B, GM.rubber); }
+    { const rr2 = (...a) => shp(rrect(...a).getPoints().map(p => [p.x, p.y])); [-1, 1].forEach(sd => { profile(g, rr2(0.7446, 1.1215, 0.8125, 1.1385, 0.008), 0.004, K, X + sd * (W / 2 + 0.0015), 0.001); profile(g, rr2(1.102, 1.1607, 1.154, 1.1801, 0.009), 0.004, K, X + sd * (W / 2 + 0.0015), 0.001); }); }   // the QD mounts
+    profile(g, shp([[0.581, 1.1225], [0.636, 1.1225], [0.639, 1.14], [0.603, 1.1445], [0.585, 1.14]]), 0.006, K, R - 0.002, 0.001);   // the brass deflector
+    // the charging handle's slot, and its knob out to the right (its own group: the reload draws it back)
+    box(g, 0.0012, 0.0086, 0.193, GM.rubber, R, 1.1681, 0.7195);
+    const ch = new THREE.Group(); g.add(ch);
+    cyl(ch, 0.0075, 0.02, K, R - 0.009, 1.1681, 0.811, 14).rotation.set(0, 0, Math.PI / 2); box(ch, 0.008, 0.007, 0.012, K, R - 0.002, 1.1681, 0.811);
+    // ---- the lower: the guard (narrow, its opening traced), the body and the wider magwell over it; the trigger,
+    // the selector (both sides), the bolt release and the mag release paddle
+    solid(g, SCAR.lo, 0.03, P, X, 0.002, [shp(inset(SCAR.guard, -0.002))]);
+    solid(g, clipTo(SCAR.lo, [[0.44, 1.062], [0.78, 1.062], [0.78, 1.12], [0.44, 1.12]]), 0.052, P, X, 0.004);
+    solid(g, clipTo(SCAR.lo, [[0.632, 1.0], [0.78, 1.0], [0.78, 1.12], [0.632, 1.12]]), 0.056, P, X, 0.004);
+    profile(g, shp(SCAR.trig), 0.007, K, X, 0.0008);
+    cyl(g, 0.0062, 0.058, K, X, 1.0915, 0.534, 14).rotation.set(0, 0, Math.PI / 2);
+    [-1, 1].forEach(sd => { box(g, 0.004, 0.007, 0.03, K, X + sd * 0.029, 1.0915, 0.522).rotation.x = -0.25; });
+    box(g, 0.003, 0.004, 0.05, K, R + 0.002, 1.0975, 0.603).rotation.x = 0.12;
+    box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    // ---- the stock, folded out on its hinge: the body and the ribbed pad, the sling hole through the butt, the line
+    // where the cheek piece meets the arm under it; the hinge's knuckles on the right
+    solid(g, SCAR.stock, 0.05, P, X, 0.006);
+    solid(g, SCAR.pad, 0.058, GM.rubber, X, 0.004);
+    cyl(g, 0.0065, 0.052, GM.rubber, X, 1.1307, 0.176, 16).rotation.set(0, 0, Math.PI / 2);
+    [-1, 1].forEach(sd => box(g, 0.0012, 0.0016, 0.105, GM.rubber, X + sd * 0.025, 1.0803, 0.3645));
+    solid(g, SCAR.hinge, 0.06, P, X, 0.003);
+    [[1.078, 1.104], [1.111, 1.141], [1.148, 1.18]].forEach(([a, b]) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, b - a, 14), U); k.position.set(X - 0.029, (a + b) / 2, 0.432); k.castShadow = true; g.add(k); });
+    // ---- the grip and the vertical foregrip, each with its stippled panels
+    solid(g, SCAR.grip, 0.042, G, X, 0.006);
+    stipple(g, pullInside(SCAR.gripPanel, inset(SCAR.grip, 0.005)), 0.021, 0.0035, P, G);
+    solid(g, SCAR.fore, 0.034, G, X, 0.005);
+    stipple(g, SCAR.forePanel, 0.017, 0.0035, P, G);
+    // ---- the magazine (in the mag group, so the reload drops it): the 20-round box traced off the 17S, or the short
+    // 10 (off the 20S's photos: the same box, its foot UP higher, standing only a little below the well), the flutes down
+    // its sides, the base plate under the dark seam slanting across it
+    const up = mt ? 0 : 0.075, dn = ([z, yy]) => [z, yy < 0.95 ? yy + up : yy];
+    solid(mg, SCAR.mag.map(dn), 0.048, P, X, 0.003);
+    [0.6556, 0.6864, 0.7268].forEach(z => box(mg, 0.0505, 0.09 - up, 0.0035, P, X, 0.985 + up / 2, z));
+    solid(mg, [[0.6315, 0.9268], [0.734, 0.9262], [0.7342, 0.9164], [0.7301, 0.9142], [0.6833, 0.9117], [0.6365, 0.9134], [0.6315, 0.9224]].map(dn), 0.052, P, X, 0.003);
+    { const a = dn([0.6318, 0.9262]), b = dn([0.7335, 0.9395]), sm = box(mg, 0.0525, 0.0024, Math.hypot(b[0] - a[0], b[1] - a[1]), K, X, (a[1] + b[1]) / 2, (a[0] + b[0]) / 2); sm.rotation.x = -Math.atan2(b[1] - a[1], b[0] - a[0]); }
+    // ---- the barrel, turned, and the brake on it: its two ports open right through (bridged over the top and under the
+    // bottom, the bore dark between); a can threads on in its place
+    lathe(g, SCAR.barrel, GM.blued, X, y0, 24);
+    let front = 1.263;
+    if (!T('supp')) {
+      const BK = SCAR.brake, [p0, p1] = SCAR.ports;
+      lathe(g, [...BK.filter(p => p[1] < p0[0]), [0.0137, p0[0]], [0.0001, p0[0]]], GM.metal, X, y0, 24);
+      lathe(g, [[0.0001, p0[1]], [0.0137, p0[1]], [0.0137, p1[0]], [0.0001, p1[0]]], GM.metal, X, y0, 24);
+      lathe(g, [[0.0001, p1[1]], [0.0138, p1[1]], ...BK.filter(p => p[1] > p1[1])], GM.metal, X, y0, 24);
+      [-1, 1].forEach(sd => box(g, 0.019, 0.0055, p1[1] - p0[0], GM.metal, X, y0 + sd * 0.0112, (p0[0] + p1[1]) / 2));
+      cyl(g, 0.0055, p1[1] - p0[0], GM.rubber, X, y0, (p0[0] + p1[1]) / 2, 14);
+      front = 1.3567;
+    }
+    // ---- the flip-up sights: standing, or with an optic on the rail folded down flat on their bases
+    [[SCAR.rear, 1.2035], [SCAR.front, 1.1985]].forEach(([S, cut]) => {
+      if (!sight) { solid(g, S, 0.022, K, X, 0.0012); return; }
+      const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
+    });
+    // ---- a light on the left of the handguard's front, on an M-LOK mount: a plain flashlight, then a weapon light
+    if (T('light')) {
+      const lx = X + W / 2 + 0.02, ly = 1.12, lz = 1.085, two = T('light') === 2;
+      box(g, 0.008, 0.018, 0.036, GM.metal, X + W / 2 + 0.004, ly, lz - 0.02); box(g, 0.012, 0.012, 0.03, GM.metal, lx - 0.012, ly, lz - 0.02);
+      cyl(g, two ? 0.018 : 0.015, two ? 0.12 : 0.11, two ? GM.metal : GM.metal2, lx, ly, lz); ring(g, two ? 0.024 : 0.019, 0.03, two ? GM.metal2 : GM.metal, lx, ly, lz + 0.07);
+      cyl(g, two ? 0.021 : 0.017, 0.004, GM.lens, lx, ly, lz + 0.087); if (two) ring(g, 0.015, 0.014, GM.rubber, lx, ly, lz - 0.067);
+    }
+    const big = sight >= 5;
+    return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
+      laser: { y: 1.0982, z: 1.112 }, noLight: true, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the
@@ -1250,7 +1384,7 @@ const GUN_MODELS = {
         const rd = new THREE.Group(); mg.add(rd);
         cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);
         [-0.021, 0.021].forEach(o => ring(rd, 0.0099, 0.007, GM.metal2, x, yy, 0.535 + o));   // its link's loops, hooked into the next
-        belt.push(rd);
+        rd.userData.beltK = belt.length; belt.push(rd);
       });
     }
     // ---- optics sit on the feed cover

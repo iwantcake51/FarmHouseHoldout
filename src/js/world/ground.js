@@ -1,31 +1,148 @@
-// House footprint, the painted ground texture, the ground plane and grass tufts; past the farm's edge, the ground and grass
-// going on into the haze, the drive carried on out, and the main road it meets.
+// House footprint, the ground (textured and blended in its shader) and grass tufts; past the farm's edge, the ground and
+// grass going on into the haze, the drive carried on out, and the main road it meets.
 
 const HX0 = 16, HX1 = 27, HZ0 = 17, HZ1 = 26;
-// the dirt drive out the front of the house: painted into the farm's ground texture inside the map, then carried on past
-// its edge by a strip of its own to the main road, which runs across in front of the farm out in the fog. Trees, grass
+// the dirt drive out the front of the house: painted into the ground's mask (groundMask), from the porch on past the
+// farm's edge to the main road, which runs across in front of the farm out in the fog. Trees, grass
 // and rocks keep off both (onRoad, also world/trees.js); m widens the margin
 const ROAD = { x: z => cxw(21) + Math.sin(z * 0.45) * 0.35, z0: cxw(HZ1) + 0.6, z: HALF + 7.5, w: 5.4 };
 const onRoad = (x, z, m) => Math.abs(z - ROAD.z) < ROAD.w / 2 + 0.8 + m || (z > ROAD.z0 && z < ROAD.z && Math.abs(x - ROAD.x(z)) < 1.3 + m);
-function groundTexture() {
-  const S2 = 1024, c = document.createElement('canvas'); c.width = c.height = S2; const x = c.getContext('2d');
-  const px = v => (v + HALF) / N * S2;
-  x.fillStyle = '#56573e'; x.fillRect(0, 0, S2, S2);
+// the ground is drawn from the SBS packs' textures (world/ground-art.js, tools/pack-ground.py), tiled in the world and
+// faded in and out of each other by Perlin noise in the shader (GROUND_FS), so it's sharp however close you zoom and
+// never repeats. Where it's bare earth rather than grass is painted into a mask that runs out past the farm's edge to
+// the road (GROUND_SPAN metres across, centred on the farm): red the trodden earth (the yard round the house, the paths
+// to the fence gaps and the drive), green the drive's wheel ruts, blue how much of that earth is the drive's brown dirt.
+// It's painted again each run, for the paths out to where the fence gaps are this time (paths: each from x, z to x, z;
+// world/yard.js), into the same texture (GROUND_MASK)
+const GROUND_SPAN = 104, GROUND_MASK = { c: null, t: null };
+function groundMask(paths) {
+  const S2 = 2048, c = GROUND_MASK.c || (GROUND_MASK.c = document.createElement('canvas')); c.width = c.height = S2; const x = c.getContext('2d');
+  const px = v => (v + GROUND_SPAN / 2) / GROUND_SPAN * S2, pm = m => m / GROUND_SPAN * S2;
+  x.fillStyle = '#000'; x.fillRect(0, 0, S2, S2);
+  x.globalCompositeOperation = 'lighter';   // (each channel adds up on its own)
   const blot = (cx, cy, r, rgb, a) => { const g = x.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); x.fillStyle = g; x.fillRect(cx - r, cy - r, 2 * r, 2 * r); };
-  for (let k = 0; k < 800; k++) blot(rand() * S2, rand() * S2, rr(8, 64), pick(['66,70,46', '98,98,62', '112,104,66', '58,64,42', '84,80,50']), rr(0.25, 0.6));
-  for (let k = 0; k < 220; k++) blot(px(rr(cxw(HX0) - 2.5, cxw(HX1) + 2.5)), px(rr(cxw(HZ0) - 2.5, cxw(HZ1) + 2.5)), rr(10, 40), '104,88,64', rr(0.15, 0.45));
-  for (let z = ROAD.z0; z < HALF; z += 0.2) blot(px(ROAD.x(z) + rr(-0.5, 0.5)), px(z), rr(16, 30), '110,92,66', 0.55);
-  x.strokeStyle = 'rgba(66,54,40,.55)'; x.lineWidth = 6;
-  [-0.6, 0.6].forEach(o => { x.beginPath(); for (let z = cxw(HZ1) + 2; z <= HALF + 0.25; z += 0.25) x.lineTo(px(ROAD.x(z) + o), px(z)); x.stroke(); });
+  for (let k = 0; k < 220; k++) blot(px(rr(cxw(HX0) - 2.5, cxw(HX1) + 2.5)), px(rr(cxw(HZ0) - 2.5, cxw(HZ1) + 2.5)), pm(rr(0.4, 1.7)), '255,0,0', rr(0.15, 0.4));
+  // the drive, from the porch out past the farm's edge to the road
+  for (let z = ROAD.z0; z < ROAD.z - ROAD.w / 2 + 0.6; z += 0.2) blot(px(ROAD.x(z) + rr(-0.5, 0.5)), px(z), pm(rr(0.7, 1.3)), '255,0,255', 0.45);
+  x.strokeStyle = 'rgba(0,255,0,.6)'; x.lineWidth = pm(0.26);
+  [-0.6, 0.6].forEach(o => { x.beginPath(); for (let z = cxw(HZ1) + 2; z <= ROAD.z - ROAD.w / 2 + 0.3; z += 0.25) x.lineTo(px(ROAD.x(z) + o), px(z)); x.stroke(); });
   // trampled paths to the fence gaps
-  [[cxw(21), cxw(HZ0) - 1, cxw(21.5), cxw(11)], [cxw(HX0) - 1, cxw(21), cxw(10), cxw(21.5)], [cxw(HX1) + 1, cxw(22), cxw(33), cxw(21.5)]].forEach(([a, b, c2, d]) => { for (let t = 0; t <= 1; t += 0.03) blot(px(a + (c2 - a) * t + rr(-.3, .3)), px(b + (d - b) * t + rr(-.3, .3)), rr(8, 16), '96,84,60', 0.35); });
-  const img = x.getImageData(0, 0, S2, S2), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (rand() - 0.5) * 6; d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.8; }
-  x.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;
+  (paths || []).forEach(([a, b, c2, d]) => { for (let t = 0; t <= 1; t += 0.03) blot(px(a + (c2 - a) * t + rr(-.3, .3)), px(b + (d - b) * t + rr(-.3, .3)), pm(rr(0.35, 0.7)), '255,0,0', 0.3); });
+  if (GROUND_MASK.t) { GROUND_MASK.t.needsUpdate = true; return GROUND_MASK.t; }
+  const t = GROUND_MASK.t = new THREE.CanvasTexture(c); t.flipY = false; t.anisotropy = R.capabilities.getMaxAnisotropy(); return t;   // (row by row along z, as drawn)
 }
+// the ground's textures, each tiled over the ground at its own size (metres a tile), and how soft they're drawn
+// (GROUND_BLUR: 1 as sharp as the screen allows, 2 a mip level softer)
+const GROUND_TEX = {}, GROUND_TILE = { grass: 2.6, patchy: 2.3, thin: 2.8, dry: 2.5, earth: 2.4, drive: 2.6 }, GROUND_BLUR = 2.2;
+for (const k of [...Object.keys(GROUND_TILE), 'rock', 'rock2']) {
+  const t = GROUND_TEX[k] = new THREE.TextureLoader().load(GROUND_ART[k]);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = R.capabilities.getMaxAnisotropy();
+}
+// Perlin (gradient) noise, and a texture tiled with no repeat to see: the tiling noise picks an offset and a turn for
+// each patch of ground (gPick), and where two patches meet their copies of the texture fade into each other (the
+// darker one wins first, so the seams follow its shapes), drawn with the gradients the plain tiling would have, turned
+// with it, so its mip level never jumps
+const GROUND_NOISE = `
+#if defined(texture2DGradEXT) || defined(GL_EXT_shader_texture_lod)
+#define G_TEX(s, x, dx, dy) texture2DGradEXT(s, x, dx, dy)
+#else
+#define G_TEX(s, x, dx, dy) texture2D(s, x)
+#endif
+vec2 gHash(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453) * 2.0 - 1.0; }
+float gNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  return mix(mix(dot(gHash(i), f), dot(gHash(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+             mix(dot(gHash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)), dot(gHash(i + 1.0), f - 1.0), u.x), u.y);
+}
+float gFbm(vec2 p) { return gNoise(p) * 0.6 + gNoise(p * 2.03 + 7.1) * 0.28 + gNoise(p * 4.07 + 3.7) * 0.12; }
+vec3 gPick(sampler2D s, vec2 x, vec2 dx, vec2 dy, float i) {
+  float r = fract(sin(i * 12.9898 + 4.1) * 43758.5453) * 6.2832; mat2 m = mat2(cos(r), sin(r), -sin(r), cos(r));
+  return G_TEX(s, m * x + sin(vec2(3.0, 7.0) * i), m * dx, m * dy).rgb;
+}
+vec3 gTile(sampler2D s, vec2 x, vec2 dx, vec2 dy, float tl) {
+  float l = tl * 14.0, f = fract(l), ia = floor(l);
+  vec3 a = gPick(s, x, dx, dy, ia), b = gPick(s, x, dx, dy, ia + 1.0);
+  return mix(a, b, smoothstep(0.15, 0.85, f - 0.1 * dot(a - b, vec3(1.0))));
+}
+`;
+const GROUND_DECL = `
+uniform sampler2D uGMask;
+uniform sampler2D uGT[6];
+uniform float uGSpan;
+uniform float uGHalf;
+` + GROUND_NOISE;
+// the ground's colour at p: the four grasses faded in and out of each other on their own slow noise fields, bare earth
+// where the mask says (its edge broken up by finer noise) with the drive's brown dirt and ruts on it, the light and
+// dark of it drifting a little, and past the farm's edge darkening into the floor of the woods
+const GROUND_FS = `
+  {
+    vec2 gp = vWp.xz, gdx = dFdx(gp) * ${GROUND_BLUR.toFixed(2)}, gdy = dFdy(gp) * ${GROUND_BLUR.toFixed(2)};
+    vec4 gm = texture2D(uGMask, gp / uGSpan + 0.5);
+    float n1 = gFbm(gp * 0.1), n2 = gFbm(gp * 0.14 + 19.3), n3 = gFbm(gp * 0.085 + 47.1), n4 = gFbm(gp * 0.45 + 3.3);
+    float tl = gFbm(gp * 0.32 + 71.0) * 0.6 + 0.5;
+    vec3 gc = gTile(uGT[0], gp / ${GROUND_TILE.grass.toFixed(2)}, gdx / ${GROUND_TILE.grass.toFixed(2)}, gdy / ${GROUND_TILE.grass.toFixed(2)}, tl);
+    float w = smoothstep(-0.12, 0.2, n1);
+    if (w > 0.002) gc = mix(gc, gTile(uGT[1], gp / ${GROUND_TILE.patchy.toFixed(2)} + 0.37, gdx / ${GROUND_TILE.patchy.toFixed(2)}, gdy / ${GROUND_TILE.patchy.toFixed(2)}, tl), w);
+    w = smoothstep(0.06, 0.32, n2);
+    if (w > 0.002) gc = mix(gc, gTile(uGT[2], gp / ${GROUND_TILE.thin.toFixed(2)} + 0.71, gdx / ${GROUND_TILE.thin.toFixed(2)}, gdy / ${GROUND_TILE.thin.toFixed(2)}, tl), w);
+    w = smoothstep(0.16, 0.4, n3);
+    if (w > 0.002) gc = mix(gc, gTile(uGT[3], gp / ${GROUND_TILE.dry.toFixed(2)} + 0.13, gdx / ${GROUND_TILE.dry.toFixed(2)}, gdy / ${GROUND_TILE.dry.toFixed(2)}, tl), w);
+    w = smoothstep(0.22, 0.52, gm.r + n4 * 0.4);
+    if (w > 0.002) {
+      vec3 ge = gTile(uGT[4], gp / ${GROUND_TILE.earth.toFixed(2)} + 0.53, gdx / ${GROUND_TILE.earth.toFixed(2)}, gdy / ${GROUND_TILE.earth.toFixed(2)}, tl);
+      float wd = smoothstep(0.15, 0.5, gm.b + n4 * 0.3);
+      if (wd > 0.002) ge = mix(ge, gTile(uGT[5], gp / ${GROUND_TILE.drive.toFixed(2)} + 0.29, gdx / ${GROUND_TILE.drive.toFixed(2)}, gdy / ${GROUND_TILE.drive.toFixed(2)}, tl), wd);
+      gc = mix(gc, ge, w);
+    }
+    gc *= 1.0 - gm.g * 0.42 * (0.8 + n4 * 0.5);
+    gc *= 0.93 + n2 * 0.14;
+    float gw = smoothstep(0.0, 16.0, max(abs(gp.x), abs(gp.y)) - uGHalf + n1 * 5.0);
+    gc *= mix(vec3(1.0), vec3(0.5, 0.5, 0.46), gw);
+    diffuseColor.rgb *= gc;
+  }`;
+// a lit material drawing that ground (one program shared by the farm's ground and the ground out past it)
+function groundMat() {
+  const m = lam(0xffffff), base = m.onBeforeCompile, mask = groundMask();
+  m.extensions = { derivatives: true, shaderTextureLOD: true };
+  m.onBeforeCompile = function (sh, r) {
+    base.call(this || m, sh, r);
+    Object.assign(sh.uniforms, { uGMask: { value: mask }, uGT: { value: ['grass', 'patchy', 'thin', 'dry', 'earth', 'drive'].map(k => GROUND_TEX[k]) }, uGSpan: { value: GROUND_SPAN }, uGHalf: { value: HALF } });
+    sh.fragmentShader = GROUND_DECL + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + GROUND_FS);
+  };
+  m.customProgramCacheKey = () => 'lit-ground';
+  return m;
+}
+const GROUND_M = groundMat();
+// the rocks and stones round the map (world/trees.js) take the same treatment: two stone textures from the packs, laid
+// over each rock from the three sides it's seen from (triplanar, so nothing stretches down its flanks), faded into
+// each other by Perlin noise and tiled at random like the ground, as soft as it (GROUND_BLUR). They're a mid grey, so
+// they only add their grain to the rock's own colour and moss (in its vertices)
+const ROCK_TILE = 0.6;
+const ROCK_FS = `
+  {
+    vec3 rn = pow(abs(normalize(vWn)), vec3(4.0)); rn /= rn.x + rn.y + rn.z;
+    vec3 rp = vWp / ${ROCK_TILE.toFixed(2)};
+    float tl = gFbm(vWp.xz * 0.8 + vWp.y * 0.6 + 31.0) * 0.6 + 0.5, rw = smoothstep(-0.18, 0.18, gFbm(vWp.xz * 0.55 + vWp.y * 0.5 + 11.0));
+    vec2 pa = rp.yz, pb = rp.xz, pc = rp.xy;
+    vec2 ax = dFdx(pa) * ${GROUND_BLUR.toFixed(2)}, ay = dFdy(pa) * ${GROUND_BLUR.toFixed(2)}, bx = dFdx(pb) * ${GROUND_BLUR.toFixed(2)}, by = dFdy(pb) * ${GROUND_BLUR.toFixed(2)}, cx = dFdx(pc) * ${GROUND_BLUR.toFixed(2)}, cy = dFdy(pc) * ${GROUND_BLUR.toFixed(2)};
+    vec3 r0 = gTile(uGR[0], pa, ax, ay, tl) * rn.x + gTile(uGR[0], pb, bx, by, tl) * rn.y + gTile(uGR[0], pc, cx, cy, tl) * rn.z;
+    vec3 r1 = gTile(uGR[1], pa * 1.15 + 0.3, ax * 1.15, ay * 1.15, tl) * rn.x + gTile(uGR[1], pb * 1.15 + 0.3, bx * 1.15, by * 1.15, tl) * rn.y + gTile(uGR[1], pc * 1.15 + 0.3, cx * 1.15, cy * 1.15, tl) * rn.z;
+    diffuseColor.rgb *= mix(r0, r1, rw) * 2.0;
+  }`;
+function rockMat(m) {
+  const base = m.onBeforeCompile, baseKey = m.customProgramCacheKey;
+  m.extensions = { derivatives: true, shaderTextureLOD: true };
+  m.onBeforeCompile = function (sh, r) {
+    base.call(this || m, sh, r);
+    sh.uniforms.uGR = { value: [GROUND_TEX.rock, GROUND_TEX.rock2] };
+    sh.fragmentShader = 'uniform sampler2D uGR[2];\n' + GROUND_NOISE + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + ROCK_FS);
+  };
+  m.customProgramCacheKey = function () { return baseKey.call(this || m) + '-rock'; };
+  return m;
+}
+rockMat(M.rock);
 {
-  const g = new THREE.Mesh(new THREE.PlaneGeometry(N, N), lam(0xffffff, { map: groundTexture() })); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(N, N), GROUND_M); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
   const far = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), M.groundFar); far.rotation.x = -Math.PI / 2; far.position.y = -0.02; scene.add(far);
   const tufts = new THREE.InstancedMesh(flat(new THREE.ConeGeometry(0.09, 0.34, 4)), windy(lam(0x6b6c47), 0.32, 1), 1300), dm = new THREE.Object3D();   // (parting round you as you walk through: PUSHERS)
   const tufts2 = new THREE.InstancedMesh(flat(new THREE.ConeGeometry(0.07, 0.42, 3)), windy(lam(0x7d7a4c), 0.32, 1), 500);
@@ -53,20 +170,11 @@ function groundTexture() {
 {
   const OUT = 104, aniso = R.capabilities.getMaxAnisotropy();
   const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
-  // the ground out there: the field's colour where it meets the farm, darkening into the woods' floor further out, so
-  // the edge of the map never shows as a line. It lies just under the farm's own ground (hidden where they overlap)
+  // the ground out there: the same ground as the farm's, the same textures, darkening into the woods' floor further out
+  // (GROUND_FS), so the edge of the map never shows as a line. It lies just under the farm's own ground (hidden where
+  // they overlap)
   {
-    const S2 = 512, [c, x] = canvas(S2, S2), px = v => (v + OUT / 2) / OUT * S2;
-    x.fillStyle = '#2b2c24'; x.fillRect(0, 0, S2, S2);
-    for (let e = 14; e >= 0; e -= 0.5) { x.fillStyle = `rgba(86,87,62,${e > 9 ? 0.05 : 0.12})`; x.fillRect(px(-HALF - e), px(-HALF - e), px(HALF + e) - px(-HALF - e), px(HALF + e) - px(-HALF - e)); }
-    for (let k = 0; k < 900; k++) {
-      const bx = rr(-OUT / 2, OUT / 2), bz = rr(-OUT / 2, OUT / 2), d = Math.max(Math.abs(bx), Math.abs(bz)) - HALF; if (d < -1) continue;
-      const g = x.createRadialGradient(px(bx), px(bz), 0, px(bx), px(bz), rr(2, 12)), a = rr(0.15, 0.45) * clamp(1 - d / 20, 0.15, 1);
-      const col = pick(['66,70,46', '98,98,62', '112,104,66', '58,64,42', '84,80,50']); g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
-      x.fillStyle = g; x.fillRect(px(bx) - 12, px(bz) - 12, 24, 24);
-    }
-    const t = new THREE.CanvasTexture(c); t.anisotropy = aniso;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(OUT, OUT), lam(0xffffff, { map: t })); m.rotation.x = -Math.PI / 2; m.position.y = -0.012; m.receiveShadow = true; scene.add(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(OUT, OUT), GROUND_M); m.rotation.x = -Math.PI / 2; m.position.y = -0.012; m.receiveShadow = true; scene.add(m);
   }
   // the main road: old two-lane blacktop, cracked and patched, with a faded yellow dash down the middle, worn white edge
   // lines and gravel shoulders feathering off into the grass. One 16 m stretch is drawn and repeats along the road
@@ -84,22 +192,5 @@ function groundTexture() {
     const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(RL / 16, 1); t.anisotropy = aniso;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(RL, W), lam(0xffffff, { map: t, transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(0, -0.006, ROAD.z); m.receiveShadow = true; scene.add(m);
-  }
-  // the drive carried on from the farm's edge to the road: the same dirt and wheel ruts as inside, running on into the
-  // gravel at the blacktop's edge
-  {
-    const [c, x] = canvas(128, 128), W = 2.9, pu = m => (m / W + 0.5) * 128;
-    // dirt patches, drawn wrapped top to bottom so the tile repeats along the drive without a seam
-    for (let k = 0; k < 160; k++) { const u = pu(rr(-0.75, 0.75)), v0 = rand() * 128, r = rr(14, 26); [v0 - 128, v0, v0 + 128].forEach(v => { const g = x.createRadialGradient(u, v, 0, u, v, r); g.addColorStop(0, 'rgba(110,92,66,.55)'); g.addColorStop(1, 'rgba(110,92,66,0)'); x.fillStyle = g; x.fillRect(u - 26, v - 26, 52, 52); }); }
-    x.fillStyle = 'rgba(66,54,40,.55)'; [-0.6, 0.6].forEach(o => x.fillRect(pu(o) - 5, 0, 10, 128));
-    const t = new THREE.CanvasTexture(c); t.wrapT = THREE.RepeatWrapping; t.anisotropy = aniso;
-    const z0 = HALF, z1 = ROAD.z - ROAD.w / 2 + 0.2, n = Math.ceil((z1 - z0) / 0.25), pos = [], uv = [], ix = [];
-    for (let k = 0; k <= n; k++) {
-      const z = z0 + (z1 - z0) * k / n, cx = ROAD.x(z), hw = W / 2;
-      pos.push(cx - hw, 0, z, cx + hw, 0, z); uv.push(0, (z - z0) / 2.9, 1, (z - z0) / 2.9);
-      if (k) { const a = (k - 1) * 2; ix.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
-    }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(ix); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, lam(0xffffff, { map: t, transparent: true, depthWrite: false })); m.position.y = -0.004; m.receiveShadow = true; scene.add(m);
   }
 }

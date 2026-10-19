@@ -60,8 +60,8 @@ const forYour = id => 'For your ' + gunCall(id);
 // everything that changes the weapon in your hands sits in one group: its upgrades, new and improved mods and attachments
 const gearGroup = D => (D.melee ? 'Upgrades · ' : 'Attachments / Upgrades · ') + D.name;
 const BENCH = [
-    { ic: 'ammo', for: () => gunAmmo() ? forYour(curId()) : 'For the gun in your hands', cost: AMMO_COST, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${gunBatch(curId())} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const id = curId(), a = gunAmmo(), n = gunBatch(id); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); } },
-    { ic: 'ammo', for: () => ammoGuns().length > 1 ? `For all ${ammoGuns().length} of your guns` : 'For every gun you carry', get cost() { return Math.max(AMMO_COST, AMMO_COST * ammoGuns().length); }, title: () => 'Ammo for everything', desc: () => ammoGuns().length ? allAmmo().map(([a, n]) => `+${n} ${AMMO_NAME[a]}`).join(' · ') + (ammoGuns().length > 1 ? ` · one load for each of your ${ammoGuns().length} guns` : '') : 'Every gun you carry', why: () => ammoGuns().length ? '' : 'No guns that use ammo', make: () => allAmmo().forEach(([a, n]) => { W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); }) },
+    { ic: 'ammo', quick: 'hand', for: () => gunAmmo() ? forYour(curId()) : 'For the gun in your hands', cost: AMMO_COST, title: () => gunAmmo() ? 'Hand-load ' + AMMO_NAME[gunAmmo()] : 'Hand-load ammo', desc: () => gunAmmo() ? `+${gunBatch(curId())} for your ${W(curId()).name.toLowerCase()}` : 'Loads for the gun in your hands', why: () => gunAmmo() ? '' : 'Hold a gun first', make: () => { const id = curId(), a = gunAmmo(), n = gunBatch(id); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); } },
+    { ic: 'ammo', quick: 'all', for: () => ammoGuns().length > 1 ? `For all ${ammoGuns().length} of your guns` : 'For every gun you carry', get cost() { return Math.max(AMMO_COST, AMMO_COST * ammoGuns().length); }, title: () => 'Ammo for everything', desc: () => ammoGuns().length ? allAmmo().map(([a, n]) => `+${n} ${AMMO_NAME[a]}`).join(' · ') + (ammoGuns().length > 1 ? ` · one load for each of your ${ammoGuns().length} guns` : '') : 'Every gun you carry', why: () => ammoGuns().length ? '' : 'No guns that use ammo', make: () => allAmmo().forEach(([a, n]) => { W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); }) },
     // tuning: one full going-over of the weapon in your hands, once per weapon and dear. It makes it a little better at
     // everything (TUNE in game/run-state.js) without turning it into a different weapon
     { ic: 'gear', for: () => forYour(curId()), fx: () => tuneFx(curId()), gone: () => !!W8.tune[curId()], cost: TUNE_COST, title: () => (W8.tune[curId()] ? 'Tuned: ' : 'Tune up the ') + W(curId()).short, desc: () => tuneText(W(curId())) + ' · Once per weapon', why: () => W8.tune[curId()] ? 'Already tuned' : '',
@@ -128,10 +128,10 @@ const RECIPES = {
     { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
   ],
   get med() { return shown(MED); },
-  // the ham radio: a supply drop, and weapons by air (stations/supply-drop.js), all brought in by helicopter
+  // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
     return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and bandages lands in the yard', why: busyWhy,
-      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }, ...radioCards()];
+      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }];
   }
 };
 // a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)

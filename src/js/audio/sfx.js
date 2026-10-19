@@ -1,6 +1,9 @@
 // Every sound effect. Most play a recording (audio/samples.js), and the synthesized sound written after it plays
 // instead until that recording has loaded; the rest (footsteps, vaulting, zombies, the UI) are only synthesized.
 
+// the brute's wall crash (SFX.bruteWall): how far off it's still heard (m), how loud, the lowpass on its body near and
+// at that distance (Hz), and its crack: how loud, its highpass and lowpass (Hz) and how long (s)
+const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, crackLp: 9000, crackDur: 0.09 };
 const SFX = {
   light() { nz(0.2, 'lowpass', 3200, 260, 0.75); tn(0.13, 'sine', 150, 45, 0.6); },
   heavy() { nz(0.32, 'lowpass', 2600, 180, 0.9); tn(0.22, 'sine', 120, 38, 0.8); },
@@ -8,10 +11,15 @@ const SFX = {
   auto() { nz(0.09, 'lowpass', 3600, 500, 0.45); tn(0.06, 'sine', 170, 60, 0.35); },
   rifle() { nz(0.4, 'lowpass', 4200, 200, 0.95); tn(0.2, 'sine', 160, 40, 0.7); },
   // a shot: the gun's one recording, a little different every time (its pitch and speed, its tone, how loud it is and
-  // where it sits left to right), and inside the farmhouse the room rings with it
+  // where it sits left to right); inside the farmhouse the room rings with it, harder for the big ones, and wherever you
+  // are it echoes back off the farm (a heavy round more, a suppressed one barely: FAR_ECHO, audio/samples.js), dull
+  // through the walls when you're in
   fire(id, quiet, shells) {
-    const verb = indoors() ? (quiet ? 0.32 : shells || id === 'deagle' || id === 'hunting' ? 0.75 : 0.62) : 0;
-    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb })) return;
+    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', verb = inside ? (quiet ? 0.36 : big ? 0.9 : 0.74) : 0;
+    echoSet(inside);
+    // (a gun with only its own recording, SUPP_OWN, plays that through a can too, muffled and quieter)
+    const own = quiet && SUPP_OWN[id];
+    if (playS(own ? 'shot_' + id : quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: own ? own.lp : rr(7500, 20000), vol: own ? own.vol : undefined, pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
     if (quiet) SFX.supp(shells); else SFX[GUN_SFX[id]]();
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun
@@ -27,6 +35,16 @@ const SFX = {
   split() { nz(0.06, 'bandpass', 2400, 800, 0.55, 1.6); tn(0.1, 'sine', 160, 55, 0.45); setTimeout(() => nz(0.22, 'bandpass', 900, 240, 0.4, 1.2), 25); },
   // a zombie's skull bursting: every kill (zombies/damage.js killEnd), from the zombie, at v
   headPop(v = 1) { if (playS('head_pop', { gap: 0.05, rate: 1.12, vol: v })) return; nz(0.12, 'bandpass', 900, 260, 0.5 * v, 1.6); tn(0.05, 'triangle', 760, 240, 0.14 * v); setTimeout(() => nz(0.16, 'lowpass', 1400, 300, 0.22 * v, 1), 30); },
+  // a brute's dash ending in a wall (zombies/brute-dash.js), heard from where it hit (soundAt): a muffled crash with a
+  // crisp crack on the front of it, both quieter and duller the further off it is and gone by BRUTE_CRASH.far (the
+  // crack, all top, fades out sooner); off to its side, and muffled again through the house's walls
+  bruteWall() {
+    const at = SND_AT, f = typeof camFocus === 'function' ? camFocus() : P, C = BRUTE_CRASH;
+    const dx = at ? at.x - f.x : 0, dz = at ? at.z - f.z : 0, k = clamp(Math.hypot(dx, dz) / C.far, 0, 1); if (k >= 1) return;
+    const v = Math.pow(1 - k, 1.6), pan = clamp((dx * RIGHT.x + dz * RIGHT.z) / 14, -0.6, 0.6);
+    if (!playS('brute_wall', { jit: 0.05, vol: C.vol * v, lp: C.lp[0] * Math.pow(C.lp[1] / C.lp[0], k), pan, gap: 0 })) { SFX.thud(); return; }
+    playS('brute_wall', { jit: 0.02, vol: C.crack * v * (1 - k), hp: C.hp, lp: C.crackLp * Math.pow(0.4, k), dur: C.crackDur, pan, gap: 0 });
+  },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
@@ -35,7 +53,7 @@ const SFX = {
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   magIn() { if (playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },
-  shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS(['shell_1', 'shell_2'], { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
+  shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS('shell_load', { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },
   chargePull() { const k = gunKind(); if (playS(k === 'pistol' ? 'slide_pull' : k === 'smg' ? 'charge_pull_smg' : 'charge_pull_rifle')) return; nz(0.07, 'bandpass', 1700, 900, 0.22, 2); tn(0.03, 'square', 900, 700, 0.05); },
   chargeSlam() { if (playS(gunKind() === 'smg' ? 'charge_slam_smg' : 'charge_slam_rifle')) return; nz(0.05, 'bandpass', 1100, 500, 0.32, 2); tn(0.05, 'triangle', 420, 180, 0.2); },
   slideDrop() { if (playS('slide_drop')) return; nz(0.045, 'bandpass', 1700, 900, 0.34, 2.2); tn(0.04, 'triangle', 560, 220, 0.18); },
@@ -95,6 +113,8 @@ const SFX = {
   pickGun() { if (!playS('equip')) SFX.pick(); },                        // a weapon picked up off the ground
   crate() { if (!playS('crate_open')) SFX.upgrade(); },                  // a supply crate prised open
   craft() { if (!playS('craft')) SFX.board(); },                         // something made at a station
+  // the bass under a brute's footfall (audio/footsteps.js): a deep sine dropping away under a low rumble of the ground
+  bruteStomp(v) { if (v < 0.01) return; tn(0.34, 'sine', 68, 30, 0.55 * v); tn(0.16, 'triangle', 110, 45, 0.22 * v); nz(0.22, 'lowpass', 260, 60, 0.4 * v, 0.7); },
   groan(v) {
     if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), l = AC.createOscillator(), lg = AC.createGain(), f = AC.createBiquadFilter(), g = AC.createGain();
     o.type = 'sawtooth'; o.frequency.value = rr(65, 95); l.frequency.value = rr(4, 7); lg.gain.value = 9; l.connect(lg); lg.connect(o.frequency);
@@ -105,4 +125,4 @@ const SFX = {
   cleared() { tn(0.9, 'sine', 196, 196, 0.12); setTimeout(() => tn(1.2, 'sine', 294, 294, 0.1), 180); }
 };
 let pumpV = '';   // which recording of a pump the rack in progress is (its back and its home are a pair)
-const GUN_SFX = { pistol: 'light', revolver: 'heavy', deagle: 'heavy', pump: 'shotgun', dbl: 'shotgun', auto12: 'shotgun', hunting: 'rifle', smg: 'auto', sub: 'auto', ar: 'rifle', lmg: 'rifle' };
+const GUN_SFX = { pistol: 'light', revolver: 'heavy', deagle: 'heavy', pump: 'shotgun', dbl: 'shotgun', auto12: 'shotgun', hunting: 'rifle', scar: 'rifle', smg: 'auto', sub: 'auto', ar: 'rifle', lmg: 'rifle' };
