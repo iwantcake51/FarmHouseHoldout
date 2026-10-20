@@ -68,7 +68,7 @@ const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
-const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
+const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g) && !modLocks(g, k)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
 // how many magazine upgrades a gun takes, where it isn't all of them: the hand cannon a base plate and a longer mag
 // (never a drum), the assault rifle up to its drum (no casket), the revolver none (it's a cylinder), the pump none (its
 // tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
@@ -87,6 +87,7 @@ function tierFits(k, id) {
   if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
   if (k === 'supp' && NO_SUPP.has(id)) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
+  if (modLocks(id, k)) return false;   // (taken by a mod: the battle rifle's AK kit has its own mags)
   if (k === 'loader') return id === 'revolver' || id === 'scar' || !!D.breakOpen;   // the revolver's speed loader; the battle rifle's flared magwell; the double barrel's Sleight of Hand (the pump's loading comes with Quick hands: game/run-state.js)
   if (k === 'supp') return !(W8.mods[id] || []).some(m => MODS[m].muzzle) && (n > 0 || !muzzleTaken(id));   // a better can replaces the one you have; otherwise the muzzle must be free (a can taken off a shotgun for its choke still goes back on)
   if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says

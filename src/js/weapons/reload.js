@@ -50,7 +50,7 @@ function startReload() {
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
-  W8.relStyle = Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done, and its own feel (player/hold.js)
+  W8.relStyle = D && D.akKit ? 1 : Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done (an AK mag only one: hooked in at the front and rocked back), and its own feel (player/hold.js)
   W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false; W8.fumble = null;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
@@ -78,6 +78,10 @@ const SL_IN = 0.56, SL_DROP = 0.7, SL_SHUT = 0.84;
 // how far through a mag reload the mag is pushed home, and (for a rifle with a charging handle) when the handle is
 // pulled and let go; player/hold.js poses the hands to the same marks
 const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.86, CH_SLAM = 0.9;
+// the charging handle's beats (player/hold.js): the hand's on its way up to it over CH_REACH, takes hold and starts
+// drawing it at CH_DRAW (back by CH_PULL), lets go at CH_SLAM, and is back on the grip over CH_BACK; the handle bounces
+// CH_BOUNCE of its travel back off its stop
+const CH_REACH = [0.725, 0.805], CH_DRAW = 0.81, CH_BACK = [0.925, 1], CH_BOUNCE = 0.06;
 // a magazine gun run dry takes EMPTY_MUL longer to reload than one with rounds left (it's fumbled out of an empty gun,
 // and the gun's charged or its slide dropped at the end). Pistols whose slide locks back on the last round
 // (player/hold.js holds it there, in the hand and in the holster): a
@@ -97,9 +101,12 @@ const hasCharge = () => !!CHARGE[W8.cur];
 // is in your hands and they're free (resumeReload, each frame from weapons/combat-update.js). Till it has, a gun with
 // its mag out, or in but not charged, won't fire; a shot fired first forgets a 'start' or a 'shell'
 const MAG_DROP_T = 0.14;   // seconds into a mag change the old mag comes free and falls (no more than 0.3 of the change)
+// an AK mag isn't dropped straight out: it's rocked forward off its front lug first (the battle rifle's AK kit,
+// player/hold.js), and comes free AKM_DROP_T in
+const AKM_DROP_T = 0.3, magDropT = () => { const D = W(curId()); return D && D.akKit ? AKM_DROP_T : MAG_DROP_T; };
 // where in a mag reload (0 to 1) the old mag falls and the new one's seated (player/hold.js poses the hands the same)
 const magK = () => hasCharge() ? CH_MAG : W8.relEmpty ? PS_MAG : 1;
-const magOutP = () => Math.min(0.3, MAG_DROP_T / Math.max(0.3, W8.reloadMax)) * magK();
+const magOutP = () => Math.min(0.3, magDropT() / Math.max(0.3, W8.reloadMax)) * magK();
 const magSeatP = () => MAG_SEAT * magK();
 const relHeld = id => { const sv = W8.relSave[id]; return !!sv && (sv.st === 'out' || sv.st === 'in'); };
 function cutReload() {

@@ -15,6 +15,13 @@ const SLUG_FALL = [14, 30, 0.85];
 const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;
 // how much harder a zombie bleeds (health a second) for each flechette that lands in it
 const DART_BLEED = 1.5;
+// the battle rifle's AK conversion kit (akkit): a new lower that takes 30-round AK mags and an auto sear, so the 7.62 NATO
+// semi-auto becomes a 7.62x39 automatic, its fire between the assault rifle's and the semi-auto's. Each round is lighter
+// (dmg) and staggers less, but there are three times as many in the gun and it kicks about half as hard; a mag change is
+// an AK's, rocked out and in (reload, player/hold.js: AK_WAY). It takes the magazine's place: the 20-round mag and the
+// flared magwell come off while it's on, and can't go back on till it's off (locks: addMod, upgrades/upgrades.js:
+// tierFits, ui/loadout.js). Dear (cost), and a single step, no levels
+const AKKIT = { dmg: 0.52, rate: 0.115, mag: 30, reload: 1.9, spread: 2.6, kick: 0.5, shake: 0.45, stagger: 0.55, brute: 0.4, cost: 34 };
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Tighter, harder-hitting shots that keep more of their damage at range.', vis: 'A longer, heavier slide', stat: D => { D.spread *= 0.7; D.dmg *= 1.15; D.reach = (D.reach || 1) + 0.3; } },
   burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
@@ -44,5 +51,7 @@ const GUN_MODS = {
   // a small edge, not a big one: about 8% off a mag change, a few % more a level (weapons/mod-levels.js)
   well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well, so mag changes go a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder and spreads less.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
-  bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } }
+  bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } },
+  akkit: { w: 'scar', r: 'l', cost: AKKIT.cost, semi: true, locks: ['mag', 'loader'], name: 'AK conversion kit', text: `A new lower for 30-round AK mags and full auto (B for semi). Lighter rounds that stagger less, but ${AKKIT.mag} in the gun and half the kick. Takes the place of the 20-round mag and the flared magwell.`, vis: 'An AK lower and a curved 30-round mag',
+    stat: D => { D.akKit = true; D.dmg *= AKKIT.dmg; D.rate = AKKIT.rate; D.mag = D.ownMag = AKKIT.mag; D.reload = AKKIT.reload; D.spread *= AKKIT.spread; D.kick *= AKKIT.kick; D.shake *= AKKIT.shake; D.stagger *= AKKIT.stagger; D.bruteStagger *= AKKIT.brute; D.bruteX = 1 + (D.bruteX - 1) * AKKIT.brute; } }
 };

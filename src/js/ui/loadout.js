@@ -24,10 +24,10 @@ function wlGroups(id) {
     .concat(mods.filter(m => MODS[m].muzzle).map(m => ({ mod: m, n: 1, name: modName(m) })));
   if (mz.length) out.push({ g: 'muzzle', label: 'Muzzle', opts: [{ k: 'muzzle', n: 0, name: 'Bare muzzle' }, ...mz] });
   // the magazine: any size you've bought for it, or the one it came with (swapping empties it into your reserve: wlPick)
-  { const n = ownTier(id, 'mag'); if (n) { const cap = t => Math.max(1, Math.round(WEAP[id].mag * (MAG_UP[id] || MAG_UP.all)[t] * S.magMul));
+  { const n = modLocks(id, 'mag') ? 0 : ownTier(id, 'mag'); if (n) { const cap = t => Math.max(1, Math.round(WEAP[id].mag * (MAG_UP[id] || MAG_UP.all)[t] * S.magMul));
     out.push({ g: 'mag', label: 'Magazine', note: 'Swapping empties it', opts: Array.from({ length: n + 1 }, (_, t) => ({ k: 'mag', n: t, name: t ? line('mag', t) : 'Standard', sub: cap(t) + ' rounds' })) }); } }
   for (const k of ['sight', 'laser', 'light', 'loader']) {
-    const n = ownTier(id, k); if (!n) continue;
+    const n = modLocks(id, k) ? 0 : ownTier(id, k); if (!n) continue;   // (a line a mod's taken the place of isn't offered)
     const label = k === 'loader' && (D.breakOpen || id === 'scar') ? 'Reload' : WL_LINE[k], off = { sight: 'Iron sights', laser: 'No laser', light: 'No light', loader: D.breakOpen ? 'One shell at a time' : id === 'scar' ? 'Standard magwell' : 'Load by hand' }[k];
     out.push({ g: k, label, opts: [{ k, n: 0, name: off }, ...Array.from({ length: n }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) }))] });
   }

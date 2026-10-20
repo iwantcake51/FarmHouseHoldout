@@ -424,6 +424,31 @@ const SCAR = {
   ports: [[1.301, 1.324], [1.327, 1.3467]],   // the brake's two side ports (z), open right through
   mlok: [0.8533, 0.8933, 0.9055, 0.9463, 0.9555, 0.997, 1.0084, 1.0499, 1.0607, 1.1021, 1.1129, 1.1544]   // the handguard's slots, each a z0, z1
 };
+// the battle rifle with its AK conversion kit (akkit, weapons/gun-mods.js), drawn by eye off photos of the kits on a SCAR
+// (the photos couldn't be traced): a new lower round an AK magwell, the same guard and grip behind it, the well just
+// ahead of the guard and shallower than the 7.62 NATO one, the lower's front sweeping up and forward from the well's
+// lip to meet the upper; the AK mag's paddle release behind it. The mag: a 30-round AK box swept down and forward on a
+// steady curve (its middle line an arc of r from the well, starting a0 off straight down and running len along it),
+// widening a little to its foot (w0 to w1 across), its floor plate, and the raised panels down its sides
+const AKM_KIT = {
+  lo: [[0.4497, 1.1141], [0.7745, 1.1141], [0.7741, 1.1105], [0.767, 1.1105], [0.7664, 1.0994], [0.7628, 1.0937], [0.7587, 1.0914], [0.7502, 1.0907],
+    [0.742, 1.0872], [0.731, 1.0805], [0.72, 1.0715], [0.711, 1.0615], [0.705, 1.052], [0.7015, 1.043], [0.7005, 1.036], [0.697, 1.0325], [0.635, 1.0325], [0.631, 1.0295],
+    [0.6295, 1.022], [0.6268, 1.0178], [0.6125, 1.0158], [0.5489, 1.0158], [0.5462, 1.0175], [0.5462, 1.0773], [0.4497, 1.0774]],
+  mag: { top: [0.666, 1.068], r: 0.36, a0: 0.1, len: 0.27, w0: 0.031, w1: 0.037, n: 14 }
+};
+// the AK mag's outline (back edge down, front edge back up), its panel inset in from that, and its floor plate
+function akMag(inset) {
+  const M = AKM_KIT.mag, back = [], front = [], ends = [];
+  for (let i = 0; i <= M.n; i++) {
+    const a = M.a0 + M.len * i / M.n / M.r, cz = M.top[0] + M.r * (Math.cos(M.a0) - Math.cos(a)), cy = M.top[1] - M.r * (Math.sin(a) - Math.sin(M.a0));
+    const w = M.w0 + (M.w1 - M.w0) * i / M.n - inset, nz = Math.cos(a), ny = Math.sin(a);
+    back.push([cz - nz * w, cy - ny * w]); front.push([cz + nz * w, cy + ny * w]);
+    if (i === M.n) ends.push([cz, cy, a, w]);
+  }
+  const [cz, cy, a, w] = ends[0], tz = Math.sin(a), ty = -Math.cos(a), nz = Math.cos(a), ny = Math.sin(a), f = 0.013, o = 0.0025;
+  const plate = [[cz - nz * (w + o) - tz * 0.004, cy - ny * (w + o) - ty * 0.004], [cz + nz * (w + o) - tz * 0.004, cy + ny * (w + o) - ty * 0.004], [cz + nz * (w + o) + tz * f, cy + ny * (w + o) + ty * f], [cz - nz * (w + o) + tz * f, cy - ny * (w + o) + ty * f]];
+  return { body: [...back, ...front.reverse()], plate };
+}
 const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
 const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
 const GUN_MODELS = {
@@ -864,7 +889,7 @@ const GUN_MODELS = {
   // their stippled panels; the pencil barrel and the two-port brake (gone under a can); the flip-up sights, standing till
   // an optic goes on the rail, then folded flat. The magazine: the short 10-round box, or the 20 (MAG_UP, game/run-state.js)
   scar(g, m) {
-    const { y0, top: UT, rt: RT } = SCAR, mt = T('mag'), sight = T('sight'), mg = g.userData.magG || g;
+    const { y0, top: UT, rt: RT } = SCAR, mt = T('mag'), sight = T('sight'), mg = g.userData.magG || g, ak = !!m.akkit, LO = ak ? AKM_KIT.lo : SCAR.lo;
     const U = GM.fde, P = GM.fdeP, G = GM.fdeG, K = GM.poly, W = 0.058, R = X - W / 2;   // (R: its right-hand face)
     // ---- the upper: the port through it on the right (plugged on the left, a dark wall down the middle), the bolt
     // carrier showing in it; the rail and its slots; the handguard's slots, both sides
@@ -883,17 +908,19 @@ const GUN_MODELS = {
     cyl(ch, 0.0075, 0.02, K, R - 0.009, 1.1681, 0.811, 14).rotation.set(0, 0, Math.PI / 2); box(ch, 0.008, 0.007, 0.012, K, R - 0.002, 1.1681, 0.811);
     // ---- the lower: the guard (narrow, its opening traced), the body and the wider magwell over it; the trigger,
     // the selector (both sides), the bolt release and the mag release paddle
-    solid(g, SCAR.lo, 0.03, P, X, 0.002, [shp(inset(SCAR.guard, -0.002))]);
-    solid(g, clipTo(SCAR.lo, [[0.44, 1.062], [0.78, 1.062], [0.78, 1.12], [0.44, 1.12]]), 0.052, P, X, 0.004);
-    solid(g, clipTo(SCAR.lo, [[0.632, 1.0], [0.78, 1.0], [0.78, 1.12], [0.632, 1.12]]), 0.056, P, X, 0.004);
+    // (with the AK kit, its lower: AKM_KIT)
+    solid(g, LO, 0.03, P, X, 0.002, [shp(inset(SCAR.guard, -0.002))]);
+    solid(g, clipTo(LO, [[0.44, 1.062], [0.78, 1.062], [0.78, 1.12], [0.44, 1.12]]), 0.052, P, X, 0.004);
+    solid(g, clipTo(LO, [[0.632, 1.0], [0.78, 1.0], [0.78, 1.12], [0.632, 1.12]]), ak ? 0.05 : 0.056, P, X, 0.004);
     profile(g, shp(SCAR.trig), 0.007, K, X, 0.0008);
     cyl(g, 0.0062, 0.058, K, X, 1.0915, 0.534, 14).rotation.set(0, 0, Math.PI / 2);
     [-1, 1].forEach(sd => { box(g, 0.004, 0.007, 0.03, K, X + sd * 0.029, 1.0915, 0.522).rotation.x = -0.25; });
     box(g, 0.003, 0.004, 0.05, K, R + 0.002, 1.0975, 0.603).rotation.x = 0.12;
-    box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    if (!ak) box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    else { const pd = box(g, 0.026, 0.0035, 0.024, K, X, 1.027, 0.6275); pd.rotation.x = -0.35; box(g, 0.012, 0.012, 0.004, K, X, 1.0325, 0.632); }   // the AK paddle release, behind the mag
     // the flared magwell (its loader step, MAGWELL in game/run-state.js): a funnel round the bottom of the well, along its
     // slanting foot, flaring out in two steps down each side, with a lip across the front and the back
-    if (T('loader')) {
+    if (T('loader') && !ak) {
       const foot = z => 1.0163 + (z - 0.6311) * 0.1852, band = (z0, z1, a, b) => [[z0, foot(z0) - a], [z1, foot(z1) - a], [z1, foot(z1) - b], [z0, foot(z0) - b]];
       [-1, 1].forEach(sd => {
         profile(g, shp(band(0.626, 0.741, -0.004, 0.009)), 0.004, P, X + sd * 0.0295, 0.0008);
@@ -917,11 +944,20 @@ const GUN_MODELS = {
     // ---- the magazine (in the mag group, so the reload drops it): the 20-round box traced off the 17S, or the short
     // 10 (off the 20S's photos: the same box, its foot UP higher, standing only a little below the well), the flutes down
     // its sides, the base plate under the dark seam slanting across it
+    if (ak) {
+      // the 30-round AK mag: the curved box, raised panels down its sides, the floor plate across its foot
+      const A = akMag(0), Pn = akMag(0.009);
+      solid(mg, A.body, 0.04, K, X, 0.003);
+      [-1, 1].forEach(sd => profile(mg, shp(Pn.body.filter(([, yy]) => yy < 1.02)), 0.0016, GM.rubber, X + sd * 0.0198, 0.0004));
+      solid(mg, A.plate, 0.046, K, X, 0.002);
+    }
     const up = mt ? 0 : 0.075, dn = ([z, yy]) => [z, yy < 0.95 ? yy + up : yy];
+    if (!ak) {
     solid(mg, SCAR.mag.map(dn), 0.048, P, X, 0.003);
     [0.6556, 0.6864, 0.7268].forEach(z => box(mg, 0.0505, 0.09 - up, 0.0035, P, X, 0.985 + up / 2, z));
     solid(mg, [[0.6315, 0.9268], [0.734, 0.9262], [0.7342, 0.9164], [0.7301, 0.9142], [0.6833, 0.9117], [0.6365, 0.9134], [0.6315, 0.9224]].map(dn), 0.052, P, X, 0.003);
     { const a = dn([0.6318, 0.9262]), b = dn([0.7335, 0.9395]), sm = box(mg, 0.0525, 0.0024, Math.hypot(b[0] - a[0], b[1] - a[1]), K, X, (a[1] + b[1]) / 2, (a[0] + b[0]) / 2); sm.rotation.x = -Math.atan2(b[1] - a[1], b[0] - a[0]); }
+    }
     // ---- the barrel, turned, and the brake on it: its two ports open right through (bridged over the top and under the
     // bottom, the bore dark between); a can threads on in its place
     lathe(g, SCAR.barrel, GM.blued, X, y0, 24);
@@ -949,7 +985,7 @@ const GUN_MODELS = {
       cyl(g, two ? 0.021 : 0.017, 0.004, GM.lens, lx, ly, lz + 0.087); if (two) ring(g, 0.015, 0.014, GM.rubber, lx, ly, lz - 0.067);
     }
     const big = sight >= 5;
-    return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
+    return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.665 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
       laser: { y: 1.0982, z: 1.112 }, noLight: true, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front

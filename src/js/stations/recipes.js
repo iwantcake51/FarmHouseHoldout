@@ -72,7 +72,7 @@ const BENCH = [
 // which you get. A new mod costs more the rarer it is, from 10 to 18 scrap (the
 // same band as the attachments above); improving one costs 10 for level II and 13 for level III
 const TINKER_NEW = { c: 10, u: 12, r: 14, e: 16, l: 18 }, TINKER_UP = [0, 10, 13];
-const tinkerNew = m => TINKER_NEW[MODS[m].r] || 14, tinkerUp = m => TINKER_UP[modLv(m)] || 14;
+const tinkerNew = m => MODS[m].cost || TINKER_NEW[MODS[m].r] || 14, tinkerUp = m => TINKER_UP[modLv(m)] || 14;
 // a melee mod that makes the weapon long enough to sweep through more than one zombie says so on its card
 function multiNote(id, apply) {
   const D0 = W(id); if (!D0.melee) return '';
