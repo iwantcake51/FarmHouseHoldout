@@ -3,18 +3,24 @@
 // Below SHAKY_HP.from of your health it starts, and it gets worse the nearer you are to dying, all of it by
 // SHAKY_HP.to. It eases in and out over a second or so, so a hit brings it on and a bandage settles it gradually.
 // Two parts:
-//  - the arms (and the weapon in them) won't hold still: a slow, heavy unsteadiness, never a quick shake, that grows
-//    the nearer you are to dying, and each heartbeat (ui/vitals.js) swells through them, a soft push, not a jolt;
+//  - the arms (and the weapon in them) tremble, a few unsteady shakes a second like hands that won't keep still, and each
+//    heartbeat (ui/vitals.js) nudges them a little;
 //  - the crosshair drifts slowly off the cursor and back, a lazy wander that never quite repeats, nudged by each
 //    heartbeat too. Shots go where the drifted crosshair is (SHAKY.x/y feed the aim: player/movement.js,
 //    weapons/firing.js), so you steer against it. Down the sights it's steadier (SHAKY_ADS)
 const SHAKY_HP = { from: 0.3, to: 0.05 };
 // the crosshair's wander at its worst (screen px at 1080 high, scaled with the window), and how hard a heartbeat kicks it
 const SHAKY_SWAY = 30, SHAKY_BEAT = 26, SHAKY_ADS = 0.5;
-// the arms' unsteadiness at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved; how much of that
-// a heartbeat's swell is (SHAKY_THUMP) and how long it takes, rising and falling (SHAKY_PULSE, seconds)
-const SHAKY_TREM = { p: 0.05, y: 0.045, r: 0.045, m: 0.008 }, SHAKY_THUMP = 0.3, SHAKY_PULSE = 0.32, SHAKY_AIM_EASE = 7;
-const SHAKY = { ak: 0, k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thump: 0, thumpT: 9, ph: Array.from({ length: 12 }, () => rand() * 6.283) };
+// the arms' tremble at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved
+const SHAKY_TREM = { p: 0.06, y: 0.05, r: 0.07, m: 0.01 }, SHAKY_AIM_EASE = 7;
+// how the tremble moves: each axis is a loose spring (TREM_K stiff, TREM_D damped, about 3 shakes a second) chasing
+// a new random spot every TREM_HOLD seconds or so, stepped at 120 Hz whatever the frame rate, so it's one smooth
+// motion that looks the same at 30 fps as at 144 (never a fast flicker sampled differently every frame), and a
+// heartbeat knocks it with a push (TREM_BEAT), not a jump
+const TREM_K = 900, TREM_D = 24, TREM_HOLD = [0.06, 0.11], TREM_BEAT = 7;
+const SHAKY = { ak: 0, k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, ph: Array.from({ length: 6 }, () => rand() * 6.283) };
+const TREM_AX = ['p', 'y', 'r', 'x', 'h'], TREM = { hold: 0 };
+TREM_AX.forEach(a => { TREM[a] = 0; TREM['v' + a] = 0; TREM['g' + a] = 0; });
 // the crosshair's own sway and recoil, on top of the wander (and like it, they move your aim: shots go where the
 // crosshair is). It sways slightly and slowly, a touch more on the move, a little down the sights (XSWAY), more with an
 // unsteady gun (XSTEADY) and the harder you're breathing (XWORK). Each shot kicks it
@@ -113,12 +119,16 @@ function updateShaky(dt) {
   if (!(dt > 0)) return;
   sk.t += dt; updateXhRecoil(dt);
   const t = sk.t, ph = sk.ph, k = sk.k;
-  // each heartbeat (the R spike, ui/vitals.js): a little kick in a random direction, and a thump through the arms
+  // each heartbeat (the R spike, ui/vitals.js): a little kick in a random direction, and a push through the arms
   const from = beatT < sk.lb ? -1 : sk.lb;
-  if (k > 0.01 && from < ECG_R && beatT >= ECG_R) { const a = rand() * 6.283; sk.vbx += Math.cos(a) * SHAKY_BEAT * k; sk.vby += Math.sin(a) * SHAKY_BEAT * k; sk.thumpT = 0; }
-  // (each beat a smooth swell through the arms, up and away again over SHAKY_PULSE)
-  sk.lb = beatT; sk.thumpT += dt; sk.thump = sk.thumpT < SHAKY_PULSE ? Math.pow(Math.sin(Math.PI * sk.thumpT / SHAKY_PULSE), 2) : 0;
-  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) { springTo(sk, 'bx', 'vbx', 0, 30, 8, h); springTo(sk, 'by', 'vby', 0, 30, 8, h); }
+  if (k > 0.01 && from < ECG_R && beatT >= ECG_R) { const a = rand() * 6.283; sk.vbx += Math.cos(a) * SHAKY_BEAT * k; sk.vby += Math.sin(a) * SHAKY_BEAT * k; TREM.vp -= TREM_BEAT; TREM.vh += TREM_BEAT * 0.7; }
+  sk.lb = beatT;
+  // the tremble's springs; each time its hold runs out it picks a new spot to shake toward on every axis
+  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) {
+    springTo(sk, 'bx', 'vbx', 0, 30, 8, h); springTo(sk, 'by', 'vby', 0, 30, 8, h);
+    if ((TREM.hold -= h) <= 0) { TREM.hold = rr(TREM_HOLD[0], TREM_HOLD[1]); TREM_AX.forEach(a => { TREM['g' + a] = rr(-1, 1); }); }
+    TREM_AX.forEach(a => springTo(TREM, a, 'v' + a, TREM['g' + a], TREM_K, TREM_D, h));
+  }
   // the wander: three slow swells on each axis at odd rates, so it never settles into a pattern
   const wx = Math.sin(t * 0.83 + ph[0]) * 0.55 + Math.sin(t * 1.37 + ph[1]) * 0.3 + Math.sin(t * 2.11 + ph[2]) * 0.15;
   const wy = Math.sin(t * 0.71 + ph[3]) * 0.55 + Math.sin(t * 1.53 + ph[4]) * 0.3 + Math.sin(t * 2.39 + ph[5]) * 0.15;
@@ -126,16 +136,11 @@ function updateShaky(dt) {
   sk.x = clamp(wx * amp + sk.bx, -mouseX, innerWidth - mouseX);
   sk.y = clamp(wy * amp + sk.by, -mouseY, innerHeight - mouseY);
 }
-// the arms' unsteadiness this frame, out of 1 on each axis (scaled by SHAKY_TREM where it's used): slow swells (from
-// about one every three seconds to one a second) beating against each other, so it wanders heavily and never repeats or
-// buzzes, coming on harder the nearer you are to dying; and the heartbeat's swell through it. Steadier down the sights
+// the arms' tremble this frame, out of about 1 on each axis (scaled by SHAKY_TREM where it's used), as strong as your
+// health makes it and a little steadier down the sights
 const _trem = { p: 0, y: 0, r: 0, x: 0, h: 0 };
 function shakyTremor() {
-  const T_ = _trem, k = SHAKY.k;
-  if (k < 0.002) { T_.p = T_.y = T_.r = T_.x = T_.h = 0; return T_; }
-  const t = SHAKY.t, ph = SHAKY.ph, amp = Math.pow(k, 1.25) * mix(1, 0.6, SHAKY.ak), th = SHAKY.thump * SHAKY_THUMP * k;
-  const m = (a, b, c) => (Math.sin(t * 1.9 + a) * 0.5 + Math.sin(t * 4.1 + b) * 0.32 + Math.sin(t * 7.3 + c) * 0.18) * amp;
-  T_.p = m(ph[6], ph[7], ph[8]) - th * 0.8; T_.y = m(ph[9], ph[10], ph[11]); T_.r = m(ph[8], ph[6], ph[10]);
-  T_.x = m(ph[11], ph[9], ph[7]); T_.h = m(ph[7], ph[11], ph[6]) + th * 0.6;
-  return T_;
+  const q = SHAKY.k < 0.002 ? 0 : SHAKY.k * (1 - 0.4 * SHAKY.ak);
+  TREM_AX.forEach(a => { _trem[a] = TREM[a] * q; });
+  return _trem;
 }
