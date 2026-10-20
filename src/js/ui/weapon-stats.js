@@ -19,7 +19,7 @@ function wsNumbers(id) {
   r.hipSp = r.spread * 1.3 * r.hipK; r.aimSp = r.spread * 0.5 * r.aimK;   // from the hip (a laser) and down the sights (a sight)
   r.aimMv = r.aimSp * (1 + 0.5 * (D.aimMove ?? 1));   // down the sights at a walk (a sight steadies that too: weapons/firing.js, spreadOf)
   // reloads, every kind this gun has
-  if (D.perShell) { r.shell = D.perShell * relMul(id); r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + firstShell(id); }
+  if (D.perShell) { r.shell = shellGo(id, D); r.loadN = D.loadN || 1; r.full = Math.ceil(mag / r.loadN) * r.shell + firstShell(id); }
   else if (ak) { r.akTac = akDur(D, false); r.akEmpty = akDur(D, true); }
   else { r.reload = D.reload * relMul(id); if (SLIDE_PISTOLS[id]) r.tac = r.reload * TAC_MUL; if (!D.speedload) r.empty = r.reload * EMPTY_MUL; }
   // working a pump or a bolt between shots: as long as its ways of working it take, fitted inside the fire rate
