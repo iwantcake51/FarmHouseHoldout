@@ -75,23 +75,67 @@ function spitterLook(m) {
     c.needsUpdate = true;
   }
   const sacM = lam(0xb0c858, { emissive: 0x30520a, transparent: true, opacity: 0.94 }), coreM = basic(0xd8ff6a);
-  const veinM = lam(0x5a3a3a), bileM = lam(0x6a7a1c, { emissive: 0x141e02 }), dark = basic(0x140a06), soreM = lam(0xc8d86a, { emissive: 0x3a5a08 });
+  const veinM = lam(0x5a3a3a), bileM = lam(0x6a7a1c, { emissive: 0x141e02 }), soreM = lam(0xc8d86a, { emissive: 0x3a5a08 });
   // the sac: a swollen, glossy bag of acid under the jaw, lit from inside, veins over it
-  const sac = new THREE.Group(); sac.position.set(0, -0.17, 0.05); m.head.add(sac);
-  const bag = new THREE.Mesh(GLOB_G, sacM); bag.scale.set(0.15, 0.115, 0.13); sac.add(bag);
-  const core = new THREE.Mesh(GLOB_G, coreM); core.scale.set(0.085, 0.06, 0.07); core.position.z = 0.02; sac.add(core);
-  for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, rr(0.08, 0.14)), veinM), a = rr(-1.2, 1.2); v.position.set(Math.sin(a) * 0.13, rr(-0.06, 0.05), Math.cos(a) * 0.1); v.rotation.set(rr(-0.6, 0.6), a, rr(-0.4, 0.4)); sac.add(v); }
-  // the jaw hanging open, a glow down its throat, bile in strings off its chin
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.012), dark); mouth.position.set(0, -0.095, 0.15); m.head.add(mouth);
-  const throat = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.024, 0.006), coreM); throat.position.set(0, -0.097, 0.152); m.head.add(throat);
+  const sac = new THREE.Group(); sac.position.set(0, -0.19, 0.05); m.head.add(sac);
+  const bag = new THREE.Mesh(GLOB_G, sacM); bag.scale.set(0.1, 0.09, 0.095); sac.add(bag);
+  const core = new THREE.Mesh(GLOB_G, coreM); core.scale.set(0.058, 0.05, 0.055); core.position.z = 0.02; sac.add(core);
+  for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, rr(0.08, 0.14)), veinM), a = rr(-1.2, 1.2); v.position.set(Math.sin(a) * 0.09, rr(-0.05, 0.04), Math.cos(a) * 0.085); v.rotation.set(rr(-0.6, 0.6), a, rr(-0.4, 0.4)); sac.add(v); }
+  // no jaw where it should be (zombies/zombie-looks.js leaves a dark hole under the upper teeth): a glow down its
+  // throat, bile in strings off the teeth, and the jaw itself torn loose, hanging by what's left at the hinges
+  const F = m.look.face, lip = -0.075;
+  const throat = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.006), coreM); throat.position.set(F.jx, lip - 0.032, 0.078); m.head.add(throat);
   const strands = [];
-  for (let k = 0; k < 3; k++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1, 0.012).translate(0, -0.5, 0), bileM); s.position.set(rr(-0.035, 0.035), -0.12, 0.155); s.userData.len = rr(0.06, 0.16); s.userData.ph = rand() * 6; m.head.add(s); strands.push(s); }
+  for (let k = 0; k < 3; k++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1, 0.012).translate(0, -0.5, 0), bileM); s.position.set(F.jx + rr(-0.035, 0.035), lip - 0.018, 0.13); s.userData.len = rr(0.06, 0.16); s.userData.ph = rand() * 6; m.head.add(s); strands.push(s); }
+  const jaw = spitterJaw(m, F, lip);
   // bile down the chin and the chest
   for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(rr(0.025, 0.05), rr(0.12, 0.3), 0.004), bileM); b.position.set(rr(-0.1, 0.1), rr(0.02, 0.16), 0.107); m.torso.add(b); }
   // the belly swollen tight, sores weeping on it
   const belly = new THREE.Mesh(GLOB_G, lam(0x9aa860, { emissive: 0x1a2a06 })); belly.scale.set(0.16, 0.15, 0.08); belly.position.set(0, -0.13, 0.1); m.torso.add(belly);
   for (let k = 0; k < 6; k++) { const s = new THREE.Mesh(GLOB_G, soreM), a = rr(-1, 1); s.scale.setScalar(rr(0.012, 0.024)); s.position.set(Math.sin(a) * 0.13, rr(-0.22, -0.04), 0.1 + Math.cos(a) * 0.07); m.torso.add(s); }
-  m.spit = { sac, sacM, core, mouth, throat, strands };
+  m.spit = { sac, sacM, core, throat, strands, jaw };
+}
+// the jaw, torn loose on one side and hanging by the other hinge (JAW.side picks which), dangling down beside the neck,
+// clear of the sac: a U of bone and skin (its two sides and the chin across them), its bottom teeth in rotten gums, the
+// tongue lolling in it and the torn hinge raw. Built hanging from its hinge along +z, its far side along +x (turned to
+// run forward, toward the face, as it swings: jawStep)
+const JAW = { len: 0.17, damp: 2.4, down: -0.3, inside: 0.02, out: 0.85, back: -0.55, fwd: 0.7, fling: 2.2 };
+function spitterJaw(m, F, lip) {
+  const side = rand() < 0.5 ? -1 : 1, g = new THREE.Group(); g.position.set(F.jx + side * (F.jw * 0.39 + 0.03), lip - 0.012, 0.0); m.head.add(g);
+  const tint = new THREE.Color(m.skinCol).lerp(new THREE.Color(0x9aa860), 0.35);
+  const skin = lam(tint.getHex()), meat = lam(ZMEAT), tooth = lam(pick(ZTEETH)), gum = lam(0x5a2a26), tongue = lam(0x6a2a2e), bone = lam(ZBONE);
+  const L = JAW.len, W = F.jw * 0.86, bx = (w, h, d, mt, x, y, z, ry) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mt); b.position.set(x, y, z); if (ry) b.rotation.z = ry; g.add(b); return b; };
+  bx(0.046, 0.034, L, skin, 0, 0, L / 2); bx(0.046, 0.034, L, skin, W, 0, L / 2);   // its two sides, the near one on the hinge
+  bx(W + 0.046, 0.05, 0.05, skin, W / 2, 0, L);                                       // the chin across them
+  bx(0.05, 0.04, 0.03, meat, 0, 0, 0.004); bx(0.016, 0.016, 0.02, bone, 0, 0.006, -0.01); bx(0.05, 0.04, 0.03, meat, W, 0, 0.004);   // the torn ends
+  bx(W * 0.8, 0.03, 0.012, gum, W / 2, 0.012, L - 0.03);                              // the gums
+  const nt = Math.round(W / 0.02);
+  for (let i = 0; i < nt; i++) if (rand() > 0.3) bx(rr(0.011, 0.015), 0.014, rr(0.012, 0.022), tooth, W * 0.12 + (i + 0.5) * W * 0.76 / nt, 0.022, L - 0.045, rr(-0.25, 0.25));
+  bx(W * 0.4, 0.014, 0.11, tongue, W / 2 + rr(-0.01, 0.01), 0.004, L * 0.55);         // the tongue
+  return { g, side, L: JAW.len, rest: new V3(side * 0.3, -0.95, 0.08).normalize(), p: null, v: new V3(), lastThr: 0 };
+}
+// the jaw swinging: a weight on its hinge, pulled down, carried along by the head's every move and left behind when it
+// stops, damped (JAW.damp); in the head's frame it's kept hanging (below JAW.down), on its own side of the neck (from
+// JAW.inside out to JAW.out, never swung in under the chin into the sac) and between JAW.back and JAW.fwd; flung
+// forward when it spits (JAW.fling, metres a second at the tip). Turned so it runs its length down from the hinge and
+// its width forward toward the face, flat beside the neck
+const _jh = new V3(), _jq = new THREE.Quaternion(), _jqi = new THREE.Quaternion(), _jd = new V3(), _jf = new V3(), _jx = new V3(), _jy = new V3(), _jm = new THREE.Matrix4();
+function jawStep(z, J, dt, thr) {
+  z.m.head.updateWorldMatrix(true, false); J.g.getWorldPosition(_jh); z.m.head.getWorldQuaternion(_jq); _jqi.copy(_jq).invert();
+  if (!J.p) { J.p = J.rest.clone().applyQuaternion(_jq).multiplyScalar(J.L).add(_jh); J.v.set(0, 0, 0); J.dir = J.rest.clone(); }
+  if (thr > J.lastThr + 0.5) J.v.addScaledVector(_jf.set(J.side * 0.3, -0.2, 1).applyQuaternion(_jq), JAW.fling);
+  J.lastThr = thr;
+  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) {
+    J.v.y -= 9.8 * h; J.v.multiplyScalar(Math.exp(-JAW.damp * h)); J.p.addScaledVector(J.v, h);
+    _jd.subVectors(J.p, _jh); _jd.divideScalar(_jd.length() || 1);
+    J.v.addScaledVector(_jd, -J.v.dot(_jd));   // (only round the hinge, never stretching off it)
+    _jd.applyQuaternion(_jqi);
+    const lx = J.side * clamp(J.side * _jd.x, JAW.inside, JAW.out), ly = Math.min(_jd.y, JAW.down), lz = clamp(_jd.z, JAW.back, JAW.fwd);
+    if (lx !== _jd.x || ly !== _jd.y || lz !== _jd.z) { _jd.set(lx, ly, lz).normalize(); J.v.multiplyScalar(0.5); }
+    J.dir.copy(_jd); J.p.copy(_jd).applyQuaternion(_jq).multiplyScalar(J.L).add(_jh);
+  }
+  _jx.set(0, 0, 1).addScaledVector(J.dir, -J.dir.z).normalize(); _jy.crossVectors(J.dir, _jx);
+  J.g.quaternion.setFromRotationMatrix(_jm.makeBasis(_jx, _jy, J.dir));
 }
 // how it carries itself: bent low over its belly, arms hanging; and it's kept track of for its drool and glow
 function spitterGait(z) { const g = z.an && z.an.g; if (g) { g.hunch = rr(0.28, 0.38); g.lean = rr(0.12, 0.2); g.arms = 2; g.limp = 0; } spitters.add(z); }
@@ -161,6 +205,7 @@ function updateSpit(dt) {
     sp.sac.scale.set(1 + 0.08 * pulse + 0.55 * w - 0.3 * th, 1 + 0.06 * pulse + 0.5 * w - 0.2 * th, 1 + 0.08 * pulse + 0.45 * w - 0.2 * th);
     sp.sacM.emissive.setRGB(0.17 + 0.08 * pulse + 0.5 * w, 0.3 + 0.12 * pulse + 0.6 * w, 0.04 + 0.1 * w);
     sp.throat.scale.y = 1 + 1.5 * w + 2.5 * th;
+    jawStep(z, sp.jaw, dt, th);
     for (const st of sp.strands) { const u = st.userData; st.scale.y = u.len * (1 + 0.35 * Math.sin(run.time * 2.3 + u.ph)) * (1 + w); st.rotation.x = -0.25 * Math.sin(run.time * 1.7 + u.ph); }
     // the glow round its throat (seen across the yard, in the dark), and bile dripping off its chin
     if ((z.vis ?? 1) > 0.05 && (z.glowT = (z.glowT || 0) - dt) <= 0) { z.glowT = 0.1; sp.sac.getWorldPosition(_sv); fx('acidGlow', _sv.x, _sv.y, _sv.z, 0, 0, 0, 0.55 + 0.6 * w, 0.75 + 0.8 * w, 0.32, 0.35 + 0.25 * pulse + 0.4 * w); }

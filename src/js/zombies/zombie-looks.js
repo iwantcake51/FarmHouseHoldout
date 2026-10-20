@@ -508,9 +508,14 @@ function zHead(H, o) {
   const jf = (w, h, c, x, y, lay) => zb(H, w, h, 0.006, c, x, y, 0.145 + lay);                   // ... on the front of the jaw
   const hc = o.hairCol, dkLip = zmix(sk, 0x4a2e3a, 0.4), blood = zmix(sk, ZBLOOD, 0.78);
   zb(H, F.hw, 0.16 - lip, 0.3, sk, 0, (0.16 + lip) / 2, 0);                  // the skull, down to the upper lip
-  zb(H, F.jw, jh, 0.22, sk, F.jx, jy, 0.035, 0, 0, F.jr);                    // the jaw
   zb(H, 0.125, 0.1, 0.12, zc(sk, 0.92), 0, -0.19, -0.015);                   // the neck
-  if (d > 0) {   // the mouth hanging open: the cheeks down to the jaw either side, the dark inside, the teeth
+  if (o.noJaw) {   // a spitter's jaw is torn loose and hangs (zombies/spitter.js): under the upper teeth only a dark hole
+    zb(H, F.jw * 0.78, 0.07, 0.17, 0x1e0c0a, F.jx, lip - 0.035, -0.005);      // down the throat
+    [-1, 1].forEach(s => { zb(H, 0.03, 0.055, 0.14, ZMEAT, F.jx + s * (F.jw * 0.39 + 0.012), lip - 0.026, 0.01); zb(H, 0.016, 0.02, 0.02, ZBONE, F.jx + s * (F.jw * 0.39 + 0.012), lip - 0.012, -0.05); });   // torn cheeks, the hinge's bone
+    const nt = Math.round(F.mw / 0.017);
+    for (let i = 0; i < nt; i++) { if (rand() < 0.3) continue; const th = rr(0.012, 0.024); zb(H, rr(0.011, 0.015), th, 0.016, pick(ZTEETH), F.jx - F.mw / 2 + (i + 0.5) * F.mw / nt + rr(-0.002, 0.002), lip - th / 2, 0.137, 0, 0, rr(-0.2, 0.2)); }
+  } else zb(H, F.jw, jh, 0.22, sk, F.jx, jy, 0.035, 0, 0, F.jr);             // the jaw
+  if (d > 0 && !o.noJaw) {   // the mouth hanging open: the cheeks down to the jaw either side, the dark inside, the teeth
     const cw = (F.jw - F.mw) / 2;
     [-1, 1].forEach(s => zb(H, cw, d + 0.01, 0.2, sk, F.jx + s * (F.mw / 2 + cw / 2), lip - d / 2, 0.045));
     zb(H, F.mw, d + 0.012, 0.03, 0x2a1210, F.jx, lip - d / 2, 0.115);
@@ -518,7 +523,7 @@ function zHead(H, o) {
     for (let i = 0; i < nt; i++) { if (rand() < 0.28) continue; const th = rr(0.01, Math.min(0.02, d * 0.8)); zb(H, rr(0.011, 0.015), th, 0.016, pick(ZTEETH), F.jx - F.mw / 2 + (i + 0.5) * F.mw / nt + rr(-0.002, 0.002), lip - th / 2, 0.137, 0, 0, rr(-0.15, 0.15)); }
     for (let i = 0; i < nt - 1; i++) { if (rand() < 0.45) continue; const th = rr(0.008, Math.min(0.014, d * 0.6)); zb(H, rr(0.01, 0.014), th, 0.014, pick(ZTEETH), F.jx - F.mw / 2 + (i + 1) * F.mw / nt, lip - d + th / 2, 0.133); }
     jf(F.mw * 0.9, 0.012, dkLip, F.jx, lip - d - 0.006, 0.004);              // the lower lip
-  } else fr(F.mw, 0.008, 0x2a1810, F.jx, lip + 0.008, 0.004, F.jr);          // shut: just the line of it
+  } else if (!o.noJaw) fr(F.mw, 0.008, 0x2a1810, F.jx, lip + 0.008, 0.004, F.jr);          // shut: just the line of it
   fr(F.mw + 0.012, 0.012, dkLip, F.jx, lip + 0.006, 0.003, F.jr * 0.5);      // the upper lip
   if (F.mouth === 'snarl') fr(0.03, 0.01, dkLip, F.jx + F.side * F.mw * 0.3, lip + 0.016, 0.005, F.side * 0.35);   // the lip curled up at one side
   // dead skin: one side of the face gone a shade greyer than the other, where the blood settled
@@ -554,13 +559,13 @@ function zHead(H, o) {
   // the ears (one sometimes torn away)
   [-1, 1].forEach(s => { if (rand() < 0.9) zb(H, 0.02, 0.058, 0.045, zc(sk, 0.9), s * (hx + 0.008), -0.005, -0.01); else zb(H, 0.006, 0.04, 0.04, ZMEAT, s * (hx + 0.002), -0.005, -0.01); });
   // what it last ate, down its chin; a cheek torn open to the teeth; the bite that turned it, in the side of the neck
-  if (F.drool) {   // run out of one corner of the mouth and down the chin, now and then the other too
+  if (F.drool && !o.noJaw) {   // run out of one corner of the mouth and down the chin, now and then the other too
     const ds = rand() < 0.5 ? -1 : 1, l = rr(0.03, jh);
     jf(rr(0.012, 0.018), l, blood, F.jx + ds * F.mw * rr(0.15, 0.4), lip - d - l / 2, 0.006);
     if (rand() < 0.3) { const l2 = rr(0.02, jh * 0.6); jf(0.01, l2, blood, F.jx - ds * F.mw * rr(0.2, 0.4), lip - d - l2 / 2, 0.006); }
     jf(F.mw * rr(0.3, 0.5), 0.012, blood, F.jx + ds * F.mw * 0.2, lip - d - 0.01, 0.005);
   }
-  if (F.torn) {   // the cheek torn open from the corner of the mouth back toward the ear, the teeth along it
+  if (F.torn && !o.noJaw) {   // the cheek torn open from the corner of the mouth back toward the ear, the teeth along it
     const s = F.side, w = rr(0.035, 0.05), x = F.jx + s * (F.mw / 2 + w / 2 - 0.004), y = lip - Math.max(d, 0.012) / 2 + 0.004, h = Math.max(d, 0.012) + 0.012;
     fr(w + 0.01, h + 0.01, zmix(sk, ZMEAT, 0.55), x, y, 0.004); fr(w, h, 0x2a1210, x, y, 0.006);
     for (let i = 0; i < 3; i++) fr(0.009, 0.01, pick(ZTEETH), x - s * w / 2 + s * (i + 0.5) * w / 3, y + h / 2 - 0.006, 0.008);
@@ -716,7 +721,8 @@ function zGrime(k, gr) {
 const ZNUDGE = { legL: [0.0004, 0.0003, 0.0009], legR: [-0.0004, 0.0006, -0.0005], shinL: [0.0006, -0.0004, 0.0013], shinR: [-0.0006, 0.0008, -0.0011], armL: [0.0005, 0.0009, 0.0006], armR: [-0.0005, -0.0007, 0.0012], foreL: [-0.0011, 0.0005, -0.0008], foreR: [0.0011, -0.0010, 0.0007] };
 // ---- dressing a zombie that's just been built: its parts get their geometry, all of them its own material ----
 function dressZombie(m, type, job) {
-  const o = zDeal(type, job), K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
+  const o = zDeal(type, job); o.noJaw = type === 'spitter';
+  const K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
   ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); if (ZNUDGE[p]) m[p].geometry.translate(...ZNUDGE[p]); m[p].material = mat; });
   m.mats = { body: mat }; m.look = o; m.skinCol = o.skin;
   return o;
