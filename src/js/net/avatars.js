@@ -25,7 +25,7 @@ function poseOut(rdt) {
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
     fl: myLight() ? [myLight(), r2(flDir())] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()),
-    fc: !P.dead && (ANIM.anger || ANIM.worry) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry and startled, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
+    fc: !P.dead && (ANIM.anger || ANIM.worry || ANIM.hurt || ANIM.ads) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0), r2(ANIM.hurt || 0), r2(ANIM.ads || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry, startled, wincing and aiming, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
   ammoOut(msg, now);
   netSend('p', msg);
@@ -134,8 +134,8 @@ function updateAvatars(rdt) {
     const set = (o, n) => { const b = n * 6; o.position.set(c[b], c[b + 1], c[b + 2]); o.rotation.set(c[b + 3], c[b + 4], c[b + 5]); };
     POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
-    { const f = p.fc || [0, 0]; a.fa = (a.fa || 0) + (f[0] - (a.fa || 0)) * k; a.fw = (a.fw || 0) + (f[1] - (a.fw || 0)) * k;
-      faceMood(a.faceH, a.fa < 0.002 ? 0 : a.fa, a.fw < 0.002 ? 0 : a.fw); }   // their face, angry or startled as they are
+    { const f = p.fc || [0, 0, 0, 0], e = (key, i) => { a[key] = (a[key] || 0) + ((f[i] || 0) - (a[key] || 0)) * k; return a[key] < 0.002 ? 0 : a[key]; };
+      faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3)); }   // their face, angry, startled, wincing or aiming as they are
     if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }

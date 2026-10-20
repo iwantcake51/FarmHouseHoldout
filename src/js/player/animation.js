@@ -128,8 +128,8 @@ function vaultHands(pm, v) {
 }
 // Keep firing and your face sets angry (faceMood, player/look.js): shots close enough together (within ANGER_T.gap,
 // or a third again the gun's own time between shots for a slow one) are one run of fire, and from the run's
-// ANGER_T.shots'th shot it comes in quickly; stop and it eases straight back off
-const ANGER_T = { gap: 0.2, shots: 3, rise: 12, fall: 9 };
+// ANGER_T.shots'th shot it comes in over a moment; stop and it eases back off, slower still
+const ANGER_T = { gap: 0.2, shots: 3, rise: 3.5, fall: 1.6 };
 function angerShot(rate) {
   const gap = Math.max(ANGER_T.gap, rate * 1.3);
   ANIM.runShots = (ANIM.shotT ?? 9) < gap ? (ANIM.runShots || 0) + 1 : 1; ANIM.shotT = 0; ANIM.shotGap = gap;
@@ -139,8 +139,18 @@ function angerStep(rdt) {
   const want = !P.dead && ANIM.shotT < (ANIM.shotGap || ANGER_T.gap) && (ANIM.runShots || 0) >= ANGER_T.shots ? 1 : 0, a = ANIM.anger || 0;
   ANIM.anger = a + (want - a) * (1 - Math.exp(-rdt * (want > a ? ANGER_T.rise : ANGER_T.fall)));
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
-  worryStep(rdt);
-  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry);
+  worryStep(rdt); hurtStep(rdt);
+  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0);
+}
+// a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
+// then eases off
+const HURT_FACE = { hold: 0.4, rise: 25, fall: 2.6 };
+function hurtFace(k = 1) { ANIM.hurtT = Math.max(ANIM.hurtT || 0, HURT_FACE.hold * clamp(k, 0.6, 1.6)); }
+function hurtStep(rdt) {
+  ANIM.hurtT = Math.max(0, (ANIM.hurtT || 0) - rdt);
+  const want = !P.dead && ANIM.hurtT > 0 ? 1 : 0, h = ANIM.hurt || 0;
+  ANIM.hurt = h + (want - h) * (1 - Math.exp(-rdt * (want > h ? HURT_FACE.rise : HURT_FACE.fall)));
+  if (ANIM.hurt < 0.002 && !want) ANIM.hurt = 0;
 }
 // Pull the trigger on an empty gun and the click startles you (faceMood's w): the face jumps to it at once and holds
 // for WORRY_T.hold, every click starting the hold again, then eases back off over the next second or so

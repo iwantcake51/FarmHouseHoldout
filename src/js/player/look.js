@@ -186,18 +186,22 @@ function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.
 // into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js). The trigger clicking on an empty gun
 // gives a start, w = 0 to 1 (ANIM.worry): the brows jump up with their inner ends raised in a worried tilt, the eyes
 // go wide and the jaw drops, the mouth open in a little O; that closes first (w squared) as the face eases back, so
-// the worried brows are the last of it to go
+// the worried brows are the last of it to go. A hit hurts (h, ANIM.hurt): the brows pinched down with their inner ends
+// up, the eyes screwed shut and the mouth pulled wide over clenched teeth. And aiming down the sights (k, ANIM.ads) the
+// left eye shuts and the right one squints along the gun
 const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mouthH: 2.1 };
 const WORRY = { browLift: 0.02, browTilt: 0.38, widen: 0.75, mouthW: 0.5, mouthH: 4.5, jaw: 0.009 };
-function faceMood(H, a, w = 0) {
-  const f = H.userData.face; if (!f || (f.a === a && f.w === w)) return; f.a = a; f.w = w;
+const HURT_FX = { browDrop: 0.01, browTilt: 0.32, squeeze: 0.8, mouthW: 1.4, mouthH: 0.55 };
+const AIM_FX = { shut: 0.92, squint: 0.4 };
+function faceMood(H, a, w = 0, h = 0, k = 0) {
+  const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k)) return; f.a = a; f.w = w; f.h = h; f.k = k;
   const o = w * w;
-  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w); });
-  f.eyes.forEach(g => { g.scale.y = Math.max(0.3, 1 - ANGER.squint * a + WORRY.widen * w); });
+  f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w - HURT_FX.browDrop * h; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w - HURT_FX.browTilt * h); });
+  f.eyes.forEach(g => { g.scale.y = Math.max(0.07, 1 - ANGER.squint * a + WORRY.widen * w - HURT_FX.squeeze * h - (g.userData.s < 0 ? AIM_FX.shut : AIM_FX.squint) * k); });
   const m = f.mouth; if (!m) return;
   if (m.userData.y0 === undefined) m.userData.y0 = m.position.y;
   m.position.y = m.userData.y0 - WORRY.jaw * o;
-  m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o), 1);
+  m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o) * (1 + (HURT_FX.mouthW - 1) * h), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o) * (1 + (HURT_FX.mouthH - 1) * h), 1);
 }
 function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
