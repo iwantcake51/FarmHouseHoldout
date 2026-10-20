@@ -41,6 +41,7 @@
   "game/run-state.js",
   "weapons/gun-materials.js",
   "weapons/gun-models.js",
+  "melee/melee-traced.js",
   "melee/melee-models.js",
   "weapons/attachments.js",
   "player/gear.js",
