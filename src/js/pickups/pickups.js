@@ -23,6 +23,7 @@ function dropBeam(col) {
   const m = new THREE.Mesh(BEAM_GEO, new THREE.MeshBasicMaterial({ map: BEAM_TEX, color: col || 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
   m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
 }
+let dropUid = 0;   // (each drop its own number, so a teammate watching you can follow it: net/spectate.js)
 function dropPickup(x, z, kind, amount, ammoType, cargo) {
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
@@ -46,7 +47,8 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
   if (kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
-  pickups.push({ g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) });
+  const rec = { uid: ++dropUid, g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) };
+  pickups.push(rec); return rec;
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
 // its ring and glow dimmed, so it's plain you can't grab it; it eases back into colour as soon as you have room
@@ -85,13 +87,18 @@ function updatePickups(dt) {
     if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
     if (p.kind === 'gun') shareFx(p, dt);   // shared with your team: in the sharer's colour, labelled (net/teamwork.js)
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
-    const seen = visAt(p.x, p.z); p.g.visible = true;
+    // down in co-op and watching a teammate, your own drops are hidden and left as they are (you can't reach them) and
+    // theirs show instead: ghosts of the ones on their farm, there to see and never to take (p.ghost: updateSpecDrops,
+    // net/spectate.js)
+    const away = spectating(), seen = visAt(p.x, p.z);
+    if (p.ghost) { p.t = 99; p.g.visible = away && camFocus().id === p.ghost; p.glow.material.opacity = 0.32 * (0.75 + 0.25 * pulse); continue; }
+    p.g.visible = !away;
     p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
     let d = Math.hypot(p.x - P.x, p.z - P.z);
     // a drop out past the edge of the farm, where you can't walk, flies in to you once it's landed, picking up speed;
     // one you can't take yet (a full bag or stack) stops just short of you
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun') {   // (in co-op, every drop is only ever on its own player's farm)
+    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && !away) {   // (in co-op, every drop is only ever on its own player's farm)
       const sp = Math.min(10, 2 + (p.age - 0.5) * 6), full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom()), stop = full ? 1.4 : 0;
       if (d > stop) { const st = Math.min(d - stop, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
       if (!full) p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
@@ -99,7 +106,7 @@ function updatePickups(dt) {
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
-    if (d < 0.9 && !full && !isTake(p)) {   // (a weapon is taken with E: takeIt, below)
+    if (d < 0.9 && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1); feed('planks', n, 'planks'); popEl('planks'); ft = '+' + n; SFX.pick(); }   // always the one plank
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }

@@ -76,3 +76,21 @@ function updateSpecXh(rdt) {
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
   el.classList.toggle('ads', !!(f.fc && f.fc[3] > 0.5));
 }
+// the drops of the one you're watching (sent with their pose while anyone's down, dr: net/avatars.js), shown as ghosts
+// among your pickups (p.ghost: never yours to take, pickups/pickups.js), kept in step with theirs: new ones dropped in,
+// ones taken or gone taken away, a drop flying in to them moved with it. Watching no one, there are none
+const DROP_KINDS = ['ammo', 'planks', 'med', 'supply'];
+function updateSpecDrops() {
+  const f = camFocus(), id = f !== P && f.drops ? f.id : null, want = new Map();
+  if (id) for (const d of f.drops) want.set(d[0], d);
+  for (let k = pickups.length - 1; k >= 0; k--) {
+    const p = pickups[k]; if (!p.ghost) continue;
+    const d = p.ghost === id ? want.get(p.guid) : null;
+    if (!d) { scene.remove(p.g); pickups.splice(k, 1); continue; }
+    want.delete(p.guid);
+    if (p.x !== d[2] || p.z !== d[3]) { p.x = d[2]; p.z = d[3]; p.g.position.x = p.x; p.g.position.z = p.z; }
+  }
+  for (const d of want.values()) { const p = dropPickup(d[2], d[3], DROP_KINDS[d[1]], d[5] || 1, d[4] || undefined); p.ghost = id; p.guid = d[0]; }
+}
+// yours, for a teammate who's down and might be watching you: what's lying on your farm to be picked up
+function myDrops() { return pickups.filter(p => !p.ghost && DROP_KINDS.includes(p.kind)).slice(-24).map(p => [p.uid, DROP_KINDS.indexOf(p.kind), Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100, p.ammoType || 0, p.amount | 0]); }

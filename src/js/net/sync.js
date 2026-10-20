@@ -275,6 +275,7 @@ function netDown() { timeScale = 1; SPEC.id = ''; }
 // a staged reload, a gun left open, spent cases, gone with it) and nothing in reserve. The melee weapon comes out, the
 // one thing ready to use; then the cards like everyone else
 function netRespawn() {
+  unragYou();   // up off the floor (player/player-ragdoll.js)
   for (const s of ['side', 'long', 'auto']) {
     const id = W8.slot[s]; if (!id) continue;
     W8.mag[id] = 0; [W8.akMag, W8.relSave, W8.pin, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
