@@ -41,6 +41,9 @@ const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
+// a skull crushed from overhead (the sledgehammer): how much of the blow's push along goes into the head and shoulders
+// (along), and how hard they're driven down (down, m/s)
+const RAG_CRUSH = { along: 0.35, down: -4 };
 // shot through the head (not by buckshot or a blast) it's out at once: it goes limp where it stands (HEAD_DROP: what's
 // left of its stiffness and how soon that's gone, and how much of the way it was going it keeps) and folds down
 const HEAD_DROP = { tone: 0.16, toneT: 0.22, keep: 0.25 };
@@ -117,7 +120,10 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   force *= cal;
   for (let k = 0; k < n; k++) push(k, cx + dx * force * RAG.all + rr(-0.15, 0.15), boom ? rr(2, 3) : rr(0, 0.1), cz + dz * force * RAG.all + rr(-0.15, 0.15));
   const [hit, near] = RAG_HIT[part] || RAG_HIT.torso;
-  for (const k of hit) push(k, dx * force * RAG.hit * rr(0.85, 1.15), part === 'crush' ? -3 : force * 0.06, dz * force * RAG.hit * rr(0.85, 1.15));
+  // (a blow from overhead, the sledgehammer's, drives it down more than along, and both shoulders alike: pushed apart by
+  // different amounts they'd turn the body round as it went down)
+  const crush = part === 'crush', ck = crush ? RAG_CRUSH.along * rr(0.9, 1.1) : 0;
+  for (const k of hit) push(k, dx * force * RAG.hit * (crush ? ck : rr(0.85, 1.15)), crush ? RAG_CRUSH.down : force * 0.06, dz * force * RAG.hit * (crush ? ck : rr(0.85, 1.15)));
   for (const k of near) push(k, dx * force * RAG.near, 0, dz * force * RAG.near);
   if (D.melee && part !== 'crush') { const sg = rand() < 0.5 ? -1 : 1, t = force * 0.25 * sg; push(2, -dz * t, 0, dx * t); push(3, dz * t, 0, -dx * t); }
   // a limb taken off by this blow: its stump jerks with it
@@ -127,7 +133,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   const fF = [Math.sin(z.face), Math.cos(z.face)], fR = [fF[1], -fF[0]], from = -(dx * fF[0] + dz * fF[1]);   // (from: 1 hit square in the front)
   const wts = FALLS.map(f => f.k + (f.back || 0) * Math.max(0, from) + (f.front || 0) * Math.max(0, -from)), tot = wts.reduce((a, b) => a + b, 0);
   let pick = rand() * tot, fall = FALLS[0]; for (let k = 0; k < FALLS.length; k++) { pick -= wts[k]; if (pick <= 0) { fall = FALLS[k]; break; } }
-  const sd = rand() < 0.5 ? -1 : 1, fw = rr(...fall.fwd) * (drop ? 0.5 : 1), sw = rr(...fall.side) * sd, tw = fall.twist ? rr(...fall.twist) * (rand() < 0.5 ? -1 : 1) : 0;
+  const sd = rand() < 0.5 ? -1 : 1, fw = rr(...fall.fwd) * (drop ? 0.5 : 1), sw = rr(...fall.side) * sd, tw = fall.twist && !crush ? rr(...fall.twist) * (rand() < 0.5 ? -1 : 1) : 0;   // (no twist under a sledgehammer)
   for (const k of [2, 3, 4]) push(k, fF[0] * fw + fR[0] * sw, 0, fF[1] * fw + fR[1] * sw);
   for (const k of [0, 1]) push(k, -(fF[0] * fw + fR[0] * sw) * fall.hip, 0, -(fF[1] * fw + fR[1] * sw) * fall.hip);
   if (tw) { push(2, fF[0] * tw, 0, fF[1] * tw); push(3, -fF[0] * tw, 0, -fF[1] * tw); }

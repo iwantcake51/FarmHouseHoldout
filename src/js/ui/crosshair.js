@@ -17,8 +17,8 @@ function reloadDraw(side, on, u) {
   const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
   if (done) { r.ring.setAttribute('stroke-dasharray', ammoNow(side)); r.ring.classList.remove('done'); void r.ring.getBBox(); r.ring.classList.add('done'); }
   else if (!on && r.on) r.ring.classList.remove('done');
-  if (on) r.id = id;
-  else if (on) { if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
+  // filling: its fill as far as the reload's come (and the last one's finishing flash, if it's still showing, put out)
+  if (on) { r.id = id; if (!r.on) r.ring.classList.remove('done'); r.ring.setAttribute('stroke-dasharray', (A * u).toFixed(1) + ' 999'); }
   if (!r.ring.classList.contains('done') || on) r.ring.style.opacity = on ? 1 : 0;
   else r.ring.style.opacity = 1;
   r.track.setAttribute('stroke-dasharray', A.toFixed(1) + ' 999'); r.track.style.opacity = on ? 1 : 0;

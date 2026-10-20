@@ -10,6 +10,10 @@
 // everyone's house alike (net/net.js).
 
 const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
+// what the inside of the house has: rooms with walls between them (walls), and doors hung in their doorways (doors; only
+// with walls, and without them the doorways stand open). With walls off it's one open floor inside the outer walls, the
+// stations and the furniture set round it against them (world/furniture.js) and a lamp or two over it
+const HOUSE_OPT = { walls: false, doors: false };
 // how the walls look: how high, the skirting and the trim along the top, a doorway's frame, and their materials (they
 // fade away round you where they're between you and the camera: IW_LINES, world/cutaway.js)
 const IW = { h: 2.42, base: 0.11, cap: 0.05, head: 2.05, case: 0.075 };
@@ -234,12 +238,14 @@ function planRooms(W, doors) {
   return rooms;
 }
 // where a room's lamps hang: over the middle of it, or in a big room over the middle of each half (always over one of
-// its own cells, so an L-shaped room's isn't over the closet in its corner)
+// its own cells, so an L-shaped room's isn't over the closet in its corner), and over each half of those halves in a
+// floor as big as the whole house opened up (HOUSE_OPT)
 function roomLamps(cells) {
   const mid = cs => { const x = cs.reduce((s, c) => s + c[0], 0) / cs.length, z = cs.reduce((s, c) => s + c[1], 0) / cs.length; let b = cs[0], bd = 1e9; for (const c of cs) { const d = (c[0] - x) ** 2 + (c[1] - z) ** 2; if (d < bd) { bd = d; b = c; } } const inR = cs.some(c => c[0] === Math.round(x) && c[1] === Math.round(z)) || cs.some(c => Math.abs(c[0] - x) < 0.6 && Math.abs(c[1] - z) < 0.6); return inR ? [cxw(x), cxw(z)] : [cxw(b[0]), cxw(b[1])]; };
   if (cells.length < 22) return [mid(cells)];
   const xs = cells.map(c => c[0]), zs = cells.map(c => c[1]), wx = Math.max(...xs) - Math.min(...xs), wz = Math.max(...zs) - Math.min(...zs);
   const k = wx >= wz ? 0 : 1, sorted = cells.slice().sort((a, b) => a[k] - b[k]), h = sorted.length >> 1;
+  if (cells.length >= 50) return [...roomLamps(sorted.slice(0, h)), ...roomLamps(sorted.slice(h))];
   return [mid(sorted.slice(0, h)), mid(sorted.slice(h))];
 }
 
@@ -305,7 +311,7 @@ function buildInWalls(W, doors, rnd) {
         piece(1, 0.08, 0.022, trim, IW.head + 0.04, 0, face);              // head casing
       });
       [-1, 1].forEach(sd => piece(0.02, IW.head, t + 0.02, trim, IW.head / 2, sd * 0.5));   // the jambs, so you never see into the wall's end
-      buildDoor(ln, u, dc, rnd);
+      if (HOUSE_OPT.doors) buildDoor(ln, u, dc, rnd);
     }
   }
   // the small rooms' tiled floors (up off the floorboards' lines, so the two never lie in one plane)
@@ -554,7 +560,7 @@ function houseLayout(seed, live) {
   const roomsOf = (W, doors) => { const rooms = planRooms(W, doors); ro.fill(-1); rooms.forEach((cs, r) => cs.forEach(([i, j]) => { ro[idx(i, j)] = r; })); return { rooms, kinds: rooms.map(cs => cs.some(c => c[0] === HOUSE_DOOR[0] && c[1] === HOUSE_DOOR[1]) ? 'live' : cs.length <= 6 ? 'small' : 'bed') }; };
   let plan = null, rk = null, placed = null, wins = null;
   // (and if none will on a notched footprint, the whole rectangle instead)
-  for (let k = 0; k < 1200 && !placed; k++) {
+  for (let k = 0; HOUSE_OPT.walls && k < 1200 && !placed; k++) {
     if (k === 700 && HOUSE.notch) setFootprint(null, live);
     plan = planHouse(rnd); if (!plan) continue; rk = roomsOf(plan.walls, plan.doors);
     wins = chooseWindows(rnd, rk.rooms, rk.kinds); if (wins.keys.size < WIN.min) { placed = null; continue; }

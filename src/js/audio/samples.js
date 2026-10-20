@@ -164,6 +164,4 @@ function loopS(name, o) {
 // which family of gun the one in your hands is, for its reload and dry-fire sounds
 const GUN_KIND = { pistol: 'pistol', revolver: 'pistol', deagle: 'pistol', smg: 'smg', sub: 'smg', ar: 'rifle', lmg: 'rifle', hunting: 'rifle', scar: 'rifle', auto12: 'rifle', pump: 'shotgun', dbl: 'shotgun' };
 const gunKind = () => GUN_KIND[curId()] || 'rifle';
-// the SCAR fires its one recording whatever's on its muzzle: a can takes the top off it (lp, Hz) and most of its loudness
-const SUPP_OWN = { scar: { lp: 1500, vol: 0.45 } };
-const SUPP_SFX = { pistol: 'supp_pistol', revolver: 'supp_pistol', deagle: 'supp_pistol', smg: 'supp_smg', sub: 'supp_smg', ar: 'supp_rifle', lmg: 'supp_rifle', hunting: 'supp_sniper', pump: 'supp_shotgun', dbl: 'supp_shotgun', auto12: 'supp_shotgun' };
+const SUPP_SFX = { pistol: 'supp_pistol', revolver: 'supp_pistol', deagle: 'supp_pistol', smg: 'supp_smg', sub: 'supp_smg', ar: 'supp_rifle', lmg: 'supp_rifle', hunting: 'supp_sniper', scar: 'supp_sniper', pump: 'supp_shotgun', dbl: 'supp_shotgun', auto12: 'supp_shotgun' };

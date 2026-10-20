@@ -128,7 +128,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title'
 // the run ends PZ-style: you go down where you stand, the HUD drains away, they close in, then the tally
 function startDeath() {
   if (cheatSaves()) return;   // god mode (ui/cheats.js)
-  P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0;
+  P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0; turnedDown(NET.id);   // (co-op: back next wave as one of them, net/sync.js)
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1);

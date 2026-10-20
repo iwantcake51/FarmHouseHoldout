@@ -32,6 +32,15 @@ const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.ammo] : 
 const HURT_REL = { slow: 0.35, fumble: 0.4, shellFumble: 0.18, stall: [0.28, 0.55] };
 const hurtRel = () => 1 + HURT_REL.slow * SHAKY.k;
 const rollFumble = chance => SHAKY.k > 0.02 && rand() < chance * SHAKY.k ? { at: rr(0.25, 0.7), dur: rr(HURT_REL.stall[0], HURT_REL.stall[1]) * (0.6 + 0.4 * SHAKY.k), left: -1 } : null;
+// how many shells this go loads, fixed as it starts (so counting some in partway through doesn't change it), and
+// whether they go in one at a time off a row in the palm (the pump with Quick hands) rather than together
+function goSize(id, D) { if (!W8.goN) W8.goN = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id))); return W8.goN; }
+const rowLoad = (id, D) => (D.loadN || 1) > 1 && EJECT[id] === 'pump';
+// n shells in: counted, the reload ring pulsed, each heard (a pair a beat apart), the gun jolted
+function shellIn(id, D, n) {
+  W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; W8.goIn += n; reloadTick(); SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k);
+  reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
+}
 function startReload() {
   const id = curId(), D = W(id); if (!D || D.melee || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;   // hands are busy with the bandage, or still drawing
   // a reload cut short past its mag coming out or going in picks up from there (staged reloads, below)
@@ -50,7 +59,7 @@ function startReload() {
     // pushed home at the end (openAction, chamberCycle); the first round waits for it (W8.relWait)
     if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
     W8.relWait = racked(id) && !W8.held[id] && (EJECT[id] === 'bolt' || (W8.mag[id] || 0) <= 0) ? openAction(id) : 0;
-    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id));
+    W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id)); W8.goN = 0; W8.goIn = 0;
     W8.reloadT = (D.perShell * relMul(id) + firstShell(id)) * hurtRel(); W8.reloadMax = W8.reloadT; W8.fumble = rollFumble(HURT_REL.shellFumble);
     W8.relRing = { id, el: 0, tot: W8.relWait + W8.reloadT + D.perShell * relMul(id) * hurtRel() * (Math.ceil(W8.shellsNeed / (D.loadN || 1)) - 1), tail: relTail(id, D), p0: -1, t0: -1 };
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * relMul(id) * hurtRel(); W8.fumble = rollFumble(HURT_REL.fumble); W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
@@ -136,7 +145,7 @@ function tickReload(dt) {
   { const fb = W8.fumble;
     if (fb && fb.left < 0 && 1 - W8.reloadT / W8.reloadMax >= fb.at) { fb.left = fb.dur; relKnock(rr(1.4, 2.4), rr(-2.6, 2.6), -0.25, rr(-0.5, 0.2)); reloadJolt(0.12); SFX.click(); }
     if (fb && fb.left > 0) { fb.left -= dt; if (fb.left <= 0) W8.fumble = null; return; } }
-  const rdt = dt * (runReloading() ? RUN_RELOAD.rel : 1);
+  const rdt = dt * (1 - (1 - RUN_RELOAD.rel) * runRelK());
   W8.reloadT -= rdt;   // (a little slower at a sprint: player/sprint.js)
   if (W8.reloading === 'shell' && W8.relRing) W8.relRing.el += rdt;
   if (W8.reloading === 'mag' && D.speedload) {
@@ -153,11 +162,19 @@ function tickReload(dt) {
     if (ps && !W8.pulled && W8.relVar === 0 && p >= PS_TUG) { W8.pulled = true; SFX.chargePull(); reloadJolt(0.06); }   // tugged off the stop
     if (ps && !W8.slammed && p >= PS_REL[W8.relVar]) { W8.slammed = true; SFX.slideDrop(); reloadJolt(0.22); shake = Math.max(shake, 0.09); }   // and it slams home
   }
+  // the pump's row of shells off the palm (Quick hands): each one counted in as it's thumbed in, quick one after another
+  // (as player/hold.js feeds them, HSH_FEED), the last as the go ends
+  if (W8.reloading === 'shell' && rowLoad(id, D)) {
+    const n = goSize(id, D), due = Math.min(n - 1, Math.floor(n * clamp((1 - W8.reloadT / W8.reloadMax - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
+    while (W8.goIn < due) shellIn(id, D, 1);
+  }
   if (W8.reloadT > 0) return;
   if (W8.reloading === 'shell') {
-    // one shell a go, or two or three with a speed loader
-    const n = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));
-    W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; reloadTick(); SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k); reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
+    // one shell a go, or two or three with a speed loader (the double barrel's pair both at once; the pump's row one at
+    // a time, the rest of it here)
+    const n = goSize(id, D) - W8.goIn;
+    if (n > 0) shellIn(id, D, n);
+    W8.goN = 0; W8.goIn = 0;
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * relMul(id) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
     // done: a pump or bolt gun that's open has its action pushed home straight away (weapons/casings.js), one that's
     // chambered is ready as it is; anything else snaps shut

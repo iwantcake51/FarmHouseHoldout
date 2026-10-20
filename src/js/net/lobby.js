@@ -102,7 +102,7 @@ function teamDown(p) {
   n.className = 'tdNote'; n.style.setProperty('--pc', NET_COL[p.idx] || '#888');
   n.innerHTML = `<svg viewBox="${GI_VB}">${GI.kills}</svg><b></b><span>is down</span>`; n.querySelector('b').textContent = p.name;
   box.appendChild(n); setTimeout(() => { n.classList.add('out'); setTimeout(() => n.remove(), 450); }, TEAM_DOWN_T * 1000);
-  SFX.click();
+  SFX.thud();
 }
 // the pickup feed sits over your health, FEED_GAP clear of its top; whatever makes that panel taller (the team's cards
 // over it in co-op, anything else on it) lifts the feed by as much, so the two never overlap. Measured whenever the

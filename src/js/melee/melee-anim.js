@@ -340,17 +340,25 @@ function meleeImpact(heavy, hard) {
 // the arm's angles for a fist at F holding a weapon pointing W (upper-body space): rx, ry aim the arm at the fist and
 // sc stretches or shortens it to reach (within MREACH: short, it reads as the elbow bent); the arm's roll rz and the
 // weapon's tilt in the fist hrx point the weapon, allowing for the arm being thinner across (ARM_THIN) than it is
-// long. Of the two ways to hold it pointing the same way (rolled over or not), the one with the least roll. The
+// long. Of the two ways to hold it pointing the same way (rolled over or not: the same, but for the weapon turned half
+// a turn round its own handle), the one with the least roll; but through a swing, a draw or a bash (keep) whichever
+// is nearer the last frame's, so the roll runs on smoothly past a quarter turn and back (a blow ends where it began),
+// and at rest the one it was on until the roll's MROLL_GIVE past a quarter turn: either way never the axe's head
+// flipped round the handle in a frame and back. The
 // weapon hangs off the arm, so it's scaled back by wy, wz along its length and across it to keep its own size
 // (melee/melee-models.js built them on an arm ARM_THIN thick and FIST long)
-const MREACH = [0.62, 1.42];
-function meleeSolve(F, Wd, out) {
+const MREACH = [0.62, 1.42], MROLL_GIVE = 0.6;
+function meleeSolve(F, Wd, out, keep) {
   const s = SHOULDER_REST.R, dx = F.x - s[0], dy = F.y - s[1], dz = F.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
   out.rx = Math.atan2(-dy / len, dz / len); out.ry = Math.asin(clamp(dx / len, -1, 1)); out.sc = clamp(len / FIST, MREACH[0], MREACH[1]);
   _maQ.setFromEuler(_maE.set(out.rx, out.ry, 0)).invert();
   const w = _maB.copy(Wd).applyQuaternion(_maQ), c = Math.hypot(w.x, w.y);
   let rz = Math.atan2(-w.x, w.y), cy = c;
   if (Math.abs(rz) > Math.PI / 2) { rz = rz > 0 ? rz - Math.PI : rz + Math.PI; cy = -c; }
+  if (out.rz !== undefined) {   // (staying on the way round it was: the least roll plus whole half turns, nearest the last frame's)
+    const k = Math.round((out.rz - rz) / Math.PI), r2 = rz + k * Math.PI;
+    if (k && (keep || Math.abs(r2) < Math.PI / 2 + MROLL_GIVE)) { rz = r2; if (k & 1) cy = -cy; }
+  }
   out.rz = rz; out.hrx = Math.atan2(w.z / out.sc, cy / ARM_THIN);
   const sh = Math.sin(out.hrx), ch = Math.cos(out.hrx);
   out.wy = ARM_THIN / Math.hypot(ARM_THIN * ch, out.sc * sh); out.wz = 1 / Math.hypot(ARM_THIN * sh, out.sc * ch);
@@ -428,5 +436,5 @@ function meleePose(id, D, rdt, now, sh) {
       for (const k of MBODY) { const sp = k === 'uy' || k === 'hy' ? S_.turn : k === 'step' || k === 'dip' ? S_.legs : S_.lean; springTo(MS.b, k, 'v' + k, _mTB[k], sp[0], sp[1], h); }
     }
   }
-  return meleeSolve(MS.F, _maA.copy(MS.W).normalize(), _mSol);
+  return meleeSolve(MS.F, _maA.copy(MS.W).normalize(), _mSol, W8.swing > 0 || !!sh || ANIM.mDrawT !== undefined);
 }

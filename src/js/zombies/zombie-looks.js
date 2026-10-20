@@ -390,11 +390,40 @@ function zPickJob(type) {
   let r = rand() * tot; for (const k in ZJOBS) { r -= ZJOBS[k].w[i]; if (r <= 0) return k; }
   return 'casual';
 }
+// a teammate who went down, back the next wave (net/sync.js: TURN_Q): dressed as they were from their own look (L)
+// and gear: their skin gone grey, their hair and hat, their top (a flannel's checks, a tee's print), trousers, shoes and
+// gloves, and the armour they'd bought (a canvas jacket, a vest, a plate carrier) and their boots; never their guns or
+// their pack
+const ZTURN_HAIR = { bald: 'bald', long: 'long', buzz: 'patchy', short: 'short' }, ZTURN_HAT = { cap: 'trucker', beanie: 'beanie', cowboy: 'straw', bandana: 'bandana' };
+const ZTURN_ARMOR = { jacket: 0x6a5e44, vest: 0x3c4330, plate: 0x2e3033, strap: 0x1e1f21 };
+function zTurned(o, L, gear) {
+  const t = (gear && gear.t) || {}, s = (gear && gear.s) || {};
+  o.skin = zc(zmix(L.skin, o.rotCol, rr(0.42, 0.58)), rr(0.84, 0.92));
+  o.hair = ZTURN_HAIR[L.hairStyle] || 'short'; o.hairCol = L.hair; o.beard = !!L.beard && L.beard !== 'none';
+  o.hat = t.night || s.stubborn ? 'helmet' : ZTURN_HAT[L.hat] || 'none'; o.hatCol = t.night || s.stubborn ? 0x3c4330 : L.hatCol || 0x2a2a2a;
+  o.top = worn(L.topCol, 0.15); o.sleeve = L.top === 'tee' || L.top === 'polo' ? 'short' : 'long';
+  if (L.top === 'flannel') o.plaid = zc(L.topCol, 0.6);
+  if (L.top === 'tee' && L.print) { const pc = L.print; o.add.push(K => zfront(K.torso, 0.16, 0.11, worn(pc, 0.2), 0, 0.14, ZF.chest)); }
+  o.legs = 'long'; o.pants = worn(L.pants, 0.18);
+  o.shoes = t.boots || s.slowRes > 0 || /boot/.test(L.shoes || '') ? 'boots' : L.shoes === 'dress' ? 'dress' : 'sneakers';
+  if (o.shoes === 'boots') o.boot = t.boots || s.slowRes > 0 ? 0x2a2420 : L.shoes === 'tanboots' ? worn(0x8a6a3a, 0.2) : L.shoes === 'blackboots' ? 0x141414 : undefined;
+  if (o.shoes === 'sneakers' && L.sneak) o.sneak = L.sneak.map(c => worn(c, 0.25));
+  if (L.glove && GLOVE_COLS[L.glove]) o.gloves = worn(GLOVE_COLS[L.glove].back, 0.15);
+  const ar = t.armor | 0;
+  if (ar >= 1) o.coat = worn(ZTURN_ARMOR.jacket, 0.12);   // the canvas jacket
+  if (ar >= 2) o.add.push(K => {   // the vest over it, then the plate carrier's plates and straps
+    const c = ar >= 3 ? ZTURN_ARMOR.plate : ZTURN_ARMOR.vest;
+    zfront(K.torso, 0.42, 0.42, c, 0, 0.02, ZF.chest, 0.014); zback(K.torso, 0.42, 0.42, c, 0, 0.02, ZF.chest, 0.014);
+    if (ar >= 3) { zfront(K.torso, 0.3, 0.26, zc(c, 1.25), 0, 0.08, ZF.chest, 0.024); [-1, 1].forEach(sd => zb(K.torso, 0.06, 0.04, 0.32, ZTURN_ARMOR.strap, sd * 0.15, 0.3, 0)); }
+    [-1, 1].forEach(sd => zfront(K.torso, 0.08, 0.07, zc(c, 0.85), sd * 0.12, -0.12, ZF.waist, 0.03));   // its pouches
+  });
+}
 function zDeal(type, job) {
-  const live = pick(ZSKIN_LIVE), dead = pick(ZROT);
+  const live = pick(ZSKIN_LIVE), dead = pick(ZROT), turned = job && typeof job === 'object' ? job : null;
+  if (turned) job = 'casual';
   const o = { job: job || zPickJob(type), add: [], skin: zc(zmix(live, dead, rr(0.5, 0.74)), rr(0.8, 0.92)), rotCol: dead, hair: pick(['short', 'short', 'long', 'bald', 'balding', 'patchy', 'short']), hairCol: pick([0x2a2018, 0x3a2a1e, 0x5a4630, 0x8a8478, 0x1a1a1a, 0x6a3a1e, 0xa8a49c]),
     hat: 'none', hatCol: 0x2a2a2a, sleeve: 'short', legs: 'long', shoes: 'sneakers', gloves: 0, beard: rand() < 0.2, wear: rr(0.6, 1.3) };
-  ZJOBS[o.job].f(o);
+  if (turned) zTurned(o, turned.look, turned.gear); else ZJOBS[o.job].f(o);
   o.face = zDealFace(o);
   o.skinDk = zc(o.skin, 0.8); o.bruise = zmix(o.skin, 0x4a3a5a, 0.45);
   return o;

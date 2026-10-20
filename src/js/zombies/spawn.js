@@ -24,8 +24,11 @@ function spawnZombie(type, job) {
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11, hp = T_.hp * hpMul;
   const z = { type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
-    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : 1) };
+    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : type === 'walker' ? walkerPace() : 1) };
   zAnimInit(z); zombies.push(z);
 }
 // sprinters show up on wave 3 at about two thirds of their top speed and work up to full pace by wave 11
 const runnerPace = () => Math.min(1, 0.62 + Math.max(0, run.wave - 3) * 0.0475);
+// walkers pick up a little pace as the waves go on: WALKER_PACE.per faster each wave after the first, never more than
+// WALKER_PACE.max over their own (about a fifth faster by wave 14)
+const WALKER_PACE = { per: 0.015, max: 0.2 }, walkerPace = () => 1 + Math.min(WALKER_PACE.max, Math.max(0, run.wave - 1) * WALKER_PACE.per);

@@ -118,7 +118,7 @@ const bump = (t, a, b) => Math.sin(Math.PI * clamp((t - a) / (b - a), 0, 1));   
 // held to a few degrees a shot (about 5 for a 9mm, 10 for a hand cannon or a rifle), and however fast you fire, the
 // muzzle never climbs past KICK_UP: each shot has less room to throw it up the higher it already is (KICK_ROOM), and
 // what it shows is eased into that ceiling (kickPitch) instead of stopping dead against it
-const KICK_UP = 0.24, KICK_ROOM = 0.6;
+const KICK_UP = 0.16, KICK_ROOM = 0.6;
 const kickPitch = p => p < 0 ? -KICK_UP * Math.tanh(-p / KICK_UP) : p;
 const kickState = () => ({ p: 0, vp: 0, z: 0, vz: 0, h: 0, vh: 0, r: 0, vr: 0, y: 0, vy: 0, dropT: 0, dP: 0, dH: 0, dZ: 0, ret: 1 });
 const RK = { R: kickState(), L: kickState() };
@@ -128,10 +128,10 @@ const RK = { R: kickState(), L: kickState() };
 // gun (act) thumps hardest: more flip, a harder shove back into the shoulder, the hands lifted further and the
 // shoulders rocked much further (KICK_ACT). The bolt-action rifle comes back from its kick slower than the rest
 // (KICK_BOLT_RET of the speed, the same height), a heavy gun settling back onto the shoulder
-const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 1.15, back: 2, lift: 2, rock: 2.2 }, KICK_BOLT_RET = 0.55;
+const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 0.9, back: 1.6, lift: 0.9, rock: 1.0 }, KICK_BOLT_RET = 0.55;
 // how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
 // automatic, whose kicks come too fast to settle between
-const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
+const KICK_ROT = 0.42, KICK_ROT_AUTO = 0.6;
 // how each kind of gun kicks (recoilFeel picks one): back, how hard it's driven back along the aim; flip, how far the
 // muzzle's thrown up; body, how hard the chest and shoulders take it (the shoulders' rock and the whole upper body shoved
 // back, BR); ret, how quickly it all comes home (the hands' springs stiffer or looser); jit, a kick to the side each shot.
@@ -140,7 +140,7 @@ const KICK_ROT = 0.7, KICK_ROT_AUTO = 0.6;
 // fire chatters: short quick kicks that buzz side to side
 const RECOIL_FEEL = {
   snap: { back: 1.0, flip: 1.15, body: 0.9, ret: 1.25, jit: 0.5 },
-  shove: { back: 1.2, flip: 0.9, body: 1.7, ret: 0.85, jit: 0.35 },
+  shove: { back: 1.2, flip: 0.75, body: 1.1, ret: 0.85, jit: 0.35 },
   thump: { back: 1.15, flip: 1.0, body: 1.35, ret: 0.9, jit: 0.25 },
   chatter: { back: 0.85, flip: 0.85, body: 0.7, ret: 1.4, jit: 1.7 }
 };
@@ -148,7 +148,7 @@ const recoilFeel = (D, kind, auto) => auto ? 'chatter' : kind === 'hand' ? 'snap
 // the upper body shoved back along the aim by a shot (z, metres), and leant back with it (BR_LEAN radians a metre): on
 // a heavier spring than the hands', so the chest takes the shot a beat after the gun and settles back under it. It's
 // what reads from above: the gun driven back with the shooter rocking under it
-const BR = { z: 0, vz: 0 }, BR_LEAN = 1.6, BR_MAX = 0.07;
+const BR = { z: 0, vz: 0 }, BR_LEAN = 0.6, BR_MAX = 0.07;
 // act: how the gun cycles (EJECT in weapons/casings.js)
 function gunKick(side, pw, kind, auto, act, feel) {
   const k = RK[side], hand = kind === 'hand', big = smooth(clamp((pw - 0.25) / 0.75, 0, 1)), a = 1 - 0.3 * (ANIM.ads || 0), hp = Math.pow(pw, 0.6), rot = KICK_ROT * (auto ? KICK_ROT_AUTO : 1);
@@ -158,7 +158,7 @@ function gunKick(side, pw, kind, auto, act, feel) {
   const v0 = [k.vp, k.vz, k.vh, k.vr, k.vy, SR.vx, SR.vy];
   const flip = (hand ? 9.5 * hp * (auto ? 0.7 : 1) : pw * 4.9 * (1 + 0.4 * big)) * a * room * (A ? A.flip : 1) * rot * F.flip;
   k.ret = F.ret * bolt; SR.ret = bolt;
-  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1) * F.back; k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.8 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
+  k.vp -= flip * rr(0.85, 1.2); k.vz -= (hand ? 2.2 * hp : pw * 3) * a * rr(0.85, 1.2) * (A ? A.back : 1) * F.back; k.vh += (hand ? 0.9 * hp * (0.4 + 0.6 * big) : pw * 0.4 * big) * a * rr(0.8, 1.2) * (A ? A.lift : 1);
   const rock = (hand ? 0.9 * hp : 1.4 * pw) * (A ? A.rock : 1) * (1 - 0.6 * clamp(SR.x / SR_MAX, 0, 1)) * rot * F.body;   // (less room to rock the further back they already are)
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
   BR.vz += (hand ? 0.35 * hp : 0.6 * pw) * F.body * (A ? 1.3 : 1) * (1 - 0.5 * (ANIM.ads || 0)) * (1 - 0.7 * clamp(BR.z / BR_MAX, 0, 1)) * rr(0.85, 1.15);
@@ -501,7 +501,7 @@ function cylHeads(cr, id) {
 // double barrel's Sleight of Hand, or two or three in a row down the palm for the pump with Quick hands II or III, thumbed up into the
 // tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1, 2].map(() => { const g = new THREE.Group(); cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
-const HSH_GAP = 0.026, HSH_FEED = [0.62, 0.72];   // shells' spacing in the hand; when a row of them is thumbed in, one after another
+const HSH_GAP = 0.026, HSH_FEED = [0.55, 0.97];   // shells' spacing in the hand; when a row of them is thumbed in, one after another (each counted in as it goes: weapons/reload.js)
 // a round loaded on its own: carried to the port till FEED_IN[0], lined up on it by FEED_IN[1] (out of the fingers), and
 // thumbed all the way in by FEED_IN[2], where it sits (its rim in the chamber's mouth, its head in the cylinder) till it counts; where it goes in (_feedAt) and the gun's axes there (_feedQ, _feedAx, _feedUp)
 const FEED_IN = [0.64, 0.7, 0.82], _feedAt = new V3(), _feedAx = new V3(), _feedUp = new V3(), _feedQ = new THREE.Quaternion(), _feedV = new V3();
@@ -1074,7 +1074,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // revolver's rounds). One on its own leaves the fingers at the port and is thumbed in: up into a pump's tube and on
     // forward, down into the rifle's well and forward under the bolt, along the bore into a barrel or a chamber of the
     // cylinder (FEED_IN). A row of shells (Sleight of Hand) is thumbed in one after another off the palm (HSH_FEED)
-    const rnd = D.ammo === 'rifle' || D.ammo === 'magnum', n = rnd ? 1 : Math.max(1, Math.min(D.loadN || 1, 3, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));   // as many as are going in
+    const rnd = D.ammo === 'rifle' || D.ammo === 'magnum', n = rnd ? 1 : Math.min(3, W8.goN || Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id))));   // as many as are going in this go (fixed as it starts: weapons/reload.js)
     const feed = rel === 'shell' && rp > 0.12 && rp < (n === 1 ? 0.995 : HSH_FEED[1]);   // (one on its own stays where it went in till it's counted in: tickReload)
     HSH.visible = feed;
     if (feed) {
