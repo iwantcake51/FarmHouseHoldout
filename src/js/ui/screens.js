@@ -25,7 +25,7 @@ function resetRun(keepLook) {
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
   ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
-  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0;
+  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
   bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });

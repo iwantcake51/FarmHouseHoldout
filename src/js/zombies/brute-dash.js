@@ -6,10 +6,10 @@
 // A shove or a heavy stagger during the crouch breaks it off. The host's game runs it; joiners see the crouch and the
 // stripe ('zdw') and take the hit if it's at them ('zdh': net/sync.js).
 
-// wave: the first wave it can happen; min, max: how far off you must be (metres); rate: the chance a second of starting
+// wave: the first wave it can happen (the brutes' first: waves/waves.js); min, max: how far off you must be (metres); rate: the chance a second of starting
 // one while it can; cd: the wait after one (seconds); wind: the crouch; speed, over: how fast it goes, and how far past
 // where you stood; rec: the stumble to a halt after; w: the stripe's width; dmg, stun, kb: what it does to you
-const BDASH = { wave: 8, min: 4.5, max: 8, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
+const BDASH = { wave: BRUTE_FROM, min: 4.5, max: 8, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
 // running into a wall: stunned for stun seconds (reeling, its head lolling), a cloud of dust and smoke thrown up off the
 // wall, and the view shaken by up to shake, in full within near metres and trailing off to nothing at far
 const BDASH_WALL = { stun: 2.4, shake: 0.95, near: 5, far: 16 };

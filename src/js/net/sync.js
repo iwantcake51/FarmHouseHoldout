@@ -107,6 +107,9 @@ function puppetBoard(z, dme) {
   else { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
+// a spitter rearing back, and letting go (zombies/spitter.js): the same glob flies in every game
+NET_ON.spw = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead) return; const s = z.sp || (z.sp = { cd: 0, w: 0, thr: 0 }); s.w = 0.001; spitWindFx(z); };
+NET_ON.spt = m => { const z = NZ.get(m.id); if (NET.host || !z) return; const s = z.sp || (z.sp = { cd: 0, w: 0, thr: 0 }); s.w = 0; s.thr = 1; launchGlob(z, ...m.a); };
 function netLunge(z, at, armMul) { if (netLink() && z.id) netSend('za', { id: z.id, h: at || '', am: armMul || 1 }); }
 NET_ON.za = m => {
   const z = NZ.get(m.id); if (!z || z.dead) return;

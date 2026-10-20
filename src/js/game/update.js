@@ -11,5 +11,6 @@ function update(dt) {
   updateSupplyDrop(dt);
   updateGrenades(dt);
   updateZombies(dt);
+  updateSpit(dt);   // the spitters' acid in the air and on the ground (zombies/spitter.js)
   updatePickups(dt);
 }

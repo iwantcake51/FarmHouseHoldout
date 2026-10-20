@@ -21,10 +21,17 @@ const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 
 // a window takes up to WIN_AT_ONCE zombies at a time, side by side (each in its own lane across it: zombies/climb.js),
 // the next starting in as soon as every one already climbing is WIN_GAP of the way through
 const WIN_AT_ONCE = 3, WIN_GAP = 0.12;
+// holding the house gets harder through the later waves, so you can't stand at one window and mow them down as they
+// climb in: from wave INSIDE.from, worked up to in full by INSIDE.full, they spread out over every way in at once
+// (INSIDE.load: what each zombie already headed for a way in counts against it, zombies/pathfinding.js: pickEntry),
+// tear the boards down faster (tear), come over the sill quicker (climb, zombies/climb.js) and closer behind each
+// other (gap, in place of WIN_GAP)
+const INSIDE = { from: 6, full: 14, load: 24, tear: 1.8, climb: 1.35, gap: 0.05 };
+const insideK = () => smooth(clamp(((run.wave || 1) - INSIDE.from) / (INSIDE.full - INSIDE.from), 0, 1));
 function winFree(o, z) {
   const c = o.climbers || (o.climbers = []);
   for (let k = c.length - 1; k >= 0; k--) { const b = c[k]; if (b === z) return true; if (b.dead || !b.vault || b.vault.o !== o) c.splice(k, 1); }
-  return c.length < WIN_AT_ONCE && c.every(b => b.vault.t > WIN_GAP);
+  const gap = mix(WIN_GAP, INSIDE.gap, insideK()); return c.length < WIN_AT_ONCE && c.every(b => b.vault.t > gap);
 }
 // at a window: the boards to tear down first (returned), then it climbs in (zombies/climb.js)
 function atWindow(z, o) {
@@ -129,6 +136,8 @@ function updateZombies(dt) {
     if (pup) puppetBoard(z, dme);   // tearing at the boards the host says it's at
     // a brute's dash (zombies/brute-dash.js): while it crouches, charges and pulls up, nothing else
     if (dashStep(z, dt, pup) || (!pup && dashMaybe(z, dt, t, dp))) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); dashGlow(z); continue; }
+    // a spitter with a line on whoever it's after stands off and spits (zombies/spitter.js)
+    if (z.type === 'spitter' && !z.out && !pup && spitStep(z, dt, t, dp)) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
     // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
     if (z.out && !pup) {
@@ -180,7 +189,7 @@ function updateZombies(dt) {
           shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1));
         }
       } else {
-        attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt;
+        attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * mix(1, INSIDE.tear, insideK()) * dt;
         // a blow lands on the boards each beat: a thump, the plank jumps, a little dust off it
         if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(attackingBoard, z); }
       }

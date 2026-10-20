@@ -58,7 +58,8 @@ function viaField(o) {
   return f;
 }
 // which way in: the walk to each, plus ENTRY_LOAD cells for every zombie already headed for it, and a little chance,
-// so the near ones still get most but every window and the door gets its share
+// so the near ones still get most but every window and the door gets its share. In the later waves that share's evened
+// out (up to INSIDE.load cells a zombie: zombies/ai.js), so they come at every window at once and you can't hold one
 const ENTRY_LOAD = 7;
 function pickEntry(z) {
   const k = idx(clamp(ci(z.x), 0, N - 1), clamp(ci(z.z), 0, N - 1));
@@ -66,7 +67,7 @@ function pickEntry(z) {
   for (const o of openings) {
     const d = viaField(o)[k]; if (d >= 1e8) continue;
     let load = 0; for (const q of zombies) if (q !== z && q.via === o) load++;
-    const s = d + load * ENTRY_LOAD + rand() * 4; if (s < bs) { bs = s; best = o; }
+    const s = d + load * mix(ENTRY_LOAD, INSIDE.load, insideK()) + rand() * 4; if (s < bs) { bs = s; best = o; }
   }
   return best;
 }

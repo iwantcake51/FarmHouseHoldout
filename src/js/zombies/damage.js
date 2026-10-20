@@ -377,6 +377,7 @@ function killScrap(z, n, hoard) {
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
 function killBegin(z, dx, dz) {
+  spitterDies(z);   // (a spitter's sac bursts: zombies/spitter.js)
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);
