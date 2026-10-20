@@ -25,6 +25,7 @@ function poseOut(rdt) {
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
     fl: myLight() ? [myLight(), r2(flDir())] : 0, vw: [r2(P.aim), r2(S.cone), r2(S.near), S.nightVis || 0, T('night') || 0], st: [S.planks | 0, S.scrap | 0, run.kills | 0], hl: Math.round((P.heal || 0) + bandHeal() * bandProg()),
+    ap: !P.dead && state === 'play' ? [r2(aimPt.x), r2(aimPt.z)] : 0,   // (where you're aiming, for the crosshair a teammate watching you sees: net/spectate.js)
     fc: !P.dead && (ANIM.anger || ANIM.worry || ANIM.hurt || ANIM.ads) ? [r2(ANIM.anger || 0), r2(ANIM.worry || 0), r2(ANIM.hurt || 0), r2(ANIM.ads || 0)] : 0 };   // (hl: healing still to come, the blue on your bar; fc: your face, angry, startled, wincing and aiming, faceMood in player/look.js)   // (what the team list shows of you: planks, scrap and kills)
   weaponPose(rdt, msg);   // the weapons out, their moving parts, what's stowed (net/arsenal.js)
   ammoOut(msg, now);
@@ -108,17 +109,18 @@ function netDropAvatar(p) {
 NET_ON.p = m => {
   const p = NET.peers.get(m.f); if (!p) return;
   if (m.dead && !p.dead && p.x !== undefined && state !== 'title') { teamDown(p); turnedDown(p.id); }   // they've just gone down (net/lobby.js), and they'll be back next wave as one of them (net/sync.js)
-  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
+  Object.assign(p, { x: m.x, z: m.z, vx: m.vx || 0, vz: m.vz || 0, hp: m.hp, maxHp: m.mh, vw: m.vw || p.vw, dead: !!m.dead, vault: !!m.v, picking: !!m.pk, cw: m.cw | 0, wp: m.wp, sv: m.sv, ex: m.ex, stats: m.st, am: m.am, heal: m.hl || 0, fl: m.fl || 0, fc: m.fc || 0, ap: m.ap || 0, loaded: true }); if (m.wn !== undefined) p.wn = m.wn;
   // a loadout we haven't got (or an old one): ask for it, once a second at most
   if (m.lk && m.lk !== (p.av ? p.av.lk : p.lk) && performance.now() - (p.loAsk || 0) > 1000) { p.loAsk = performance.now(); netTo(m.f, 'loq', {}); }
   p.tgt = m.j; p.poseAt = performance.now();
 };
 // every frame: each teammate's survivor eased toward their last pose, their name over them
-const _tagV = new V3();
+const _tagV = new V3(), TAG_GONE = { stay: 2.5, fade: 1.5 };
 function updateAvatars(rdt) {
+  updateSpecXh(rdt);   // (the crosshair of whoever you're watching: net/spectate.js)
   const show = netLink() && (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving' || state === 'dead');
   for (const p of NET.peers.values()) {
-    if (!show || !p.tgt) { if (p.av) { p.av.g.visible = false; p.av.tag.style.opacity = 0; if (p.av.blob) p.av.blob.visible = false; } continue; }
+    if (!show || !p.tgt) { if (p.av) { p.av.g.visible = false; p.av.tag.style.opacity = 0; p.av.tagO = 0; if (p.av.blob) p.av.blob.visible = false; } continue; }
     const a = p.av || buildAvatar(p), t = p.tgt;
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
     if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.xr.rim.visible = !p.dead; if (a.xr.sil) a.xr.sil.visible = !p.dead; }   // (down, no outline round them or through walls)
@@ -156,7 +158,11 @@ function updateAvatars(rdt) {
     }
     if (a.edge !== !inView) { a.edge = !inView; a.tag.classList.toggle('edge', a.edge); }
     a.tag.classList.toggle('down', !!p.dead);
-    a.tag.style.opacity = 1;
+    // down, their name shows it a moment (struck through, the dot pulsing red) and then fades away rather than staying
+    // over the body till the next wave (TAG_GONE: how long it stays, how long it takes to go)
+    a.deadT = p.dead ? (a.deadT || 0) + rdt : 0;
+    const tg = 1 - smooth(clamp((a.deadT - TAG_GONE.stay) / TAG_GONE.fade, 0, 1));
+    if (a.tagO !== tg) { a.tagO = tg; a.tag.style.opacity = tg; }
     a.tag.style.transform = `translate(${tx.toFixed(1)}px,${ty.toFixed(1)}px)`;
     const hk = clamp((p.hp ?? 100) / (p.maxHp || 100), 0, 1); if (a.hk !== hk) { a.hk = hk; a.tagBar.style.transform = `scaleX(${hk.toFixed(3)})`; }
   }

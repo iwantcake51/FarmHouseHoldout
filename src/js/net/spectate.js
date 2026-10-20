@@ -59,3 +59,20 @@ function renderSpec() {
   q('.spRel').textContent = rel === 2 ? 'Loading shells' : rel === 1 ? 'Reloading' : '';
   q('.spBand b').textContent = band ?? 0; q('.spBand').classList.toggle('empty', !(band > 0));
 }
+// where the one you're watching is aiming: a crosshair of their own, ghostly, in their colour washed out to grey, its
+// dashed ring turning slowly, so it reads as theirs and not yours (you're down). It glides after their aim (their pose
+// sends it, ap: net/avatars.js; SPEC_XH.ease), draws in tighter while they're aiming down the sights, and fades in
+// and out with the watching
+const SPEC_XH = { ease: 12 }, _sxV = new V3();
+function updateSpecXh(rdt) {
+  const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap;
+  if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
+  if (!on) { SPEC.xh = null; return; }
+  _sxV.set(f.ap[0], GUN_Y, f.ap[1]).project(cam);   // (on the plane aims are taken on, input/keyboard-mouse.js)
+  const tx = (_sxV.x * 0.5 + 0.5) * innerWidth, ty = (-_sxV.y * 0.5 + 0.5) * innerHeight;
+  const c = SPEC.xh && SPEC.xh.id === f.id ? SPEC.xh : (SPEC.xh = { id: f.id, x: tx, y: ty }), k = 1 - Math.exp(-rdt * SPEC_XH.ease);
+  c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
+  el.style.transform = `translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
+  el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
+  el.classList.toggle('ads', !!(f.fc && f.fc[3] > 0.5));
+}
