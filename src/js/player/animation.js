@@ -58,6 +58,10 @@ function animateDeath(dt) {
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
   pm.head.rotation.set(-sg * 0.3 * fall, 0, 0.2 * fall * Math.sign(ANIM.deathTwist || 1));
+  dropFall(dt);
+}
+// the weapon you dropped as you went down, falling and landing
+function dropFall(dt) {
   const d = ANIM.dropped;
   if (d && !d.landed) {
     d.vy -= 12 * dt; d.g.position.x += d.vx * dt; d.g.position.y += d.vy * dt; d.g.position.z += d.vz * dt; d.g.rotateZ(d.spin * dt);
@@ -165,7 +169,7 @@ function worryStep(rdt) {
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
-  if (P.dead) { animateDeath(P.deathDt || 0); return; }
+  if (P.dead) { if (PRAG.me) { stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below

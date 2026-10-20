@@ -59,3 +59,38 @@ function renderSpec() {
   q('.spRel').textContent = rel === 2 ? 'Loading shells' : rel === 1 ? 'Reloading' : '';
   q('.spBand b').textContent = band ?? 0; q('.spBand').classList.toggle('empty', !(band > 0));
 }
+// where the one you're watching is aiming: a crosshair of their own, ghostly, in their colour washed out to grey, its
+// dashed ring turning slowly, so it reads as theirs and not yours (you're down). It glides after their aim (their pose
+// sends it, ap: net/avatars.js; SPEC_XH.ease), draws in tighter while they're aiming down the sights, and fades in
+// and out with the watching
+const SPEC_XH = { ease: 12 }, _sxV = new V3();
+function updateSpecXh(rdt) {
+  const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap;
+  if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
+  if (!on) { SPEC.xh = null; return; }
+  _sxV.set(f.ap[0], GUN_Y, f.ap[1]).project(cam);   // (on the plane aims are taken on, input/keyboard-mouse.js)
+  const tx = (_sxV.x * 0.5 + 0.5) * innerWidth, ty = (-_sxV.y * 0.5 + 0.5) * innerHeight;
+  const c = SPEC.xh && SPEC.xh.id === f.id ? SPEC.xh : (SPEC.xh = { id: f.id, x: tx, y: ty }), k = 1 - Math.exp(-rdt * SPEC_XH.ease);
+  c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
+  el.style.transform = `translate(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px)`;
+  el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
+  el.classList.toggle('ads', !!(f.fc && f.fc[3] > 0.5));
+}
+// the drops of the one you're watching (sent with their pose while anyone's down, dr: net/avatars.js), shown as ghosts
+// among your pickups (p.ghost: never yours to take, pickups/pickups.js), kept in step with theirs: new ones dropped in,
+// ones taken or gone taken away, a drop flying in to them moved with it. Watching no one, there are none
+const DROP_KINDS = ['ammo', 'planks', 'med', 'supply'];
+function updateSpecDrops() {
+  const f = camFocus(), id = f !== P && f.drops ? f.id : null, want = new Map();
+  if (id) for (const d of f.drops) want.set(d[0], d);
+  for (let k = pickups.length - 1; k >= 0; k--) {
+    const p = pickups[k]; if (!p.ghost) continue;
+    const d = p.ghost === id ? want.get(p.guid) : null;
+    if (!d) { scene.remove(p.g); pickups.splice(k, 1); continue; }
+    want.delete(p.guid);
+    if (p.x !== d[2] || p.z !== d[3]) { p.x = d[2]; p.z = d[3]; p.g.position.x = p.x; p.g.position.z = p.z; }
+  }
+  for (const d of want.values()) { const p = dropPickup(d[2], d[3], DROP_KINDS[d[1]], d[5] || 1, d[4] || undefined); p.ghost = id; p.guid = d[0]; }
+}
+// yours, for a teammate who's down and might be watching you: what's lying on your farm to be picked up
+function myDrops() { return pickups.filter(p => !p.ghost && DROP_KINDS.includes(p.kind)).slice(-24).map(p => [p.uid, DROP_KINDS.indexOf(p.kind), Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100, p.ammoType || 0, p.amount | 0]); }

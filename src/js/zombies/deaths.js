@@ -84,19 +84,21 @@ function ragFrame(p) {
   _rgX.addScaledVector(_rgY, -_rgX.dot(_rgY)).normalize(); _rgZ.crossVectors(_rgX, _rgY);
 }
 
-function makeRagdoll(z, dx, dz, part, force, wId) {
-  const m = z.m, s = z.T.scale, D = (wId && (W(wId) || EFF[wId])) || {}, n = RAG_AT.length, cut = z.cut || {};
+// rig: a survivor's (player/player-ragdoll.js), not a zombie's: its upper body isn't raised to the hips (upY), its arms are
+// one piece each (no forearms: noFore), and it's kept in its own list (list), lying where it fell (keep)
+function makeRagdoll(z, dx, dz, part, force, wId, rig) {
+  const m = z.m, s = z.T.scale, upY = rig ? rig.upY : ZHIP, D = (wId && (W(wId) || EFF[wId])) || {}, n = RAG_AT.length, cut = z.cut || {};
   const p = new Float32Array(n * 3), on = new Uint8Array(n).fill(1);
   if (!z.limbs.head) on[4] = 0;
   for (const L in RAG_LIMB) { const [a, b] = RAG_LIMB[L]; if (!z.limbs[L]) on[a] = on[b] = 0; else if (cut[L]) on[b] = 0; }
   // where each point is now, off the rig as it stands (or crawls, or climbs)
   m.g.updateMatrixWorld(true);
   const put = (k, o, x, y, zz) => { _rgV.set(x, y, zz); o.localToWorld(_rgV); p[k * 3] = _rgV.x; p[k * 3 + 1] = _rgV.y; p[k * 3 + 2] = _rgV.z; };
-  put(0, m.lower, -0.13, 0.55, 0); put(1, m.lower, 0.13, 0.55, 0); put(2, m.upper, -0.33, 1.08 - ZHIP, 0); put(3, m.upper, 0.33, 1.08 - ZHIP, 0);
+  put(0, m.lower, -0.13, 0.55, 0); put(1, m.lower, 0.13, 0.55, 0); put(2, m.upper, -0.33, 1.08 - upY, 0); put(3, m.upper, 0.33, 1.08 - upY, 0);
   if (on[4]) put(4, m.head, 0, 0, 0);
   for (const sd of ['L', 'R']) {
     const [e, hd] = RAG_LIMB['arm' + sd], [kn, ft] = RAG_LIMB['leg' + sd];
-    if (on[e]) put(e, m['arm' + sd], 0, 0, Z_ELBOW); if (on[hd]) put(hd, m['fore' + sd], 0, 0, 0.27);
+    if (on[e]) put(e, m['arm' + sd], 0, 0, Z_ELBOW); if (on[hd]) put(hd, rig && rig.noFore ? m['arm' + sd] : m['fore' + sd], 0, 0, rig && rig.noFore ? 0.53 : 0.27);
     if (on[kn]) put(kn, m['leg' + sd], 0, Z_KNEE, 0); if (on[ft]) put(ft, m['shin' + sd], 0, -0.28, 0);
   }
   // the sticks, at this body's size, between the points it still has
@@ -144,12 +146,13 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   // a point that starts inside something (a climber's legs in the wall under the sill) is let through it till it's out
   const ghost = new Uint8Array(n); for (let k = 0; k < n; k++) if (on[k] && ragTop(p[k * 3], p[k * 3 + 2]) > p[k * 3 + 1] - RAG_R[k] * s) ghost[k] = 1;
   // only so many bodies are worked out at once: past that the oldest still moving is left as it lies
-  const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true;
+  if (!rig) { const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true; }
   const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, limbs: z.limbs, s, p, q, tone: drop ? HEAD_DROP.tone : RAG.tone, toneT: drop ? HEAD_DROP.toneT : fall.toneT, legK, upK: fall.up, o: new Float32Array(p), v: new Float32Array(p), on, im, loc, sticks, ghost, acc: 0, st: 0, still: 0, sleep: false, gy: 0,
-    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
+    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0, upY, noFore: !!(rig && rig.noFore), keep: !!rig };
   m.g.scale.setScalar(s);
   ragPose(r, p);
-  ragdolls.push(r);
+  (rig ? rig.list : ragdolls).push(r);
+  return r;
 }
 
 // one step of the body: the stiffness it has left pulls it toward the pose it died in, everything moves on and falls,
@@ -357,13 +360,14 @@ function ragPose(r, v) {
   };
   for (const sd of ['L', 'R']) {
     const [e, hd, sh] = RAG_LIMB['arm' + sd], [kn, ft, hp] = RAG_LIMB['leg' + sd];
-    if (on[e] && lb['arm' + sd]) { const a = m['arm' + sd]; aim(a, sh, e, _rgFw, _rgQi); if (on[hd]) aim(m['fore' + sd], e, hd, _rgFw, _rgQ2.copy(a.quaternion).invert().multiply(_rgQi)); }
+    if (on[e] && lb['arm' + sd] && r.noFore) aim(m['arm' + sd], sh, on[hd] ? hd : e, _rgFw, _rgQi);   // (a one-piece arm, pointed at the hand)
+    else if (on[e] && lb['arm' + sd]) { const a = m['arm' + sd]; aim(a, sh, e, _rgFw, _rgQi); if (on[hd]) aim(m['fore' + sd], e, hd, _rgFw, _rgQ2.copy(a.quaternion).invert().multiply(_rgQi)); }
     if (on[kn] && lb['leg' + sd]) { const l = m['leg' + sd]; aim(l, hp, kn, _rgDn, _rgQi); if (on[ft]) aim(m['shin' + sd], kn, ft, _rgDn, _rgQ2.copy(l.quaternion).invert().multiply(_rgQi)); }
   }
   if (on[4]) {
     const nk = [(v[6] + v[9]) / 2, (v[7] + v[10]) / 2, (v[8] + v[11]) / 2]; _rgN.set(nk[0], nk[1], nk[2]);
     { const save = [v[6], v[7], v[8]]; v[6] = nk[0]; v[7] = nk[1]; v[8] = nk[2]; aim(m.head, 2, 4, _rgUp, _rgQi); v[6] = save[0]; v[7] = save[1]; v[8] = save[2]; }   // (from between the shoulders)
-    _rgD.set(v[12], v[13], v[14]).sub(_rgP).applyQuaternion(_rgQi).divideScalar(s); m.head.position.set(_rgD.x, _rgD.y - ZHIP, _rgD.z);
+    _rgD.set(v[12], v[13], v[14]).sub(_rgP).applyQuaternion(_rgQi).divideScalar(s); m.head.position.set(_rgD.x, _rgD.y - r.upY, _rgD.z);
   }
   r.gy = g.position.y; r.x = _rgH.x; r.z = _rgH.z;
   // its shadow under the trunk, stretched out along it the flatter it lies
@@ -383,7 +387,7 @@ function stepRagdoll(r, dt) {
     ragPose(r, v);
   }
   // after a while it sinks into the ground and goes
-  r.g.position.y = r.gy - Math.max(0, r.t - 8) * 0.25;
+  r.g.position.y = r.gy - (r.keep ? 0 : Math.max(0, r.t - 8) * 0.25);
   if (r.burn > 0 && r.stain) r.stain.char = Math.min(1, r.stain.char + dt * 0.3);   // a body that went down burning smoulders on until it's black
   if (r.burn > 0) { r.burn -= dt; if (r.vis > 0.3 && r.t > 0.4) burnFx(r.x, r.z, 0.05, 0.45, 0.45 * r.s, dt * Math.min(1, r.burn)); }   // the fire dies down on the body
 }

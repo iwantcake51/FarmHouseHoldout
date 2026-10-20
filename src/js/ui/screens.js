@@ -23,7 +23,7 @@ function setState(s) {
 function resetRun(keepLook) {
   houseLayout(NET.on && NET.inGame && NET.houseSeed != null ? NET.houseSeed : (Math.random() * 2147483647) | 0, true);   // a new floor plan (world/interior.js), the host's in co-op
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
-  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0;
+  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0;
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
@@ -132,6 +132,7 @@ function startDeath() {
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1);
+  ragYou();   // you go down as a ragdoll, the way the zombies do (player/player-ragdoll.js)
   timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
   if (netLink()) netDown();   // co-op: no slow motion, the farm goes on (net/sync.js)
   const gg = gunMeshes[W8.cur];
