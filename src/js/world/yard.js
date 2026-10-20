@@ -41,7 +41,7 @@ function yardLayout(rnd, live) {
     const s = sides[(rnd() * sides.length) | 0], u0 = FENCE_GAPS.find(g => g[0] === s)[1];
     for (let t = 0; t < 12; t++) { const u = at(span(s)); if (Math.abs(u - u0) >= YARD.apart) { FENCE_GAPS.push([s, u, u + 1]); break; } }
   }
-  buildFence();
+  FENCE_DOWN.clear(); fenceHp.clear(); buildFence();   // (put up whole again, whatever brutes knocked down last run)
   const paths = yardPaths();
   groundMask(paths);
   // where nothing may go

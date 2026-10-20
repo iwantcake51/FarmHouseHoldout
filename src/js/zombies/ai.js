@@ -60,6 +60,26 @@ function bashDoor(z, d, armMul, dme, dt) {
   doorWear(d, z);
   if (d.hp <= 0) { breakDoor(d, z); if (z.an) z.an.rip = 1; netDoorBroke(d, z); }
 }
+// a brute that can see whoever it's after across the yard fence doesn't trudge round to a gap: if the way round is
+// BFENCE.detour cells longer than straight at them, it goes for the stretch of fence between, up to BFENCE.see metres
+// off, and smashes through it (fenceBlow, breakFence in world/fence.js). Looked at again every BFENCE.every seconds
+const BFENCE = { see: 14, detour: 6, every: 0.4, step: 0.25 };
+function bruteFence(z, t, here, dt) {
+  if (z.fenceAt >= 0 && cell[z.fenceAt] !== FENCE) z.fenceAt = -1;   // (gone: knocked down, by it or another)
+  if ((z.fenceT = (z.fenceT || 0) - dt) > 0) return z.fenceAt ?? -1;
+  z.fenceT = BFENCE.every * rr(0.8, 1.2); z.fenceAt = -1;
+  if (t.dead || z.crawl) return -1;
+  const dx = t.x - z.x, dz = t.z - z.z, d = Math.hypot(dx, dz);
+  if (d > BFENCE.see || here < d + BFENCE.detour || !los(z.x, z.z, t.x, t.z)) return -1;
+  // the first stretch of fence on the line to them, with them on the far side of it
+  for (let s = BFENCE.step; s < d - 0.5; s += BFENCE.step) {
+    const i = ci(z.x + dx * s / d), j = ci(z.z + dz * s / d); if (!inb(i, j)) return -1;
+    const c = cell[idx(i, j)];
+    if (c === FENCE) { z.fenceAt = idx(i, j); return z.fenceAt; }
+    if (c !== EMPTY) return -1;   // (anything else in the way: let it go round)
+  }
+  return -1;
+}
 // how fast bunched-up zombies drift apart (metres a second when right on top of each other)
 const SPREAD = 2.6;
 // a window or doorway in this cell or any next to it
@@ -119,8 +139,13 @@ function updateZombies(dt) {
     }
     // (outside while you're indoors, the field for the window or door it was given: zombies/pathfinding.js)
     const fl = pup ? dist : zField(z, t), via = !!z.via, i = ci(z.x), j = ci(z.z), here = inb(i, j) ? fl[idx(i, j)] : 1e9;
-    let tx = t.x, tz = t.z, attackingBoard = null, attackingDoor = null;
-    if ((via || here > 1.6) && !z.out && !pup) {
+    let tx = t.x, tz = t.z, attackingBoard = null, attackingDoor = null, attackingFence = -1;
+    const bf = z.type === 'brute' && !z.out && !pup ? bruteFence(z, t, here, dt) : -1;
+    if (bf >= 0) {
+      // straight for the fence it's smashing through, and at it once it's in reach
+      const fi = bf % N, fj = (bf / N) | 0; tx = cxw(fi); tz = cxw(fj);
+      if (Math.hypot(tx - z.x, tz - z.z) < 0.95 + z.T.r) attackingFence = bf;
+    } else if ((via || here > 1.6) && !z.out && !pup) {
       let bestD = here, bi = -1, bj = -1;
       for (const [di, dj] of DIRS) {
         const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
@@ -139,7 +164,7 @@ function updateZombies(dt) {
       }
     }
     const arms = (z.limbs.armL ? 1 : 0) + (z.limbs.armR ? 1 : 0), armMul = arms === 2 ? 1 : arms === 1 ? 0.7 : 0.4;
-    if (!pup) { z.atkBoard = attackingBoard; z.atkDoor = attackingDoor; }
+    if (!pup) { z.atkBoard = attackingBoard; z.atkDoor = attackingDoor; z.atkFence = attackingFence >= 0; }
     if (attackingBoard) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 8);
       const top = attackingBoard.boards.length - 1;
@@ -158,6 +183,14 @@ function updateZombies(dt) {
       }
       if (attackingBoard.boards[top] <= 0) { breakBoard(attackingBoard, z); if (z.an) z.an.rip = 1; netBoardBroke(attackingBoard, z); }
     } else if (attackingDoor) bashDoor(z, attackingDoor, armMul, dme, dt);
+    else if (attackingFence >= 0) {
+      z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 6);
+      if (z.atk <= 0) {
+        z.atk = BRUTE_SMASH.t; z.lunge = 1;
+        const fi = attackingFence % N, fj = (attackingFence / N) | 0;
+        if (fenceBlow(fi, fj, z, BRUTE_SMASH.dmg * armMul, dme)) { breakFence(fi, fj, z); if (z.an) z.an.rip = 1; netFenceBroke(attackingFence, z); z.fenceAt = -1; }
+      }
+    }
     else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops

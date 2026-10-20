@@ -182,6 +182,9 @@ function netBoardUp(o) {
 NET_ON.ba = m => { const o = openings[m.o]; if (!o || state === 'title' || o.boards.length >= 3) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd); };
 // (at: which side a board shot or torn down goes flying to, for one no zombie broke)
 // a door between rooms broken down in the host's game: down in everyone's (world/interior.js)
+// a stretch of the yard fence a brute knocked down (zombies/ai.js: bruteFence), knocked down on every screen
+function netFenceBroke(k, z) { if (netLink() && NET.host) netSend('fb', { k, id: z ? z.id : 0 }); }
+NET_ON.fb = m => { if (NET.host || cell[m.k] !== FENCE) return; const z = NZ.get(m.id) || null; breakFence(m.k % N, (m.k / N) | 0, z); if (z && z.an) z.an.rip = 1; };
 function netDoorBroke(d, z) { if (netLink() && NET.host) netSend('db', { d: HOUSE_DOORS.list.indexOf(d), id: z ? z.id : 0 }); }
 NET_ON.db = m => { const d = HOUSE_DOORS.list[m.d]; if (!d || NET.host || d.broken) return; breakDoor(d, NZ.get(m.id) || null); };
 function netBoardBroke(o, z, at) {
