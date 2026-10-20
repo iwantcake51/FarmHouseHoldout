@@ -45,6 +45,36 @@
 #stQuick button:not(.ok){cursor:not-allowed}
 #stQuick button.bump{animation:qBump .3s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes qBump{40%{transform:scale(1.04)}}
+/* the sawhorse's metalwork bench (stations/station-ui.js: forgeBar): grey with what it still needs till it can be had,
+   then easing into colour, steel and forge-orange, with a pop and a slow sheen across it */
+#stForge{margin:0}
+#stForge[hidden]{display:none}
+#stForge button{all:unset;box-sizing:border-box;width:100%;position:relative;overflow:hidden;cursor:not-allowed;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:9px 12px;border:1px solid rgba(236,230,216,.14);background:rgba(0,0,0,.3);color:var(--dim);filter:grayscale(1) brightness(.82);transition:filter .7s ease,background .5s,border-color .5s,box-shadow .5s,color .5s,translate .15s}
+.fgIc{width:40px;height:40px;display:grid;place-items:center;background:rgba(169,188,203,.08);border:1px solid rgba(169,188,203,.28);transition:background .5s,border-color .5s}
+.fgIc svg{width:27px;height:27px;fill:#a9bccb;transition:fill .5s}
+.fgTx{min-width:0}
+.fgTx b{display:block;font-family:var(--f-num);font-size:19px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);line-height:1.05}
+.fgTx em{display:block;font-style:normal;font-size:11px;opacity:.8;margin-top:1px}
+.fgReq{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.rq{display:inline-flex;align-items:center;gap:5px;padding:2px 7px 2px 5px;font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.04em;border:1px solid rgba(224,128,92,.45);background:rgba(200,80,50,.12);color:#f0c0a8;transition:background .4s,border-color .4s,color .4s}
+.rq svg{width:12px;height:12px;fill:currentColor;flex:none}
+.rq.met{border-color:rgba(127,190,110,.55);background:rgba(110,170,90,.14);color:#b8e0a8}
+.rq .pips{display:inline-flex;gap:2px;margin-left:2px}.rq .pips i{width:8px;height:4px;background:rgba(236,230,216,.18)}.rq .pips i.on{background:currentColor}
+.fgGo{display:grid;justify-items:end;gap:1px}
+.fgGo .cost{display:flex;align-items:center;gap:4px}.fgGo .cost svg{width:15px;height:15px;fill:#8fa3b8}.fgGo .cost b{font-family:var(--f-num);font-size:24px;font-weight:800;color:#c8d2dc;line-height:1}
+.fgGo .cost.short b{color:#e0805c}
+.fgGo small{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+#stForge.ready button{filter:none;cursor:pointer;color:var(--ink);border-color:rgba(216,105,44,.75);background:linear-gradient(180deg,rgba(169,188,203,.17),rgba(216,105,44,.09));box-shadow:0 0 18px rgba(216,105,44,.2),inset 0 1px 0 rgba(255,255,255,.07)}
+#stForge.ready .fgIc{background:linear-gradient(180deg,rgba(216,105,44,.3),rgba(216,105,44,.12));border-color:rgba(216,105,44,.7)}
+#stForge.ready .fgIc svg{fill:#eef3f6}
+#stForge.ready .fgGo small{color:var(--gold);opacity:1}
+#stForge.ready button::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.11) 50%,transparent 65%);translate:-100% 0;animation:fgSheen 3s ease-in-out .7s infinite;pointer-events:none}
+#stForge.ready button:hover,#stForge.ready button:focus-visible{translate:0 -1px;background:linear-gradient(180deg,rgba(169,188,203,.24),rgba(216,105,44,.14))}
+#stForge.pop button{animation:fgPop .6s cubic-bezier(.2,.9,.3,1.35)}
+#stForge button.shake{animation:shake .25s}
+@keyframes fgPop{0%{transform:scale(.96)}45%{transform:scale(1.035)}100%{transform:scale(1)}}
+@keyframes fgSheen{55%,100%{translate:100% 0}}
+@media (prefers-reduced-motion:reduce){#stForge.ready button::after{animation:none}#stForge.pop button{animation:none}}
 #stGuns{position:relative;display:grid;grid-template-columns:repeat(var(--n,1),1fr);padding:3px;background:rgba(0,0,0,.28);border:1px solid rgba(236,230,216,.1);box-shadow:inset 0 1px 6px rgba(0,0,0,.35)}
 #stGuns[hidden]{display:none}
 .sgPill{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / var(--n,1));translate:calc(var(--i,0) * 100%) 0;background:linear-gradient(180deg,rgba(216,105,44,.26),rgba(216,105,44,.12));border:1px solid rgba(216,105,44,.7);border-bottom:2px solid var(--orange);box-sizing:border-box;box-shadow:0 2px 12px rgba(216,105,44,.22);transition:translate .38s cubic-bezier(.2,.9,.25,1);pointer-events:none}

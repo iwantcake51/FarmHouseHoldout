@@ -22,7 +22,7 @@ function wallsBetween(x0, z0, x1, z1) {
   if (walls >= 2) return 2;
   for (let s = 1; s < n; s++) {
     const i = ci(x0 + (x1 - x0) * s / n), j = ci(z0 + (z1 - z0) * s / n); if (!inb(i, j)) continue;
-    const k = idx(i, j), t = cell[k], o = openAt[k], solid = t === WALL || (t === OPEN && o && o.boards.length >= 2);
+    const k = idx(i, j), t = cell[k], o = openAt[k], solid = t === WALL || (t === OPEN && o && shutN(o) >= 2);
     if (solid && !inWall && ++walls >= 2) return 2;
     inWall = solid;
   }

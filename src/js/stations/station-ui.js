@@ -29,7 +29,7 @@ function closeStation() {
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
-const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
+const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', metal: '#a9bccb', med: '#d0432c', supply: '#d8692c' };
 const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 'att' ? 'upg' : r.ic];
 // a tiered upgrade's stars (r.tier(): how many steps you have, of how many): one per step, filled for those you have,
 // outlined for those you don't, the one this card buys a brighter outline than the rest
@@ -53,7 +53,8 @@ function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   $('station').classList.toggle('isRack', openSt.id === 'rack');
-  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench');
+  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench' || (openSt.id === 'saw' && !METAL.on));
+  forgeBar();   // (the sawhorse's metalwork bench button, below)
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
@@ -128,6 +129,35 @@ function quickAmmo(rows) {
     b.classList.toggle('ok', ok); b.querySelector('.cost').classList.toggle('short', S.scrap < r.cost);
   }
 }
+// ---- the sawhorse's way up to the metalwork bench (barricades/metal-bars.js): one button pinned along the bottom, as
+// the workbench's ammo is, saying what it takes: the boards braced all the way (BRACE.max) and METAL_COST scrap. Grey
+// with what's still missing ticked off as you get it, it eases into colour with a pop once you can, and a click builds it
+const FG_TICK = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z"/></svg>', FG_LOCK = '<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+let fgReady = null;
+function forgeBar() {
+  const el = $('stForge'), on = !!openSt && openSt.id === 'saw' && !METAL.on;
+  if (el.hidden === on) el.hidden = !on;
+  if (!on) { fgReady = null; el.classList.remove('ready', 'pop'); return; }
+  if (!el.firstElementChild) el.innerHTML = `<button type="button"><span class="fgIc"><svg viewBox="${GI_VB}">${GI.metal}</svg></span>
+    <span class="fgTx"><b>Metalwork bench</b><em>Steel grates instead of boards</em><span class="fgReq"><i class="rq" data-rq="brace"></i><i class="rq" data-rq="scrap"></i></span></span>
+    <span class="fgGo"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b>${METAL_COST}</b></span><small></small></span></button>`;
+  const lv = Math.min(braceLv(), BRACE.max), br = lv >= BRACE.max, sc = S.scrap >= METAL_COST, ok = br && sc, k = lv + '|' + S.scrap;
+  if (el._k !== k) {
+    el._k = k;
+    const rb = el.querySelector('[data-rq="brace"]'), rs = el.querySelector('[data-rq="scrap"]');
+    rb.classList.toggle('met', br); rb.innerHTML = `${br ? FG_TICK : FG_LOCK}Brace the boards V<span class="pips">${Array.from({ length: BRACE.max }, (_, q) => `<i${q < lv ? ' class="on"' : ''}></i>`).join('')}</span>`;
+    rs.classList.toggle('met', sc); rs.innerHTML = `${sc ? FG_TICK : FG_LOCK}${METAL_COST} scrap${sc ? '' : ` · ${METAL_COST - S.scrap} more`}`;
+    el.querySelector('.fgGo small').textContent = ok ? 'Upgrade' : 'Locked';
+    el.querySelector('.cost').classList.toggle('short', !sc);
+    el.querySelector('button').setAttribute('aria-disabled', ok ? 'false' : 'true');
+  }
+  if (ok !== fgReady) { const was = fgReady; fgReady = ok; el.classList.toggle('ready', ok); if (ok && was !== true) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); } }
+}
+$('stForge').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !openSt || openSt.id !== 'saw' || METAL.on) return;
+  if (braceLv() < BRACE.max || S.scrap < METAL_COST) { SFX.click(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+  S.scrap -= METAL_COST; popEl('scrap'); forgeMetal(); SFX.craft(); renderStation();
+});
 $('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && openSt.id === 'bench') { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {

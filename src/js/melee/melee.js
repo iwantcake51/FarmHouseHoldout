@@ -55,7 +55,7 @@ const BOARD_MELEE = 0.15;
 function boardInReach(D) {
   let best = null, bd = 1e9;
   for (const o of openings) {
-    if (!o.boards.length) continue;
+    if (!o.boards.length || o.grate) continue;   // (a swing can't hurt a grate: barricades/metal-bars.js)
     const dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz);
     if (d > D.range + 0.6 || (d > 0.5 && Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + 0.2) || d >= bd) continue;
     best = o; bd = d;

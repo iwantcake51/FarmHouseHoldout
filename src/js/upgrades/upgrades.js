@@ -30,7 +30,7 @@ const STEADY_MAX = 3, LUCK_MISS = 1 / 4;
 const SURE_CRIT = 0.05;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
-  { r: 'c', tag: 'Tools', name: 'Wood pile', text: '+7 planks.', can: () => plankRoom() >= 7, w: () => needW(NEED.planks()), ap: () => addPlanks(7) },
+  { r: 'c', tag: 'Tools', get name() { return METAL.on ? 'Scrap metal' : 'Wood pile'; }, get text() { return METAL.on ? `+${METAL_AID} metal, enough for two grates.` : '+7 planks.'; }, can: () => plankRoom() >= (METAL.on ? METAL_AID : 7), w: () => needW(NEED.planks()), ap: () => addPlanks(METAL.on ? METAL_AID : 7) },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
@@ -43,7 +43,7 @@ const UPG = [
   { r: 'r', tag: 'Gun', name: 'Sure shot', text: 'Any shot from a semi-auto gun can land as a crit, for double damage.', can: () => !S.sureShot, ap: () => S.sureShot = true },
   { r: 'r', tag: 'Mind', name: 'Momentum', text: 'Each kill soon after the last raises your damage. Go too long without one and it resets.', can: () => !S.momentum, ap: () => S.momentum = true },
   { r: 'r', tag: 'Body', name: 'Vault fire', text: 'Vaults are quicker and cheaper, and you can keep shooting while you\'re going over.', can: () => !S.vaultFire, ap: () => { S.vaultMul = 0.8; S.vaultFire = true; } },
-  { r: 'u', tag: 'Luck', name: 'Scavenger', text: 'Zombies drop ammo, planks and bandages more often.', can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
+  { r: 'u', tag: 'Luck', name: 'Scavenger', get text() { return `Zombies drop ammo, ${matWord()} and bandages more often.`; }, can: () => S.dropMul < 2, ap: () => S.dropMul *= 1.5 },
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'The scrap from a kill is sometimes doubled.', can: () => !S.hoard, ap: () => S.hoard = true },
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
@@ -62,7 +62,7 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+const AID = new Set(['Wood pile', 'Scrap metal', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
 const TIER_KIND = { quick: 'Skill', armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
 const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
 function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)

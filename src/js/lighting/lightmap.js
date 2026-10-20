@@ -17,7 +17,7 @@ function los(x0, z0, x1, z1) {
     if (i === ti && j === tj) return true;
     if (i === si && j === sj) continue;
     if (i < 0 || j < 0 || i >= N || j >= N || blockArr[j * N + i]) return false;
-    const ob = openAt[j * N + i]; if (ob && ob.boards.length >= 2) return false;   // two or more boards shut out sight and light
+    const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2) return false;   // two or more boards (or a plated grate) shut out sight and light
   }
   return true;
 }
@@ -51,7 +51,7 @@ function computeLight() {
   if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   STATIC_LIGHTS.forEach(L => {
-    if (L.spill) { const b = L.spill.boards.length; if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
+    if (L.spill) { const b = shutN(L.spill); if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
     addField(L.field, L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1), L.col);
   });
   // how much light falls where you stand from the sky and the lamps (not your own muzzle flash or flashlight): what
@@ -174,7 +174,7 @@ function flRay(x, z, a, max) {
     if (t >= max) return max;
     if (i < 0 || j < 0 || i >= N || j >= N) return t;
     const ob = openAt[j * N + i];
-    if (blockArr[j * N + i] || (ob && ob.boards.length >= 2)) return Math.min(max, t + FL_PAST);
+    if (blockArr[j * N + i] || (ob && shutN(ob) >= 2)) return Math.min(max, t + FL_PAST);
     if (ob && ob.kind === 'window' && flRayWin === Infinity) { const tw = ob.axis === 'x' ? (ob.z - z) / dz : (ob.x - x) / dx; flRayWin = tw > t && tw < t + 1.5 ? tw : t + 0.5; }
   }
   return max;

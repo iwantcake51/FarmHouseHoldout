@@ -359,10 +359,12 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
     // rounds pays you back a little). Planks are the rarest roll, and the last 6.5% of the roll drops nothing, so a
-    // plank comes off about one walker in 26 and bandages about one in 21
+    // plank comes off about one walker in 26 and bandages about one in 21; metal, once there's a metalwork bench
+    // (barricades/metal-bars.js), a little less often than planks did (below METAL_DROP of the roll: one in 32)
     const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
     if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) ammoDrop(z.x, z.z, big); }
-    else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
+    else if (r < 0.75) { if (!METAL.on || r < METAL_DROP) dropPickup(z.x, z.z, 'planks', big); }
+    else if (r < 0.935) dropPickup(z.x, z.z, 'med', big);
   }
 }
 // an ammo box for your guns: most often for the one in your hands

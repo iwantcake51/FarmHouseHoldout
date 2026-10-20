@@ -19,6 +19,12 @@ const UPG_FX = {
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
 };
+// once there's a metalwork bench (barricades/metal-bars.js) the wood's metal and the boards are grates too
+const barWord = () => METAL.on ? 'Boarding/barring' : 'Boarding', boardsWord = () => METAL.on ? 'Boards/grates' : 'Boards';
+Object.defineProperty(UPG_FX, 'Scrap metal', { enumerable: true, get: () => [`+${METAL_AID} metal`, 'Two grates'] });
+Object.defineProperty(UPG_FX, 'Claw hammer', { enumerable: true, get: () => [barWord() + ' 2× faster'] });
+Object.defineProperty(UPG_FX, 'Framing hammer', { enumerable: true, get: () => [barWord() + ' 1.5× faster', boardsWord() + ' +25%'] });
+Object.defineProperty(UPG_FX, 'Nail gun', { enumerable: true, get: () => [barWord() + ' 2× faster', boardsWord() + ' +50%'] });
 // Bullet time does something else in co-op, where slowing time would slow everyone's (zombies/damage.js: BT_EYE)
 Object.defineProperty(UPG_FX, 'Bullet time', { enumerable: true, get: () => netLink() ? ['1 in 5 kills: 3 s dead eye', 'Every hit a headshot', 'Every 8 s at most'] : ['1 in 5 kills slows time', 'Every 8 s at most'] });
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same

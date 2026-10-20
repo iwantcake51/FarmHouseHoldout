@@ -64,24 +64,26 @@ const STATIONS = [];
 
   // ---- sawhorses by the south-west corner: a board across them with a saw left in the cut, sawdust, and lumber stacked underneath ----
   g = new THREE.Group(); g.position.set((cxw(18) + cxw(19)) / 2, 0, cxw(25)); scene.add(g);
+  // (the sawhorse's model on its own, so it can give way to the metalwork bench's: barricades/metal-bars.js's benchLook)
+  const wd = new THREE.Group(); g.add(wd);
   [-0.55, 0.55].forEach(x => {
-    sil(box(g, 0.1, 0.09, 0.56, HM.pine2, x, 0.63, 0));
-    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => { const l = box(g, 0.05, 0.7, 0.06, HM.oakLt, x + sx * 0.06, 0.32, sz * 0.2); l.rotation.set(-sz * 0.3, 0, sx * 0.14); });
-    [-1, 1].forEach(sx => box(g, 0.03, 0.04, 0.36, HM.oak, x + sx * 0.085, 0.22, 0));
-    [-1, 1].forEach(sz => box(g, 0.13, 0.1, 0.02, HM.oak, x, 0.56, sz * 0.2));
+    sil(box(wd, 0.1, 0.09, 0.56, HM.pine2, x, 0.63, 0));
+    [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz]) => { const l = box(wd, 0.05, 0.7, 0.06, HM.oakLt, x + sx * 0.06, 0.32, sz * 0.2); l.rotation.set(-sz * 0.3, 0, sx * 0.14); });
+    [-1, 1].forEach(sx => box(wd, 0.03, 0.04, 0.36, HM.oak, x + sx * 0.085, 0.22, 0));
+    [-1, 1].forEach(sz => box(wd, 0.13, 0.1, 0.02, HM.oak, x, 0.56, sz * 0.2));
   });
-  sil(box(g, 1.76, 0.05, 0.26, HM.pine, 0, 0.7, 0));
-  box(g, 0.006, 0.052, 0.11, HM.hole, 0.32, 0.7, 0.075); box(g, 0.004, 0.002, 0.2, HM.ink, -0.3, 0.726, 0.0);
-  const sw = new THREE.Group(); sw.position.set(0.32, 0.72, 0.13); sw.rotation.x = -0.45; g.add(sw);
+  sil(box(wd, 1.76, 0.05, 0.26, HM.pine, 0, 0.7, 0));
+  box(wd, 0.006, 0.052, 0.11, HM.hole, 0.32, 0.7, 0.075); box(wd, 0.004, 0.002, 0.2, HM.ink, -0.3, 0.726, 0.0);
+  const sw = new THREE.Group(); sw.position.set(0.32, 0.72, 0.13); sw.rotation.x = -0.45; wd.add(sw);
   box(sw, 0.005, 0.1, 0.36, HM.steel, 0, 0, -0.05); box(sw, 0.006, 0.012, 0.36, HM.iron, 0, -0.05, -0.05); box(sw, 0.025, 0.12, 0.1, HM.oak, 0, 0.02, 0.17); box(sw, 0.03, 0.04, 0.05, HM.hole, 0, 0.03, 0.17);
-  box(g, 0.012, 0.012, 0.14, HM.yellow, -0.2, 0.731, 0.05).rotation.y = 0.6; box(g, 0.07, 0.035, 0.07, HM.yellow, -0.48, 0.743, -0.04); ycyl(g, 0.012, 0.012, 0.037, HM.iron, -0.48, 0.743, -0.04, 8);
-  for (let k = 0; k < 3; k++) for (let j = 0; j < 2; j++) box(g, 1.5 - k * 0.06, 0.048, 0.16, (k + j) % 2 ? M.board : M.board2, (k - 1) * 0.04 + j * 0.03, 0.025 + k * 0.05, -0.085 + j * 0.17).rotation.y = (k - j) * 0.02;
+  box(wd, 0.012, 0.012, 0.14, HM.yellow, -0.2, 0.731, 0.05).rotation.y = 0.6; box(wd, 0.07, 0.035, 0.07, HM.yellow, -0.48, 0.743, -0.04); ycyl(wd, 0.012, 0.012, 0.037, HM.iron, -0.48, 0.743, -0.04, 8);
+  for (let k = 0; k < 3; k++) for (let j = 0; j < 2; j++) box(wd, 1.5 - k * 0.06, 0.048, 0.16, (k + j) % 2 ? M.board : M.board2, (k - 1) * 0.04 + j * 0.03, 0.025 + k * 0.05, -0.085 + j * 0.17).rotation.y = (k - j) * 0.02;
   const dust = lam(0xc8aa78);
-  [[0.32, 0.15, 0.04, 0.14, 0.04], [0.42, 0.15, -0.06, 0.08, 0.025], [0.3, 0, -0.28, 0.16, 0.03]].forEach(([x, y, z, r, h]) => ycyl(g, 0.01, r, h, dust, x, y + h / 2, z, 9));
-  box(g, 0.22, 0.05, 0.16, HM.pine, 0.82, 0.025, -0.3).rotation.y = 0.5;
-  unfight(g); mergeInto(g, finePieces(g));
+  [[0.32, 0.15, 0.04, 0.14, 0.04], [0.42, 0.15, -0.06, 0.08, 0.025], [0.3, 0, -0.28, 0.16, 0.03]].forEach(([x, y, z, r, h]) => ycyl(wd, 0.01, r, h, dust, x, y + h / 2, z, 9));
+  box(wd, 0.22, 0.05, 0.16, HM.pine, 0.82, 0.025, -0.3).rotation.y = 0.5;
+  unfight(wd); mergeInto(wd, finePieces(wd));
   obstacle(18, 25, true); obstacle(19, 25, true);   // low, like the bench
-  STATIONS.push({ g, id: 'saw', name: 'Sawhorse', x: g.position.x, z: cxw(25) - 0.95 });
+  STATIONS.push({ g, id: 'saw', name: 'Sawhorse', x: g.position.x, z: cxw(25) - 0.95, wood: wd, metal: null });
   FURN.push({ g, id: 'saw', cells: [[18, 25], [19, 25]], low: true, face: [0, -1], st: STATIONS[STATIONS.length - 1] });
 
   // ---- medicine cabinet on the east wall: white enamel, a glazed door with the cross, drawers, a towel, supplies on top ----

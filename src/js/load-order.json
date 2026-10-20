@@ -71,6 +71,7 @@
   "zombies/wounds.js",
   "weapons/explosives.js",
   "barricades/planks.js",
+  "barricades/metal-bars.js",
   "player/vaulting.js",
   "player/vault-plan.js",
   "stations/recipes.js",

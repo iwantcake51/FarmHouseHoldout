@@ -12,7 +12,7 @@ function peekOf(V) {
 function sightTo(V, pk, wx, wz) {
   if (Math.hypot(wx - V.x, wz - V.z) <= 0.7 || los(V.x, V.z, wx, wz)) return 1;
   if (!pk) return 0;
-  const o = pk.o, nb = o.boards.length, far = Math.hypot(wx - o.x, wz - o.z);
+  const o = pk.o, nb = shutN(o), far = Math.hypot(wx - o.x, wz - o.z);
   // through the gaps between heavy boards you only make out what's close to the window
   if (((wx - o.x) * o.nx + (wz - o.z) * o.nz) * pk.side < -0.3 && (nb < 2 || far < 5.5) && los(o.x - o.nx * pk.side * 0.45, o.z - o.nz * pk.side * 0.45, wx, wz)) return nb === 0 ? 1 : nb === 1 ? 0.9 : nb === 2 ? 0.8 : 0.7;
   return 0;
@@ -21,7 +21,7 @@ function sightTo(V, pk, wx, wz) {
 let visKey = '', visAge = 0, visOn = false;   // (visOn: the fog's up, as it is unless you're down: zombies/zombie-visuals.js)
 function computeVision(on) {
   visOn = on;
-  let bsum = 0; for (const o of openings) bsum = bsum * 4 + o.boards.length;
+  let bsum = 0; for (const o of openings) bsum = bsum * 4 + shutN(o);
   const V = viewer();   // (you, or the teammate you're watching: net/spectate.js)
   const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), Math.round(V.aim * 48), V.cone, V.near, bsum, HOUSE_DOORS.key].join(',') : 'off';
   visAge += 0.07; if (key === visKey && visAge < 0.6) return;

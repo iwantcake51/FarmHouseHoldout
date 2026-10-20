@@ -72,8 +72,8 @@ const TIERS = {
     { r: 'r', name: 'Running shoes', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[1] },
     { r: 'e', name: 'Trail runners', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[2] }] },
   hammer: { tag: 'Tools', t: [
-    { r: 'u', name: 'Claw hammer', text: 'Each board takes half the time to nail up.', ap: () => S.boardSpeed *= 2 },
-    { r: 'u', name: 'Framing hammer', text: 'Boards go up quicker and take more blows before they break.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
+    { r: 'u', name: 'Claw hammer', get text() { return METAL.on ? 'Each board or grate takes half the time to put up.' : 'Each board takes half the time to nail up.'; }, ap: () => S.boardSpeed *= 2 },
+    { r: 'u', name: 'Framing hammer', get text() { return `${METAL.on ? 'Boards and grates' : 'Boards'} go up quicker and take more blows before they break.`; }, ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Quicker and tougher again.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [
     // wide eyes (what were Wide eyes and Peripheral vision): a much wider cone, its edges reaching a little way round

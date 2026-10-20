@@ -5,7 +5,7 @@
 // above the other on a longer stem.
 
 const BTIP_T = 7.5, BTIP_FADE = 0.6;
-const BTIP_TEXT = { bench: 'Upgrade and fit out your guns', saw: 'Cut planks to board up windows', med: 'Bandages and healing',
+const BTIP_TEXT = { bench: 'Upgrade and fit out your guns', get saw() { return METAL.on ? 'Cut metal and plate the grates' : 'Cut planks to board up windows'; }, med: 'Bandages and healing',
   radio: 'Call in a supply drop', rack: 'Unlock weapons, and swap to ones you have', box: 'Give scrap to a teammate' };
 const BTIP = { on: false, t: 0, gone: {}, els: null, top: {} };
 // a new run (ui/screens.js)

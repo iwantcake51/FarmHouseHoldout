@@ -50,6 +50,10 @@ const SFX = {
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
   // a board torn off hitting the ground: a hollow wooden clack
+  // steel: a blow on a grate ringing (v: how hard), a bar snapping off its weld, a piece of it hitting the ground
+  clang(v = 0.6) { const f = rr(0.9, 1.12); tn(0.22, 'triangle', 410 * f, 330 * f, 0.13 * v); tn(0.32, 'sine', 1180 * f, 1100 * f, 0.045 * v); tn(0.18, 'square', 2310 * f, 2200 * f, 0.012 * v); nz(0.07, 'bandpass', 3200 * f, 1600, 0.2 * v, 2.4); nz(0.05, 'lowpass', 600, 140, 0.18 * v); },
+  snapMetal() { nz(0.05, 'highpass', 4200, 2600, 0.3, 1); tn(0.12, 'triangle', rr(700, 820), 260, 0.14); setTimeout(() => tn(0.3, 'sine', rr(1500, 1700), 1450, 0.05), 20); },
+  metalDrop(v, plate) { const f = rr(0.85, 1.15) * (plate ? 0.8 : 1.3); tn(0.16, 'triangle', 520 * f, 360 * f, 0.12 * v); tn(0.24, 'sine', 1400 * f, 1300 * f, 0.04 * v); nz(0.06, 'bandpass', 2600 * f, 1300, 0.18 * v, 2.2); },
   plankDrop(v) { if (playS(['wood_hit_1', 'wood_hit_2'], { vol: 0.55 * v, rate: 1.15, gap: 0.04 })) return; tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },

@@ -157,7 +157,7 @@ function setWindows(keys, live) {
   for (const w of walls) {
     if (!w.win) continue;
     const on = keys.has(w.k), o = w.o; w.plain.visible = !on; w.win.visible = on;
-    while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.climbers = [];
+    clearBoards(o); o.climbers = [];
     cell[w.k] = on ? OPEN : WALL; openAt[w.k] = on ? o : null; if (live) blockArr[w.k] = on ? 0 : 1;
     if (on) openings.push(o);
   }

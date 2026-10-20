@@ -302,6 +302,7 @@ function stepDebris(list, dt) {
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
+        else if (c.kind === 'plate' || c.kind === 'bar') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 18) soundAt(g.position.x, g.position.z, () => SFX.metalDrop(Math.min(1, -c.vy / 4), c.kind === 'plate')); }   // (a grate coming apart: barricades/metal-bars.js)
         else if (c.kind === 'plank') { if (!c.quiet && c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
         else {
           if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }

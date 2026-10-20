@@ -132,18 +132,33 @@ const MED = [
   { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and no more slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
   ...['hands', 'dress', 'tonic'].map(medUpgrade)
 ];
-// the sawhorse: planks, and bracing the boards (braceCard)
+// the sawhorse: planks, and bracing the boards (braceCard); made over into the metalwork bench (barricades/metal-bars.js)
+// it cuts metal instead, a grate's worth (GRATE.cost) at a time, and plates the grates (grateCard)
+const cutCard = (n, cost, desc, m, mCost, mDesc) => ({ get ic() { return matKind(); }, full: stackFull, get cost() { return METAL.on ? mCost : cost; }, title: () => `Cut ${METAL.on ? m : n} ${matWord()}`,
+  desc: () => plankDesc(METAL.on ? m : n, METAL.on ? mDesc : desc), why: plankWhy, make: () => { feed(matKind(), addPlanks(METAL.on ? m : n), matWord()); popEl('planks'); } });
 const SAW = [
-  { ic: 'planks', full: stackFull, cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
-  { ic: 'planks', full: stackFull, cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
-  braceCard()
+  cutCard(2, 3, 'Enough for one more board', 3, 6, 'Enough to bar one window'),
+  cutCard(6, 8, 'Board up two whole windows', 9, 16, 'Bar three windows'),   // (metal dearer than planks: METAL in barricades/metal-bars.js)
+  braceCard(), grateCard()
 ];
+// plating the grates (GRATE, barricades/metal-bars.js): five tiers for the team, each a row more of steel plate bolted
+// over the outside of every grate, each dearer than the last; every grate is made good as it's done, and stronger
+function grateCard() {
+  const lv = () => METAL.tier, pct = n => Math.round(GRATE.tierHp * n * 100);
+  return { ic: 'metal', tier: () => [Math.min(lv(), GRATE.tiers), GRATE.tiers], gone: () => !METAL.on || lv() >= GRATE.tiers, get cost() { return GRATE.up[Math.min(lv(), GRATE.tiers - 1)]; },
+    title: () => 'Plate the grates ' + roman(Math.min(lv() + 1, GRATE.tiers)),
+    desc: () => `More plate on the grates, and they're repaired · +${pct(lv())}% → +${pct(lv() + 1)}% strength`, why: () => '',
+    make: () => {
+      applyMetal(true, lv() + 1, false); netMetal(); SFX.clang(0.8);
+      feed('metal', 0, 'Grates plated ' + roman(METAL.tier)); gotGear({ ic: 'metal', kind: 'Metalwork bench', name: 'Plate the grates ' + roman(METAL.tier), text: `Grates +${pct(METAL.tier)}% stronger.` });
+    } };
+}
 // bracing the boards (BRACE, barricades/planks.js): five levels, for good, each one making every board you put up
 // stronger, and the ones up now too (on a joiner's farm the host keeps the boards already up, so there it's only the
 // ones you put up from then on)
 function braceCard() {
   const lv = braceLv, done = () => lv() >= BRACE.max, pct = n => Math.round((braceMul(n) - 1) * 100);
-  return { ic: 'planks', tier: () => [Math.min(lv(), BRACE.max), BRACE.max], gone: done, get cost() { return BRACE.cost[Math.min(lv(), BRACE.max - 1)]; },
+  return { ic: 'planks', tier: () => [Math.min(lv(), BRACE.max), BRACE.max], gone: () => done() || METAL.on, get cost() { return BRACE.cost[Math.min(lv(), BRACE.max - 1)]; },
     title: () => 'Brace the boards ' + roman(Math.min(lv() + 1, BRACE.max)), desc: () => `Every board you put up, and the ones up now, ${Math.round(BRACE.step * 100)}% stronger for the rest of the run (+${pct(lv())}% → +${pct(lv() + 1)}%)`, why: () => '',
     make: () => {
       const r = braceMul(lv() + 1) / braceMul(); S.brace = lv() + 1;
@@ -159,7 +174,7 @@ const RECIPES = {
   get med() { return shown(MED); },
   // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
-    return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : 'A crate of ammo, planks, scrap and bandages lands in the yard', why: busyWhy,
+    return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : `A crate of ammo, ${matWord()}, scrap and bandages lands in the yard`, why: busyWhy,
       make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }];
   }
 };

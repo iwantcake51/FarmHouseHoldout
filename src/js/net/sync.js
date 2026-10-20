@@ -60,7 +60,7 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
@@ -79,10 +79,19 @@ NET_ON.w = m => {
   }
   // the doors between rooms: how beaten they are, the same pieces broken out of them (world/interior.js)
   if (m.dh) m.dh.forEach((h, k) => { const d = HOUSE_DOORS.list[k]; if (d && h < d.hp) { d.hp = h; doorWear(d, null); } });
+  // the metalwork bench and how far the grates are plated (the team's: barricades/metal-bars.js)
+  if (m.mt !== undefined && m.mt !== (METAL.on ? METAL.tier + 1 : 0)) applyMetal(m.mt > 0, Math.max(0, m.mt - 1), m.mt > 0 && !METAL.on);
   // the boards: how many on each opening and how worked loose they are (the host's word for it, unless one went up or
-  // came down here a moment ago and the host hasn't caught up yet)
+  // came down here a moment ago and the host hasn't caught up yet); a grate (gh: what it went up out of) is one
   m.b.forEach((hb, k) => {
     const o = openings[k]; if (!o || now < (o.netT || 0)) return;
+    const gh = m.g && m.g[k];
+    if (gh && hb.length) {
+      if (!o.grate) { clearBoards(o); addGrate(o, hb[0], 1, gh); }
+      else if (o.grate.tier !== METAL.tier) regrate(o);
+      o.grate.hp0 = gh; o.boards[0] = hb[0]; return;
+    }
+    if (o.grate && hb.length) clearBoards(o);   // (boards there in the host's game, a grate here: the host's goes)
     while (o.boards.length > hb.length) breakBoard(o, null);
     while (o.boards.length < hb.length) addBoard(o, hb[o.boards.length], 1);
     hb.forEach((h, q) => { o.boards[q] = h; });
@@ -103,7 +112,7 @@ function puppetBoard(z, dme) {
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
   if (z.atk > 0) return;
-  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z); boardJolt(o, z); shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)); }   // (a brute's smash, zombies/ai.js)
+  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z, true); if (!o.grate) boardJolt(o, z); shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)); }   // (a brute's smash, zombies/ai.js)
   else { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
@@ -180,9 +189,22 @@ NET_ON.nade = m => { if (state === 'title') return; const g = m.g; grenades.push
 function netBoardUp(o) {
   if (!netLink()) return;
   o.netT = performance.now() + 1500;
-  netSend('ba', { o: openings.indexOf(o), hp: Math.round(o.boards[o.boards.length - 1]), sd: Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1 });
+  const ba = { o: openings.indexOf(o), hp: Math.round(o.boards[o.boards.length - 1]), sd: Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1 };
+  if (o.grate) ba.gr = Math.round(o.grate.hp0);   // (a grate: what it went up out of)
+  netSend('ba', ba);
 }
-NET_ON.ba = m => { const o = openings[m.o]; if (!o || state === 'title' || o.boards.length >= 3) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd); };
+NET_ON.ba = m => {
+  const o = openings[m.o]; if (!o || state === 'title') return;
+  if (m.gr) { if (o.boards.length) return; o.netT = performance.now() + 1500; addGrate(o, m.hp, m.sd, m.gr); return; }
+  if (o.boards.length >= 3 || o.grate) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd);
+};
+// the metalwork bench built, or the grates plated a tier more, by anyone: the same on every screen (the host passes a
+// joiner's on to everyone, net/net.js; its snapshots, 'w', carry it too, for anyone who missed it)
+function netMetal() { if (netLink()) netSend('mtl', { lv: METAL.tier }); }   // (not t: that's the message's own type)
+NET_ON.mtl = m => {
+  if (state === 'title') return;
+  if (!METAL.on || m.lv > METAL.tier) applyMetal(true, Math.max(m.lv, METAL.tier), !METAL.on);
+};
 // (at: which side a board shot or torn down goes flying to, for one no zombie broke)
 // a door between rooms broken down in the host's game: down in everyone's (world/interior.js)
 // a stretch of the yard fence a brute knocked down (zombies/ai.js: bruteFence), knocked down on every screen
@@ -204,9 +226,9 @@ NET_ON.bs = m => {
   const at = { x: o.x + m.dx, z: o.z + m.dz, vis: visAt(o.x, o.z) };
   boardJolt(o, at); if (NET.host) hurtBoard(o, m.d, at);
 };
-// a joiner tearing a board down: the host breaks it, and its 'bb' breaks it everywhere, theirs included
+// a joiner tearing the boards down: the host breaks them all, and its 'bb's break them everywhere, theirs included
 function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x: nr(at.x), z: nr(at.z) }); }
-NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; const at = { x: m.x, z: m.z }; breakBoard(o, at); netBoardBroke(o, null, at); };
+NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
 NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };

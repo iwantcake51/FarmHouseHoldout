@@ -185,7 +185,7 @@ function updateZombies(dt) {
         // break a plain board outright, with a heavy crack you feel if you're near
         if (z.atk <= 0) {
           z.atk = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
-          soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z); boardJolt(attackingBoard, z);
+          soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z, true); if (!attackingBoard.grate) boardJolt(attackingBoard, z);
           shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1));
         }
       } else {
