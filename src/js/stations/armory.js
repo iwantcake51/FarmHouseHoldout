@@ -17,7 +17,7 @@ const ARMORY_LINES = [
 // what each costs to unlock, in scrap: dearer along its line, a good deal dearer for each better gun, and the heavy
 // ones at the ends (the auto shotgun, the assault rifle, the LMG) far dearer than anything else
 // (about 0.7 scrap a kill: some 170 by wave 10 and 400 by wave 15, before what the bench and the cabinet take)
-const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 40, scar: 100, ar: 150, lmg: 260, smg: 18, sub: 60,
+const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 40, scar: 100, ar: 90, lmg: 260, smg: 18, sub: 60,
   crowbar: 10, wrench: 24, sledge: 70, machete: 10, axe: 35, katana: 80 };
 const owns = id => W8.owned.includes(id);
 // each line's next weapon to unlock (null once it's all yours), and how far along it you are

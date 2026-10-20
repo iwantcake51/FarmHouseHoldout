@@ -30,6 +30,7 @@ function recomputeEff() {
     D.dmg *= AMMO_DMG[ammo];
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
+    else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
     else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
     else if (id === 'pump' && (S.tier.quick | 0) >= 2) { const q = S.tier.quick >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
@@ -62,7 +63,7 @@ const W = id => EFF[id];
 // carryMul). AK_ONE: one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
 // a gun whose bigger box costs it less than that: the SCAR's 20 takes about 45% longer to change than its 10
-const MAG_SLOW_OF = { scar: 0.45 };
+const MAG_SLOW_OF = { scar: 0.3 };
 // how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
 const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30], hunting: [1, 7 / 5, 10 / 5], scar: [1, 2] };   // (the MP5: a 40-round mag, then a 50-round drum; the rifle: 7 in its fixed mag extended, then a 10-round box; the SCAR: its 20-round box)
@@ -119,6 +120,8 @@ const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it
 const SOH = { shell: 0.8, shut: 0.75 };
+// the battle rifle's flared magwell (its loader step, upgrades/tier-table.js): what's left of a mag change with it
+const MAGWELL = 0.75;
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;

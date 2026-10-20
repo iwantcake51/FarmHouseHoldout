@@ -52,11 +52,12 @@ const TIERS = {
     { r: 'u', name: 'Taped flashlight', text: 'At night it lights the ground ahead and outlines zombies caught in the beam.', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider beam that reaches further.', ap: () => {} }] },
   // one step on each gun that takes it: the revolver's speed loader, all six rounds in at once from a loader you then
-  // drop (weapons/reload.js); on the double barrel a technique, nothing on the gun: Sleight of Hand, both shells palmed
+  // drop (weapons/reload.js); on the battle rifle a flared magwell round the bottom of its well (MAGWELL, game/run-state.js;
+  // weapons/gun-models.js); on the double barrel a technique, nothing on the gun: Sleight of Hand, both shells palmed
   // and pushed in together (game/run-state.js: SOH). (The pump's two or three shells a go come with Quick hands II and
   // III instead: PAIR_LOAD, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },

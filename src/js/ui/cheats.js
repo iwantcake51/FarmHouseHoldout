@@ -184,7 +184,7 @@ function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
   if (k === 'choke') return D.ammo === 'shells';
-  if (k === 'loader') return id === 'revolver' || !!D.breakOpen;
+  if (k === 'loader') return id === 'revolver' || id === 'scar' || !!D.breakOpen;
   return true;
 }
 // change the weapon, then let it take the change at once: a new magazine goes straight in, topped up

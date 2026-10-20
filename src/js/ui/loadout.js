@@ -28,7 +28,7 @@ function wlGroups(id) {
     out.push({ g: 'mag', label: 'Magazine', note: 'Swapping empties it', opts: Array.from({ length: n + 1 }, (_, t) => ({ k: 'mag', n: t, name: t ? line('mag', t) : 'Standard', sub: cap(t) + ' rounds' })) }); } }
   for (const k of ['sight', 'laser', 'light', 'loader']) {
     const n = ownTier(id, k); if (!n) continue;
-    const label = k === 'loader' && D.breakOpen ? 'Reload' : WL_LINE[k], off = { sight: 'Iron sights', laser: 'No laser', light: 'No light', loader: D.breakOpen ? 'One shell at a time' : 'Load by hand' }[k];
+    const label = k === 'loader' && (D.breakOpen || id === 'scar') ? 'Reload' : WL_LINE[k], off = { sight: 'Iron sights', laser: 'No laser', light: 'No light', loader: D.breakOpen ? 'One shell at a time' : id === 'scar' ? 'Standard magwell' : 'Load by hand' }[k];
     out.push({ g: k, label, opts: [{ k, n: 0, name: off }, ...Array.from({ length: n }, (_, i) => ({ k, n: i + 1, name: line(k, i + 1) }))] });
   }
   // every other mod on its own line, on or off (the Navy trigger group, the drum, the long barrel...)
