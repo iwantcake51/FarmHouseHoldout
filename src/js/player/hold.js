@@ -501,7 +501,7 @@ function cylHeads(cr, id) {
 // double barrel's Sleight of Hand, or two or three in a row down the palm for the pump with Quick hands II or III, thumbed up into the
 // tube one after another) or a rifle cartridge; carried from the pouch and pushed home along the bore
 const HSH = new THREE.Group(), HSH_S = [0, 1, 2].map(() => { const g = new THREE.Group(); cyl(g, 0.0115, 0.062, GM.shell, 0, 0, 0.002, 12); cyl(g, 0.0123, 0.012, GM.brass, 0, 0, -0.03, 12); HSH.add(g); return g; });
-const HSH_GAP = 0.026, HSH_FEED = [0.62, 0.72];   // shells' spacing in the hand; when a row of them is thumbed in, one after another
+const HSH_GAP = 0.026, HSH_FEED = [0.55, 0.97];   // shells' spacing in the hand; when a row of them is thumbed in, one after another (each counted in as it goes: weapons/reload.js)
 // a round loaded on its own: carried to the port till FEED_IN[0], lined up on it by FEED_IN[1] (out of the fingers), and
 // thumbed all the way in by FEED_IN[2], where it sits (its rim in the chamber's mouth, its head in the cylinder) till it counts; where it goes in (_feedAt) and the gun's axes there (_feedQ, _feedAx, _feedUp)
 const FEED_IN = [0.64, 0.7, 0.82], _feedAt = new V3(), _feedAx = new V3(), _feedUp = new V3(), _feedQ = new THREE.Quaternion(), _feedV = new V3();
@@ -1074,7 +1074,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // revolver's rounds). One on its own leaves the fingers at the port and is thumbed in: up into a pump's tube and on
     // forward, down into the rifle's well and forward under the bolt, along the bore into a barrel or a chamber of the
     // cylinder (FEED_IN). A row of shells (Sleight of Hand) is thumbed in one after another off the palm (HSH_FEED)
-    const rnd = D.ammo === 'rifle' || D.ammo === 'magnum', n = rnd ? 1 : Math.max(1, Math.min(D.loadN || 1, 3, magSize(id) - (W8.mag[id] || 0), reserveOf(id)));   // as many as are going in
+    const rnd = D.ammo === 'rifle' || D.ammo === 'magnum', n = rnd ? 1 : Math.min(3, W8.goN || Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id))));   // as many as are going in this go (fixed as it starts: weapons/reload.js)
     const feed = rel === 'shell' && rp > 0.12 && rp < (n === 1 ? 0.995 : HSH_FEED[1]);   // (one on its own stays where it went in till it's counted in: tickReload)
     HSH.visible = feed;
     if (feed) {

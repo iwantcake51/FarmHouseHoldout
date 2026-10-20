@@ -4,7 +4,7 @@ const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
-// (the supply crate off the radio, ammo for everything, in teal so it stands apart). A weapon lying on the ground, or in
+// (the supply crate off the radio, in teal so it stands apart). An ammo box holds one kind of round, the kind it shows. A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
 // purple epic, orange legendary (a weapon with none, the starting pistol and bat, is uncommon: grey is only for aid).
 // Every ammo box, whatever it holds, is the same bright brass yellow, a colour no other drop uses, so ammo reads as ammo
@@ -105,10 +105,11 @@ function updatePickups(dt) {
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
       else if (p.kind === 'supply') { flareDone(); ammoTypes().forEach(a => { W8.reserve[a] += AMMO_CAN[a]; feed('ammo', AMMO_CAN[a], AMMO_NAME[a]); }); const np = addPlanks(4); S.scrap += 6; const nb = Math.min(2, bandMax() - (P.band || 0)); P.band = (P.band || 0) + nb; if (np) { feed('planks', np, 'planks'); popEl('planks'); } feed('scrap', 6, 'scrap'); if (nb) { feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); } feed('supply', 0, 'Supply crate opened'); ft = 'Supplies'; SFX.crate(); }
       else {
-        // an ammo box has rounds for every gun you carry, whichever kind it looks like
-        const opts = ammoTypes();
-        opts.forEach(a => { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL * S.ammoMul * p.amount)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); if (!ft) ft = '+' + amt + ' ' + AMMO_NAME[a]; });
-        if (opts.length > 1) ft = '+Ammo for every gun'; else if (!opts.length) { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2'; }
+        // an ammo box holds the one kind it looks like (if you've let go of every gun that takes it since, whichever you
+        // carry now; with none at all, a little scrap)
+        const opts = ammoTypes(), a = opts.includes(p.ammoType) ? p.ammoType : opts[0];
+        if (a) { const amt = Math.max(1, Math.round(ammoAmt(a) * AMMO_PICKUP_MUL * S.ammoMul * p.amount)); W8.reserve[a] += amt; feed('ammo', amt, AMMO_NAME[a]); ft = '+' + amt + ' ' + AMMO_NAME[a]; }
+        else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2 scrap'; }
         SFX.pick();
       }
       floatText(p.x, p.z, ft, '#' + pickCol(p.kind, p.ammoType, p.cargo).toString(16).padStart(6, '0'));

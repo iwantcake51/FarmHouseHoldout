@@ -15,7 +15,7 @@ function freshStats() {
 function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relRing: null, shellsIn: 0, shellsNeed: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relRing: null, shellsIn: 0, shellsNeed: 0, goN: 0, goIn: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();
 }
@@ -111,9 +111,10 @@ const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75
 // the pump's shells a go with Quick hands II (PAIR_LOAD) and III (TRIPLE, Triple Load), each go that much of the time
 // one shell takes; and the revolver's reload with its speed loader (seconds; a round at a time it's D.perShell each, after REV_OPEN_T to
 // swing the cylinder out, and Quick hands takes no more than REV_QUICK off either: relMul, weapons/reload.js); and Triple Load, the pump's loader step: three shells a go,
-// each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: about twice as fast overall,
-// 6 shells in 1.3 s against 2.6 s)
-const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.36 }, PAIR_LOAD = { n: 2, t: 1.2 };
+// each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: nearly twice as fast overall,
+// 6 shells in about 1.4 s against 2.6 s). Each shell of a go is still thumbed in on its own, quick after the last
+// (weapons/reload.js: rowLoad)
+const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 };
 // Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it

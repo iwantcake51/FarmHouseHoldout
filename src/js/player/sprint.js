@@ -52,10 +52,13 @@ function sprintKey() { return keys.has('shift') || !!(usingTouch && tStick.L && 
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
 function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
 // a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
-// hands and a stop; it goes a little slower on the run, and so do you (RUN_RELOAD: the reload's pace, your speed)
-const RUN_RELOAD = { rel: 0.78, run: 0.87 };
+// hands and a stop; it goes a little slower on the run, the faster you're going the slower (RUN_RELOAD.rel of its pace
+// flat out, none of it lost at a walk: runRelK), and you go a touch slower for it (RUN_RELOAD.run of your speed)
+const RUN_RELOAD = { rel: 0.8, run: 0.95 };
 const rgReload = () => { const id = curId(), D = W(id); return !!D && !D.melee && id !== 'lmg'; };
 const runReloading = () => !!P.sprint && !!W8.reloading;
+// how far into a run you are while reloading: 0 at a walk, 1 flat out
+const runRelK = () => runReloading() ? clamp((Math.hypot(P.vx, P.vz) - WALK_SPEED) / (WALK_SPEED * (SPRINT.mul - 1)), 0, 1) : 0;
 // Run and gun, aiming within its arc of the way you're running: a sprint keeps the gun up, and it fires
 const rgArc = () => runGunOK() && Math.abs(angDiff(P.aim, ANIM.runYaw ?? P.aim)) < RG_ARC;
 function runGunning() { return !!P.sprint && rgArc(); }

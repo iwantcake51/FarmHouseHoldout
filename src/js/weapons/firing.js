@@ -54,6 +54,13 @@ const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
 // how far (m) from the point you aimed at a shotgun pellet can land and still hit that part (the head, the chest, a limb):
 // a little more than the part itself, as a pellet clipping its edge counts
 const PELLET_CORE = { head: 0.22, torso: 0.3, armL: 0.15, armR: 0.15, legL: 0.17, legR: 0.17 };
+// a pattern hasn't opened up yet close to the muzzle: how far the pellets are off where you aimed is taken down to
+// PAT_CLOSE.k of it at PAT_CLOSE.near metres and under, easing back to all of it by PAT_CLOSE.far, so a head you put the
+// crosshair on from close up takes most of the load
+const PAT_CLOSE = { k: 0.5, near: 1, far: 6 }, patTight = t => PAT_CLOSE.k + (1 - PAT_CLOSE.k) * smooth(clamp((t - PAT_CLOSE.near) / (PAT_CLOSE.far - PAT_CLOSE.near), 0, 1));
+// how far off where you aimed a round can land on a body you had the crosshair on and still hit the part you aimed at
+// (its spread, at that range, still counts: AIM_KEEP)
+const AIM_KEEP = 0.12;
 // each zombie a round goes through takes a quarter off what it does to the next
 const PIERCE_KEEP = 0.75;
 // how far off the thing you're looking at through the scope is
@@ -194,7 +201,11 @@ function gunFire(id, D, side) {
   for (let p = 0; p < pellets; p++) {
     // a shotgun's pattern is centred on what the crosshair sits on (the first pellet lands exactly there), not on the
     // ground under the cursor, which from this camera is off to one side of a zombie's head
-    const aimed = p === 0 && tgt, a = aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : (rand() - 0.5) * 2 * sp), dx = Math.sin(a), dz = Math.cos(a);
+    // (a lone round spreads like any other, even with the crosshair on a body: it still hits the part you aimed at if
+    // it lands near enough to it at that range, AIM_KEEP, so up close it goes where you put it, and further off it's off
+    // the mark by as much as its spread throws it, and so is anything on past it)
+    const one = pellets === 1, dev = one ? (rand() - 0.5) * 2 * sp : 0, aimed = p === 0 && tgt && (!one || Math.abs(Math.sin(dev)) * tgtT < AIM_KEEP);
+    const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : dev), dx = Math.sin(a), dz = Math.cos(a);
     let wallT = 26;
     for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
     wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
@@ -215,7 +226,7 @@ function gunFire(id, D, side) {
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
       // pattern scatters over the body as before (PELLET_CORE)
       let part = hits[k].part;
-      if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
+      if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) * patTight(hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
       if (!part && (m > 0 || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
       hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);

@@ -327,10 +327,11 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
 // an ammo box for your guns: most often for the one in your hands
 function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if (opts.length) dropPickup(x, z, 'ammo', amount, curA && rand() < 0.6 ? curA : pick(opts)); }
 // a kill's scrap, into yours there and then (only ever the killer's: a teammate's kill is played back without it,
-// net/sync.js), shown rising off the body and rolled into the counter
+// net/sync.js), shown rising off the body (the whole amount, marked (x2) and a brighter gold when Hoarder doubled it)
+// and rolled into the counter
 function killScrap(z, n, hoard) {
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
-  floatText(z.x, z.z, '+' + n + (hoard ? ' ×2' : '') + ' scrap', '#d4b25c');
+  floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c');
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
