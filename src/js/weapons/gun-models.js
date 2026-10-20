@@ -891,6 +891,16 @@ const GUN_MODELS = {
     [-1, 1].forEach(sd => { box(g, 0.004, 0.007, 0.03, K, X + sd * 0.029, 1.0915, 0.522).rotation.x = -0.25; });
     box(g, 0.003, 0.004, 0.05, K, R + 0.002, 1.0975, 0.603).rotation.x = 0.12;
     box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    // the flared magwell (its loader step, MAGWELL in game/run-state.js): a funnel round the bottom of the well, along its
+    // slanting foot, flaring out in two steps down each side, with a lip across the front and the back
+    if (T('loader')) {
+      const foot = z => 1.0163 + (z - 0.6311) * 0.1852, band = (z0, z1, a, b) => [[z0, foot(z0) - a], [z1, foot(z1) - a], [z1, foot(z1) - b], [z0, foot(z0) - b]];
+      [-1, 1].forEach(sd => {
+        profile(g, shp(band(0.626, 0.741, -0.004, 0.009)), 0.004, P, X + sd * 0.0295, 0.0008);
+        profile(g, shp(band(0.62, 0.747, 0.009, 0.018)), 0.004, P, X + sd * 0.0335, 0.0008);
+      });
+      [[0.6215, 0.07], [0.7455, 0.07]].forEach(([z, w]) => { const l = box(g, w, 0.02, 0.005, P, X, foot(z) - 0.007, z); l.rotation.x = z < 0.7 ? 0.2 : -0.2; });
+    }
     // ---- the stock, folded out on its hinge: the body and the ribbed pad, the sling hole through the butt, the line
     // where the cheek piece meets the arm under it; the hinge's knuckles on the right
     solid(g, SCAR.stock, 0.05, P, X, 0.006);
