@@ -33,6 +33,7 @@ function startWave() {
   spawnQ = buildWave(run.wave + 1);
   waveBegins(run.wave + 1, spawnQ.length);
   netSend('wave', { n: run.wave, tot: run.waveTotal });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+  spawnTurned();   // (and whoever went down last wave comes back out of the fog as one of them)
   surge.lull = 0; nextSurge();
 }
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does

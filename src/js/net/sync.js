@@ -21,18 +21,29 @@ function netTargets() {
   return TG;
 }
 const netAllDown = () => netTargets().every(q => q.dead);
+// ---- a teammate who goes down in a wave comes back in the next: out of the fog with its first zombies, a walker in
+// their own clothes and the armour they had (zTurned, zombies/zombie-looks.js). The host keeps who went down (TURN_Q,
+// by id: turnedDown, from screens.js for itself and avatars.js for the others) and sends them in as the next wave
+// starts (spawnTurned, waves/waves.js)
+const TURN_Q = new Set();
+function turnedDown(id) { if (netLink() && NET.host && phase === 'wave') TURN_Q.add(id); }
+function turnedOf(id) {
+  if (id === NET.id) return LOOK.cur ? { look: LOOK.cur, gear: gearSpec() } : undefined;
+  const p = NET.peers.get(id); return p && p.look ? { look: p.look, gear: p.lo && p.lo.gear } : undefined;
+}
+function spawnTurned() { if (netLink() && NET.host) for (const id of TURN_Q) if (turnedOf(id)) netSpawn('walker', id); TURN_Q.clear(); }
 
-// ---- zombies coming in: the host's seed, so the same one comes in everywhere
-function netSpawn(type) {
+// ---- zombies coming in: the host's seed, so the same one comes in everywhere (tu: the teammate it was, if it was one)
+function netSpawn(type, tu) {
   if (!netLink()) return spawnZombie(type);
   const s = (Math.random() * 4294967296) >>> 0, id = ++zSeq;
-  withSeed(s, () => spawnZombie(type)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
-  netSend('zs', { id, ty: type, s, wv: run.wave });
+  withSeed(s, () => spawnZombie(type, tu ? turnedOf(tu) : undefined)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
+  netSend('zs', { id, ty: type, s, wv: run.wave, tu: tu || undefined });
 }
 NET_ON.zs = m => {
   if (NET.host || !netLink()) return;
   const wv = run.wave; run.wave = m.wv;
-  withSeed(m.s, () => spawnZombie(m.ty)); run.wave = wv;
+  withSeed(m.s, () => spawnZombie(m.ty, m.tu ? turnedOf(m.tu) : undefined)); run.wave = wv;
   const z = zombies[zombies.length - 1]; z.id = m.id; NZ.set(m.id, z); z.nx = z.x; z.nz = z.z; z.nf = z.face;
 };
 // a climb over a fence or in at a window starts on the host: the same climb (its seed) plays out here
