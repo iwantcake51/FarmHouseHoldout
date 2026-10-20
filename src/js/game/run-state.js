@@ -44,7 +44,7 @@ function recomputeEff() {
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
-    D.magX = D.mag && WEAP[id].mag ? D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own
+    D.magX = D.mag && WEAP[id].mag ? D.mag / ((D.ownMag || WEAP[id].mag) * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own (ownMag: a mod's own mag, the AK kit's)
     if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + (MAG_SLOW_OF[id] ?? MAG_SLOW) * Math.log2(D.magX);
     if (D.akimbo) D.reload *= AK_ONE;
     // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after

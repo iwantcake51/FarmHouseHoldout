@@ -81,7 +81,7 @@ const BENCH = [
 // same band as the attachments above); improving one costs 10 for level II and 13 for level III. One that makes the
 // weapon hit harder costs more (dmgCost)
 const TINKER_NEW = { c: 10, u: 12, r: 14, e: 16, l: 18 }, TINKER_UP = [0, 10, 13];
-const tinkerNew = (m, id) => { const c = TINKER_NEW[MODS[m].r] || 14; return hitsHarder(id, MODS[m].stat) ? dmgCost(id, c) : c; };
+const tinkerNew = (m, id) => { if (MODS[m].cost) return MODS[m].cost; const c = TINKER_NEW[MODS[m].r] || 14; return hitsHarder(id, MODS[m].stat) ? dmgCost(id, c) : c; };   // (a mod with a price of its own, the AK kit's, costs that)
 const tinkerUp = (m, id) => { const c = TINKER_UP[modLv(m)] || 14; return hitsHarder(id, MOD_UP[m].up) ? dmgCost(id, c, modLv(m)) : c; };
 // a melee mod that makes the weapon long enough to sweep through more than one zombie says so on its card
 function multiNote(id, apply) {

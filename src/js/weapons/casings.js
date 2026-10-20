@@ -226,6 +226,7 @@ function dropMag(id, side) {
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') { if (mt >= 1) dr = { r: 0.114, t: 0.078, ax: 'z' }; else { w = 0.05; h = 0.215; d = 0.095; } }   // the drum, or its box
   else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = 'olive'; }
+  else if (id === 'scar' && D.akKit) { w = 0.05; h = 0.25; d = 0.09; mat = 'poly'; }   // (the AK kit's curved 30-rounder: gun-models.js, AKM_KIT)
   else if (id === 'scar') { w = 0.048; h = mt ? 0.18 : 0.105; d = 0.104; mat = 'fdeP'; }
   // an akimbo pair's left gun drops its own mag, from its own hand
   if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }

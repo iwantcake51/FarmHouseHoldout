@@ -424,6 +424,22 @@ const SCAR = {
   ports: [[1.301, 1.324], [1.327, 1.3467]],   // the brake's two side ports (z), open right through
   mlok: [0.8533, 0.8933, 0.9055, 0.9463, 0.9555, 0.997, 1.0084, 1.0499, 1.0607, 1.1021, 1.1129, 1.1544]   // the handguard's slots, each a z0, z1
 };
+// the battle rifle with its AK conversion kit (akkit, weapons/gun-mods.js). The lower, off the side-on render of the HANDL
+// kit on a SCAR, scaled to the traced SCAR by its trigger guard (trace-photo: .claude/skills/trace-photo): the same guard
+// and grip, and in front of the guard the AK magwell's rounded mouth, an arc (arc) sweeping up and forward from the
+// guard's front to meet the upper, with a raised rim round it (rim, how far up it reaches), the mag going up into it.
+// The mag: a 30-round polymer AK mag traced off a side-on photo (scaled to its 66 mm depth, the 7.62x39 round's length
+// and its walls; within a pixel of the photo's edge, its ribbed spine and all), turned tilt degrees forward of the
+// photo's upright and set where the render has it, its top up in the well; its waffle (the crossbars and the two lines
+// down it, laid out off the photo's grid between its traced edges: ribs) and the seam over its floor plate (seam)
+const AKM_KIT = {
+  arc: [[0.637, 1.0275], [0.6448, 1.0373], [0.6507, 1.0431], [0.6605, 1.051], [0.6702, 1.0588], [0.6839, 1.0666], [0.6996, 1.0764], [0.7152, 1.0842], [0.729, 1.0901], [0.7427, 1.094], [0.7544, 1.0979], [0.77, 1.1018]], rim: 0.011,
+  lo: [[0.4497, 1.1141], [0.7745, 1.1141], [0.7745, 1.104], [0.77, 1.1018], [0.7544, 1.0979], [0.7427, 1.094], [0.729, 1.0901], [0.7152, 1.0842], [0.6996, 1.0764], [0.6839, 1.0666], [0.6702, 1.0588], [0.6605, 1.051], [0.6507, 1.0431], [0.6448, 1.0373], [0.637, 1.0275], [0.6315, 1.022], [0.6311, 1.0163], [0.6125, 1.0158], [0.5489, 1.0158], [0.5462, 1.0175], [0.5462, 1.0773], [0.4497, 1.0774]],
+  tilt: 28,
+  mag: [[0.7861, 0.8497], [0.7889, 0.8515], [0.7912, 0.8543], [0.821, 0.8962], [0.8236, 0.9005], [0.8323, 0.9125], [0.8337, 0.9155], [0.8343, 0.9184], [0.831, 0.9214], [0.8277, 0.9239], [0.8252, 0.9243], [0.8231, 0.9257], [0.8212, 0.9261], [0.8194, 0.9272], [0.8181, 0.9285], [0.8171, 0.9305], [0.8145, 0.9327], [0.8124, 0.9333], [0.8111, 0.9343], [0.8095, 0.9359], [0.8086, 0.9377], [0.8064, 0.9401], [0.8037, 0.9413], [0.8012, 0.9436], [0.8004, 0.9458], [0.7982, 0.948], [0.7947, 0.9504], [0.7931, 0.9521], [0.7921, 0.9546], [0.7901, 0.9568], [0.7882, 0.9577], [0.7872, 0.9586], [0.7856, 0.9608], [0.7849, 0.963], [0.7832, 0.9652], [0.781, 0.9665], [0.7791, 0.9687], [0.7777, 0.9722], [0.7756, 0.975], [0.7735, 0.9766], [0.7718, 0.9791], [0.7716, 0.9808], [0.77, 0.9835], [0.769, 0.9848], [0.7677, 0.9854], [0.7657, 0.9885], [0.7654, 0.9907], [0.7636, 0.994], [0.7618, 0.9953], [0.7608, 0.9967], [0.7599, 0.9988], [0.7593, 1.0016], [0.7578, 1.0044], [0.7562, 1.0056], [0.7551, 1.0078], [0.7546, 1.011], [0.7531, 1.0143], [0.7513, 1.0159], [0.7503, 1.018], [0.75, 1.0195], [0.7501, 1.021], [0.7493, 1.0231], [0.7484, 1.0251], [0.7469, 1.0266], [0.746, 1.0291], [0.7459, 1.0316], [0.7449, 1.0351], [0.7429, 1.0377], [0.7422, 1.0406], [0.7423, 1.0427], [0.7415, 1.0456], [0.7395, 1.0489], [0.7391, 1.0508], [0.7394, 1.0525], [0.739, 1.0551], [0.7383, 1.0574], [0.737, 1.0593], [0.7365, 1.0613], [0.7369, 1.0642], [0.7363, 1.0671], [0.7346, 1.071], [0.7344, 1.0726], [0.735, 1.0738], [0.7347, 1.0761], [0.7351, 1.0769], [0.7329, 1.0828], [0.7322, 1.0875], [0.7309, 1.0908], [0.7312, 1.0943], [0.7315, 1.094], [0.732, 1.0948], [0.7328, 1.0944], [0.7342, 1.0954], [0.7326, 1.0969], [0.7325, 1.1002], [0.733, 1.1024], [0.7326, 1.103], [0.651, 1.0596], [0.657, 1.043], [0.6591, 1.0346], [0.6607, 1.0323], [0.6616, 1.0288], [0.6612, 1.0261], [0.6623, 1.0225], [0.6639, 1.0207], [0.6648, 1.0185], [0.6651, 1.0168], [0.6648, 1.0145], [0.6652, 1.0129], [0.6663, 1.0102], [0.6676, 1.009], [0.6684, 1.0074], [0.6691, 1.0052], [0.6689, 1.0027], [0.6703, 0.9989], [0.6723, 0.9967], [0.6736, 0.9935], [0.6736, 0.9903], [0.6751, 0.987], [0.6772, 0.985], [0.6785, 0.982], [0.6784, 0.9796], [0.68, 0.9758], [0.6807, 0.9749], [0.6822, 0.9738], [0.6839, 0.9705], [0.684, 0.968], [0.6855, 0.9648], [0.6863, 0.9636], [0.6877, 0.9627], [0.6885, 0.9617], [0.6899, 0.959], [0.69, 0.9564], [0.6921, 0.9529], [0.694, 0.9517], [0.6953, 0.9498], [0.6963, 0.948], [0.6962, 0.946], [0.6979, 0.943], [0.6989, 0.9418], [0.701, 0.9404], [0.7029, 0.9375], [0.703, 0.9353], [0.7042, 0.9333], [0.7058, 0.9311], [0.7073, 0.9306], [0.7082, 0.9296], [0.7101, 0.9268], [0.7105, 0.9243], [0.713, 0.921], [0.7151, 0.92], [0.7165, 0.9182], [0.7176, 0.9165], [0.7179, 0.9145], [0.7194, 0.9126], [0.7209, 0.9108], [0.7229, 0.9101], [0.7246, 0.9081], [0.7256, 0.9066], [0.7259, 0.9048], [0.7285, 0.9016], [0.7293, 0.9009], [0.7309, 0.9005], [0.7333, 0.8981], [0.734, 0.897], [0.7343, 0.8952], [0.7353, 0.894], [0.7377, 0.8916], [0.7397, 0.891], [0.742, 0.8888], [0.7433, 0.8858], [0.746, 0.8829], [0.7487, 0.882], [0.7509, 0.88], [0.7518, 0.8789], [0.7523, 0.8771], [0.7547, 0.8748], [0.7559, 0.8737], [0.7581, 0.8732], [0.7604, 0.8712], [0.7612, 0.8703], [0.7618, 0.8686], [0.7632, 0.8672], [0.7651, 0.8656], [0.7675, 0.8651], [0.7686, 0.8643], [0.7709, 0.8622], [0.7715, 0.8605], [0.7726, 0.8595], [0.7752, 0.8575], [0.7774, 0.8572], [0.7786, 0.8564], [0.7805, 0.8549], [0.7818, 0.8527], [0.7833, 0.8523], [0.7834, 0.8513]],
+  ribs: [[0.6628, 1.0437, 0.7281, 1.0784], [0.6676, 1.0254, 0.7313, 1.0593], [0.6744, 1.0082, 0.7366, 1.0413], [0.6801, 0.9904, 0.742, 1.0233], [0.6888, 0.9742, 0.7496, 1.0065], [0.6964, 0.9574, 0.7587, 0.9905], [0.707, 0.9421, 0.7677, 0.9744], [0.7164, 0.9263, 0.7797, 0.96], [0.7289, 0.9121, 0.7921, 0.9457], [0.7402, 0.8973, 0.8054, 0.9319], [0.7547, 0.8842, 0.8231, 0.9205], [0.7053, 1.0663, 0.7091, 1.0475], [0.7091, 1.0475, 0.715, 1.0298], [0.715, 1.0298, 0.7205, 1.0119], [0.7205, 1.0119, 0.7285, 0.9952], [0.7285, 0.9952, 0.737, 0.9789], [0.737, 0.9789, 0.7466, 0.9632], [0.7466, 0.9632, 0.7576, 0.9482], [0.7576, 0.9482, 0.7701, 0.934], [0.7701, 0.934, 0.7826, 0.9199], [0.7826, 0.9199, 0.7992, 0.9078], [0.6803, 1.053, 0.6846, 1.0344], [0.6846, 1.0344, 0.6909, 1.017], [0.6909, 1.017, 0.6966, 0.9991], [0.6966, 0.9991, 0.7049, 0.9827], [0.7049, 0.9827, 0.7129, 0.9662], [0.7129, 0.9662, 0.7231, 0.9507], [0.7231, 0.9507, 0.7332, 0.9353], [0.7332, 0.9353, 0.7457, 0.9211], [0.7457, 0.9211, 0.7576, 0.9066], [0.7576, 0.9066, 0.7731, 0.8939]],
+  seam: [0.7478, 0.8839, 0.8228, 0.9238]
+};
 const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
 const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
 const GUN_MODELS = {
@@ -864,7 +880,7 @@ const GUN_MODELS = {
   // their stippled panels; the pencil barrel and the two-port brake (gone under a can); the flip-up sights, standing till
   // an optic goes on the rail, then folded flat. The magazine: the short 10-round box, or the 20 (MAG_UP, game/run-state.js)
   scar(g, m) {
-    const { y0, top: UT, rt: RT } = SCAR, mt = T('mag'), sight = T('sight'), mg = g.userData.magG || g;
+    const { y0, top: UT, rt: RT } = SCAR, mt = T('mag'), sight = T('sight'), mg = g.userData.magG || g, ak = !!m.akkit, LO = ak ? AKM_KIT.lo : SCAR.lo;
     const U = GM.fde, P = GM.fdeP, G = GM.fdeG, K = GM.poly, W = 0.058, R = X - W / 2;   // (R: its right-hand face)
     // ---- the upper: the port through it on the right (plugged on the left, a dark wall down the middle), the bolt
     // carrier showing in it; the rail and its slots; the handguard's slots, both sides
@@ -883,17 +899,20 @@ const GUN_MODELS = {
     cyl(ch, 0.0075, 0.02, K, R - 0.009, 1.1681, 0.811, 14).rotation.set(0, 0, Math.PI / 2); box(ch, 0.008, 0.007, 0.012, K, R - 0.002, 1.1681, 0.811);
     // ---- the lower: the guard (narrow, its opening traced), the body and the wider magwell over it; the trigger,
     // the selector (both sides), the bolt release and the mag release paddle
-    solid(g, SCAR.lo, 0.03, P, X, 0.002, [shp(inset(SCAR.guard, -0.002))]);
-    solid(g, clipTo(SCAR.lo, [[0.44, 1.062], [0.78, 1.062], [0.78, 1.12], [0.44, 1.12]]), 0.052, P, X, 0.004);
-    solid(g, clipTo(SCAR.lo, [[0.632, 1.0], [0.78, 1.0], [0.78, 1.12], [0.632, 1.12]]), 0.056, P, X, 0.004);
+    // (with the AK kit, its lower: AKM_KIT)
+    solid(g, LO, 0.03, P, X, 0.002, [shp(inset(SCAR.guard, -0.002))]);
+    solid(g, clipTo(LO, [[0.44, 1.062], [0.78, 1.062], [0.78, 1.12], [0.44, 1.12]]), 0.052, P, X, 0.004);
+    solid(g, clipTo(LO, [[0.632, 1.0], [0.78, 1.0], [0.78, 1.12], [0.632, 1.12]]), ak ? 0.06 : 0.056, P, X, 0.004);
+    if (ak) { const A = AKM_KIT.arc; solid(g, [...A, ...A.map(([z, yy]) => [z, yy + AKM_KIT.rim]).reverse()], 0.066, P, X, 0.003); }   // (the rim round the AK well's rounded mouth)
     profile(g, shp(SCAR.trig), 0.007, K, X, 0.0008);
     cyl(g, 0.0062, 0.058, K, X, 1.0915, 0.534, 14).rotation.set(0, 0, Math.PI / 2);
     [-1, 1].forEach(sd => { box(g, 0.004, 0.007, 0.03, K, X + sd * 0.029, 1.0915, 0.522).rotation.x = -0.25; });
     box(g, 0.003, 0.004, 0.05, K, R + 0.002, 1.0975, 0.603).rotation.x = 0.12;
-    box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    if (!ak) box(g, 0.004, 0.022, 0.018, K, R - 0.0005, 1.077, 0.628).rotation.x = 0.5;
+    else { const pd = box(g, 0.026, 0.0035, 0.022, K, X, 1.026, 0.6445); pd.rotation.x = -0.45; box(g, 0.012, 0.01, 0.004, K, X, 1.031, 0.639); }   // the AK paddle release, behind the mag
     // the flared magwell (its loader step, MAGWELL in game/run-state.js): a funnel round the bottom of the well, along its
     // slanting foot, flaring out in two steps down each side, with a lip across the front and the back
-    if (T('loader')) {
+    if (T('loader') && !ak) {
       const foot = z => 1.0163 + (z - 0.6311) * 0.1852, band = (z0, z1, a, b) => [[z0, foot(z0) - a], [z1, foot(z1) - a], [z1, foot(z1) - b], [z0, foot(z0) - b]];
       [-1, 1].forEach(sd => {
         profile(g, shp(band(0.626, 0.741, -0.004, 0.009)), 0.004, P, X + sd * 0.0295, 0.0008);
@@ -917,11 +936,21 @@ const GUN_MODELS = {
     // ---- the magazine (in the mag group, so the reload drops it): the 20-round box traced off the 17S, or the short
     // 10 (off the 20S's photos: the same box, its foot UP higher, standing only a little below the well), the flutes down
     // its sides, the base plate under the dark seam slanting across it
+    if (ak) {
+      // the 30-round AK mag, traced (AKM_KIT): its body, the waffle's ribs standing proud of both sides, the seam over the
+      // floor plate
+      solid(mg, AKM_KIT.mag, 0.05, K, X, 0.003);
+      const rib = ([z0, y0, z1, y1], mat, h) => [-1, 1].forEach(sd => { const b = box(mg, 0.0016, h, Math.hypot(z1 - z0, y1 - y0), mat, X + sd * 0.0252, (y0 + y1) / 2, (z0 + z1) / 2); b.rotation.x = -Math.atan2(y1 - y0, z1 - z0); });
+      AKM_KIT.ribs.forEach(r => rib(r, GM.hgPoly, 0.0024));
+      rib(AKM_KIT.seam, GM.rubber, 0.0018);
+    }
     const up = mt ? 0 : 0.075, dn = ([z, yy]) => [z, yy < 0.95 ? yy + up : yy];
+    if (!ak) {
     solid(mg, SCAR.mag.map(dn), 0.048, P, X, 0.003);
     [0.6556, 0.6864, 0.7268].forEach(z => box(mg, 0.0505, 0.09 - up, 0.0035, P, X, 0.985 + up / 2, z));
     solid(mg, [[0.6315, 0.9268], [0.734, 0.9262], [0.7342, 0.9164], [0.7301, 0.9142], [0.6833, 0.9117], [0.6365, 0.9134], [0.6315, 0.9224]].map(dn), 0.052, P, X, 0.003);
     { const a = dn([0.6318, 0.9262]), b = dn([0.7335, 0.9395]), sm = box(mg, 0.0525, 0.0024, Math.hypot(b[0] - a[0], b[1] - a[1]), K, X, (a[1] + b[1]) / 2, (a[0] + b[0]) / 2); sm.rotation.x = -Math.atan2(b[1] - a[1], b[0] - a[0]); }
+    }
     // ---- the barrel, turned, and the brake on it: its two ports open right through (bridged over the top and under the
     // bottom, the bore dark between); a can threads on in its place
     lathe(g, SCAR.barrel, GM.blued, X, y0, 24);
@@ -949,7 +978,7 @@ const GUN_MODELS = {
       cyl(g, two ? 0.021 : 0.017, 0.004, GM.lens, lx, ly, lz + 0.087); if (two) ring(g, 0.015, 0.014, GM.rubber, lx, ly, lz - 0.067);
     }
     const big = sight >= 5;
-    return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
+    return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.69 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
       laser: { y: 1.0982, z: 1.112 }, noLight: true, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front

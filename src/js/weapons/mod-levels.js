@@ -46,12 +46,15 @@ const modsOff = id => (W8.modOff && W8.modOff[id]) || [];
 const modIsOff = m => modsOff(MODS[m].w).includes(m);
 const modOffer = m => !hasMod(m) && !modIsOff(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
 // one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
+// a line a fitted mod has taken the place of (the AK kit's mag and magwell: weapons/gun-mods.js), and that mod
+const modLocks = (id, k) => (W8.mods[id] || []).find(m => MODS[m].locks && MODS[m].locks.includes(k)) || null;
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
 function addMod(id, m) {
   const r = MODS[m].replaces;
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
   if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
+  (MODS[m].locks || []).forEach(k => fitTier(id, k, 0));   // (what it takes the place of comes off: the AK kit's mag and magwell)
   recomputeEff();
 }
 // take a mod off a gun or put it back. Off, the mod it replaced comes back on (you had it), what needs it comes off with
@@ -66,7 +69,7 @@ function setMod(id, m, on) {
   } else {
     if (!hasMod(m)) return;
     W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
-    if (W8.fm[id] === m) W8.fm[id] = null;
+    if (W8.fm[id] === m || (M.semi && W8.fm[id] === 'semi')) W8.fm[id] = null;
     if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
     W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
     recomputeEff();
@@ -83,6 +86,7 @@ function fireModeOf(id) {
   if (D.burst) return { k: 'burst', t: 'Burst ' + D.burst, n: D.burst };
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
+  if (D.akKit) return { k: 'auto', t: 'Auto' };   // (the battle rifle's AK conversion: weapons/gun-mods.js)
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
   if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
@@ -92,10 +96,10 @@ function fireModeOf(id) {
 // modes a gun has out of the box, besides its own: the assault rifle's selector has semi (SEMI: steadier single shots,
 // game/run-state.js)
 const OWN_MODES = { ar: ['semi'] };
-function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
+function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...((W8.mods[id] || []).some(m => MODS[m].semi) ? ['semi'] : []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }   // (semi: a mod that makes it an automatic, with a semi setting)
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;
   const next = modes[(modes.indexOf(W8.fm[id] || null) + 1) % modes.length];
   W8.fm[id] = next; W8.burstLeft = 0; recomputeEff();
-  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' ? 'Full auto' : 'Single shots';
+  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' || W(id).akKit ? 'Full auto' : 'Single shots';
 }
