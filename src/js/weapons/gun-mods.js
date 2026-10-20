@@ -22,15 +22,17 @@ const DART_BLEED = 1.5;
 // flared magwell come off while it's on, and can't go back on till it's off (locks: addMod, upgrades/upgrades.js:
 // tierFits, ui/loadout.js). Dear (cost), and a single step, no levels
 const AKKIT = { dmg: 0.52, rate: 0.115, mag: 30, reload: 1.9, spread: 2.6, kick: 0.5, shake: 0.45, stagger: 0.55, brute: 0.4, cost: 34 };
+// a mod that turns the gun into something else (conv: the AK kit, the burst conversion, a second gun, the sawn-off) is
+// sold at the top of the workbench with the tune-up, not down among the gun's upgrades (stations/recipes.js)
 const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Tighter, harder-hitting shots that keep more of their damage at range.', vis: 'A longer, heavier slide', stat: D => { D.spread *= 0.7; D.dmg *= 1.15; D.reach = (D.reach || 1) + 0.3; } },
-  burst: { w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
+  burst: { conv: true, w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
   // the auto sear is the burst conversion's third step (MOD_LINE, weapons/mod-levels.js): it goes in once that's at level
   // II and adds full auto alongside the burst, so B steps from single shots to the burst to full auto
   // full auto: the pistol's own pace cut to AUTO_SEAR.rate of it (so whatever else quickens the pistol quickens it too), and
   // in full auto every trigger step counts AUTO_SEAR.trig times over (game/run-state.js)
   auto: { w: 'pistol', r: 'r', fm: 'Full auto', need: 'burst', needLv: 2, name: 'Auto sear', text: 'Adds full auto alongside the burst: hold to fire. B steps from single shots to burst to full auto. Trigger upgrades count double in full auto.', vis: 'A longer selector lever', stat: D => { D.rate *= AUTO_SEAR.rate; D.spread *= 1.45; D.fullAuto = true; } },
-  akimbo: { w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; D.spread *= AK_SPREAD; } },
+  akimbo: { conv: true, w: 'pistol', r: 'e', name: 'Second pistol', text: 'A pistol in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.55; D.mag *= 2; D.spread *= AK_SPREAD; } },
   // named for its length at each level, as the model grows (weapons/gun-models.js: snub, then 4", 6" and 8")
   longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: 'Hits harder and keeps its damage much further out.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.25; D.reach = (D.reach || 1) + 0.4; } },
   // no mode to switch: from the hip you fan it (hold the trigger, the shots come almost 3× as fast and far wilder),
@@ -39,11 +41,11 @@ const GUN_MODS = {
   // (the shoulder stock, stations/recipes.js, is what tames a sidearm's kick: the compensator only tightens it)
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Holds the muzzle down: less spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
   slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires as you pump, so it goes quicker, a touch looser.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
-  sawn: { w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
+  sawn: { conv: true, w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', fm: 'Both barrels', name: 'Twin trigger', text: 'Fire both barrels at once, or one at a time: B switches.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
   // a single step, no levels (it has no MOD_UP: weapons/mod-levels.js)
   bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'The bolt slicked with gun grease runs smoother: 20% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.8; } },
-  akimbo2: { w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
+  akimbo2: { conv: true, w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)
   navy: { w: 'sub', r: 'u', fm: 'Burst', name: 'Navy trigger group', text: 'Adds a 3-round burst (B switches), quicker and tighter than full auto.', vis: 'A burst-marked selector', stat: D => { D.burst = 3; D.rate = 0.3; D.spread *= 0.75; } },
@@ -52,6 +54,6 @@ const GUN_MODS = {
   well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well, so mag changes go a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder and spreads less.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } },
-  akkit: { w: 'scar', r: 'l', cost: AKKIT.cost, semi: true, locks: ['mag', 'loader'], name: 'AK conversion kit', text: `A new lower for 30-round AK mags and full auto (B for semi). Lighter rounds that stagger less, but ${AKKIT.mag} in the gun and half the kick. Takes the place of the 20-round mag and the flared magwell.`, vis: 'An AK lower and a curved 30-round mag',
+  akkit: { conv: true, w: 'scar', r: 'l', cost: AKKIT.cost, semi: true, locks: ['mag', 'loader'], name: 'AK conversion kit', text: `A new lower for 30-round AK mags and full auto (B for semi). Lighter rounds that stagger less, but ${AKKIT.mag} in the gun and half the kick. Takes the place of the 20-round mag and the flared magwell.`, vis: 'An AK lower and a curved 30-round mag',
     stat: D => { D.akKit = true; D.dmg *= AKKIT.dmg; D.rate = AKKIT.rate; D.mag = D.ownMag = AKKIT.mag; D.reload = AKKIT.reload; D.spread *= AKKIT.spread; D.kick *= AKKIT.kick; D.shake *= AKKIT.shake; D.stagger *= AKKIT.stagger; D.bruteStagger *= AKKIT.brute; D.bruteX = 1 + (D.bruteX - 1) * AKKIT.brute; } }
 };

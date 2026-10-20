@@ -90,11 +90,14 @@ function multiNote(id, apply) {
   const t = multiHit(D0, D1) || ((D1.cleave || 1) > (D0.cleave || 1) ? { t: `+ Hits ${D1.cleave} at once` } : null);
   return t ? ' · ' + t.t : '';
 }
-function tinkerCards() {
+// conv: only the mods that turn the gun into something else (a conversion kit, a second gun), which sit at the top of the
+// bench with the tune-up, out of the group; otherwise the rest, in the group
+function tinkerCards(conv = false) {
   const id = curId(), D = id && W(id); if (!D) return [];
-  const group = gearGroup(D), out = [];
-  modsFor(id).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
+  const out = [], group = conv ? undefined : gearGroup(D);
+  modsFor(id).filter(m => !MODS[m].conv === !conv).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
     make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); glowGun(id); feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
+  if (conv) return out;
   modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); glowGun(id); feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
   return out;
@@ -132,7 +135,7 @@ const MED = [
 // an upgrade you can't take any more of (gone: tuned already, a cabinet upgrade at its top level) isn't shown at all
 const shown = list => list.filter(r => !(r.gone && r.gone()));
 const RECIPES = {
-  get bench() { return shown(BENCH).concat(gunTierCards(), tinkerCards(), attachmentCards()); },
+  get bench() { return shown(BENCH).concat(tinkerCards(true), gunTierCards(), tinkerCards(), attachmentCards()); },
   saw: [
     { ic: 'planks', full: stackFull, cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
     { ic: 'planks', full: stackFull, cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
