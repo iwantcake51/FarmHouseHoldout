@@ -416,6 +416,39 @@ function beltJiggle(belt, h, rdt) {
   BJ.a.set(clamp(BJ.a.x, -0.01, 0.01), clamp(BJ.a.y, -0.01, 0.01), clamp(BJ.a.z, -0.004, 0.004)); BJ.b.set(clamp(BJ.b.x, -0.004, 0.004), clamp(BJ.b.y, -0.004, 0.004), clamp(BJ.b.z, -0.002, 0.002));   // the ripple stays small, so the links stay hooked
   const n = belt.length; belt.forEach((r, k) => { const s = (k + 0.5) / n; r.position.copy(BJ.a).multiplyScalar(Math.sin(Math.PI * s)).addScaledVector(BJ.b, Math.sin(2 * Math.PI * s)); });
 }
+// a bipod's legs (the LMG's, weapons/gun-models.js) swing on their hinge with the gun, each on a soft spring, through
+// everything it does: down on them, they're left behind as you walk, run and turn, as the gun comes up into the sights,
+// rocks through a reload, comes out or goes away, and as it rides on your back (the yoke's own acceleration, in the
+// gun's frame, swings them: push), splay a little as it's swung sideways (splay), and jump forward with every shot
+// (shot, bipodKick); folded along the barrel they only rattle in their clamp (folded of it). How far they can go: max,
+// radians. Each set of legs (the gun in your hands, the copy on your back: player/stow.js) keeps its own motion (st)
+const BIPOD_SW = { k: 90, d: 4, push: 0.8, splay: 1, shot: 0.9, max: 0.4, folded: 0.12 };
+function bipodKick() { const L = BIPOD[W8.cur]; if (L) L.forEach(l => { l.vx = (l.vx || 0) - BIPOD_SW.shot * rr(0.7, 1.2); l.vz = (l.vz || 0) + BIPOD_SW.shot * 0.35 * rr(-1, 1); }); }
+function bipodSway(legs, h, rdt) {
+  if (rdt <= 0) return;
+  const st = legs.st || (legs.st = { p: new V3(), v: new V3(), f: new V3(), q: new THREE.Quaternion(), on: false });
+  st.f.set(X, 1.1, 1.41).applyMatrix4(h.matrixWorld);   // (the yoke)
+  if (!st.on) { st.p.copy(st.f); st.v.set(0, 0, 0); st.on = true; legs.forEach(l => { l.ax = l.az = l.vx = l.vz = 0; }); }
+  const vx = (st.f.x - st.p.x) / rdt, vy = (st.f.y - st.p.y) / rdt, vz = (st.f.z - st.p.z) / rdt;
+  let ax = (vx - st.v.x) / rdt, ay = (vy - st.v.y) / rdt, az = (vz - st.v.z) / rdt; const am = Math.hypot(ax, ay, az); if (am > 80) { ax *= 80 / am; ay *= 80 / am; az *= 80 / am; }
+  st.p.copy(st.f); st.v.set(vx, vy, vz);
+  h.getWorldQuaternion(st.q).invert(); st.f.set(-ax, -ay, -az).applyQuaternion(st.q);   // what the legs feel, in the gun's frame
+  const S_ = BIPOD_SW;
+  legs.forEach(l => {
+    const amp = l.down ? 1 : S_.folded;
+    for (let n = Math.ceil(rdt / (1 / 240)), dt = rdt / n, i = 0; i < n; i++) {
+      l.vx += (-S_.push * st.f.z * amp - S_.k * l.ax - S_.d * l.vx) * dt; l.ax += l.vx * dt;
+      l.vz += (S_.push * S_.splay * st.f.x * amp - S_.k * l.az - S_.d * l.vz) * dt; l.az += l.vz * dt;
+    }
+    const m = S_.max * amp; l.ax = clamp(l.ax, -m, m); l.az = clamp(l.az, -m * 0.5, m * 0.5);
+    l.g.rotation.x = l.r0.x + l.ax; l.g.rotation.z = l.r0.z + l.az;
+  });
+}
+// every frame, whatever's in your hands: each gun's bipod swung by its hold (so it carries on as the gun's put away or
+// drawn), and left to start afresh from where the gun is next time it's shown after being hidden
+function swayBipods(rdt) {
+  for (const s of SLOTS) { const L = BIPOD[s]; if (!L) continue; if (!gunMeshes[s].visible) { if (L.st) L.st.on = false; continue; } bipodSway(L, holdOf(s, 'R'), rdt); }
+}
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
@@ -637,6 +670,7 @@ function poseHands(D, up, ph, runF, rdt, now) {
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
   bandagePose(pm, up, now, sh);
+  swayBipods(rdt);
 }
 
 // how far forward the body goes as the weight comes onto the front foot in a swing (m, at full step)
@@ -683,6 +717,7 @@ const _mlR = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
 const ARM_AIM = { k: 38, d: 12.3 };
+const IDLE_UNSTEADY = 0.8;
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
@@ -691,7 +726,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // whatever the aim finds rather than snapping to it; never down at a sprint, with the gun at the low ready
   { const pT = state === 'play' ? (ANIM.pitchT || 0) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) : 0; if (ANIM.vPitch === undefined) ANIM.vPitch = 0;
     for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, ARM_AIM.k, ARM_AIM.d, h); }
-  const idle = Math.sin(now * 1.6) * 0.015 + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
+  // (a gun that's harder to hold still, a heavy one, a pair, a pistol with nothing to brace it, drifts more at rest: its
+  // unsteadiness, player/shaky-hands.js, IDLE_UNSTEADY of it)
+  const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
   // the double barrel being closed after its reload (weapons/reload.js: tickShut): shP how far through (-1: it isn't),

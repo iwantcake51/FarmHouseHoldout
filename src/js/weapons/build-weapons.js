@@ -15,7 +15,7 @@ function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y
 // slot whose model isn't the weapon in it now (one just put in it, or emptied) is built too
 // what moves on a weapon once it's built, gathered as it's built: the mag groups, the slides and bolts, the revolver's
 // crane, the charging handle, the double barrel's barrels and rims, the belt, and where the mag sits (for dropping it)
-const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null });
+const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null, legs: null });
 // one weapon's model built into parent (a hold group for a gun, the holder itself for a melee weapon), its moving parts
 // noted in rec. It reads the gun's mods, tiers, attachments and rounds from W8 (tierCtx is the gun): a co-op teammate's
 // are swapped in for the moment by withLoadout (net/arsenal.js)
@@ -38,6 +38,7 @@ function buildWeapon(parent, id, D, mods, rec) {
   // sawn-off's forend), so it all swings down with them when it's broken open
   if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
   if (info.brk) rec.brk = { g: info.brk, rims: info.rims || [] };
+  if (info.legs) rec.legs = info.legs;   // a bipod's legs, swinging with the gun (player/hold.js: bipodSway)
   if (info.belt) rec.belt = info.belt;   // a belt-fed gun's rounds, shown by what's left (player/hold.js)
   // pull apart faces that would z-fight (a moment later for a weapon built in play: unfightSoon), then let the slides
   // and bolts note their rest positions
@@ -76,7 +77,7 @@ function buildGuns(only) {
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     HOLDS[s] = null; tierCtx = id;
     const rec = Object.assign(weaponRec(), { soon: state === 'play' || state === 'upgrade' || state === 'paused' }), build = parent => buildWeapon(parent, id, D, mods, rec);
-    SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null;
+    SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; BIPOD[s] = null;
     const g = gunMeshes[s];
     // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
     const hold = (x0, side) => { const h = new THREE.Group(); h.position.x = x0; h.userData.x0 = x0; h.userData.side = side; g.add(h); return h; };
@@ -84,7 +85,7 @@ function buildGuns(only) {
     else if (D.akimbo) { const a = hold(AKX - X, 'R'), b = hold(-AKX - X, 'L'); MUZ[s] = build(a); build(b); HOLDS[s] = { R: a, L: b }; }
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
-    MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt;
+    MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
     stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }

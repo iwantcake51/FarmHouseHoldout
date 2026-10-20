@@ -49,7 +49,7 @@ function recomputeEff() {
     if (D.akimbo) D.reload *= AK_ONE;
     // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after
     if (id === 'hunting' && mag >= 2) { D.perShell = 0; D.reload = DETACH.reload - DETACH.bolt; D.detach = DETACH.bolt; }
-    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
+    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = (D.hipK || 1) * LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);

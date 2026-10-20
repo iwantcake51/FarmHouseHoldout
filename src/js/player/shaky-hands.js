@@ -22,16 +22,24 @@ const SHAKY = { k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thu
 // back. A gun firing a shot at a time kicks and eases home, quick and then slowing, never linear and never past the
 // aim; a full automatic's kicks come too fast for that, so it jostles about the aim on a stiffer spring. How far: by
 // the gun's power, less for every upgrade that tightens its spread (by as much as it tightens it), and down the
-// sights less again, an automatic much less (XREC)
-const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26 };
-// holding a full automatic down, the kicks stop fighting back and forth and start pulling one way (picked as the
-// spray starts): by drift of the shot's own kick, built up over build shots, the jostle shrinking to jit of what it was,
-// and with ease the aim it's pulled to (hold: how much of each shot's pull stays on, the spring not bringing it all back)
-const XDRIFT = { drift: 1.5, build: 14, jit: 0.45, hold: 0.25, max: 64, adsMax: 0.35 };   // (max: the furthest it walks, px at 1080 high; down the sights adsMax of that)
+// sights less again, an automatic much less (XREC). A full automatic kicks it far harder (autoK), and its upgrades only
+// take so much of that off (autoTight: the least of it they leave); a gun that kicks harder from the hip than down
+// the sights says how much (its hipKick, weapons/gun-stats.js: the LMG)
+const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26, autoK: 2.3, autoTight: 0.7 };
+// a full automatic's recoil is worked out shot by shot as the spray goes on, not all there from the first round
+// (XAUTO): each kick starts at from of its full size and builds to it over build rounds; for the first sideFrom rounds
+// it climbs nearly straight out along the aim (climb a round, up to climbMax rounds' worth), then it starts swaying
+// side to side, a slow swing one way and back (sway: how far, in the round's own kick; swing: how far round it goes
+// each round, so a few rounds a swing, one way first, picked as the spray starts), never just pulling one way. A
+// smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js: the
+// LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly (back: how quickly). The walk is
+// eased to (ease), so it glides rather than stepping with each round
+const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 2.2, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, magnum: 0.8, rifle: 1, shells: 1.1 } };
+const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
 const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
 // again), a pair of them, a heavy gun; one with a shoulder stock, or a long gun, the least (XSTEADY)
-const XSTEADY = { side: 1.6, magnum: 1.15, stock: 0.95, pair: 1.45, heavy: 1.4, auto: 1.1, long: 1 };
+const XSTEADY = { side: 2.1, magnum: 1.2, stock: 0.95, pair: 2.3, heavy: 2, auto: 1.1, long: 1 };
 function gunUnsteady(D, id) {
   if (D.akimbo) return XSTEADY.pair;
   if (D.heavy) return XSTEADY.heavy;
@@ -43,28 +51,37 @@ function gunUnsteady(D, id) {
 // of your breathing (breath: radians a second at rest, and more winded); it all eases in and out (ease), never snaps
 // (a climb's share fades in at vIn and out at vOut a second; how much you're moving eases at mvEase)
 const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2.2, breath: 1.7, breathUp: 2.4, heave: 0.9, vIn: 5, vOut: 1.6, mvEase: 4 };
-const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, n: 0, dir: 1, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
+const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
 function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
-  const tight = clamp(sp / Math.max(1e-4, sp0), 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : 1;
-  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads;
+  const tight = clamp(sp / Math.max(1e-4, sp0), auto ? XREC.autoTight : 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : (D.hipKick || 1);
+  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads * (auto ? XREC.autoK : 1);
   _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
   let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
   if (L < 1) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }
-  if (auto) { if (!(XR.autoT > 0)) { XR.n = 0; XR.dir = rand() < 0.5 ? -1 : 1; } XR.n++; }
-  const pull = auto ? smooth(Math.min(1, XR.n / XDRIFT.build)) : 0;
-  const side = rr(-1, 1) * (auto ? XREC.autoSide : XREC.side) * (1 - pull * (1 - XDRIFT.jit)) + XR.dir * pull * XDRIFT.drift * rr(0.7, 1.1), out = auto ? rr(0.4, 1) : rr(0.85, 1.1), v = amt * (auto ? 18 : 22);
-  XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; if (auto) XR.autoT = 0.3;
-  if (pull > 0) {   // (and it walks that way, only so far)
-    XR.dx += -dy * XR.dir * pull * amt * XDRIFT.hold; XR.dy += dx * XR.dir * pull * amt * XDRIFT.hold;
-    const L2 = Math.hypot(XR.dx, XR.dy), cap = XDRIFT.max * innerHeight / 1080 * (aiming ? XDRIFT.adsMax : 1); if (L2 > cap) { XR.dx *= cap / L2; XR.dy *= cap / L2; }
+  if (!auto) {   // (a shot at a time: kicked out along the aim and a little aside, and eased home)
+    const side = rr(-1, 1) * XREC.side, out = rr(0.85, 1.1), v = amt * 22;
+    XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; return;
   }
+  const A = XAUTO;
+  if (!(XR.autoT > 0)) { XR.n = 0; XR.dir = rand() < 0.5 ? -1 : 1; XR.swp = 0; }
+  const n = ++XR.n, k = amt * mix(A.from, 1, smooth(Math.min(1, (n - 1) / A.build))) * (A.cal[D.ammo] ?? 1), sideK = D.sideK ?? 1;
+  const side = rr(-1, 1) * XREC.autoSide * A.jit * sideK, out = rr(0.5, 1), v = k * 18;
+  XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; XR.autoT = 0.3;
+  // where the spray's taken the aim so far: the climb, and past sideFrom rounds the swing side to side
+  const swayOn = smooth(clamp((n - A.sideFrom) / 5, 0, 1));
+  if (n > A.sideFrom) XR.swp += A.swing * rr(0.75, 1.25);
+  const sw = XR.dir * Math.sin(XR.swp) * A.sway * k * swayOn * sideK, cl = Math.min(n, A.climbMax) * A.climb * k;
+  let tx = -dy * sw + dx * cl, ty = dx * sw + dy * cl;
+  const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * (aiming ? XDRIFT.adsMax : 1); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
+  XR.tx = tx; XR.ty = ty;
 }
 function updateXhRecoil(dt) {
   const auto = XR.autoT > 0; XR.autoT -= dt;
-  // the walk a long spray pulls the aim on (XDRIFT.hold) comes back once you let go, smoothly
-  if (!auto) { const f = Math.exp(-dt * 3.5); XR.dx *= f; XR.dy *= f; }
+  // the walk a spray takes the aim on (XAUTO) is glided to as it goes, and back to the cursor once you let go
+  if (auto) { const f = 1 - Math.exp(-dt * XAUTO.ease); XR.dx += (XR.tx - XR.dx) * f; XR.dy += (XR.ty - XR.dy) * f; }
+  else { const f = Math.exp(-dt * XAUTO.back); XR.dx *= f; XR.dy *= f; }
   for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) { springTo(XR, 'x', 'vx', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); springTo(XR, 'y', 'vy', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); }
   // the sway: eased on with a gun up, a little of it down the sights (XSWAY.ads), off with a melee weapon or at a station
   const D = W(curId()), want = state === 'play' && !P.dead && !openSt && D && !D.melee ? (aiming ? XSWAY.ads : 1) : 0;
