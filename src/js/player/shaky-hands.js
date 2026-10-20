@@ -13,8 +13,8 @@ const SHAKY_HP = { from: 0.3, to: 0.05 };
 const SHAKY_SWAY = 30, SHAKY_BEAT = 26, SHAKY_ADS = 0.5;
 // the arms' unsteadiness at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved; how much of that
 // a heartbeat's swell is (SHAKY_THUMP) and how long it takes, rising and falling (SHAKY_PULSE, seconds)
-const SHAKY_TREM = { p: 0.05, y: 0.045, r: 0.045, m: 0.008 }, SHAKY_THUMP = 0.3, SHAKY_PULSE = 0.32;
-const SHAKY = { k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thump: 0, thumpT: 9, ph: Array.from({ length: 12 }, () => rand() * 6.283) };
+const SHAKY_TREM = { p: 0.05, y: 0.045, r: 0.045, m: 0.008 }, SHAKY_THUMP = 0.3, SHAKY_PULSE = 0.32, SHAKY_AIM_EASE = 7;
+const SHAKY = { ak: 0, k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thump: 0, thumpT: 9, ph: Array.from({ length: 12 }, () => rand() * 6.283) };
 // the crosshair's own sway and recoil, on top of the wander (and like it, they move your aim: shots go where the
 // crosshair is). It sways slightly and slowly, a touch more on the move, a little down the sights (XSWAY), more with an
 // unsteady gun (XSTEADY) and the harder you're breathing (XWORK). Each shot kicks it
@@ -74,7 +74,7 @@ function xhKick(D, id, pw, auto) {
   if (n > A.sideFrom) XR.swp += A.swing * rr(0.75, 1.25);
   const sw = XR.dir * Math.sin(XR.swp) * A.sway * k * swayOn * sideK, cl = Math.min(n, A.climbMax) * A.climb * k;
   let tx = -dy * sw + dx * cl, ty = dx * sw + dy * cl;
-  const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * (aiming ? XDRIFT.adsMax : 1); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
+  const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * mix(1, XDRIFT.adsMax, SHAKY.ak); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
   XR.tx = tx; XR.ty = ty;
 }
 function updateXhRecoil(dt) {
@@ -107,6 +107,9 @@ function updateShaky(dt) {
   const sk = SHAKY, hpF = P.hp / S.maxHp;
   const want = P.dead || state !== 'play' ? 0 : smooth(clamp((SHAKY_HP.from - hpF) / (SHAKY_HP.from - SHAKY_HP.to), 0, 1));
   sk.k += (want - sk.k) * Math.min(1, dt * 1.6);
+  // how far down the sights you are, eased, so what's steadier there (the wander, the tremor, how far a spray can walk
+  // the aim) shrinks to it smoothly as you aim and grows back as you let go: the crosshair glides, never jumps
+  sk.ak += ((aiming ? 1 : 0) - sk.ak) * Math.min(1, dt * SHAKY_AIM_EASE);
   if (!(dt > 0)) return;
   sk.t += dt; updateXhRecoil(dt);
   const t = sk.t, ph = sk.ph, k = sk.k;
@@ -119,7 +122,7 @@ function updateShaky(dt) {
   // the wander: three slow swells on each axis at odd rates, so it never settles into a pattern
   const wx = Math.sin(t * 0.83 + ph[0]) * 0.55 + Math.sin(t * 1.37 + ph[1]) * 0.3 + Math.sin(t * 2.11 + ph[2]) * 0.15;
   const wy = Math.sin(t * 0.71 + ph[3]) * 0.55 + Math.sin(t * 1.53 + ph[4]) * 0.3 + Math.sin(t * 2.39 + ph[5]) * 0.15;
-  const amp = SHAKY_SWAY * innerHeight / 1080 * k * (aiming ? SHAKY_ADS : 1);
+  const amp = SHAKY_SWAY * innerHeight / 1080 * k * mix(1, SHAKY_ADS, sk.ak);
   sk.x = clamp(wx * amp + sk.bx, -mouseX, innerWidth - mouseX);
   sk.y = clamp(wy * amp + sk.by, -mouseY, innerHeight - mouseY);
 }
@@ -130,7 +133,7 @@ const _trem = { p: 0, y: 0, r: 0, x: 0, h: 0 };
 function shakyTremor() {
   const T_ = _trem, k = SHAKY.k;
   if (k < 0.002) { T_.p = T_.y = T_.r = T_.x = T_.h = 0; return T_; }
-  const t = SHAKY.t, ph = SHAKY.ph, amp = Math.pow(k, 1.25) * (aiming ? 0.6 : 1), th = SHAKY.thump * SHAKY_THUMP * k;
+  const t = SHAKY.t, ph = SHAKY.ph, amp = Math.pow(k, 1.25) * mix(1, 0.6, SHAKY.ak), th = SHAKY.thump * SHAKY_THUMP * k;
   const m = (a, b, c) => (Math.sin(t * 1.9 + a) * 0.5 + Math.sin(t * 4.1 + b) * 0.32 + Math.sin(t * 7.3 + c) * 0.18) * amp;
   T_.p = m(ph[6], ph[7], ph[8]) - th * 0.8; T_.y = m(ph[9], ph[10], ph[11]); T_.r = m(ph[8], ph[6], ph[10]);
   T_.x = m(ph[11], ph[9], ph[7]); T_.h = m(ph[7], ph[11], ph[6]) + th * 0.6;
