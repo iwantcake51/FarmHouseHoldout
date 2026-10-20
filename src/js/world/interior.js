@@ -13,7 +13,7 @@ const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
 // what the inside of the house has: rooms with walls between them (walls), and doors hung in their doorways (doors; only
 // with walls, and without them the doorways stand open). With walls off it's one open floor inside the outer walls, the
 // stations and the furniture set round it against them (world/furniture.js) and a lamp or two over it
-const HOUSE_OPT = { walls: false, doors: false };
+const HOUSE_OPT = { walls: false, doors: false }, OPEN_TRIES = 20;
 // how the walls look: how high, the skirting and the trim along the top, a doorway's frame, and their materials (they
 // fade away round you where they're between you and the camera: IW_LINES, world/cutaway.js)
 const IW = { h: 2.42, base: 0.11, cap: 0.05, head: 2.05, case: 0.075 };
@@ -579,7 +579,13 @@ function houseLayout(seed, live) {
     roomsOf(plan.walls, plan.doors);   // (the rooms as they stand)
     if (!done) break;
   }
-  if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
+  // (no rooms: an open house, the furniture tried OPEN_TRIES times round it, and if it won't all go in a notched one,
+  // in the whole rectangle instead; left where it was built, it would stand out in the notch)
+  if (!placed) plan = null;
+  for (let k = 0; !placed && k < OPEN_TRIES * 2; k++) {
+    if (k === OPEN_TRIES && HOUSE.notch) setFootprint(null, live);
+    rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts);
+  }
   // its windows, and whatever hangs on the walls where they've gone taken down
   // (and anything hung on a wall that isn't there this run, or isn't facing the same way)
   setWindows(wins.keys, true); for (const d of WALL_DECOR) { const w = WALL_AT.get(d.k); d.g.visible = !wins.keys.has(d.k) && !!w && w.faces.length === 1 && w.faces[0] === d.dir; }
