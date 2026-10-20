@@ -551,7 +551,10 @@ function breakDoor(d, z) {
 // a new house: the plan for this seed (the first that keeps every rule; failing that, none), its walls in the grid
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways
 // round the house and what you can see are all worked out again for it
-function houseLayout(seed, live) {
+// the whole of it under a seeded rand too (withSeed, core/math.js), so whatever's dealt along the way with rr or pick
+// (the turn of a car left in the yard, world/props.js) comes out alike for everyone in co-op
+function houseLayout(seed, live) { withSeed(seed ^ 0x2c1b3c6d, () => houseLayout0(seed, live)); }
+function houseLayout0(seed, live) {
   const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
   houseFootprint(rnd, live);   // (its footprint first: whole, or notched at the back, world/house.js)
   yardLayout(rnd, live);   // (the yard round it first: what's outside a window decides whether one can go there, world/yard.js)
