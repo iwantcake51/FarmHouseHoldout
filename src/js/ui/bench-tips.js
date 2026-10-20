@@ -48,11 +48,14 @@ function benchTipsSpread() {
     if (!s.cw) { s.cw = c.offsetWidth; s.ch = c.offsetHeight; }
     // kept on the screen: slid in sideways off the stem when its station's near an edge
     const dx = clamp(s.sx, BTIP_EDGE + s.cw / 2, innerWidth - BTIP_EDGE - s.cw / 2) - s.sx, cx = s.sx + dx;
+    // (it only ever goes up, and only counts as moved when it does by more than a hair: set to sit just over a card, it
+    // can land a rounding error inside it, and lowered again for the next one it could go back and forth for ever,
+    // freezing the game; at most one pass for each card already placed)
     let lift = BTIP_STEM;
-    for (let moved = true; moved;) {
+    for (let moved = true, pass = 0; moved && pass <= placed.length; pass++) {
       moved = false;
       const x0 = cx - s.cw / 2, x1 = cx + s.cw / 2, y1 = s.sy - lift, y0 = y1 - s.ch;
-      for (const q of placed) if (x0 < q.x1 + BTIP_GAP && x1 > q.x0 - BTIP_GAP && y0 < q.y1 + BTIP_GAP && y1 > q.y0 - BTIP_GAP) { lift = s.sy - q.y0 + BTIP_GAP; moved = true; }
+      for (const q of placed) if (x0 < q.x1 + BTIP_GAP && x1 > q.x0 - BTIP_GAP && y0 < q.y1 + BTIP_GAP && y1 > q.y0 - BTIP_GAP) { const up = s.sy - q.y0 + BTIP_GAP; if (up > lift + 0.5) { lift = up; moved = true; } }
     }
     placed.push({ x0: cx - s.cw / 2, x1: cx + s.cw / 2, y0: s.sy - lift - s.ch, y1: s.sy - lift });
     if (s.lift !== lift) { s.lift = lift; el.style.setProperty('--lift', lift + 'px'); }
