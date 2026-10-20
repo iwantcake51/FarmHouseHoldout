@@ -132,6 +132,7 @@ function setHitSide(x, y) { for (const id of ['hitVig', 'hitBlur']) { const el =
 // (amount: how hard the blow, for how hard your sight blurs on that side and how long it takes to clear; 1 a zombie's swipe)
 function hitFromAt(x, z, amount) {
   hurtFace(amount || 1);   // (and you wince: player/animation.js)
+  hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
   hitBlurK = clamp(amount || 1, 0.5, 2);

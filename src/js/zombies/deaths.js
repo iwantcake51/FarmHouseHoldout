@@ -37,7 +37,7 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 // it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
 // and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
 // down (yawDown), so it never spins on the floor
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 0.3 };
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 1 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
@@ -186,6 +186,7 @@ function ragStep(r, h) {
     q[i] = p[i]; q[i + 1] = p[i + 1]; q[i + 2] = p[i + 2];
     p[i] += vx; p[i + 1] += vy - g; p[i + 2] += vz;
   }
+  (r.pre || (r.pre = new Float32Array(p.length))).set(p);
   for (let it = 0; it < RAG.iters; it++) {
     for (const c of r.sticks) {
       const a = c[0] * 3, b = c[1] * 3, ex = p[b] - p[a], ey = p[b + 1] - p[a + 1], ez = p[b + 2] - p[a + 2], d = Math.sqrt(ex * ex + ey * ey + ez * ez);
@@ -198,10 +199,27 @@ function ragStep(r, h) {
     ragLimits(r);
     ragWorld(r, it === RAG.iters - 1);
   }
+  ragUnturn(r);
   // still? then it's left as it lies
   let vmax = 0; for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3; vmax = Math.max(vmax, Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2])); }
   r.still = vmax / h < RAG.sleepV && r.st > 0.6 ? r.still + h : 0;
   if (r.still > RAG.sleepT || (r.landT && r.st - r.landT > RAG.settle) || r.st > RAG.maxT) r.sleep = true;   // (and down a while, or long enough whatever it's lying on, it's done: no creeping about)
+}
+// the sticks, the joint limits and the world can each turn the whole body a hair round the upright as they put it
+// right (a limb swung back onto its side, round its socket), the same way pass after pass, so a body could turn slowly
+// round on the floor like a helicopter, however its spin was damped: whatever turn they gave it in a step is taken back
+// off, the whole body turned back round its middle (turning it whole keeps every bone its length)
+function ragUnturn(r) {
+  const p = r.p, a = r.pre, on = r.on;
+  let M = 0, ax = 0, az = 0, bx = 0, bz = 0;
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k]; M += w; ax += a[i] * w; az += a[i + 2] * w; bx += p[i] * w; bz += p[i + 2] * w; }
+  if (!M) return;
+  ax /= M; az /= M; bx /= M; bz /= M;
+  let cr = 0, dt = 0;
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k], ux = a[i] - ax, uz = a[i + 2] - az, vx = p[i] - bx, vz = p[i + 2] - bz; cr += w * (uz * vx - ux * vz); dt += w * (ux * vx + uz * vz); }
+  const th = Math.atan2(cr, dt); if (Math.abs(th) < 1e-6) return;
+  const c = Math.cos(th), sn = Math.sin(th);
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, x = p[i] - bx, z = p[i + 2] - bz; p[i] = bx + x * c - z * sn; p[i + 2] = bz + x * sn + z * c; }
 }
 // how far each joint goes: a knee and an elbow fold only one way, and only straight that way. A knee folds round the
 // line of the hips, the heel going back, with some give round the thigh for the turn a hip has in it: a good way with
