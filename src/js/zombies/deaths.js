@@ -203,14 +203,22 @@ function ragStep(r, h) {
   r.still = vmax / h < RAG.sleepV && r.st > 0.6 ? r.still + h : 0;
   if (r.still > RAG.sleepT || (r.landT && r.st - r.landT > RAG.settle) || r.st > RAG.maxT) r.sleep = true;   // (and down a while, or long enough whatever it's lying on, it's done: no creeping about)
 }
-// how far each joint goes: a knee bends only forward of the line from hip to foot and an elbow only the other way (no
-// limb ever folds backwards), a thigh goes only a little back behind the hip or out to the side, and an upper arm only
-// a little behind the back, and a knee comes up only so far toward the chest (thighUp: how far above the hip). Every fix keeps the bones their length (a joint bent the wrong way is flipped over the line
-// rather than pulled onto it, a limb held in is swung round its socket with what hangs off it carried along), so the
-// sticks never fight the limits, which pumped the body round and round on the floor; and a joint only a hair the
-// wrong way (dead: of the zombie's size) is let be, so a straight leg doesn't flick from side to side
-const RAG_LIM = { thighBack: 0.14, thighOut: 0.2, thighUp: 0.1, armBack: 0.2, give: 0.6, dead: 0.015 };
+// how far each joint goes: a knee and an elbow fold only one way, and only straight that way. A knee folds round the
+// line of the hips, the heel going back, with some give round the thigh for the turn a hip has in it: a good way with
+// the knee out (kneeOut, radians), less with it in (kneeIn). An elbow brings the hand in front and up (back behind the
+// head with the arm raised over it), and swings round the upper arm a long way as a shoulder turns (elbowTurn either
+// side), but never on round behind. Once a body's been down a moment (restT, s) a knee or an elbow may lie out to
+// either side, as far as restTurn, but still never folds back: a limb lying on the floor goes where the floor lets it.
+// A thigh goes only a little back behind the hip or out to the side, an upper arm only a little behind the back, and a
+// knee comes up only so far toward the chest (thighUp: how far above the hip). Every fix keeps the bones their length
+// (a joint folded the wrong way is swung round onto its own side, a limb held in is swung round its socket with what
+// hangs off it carried along), so the sticks never fight the limits, which pumped the body round and round on the
+// floor; and a joint only a hair off straight (dead: of the zombie's size) is let be, so a straight leg doesn't flick
+// from side to side
+const RAG_LIM = { thighBack: 0.14, thighOut: 0.2, thighUp: 0.1, armBack: 0.2, give: 0.6, dead: 0.015, kneeOut: 1.6, kneeIn: 0.6, elbowTurn: 1.65, pole: 0.5, restTurn: 1.6, restT: 0.25 };
+const _rgF = [0, 0, 0], _rgMv = [0, 0, 0];
 function ragLimits(r) {
+  ragFrame(r.p);
   const p = r.p, q = r.q, on = r.on, s = r.s, X = _rgX, Y = _rgY, Z = _rgZ;
   // point k (with what hangs off it, c) moved by (x, y, z), part of the way, then put back its length from a; where it
   // was a step ago moves with it, so it keeps the way it was going
@@ -220,30 +228,58 @@ function ragLimits(r) {
     nx = p[A] + nx * L / d - p[i]; ny = p[A + 1] + ny * L / d - p[i + 1]; nz = p[A + 2] + nz * L / d - p[i + 2];
     for (const j of c >= 0 && on[c] ? [i, c * 3] : [i]) { p[j] += nx; p[j + 1] += ny; p[j + 2] += nz; }
   };
-  // the middle joint of a limb (a to b to c) kept to its own side of the line from a to c (sign 1: forward, a knee): b
-  // past it is mirrored back over the plane through a and c across the trunk, and stops moving through it
-  const hinge = (a, b, c, sign) => {
-    const A = a * 3, B = b * 3, C = c * 3, ux = p[C] - p[A], uy = p[C + 1] - p[A + 1], uz = p[C + 2] - p[A + 2];
-    let nx = uy * X.z - uz * X.y, ny = uz * X.x - ux * X.z, nz = ux * X.y - uy * X.x; const nl = Math.hypot(nx, ny, nz); if (nl < 1e-6) return;
-    nx /= nl; ny /= nl; nz /= nl;
-    const d = (p[B] - p[A]) * nx + (p[B + 1] - p[A + 1]) * ny + (p[B + 2] - p[A + 2]) * nz;
-    if (d * sign > -RAG_LIM.dead * s) return;
-    p[B] -= 2 * d * nx; p[B + 1] -= 2 * d * ny; p[B + 2] -= 2 * d * nz;
-    const vx = p[B] - q[B], vy = p[B + 1] - q[B + 1], vz = p[B + 2] - q[B + 2], vn = vx * nx + vy * ny + vz * nz;
-    q[B] = p[B] - (vx - vn * nx); q[B + 1] = p[B + 1] - (vy - vn * ny); q[B + 2] = p[B + 2] - (vz - vn * nz);
+  // a joint held to its limits: round a bone from a (along t) to point k, the turn of k off it from the way
+  // f points (square to the bone: 0 toward f, positive round toward t x f). Past tp (that way round) or tn (the other),
+  // k is swung round the bone onto the limit, the same distance off it and the same way along it (folded right round
+  // the wrong way, it goes over to the right side); by how much of the way there (w), into _rgMv. False if it's fine
+  const least = r.landT && r.st - r.landT > RAG_LIM.restT ? RAG_LIM.restTurn : 0;
+  const turnBack = (a, k, tx, ty, tz, f, tp, tn, w) => {
+    const A = a * 3, K = k * 3, tl = Math.hypot(tx, ty, tz); if (tl < 1e-6) return false;
+    tx /= tl; ty /= tl; tz /= tl;
+    const wx = p[K] - p[A], wy = p[K + 1] - p[A + 1], wz = p[K + 2] - p[A + 2], wt = wx * tx + wy * ty + wz * tz;
+    const ox = wx - wt * tx, oy = wy - wt * ty, oz = wz - wt * tz, ol = Math.hypot(ox, oy, oz); if (ol < RAG_LIM.dead * s) return false;
+    const ft = f[0] * tx + f[1] * ty + f[2] * tz; let rx = f[0] - ft * tx, ry = f[1] - ft * ty, rz = f[2] - ft * tz; const rl = Math.hypot(rx, ry, rz); if (rl < 1e-3) return false;
+    rx /= rl; ry /= rl; rz /= rl;
+    const sx = ty * rz - tz * ry, sy = tz * rx - tx * rz, sz = tx * ry - ty * rx;
+    const ang = Math.atan2(ox * sx + oy * sy + oz * sz, ox * rx + oy * ry + oz * rz), aa = Math.abs(ang), lim = Math.max(least, ang > 0 ? tp : tn);
+    if (aa <= lim) return false;
+    const to = ang + (Math.sign(ang) * (aa > Math.PI / 2 ? Math.min(lim, Math.PI - aa) : lim) - ang) * w, cs = Math.cos(to) * ol, sn = Math.sin(to) * ol;
+    _rgMv[0] = p[A] + wt * tx + rx * cs + sx * sn - p[K]; _rgMv[1] = p[A + 1] + wt * ty + ry * cs + sy * sn - p[K + 1]; _rgMv[2] = p[A + 2] + wt * tz + rz * cs + sz * sn - p[K + 2];
+    return true;
   };
+  // point k moved by _rgMv, and the points o1 and o2 moved back against it by their share (by weight), so a fix turns
+  // the limb without shoving the whole body anywhere; where each was a step ago moves with it, so it keeps its way
+  const shift = (j, w) => { const J = j * 3; for (let i = 0; i < 3; i++) { p[J + i] += _rgMv[i] * w; q[J + i] += _rgMv[i] * w; } };
+  const moveBy = (k, o1, o2) => { const mk = RAG_MASS[k], mo = RAG_MASS[o1] + RAG_MASS[o2], t = mk + mo; shift(k, mo / t); shift(o1, -mk / t); shift(o2, -mk / t); };
+  // the middle joint of a limb (a to b to c) folds only one way: the lower bone turns off the upper toward where fold
+  // (given the direction of a bone, into _rgF) says that joint folds, within tp and tn either way round. Past that
+  // it's put right in two moves that each keep both bones their length: the middle point swung part of the way (pole)
+  // round the line from a to c, the way it juts (against the fold), so a limb lying on the floor can lift its knee or
+  // elbow back up rather than only drag its end round; then the end swung round the upper bone onto the limit
+  const hinge = (a, b, c, fold, tp, tn) => {
+    const A = a * 3, B = b * 3, C = c * 3;
+    let tx = p[C] - p[A], ty = p[C + 1] - p[A + 1], tz = p[C + 2] - p[A + 2]; fold(tx, ty, tz); _rgF[0] = -_rgF[0]; _rgF[1] = -_rgF[1]; _rgF[2] = -_rgF[2];
+    if (turnBack(a, b, tx, ty, tz, _rgF, tp, tn, RAG_LIM.pole)) moveBy(b, a, c);
+    tx = p[B] - p[A]; ty = p[B + 1] - p[A + 1]; tz = p[B + 2] - p[A + 2]; fold(tx, ty, tz);
+    if (turnBack(b, c, tx, ty, tz, _rgF, tp, tn, 1)) moveBy(c, a, b);
+  };
+  // (a knee folds round the line of the hips, the heel going back; an elbow brings the hand forward and up, and with
+  // the arm raised over the head, back behind it)
+  const HX = _rgN.set(p[3] - p[0], p[4] - p[1], p[5] - p[2]); if (HX.lengthSq() < 1e-8) HX.copy(X); else HX.normalize();
+  const kneeFold = (x, y, z) => { _rgF[0] = HX.y * z - HX.z * y; _rgF[1] = HX.z * x - HX.x * z; _rgF[2] = HX.x * y - HX.y * x; };
+  const elbowFold = (x, y, z) => { const k = 1 - 2 * Math.max(0, (x * Y.x + y * Y.y + z * Y.z) / (Math.hypot(x, y, z) || 1)); _rgF[0] = Z.x * k + Y.x * 0.5; _rgF[1] = Z.y * k + Y.y * 0.5; _rgF[2] = Z.z * k + Y.z * 0.5; };
   // how far b is from a along an axis of the trunk
   const along = (a, b, ax) => (p[b * 3] - p[a * 3]) * ax.x + (p[b * 3 + 1] - p[a * 3 + 1]) * ax.y + (p[b * 3 + 2] - p[a * 3 + 2]) * ax.z;
   for (const [hp, kn, ft, sd] of [[0, 9, 10, -1], [1, 11, 12, 1]]) {
     if (!on[kn]) continue;
-    if (on[ft]) hinge(hp, kn, ft, 1);
+    if (on[ft]) hinge(hp, kn, ft, kneeFold, sd < 0 ? RAG_LIM.kneeOut : RAG_LIM.kneeIn, sd < 0 ? RAG_LIM.kneeIn : RAG_LIM.kneeOut);
     const back = along(hp, kn, Z), lim = -RAG_LIM.thighBack * s; if (back < lim) swing(kn, hp, ft, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
     const out = along(hp, kn, X) * sd, lo = RAG_LIM.thighOut * s; if (out > lo) swing(kn, hp, ft, -X.x * sd * (out - lo), -X.y * sd * (out - lo), -X.z * sd * (out - lo));
     const up = along(hp, kn, Y), hi = RAG_LIM.thighUp * s; if (up > hi) swing(kn, hp, ft, -Y.x * (up - hi), -Y.y * (up - hi), -Y.z * (up - hi));
   }
   for (const [sh, el, hd] of [[2, 5, 6], [3, 7, 8]]) {
     if (!on[el]) continue;
-    if (on[hd]) hinge(sh, el, hd, -1);
+    if (on[hd]) hinge(sh, el, hd, elbowFold, RAG_LIM.elbowTurn, RAG_LIM.elbowTurn);
     const back = along(sh, el, Z), lim = -RAG_LIM.armBack * s; if (back < lim) swing(el, sh, hd, Z.x * (lim - back), Z.y * (lim - back), Z.z * (lim - back));
   }
 }

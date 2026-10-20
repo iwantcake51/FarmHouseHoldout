@@ -277,6 +277,7 @@ function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
   else if (D.bruteStagger) z.stagger = Math.max(z.stagger, D.bruteStagger);   // (only the SCAR's rounds stop a brute, and break off its charge: zombies/brute-dash.js)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head', dealt);
+  bloodSpurt(z.x, y, z.z, dx, dz, Math.round(clamp(5 + dealt / 6, 5, 16) * (part === 'head' ? 1.3 : 1)), 0.85 + Math.min(0.5, dealt / 120));   // gushing out of it (effects/particles.js)
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
 }
 // a zombie caught right in a blast comes apart: head, arms, legs and torso all thrown out and tumbling, a burst of
@@ -378,7 +379,7 @@ function killScrap(z, n, hoard) {
 function killBegin(z, dx, dz) {
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
-  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4);
+  burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);
   spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
   shake = Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : 0.16);
 }
