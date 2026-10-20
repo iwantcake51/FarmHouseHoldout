@@ -60,17 +60,20 @@ function bashDoor(z, d, armMul, dme, dt) {
   doorWear(d, z);
   if (d.hp <= 0) { breakDoor(d, z); if (z.an) z.an.rip = 1; netDoorBroke(d, z); }
 }
-// a brute that can see whoever it's after across the yard fence doesn't trudge round to a gap: if the way round is
-// BFENCE.detour cells longer than straight at them, it goes for the stretch of fence between, up to BFENCE.see metres
-// off, and smashes through it (fenceBlow, breakFence in world/fence.js). Looked at again every BFENCE.every seconds
-const BFENCE = { see: 14, detour: 6, every: 0.4, step: 0.25 };
+// a brute takes whichever way to you is quicker: one that can see whoever it's after across the yard fence (up to
+// BFENCE.see metres off) weighs the walk round to a gap (its field, in metres) against the walk straight at them plus
+// the time it'd stand smashing the fence between (its blows, BRUTE_SMASH.t apart, at its own pace, and BFENCE.margin
+// metres to spare), and if going through is quicker it goes for that stretch of fence and smashes through it
+// (fenceBlow, breakFence in world/fence.js). Looked at again every BFENCE.every seconds
+const BFENCE = { see: 30, margin: 1, every: 0.4, step: 0.25 };
+const fenceSmashM = z => Math.ceil(FENCE_HP / BRUTE_SMASH.dmg) * BRUTE_SMASH.t * z.speed;
 function bruteFence(z, t, here, dt) {
   if (z.fenceAt >= 0 && cell[z.fenceAt] !== FENCE) z.fenceAt = -1;   // (gone: knocked down, by it or another)
   if ((z.fenceT = (z.fenceT || 0) - dt) > 0) return z.fenceAt ?? -1;
   z.fenceT = BFENCE.every * rr(0.8, 1.2); z.fenceAt = -1;
   if (t.dead || z.crawl) return -1;
   const dx = t.x - z.x, dz = t.z - z.z, d = Math.hypot(dx, dz);
-  if (d > BFENCE.see || here < d + BFENCE.detour || !los(z.x, z.z, t.x, t.z)) return -1;
+  if (d > BFENCE.see || here < d + fenceSmashM(z) + BFENCE.margin || !los(z.x, z.z, t.x, t.z)) return -1;
   // the first stretch of fence on the line to them, with them on the far side of it
   for (let s = BFENCE.step; s < d - 0.5; s += BFENCE.step) {
     const i = ci(z.x + dx * s / d), j = ci(z.z + dz * s / d); if (!inb(i, j)) return -1;
