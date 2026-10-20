@@ -119,7 +119,9 @@ function restBack() {
   const o = STOW.auto, t = o && o.userData.twin, me = STOW.melee, rot = STOW.long && STOW.long.rotation.clone();
   const bq = packBack.quaternion.clone(), bp = packBack.position.clone();
   packBack.quaternion.identity(); packBack.position.set(0, 0, 0); if (STOW.long) STOW.long.rotation.set(0, 0, 0);
-  const vis = [o && o.visible, t && t.visible, me && me.visible]; [o, t, me].forEach(q => { if (q) q.visible = true; });
+  // (each shown while it's measured, the weapon in it too: one in your hands is hidden on the pack, and measured hidden
+  // it would have no shape, and stay where it was hung, under the planks)
+  const vis = [o, t, me].map(q => q && [q.visible, q.userData.gun.visible]); [o, t, me].forEach(q => { if (q) q.visible = q.userData.gun.visible = true; });
   // the melee weapon only ever comes out from the pack, over the planks; without them it's left where it is
   if (me) {
     me.position.z = MELEE_Z; packBody.updateMatrixWorld(true);
@@ -139,7 +141,7 @@ function restBack() {
     if (t) lay(t, new Set([t]));
   }
   packBack.quaternion.copy(bq); packBack.position.copy(bp); if (rot) STOW.long.rotation.copy(rot);
-  [o, t, me].forEach((q, k) => { if (q) q.visible = vis[k]; });
+  [o, t, me].forEach((q, k) => { if (q) [q.visible, q.userData.gun.visible] = vis[k]; });
 }
 const HOLSTER_M = lam(0x1d1d1f), HOOD_M = lam(0x141415), STRAP_M = lam(0x2c2620), BELT_M = lam(0x19191a), SNAP_M = lam(0x2e2f31), BUCKLE_M = lam(0x8a8d90);
 // a duty holster (in the run's colour, player/look.js), moulded round each sidearm (in the gun's own frame): rear and top of the shell, its closed
