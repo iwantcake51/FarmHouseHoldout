@@ -4,6 +4,9 @@
 const REGEN_WAIT = 5;
 // how much a bandage going on slows your walk (Walking wounded takes S.bandLess of it off)
 const BAND_SLOW = 0.55;
+// badly hurt you limp, but you can still get about: slower from HURT_SLOW.from of your health, down to min of your pace
+// at the last of it; and blown on top of that (the fatigue in weapons/combat-update.js), never below floor of it
+const HURT_SLOW = { from: 0.35, min: 0.85, floor: 0.72 };
 
 // status effects, walking, vaulting and aiming
 function updatePlayer(dt) {
@@ -50,8 +53,9 @@ function updatePlayer(dt) {
     updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
-      const hpF = P.hp / S.maxHp, hurtSlow = hpF < 0.5 ? 0.55 + 0.9 * hpF : 1;   // badly hurt, you limp
-      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * hurtSlow * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.spdF || 1) * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
+      const hpF = P.hp / S.maxHp, hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
+      const worn = Math.max(HURT_SLOW.floor, hurt * (P.spdF || 1));   // (and blown on top of it: never slower than the floor)
+      const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * worn * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
       const ahead = (1 + wx * Math.sin(P.aim) + wz * Math.cos(P.aim)) / 2, dirMul = P.sprint ? 1 : 0.76 + 0.24 * smooth(ahead);   // (sprinting you turn to run, so there's no backwards)
       tvx = wx * sp * dirMul; tvz = wz * sp * dirMul;
