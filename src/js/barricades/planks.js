@@ -5,6 +5,12 @@
 const PLANK_MAX = 15;
 const plankRoom = () => Math.max(0, PLANK_MAX - S.planks);
 function addPlanks(n) { const got = Math.min(n, plankRoom()); S.planks += got; return got; }
+// how strong a board goes up (BOARD_HP, times the hammers' S.boardMul), and the sawhorse's bracing on top: five levels
+// for the rest of the run, each step another BRACE.step stronger for every board you put up (and the ones already up),
+// each dearer than the last (BRACE.cost, stations/recipes.js)
+const BOARD_HP = 70, BRACE = { max: 5, step: 0.2, cost: [8, 12, 17, 23, 30] };
+const braceLv = () => S.brace || 0, braceMul = (n = braceLv()) => 1 + BRACE.step * n;
+const boardHp = () => BOARD_HP * S.boardMul * braceMul();
 
 // ---- barricade planks: grained, colour-varied boards with nail heads and split ends ----
 const plankTex = (() => {
@@ -45,7 +51,7 @@ let flowDirty = true, lightsDirty = false;
 function addBoard(o, hp, sd) {
   const n = o.boards.length; if (n >= 3) return;
   const mine = hp === undefined;
-  o.boards.push(mine ? 70 * S.boardMul : hp);
+  o.boards.push(mine ? boardHp() : hp);
   const side = sd || Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
   const m = makePlank(o.out * side);
   m.position.set(rr(-.06, .06), o.ys[n] + rr(-0.04, 0.04), o.out * side * (0.52 + n * 0.012)); m.rotation.set(rr(-0.03, 0.03), rr(-0.04, 0.04), (n % 2 ? -1 : 1) * rr(.1, .28));

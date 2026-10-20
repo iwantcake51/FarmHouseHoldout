@@ -132,15 +132,30 @@ const MED = [
   { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and no more slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
   ...['hands', 'dress', 'tonic'].map(medUpgrade)
 ];
+// the sawhorse: planks, and bracing the boards (braceCard)
+const SAW = [
+  { ic: 'planks', full: stackFull, cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
+  { ic: 'planks', full: stackFull, cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
+  braceCard()
+];
+// bracing the boards (BRACE, barricades/planks.js): five levels, for good, each one making every board you put up
+// stronger, and the ones up now too (on a joiner's farm the host keeps the boards already up, so there it's only the
+// ones you put up from then on)
+function braceCard() {
+  const lv = braceLv, done = () => lv() >= BRACE.max, pct = n => Math.round((braceMul(n) - 1) * 100);
+  return { ic: 'planks', tier: () => [Math.min(lv(), BRACE.max), BRACE.max], gone: done, get cost() { return BRACE.cost[Math.min(lv(), BRACE.max - 1)]; },
+    title: () => 'Brace the boards ' + roman(Math.min(lv() + 1, BRACE.max)), desc: () => `Every board you put up, and the ones up now, ${Math.round(BRACE.step * 100)}% stronger for the rest of the run (+${pct(lv())}% → +${pct(lv() + 1)}%)`, why: () => '',
+    make: () => {
+      const r = braceMul(lv() + 1) / braceMul(); S.brace = lv() + 1;
+      if (!(netLink() && !NET.host)) openings.forEach(o => { o.boards = o.boards.map(h => h * r); o.meshes.forEach(m => { m.userData.hp0 = (m.userData.hp0 || 0) * r; }); });
+      feed('planks', 0, 'Boards braced ' + roman(S.brace)); gotGear({ ic: 'planks', kind: 'Sawhorse', name: 'Brace the boards ' + roman(S.brace), whom: 'you', text: `Every board you put up is now +${pct(S.brace)}% stronger.` });
+    } };
+}
 // an upgrade you can't take any more of (gone: tuned already, a cabinet upgrade at its top level) isn't shown at all
 const shown = list => list.filter(r => !(r.gone && r.gone()));
 const RECIPES = {
   get bench() { return shown(BENCH).concat(tinkerCards(true), gunTierCards(), tinkerCards(), attachmentCards()); },
-  saw: [
-    { ic: 'planks', full: stackFull, cost: 3, title: () => 'Cut 2 planks', desc: () => plankDesc(2, 'Enough for one more board'), why: plankWhy, make: () => { feed('planks', addPlanks(2), 'planks'); popEl('planks'); } },
-    { ic: 'planks', full: stackFull, cost: 8, title: () => 'Cut 6 planks', desc: () => plankDesc(6, 'Board up two whole windows'), why: plankWhy, make: () => { feed('planks', addPlanks(6), 'planks'); popEl('planks'); } },
-    { ic: 'planks', cost: 8, title: () => 'Brace the boards', desc: () => 'Every board back to full, 25% stronger', why: () => openings.some(o => o.boards.length) ? '' : 'No boards up yet', make: () => { openings.forEach(o => o.boards = o.boards.map(() => 70 * S.boardMul * 1.25)); feed('planks', 0, 'Boards braced'); } }
-  ],
+  get saw() { return shown(SAW); },
   get med() { return shown(MED); },
   // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {

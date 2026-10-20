@@ -30,7 +30,7 @@ const MOD_UP = {
   spikes: { t: '+12% damage, takes more limbs', up: D => { D.dmg *= 1.12; D.sever += 0.2; } },
   weighted: { t: 'Knockback +30%', up: D => { D.kb *= 1.3; } }
 };
-const roman = n => ['', 'I', 'II', 'III', 'IV'][n] || String(n);
+const roman = n => ['', 'I', 'II', 'III', 'IV', 'V'][n] || String(n);
 const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
 // a mod's name at a level: its own name for each level if it has them (the revolver's barrel by its length), or the
 // name and the level in numerals
