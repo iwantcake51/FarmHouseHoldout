@@ -416,6 +416,33 @@ function beltJiggle(belt, h, rdt) {
   BJ.a.set(clamp(BJ.a.x, -0.01, 0.01), clamp(BJ.a.y, -0.01, 0.01), clamp(BJ.a.z, -0.004, 0.004)); BJ.b.set(clamp(BJ.b.x, -0.004, 0.004), clamp(BJ.b.y, -0.004, 0.004), clamp(BJ.b.z, -0.002, 0.002));   // the ripple stays small, so the links stay hooked
   const n = belt.length; belt.forEach((r, k) => { const s = (k + 0.5) / n; r.position.copy(BJ.a).multiplyScalar(Math.sin(Math.PI * s)).addScaledVector(BJ.b, Math.sin(2 * Math.PI * s)); });
 }
+// a bipod's legs (the LMG's, weapons/gun-models.js) swing on their hinge with the gun, each on a soft spring: down on
+// them, they're left behind as you walk, run and turn (the yoke's own acceleration, in the gun's frame, swings them:
+// push), splay a little as it's swung sideways (splay), and jump forward with every shot (shot, bipodKick); folded
+// along the barrel they only rattle in their clamp (folded of it). How far they can go: max, radians
+const BIPOD_SW = { k: 90, d: 4, push: 0.8, splay: 1, shot: 0.9, max: 0.4, folded: 0.12 };
+const BP = { p: new V3(), v: new V3(), f: new V3(), q: new THREE.Quaternion(), on: false, legs: null };
+function bipodKick() { const L = BP.legs; if (L) L.forEach(l => { l.vx -= BIPOD_SW.shot * rr(0.7, 1.2); l.vz += BIPOD_SW.shot * 0.35 * rr(-1, 1); }); }
+function bipodSway(legs, h, rdt) {
+  if (rdt <= 0) return;
+  if (BP.legs !== legs) { BP.legs = legs; BP.on = false; legs.forEach(l => { l.ax = l.az = l.vx = l.vz = 0; }); }
+  BP.f.set(X, 1.1, 1.41).applyMatrix4(h.matrixWorld);   // (the yoke)
+  if (!BP.on) { BP.p.copy(BP.f); BP.v.set(0, 0, 0); BP.on = true; }
+  const vx = (BP.f.x - BP.p.x) / rdt, vy = (BP.f.y - BP.p.y) / rdt, vz = (BP.f.z - BP.p.z) / rdt;
+  let ax = (vx - BP.v.x) / rdt, ay = (vy - BP.v.y) / rdt, az = (vz - BP.v.z) / rdt; const am = Math.hypot(ax, ay, az); if (am > 80) { ax *= 80 / am; ay *= 80 / am; az *= 80 / am; }
+  BP.p.copy(BP.f); BP.v.set(vx, vy, vz);
+  h.getWorldQuaternion(BP.q).invert(); BP.f.set(-ax, -ay, -az).applyQuaternion(BP.q);   // what the legs feel, in the gun's frame
+  const S_ = BIPOD_SW;
+  legs.forEach(l => {
+    const amp = l.down ? 1 : S_.folded;
+    for (let n = Math.ceil(rdt / (1 / 240)), dt = rdt / n, i = 0; i < n; i++) {
+      l.vx += (-S_.push * BP.f.z * amp - S_.k * l.ax - S_.d * l.vx) * dt; l.ax += l.vx * dt;
+      l.vz += (S_.push * S_.splay * BP.f.x * amp - S_.k * l.az - S_.d * l.vz) * dt; l.az += l.vz * dt;
+    }
+    const m = S_.max * amp; l.ax = clamp(l.ax, -m, m); l.az = clamp(l.az, -m * 0.5, m * 0.5);
+    l.g.rotation.x = l.r0.x + l.ax; l.g.rotation.z = l.r0.z + l.az;
+  });
+}
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
@@ -935,6 +962,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (MAG_TAKE: the belt rides in the box, magInHand)
   const belt = BELT[s];
   if (belt) { const n = rel === 'mag' && rpm >= MAG_TAKE ? belt.length : Math.min(belt.length, W8.mag[id] || 0); belt.forEach((r, k) => { r.visible = k < n; }); beltJiggle(belt, holdOf(s, 'R'), rdt); } else BJ.on = false;
+  if (BIPOD[s]) bipodSway(BIPOD[s], holdOf(s, 'R'), rdt); else BP.legs = null;
   // revolver: the cylinder swings out to the left for the whole reload and snaps shut after
   const cr = CRANE[s] || [];
   // revolver: a beat after the reload starts (REV_OPEN, the thumb on the release) the cylinder's flicked out to the left

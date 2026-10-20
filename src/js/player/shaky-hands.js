@@ -22,12 +22,14 @@ const SHAKY = { k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, thu
 // back. A gun firing a shot at a time kicks and eases home, quick and then slowing, never linear and never past the
 // aim; a full automatic's kicks come too fast for that, so it jostles about the aim on a stiffer spring. How far: by
 // the gun's power, less for every upgrade that tightens its spread (by as much as it tightens it), and down the
-// sights less again, an automatic much less (XREC)
-const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26 };
+// sights less again, an automatic much less (XREC). A full automatic kicks it far harder (autoK), and its upgrades only
+// take so much of that off (autoTight: the least of it they leave); a gun that kicks harder from the hip than down
+// the sights says how much (its hipKick, weapons/gun-stats.js: the LMG)
+const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26, autoK: 2.3, autoTight: 0.7 };
 // holding a full automatic down, the kicks stop fighting back and forth and start pulling one way (picked as the
 // spray starts): by drift of the shot's own kick, built up over build shots, the jostle shrinking to jit of what it was,
 // and with ease the aim it's pulled to (hold: how much of each shot's pull stays on, the spring not bringing it all back)
-const XDRIFT = { drift: 1.5, build: 14, jit: 0.45, hold: 0.25, max: 64, adsMax: 0.35 };   // (max: the furthest it walks, px at 1080 high; down the sights adsMax of that)
+const XDRIFT = { drift: 1.5, build: 14, jit: 0.45, hold: 0.25, max: 120, adsMax: 0.35 };   // (max: the furthest it walks, px at 1080 high; down the sights adsMax of that)
 const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
 // again), a pair of them, a heavy gun; one with a shoulder stock, or a long gun, the least (XSTEADY)
@@ -47,8 +49,8 @@ const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, n: 0, dir: 1, dx: 0, dy: 0, sx:
 function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
-  const tight = clamp(sp / Math.max(1e-4, sp0), 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : 1;
-  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads;
+  const tight = clamp(sp / Math.max(1e-4, sp0), auto ? XREC.autoTight : 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : (D.hipKick || 1);
+  const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads * (auto ? XREC.autoK : 1);
   _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
   let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
   if (L < 1) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }

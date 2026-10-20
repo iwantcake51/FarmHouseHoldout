@@ -81,11 +81,14 @@ const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, s
 const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
 // the guns that take no can: the double barrel's twin muzzles
 const NO_SUPP = new Set(['dbl']);
+// and the ones that take no sight at all, iron sights only: the LMG, a gun for hosing from the hip
+const NO_SIGHT = new Set(['lmg']);
 function tierFits(k, id) {
   const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;
   if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
   if (k === 'supp' && NO_SUPP.has(id)) return false;
+  if (k === 'sight' && NO_SIGHT.has(id)) return false;
   if (k === 'choke') return D.ammo === 'shells' && !gunTier(id, 'supp');
   if (k === 'loader') return id === 'revolver' || !!D.breakOpen;   // the revolver's speed loader; the double barrel's Sleight of Hand (the pump's loading comes with Quick hands: game/run-state.js)
   if (k === 'supp') return !(W8.mods[id] || []).some(m => MODS[m].muzzle) && (n > 0 || !muzzleTaken(id));   // a better can replaces the one you have; otherwise the muzzle must be free (a can taken off a shotgun for its choke still goes back on)

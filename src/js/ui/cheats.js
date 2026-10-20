@@ -184,6 +184,7 @@ function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
   if (k === 'choke') return D.ammo === 'shells';
+  if (k === 'sight' && NO_SIGHT.has(id)) return false;
   if (k === 'loader') return id === 'revolver' || !!D.breakOpen;
   return true;
 }
