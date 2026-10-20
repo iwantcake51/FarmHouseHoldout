@@ -192,12 +192,12 @@ function chLineFits(k, id) {
 function chGun(id, fn) {
   exitScope();
   magChange(id, fn);
-  delete W8.pin[id]; recomputeEff(); buildGuns(); gunGlow = 1;
+  delete W8.pin[id]; recomputeEff(); buildGuns(); glowGun(id);
   if (!W(id).melee) W8.mag[id] = magSize(id);
 }
 // a weapon into its slot and your hands, the way one off the radio arrives (stations/supply-drop.js): giveWeapon only
 // changes the stats, so the models in your hands and on your back are rebuilt for it too
-function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1; }
+function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); glowGun(id); }
 function chRemoveMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== m && MODS[k].need !== m);   // and anything that needed it
   Object.keys(MODS).forEach(k => { if (!(W8.mods[id] || []).includes(k) && MODS[k].w === id) delete W8.modLv[k]; });
@@ -295,7 +295,7 @@ const CHEAT_ACTS = {
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
   stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },
-  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); gunGlow = 1; },
+  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); glowGun(id); },
   maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) fitTier(id, k, ownTier(id, k) + 1); recomputeEff(); }); },
   skill: d => chSkill(d.key, +d.d),
   noskills: () => chNoSkills(),

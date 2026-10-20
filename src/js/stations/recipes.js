@@ -26,7 +26,7 @@ function attachmentCards() {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
     const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D, id) : st.text;
     out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'supp' && !D.quiet ? dmgCost(id, ATT_COST[k][n], n) : ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
+      make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); glowGun(id); feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for the gun in your hands: every kind it takes that you don't have yet, bought and loaded (only one kind is
   // loaded at a time: weapons/rounds.js). The ones you own aren't sold again: you load them for nothing from the panel
@@ -37,10 +37,10 @@ function attachmentCards() {
     const own = false, nm = roundName(id, k), txt = roundText(id, k);
     out.push({ ic: 'ammo', group, for: () => forYour(id), fx: () => k === roundOn(id) ? [] : roundFx(id, k), cost: own ? 0 : hitsHarder(id, ROUNDS[k].fx) ? dmgCost(id, ROUNDS[k].cost) : ROUNDS[k].cost,
       title: () => (k === on ? 'Loaded: ' : own ? 'Load ' : '') + nm, desc: () => txt + (own || k === 'std' ? '' : ' · One kind loaded at a time'), why: () => k === roundOn(id) ? 'Loaded' : '',
-      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); gunGlow = 1; feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
+      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); glowGun(id); feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
   }
   // the bayonet and the stock go on this gun alone (gunAtt, game/run-state.js)
-  const fitAtt = k => { setAtt(id, k, true); buildGuns(id); gunGlow = 1; };
+  const fitAtt = k => { setAtt(id, k, true); buildGuns(id); glowGun(id); };
   if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Your shove (V) with this gun stabs instead', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (V) with this gun in your hands stabs for 45 damage.' }); } });
   if (D.slot === 'side' && !ownAtt(id, 'stock')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => 'Braced on your shoulder, it kicks less and fast shots stay tighter', why: () => '', make: () => { fitAtt('stock'); feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', gun: id, text: '45% less kick, and quick shots open up 40% slower.' }); } });
   return out;
@@ -73,7 +73,7 @@ const BENCH = [
     // tuning: one full going-over of the weapon in your hands, once per weapon and dear. It makes it a little better at
     // everything (TUNE in game/run-state.js) without turning it into a different weapon
     { ic: 'gear', for: () => forYour(curId()), fx: () => tuneFx(curId()), gone: () => !!W8.tune[curId()], get cost() { return curId() ? dmgCost(curId(), TUNE_COST) : TUNE_COST; }, title: () => (W8.tune[curId()] ? 'Tuned: ' : 'Tune up the ') + W(curId()).short, desc: () => tuneText(W(curId())) + ' · Once per weapon', why: () => W8.tune[curId()] ? 'Already tuned' : '',
-      make: () => { const id = curId(), fx0 = tuneFx(id); W8.tune[id] = 1; recomputeEff(); gunGlow = 1; feed('gear', 0, W(id).short + ' tuned'); gotGear({ ic: 'gear', kind: 'Tune-up', name: 'Tuned up', gun: id, text: tuneText(W(id)) + '.', fx: fx0 }); } }
+      make: () => { const id = curId(), fx0 = tuneFx(id); W8.tune[id] = 1; recomputeEff(); glowGun(id); feed('gear', 0, W(id).short + ' tuned'); gotGear({ ic: 'gear', kind: 'Tune-up', name: 'Tuned up', gun: id, text: tuneText(W(id)) + '.', fx: fx0 }); } }
 ];
 // upgrades for the weapon in your hands, in one group after its ammo, trigger and magazine lines (gunTierCards): one
 // card for each mod it could take, and for each one it has that could be made better (up to level III), so you pick
@@ -94,9 +94,9 @@ function tinkerCards() {
   const id = curId(), D = id && W(id); if (!D) return [];
   const group = gearGroup(D), out = [];
   modsFor(id).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
-    make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); gunGlow = 1; feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
+    make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); glowGun(id); feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
   modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
-    make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); gunGlow = 1; feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
+    make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); glowGun(id); feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
   return out;
 }
 // a gun's own upgrades, one card per line (the next tier up) for the gun in your hands: better rounds, a lighter
@@ -110,7 +110,7 @@ function gunTierCards() {
     if (!tierFits(k, id)) continue;
     const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D, id) : st.text, r = (k === 'mag' && st.rAs && st.rAs[id]) || st.r;
     out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'ammo' ? dmgCost(id, TIER_COST[r] || 14, n) : TIER_COST[r] || 14, title: () => nm, desc: () => txt, why: () => '',
-      make: () => { const fx0 = tierFx(id, k); magChange(id, () => { fitTier(id, k, n + 1); recomputeEff(); }); buildGuns(id); gunGlow = 1; feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
+      make: () => { const fx0 = tierFx(id, k); magChange(id, () => { fitTier(id, k, n + 1); recomputeEff(); }); buildGuns(id); glowGun(id); feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
   }
   return out;
 }
