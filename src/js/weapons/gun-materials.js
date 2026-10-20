@@ -11,6 +11,7 @@ const GM = {
 };
 const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.wood2, GM.poly, GM.park, GM.blued, GM.walnut, GM.olive, GM.ano, GM.furn, GM.anoL, GM.hgPoly, GM.rail,
   GM.oliveD, GM.glockS, GM.glockT, GM.stainless, GM.stainlessD, GM.walnutD, GM.walnut2, GM.engr, GM.engrD, GM.pad, GM.steelDk, GM.magAl, GM.fde, GM.fdeP, GM.fdeG];
+const GLOW_SET = new Set(glowMats);   // the ones that take the upgrade glow (player/animation.js)
 const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {}, CHARGE = {}, BRK = {}, BELT = {};
 let stowDirty = true;
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });

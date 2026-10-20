@@ -11,10 +11,12 @@
 // a little way out, never as a pool under the zombie the instant it's struck.
 //
 // Blood soaks away on its own clock: fresh for BM_STAY seconds, then fading from its thin edges in over BM_FADE, so a
-// splash is gone 70 to 90 seconds after it landed (the thickest last). A splash on top of old blood makes it fresh
+// splash is gone 40 to 55 seconds after it landed (the thickest last), and the farm never carries much from long ago.
+// Once a wave's cleared it all soaks away BM_WASH times as fast, aged in small steps (BM_WASH_STEP, s) so it fades
+// smoothly, and the next wave starts on all but clean ground. A splash on top of old blood makes it fresh
 // again. Fading reads the map, so it's drawn into a second copy (ping-pong) and the two swap.
 
-const BM_RES = 1024, BM_STAY = 25, BM_FADE = 58;
+const BM_RES = 1024, BM_STAY = 15, BM_FADE = 40, BM_WASH = 6, BM_WASH_STEP = 0.5;
 const bmOpts = { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false };
 const bmTargets = [new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts), new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts)];
 let bmTarget = bmTargets[0];
@@ -147,14 +149,15 @@ function stepBloodMap(dt) {
     if (!q.busy || !q.dur) continue;
     q.t += dt; const u = Math.min(1, q.t / q.dur), e = u * u * (3 - 2 * u); q.m.scale.setScalar(q.s * (POOL_FROM + (1 - POOL_FROM) * e)); bmDirty = true;
   }
-  if (!bmDirty && bmDry <= 3) return;
+  const wash = phase === 'cleared' || phase === 'break', every = wash ? BM_WASH_STEP : 3;
+  if (!bmDirty && bmDry <= every) return;
   const at = R.getRenderTarget(), ac = R.autoClear; R.getClearColor(_bmCol); const aa = R.getClearAlpha();
   R.autoClear = false;
   if (!bmCleared) { R.setClearColor(0x000000, 0); bmTargets.forEach(t => { R.setRenderTarget(t); R.clear(true, false, false); }); bmCleared = true; }
   // every few seconds: age the stains into the other copy and swap (freshness down by the time gone over BM_STAY, and
   // stains with none left faded by it over BM_FADE), and dry the ground underfoot to match
-  if (bmDry > 3) {
-    const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms, el = Math.min(bmDry, 6);
+  if (bmDry > every) {
+    const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms, el = Math.min(bmDry, 6) * (wash ? BM_WASH : 1);
     u.uSrc.value = bmTarget.texture; u.uAge.value = el / BM_STAY; u.uFade.value = el / BM_FADE; bmDry = 0;
     const dry = Math.exp(-el / BW_DRY); for (let i = 0; i < bloodWet.length; i++) bloodWet[i] *= dry;
     R.setRenderTarget(dst); R.render(bmAgeScene, bmCam); bmTarget = dst; BMU.uBloodMap.value = dst.texture;

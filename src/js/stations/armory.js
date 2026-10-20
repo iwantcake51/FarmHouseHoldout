@@ -25,14 +25,14 @@ function lineNext(L) { const k = L.ids.findIndex(id => !owns(id)); return k < 0 
 const lineHave = L => L.ids.filter(owns).length;
 function unlockWeapon(id) {
   const D = WEAP[id], old = W8.slot[D.slot];
-  exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1;
+  exitScope(); giveWeapon(id); buildGuns(); glowGun(id);
   feed('gear', 0, D.name + ' unlocked');
   gotGear({ ic: 'gear', kind: 'Unlocked', name: D.name, on: old ? 'Your ' + gunCall(old) + ' is on the rack' : 'Your ' + SLOT_NAME[D.slot].toLowerCase(), text: statLine(id) });
 }
 // one off the rack into its slot and your hands, as you left it (rounds and all); the one it replaces goes up in its place
 function takeFromRack(id) {
   const D = WEAP[id], s = D.slot;
-  exitScope(); cutReload(); W8.slot[s] = id; delete W8.pin[id]; buildGuns(); equip(s, true); gunGlow = 1;
+  exitScope(); cutReload(); W8.slot[s] = id; delete W8.pin[id]; buildGuns(); equip(s, true); glowGun(id);
   feed('gear', 0, D.name);
 }
 // ---- the rack's panel (stations/station-ui.js hands it over, like the strongbox's): a tab a line, the pill sliding
@@ -54,7 +54,10 @@ function rackNode(L, id, k, nxt, full) {
   const D = WEAP[id], own = owns(id), tier = `<small class="rkTier">${k + 1}</small>`, desc = full && D.desc ? `<p class="rkDesc">${D.desc}</p>` : '';
   if (!own && id === nxt) return `<button type="button" class="rkNode next" data-buy="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b><i class="rkNeed"></i></span><i class="rkProg"><i></i></i></button>`;
   const on = own && W8.slot[D.slot] === id;
-  const tag = own ? `<span class="rkTag">${TICK_IC}${on ? 'Carrying' : 'On the rack'}</span>` : `<span class="rkTag">${LOCK_IC}After the ${WEAP[L.ids[k - 1]].short || WEAP[L.ids[k - 1]].name}</span><span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b></span>`;
+  // one of yours up on the rack: click it to take it down in place of what's in its slot, as you left it, with the
+  // rounds it went up with (takeFromRack)
+  if (own && !on) return `<button type="button" class="rkNode own take" data-take="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkTag">${TICK_IC}On the rack${D.melee ? '' : ` · ${W8.mag[id] ?? 0} in it`}</span><span class="rkTake">Take down</span></button>`;
+  const tag = own ? `<span class="rkTag">${TICK_IC}Carrying</span>` : `<span class="rkTag">${LOCK_IC}After the ${WEAP[L.ids[k - 1]].short || WEAP[L.ids[k - 1]].name}</span><span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b></span>`;
   return `<div class="rkNode ${own ? 'own' : 'lock'}${on ? ' on' : ''}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}${tag}</div>`;
 }
 function rackTree(L, from = 0, full = false) {   // (full: with each one's description, on a tab of one line)

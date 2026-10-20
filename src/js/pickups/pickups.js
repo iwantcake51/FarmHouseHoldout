@@ -163,7 +163,7 @@ function takeIt(p) {
     if (!p.cargo.own && p.cargo.lo) gunTakeLo(id, p.cargo.lo);
     // your own gun back: as you left it, no fresh ammo with it
     W8.slot[D.slot] = id; recomputeEff(); delete W8.pin[id]; W8.mag[id] = Math.min(magSize(id), p.cargo.mag); if (p.cargo.ak) W8.akMag[id] = p.cargo.ak;
-    equip(D.slot, true); buildGuns(); gunGlow = 1;
+    equip(D.slot, true); buildGuns(); glowGun(id);
     gotGear({ ic: 'gear', kind: p.cargo.own === false ? 'From ' + (p.cargo.who || 'a teammate') : 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
   } else { deliverWeapon(id, p.cargo.from); if (p.cargo.from !== 'card') flareDone(); }
   floatText(p.x, p.z, D.name, '#f0c060'); SFX.pick();

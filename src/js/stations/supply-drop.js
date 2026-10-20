@@ -96,7 +96,7 @@ function stepFlare(dt) {
 const SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
-  giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
+  giveWeapon(id); buildGuns(); glowGun(id); SFX.upgrade && SFX.upgrade();
   gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
 function updateSupplyDrop(dt) {

@@ -73,7 +73,7 @@ function wlPick(i) {
   });
   if (o.k === 'mag') delete W8.pin[id];   // (emptied and swapped: there's no old mag left in it for magChange to keep)
   if (!o.rk) buildGuns(id);
-  gunGlow = 1; SFX.click();
+  glowGun(id); SFX.click();
   feed(o.rk ? 'ammo' : 'gear', 0, o.n ? o.name + (o.rk || o.k === 'ammo' ? ' loaded' : ' on') : (was ? was.name : o.name) + (o.k === 'ammo' ? ' unloaded' : ' off'));
   if (openSt) renderStation();   // the bench's cards measure against what's on the gun now
   const b = $('wLoad').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); }
