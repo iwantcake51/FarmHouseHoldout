@@ -21,12 +21,13 @@ function spawnZombie(type, job) {
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) { o.material.userData.mobile = true; fm.add(o.material); } }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });
-  const xr = xray(m.g, 0xff3322, false, true, null, 0, 5);   // seen through cover in halftone dots, like you (effects/outlines.js)
+  const xr = xray(m.g, type === 'spitter' ? SPIT.xray : 0xff3322, false, true, null, 0, 5);   // seen through cover in halftone dots, like you (effects/outlines.js)
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11 + LATE.hp * lateN(run.wave) ** 2, hp = T_.hp * hpMul;   // (faster past LATE.from: waves/waves.js)
   const z = { type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
     fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * 0.3, armR: hp * 0.3, legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : type === 'walker' ? walkerPace() : 1) };
   zAnimInit(z); zombies.push(z);
+  if (type === 'spitter') spitterGait(z);   // bent over its belly, and its drool and glow kept going (zombies/spitter.js)
 }
 // sprinters show up on wave 3 at about two thirds of their top speed and work up to full pace by wave 11
 const runnerPace = () => Math.min(1, 0.62 + Math.max(0, run.wave - 3) * 0.0475);
