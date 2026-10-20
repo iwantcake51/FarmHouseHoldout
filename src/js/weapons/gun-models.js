@@ -1357,6 +1357,7 @@ const GUN_MODELS = {
         profile(lg, shp([[-0.375, -0.03], [0, -0.03], [0, 0.017], [-0.375, 0.017]], legH), 0.0024, K, 0, 0.0008);
         profile(lg, shp([[-0.3535, -0.072], [-0.3465, -0.072], [-0.344, -0.03], [-0.344, 0.004], [-0.355, 0.004], [-0.356, -0.03]]), 0.012, K, sd * 0.004, 0.001);   // its foot
         if (m.bipod) lg.rotation.set(-1.72, 0, sd * 0.2, 'ZYX');   // swung down, then splayed
+        lg.userData.leg = { sd, down: !!m.bipod };   // (so a copy of the gun finds its legs too: player/stow.js)
         legs.push({ g: lg, r0: lg.rotation.clone(), down: !!m.bipod, sd });   // (each swings on its hinge as the gun moves: bipodSway, player/hold.js)
       });
     }

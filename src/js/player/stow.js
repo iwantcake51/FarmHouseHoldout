@@ -235,6 +235,7 @@ function buildStow() {
     outer.userData.gun = copy; outer.userData.inner = inner; outer.userData.q0 = inner.quaternion.clone();
     const sls = [], mags = [], belt = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); if (o.userData.isMag) mags.push(o); if (o.userData.beltK !== undefined) belt.push(o); });
     outer.userData.mags = mags; outer.userData.belt = belt;
+    const legs = []; copy.traverse(o => { if (o.userData.leg) legs.push({ g: o, r0: o.rotation.clone(), down: o.userData.leg.down }); }); outer.userData.legs = legs.length ? legs : null;   // a bipod's legs (player/hold.js: bipodSway)
     return { outer, inner, copy, pv, sls };
   };
   const rig = !!(W8.slot.side && (W(W8.slot.side) || {}).akimbo && HOLDS.side && HOLDS.side.L);
@@ -366,4 +367,6 @@ function updateStow(rdt) {
   // bottom lifting out from the pack as you speed up (it can't swing into the pack)
   packBack.rotation.set(Math.max(0, -stowSw.x) * 0.4, 0, stowSw.z * 0.3);
   packBack.position.copy(BACK_PIV).applyQuaternion(packBack.quaternion).negate().add(BACK_PIV);
+  // a bipod on a gun on your back swings with you too, as the pack moves
+  for (const s in STOW) { const o = STOW[s], L = o && o.userData.legs; if (!L) continue; if (o.visible && o.userData.gun.visible) bipodSway(L, o.userData.gun, rdt); else if (L.st) L.st.on = false; }
 }
