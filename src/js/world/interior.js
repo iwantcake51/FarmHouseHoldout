@@ -607,5 +607,5 @@ function houseLayout0(seed, live) {
   for (const w of walls) for (const [a, b, m] of w.inner) { const r = ro[idx(a, b)]; m.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
   buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
-  if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
+  if (live) { syncBlock(); relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
 }

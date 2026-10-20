@@ -2,7 +2,10 @@
 
 const blockArr = new Uint8Array(N * N);
 // what stops bullets and sight: walls and tall props, not the crates and hay bales you can see over
-for (let k = 0; k < N * N; k++) blockArr[k] = cell[k] === WALL || (cell[k] === OBST && !lowObst.has(k)) ? 1 : 0;
+// (taken afresh from the grid as each run's farm is laid out, world/interior.js: the title's layout moves the yard's
+// props without it, so what was made here, with every prop where it was built, would go on blocking where none stands)
+function syncBlock() { for (let k = 0; k < N * N; k++) blockArr[k] = cell[k] === WALL || (cell[k] === OBST && !lowObst.has(k)) ? 1 : 0; }
+syncBlock();
 // a window's never walked through: you and the zombies climb it (player/vaulting.js, zombies/climb.js)
 const hardBlocked = (i, j) => { if (!inb(i, j)) return true; const t = cell[idx(i, j)]; return t === WALL || t === OBST || t === FENCE || (t === OPEN && (openAt[idx(i, j)].boards.length > 0 || openAt[idx(i, j)].kind === 'window')); };
 const playerBlocked = hardBlocked;
