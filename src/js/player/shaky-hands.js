@@ -31,7 +31,7 @@ TREM_AX.forEach(a => { TREM[a] = 0; TREM['v' + a] = 0; TREM['g' + a] = 0; });
 // sights less again, an automatic much less (XREC). A full automatic kicks it far harder (autoK), and its upgrades only
 // take so much of that off (autoTight: the least of it they leave); a gun that kicks harder from the hip than down
 // the sights says how much (its hipKick, weapons/gun-stats.js: the LMG)
-const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26, autoK: 2.3, autoTight: 0.7 };
+const XREC = { px: 20, side: 0.45, autoSide: 0.6, adsSemi: 0.5, adsAuto: 0.18, k: 120, d: 19, kAuto: 260, dAuto: 26, autoK: 2.3, autoTight: 0.7 };
 // a full automatic's recoil is worked out shot by shot as the spray goes on, not all there from the first round
 // (XAUTO): each kick starts at from of its full size and builds to it over build rounds; for the first sideFrom rounds
 // it climbs nearly straight out along the aim (climb a round, up to climbMax rounds' worth), then it starts swaying
@@ -40,7 +40,7 @@ const XREC = { px: 20, side: 0.45, autoSide: 1.1, adsSemi: 0.5, adsAuto: 0.18, k
 // smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js: the
 // LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly (back: how quickly). The walk is
 // eased to (ease), so it glides rather than stepping with each round
-const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 2.2, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, magnum: 0.8, rifle: 1, shells: 1.1 } };
+const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, magnum: 0.8, rifle: 1, shells: 1.1 } };
 const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
 const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
