@@ -464,7 +464,7 @@ const GUN_MODELS = {
     const pn = [[0.6435, 1.099]]; for (let k = 0; k <= 8; k++) { const yy = 1.052 - k * 0.0095; pn.push([zAt(GF, yy) - 0.0045, yy]); }
     for (let k = 0; k <= 8; k++) { const yy = 0.976 + k * 0.0154; pn.push([zAt(GB, yy) + 0.0045, yy]); }
     [-1, 1].forEach(sd => profile(g, shp(pn), 0.002, GM.glockT, X + sd * 0.0165, 0.0005));
-    profile(g, shp([[0.706, 1.098], [0.712, 1.098], [0.716, 1.085], [0.714, 1.072], [0.708, 1.068], [0.709, 1.082], [0.705, 1.092]]), 0.007, F, X, 0.0008);
+    profile(g, shp([[0.713, 1.092], [0.709, 1.082], [0.71, 1.068], [0.704, 1.072], [0.702, 1.085], [0.706, 1.098], [0.712, 1.098]]), 0.007, F, X, 0.0008);
     box(g, 0.004, 0.006, 0.014, F, X, 1.09, 0.71);
     box(g, 0.003, 0.006, 0.022, GM.metal2, X + 0.016, 1.122, 0.662); box(g, 0.003, 0.007, 0.012, GM.metal2, X + 0.016, 1.112, 0.734); box(g, 0.004, 0.012, 0.012, F, X + 0.016, 1.085, 0.645);
     // ---- the barrel and chamber under the slide, the recoil guide in the dust cover
@@ -520,7 +520,7 @@ const GUN_MODELS = {
     [[0.548, 1.1], [0.556, 1.075]].forEach(([z, yy]) => cyl(g, 0.0035, 0.033, D, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // side plate screws
     box(g, 0.004, 0.008, 0.016, D, X + 0.016, 1.15, 0.566);   // the cylinder release, on the left
     profile(g, shp([[0.535, 1.135], [0.548, 1.162], [0.54, 1.168], [0.522, 1.166], [0.512, 1.162], [0.52, 1.156], [0.532, 1.152]]), 0.009, m.fan ? GM.brass : GM.steelDk, X, 0.001);   // hammer
-    profile(g, shp([[0.594, 1.113], [0.609, 1.113], [0.618, 1.094], [0.616, 1.072], [0.606, 1.056], [0.596, 1.054], [0.604, 1.066], [0.605, 1.084], [0.598, 1.1]]), 0.01, GM.steel, X, 0.0012);   // the wide smooth trigger
+    profile(g, shp([[0.605, 1.1], [0.598, 1.084], [0.599, 1.066], [0.607, 1.054], [0.597, 1.056], [0.587, 1.072], [0.585, 1.094], [0.594, 1.113], [0.609, 1.113]]), 0.01, GM.steel, X, 0.0012);   // the wide smooth trigger
     // ---- the grips, traced off the photo: black rubber up over the back strap to just under the hammer, a finger
     // groove down the front, pebbled sides inside a smooth border, the medallion and the screw; steel shows above the
     // rubber's top edge
@@ -647,7 +647,7 @@ const GUN_MODELS = {
     [[0.523, 1.13], [0.537, 1.15]].forEach(([z, yy]) => cyl(g, 0.0042, 0.046, GM.metal2, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));
     // ---- trigger guard (rounded at the back, square at the front) and the trigger
     profile(g, shp([[0.52, 1.104], [0.579, 1.104], [0.579, 1.066], [0.536, 1.066], [0.524, 1.074], [0.519, 1.088]], [shp([[0.527, 1.1], [0.572, 1.1], [0.572, 1.072], [0.538, 1.072], [0.53, 1.078], [0.526, 1.09]])]), 0.012, K, X, 0.0015);
-    profile(g, shp([[0.548, 1.102], [0.556, 1.102], [0.56, 1.088], [0.557, 1.077], [0.551, 1.073], [0.553, 1.085], [0.549, 1.095]]), 0.006, GM.metal2, X, 0.0008);
+    profile(g, shp([[0.555, 1.095], [0.551, 1.085], [0.553, 1.073], [0.547, 1.077], [0.544, 1.088], [0.548, 1.102], [0.556, 1.102]]), 0.006, GM.metal2, X, 0.0008);
     // ---- barrel with its vent rib (a strip on posts) and bead; the collar where it meets the receiver
     cyl(g, 0.0125, 0.016, B, X, 1.15, 0.726, 18); cyl(g, 0.0095, 0.66, B, X, 1.15, 1.058, 18);
     box(g, 0.009, 0.0024, 0.655, B, X, 1.1635, 1.058);
@@ -692,7 +692,7 @@ const GUN_MODELS = {
     { const tg = new THREE.Group(); tg.position.set(X, 0, z0 - 0.006); g.add(tg); profile(tg, shp([[0.572 - z0 + 0.006, 1.151], [0.006, 1.151], [0.006, 1.159], [0.58 - z0 + 0.006, 1.161]]), 0.012, GM.steel, -0.004, 0.001); tg.rotation.y = -0.25; }   // top lever on its spindle, swung to the right
     box(g, 0.008, 0.004, 0.014, GM.steel, X, 1.138, 0.556);   // safety on the tang
     profile(g, shp([[0.536, 1.082], [0.648, 1.082], [0.632, 1.067], [0.61, 1.058], [0.586, 1.058], [0.565, 1.07], [0.55, 1.078], [0.536, 1.078]], [shp([[0.635, 1.078], [0.626, 1.069], [0.608, 1.063], [0.588, 1.063], [0.57, 1.073], [0.566, 1.078]])]), 0.01, GM.steelDk, X, 0.0012);
-    [0.6, 0.582].forEach(z => profile(g, shp([[z, 1.08], [z + 0.007, 1.08], [z + 0.011, 1.069], [z + 0.008, 1.06], [z + 0.002, 1.059], [z + 0.004, 1.068]]), 0.006, m.both ? GM.brass : GM.steel, X, 0.0008));
+    [0.6, 0.582].forEach(z => profile(g, shp([[z + 0.003, 1.068], [z + 0.005, 1.059], [z - 0.001, 1.06], [z - 0.004, 1.069], [z, 1.08], [z + 0.007, 1.08]]), 0.006, m.both ? GM.brass : GM.steel, X, 0.0008));
     if (m.both) box(g, 0.004, 0.004, 0.024, GM.brass, X, 1.067, 0.596);   // the triggers linked to fire both
     // ---- the stock, or a sawn-off's taped pistol grip
     if (!m.sawn) {
@@ -765,7 +765,7 @@ const GUN_MODELS = {
     profile(g, shp([[0.4971, 0.886], [0.5242, 0.8791], [0.5391, 0.873], [0.5494, 0.8685], [0.5731, 0.8582], [0.5896, 0.854], [0.6647, 0.8467], [0.6715, 0.8474], [0.6754, 0.8497], [0.6779, 0.8547], [0.6715, 0.8545], [0.59, 0.861], [0.5735, 0.8652], [0.5498, 0.8755], [0.5395, 0.88], [0.5246, 0.8861], [0.4975, 0.893]]), 0.012, St, X, 0.0012);   // the long bar
     profile(g, shp([[0.6655, 0.8475], [0.6779, 0.8475], [0.6921, 0.8637], [0.6872, 0.9018], [0.6768, 1.0155], [0.6742, 1.0502], [0.6667, 1.0502], [0.6693, 1.0155], [0.6797, 0.9018], [0.684, 0.866], [0.6735, 0.8545]]), 0.01, St, X, 0.0012);   // the rod
     profile(g, shp([[0.574, 1.0045], [0.6697, 1.0075], [0.6697, 1.0145], [0.574, 1.0115]]), 0.01, St, X, 0.001);   // the bar under the trigger
-    profile(g, shp([[0.598, 1.047], [0.607, 1.047], [0.612, 1.035], [0.609, 1.022], [0.602, 1.016], [0.604, 1.03], [0.6, 1.04]]), 0.007, St, X, 0.0008);   // the trigger
+    profile(g, shp([[0.605, 1.04], [0.601, 1.03], [0.603, 1.016], [0.596, 1.022], [0.593, 1.035], [0.598, 1.047], [0.607, 1.047]]), 0.007, St, X, 0.0008);   // the trigger
     // ---- the magazine (in the mag group, so the reload can drop it): its own 8-shell box, raked a little forward with
     // ribs down its sides and a base plate; or, with its one magazine upgrade, the drum: face forward, a hub in the
     // middle, the chrome band round its back edge (a stripe on either in the colour of the shells loaded, if they aren't buckshot)
@@ -780,7 +780,7 @@ const GUN_MODELS = {
       [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
       if (SHELL_MAT[roundOn(tierCtx)]) box(bm, 0.052, 0.014, 0.097, SHELL_MAT[roundOn(tierCtx)], 0, -0.17, 0);
     }
-    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
+    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },
 
   // hunting rifle: a Winchester Model 70, traced off a side-on photo. A one-piece walnut stock (a straight comb, a
@@ -970,16 +970,9 @@ const GUN_MODELS = {
       const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
     });
-    // ---- a light on the left of the handguard's front, on an M-LOK mount: a plain flashlight, then a weapon light
-    if (T('light')) {
-      const lx = X + W / 2 + 0.02, ly = 1.12, lz = 1.085, two = T('light') === 2;
-      box(g, 0.008, 0.018, 0.036, GM.metal, X + W / 2 + 0.004, ly, lz - 0.02); box(g, 0.012, 0.012, 0.03, GM.metal, lx - 0.012, ly, lz - 0.02);
-      cyl(g, two ? 0.018 : 0.015, two ? 0.12 : 0.11, two ? GM.metal : GM.metal2, lx, ly, lz); ring(g, two ? 0.024 : 0.019, 0.03, two ? GM.metal2 : GM.metal, lx, ly, lz + 0.07);
-      cyl(g, two ? 0.021 : 0.017, 0.004, GM.lens, lx, ly, lz + 0.087); if (two) ring(g, 0.015, 0.014, GM.rubber, lx, ly, lz - 0.067);
-    }
     const big = sight >= 5;
     return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.69 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
-      laser: { y: 1.0982, z: 1.112 }, noLight: true, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
+      laser: { y: 1.0982, z: 1.112 }, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
   },
   // machine pistol: a B&T MP9, its outline traced off a side-on photo. A slim receiver with grooves down its front
   // half, a rail along the top with a little front sight on its end and the rear sight leaning back behind it; the
