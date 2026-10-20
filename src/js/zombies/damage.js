@@ -47,6 +47,22 @@ function goCrawl(z) {
 const CUT_M = [lam(0x7a1410), lam(0x4e0b08), lam(0xc9b8a0), lam(0xc98a86), lam(0x8e4a4a), lam(0xe8e0cc), lam(0xae6660)], DEAD_EYE = lam(0x2e1612);
 CUT_M.concat(DEAD_EYE).forEach(m => { m.userData.mobile = true; });
 const SPLIT_STEP = 0.0015;
+// the face of any other cut (across, or on a slant), sized to where it really runs through the head (lo, hi: its extent,
+// y and z in the cut's frame) and laid out by which way the top of the head is (up): the skull's rim and the meat
+// filling it, the brain toward the top with its folds, lumps of it and clots over the meat, and gore hanging off the
+// bottom edge. Every layer stands out its own distance from the cut, never two in one plane
+function splitFace(cut, half, sd, lo, hi, up) {
+  const cy = (lo[0] + hi[0]) / 2, cz = (lo[1] + hi[1]) / 2, h = Math.max(0.05, hi[0] - lo[0]), w = Math.max(0.05, hi[1] - lo[1]);
+  const uy = up.y, uz = up.z, ul = Math.hypot(uy, uz) || 1, ty = uy / ul, tz = uz / ul;   // (the top, across the face)
+  cut(w * 0.98, h * 0.98, 0.012, 2, 0.004, cy, cz);   // the skull's rim
+  cut(w * 0.88, h * 0.88, 0.012, 0, 0.009, cy, cz);   // the meat
+  const by = cy + ty * h * 0.16, bz = cz + tz * w * 0.12;
+  cut(w * 0.6, h * 0.5, 0.012, 3, 0.015, by, bz);   // the brain
+  for (let k = -1; k <= 1; k++) cut(w * (0.5 - Math.abs(k) * 0.1), 0.008, 0.006, 4, 0.026, by + k * h * 0.12, bz);   // its folds
+  for (let k = 0; k < 3; k++) cut(rr(0.04, 0.07), rr(0.035, 0.05), 0.006, 6, k % 2 ? 0.018 : 0.021, by + rr(-0.3, 0.3) * h * 0.4, bz + rr(-0.3, 0.3) * w * 0.4);   // lumps of it
+  for (let k = 0; k < 4; k++) cut(rr(0.03, 0.05), rr(0.03, 0.05), 0.004, 1, 0.012, cy + rr(-0.35, 0.35) * h, cz + rr(-0.35, 0.35) * w);   // clots over the meat
+  for (let k = 0; k < 2; k++) { const len = rr(0.04, 0.09), hy = cy - ty * h * 0.48 - len / 2; box(half, 0.012, len, 0.014, CUT_M[k], -sd * rr(0.006, 0.012), hy, cz + rr(-0.3, 0.3) * w); }   // gore hanging off it
+}
 // the cut face, in the head's frame: [w (front to back), h, thickness, material, how far it stands out of the cut, y, z]
 const CUT_LAYERS = [
   [0.3, 0.3, 0.012, 2, 0.004, 0, 0],                 // the skull's rim
@@ -57,19 +73,37 @@ const CUT_LAYERS = [
   [0.13, 0.008, 0.006, 4, 0.026, 0.025, -0.005],
   [0.1, 0.07, 0.008, 1, 0.014, -0.08, -0.02]         // the throat
 ];
-function splitHead(z, dx, dz) {
+// the ways a head's cut (SPLIT_CUT): the axe's straight down the middle front to back (v) or clean across through the
+// eyes (h), a blade's on a slant from one temple down to the other side of the jaw (d, e). Each is a plane through the
+// head, its normal (n) and a point on it (o), in the head's own frame
+const SPLIT_CUT = { v: { n: [1, 0, 0], o: [0, 0, 0] }, h: { n: [0, 1, 0], o: [0, 0.02, 0] }, d: { n: [0.71, 0.71, 0], o: [0, 0, 0] }, e: { n: [-0.71, 0.71, 0], o: [0, 0, 0] } };
+// how often a katana or machete that kills with a blow to the head takes it off on a slant (the rest, as before)
+const SLANT_SPLIT = 0.45;
+function splitHead(z, dx, dz, kind = 'v') {
   const head = z.m.head; if (!head || !z.limbs.head) return false;
-  z.limbs.head = false; netRec('p');
+  z.limbs.head = false; netRec('p', kind);
   head.updateWorldMatrix(true, true);
   const inv = head.matrixWorld.clone().invert(), wp = new V3(), wq = new THREE.Quaternion(), ws = new V3(), rel = new THREE.Matrix4(), mats = new Map();
   head.matrixWorld.decompose(wp, wq, ws);
   const pieces = []; head.traverse(o => { if (o.isMesh && !o.userData.isOutline && o.visible) pieces.push(o); });
-  const across = new V3(1, 0, 0).applyQuaternion(wq);   // the cut runs front to back down the middle
+  // the cut's own frame: its x along the plane's normal, through the point on it, so the cut is always x = 0 there (and
+  // straight down the middle that's the head's own frame, as it was)
+  const C = SPLIT_CUT[kind] || SPLIT_CUT.v, cq = new THREE.Quaternion().setFromUnitVectors(new V3(1, 0, 0), new V3(...C.n).normalize()), co = new V3(...C.o);
+  const toCut = new THREE.Matrix4().compose(co, cq, new V3(1, 1, 1)).invert(), hq = wq.clone().multiply(cq);
+  const across = new V3(1, 0, 0).applyQuaternion(hq), plain = kind === 'v';
+  const up = new V3(0, 1, 0).applyQuaternion(cq.clone().invert());   // (the head's up, in the cut's frame)
+  let lo = [9, 9], hi = [-9, -9];   // (how far the cut runs across the head: y and z in the cut's frame)
   [-1, 1].forEach(sd => {
-    const half = new THREE.Group(); half.position.copy(wp).addScaledVector(across, sd * 0.03 * ws.x); half.quaternion.copy(wq); half.scale.copy(ws);   // (started a little apart, so the faces of the cut don't meet)
+    const half = new THREE.Group(); half.position.copy(co).multiply(ws).applyQuaternion(wq).add(wp).addScaledVector(across, sd * 0.03 * ws.x); half.quaternion.copy(hq); half.scale.copy(ws);   // (started a little apart, so the faces of the cut don't meet)
     pieces.forEach((o, k) => {
-      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(rel.multiplyMatrices(inv, o.matrixWorld));
+      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(rel.multiplyMatrices(inv, o.matrixWorld)).applyMatrix4(toCut);
       const a = g.attributes.position.array, c = 0.001 + k * SPLIT_STEP; let any = false;
+      // (where the cut goes through it: every edge of every face that crosses it, once, before it's flattened)
+      if (sd < 0 && !o.material.isMeshBasicMaterial) for (let i = 0; i < a.length; i += 9) for (const [p, q] of [[0, 3], [3, 6], [6, 0]]) {
+        const x0 = a[i + p], x1 = a[i + q]; if ((x0 > 0) === (x1 > 0)) continue;
+        const t = x0 / (x0 - x1), y = a[i + p + 1] + (a[i + q + 1] - a[i + p + 1]) * t, zz = a[i + p + 2] + (a[i + q + 2] - a[i + p + 2]) * t;
+        lo[0] = Math.min(lo[0], y); lo[1] = Math.min(lo[1], zz); hi[0] = Math.max(hi[0], y); hi[1] = Math.max(hi[1], zz);
+      }
       for (let i = 0; i < a.length; i += 3) { if (a[i] * sd > c) any = true; a[i] = sd > 0 ? Math.max(c, a[i]) : Math.min(-c, a[i]); }
       if (!any) { g.dispose(); return; }
       g.computeVertexNormals();
@@ -83,13 +117,18 @@ function splitHead(z, dx, dz) {
     });
     // the face of the cut, built out toward the other half (-sd); a layer's outer face is `out` from the cut
     const cut = (w, h, t, mi, out, y, zz) => box(half, t, h, w, CUT_M[mi], -sd * (out - t / 2), y, zz);
-    CUT_LAYERS.forEach(L => cut(L[0], L[1], L[2], L[3], L[4], L[5], L[6]));
-    for (let k = 0; k < 4; k++) cut(rr(0.05, 0.08), rr(0.04, 0.06), 0.006, 6, k % 2 ? 0.018 : 0.021, rr(0.03, 0.08), rr(-0.08, 0.06));   // the brain swelling out in lumps
-    for (let k = 0; k < 5; k++) cut(rr(0.03, 0.06), rr(0.03, 0.06), 0.004, 1, 0.012, rr(-0.12, 0.0), rr(-0.12, 0.12));   // clots of dark blood over the meat
-    for (let k = 0; k < 4; k++) cut(0.022, 0.03, 0.01, 5, 0.017, -0.105, 0.13 - k * 0.028);   // teeth along the front
-    for (let k = 0; k < 2; k++) { const len = rr(0.05, 0.11); box(half, 0.012, len, 0.014, CUT_M[k], -sd * rr(0.006, 0.012), -0.13 - len / 2, rr(-0.08, 0.06)); }   // gore hanging off it
+    if (plain) {
+      CUT_LAYERS.forEach(L => cut(L[0], L[1], L[2], L[3], L[4], L[5], L[6]));
+      for (let k = 0; k < 4; k++) cut(rr(0.05, 0.08), rr(0.04, 0.06), 0.006, 6, k % 2 ? 0.018 : 0.021, rr(0.03, 0.08), rr(-0.08, 0.06));   // the brain swelling out in lumps
+      for (let k = 0; k < 5; k++) cut(rr(0.03, 0.06), rr(0.03, 0.06), 0.004, 1, 0.012, rr(-0.12, 0.0), rr(-0.12, 0.12));   // clots of dark blood over the meat
+      for (let k = 0; k < 4; k++) cut(0.022, 0.03, 0.01, 5, 0.017, -0.105, 0.13 - k * 0.028);   // teeth along the front
+      for (let k = 0; k < 2; k++) { const len = rr(0.05, 0.11); box(half, 0.012, len, 0.014, CUT_M[k], -sd * rr(0.006, 0.012), -0.13 - len / 2, rr(-0.08, 0.06)); }   // gore hanging off it
+    } else if (hi[0] > lo[0]) splitFace(cut, half, sd, lo, hi, up);
     scene.add(half);
-    gibs.push({ m: half, vx: across.x * sd * rr(1.4, 2.2) + dx * rr(0.6, 1.4), vy: rr(1.8, 2.8), vz: across.z * sd * rr(1.4, 2.2) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
+    // (cut clean across, the top's knocked off along the blow and the jaw drops where it was; otherwise each half off
+    // to its own side)
+    if (kind === 'h') gibs.push({ m: half, vx: dx * (sd > 0 ? rr(1.6, 2.6) : rr(0.2, 0.5)), vy: sd > 0 ? rr(2, 3) : rr(0.3, 0.9), vz: dz * (sd > 0 ? rr(1.6, 2.6) : rr(0.2, 0.5)), spin: sd > 0 ? rr(4, 8) : rr(1, 2), life: 9, landed: false });
+    else gibs.push({ m: half, vx: across.x * sd * rr(1.4, 2.2) + dx * rr(0.6, 1.4), vy: rr(1.8, 2.8), vz: across.z * sd * rr(1.4, 2.2) + dz * rr(0.6, 1.4), spin: sd * rr(3, 6), life: 9, landed: false });
   });
   head.parent.remove(head); zFree(head); bloodZombie(z, 0.35);
   // the blood: a burst on along the blow and one off each side with the halves, a red mist where the head was, chunks of
@@ -292,7 +331,8 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   // the sledgehammer crushes the head of whatever it kills, wherever the blow landed: it comes down from overhead
   // (and the fire axe often splits it: either leaves no head for the rest of this to take)
   const crushed = wId === 'sledge' && crushHead(z, dx, dz);
-  const split = !crushed && part === 'head' && z.limbs.head && wId === 'axe' && rand() < 0.85 && splitHead(z, dx, dz);
+  // (the fire axe straight down through it or clean across it; a katana's or machete's edge often on a slant)
+  const split = !crushed && part === 'head' && z.limbs.head && (wId === 'axe' ? rand() < 0.85 && splitHead(z, dx, dz, rand() < 0.5 ? 'v' : 'h') : (wId === 'katana' || wId === 'machete') && rand() < SLANT_SPLIT && splitHead(z, dx, dz, rand() < 0.5 ? 'd' : 'e'));
   if (part === 'head' && z.limbs.head) {
     // a blade or a blast takes the head off; a bullet mostly goes in one side and out the other and leaves it on
     // (zombies/wounds.js), though buckshot from close up or a big round can still take it

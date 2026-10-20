@@ -150,7 +150,7 @@ function netOp(z, op, dx, dz) {
     case 's': sever(z, op[1], dx, dz, !!op[2]); return;
     case 'l': severLower(z, op[1], dx, dz); return;
     case 'c': crushHead(z, dx, dz); return;
-    case 'p': splitHead(z, dx, dz); return;
+    case 'p': splitHead(z, dx, dz, op[1]); return;
     case 'h': headShot(z, dx, dz); return;
     case 'b': blowApart(z, dx, dz); return;
     case 'k': z.killW = op[1]; killZombie0(z, dx, dz, op[1], op[2], 0); return;
