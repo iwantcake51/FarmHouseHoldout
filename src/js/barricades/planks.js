@@ -95,6 +95,12 @@ function boardJolt(o, z, big) {
   const sd = openSide(o, z.x, z.z); m.userData.pull = o.out * sd;
   if (z.vis > 0.2) { const x = o.x + o.nx * sd * 0.5, zz = o.z + o.nz * sd * 0.5, y = m.position.y; burst(x, y, zz, 2, 'dust'); burst(x, y, zz, 3, 'wood', o.nx * sd, o.nz * sd, 1.2); }
 }
+// every board on o rattling at once (tearing them all down: barricades/interactions.js), a grate as a blow on it
+function boardRattle(o, z) {
+  if (o.grate) { grateJolt(o, z); return; }
+  o.meshes.forEach(m => { m.userData.jolt = 1; m.userData.jSide = rand() < 0.5 ? -1 : 1; m.userData.pull = o.out * openSide(o, z.x, z.z); });
+  burst(o.x + o.nx * openSide(o, z.x, z.z) * 0.5, o.ys[1], o.z + o.nz * openSide(o, z.x, z.z) * 0.5, 3, 'dust');
+}
 // every frame, each board as loose as the blows on it have worked it (its hp against what it went up with): it comes
 // away from one nail and hangs from the other, its free end dropping further the looser it gets, and stands off the
 // frame toward whoever's working at it; one just hit rattles
@@ -175,12 +181,12 @@ function hurtBoard(o, d, at) {
   if (o.boards[top] <= 0) { breakBoard(o, at); netBoardBroke(o, null, at); }
 }
 // tearing the boards down yourself (hold C: barricades/interactions.js): every one on the opening wrenched off, one
-// after another a moment apart, and thrown out of the frame on the far side from you (or the grate, in one piece). You
+// after another a moment apart, and dropped inside the house (or the grate, in one piece). You
 // don't get the planks back: they're broken (nor the metal from a grate)
 const TEAR_GAP = 70;   // ms between the boards coming off
 function tearBoard(o) {
   if (!o.boards.length) return;
-  const at = { x: 2 * o.x - P.x, z: 2 * o.z - P.z };
+  const at = { x: o.x - o.nx * 2, z: o.z - o.nz * 2 };   // (always into the house, whichever side you tore them from)
   if (netClient()) { netBoardTear(o, at); return; }   // (the host breaks them and says so)
   tearAll(o, at);
 }

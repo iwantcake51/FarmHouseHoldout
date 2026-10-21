@@ -44,8 +44,8 @@ function updateInteractions(dt) {
   if (o && (keys.has('c') || touchTear) && tearable(o)) {
     const was = tearT, th = tearHold(o); tearT += dt;
     // a kick at it as you start and every quarter of the way after (a board's just the one more, halfway)
-    const beats = o.grate ? 4 : 2;
-    if (was === 0 || Math.floor(was / th * beats) !== Math.floor(tearT / th * beats)) { boardJolt(o, { x: P.x, z: P.z, vis: 1 }); if (!o.grate) SFX.board(); }
+    const beats = 4;
+    if (was === 0 || Math.floor(was / th * beats) !== Math.floor(tearT / th * beats)) { boardRattle(o, { x: P.x, z: P.z, vis: 1 }); if (!o.grate) SFX.board(); }
     if (tearT >= th) { tearT = 0; tearBoard(o); }
   } else tearT = 0;
   const fv = !o && !P.vault && fenceTarget(), tk = nearestTake();

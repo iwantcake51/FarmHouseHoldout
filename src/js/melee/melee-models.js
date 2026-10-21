@@ -178,10 +178,12 @@ const MELEE_MODELS = {
   // to a bright bevelled edge and its pick drawn out to a steel point. A steel collar under the head, the handle's wedged
   // end showing over the eye. A weighted head (weighted) is bigger about its eye
   axe(g, m) {
-    trace(g, AXE_TRACE.wood, 0.024, MM.axeWood, 0.008);
+    trace(g, axeShaft(), 0.024, MM.axeWood, 0.008);
     trace(g, AXE_TRACE.grip, 0.028, MM.axeGrip, 0.008);
+    axeWear(g);
     const hw = lvAt(m, 'weighted', [1, 1.3, 1.38, 1.46]), head = new THREE.Group(); head.position.set(0, AXE_PIVOT[1], AXE_PIVOT[0]); head.scale.setScalar(hw); g.add(head);
     trace(head, AXE_TRACE.red, 0.03, MM.axePaint, 0.002);
+    axeChips(head);
     taperBy(trace(head, AXE_TRACE.bit, 0.026, MM.axeSteel, 0.0006), x => mix(1, 0.05, smooth(clamp((x - 0.094) / 0.056, 0, 1))));   // ground thin to the edge
     taperBy(trace(head, AXE_TRACE.spike, 0.02, MM.axeSteel, 0.0006), x => clamp((x + 0.159) / 0.032, 0.05, 1));                      // drawn to a point
     box(head, 0.036, 0.008, 0.064, MM.iron, 0, 0.056, 0);                           // the handle's wedged end over the eye
@@ -198,6 +200,56 @@ function trace(g, pts, d, mat, bev, holes) {
   geo.translate(0, 0, -d / 2);
   const m = new THREE.Mesh(geo, mat); m.rotation.y = -Math.PI / 2; m.castShadow = true; g.add(m); return m;
 }
+// where a traced outline crosses height y: its front and back edges [lo, hi] (null if it doesn't reach)
+function spanAt(pts, y) {
+  let lo = 1e9, hi = -1e9;
+  for (let i = 0; i < pts.length; i++) { const [z0, y0] = pts[i], [z1, y1] = pts[(i + 1) % pts.length]; if ((y0 - y) * (y1 - y) > 0 || y0 === y1) continue; const zz = z0 + (z1 - z0) * (y - y0) / (y1 - y0); lo = Math.min(lo, zz); hi = Math.max(hi, zz); }
+  return hi > lo ? [lo, hi] : null;
+}
+// the axe's wooden shaft, from its traced outline: both edges evened out (the photo's lumps gone) and carried on
+// straight down into the grip at the grip's own width, so the two meet without the pinch their rounded ends made
+let AXE_SHAFT = null;
+function axeShaft() {
+  if (AXE_SHAFT) return AXE_SHAFT;
+  const W = AXE_TRACE.wood, G = AXE_TRACE.grip, y0 = 0.33, y1 = 0.718, from = 0.405, n = 34, L = [], R = [];
+  const gTop = spanAt(G, 0.35), wLow = spanAt(W, from);
+  for (let k = 0; k <= n; k++) {
+    const y = y0 + (y1 - y0) * k / n;
+    let e = y >= from ? spanAt(W, y) : null;
+    if (!e) { const t = smooth(clamp((y - 0.35) / (from - 0.35), 0, 1)); e = [mix(gTop[0], wLow[0], t), mix(gTop[1], wLow[1], t)]; }
+    L.push([e[0], y]); R.push([e[1], y]);
+  }
+  const even = A => A.map((p, k) => k === 0 || k === A.length - 1 ? p : [(A[k - 1][0] + 2 * p[0] + A[k + 1][0]) / 4, p[1]]);
+  let l = L, r = R; for (let q = 0; q < 3; q++) { l = even(l); r = even(r); }
+  return (AXE_SHAFT = l.concat(r.reverse()));
+}
+// what years of use leave on it: grain running up both faces of the wood, and the
+// rubber grip's moulded ridges round it, every GRIP_RIB up its length
+const GRIP_RIB = 0.036, AXE_GRAIN = lam(0x6a4128), AXE_RIB = lam(0x1d1b19);
+function axeWear(g) {
+  const W = axeShaft(), r = mulberryish(41);
+  for (const sd of [-1, 1]) for (let k = 0; k < 7; k++) {
+    const y = 0.4 + r() * 0.28, len = 0.06 + r() * 0.14, e = spanAt(W, y); if (!e) continue;
+    const z = mix(e[0] + 0.008, e[1] - 0.008, r()), m = box(g, 0.001, len, 0.0022, AXE_GRAIN, sd * 0.0201, y, z); m.rotation.x = (r() - 0.5) * 0.06;
+  }
+  for (let y = -0.08; y < 0.34; y += GRIP_RIB) {
+    const e = spanAt(AXE_TRACE.grip, y); if (!e) continue;
+    box(g, 0.045, 0.003, e[1] - e[0] + 0.002, AXE_RIB, 0, y, (e[0] + e[1]) / 2);
+  }
+}
+// the head's red paint worn through to the steel in chips and along its edges, both faces, and the line where the
+// bit's grind starts
+function axeChips(head) {
+  const R = AXE_TRACE.red, r = mulberryish(7), inside = (z, y) => { let c = false; for (let i = 0, j = R.length - 1; i < R.length; j = i++) { const [zi, yi] = R[i], [zj, yj] = R[j]; if ((yi > y) !== (yj > y) && z < (zj - zi) * (y - yi) / (yj - yi) + zi) c = !c; } return c; };
+  for (const sd of [-1, 1]) for (let k = 0, made = 0; k < 40 && made < 6; k++) {
+    const z = -0.12 + r() * 0.21, y = -0.05 + r() * 0.1, w = 0.004 + r() * 0.012, h = 0.003 + r() * 0.008;
+    if (!inside(z - w, y) || !inside(z + w, y) || !inside(z, y - h) || !inside(z, y + h)) continue;
+    const m = box(head, 0.001, h, w, r() < 0.35 ? MM.iron : MM.axeSteel, sd * 0.0172, y, z); m.rotation.x = (r() - 0.5) * 1.2; made++;
+  }
+  [-1, 1].forEach(sd => box(head, 0.001, 0.104, 0.003, MM.iron, sd * 0.0142, -0.004, 0.0905));   // the grind line
+}
+// a little seeded random, so the wear lands in the same places every time the model's built
+function mulberryish(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 // thinned across its width: each point's thickness times f(its z, its y)
 function taperBy(m, f) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) * f(p.getX(i), p.getY(i))); p.needsUpdate = true; m.geometry.computeVertexNormals(); return m; }
 // a blade ground from its spine (-z) to its edge (+z): full thickness to grind of the way across, then down to edge

@@ -60,7 +60,7 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
@@ -85,9 +85,9 @@ NET_ON.w = m => {
   // came down here a moment ago and the host hasn't caught up yet); a grate (gh: what it went up out of) is one
   m.b.forEach((hb, k) => {
     const o = openings[k]; if (!o || now < (o.netT || 0)) return;
-    const gh = m.g && m.g[k];
+    const gh = m.g && Math.abs(m.g[k]), gf = m.g && Math.sign(m.g[k]);   // (its strength, and the side it's on)
     if (gh && hb.length) {
-      if (!o.grate) { clearBoards(o); addGrate(o, hb[0], 1, gh); }
+      if (!o.grate) { clearBoards(o); addGrate(o, hb[0], gf, gh); }
       else if (o.grate.tier !== METAL.tier) regrate(o);
       o.grate.hp0 = gh; o.boards[0] = hb[0]; return;
     }

@@ -115,12 +115,13 @@ function outlinePass(camera) {
     const c = r.top, i = slot * 4, j = (OL.slots + slot) * 4;
     if (c) { olPalData[i] = c.color.r * 255; olPalData[i + 1] = c.color.g * 255; olPalData[i + 2] = c.color.b * 255; olPalData[i + 3] = Math.min(1, c.userData.sh) * 255; olPalData[j] = c.userData.olW / 4 * 255; }
     else { olPalData[i + 3] = 0; olPalData[j] = 0; }
-    // drawn in its mask material: its own meshes as they stand (anything hidden stays hidden), its rims, glows and
-    // sprites left out
+    // drawn in its mask material: its own meshes as they stand (anything hidden stays hidden), its rims, glows,
+    // sprites and a gun's muzzle flash left out (and anything that glows additively, a flash's tongues or a laser
+    // beam, never gets a line round it)
     r.g.traverse(o => {
-      if (o.userData.isOutline || o.isSprite || o.isPoints || o.isLine || o.isInstancedMesh) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
+      if (o.userData.isOutline || o.userData.isFlash || o.isSprite || o.isPoints || o.isLine || o.isInstancedMesh) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       if (!o.isMesh) return;
-      const m = o.material; if (!m || (!Array.isArray(m) && (m.visible === false || m.colorWrite === false))) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
+      const m = o.material; if (!m || (!Array.isArray(m) && (m.visible === false || m.colorWrite === false || m.blending === THREE.AdditiveBlending))) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       _olSw.push(o, m); o.material = r.mat;
     });
     R.render(r.g, camera);

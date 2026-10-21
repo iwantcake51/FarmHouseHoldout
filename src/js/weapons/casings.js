@@ -288,6 +288,16 @@ function settleMag(c, g, fy) {
   for (const ax of _stF) { const q = base.clone().multiply(_stQ.setFromAxisAngle(ax, Math.PI)), d = Math.abs(q.dot(g.quaternion)); if (d > bd) { bd = d; best = q; } }
   c.settle = { t: 0, q0: g.quaternion.clone(), q1: best, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r) };
 }
+// a board, a plate or a bar of a grate, or a flake off one, coming to rest: from however it landed, turned the least
+// it can be to lie flat (a board or a plate face down, its thin side up; a bar on its side) and eased down there over
+// FLAT_SETTLE, keeping the way it was pointing, so it never snaps round
+const FLAT_KINDS = new Set(['plank', 'plate', 'bar', 'flake']), FLAT_SETTLE = 0.16, _sfA = new V3(), _sfB = new V3();
+function settleFlat(c, g, fy) {
+  const bar = c.kind === 'bar', q = g.quaternion, a = _sfA.set(0, bar ? 1 : 0, bar ? 0 : 1).applyQuaternion(q).normalize();
+  if (bar) { _sfB.set(a.x, 0, a.z); if (_sfB.lengthSq() < 1e-6) _sfB.set(1, 0, 0); _sfB.normalize(); } else _sfB.set(0, a.y < 0 ? -1 : 1, 0);
+  const q1 = new THREE.Quaternion().setFromUnitVectors(a, _sfB).multiply(q);
+  c.settle = { t: 0, q0: q.clone(), q1, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r), dur: FLAT_SETTLE };
+}
 function stepDebris(list, dt) {
   tinkT -= dt;
   for (const c of list) {
@@ -312,13 +322,14 @@ function stepDebris(list, dt) {
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little
           if (c.kind === 'mag') settleMag(c, g, fy);   // (a mag tips over onto its side, not snapped there)
+          else if (FLAT_KINDS.has(c.kind)) settleFlat(c, g, fy);   // (and a board or a piece of grate eases down flat)
           else if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
           c.vx *= 0.6; c.vz *= 0.6;
         }
       }
     } else if (c.settle && c.settle.t < 1) {
       // tipping over onto its side (settleMag): eased round to the face it lies on and down onto the ground
-      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / MAG_SETTLE); const k = smooth(S0.t);
+      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / (S0.dur || MAG_SETTLE)); const k = smooth(S0.t);
       g.quaternion.slerpQuaternions(S0.q0, S0.q1, k); g.position.y = S0.y0 + (S0.y1 - S0.y0) * k;
       const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
       if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }

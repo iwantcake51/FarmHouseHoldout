@@ -42,9 +42,12 @@ const grateSpan = o => o.kind === 'door' ? { x: 0.47, y0: 0.03, y1: 2.08 } : { x
 // bars give in the same order everywhere in co-op
 function grRng(seed) { let s = seed >>> 0 || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 function shuffled(n, rng) { const a = Array.from({ length: n }, (_, k) => k); for (let k = n - 1; k > 0; k--) { const j = (rng() * (k + 1)) | 0; [a[k], a[j]] = [a[j], a[k]]; } return a; }
-function buildGrate(o, tier) {
-  const { x: W, y0, y1 } = grateSpan(o), H = y1 - y0, out = o.out, zi = -0.538 * out, zo = 0.536 * out;
-  const g = new THREE.Group(), G = { g, tier, plates: [], bars: [], straps: [], jolt: 0, disp: 1, shut: false, push: -1, place: 1, t: 0, y0, y1 };
+// face: which side of the opening it's bolted up on (1 outside, -1 in, as openSide counts), whoever put it up stood
+// there: the whole thing sits on that face, its plate always toward the outside of its bars, so from outside it's
+// plate in front of bars and from in the house bars in front of plate
+function buildGrate(o, tier, face = 1) {
+  const { x: W, y0, y1 } = grateSpan(o), H = y1 - y0, out = o.out, zi = face > 0 ? 0.532 * out : -0.575 * out, zo = 0.548 * out * (face > 0 ? 1 : -1);
+  const g = new THREE.Group(), G = { g, tier, face, plates: [], bars: [], straps: [], jolt: 0, disp: 1, shut: false, push: -1, place: 1, t: 0, y0, y1 };
   const rng = grRng(openings.indexOf(o) * 977 + tier * 131 + 7);
   // the inside frame: flat bar round the edge, bolted into the jambs, and the welds
   const fr = new THREE.Group(); g.add(fr);
@@ -68,7 +71,7 @@ function buildGrate(o, tier) {
   // flat straps across the bars on the room side, welded at each crossing
   const ns = o.kind === 'door' ? 5 : 3, stTh = shuffled(ns, rng);
   for (let k = 0; k < ns; k++) {
-    const sy = y0 + H * (k + 1) / (ns + 1), sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi - out * 0.02); g.add(sp);
+    const sy = y0 + H * (k + 1) / (ns + 1), sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi + out * 0.009);   // (between the bars and the plate) g.add(sp);
     box(sp, W * 2 - 0.06, 0.034, 0.008, GR_M.strap, W - 0.03, 0, 0);
     G.straps.push({ g: sp, th: 0.05 + 0.16 * stTh[k] / Math.max(1, ns - 1), on: true });
   }
@@ -102,7 +105,7 @@ function addGrate(o, hp, sd, h0) {
   const mine = hp === undefined;
   o.boards.push(mine ? grateHp() : hp);
   const side = sd || Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
-  const G = buildGrate(o, METAL.tier); G.hp0 = h0 || (mine ? o.boards[0] : Math.max(hp, grateHp())); G.disp = o.boards[0] / G.hp0;
+  const G = buildGrate(o, METAL.tier, side); G.hp0 = h0 || (mine ? o.boards[0] : Math.max(hp, grateHp())); G.disp = o.boards[0] / G.hp0;
   G.place = 0; G.side = o.out * side;
   o.grate = G; o.bg.add(G.g); o.meshes.push(G.g); grateStep(o, 0);
   if (mine) run.boards++;
@@ -117,7 +120,7 @@ function regrate(o) {
   const G0 = o.grate; if (!G0) return;
   const h0 = G0.hp0 * (1 + GRATE.tierHp * METAL.tier) / (1 + GRATE.tierHp * G0.tier);
   o.bg.remove(G0.g); o.meshes.length = 0;
-  const G = buildGrate(o, METAL.tier); G.hp0 = h0; o.boards[0] = h0; G.disp = 1;
+  const G = buildGrate(o, METAL.tier, G0.face); G.hp0 = h0; o.boards[0] = h0; G.disp = 1;
   G.plates.forEach((p, k) => { p.inT = -k * 0.16; });
   o.grate = G; o.bg.add(G.g); o.meshes.push(G.g); grateStep(o, 0);
   lightsDirty = true;
