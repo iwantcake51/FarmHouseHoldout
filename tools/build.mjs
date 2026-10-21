@@ -48,6 +48,19 @@ function joinScripts() {
   });
   return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
 }
+// the bundle parsed (and minified, for a production build); on an error, which source file and line it's in, by the
+// file banners joinScripts puts between them
+async function checkBundle(js) {
+  try { return (await transform(js, { loader: 'js', minify: !dev, target: 'es2020', legalComments: 'none' })).code; }
+  catch (e) {
+    const lines = js.split('\n'), where = (e.errors || []).map(er => {
+      const ln = er.location ? er.location.line : 0; let file = '?', at = 0;
+      for (let i = ln - 1; i >= 0; i--) { const m = /^\/\/ ==== (\S+) =+$/.exec(lines[i]); if (m) { file = m[1]; at = ln - i - 1; break; } }
+      return `  src/js/${file}:${at}  ${er.text}${er.location ? '\n    ' + er.location.lineText.trim().slice(0, 160) : ''}`;
+    });
+    throw new Error('The game script has an error and would not run:\n' + where.join('\n'));
+  }
+}
 function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]); }
 
 async function buildOnce() {
@@ -68,7 +81,11 @@ async function buildOnce() {
   for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
   // (audio/samples.js builds its file names, so it's handed the hashes instead)
   js = js.replace('const SOUND_HASH = {};', () => `const SOUND_HASH = ${JSON.stringify(Object.fromEntries(sounds.map(f => [f, soundUrl[f].url.split('?v=')[1]])))};`);
-  if (!dev) js = (await transform(js, { loader: 'js', minify: true, target: 'es2020', legalComments: 'none' })).code;
+  // every build is parsed whole before it's written, so a slip that would stop the game dead in the browser (a syntax
+  // error, or two files declaring the same name at the top level: they all share one scope) fails the build instead,
+  // naming the file and line it's in (checkBundle)
+  const checked = await checkBundle(js);
+  if (!dev) js = checked;
   fs.writeFileSync(path.join(OUT, 'game.js'), js);
   // styles: index.css @imports every sheet in cascade order
   const css = await esbuild({ entryPoints: [path.join(SRC, 'styles/index.css')], bundle: true, minify: !dev, write: false, logLevel: 'silent' });

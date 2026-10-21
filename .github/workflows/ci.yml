@@ -1,0 +1,29 @@
+# Every push and pull request: the game is built three ways (production, production without the cheat menu, and the
+# readable dev build), each build checks the whole script parses (tools/build.mjs: checkBundle), and the production
+# build is opened in a headless browser and played for a few seconds (tools/smoke.mjs).
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build (dev, no cheats, production)
+        run: |
+          npm run build:dev
+          CHEATS=off npm run build
+          npm run build
+      - name: Install a headless browser
+        run: |
+          npm i --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Smoke test
+        run: node tools/smoke.mjs
