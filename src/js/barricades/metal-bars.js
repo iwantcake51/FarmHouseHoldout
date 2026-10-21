@@ -71,7 +71,7 @@ function buildGrate(o, tier, face = 1) {
   // flat straps across the bars on the room side, welded at each crossing
   const ns = o.kind === 'door' ? 5 : 3, stTh = shuffled(ns, rng);
   for (let k = 0; k < ns; k++) {
-    const sy = y0 + H * (k + 1) / (ns + 1), sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi + out * 0.009);   // (between the bars and the plate) g.add(sp);
+    const sy = y0 + H * (k + 1) / (ns + 1), sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi + out * 0.009); g.add(sp);   // (between the bars and the plate)
     box(sp, W * 2 - 0.06, 0.034, 0.008, GR_M.strap, W - 0.03, 0, 0);
     G.straps.push({ g: sp, th: 0.05 + 0.16 * stTh[k] / Math.max(1, ns - 1), on: true });
   }
@@ -171,7 +171,7 @@ function grateStep(o, dt) {
 const looseMetal = [];
 function metalOff(m, o, kind, r, lay, f) {
   m.updateMatrixWorld(true); const wp = new V3(), wq = new THREE.Quaternion(); m.getWorldPosition(wp); m.getWorldQuaternion(wq);
-  m.parent.remove(m); m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq); scene.add(m);
+  if (m.parent) m.parent.remove(m); m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq); scene.add(m);
   const sd = -(o.grate ? o.grate.push : 1), ox = o.nx * sd, oz = o.nz * sd, k = f || 1;
   looseMetal.push({ g: m, life: 30, vx: ox * rr(0.4, 1.4) * k + rr(-0.4, 0.4), vy: rr(0.2, 1.2) * k, vz: oz * rr(0.4, 1.4) * k + rr(-0.4, 0.4), spin: rr(-4, 4) * k, roll: rr(-4, 4) * k, r, bounces: 0, kind, restY: r, rest: lay });
   while (looseMetal.length > 60) { const q = looseMetal.shift(); scene.remove(q.g); }

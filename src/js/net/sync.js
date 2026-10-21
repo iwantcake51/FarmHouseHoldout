@@ -126,8 +126,9 @@ NET_ON.za = m => {
   if (m.h === NET.id && !P.dead && state !== 'title') { zStrike(z, m.am); zStruckFx(); }
 };
 
-// a zombie a brute's dash ran down (zombies/knockdown.js): the same fall on every screen, from the host's seed
-NET_ON.zk = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead || state === 'title') return; knockDown(z, m.dx, m.dz, m.s); };
+// a zombie a brute's dash ran down or clipped (zombies/knockdown.js): the same fall, or the same stagger aside, on every
+// screen, from the host's seed (b: the side it was clipped on, 0 if it went down)
+NET_ON.zk = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead || state === 'title') return; if (m.b) bumpAside(z, m.dx, m.dz, m.b, m.s); else knockDown(z, m.dx, m.dz, m.s); };
 // a brute's dash (zombies/brute-dash.js): everyone sees the crouch and the stripe; if it runs into you, you take it
 NET_ON.zdw = m => { if (NET.host) return; const z = NZ.get(m.id); if (z && !z.dead && !z.dash) dashStart(z, m.dx, m.dz, m.L); };
 NET_ON.zdh = m => { const z = NZ.get(m.id); if (z && m.h === NET.id && !P.dead && state !== 'title') { dashHit(z, m.dx, m.dz); zStruckFx(); } };

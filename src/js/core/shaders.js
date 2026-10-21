@@ -175,7 +175,10 @@ function lit(mat, cut) {
     const self = this || mat, wb = !self.userData.mobile;
     Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
-    let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', FRAG_BODY + '\n#include <fog_fragment>\n' + EDGE_BODY);
+    // (glow: what it gives off of its own, its emissive, kept out of the light map's shading, so it shows in full colour
+    // in the dark instead of going grey with everything else: acid, zombies/spitter.js)
+    const body = self.userData.glow ? `vec3 lmEm = linearToOutputTexel(vec4(totalEmissiveRadiance, 1.0)).rgb; gl_FragColor.rgb = max(gl_FragColor.rgb - lmEm, 0.0);\n${FRAG_BODY}\ngl_FragColor.rgb += lmEm;` : FRAG_BODY;
+    let f = FRAG_DECL + sh.fragmentShader.replace('#include <fog_fragment>', body + '\n#include <fog_fragment>\n' + EDGE_BODY);
     if (wb) { Object.assign(sh.uniforms, { uBloodMap: BMU.uBloodMap }); f = WB_DECL + f.replace('#include <color_fragment>', '#include <color_fragment>\n' + WB_BODY); }
     if (cut === 'tree') {
       Object.assign(sh.uniforms, { uTreeCut: TREE_CUT, uPScr: LMU.uPScr, uRad: LMU.uRad, uPZ: LMU.uPZ });
@@ -186,7 +189,7 @@ function lit(mat, cut) {
     }
     sh.fragmentShader = f;
   };
-  mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
+  mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + ((this || mat).userData.glow ? 'glow-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
   return mat;
 }
 const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));

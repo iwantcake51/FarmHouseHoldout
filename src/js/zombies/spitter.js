@@ -30,20 +30,27 @@ const SPIT = {
 };
 const globs = [], acidPools = [], spitters = new Set();
 // the acid: a sick yellow-green, translucent and wet-looking, faintly lit from within
-const ACID_GLOW = 0x142408, POOL_GLOW = new THREE.Color(0x4c8c14);
+const ACID_GLOW = 0x142408, POOL_SELF = 0.6;   // (how much of a splat's own colour it gives off: emissiveMap, acidPool)
 const GLOB_G = new THREE.IcosahedronGeometry(1, 2);
 // the glob glows in its own colour in the dark, unlit (it's never darker than its green), with a halo round it, and
 // the trail it draws out behind it the same
 const GLOB_M = new THREE.MeshBasicMaterial({ color: 0xa8e83c, transparent: true, opacity: 0.94 });
 const SPIT_TRAIL_M = new THREE.MeshBasicMaterial({ color: 0x96d634, transparent: true, opacity: 0.8, depthWrite: false });
 const HALO_M = new THREE.SpriteMaterial({ map: TEX_GLOWS[0], color: 0x7fd02a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
-// and green light thrown off it onto what's round it, and off a fresh splat while it's still fuming (spitLights,
-// lighting/lightmap.js), SPIT_LIGHT its colour
-const SPIT_LIGHT = [0.42, 1, 0.16], SPIT_LAMP = { glob: [3, 0.85], pool: [1.8, 0.38] };
-// three more kinds of soft sprite (effects/puffs.js): the acid flung off a glob or a splash, wet and catching the light;
-// the haze of fumes off a fresh splat; and the glow round a spitter's throat
-FXK.acid = { tex: TEX_DOT, col: 0xc4e65a, col2: 0x6f8e1c, lit: true, gain: 1.5, grav: 7, drag: 1.2, rise: 0, fin: 0.03, fade: 1.3 };
-FXK.acidMist = { tex: TEX_SMOKES, col: 0xb4c87a, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 2.4, rise: 0.3, fin: 0.2, fade: 1.4, wind: 0.8 };
+// and green light thrown off it onto what's round it, and off a splat for as long as it's there, fading with it
+// (spitLights, lighting/lightmap.js), SPIT_LIGHT its colour
+const SPIT_LIGHT = [0.42, 1, 0.16], SPIT_LAMP = { glob: [3, 0.85], pool: [2.2, 0.55] };
+// more kinds of soft sprite (effects/puffs.js): the acid flung off a glob or a splash, wet and catching the light and
+// keeping its own green in the dark (self); the haze of fumes off a fresh splat; the steam it sizzles off whatever it
+// lands on and the yellowish smoke of what it's eating into, both rising and drifting off on the wind; and the glow
+// round a spitter's throat
+FXK.acid = { tex: TEX_DOT, col: 0xc4e65a, col2: 0x6f8e1c, lit: true, self: 0.95, gain: 1.5, grav: 7, drag: 1.2, rise: 0, fin: 0.03, fade: 1.3 };
+FXK.acidMist = { tex: TEX_SMOKES, col: 0xb4c87a, lit: true, self: 0.45, gain: SMOKE_GAIN, grav: 0, drag: 2.4, rise: 0.3, fin: 0.2, fade: 1.4, wind: 0.8 };
+FXK.acidSteam = { tex: TEX_SMOKES, col: 0xdce8cc, col2: 0xb8c4a8, lit: true, self: 0.3, gain: SMOKE_GAIN, grav: 0, drag: 1.8, rise: 1.1, fin: 0.12, fade: 1.2, wind: 1 };
+FXK.acidSmoke = { tex: TEX_SMOKES, col: 0x6a6c40, col2: 0x4a4a38, lit: true, gain: SMOKE_GAIN, grav: 0, drag: 2.2, rise: 0.55, fin: 0.2, fade: 1.4, wind: 1 };
+// how much it steams and smokes (puffs a second, at a full-size splat while it's fresh: SIZZLE), and how often it
+// crackles, the hiss loudest close to and fading as it cools
+const SIZZLE = { steam: 6, smoke: 1.4, tiny: 1.2, glob: 30, crackle: [0.12, 0.35], hear: 9 };
 FXK.acidGlow = { tex: TEX_GLOWS, add: true, col: 0x8fd832, grav: 0, drag: 0, rise: 0, fin: 0.25, fade: 1.2 };
 
 // ---- the splats: a few drawn once, each a wet pool with streaks and droplets thrown out along one side (the way the
@@ -71,6 +78,9 @@ function acidSplatTex() {
   const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
 }
 const POOL_G = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+// a splat's bloom: a soft green glow lying over it, strongest in the dark, there as long as the splat is and fading
+// with it (POOL_BLOOM: how bright, how far past the splat it spreads)
+const POOL_BLOOM = { a: 0.5, r: 1.9 };
 
 // ---- its look ----
 // the skin (and what's on it) tinted toward a sick yellow-green, by part: most at the face and hands
@@ -83,6 +93,7 @@ function spitterLook(m) {
   }
   const sacM = lam(0xb0c858, { emissive: 0x30520a, transparent: true, opacity: 0.94 }), coreM = basic(0xd8ff6a);
   const veinM = lam(0x5a3a3a), bileM = lam(0x6a7a1c, { emissive: 0x141e02 }), soreM = lam(0xc8d86a, { emissive: 0x3a5a08 });
+  [sacM, bileM, soreM].forEach(q => { q.userData.glow = true; });   // (their green kept in the dark: core/shaders.js)
   // the sac: a swollen, glossy bag of acid under the jaw, lit from inside, veins over it
   const sac = new THREE.Group(); sac.position.set(0, -0.19, 0.05); m.head.add(sac);
   const bag = new THREE.Mesh(GLOB_G, sacM); bag.scale.set(0.1, 0.09, 0.095); sac.add(bag);
@@ -216,7 +227,7 @@ function spitTrailShape(geo, hist, t) {
 // a glob's light, and a fresh splat's, into the light map with the lamps (called from lighting/lightmap.js)
 function spitLights(dark) {
   for (const g of globs) { const p = g.m.position; addField(lightField(p.x, p.z, SPIT_LAMP.glob[0]), SPIT_LAMP.glob[1] * (0.2 + dark), SPIT_LIGHT); }
-  for (const q of acidPools) { if (q.tiny) continue; const fresh = clamp(1 - q.t / (q.life * 0.6), 0, 1); if (fresh > 0.02) addField(lightField(q.x, q.z, SPIT_LAMP.pool[0] * (0.6 + q.r * 0.5)), SPIT_LAMP.pool[1] * fresh * (0.15 + dark), SPIT_LIGHT); }
+  for (const q of acidPools) { if (q.tiny || !(q.glow > 0.02)) continue; addField(lightField(q.x, q.z, SPIT_LAMP.pool[0] * (0.6 + q.r * 0.5)), SPIT_LAMP.pool[1] * q.glow * (0.15 + dark), SPIT_LIGHT); }
 }
 // the crown a glob throws up as it bursts on the ground: a thin sheet of acid that flares up and out from where it
 // hit, its rim broken into points that throw off drops, then slumps back down and thins out into the splat (CROWN.t);
@@ -289,6 +300,8 @@ function updateSpit(dt) {
     g.hist.unshift(p.clone()); if (g.hist.length > 24) g.hist.pop();
     g.halo.position.copy(p); g.halo.material.opacity = 0.5 + 0.1 * Math.sin(g.t * 23 + g.ph);
     spitTrailShape(g.trail.geometry, g.hist, g.t);
+    // steaming as it goes, the vapour left hanging along its way
+    if (rand() < dt * SIZZLE.glob) fx('acidSteam', p.x + rr(-0.03, 0.03), p.y, p.z + rr(-0.03, 0.03), rr(-0.1, 0.1), rr(0.1, 0.3), rr(-0.1, 0.1), rr(0.05, 0.08), rr(0.2, 0.32), rr(0.35, 0.6), 0.28);
     // now and then a drop sheds off the end of the trail and falls
     if (rand() < 0.22) { const e = g.hist[Math.min(g.hist.length - 1, 6)]; fx('acid', e.x, e.y, e.z, g.vx * 0.15 + rr(-0.15, 0.15), rr(-0.3, 0.1), g.vz * 0.15 + rr(-0.15, 0.15), rr(0.018, 0.03), 0.01, 0.45, 0.9); }
     // what it hits first: you (or a teammate's game's you), an inside wall, a wall, a sill or a board, or the ground
@@ -307,13 +320,23 @@ function updateSpit(dt) {
   let inAcid = false;
   for (let k = acidPools.length - 1; k >= 0; k--) {
     const q = acidPools[k]; q.t += dt;
-    if (q.t >= q.life) { scene.remove(q.m); q.m.material.dispose(); acidPools.splice(k, 1); continue; }
+    if (q.t >= q.life) { dropPool(q); acidPools.splice(k, 1); continue; }
     // it spreads out fast as it lands, then lies there; drying up, it shrinks back a little, darkens and goes
     const grow = 1 - Math.pow(1 - clamp(q.t / SPIT.pool.grow, 0, 1), 3), dry = clamp((q.life - q.t) / SPIT.pool.dry, 0, 1);
     q.m.scale.setScalar(q.r * 1.25 * (0.3 + 0.7 * grow) * (0.88 + 0.12 * dry)); q.m.material.opacity = 0.92 * dry;
-    q.m.material.color.setRGB(0.7 + 0.3 * dry, 0.7 + 0.3 * dry, 0.6 + 0.4 * dry);
-    { const glow = clamp(1 - q.t / (q.life * 0.6), 0, 1) * (q.tiny ? 0.6 : 1); q.m.material.emissive.setHex(ACID_GLOW).lerp(POOL_GLOW, glow); }   // glowing while it's fresh, in the dark too
+    // lit like the ground it's on, and glowing in its own green over that the whole time it's there (in the dark it's
+    // as green as by day), dimming only as it dries and goes
+    const glow = (q.tiny ? 0.6 : 1) * (1 - 0.35 * q.t / q.life) * dry; q.glow = glow;
+    const dk = 1 - 0.3 * curDark;   // (by day mostly lit, at night mostly its own glow)
+    q.m.material.color.setRGB((0.7 + 0.3 * dry) * dk, (0.7 + 0.3 * dry) * dk, (0.6 + 0.4 * dry) * dk);
+    q.m.material.emissive.setScalar(POOL_SELF * glow * (0.15 + 0.85 * curDark));
+    if (q.bloom) { q.bloom.material.opacity = POOL_BLOOM.a * glow * (0.25 + 0.75 * curDark) * (0.3 + 0.7 * grow) * (0.2 + 0.8 * visAt(q.x, q.z)); q.bloom.scale.setScalar(q.r * POOL_BLOOM.r * (0.5 + 0.5 * grow)); }
+    // sizzling: steam off it, with a little smoke, most while it's fresh and less as it cools, and a crackling hiss
+    const heat = Math.pow(clamp(1 - q.t / (q.life * 0.85), 0, 1), 0.7);
+    if (heat > 0 && rand() < dt * (q.tiny ? SIZZLE.tiny : SIZZLE.steam * q.r) * heat) { const a = rand() * 6.283, d = Math.sqrt(rand()) * q.r * 0.6; fx('acidSteam', q.x + Math.cos(a) * d, q.y + 0.03, q.z + Math.sin(a) * d, rr(-0.06, 0.06), rr(0.25, 0.55), rr(-0.06, 0.06), (q.tiny ? 0.06 : 0.12) * rr(0.8, 1.2), (q.tiny ? 0.25 : 0.5) * rr(0.8, 1.3), rr(0.8, 1.4), (q.tiny ? 0.18 : 0.3) * heat); }
     if (q.tiny) continue;
+    if (heat > 0 && rand() < dt * SIZZLE.smoke * q.r * heat) fx('acidSmoke', q.x + rr(-0.4, 0.4) * q.r, q.y + 0.05, q.z + rr(-0.4, 0.4) * q.r, rr(-0.05, 0.05), rr(0.2, 0.4), rr(-0.05, 0.05), 0.14, rr(0.45, 0.75), rr(1.4, 2.2), 0.2 * heat);
+    if (heat > 0.05 && (q.crk = (q.crk ?? 0) - dt) <= 0) { q.crk = rr(...SIZZLE.crackle) / heat; const dme = Math.hypot(q.x - P.x, q.z - P.z); if (dme < SIZZLE.hear) soundAt(q.x, q.z, () => { nz(rr(0.04, 0.1), 'highpass', rr(3800, 6000), 2400, 0.03 * heat); if (rand() < 0.4) nz(rr(0.15, 0.3), 'bandpass', 2600, 900, 0.015 * heat, 3); }, true); }
     // bubbling and fuming while it's fresh
     const fresh = clamp(1 - q.t / (q.life * 0.7), 0, 1);
     if (rand() < dt * 9 * q.r * fresh) { const a = rand() * 6.283, d = Math.sqrt(rand()) * q.r * 0.7; fx('acid', q.x + Math.cos(a) * d, q.y + 0.02, q.z + Math.sin(a) * d, 0, rr(0.15, 0.4), 0, 0.02, 0.035, rr(0.2, 0.35), 0.8); }
@@ -346,6 +369,8 @@ function acidSplash(x, y, z, dx, dz, direct, wall) {
     setTimeout(() => { if (state !== 'title') acidPool(px, pz, rr(0.035, 0.11) * (1.25 - d * 0.35), rr(2.5, 5), -a, true); }, (0.1 + d * 0.16) * 1000);
   }
   fx('acidMist', x, y, z, 0, 0.25, 0, 0.35, 1.1, 1.3, 0.35);
+  for (let k = 0; k < 5; k++) fx('acidSteam', x + rr(-0.2, 0.2), y + 0.05, z + rr(-0.2, 0.2), rr(-0.3, 0.3), rr(0.4, 0.9), rr(-0.3, 0.3), rr(0.1, 0.16), rr(0.45, 0.8), rr(0.7, 1.2), 0.38);
+  fx('acidSmoke', x, y + 0.1, z, 0, 0.35, 0, 0.18, 0.7, 1.6, 0.25);
   setTimeout(() => fx('acidMist', x + fx0 * 0.2, y + 0.05, z + fz0 * 0.2, 0, 0.2, 0, 0.25, 0.9, 1.6, 0.22), 250);
   soundAt(x, z, () => { nz(0.09, 'lowpass', 900, 250, 0.3); nz(0.6, 'highpass', 3000, 1100, 0.1); nz(0.25, 'bandpass', 1400, 600, 0.08, 2); });
   const d = Math.hypot(P.x - x, P.z - z);
@@ -359,11 +384,14 @@ function acidSplash(x, y, z, dx, dz, direct, wall) {
 // a splat on the ground, turned so its streaks run off along ang; tiny ones (drips, specks) are only for show
 function acidPool(x, z, r, life, ang, tiny) {
   const y = surfaceY(x, z) + (tiny ? 0.018 : 0.022) + rand() * 0.002;
-  const mt = lam(0xffffff, { map: pick(SPLAT_TEX), emissive: ACID_GLOW, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  mt.userData.mobile = true;
+  const tx = pick(SPLAT_TEX), mt = lam(0xffffff, { map: tx, emissiveMap: tx, emissive: ACID_GLOW, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  mt.userData.mobile = true; mt.userData.glow = true;
   const m = new THREE.Mesh(POOL_G, mt); m.position.set(x, y, z); m.rotation.y = ang || 0; m.renderOrder = 1; m.scale.setScalar(0.01); scene.add(m);
-  acidPools.push({ m, x, y, z, r, life, t: 0, tiny: !!tiny });
+  let bloom = null;
+  if (!tiny) { bloom = new THREE.Mesh(POOL_G, new THREE.MeshBasicMaterial({ map: TEX_GLOWS[0], color: 0x8fdc34, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); bloom.position.set(x, y + 0.01, z); bloom.renderOrder = 2; bloom.scale.setScalar(r * POOL_BLOOM.r); scene.add(bloom); }
+  acidPools.push({ m, bloom, x, y, z, r, life, t: 0, tiny: !!tiny });
 }
+function dropPool(q) { scene.remove(q.m); q.m.material.dispose(); if (q.bloom) { scene.remove(q.bloom); q.bloom.material.dispose(); } }
 // a spitter going down: its sac bursts
 function spitterDies(z) {
   if (z.type !== 'spitter') return;
@@ -375,7 +403,7 @@ function spitterDies(z) {
 function clearSpit() {
   globs.forEach(g => { scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); g.trail.geometry.dispose(); }); globs.length = 0;
   crowns.forEach(c => { scene.remove(c.m); c.m.material.dispose(); }); crowns.length = 0;
-  acidPools.forEach(q => { scene.remove(q.m); q.m.material.dispose(); }); acidPools.length = 0; spitters.clear(); P.acidT = 0;
+  acidPools.forEach(dropPool); acidPools.length = 0; spitters.clear(); P.acidT = 0;
 }
 
 // ---- its pose: rearing back with its head thrown up and shaking as the sac swells (w), then retching forward, head
