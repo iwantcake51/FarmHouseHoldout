@@ -106,8 +106,11 @@ function boardRattle(o, z) {
 // frame toward whoever's working at it; one just hit rattles
 function boardShake(rdt) {
   for (const o of openings) if (!o.grate) o.meshes.forEach((m, k) => {
-    const u = m.userData, loose = clamp(1 - o.boards[k] / (u.hp0 || 1), 0, 1), j = u.jolt || 0;
-    if (!(loose > 0) && !(j > 0)) return;
+    // (how loose it hangs eases after its hp, so a board put right between waves is hammered back up straight
+    // rather than snapping: barricades/interactions.js's repair)
+    const u = m.userData, want = clamp(1 - o.boards[k] / (u.hp0 || 1), 0, 1), j = u.jolt || 0;
+    const loose = u.ls = u.ls === undefined || want > u.ls ? want : u.ls + (want - u.ls) * Math.min(1, rdt * 5);
+    if (!(loose > 0.001) && !(j > 0)) return;
     if (u.y0 === undefined) { if (u.place < 1) return; u.y0 = m.position.y; }   // (once it's up and nailed)
     const nj = Math.max(0, j - rdt * 3.2); u.jolt = nj;
     // turned about the end still nailed (half the board's length out from its middle, on the side away from u.sag)

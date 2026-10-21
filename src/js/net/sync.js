@@ -229,6 +229,9 @@ NET_ON.bs = m => {
   const at = { x: o.x + m.dx, z: o.z + m.dz, vis: visAt(o.x, o.z) };
   boardJolt(o, at); if (NET.host) hurtBoard(o, m.d, at);
 };
+// a barricade mended between waves (barricades/interactions.js): mended on every screen (the host passes a joiner's on)
+function netRepair(o, kind, j) { if (netLink()) netSend('rp', { o: openings.indexOf(o), g: kind === 'grate' ? 1 : 0, j }); }
+NET_ON.rp = m => { const o = openings[m.o]; if (!o || state === 'title') return; repairBarricade(o, m.g ? 'grate' : 'board', m.j || 0, false); };
 // a joiner tearing the boards down: the host breaks them all, and its 'bb's break them everywhere, theirs included
 function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x: nr(at.x), z: nr(at.z) }); }
 NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };

@@ -11,6 +11,26 @@ const boardRate = () => phase === 'wave' ? BOARD_WAVE * Math.pow(S.boardSpeed, B
 const BOARD_T = 0.6, holdT = () => METAL.on ? GRATE.t : BOARD_T;
 const fullyBarred = o => o.grate || o.boards.length >= 3 || (METAL.on && o.boards.length > 0);
 function boardable(o) { return !!(o && !fullyBarred(o) && S.planks >= (METAL.on ? GRATE.cost : 1) && !(ci(P.x) === o.i && ci(P.z) === o.j) && !P.vault); }
+// putting a barricade right between waves (never during one): one that's taken a beating but is still up is mended
+// with Hold F before anything new goes on it. A board, each in turn, is nailed back tight for nothing (it's the same
+// board: no plank used, none added); a grate, plates, bars and all, for a third of what a new one costs (REPAIR.gk).
+// board, grate: how long each takes (s, at the hammer's pace); dmg: under how much of its strength it counts as damaged
+const REPAIR = { board: 0.55, grate: 1.6, gk: 1 / 3, dmg: 0.97 };
+const repairCost = () => Math.ceil(GRATE.cost * REPAIR.gk);
+let repT = 0;
+function repairWhat(o) {
+  if (!o || !o.boards.length || P.vault || openSt) return null;
+  if (o.grate) { const G = o.grate; return o.boards[0] < G.hp0 * REPAIR.dmg || G.plates.some(p => !p.on) || G.bars.some(b => !b.on) || G.straps.some(q => !q.on) ? { kind: 'grate', j: 0 } : null; }
+  for (let j = 0; j < o.boards.length; j++) { const m = o.meshes[j], h0 = (m && m.userData.hp0) || boardHp(); if (o.boards[j] < h0 * REPAIR.dmg) return { kind: 'board', j }; }
+  return null;
+}
+// mended: the board back to the strength it went up with, nailed tight; the grate rebuilt good as new (its plates swung
+// back in). Anyone's repair, the same on every screen (net/sync.js: 'rp')
+function repairBarricade(o, kind, j, mine) {
+  if (kind === 'grate') { if (!o.grate) return; regrate(o); const s = () => SFX.clang(0.6); mine ? s() : soundAt(o.x, o.z, s); }
+  else { const m = o.meshes[j]; if (!m || o.grate) return; o.boards[j] = Math.max(o.boards[j], m.userData.hp0 || boardHp()); m.userData.jolt = 0.5; m.userData.jSide = rand() < 0.5 ? -1 : 1; mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); }
+  o.netT = performance.now() + 1500; flowDirty = true; lightsDirty = true;
+}
 // tearing the boards down yourself (hold C, or the touch Tear button): every board on the opening in one TEAR_T hold,
 // a kick at them as you start and another halfway; a grate takes longer (GRATE.tear, barricades/metal-bars.js), kicked
 // at every quarter of the way (barricades/planks.js's tearBoard)
@@ -33,7 +53,14 @@ function updateInteractions(dt) {
   });
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();
-  const canBoard = boardable(o);
+  const fix = phase === 'break' ? repairWhat(o) : null, canFix = !!fix && (fix.kind === 'board' || S.planks >= repairCost());
+  const canBoard = !fix && boardable(o);
+  if (o && (keys.has('f') || touchBoard) && canFix) {
+    const was = repT, th = fix.kind === 'grate' ? REPAIR.grate : REPAIR.board; repT += dt * S.boardSpeed; boardT = 0;
+    // you're heard at it: a clank or a hammer blow every so often
+    if (Math.floor(was / 0.3) !== Math.floor(repT / 0.3)) { if (fix.kind === 'grate') SFX.clang(0.3); else SFX.board(); }
+    if (repT >= th) { repT = 0; if (fix.kind === 'grate') S.planks -= repairCost(); repairBarricade(o, fix.kind, fix.j, true); netRepair(o, fix.kind, fix.j); }
+  } else repT = 0;
   if (o && (keys.has('f') || touchBoard) && canBoard) {
     const was = boardT; boardT += dt * boardRate();
     // a grate takes a while: you're heard working at it, a clank every half a hold or so, as it's fitted
@@ -67,8 +94,11 @@ function updateInteractions(dt) {
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';
       if (vaultTarget(o)) rows.push(row('Space', 'Climb through the <b>window</b>', '', PROMPT_COL.move));
-      if (o.grate) rows.push(off(`The ${what} is <b>barred</b>${o.grate.tier ? ` · plated ${roman(o.grate.tier)}` : ''}`, PROMPT_COL.metal));
-      else if (o.boards.length >= 3) rows.push(off(`The ${what} is <b>fully boarded</b>`, PROMPT_COL.wood));
+      const dmg = !fix && phase !== 'break' && repairWhat(o);
+      if (fix && fix.kind === 'grate') rows.push(canFix ? row('Hold F', `Repair the <b>grate</b>`, `${repairCost()} metal`, PROMPT_COL.metal) : off(`<b>${S.planks ? `Only ${S.planks} of ${repairCost()} metal` : 'No metal'}</b> to repair it`, PROMPT_COL.bad));
+      else if (fix) rows.push(row('Hold F', `Repair the <b>${o.boards.length > 1 ? 'damaged board' : 'board'}</b>`, 'free', PROMPT_COL.wood));
+      else if (o.grate) rows.push(off(`The ${what} is <b>barred</b>${o.grate.tier ? ` · plated ${roman(o.grate.tier)}` : ''}${dmg ? ' · repair it between waves' : ''}`, PROMPT_COL.metal));
+      else if (o.boards.length >= 3) rows.push(off(`The ${what} is <b>fully boarded</b>${dmg ? ' · repair it between waves' : ''}`, PROMPT_COL.wood));
       else if (METAL.on && o.boards.length) rows.push(off('Tear the <b>boards</b> down to bar it', PROMPT_COL.off));
       else if (METAL.on && S.planks < GRATE.cost) rows.push(off(`<b>${S.planks ? `Only ${S.planks} of ${GRATE.cost} metal` : 'No metal left'}</b> · cut some at the metalwork bench`, PROMPT_COL.bad));
       else if (S.planks <= 0) rows.push(off('<b>No planks left</b> · cut some at the sawhorse', PROMPT_COL.bad));
@@ -80,6 +110,6 @@ function updateInteractions(dt) {
     setH('pRows', rows.join(''));
   }
   if (cache.promptOn !== showPrompt) { cache.promptOn = showPrompt; $('prompt').classList.toggle('on', showPrompt); }
-  { const bar = $('promptBar'), on = showPrompt && (boardT > 0 || tearT > 0); bar.classList.toggle('on', on); if (on) bar.firstElementChild.style.width = (Math.max(boardT / holdT(), tearT / tearHold(o)) * 100) + '%'; }
+  { const bar = $('promptBar'), on = showPrompt && (boardT > 0 || tearT > 0 || repT > 0); bar.classList.toggle('on', on); if (on) bar.firstElementChild.style.width = (Math.max(boardT / holdT(), tearT / tearHold(o), fix ? repT / (fix.kind === 'grate' ? REPAIR.grate : REPAIR.board) : 0) * 100) + '%'; }
   if (openSt) renderStation();
 }
