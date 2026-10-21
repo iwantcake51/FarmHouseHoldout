@@ -1,5 +1,6 @@
 [
   "core/dom.js",
+  "input/keybinds.js",
   "ui/game-icons.js",
   "core/renderer.js",
   "core/math.js",

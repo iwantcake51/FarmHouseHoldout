@@ -257,9 +257,9 @@ NET_ON.sv = m => { if (NET.host) return; skipVotes.clear(); m.v.forEach(v => ski
 // the break's line under the wave number: the countdown, and how to start it early (in co-op, the vote so far)
 function breakSub() {
   const t = `Next wave in ${Math.ceil(Math.max(0, breakT))}s`;
-  if (!netLink()) return t + ' · <kbd>T</kbd> to start now';
+  if (!netLink()) return t + ` · ${kbd('wave')} to start now`;
   const n = skipVotes.size, need = skipNeed();
-  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · <kbd>T</kbd> takes it back` : ` · <kbd>T</kbd> vote to start ${n}/${need}`);
+  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · ${kbd('wave')} takes it back` : ` · ${kbd('wave')} vote to start ${n}/${need}`);
 }
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;

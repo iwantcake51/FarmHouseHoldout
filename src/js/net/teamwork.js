@@ -45,7 +45,7 @@ function renderGift() {
   const to = NET.peers.get(GIFT.to), give = rows.querySelector('.gfGive');
   give.disabled = !to || GIFT.amt < 1;
   give.querySelector('span').textContent = have < 1 ? 'No scrap to give' : `Give ${GIFT.amt} scrap to ${to ? to.name : '…'}`;
-  setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · E to step away`);
+  setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · ${keyOn('use')} to step away`);
 }
 const giftQuick = q => { const have = S.scrap | 0; return q === 'all' ? have : q === 'half' ? Math.ceil(have / 2) : Math.min(+q, have); };
 function giftClick(b) {
@@ -118,7 +118,7 @@ function shareFx(p, dt) {
   let t = shareTags.get(p);
   if (!t && on) {
     const el = document.createElement('div'); el.className = 'shareTag hud'; el.style.setProperty('--pc', c.pc || NET_COL[1]);
-    el.innerHTML = `<div class="stCard"><b>${c.own === false ? shEsc(c.who || 'Teammate') + "'s" : 'Shared'}</b><span class="stHint"><kbd>${c.own === false ? 'E' : 'H'}</kbd>${c.own === false ? 'take' : 'unshare'}</span></div><i class="stStem"></i><i class="stDot"></i>`;
+    el.innerHTML = `<div class="stCard"><b>${c.own === false ? shEsc(c.who || 'Teammate') + "'s" : 'Shared'}</b><span class="stHint">${kbd(c.own === false ? 'use' : 'share')}${c.own === false ? 'take' : 'unshare'}</span></div><i class="stStem"></i><i class="stDot"></i>`;
     document.body.appendChild(el); shareTags.set(p, t = { el });
   }
   if (t) { t.el.classList.toggle('out', !on); t.el.classList.toggle('near', Math.hypot(p.x - P.x, p.z - P.z) < SHARE.near); }

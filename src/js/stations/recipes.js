@@ -129,7 +129,7 @@ const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX
 const bagFull = () => (P.band || 0) >= bandMax(), stackFull = () => !plankRoom();
 // the medicine cabinet: bandages, a stitch-up, and its three upgrades
 const MED = [
-  { ic: 'med', for: () => 'For you', full: bagFull, cost: 4, title: () => 'Bandage', desc: () => `Goes in your bag (${P.band || 0}/${bandMax()}). Q to use: heals ${bandHeal()} over time and stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+  { ic: 'med', for: () => 'For you', full: bagFull, cost: 4, title: () => 'Bandage', desc: () => `Goes in your bag (${P.band || 0}/${bandMax()}). ${keyOn('bandage')} to use: heals ${bandHeal()} over time and stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
   { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and no more slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
   ...['hands', 'dress', 'tonic'].map(medUpgrade)
 ];

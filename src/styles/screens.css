@@ -150,3 +150,7 @@ body.menu :is(#waveBox,#moodles,#vitals,#arms,#feed,#xh){filter:brightness(.38) 
 @keyframes screenIn{from{opacity:0;translate:-30px 0}}
 @keyframes screenFade{to{opacity:0}}
 @media (prefers-reduced-motion:reduce){#fadeVeil,#fadeVeil.on,#fadeVeil.cine,#fadeVeil.cine.on,#cineBars::before,#cineBars::after{transition-duration:.01s!important}.screen .inner,.screen .inner>*,#title .lead>*,#title,#paused{animation-duration:.01s!important;animation-delay:0s!important}}
+/* a key that's held rather than pressed, and where to change them */
+#title .ctrls p small{font:600 9px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+#title .ctrlMore p.ctrlSet{width:100%;margin-top:12px}
+#title .ctrlMore p.ctrlSet span{color:rgba(236,230,216,.38);font-style:italic}

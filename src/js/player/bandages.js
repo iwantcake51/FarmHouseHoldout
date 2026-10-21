@@ -29,7 +29,7 @@ function startBandage() {
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
   P.bandT = 0; ANIM.healCut = true; SFX.click(); bandSound(BAND_FADE.hit);   // the view snaps back out of the lean-in (player/hold.js)
-  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
+  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: `Getting hit stops the wrap · ${keyOn('bandage')} to start again` });
 }
 // how far the bandage going on has got (0 to 1)
 const bandProg = () => P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : 0;
