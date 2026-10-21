@@ -194,12 +194,23 @@ function tearAll(o, at) {
   const n = o.boards.length;
   for (let k = 0; k < n; k++) setTimeout(() => { if (!o.boards.length) return; breakBoard(o, at); netBoardBroke(o, null, at); }, k * TEAR_GAP);
 }
+// a piece of a board or a grate lying about stays where it is whether you can see it or not (it never pops out of
+// the world as your sightline leaves it), just darker out of sight, DEBRIS_DIM of its colour, eased between the two:
+// it gets its own copies of its materials the first time, so the ones still on a window aren't touched
+const DEBRIS_DIM = 0.55;
+function debrisShade(q, dt) {
+  const g = q.g;
+  if (!q.mats) { q.mats = []; const seen = new Map(); g.traverse(o => { if (!o.isMesh || !o.material || !o.material.color) return; let m = seen.get(o.material); if (!m) { m = o.material.isMeshLambertMaterial ? relit(o.material) : o.material.clone(); m.userData.mobile = true; m.userData.c0 = o.material.color.clone(); seen.set(o.material, m); q.mats.push(m); } o.material = m; }); q.dim = 1; }
+  const want = mix(DEBRIS_DIM, 1, smooth(clamp((visAt(g.position.x, g.position.z) - 0.15) / 0.35, 0, 1))), d = q.dim + (want - q.dim) * Math.min(1, dt * 4);
+  if (Math.abs(d - q.dim) < 0.002 && q.shown) return;
+  q.dim = d; q.shown = true; g.visible = true; q.mats.forEach(m => m.color.copy(m.userData.c0).multiplyScalar(d));
+}
 // boards knocked about and pieces of them lying about, each frame
 function stepBoards(dt, rdt) {
   stepDebris(loosePlanks, dt); stepDebris(looseMetal, dt); boardShake(rdt);
   for (const o of openings) if (o.grate) grateStep(o, rdt);
-  for (const q of loosePlanks) if (q.life > 0) q.g.visible = visAt(q.g.position.x, q.g.position.z) > 0.15;
-  for (const q of looseMetal) if (q.life > 0) q.g.visible = visAt(q.g.position.x, q.g.position.z) > 0.15; else if (q.g.parent) scene.remove(q.g);
+  for (const q of loosePlanks) if (q.life > 0) debrisShade(q, rdt);
+  for (const q of looseMetal) if (q.life > 0) debrisShade(q, rdt); else if (q.g.parent) scene.remove(q.g);
 }
 function resetBoards() {
   openings.forEach(o => { clearBoards(o); o.climbers = []; });
