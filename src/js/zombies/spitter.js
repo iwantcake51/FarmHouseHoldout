@@ -19,7 +19,7 @@
 const SPIT = {
   from: 5, share: 0.05, sharePer: 0.006, shareMax: 0.12,   // first wave, share of the wave, how it grows (waves/waves.js)
   min: 3.5, max: 11, wind: 0.95, cd: [3.6, 5], first: [0.8, 2.2],   // range, the rear back (s), between spits (s), the first
-  speed: 12, g: 9, through: 1.45,   // the glob's speed across the ground (m/s), its fall, the height it takes through a window
+  speed: 6.5, g: 7, arc: 0.45, arcPer: 0.09, through: 1.45,   // the glob's speed across the ground (m/s) at most, its fall, how high it's lobbed over the line to where it lands (arc, and arcPer more each metre), the height it takes through a window
   dmg: 10, splash: 1.0,   // a glob that catches you (half that at the splash's edge) and how far the splash reaches
   // the splat it leaves: how far it burns, how long it lasts, the burn a second (rising to max times that after ramp
   // seconds stood in it, and easing off again once you're out), the drag at your feet; it spreads over grow seconds and
@@ -166,15 +166,17 @@ function spitAt(z, tx, tz) {
   if (netLink() && z.id) netSend('spt', { id: z.id, a: [x0, y0, z0, tx, tz, T].map(v => Math.round(v * 1000) / 1000) });
   launchGlob(z, x0, y0, z0, tx, tz, T);
 }
-// how long the glob's in the air: SPIT.speed across the ground, but through a window on the way it's lobbed higher, to
-// pass the middle of it (SPIT.through, metres up) rather than splash on the sill
+// how long the glob's in the air: lobbed in an arc, its top SPIT.arc (and SPIT.arcPer a metre further) over the line
+// to where it lands (an arc's top is g T² / 8 above the middle of that line), and never faster than SPIT.speed across
+// the ground; through a window on the way, the arc that passes the middle of it (SPIT.through, metres up) instead,
+// rather than splash on the sill or the head
 function spitTime(x0, y0, z0, tx, tz) {
-  const d = Math.hypot(tx - x0, tz - z0), ty = surfaceY(tx, tz) + 0.05, T0 = clamp(d / SPIT.speed, 0.3, 1.2);
+  const d = Math.hypot(tx - x0, tz - z0), ty = surfaceY(tx, tz) + 0.05, T0 = clamp(Math.max(d / SPIT.speed, Math.sqrt(8 * (SPIT.arc + SPIT.arcPer * d) / SPIT.g)), 0.45, 2.2);
   for (let s = 0.1; s < d; s += 0.1) {
     const k = idx(ci(x0 + (tx - x0) * s / d), ci(z0 + (tz - z0) * s / d)), o = cell[k] === OPEN && openAt[k];
     if (!o || o.kind !== 'window') continue;
     const f = s / d, need = SPIT.through - y0 - f * (ty - y0); if (f < 0.05 || f > 0.95 || need <= 0) return T0;
-    return clamp(Math.sqrt(2 * need / (SPIT.g * f * (1 - f))), 0.3, 1.5);
+    return clamp(Math.sqrt(2 * need / (SPIT.g * f * (1 - f))), 0.4, 2);
   }
   return T0;
 }
@@ -261,13 +263,23 @@ function updateSpit(dt) {
   if ((P.acidTick = (P.acidTick || 0) - dt) <= 0) { P.acidTick = 0.5; hitFromAt(q.x, q.z, 0.12 * ramp); soundAt(P.x, P.z, () => nz(0.35, 'highpass', 3400, 1600, 0.035 * ramp)); fx('acidMist', P.x, 0.12, P.z, 0, 0.5, 0, 0.15, 0.6, 0.7, 0.4); }
   playerChecks();
 }
-// the glob bursting: a crown of drops thrown out the way it was going (back off a wall), a few the other way, some
-// landing as specks round the splat, a wet slap and a hiss; if it caught you, the hurt (half at the splash's edge)
+// the glob bursting as a liquid does: a crown of fine drops thrown out low all round it, most of them on the way it
+// was going (back off a wall); a few heavier gobs thrown up and out; and the spatter they make coming down a moment
+// after, specks round the splat, each streaked outward the way it flew. Then a wet slap and a hiss, and a breath of
+// fume; if it caught you, the hurt (half at the splash's edge)
 function acidSplash(x, y, z, dx, dz, direct, wall) {
-  const fx0 = wall ? -dx : dx, fz0 = wall ? -dz : dz;
-  for (let k = 0; k < 18; k++) { const f = rr(0.4, 2.4) * (rand() < 0.8 ? 1 : -0.6); fx('acid', x, y + 0.03, z, fx0 * f + rr(-1.4, 1.4), rr(0.8, 2.6), fz0 * f + rr(-1.4, 1.4), rr(0.025, 0.055), 0.015, rr(0.35, 0.6), 1); }
-  for (let k = 0; k < 5; k++) { const d = rr(0.5, 1.3), a = rr(-0.9, 0.9), c = Math.cos(a), s = Math.sin(a); acidPool(x + (fx0 * c - fz0 * s) * d, z + (fx0 * s + fz0 * c) * d, rr(0.06, 0.14), rr(3, 5), rand() * 6.283, true); }
+  const fx0 = wall ? -dx : dx, fz0 = wall ? -dz : dz, fwd = Math.atan2(fz0, fx0);
+  for (let k = 0; k < 28; k++) {
+    const a = rand() * 6.283, lean = 0.55 + 0.45 * (Math.cos(a) * fx0 + Math.sin(a) * fz0), sp = rr(0.7, 2.4) * (0.45 + lean);
+    fx('acid', x + Math.cos(a) * 0.05, y + 0.02, z + Math.sin(a) * 0.05, Math.cos(a) * sp + fx0 * 0.5, rr(0.4, 1.6), Math.sin(a) * sp + fz0 * 0.5, rr(0.015, 0.045), 0.01, rr(0.28, 0.5), 1);
+  }
+  for (let k = 0; k < 5; k++) fx('acid', x, y + 0.05, z, fx0 * rr(0.4, 1.4) + rr(-0.7, 0.7), rr(1.8, 3), fz0 * rr(0.4, 1.4) + rr(-0.7, 0.7), rr(0.05, 0.085), 0.03, rr(0.5, 0.75), 1);
+  for (let k = 0; k < 11; k++) {
+    const a = rand() < 0.7 ? fwd + rr(-1.3, 1.3) : rand() * 6.283, d = rr(0.3, 1.4), px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+    setTimeout(() => { if (state !== 'title') acidPool(px, pz, rr(0.035, 0.11) * (1.25 - d * 0.35), rr(2.5, 5), -a, true); }, (0.1 + d * 0.16) * 1000);
+  }
   fx('acidMist', x, y, z, 0, 0.25, 0, 0.35, 1.1, 1.3, 0.35);
+  setTimeout(() => fx('acidMist', x + fx0 * 0.2, y + 0.05, z + fz0 * 0.2, 0, 0.2, 0, 0.25, 0.9, 1.6, 0.22), 250);
   soundAt(x, z, () => { nz(0.09, 'lowpass', 900, 250, 0.3); nz(0.6, 'highpass', 3000, 1100, 0.1); nz(0.25, 'bandpass', 1400, 600, 0.08, 2); });
   const d = Math.hypot(P.x - x, P.z - z);
   if (P.dead || P.vault || state !== 'play' || (!direct && d > SPIT.splash)) return;
