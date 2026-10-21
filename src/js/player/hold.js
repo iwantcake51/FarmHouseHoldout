@@ -705,7 +705,10 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   const q = shakyTremor();
   armRest(pm.armR, 'R', a.rx + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);
   pm.armR.rotation.z = a.rz; pm.armR.scale.z = a.sc;
-  mh.rotation.set(a.hrx + q.r * SHAKY_TREM.r * 0.6, 0, 0); mh.scale.set(1, a.wy, a.wz);
+  // (turned in the fist about its handle, a.tw, it's scaled along its own axes as they lie in the arm, so the arm's
+  // stretch never squashes it whichever way it's turned: ARM_THIN across, as the weapons are built)
+  mh.rotation.set(a.hrx + q.r * SHAKY_TREM.r * 0.6, a.tw || 0, 0);
+  { const Q = mh.quaternion, l = v => { v.applyQuaternion(Q); return Math.hypot(ARM_THIN * v.x, ARM_THIN * v.y, a.sc * v.z); }; mh.scale.set(ARM_THIN / l(_mtS.set(1, 0, 0)), ARM_THIN / l(_mtS.set(0, 1, 0)), 1 / l(_mtS.set(0, 0, 1))); }
   // two-handed, the left fist closes on the handle just above the right (further up it for a bash, the haft held
   // like a bar); one-handed, the free arm swings out against the turn for balance
   if (D.two) {
@@ -721,7 +724,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
     if (t) reach(pm.armL, 'L', t, 0, true);
   }
 }
-const _mlR = new V3();
+const _mlR = new V3(), _mtS = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
 const ARM_AIM = { k: 38, d: 12.3 };
