@@ -61,6 +61,7 @@ function computeLight() {
   if (on) {
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
+    spitLights(dark);   // a spitter's glob, and its fresh splats, glowing green (zombies/spitter.js)
   }
   computeVision(on && (!P.dead || spectating()));   // as you die the fog of war lifts and every zombie fades into view, till you're watching a teammate: then it's theirs
 }

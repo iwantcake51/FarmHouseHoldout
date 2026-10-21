@@ -30,9 +30,16 @@ const SPIT = {
 };
 const globs = [], acidPools = [], spitters = new Set();
 // the acid: a sick yellow-green, translucent and wet-looking, faintly lit from within
-const ACID_GLOW = 0x142408;
+const ACID_GLOW = 0x142408, POOL_GLOW = new THREE.Color(0x4c8c14);
 const GLOB_G = new THREE.IcosahedronGeometry(1, 2);
-const GLOB_M = lam(0xb4dc46, { emissive: 0x3c6a0a, transparent: true, opacity: 0.93 }); GLOB_M.userData.mobile = true;
+// the glob glows in its own colour in the dark, unlit (it's never darker than its green), with a halo round it, and
+// the trail it draws out behind it the same
+const GLOB_M = new THREE.MeshBasicMaterial({ color: 0xa8e83c, transparent: true, opacity: 0.94 });
+const SPIT_TRAIL_M = new THREE.MeshBasicMaterial({ color: 0x96d634, transparent: true, opacity: 0.8, depthWrite: false });
+const HALO_M = new THREE.SpriteMaterial({ map: TEX_GLOWS[0], color: 0x7fd02a, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+// and green light thrown off it onto what's round it, and off a fresh splat while it's still fuming (spitLights,
+// lighting/lightmap.js), SPIT_LIGHT its colour
+const SPIT_LIGHT = [0.42, 1, 0.16], SPIT_LAMP = { glob: [3, 0.85], pool: [1.8, 0.38] };
 // three more kinds of soft sprite (effects/puffs.js): the acid flung off a glob or a splash, wet and catching the light;
 // the haze of fumes off a fresh splat; and the glow round a spitter's throat
 FXK.acid = { tex: TEX_DOT, col: 0xc4e65a, col2: 0x6f8e1c, lit: true, gain: 1.5, grav: 7, drag: 1.2, rise: 0, fin: 0.03, fade: 1.3 };
@@ -180,12 +187,67 @@ function spitTime(x0, y0, z0, tx, tz) {
   }
   return T0;
 }
-// the glob: a wobbling, stretched gob of acid with a few smaller drops strung out behind it
+// the trail drawn out behind a glob: a strand of the acid along the very path it's flown (its last frames' places,
+// g.hist), thickest at the glob and tapering to nothing SPIT_TRAIL.len behind it, round in section, wobbling a little as
+// liquid does; built once and its points moved each frame
+const SPIT_TRAIL = { len: 0.42, rings: 12, sides: 7, r: 0.045 };
+function spitTrailGeo() {
+  const n = SPIT_TRAIL.rings * SPIT_TRAIL.sides, g = new THREE.BufferGeometry(), idx = [];
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  for (let i = 0; i < SPIT_TRAIL.rings - 1; i++) for (let j = 0; j < SPIT_TRAIL.sides; j++) { const a = i * SPIT_TRAIL.sides + j, b = i * SPIT_TRAIL.sides + (j + 1) % SPIT_TRAIL.sides, c = a + SPIT_TRAIL.sides, d = b + SPIT_TRAIL.sides; idx.push(a, c, b, b, c, d); }
+  g.setIndex(idx); return g;
+}
+const _tP = new V3(), _tT = new V3(), _tN = new V3(), _tB = new V3(), _tU = new V3(0, 1, 0);
+function spitTrailShape(geo, hist, t) {
+  const pos = geo.attributes.position, R = SPIT_TRAIL.rings, Sd = SPIT_TRAIL.sides;
+  // the points along it, every len / (rings - 1) back along the path
+  let k = 0, acc = 0;
+  for (let i = 0; i < R; i++) {
+    const want = SPIT_TRAIL.len * i / (R - 1);
+    while (k < hist.length - 2 && acc + hist[k].distanceTo(hist[k + 1]) < want) { acc += hist[k].distanceTo(hist[k + 1]); k++; }
+    const a = hist[k], b = hist[Math.min(k + 1, hist.length - 1)], seg = a.distanceTo(b) || 1, f = clamp((want - acc) / seg, 0, 1);
+    _tP.copy(a).lerp(b, f); _tT.copy(a).sub(b); if (_tT.lengthSq() < 1e-8) _tT.set(0, 0, 1); _tT.normalize();
+    _tN.crossVectors(_tT, _tU); if (_tN.lengthSq() < 1e-6) _tN.set(1, 0, 0); _tN.normalize(); _tB.crossVectors(_tT, _tN);
+    const u = i / (R - 1), r = SPIT_TRAIL.r * Math.pow(1 - u, 1.4) * (1 + 0.15 * Math.sin(t * 30 + i * 1.7)) * (want <= acc + seg ? 1 : 0);
+    for (let j = 0; j < Sd; j++) { const a2 = j / Sd * 6.2832, c = Math.cos(a2) * r, s = Math.sin(a2) * r; pos.setXYZ(i * Sd + j, _tP.x + _tN.x * c + _tB.x * s, _tP.y + _tN.y * c + _tB.y * s, _tP.z + _tN.z * c + _tB.z * s); }
+  }
+  pos.needsUpdate = true;
+}
+// a glob's light, and a fresh splat's, into the light map with the lamps (called from lighting/lightmap.js)
+function spitLights(dark) {
+  for (const g of globs) { const p = g.m.position; addField(lightField(p.x, p.z, SPIT_LAMP.glob[0]), SPIT_LAMP.glob[1] * (0.2 + dark), SPIT_LIGHT); }
+  for (const q of acidPools) { if (q.tiny) continue; const fresh = clamp(1 - q.t / (q.life * 0.6), 0, 1); if (fresh > 0.02) addField(lightField(q.x, q.z, SPIT_LAMP.pool[0] * (0.6 + q.r * 0.5)), SPIT_LAMP.pool[1] * fresh * (0.15 + dark), SPIT_LIGHT); }
+}
+// the crown a glob throws up as it bursts on the ground: a thin sheet of acid that flares up and out from where it
+// hit, its rim broken into points that throw off drops, then slumps back down and thins out into the splat (CROWN.t);
+// a few shapes of rim made once
+const CROWN = { t: 0.42, r0: 0.04, r1: 0.36, h: 0.17 };
+const CROWN_G = Array.from({ length: 3 }, () => {
+  const g = new THREE.CylinderGeometry(1.3, 1, 1, 26, 2, true).translate(0, 0.5, 0), p = g.attributes.position, jag = Array.from({ length: 26 }, () => rr(0.35, 1.25));
+  for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y < 0.99) continue; const a = Math.atan2(p.getZ(i), p.getX(i)), j = jag[Math.floor(((a + Math.PI) / 6.2832) * 26) % 26]; p.setY(i, y * j); }
+  g.computeVertexNormals(); return g;
+});
+const crowns = [];
+function acidCrown(x, z) {
+  const m = new THREE.Mesh(pick(CROWN_G), new THREE.MeshBasicMaterial({ color: 0x9cd838, transparent: true, opacity: 0.8, depthWrite: false, side: THREE.DoubleSide }));
+  m.position.set(x, surfaceY(x, z) + 0.01, z); m.rotation.y = rand() * 6.283; m.scale.set(CROWN.r0, 0.01, CROWN.r0); m.renderOrder = 2; scene.add(m);
+  crowns.push({ m, t: 0 });
+}
+function stepCrowns(dt) {
+  for (let k = crowns.length - 1; k >= 0; k--) {
+    const c = crowns[k]; c.t += dt; const u = c.t / CROWN.t;
+    if (u >= 1) { scene.remove(c.m); c.m.material.dispose(); crowns.splice(k, 1); continue; }
+    const out = 1 - Math.pow(1 - u, 3), up = Math.sin(Math.PI * Math.min(1, u * 1.35)) * (1 - 0.4 * u), r = mix(CROWN.r0, CROWN.r1, out);
+    c.m.scale.set(r, Math.max(0.01, CROWN.h * up), r); c.m.material.opacity = 0.8 * Math.pow(1 - u, 1.3);
+  }
+}
+// the glob: a wobbling, stretched gob of acid glowing green, drawing a strand of itself out behind it
 function launchGlob(z, x0, y0, z0, tx, tz, T) {
   const ty = surfaceY(tx, tz) + 0.05, m = new THREE.Mesh(GLOB_G, GLOB_M);
-  const tail = [0.05, 0.036, 0.025].map(r => { const q = new THREE.Mesh(GLOB_G, GLOB_M); q.scale.setScalar(r); q.position.set(x0, y0, z0); scene.add(q); return q; });
   m.position.set(x0, y0, z0); m.scale.setScalar(0.075); scene.add(m);
-  globs.push({ m, tail, hist: [], vx: (tx - x0) / T, vy: (ty - y0 + 0.5 * SPIT.g * T * T) / T, vz: (tz - z0) / T, t: 0, ph: rand() * 6 });
+  const halo = new THREE.Sprite(HALO_M); halo.scale.setScalar(0.62); halo.position.set(x0, y0, z0); halo.renderOrder = 3; scene.add(halo);
+  const trail = new THREE.Mesh(spitTrailGeo(), SPIT_TRAIL_M); trail.frustumCulled = false; trail.renderOrder = 2; scene.add(trail);
+  globs.push({ m, tail: [halo, trail], halo, trail, hist: [new V3(x0, y0, z0)], vx: (tx - x0) / T, vy: (ty - y0 + 0.5 * SPIT.g * T * T) / T, vz: (tz - z0) / T, t: 0, ph: rand() * 6 });
   soundAt(x0, z0, () => { nz(0.18, 'bandpass', 900, 260, 0.26, 1.4); nz(0.12, 'highpass', 2200, 1100, 0.07); tn(0.12, 'sine', 180, 70, 0.06); });
   const sf = Math.sin(z.face), cf = Math.cos(z.face);
   for (let k = 0; k < 8; k++) fx('acid', x0, y0, z0, sf * rr(1, 3.5) + rr(-0.7, 0.7), rr(-0.6, 0.9), cf * rr(1, 3.5) + rr(-0.7, 0.7), rr(0.03, 0.06), 0.02, rr(0.3, 0.55), 1);
@@ -224,20 +286,24 @@ function updateSpit(dt) {
     // stretched along the way it's flying, wobbling as it goes, its drops following in its wake
     const v = Math.hypot(g.vx, g.vy, g.vz), wob = 1 + 0.12 * Math.sin(g.t * 34 + g.ph);
     _gq.set(p.x + g.vx, p.y + g.vy, p.z + g.vz); g.m.lookAt(_gq); g.m.scale.set(0.075 * wob, 0.075 / wob, 0.075 * (1 + v * 0.05));
-    g.hist.unshift(p.clone()); if (g.hist.length > 12) g.hist.pop();
-    g.tail.forEach((q, n) => { const hp = g.hist[Math.min(g.hist.length - 1, 3 + n * 3)]; if (hp) q.position.copy(hp); });
-    if (rand() < 0.35) fx('acid', p.x, p.y, p.z, rr(-0.2, 0.2), rr(-0.4, 0), rr(-0.2, 0.2), 0.025, 0.012, 0.4, 0.9);
+    g.hist.unshift(p.clone()); if (g.hist.length > 24) g.hist.pop();
+    g.halo.position.copy(p); g.halo.material.opacity = 0.5 + 0.1 * Math.sin(g.t * 23 + g.ph);
+    spitTrailShape(g.trail.geometry, g.hist, g.t);
+    // now and then a drop sheds off the end of the trail and falls
+    if (rand() < 0.22) { const e = g.hist[Math.min(g.hist.length - 1, 6)]; fx('acid', e.x, e.y, e.z, g.vx * 0.15 + rr(-0.15, 0.15), rr(-0.3, 0.1), g.vz * 0.15 + rr(-0.15, 0.15), rr(0.018, 0.03), 0.01, 0.45, 0.9); }
     // what it hits first: you (or a teammate's game's you), an inside wall, a wall, a sill or a board, or the ground
     const meD = Math.hypot(p.x - P.x, p.z - P.z), hitMe = !P.dead && !P.vault && meD < 0.42 && p.y < 1.75;
     const wall = (THIN.n && thinHit(x0, z0, p.x, p.z) <= 1) || dropHits(p.x, p.y, p.z), ground = p.y <= surfaceY(p.x, p.z) + 0.04;
     if (!hitMe && !wall && !ground && g.t < 3) continue;
-    scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); globs.splice(k, 1);
+    scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); g.trail.geometry.dispose(); globs.splice(k, 1);
     // against a wall it runs down it, so the splat's on the side it came from, a little short of it, its streaks
     // thrown back off the wall; on the ground they run on the way it was going
     const L = Math.hypot(g.vx, g.vz) || 1, dx = g.vx / L, dz = g.vz / L, bx = wall ? x0 - dx * 0.25 : p.x, bz = wall ? z0 - dz * 0.25 : p.z;
     acidSplash(bx, Math.max(p.y, 0.1), bz, dx, dz, hitMe, wall);
+    if (!wall) acidCrown(bx, bz);   // (on the ground: the crown it throws up)
     acidPool(bx, bz, SPIT.pool.r * (wall ? 0.7 : 1), SPIT.pool.t, wall ? Math.atan2(dz, -dx) : Math.atan2(-dz, dx));
   }
+  stepCrowns(dt);
   let inAcid = false;
   for (let k = acidPools.length - 1; k >= 0; k--) {
     const q = acidPools[k]; q.t += dt;
@@ -246,6 +312,7 @@ function updateSpit(dt) {
     const grow = 1 - Math.pow(1 - clamp(q.t / SPIT.pool.grow, 0, 1), 3), dry = clamp((q.life - q.t) / SPIT.pool.dry, 0, 1);
     q.m.scale.setScalar(q.r * 1.25 * (0.3 + 0.7 * grow) * (0.88 + 0.12 * dry)); q.m.material.opacity = 0.92 * dry;
     q.m.material.color.setRGB(0.7 + 0.3 * dry, 0.7 + 0.3 * dry, 0.6 + 0.4 * dry);
+    { const glow = clamp(1 - q.t / (q.life * 0.6), 0, 1) * (q.tiny ? 0.6 : 1); q.m.material.emissive.setHex(ACID_GLOW).lerp(POOL_GLOW, glow); }   // glowing while it's fresh, in the dark too
     if (q.tiny) continue;
     // bubbling and fuming while it's fresh
     const fresh = clamp(1 - q.t / (q.life * 0.7), 0, 1);
@@ -306,7 +373,8 @@ function spitterDies(z) {
   acidPool(z.x + Math.sin(z.face) * 0.3, z.z + Math.cos(z.face) * 0.3, SPIT.burst.r, SPIT.burst.t, rand() * 6.283);
 }
 function clearSpit() {
-  globs.forEach(g => { scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); }); globs.length = 0;
+  globs.forEach(g => { scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); g.trail.geometry.dispose(); }); globs.length = 0;
+  crowns.forEach(c => { scene.remove(c.m); c.m.material.dispose(); }); crowns.length = 0;
   acidPools.forEach(q => { scene.remove(q.m); q.m.material.dispose(); }); acidPools.length = 0; spitters.clear(); P.acidT = 0;
 }
 
