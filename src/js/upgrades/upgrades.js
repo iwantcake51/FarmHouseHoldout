@@ -28,6 +28,9 @@ const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k]
 const STEADY_MAX = 3, LUCK_MISS = 1 / 4;
 // Sure shot: each shot from a gun firing single shots (semiAuto, weapons/firing.js) has this chance to crit
 const SURE_CRIT = 0.05;
+// Painkillers: how much health a second they give back (once you've gone REGEN_WAIT seconds unhurt: player/movement.js);
+// taken once
+const PAIN_REGEN = 1;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 const UPG = [
   { r: 'c', tag: 'Tools', get name() { return METAL.on ? 'Scrap metal' : 'Wood pile'; }, get text() { return METAL.on ? `+${METAL_AID} metal, enough for two grates.` : '+7 planks.'; }, can: () => plankRoom() >= (METAL.on ? METAL_AID : 7), w: () => needW(NEED.planks()), ap: () => addPlanks(METAL.on ? METAL_AID : 7) },
@@ -48,7 +51,7 @@ const UPG = [
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
   { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind, ap: () => S.secondWind = true },
-  { r: 'r', tag: 'Med', name: 'Painkillers', text: 'Regenerate 1 health per second, once you\'ve gone 5 seconds without being hurt.', can: () => S.regen < 2, ap: () => S.regen += 1 },
+  { r: 'r', tag: 'Med', name: 'Painkillers', get text() { return `Regenerate ${PAIN_REGEN} health per second, once you've gone ${REGEN_WAIT} seconds without being hurt.`; }, can: () => !S.regen, ap: () => S.regen = PAIN_REGEN },
   { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots hit harder with every weapon.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Shots and swings take limbs and heads off far more often.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
   // Gunsmith picks its gun when the card is dealt, so the card can say which one (never one with all three maxed), and
