@@ -8,9 +8,9 @@ const MM = {
   wrenchRed: lam(0xc2261a), forged: lam(0x2a2c30), jawSteel: lam(0xb2b6ba), nut: lam(0x1c1d20), label: lam(0xd8b070), labelRed: lam(0xb8301e),
   ito: lam(0x1e2430), samegawa: lam(0xd8d2c0), gold: lam(0xc8a24a), hamon: lam(0xf2f4f6), saya: lam(0x2a1a14), scale: lam(0x5a3a22), rivet: lam(0xc0a060)
 };
-// the traced weapons' flat colours: old steel gone dull grey-brown, the old machete's worn grey wood, the fire axe's
-// handle wood, its black rubber grip, red paint and bright steel, and the saw-back's black rubber and black coating
-Object.assign(MM, { rustBlade: lam(0x6a6058), oldWood: lam(0x6e5a4c), axeWood: lam(0x8a5a3c), axeGrip: lam(0x2a2724),
+// the traced weapons' flat colours: the fire axe's handle wood, its black rubber grip, red paint and bright steel, and
+// the machete's black rubber and black coating
+Object.assign(MM, { axeWood: lam(0x8a5a3c), axeGrip: lam(0x2a2724),
   axePaint: lam(0xb0261c), axeSteel: lam(0xc4c8cc), sogRubber: lam(0x2e2f32), sogBlack: lam(0x1c1d20) });
 // a cylinder standing along +y (radius at its top, radius at its bottom), centred at height y
 function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, seg || 10), mat); m.position.set(x || 0, y, z || 0); m.castShadow = true; g.add(m); return m; }
@@ -156,22 +156,16 @@ const MELEE_MODELS = {
       const t = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 4), MM.rust); t.position.y = 0.095; sp.add(t);
     });
   },
-  // machete (traced: melee/melee-traced.js): an old one gone to rust, a broad blade swelling toward its clipped point
-  // and ground thin to its edge, on a worn wooden handle with a ferrule at its top and a lanyard hole through its butt.
-  // With its serrated spine (any level) it's a saw-backed one in black instead, its teeth along the spine and a
-  // rubber handle with a finger hook, a hook at the pommel and screws through it (after SOG's SawTooth). A longer
-  // blade (longblade) grows from its base
+  // machete (traced: melee/melee-traced.js): a black one (after SOG's SawTooth), its broad blade swelling toward a
+  // clipped point and ground thin to its edge, on a rubber handle with a finger hook, a hook at the pommel and screws
+  // through it. Its spine is plain (sogPlain) till it's given its serrated spine (any level), when the saw teeth are
+  // cut along it; nothing else about it changes. A longer blade (longblade) grows from its base
   machete(g, m) {
-    const sog = !!m.serrated, T = sog ? SOG_TRACE : MACHETE_TRACE, y0 = sog ? SOG_Y0 : MACHETE_Y0;
-    const s = lvAt(m, 'longblade', MACHETE_S), b = new THREE.Group(); b.position.y = y0; b.scale.set(1, s, 1); g.add(b);
-    traceEdge(trace(b, T.blade, 0.006, sog ? MM.sogBlack : MM.rustBlade, 0.0004), T.blade, 0.42, 0.04);   // ground to a keen edge
-    if (sog) {
-      trace(g, T.hilt, 0.026, MM.sogRubber, 0.006);
-      [[607, 990], [663, 990], [643, 1252]].forEach(([x, r]) => [-1, 1].forEach(sd => { const sc = vcyl(g, 0.0045, 0.0045, 0.003, MM.iron, (1110 - r) * 0.000671, 8, sd * 0.0196, -(x - 645) * 0.000671); sc.rotation.z = Math.PI / 2; }));   // the screws, both faces
-    } else {
-      trace(g, T.hilt, 0.024, MM.oldWood, 0.007, T.holes);
-      box(g, 0.042, 0.011, 0.077, MM.rustBlade, 0, 0.098, 0.002);                    // the ferrule
-    }
+    const T = SOG_TRACE, blade = m.serrated ? T.blade : sogPlain();
+    const s = lvAt(m, 'longblade', MACHETE_S), b = new THREE.Group(); b.position.y = SOG_Y0; b.scale.set(1, s, 1); g.add(b);
+    traceEdge(trace(b, blade, 0.006, MM.sogBlack, 0.0004), blade, 0.42, 0.04);   // ground to a keen edge
+    trace(g, T.hilt, 0.026, MM.sogRubber, 0.006);
+    [[607, 990], [663, 990], [643, 1252]].forEach(([x, r]) => [-1, 1].forEach(sd => { const sc = vcyl(g, 0.0045, 0.0045, 0.003, MM.iron, (1110 - r) * 0.000671, 8, sd * 0.0196, -(x - 645) * 0.000671); sc.rotation.z = Math.PI / 2; }));   // the screws, both faces
   },
   // fire axe (traced: melee/melee-traced.js): a wooden handle, scuffed and worn, swelling under the head, and a long
   // black rubber grip that curls into a hooked butt; on top, a red-painted head, chipped and worn, its steel bit ground
@@ -199,6 +193,25 @@ function trace(g, pts, d, mat, bev, holes) {
   const geo = new THREE.ExtrudeGeometry(sh, bev ? { depth: d, bevelEnabled: true, bevelThickness: bev, bevelSize: Math.min(bev, 0.0012), bevelSegments: bev > 0.004 ? 4 : 1, curveSegments: 4 } : { depth: d, bevelEnabled: false });
   geo.translate(0, 0, -d / 2);
   const m = new THREE.Mesh(geo, mat); m.rotation.y = -Math.PI / 2; m.castShadow = true; g.add(m); return m;
+}
+// the machete's blade with a plain spine: its traced outline (SOG_TRACE.blade) with the saw teeth along the spine
+// (everything between SOG_TEETH's heights, behind the blade) taken out, the spine run straight along the roots of the
+// teeth, where the blade itself stops
+const SOG_TEETH = [0.088, 0.5068];
+let SOG_PLAIN = null;
+function sogPlain() {
+  if (SOG_PLAIN) return SOG_PLAIN;
+  const B = SOG_TRACE.blade, isTooth = ([z, y]) => z < 0 && y >= SOG_TEETH[0] && y <= SOG_TEETH[1];
+  const teeth = B.filter(isTooth), keep = B.filter(p => !isTooth(p)), at = keep.findLastIndex(([z, y]) => z < 0 && y > SOG_TEETH[1]);
+  // the root of the teeth: at each height, the nearest any of them comes to the blade's middle; then evened out
+  const n = 16, root = [];
+  for (let k = 0; k <= n; k++) {
+    const y = SOG_TEETH[1] - (SOG_TEETH[1] - SOG_TEETH[0]) * k / n;
+    let z = -1; for (const [tz, ty] of teeth) if (Math.abs(ty - y) < 0.012) z = Math.max(z, tz);
+    root.push([z, y]);
+  }
+  for (let q = 0; q < 2; q++) for (let k = 1; k < n; k++) root[k][0] = (root[k - 1][0] + 2 * root[k][0] + root[k + 1][0]) / 4;
+  return (SOG_PLAIN = keep.slice(0, at + 1).concat(root, keep.slice(at + 1)));
 }
 // where a traced outline crosses height y: its front and back edges [lo, hi] (null if it doesn't reach)
 function spanAt(pts, y) {

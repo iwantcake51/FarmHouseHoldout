@@ -266,47 +266,81 @@ function metalIcons(on) {
 }
 // what you carry to bar the openings with, by name and by icon
 const matWord = () => METAL.on ? 'metal' : 'planks', matKind = () => METAL.on ? 'metal' : 'planks';
-// ---- the metalwork bench: a steel welding table with a grid of clamp holes, angle-iron legs, a mesh shelf under it
-// piled with rebar and plate; a blue vise, a bench grinder, a welding helmet, an angle grinder and a strapped gas
-// bottle, as the workbench is dressed in its tools
+// ---- the metalwork bench: a fabrication bench as a farm shop has one, built from what it's for. A thick steel top,
+// worn bright in the middle and flecked with weld spatter, on square-tube legs with rails round the top and the
+// bottom; a steel shelf under it with a MIG welder on it, its gun and lead hung up on the leg, and lengths of tube
+// and flat bar. A cast-iron vise bolted to the front corner, F-clamps hung off the front edge, an angle grinder and a
+// chipping hammer on the top; and the gas bottle chained to the end, its regulator's hose run down it and along the
+// shelf to the welder
 function metalBenchModel() {
   const g = new THREE.Group(), sil = m => { m.userData.sil = true; return m; };
-  const top = lam(0x4a4e53), dark = lam(0x2f3236), leg = lam(0x3d4145), rust = lam(0x6e4a34), plate = lam(0x8d9399), blue = lam(0x2f5a86), green = lam(0x56705a);
-  sil(box(g, 1.8, 0.05, 0.64, top, 0, 0.86, 0)); box(g, 1.8, 0.06, 0.012, leg, 0, 0.83, -0.32); box(g, 1.8, 0.06, 0.012, leg, 0, 0.83, 0.32);
-  for (let a = 0; a < 9; a++) for (let b = 0; b < 3; b++) box(g, 0.022, 0.003, 0.022, dark, -0.8 + a * 0.2, 0.886, -0.2 + b * 0.2);   // the clamp-hole grid
-  box(g, 0.34, 0.002, 0.2, lam(0x26282b), -0.1, 0.8855, 0.08);   // a scorched patch where the welding's done
-  [[-0.84, -0.27], [0.84, -0.27], [-0.84, 0.27], [0.84, 0.27]].forEach(([x, z]) => { sil(box(g, 0.05, 0.84, 0.006, leg, x, 0.42, z + Math.sign(z) * 0.022)); box(g, 0.006, 0.84, 0.05, leg, x + Math.sign(x) * 0.022, 0.42, z); box(g, 0.09, 0.012, 0.09, dark, x, 0.006, z); });
-  // the mesh shelf, and what's on it: rebar in a bundle, offcuts of plate and an angle-iron length
-  sil(box(g, 1.7, 0.02, 0.56, dark, 0, 0.22, 0)); for (let k = 0; k < 9; k++) box(g, 1.68, 0.004, 0.006, leg, 0, 0.232, -0.25 + k * 0.0625);
-  for (let k = 0; k < 6; k++) { const m = xcyl(g, 0.011, 1.5, rust, -0.05 + (k % 3) * 0.02, 0.245 + ((k / 3) | 0) * 0.02, -0.12 + (k % 3) * 0.024, 7); m.rotation.y = rr(-0.02, 0.02); }
-  [-0.15, 0.25].forEach(x => box(g, 0.02, 0.025, 0.08, lam(0x8a8070), x, 0.255, -0.1));   // tie wire round the bundle
-  box(g, 0.5, 0.012, 0.32, plate, 0.45, 0.236, 0.1).rotation.y = 0.12; box(g, 0.36, 0.012, 0.26, lam(0x7d848a), 0.48, 0.25, 0.08).rotation.y = -0.2;
-  box(g, 1.2, 0.04, 0.004, leg, -0.2, 0.25, 0.18); box(g, 1.2, 0.004, 0.04, leg, -0.2, 0.232, 0.2);
-  // the vise on the front corner, a length of rebar in its jaws
-  const vs = new THREE.Group(); vs.position.set(0.68, 0.885, -0.24); g.add(vs);
-  box(vs, 0.16, 0.03, 0.16, blue, 0, 0.015, 0); box(vs, 0.12, 0.09, 0.14, blue, 0, 0.075, 0.01);
-  box(vs, 0.2, 0.08, 0.04, blue, 0, 0.12, -0.06); box(vs, 0.2, 0.08, 0.04, blue, 0, 0.12, -0.15); box(vs, 0.07, 0.05, 0.1, blue, 0, 0.07, -0.12);
-  box(vs, 0.19, 0.06, 0.006, dark, 0, 0.125, -0.083); box(vs, 0.19, 0.06, 0.006, dark, 0, 0.125, -0.127);
-  zcyl(vs, 0.013, 0.12, lam(0x9a9da0), 0, 0.09, -0.22); xcyl(vs, 0.007, 0.22, lam(0x9a9da0), 0, 0.09, -0.28);
-  xcyl(vs, 0.011, 0.5, rust, -0.12, 0.13, -0.105, 7);
-  // the bench grinder bolted to the far end: its motor, two wheels under guards, the tool rests
-  const gr = new THREE.Group(); gr.position.set(-0.66, 0.885, 0.05); g.add(gr);
-  box(gr, 0.16, 0.025, 0.12, dark, 0, 0.012, 0); ycyl(gr, 0.04, 0.05, 0.05, green, 0, 0.05, 0, 10);
-  sil(xcyl(gr, 0.065, 0.18, green, 0, 0.12, 0, 14)); [-1, 1].forEach(s => { xcyl(gr, 0.07, 0.03, lam(0x9a9890), s * 0.15, 0.12, 0, 16); const gd = xcyl(gr, 0.082, 0.045, dark, s * 0.15, 0.135, 0.01, 16); gd.scale.set(1, 1, 0.7); box(gr, 0.04, 0.008, 0.05, dark, s * 0.15, 0.07, -0.08); });
-  // the welding helmet, its dark lens, and the angle grinder left on the top; a pair of gauntlets
-  const hm = new THREE.Group(); hm.position.set(-0.28, 0.885, -0.08); hm.rotation.y = 0.5; g.add(hm);
-  const sh = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), lam(0x2a2c2f)); sh.rotation.x = -Math.PI / 2; sh.scale.set(1, 1.15, 0.8); sh.position.set(0, 0.1, 0); sh.castShadow = true; hm.add(sh);
-  box(hm, 0.1, 0.04, 0.012, lam(0x2c4a2a), 0, 0.12, -0.11); box(hm, 0.12, 0.06, 0.008, dark, 0, 0.12, -0.104);
-  const ag = new THREE.Group(); ag.position.set(0.18, 0.905, 0.1); ag.rotation.y = -0.7; g.add(ag);
-  xcyl(ag, 0.028, 0.24, lam(0xc8a032), 0, 0, 0, 10); xcyl(ag, 0.03, 0.04, dark, 0.13, 0, 0, 10); ycyl(ag, 0.055, 0.055, 0.006, lam(0x6a6c70), 0.17, -0.008, 0, 16); box(ag, 0.06, 0.02, 0.025, dark, 0.17, 0.03, 0); xcyl(ag, 0.012, 0.08, dark, 0.16, 0.01, 0.06, 8).rotation.y = Math.PI / 2;
-  [[0.42, -0.18, 0.3], [0.5, -0.12, 1.2]].forEach(([x, z, r]) => box(g, 0.08, 0.025, 0.2, lam(0x8a5a32), x, 0.9, z).rotation.y = r);
-  box(g, 0.14, 0.02, 0.1, lam(0x9a6a3a), 0.02, 0.895, 0.2);   // a pad of soapstone sticks
-  // the gas bottle stood on the shelf at the back corner, strapped, its valve and regulator up under the top, the hose
-  // coiled on the top
-  ycyl(g, 0.085, 0.085, 0.44, lam(0x6e2a26), 0.74, 0.452, 0.17, 14); const dm = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), lam(0x6e2a26)); dm.position.set(0.74, 0.674, 0.17); dm.castShadow = true; g.add(dm);
-  ycyl(g, 0.02, 0.026, 0.05, lam(0xb08a3a), 0.74, 0.78, 0.17, 8); ycyl(g, 0.022, 0.022, 0.05, lam(0x8a8d90), 0.76, 0.8, 0.17, 10).rotation.z = Math.PI / 2;
-  [0.35, 0.58].forEach(y => { const t = torus(g, 0.088, 0.007, dark, 0.74, y, 0.17); t.rotation.x = Math.PI / 2; });
-  torus(g, 0.08, 0.009, lam(0x2a2a2a), 0.56, 0.894, 0.2).rotation.x = Math.PI / 2;
+  const plate = lam(0x575b5f), worn = lam(0x75797d), tube = lam(0x303336), shelf = lam(0x3e4144), iron = lam(0x3a3e42), jaw = lam(0x24272a), steel = lam(0x8d9296), black = lam(0x1f2022), spat = lam(0x2a2826);
+  const W = 1.76, D = 0.6, TOP = 0.86;
+  // the top: a 20 mm plate, its edge darker, worn bright where the work's done, weld spatter about
+  sil(box(g, W, 0.025, D, plate, 0, TOP + 0.0125, 0)); box(g, W + 0.004, 0.012, D + 0.004, tube, 0, TOP + 0.004, 0);
+  box(g, 0.7, 0.001, 0.32, worn, -0.15, TOP + 0.0255, 0.02);
+  { const r = grRng(31); for (let k = 0; k < 26; k++) { const m = ycyl(g, 0.004, 0.005, 0.002, spat, -0.45 + r() * 0.65, TOP + 0.026, -0.14 + r() * 0.3, 6); m.scale.setScalar(0.6 + r()); } }
+  // the frame: 50 mm square tube legs on foot plates, a rail round under the top and another low down
+  const lx = W / 2 - 0.06, lz = D / 2 - 0.05;
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => { sil(box(g, 0.05, TOP - 0.01, 0.05, tube, sx * lx, (TOP - 0.01) / 2, sz * lz)); box(g, 0.09, 0.008, 0.09, tube, sx * lx, 0.004, sz * lz); });
+  [TOP - 0.035, 0.2].forEach(y => { [-1, 1].forEach(sz => box(g, lx * 2, 0.04, 0.04, tube, 0, y, sz * lz)); [-1, 1].forEach(sx => box(g, 0.04, 0.04, lz * 2, tube, sx * lx, y, 0)); });
+  sil(box(g, lx * 2 - 0.04, 0.006, lz * 2 - 0.02, shelf, 0, 0.223, 0));   // the shelf, a sheet on the low rails
+  // the MIG welder on the shelf: its case, the front panel with two knobs, the gun's socket and the vents; the wire
+  // spool's door on the side
+  const wd = new THREE.Group(); wd.position.set(-0.45, 0.226, 0.02); g.add(wd);
+  const caseM = lam(0x355a7e), panel = lam(0x22282e);
+  sil(box(wd, 0.46, 0.28, 0.24, caseM, 0, 0.14, 0)); box(wd, 0.4, 0.2, 0.004, panel, 0.0, 0.15, -0.122);
+  [-0.12, 0.0].forEach(x => { ycyl(wd, 0.022, 0.022, 0.016, black, x, 0.2, -0.13, 14).rotation.x = Math.PI / 2; box(wd, 0.004, 0.012, 0.004, steel, x, 0.212, -0.139); });
+  ycyl(wd, 0.016, 0.016, 0.02, lam(0x9a8a5a), 0.12, 0.12, -0.132, 12).rotation.x = Math.PI / 2;   // the euro socket
+  for (let k = 0; k < 5; k++) box(wd, 0.004, 0.09, 0.002, panel, -0.17 + k * 0.012, 0.09, -0.123);   // vents
+  box(wd, 0.002, 0.2, 0.16, lam(0x2f5070), 0.231, 0.15, 0.0); box(wd, 0.006, 0.03, 0.012, black, 0.234, 0.15, -0.06);   // the spool door and its catch
+  box(wd, 0.36, 0.02, 0.03, black, 0, 0.29, 0);   // the carry handle
+  // its gun and lead coiled over a hook on the front leg, and its earth clamp hung beside it
+  const ld = new THREE.Group(); ld.position.set(-lx - 0.028, 0.6, -lz); g.add(ld);
+  [0, 1, 2].forEach(k => { const t = torus(ld, 0.11 - k * 0.006, 0.009, black, 0, -0.02 * k, 0.0); t.rotation.y = Math.PI / 2; t.scale.set(1, 1.25, 1); });
+  box(ld, 0.03, 0.03, 0.016, black, 0, 0.13, 0);   // the hook
+  const gun = new THREE.Group(); gun.position.set(-0.012, -0.12, 0.07); gun.rotation.x = 0.4; ld.add(gun);
+  ycyl(gun, 0.016, 0.016, 0.14, black, 0, 0, 0, 10); ycyl(gun, 0.011, 0.014, 0.07, lam(0x9a7a3a), 0, -0.1, 0, 10); box(gun, 0.012, 0.03, 0.018, lam(0x7a1a14), 0, 0.02, -0.018);   // handle, brass nozzle, trigger
+  // the vise bolted to the right front corner: base, body, the two jaws with their hardened plates, the slide and the
+  // screw out the front with its T-bar
+  const vs = new THREE.Group(); vs.position.set(0.66, TOP + 0.025, -0.2); g.add(vs);
+  ycyl(vs, 0.075, 0.08, 0.025, iron, 0, 0.0125, 0.04, 18); sil(box(vs, 0.11, 0.08, 0.2, iron, 0, 0.065, 0.04));
+  box(vs, 0.15, 0.075, 0.045, iron, 0, 0.12, 0.13); box(vs, 0.15, 0.075, 0.045, iron, 0, 0.12, 0.035);
+  box(vs, 0.14, 0.05, 0.006, jaw, 0, 0.13, 0.106); box(vs, 0.14, 0.05, 0.006, jaw, 0, 0.13, 0.059);
+  box(vs, 0.07, 0.05, 0.12, iron, 0, 0.075, -0.03); zcyl(vs, 0.012, 0.16, steel, 0, 0.075, -0.1); xcyl(vs, 0.007, 0.2, steel, 0, 0.075, -0.18);
+  [-0.1, 0.1].forEach(x => ycyl(vs, 0.011, 0.011, 0.012, steel, x, 0.075, -0.18, 8).rotation.z = Math.PI / 2);
+  [-0.05, 0.05].forEach(x => ycyl(vs, 0.008, 0.008, 0.008, steel, x, 0.004, 0.11, 6));   // its bolts
+  // F-clamps hung off the front edge of the top
+  [-0.72, -0.62, -0.53].forEach((x, k) => {
+    const c = new THREE.Group(); c.position.set(x, TOP + 0.026, -D / 2 - 0.012); c.rotation.z = (k - 1) * 0.04; g.add(c);
+    box(c, 0.014, 0.3 - k * 0.04, 0.006, steel, 0, -(0.3 - k * 0.04) / 2 + 0.03, 0);   // the bar
+    box(c, 0.05, 0.016, 0.03, iron, 0.018, 0.02, 0.012); box(c, 0.05, 0.016, 0.03, iron, 0.018, -(0.26 - k * 0.04), 0.012);   // the jaws
+    ycyl(c, 0.012, 0.012, 0.07, lam(0x7a3a24), 0.04, -(0.26 - k * 0.04) - 0.04, 0.012, 8);   // the wooden handle
+  });
+  // on the top: the angle grinder with its disc and guard, a chipping hammer, offcuts
+  const ag = new THREE.Group(); ag.position.set(0.12, TOP + 0.05, 0.12); ag.rotation.y = -0.5; g.add(ag);
+  xcyl(ag, 0.03, 0.26, black, 0, 0, 0, 12); xcyl(ag, 0.034, 0.05, lam(0x4a4c4e), 0.15, 0.004, 0, 12);
+  ycyl(ag, 0.058, 0.058, 0.003, lam(0x6a5a48), 0.18, -0.03, 0, 18); const gd = ycyl(ag, 0.064, 0.064, 0.012, steel, 0.18, -0.018, 0, 18, true); gd.scale.set(1, 1, 1);
+  xcyl(ag, 0.012, 0.09, black, 0.17, 0.012, 0.07, 8).rotation.y = Math.PI / 2;   // the side handle
+  const ch = new THREE.Group(); ch.position.set(-0.05, TOP + 0.04, -0.14); ch.rotation.y = 0.9; g.add(ch);
+  xcyl(ch, 0.011, 0.24, lam(0x7a3a24), 0, 0, 0, 8); box(ch, 0.016, 0.016, 0.16, steel, 0.12, 0, 0);   // the chipping hammer
+  box(g, 0.32, 0.03, 0.03, steel, -0.2, TOP + 0.04, -0.08).rotation.y = 0.15; box(g, 0.2, 0.008, 0.05, worn, 0.36, TOP + 0.03, 0.18).rotation.y = -0.3;
+  // stock on the shelf: lengths of square tube and flat bar, and a stack of plate offcuts
+  [[0.0, 0.25, 0.09, 1.2], [0.03, 0.25, 0.14, 1.05]].forEach(([y, x, z, L]) => box(g, L * 0.5, 0.03, 0.03, tube, x, 0.24 + y, z));
+  box(g, 0.6, 0.006, 0.05, steel, 0.32, 0.229, -0.12); box(g, 0.5, 0.006, 0.04, steel, 0.3, 0.235, -0.07).rotation.y = 0.05;
+  [0, 1, 2].forEach(k => box(g, 0.24 - k * 0.03, 0.008, 0.18 - k * 0.02, k % 2 ? worn : plate, 0.62, 0.23 + k * 0.008, 0.1).rotation.y = k * 0.2 - 0.2);
+  // the gas bottle stood at the end, chained to the leg: grey with its shoulder painted, the valve, the regulator and
+  // its two gauges, and the hose down its side and along the shelf to the welder
+  const bx = lx + 0.13, bz = lz - 0.02;
+  sil(ycyl(g, 0.09, 0.09, 0.82, lam(0x6b6f70), bx, 0.41, bz, 18)); const dm = new THREE.Mesh(new THREE.SphereGeometry(0.09, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), lam(0x4e6a3e)); dm.position.set(bx, 0.82, bz); dm.castShadow = true; g.add(dm);
+  ycyl(g, 0.0905, 0.0905, 0.06, lam(0x4e6a3e), bx, 0.79, bz, 18);
+  ycyl(g, 0.022, 0.026, 0.07, lam(0xa88a3c), bx, 0.94, bz, 10); ycyl(g, 0.03, 0.03, 0.015, black, bx, 0.985, bz, 12);
+  const rg = new THREE.Group(); rg.position.set(bx, 0.95, bz); g.add(rg);
+  xcyl(rg, 0.022, 0.06, lam(0xa88a3c), -0.04, 0, 0, 10);
+  [[-0.07, 0.03], [-0.07, -0.03]].forEach(([x, z]) => { const c = ycyl(rg, 0.026, 0.026, 0.016, lam(0x8a8d90), x, 0.02, z, 14); c.rotation.x = Math.PI / 2; ycyl(rg, 0.021, 0.021, 0.002, lam(0xe8e4d8), x, 0.02, z - 0.009, 14).rotation.x = Math.PI / 2; });
+  [0.3, 0.6].forEach(y => { const t = torus(g, 0.093, 0.006, steel, bx, y, bz); t.rotation.x = Math.PI / 2; });   // the chain round it
+  const hose = new THREE.CatmullRomCurve3([new V3(bx - 0.1, 0.95, bz), new V3(bx - 0.1, 0.8, bz - 0.09), new V3(bx - 0.1, 0.35, bz - 0.095), new V3(lx - 0.02, 0.24, bz - 0.06), new V3(0.2, 0.235, 0.21), new V3(-0.3, 0.27, 0.15)]);
+  const hm = new THREE.Mesh(new THREE.TubeGeometry(hose, 24, 0.007, 6), black); hm.castShadow = true; g.add(hm);
   unfight(g); mergeInto(g, finePieces(g));
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;
