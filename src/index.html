@@ -199,7 +199,7 @@
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
     <div class="coop" id="coop" hidden>
       <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
       <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
@@ -225,24 +225,30 @@
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
-      <kbd>W A S D</kbd><span>Walk</span>
-      <kbd>Shift</kbd><span>Sprint: uses stamina. Run into an open window or a fence to vault it; aim or fire to skid to a stop and bring the gun up; sprint to cut a reload short; put the cursor out to the side or behind to glance over your shoulder</span>
-      <kbd>Mouse</kbd><span>Aim; hold the left button to fire</span>
-      <kbd>Right click</kbd><span>Hold to aim down the sights: tighter, but slower</span>
-      <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
-      <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
-      <kbd>Q</kbd><span>Bandage yourself: slow, then heals over time</span>
-      <kbd>V</kbd><span>Shove zombies back (stabs with a bayonet)</span>
-      <kbd>Hold F</kbd><span>Board up a door or window</span>
-      <kbd>Hold C</kbd><span>Tear a board down. Shots through boards wear them down too</span>
-      <kbd>Space</kbd><span>Climb through a window or hop a fence</span>
-      <kbd>E</kbd><span>Workbench, sawhorse, medicine cabinet, radio</span>
-      <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
-      <kbd>B</kbd><span>Switch fire mode</span>
-      <kbd>I</kbd><span>Your weapon's stats, and what's changing them</span>
-      <kbd>Wheel</kbd><span>Zoom in and out</span>
-      <kbd>T</kbd><span>Start the run, or the next wave early (in co-op, a vote: 3 in 4 of you)</span>
-      <kbd>Esc</kbd><span>Pause</span>
+      <div class="ctrlGrp"><h4>Move</h4>
+        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Walk</span></p>
+        <p><kbd>Shift</kbd><span>Sprint</span></p>
+        <p><kbd>Space</kbd><span>Vault a window or fence</span></p></div>
+      <div class="ctrlGrp"><h4>Fight</h4>
+        <p><kbd>Mouse</kbd><span>Aim and fire</span></p>
+        <p><kbd>Right click</kbd><span>Aim down the sights</span></p>
+        <p><kbd>R</kbd><span>Reload</span></p>
+        <p><kbd>1 – 4</kbd><span>Switch weapon</span></p>
+        <p><kbd>V</kbd><span>Shove</span></p></div>
+      <div class="ctrlGrp"><h4>Survive</h4>
+        <p><kbd>Hold F</kbd><span>Board up a window or door</span></p>
+        <p><kbd>E</kbd><span>Use a station</span></p>
+        <p><kbd>Q</kbd><span>Bandage</span></p>
+        <p><kbd>T</kbd><span>Start the next wave early</span></p></div>
+      <details class="ctrlMore"><summary>More controls</summary>
+        <p><kbd>Hold C</kbd><span>Tear a board down</span></p>
+        <p><kbd>B</kbd><span>Switch fire mode</span></p>
+        <p><kbd>G</kbd><span>Underbarrel grenade</span></p>
+        <p><kbd>X</kbd><span>Load the next kind of round</span></p>
+        <p><kbd>I</kbd><span>Weapon stats</span></p>
+        <p><kbd>Wheel</kbd><span>Zoom</span></p>
+        <p><kbd>Esc</kbd><span>Pause</span></p>
+      </details>
     </div>
   </div>
 </div>
@@ -269,7 +275,7 @@
       <div><div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div><div class="hist" id="pHist"></div></div>
       <div><div class="histHead"><span>Gear you've bought and been given</span><b id="pBuyN">0</b></div><div class="hist" id="pBuy"></div></div>
     </div>
-    <div class="btns" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
+    <div class="btns" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="setBtnPause" type="button">Settings</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
     <div class="btns pSure" id="pSure" hidden><span class="pSureQ" id="pSureQ" role="alert"></span><button class="btn" id="pSureYes" type="button"></button><button class="btn ghost" id="pSureNo" type="button">Cancel</button></div>
   </div>
 </div>
@@ -300,6 +306,15 @@
   </filter>
 </svg>
 <div id="cineBars"></div>
+<div id="settings" hidden>
+  <div class="setBack"></div>
+  <div class="setPanel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="setTop"><h3 id="setTitle">Settings</h3><button class="setX" id="setX" type="button" aria-label="Close settings"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg></button></div>
+    <div class="setBody" id="setBody"></div>
+    <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
+  </div>
+</div>
+<div id="fps" hidden></div>
 <div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>

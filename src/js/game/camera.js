@@ -101,12 +101,12 @@ function updateCamera(rdt) {
   cam.zoom = state === 'title' ? TITLE_ZOOM : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
   shake = Math.max(0, shake - rdt * 1.6);
-  const sh = shake * shake * 1.2;
+  const shk = SET.shake / 100, sh = shake * shake * 1.2 * shk;   // (as hard as the settings let it: ui/settings.js)
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
-  const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit, vx = camKick.x + cv.px + cr.px + ck.px + cu.px + ch.px, vz = camKick.z + cv.pz + cr.pz + ck.pz + cu.pz + ch.pz;
-  camPunch *= Math.exp(-rdt * 9); cam.zoom *= 1 + cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch;
+  const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit, vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
+  camPunch *= Math.exp(-rdt * 9); cam.zoom *= 1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk;
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ(camRoll + wob + cv.roll + cr.roll + ck.roll + ch.roll + introRoll()); cam.updateProjectionMatrix();
+  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll()); cam.updateProjectionMatrix();
 }

@@ -1,0 +1,67 @@
+/* The settings panel (ui/settings.js): a dark sheet that pops up from a little below and smaller, over a dimmed and
+   blurred backdrop, and pops back down the same way; its dropdowns unroll under their buttons, their choices easing
+   in one after another; switches slide; sliders fill as they're dragged. */
+#settings{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px}
+#settings[hidden]{display:none}
+#settings .setBack{position:absolute;inset:0;background:rgba(8,7,6,.55);backdrop-filter:blur(6px) saturate(.8);-webkit-backdrop-filter:blur(6px) saturate(.8);opacity:0;transition:opacity .32s ease}
+#settings.on .setBack{opacity:1}
+.setPanel{position:relative;width:min(560px,100%);max-height:min(640px,calc(100vh - 40px));display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  background:var(--tex-specks),linear-gradient(170deg,rgba(30,25,21,.97),rgba(16,14,12,.97) 60%,rgba(22,17,14,.97));background-size:240px,auto;
+  border:1px solid rgba(236,230,216,.1);border-radius:6px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4),inset 0 1px 0 rgba(236,230,216,.06);
+  opacity:0;transform:translateY(18px) scale(.94);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.9,.3,1.12)}
+#settings.on .setPanel{opacity:1;transform:none}
+#settings:not(.on) .setPanel{transition:opacity .22s ease,transform .3s cubic-bezier(.55,0,.8,.3)}
+.setTop{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid rgba(236,230,216,.07)}
+.setTop h3{margin:0;font:800 30px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.setX{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:rgba(236,230,216,.06);color:var(--dim);cursor:pointer;transition:background .2s,color .2s,rotate .3s cubic-bezier(.2,.9,.3,1)}
+.setX svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
+.setX:hover{background:rgba(216,105,44,.8);color:#fff;rotate:90deg}
+.setBody{overflow-y:auto;padding:6px 20px 14px;overscroll-behavior:contain}
+.setHeadRow{margin:16px 0 4px;font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:#c9643a}
+.setRow{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid rgba(236,230,216,.05)}
+.setRow:last-child{border-bottom:0}
+.setLab{display:grid;gap:3px;min-width:0}
+.setLab b{font-weight:600;font-size:13px;color:var(--ink)}
+.setLab small{font-size:11px;color:var(--dim);line-height:1.35}
+/* a dropdown */
+.sDrop{position:relative;flex:none;width:150px}
+.sDropBtn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border:1px solid rgba(236,230,216,.14);border-radius:4px;background:rgba(236,230,216,.04);color:var(--ink);font:500 12px/1 var(--f-ui);cursor:pointer;transition:border-color .2s,background .2s}
+.sDropBtn:hover,.sDrop.open .sDropBtn{border-color:rgba(216,105,44,.7);background:rgba(216,105,44,.08)}
+.sDropBtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sDropBtn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.7;transition:rotate .3s cubic-bezier(.2,.9,.3,1)}
+.sDrop.open .sDropBtn svg{rotate:180deg}
+.sDropList{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:3;margin:0;padding:4px;list-style:none;border:1px solid rgba(236,230,216,.12);border-radius:5px;
+  background:rgba(24,20,17,.98);box-shadow:0 14px 34px rgba(0,0,0,.55);transform-origin:top center;
+  opacity:0;transform:translateY(-6px) scaleY(.92);clip-path:inset(0 0 100% 0 round 5px);pointer-events:none;
+  transition:opacity .2s ease,transform .3s cubic-bezier(.2,.9,.3,1),clip-path .32s cubic-bezier(.2,.9,.3,1)}
+.sDrop.up .sDropList{top:auto;bottom:calc(100% + 6px);transform-origin:bottom center;transform:translateY(6px) scaleY(.92);clip-path:inset(100% 0 0 0 round 5px)}
+.sDrop.open .sDropList{opacity:1;transform:none;clip-path:inset(0 0 0 0 round 5px);pointer-events:auto}
+.sDropList li{position:relative;padding:8px 10px 8px 26px;border-radius:3px;font-size:12px;color:#d8d1c2;cursor:pointer;
+  opacity:0;translate:0 -4px;transition:background .15s,color .15s,opacity .2s,translate .25s cubic-bezier(.2,.9,.3,1)}
+.sDrop.open .sDropList li{opacity:1;translate:0 0;transition-delay:0s,0s,calc(var(--i) * 35ms + 40ms),calc(var(--i) * 35ms + 40ms)}
+.sDropList li:hover,.sDropList li.hl{background:rgba(216,105,44,.18);color:#fff}
+.sDropList li[aria-selected="true"]{color:var(--orange)}
+.sDropList li[aria-selected="true"]::before{content:"";position:absolute;left:10px;top:50%;width:7px;height:4px;border:solid currentColor;border-width:0 0 1.6px 1.6px;rotate:-45deg;translate:0 -70%}
+/* a switch */
+.sTog{flex:none;position:relative;width:42px;height:24px;border:0;border-radius:12px;background:rgba(236,230,216,.14);cursor:pointer;transition:background .25s ease}
+.sTog i{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#e9e3d6;box-shadow:0 1px 3px rgba(0,0,0,.45);transition:translate .28s cubic-bezier(.3,1.3,.5,1)}
+.sTog[aria-checked="true"]{background:var(--orange)}
+.sTog[aria-checked="true"] i{translate:18px 0}
+.sTog:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+/* a slider: the track fills up to the thumb (--p) */
+.sRangeW{flex:none;display:flex;align-items:center;gap:10px;width:190px}
+.sRangeW output{width:40px;text-align:right;font:600 12px/1 var(--f-ui);color:var(--ink);font-variant-numeric:tabular-nums}
+.sRange{flex:1;min-width:0;height:18px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
+.sRange::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--orange) var(--p),rgba(236,230,216,.14) var(--p))}
+.sRange::-moz-range-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--orange) var(--p),rgba(236,230,216,.14) var(--p))}
+.sRange::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;margin-top:-6px;border-radius:50%;background:#efe9dc;border:0;box-shadow:0 1px 4px rgba(0,0,0,.5);transition:transform .15s}
+.sRange::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#efe9dc;border:0;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.sRange:hover::-webkit-slider-thumb,.sRange:active::-webkit-slider-thumb{transform:scale(1.18)}
+.sRange:focus-visible{outline:2px solid var(--ink);outline-offset:4px;border-radius:4px}
+.setFoot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px 16px;border-top:1px solid rgba(236,230,216,.07)}
+.setLink{border:0;background:none;padding:4px 0;color:var(--dim);font:500 12px var(--f-ui);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(163,158,144,.35);text-underline-offset:3px;transition:color .2s}
+.setLink:hover{color:var(--ink)}
+/* the frame-rate counter */
+#fps{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:12px;z-index:45;padding:3px 7px;border-radius:3px;background:rgba(0,0,0,.45);font:600 11px/1.2 var(--f-ui);color:#cfe8b8;pointer-events:none;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.setPanel,.setBack,.sDropList,.sDropList li,.sTog i{transition-duration:.01s!important}}
+@media (max-width:520px){.setRow{flex-wrap:wrap}.sDrop,.sRangeW{width:100%}}

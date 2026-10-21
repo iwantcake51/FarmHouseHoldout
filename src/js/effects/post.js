@@ -180,7 +180,7 @@ function renderFrame() {
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;
   R.setRenderTarget(PS_RT.sc); R.render(scene, cam);
   R.autoClear = true;
-  { const now = performance.now(), dt = POST.aoT ? Math.min(0.1, (now - POST.aoT) / 1000) : 0; POST.aoT = now; const want = AO.n[POST.q] ? 1 : 0; POST.aoK += clamp(want - POST.aoK, -dt * AO.fade, dt * AO.fade); }
+  { const now = performance.now(), dt = POST.aoT ? Math.min(0.1, (now - POST.aoT) / 1000) : 0; POST.aoT = now; const want = AO.n[POST.q] && SET.ao === 'on' ? 1 : 0; POST.aoK += clamp(want - POST.aoK, -dt * AO.fade, dt * AO.fade); }
   const nf = [cam.near, cam.far], sc = PS_RT.sc, aoN = POST.aoK > 0.001 ? AO.n[POST.q] || AO.n[1] : 0;
   if (aoN) {
     const U = aoMat.uniforms, z = cam.zoom;
@@ -200,15 +200,17 @@ function renderFrame() {
     const t = PS_RT.hA; PS_RT.hA = PS_RT.hB; PS_RT.hB = t;
     PS_PREV.view.copy(cam.matrixWorldInverse); PS_PREV.size.copy(U.uSize.value); PS_PREV.center.copy(U.uCenter.value); PS_PREV.ok = true;
   } else PS_PREV.ok = false;
-  // the glow: the bright parts at a quarter size, blurred, and again at an eighth for its wider haze
-  { const U = brightMat.uniforms; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
+  // the glow: the bright parts at a quarter size, blurred, and again at an eighth for its wider haze (none at all with
+  // it off in the settings, ui/settings.js)
+  const bk = POST.noBloom ? 0 : BLOOM_K[SET.bloom] ?? 1;
+  if (bk > 0) { const U = brightMat.uniforms; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }
   const U = compMat.uniforms;
   U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf); U.tCol.value = sc.texture; U.tAO.value = PS_RT.hA.texture;
   U.uAoK.value = aoN ? AO.k * POST.aoK : 0;
-  U.tB1.value = PS_RT.b1.texture; U.tB2.value = PS_RT.b2.texture; U.uB1.value = POST.noBloom ? 0 : lerpD(BLOOM.k); U.uB2.value = POST.noBloom ? 0 : lerpD(BLOOM.k2); U.uDbg.value = POST.dbg ? 1 : 0;
+  U.tB1.value = PS_RT.b1.texture; U.tB2.value = PS_RT.b2.texture; U.uB1.value = lerpD(BLOOM.k) * bk; U.uB2.value = lerpD(BLOOM.k2) * bk; U.uDbg.value = POST.dbg ? 1 : 0;
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)
   if (scene.fog) { U.uFogN.value = scene.fog.near; U.uFogF.value = scene.fog.far; }
   psPass(compMat, prev);

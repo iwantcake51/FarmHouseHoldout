@@ -141,6 +141,7 @@
   "ui/bench-tips.js",
   "ui/gear-popup.js",
   "ui/cheats.js",
+  "world/title-crowd.js",
   "game/visuals.js",
   "net/sync.js",
   "net/arsenal.js",
@@ -149,5 +150,6 @@
   "net/spectate.js",
   "net/teamwork.js",
   "net/friends.js",
+  "ui/settings.js",
   "game/loop.js"
 ]

@@ -58,7 +58,8 @@ function makePlank(sign) {
 let flowDirty = true, lightsDirty = false;
 // hp and side are given for a board a co-op teammate put up (net/sync.js): how strong it went up, and which side of the
 // opening they stood on
-function addBoard(o, hp, sd) {
+// quiet: up already, no hammering, no dust, not counted (the title's boarded windows: world/title-crowd.js)
+function addBoard(o, hp, sd, quiet) {
   const n = o.boards.length; if (n >= 3) return;
   const mine = hp === undefined;
   o.boards.push(mine ? boardHp() : hp);
@@ -68,6 +69,7 @@ function addBoard(o, hp, sd) {
   { const u = m.userData; u.place = 0; u.pz = o.out * side; u.pSide = rand() < 0.5 ? -1 : 1; u.p0 = { x: m.position.x, y: m.position.y, z: m.position.z, rz: m.rotation.z, ry: m.rotation.y }; boardPlace(m, 0); }   // swung in and nailed (boardPlace)
   m.userData.rz0 = m.userData.p0.rz; m.userData.x0 = m.userData.p0.x; m.userData.z0 = m.userData.p0.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
+  if (quiet) { m.userData.place = 1; boardPlace(m, 1); flowDirty = true; lightsDirty = true; return; }
   if (mine) run.boards++;
   // your own hammering's right in front of you, never muffled; a teammate's comes from where they are, through the walls
   const hit = () => mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); BOARD_NAILS.forEach(k => setTimeout(hit, k * BOARD_PLACE * 1000));
