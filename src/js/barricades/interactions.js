@@ -20,14 +20,16 @@ const tearHold = o => o && o.grate ? GRATE.tear : TEAR_T;
 const tearable = o => !!(o && o.boards.length && !P.vault && !openSt);
 // door/window boarding, station prompts and the on-screen hint
 // the colour each kind of prompt picks its thing out in (a gun's is its rarity's colour)
+const OPEN_OK = 0xf4f1ea, OPEN_NO = 0xe2412c;   // an opening's outline: white, red for a window you can't climb through
 const PROMPT_COL = { thing: '#f0bf4c', station: '#e8c070', move: '#8fc4e0', wood: '#d6a066', metal: '#a9bccb', tear: '#e08a6a', bad: '#e2412c', off: '#a39e90' };
 function updateInteractions(dt) {
   // doors, windows and stations
   const o = nearestOpening(), st = nearestStation();
   // the opening you'd work on outlined on your side of it, pulsing as the stations' outlines do (world/house.js)
   openings.forEach(q => {
-    const on = q === o && !P.vault && !openSt && (!fullyBarred(o) || !!vaultTarget(o)), sd = (P.x - q.x) * (q.axis === 'x' ? 0 : 1) + (P.z - q.z) * (q.axis === 'x' ? 1 : 0) < 0 ? 0 : 1;
-    q.hl.forEach((p, k) => { p.om.visible = on && k === sd; if (p.om.visible) p.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });   // (it fades out: effects/screen-outlines.js)
+    // a window you can't climb through (boarded, barred, or nowhere to land) outlined red
+    const win = q.kind === 'window', noVault = win && !vaultTarget(q), on = q === o && !P.vault && !openSt && (win || !fullyBarred(o)), sd = (P.x - q.x) * (q.axis === 'x' ? 0 : 1) + (P.z - q.z) * (q.axis === 'x' ? 1 : 0) < 0 ? 0 : 1;
+    q.hl.forEach((p, k) => { p.om.visible = on && k === sd; if (p.om.visible) { p.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; p.om.color.setHex(noVault ? OPEN_NO : OPEN_OK); } });   // (it fades out: effects/screen-outlines.js)
   });
   STATIONS.forEach(s => { s.om.visible = s === st || s === openSt; if (s.om.visible) s.om.opacity = 0.6 + Math.sin(performance.now() / 160) * 0.3; });
   if (openSt && (!st || st !== openSt)) closeStation();
