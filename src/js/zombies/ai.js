@@ -128,6 +128,11 @@ function updateZombies(dt) {
     if (z.bleed > 0) { z.bleed -= dt; if (!pup) z.hp -= (z.bleedR || BLEED_R) * dt; if (z.bleed <= 0) z.bleedR = 0; if (rand() < dt * (2 + (z.bleedR || BLEED_R) * 0.15)) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0 && !pup) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }
+      if (sp.pump) {   // an arm's stump (zombies/damage.js armStump): pumping, a spurt each beat, weaker each time, out the way the stump points
+        const left = sp.t / STUMP_PUMP.t, beat = Math.sin((STUMP_PUMP.t - sp.t) * STUMP_PUMP.rate * 6.283);
+        if (beat > 0.6 && rand() < 0.35 * left && sp.o.parent) { const v = new V3(...sp.p).applyMatrix4(sp.o.matrixWorld), d = new V3(0, 0, 1).transformDirection(sp.o.matrixWorld); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', d.x * 1.4 + rr(-0.3, 0.3), d.z * 1.4 + rr(-0.3, 0.3), 0.5 + 0.8 * left); }
+        continue;
+      }
       if (rand() < 0.5) { const v = sp.o ? new V3(...sp.p).applyMatrix4(sp.o.matrixWorld) : m.g.localToWorld(new V3(...STUMP[sp.part])); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);

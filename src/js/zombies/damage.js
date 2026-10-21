@@ -14,11 +14,32 @@ function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
   z.limbs[part] = false; netRec('s', part, blast ? 1 : 0);   // (in co-op, what came off goes to the others: net/sync.js)
+  const stub = part === 'armL' || part === 'armR' ? armStump(z, part) : null;   // (made before the arm goes: it's cut from it)
   flingPart(z, z.m[part], dx, dz, 1);
-  z.spurts.push({ part, t: 1.4 });
+  z.spurts.push(stub ? { part, t: STUMP_PUMP.t, o: stub, p: [0, 0, 0.085], pump: true } : { part, t: 1.4 });
   if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
   if (!blast) soundAt(z.x, z.z, () => SFX.sever());   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
+}
+// an arm taken off whole leaves a stump at the shoulder: a short stub of the arm, its sleeve if it has one, ragged at
+// the end, the raw meat of the cut with the bone standing out of it, and the shoulder bloodied round it. It hangs at
+// the side whatever the arm was doing, and for STUMP_PUMP.t seconds it pumps blood out in spurts, weaker each beat
+const STUMP_M = { raw: 0xa01c14, meat: 0xc8402e };
+const STUMP_PUMP = { t: 3.2, rate: 1.5 };
+function armStump(z, part) {
+  const arm = z.m[part], par = arm && arm.parent; if (!par) return null;
+  // its own copies of the sleeve's (or the skin's) colour and the cut's, fading with the body (z.fade) as the rest does
+  const sleeve = arm.children.find(c => c.isMesh && !c.userData.isOutline && Math.abs(c.position.z - 0.04) < 0.012), from = (sleeve || arm).material;
+  const own = c => { const m = lam(c); m.userData.mobile = true; m.transparent = true; m.opacity = from.opacity ?? 1; if (z.fade) z.fade.push(m); return m; };
+  const skin = own(from.color ? from.color.getHex() : 0x7a6a50), raw = own(STUMP_M.raw), meat = own(STUMP_M.meat), bone = own(0xe2d9c4);
+  const s = new THREE.Group(); s.position.copy(arm.position); s.rotation.set(Math.PI / 2 - 0.12, 0, (part === 'armL' ? 1 : -1) * 0.12); par.add(s);   // (+z down the side)
+  box(s, 0.14, 0.14, 0.075, skin, 0, 0, 0.0375);
+  [[0.05, 0.05, 0.03], [-0.055, 0.02, 0.022], [0.0, -0.058, 0.026], [-0.03, 0.05, 0.018]].forEach(([x, y, l]) => box(s, 0.05, 0.03, l, skin, x, y, 0.075 + l / 2 - 0.006).rotation.z = rr(-0.4, 0.4));   // the torn edge
+  box(s, 0.124, 0.124, 0.012, raw, 0, 0, 0.078); box(s, 0.08, 0.075, 0.01, meat, 0.006, -0.004, 0.086);
+  box(s, 0.032, 0.032, 0.04, bone, rr(-0.012, 0.012), rr(-0.012, 0.012), 0.1);   // the bone
+  s.traverse(o => { if (o.isMesh) { o.castShadow = true; if (arm.customDepthMaterial) o.customDepthMaterial = arm.customDepthMaterial; } });   // (its shadow fades with the body's too)
+  const t = z.m.torso; if (t) addWound(z, WOUND_ZONE.torso, new V3((part === 'armL' ? -1 : 1) * 0.24, 0.2, 0), 0.11, 2);   // the shoulder bloodied
+  return s;
 }
 // a piece of a zombie torn off (a limb, or just a forearm or shin: zombies/wounds.js) thrown out as a gib, a burst of
 // blood where it came away; v scales how hard it's thrown
