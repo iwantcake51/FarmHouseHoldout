@@ -117,6 +117,7 @@
   "stations/supply-drop.js",
   "zombies/ai.js",
   "zombies/brute-dash.js",
+  "zombies/knockdown.js",
   "zombies/spitter.js",
   "game/camera.js",
   "world/cutaway.js",

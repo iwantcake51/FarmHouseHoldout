@@ -110,6 +110,7 @@ function dashStep(z, dt, pup) {
       dashFence(z, d, step);
       const x0 = z.x, z0 = z.z; moveCircle(z, d.dx * step, d.dz * step, z.T.r); const moved = Math.hypot(z.x - x0, z.z - z0);
       d.gone += step;
+      dashPlow(z, d);   // zombies in its way thrown off their feet (zombies/knockdown.js)
       for (const q of netTargets()) {
         if (q.dead || d.hit.has(q.id || 'me')) continue;
         if (Math.hypot(q.x - z.x, q.z - z.z) < z.T.r + 0.45) { d.hit.add(q.id || 'me'); if (q.me) dashHit(z, d.dx, d.dz); else netSend('zdh', { id: z.id, h: q.id, dx: nr(d.dx), dz: nr(d.dz) }); }

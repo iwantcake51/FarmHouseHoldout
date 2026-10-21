@@ -126,6 +126,8 @@ NET_ON.za = m => {
   if (m.h === NET.id && !P.dead && state !== 'title') { zStrike(z, m.am); zStruckFx(); }
 };
 
+// a zombie a brute's dash ran down (zombies/knockdown.js): the same fall on every screen, from the host's seed
+NET_ON.zk = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead || state === 'title') return; knockDown(z, m.dx, m.dz, m.s); };
 // a brute's dash (zombies/brute-dash.js): everyone sees the crouch and the stripe; if it runs into you, you take it
 NET_ON.zdw = m => { if (NET.host) return; const z = NZ.get(m.id); if (z && !z.dead && !z.dash) dashStart(z, m.dx, m.dz, m.L); };
 NET_ON.zdh = m => { const z = NZ.get(m.id); if (z && m.h === NET.id && !P.dead && state !== 'title') { dashHit(z, m.dx, m.dz); zStruckFx(); } };

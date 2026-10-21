@@ -333,6 +333,7 @@ const KILL_VOL = 0.5;
 // (a kill that's not part of a hit, a burn or a bleed running out, is sent on its own in co-op)
 function killZombie(z, dx, dz, wId, part, overkill) { return netAct(z, dx, dz, () => killZombie0(z, dx, dz, wId, part, overkill)); }
 function killZombie0(z, dx, dz, wId, part, overkill) {
+  z.knock = null;   // (killed lying down or getting up: it goes down from the pose it's in)
   if (z.dead) return;
   netRec('k', wId, part);
   killBegin(z, dx, dz);
