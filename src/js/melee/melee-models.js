@@ -18,7 +18,7 @@ function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(
 // grows the part it adds (a longer blade, more nails, a bigger jaw), so level III looks bigger than level II
 const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0)];
 // the machete's blade length by long-blade level (also what its swing trail stretches by, melee/swing-trail.js)
-const MACHETE_S = [1, 1.36, 1.55, 1.74], KATANA_L = [0.78, 0.92, 1.0, 1.08];
+const MACHETE_S = [1, 1.12, 1.2, 1.28], KATANA_L = [0.78, 0.92, 1.0, 1.08];
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
