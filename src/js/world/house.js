@@ -68,9 +68,11 @@ function wallForm(i, j, faces, inner) {
   }
   // inside: the wall plastered over in the colour of the room it's onto, with a skirting board (none on a corner with
   // no room against it); a corner the rooms wrap round, on both its sides
-  const pan = (G, d, y0, y1, mat, th, off) => { const [ox_, oz_] = FACE_V[d]; return box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514)); };
+  // (the plaster, the skirting and the clapboard lines lie on the wall's faces: they'd only add to its shadow what's
+  // already in it, so they cast none)
+  const pan = (G, d, y0, y1, mat, th, off) => { const [ox_, oz_] = FACE_V[d], m = box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514)); m.castShadow = false; return m; };
   // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
-  const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0); } };
+  const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0).castShadow = false; } };
   if (kind === 'door') {
     pan(g, inner[0], 2.21, 2.4, mats.inner, 0.004);   // (plastered over inside, above the door)
     // a full-depth frame flush with the walls: jambs, an oak threshold, the sided wall over the head, and cased
@@ -97,6 +99,7 @@ function wallForm(i, j, faces, inner) {
     });
     [0.62, -0.62].forEach(y => box(leaf, 0.035, 0.12, 0.06, dm.brass, -0.41, y, 0));   // hinges
     unfight(g);   // pull apart the trim's flush faces
+    foldPieces(leaf);   // (the door, a mesh a material)
     mats.paint = dm.paint; mats.panel = dm.panel;
     w.o = HOUSE_DOOR_O = houseOpening(g, i, j, 'door', faces[0]);
   } else {
@@ -130,6 +133,12 @@ function wallForm(i, j, faces, inner) {
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
     w.plain = plain; w.win = win; w.o = o;
   }
+  // each part of the cell folded a mesh per material (core/geometry.js): what's on the cell itself, the plain stretch of
+  // wall, the window and the door, each apart, as they're shown and hidden apart; an opening's boards and outline panes
+  // stay as they are
+  const ops = new Set([w.o && w.o.bg].filter(Boolean));
+  foldPieces(g, new Set([w.plain, w.win, ...ops, ...g.children.filter(c => c.isGroup && c !== w.plain && c !== w.win)].filter(Boolean)));
+  [w.plain, w.win].forEach(p => { if (p) foldPieces(p, ops); });
   return w;
 }
 // an opening's own parts: where it is and which way out, the boards across it, and the outline that marks it as the
@@ -144,7 +153,7 @@ function houseOpening(G, i, j, kind, face) {
   const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
   o.hl = [-1, 1].map(sd => {
     const p = new THREE.Group(); bg.add(p);
-    const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
+    const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; m.layers.set(OL_LAYER); p.add(m);   // (only ever drawn into the outlines' mask, never the frame)
     p.om = outline(p, 0xf4f1ea, 0, 0.035); p.om.visible = false; return p;
   });
   return o;
@@ -238,7 +247,7 @@ function gableRoof(cx, cz, L, half, alongZ, top, ends) {
 // the roof over this run's footprint (HOUSE.notch), with the chimney through the front roof's back slope
 function buildRoof() {
   const g = roof.g, n = HOUSE.notch;
-  while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); }
+  while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.isMesh && (o.userData.own || o.userData.fine)) o.geometry.dispose(); }); }
   const zA = n ? cxw(n.j1) + 0.5 : HOUSE.z0, cx = (HOUSE.x0 + HOUSE.x1) / 2, czA = (zA + HOUSE.z1) / 2, halfA = (HOUSE.z1 - zA) / 2;
   const ridgeA = gableRoof(cx, czA, HOUSE.x1 - HOUSE.x0, halfA, false, Infinity, [-1, 1]);
   if (n) {
@@ -249,6 +258,7 @@ function buildRoof() {
   const P = roof.paint, chx = cx + 3.2 * (n && n.i0 !== HX0 ? -1 : 1), chz = czA - Math.min(1.6, halfA * 0.4);
   box(g, 0.6, 1.6, 0.6, P.brick, chx, ridgeA - 0.2, chz);
   box(g, 0.7, 0.1, 0.7, P.ridge, chx, ridgeA + 0.62, chz);
+  foldPieces(g, null, { see: true });   // (a mesh a material: it fades as a whole, core/geometry.js)
   // the roof's materials stay transparent so it can fade, which would draw it after the see-through outlines and leave
   // zombies behind it unmarked: drawn first among the see-through things, its depth is there for them to test against
   g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });
@@ -263,6 +273,7 @@ box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.
   for (let k = -3; k <= 3; k++) box(p, 0.02, 0.125, 1.3, M.wood, k * 0.48, 0.065, 0);
   box(p, 1.2, 0.06, 0.4, M.deck, 0, 0.03, 0.85);
   [[-1.6, 0.55], [1.6, 0.55]].forEach(([a, b]) => box(p, 0.1, 2.3, 0.1, M.doorFrame, a, 1.15, b));
+  foldPieces(p);
 }
 // ---- porch roof on the two posts: a shallow shed roof off the front wall; it fades like the main roof when it would hide you ----
 const porchRoof = (() => {
@@ -278,7 +289,8 @@ const porchRoof = (() => {
   box(g, 3.4, 0.14, 0.14, beamM, 0, 2.37, 0.55);                                                       // header beam across the posts
   box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
   [-1.6, 1.6].forEach(a => { const sd = -Math.sign(a), br = box(g, 0.42, 0.07, 0.07, beamM, a + sd * 0.17, 2.14, 0.55); br.rotation.z = sd * 0.78; });   // knee braces post to header
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.renderOrder = -10; } });   // drawn before the outlines, like the main roof
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; }); foldPieces(g, null, { see: true });
+  g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });   // drawn before the outlines, like the main roof
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1, paint: { shingle, ridge: ridgeM, trim: trimM } };
 })();
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and

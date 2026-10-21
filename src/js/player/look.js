@@ -173,6 +173,7 @@ function rollLook(opt) {
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
   sils.forEach(m => outline(m, 0, 0, 0.01, pOutline));
   if (LOOK.xrayReady) xrayAttach(sils);
+  trimShadows(PM.g);
 }
 // the pieces built on H since its n'th child, moved into a group pivoted at (x, y, z) on the face so they can turn and
 // squash as one (faceMood); s is the side, -1 left, 1 right, 0 the middle (at most the first `most` of them)

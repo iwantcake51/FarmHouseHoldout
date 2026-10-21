@@ -4,6 +4,7 @@
   "core/renderer.js",
   "core/math.js",
   "effects/screen-outlines.js",
+  "effects/post.js",
   "net/net.js",
   "core/shaders.js",
   "core/geometry.js",

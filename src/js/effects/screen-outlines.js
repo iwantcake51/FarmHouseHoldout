@@ -10,6 +10,9 @@
 // thickest one showing is the one drawn. thick sets the line's width (OL.w), a width of 0 the default.
 const OL = { w: [0.6, 55, 1, 3], w0: 2.2, glow: 3.5, glowA: 0.3, eps: 0.0015, slots: 64, margin: 10 };
 const olRoots = [];
+// a layer the frame never draws but the outlines' mask does: a pane that's only there to have a line drawn round it
+// (an opening's, world/house.js), so it costs nothing in the frame itself
+const OL_LAYER = 1;
 const OL_PAD = 9;
 // an outline turned on or off eases in and fades out rather than snapping (OL_FADE: how fast, in opacity a second): what
 // it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
@@ -108,7 +111,7 @@ function outlinePass(camera) {
   const pad = Math.ceil(OL_PAD * px), cx0 = Math.max(0, x0 - pad), cy0 = Math.max(0, y0 - pad), cx1 = Math.min(W, x1 + pad), cy1 = Math.min(H, y1 + pad);
   R.setRenderTarget(olRT); olRT.scissor.set(cx0, cy0, cx1 - cx0, cy1 - cy0); olRT.scissorTest = true; R.setRenderTarget(olRT);
   R.setClearColor(0x000000, 0); R.clear(true, true, false); R.autoClear = false; R.shadowMap.autoUpdate = false;
-  let slot = 0;
+  let slot = 0; camera.layers.enable(OL_LAYER);
   for (const r of olRoots) {
     if (!r.on || slot >= OL.slots - 1 || r.sx + r.sr < x0 || r.sx - r.sr > x1 || r.sy + r.sr < y0 || r.sy - r.sr > y1) continue;
     r.slot = ++slot; r.mat.uniforms.uSlot.value = slot;
@@ -128,7 +131,7 @@ function outlinePass(camera) {
     for (let k = 0; k < _olSw.length; k += 2) _olSw[k].material = _olSw[k + 1];
     _olSw.length = 0; _olHid.forEach(o => { o.visible = true; }); _olHid.length = 0;
   }
-  olPal.needsUpdate = true;
+  camera.layers.disable(OL_LAYER); olPal.needsUpdate = true;
   // the lines and their glow, over the frame in that box
   R.setRenderTarget(prevRT);
   const U = olComp.material.uniforms; U.tMask.value = olRT.texture; U.uTex.value.set(1 / W, 1 / H); U.uScale.value = px;

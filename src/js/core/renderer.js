@@ -2,7 +2,13 @@
 
 const V3 = THREE.Vector3;
 const cv = $('c');
-const R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' });
+// with WebGL2 the frame's drawn into its own multisampled target for its post-processing (effects/post.js), which keeps
+// its antialiasing, so the screen itself needn't be multisampled too (that would only double the memory and the work)
+const GL2 = (() => { try { const g = document.createElement('canvas').getContext('webgl2'); if (!g) return false; const l = g.getExtension('WEBGL_lose_context'); if (l) l.loseContext(); return true; } catch (e) { return false; } })();
+const R = new THREE.WebGLRenderer({ canvas: cv, antialias: !GL2, powerPreference: 'high-performance' });
+// a new shader's checked for errors only when asked (?glcheck in the address): checking makes the driver finish compiling
+// it there and then, a stall the first time anything new is drawn (a muzzle flash, a spitter), instead of in parallel
+R.debug.checkShaderErrors = /[?&]glcheck\b/.test(location.search);
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 let renderScale = DPR;
 // lowered automatically when the frame rate drops (see game/loop.js)

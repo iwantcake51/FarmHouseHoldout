@@ -60,8 +60,26 @@ const gearBuilt = { sig: null, look: null, run: null };
 const ufSoon = []; let ufSoonT = 0;
 function unfightSoon(g) {
   ufSoon.push(g); if (ufSoonT) return;
-  const run = () => { ufSoonT = 0; const list = ufSoon.splice(0); list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o === scene) unfight(q); }); stowDirty = true; };
+  const run = () => {
+    ufSoonT = 0; const list = ufSoon.splice(0), slots = new Set();
+    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).includes(q)); if (s) slots.add(s); });
+    slots.forEach(s => { const id = W8.slot[s]; if (id && gunMeshes[s].userData.bloodId === id) { foldGun(s); stainWeapon(id, Object.values(HOLDS[s]), false); } });   // (folded now its faces are settled, and stained again)
+    stowDirty = true;
+  };
   ufSoonT = typeof requestIdleCallback === 'function' ? requestIdleCallback(run, { timeout: 300 }) : setTimeout(run, 60);
+}
+// a gun's pieces that never move or change folded into a mesh per material, under the hold and under each part that
+// moves (core/geometry.js: foldPieces), so a rifle is a dozen draws instead of a couple of hundred. The moving parts
+// (slides, bolts, mags, the cylinder, a break-action's barrels, the charging handle, the belt, the bipod's legs) and
+// anything noted on (a laser, a clip, the cylinder's rounds) keep their own. The blood's taken off first and goes back
+// on after (it's a material a piece: effects/body-blood.js), so pieces of one material fold together. Melee weapons
+// stay as they're built (player/grip.js finds the hands' places on their pieces)
+function foldGun(s) {
+  const hs = Object.values(HOLDS[s] || {}); if (!hs.length) return;
+  const stop = new Set(movingOf(HOLDS[s], { magg: MAGG[s] || [], slides: SLIDES[s] || [], crane: CRANE[s] || [], brk: BRK[s], belt: BELT[s] })), lg = BIPOD[s];
+  if (lg) (Array.isArray(lg) ? lg : [lg]).forEach(o => { const n = o && (o.isObject3D ? o : o.g); if (n && n.isObject3D) stop.add(n); });
+  hs.forEach(h => h.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.bloodOf) o.material = o.material.userData.bloodOf; }));
+  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop); });
 }
 function buildGuns(only) {
   recomputeEff();
@@ -86,7 +104,8 @@ function buildGuns(only) {
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
     MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
-    stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
+    if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
+    trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
   if (gear) buildGear();

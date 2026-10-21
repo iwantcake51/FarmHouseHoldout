@@ -35,8 +35,9 @@ function updateHeart(rdt, hpF) {
   ecgAcc += rdt * ECG_HZ;
   const moveK = Math.min(1, Math.hypot(P.vx || 0, P.vz || 0) / 6) * (P.sprint ? 1 : 0.45);
   const breathHz = (12 + (heartRate - 72) * 0.15) / 60;   // you breathe faster as your heart does
+  let fresh = false;
   while (ecgAcc >= 1) {
-    ecgAcc--;
+    ecgAcc--; fresh = true;
     beatT += 1 / ECG_HZ; breathT += breathHz / ECG_HZ;
     // the next beat: a touch quicker breathing in and slower breathing out at rest, wild near death
     if (beatT >= beatRR) { beatT -= beatRR; prevRR = beatRR; beatRR = 60 / heartRate * (1 + Math.sin(breathT * Math.PI * 2) * (heartRate < 100 ? 0.04 : 0.01) + rr(-1, 1) * (hpF < 0.1 ? 0.14 : 0.01)); beatPrev = beatCur; beatCur = newBeat(beatRR); }
@@ -48,7 +49,9 @@ function updateHeart(rdt, hpF) {
     ecg[ecgPen] = dead ? drift * 0.4 + rr(-0.01, 0.01) : beatWave(beatT, beatCur) + beatWave(beatT + prevRR, beatPrev) + drift + noise;
     ecgPen = (ecgPen + 1) % ECG_N;
   }
-  // oldest on the left, newest at the right edge (ecgPen is the oldest sample in the ring)
+  // oldest on the left, newest at the right edge (ecgPen is the oldest sample in the ring); drawn again only once it's
+  // moved on (a frame with no new sample leaves it as it was)
+  if (!fresh) return;
   const sx = 180 / (ECG_N - 1);
   let d = '';
   for (let k = 0; k < ECG_N; k++) d += (k ? 'L' : 'M') + (k * sx).toFixed(1) + ',' + (20 - ecg[(ecgPen + k) % ECG_N] * 15).toFixed(1);

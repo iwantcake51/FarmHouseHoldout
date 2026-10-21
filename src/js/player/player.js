@@ -52,6 +52,7 @@ PM.upper.add(packPivot); packPivot.add(packBody);
   unfight(PM.g, { fixed: rig });
   const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, ...Object.values(PACK)]) };   // recoloured at runtime, so kept out of the baked colours
   mergeInto(TO, finePieces(TO, rig), live); mergeInto(U, finePieces(U, new Set([...rig, packPivot])), live); mergeInto(B, finePieces(B, rig), live);
+  trimShadows(PM.g);
 }
 const armorG = new THREE.Group();
 PM.upper.add(armorG);
