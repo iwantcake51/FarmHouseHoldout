@@ -3,6 +3,8 @@
 const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
+// how close you have to come to a drop to pick it up (m), times S.pickMul (the Long reach line: upgrades/tier-table.js)
+const PICK_R = 0.9;
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 // (the supply crate off the radio, in teal so it stands apart). An ammo box holds one kind of round, the kind it shows. A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
@@ -49,7 +51,7 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);
   if (kind !== 'supply' && (amount || 1) > 1) root.scale.setScalar(1.25);   // a doubled drop (a brute's) is a size bigger
-  const rec = { uid: ++dropUid, g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : kind === 'supply' ? CRATE_LIFE : DROP_LIFE, ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) };
+  const rec = { uid: ++dropUid, g: root, item: g, ring, ringMat, discMat, om, xr, glow, kind, ammoType, cargo, x, z, mats, col: new THREE.Color(col), grey: 0, greyShown: 0, t: kind === 'gun' ? Infinity : (kind === 'supply' ? CRATE_LIFE : DROP_LIFE) + (S.dropLife || 0), ph: rand() * 6, amount: amount || 1, age: 0, toss: rr(0, Math.PI * 2) };
   pickups.push(rec); return rec;
 }
 // a drop you can't take right now (planks with your stack full, bandages with your bag full) is half grey and darker,
@@ -113,7 +115,7 @@ function updatePickups(dt) {
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
-    if (d < 0.9 && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
+    if (d < PICK_R * (S.pickMul || 1) && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1), mw = p.cargo && p.cargo.metal ? 'metal' : 'planks'; feed(mw, n, mw); popEl('planks'); ft = '+' + n + (mw === 'metal' ? ' metal' : ''); SFX.pick(); }   // always the one plank (or bar of metal)
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }

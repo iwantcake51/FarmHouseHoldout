@@ -31,10 +31,16 @@ function closeStation() {
 // laser, a light...) teal, the gun's upgrades and mods blue
 const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', metal: '#a9bccb', med: '#d0432c', supply: '#d8692c' };
 const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 'att' ? 'upg' : r.ic];
-// a tiered upgrade's stars (r.tier(): how many steps you have, of how many): one per step, filled for those you have,
-// outlined for those you don't, the one this card buys a brighter outline than the rest
+// a tiered upgrade's stars (r.tier(): how many steps you have, of how many, and each step's rarity): one per step,
+// filled for those you have, outlined for those you don't, the one this card buys a brighter outline than the rest.
+// Where the steps aren't all one rarity, each star, filled or outlined, is in its own step's rarity colour (STAR_COL):
+// green, then blue, then purple for a line that goes uncommon, rare, epic. Everywhere the stars show (here at the
+// stations, on the cards after a wave: upgrades/upgrade-screen.js)
 const STAR = '<path d="M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z"/>';
-const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}>${STAR}</svg>`).join('')}</span>` : '';
+const STAR_COL = { c: '#c4bcad', u: '#6fd07a', r: '#5f9ee8', e: '#a585f4', l: '#f0a050' };
+const starRow = (n, of, rars) => { if (!(of > 1)) return ''; const mixed = rars && new Set(rars.slice(0, of)).size > 1; return `<span class="stars${mixed ? ' rar' : ''}" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}${mixed && rars[k] ? ` style="--sc:${STAR_COL[rars[k]]}"` : ''}>${STAR}</svg>`).join('')}</span>`; };
+// each step's rarity on line k, as gun id has it (some guns call a step a rarer one: rAs)
+const tierRars = (k, id) => TIERS[k].t.map(st => (st.rAs && st.rAs[id]) || st.r);
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
 const chipCache = new Map(); let chipKey = '';

@@ -25,7 +25,7 @@ function attachmentCards() {
   for (const k of ['supp', 'choke', 'sight', 'laser', 'light', 'loader']) {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
     const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D, id) : st.text;
-    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'supp' && !D.quiet ? dmgCost(id, ATT_COST[k][n], n) : ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
+    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id), tierRars(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'supp' && !D.quiet ? dmgCost(id, ATT_COST[k][n], n) : ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); glowGun(id); feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for the gun in your hands: every kind it takes that you don't have yet, bought and loaded (only one kind is
@@ -112,7 +112,7 @@ function gunTierCards() {
   for (const k of ['ammo', 'trigger', 'mag']) {
     if (!tierFits(k, id)) continue;
     const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D, id) : st.text, r = (k === 'mag' && st.rAs && st.rAs[id]) || st.r;
-    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'ammo' ? dmgCost(id, TIER_COST[r] || 14, n) : TIER_COST[r] || 14, title: () => nm, desc: () => txt, why: () => '',
+    out.push({ ic: k === 'ammo' ? 'ammo' : 'gear', group, tier: () => [n, tierMax(k, id), tierRars(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'ammo' ? dmgCost(id, TIER_COST[r] || 14, n) : TIER_COST[r] || 14, title: () => nm, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); magChange(id, () => { fitTier(id, k, n + 1); recomputeEff(); }); buildGuns(id); glowGun(id); feed('gear', 0, nm); gotGear({ ic: k === 'ammo' ? 'ammo' : 'gear', kind: TIER_LINE[k] + ' upgrade', name: nm, gun: id, text: txt + magNote(id), fx: fx0 }); } });
   }
   return out;

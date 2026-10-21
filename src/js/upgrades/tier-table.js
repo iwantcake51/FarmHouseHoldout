@@ -114,7 +114,13 @@ const TIERS = {
     // bandages are still what keeps you going
     { r: 'r', name: 'Iron stomach', text: 'Some kills heal you a little, headshot kills more often, up to a limit each wave.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
     { r: 'e', name: 'Bloodthirst', text: 'Each feed heals more, and the limit goes up.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
-    { r: 'l', name: 'Vampire', text: 'Kills feed you more often (every headshot kill), for more.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] }
+    { r: 'l', name: 'Vampire', text: 'Kills feed you more often (every headshot kill), for more.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] },
+  // how far off you pick drops up (S.pickMul, pickups/pickups.js: PICK_R), and at the top step how much longer they lie
+  // there before they're gone (S.dropLife, s)
+  magnet: { tag: 'Luck', t: [
+    { r: 'r', name: 'Long reach', text: 'You pick drops up from 15% further away.', ap: () => { S.pickMul = 1.15; } },
+    { r: 'e', name: 'Sticky fingers', text: 'You pick drops up from 25% further away.', ap: () => { S.pickMul = 1.25; } },
+    { r: 'l', name: 'Magnetic', text: 'You pick drops up from 40% further away, and they lie there 20 seconds longer before they\'re gone.', ap: () => { S.pickMul = 1.4; S.dropLife = 20; } }] }
 };
 // what tier n of line k is called on gun id
 const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

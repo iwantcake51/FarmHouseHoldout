@@ -55,7 +55,7 @@ function dealCards(bonus) {
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
     b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
-    b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length)); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
+    b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length, tierRars(u.tierOf))); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = chipCls(f); s.textContent = CHIP_MARK[chipCls(f)] + ' ' + f.t; b.querySelector('.fx').appendChild(s); });
     if (stats) b.querySelector('.s').textContent = u.stats();

@@ -17,7 +17,8 @@ const UPG_FX = {
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
-  'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
+  'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave'],
+  'Long reach': ['Pickup reach +15%'], 'Sticky fingers': ['Pickup reach +25%'], 'Magnetic': ['Pickup reach +40%', 'Drops last 20 s longer']
 };
 // once there's a metalwork bench (barricades/metal-bars.js) the wood's metal and the boards are grates too
 const barWord = () => METAL.on ? 'Boarding/barring' : 'Boarding', boardsWord = () => METAL.on ? 'Boards/grates' : 'Boards';

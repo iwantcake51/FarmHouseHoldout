@@ -62,6 +62,9 @@
 .card .k .stars svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;opacity:.5}
 .card .k .stars svg.next{opacity:1}
 .card .k .stars svg.on{fill:currentColor;opacity:1}
+/* a line whose steps go up in rarity: each star in its own step's rarity colour, filled and outlined alike */
+.card .k .stars.rar svg{stroke:var(--sc);stroke-width:2.4;opacity:.85} .card .k .stars.rar svg.next,.card .k .stars.rar svg.on{opacity:1} .card .k .stars.rar svg.on{fill:var(--sc)}
+.card .k .stars.rar svg{width:12px;height:12px;filter:brightness(.72) saturate(1.6)}   /* (deeper, on the card's pale paper) */
 /* who it's for, in a band in the card's rarity colour: your 9mm pistol, all your guns, you */
 .card .for{display:inline-block;margin-top:8px;padding:3px 8px 2px;font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--card);background:var(--rc,#6d665b);border-radius:2px}
 .card .t{font-size:21px;margin:8px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--rule);line-height:1.1}
