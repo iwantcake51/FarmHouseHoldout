@@ -106,7 +106,7 @@ function updateSprint(dt, moving, wx, wz) {
       SFX.skid(); sprintDust(6); P.pivWait = 0;
     }
   } else P.pivWait = 0;
-  P.sprint = can && !aiming && !P.pivot;
+  P.sprint = can && !aiming && !P.pivot && curId() !== 'lmg';   // (the LMG's too heavy to run with: you walk it)
   if (P.sprint) {
     // (a heavy gun in your hands wears you out quicker: its run, weapons/gun-stats.js)
     const hv = (W(curId()) || {}).heavy, use = Math.min(P.stam, stamUse(SPRINT.drain * (hv ? hv.run || 1 : 1)) * dt);
