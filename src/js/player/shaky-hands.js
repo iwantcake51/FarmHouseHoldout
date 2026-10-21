@@ -57,7 +57,13 @@ function gunUnsteady(D, id) {
 // of your breathing (breath: radians a second at rest, and more winded); it all eases in and out (ease), never snaps
 // (a climb's share fades in at vIn and out at vOut a second; how much you're moving eases at mvEase)
 const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2.2, breath: 1.7, breathUp: 2.4, heave: 0.9, vIn: 5, vOut: 1.6, mvEase: 4 };
-const XR = { x: 0, y: 0, vx: 0, vy: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
+// a blow you take knocks the crosshair too (xhHit): flung away from what hit you, on the same spring a shot kicks it
+// on, so it swings off and eases home and adds into whatever recoil and sway it's already got (px: how far for an
+// ordinary hit, more for a heavier one up to max times; side: how much it's thrown aside as well), and for a moment
+// you're unsteady: the spread opens up (spread: how much wider at most) and the sway grows (sway: how much more), both
+// coming on over a moment and easing off again (rise, fall: how quick), never snapping
+const XHIT = { px: 34, max: 2.2, side: 0.5, spread: 0.6, sway: 1.6, rise: 14, fall: 1.6 };
+const XR = { x: 0, y: 0, vx: 0, vy: 0, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
 function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
@@ -83,7 +89,19 @@ function xhKick(D, id, pw, auto) {
   const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * mix(1, XDRIFT.adsMax, SHAKY.ak); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
   XR.tx = tx; XR.ty = ty;
 }
+function xhHit(x, z, amount) {
+  const k = clamp(amount || 1, 0.1, XHIT.max);
+  XR.hbT = Math.min(1, XR.hbT + 0.45 * k);
+  if (!hasMouse || tStick.R) return;
+  _xv.set(P.x, 1, P.z).project(cam); const px = (_xv.x + 1) / 2 * innerWidth, py = (1 - _xv.y) / 2 * innerHeight;
+  _xv.set(x, 1, z).project(cam); let dx = px - (_xv.x + 1) / 2 * innerWidth, dy = py - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
+  if (L < 1) { const a = rand() * 6.283; dx = Math.cos(a); dy = Math.sin(a); } else { dx /= L; dy /= L; }   // (away from it on the screen)
+  const side = rr(-1, 1) * XHIT.side, v = XHIT.px * innerHeight / 1080 * k * rr(0.85, 1.15) * 22 * (aiming ? 0.6 : 1);
+  XR.vx += (dx - dy * side) * v; XR.vy += (dy + dx * side) * v;
+}
 function updateXhRecoil(dt) {
+  // how shaken you are by a blow (XHIT): eased on and off
+  XR.hbT *= Math.exp(-dt * XHIT.fall); XR.hb += (XR.hbT - XR.hb) * Math.min(1, dt * XHIT.rise);
   const auto = XR.autoT > 0; XR.autoT -= dt;
   // the walk a spray takes the aim on (XAUTO) is glided to as it goes, and back to the cursor once you let go
   if (auto) { const f = 1 - Math.exp(-dt * XAUTO.ease); XR.dx += (XR.tx - XR.dx) * f; XR.dy += (XR.ty - XR.dy) * f; }
@@ -103,7 +121,7 @@ function updateXhRecoil(dt) {
   // (how much you're moving, eased both ways: a climb counts as moving, though it carries you without a velocity, so
   // the sway doesn't drop away the moment you go over and jump back as you land)
   XR.mv = (XR.mv || 0) + ((P.vault ? 1 : Math.min(1, Math.hypot(P.vx, P.vz) / 3)) - (XR.mv || 0)) * Math.min(1, dt * XWORK.mvEase);
-  const t = XR.t, mv = XR.mv, amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk * (D && !D.melee ? gunUnsteady(D, curId()) : 1) * (1 + XR.un);
+  const t = XR.t, mv = XR.mv, amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk * (D && !D.melee ? gunUnsteady(D, curId()) : 1) * (1 + XR.un) * (1 + XHIT.sway * XR.hb);
   const heave = Math.sin(XR.bt) * amp * XWORK.heave * Math.min(1, XR.un);   // (the chest rising and falling)
   XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp; XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp + heave;
 }
