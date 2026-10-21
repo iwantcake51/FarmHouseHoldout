@@ -128,6 +128,8 @@ function pickCard(i) {
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out
   const cards = [...$('cards').children];
+  // a tier's next star fills as you take it (stations/station-ui.js: starFillSvg)
+  { const nx = cards[i].querySelector('.stars svg.next'); if (nx) nx.outerHTML = starFillSvg('on', nx.getAttribute('style') ? ` style="${nx.getAttribute('style')}"` : ''); }
   cards[i].classList.add('picked'); settleUpgrade(cards.filter((b, k) => k !== i));
 }
 // none of them: the scrap shown under the cards instead, and all three burn

@@ -38,7 +38,24 @@ const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 
 // stations, on the cards after a wave: upgrades/upgrade-screen.js)
 const STAR = '<path d="M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z"/>';
 const STAR_COL = { c: '#c4bcad', u: '#6fd07a', r: '#5f9ee8', e: '#a585f4', l: '#f0a050' };
-const starRow = (n, of, rars) => { if (!(of > 1)) return ''; const mixed = rars && new Set(rars.slice(0, of)).size > 1; return `<span class="stars${mixed ? ' rar' : ''}" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}${mixed && rars[k] ? ` style="--sc:${STAR_COL[rars[k]]}"` : ''}>${STAR}</svg>`).join('')}</span>`; };
+// a star just earned fills with liquid seeping in from all round it, every point and edge at once: the liquid is the
+// star itself, masked by a wobbling blob in the middle that turns and shrinks away to nothing (its wet front, a ring of
+// it at half strength just ahead), till it's full and brims with a little pop (STAR_FILL ms; upgrades.css:
+// .stars svg.fill). Each one masks its own liquid
+const STAR_D = 'M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z', STAR_FILL = 1800;
+const STAR_BLOB = 'M13.68 0L14.09 2.23L13.22 4.3L11.51 5.87L9.81 7.13L8.56 8.56L7.44 10.24L5.9 11.58L3.89 11.96L1.82 11.47L0 10.87L-1.71 10.82L-3.65 11.22L-5.81 11.41L-7.93 10.91L-9.75 9.75L-11.24 8.16L-12.33 6.28L-12.73 4.14L-12.28 1.94L-11.32 0L-10.6 -1.68L-10.55 -3.43L-10.76 -5.48L-10.41 -7.56L-9.11 -9.11L-7.26 -9.99L-5.45 -10.7L-3.84 -11.82L-2.09 -13.23L0 -14.13L2.2 -13.87L4.08 -12.56L5.54 -10.86L6.77 -9.31L7.93 -7.93L8.99 -6.53L9.95 -5.07L11.04 -3.59L12.41 -1.97Z';
+let starClip = 0;
+// (id: the mask's own name; the same each time a line's drawn while its star fills, so redrawing it doesn't restart it)
+const starFillSvg = (cls, sc, id) => { id = id || 'stf' + (++starClip); return `<svg viewBox="0 0 24 24" class="${cls} fill"${sc || ''}><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-2" y="-2" width="28" height="28"><path d="${STAR_D}" fill="#fff"/><g class="hole"><g class="wob"><path d="${STAR_BLOB}" fill="#777" transform="scale(1.16)"/><path d="${STAR_BLOB}" fill="#000"/></g></g></mask></defs><path class="liq" d="${STAR_D}" mask="url(#${id})"/><path class="ol" d="${STAR_D}"/></svg>`; };
+// key: which line this is (so a star just bought on it fills: the stars it had last time it was drawn, STAR_SEEN)
+const STAR_SEEN = new Map();
+const starRow = (n, of, rars, key) => {
+  if (!(of > 1)) return '';
+  const mixed = rars && new Set(rars.slice(0, of)).size > 1;
+  let from = n;
+  if (key) { const now = performance.now(), sn = STAR_SEEN.get(key); if (sn && n > sn.n) STAR_SEEN.set(key, { n, from: sn.n, t: now }); else if (!sn || n < sn.n) STAR_SEEN.set(key, { n, from: n, t: 0 }); const q = STAR_SEEN.get(key); if (now - q.t < STAR_FILL) from = q.from; }
+  return `<span class="stars${mixed ? ' rar' : ''}" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => { const sc = mixed && rars[k] ? ` style="--sc:${STAR_COL[rars[k]]}"` : ''; return k >= from && k < n ? starFillSvg('on', sc, 'stf' + key.replace(/[^a-z0-9]/gi, '') + '_' + k) : `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}${sc}>${STAR}</svg>`; }).join('')}</span>`;
+};
 // each step's rarity on line k, as gun id has it (some guns call a step a rarer one: rAs)
 const tierRars = (k, id) => TIERS[k].t.map(st => (st.rAs && st.rAs[id]) || st.r);
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
@@ -66,7 +83,7 @@ function renderStation() {
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
   // (the ammo has no card of its own at the workbench: it's the quick buttons, quickAmmo below)
   const all = RECIPES[openSt.id], ids = all.map((r, i) => i).filter(i => !all[i].quick), rows = ids.map(i => all[i]), struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
-  const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
+  const txs = rows.map((r, i) => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? (([n, of, rars]) => starRow(n, of, rars, openSt.id + '|' + (r.group || '') + '|' + ids[i]))(r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
     stStruct = struct; let group = null, k = 0;   // k: each heading and card's place, for the cards rising in one after another as it opens

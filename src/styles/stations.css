@@ -104,6 +104,7 @@
 #stRows .stars svg.next{opacity:1}
 #stRows .stars svg.on{fill:var(--ic);opacity:1}
 /* a line whose steps go up in rarity: each star in its own step's rarity colour, filled and outlined alike */
+#stRows .stars svg .liq{fill:var(--ic)} #stRows .stars.rar svg .liq{fill:var(--sc)}
 #stRows .stars.rar svg{stroke:var(--sc);stroke-width:2.4;opacity:.85} #stRows .stars.rar svg.next,#stRows .stars.rar svg.on{opacity:1} #stRows .stars.rar svg.on{fill:var(--sc)}
 #stRows .tx{display:grid;gap:3px;min-width:0;align-content:start}
 #stRows .tx b{font-size:15px;font-weight:600;color:var(--ink);line-height:1.25}

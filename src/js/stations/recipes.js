@@ -91,14 +91,15 @@ function multiNote(id, apply) {
   return t ? ' · ' + t.t : '';
 }
 // conv: only the mods that turn the gun into something else (a conversion kit, a second gun), which sit at the top of the
-// bench with the tune-up, out of the group; otherwise the rest, in the group
+// bench with the tune-up, out of the group, and so does each improvement on one, and what carries its line on (the
+// burst conversion's levels, then the auto sear after it: MOD_LINE); otherwise the rest, in the group
+const topMod = m => !!MODS[m].conv || !!(MOD_LINE[m] && MODS[m].need && MODS[MODS[m].need].conv);
 function tinkerCards(conv = false) {
   const id = curId(), D = id && W(id); if (!D) return [];
   const out = [], group = conv ? undefined : gearGroup(D);
-  modsFor(id).filter(m => !MODS[m].conv === !conv).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
+  modsFor(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
     make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); glowGun(id); feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
-  if (conv) return out;
-  modUps(id).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
+  modUps(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); glowGun(id); feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
   return out;
 }

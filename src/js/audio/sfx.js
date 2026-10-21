@@ -7,6 +7,11 @@
 // so no two kills sound alike
 const GORE_JIT = 0.14;
 const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, crackLp: 9000, crackDur: 0.09 };
+// a suppressor's sound by its step (1, 2, 3): how loud, its pitch, its highpass (Hz: the boom trimmed off), its top (a
+// share of the lowpass), and how much the room and the farm give back
+const SUPP_SND = [{ vol: 1, rate: 1, hp: 0, lp: 1, verb: 1, echo: 1 }, { vol: 0.78, rate: 1.05, hp: 110, lp: 0.85, verb: 0.8, echo: 0.7 }, { vol: 0.6, rate: 1.1, hp: 200, lp: 0.72, verb: 0.62, echo: 0.45 }];
+// the MP5 with the 10mm kit: pitched down, a low shelf under it ([Hz, dB]), a little louder, a little more echo
+const TENMM_SND = { rate: 0.89, low: [180, 6], vol: 1.1, echo: 1.15 };
 const SFX = {
   light() { nz(0.2, 'lowpass', 3200, 260, 0.75); tn(0.13, 'sine', 150, 45, 0.6); },
   heavy() { nz(0.32, 'lowpass', 2600, 180, 0.9); tn(0.22, 'sine', 120, 38, 0.8); },
@@ -17,10 +22,16 @@ const SFX = {
   // where it sits left to right); inside the farmhouse the room rings with it, harder for the big ones, and wherever you
   // are it echoes back off the farm (a heavy round more, a suppressed one barely: FAR_ECHO, audio/samples.js), dull
   // through the walls when you're in
+  // A suppressor's every step makes it quieter, a touch higher and tighter: less of the low boom, the top softened, less
+  // ring in the room and off the farm (SUPP_SND, by the gun's suppressor line; a gun quiet of itself counts as the first).
+  // The MP5's 10mm kit is a heavier, deeper bark: pitched down with more bass under it (TENMM_SND)
   fire(id, quiet, shells) {
-    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', verb = inside ? (quiet ? 0.36 : big ? 0.9 : 0.74) : 0;
+    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', D = W(id) || {};
+    const sp = quiet ? SUPP_SND[clamp(((W8.gt[id] || {}).supp | 0) || 1, 1, 3) - 1] : null, ten = D.tenmm ? TENMM_SND : null;
+    const verb = inside ? (quiet ? 0.36 * sp.verb : big ? 0.9 : 0.74) : 0;
     echoSet(inside);
-    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
+    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000) * (sp ? sp.lp : 1), hp: sp ? sp.hp : 0, pan: rr(-0.12, 0.12), verb,
+      echo: (quiet ? 0.06 * sp.echo : big ? 0.55 : 0.4) * (ten ? ten.echo : 1), rate: (sp ? sp.rate : 1) * (ten ? ten.rate : 1), vol: (sp ? sp.vol : 1) * (ten ? ten.vol : 1), low: ten ? ten.low : null })) return;
     if (quiet) SFX.supp(shells); else SFX[GUN_SFX[id]]();
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun

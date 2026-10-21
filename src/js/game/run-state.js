@@ -27,7 +27,7 @@ function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= AMMO_DMG[ammo];
+    D.dmg *= AMMO_DMG[ammo]; D.powK = POWDER_KICK[ammo]; D.shake *= POWDER_KICK[ammo];   // a hotter charge kicks harder too
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
@@ -85,6 +85,9 @@ const SEMI = { spread: 0.7, shake: 0.75 };
 // moving adds to an aimed shot is left with each sight
 // each step of a gun's ammo line against stock rounds: hollow points, +P loads, match-grade (upgrades/tier-table.js)
 const AMMO_DMG = [1, 1.25, 1.5, 1.875];
+// and how much harder each step kicks: the gun back into your hands, the view, the crosshair and its spread with every
+// shot (D.powK, weapons/firing.js; D.shake)
+const POWDER_KICK = [1, 1.12, 1.25, 1.4];
 const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
 // what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)
 const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3, 0.3, 0.3] };

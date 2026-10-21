@@ -14,7 +14,7 @@
 // each [by day, in the dark] (curDark, lighting/day-night.js): by day only the brightest things glow, faintly, so
 // sunlit walls don't haze over; in the dark a muzzle flash, a lamp, eyes and spit bloom out
 const AO = { r: 0.55, k: 0.5, bias: 0.025, n: [0, 8, 14], pow: 1.25 };
-const BLOOM = { th: [0.94, 0.84], knee: [0.08, 0.16], k: [0.18, 0.4], k2: [0.1, 0.26] };
+const BLOOM = { th: [0.95, 0.87], knee: [0.07, 0.14], k: [0.1, 0.24], k2: [0.06, 0.15] };
 const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // POST.q: the quality the frame's run at (2 full, 1 fewer occlusion samples, 0 no occlusion: game/loop.js steps it
 // down when the frame rate drops, before the resolution goes)
