@@ -40,7 +40,7 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 1 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
-const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
+const RAG_CAL = { p9: 0.18, p10: 0.32, magnum: 0.6, rifle: 0.7, shells: 1 };
 // a skull crushed from overhead (the sledgehammer): how much of the blow's push along goes into the head and shoulders
 // (along), and how hard they're driven down (down, m/s)
 const RAG_CRUSH = { along: 0.35, down: -4 };

@@ -50,7 +50,7 @@ const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and f
 
 function sprintKey() { return keys.has('shift') || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
-function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
+function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || D.ammo === 'p10' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
 // a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
 // hands and a stop; it goes a little slower on the run, the faster you're going the slower (RUN_RELOAD.rel of its pace
 // flat out, none of it lost at a walk: runRelK), and you go a touch slower for it (RUN_RELOAD.run of your speed)

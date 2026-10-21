@@ -6,7 +6,7 @@ const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' }
 const SLOW_STEP = { soles: 0.4 };
 const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
 function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
-const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id].ammo).map(id => WEAP[id].ammo))];
+const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && W(id).ammo).map(id => W(id).ammo))];
 // aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
 // have any, from the first number when you're short of nothing to the second when you're out of something, and it
 // never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
@@ -15,7 +15,7 @@ const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a s
 // within the hand's aid, what you're short of comes up far more than the rest
 const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
-  ammo: () => { const gs = gunsHeld().filter(id => WEAP[id].ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[WEAP[id].ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
+  ammo: () => { const gs = gunsHeld().filter(id => W(id).ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[W(id).ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
   health: () => (0.8 - P.hp / S.maxHp) / 0.55,
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
   planks: () => 1 - S.planks / (PLANK_MAX / 2)

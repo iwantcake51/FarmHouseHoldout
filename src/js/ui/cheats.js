@@ -87,7 +87,7 @@ function cheatLiveTick() {
   set('hp', `${Math.ceil(P.hp)} / ${S.maxHp}`); set('scrap', S.scrap); set('planks', `${S.planks} / ${PLANK_MAX}`); set('bands', `${P.band || 0} / ${bandMax()}`);
   set('clock', clockText(tod)); set('wave', Math.max(0, run.wave)); set('wavenext', phase === 'wave' ? 'In progress' : `Next up: wave ${run.wave + 1}`); set('zeds', zombies.filter(z => !z.dead).length + spawnQ.length);
   set('phase', state === 'title' ? 'On the title screen' : phase === 'wave' ? `Wave ${run.wave} in progress` : phase === 'cleared' ? 'Wave cleared' : CHEAT.noWaves ? 'Break (waves off)' : `Break · next wave in ${Math.ceil(Math.max(0, breakT))}s`);
-  const id = curId(); if (id && WEAP[id].ammo) set('mag', `${W8.mag[id] || 0} / ${magSize(id)} · ${W8.reserve[WEAP[id].ammo]} spare`);
+  const id = curId(); if (id && WEAP[id].ammo) set('mag', `${W8.mag[id] || 0} / ${magSize(id)} · ${W8.reserve[W(id).ammo]} spare`);
   const sl = $('chTime'); if (sl && document.activeElement !== sl && Math.abs(+sl.value - tod) > 0.02) sl.value = tod;
   const hs = $('chHp'); if (hs && document.activeElement !== hs && Math.abs(+hs.value - P.hp) > 0.5) hs.value = Math.ceil(P.hp);
   chBody.querySelectorAll('[data-fxon]').forEach(el => el.classList.toggle('on', !!CHEAT_FX[el.dataset.fxon].on()));
@@ -282,7 +282,7 @@ const CHEAT_ACTS = {
   bands: () => { P.band = bandMax(); popEl('bands'); },
   scrap: d => { S.scrap = +d.n ? S.scrap + +d.n : 0; popEl('scrap'); },
   planks: () => { S.planks = PLANK_MAX; popEl('planks'); },
-  ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[WEAP[id].ammo] = Math.max(W8.reserve[WEAP[id].ammo], 3 * AMMO_CAN[WEAP[id].ammo]); } }); },
+  ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[W(id).ammo] = Math.max(W8.reserve[W(id).ammo], 3 * AMMO_CAN[W(id).ammo]); } }); },
   give: d => { chGive(d.id); feed('gear', 0, WEAP[d.id].name); },
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
   tier: d => { const id = curId(), k = d.k, n = ownTier(id, k), dd = +d.d;

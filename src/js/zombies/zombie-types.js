@@ -16,5 +16,5 @@ const zombies = [];
 // headshots pay off most with heavy rounds: 9mm only gets about half the head bonus, shotgun loads only a third, and
 // a shotgun's fades with range too (headFade, weapons/ammo.js).
 // A gun's match-grade rounds and sight raise its own multiplier (D.headX, game/run-state.js)
-const HEAD_CAL = { p9: 0.5, shells: 0.35, magnum: 1, rifle: 1 };
+const HEAD_CAL = { p9: 0.5, p10: 0.7, shells: 0.35, magnum: 1, rifle: 1 };
 const headMulFor = D => 1 + (S.headMul + ((D && D.headX) || 0) - 1) * (D && D.ammo ? HEAD_CAL[D.ammo] : 1);

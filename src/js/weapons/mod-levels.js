@@ -49,8 +49,19 @@ const modOffer = m => !hasMod(m) && !modIsOff(m) && !modReplaced(m) && (!MODS[m]
 // a line a fitted mod has taken the place of (the AK kit's mag and magwell: weapons/gun-mods.js), and that mod
 const modLocks = (id, k) => (W8.mods[id] || []).find(m => MODS[m].locks && MODS[m].locks.includes(k)) || null;
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
+// a mod that changes what a gun fires (MODS[m].ammo: the SMG's 10mm kit) empties it into the pouch of what it fired
+// before, so the next mag is the new round; the first time it goes on it comes with its own (gift: a mag in the gun and
+// the rest in the pouch)
+function ammoSwap(id, fn) {
+  const a0 = W(id) && W(id).ammo; fn(); const a1 = W(id) && W(id).ammo;
+  if (!a0 || !a1 || a0 === a1) return;
+  W8.reserve[a0] = (W8.reserve[a0] || 0) + (W8.mag[id] || 0); W8.mag[id] = 0; delete W8.pin[id]; delete W8.relSave[id];
+  const m = (W8.mods[id] || []).find(k => MODS[k].ammo === a1), got = W8.kitGift = W8.kitGift || {};
+  if (m && MODS[m].gift && !got[m]) { got[m] = true; const n = Math.min(magSize(id), MODS[m].gift); W8.mag[id] = n; W8.reserve[a1] = (W8.reserve[a1] || 0) + MODS[m].gift - n; }
+}
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
-function addMod(id, m) {
+function addMod(id, m) { ammoSwap(id, () => addMod0(id, m)); }
+function addMod0(id, m) {
   const r = MODS[m].replaces;
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
   if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
@@ -68,11 +79,13 @@ function setMod(id, m, on) {
     addMod(id, m);
   } else {
     if (!hasMod(m)) return;
-    W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
-    if (W8.fm[id] === m || (M.semi && W8.fm[id] === 'semi')) W8.fm[id] = null;
-    if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
-    W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
-    recomputeEff();
+    ammoSwap(id, () => {
+      W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
+      if (W8.fm[id] === m || (M.semi && W8.fm[id] === 'semi')) W8.fm[id] = null;
+      if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
+      W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
+      recomputeEff();
+    });
   }
 }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }

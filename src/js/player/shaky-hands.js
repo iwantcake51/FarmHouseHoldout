@@ -40,7 +40,7 @@ const XREC = { px: 20, side: 0.45, autoSide: 0.6, adsSemi: 0.5, adsAuto: 0.18, k
 // smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js: the
 // LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly (back: how quickly). The walk is
 // eased to (ease), so it glides rather than stepping with each round
-const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, magnum: 0.8, rifle: 1, shells: 1.1 } };
+const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, p10: 0.75, magnum: 0.8, rifle: 1, shells: 1.1 } };
 const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
 const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more

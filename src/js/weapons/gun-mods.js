@@ -22,6 +22,15 @@ const DART_BLEED = 1.5;
 // flared magwell come off while it's on, and can't go back on till it's off (locks: addMod, upgrades/upgrades.js:
 // tierFits, ui/loadout.js). Dear (cost), and a single step, no levels
 const AKKIT = { dmg: 0.52, rate: 0.115, mag: 30, reload: 1.9, spread: 2.6, kick: 0.5, shake: 0.45, stagger: 0.55, brute: 0.4, cost: 34 };
+// the SMG's 10mm conversion kit (tenmm), as the MP5/10: a new lower with a straight magwell for 30-round straight 10mm
+// Auto mags. The 10 is a much hotter round than the 9mm: each hits about 40% harder (dmg), goes on through a zombie
+// (pierce) and carries its punch further (reach), and gives a little stagger, but it kicks and climbs a good deal more
+// (kick, shake, sprayK), spreads a touch wider, and the gun cycles a little slower (rate). Its rounds are its own (the
+// p10 pool, weapons/ammo.js), scarcer than 9mm: boxes and cans hold fewer and a crafted batch is smaller. It takes the
+// magazine's place: the longer 9mm mags and the drum can't go on while it's fitted (locks), so it's 30 rounds, full
+// stop. Fitted, the gun's emptied (its 9mm back in the pouch) and it comes with two mags of 10mm (gift); dear (cost),
+// like the battle rifle's AK kit, and a single step
+const TENMM = { dmg: 1.4, rate: 1.1, mag: 30, reload: 1.05, spread: 1.15, kick: 1.55, shake: 1.6, sprayK: 1.35, reach: 0.15, stagger: 0.1, gift: 60, cost: 30 };
 // a mod that turns the gun into something else (conv: the AK kit, the burst conversion, a second gun, the sawn-off) is
 // sold at the top of the workbench with the tune-up, not down among the gun's upgrades (stations/recipes.js)
 const GUN_MODS = {
@@ -48,6 +57,8 @@ const GUN_MODS = {
   akimbo2: { conv: true, w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)
+  tenmm: { conv: true, w: 'sub', r: 'l', cost: TENMM.cost, locks: ['mag'], ammo: 'p10', gift: TENMM.gift, name: '10mm conversion kit', text: `A new lower and straight 30-round mags for 10mm Auto: each round hits ~40% harder, goes through a zombie and carries further, but it kicks harder and its ammo is scarcer. No longer mags while it's on. Comes with two loaded mags.`, vis: 'A straight 10mm magwell and a straight 30-round mag',
+    stat: D => { D.tenmm = true; D.ammo = 'p10'; D.dmg *= TENMM.dmg; D.rate *= TENMM.rate; D.mag = D.ownMag = TENMM.mag; D.reload *= TENMM.reload; D.spread *= TENMM.spread; D.kick *= TENMM.kick; D.shake *= TENMM.shake; D.sprayK *= TENMM.sprayK; D.reach = (D.reach || 1) + TENMM.reach; D.pierce = (D.pierce || 0) + 1; D.stagger = Math.max(D.stagger || 0, TENMM.stagger); } },
   navy: { w: 'sub', r: 'u', fm: 'Burst', name: 'Navy trigger group', text: 'Adds a 3-round burst (B switches), quicker and tighter than full auto.', vis: 'A burst-marked selector', stat: D => { D.burst = 3; D.rate = 0.3; D.spread *= 0.75; } },
   gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G fires a grenade, then it recharges.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
   // a small edge, not a big one: about 8% off a mag change, a few % more a level (weapons/mod-levels.js)

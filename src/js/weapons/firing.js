@@ -137,7 +137,7 @@ function zRay(z, ox, oz, dx, dz, tMin = -Infinity) {
 // how much smoke a round leaves hanging along its path, by calibre (SMOKE_CAL: a 9mm none, the .357 a wisp, the .50 and a
 // slug more, a rifle round most, a rifle on full auto less, its trails overlapping), and through a can SMOKE_SUPP: thicker
 // and longer-lasting, still faintest for a 9mm (effects/tracers.js: smokeTrail)
-const SMOKE_CAL = { p9: 0, rimmed: 0.5, magnum: 0.8, rifle: 1, slug: 0.85 }, SMOKE_SUPP = { p9: 0.4, rimmed: 0.8, magnum: 1.05, rifle: 1.35, slug: 1.15, shells: 0.9 };
+const SMOKE_CAL = { p9: 0, p10: 0.3, rimmed: 0.5, magnum: 0.8, rifle: 1, slug: 0.85 }, SMOKE_SUPP = { p9: 0.4, p10: 0.6, rimmed: 0.8, magnum: 1.05, rifle: 1.35, slug: 1.15, shells: 0.9 };
 function smokeOf(D, id, supp, slug) {
   const k = D.ammo === 'shells' ? (slug ? 'slug' : 'shells') : D.ammo === 'magnum' && id === 'revolver' ? 'rimmed' : D.ammo;
   return supp ? SMOKE_SUPP[k] || 0 : (SMOKE_CAL[k] || 0) * (D.ammo === 'rifle' && D.rate < 0.15 ? 0.45 : 1);
@@ -251,7 +251,7 @@ function gunFire(id, D, side) {
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
-      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : 0.09);   // and a hole in it (effects/bullet-holes.js)
+      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : D.ammo === 'p10' ? 0.08 : 0.09);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     }
   }

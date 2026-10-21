@@ -14,7 +14,7 @@ function freshStats() {
 }
 function freshRun() {
   S = freshStats();
-  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
+  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, p10: 0, magnum: 0, shells: 0, rifle: 0 },
     cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relRing: null, shellsIn: 0, shellsNeed: 0, goN: 0, goIn: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
   recomputeEff();

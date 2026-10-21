@@ -19,6 +19,7 @@ let flashSize = 1, flashLen = 1, flashWide = 1, flashLife = 0.055;
 // that change a lot from shot to shot
 const FLASH_LOOK = {
   p9: { size: 0.85, len: 0.75, wide: 0.9, life: 0.045, vary: 0.15 },
+  p10: { size: 1.0, len: 0.9, wide: 1.05, life: 0.05, vary: 0.16 },   // (10mm Auto: a hotter load, a bigger flash)
   magnum: { size: 1.4, len: 0.95, wide: 1.4, life: 0.065, vary: 0.2 },
   rifle: { size: 1.1, len: 1.75, wide: 0.75, life: 0.055, vary: 0.15 },
   shells: { size: 1.55, len: 1.25, wide: 1.65, life: 0.07, vary: 0.2 },
@@ -40,7 +41,7 @@ function updateMuzzleWisp(rdt) {
 // the colour of a gun's flash by what it fires, and so of the light it throws and the smoke round the muzzle while
 // that light lasts (smokeLight, effects/smoke.js): a pistol's warm yellow, a rifle round's paler hotter yellow, a
 // shotgun's orange, a dragon's breath shell's deep orange
-const FLASH_COL = { p9: 0xffc25a, magnum: 0xffae48, rifle: 0xffd27c, shells: 0xffa040, dragon: 0xff6418 };
+const FLASH_COL = { p9: 0xffc25a, p10: 0xffb44e, magnum: 0xffae48, rifle: 0xffd27c, shells: 0xffa040, dragon: 0xff6418 };
 const _fcol = new THREE.Color(), _fwhite = new THREE.Color(0xffffff);
 // dress the flash for this shot: its sprites and colour; gives the colour as [r, g, b] for the light it throws
 function flashDress(D) {

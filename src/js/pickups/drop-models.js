@@ -162,5 +162,5 @@ function dropModel(g, kind, ammoType, cargo) {
   else if (kind === 'med') dmMed(g);
   else if (kind === 'supply') crateModel(g, cargo);
   else if (kind === 'gun') g.add(cargo.model);
-  else ({ p9: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);
+  else ({ p9: dmAmmo9, p10: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);
 }
