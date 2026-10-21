@@ -130,7 +130,7 @@ function updateZombies(dt) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }
       if (sp.pump) {   // an arm's stump (zombies/damage.js armStump): pumping, a spurt each beat, weaker each time, out the way the stump points
         const left = sp.t / STUMP_PUMP.t, beat = Math.sin((STUMP_PUMP.t - sp.t) * STUMP_PUMP.rate * 6.283);
-        if (beat > 0.6 && rand() < 0.35 * left && sp.o.parent) { const v = new V3(...sp.p).applyMatrix4(sp.o.matrixWorld), d = new V3(0, 0, 1).transformDirection(sp.o.matrixWorld); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', d.x * 1.4 + rr(-0.3, 0.3), d.z * 1.4 + rr(-0.3, 0.3), 0.5 + 0.8 * left); }
+        if (beat > 0.6 && rand() < 0.35 * left && sp.o.parent) { const v = new V3(...sp.p).applyMatrix4(sp.o.matrixWorld), d = new V3(...(sp.d || [0, 0, 1])).transformDirection(sp.o.matrixWorld); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', d.x * 1.4 + rr(-0.3, 0.3), d.z * 1.4 + rr(-0.3, 0.3), 0.5 + 0.8 * left); }
         continue;
       }
       if (rand() < 0.5) { const v = sp.o ? new V3(...sp.p).applyMatrix4(sp.o.matrixWorld) : m.g.localToWorld(new V3(...STUMP[sp.part])); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
