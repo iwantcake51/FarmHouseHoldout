@@ -193,7 +193,10 @@ function rackGuns() {
     box(R.g, Math.min(0.1, q.wide * 0.7), 0.02, 0.2, HM.hole, x + q.wide / 2, 0.142, 0);   // its notch in the shelf
     x += q.wide + gap;
   });
+  // the rack casts the sun's shadow, the guns in it don't: indoors, under the roof's own shadow, theirs would never
+  // show, and every gun's whole model is in it (hundreds of thousands of points to draw into the shadow map each frame)
   R.g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  guns.forEach(q => q.w.traverse(o => { if (o.isMesh) o.castShadow = false; }));
 }
 {
   const g = new THREE.Group(); g.position.set(cxw(25), 0, cxw(HZ0) + 0.5 + 0.2); scene.add(g);

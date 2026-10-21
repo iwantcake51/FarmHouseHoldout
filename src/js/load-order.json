@@ -8,6 +8,7 @@
   "net/net.js",
   "core/shaders.js",
   "core/geometry.js",
+  "core/still-shadows.js",
   "world/grid.js",
   "world/thin-walls.js",
   "world/materials.js",

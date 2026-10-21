@@ -30,7 +30,7 @@ const TILE_TEX = (() => {
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
 })();
 const TILE_M = new Map(), tileMat = c => TILE_M.get(c) || (TILE_M.set(c, lam(c, { map: TILE_TEX })), TILE_M.get(c));
-scene.add(HOUSE_PLAN.g);
+HOUSE_PLAN.g.userData.still = true; scene.add(HOUSE_PLAN.g);   // (its walls' shadows drawn with the rest that stands still, its doors' not: core/still-shadows.js)
 const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
 const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
 const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1 && HOUSE_FP[idx(i, j)] === 1;   // (a room's floor in this run's footprint: world/house.js)
@@ -259,7 +259,7 @@ const IW_LINES = [], IW_MATS = [], IW_BASE = { plaster: 0xd6ccb4, trim: 0x5c4532
 const DOOR_COLS = [0x6a4a34, 0xd8d0c0, 0x8a6a4a, 0x4e5a52, 0x7a3a2c];
 function buildInWalls(W, doors, rnd) {
   const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols, dc = DOOR_COLS[(rnd() * DOOR_COLS.length) | 0];
-  while (g.children.length) { const m = g.children.pop(); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
+  while (g.children.length) { const m = g.children[g.children.length - 1]; g.remove(m); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
   IW_MATS.forEach(m => m.dispose()); IW_MATS.length = 0; IW_LINES.length = 0; HOUSE_DOORS.list.length = 0; DOOR_DEBRIS.length = 0;
   const t = THIN.t, H = IW.h;
   // a line's own materials, by colour, each with its fade
@@ -333,7 +333,7 @@ function buildDoor(ln, u, dc, rnd) {
   const ro = HOUSE_PLAN.roomOf, size = r => r >= 0 ? HOUSE_PLAN.rooms[r].length : 0;
   const rA = ax === 'x' ? ro[idx(L - 1, u)] : ro[idx(u, L - 1)], rB = ax === 'x' ? ro[idx(L, u)] : ro[idx(u, L)], side = size(rB) >= size(rA) ? 1 : -1;
   const nx = ax === 'x' ? side : 0, nz = ax === 'x' ? 0 : side, sw = Math.sign(-Math.sin(th0) * nx - Math.cos(th0) * nz) || 1;
-  const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; HOUSE_PLAN.g.add(pv);
+  const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; pv.userData.moving = true; HOUSE_PLAN.g.add(pv);
   const paint = ln.mat(dc), panel = ln.mat(_dcShade.setHex(dc).multiplyScalar(0.8).getHex()), brass = ln.mat(0xb08a3a), w = DOOR.w;
   // the leaf, shattered ahead of time into the pieces it'll break into (doorShards: its own pattern, every door), the
   // knob and hinges each on the piece it's fixed to; whole, it's drawn as one (doorLeaf)
@@ -517,7 +517,7 @@ function doorBit(d, q, z, fall) {
   if (q.gone) return; q.gone = true;
   const by = z || P, away = -doorSide(d, by.x, by.z), ox = d.nx * away, oz = d.nz * away;
   // (its own mesh now, where it was on the leaf, with the knob or a hinge if it had one)
-  const g = new THREE.Group(); d.leaf.updateMatrixWorld(true); g.position.set(q.c[0], q.c[1], 0); d.leaf.add(g);
+  const g = new THREE.Group(); d.leaf.updateMatrixWorld(true); g.position.set(q.c[0], q.c[1], 0); g.userData.moving = true; d.leaf.add(g);
   const m = new THREE.Mesh(shardGeo([q], false), d.mats.map(plainMat)); m.castShadow = true; g.add(m);
   for (const e of q.extras) { e.position.x -= q.c[0]; e.position.y -= q.c[1]; e.material = plainMat(e.material); g.add(e); }
   HOUSE_PLAN.g.attach(g); g.rotation.reorder('YXZ');
@@ -527,7 +527,7 @@ function doorBit(d, q, z, fall) {
   // and a few splinters of it, long and thin, every one its own size, thrown out with it
   const n = (rand() * (DOOR_FRAC.slivers + 1)) | 0, sm = _dbMat.get(d.dc) || (_dbMat.set(d.dc, lam(d.dc)), _dbMat.get(d.dc));
   for (let k = 0; k < n; k++) {
-    const sg = new THREE.Group(); sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
+    const sg = new THREE.Group(); sg.userData.moving = true; sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
     const m = box(sg, rr(0.015, 0.04), rr(0.08, 0.32), rr(0.012, 0.03), sm, 0, 0, 0); m.castShadow = false; HOUSE_PLAN.g.add(sg);
     const kk = k * 0.3 + (fall ? rr(0.3, 1) : rr(1.6, 3.2));
     DOOR_DEBRIS.push({ g: sg, life: 8, vx: ox * kk + rr(-0.9, 0.9), vy: rr(0.3, 2), vz: oz * kk + rr(-0.9, 0.9), spin: rr(-14, 14), roll: rr(-12, 12), r: 0.015, bounces: 0, kind: 'plank', quiet: true, restY: 0.012,
@@ -608,4 +608,5 @@ function houseLayout0(seed, live) {
   buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
   if (live) { syncBlock(); relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
+  stillShadowsReset();   // (the furniture and the props moved on purpose: core/still-shadows.js)
 }

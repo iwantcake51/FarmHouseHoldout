@@ -88,7 +88,7 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
   // each piece in its own group, on the wall cell it hangs on, so a window put in there takes it down (WALL_DECOR:
   // world/interior.js)
   // (and out off the wall a little, clear of the plaster over it: world/house.js, IN_M)
-  const dec = (i, j) => { const g = new THREE.Group(); g.position.set(i === HX0 ? 0.022 : 0, 0, j === HZ0 ? 0.022 : 0); scene.add(g); WALL_DECOR.push({ g, k: idx(i, j), dir: i === HX0 ? 'W' : 'N' }); return g; };
+  const dec = (i, j) => { const g = new THREE.Group(); g.position.set(i === HX0 ? 0.022 : 0, 0, j === HZ0 ? 0.022 : 0); g.userData.still = true; scene.add(g); WALL_DECOR.push({ g, k: idx(i, j), dir: i === HX0 ? 'W' : 'N' }); return g; };
   const pic = dec(20, HZ0), clk = dec(23, HZ0), ant = dec(26, HZ0), hooks = dec(HX0, 19), cal = dec(HX0, 22);
   const zN = cxw(HZ0) + 0.5, xW = cxw(HX0) + 0.5;
   box(pic, 0.52, 0.42, 0.03, HM.oakDk, cxw(20), 1.55, zN + 0.015); box(pic, 0.44, 0.34, 0.01, lam(0x9aa6a4), cxw(20), 1.55, zN + 0.032);
@@ -119,7 +119,7 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
 // whether you see and shoot over it, how it's stood on a spot (put: its first cell, turned q quarters) and the cells
 // it's on (at)
 const YARD_PROPS = [];
-const yardProp = (kind, g, w, d, low, put) => { const p = { kind, g, w, d, low, put, at: [] }; YARD_PROPS.push(p); return p; };
+const yardProp = (kind, g, w, d, low, put) => { g.userData.still = true; const p = { kind, g, w, d, low, put, at: [] }; YARD_PROPS.push(p); return p; };
 // a prop's cells with its first at (i, j), turned q quarters
 const yardCells = (p, i, j, q) => { const odd = q & 1, w = odd ? p.d : p.w, d = odd ? p.w : p.d, out = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) out.push([i + a, j + b]); return out; };
 // set down there, on the grid (live: in a game, so what stops shots is kept up too: world/collision.js)

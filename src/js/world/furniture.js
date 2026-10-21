@@ -24,6 +24,7 @@ STATIONS.forEach(s => {
 });
 // each piece as it was built: where, how turned, on which cells, and its station's spot and footprint
 FURN.forEach(f => {
+  f.g.userData.still = true;   // (its shadow drawn with the rest that stands still: core/still-shadows.js)
   f.p0 = f.g.position.clone(); f.r0 = f.g.rotation.y; f.c0 = f.cells.map(c => c.slice()); f.at = f.c0.map(c => c.slice());
   f.piv = [cxw(f.c0[0][0]), cxw(f.c0[0][1])];
   if (f.st) { f.u0 = [f.st.x, f.st.z]; if (f.st.foot) f.foot0 = f.st.foot.slice(); }

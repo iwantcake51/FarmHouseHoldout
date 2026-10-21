@@ -48,7 +48,7 @@ const WALL_FORMS = new Map(), WALL_AT = new Map();
 const FACE_V = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] };
 function wallForm(i, j, faces, inner) {
   const key = idx(i, j) + ':' + faces.join('') + ':' + inner.join(''); let w = WALL_FORMS.get(key); if (w) return w;
-  const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); scene.add(g);
+  const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); g.userData.still = true; scene.add(g);   // (its shadow drawn with the rest that stands still: core/still-shadows.js)
   const kind = i === 21 && j === HZ1 ? 'door' : null;
   // every cell's pieces fade with its wall faces when you're behind them (world/cutaway.js), the door's included
   const cut = { value: 0 };
@@ -147,7 +147,7 @@ function wallForm(i, j, faces, inner) {
 function houseOpening(G, i, j, kind, face) {
   const axis = face === 'N' || face === 'S' ? 'x' : 'z';
   const out = face === 'N' || face === 'W' ? -1 : 1;
-  const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; G.add(bg);
+  const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; bg.userData.moving = true; G.add(bg);   // (the boards come and go: core/still-shadows.js)
   const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
   const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
   const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
@@ -213,7 +213,7 @@ function houseFootprint(rnd, live) {
 // lower the wing's ridge sits at least)
 const ROOF = { rise: 2.1 / 5.4, base: 2.5, ov: 0.4, under: 0.35 };
 const roof = (() => {
-  const g = new THREE.Group(); scene.add(g);
+  const g = new THREE.Group(); g.userData.still = true; scene.add(g);
   const mats = [];
   const mk = (c, side) => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true, side: side || THREE.FrontSide }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
   const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), gable = mk(0xc8bea4, THREE.DoubleSide), trimM = mk(0x4a392d), brick = mk(0x6a3a2c);
@@ -247,7 +247,7 @@ function gableRoof(cx, cz, L, half, alongZ, top, ends) {
 // the roof over this run's footprint (HOUSE.notch), with the chimney through the front roof's back slope
 function buildRoof() {
   const g = roof.g, n = HOUSE.notch;
-  while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.isMesh && (o.userData.own || o.userData.fine)) o.geometry.dispose(); }); }
+  while (g.children.length) { const c = g.children[g.children.length - 1]; g.remove(c); c.traverse(o => { if (o.isMesh && (o.userData.own || o.userData.fine)) o.geometry.dispose(); }); }
   const zA = n ? cxw(n.j1) + 0.5 : HOUSE.z0, cx = (HOUSE.x0 + HOUSE.x1) / 2, czA = (zA + HOUSE.z1) / 2, halfA = (HOUSE.z1 - zA) / 2;
   const ridgeA = gableRoof(cx, czA, HOUSE.x1 - HOUSE.x0, halfA, false, Infinity, [-1, 1]);
   if (n) {
@@ -268,7 +268,7 @@ setWindows(new Set([idx(19, HZ0), idx(24, HZ0), idx(HX0, 21), idx(HX1, 22)]), fa
 box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42).castShadow = false;
 // porch deck and steps
 {
-  const p = new THREE.Group(); p.position.set(cxw(21), 0, cxw(HZ1) + 1.1); scene.add(p);
+  const p = new THREE.Group(); p.position.set(cxw(21), 0, cxw(HZ1) + 1.1); p.userData.still = true; scene.add(p);
   box(p, 3.4, 0.12, 1.3, M.deck, 0, 0.06, 0);
   for (let k = -3; k <= 3; k++) box(p, 0.02, 0.125, 1.3, M.wood, k * 0.48, 0.065, 0);
   box(p, 1.2, 0.06, 0.4, M.deck, 0, 0.03, 0.85);
@@ -277,7 +277,7 @@ box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.
 }
 // ---- porch roof on the two posts: a shallow shed roof off the front wall; it fades like the main roof when it would hide you ----
 const porchRoof = (() => {
-  const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); scene.add(g);
+  const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); g.userData.still = true; scene.add(g);
   const mats = [], mk = c => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
   const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), trimM = mk(0x4a392d), beamM = mk(0x3e2f25);
   const z0 = -0.6, z1 = 0.85, y0 = 2.66, y1 = 2.38, th = Math.atan2(y0 - y1, z1 - z0), len = Math.hypot(z1 - z0, y0 - y1);
