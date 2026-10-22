@@ -89,7 +89,7 @@
 #team .bar{height:3px}
 #team .bar i{transition:width .25s ease}
 /* healing still to come on a teammate's bar, as on yours (#hpHeal, styles/hud-vitals.css) */
-#team .bar s,#spec .bar s{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:0 0 6px rgba(92,160,255,.45);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite;transition:left .25s ease,width .25s ease}
+#team .bar s,#spec .bar s{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:inset 0 0 6px rgba(150,200,255,.55);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite;transition:left .25s ease,width .25s ease}
 #team .res{gap:10px}
 #team .res svg{width:10px;height:10px}
 #team .res b{font-size:12.5px}

@@ -32,7 +32,7 @@
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#d4e6f6,#86acd2);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
 /* (the first layer is health up to the base 100; past it, bonus health from armour and the like is steel blue) */
-#hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:0 0 6px rgba(92,160,255,.45);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
+#hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:inset 0 0 6px rgba(150,200,255,.55);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
 @keyframes healGlow{50%{background:rgba(120,180,255,.36)}}
 #healVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(60,130,230,.32) 100%)}
 .bar b{position:absolute;inset:0 auto 0 0;width:100%;background:rgba(224,64,44,.55);transition:width .6s ease .25s}
