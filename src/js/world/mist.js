@@ -1,8 +1,9 @@
 // Fog rounds: now and then a wave comes in under a thick ground fog. It rolls in off the fields from the edges of the
-// map as the wave starts and rolls back out once it's cleared. It never comes into the house or over it, but lies right
-// up against its walls, following the house's own shape (an L-shaped one's notch too). Out in the open it parts round you (or the teammate you're watching) in a ring that thins gradually toward you, its
-// edge torn about by the wind rather than a clean circle, and a flashlight cuts a clear path through it along its beam
-// (MIST.path: a better light a much wider one). The further out you zoom, the more of the screen it takes.
+// map as the wave starts and rolls back out once it's cleared. It never comes into the house or over it: it thins away
+// to nothing at its walls (MIST.wall), following the house's own shape (an L-shaped one's notch too). Out in the open
+// it parts round you (or the teammate you're watching) in a ring that thins gradually toward you, its edge torn about
+// by the wind rather than a clean circle, and a flashlight cuts a clear path through it along its beam (MIST.path: a
+// better light a much wider one). The further out you zoom, the more of the screen it takes.
 //
 // It's drawn over the finished frame (effects/post.js: the composite), from where each pixel is on the ground, so
 // it's the same fog in the frame as in play: a zombie out in it can't be seen, outlined or picked out by your
@@ -14,9 +15,9 @@
 // lazy drift, not a gale), and how much the lamps and torches out in it light it up (glow) and a flashlight's beam
 // shows in it (beam)
 // path: the clear path a flashlight's beam cuts through it by the light's tier, [its half-width against the beam's own,
-// how much of the beam's reach it runs]
+// how much of the beam's reach it runs]; wall: how far out from the house's walls it takes to thicken from nothing
 const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, wind: 0.11, glow: 0.7, beam: 0.55,
-  path: { 1: [0.6, 0.8], 2: [1.55, 1] },
+  path: { 1: [0.6, 0.8], 2: [1.55, 1] }, wall: 1.8,
   on: false, last: 0, k: 0, t: 0 };
 // the host's roll for the wave about to start (co-op: sent with it, net/sync.js)
 function mistRoll(n) { if (cheatIs('fog')) { MIST.last = n; return true; }   // (the cheat menu's Fog every wave: ui/cheats.js)
@@ -41,7 +42,7 @@ const mistEase = () => smooth(MIST.k);
 function mistAt(x, z) {
   const k = mistEase(); if (k <= 0) return 0;
   const F = camFocus(), d = Math.hypot(x - F.x, z - F.z), ring = smooth(clamp((d - MIST.clear) / MIST.ramp, 0, 1));
-  const house = smooth(clamp((houseSd(x, z) + 0.05) / 0.35, 0, 1));
+  const house = smooth(clamp(houseSd(x, z) / MIST.wall, 0, 1));
   const front = HALF + 6 - (HALF + 10) * k, rim = Math.max(Math.abs(x), Math.abs(z)), roll = smooth(clamp((rim - front + 4) / 8, 0, 1));
   return ring * house * roll * (1 - flashClear(x, z));
 }
@@ -100,12 +101,12 @@ vec4 mistOf(vec2 uv, float d) {
   // nothing to work out well inside the clear ring, or inside the house
   if (dp < uMist.y - 2.6) return vec4(0.0);
   float hd = mHouse(q);
-  if (hd < -0.05) return vec4(0.0);
+  if (hd < 0.0) return vec4(0.0);
   // the wind's tatters: a soft noise carried slowly along by the wind and twisted through itself, so it billows and drifts
   float n = mF(q * 0.14 + dr * 0.14 + mN(q * 0.06 - dr * 0.05) * 1.8), n2 = mN(q * 0.45 + dr * 0.4);
   float ring = smoothstep(uMist.y, uMist.y + uMist.z, dp + (n - 0.5) * 2.6 + (n2 - 0.5) * 0.8);
-  // right up to the walls, and never over the house
-  float house = smoothstep(-0.05, 0.3, hd);
+  // none at the walls, thickening over MIST.wall metres out from them (never over the house)
+  float house = smoothstep(0.0, ${MIST.wall.toFixed(2)}, hd + (n - 0.5) * 0.5);
   float front = mix(${(HALF + 6).toFixed(1)}, -4.0, uMist.x), rim = max(abs(q.x), abs(q.y));
   float roll = smoothstep(front - 4.0, front + 4.0, rim + (n - 0.5) * 9.0);
   float a = ring * house * roll * (1.0 - fc * 0.94);   // (solid once it's thick: its billows are in its colour and its ragged edges, never thin enough to see through)

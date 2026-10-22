@@ -10,6 +10,28 @@ function canSever(wId) {
   return true;
 }
 const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
+// a brute's arms are thick with muscle: one takes BRUTE_ARM of its health to come off (an ordinary zombie's 0.3), so a
+// shotgun blast or a heavy round no longer takes one off in a shot (zombies/spawn.js). And it soaks up any one hit: no
+// shot or blow (a blast or fire aside) takes more than BRUTE_HIT of its full health off, so even the hardest-hitting
+// gun needs three to put one down
+const BRUTE_ARM = 0.8, BRUTE_HIT = 0.34;
+// armour, on the zombies that turned wearing it (their outfits: zombies/zombie-looks.js, from wave ARMOR_FROM): the share
+// of a hit it soaks up where it's worn. A soldier's helmet and vest; a SWAT officer's helmet, plate carrier and the pads
+// and holster on the legs; a riot officer's the same with the face shield down, so a headshot does far less. Heavier
+// rounds go through more of it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND), a melee
+// blow jars through it (ARMOR_MELEE takes that much of it off), and a brute wears it thinner on its bulk (ARMOR_BRUTE).
+// A blast, fire and bleeding go round it. Every hit it blunts shows its number in steel, with a shield (dmgNumber)
+const ARMOR_FROM = 4;
+const ARMOR = { soldier: { head: 0.3, torso: 0.35 }, swat: { head: 0.3, torso: 0.4, legs: 0.2 }, riot: { head: 0.5, torso: 0.4, legs: 0.2 } };
+const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3 };
+const ARMOR_MELEE = 0.6, ARMOR_BRUTE = 0.6;
+// how much of a hit on part the armour there takes (0 where there's none)
+function armorOf(z, part, D, wId) {
+  const A = z.armor; if (!A || wId === 'boom' || wId === 'fire' || wId === 'bleed') return 0;
+  const a = A[part === 'legL' || part === 'legR' ? 'legs' : part] || 0; if (!a) return 0;
+  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1);
+  return clamp(a * k * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, 0.8);
+}
 function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
@@ -276,17 +298,19 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   if (z.type === 'brute' && D.bruteX) dmg *= D.bruteX;   // the SCAR's heavy rounds (weapons/gun-stats.js)
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
-  const dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
+  let dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
+  const arm = armorOf(z, part, D, wId); dealt *= 1 - arm;   // (what it was wearing there: ARMOR)
+  if (z.type === 'brute' && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed') dealt = Math.min(dealt, z.maxHp * BRUTE_HIT);
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
-  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit);
+  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 ? 'armor' : '');
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
     // shot through below the elbow or knee, it's mostly just that much that goes first (zombies/wounds.js), and what's
     // left of the limb takes a little more
     if ((z.lhp[part] <= 0 || D.alwaysSever) && canSever(wId)) {
-      if (!(z.cut && z.cut[part]) && !D.alwaysSever && rand() < 0.65 && severLower(z, part, dx, dz)) z.lhp[part] = z.maxHp * (part[0] === 'a' ? 0.12 : 0.16);
+      if (!(z.cut && z.cut[part]) && !D.alwaysSever && rand() < 0.65 && severLower(z, part, dx, dz)) z.lhp[part] = z.maxHp * (part[0] === 'a' ? (z.type === 'brute' ? 0.3 : 0.12) : 0.16);
       else sever(z, part, dx, dz);
     }
   }
@@ -436,6 +460,7 @@ function dmgNumber(z, dmg, head, y, crit, kind) {
     z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
     if (head) z.dn.el.classList.add('head');
     if (crit) z.dn.el.classList.add('crit');
+    if (kind === 'armor') z.dn.el.classList.add('armor');
     // the pop scales the inner number only: scaling the positioned element would scale its screen position too
     z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
     return;

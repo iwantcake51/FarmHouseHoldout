@@ -46,7 +46,10 @@ through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
-leaves a crawler, and a headshot drops them. The dead fall as ragdolls.
+leaves a crawler, and a headshot drops them. From wave 4 some turned wearing armour: soldiers in helmets and vests,
+SWAT in plate carriers, and riot officers whose face shields blunt headshots. Armour soaks up part of each hit where
+it's worn (heavier rounds, slugs and piercing rounds go through more of it), and those hits show in steel with a
+shield. The dead fall as ragdolls.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
 sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Vault through

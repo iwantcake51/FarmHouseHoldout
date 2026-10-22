@@ -172,6 +172,8 @@ const ZJOBS = {
       zshoulderPatch(K, 0x26292e, 0xd8d8d4);
     });
   } },
+  // a riot officer: the SWAT kit with the helmet's face shield down (ARMOR, zombies/damage.js: it blunts a headshot)
+  riot: { w: [1, 1, 3], f: o => { ZJOBS.swat.f(o); o.hat = 'riot'; } },
   track: { w: [2, 12, 0], f: o => {
     const c1 = pick([0xc82a22, 0x2a54c8, 0xe8c020, 0x1e8a44, 0xe86a1e, 0xd8d8d8, 0x7a2ab8]), c2 = pick([0xe8e6e0, 0x141416, 0xe8c020, 0x2a54c8]);
     o.top = worn(c1, 0.15); o.sleeve = 'none'; o.legs = 'shorts'; o.pants = worn(c2 === 0xe8e6e0 ? 0x141416 : c2, 0.12); o.shoes = 'sneakers'; o.sneak = [pick([0xe86a1e, 0xd8e020, 0x2ac8e8, 0xe82a8a, 0xe8e6e0]), 0xe8e4dc, pick([0x141416, 0xe8e6e0])]; o.socks = 0xe8e6e0;
@@ -385,9 +387,12 @@ function zshoulderPatch(K, c, edge) { [['armL', -1], ['armR', 1]].forEach(([p, s
 
 // ---- dealing an outfit ----
 const ZTYPE_I = { walker: 0, runner: 1, brute: 2 };
+// (the armoured ones, ARMOR in zombies/damage.js, only from wave ARMOR_FROM, and a few more of them each wave after)
 function zPickJob(type) {
-  const i = ZTYPE_I[type] || 0; let tot = 0; for (const k in ZJOBS) tot += ZJOBS[k].w[i];
-  let r = rand() * tot; for (const k in ZJOBS) { r -= ZJOBS[k].w[i]; if (r <= 0) return k; }
+  const i = ZTYPE_I[type] || 0, wv = (typeof run !== 'undefined' && run.wave) || 0, armed = state === 'play' && wv >= ARMOR_FROM;
+  const w = k => ARMOR[k] ? (armed ? ZJOBS[k].w[i] * (1 + 0.12 * (wv - ARMOR_FROM)) : 0) : ZJOBS[k].w[i];
+  let tot = 0; for (const k in ZJOBS) tot += w(k);
+  let r = rand() * tot; for (const k in ZJOBS) { r -= w(k); if (r <= 0) return k; }
   return 'casual';
 }
 // a teammate who went down, back the next wave (net/sync.js: TURN_Q): dressed as they were from their own look (L)
@@ -601,6 +606,11 @@ function zHat(H, o) {
   switch (o.hat) {
     case 'police': zb(H, 0.3, 0.07, 0.32, 0x1e2434, 0, 0.19, 0); zb(H, 0.31, 0.02, 0.33, 0x141416, 0, 0.16, 0); zb(H, 0.24, 0.012, 0.09, 0x0e0e10, 0, 0.152, 0.19, 0.12, 0, 0); zfront(H, 0.04, 0.04, 0xc8a040, 0, 0.19, 0.16, 0.004); break;
     case 'swat': zb(H, 0.32, 0.12, 0.34, 0x1c1e22, 0, 0.17, -0.005); zb(H, 0.33, 0.06, 0.35, 0x1c1e22, 0, 0.1, -0.01); [-1, 1].forEach(s => zb(H, 0.03, 0.1, 0.1, 0x16181c, s * 0.165, 0.02, 0.0)); zb(H, 0.26, 0.05, 0.03, 0x2a3a4a, 0, 0.21, 0.16); break;   // helmet, ear covers, goggles pushed up
+    // the SWAT helmet with its face shield down: a dark tinted visor over the whole face in a rubber frame, hinged at
+    // the temples (the eyes glow through it: zombies/spawn.js)
+    case 'riot': zb(H, 0.32, 0.12, 0.34, 0x1c1e22, 0, 0.17, -0.005); zb(H, 0.33, 0.06, 0.35, 0x1c1e22, 0, 0.1, -0.01); [-1, 1].forEach(s => zb(H, 0.03, 0.1, 0.1, 0x16181c, s * 0.165, 0.02, 0.0));
+      zb(H, 0.3, 0.24, 0.012, 0x2e3e4c, 0, 0.0, 0.19); zb(H, 0.31, 0.025, 0.03, 0x111214, 0, 0.125, 0.18); zb(H, 0.31, 0.02, 0.025, 0x111214, 0, -0.12, 0.19); [-1, 1].forEach(s => { zb(H, 0.02, 0.24, 0.03, 0x111214, s * 0.155, 0.0, 0.18); zb(H, 0.04, 0.04, 0.04, 0x26292e, s * 0.16, 0.1, 0.12); });
+      zb(H, 0.22, 0.03, 0.006, 0x56708a, 0, 0.07, 0.197); break;   // (a glint across it)
     case 'helmet': zb(H, 0.32, 0.12, 0.34, c, 0, 0.17, -0.005); zb(H, 0.34, 0.03, 0.36, zc(c, 0.85), 0, 0.12, 0); for (let i = 0; i < 4; i++) zb(H, 0.07, 0.04, 0.006, zc(c, 0.6), rr(-0.1, 0.1), rr(0.14, 0.2), 0.177); zb(H, 0.006, 0.08, 0.012, 0x2a2a20, 0.12, 0.05, 0.13); break;
     case 'hardhat': zb(H, 0.3, 0.11, 0.32, c, 0, 0.2, 0); zb(H, 0.36, 0.016, 0.38, c, 0, 0.155, 0.01); zb(H, 0.04, 0.05, 0.3, zc(c, 0.85), 0, 0.26, 0); zb(H, 0.2, 0.012, 0.06, c, 0, 0.16, 0.2); break;
     case 'fire': zb(H, 0.32, 0.12, 0.33, c, 0, 0.2, 0); zb(H, 0.38, 0.02, 0.36, c, 0, 0.15, -0.04); zb(H, 0.3, 0.02, 0.12, c, 0, 0.14, -0.22, -0.2, 0, 0); zb(H, 0.1, 0.12, 0.012, 0xc8a040, 0, 0.22, 0.17); break;   // the long tail at the back and the shield on the front

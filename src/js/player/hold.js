@@ -578,7 +578,7 @@ function placeLoader(m) {
 
 // bandaging: first the weapon goes away, carried by the right hand to where it rides (bandP, player/swap.js), then the
 // hands come up and the right one winds the bandage round the left forearm (bandW, eased into bandK); after, the hands
-// come down and the weapon is drawn again. healFx is how far the blue edge and the camera's lean-in have come: they
+// come down and the weapon is drawn again, the way it's drawn any time (equip). healFx is how far the blue edge and the camera's lean-in have come: they
 // build slowly as the bandage goes on, ease off as it ends, and drop away fast if a hit cuts it short (healCut)
 const BAND_PUT = 0.2, BAND_WRAP = 0.16;
 function bandPhases(rdt) {
@@ -588,10 +588,15 @@ function bandPhases(rdt) {
   if (ANIM.bandSwitch && !band) {
     ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP);
     if (ANIM.bandW <= 0) ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT);
-    if (ANIM.bandP >= 1) { const s = ANIM.bandSwitch; ANIM.bandSwitch = null; if (W8.slot[s]) { W8.cur = s; W8.reloading = null; W8.burstLeft = 0; W8.swing = 0; W8.cd = Math.max(W8.cd, BAND_PUT); SFX.click(); if (WEAP[W8.slot[s]].melee) ANIM.meleeEqT = -BAND_PUT; } }
+    if (ANIM.bandP >= 1) { const s = ANIM.bandSwitch; ANIM.bandSwitch = null; ANIM.bandP = 0; if (W8.slot[s]) { W8.cur = s; W8.reloading = null; W8.burstLeft = 0; W8.swing = 0; equip(s, true); } }
   }
   else if (band) { ANIM.bandP = Math.min(1, (ANIM.bandP || 0) + rdt / BAND_PUT); if (ANIM.bandP >= 1) ANIM.bandW = Math.min(1, (ANIM.bandW || 0) + rdt / BAND_WRAP); }
-  else { ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP); if (ANIM.bandW <= 0) ANIM.bandP = Math.max(0, (ANIM.bandP || 0) - rdt / BAND_PUT); }
+  else {
+    ANIM.bandW = Math.max(0, (ANIM.bandW || 0) - rdt / BAND_WRAP);
+    // once the hands are down, the weapon's drawn as it is any time you take it out (equip: its own draw, its sound,
+    // the wait before it can fire); one only part put away when the bandage was cut short just comes back to the hand
+    if (ANIM.bandW <= 0) { if (ANIM.bandP >= 0.5) { ANIM.bandP = 0; if (W8.slot[W8.cur]) equip(W8.cur, true); } else ANIM.bandP = Math.max(0, (ANIM.bandP || 0) - rdt / BAND_PUT); }
+  }
   ANIM.bandK = smooth(ANIM.bandW || 0);
   if (band) ANIM.healCut = false;
   const prog = band ? 1 - P.bandT / (P.bandMax || 1) : 0, fx = band ? 0.2 + 0.8 * smooth(prog) : 0;

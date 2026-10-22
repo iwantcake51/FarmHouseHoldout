@@ -8,7 +8,7 @@
 // One with a clear line to whoever it's after, between SPIT.min and SPIT.max metres off (through a window too, so long
 // as it isn't boarded shut), stops where it is, rears back while the sac swells and glows and the gurgle rises
 // (SPIT.wind seconds: hit it hard enough to stagger it and the spit's lost), then retches forward and spits a glob in
-// a low arc at where you're standing as it lets go, through the middle of a window if one's in the way (spitTime).
+// a low arc at where you're standing as it lets go, or flung straight in through a window if one's in the way (spitPath).
 // Keep moving and it lands behind you; stand still and it splashes you (SPIT.dmg) and leaves a splat of acid that
 // spreads, bubbles and steams, then dries up (SPIT.pool). Standing in it burns, a little at first and a little more the
 // longer you stay (SPIT.pool.ramp), and drags at your feet. It spits again every SPIT.cd seconds while it can see you;
@@ -20,6 +20,7 @@ const SPIT = {
   from: 5, share: 0.05, sharePer: 0.006, shareMax: 0.12,   // first wave, share of the wave, how it grows (waves/waves.js)
   min: 3.5, max: 11, wind: 0.95, cd: [3.6, 5], first: [0.8, 2.2],   // range, the rear back (s), between spits (s), the first
   speed: 6.5, g: 7, arc: 0.45, arcPer: 0.09, through: 1.45,   // the glob's speed across the ground (m/s) at most, its fall, how high it's lobbed over the line to where it lands (arc, and arcPer more each metre), the height it takes through a window
+  flat: 11, rise: 0.2, body: 0.95, dip: 0.12,   // spat in through a window: flung straight at you (flat m/s across the ground), dipping as it goes rather than lobbed up and over; past rise (m) of climb it's aimed at your middle (body, m up) instead of your feet, and it always dips at least dip (m)
   dmg: 10, splash: 1.0,   // a glob that catches you (half that at the splash's edge) and how far the splash reaches
   // the splat it leaves: how far it burns, how long it lasts, the burn a second (rising to max times that after ramp
   // seconds stood in it, and easing off again once you're out), the drag at your feet; it spreads over grow seconds and
@@ -180,23 +181,30 @@ function spitWindFx(z) { soundAt(z.x, z.z, () => { nz(0.9, 'bandpass', 220, 640,
 // it lets go: the glob from its mouth to where they stand
 function spitAt(z, tx, tz) {
   const h = z.m.head.getWorldPosition(new V3()), sf = Math.sin(z.face), cf = Math.cos(z.face);
-  const x0 = h.x + sf * 0.2, y0 = h.y - 0.1, z0 = h.z + cf * 0.2, T = spitTime(x0, y0, z0, tx, tz);
-  if (netLink() && z.id) netSend('spt', { id: z.id, a: [x0, y0, z0, tx, tz, T].map(v => Math.round(v * 1000) / 1000) });
-  launchGlob(z, x0, y0, z0, tx, tz, T);
+  const x0 = h.x + sf * 0.2, y0 = h.y - 0.1, z0 = h.z + cf * 0.2, [T, vy, gr] = spitPath(x0, y0, z0, tx, tz);
+  if (netLink() && z.id) netSend('spt', { id: z.id, a: [x0, y0, z0, tx, tz, T, vy, gr].map(v => Math.round(v * 1000) / 1000) });
+  launchGlob(z, x0, y0, z0, tx, tz, T, vy, gr);
 }
-// how long the glob's in the air: lobbed in an arc, its top SPIT.arc (and SPIT.arcPer a metre further) over the line
-// to where it lands (an arc's top is g T² / 8 above the middle of that line), and never faster than SPIT.speed across
-// the ground; through a window on the way, the arc that passes the middle of it (SPIT.through, metres up) instead,
-// rather than splash on the sill or the head
-function spitTime(x0, y0, z0, tx, tz) {
+// the glob's flight, [how long it's in the air, how fast it starts up, its fall]: out in the open lobbed in an arc, its
+// top SPIT.arc (and SPIT.arcPer a metre further) over the line to where it lands (an arc's top is g T² / 8 above the
+// middle of that line), and never faster than SPIT.speed across the ground. Spat in through a window it's flung
+// straight at you instead (SPIT.flat), barely rising and dipping as it goes, through the middle of the window
+// (SPIT.through, metres up) so it doesn't splash on the sill or the head: the curve through there and down to your feet,
+// or to your middle where that would have it climb first
+function spitPath(x0, y0, z0, tx, tz) {
   const d = Math.hypot(tx - x0, tz - z0), ty = surfaceY(tx, tz) + 0.05, T0 = clamp(Math.max(d / SPIT.speed, Math.sqrt(8 * (SPIT.arc + SPIT.arcPer * d) / SPIT.g)), 0.45, 2.2);
+  const lob = [T0, (ty - y0 + 0.5 * SPIT.g * T0 * T0) / T0, SPIT.g];
   for (let s = 0.1; s < d; s += 0.1) {
     const k = idx(ci(x0 + (tx - x0) * s / d), ci(z0 + (tz - z0) * s / d)), o = cell[k] === OPEN && openAt[k];
     if (!o || o.kind !== 'window') continue;
-    const f = s / d, need = SPIT.through - y0 - f * (ty - y0); if (f < 0.05 || f > 0.95 || need <= 0) return T0;
-    return clamp(Math.sqrt(2 * need / (SPIT.g * f * (1 - f))), 0.4, 2);
+    const f = s / d; if (f < 0.05 || f > 0.95) return lob;
+    // y(u) = y0 + a u - b u² along the way (u 0 to 1): through the window at f, down to y1 at the end
+    const curve = y1 => { const b = (SPIT.through - y0 - (y1 - y0) * f) / (f * (1 - f)); return [y1 - y0 + b, b]; };
+    let [a, b] = curve(ty); if (a > SPIT.rise) [a, b] = curve(ty + SPIT.body);
+    b = Math.max(b, SPIT.dip); const T = clamp(d / SPIT.flat, 0.3, 1.2);
+    return [T, a / T, 2 * b / (T * T)];
   }
-  return T0;
+  return lob;
 }
 // the trail drawn out behind a glob: a strand of the acid along the very path it's flown (its last frames' places,
 // g.hist), thickest at the glob and tapering to nothing SPIT_TRAIL.len behind it, round in section, wobbling a little as
@@ -253,12 +261,12 @@ function stepCrowns(dt) {
   }
 }
 // the glob: a wobbling, stretched gob of acid glowing green, drawing a strand of itself out behind it
-function launchGlob(z, x0, y0, z0, tx, tz, T) {
+function launchGlob(z, x0, y0, z0, tx, tz, T, vy, gr = SPIT.g) {
   const ty = surfaceY(tx, tz) + 0.05, m = new THREE.Mesh(GLOB_G, GLOB_M);
   m.position.set(x0, y0, z0); m.scale.setScalar(0.075); scene.add(m);
   const halo = new THREE.Sprite(HALO_M); halo.scale.setScalar(0.62); halo.position.set(x0, y0, z0); halo.renderOrder = 3; scene.add(halo);
   const trail = new THREE.Mesh(spitTrailGeo(), SPIT_TRAIL_M); trail.frustumCulled = false; trail.renderOrder = 2; scene.add(trail);
-  globs.push({ m, tail: [halo, trail], halo, trail, hist: [new V3(x0, y0, z0)], vx: (tx - x0) / T, vy: (ty - y0 + 0.5 * SPIT.g * T * T) / T, vz: (tz - z0) / T, t: 0, ph: rand() * 6 });
+  globs.push({ m, tail: [halo, trail], halo, trail, hist: [new V3(x0, y0, z0)], vx: (tx - x0) / T, vy: vy ?? (ty - y0 + 0.5 * gr * T * T) / T, vz: (tz - z0) / T, gr, t: 0, ph: rand() * 6 });
   soundAt(x0, z0, () => { nz(0.18, 'bandpass', 900, 260, 0.26, 1.4); nz(0.12, 'highpass', 2200, 1100, 0.07); tn(0.12, 'sine', 180, 70, 0.06); });
   const sf = Math.sin(z.face), cf = Math.cos(z.face);
   for (let k = 0; k < 8; k++) fx('acid', x0, y0, z0, sf * rr(1, 3.5) + rr(-0.7, 0.7), rr(-0.6, 0.9), cf * rr(1, 3.5) + rr(-0.7, 0.7), rr(0.03, 0.06), 0.02, rr(0.3, 0.55), 1);
@@ -293,7 +301,7 @@ function updateSpit(dt) {
   });
   for (let k = globs.length - 1; k >= 0; k--) {
     const g = globs[k], p = g.m.position, x0 = p.x, z0 = p.z;
-    g.t += dt; g.vy -= SPIT.g * dt; p.x += g.vx * dt; p.y += g.vy * dt; p.z += g.vz * dt;
+    g.t += dt; g.vy -= g.gr * dt; p.x += g.vx * dt; p.y += g.vy * dt; p.z += g.vz * dt;
     // stretched along the way it's flying, wobbling as it goes, its drops following in its wake
     const v = Math.hypot(g.vx, g.vy, g.vz), wob = 1 + 0.12 * Math.sin(g.t * 34 + g.ph);
     _gq.set(p.x + g.vx, p.y + g.vy, p.z + g.vz); g.m.lookAt(_gq); g.m.scale.set(0.075 * wob, 0.075 / wob, 0.075 * (1 + v * 0.05));
