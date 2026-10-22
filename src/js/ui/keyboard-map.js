@@ -5,7 +5,7 @@
 // don't match folding away, the matching letters marked, and the keyboard dims all but their keys.
 
 // each group's colour, on the keyboard and down the side of its lines
-const KGROUP_COL = { Movement: '#6fb3d6', Combat: '#e0784a', Survival: '#8fc46a' };
+const KGROUP_COL = { Movement: '#86b4d0', Combat: '#e08a5a', Survival: '#a3c47e' };
 // the keyboard as it's drawn: each key [e.key, label, width in key widths]
 const KB_ROWS = [
   [['`', '`'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5'], ['6', '6'], ['7', '7'], ['8', '8'], ['9', '9'], ['0', '0'], ['-', '−'], ['=', '='], ['backspace', '⌫', 2]],

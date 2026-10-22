@@ -129,35 +129,53 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
 .kHold{font-style:normal;font:600 9px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;padding:3px 5px 2px;border-radius:3px;background:rgba(236,230,216,.08);color:var(--dim)}
 .kEmpty{margin:22px 0;text-align:center;color:var(--dim);font-size:13px;animation:setIn .3s ease}
 .kEmpty b{color:var(--ink)}
-/* the keyboard and the mouse */
-.kBoard{position:sticky;top:0;padding:16px 16px 12px;border:1px solid rgba(236,230,216,.08);border-radius:8px;background:linear-gradient(170deg,rgba(255,255,255,.035),rgba(0,0,0,.25));box-shadow:inset 0 1px 0 rgba(236,230,216,.05),0 10px 24px rgba(0,0,0,.35)}
-.kKeys{display:grid;gap:4px}
-.kbRow{display:flex;gap:4px}
-.kk{--c:#c4bcad;position:relative;flex:var(--w) 1 0;min-width:0;height:30px;padding:0;border:1px solid rgba(236,230,216,.1);border-bottom-width:3px;border-bottom-color:rgba(0,0,0,.55);border-radius:4px;background:rgba(236,230,216,.04);
-  color:rgba(236,230,216,.42);font:600 10px/1 var(--f-ui);cursor:pointer;transition:background .2s,color .2s,border-color .2s,opacity .25s,transform .12s,box-shadow .25s}
-.kk span{pointer-events:none}
-.kk:hover{transform:translateY(-1px);border-color:rgba(236,230,216,.3);color:var(--ink)}
-.kk:active{transform:translateY(1px);border-bottom-width:2px}
-.kk.on{background:color-mix(in srgb,var(--c) 26%,rgba(0,0,0,.35));border-color:color-mix(in srgb,var(--c) 70%,transparent);border-bottom-color:color-mix(in srgb,var(--c) 40%,#000);color:#fff;box-shadow:0 0 10px -2px color-mix(in srgb,var(--c) 60%,transparent)}
-.kk.on.fixed{background:color-mix(in srgb,var(--c) 14%,rgba(0,0,0,.35));border-style:dashed;border-bottom-style:solid}
-.kk.locked{opacity:.4;cursor:default}
-.kk.dim{opacity:.18}
-.kk.hot{transform:translateY(-2px);box-shadow:0 0 0 2px var(--c),0 0 16px var(--c);color:#fff}
-.kPick .kk:not(.locked):not(.fixed){animation:kPick 1.4s ease-in-out infinite}
-.kPick .kk:not(.locked):not(.fixed):hover{animation:none;border-color:var(--orange);box-shadow:0 0 0 2px var(--orange)}
-@keyframes kPick{50%{border-color:rgba(216,105,44,.55)}}
-.kMouse{position:relative;width:84px;height:118px;margin:16px auto 4px}
-.kMouse .mBody{position:absolute;inset:0;border:1.5px solid rgba(236,230,216,.18);border-radius:38px 38px 34px 34px;background:rgba(236,230,216,.03);pointer-events:none}
-.kMouse .mb{position:absolute;height:auto;flex:none;border-bottom-width:1px;z-index:1}
-.kMouse .mL{left:3px;top:3px;width:33px;height:44px;border-radius:34px 4px 4px 4px}
-.kMouse .mR{right:3px;top:3px;width:33px;height:44px;border-radius:4px 34px 4px 4px}
-.kMouse .mW{left:31px;top:12px;width:14px;height:24px;border-radius:7px;z-index:2}
-.kMouse .mS4{left:-13px;top:66px;width:13px;height:20px;border-radius:5px 0 0 5px}
-.kMouse .mS5{left:-13px;top:42px;width:13px;height:20px;border-radius:5px 0 0 5px}
-.kMouse .mL,.kMouse .mR{width:37px;height:48px}
-.kLegend{display:flex;justify-content:center;gap:16px;margin-top:10px;font:600 10px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-.kLegend span{display:flex;align-items:center;gap:6px}
-.kLegend i{width:9px;height:9px;border-radius:2px;background:var(--gc)}
+/* the keyboard and the mouse, drawn like the real thing: a dark deck, and on it sculpted keycaps, each a skirt with a
+   dished top face, the legend in its corner. A bound key's legend takes its group's colour, with a short bar of it
+   under the face; walking's keys are the same, the bar dashed. Pointing at one presses it down a little */
+.kBoard{position:sticky;top:0;padding:14px 14px 12px;border-radius:12px;background:linear-gradient(180deg,#25211d,#191613);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04),0 14px 30px rgba(0,0,0,.45)}
+.kKeys{display:grid;gap:5px;padding:8px;border-radius:7px;background:#100e0c;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6)}
+.kbRow{display:flex;gap:5px}
+.kk{--c:#d8cfbe;position:relative;flex:var(--w) 1 0;min-width:0;height:34px;padding:0;border:0;border-radius:6px;cursor:pointer;
+  background:linear-gradient(180deg,#3b3631,#2a2622 70%,#24201c);box-shadow:0 2px 0 #0b0a09,0 3px 5px rgba(0,0,0,.45);
+  transition:transform .12s ease,box-shadow .12s ease,opacity .25s ease,filter .2s}
+.kk::before{content:"";position:absolute;left:3px;right:3px;top:2px;bottom:5px;border-radius:4px;background:linear-gradient(180deg,#4a443d,#3c3732);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),inset 0 -1px 2px rgba(0,0,0,.25);transition:background .2s}
+.kk span{position:absolute;left:8px;top:7px;pointer-events:none;font:600 10px/1 var(--f-ui);letter-spacing:.02em;color:#9a9284;transition:color .2s}
+.kk::after{content:"";position:absolute;left:8px;bottom:9px;width:0;height:2px;border-radius:1px;background:var(--c);transition:width .25s cubic-bezier(.2,.9,.3,1)}
+.kk:hover{transform:translateY(1px);box-shadow:0 1px 0 #0b0a09,0 2px 3px rgba(0,0,0,.45)}
+.kk:hover::before{background:linear-gradient(180deg,#524b43,#433d37)}
+.kk:active{transform:translateY(2px);box-shadow:0 0 0 #0b0a09,0 1px 2px rgba(0,0,0,.4)}
+.kk.on span{color:var(--c)}
+.kk.on::after{width:calc(100% - 16px);max-width:22px}
+.kk.on.fixed::after{background:repeating-linear-gradient(90deg,var(--c) 0 3px,transparent 3px 5px)}
+.kk.locked{cursor:default;opacity:.55}
+.kk.locked:hover{transform:none;box-shadow:0 2px 0 #0b0a09,0 3px 5px rgba(0,0,0,.45)}
+.kk.dim{opacity:.22}
+.kk.hot{transform:translateY(1px)}
+.kk.hot::before{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 30%,#4a443d),color-mix(in srgb,var(--c) 22%,#3c3732))}
+.kk.hot span{color:#fff}
+.kPick .kk:not(.locked):not(.fixed)::before{animation:kPick 1.6s ease-in-out infinite}
+.kPick .kk:not(.locked):not(.fixed):hover::before{animation:none;background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 35%,#4a443d),color-mix(in srgb,var(--orange) 25%,#3c3732))}
+@keyframes kPick{50%{background:linear-gradient(180deg,#554b40,#463e35)}}
+/* the mouse: the same sculpted plastic, its two buttons split down the middle, the wheel in its slot, two thumb
+   buttons on its side */
+.kMouse{position:relative;width:88px;height:128px;margin:18px auto 6px}
+.kMouse .mBody{position:absolute;inset:0;border-radius:44px 44px 40px 40px/52px 52px 76px 76px;background:linear-gradient(180deg,#3a3530,#26221e 60%,#1f1c19);box-shadow:0 3px 0 #0b0a09,0 8px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);pointer-events:none}
+.kMouse .mb{position:absolute;z-index:1;height:auto;box-shadow:none;background:none;border-radius:0}
+.kMouse .mb::before{inset:0;border-radius:inherit}
+.kMouse .mb::after{left:50%;bottom:6px;margin-left:-5px}
+.kMouse .mb.on::after{width:10px}
+.kMouse .mL{left:4px;top:4px;width:38px;height:50px;border-radius:40px 3px 3px 3px/46px 3px 3px 3px}
+.kMouse .mR{right:4px;top:4px;width:38px;height:50px;border-radius:3px 40px 3px 3px/3px 46px 3px 3px}
+.kMouse .mW{left:37px;top:13px;width:14px;height:24px;border-radius:7px;z-index:2;box-shadow:0 0 0 3px #1c1916}
+.kMouse .mW::before{background:repeating-linear-gradient(180deg,#56504a 0 2px,#3a3530 2px 4px)}
+.kMouse .mS4,.kMouse .mS5{left:-7px;width:9px;height:22px;border-radius:5px 2px 2px 5px;box-shadow:0 2px 0 #0b0a09}
+.kMouse .mS5{top:46px}.kMouse .mS4{top:72px}
+.kMouse .mb:hover,.kMouse .mb:active{transform:none;box-shadow:none}
+.kMouse .mS4:hover,.kMouse .mS5:hover{transform:translateX(1px);box-shadow:0 2px 0 #0b0a09}
+.kLegend{display:flex;justify-content:center;gap:18px;margin-top:12px;font:600 10px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.kLegend span{display:flex;align-items:center;gap:7px}
+.kLegend i{width:14px;height:2px;border-radius:1px;background:var(--gc)}
 /* the tip over the key you're pointing at */
 .kTip{position:absolute;z-index:5;left:0;top:0;min-width:120px;max-width:220px;display:grid;gap:4px;padding:8px 10px;border:1px solid rgba(236,230,216,.14);border-radius:6px;background:rgba(14,12,10,.97);box-shadow:0 10px 24px rgba(0,0,0,.55);
   pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 4px)) scale(.92);transform-origin:bottom center;transition:opacity .16s ease,transform .2s cubic-bezier(.2,.9,.3,1.3)}
