@@ -279,8 +279,13 @@ function zStruckFx() {
   addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35));
 }
 const WIND_HEAL = 25;   // what Second wind gives back
-// your health, after whatever hit you this frame: Second wind once a wave below a quarter, and going down at none
+// your health, after whatever hit you this frame: Second wind once a wave, when something hurts you and leaves you
+// below a quarter (not just for being low already: starting a wave on little health doesn't set it off, the next hit
+// does), and going down at none
+let windHp = 0;
 function playerChecks() {
-  if (S.secondWind && !S.windUsed && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', WIND_HEAL, 'second wind'); SFX.upgrade(); }
+  const hurt = P.hp < windHp - 1e-6;
+  if (S.secondWind && !S.windUsed && hurt && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, S.maxHp - P.hp)); P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
+  windHp = P.hp;
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }
