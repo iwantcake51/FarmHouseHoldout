@@ -35,9 +35,13 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 // (near), and the whole body (all), times the weapon's force. A body that's down settles: what touches the ground stops
 // dead in it (no bounce under bounceV m/s down), and once its trunk's down it's damped (land, then still), nothing on
 // it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
+// and a moment after it's down the ground rubs the whole of it to a stop (rub, each step, from rubT s after it's down,
+// and harder, rub2, from rub2T: it can still sag and settle, but not skate along the floor), limbs and all, so nothing on
+// it glides on; a body that's died running carries only some of its pace into the fall
+// (carry); and one that's come to rest on a hip or a shoulder without its trunk flat counts as down after lieT s,
 // and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
 // down (yawDown), most of it with only a foot or a hand down (yawTouch), so it never spins on the floor
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.16, yawTouch: 0.6, yawDown: 1 };
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 0.8, rub: 0.82, rubT: 0.12, rub2: 0.55, rub2T: 0.6, carry: 0.6, lieT: 1.1, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 1.5, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.16, yawTouch: 0.6, yawDown: 1 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, p10: 0.32, magnum: 0.6, rifle: 0.7, shells: 1 };
@@ -118,7 +122,7 @@ function makeRagdoll(z, dx, dz, part, force, wId, rig) {
   for (let k = 0; k < n; k++) im[k] = 1 / RAG_MASS[k];
   const push = (k, vx, vy, vz) => { q[k * 3] -= vx * h; q[k * 3 + 1] -= vy * h; q[k * 3 + 2] -= vz * h; };
   const boom = wId === 'boom', cal = D.melee || boom || part === 'crush' ? 1 : RAG_CAL[D.ammo] ?? 0.5, drop = part === 'head' && !boom && !D.melee && D.ammo !== 'shells';
-  const keep = drop ? HEAD_DROP.keep : 1, cx = clamp(z.vx || 0, -4, 4) * keep, cz = clamp(z.vz || 0, -4, 4) * keep;
+  const keep = drop ? HEAD_DROP.keep : 1, cx = clamp(z.vx || 0, -4, 4) * keep * RAG.carry, cz = clamp(z.vz || 0, -4, 4) * keep * RAG.carry;
   force *= cal;
   for (let k = 0; k < n; k++) push(k, cx + dx * force * RAG.all + rr(-0.15, 0.15), boom ? rr(2, 3) : rr(0, 0.1), cz + dz * force * RAG.all + rr(-0.15, 0.15));
   const [hit, near] = RAG_HIT[part] || RAG_HIT.torso;
@@ -162,10 +166,10 @@ function ragStep(r, h) {
   r.st += h;
   // (the stiffness it has left goes the moment the trunk's down: holding the pose any longer flings the limbs as the
   // body turns over on the ground)
-  if (r.down && !r.landT) r.landT = r.st;
+  if ((r.down || (r.touch >= 3 && r.st > RAG.lieT)) && !r.landT) r.landT = r.st;
   const tn = r.landT ? 0 : r.tone * Math.pow(Math.max(0, 1 - r.st / r.toneT), 2);
   // down, it's damped hard (a slump, then still), and nothing on it slides faster than RAG.slide (vmax in the air)
-  const air = r.landT ? (r.st - r.landT > 0.15 ? RAG.still : RAG.land) : RAG.air, vcap = (r.landT ? RAG.slide : RAG.vmax) * h;
+  const air = r.landT ? (r.st - r.landT > 0.15 ? RAG.still : RAG.land) : RAG.air, vcap = (r.landT ? RAG.slide : RAG.vmax) * h, rub = !r.landT ? 1 : r.st - r.landT > RAG.rub2T ? RAG.rub2 : r.st - r.landT > RAG.rubT ? RAG.rub : 1;
   ragFrame(p);
   if (tn > 0) for (let k = 4; k < n; k++) {
     if (!on[k]) continue;
@@ -185,6 +189,7 @@ function ragStep(r, h) {
     const i = k * 3;
     if (wy) { q[i] += wy * (p[i + 2] - mz); q[i + 2] -= wy * (p[i] - mx); }
     let vx = (p[i] - q[i]) * air, vy = (p[i + 1] - q[i + 1]) * air, vz = (p[i + 2] - q[i + 2]) * air;
+    if (rub < 1) { vx *= rub; vz *= rub; }
     const hv = Math.hypot(vx, vz); if (hv > vcap && r.st > 0.05) { vx *= vcap / hv; vz *= vcap / hv; }
     q[i] = p[i]; q[i + 1] = p[i + 1]; q[i + 2] = p[i + 2];
     p[i] += vx; p[i + 1] += vy - g; p[i + 2] += vz;
