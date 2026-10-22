@@ -305,9 +305,10 @@ NET_ON.picked = m => { const p = NET.peers.get(m.f); if (p) p.cw = Math.max(p.cw
 // (their health and weapon on your HUD, and that you're down: net/spectate.js)
 function netDown() { timeScale = 1; SPEC.id = ''; }
 // back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and every
-// weapon you had, mods, attachments and rounds and all, but no ammo: the mags empty (and anything half done to them,
-// a staged reload, a gun left open, spent cases, gone with it) and nothing in reserve. The melee weapon comes out, the
-// one thing ready to use; then the cards like everyone else
+// weapon you had, mods, attachments and rounds and all, each gun with a fresh mag in it and RESPAWN_MAGS more of its
+// ammo in reserve (anything half done to them, a staged reload, a gun left open, spent cases, gone). Back with what
+// you were holding when you went down; then the cards like everyone else
+const RESPAWN_MAGS = 3;
 function netRespawn() {
   unragYou();   // up off the floor (player/player-ragdoll.js)
   for (const s of ['side', 'long', 'auto']) {
@@ -315,8 +316,13 @@ function netRespawn() {
     W8.mag[id] = 0; [W8.akMag, W8.relSave, W8.pin, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
   }
   for (const k in W8.reserve) W8.reserve[k] = 0;
-  W8.reloading = null; W8.akRel = null; W8.cur = 'melee';
+  W8.reloading = null; W8.akRel = null;
   recomputeEff();
+  for (const s of ['side', 'long', 'auto']) {
+    const id = W8.slot[s], D = id && W(id); if (!D || D.melee || !D.ammo) continue;
+    const n = magSize(id); W8.mag[id] = n; W8.reserve[D.ammo] = (W8.reserve[D.ammo] || 0) + n * RESPAWN_MAGS;
+  }
+  if (!W8.slot[W8.cur]) W8.cur = 'melee';
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;

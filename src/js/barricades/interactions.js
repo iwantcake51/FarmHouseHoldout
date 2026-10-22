@@ -27,6 +27,7 @@ function repairWhat(o) {
 // mended: the board back to the strength it went up with, nailed tight; the grate rebuilt good as new (its plates swung
 // back in). Anyone's repair, the same on every screen (net/sync.js: 'rp')
 function repairBarricade(o, kind, j, mine) {
+  if (mine) runStat('repairs');
   if (kind === 'grate') { if (!o.grate) return; regrate(o); const s = () => SFX.clang(0.6); mine ? s() : soundAt(o.x, o.z, s); }
   else { const m = o.meshes[j]; if (!m || o.grate) return; o.boards[j] = Math.max(o.boards[j], m.userData.hp0 || boardHp()); m.userData.jolt = 0.5; m.userData.jSide = rand() < 0.5 ? -1 : 1; mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); }
   o.netT = performance.now() + 1500; flowDirty = true; lightsDirty = true;

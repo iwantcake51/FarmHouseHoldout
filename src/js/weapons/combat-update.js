@@ -6,7 +6,7 @@ const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you
 
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
-const BLEED_FLOOR = 1;   // the health bleeding leaves you on at worst
+const BLEED_FLOOR = 15;   // the health bleeding leaves you on at worst: there it stops, the wound clotted
 function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) {
@@ -83,9 +83,9 @@ function updateCombat(dt) {
   W8.sprayT = (W8.sprayT || 0) + dt; if (W8.sprayT > 0.3) W8.spray = Math.max(0, (W8.spray || 0) - dt * 1.8);
   if (W8.sprayT > HEAVY_FIRE.hold) W8.heavyK = Math.max(0, (W8.heavyK || 0) - dt * HEAVY_FIRE.ease);   // a heavy gun's slowdown eases off once you stop firing
   if (W8.heat > 0.7 && W8.wispT <= 0 && !W(curId()).melee && !P.dead) { W8.wispT = 0.09; const mw = muzzleWorld(); smoke(mw.x, mw.y + 0.02, mw.z, rr(-0.1, 0.1), rr(0.25, 0.5), rr(-0.1, 0.1), 0.04, 0.22, rr(0.9, 1.4), 0.16 * Math.min(1, W8.heat - 0.5)); }
-  // bleeding wears you down, but never past BLEED_FLOOR: it can leave you on your last legs, not kill you
+  // bleeding wears you down, but never past BLEED_FLOOR: it can leave you hurting, never dead or a scratch from it
   if (P.bleed > 0 && !P.dead) {
-    P.bleed = Math.max(0, P.bleed - dt); P.hp = Math.max(Math.min(P.hp, BLEED_FLOOR), P.hp - 1.7 * dt * S.dmgTaken); P.dripT = (P.dripT || 0) - dt;
+    P.bleed = P.hp <= BLEED_FLOOR ? 0 : Math.max(0, P.bleed - dt); P.hp = Math.max(Math.min(P.hp, BLEED_FLOOR), P.hp - 1.7 * dt * S.dmgTaken); P.dripT = (P.dripT || 0) - dt;
     splashOn(youSplash, dt * 0.02);   // it soaks into your clothes (effects/body-blood.js)
     if (P.dripT <= 0) { P.dripT = rr(0.12, 0.3); bleedDrip(); }                          // drops falling from the wound (effects/particles.js)
   }

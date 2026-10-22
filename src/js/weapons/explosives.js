@@ -37,7 +37,7 @@ EFF.bleed = {};
 const grenades = [];
 function throwGrenade() {
   const D = W(curId()); if (!D || !D.gl || W8.glCd > 0 || P.vault) return;
-  W8.glCd = D.glRecharge || 6; SFX.launch();
+  W8.glCd = D.glRecharge || 6; SFX.launch(); runStat('grenades');
   const dx = aimPt.x - P.x, dz = aimPt.z - P.z, d = Math.min(14, Math.hypot(dx, dz));
   const a = Math.atan2(dx, dz), x1 = P.x + Math.sin(a) * d, z1 = P.z + Math.cos(a) * d;
   const m = box(scene, 0.12, 0.12, 0.18, GM.olive, P.x, GUN_Y, P.z);

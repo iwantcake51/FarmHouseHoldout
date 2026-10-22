@@ -128,6 +128,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => { veil(false); $('title'
 // the run ends PZ-style: you go down where you stand, the HUD drains away, they close in, then the tally
 function startDeath() {
   if (cheatSaves()) return;   // god mode (ui/cheats.js)
+  runStat('downs');
   P.dead = true; P.deathT = 0; P.deathAt = performance.now(); P.vault = null; P.vx = P.vz = 0; turnedDown(NET.id);   // (co-op: back next wave as one of them, net/sync.js)
   exitScope(); closeStation(); W8.reloading = null; W8.swing = 0; mouseDown = mouseDownR = false;
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
@@ -170,5 +171,6 @@ function die() {
   [['Kills', run.kills], ['Limbs taken', run.limbs], ['Accuracy', acc], ['Survived', mins + ':' + secs]].forEach(([l, v]) => {
     const d = document.createElement('div'); d.className = 'lbl'; d.innerHTML = '<b></b>'; d.firstChild.textContent = v; d.append(l); $('deadStats').appendChild(d);
   });
+  renderRunStats();   // (the full stats, folded away under them: ui/run-stats.js)
   setState('dead');
 }

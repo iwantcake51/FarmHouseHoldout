@@ -101,6 +101,7 @@
   "upgrades/upgrade-info.js",
   "upgrades/upgrade-screen.js",
   "upgrades/card-burn.js",
+  "ui/run-stats.js",
   "ui/screens.js",
   "game/intro.js",
   "ui/hud-text.js",

@@ -64,12 +64,12 @@ function tickBandage(dt) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; runStat('bandages'); P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
     // back to full health before it's on (healing from the last one, or regen): the wrap stops there, done. The bandage
     // goes back in the bag, unless it went on to stop a bleed (then it's on your arm like any other)
     else if (P.hp >= S.maxHp && P.bandMax - P.bandT > 0.25) {
       P.bandT = 0; ANIM.bandDone = BAND_DONE;
-      if (P.bandBleed) { P.band--; P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
+      if (P.bandBleed) { P.band--; runStat('bandages'); P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
     }
   }
   // healing over time, till you're at full health: then whatever's left of it is gone, and so is its blue

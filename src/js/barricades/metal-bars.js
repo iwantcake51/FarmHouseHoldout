@@ -108,7 +108,7 @@ function addGrate(o, hp, sd, h0) {
   const G = buildGrate(o, METAL.tier, side); G.hp0 = h0 || (mine ? o.boards[0] : Math.max(hp, grateHp())); G.disp = o.boards[0] / G.hp0;
   G.place = 0; G.side = o.out * side;
   o.grate = G; o.bg.add(G.g); o.meshes.push(G.g); grateStep(o, 0);
-  if (mine) run.boards++;
+  if (mine) { run.boards++; runStat('grates'); }
   const clank = () => mine ? SFX.clang(0.55) : soundAt(o.x, o.z, () => SFX.clang(0.55));
   GRATE_BOLTS.forEach(k => setTimeout(clank, k * GRATE_PLACE * 1000));
   burst(o.x + o.nx * side * .55, (G.y0 + G.y1) / 2, o.z + o.nz * side * .55, 4, 'dust');

@@ -70,7 +70,7 @@ function addBoard(o, hp, sd, quiet) {
   m.userData.rz0 = m.userData.p0.rz; m.userData.x0 = m.userData.p0.x; m.userData.z0 = m.userData.p0.z; m.userData.hp0 = o.boards[n]; m.userData.sag = rand() < 0.5 ? -1 : 1;   // (how it sits, for boardShake: where it's nailed, how strong it went up, which end gives first)
   o.bg.add(m); o.meshes.push(m);
   if (quiet) { m.userData.place = 1; boardPlace(m, 1); flowDirty = true; lightsDirty = true; return; }
-  if (mine) run.boards++;
+  if (mine) { run.boards++; runStat('planks'); }
   // your own hammering's right in front of you, never muffled; a teammate's comes from where they are, through the walls
   const hit = () => mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); BOARD_NAILS.forEach(k => setTimeout(hit, k * BOARD_PLACE * 1000));
   burst(o.x + o.nx * side * .55, o.ys[n], o.z + o.nz * side * .55, 4, 'dust');
@@ -191,6 +191,7 @@ function hurtBoard(o, d, at) {
 const TEAR_GAP = 70;   // ms between the boards coming off
 function tearBoard(o) {
   if (!o.boards.length) return;
+  runStat('tears', o.grate ? 1 : o.boards.length);
   const at = { x: o.x - o.nx * 2, z: o.z - o.nz * 2 };   // (always into the house, whichever side you tore them from)
   if (netClient()) { netBoardTear(o, at); return; }   // (the host breaks them and says so)
   tearAll(o, at);

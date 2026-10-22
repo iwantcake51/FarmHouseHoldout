@@ -41,6 +41,7 @@ const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
 function tryVault() {
   if (P.vault) return;
   const win = vaultTarget(nearestOpening()), t = win || fenceTarget(); if (!t) return;
+  runStat(win ? 'vaults' : 'hops');
   const cost = stamUse(((win ? VAULT_COST : FENCE_COST) + VAULT_CHAIN * (P.vaultHeat || 0)) * (S.vaultMul < 1 ? 0.5 : 1));
   const scramble = P.exh || P.stam < cost * 0.6;
   P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
