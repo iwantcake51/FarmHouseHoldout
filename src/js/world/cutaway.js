@@ -11,6 +11,17 @@ function faceCut(F, f, at) {
   if (f === 'E' || f === 'W') { const t = (at - F.x) / d; if (t < 0.05 || t > maxT) return false; const z = F.z + d * t; return z > HOUSE.z0 - m && z < HOUSE.z1 + m; }
   const t = (at - F.z) / d; if (t < 0.05 || t > maxT) return false; const x = F.x + d * t; return x > HOUSE.x0 - m && x < HOUSE.x1 + m;
 }
+// whether the house stands between F and the camera: the line from F toward it passes over the house's footprint
+// within ROOF_BEHIND metres (in its steps). It's the footprint as it is this run, so a notched house's wing hides you
+// in the notch behind it as well as the back walls do
+const ROOF_BEHIND = { far: 7.5, step: 0.25 };
+function behindHouse(F) {
+  for (let t = 0.3; t < ROOF_BEHIND.far; t += ROOF_BEHIND.step) {
+    const i = ci(F.x + TOWARD_CAM.x * t), j = ci(F.z + TOWARD_CAM.z * t);
+    if (inb(i, j) && HOUSE_FP[idx(i, j)]) return true;
+  }
+  return false;
+}
 // roof and wall-face fading so you can see inside: round you, or once you're down in co-op, round the teammate the
 // camera's on (camFocus, net/spectate.js)
 const ROOF_INTRO = [0.12, 1.15];
@@ -25,9 +36,10 @@ function updateCutaway(rdt) {
   stepPaint(rdt);   // (a new run's paint easing in: world/house.js)
   const F = camFocus(), fN = faceCut(F, 'N', HOUSE.zN), fW = faceCut(F, 'W', HOUSE.xW);
   const inside = inHouseRect(F.x, F.z, -0.35);
-  // roof: off when you're indoors or tucked behind the house, back on outside
+  // roof: off when you're indoors or tucked behind the house (any part of it, the wing of a notched one too), back on
+  // outside
   {
-    const want = state === 'title' ? 1 : inside || fN || fW ? 0 : 1;
+    const want = state === 'title' ? 1 : inside || fN || fW || behindHouse(F) ? 0 : 1;
     // as a run starts, the roof lifts away with the camera's glide (ROOF_INTRO: from and to, in seconds of it) on an
     // ease in and out, rather than most of the way in the first few frames
     if (want === 0 && introCamOn()) roof.op = Math.min(roof.op, 1 - smooth(clamp((INTRO.t - ROOF_INTRO[0]) / (ROOF_INTRO[1] - ROOF_INTRO[0]), 0, 1)));
@@ -69,9 +81,11 @@ function updateCutaway(rdt) {
 }
 // how much a roof over (x, z) still hides it: the main roof's or the porch's opacity there (1 out from under either). A
 // fading roof still stands in front in depth till it's nearly gone, so the see-through outlines of whatever's under it
-// fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see
+// fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see. Under
+// it means behind the house as the camera sees it too, where the eaves and the roof's slope stand in front of you
+// outside the walls, so the outline eases out with the roof rather than vanishing the moment it stops writing depth
 function roofOver(x, z) {
-  if (inHouseRect(x, z, 0.4)) return roof.op;
+  if (inHouseRect(x, z, 0.4) || (roof.op < 1 && behindHouse({ x, z }))) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
   return 1;
 }

@@ -7,16 +7,16 @@ function freshStats() {
   const s = { dmgMul: 1, rateMul: 1, magMul: 1, reloadMul: 1, speedMul: 1, maxHp: 100, pierce: 0, dropMul: 1, boardMul: 1, meleeMul: 1, planks: 6, scrap: 4,
     spreadMul: 1, headBonus: 0, headMul: 2.2, severMul: 1, healOnKill: 0, headHeal: false, vampire: false, regen: 0, dmgTaken: 1, slowRes: 0, soles: 0, bandLess: 0, stubborn: false, boardSpeed: 1, secondWind: false, windUsed: false, adrenaline: false,
     cone: 1.2, near: 2.4, nightVis: 0, vaultMul: 1, vaultFire: false, runGun: 0, lungs: false, hoard: false, btNext: 0, bulletTime: false, lastStand: false,
-    swapMul: 1, bandMul: 1, ammoMul: 1, luck: 0, sureShot: false, momentum: false, momK: 0, momT: -9, steady: 0, swingStam: 1,
-    tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false };
+    swapMul: 1, bandMul: 1, ammoMul: 1, pickMul: 1, dropLife: 0, luck: 0, sureShot: false, momentum: false, momK: 0, momT: -9, steady: 0, tough: false, swingStam: 1,
+    tier: {}, med: { hands: 0, dress: 0, tonic: 0 }, pouch: false, brace: 0 };
   Object.keys(TIERS).forEach(k => s.tier[k] = 0);
   return s;
 }
 function freshRun() {
   S = freshStats();
-  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, magnum: 0, shells: 0, rifle: 0 },
+  W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, p10: 0, magnum: 0, shells: 0, rifle: 0 },
     cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relRing: null, shellsIn: 0, shellsNeed: 0, goN: 0, goIn: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
-  run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [] };
+  run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [], st: {} };   // (st: the end screen's tallies, ui/run-stats.js)
   recomputeEff();
 }
 function recomputeEff() {
@@ -27,9 +27,10 @@ function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= AMMO_DMG[ammo];
+    D.dmg *= AMMO_DMG[ammo]; D.powK = POWDER_KICK[ammo]; D.shake *= POWDER_KICK[ammo];   // a hotter charge kicks harder too
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
+    else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
     else if (loader && D.breakOpen) { D.loadN = 2; D.perShell *= SOH.shell; D.shutMul = SOH.shut; }  // Sleight of Hand: both at once, quicker
     else if (id === 'pump' && (S.tier.quick | 0) >= 2) { const q = S.tier.quick >= 3 ? TRIPLE : PAIR_LOAD; D.loadN = q.n; D.perShell *= q.t; }   // Quick hands II: two shells a go; III, Triple Load: three
     if (W8.tune && W8.tune[id]) tuneUp(D);   // a workbench tune-up, per weapon
@@ -43,12 +44,12 @@ function recomputeEff() {
     // a bigger magazine is heavier and fiddlier to seat, so a mag change takes longer the more it holds over the gun's own
     // (a tube or cylinder fed a round at a time doesn't care, and a second gun's mag is its own). A pair's reload is one
     // gun's (weapons/akimbo.js): done one-handed, each takes AK_ONE of a lone gun's (and longer again, AK_TAC or AK_EMPTY there), so both take far longer than one
-    D.magX = D.mag && WEAP[id].mag ? D.mag / (WEAP[id].mag * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own
+    D.magX = D.mag && WEAP[id].mag ? D.mag / ((D.ownMag || WEAP[id].mag) * (D.akimbo ? 2 : 1)) : 1;   // how much more it holds than its own (ownMag: a mod's own mag, the AK kit's)
     if (D.reload && !D.perShell && !D.speedload && D.magX > 1.01) D.reload *= 1 + (MAG_SLOW_OF[id] ?? MAG_SLOW) * Math.log2(D.magX);
     if (D.akimbo) D.reload *= AK_ONE;
     // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after
     if (id === 'hunting' && mag >= 2) { D.perShell = 0; D.reload = DETACH.reload - DETACH.bolt; D.detach = DETACH.bolt; }
-    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
+    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = (D.hipK || 1) * LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
@@ -62,7 +63,7 @@ const W = id => EFF[id];
 // carryMul). AK_ONE: one of a pair's reload against a lone gun's
 const MAG_SLOW = 0.85, MAG_WALK = 0.1, AK_ONE = 1;
 // a gun whose bigger box costs it less than that: the SCAR's 20 takes about 45% longer to change than its 10
-const MAG_SLOW_OF = { scar: 0.45 };
+const MAG_SLOW_OF = { scar: 0.3 };
 // how much each magazine tier holds against the gun's own: most guns step up through three, the auto shotgun's one step is
 // its 20-shell drum against its box of 8 (MAG_STEPS, upgrades/upgrades.js)
 const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 / 30, 50 / 30], hunting: [1, 7 / 5, 10 / 5], scar: [1, 2] };   // (the MP5: a 40-round mag, then a 50-round drum; the rifle: 7 in its fixed mag extended, then a 10-round box; the SCAR: its 20-round box)
@@ -84,6 +85,9 @@ const SEMI = { spread: 0.7, shake: 0.75 };
 // moving adds to an aimed shot is left with each sight
 // each step of a gun's ammo line against stock rounds: hollow points, +P loads, match-grade (upgrades/tier-table.js)
 const AMMO_DMG = [1, 1.25, 1.5, 1.875];
+// and how much harder each step kicks: the gun back into your hands, the view, the crosshair and its spread with every
+// shot (D.powK, weapons/firing.js; D.shake)
+const POWDER_KICK = [1, 1.18, 1.38, 1.6];
 const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
 // what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)
 const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3, 0.3, 0.3] };
@@ -112,13 +116,15 @@ const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75
 // one shell takes; and the revolver's reload with its speed loader (seconds; a round at a time it's D.perShell each, after REV_OPEN_T to
 // swing the cylinder out, and Quick hands takes no more than REV_QUICK off either: relMul, weapons/reload.js); and Triple Load, the pump's loader step: three shells a go,
 // each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: nearly twice as fast overall,
-// 6 shells in about 1.4 s against 2.6 s). Each shell of a go is still thumbed in on its own, quick after the last
-// (weapons/reload.js: rowLoad)
-const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 };
+// 6 shells in about 1.4 s against 2.6 s). Each shell of a go is still thumbed in on its own, at least ROW_GAP seconds
+// after the last, so you hear each go in (weapons/reload.js: rowLoad, shellGo)
+const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 }, ROW_GAP = 0.075;
 // Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it
 const SOH = { shell: 0.8, shut: 0.75 };
+// the battle rifle's flared magwell (its loader step, upgrades/tier-table.js): what's left of a mag change with it
+const MAGWELL = 0.75;
 let tierCtx = null;
 // which gun a tier lookup is about; defaults to the one in your hands
 const gunTier = (id, k) => (id && W8.gt && W8.gt[id] && W8.gt[id][k]) || 0;
@@ -144,6 +150,11 @@ const T = k => !GUN_TIERS.has(k) ? S.tier[k] : k === 'mag' ? magTierIn(tierCtx |
 // tier and capacity of the one still in it. Guns fed a round at a time, the revolver's cylinder and an akimbo pair take
 // the change at once
 const magTierIn = id => (id && W8.pin && W8.pin[id]) ? W8.pin[id].t : gunTier(id, 'mag');
+// scrap pays a little more every wave (SCRAP_WAVE more for each one past the first: about half again by wave 10,
+// double by wave 18), so the later waves keep up with what things cost by then. A fraction left over is paid or not by
+// chance, so it comes out right on average
+const SCRAP_WAVE = 0.06;
+const waveScrap = n => { const v = n * (1 + SCRAP_WAVE * Math.max(0, (run ? run.wave : 1) - 1)), f = Math.floor(v); return f + (rand() < v - f ? 1 : 0); };
 const magCap = id => (W8.pin && W8.pin[id]) ? W8.pin[id].cap : magSize(id);
 function magChange(id, fn) {
   const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');

@@ -64,8 +64,8 @@ function loadRound(id, k, fill) {
   ownRound(id, k); dumpMag(id);
   W8.rounds[id].on = k; recomputeEff();
   if (fill) {
-    delete W8.pin[id]; const n = Math.min(magSize(id), had, W8.reserve[WEAP[id].ammo]);
-    W8.mag[id] = n; W8.reserve[WEAP[id].ammo] -= n; if (ak && n === had) W8.akMag[id] = ak;
+    delete W8.pin[id]; const n = Math.min(magSize(id), had, W8.reserve[W(id).ammo]);
+    W8.mag[id] = n; W8.reserve[W(id).ammo] -= n; if (ak && n === had) W8.akMag[id] = ak;
   }
   buildGuns();
 }

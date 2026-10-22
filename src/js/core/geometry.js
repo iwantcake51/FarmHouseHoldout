@@ -31,10 +31,10 @@ function addCylZ(g, r, len, mat, x, y, z) { const m = cylZ(r, len, mat); m.posit
 const _mergeM = new THREE.Matrix4();
 let BAKED_M = null;
 function mergeInto(parent, list, opt) {
-  const live = (opt && opt.live) || null;
+  const live = (opt && opt.live) || null, noBake = !!(opt && opt.noBake);
   parent.updateWorldMatrix(true, true);
   const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert(), groups = new Map(), out = [];
-  const bakeable = m => m.isMeshLambertMaterial && !m.transparent && !m.map && m.side === THREE.FrontSide && !m.vertexColors && m.customProgramCacheKey && m.customProgramCacheKey() === 'lit' && !(live && live.has(m));
+  const bakeable = m => !noBake && m.isMeshLambertMaterial && !m.transparent && !m.map && m.side === THREE.FrontSide && !m.vertexColors && m.customProgramCacheKey && m.customProgramCacheKey() === 'lit' && !(live && live.has(m));
   list.forEach(o => {
     const bake = bakeable(o.material), k = (bake ? 'baked' : o.material.uuid) + (o.castShadow ? '+' : '-');
     if (!groups.has(k)) groups.set(k, { mat: o.material, bake, cast: o.castShadow, parts: [] });
@@ -58,6 +58,36 @@ function mergeInto(parent, list, opt) {
   });
   list.forEach(o => { if (o.parent) o.parent.remove(o); });
   return out;
+}
+// pieces too small for their shadow to show from up here (an eye, a button, a buckle, a gun's pin) cast none: on a figure
+// of loose pieces each would be a draw of its own in the sun's shadow pass. Folded meshes keep theirs (a piece folded in
+// costs nothing there)
+const _tsV = new THREE.Vector3();
+function trimShadows(root, r) {
+  root.updateMatrixWorld(true);
+  root.traverse(o => {
+    if (!o.isMesh || !o.castShadow || o.userData.fine || !o.geometry) return;
+    const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); o.getWorldScale(_tsV);
+    if (g.boundingSphere.radius * Math.max(_tsV.x, _tsV.y, _tsV.z) < (r || 0.06)) o.castShadow = false;
+  });
+}
+// what doesn't move or change in a model folded together, a mesh per material (no colours baked: each keeps its own
+// material, for what's done to materials later: a wall cell's cut-away fade and its paint, the blood on a weapon). Each
+// piece goes into root's frame, so only pieces fixed to it fold: anything under a stop node (a moving part, a group
+// that's shown and hidden), a hidden one, anything noted on (userData: a laser, a clip, a belt's rounds, a flash),
+// and anything see-through (unless opt.see: a roof that fades as a whole), mapped, vertex-coloured or drawn in an order
+// of its own stays as it is
+const foldable = (o, see) => {
+  const m = o.material;
+  return o.isMesh && !o.isInstancedMesh && !Array.isArray(m) && m && (see || !m.transparent) && !m.map && !m.vertexColors && !m.alphaTest && m.colorWrite !== false && m.visible !== false
+    && m.blending === THREE.NormalBlending && !o.renderOrder && !o.customDepthMaterial && o.geometry.attributes.normal && !o.geometry.morphAttributes.position;
+};
+function foldPieces(root, stop, opt) {
+  const parts = [], see = !!(opt && opt.see);
+  (function walk(o) { o.children.forEach(c => { if ((stop && stop.has(c)) || !c.visible || Object.keys(c.userData).length) return; if (foldable(c, see)) parts.push(c); walk(c); }); })(root);
+  // (a piece with children of its own keeps its place, for them: only childless ones fold)
+  const list = parts.filter(c => !c.children.length);
+  return list.length > 1 ? mergeInto(root, list, { noBake: true }) : [];
 }
 // every mesh under g except the ones flagged userData.sil (kept whole for outlines) and anything under a stop node
 function finePieces(g, stop) {

@@ -37,6 +37,7 @@ function spreadOf(id) {
   if (D.bipod && P.still > 0.3) s *= 0.12;
   if (fanning(D)) s *= D.fan.spread;
   if (P.sprint) s *= RG_SPREAD;   // firing at a sprint, with Run and gun (player/sprint.js)
+  s *= 1 + XHIT.spread * XR.hb;   // shaken by a blow you've just taken (xhHit, player/shaky-hands.js)
   return Math.min(s, pel ? SG_MAX : SPREAD_MAX);
 }
 // a scope pays off at range: up close a shot through it spreads like any aimed shot (it never gets worse the nearer you
@@ -136,7 +137,7 @@ function zRay(z, ox, oz, dx, dz, tMin = -Infinity) {
 // how much smoke a round leaves hanging along its path, by calibre (SMOKE_CAL: a 9mm none, the .357 a wisp, the .50 and a
 // slug more, a rifle round most, a rifle on full auto less, its trails overlapping), and through a can SMOKE_SUPP: thicker
 // and longer-lasting, still faintest for a 9mm (effects/tracers.js: smokeTrail)
-const SMOKE_CAL = { p9: 0, rimmed: 0.5, magnum: 0.8, rifle: 1, slug: 0.85 }, SMOKE_SUPP = { p9: 0.4, rimmed: 0.8, magnum: 1.05, rifle: 1.35, slug: 1.15, shells: 0.9 };
+const SMOKE_CAL = { p9: 0, p10: 0.3, rimmed: 0.5, magnum: 0.8, rifle: 1, slug: 0.85 }, SMOKE_SUPP = { p9: 0.4, p10: 0.6, rimmed: 0.8, magnum: 1.05, rifle: 1.35, slug: 1.15, shells: 0.9 };
 function smokeOf(D, id, supp, slug) {
   const k = D.ammo === 'shells' ? (slug ? 'slug' : 'shells') : D.ammo === 'magnum' && id === 'revolver' ? 'rimmed' : D.ammo;
   return supp ? SMOKE_SUPP[k] || 0 : (SMOKE_CAL[k] || 0) * (D.ammo === 'rifle' && D.rate < 0.15 ? 0.45 : 1);
@@ -250,7 +251,7 @@ function gunFire(id, D, side) {
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
-      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : 0.09);   // and a hole in it (effects/bullet-holes.js)
+      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : D.ammo === 'p10' ? 0.08 : 0.09);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     }
   }
@@ -260,7 +261,7 @@ function gunFire(id, D, side) {
   SFX.fire(id, quiet, D.ammo === 'shells');
   shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);
   const st = stocked(id) ? STOCK.kick : 1;
-  const pw = gunPower(D, shots) * st;
+  const pw = gunPower(D, shots) * st * (D.powK || 1);   // (a hotter powder kicks harder each shot: POWDER_KICK)
   fireCam(pw, P.aim, fireRate(D) < 0.16); angerShot(fireRate(D)); bloom = Math.min(18, bloom + D.shake * 34 * st);
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
   if (!quiet) {
@@ -284,7 +285,7 @@ function gunFire(id, D, side) {
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
   { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)
   const ej = EJECT[id];
-  if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } }   // a belt gun throws its links too
+  if (ej === 'fire') { ejectCasing(D.ammo, shots, 'fire', W8.akSide); if (BELT[W8.cur]) { ejectLinks(shots, 0.535); beltKick(); } if (BIPOD[W8.cur]) bipodKick(); }   // a belt gun throws its links too
   // (a case the gun keeps till it's racked or reloaded stays in the HUD, fired, till then: ui/rounds.js)
   else if (ej === 'pump' || ej === 'bolt') { W8.hudSpent[id] = (W8.hudSpent[id] || 0) + 1; startCycle(id); }
   else if (ej === 'breach') { W8.spent[id] = Math.min(magSize(id), (W8.spent[id] || 0) + shots); W8.hudSpent[id] = Math.min(magSize(id), (W8.hudSpent[id] || 0) + shots); }

@@ -35,12 +35,16 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 // (near), and the whole body (all), times the weapon's force. A body that's down settles: what touches the ground stops
 // dead in it (no bounce under bounceV m/s down), and once its trunk's down it's damped (land, then still), nothing on
 // it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
+// and a moment after it's down the ground rubs the whole of it to a stop (rub, each step, from rubT s after it's down,
+// and harder, rub2, from rub2T: it can still sag and settle, but not skate along the floor), limbs and all, so nothing on
+// it glides on; a body that's died running carries only some of its pace into the fall
+// (carry); and one that's come to rest on a hip or a shoulder without its trunk flat counts as down after lieT s,
 // and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
-// down (yawDown), so it never spins on the floor
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 0.3 };
+// down (yawDown), most of it with only a foot or a hand down (yawTouch), so it never spins on the floor
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 0.8, rub: 0.82, rubT: 0.12, rub2: 0.55, rub2T: 0.6, carry: 0.6, lieT: 1.1, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 1.5, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.16, yawTouch: 0.6, yawDown: 1 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
-const RAG_CAL = { p9: 0.18, magnum: 0.6, rifle: 0.7, shells: 1 };
+const RAG_CAL = { p9: 0.18, p10: 0.32, magnum: 0.6, rifle: 0.7, shells: 1 };
 // a skull crushed from overhead (the sledgehammer): how much of the blow's push along goes into the head and shoulders
 // (along), and how hard they're driven down (down, m/s)
 const RAG_CRUSH = { along: 0.35, down: -4 };
@@ -84,19 +88,21 @@ function ragFrame(p) {
   _rgX.addScaledVector(_rgY, -_rgX.dot(_rgY)).normalize(); _rgZ.crossVectors(_rgX, _rgY);
 }
 
-function makeRagdoll(z, dx, dz, part, force, wId) {
-  const m = z.m, s = z.T.scale, D = (wId && (W(wId) || EFF[wId])) || {}, n = RAG_AT.length, cut = z.cut || {};
+// rig: a survivor's (player/player-ragdoll.js), not a zombie's: its upper body isn't raised to the hips (upY), its arms are
+// one piece each (no forearms: noFore), and it's kept in its own list (list), lying where it fell (keep)
+function makeRagdoll(z, dx, dz, part, force, wId, rig) {
+  const m = z.m, s = z.T.scale, upY = rig ? rig.upY : ZHIP, D = (wId && (W(wId) || EFF[wId])) || {}, n = RAG_AT.length, cut = z.cut || {};
   const p = new Float32Array(n * 3), on = new Uint8Array(n).fill(1);
   if (!z.limbs.head) on[4] = 0;
   for (const L in RAG_LIMB) { const [a, b] = RAG_LIMB[L]; if (!z.limbs[L]) on[a] = on[b] = 0; else if (cut[L]) on[b] = 0; }
   // where each point is now, off the rig as it stands (or crawls, or climbs)
   m.g.updateMatrixWorld(true);
   const put = (k, o, x, y, zz) => { _rgV.set(x, y, zz); o.localToWorld(_rgV); p[k * 3] = _rgV.x; p[k * 3 + 1] = _rgV.y; p[k * 3 + 2] = _rgV.z; };
-  put(0, m.lower, -0.13, 0.55, 0); put(1, m.lower, 0.13, 0.55, 0); put(2, m.upper, -0.33, 1.08 - ZHIP, 0); put(3, m.upper, 0.33, 1.08 - ZHIP, 0);
+  put(0, m.lower, -0.13, 0.55, 0); put(1, m.lower, 0.13, 0.55, 0); put(2, m.upper, -0.33, 1.08 - upY, 0); put(3, m.upper, 0.33, 1.08 - upY, 0);
   if (on[4]) put(4, m.head, 0, 0, 0);
   for (const sd of ['L', 'R']) {
     const [e, hd] = RAG_LIMB['arm' + sd], [kn, ft] = RAG_LIMB['leg' + sd];
-    if (on[e]) put(e, m['arm' + sd], 0, 0, Z_ELBOW); if (on[hd]) put(hd, m['fore' + sd], 0, 0, 0.27);
+    if (on[e]) put(e, m['arm' + sd], 0, 0, Z_ELBOW); if (on[hd]) put(hd, rig && rig.noFore ? m['arm' + sd] : m['fore' + sd], 0, 0, rig && rig.noFore ? 0.53 : 0.27);
     if (on[kn]) put(kn, m['leg' + sd], 0, Z_KNEE, 0); if (on[ft]) put(ft, m['shin' + sd], 0, -0.28, 0);
   }
   // the sticks, at this body's size, between the points it still has
@@ -116,7 +122,7 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   for (let k = 0; k < n; k++) im[k] = 1 / RAG_MASS[k];
   const push = (k, vx, vy, vz) => { q[k * 3] -= vx * h; q[k * 3 + 1] -= vy * h; q[k * 3 + 2] -= vz * h; };
   const boom = wId === 'boom', cal = D.melee || boom || part === 'crush' ? 1 : RAG_CAL[D.ammo] ?? 0.5, drop = part === 'head' && !boom && !D.melee && D.ammo !== 'shells';
-  const keep = drop ? HEAD_DROP.keep : 1, cx = clamp(z.vx || 0, -4, 4) * keep, cz = clamp(z.vz || 0, -4, 4) * keep;
+  const keep = drop ? HEAD_DROP.keep : 1, cx = clamp(z.vx || 0, -4, 4) * keep * RAG.carry, cz = clamp(z.vz || 0, -4, 4) * keep * RAG.carry;
   force *= cal;
   for (let k = 0; k < n; k++) push(k, cx + dx * force * RAG.all + rr(-0.15, 0.15), boom ? rr(2, 3) : rr(0, 0.1), cz + dz * force * RAG.all + rr(-0.15, 0.15));
   const [hit, near] = RAG_HIT[part] || RAG_HIT.torso;
@@ -144,12 +150,13 @@ function makeRagdoll(z, dx, dz, part, force, wId) {
   // a point that starts inside something (a climber's legs in the wall under the sill) is let through it till it's out
   const ghost = new Uint8Array(n); for (let k = 0; k < n; k++) if (on[k] && ragTop(p[k * 3], p[k * 3 + 2]) > p[k * 3 + 1] - RAG_R[k] * s) ghost[k] = 1;
   // only so many bodies are worked out at once: past that the oldest still moving is left as it lies
-  const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true;
+  if (!rig) { const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true; }
   const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, limbs: z.limbs, s, p, q, tone: drop ? HEAD_DROP.tone : RAG.tone, toneT: drop ? HEAD_DROP.toneT : fall.toneT, legK, upK: fall.up, o: new Float32Array(p), v: new Float32Array(p), on, im, loc, sticks, ghost, acc: 0, st: 0, still: 0, sleep: false, gy: 0,
-    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0 };
+    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0, upY, noFore: !!(rig && rig.noFore), keep: !!rig };
   m.g.scale.setScalar(s);
   ragPose(r, p);
-  ragdolls.push(r);
+  (rig ? rig.list : ragdolls).push(r);
+  return r;
 }
 
 // one step of the body: the stiffness it has left pulls it toward the pose it died in, everything moves on and falls,
@@ -159,10 +166,10 @@ function ragStep(r, h) {
   r.st += h;
   // (the stiffness it has left goes the moment the trunk's down: holding the pose any longer flings the limbs as the
   // body turns over on the ground)
-  if (r.down && !r.landT) r.landT = r.st;
+  if ((r.down || (r.touch >= 3 && r.st > RAG.lieT)) && !r.landT) r.landT = r.st;
   const tn = r.landT ? 0 : r.tone * Math.pow(Math.max(0, 1 - r.st / r.toneT), 2);
   // down, it's damped hard (a slump, then still), and nothing on it slides faster than RAG.slide (vmax in the air)
-  const air = r.landT ? (r.st - r.landT > 0.15 ? RAG.still : RAG.land) : RAG.air, vcap = (r.landT ? RAG.slide : RAG.vmax) * h;
+  const air = r.landT ? (r.st - r.landT > 0.15 ? RAG.still : RAG.land) : RAG.air, vcap = (r.landT ? RAG.slide : RAG.vmax) * h, rub = !r.landT ? 1 : r.st - r.landT > RAG.rub2T ? RAG.rub2 : r.st - r.landT > RAG.rubT ? RAG.rub : 1;
   ragFrame(p);
   if (tn > 0) for (let k = 4; k < n; k++) {
     if (!on[k]) continue;
@@ -176,16 +183,18 @@ function ragStep(r, h) {
   for (let k = 0; k < n; k++) if (on[k]) { const w = RAG_MASS[k]; M += w; mx += p[k * 3] * w; mz += p[k * 3 + 2] * w; }
   mx /= M; mz /= M;
   for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k], rx = p[i] - mx, rz = p[i + 2] - mz; Ly += w * (rz * (p[i] - q[i]) - rx * (p[i + 2] - q[i + 2])); Iy += w * (rx * rx + rz * rz); }
-  const wy = Iy > 1e-6 ? Ly / Iy * (r.landT ? RAG.yawDown : RAG.yaw) : 0;
+  const wy = Iy > 1e-6 ? Ly / Iy * (r.landT ? RAG.yawDown : r.touch ? RAG.yawTouch : RAG.yaw) : 0;   // (a foot or a hand on the ground already holds it from spinning round on it)
   for (let k = 0; k < n; k++) {
     if (!on[k]) continue;
     const i = k * 3;
     if (wy) { q[i] += wy * (p[i + 2] - mz); q[i + 2] -= wy * (p[i] - mx); }
     let vx = (p[i] - q[i]) * air, vy = (p[i + 1] - q[i + 1]) * air, vz = (p[i + 2] - q[i + 2]) * air;
+    if (rub < 1) { vx *= rub; vz *= rub; }
     const hv = Math.hypot(vx, vz); if (hv > vcap && r.st > 0.05) { vx *= vcap / hv; vz *= vcap / hv; }
     q[i] = p[i]; q[i + 1] = p[i + 1]; q[i + 2] = p[i + 2];
     p[i] += vx; p[i + 1] += vy - g; p[i + 2] += vz;
   }
+  (r.pre || (r.pre = new Float32Array(p.length))).set(p);
   for (let it = 0; it < RAG.iters; it++) {
     for (const c of r.sticks) {
       const a = c[0] * 3, b = c[1] * 3, ex = p[b] - p[a], ey = p[b + 1] - p[a + 1], ez = p[b + 2] - p[a + 2], d = Math.sqrt(ex * ex + ey * ey + ez * ez);
@@ -198,10 +207,27 @@ function ragStep(r, h) {
     ragLimits(r);
     ragWorld(r, it === RAG.iters - 1);
   }
+  ragUnturn(r);
   // still? then it's left as it lies
   let vmax = 0; for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3; vmax = Math.max(vmax, Math.abs(p[i] - q[i]) + Math.abs(p[i + 1] - q[i + 1]) + Math.abs(p[i + 2] - q[i + 2])); }
   r.still = vmax / h < RAG.sleepV && r.st > 0.6 ? r.still + h : 0;
   if (r.still > RAG.sleepT || (r.landT && r.st - r.landT > RAG.settle) || r.st > RAG.maxT) r.sleep = true;   // (and down a while, or long enough whatever it's lying on, it's done: no creeping about)
+}
+// the sticks, the joint limits and the world can each turn the whole body a hair round the upright as they put it
+// right (a limb swung back onto its side, round its socket), the same way pass after pass, so a body could turn slowly
+// round on the floor like a helicopter, however its spin was damped: whatever turn they gave it in a step is taken back
+// off, the whole body turned back round its middle (turning it whole keeps every bone its length)
+function ragUnturn(r) {
+  const p = r.p, a = r.pre, on = r.on;
+  let M = 0, ax = 0, az = 0, bx = 0, bz = 0;
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k]; M += w; ax += a[i] * w; az += a[i + 2] * w; bx += p[i] * w; bz += p[i + 2] * w; }
+  if (!M) return;
+  ax /= M; az /= M; bx /= M; bz /= M;
+  let cr = 0, dt = 0;
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k], ux = a[i] - ax, uz = a[i + 2] - az, vx = p[i] - bx, vz = p[i + 2] - bz; cr += w * (uz * vx - ux * vz); dt += w * (ux * vx + uz * vz); }
+  const th = Math.atan2(cr, dt); if (Math.abs(th) < 1e-6) return;
+  const c = Math.cos(th), sn = Math.sin(th);
+  for (let k = 0; k < on.length; k++) if (on[k]) { const i = k * 3, x = p[i] - bx, z = p[i + 2] - bz; p[i] = bx + x * c - z * sn; p[i + 2] = bz + x * sn + z * c; }
 }
 // how far each joint goes: a knee and an elbow fold only one way, and only straight that way. A knee folds round the
 // line of the hips, the heel going back, with some give round the thigh for the turn a hip has in it: a good way with
@@ -287,7 +313,7 @@ function ragLimits(r) {
 // down on, and up off the floor; the last pass also grips what's on the ground and bounces what hit it, and the first
 // hard landing of the trunk thumps and knocks a little blood and dust out of it
 function ragWorld(r, last) {
-  const p = r.p, q = r.q, on = r.on, s = r.s; let down = 0;
+  const p = r.p, q = r.q, on = r.on, s = r.s; let down = 0, touch = 0;
   for (let k = 0; k < on.length; k++) {
     if (!on[k]) continue;
     const i = k * 3, rad = RAG_R[k] * s;
@@ -308,14 +334,14 @@ function ragWorld(r, last) {
     if (r.landT && Math.hypot(p[i] - q[i], p[i + 2] - q[i + 2]) / RAG.h < RAG.stick) { q[i] = p[i]; q[i + 2] = p[i + 2]; }
     else { q[i] = p[i] - (p[i] - q[i]) * (1 - RAG.grip); q[i + 2] = p[i + 2] - (p[i + 2] - q[i + 2]) * (1 - RAG.grip); }
     q[i + 1] = vy / RAG.h < -RAG.bounceV ? p[i + 1] + vy * RAG.bounce : p[i + 1];   // (a hard landing bounces a little; anything gentler stops dead)
-    if (k < 4) down++;
+    if (k < 4) down++; else touch++;
     if (!r.pooled && k < 4 && vy / RAG.h < -1.2) {
       r.pooled = true;
       burst(p[i], 0.15, p[i + 2], 5, 'blood', 0, 0, 0.6); burst(p[i], 0.1, p[i + 2], 4, 'dust');
       if (Math.hypot(p[i] - P.x, p[i + 2] - P.z) < 12) soundAt(p[i], p[i + 2], () => SFX.thud());
     }
   }
-  if (last) r.down = down >= 2;
+  if (last) { r.down = down >= 2; r.touch = down + touch; }
 }
 // the rig posed off the points (v: where they are this frame): the whole body turned and placed by its trunk, each
 // limb pointed at its next joint, the head set where its point is and tipped off the shoulders
@@ -339,13 +365,14 @@ function ragPose(r, v) {
   };
   for (const sd of ['L', 'R']) {
     const [e, hd, sh] = RAG_LIMB['arm' + sd], [kn, ft, hp] = RAG_LIMB['leg' + sd];
-    if (on[e] && lb['arm' + sd]) { const a = m['arm' + sd]; aim(a, sh, e, _rgFw, _rgQi); if (on[hd]) aim(m['fore' + sd], e, hd, _rgFw, _rgQ2.copy(a.quaternion).invert().multiply(_rgQi)); }
+    if (on[e] && lb['arm' + sd] && r.noFore) aim(m['arm' + sd], sh, on[hd] ? hd : e, _rgFw, _rgQi);   // (a one-piece arm, pointed at the hand)
+    else if (on[e] && lb['arm' + sd]) { const a = m['arm' + sd]; aim(a, sh, e, _rgFw, _rgQi); if (on[hd]) aim(m['fore' + sd], e, hd, _rgFw, _rgQ2.copy(a.quaternion).invert().multiply(_rgQi)); }
     if (on[kn] && lb['leg' + sd]) { const l = m['leg' + sd]; aim(l, hp, kn, _rgDn, _rgQi); if (on[ft]) aim(m['shin' + sd], kn, ft, _rgDn, _rgQ2.copy(l.quaternion).invert().multiply(_rgQi)); }
   }
   if (on[4]) {
     const nk = [(v[6] + v[9]) / 2, (v[7] + v[10]) / 2, (v[8] + v[11]) / 2]; _rgN.set(nk[0], nk[1], nk[2]);
     { const save = [v[6], v[7], v[8]]; v[6] = nk[0]; v[7] = nk[1]; v[8] = nk[2]; aim(m.head, 2, 4, _rgUp, _rgQi); v[6] = save[0]; v[7] = save[1]; v[8] = save[2]; }   // (from between the shoulders)
-    _rgD.set(v[12], v[13], v[14]).sub(_rgP).applyQuaternion(_rgQi).divideScalar(s); m.head.position.set(_rgD.x, _rgD.y - ZHIP, _rgD.z);
+    _rgD.set(v[12], v[13], v[14]).sub(_rgP).applyQuaternion(_rgQi).divideScalar(s); m.head.position.set(_rgD.x, _rgD.y - r.upY, _rgD.z);
   }
   r.gy = g.position.y; r.x = _rgH.x; r.z = _rgH.z;
   // its shadow under the trunk, stretched out along it the flatter it lies
@@ -365,7 +392,7 @@ function stepRagdoll(r, dt) {
     ragPose(r, v);
   }
   // after a while it sinks into the ground and goes
-  r.g.position.y = r.gy - Math.max(0, r.t - 8) * 0.25;
+  r.g.position.y = r.gy - (r.keep ? 0 : Math.max(0, r.t - 8) * 0.25);
   if (r.burn > 0 && r.stain) r.stain.char = Math.min(1, r.stain.char + dt * 0.3);   // a body that went down burning smoulders on until it's black
   if (r.burn > 0) { r.burn -= dt; if (r.vis > 0.3 && r.t > 0.4) burnFx(r.x, r.z, 0.05, 0.45, 0.45 * r.s, dt * Math.min(1, r.burn)); }   // the fire dies down on the body
 }

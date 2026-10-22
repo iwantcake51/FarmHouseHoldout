@@ -6,19 +6,22 @@
 // A shove or a heavy stagger during the crouch breaks it off. The host's game runs it; joiners see the crouch and the
 // stripe ('zdw') and take the hit if it's at them ('zdh': net/sync.js).
 
-// wave: the first wave it can happen; min, max: how far off you must be (metres); rate: the chance a second of starting
+// wave: the first wave it can happen (the brutes' first: waves/waves.js); min, max: how far off you must be (metres); rate: the chance a second of starting
 // one while it can; cd: the wait after one (seconds); wind: the crouch; speed, over: how fast it goes, and how far past
 // where you stood; rec: the stumble to a halt after; w: the stripe's width; dmg, stun, kb: what it does to you
-const BDASH = { wave: 8, min: 4.5, max: 8, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
+const BDASH = { wave: BRUTE_FROM, min: 4.5, max: 8, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
 // running into a wall: stunned for stun seconds (reeling, its head lolling), a cloud of dust and smoke thrown up off the
 // wall, and the view shaken by up to shake, in full within near metres and trailing off to nothing at far
 const BDASH_WALL = { stun: 2.4, shake: 0.95, near: 5, far: 16 };
 // the stripe is drawn by a shader (DASH_VS, DASH_FS): a soft red lane with brighter edges, chevrons streaming along it
 // the way it'll come, an arrow point at the far end, and a fill that runs out from the brute as the crouch counts down.
 // It unrolls out of the brute's feet (grow) as it widens in with a little overshoot, flashes as the charge starts,
-// is eaten up behind the brute as it goes (tail), and fades once it's done
-const DASH_VS = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-const DASH_FS = `uniform float uLen, uGrow, uFill, uTail, uAlpha, uTime, uFlash; uniform vec3 uCol; varying vec2 vUv;
+// is eaten up behind the brute as it goes (tail), and fades once it's done. Only the stretch of it you can see shows:
+// it's faded by what you can see of the ground under it (the light map's sight, lighting/vision.js), so the part of it
+// outside your view cone or behind a wall isn't there
+const DASH_VS = `varying vec2 vUv, vSee; uniform float uLmSize, uLmHalf;
+void main() { vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vSee = (w.xz + uLmHalf) / uLmSize; gl_Position = projectionMatrix * viewMatrix * w; }`;
+const DASH_FS = `uniform float uLen, uGrow, uFill, uTail, uAlpha, uTime, uFlash; uniform vec3 uCol; uniform sampler2D uLightMap; varying vec2 vUv, vSee;
 void main() {
   float s = (1.0 - vUv.y) * uLen;                                            // metres out from the brute
   float tip = clamp((uLen - s) / 1.1, 0.0, 1.0), e = abs(vUv.x - 0.5) * 2.0 / max(tip, 0.001);   // across the lane, narrowing to the point
@@ -29,21 +32,23 @@ void main() {
   float c = fract(s / 0.85 + e * 0.42 - uTime * 1.7), chev = smoothstep(0.0, 0.07, c) * (1.0 - smoothstep(0.2, 0.3, c)) * (1.0 - smoothstep(0.55, 0.75, e));
   float a = body + edge * 0.85 + chev * (0.22 + 0.5 * filled) + filled * 0.22 + uFlash * 0.5;
   vec3 col = mix(uCol, vec3(1.0, 0.78, 0.55), clamp(chev * filled * 0.6 + edge * 0.15 + uFlash * 0.6, 0.0, 1.0));
-  gl_FragColor = vec4(col, clamp(a, 0.0, 1.0) * shown * uAlpha);
+  float see = smoothstep(0.15, 0.6, texture2D(uLightMap, vSee).a);
+  gl_FragColor = vec4(col, clamp(a, 0.0, 1.0) * shown * uAlpha * see);
 }`;
 const DASH_GEO = (() => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2); g.translate(0, 0, 0.5); return g; })();   // 1 × 1, from its origin along +z
 const dashMarks = [];
 const easeOut = t => 1 - Math.pow(1 - t, 3), easeBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
-// how far a dash can run from (x, z) along (dx, dz) before a wall, a fence, a tall prop, a window or a boarded door stops it
+// how far a dash can run from (x, z) along (dx, dz) before a wall, a tall prop, a window or a boarded door stops it (a
+// fence doesn't: it charges straight through it, dashFence)
 function dashRoom(x, z, dx, dz, L) {
   L = Math.max(0, thinRay(x, z, dx, dz, L + 0.25) - 0.25);   // an inside wall (world/thin-walls.js)
-  for (let t = 0.25; t < L; t += 0.2) { const px = x + dx * t, pz = z + dz * t, i = ci(px), j = ci(pz); if (!inb(i, j) || bulletBlocked(px, pz) || cell[idx(i, j)] === FENCE || hardBlocked(i, j)) return t - 0.25; const o = openAt[idx(i, j)]; if (o && (o.kind === 'window' || o.boards.length)) return t - 0.25; }
+  for (let t = 0.25; t < L; t += 0.2) { const px = x + dx * t, pz = z + dz * t, i = ci(px), j = ci(pz); if (!inb(i, j) || bulletBlocked(px, pz) || (cell[idx(i, j)] !== FENCE && hardBlocked(i, j))) return t - 0.25; const o = openAt[idx(i, j)]; if (o && (o.kind === 'window' || o.boards.length)) return t - 0.25; }
   return L;
 }
 // the stripe on the ground for the dash d
 function dashMark(z, d, x, zz) {
   const mat = new THREE.ShaderMaterial({ vertexShader: DASH_VS, fragmentShader: DASH_FS, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
-    uniforms: { uLen: { value: d.L }, uGrow: { value: 0 }, uFill: { value: 0 }, uTail: { value: -1 }, uAlpha: { value: 0 }, uTime: { value: 0 }, uFlash: { value: 0 }, uCol: { value: new THREE.Color(0xe0261a) } } });
+    uniforms: { uLen: { value: d.L }, uGrow: { value: 0 }, uFill: { value: 0 }, uTail: { value: -1 }, uAlpha: { value: 0 }, uTime: { value: 0 }, uFlash: { value: 0 }, uCol: { value: new THREE.Color(0xe0261a) }, uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmHalf: LMU.uLmHalf } });
   const mesh = new THREE.Mesh(DASH_GEO, mat);
   mesh.scale.set(0.001, 1, d.L); mesh.position.set(x, surfaceY(x, zz) + 0.03, zz); mesh.rotation.y = Math.atan2(d.dx, d.dz); mesh.renderOrder = 2; scene.add(mesh);
   dashMarks.push({ z, d, mesh, mat, t: 0, out: 0, flash: 0 });
@@ -102,8 +107,10 @@ function dashStep(z, dt, pup) {
   if (d.ph === 'go') {
     const step = Math.min(BDASH.speed * dt, d.L - d.gone);
     if (!pup) {
+      dashFence(z, d, step);
       const x0 = z.x, z0 = z.z; moveCircle(z, d.dx * step, d.dz * step, z.T.r); const moved = Math.hypot(z.x - x0, z.z - z0);
       d.gone += step;
+      dashPlow(z, d);   // zombies in its way thrown off their feet (zombies/knockdown.js)
       for (const q of netTargets()) {
         if (q.dead || d.hit.has(q.id || 'me')) continue;
         if (Math.hypot(q.x - z.x, q.z - z.z) < z.T.r + 0.45) { d.hit.add(q.id || 'me'); if (q.me) dashHit(z, d.dx, d.dz); else netSend('zdh', { id: z.id, h: q.id, dx: nr(d.dx), dz: nr(d.dz) }); }
@@ -121,6 +128,16 @@ function dashStep(z, dt, pup) {
   }
   if (d.t >= (d.recT || BDASH.rec)) { z.dash = null; z.dashCd = rr(BDASH.cd[0], BDASH.cd[1]); return false; }
   return true;
+}
+// a stretch of the yard fence in its way as it charges: smashed out of the way as it hits it, hardly slowing it, the
+// post and rails flung on ahead of it (breakFence, world/fence.js), and everyone's fence knocked down with it
+function dashFence(z, d, step) {
+  for (const a of [0, 0.6, -0.6]) {   // (its middle and either shoulder)
+    const ax = z.x + d.dx * (z.T.r + step + 0.15) + d.dz * a * z.T.r, az = z.z + d.dz * (z.T.r + step + 0.15) - d.dx * a * z.T.r, i = ci(ax), j = ci(az);
+    if (!inb(i, j) || cell[idx(i, j)] !== FENCE) continue;
+    breakFence(i, j, z); netFenceBroke(idx(i, j), z);
+    shake = Math.max(shake, 0.3 * clamp(1 - Math.hypot(P.x - z.x, P.z - z.z) / 10, 0, 1));
+  }
 }
 // slamming into a wall: dust and grit blown out off it and back along the run, a ring of it along the ground, and a slow
 // cloud of smoke rolling up where it hit

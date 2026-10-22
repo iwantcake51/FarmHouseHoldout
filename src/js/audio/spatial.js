@@ -12,7 +12,7 @@ function hearAt(x, z) {
 // set on the master bus each frame (zoomEars, from game/visuals.js)
 const ZOOM_EAR = { from: 1, low: 0.45 };
 const zoomVol = () => 1 - (1 - ZOOM_EAR.low) * smooth(clamp((ZOOM_EAR.from - zoom) / (ZOOM_EAR.from - ZOOM_MIN), 0, 1));
-function zoomEars() { if (master) master.gain.setTargetAtTime(MASTER_VOL * zoomVol(), AC.currentTime, 0.08); }
+function zoomEars() { if (master) master.gain.setTargetAtTime(MASTER_VOL * zoomVol() * SET.vol / 100, AC.currentTime, 0.08); }   // (and the settings' volume: ui/settings.js)
 // The farmhouse's walls between you and a sound muffle it: each one it comes through takes the top off it (a lowpass
 // down to WALL_MUFF.lp, then lower again for a second) and turns it down (WALL_MUFF.vol). A board-up window counts as a
 // wall, an open one or a doorway doesn't. Counted along the straight line from you (or the teammate you're watching)
@@ -22,7 +22,7 @@ function wallsBetween(x0, z0, x1, z1) {
   if (walls >= 2) return 2;
   for (let s = 1; s < n; s++) {
     const i = ci(x0 + (x1 - x0) * s / n), j = ci(z0 + (z1 - z0) * s / n); if (!inb(i, j)) continue;
-    const k = idx(i, j), t = cell[k], o = openAt[k], solid = t === WALL || (t === OPEN && o && o.boards.length >= 2);
+    const k = idx(i, j), t = cell[k], o = openAt[k], solid = t === WALL || (t === OPEN && o && shutN(o) >= 2);
     if (solid && !inWall && ++walls >= 2) return 2;
     inWall = solid;
   }

@@ -29,13 +29,14 @@ function meleeTargets(D) {
   for (const z of zombies) {
     if (z.dead) continue;
     const [bx, bz] = bodyOf(z), dx = bx - P.x, dz = bz - P.z, d = Math.hypot(dx, dz) - (z.crawl ? 0.2 : 0);
-    let thru = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.6 ? 0.9 : 0;   // swinging through the gaps in your own boards
-    if (!thru && bo && Math.hypot(z.x - bo.x, z.z - bo.z) < 2.2 && ((z.x - bo.x) * bo.nx + (z.z - bo.z) * bo.nz) * ((P.x - bo.x) * bo.nx + (P.z - bo.z) * bo.nz) < 0) thru = 0.9;
+    let thru = z.atkBoard && !z.atkBoard.grate && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.6 ? 0.9 : 0;   // swinging through the gaps in your own boards (never through a grate's bars)
+    if (!thru && bo && !bo.grate && Math.hypot(z.x - bo.x, z.z - bo.z) < 2.2 && ((z.x - bo.x) * bo.nx + (z.z - bo.z) * bo.nz) * ((P.x - bo.x) * bo.nx + (P.z - bo.z) * bo.nz) < 0) thru = 0.9;
     // one climbing in through a window: its body's coming through the frame toward you while its feet are still out past
     // the sill, so you can reach it as you could through your boards
     if (!thru && z.vault && z.vault.kind === 'window') thru = 0.9;
     if (d > D.range + z.T.r + thru) continue;
     if (thinHit(P.x, P.z, bx, bz) <= 1) continue;   // not through an inside wall (world/thin-walls.js)
+    if (grateBetween(P.x, P.z, bx, bz)) continue;   // never through a grate's bars (barricades/metal-bars.js)
     if (Math.abs(angDiff(Math.atan2(dx, dz), P.aim)) > D.arc + (thru ? 0.25 : 0) && d > 0.6) continue;
     const t = _mtPool[_mt.length] || (_mtPool[_mt.length] = {});
     t.z = z; t.d = d; t.dx = dx; t.dz = dz; _mt.push(t);
@@ -61,6 +62,12 @@ function boardInReach(D) {
     best = o; bd = d;
   }
   return best;
+}
+// whether a grate stands across the way from (x0, z0) to (x1, z1): a swing can't get through its bars
+function grateBetween(x0, z0, x1, z1) {
+  const L = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(L / 0.1);
+  for (let k = 1; k < n; k++) { const i = ci(x0 + (x1 - x0) * k / n), j = ci(z0 + (z1 - z0) * k / n); if (!inb(i, j)) continue; const o = openAt[idx(i, j)]; if (o && o.grate) return true; }
+  return false;
 }
 function heavySwing(D) { return D.style === 'chop' && !!D.two; }
 function meleeHit() {

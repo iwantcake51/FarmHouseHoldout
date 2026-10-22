@@ -14,7 +14,7 @@ function shove() {
   const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
   P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
   const band = P.bandT > 0, slow = band ? SHOVE_BAND : 1;
-  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow;
+  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow; runStat('shoves');
   P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow, band };
   exitScope(); cutReload(); W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();

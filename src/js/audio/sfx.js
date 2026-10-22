@@ -7,6 +7,11 @@
 // so no two kills sound alike
 const GORE_JIT = 0.14;
 const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, crackLp: 9000, crackDur: 0.09 };
+// a suppressor's sound by its step (1, 2, 3): how loud, its pitch, its highpass (Hz: the boom trimmed off), its top (a
+// share of the lowpass), and how much the room and the farm give back
+const SUPP_SND = [{ vol: 1, rate: 1, hp: 0, lp: 1, verb: 1, echo: 1 }, { vol: 0.78, rate: 1.05, hp: 110, lp: 0.85, verb: 0.8, echo: 0.7 }, { vol: 0.6, rate: 1.1, hp: 200, lp: 0.72, verb: 0.62, echo: 0.45 }];
+// the MP5 with the 10mm kit: pitched down, a low shelf under it ([Hz, dB]), a little louder, a little more echo
+const TENMM_SND = { rate: 0.89, low: [180, 6], vol: 1.1, echo: 1.15 };
 const SFX = {
   light() { nz(0.2, 'lowpass', 3200, 260, 0.75); tn(0.13, 'sine', 150, 45, 0.6); },
   heavy() { nz(0.32, 'lowpass', 2600, 180, 0.9); tn(0.22, 'sine', 120, 38, 0.8); },
@@ -17,10 +22,16 @@ const SFX = {
   // where it sits left to right); inside the farmhouse the room rings with it, harder for the big ones, and wherever you
   // are it echoes back off the farm (a heavy round more, a suppressed one barely: FAR_ECHO, audio/samples.js), dull
   // through the walls when you're in
+  // A suppressor's every step makes it quieter, a touch higher and tighter: less of the low boom, the top softened, less
+  // ring in the room and off the farm (SUPP_SND, by the gun's suppressor line; a gun quiet of itself counts as the first).
+  // The MP5's 10mm kit is a heavier, deeper bark: pitched down with more bass under it (TENMM_SND)
   fire(id, quiet, shells) {
-    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', verb = inside ? (quiet ? 0.36 : big ? 0.9 : 0.74) : 0;
+    const inside = indoors(), big = shells || id === 'deagle' || id === 'hunting' || id === 'scar' || id === 'lmg', D = W(id) || {};
+    const sp = quiet ? SUPP_SND[clamp(((W8.gt[id] || {}).supp | 0) || 1, 1, 3) - 1] : null, ten = D.tenmm ? TENMM_SND : null;
+    const verb = inside ? (quiet ? 0.36 * sp.verb : big ? 0.9 : 0.74) : 0;
     echoSet(inside);
-    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000), pan: rr(-0.12, 0.12), verb, echo: quiet ? 0.06 : big ? 0.55 : 0.4 })) return;
+    if (playS(quiet ? SUPP_SFX[id] : 'shot_' + id, { jit: 0.065, tone: 3.5, lp: rr(7500, 20000) * (sp ? sp.lp : 1), hp: sp ? sp.hp : 0, pan: rr(-0.12, 0.12), verb,
+      echo: (quiet ? 0.06 * sp.echo : big ? 0.55 : 0.4) * (ten ? ten.echo : 1), rate: (sp ? sp.rate : 1) * (ten ? ten.rate : 1), vol: (sp ? sp.vol : 1) * (ten ? ten.vol : 1), low: ten ? ten.low : null })) return;
     if (quiet) SFX.supp(shells); else SFX[GUN_SFX[id]]();
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun
@@ -50,6 +61,10 @@ const SFX = {
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
   // a board torn off hitting the ground: a hollow wooden clack
+  // steel: a blow on a grate ringing (v: how hard), a bar snapping off its weld, a piece of it hitting the ground
+  clang(v = 0.6) { const f = rr(0.9, 1.12); tn(0.22, 'triangle', 410 * f, 330 * f, 0.13 * v); tn(0.32, 'sine', 1180 * f, 1100 * f, 0.045 * v); tn(0.18, 'square', 2310 * f, 2200 * f, 0.012 * v); nz(0.07, 'bandpass', 3200 * f, 1600, 0.2 * v, 2.4); nz(0.05, 'lowpass', 600, 140, 0.18 * v); },
+  snapMetal() { nz(0.05, 'highpass', 4200, 2600, 0.3, 1); tn(0.12, 'triangle', rr(700, 820), 260, 0.14); setTimeout(() => tn(0.3, 'sine', rr(1500, 1700), 1450, 0.05), 20); },
+  metalDrop(v, plate) { const f = rr(0.85, 1.15) * (plate ? 0.8 : 1.3); tn(0.16, 'triangle', 520 * f, 360 * f, 0.12 * v); tn(0.24, 'sine', 1400 * f, 1300 * f, 0.04 * v); nz(0.06, 'bandpass', 2600 * f, 1300, 0.18 * v, 2.2); },
   plankDrop(v) { if (playS(['wood_hit_1', 'wood_hit_2'], { vol: 0.55 * v, rate: 1.15, gap: 0.04 })) return; tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },

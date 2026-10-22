@@ -16,9 +16,9 @@ const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
   // round is what it does (the line's key is still 'ammo')
   ammo: { tag: 'Powder', t: [
-    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded.', ap: () => S.dmgMul *= 1.25 },
-    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers.', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: harder hits, and headshots count for more.', ap: () => S.dmgMul *= 1.25 }] },
+    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but +18% recoil and spread every shot.', ap: () => S.dmgMul *= 1.25 },
+    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but recoil and spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
+    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: recoil and spread per shot up to +60%.', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
     { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= TRIG_UP[0] },
     { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= TRIG_UP[1] },
@@ -52,11 +52,12 @@ const TIERS = {
     { r: 'u', name: 'Taped flashlight', text: 'At night it lights the ground ahead and outlines zombies caught in the beam.', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider beam that reaches further.', ap: () => {} }] },
   // one step on each gun that takes it: the revolver's speed loader, all six rounds in at once from a loader you then
-  // drop (weapons/reload.js); on the double barrel a technique, nothing on the gun: Sleight of Hand, both shells palmed
+  // drop (weapons/reload.js); on the battle rifle a flared magwell round the bottom of its well (MAGWELL, game/run-state.js;
+  // weapons/gun-models.js); on the double barrel a technique, nothing on the gun: Sleight of Hand, both shells palmed
   // and pushed in together (game/run-state.js: SOH). (The pump's two or three shells a go come with Quick hands II and
   // III instead: PAIR_LOAD, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand' }, text: D => D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },
@@ -71,8 +72,8 @@ const TIERS = {
     { r: 'r', name: 'Running shoes', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[1] },
     { r: 'e', name: 'Trail runners', text: 'Faster again.', ap: () => S.speedMul *= BOOTS[2] }] },
   hammer: { tag: 'Tools', t: [
-    { r: 'u', name: 'Claw hammer', text: 'Each board takes half the time to nail up.', ap: () => S.boardSpeed *= 2 },
-    { r: 'u', name: 'Framing hammer', text: 'Boards go up quicker and take more blows before they break.', ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
+    { r: 'u', name: 'Claw hammer', get text() { return METAL.on ? 'Each board or grate takes half the time to put up.' : 'Each board takes half the time to nail up.'; }, ap: () => S.boardSpeed *= 2 },
+    { r: 'u', name: 'Framing hammer', get text() { return `${METAL.on ? 'Boards and grates' : 'Boards'} go up quicker and take more blows before they break.`; }, ap: () => { S.boardSpeed *= 1.5; S.boardMul *= 1.25; } },
     { r: 'r', name: 'Nail gun', text: 'Quicker and tougher again.', ap: () => { S.boardSpeed *= 2; S.boardMul *= 1.5; } }] },
   eyes: { tag: 'Senses', t: [
     // wide eyes (what were Wide eyes and Peripheral vision): a much wider cone, its edges reaching a little way round
@@ -113,7 +114,13 @@ const TIERS = {
     // bandages are still what keeps you going
     { r: 'r', name: 'Iron stomach', text: 'Some kills heal you a little, headshot kills more often, up to a limit each wave.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
     { r: 'e', name: 'Bloodthirst', text: 'Each feed heals more, and the limit goes up.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
-    { r: 'l', name: 'Vampire', text: 'Kills feed you more often (every headshot kill), for more.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] }
+    { r: 'l', name: 'Vampire', text: 'Kills feed you more often (every headshot kill), for more.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] },
+  // how far off you pick drops up (S.pickMul, pickups/pickups.js: PICK_R), and at the top step how much longer they lie
+  // there before they're gone (S.dropLife, s)
+  magnet: { tag: 'Luck', t: [
+    { r: 'r', name: 'Long reach', text: 'You pick drops up from 15% further away.', ap: () => { S.pickMul = 1.15; } },
+    { r: 'e', name: 'Sticky fingers', text: 'You pick drops up from 25% further away.', ap: () => { S.pickMul = 1.25; } },
+    { r: 'l', name: 'Magnetic', text: 'You pick drops up from 40% further away, and they lie there 20 seconds longer before they\'re gone.', ap: () => { S.pickMul = 1.4; S.dropLife = 20; } }] }
 };
 // what tier n of line k is called on gun id
 const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

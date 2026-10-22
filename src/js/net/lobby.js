@@ -77,7 +77,7 @@ function renderTeam() {
     for (const p of ps) {
       const d = document.createElement('div'); d.className = 'tm'; d.dataset.id = p.id; d.style.setProperty('--pc', NET_COL[p.idx] || '#888');
       d.innerHTML = '<div class="tmTop"><i></i><b class="tmName"></b><span class="tmHp"><em class="big"></em><span></span></span></div><div class="bar"><b></b><i></i><s></s></div>' +
-        '<div class="res">' + TEAM_RES.map(r => `<span title="${r[0].toUpperCase() + r.slice(1)}"><svg viewBox="${GI_VB}">${GI[r] || ''}</svg><b></b></span>`).join('') + '</div>';
+        '<div class="res">' + TEAM_RES.map(r => { const m = r === 'planks' && METAL.on ? 'metal' : r; return `<span title="${m[0].toUpperCase() + m.slice(1)}"><svg viewBox="${GI_VB}" data-gi="${r}">${GI[m] || ''}</svg><b></b></span>`; }).join('') + '</div>';
       el.appendChild(d);
     }
   }

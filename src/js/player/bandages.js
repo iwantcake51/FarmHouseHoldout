@@ -29,7 +29,7 @@ function startBandage() {
 function interruptBandage() {
   if (!(P.bandT > 0)) return;
   P.bandT = 0; ANIM.healCut = true; SFX.click(); bandSound(BAND_FADE.hit);   // the view snaps back out of the lean-in (player/hold.js)
-  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: 'Getting hit stops the wrap · Q to start again' });
+  toast('Bandaging interrupted', { kind: 'bad', icon: 'med', sub: `Getting hit stops the wrap · ${keyOn('bandage')} to start again` });
 }
 // how far the bandage going on has got (0 to 1)
 const bandProg = () => P.bandT > 0 ? clamp(1 - P.bandT / (P.bandMax || 1), 0, 1) : 0;
@@ -64,12 +64,12 @@ function tickBandage(dt) {
     P.bandT -= dt;
     const wr = 0.45 * bandTime() / BAND_TIME;
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
-    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
+    if (P.bandT <= 0) { const h = bandHeal(); P.bandT = 0; P.band--; runStat('bandages'); P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; feed('med', h, 'health over time'); popEl('bands'); }   // and it stays on your arm
     // back to full health before it's on (healing from the last one, or regen): the wrap stops there, done. The bandage
     // goes back in the bag, unless it went on to stop a bleed (then it's on your arm like any other)
     else if (P.hp >= S.maxHp && P.bandMax - P.bandT > 0.25) {
       P.bandT = 0; ANIM.bandDone = BAND_DONE;
-      if (P.bandBleed) { P.band--; P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
+      if (P.bandBleed) { P.band--; runStat('bandages'); P.wraps = (P.wraps || 0) + 1; popEl('bands'); }
     }
   }
   // healing over time, till you're at full health: then whatever's left of it is gone, and so is its blue

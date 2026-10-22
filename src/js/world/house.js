@@ -48,7 +48,7 @@ const WALL_FORMS = new Map(), WALL_AT = new Map();
 const FACE_V = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] };
 function wallForm(i, j, faces, inner) {
   const key = idx(i, j) + ':' + faces.join('') + ':' + inner.join(''); let w = WALL_FORMS.get(key); if (w) return w;
-  const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); scene.add(g);
+  const g = new THREE.Group(); g.position.set(cxw(i), 0, cxw(j)); g.userData.still = true; scene.add(g);   // (its shadow drawn with the rest that stands still: core/still-shadows.js)
   const kind = i === 21 && j === HZ1 ? 'door' : null;
   // every cell's pieces fade with its wall faces when you're behind them (world/cutaway.js), the door's included
   const cut = { value: 0 };
@@ -68,9 +68,11 @@ function wallForm(i, j, faces, inner) {
   }
   // inside: the wall plastered over in the colour of the room it's onto, with a skirting board (none on a corner with
   // no room against it); a corner the rooms wrap round, on both its sides
-  const pan = (G, d, y0, y1, mat, th, off) => { const [ox_, oz_] = FACE_V[d]; return box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514)); };
+  // (the plaster, the skirting and the clapboard lines lie on the wall's faces: they'd only add to its shadow what's
+  // already in it, so they cast none)
+  const pan = (G, d, y0, y1, mat, th, off) => { const [ox_, oz_] = FACE_V[d], m = box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514)); m.castShadow = false; return m; };
   // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
-  const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0); } };
+  const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0).castShadow = false; } };
   if (kind === 'door') {
     pan(g, inner[0], 2.21, 2.4, mats.inner, 0.004);   // (plastered over inside, above the door)
     // a full-depth frame flush with the walls: jambs, an oak threshold, the sided wall over the head, and cased
@@ -97,6 +99,7 @@ function wallForm(i, j, faces, inner) {
     });
     [0.62, -0.62].forEach(y => box(leaf, 0.035, 0.12, 0.06, dm.brass, -0.41, y, 0));   // hinges
     unfight(g);   // pull apart the trim's flush faces
+    foldPieces(leaf);   // (the door, a mesh a material)
     mats.paint = dm.paint; mats.panel = dm.panel;
     w.o = HOUSE_DOOR_O = houseOpening(g, i, j, 'door', faces[0]);
   } else {
@@ -116,13 +119,17 @@ function wallForm(i, j, faces, inner) {
       const at = (u, y, f, w, h, d) => box(win, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
       at(0, 0.925, 1, 0.9, 0.08, 0.03);                                                      // apron under the sill, outside
       [-1, 1].forEach(f => [-1, 1].forEach(sd => at(sd * 0.46, 1.445, f, 0.08, 0.86, 0.022)));   // jamb casings on both faces
-      // a louvred shutter folded back either side of it outside, on its hinges
-      const sat = (u, y, w, h, d, off) => box(win, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
-      [-1, 1].forEach(sd => {
+      // a louvred shutter folded back either side of it outside, on its hinges. Each reaches over into the cell beside
+      // it, so each is its own piece, shown only where that's plain wall (setWindows), never over the next window
+      w.shut = [-1, 1].map(sd => {
+        const sg = new THREE.Group(); win.add(sg);
+        const sat = (u, y, w, h, d, off) => box(sg, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
         const u = sd * 0.67; sat(u, 1.445, 0.3, 0.92, 0.024, 0.53);
         for (let k = 0; k < 7; k++) sat(u, 1.08 + k * 0.105, 0.24, 0.022, 0.012, 0.548);   // the louvres
         [-0.3, 0.3].forEach(y => sat(sd * 0.505, 1.445 + y, 0.05, 0.035, 0.03, 0.53));     // hinges
+        return sg;
       });
+      w.along = alongX ? [1, 0] : [0, 1];   // (which way along the wall the cells beside it are)
       box(win, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(win, 1.9, 2.4); box(win, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
       pan(win, inner[0], 0.015, 0.96, mats.inner, 0.004); pan(win, inner[0], 1.92, 2.4, mats.inner, 0.004); pan(win, inner[0], 0.015, 0.125, mats.base, 0.02, 0.524);
       o = houseOpening(win, i, j, 'window', faces[0]);
@@ -130,6 +137,13 @@ function wallForm(i, j, faces, inner) {
     box(g, 1.04, 0.1, 1.04, mats.trim, 0, 2.45, 0);
     w.plain = plain; w.win = win; w.o = o;
   }
+  // each part of the cell folded a mesh per material (core/geometry.js): what's on the cell itself, the plain stretch of
+  // wall, the window and the door, each apart, as they're shown and hidden apart; an opening's boards and outline panes
+  // stay as they are
+  const ops = new Set([w.o && w.o.bg].filter(Boolean));
+  foldPieces(g, new Set([w.plain, w.win, ...ops, ...g.children.filter(c => c.isGroup && c !== w.plain && c !== w.win)].filter(Boolean)));
+  [w.plain, w.win].forEach(p => { if (p) foldPieces(p, new Set([...ops, ...(w.shut || [])])); });
+  (w.shut || []).forEach(sg => foldPieces(sg));
   return w;
 }
 // an opening's own parts: where it is and which way out, the boards across it, and the outline that marks it as the
@@ -138,13 +152,13 @@ function wallForm(i, j, faces, inner) {
 function houseOpening(G, i, j, kind, face) {
   const axis = face === 'N' || face === 'S' ? 'x' : 'z';
   const out = face === 'N' || face === 'W' ? -1 : 1;
-  const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; G.add(bg);
+  const bg = new THREE.Group(); bg.rotation.y = axis === 'x' ? 0 : Math.PI / 2; bg.userData.moving = true; G.add(bg);   // (the boards come and go: core/still-shadows.js)
   const nx = axis === 'x' ? 0 : out, nz = axis === 'x' ? out : 0;
   const o = { i, j, x: cxw(i), z: cxw(j), kind, axis, out, nx, nz, boards: [], meshes: [], bg, ys: kind === 'door' ? [0.55, 1.05, 1.55] : [1.15, 1.45, 1.75] };
   const y0 = kind === 'door' ? 0.02 : 0.98, y1 = kind === 'door' ? 2.05 : 1.9;
   o.hl = [-1, 1].map(sd => {
     const p = new THREE.Group(); bg.add(p);
-    const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; p.add(m);
+    const m = new THREE.Mesh(bgeo(1.0, y1 - y0, 0.02), OPEN_HL); m.position.set(0, (y0 + y1) / 2, sd * 0.55); m.castShadow = m.receiveShadow = false; m.layers.set(OL_LAYER); p.add(m);   // (only ever drawn into the outlines' mask, never the frame)
     p.om = outline(p, 0xf4f1ea, 0, 0.035); p.om.visible = false; return p;
   });
   return o;
@@ -157,9 +171,19 @@ function setWindows(keys, live) {
   for (const w of walls) {
     if (!w.win) continue;
     const on = keys.has(w.k), o = w.o; w.plain.visible = !on; w.win.visible = on;
-    while (o.boards.length) { o.boards.pop(); o.bg.remove(o.meshes.pop()); } o.climbers = [];
+    clearBoards(o); o.climbers = [];
     cell[w.k] = on ? OPEN : WALL; openAt[w.k] = on ? o : null; if (live) blockArr[w.k] = on ? 0 : 1;
     if (on) openings.push(o);
+  }
+  // each window's shutters: one folds back against the wall only where the cell beside it is plain wall on the same
+  // face, not another window, the door or the end of the wall
+  for (const w of walls) {
+    if (!w.win || !w.shut) continue;
+    const i = w.k % N, j = (w.k / N) | 0;
+    w.shut.forEach((sg, n) => {
+      const sd = n ? 1 : -1, nk = idx(i + w.along[0] * sd, j + w.along[1] * sd), nw = WALL_AT.get(nk);
+      sg.visible = !!nw && nw.kind !== 'door' && !keys.has(nk) && nw.faces.includes(w.faces[0]);
+    });
   }
 }
 // this run's footprint (notch: the cells cut out of a back corner, {i0, i1, j0, j1}, or null for the whole rectangle):
@@ -204,7 +228,7 @@ function houseFootprint(rnd, live) {
 // lower the wing's ridge sits at least)
 const ROOF = { rise: 2.1 / 5.4, base: 2.5, ov: 0.4, under: 0.35 };
 const roof = (() => {
-  const g = new THREE.Group(); scene.add(g);
+  const g = new THREE.Group(); g.userData.still = true; scene.add(g);
   const mats = [];
   const mk = (c, side) => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true, side: side || THREE.FrontSide }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
   const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), gable = mk(0xc8bea4, THREE.DoubleSide), trimM = mk(0x4a392d), brick = mk(0x6a3a2c);
@@ -238,7 +262,7 @@ function gableRoof(cx, cz, L, half, alongZ, top, ends) {
 // the roof over this run's footprint (HOUSE.notch), with the chimney through the front roof's back slope
 function buildRoof() {
   const g = roof.g, n = HOUSE.notch;
-  while (g.children.length) { const c = g.children.pop(); c.traverse(o => { if (o.isMesh && o.userData.own) o.geometry.dispose(); }); }
+  while (g.children.length) { const c = g.children[g.children.length - 1]; g.remove(c); c.traverse(o => { if (o.isMesh && (o.userData.own || o.userData.fine)) o.geometry.dispose(); }); }
   const zA = n ? cxw(n.j1) + 0.5 : HOUSE.z0, cx = (HOUSE.x0 + HOUSE.x1) / 2, czA = (zA + HOUSE.z1) / 2, halfA = (HOUSE.z1 - zA) / 2;
   const ridgeA = gableRoof(cx, czA, HOUSE.x1 - HOUSE.x0, halfA, false, Infinity, [-1, 1]);
   if (n) {
@@ -249,6 +273,7 @@ function buildRoof() {
   const P = roof.paint, chx = cx + 3.2 * (n && n.i0 !== HX0 ? -1 : 1), chz = czA - Math.min(1.6, halfA * 0.4);
   box(g, 0.6, 1.6, 0.6, P.brick, chx, ridgeA - 0.2, chz);
   box(g, 0.7, 0.1, 0.7, P.ridge, chx, ridgeA + 0.62, chz);
+  foldPieces(g, null, { see: true });   // (a mesh a material: it fades as a whole, core/geometry.js)
   // the roof's materials stay transparent so it can fade, which would draw it after the see-through outlines and leave
   // zombies behind it unmarked: drawn first among the see-through things, its depth is there for them to test against
   g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });
@@ -258,15 +283,16 @@ setWindows(new Set([idx(19, HZ0), idx(24, HZ0), idx(HX0, 21), idx(HX1, 22)]), fa
 box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42).castShadow = false;
 // porch deck and steps
 {
-  const p = new THREE.Group(); p.position.set(cxw(21), 0, cxw(HZ1) + 1.1); scene.add(p);
+  const p = new THREE.Group(); p.position.set(cxw(21), 0, cxw(HZ1) + 1.1); p.userData.still = true; scene.add(p);
   box(p, 3.4, 0.12, 1.3, M.deck, 0, 0.06, 0);
   for (let k = -3; k <= 3; k++) box(p, 0.02, 0.125, 1.3, M.wood, k * 0.48, 0.065, 0);
   box(p, 1.2, 0.06, 0.4, M.deck, 0, 0.03, 0.85);
   [[-1.6, 0.55], [1.6, 0.55]].forEach(([a, b]) => box(p, 0.1, 2.3, 0.1, M.doorFrame, a, 1.15, b));
+  foldPieces(p);
 }
 // ---- porch roof on the two posts: a shallow shed roof off the front wall; it fades like the main roof when it would hide you ----
 const porchRoof = (() => {
-  const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); scene.add(g);
+  const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); g.userData.still = true; scene.add(g);
   const mats = [], mk = c => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
   const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), trimM = mk(0x4a392d), beamM = mk(0x3e2f25);
   const z0 = -0.6, z1 = 0.85, y0 = 2.66, y1 = 2.38, th = Math.atan2(y0 - y1, z1 - z0), len = Math.hypot(z1 - z0, y0 - y1);
@@ -278,7 +304,8 @@ const porchRoof = (() => {
   box(g, 3.4, 0.14, 0.14, beamM, 0, 2.37, 0.55);                                                       // header beam across the posts
   box(g, 3.6, 0.1, 0.08, trimM, 0, y0 - 0.06, z0 + 0.04);                                              // ledger on the wall
   [-1.6, 1.6].forEach(a => { const sd = -Math.sign(a), br = box(g, 0.42, 0.07, 0.07, beamM, a + sd * 0.17, 2.14, 0.55); br.rotation.z = sd * 0.78; });   // knee braces post to header
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.renderOrder = -10; } });   // drawn before the outlines, like the main roof
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; }); foldPieces(g, null, { see: true });
+  g.traverse(o => { if (o.isMesh) o.renderOrder = -10; });   // drawn before the outlines, like the main roof
   return { g, mats, op: 1, x: cxw(21), z: cxw(HZ1) + 1.1, paint: { shingle, ridge: ridgeM, trim: trimM } };
 })();
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and

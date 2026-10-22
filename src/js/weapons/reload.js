@@ -36,7 +36,10 @@ const rollFumble = chance => SHAKY.k > 0.02 && rand() < chance * SHAKY.k ? { at:
 // whether they go in one at a time off a row in the palm (the pump with Quick hands) rather than together
 function goSize(id, D) { if (!W8.goN) W8.goN = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id))); return W8.goN; }
 const rowLoad = (id, D) => (D.loadN || 1) > 1 && EJECT[id] === 'pump';
-// n shells in: counted, the reload ring pulsed, each heard (a pair a beat apart), the gun jolted
+// how long one go takes: a row of n shells is stretched, if it has to be, so each is thumbed in at least ROW_GAP after
+// the last ("in, in, in", not all in one go), the row's pushes taking HSH_FEED of the go (player/hold.js)
+const shellGo = (id, D, n = D.loadN || 1) => Math.max(D.perShell * relMul(id), n > 1 && rowLoad(id, D) ? n * ROW_GAP / (HSH_FEED[1] - HSH_FEED[0]) : 0);
+// n shells in: counted, the reload ring pulsed, each heard (the double barrel's pair a beat apart), the gun jolted
 function shellIn(id, D, n) {
   W8.mag[id] = (W8.mag[id] || 0) + n; W8.reserve[D.ammo] -= n; W8.shellsIn += n; W8.goIn += n; reloadTick(); SFX.shell(); for (let k = 1; k < n; k++) setTimeout(() => SFX.shell(), 55 * k);
   reloadJolt(0.09 + 0.03 * (n - 1)); shake = Math.max(shake, 0.06);
@@ -48,9 +51,10 @@ function startReload() {
   if (sv && (sv.st === 'out' || sv.st === 'in')) { resumeStage(id, D, sv); return; }
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
+  runStat('reloads');
   // the revolver dumps every empty at once, a beat after the cylinder swings out
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
-  W8.relStyle = Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done, and its own feel (player/hold.js)
+  W8.relStyle = D && D.akKit ? 1 : Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done (an AK mag only one: hooked in at the front and rocked back), and its own feel (player/hold.js)
   W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false; W8.fumble = null;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
@@ -60,8 +64,8 @@ function startReload() {
     if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
     W8.relWait = racked(id) && !W8.held[id] && (EJECT[id] === 'bolt' || (W8.mag[id] || 0) <= 0) ? openAction(id) : 0;
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id)); W8.goN = 0; W8.goIn = 0;
-    W8.reloadT = (D.perShell * relMul(id) + firstShell(id)) * hurtRel(); W8.reloadMax = W8.reloadT; W8.fumble = rollFumble(HURT_REL.shellFumble);
-    W8.relRing = { id, el: 0, tot: W8.relWait + W8.reloadT + D.perShell * relMul(id) * hurtRel() * (Math.ceil(W8.shellsNeed / (D.loadN || 1)) - 1), tail: relTail(id, D), p0: -1, t0: -1 };
+    W8.reloadT = (shellGo(id, D, goSize(id, D)) + firstShell(id)) * hurtRel(); W8.reloadMax = W8.reloadT; W8.fumble = rollFumble(HURT_REL.shellFumble);
+    W8.relRing = { id, el: 0, tot: W8.relWait + W8.reloadT + shellGo(id, D) * hurtRel() * (Math.ceil(W8.shellsNeed / (D.loadN || 1)) - 1), tail: relTail(id, D), p0: -1, t0: -1 };
   } else if (D.speedload) { W8.reloading = 'mag'; W8.reloadT = W8.reloadMax = D.reload * relMul(id) * hurtRel(); W8.fumble = rollFumble(HURT_REL.fumble); W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
@@ -78,6 +82,10 @@ const SL_IN = 0.56, SL_DROP = 0.7, SL_SHUT = 0.84;
 // how far through a mag reload the mag is pushed home, and (for a rifle with a charging handle) when the handle is
 // pulled and let go; player/hold.js poses the hands to the same marks
 const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.86, CH_SLAM = 0.9;
+// the charging handle's beats (player/hold.js): the hand's on its way up to it over CH_REACH, takes hold and starts
+// drawing it at CH_DRAW (back by CH_PULL), lets go at CH_SLAM, and is back on the grip over CH_BACK; the handle bounces
+// CH_BOUNCE of its travel back off its stop
+const CH_REACH = [0.725, 0.805], CH_DRAW = 0.81, CH_BACK = [0.925, 1], CH_BOUNCE = 0.06;
 // a magazine gun run dry takes EMPTY_MUL longer to reload than one with rounds left (it's fumbled out of an empty gun,
 // and the gun's charged or its slide dropped at the end). Pistols whose slide locks back on the last round
 // (player/hold.js holds it there, in the hand and in the holster): a
@@ -97,9 +105,12 @@ const hasCharge = () => !!CHARGE[W8.cur];
 // is in your hands and they're free (resumeReload, each frame from weapons/combat-update.js). Till it has, a gun with
 // its mag out, or in but not charged, won't fire; a shot fired first forgets a 'start' or a 'shell'
 const MAG_DROP_T = 0.14;   // seconds into a mag change the old mag comes free and falls (no more than 0.3 of the change)
+// an AK mag isn't dropped straight out: it's rocked forward off its front lug first (the battle rifle's AK kit,
+// player/hold.js), and comes free AKM_DROP_T in
+const AKM_DROP_T = 0.3, magDropT = () => { const D = W(curId()); return D && D.akKit ? AKM_DROP_T : MAG_DROP_T; };
 // where in a mag reload (0 to 1) the old mag falls and the new one's seated (player/hold.js poses the hands the same)
 const magK = () => hasCharge() ? CH_MAG : W8.relEmpty ? PS_MAG : 1;
-const magOutP = () => Math.min(0.3, MAG_DROP_T / Math.max(0.3, W8.reloadMax)) * magK();
+const magOutP = () => Math.min(0.3, magDropT() / Math.max(0.3, W8.reloadMax)) * magK();
 const magSeatP = () => MAG_SEAT * magK();
 const relHeld = id => { const sv = W8.relSave[id]; return !!sv && (sv.st === 'out' || sv.st === 'in'); };
 function cutReload() {
@@ -162,10 +173,10 @@ function tickReload(dt) {
     if (ps && !W8.pulled && W8.relVar === 0 && p >= PS_TUG) { W8.pulled = true; SFX.chargePull(); reloadJolt(0.06); }   // tugged off the stop
     if (ps && !W8.slammed && p >= PS_REL[W8.relVar]) { W8.slammed = true; SFX.slideDrop(); reloadJolt(0.22); shake = Math.max(shake, 0.09); }   // and it slams home
   }
-  // the pump's row of shells off the palm (Quick hands): each one counted in as it's thumbed in, quick one after another
-  // (as player/hold.js feeds them, HSH_FEED), the last as the go ends
+  // the pump's row of shells off the palm (Quick hands): each one counted in as its push ends, one after another (as
+  // player/hold.js thumbs them in, HSH_FEED), whatever's left as the go ends
   if (W8.reloading === 'shell' && rowLoad(id, D)) {
-    const n = goSize(id, D), due = Math.min(n - 1, Math.floor(n * clamp((1 - W8.reloadT / W8.reloadMax - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
+    const n = goSize(id, D), due = Math.min(n, Math.floor(n * clamp((1 - W8.reloadT / W8.reloadMax - HSH_FEED[0]) / (HSH_FEED[1] - HSH_FEED[0]), 0, 1)));
     while (W8.goIn < due) shellIn(id, D, 1);
   }
   if (W8.reloadT > 0) return;
@@ -175,7 +186,7 @@ function tickReload(dt) {
     const n = goSize(id, D) - W8.goIn;
     if (n > 0) shellIn(id, D, n);
     W8.goN = 0; W8.goIn = 0;
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = D.perShell * relMul(id) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = shellGo(id, D, goSize(id, D)) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
     // done: a pump or bolt gun that's open has its action pushed home straight away (weapons/casings.js), one that's
     // chambered is ready as it is; anything else snaps shut
     else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); else if (W8.held[id] && W8.mag[id] > 0) { chamberCycle(id); delete W8.held[id]; } }

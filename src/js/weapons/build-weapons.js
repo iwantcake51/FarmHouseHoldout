@@ -15,7 +15,7 @@ function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y
 // slot whose model isn't the weapon in it now (one just put in it, or emptied) is built too
 // what moves on a weapon once it's built, gathered as it's built: the mag groups, the slides and bolts, the revolver's
 // crane, the charging handle, the double barrel's barrels and rims, the belt, and where the mag sits (for dropping it)
-const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null });
+const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null, legs: null });
 // one weapon's model built into parent (a hold group for a gun, the holder itself for a melee weapon), its moving parts
 // noted in rec. It reads the gun's mods, tiers, attachments and rounds from W8 (tierCtx is the gun): a co-op teammate's
 // are swapped in for the moment by withLoadout (net/arsenal.js)
@@ -38,6 +38,7 @@ function buildWeapon(parent, id, D, mods, rec) {
   // sawn-off's forend), so it all swings down with them when it's broken open
   if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });
   if (info.brk) rec.brk = { g: info.brk, rims: info.rims || [] };
+  if (info.legs) rec.legs = info.legs;   // a bipod's legs, swinging with the gun (player/hold.js: bipodSway)
   if (info.belt) rec.belt = info.belt;   // a belt-fed gun's rounds, shown by what's left (player/hold.js)
   // pull apart faces that would z-fight (a moment later for a weapon built in play: unfightSoon), then let the slides
   // and bolts note their rest positions
@@ -59,8 +60,26 @@ const gearBuilt = { sig: null, look: null, run: null };
 const ufSoon = []; let ufSoonT = 0;
 function unfightSoon(g) {
   ufSoon.push(g); if (ufSoonT) return;
-  const run = () => { ufSoonT = 0; const list = ufSoon.splice(0); list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o === scene) unfight(q); }); stowDirty = true; };
+  const run = () => {
+    ufSoonT = 0; const list = ufSoon.splice(0), slots = new Set();
+    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).includes(q)); if (s) slots.add(s); });
+    slots.forEach(s => { const id = W8.slot[s]; if (id && gunMeshes[s].userData.bloodId === id) { foldGun(s); stainWeapon(id, Object.values(HOLDS[s]), false); } });   // (folded now its faces are settled, and stained again)
+    stowDirty = true;
+  };
   ufSoonT = typeof requestIdleCallback === 'function' ? requestIdleCallback(run, { timeout: 300 }) : setTimeout(run, 60);
+}
+// a gun's pieces that never move or change folded into a mesh per material, under the hold and under each part that
+// moves (core/geometry.js: foldPieces), so a rifle is a dozen draws instead of a couple of hundred. The moving parts
+// (slides, bolts, mags, the cylinder, a break-action's barrels, the charging handle, the belt, the bipod's legs) and
+// anything noted on (a laser, a clip, the cylinder's rounds) keep their own. The blood's taken off first and goes back
+// on after (it's a material a piece: effects/body-blood.js), so pieces of one material fold together. Melee weapons
+// stay as they're built (player/grip.js finds the hands' places on their pieces)
+function foldGun(s) {
+  const hs = Object.values(HOLDS[s] || {}); if (!hs.length) return;
+  const stop = new Set(movingOf(HOLDS[s], { magg: MAGG[s] || [], slides: SLIDES[s] || [], crane: CRANE[s] || [], brk: BRK[s], belt: BELT[s] })), lg = BIPOD[s];
+  if (lg) (Array.isArray(lg) ? lg : [lg]).forEach(o => { const n = o && (o.isObject3D ? o : o.g); if (n && n.isObject3D) stop.add(n); });
+  hs.forEach(h => h.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.bloodOf) o.material = o.material.userData.bloodOf; }));
+  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop); });
 }
 function buildGuns(only) {
   recomputeEff();
@@ -76,7 +95,7 @@ function buildGuns(only) {
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
     HOLDS[s] = null; tierCtx = id;
     const rec = Object.assign(weaponRec(), { soon: state === 'play' || state === 'upgrade' || state === 'paused' }), build = parent => buildWeapon(parent, id, D, mods, rec);
-    SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null;
+    SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; BIPOD[s] = null;
     const g = gunMeshes[s];
     // guns sit in one hold group per hand (player/hold.js poses them): a single one for the right hand, or a pair for akimbo
     const hold = (x0, side) => { const h = new THREE.Group(); h.position.x = x0; h.userData.x0 = x0; h.userData.side = side; g.add(h); return h; };
@@ -84,8 +103,9 @@ function buildGuns(only) {
     else if (D.akimbo) { const a = hold(AKX - X, 'R'), b = hold(-AKX - X, 'L'); MUZ[s] = build(a); build(b); HOLDS[s] = { R: a, L: b }; }
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
-    MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt;
-    stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
+    MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
+    if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
+    trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     tierCtx = null;
   }
   if (gear) buildGear();

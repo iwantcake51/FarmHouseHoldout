@@ -60,7 +60,7 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
@@ -79,10 +79,19 @@ NET_ON.w = m => {
   }
   // the doors between rooms: how beaten they are, the same pieces broken out of them (world/interior.js)
   if (m.dh) m.dh.forEach((h, k) => { const d = HOUSE_DOORS.list[k]; if (d && h < d.hp) { d.hp = h; doorWear(d, null); } });
+  // the metalwork bench and how far the grates are plated (the team's: barricades/metal-bars.js)
+  if (m.mt !== undefined && m.mt !== (METAL.on ? METAL.tier + 1 : 0)) applyMetal(m.mt > 0, Math.max(0, m.mt - 1), m.mt > 0 && !METAL.on);
   // the boards: how many on each opening and how worked loose they are (the host's word for it, unless one went up or
-  // came down here a moment ago and the host hasn't caught up yet)
+  // came down here a moment ago and the host hasn't caught up yet); a grate (gh: what it went up out of) is one
   m.b.forEach((hb, k) => {
     const o = openings[k]; if (!o || now < (o.netT || 0)) return;
+    const gh = m.g && Math.abs(m.g[k]), gf = m.g && Math.sign(m.g[k]);   // (its strength, and the side it's on)
+    if (gh && hb.length) {
+      if (!o.grate) { clearBoards(o); addGrate(o, hb[0], gf, gh); }
+      else if (o.grate.tier !== METAL.tier) regrate(o);
+      o.grate.hp0 = gh; o.boards[0] = hb[0]; return;
+    }
+    if (o.grate && hb.length) clearBoards(o);   // (boards there in the host's game, a grate here: the host's goes)
     while (o.boards.length > hb.length) breakBoard(o, null);
     while (o.boards.length < hb.length) addBoard(o, hb[o.boards.length], 1);
     hb.forEach((h, q) => { o.boards[q] = h; });
@@ -103,10 +112,13 @@ function puppetBoard(z, dme) {
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
   if (z.atk > 0) return;
-  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z); boardJolt(o, z); shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)); }   // (a brute's smash, zombies/ai.js)
+  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z, true); if (!o.grate) boardJolt(o, z); shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)); }   // (a brute's smash, zombies/ai.js)
   else { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
+// a spitter rearing back, and letting go (zombies/spitter.js): the same glob flies in every game
+NET_ON.spw = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead) return; const s = z.sp || (z.sp = { cd: 0, w: 0, thr: 0 }); s.w = 0.001; spitWindFx(z); };
+NET_ON.spt = m => { const z = NZ.get(m.id); if (NET.host || !z) return; const s = z.sp || (z.sp = { cd: 0, w: 0, thr: 0 }); s.w = 0; s.thr = 1; launchGlob(z, ...m.a); };
 function netLunge(z, at, armMul) { if (netLink() && z.id) netSend('za', { id: z.id, h: at || '', am: armMul || 1 }); }
 NET_ON.za = m => {
   const z = NZ.get(m.id); if (!z || z.dead) return;
@@ -114,6 +126,9 @@ NET_ON.za = m => {
   if (m.h === NET.id && !P.dead && state !== 'title') { zStrike(z, m.am); zStruckFx(); }
 };
 
+// a zombie a brute's dash ran down or clipped (zombies/knockdown.js): the same fall, or the same stagger aside, on every
+// screen, from the host's seed (b: the side it was clipped on, 0 if it went down)
+NET_ON.zk = m => { const z = NZ.get(m.id); if (NET.host || !z || z.dead || state === 'title') return; if (m.b) bumpAside(z, m.dx, m.dz, m.b, m.s); else knockDown(z, m.dx, m.dz, m.s); };
 // a brute's dash (zombies/brute-dash.js): everyone sees the crouch and the stripe; if it runs into you, you take it
 NET_ON.zdw = m => { if (NET.host) return; const z = NZ.get(m.id); if (z && !z.dead && !z.dash) dashStart(z, m.dx, m.dz, m.L); };
 NET_ON.zdh = m => { const z = NZ.get(m.id); if (z && m.h === NET.id && !P.dead && state !== 'title') { dashHit(z, m.dx, m.dz); zStruckFx(); } };
@@ -177,11 +192,27 @@ NET_ON.nade = m => { if (state === 'title') return; const g = m.g; grenades.push
 function netBoardUp(o) {
   if (!netLink()) return;
   o.netT = performance.now() + 1500;
-  netSend('ba', { o: openings.indexOf(o), hp: Math.round(o.boards[o.boards.length - 1]), sd: Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1 });
+  const ba = { o: openings.indexOf(o), hp: Math.round(o.boards[o.boards.length - 1]), sd: Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1 };
+  if (o.grate) ba.gr = Math.round(o.grate.hp0);   // (a grate: what it went up out of)
+  netSend('ba', ba);
 }
-NET_ON.ba = m => { const o = openings[m.o]; if (!o || state === 'title' || o.boards.length >= 3) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd); };
+NET_ON.ba = m => {
+  const o = openings[m.o]; if (!o || state === 'title') return;
+  if (m.gr) { if (o.boards.length) return; o.netT = performance.now() + 1500; addGrate(o, m.hp, m.sd, m.gr); return; }
+  if (o.boards.length >= 3 || o.grate) return; o.netT = performance.now() + 1500; addBoard(o, m.hp, m.sd);
+};
+// the metalwork bench built, or the grates plated a tier more, by anyone: the same on every screen (the host passes a
+// joiner's on to everyone, net/net.js; its snapshots, 'w', carry it too, for anyone who missed it)
+function netMetal() { if (netLink()) netSend('mtl', { lv: METAL.tier }); }   // (not t: that's the message's own type)
+NET_ON.mtl = m => {
+  if (state === 'title') return;
+  if (!METAL.on || m.lv > METAL.tier) applyMetal(true, Math.max(m.lv, METAL.tier), !METAL.on);
+};
 // (at: which side a board shot or torn down goes flying to, for one no zombie broke)
 // a door between rooms broken down in the host's game: down in everyone's (world/interior.js)
+// a stretch of the yard fence a brute knocked down (zombies/ai.js: bruteFence), knocked down on every screen
+function netFenceBroke(k, z) { if (netLink() && NET.host) netSend('fb', { k, id: z ? z.id : 0 }); }
+NET_ON.fb = m => { if (NET.host || cell[m.k] !== FENCE) return; const z = NZ.get(m.id) || null; breakFence(m.k % N, (m.k / N) | 0, z); if (z && z.an) z.an.rip = 1; };
 function netDoorBroke(d, z) { if (netLink() && NET.host) netSend('db', { d: HOUSE_DOORS.list.indexOf(d), id: z ? z.id : 0 }); }
 NET_ON.db = m => { const d = HOUSE_DOORS.list[m.d]; if (!d || NET.host || d.broken) return; breakDoor(d, NZ.get(m.id) || null); };
 function netBoardBroke(o, z, at) {
@@ -198,12 +229,15 @@ NET_ON.bs = m => {
   const at = { x: o.x + m.dx, z: o.z + m.dz, vis: visAt(o.x, o.z) };
   boardJolt(o, at); if (NET.host) hurtBoard(o, m.d, at);
 };
-// a joiner tearing a board down: the host breaks it, and its 'bb' breaks it everywhere, theirs included
+// a barricade mended between waves (barricades/interactions.js): mended on every screen (the host passes a joiner's on)
+function netRepair(o, kind, j) { if (netLink()) netSend('rp', { o: openings.indexOf(o), g: kind === 'grate' ? 1 : 0, j }); }
+NET_ON.rp = m => { const o = openings[m.o]; if (!o || state === 'title') return; repairBarricade(o, m.g ? 'grate' : 'board', m.j || 0, false); };
+// a joiner tearing the boards down: the host breaks them all, and its 'bb's break them everywhere, theirs included
 function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x: nr(at.x), z: nr(at.z) }); }
-NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; const at = { x: m.x, z: m.z }; breakBoard(o, at); netBoardBroke(o, null, at); };
+NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
-NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };
+NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog); spawnQ = new Array(m.tot).fill('walker'); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
 // starting the next wave early: alone, T does it; in co-op it's a vote, and the wave starts once SKIP_VOTE of everyone
 // in the game (rounded up, the downed too) has pressed T. Pressing it again takes your vote back. The host counts them
@@ -223,9 +257,9 @@ NET_ON.sv = m => { if (NET.host) return; skipVotes.clear(); m.v.forEach(v => ski
 // the break's line under the wave number: the countdown, and how to start it early (in co-op, the vote so far)
 function breakSub() {
   const t = `Next wave in ${Math.ceil(Math.max(0, breakT))}s`;
-  if (!netLink()) return t + ' · <kbd>T</kbd> to start now';
+  if (!netLink()) return t + ` · ${kbd('wave')} to start now`;
   const n = skipVotes.size, need = skipNeed();
-  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · <kbd>T</kbd> takes it back` : ` · <kbd>T</kbd> vote to start ${n}/${need}`);
+  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · ${kbd('wave')} takes it back` : ` · ${kbd('wave')} vote to start ${n}/${need}`);
 }
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;
@@ -271,17 +305,25 @@ NET_ON.picked = m => { const p = NET.peers.get(m.f); if (p) p.cw = Math.max(p.cw
 // (their health and weapon on your HUD, and that you're down: net/spectate.js)
 function netDown() { timeScale = 1; SPEC.id = ''; }
 // back in the house after the wave you went down in, as someone new: full health, a new face and clothes, and every
-// weapon you had, mods, attachments and rounds and all, but no ammo: the mags empty (and anything half done to them,
-// a staged reload, a gun left open, spent cases, gone with it) and nothing in reserve. The melee weapon comes out, the
-// one thing ready to use; then the cards like everyone else
+// weapon you had, mods, attachments and rounds and all, each gun with a fresh mag in it and RESPAWN_MAGS more of its
+// ammo in reserve (anything half done to them, a staged reload, a gun left open, spent cases, gone). Back with what
+// you were holding when you went down; then the cards like everyone else
+const RESPAWN_MAGS = 3;
 function netRespawn() {
+  unragYou();   // up off the floor (player/player-ragdoll.js)
+  deathCineEnd();   // (the death camera's done: ui/screens.js)
   for (const s of ['side', 'long', 'auto']) {
     const id = W8.slot[s]; if (!id) continue;
     W8.mag[id] = 0; [W8.akMag, W8.relSave, W8.pin, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });
   }
   for (const k in W8.reserve) W8.reserve[k] = 0;
-  W8.reloading = null; W8.akRel = null; W8.cur = 'melee';
+  W8.reloading = null; W8.akRel = null;
   recomputeEff();
+  for (const s of ['side', 'long', 'auto']) {
+    const id = W8.slot[s], D = id && W(id); if (!D || D.melee || !D.ammo) continue;
+    const n = magSize(id); W8.mag[id] = n; W8.reserve[D.ammo] = (W8.reserve[D.ammo] || 0) + n * RESPAWN_MAGS;
+  }
+  if (!W8.slot[W8.cur]) W8.cur = 'melee';
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
   Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;

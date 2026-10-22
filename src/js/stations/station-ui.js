@@ -9,7 +9,23 @@ function stationDist(s) {
   const [cx, cz, hw, hd] = s.foot, dx = Math.max(0, Math.abs(P.x - cx) - hw), dz = Math.max(0, Math.abs(P.z - cz) - hd);
   return Math.hypot(dx, dz) * STATION_REACH / FOOT_REACH;   // scaled so both kinds compare on the same footing
 }
-function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { if (s.coop && !netLink()) continue; const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }   // (the strongbox is for co-op only)
+// which you'd use: standing on a station's own spot in front of it (within STATION_SPOT) it's always that one, however
+// near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
+// the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
+const STATION_SPOT = 0.7, STATION_FACE = 0.35;
+function nearestStation() {
+  let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  for (const s of STATIONS) {
+    if (s.coop && !netLink()) continue;
+    const u = Math.hypot(s.x - P.x, s.z - P.z); if (u < sd) { sd = u; spot = s; }
+    const d = stationDist(s); if (d >= STATION_REACH) continue;
+    const cx = s.foot ? s.foot[0] : s.x, cz = s.foot ? s.foot[1] : s.z, l = Math.hypot(cx - P.x, cz - P.z) || 1;
+    const k = d - STATION_FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
+    if (k < bd) { bd = k; best = s; }
+  }
+  return spot || best;
+}
 // the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
@@ -29,12 +45,35 @@ function closeStation() {
 }
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
-const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', med: '#d0432c', supply: '#d8692c' };
+const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', metal: '#a9bccb', med: '#d0432c', supply: '#d8692c' };
 const stIconCol = r => ST_ICON_COL[openSt.id === 'bench' && r.group && r.ic !== 'att' ? 'upg' : r.ic];
-// a tiered upgrade's stars (r.tier(): how many steps you have, of how many): one per step, filled for those you have,
-// outlined for those you don't, the one this card buys a brighter outline than the rest
+// a tiered upgrade's stars (r.tier(): how many steps you have, of how many, and each step's rarity): one per step,
+// filled for those you have, outlined for those you don't, the one this card buys a brighter outline than the rest.
+// Where the steps aren't all one rarity, each star, filled or outlined, is in its own step's rarity colour (STAR_COL):
+// green, then blue, then purple for a line that goes uncommon, rare, epic. Everywhere the stars show (here at the
+// stations, on the cards after a wave: upgrades/upgrade-screen.js)
 const STAR = '<path d="M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z"/>';
-const starRow = (n, of) => of > 1 ? `<span class="stars" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}>${STAR}</svg>`).join('')}</span>` : '';
+const STAR_COL = { c: '#c4bcad', u: '#6fd07a', r: '#5f9ee8', e: '#a585f4', l: '#f0a050' };
+// a star just earned fills with liquid seeping in from all round it, every point and edge at once: the liquid is the
+// star itself, masked by a wobbling blob in the middle that turns and shrinks away to nothing (its wet front, a ring of
+// it at half strength just ahead), till it's full and brims with a little pop (STAR_FILL ms; upgrades.css:
+// .stars svg.fill). Each one masks its own liquid
+const STAR_D = 'M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1.3-6.57L2.5 9.47l6.65-.82z', STAR_FILL = 1800;
+const STAR_BLOB = 'M13.68 0L14.09 2.23L13.22 4.3L11.51 5.87L9.81 7.13L8.56 8.56L7.44 10.24L5.9 11.58L3.89 11.96L1.82 11.47L0 10.87L-1.71 10.82L-3.65 11.22L-5.81 11.41L-7.93 10.91L-9.75 9.75L-11.24 8.16L-12.33 6.28L-12.73 4.14L-12.28 1.94L-11.32 0L-10.6 -1.68L-10.55 -3.43L-10.76 -5.48L-10.41 -7.56L-9.11 -9.11L-7.26 -9.99L-5.45 -10.7L-3.84 -11.82L-2.09 -13.23L0 -14.13L2.2 -13.87L4.08 -12.56L5.54 -10.86L6.77 -9.31L7.93 -7.93L8.99 -6.53L9.95 -5.07L11.04 -3.59L12.41 -1.97Z';
+let starClip = 0;
+// (id: the mask's own name; the same each time a line's drawn while its star fills, so redrawing it doesn't restart it)
+const starFillSvg = (cls, sc, id) => { id = id || 'stf' + (++starClip); return `<svg viewBox="0 0 24 24" class="${cls} fill"${sc || ''}><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-2" y="-2" width="28" height="28"><path d="${STAR_D}" fill="#fff"/><g class="hole"><g class="wob"><path d="${STAR_BLOB}" fill="#777" transform="scale(1.16)"/><path d="${STAR_BLOB}" fill="#000"/></g></g></mask></defs><path class="liq" d="${STAR_D}" mask="url(#${id})"/><path class="ol" d="${STAR_D}"/></svg>`; };
+// key: which line this is (so a star just bought on it fills: the stars it had last time it was drawn, STAR_SEEN)
+const STAR_SEEN = new Map();
+const starRow = (n, of, rars, key) => {
+  if (!(of > 1)) return '';
+  const mixed = rars && new Set(rars.slice(0, of)).size > 1;
+  let from = n;
+  if (key) { const now = performance.now(), sn = STAR_SEEN.get(key); if (sn && n > sn.n) STAR_SEEN.set(key, { n, from: sn.n, t: now }); else if (!sn || n < sn.n) STAR_SEEN.set(key, { n, from: n, t: 0 }); const q = STAR_SEEN.get(key); if (now - q.t < STAR_FILL) from = q.from; }
+  return `<span class="stars${mixed ? ' rar' : ''}" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => { const sc = mixed && rars[k] ? ` style="--sc:${STAR_COL[rars[k]]}"` : ''; return k >= from && k < n ? starFillSvg('on', sc, 'stf' + key.replace(/[^a-z0-9]/gi, '') + '_' + k) : `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}${sc}>${STAR}</svg>`; }).join('')}</span>`;
+};
+// each step's rarity on line k, as gun id has it (some guns call a step a rarer one: rAs)
+const tierRars = (k, id) => TIERS[k].t.map(st => (st.rAs && st.rAs[id]) || st.r);
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
 const chipCache = new Map(); let chipKey = '';
@@ -53,13 +92,14 @@ function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   $('station').classList.toggle('isRack', openSt.id === 'rack');
-  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench');
+  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench' || (openSt.id === 'saw' && !METAL.on));
+  forgeBar();   // (the sawhorse's metalwork bench button, below)
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
   // (the ammo has no card of its own at the workbench: it's the quick buttons, quickAmmo below)
   const all = RECIPES[openSt.id], ids = all.map((r, i) => i).filter(i => !all[i].quick), rows = ids.map(i => all[i]), struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
-  const txs = rows.map(r => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? starRow(...r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
+  const txs = rows.map((r, i) => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? (([n, of, rars]) => starRow(n, of, rars, openSt.id + '|' + (r.group || '') + '|' + ids[i]))(r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
   if (struct !== stStruct || btns.length !== rows.length) {
     stStruct = struct; let group = null, k = 0;   // k: each heading and card's place, for the cards rising in one after another as it opens
@@ -87,7 +127,7 @@ function renderStation() {
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
   quickAmmo(all);
-  { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · I to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}E to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
+  { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · ${keyOn('stats')} to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}${keyOn('use')} to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 // ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
 // Picking one draws it, and the bench's cards (and the stats beside it) change over to it, so you can upgrade each
@@ -128,6 +168,35 @@ function quickAmmo(rows) {
     b.classList.toggle('ok', ok); b.querySelector('.cost').classList.toggle('short', S.scrap < r.cost);
   }
 }
+// ---- the sawhorse's way up to the metalwork bench (barricades/metal-bars.js): one button pinned along the bottom, as
+// the workbench's ammo is, saying what it takes: the boards braced all the way (BRACE.max) and METAL_COST scrap. Grey
+// with what's still missing ticked off as you get it, it eases into colour with a pop once you can, and a click builds it
+const FG_TICK = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z"/></svg>', FG_LOCK = '<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+let fgReady = null;
+function forgeBar() {
+  const el = $('stForge'), on = !!openSt && openSt.id === 'saw' && !METAL.on;
+  if (el.hidden === on) el.hidden = !on;
+  if (!on) { fgReady = null; el.classList.remove('ready', 'pop'); return; }
+  if (!el.firstElementChild) el.innerHTML = `<button type="button"><span class="fgIc"><svg viewBox="${GI_VB}">${GI.metal}</svg></span>
+    <span class="fgTx"><b>Metalwork bench</b><em>Steel grates instead of boards</em><span class="fgReq"><i class="rq" data-rq="brace"></i><i class="rq" data-rq="scrap"></i></span></span>
+    <span class="fgGo"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b>${METAL_COST}</b></span><small></small></span></button>`;
+  const lv = Math.min(braceLv(), BRACE.max), br = lv >= BRACE.max, sc = S.scrap >= METAL_COST, ok = br && sc, k = lv + '|' + S.scrap;
+  if (el._k !== k) {
+    el._k = k;
+    const rb = el.querySelector('[data-rq="brace"]'), rs = el.querySelector('[data-rq="scrap"]');
+    rb.classList.toggle('met', br); rb.innerHTML = `${br ? FG_TICK : FG_LOCK}Brace the boards V<span class="pips">${Array.from({ length: BRACE.max }, (_, q) => `<i${q < lv ? ' class="on"' : ''}></i>`).join('')}</span>`;
+    rs.classList.toggle('met', sc); rs.innerHTML = `${sc ? FG_TICK : FG_LOCK}${METAL_COST} scrap${sc ? '' : ` · ${METAL_COST - S.scrap} more`}`;
+    el.querySelector('.fgGo small').textContent = ok ? 'Upgrade' : 'Locked';
+    el.querySelector('.cost').classList.toggle('short', !sc);
+    el.querySelector('button').setAttribute('aria-disabled', ok ? 'false' : 'true');
+  }
+  if (ok !== fgReady) { const was = fgReady; fgReady = ok; el.classList.toggle('ready', ok); if (ok && was !== true) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); } }
+}
+$('stForge').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !openSt || openSt.id !== 'saw' || METAL.on) return;
+  if (braceLv() < BRACE.max || S.scrap < METAL_COST) { SFX.click(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+  S.scrap -= METAL_COST; popEl('scrap'); forgeMetal(); SFX.craft(); renderStation();
+});
 $('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && openSt.id === 'bench') { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {

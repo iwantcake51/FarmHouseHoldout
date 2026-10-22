@@ -5,7 +5,8 @@
 // per kind: its sprites (one picked for each particle), additive or not, colour (col2: what it cools to over its life),
 // whether the light round it colours it (lit; gain lifts a grey sprite back up), gravity, drag and rise; streak: drawn
 // out along its motion on screen; upright: kept roughly upright (flames), never spun; fin: how much of its life it
-// takes to come in; fade: how sharply it thins away at the end; boost: an additive sprite's brightness
+// takes to come in; fade: how sharply it thins away at the end; boost: an additive sprite's brightness; self: how much
+// of its own colour a lit one keeps however dark it is round it (something glowing, or hot)
 const TEX_DIRT = partSet('dirt1', 'dirt2', 'dirt3'), TEX_FLAMES = partSet('flame1', 'flame2', 'flame3', 'flame4', 'flame5', 'flame6'), TEX_FIRE = partSet('fire1', 'fire2');
 const TEX_TRACE = partSet('trace1', 'trace2', 'trace6', 'trace7'), TEX_BURST = partSet('burst1', 'burst2'), TEX_DOT = [partTex('dot')], TEX_GLOWS = [partTex('glowSoft')];
 const FXK = {
@@ -180,7 +181,7 @@ function blastFx(x, z, r, small) {
   groundDust(x, z, 2.4 * k, 0, 0); cubeBurst(x, 0.15, z, Math.round(12 * k), 'dust', 0, 0, 5 * k, 0.6);
   for (let n = 0, c = Math.round(12 * k) + 1; n < c; n++) fx('smoke', x + rr(-0.5, 0.5) * k, rr(0.3, 1.1), z + rr(-0.5, 0.5) * k, rr(-0.7, 0.7), rr(0.7, 1.8) * k, rr(-0.7, 0.7), rr(0.5, 0.8) * k, rr(2.2, 3.4) * k + 0.4, rr(3, 4.5), rr(0.75, 0.9));
 }
-const _fw = { x: 0, z: 0 };
+const _fw = { x: 0, z: 0 }, _fs = new THREE.Color();
 function stepFx(dt) {
   if (dt <= 0) return;
   for (const p of fxs) {
@@ -205,7 +206,11 @@ function stepFx(dt) {
       if (p.kind === 'dragon') { s.scale.set((0.09 + sp * 0.045) / 0.6, 0.5, 1); op = p.a * Math.pow(1 - k, 0.7); } else s.scale.set((0.05 + sp * 0.035) / 0.6, 0.2, 1);
     } else { const e = 1 - Math.pow(1 - k, 2.2); s.scale.setScalar(p.s0 + (p.s1 - p.s0) * e); m.rotation += p.spin * dt * (1 - k * 0.6); }
     m.color.setHex(K.col); if (K.col2) m.color.lerp(_fc2.setHex(K.col2), k);
-    if (K.lit) { smokeLight(m.color, s.position, K.gain); op *= 0.3 + 0.7 * visAt(s.position.x, s.position.z); }
+    if (K.lit) {
+      if (K.self) _fs.copy(m.color);
+      smokeLight(m.color, s.position, K.gain); op *= 0.3 + 0.7 * visAt(s.position.x, s.position.z);
+      if (K.self) m.color.setRGB(Math.max(m.color.r, _fs.r * K.self), Math.max(m.color.g, _fs.g * K.self), Math.max(m.color.b, _fs.b * K.self));
+    }
     else if (K.boost) m.color.multiplyScalar(K.boost);
     m.opacity = op;
   }

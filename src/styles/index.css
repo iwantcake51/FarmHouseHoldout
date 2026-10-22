@@ -4,6 +4,7 @@
 @import "./hud-vitals.css";
 @import "./hud-weapon.css";
 @import "./hud-feed.css";
+@import "./hud-minimal.css";
 @import "./stations.css";
 @import "./weapon-stats.css";
 @import "./loadout.css";
@@ -11,7 +12,9 @@
 @import "./scope.css";
 @import "./crosshair.css";
 @import "./screens.css";
+@import "./settings.css";
 @import "./upgrades.css";
 @import "./touch.css";
 @import "./cheats.css";
 @import "./coop.css";
+@import "./input-icons.css";

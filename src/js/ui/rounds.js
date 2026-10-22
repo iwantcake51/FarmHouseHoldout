@@ -6,11 +6,11 @@
 // A shotgun shell goes whole, as it is. A gun that keeps its fired cases (a pump or a bolt till it's racked, a double
 // barrel or a revolver till it's reloaded: EJECT in weapons/casings.js) leaves them in the HUD, fired (a shell's hull
 // blown open at the crimp, a case with no bullet in it), and they go when the gun throws them (spent: just as they look)
-const CASE_OF = { rf: 0.7, mg: 0.7, p9: 0.64 };
+const CASE_OF = { rf: 0.7, mg: 0.7, t10: 0.68, p9: 0.64 };
 function dropRound(src, spent) {
   const r = src.getBoundingClientRect(); if (!r.width) return;
   const cs = getComputedStyle(src), g = document.createElement('i'), dir = rand() < 0.5 ? -1 : 1, box = src.closest('#rounds');
-  const cal = !box ? 'p9' : box.classList.contains('sh') ? 'sh' : box.classList.contains('rf') ? 'rf' : box.classList.contains('mg') ? 'mg' : 'p9';
+  const cal = !box ? 'p9' : box.classList.contains('sh') ? 'sh' : box.classList.contains('rf') ? 'rf' : box.classList.contains('mg') ? 'mg' : box.classList.contains('t10') ? 't10' : 'p9';
   g.className = 'fallRound';
   if (spent) Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, backgroundColor: cs.backgroundColor, backgroundImage: cs.backgroundImage, borderBottom: cs.borderBottom, clipPath: cs.clipPath, borderRadius: cs.borderRadius });
   else if (cal === 'sh') Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: cs.width, height: cs.height, background: cs.backgroundColor, borderBottom: cs.borderBottom, borderRadius: cs.borderRadius });
@@ -163,7 +163,7 @@ function shakeBelt(el) { if (!calmHud.matches) el.querySelectorAll('.belt').forE
 const magGlyphs = (n, have, fired) => { fired = Math.max(0, Math.min(fired || 0, n - have)); return n > 40 ? `<div class="belt"><span style="width:${(have / n * 100).toFixed(1)}%"></span></div>` : '<i></i>'.repeat(Math.max(0, Math.min(have, n))) + '<i class="fired"></i>'.repeat(fired) + '<i class="off"></i>'.repeat(Math.max(0, n - have - fired)); };
 // (the kind of round loaded too: a shotgun's shells take its colour, rflech, rfire, rslug; 9mm hollow points come in
 // silver cases, rhollow; piercing and explosive tips colour the bullet)
-const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '') + (roundOn(id) !== 'std' ? ' r' + roundOn(id) : '');
+const roundsCls = (D, id) => ({ shells: 'sh', rifle: 'rf', magnum: 'mg', p10: 't10' }[D.ammo] || '') + (T('ammo') ? ' hp' + (T('ammo') > 1 ? T('ammo') : '') : '') + (roundOn(id) !== 'std' ? ' r' + roundOn(id) : '');
 // an akimbo pair: each gun's magazine its own group, the one on your left on the left (AK_ON), split by a rule; the one
 // being reloaded dims
 function renderRoundsAk(id, D) {

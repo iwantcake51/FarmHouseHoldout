@@ -49,7 +49,7 @@
 #xh .mDot{fill:var(--ink);transition:fill .08s}
 #xh.tgt .mBr{stroke:var(--orange)}
 #xh.tgt .mDot{fill:var(--orange)}
-#xh.tgt #xhBr{filter:drop-shadow(0 0 3px rgba(232,120,60,.55))}
+#xh.tgt #xhBr{filter:drop-shadow(0 0 3px rgba(var(--acc),.55))}
 /* ammo warning under the crosshair */
 #ammoWarn{position:absolute;left:50%;top:118px;transform:translateX(-50%);display:flex;align-items:center;gap:7px;padding:2px 9px 1px;white-space:nowrap;
   font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:var(--aw);text-shadow:0 1px 2px rgba(0,0,0,.9);

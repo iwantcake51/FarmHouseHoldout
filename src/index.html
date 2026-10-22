@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="nearVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="nearVig"></div><div id="deathVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -87,7 +87,7 @@
 <div id="scrim"></div>
 <div class="hud" id="waveBox" hidden>
   <div id="clockBox">
-    <svg id="dial" width="88" height="88" viewBox="-44 -44 88 88" aria-hidden="true">
+    <svg id="dial" width="74" height="74" viewBox="-44 -44 88 88" aria-hidden="true">
       <circle class="face" r="42"></circle>
       <g id="dialRing" class="ring"></g>
       <g id="dialTicks"></g>
@@ -101,7 +101,7 @@
     <div id="clockPhase">Afternoon</div>
   </div>
   <div class="wv">
-    <div class="lbl">Wave</div>
+    <div class="wvHead"><span class="lbl">Wave</span><span class="wvChip"></span></div>
     <div class="big" id="wNum">01</div>
     <div id="wSub"></div>
     <div id="wBar"><i id="wBarFill"></i></div>
@@ -121,11 +121,11 @@
   </div>
 </div>
 <div class="hud" id="arms" hidden>
-  <div id="bandBox" title="Bandages (Q to use)"><svg data-gi="bandage" aria-hidden="true"></svg><b id="bands">0</b><kbd>Q</kbd></div>
+  <div id="bandBox" data-bind-title="Bandages (# to use)" data-bind-key="bandage" title="Bandages (Q to use)"><svg data-gi="bandage" aria-hidden="true"></svg><b id="bands">0</b><kbd data-bind="bandage">Q</kbd></div>
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
-  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd>B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><i class="mb l akOnly" title="Left click"></i><span class="big akOnly" id="ammoL">10</span><i id="ammoSep" class="akOnly"></i><i class="mb r akOnly" title="Right click"></i><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd data-bind="fireMode">B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><i class="mb l akOnly" title="Left click" data-key="mouse1"></i><span class="big akOnly" id="ammoL">10</span><i id="ammoSep" class="akOnly"></i><i class="mb r akOnly" title="Right click" data-key="mouse2"></i><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
   <div id="rounds"></div>
   <div class="slots" id="slots"></div>
 </div>
@@ -149,9 +149,12 @@
     <div class="ammoRow"><span class="big spAmmo"></span><span class="spRes"></span></div>
   </div>
 </div>
+<!-- where the teammate you're watching is aiming (updateSpecXh, net/spectate.js) -->
+<div id="specXh" aria-hidden="true"><svg width="80" height="80" viewBox="-40 -40 80 80"><circle class="halo" r="17"></circle><g class="in"><circle class="ring" r="15"></circle><g class="tk"><path d="M0 -25V-19"></path><path d="M0 25V19"></path><path d="M-25 0H-19"></path><path d="M25 0H19"></path></g></g><circle class="dot" r="2.6"></circle></svg></div>
 <div class="hud" id="feed"></div>
 <div class="hud" id="wStats" hidden></div>
 <div class="hud" id="wLoad" hidden></div>
+<div id="wlTip" role="tooltip"></div>
 <div class="hud" id="rkLoad" hidden></div>
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
@@ -166,6 +169,7 @@
   <div id="stGuns" role="tablist" hidden></div>
   <div id="stRows"></div>
   <div id="stQuick" hidden></div>
+  <div id="stForge" hidden></div>
   <div class="note" id="stNote">Click a card · E to step away</div>
 </div>
 <div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
@@ -196,7 +200,7 @@
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd>T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
     <div class="coop" id="coop" hidden>
       <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
       <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
@@ -209,7 +213,7 @@
       <div class="coopRoom" id="coopRoom" hidden>
         <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy</button></div>
         <ol class="coopList" id="coopList"></ol>
-        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd>T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
+        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
       </div>
       <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
       <div class="coopFriends">
@@ -222,24 +226,31 @@
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
-      <kbd>W A S D</kbd><span>Walk</span>
-      <kbd>Shift</kbd><span>Sprint: uses stamina. Run into an open window or a fence to vault it; aim or fire to skid to a stop and bring the gun up; sprint to cut a reload short; put the cursor out to the side or behind to glance over your shoulder</span>
-      <kbd>Mouse</kbd><span>Aim; hold the left button to fire</span>
-      <kbd>Right click</kbd><span>Hold to aim down the sights: tighter, but slower</span>
-      <kbd>1  2  3  4</kbd><span>Melee, sidearm, long gun, automatic</span>
-      <kbd>R</kbd><span>Reload (shells go in one at a time)</span>
-      <kbd>Q</kbd><span>Bandage yourself: slow, then heals over time</span>
-      <kbd>V</kbd><span>Shove zombies back (stabs with a bayonet)</span>
-      <kbd>Hold F</kbd><span>Board up a door or window</span>
-      <kbd>Hold C</kbd><span>Tear a board down. Shots through boards wear them down too</span>
-      <kbd>Space</kbd><span>Climb through a window or hop a fence</span>
-      <kbd>E</kbd><span>Workbench, sawhorse, medicine cabinet, radio</span>
-      <kbd>G</kbd><span>Underbarrel grenade, once you have one</span>
-      <kbd>B</kbd><span>Switch fire mode</span>
-      <kbd>I</kbd><span>Your weapon's stats, and what's changing them</span>
-      <kbd>Wheel</kbd><span>Zoom in and out</span>
-      <kbd>T</kbd><span>Start the run, or the next wave early (in co-op, a vote: 3 in 4 of you)</span>
-      <kbd>Esc</kbd><span>Pause</span>
+      <div class="ctrlGrp"><h4>Movement</h4>
+        <p><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd><span>Walk</span></p>
+        <p><kbd data-bind="sprint">Shift</kbd><span>Sprint</span></p>
+        <p><kbd data-bind="vault">Space</kbd><span>Vault a window or fence</span></p></div>
+      <div class="ctrlGrp"><h4>Combat</h4>
+        <p><kbd data-key="mouse1">Mouse</kbd><span>Aim and fire</span></p>
+        <p><kbd data-key="mouse2">Right click</kbd><span>Aim down the sights</span></p>
+        <p><kbd data-bind="reload">R</kbd><span>Reload</span></p>
+        <p><kbd data-bind="slots">1 – 4</kbd><span>Switch weapon</span></p>
+        <p><kbd data-bind="shove">V</kbd><span>Shove</span></p></div>
+      <div class="ctrlGrp"><h4>Survival</h4>
+        <p><small>Hold</small><kbd data-bind="board">F</kbd><span>Board up a window or door</span></p>
+        <p><kbd data-bind="use">E</kbd><span>Use a station</span></p>
+        <p><kbd data-bind="bandage">Q</kbd><span>Bandage</span></p>
+        <p><kbd data-bind="wave">T</kbd><span>Start the next wave early</span></p></div>
+      <details class="ctrlMore"><summary>More controls</summary>
+        <p><small>Hold</small><kbd data-bind="tear">C</kbd><span>Tear a board down</span></p>
+        <p><kbd data-bind="fireMode">B</kbd><span>Switch fire mode</span></p>
+        <p><kbd data-bind="grenade">G</kbd><span>Underbarrel grenade</span></p>
+        <p><kbd data-bind="ammo">X</kbd><span>Load the next kind of round</span></p>
+        <p><kbd data-bind="stats">I</kbd><span>Weapon stats</span></p>
+        <p><kbd data-key="mouse3">Wheel</kbd><span>Zoom</span></p>
+        <p><kbd data-key="escape">Esc</kbd><span>Pause</span></p>
+        <p class="ctrlSet"><span>Change any of these in Settings, under Controls</span></p>
+      </details>
     </div>
   </div>
 </div>
@@ -253,7 +264,7 @@
     <div id="cards"></div>
     <button class="btn ghost" id="upSkip" type="button"></button>
     <div class="upWait" id="upWait" role="status"><b>Waiting for other players</b><span id="upWaitWho"></span></div>
-    <div class="note" id="upNote">Click a card or press 1, 2 or 3 · 4 takes the scrap instead · when the time runs out, one is taken for you</div>
+    <div class="note" id="upNote">Click a card, or take the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
   </div>
 </div>
@@ -266,7 +277,7 @@
       <div><div class="histHead"><span>Your skills, perks and aid</span><b id="pHistN">0</b></div><div class="hist" id="pHist"></div></div>
       <div><div class="histHead"><span>Gear you've bought and been given</span><b id="pBuyN">0</b></div><div class="hist" id="pBuy"></div></div>
     </div>
-    <div class="btns" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
+    <div class="btns" id="pBtns"><button class="btn" id="resumeBtn" type="button">Resume</button><button class="btn ghost" id="setBtnPause" type="button">Settings</button><button class="btn ghost" id="pMenuBtn" type="button">Main menu</button><button class="btn ghost" id="quitBtn" type="button">Abandon run</button></div>
     <div class="btns pSure" id="pSure" hidden><span class="pSureQ" id="pSureQ" role="alert"></span><button class="btn" id="pSureYes" type="button"></button><button class="btn ghost" id="pSureNo" type="button">Cancel</button></div>
   </div>
 </div>
@@ -276,7 +287,8 @@
     <div class="eyebrow">The house fell to the dead.</div>
     <h2 id="deadTitle">Dead on wave 1</h2>
     <div class="tally" id="deadStats"></div>
-    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd>T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>
+    <details class="runMore" id="runMore"><summary>Full run stats</summary><div class="rsBody" id="runStatsBody"></div></details>
+    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd data-key="m">M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
 <!-- menu wear (styles/screens.css): worn print for the big titles and the stamp, a wobble for brush strokes -->
@@ -296,7 +308,17 @@
     <feDisplacementMap in="SourceGraphic" in2="warp" scale="5" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
 </svg>
+<div id="cineVig"></div>
 <div id="cineBars"></div>
+<div id="settings" hidden>
+  <div class="setBack"></div>
+  <div class="setPanel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg></button></div>
+    <div class="setBody" id="setBody"></div>
+    <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
+  </div>
+</div>
+<div id="fps" hidden></div>
 <div id="fadeVeil" class="on"></div>
 <script src="./vendor/three.min.js"></script>
 <script src="./game.js"></script>

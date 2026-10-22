@@ -17,6 +17,9 @@ const CASE_PROF = {
   // 9 mm Luger: rimless, straight, a touch of taper
   p9: { seg: 16, prof: [...caseBase(2.2, 4.98), [4.98, 1.0, 'brass'], [4.72, 1.27, 'brass'], [3.95, 1.45, 'brass'], [3.95, 2.0, 'brass'], [4.965, 2.85, 'brass'],
     [4.89, 14, 'brass'], [4.83, 19.0, 'soot'], [4.76, 19.15, 'lip'], [4.5, 19.15, 'lip'], [4.5, 19.15, 'inside'], [4.46, 18.6, 'inside'], [4.42, 5.6, 'inside'], [0, 5.2, 'inside']] },
+  // 10mm Auto (the SMG's conversion kit): a 9mm's shape, rimless and straight, but fatter and a good deal longer
+  p10: { seg: 16, prof: [...caseBase(2.2, 5.4), [5.4, 1.0, 'brass'], [5.13, 1.3, 'brass'], [4.3, 1.5, 'brass'], [4.3, 2.1, 'brass'], [5.39, 3.0, 'brass'],
+    [5.33, 19, 'brass'], [5.28, 25.0, 'soot'], [5.2, 25.2, 'lip'], [4.93, 25.2, 'lip'], [4.93, 25.2, 'inside'], [4.89, 24.6, 'inside'], [4.84, 6.0, 'inside'], [0, 5.6, 'inside']] },
   // .50 AE, the hand cannon's: fat, with a rebated rim
   magnum: { seg: 16, prof: [...caseBase(2.65, 6.7), [6.7, 1.25, 'brass'], [6.45, 1.5, 'brass'], [5.6, 1.65, 'brass'], [5.6, 2.3, 'brass'], [6.95, 3.3, 'brass'],
     [6.92, 26, 'brass'], [6.88, 32.4, 'soot'], [6.8, 32.6, 'lip'], [6.5, 32.6, 'lip'], [6.5, 32.6, 'inside'], [6.45, 32, 'inside'], [6.4, 6.4, 'inside'], [0, 6, 'inside']] },
@@ -32,7 +35,7 @@ const CASE_PROF = {
     [10.3, 15.9, 'hull'], [10.3, 58, 'hull'], [10.45, 64, 'hull'], [10.75, 69.5, 'hull'], [10.62, 70, 'hullLip'], [9.95, 70, 'hullLip'], [9.95, 70, 'hullIn'], [9.85, 69.4, 'hullIn'],
     [9.45, 62, 'hullIn'], [9.4, 19, 'hullIn'], [9.4, 19, 'wad'], [9.1, 18.4, 'wad'], [0, 18.2, 'wad']] }
 };
-const CASE_SCALE = { p9: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
+const CASE_SCALE = { p9: 2.4, p10: 2.4, magnum: 2.4, rimmed: 2.4, rifle: 2.4, shells: 2 };
 // a hull in the colour of the kind of shell (SHELL_MAT in weapons/gun-models.js): the same hull turned again with its
 // plastic recoloured, white for flechettes, orange for dragon's breath, blue for slugs
 const SHELL_HULL = { flech: 'W', fire: 'O', slug: 'B' };
@@ -42,7 +45,7 @@ Object.assign(CC, { hullW: 0xd8d4c8, hullLipW: 0xece8de, hullInW: 0x7a766c, hull
 const CASE_TINT = { hollow: 'N', boom: 'X' };
 Object.assign(CC, { nickel: 0xc4c8cc, nickelHead: 0x9ea3a8, nickelLip: 0xe6e9ec, black: 0x2e2e32, blackHead: 0x232326, blackLip: 0x4a4a50 });
 { const TK = { N: { brass: 'nickel', head: 'nickelHead', lip: 'nickelLip' }, X: { brass: 'black', head: 'blackHead', lip: 'blackLip' } };
-  for (const kd of ['p9', 'magnum', 'rimmed', 'rifle']) for (const t in TK) { CASE_PROF[kd + t] = { ...CASE_PROF[kd], prof: CASE_PROF[kd].prof.map(v => TK[t][v[2]] ? [v[0], v[1], TK[t][v[2]]] : v) }; CASE_SCALE[kd + t] = CASE_SCALE[kd]; } }
+  for (const kd of ['p9', 'p10', 'magnum', 'rimmed', 'rifle']) for (const t in TK) { CASE_PROF[kd + t] = { ...CASE_PROF[kd], prof: CASE_PROF[kd].prof.map(v => TK[t][v[2]] ? [v[0], v[1], TK[t][v[2]]] : v) }; CASE_SCALE[kd + t] = CASE_SCALE[kd]; } }
 for (const s of Object.values(SHELL_HULL)) { const q = CASE_PROF.shells; CASE_PROF['shells' + s] = { ...q, prof: q.prof.map(v => v[2].startsWith('hull') ? [v[0], v[1], v[2] + s] : v) }; CASE_SCALE['shells' + s] = CASE_SCALE.shells; }
 // turn a profile round its axis into a mesh, centred on its middle with its base down -y: normals square to each band of
 // the profile, so the rim, groove and shoulder keep their edges; a pleat ripples the radius CASE_PLEAT times round
@@ -222,10 +225,12 @@ function dropMag(id, side) {
   if (id === 'pistol') { if (mt >= 3) dr = { r: 0.08, t: 0.072, ax: 'z' }; else { w = 0.024; h = [0.15, 0.17, 0.33][mt]; d = 0.055; mat = 'poly'; } }
   else if (id === 'deagle') { w = 0.026; h = [0.17, 0.22, 0.32][Math.min(2, mt)]; d = 0.065; }
   else if (id === 'smg') { if (mt >= 3) dr = { r: 0.08, t: 0.056, ax: 'x' }; else { w = 0.028; h = 0.29 + 0.05 * mt; d = 0.06; mat = 'poly'; } }
+  else if (id === 'sub' && D.tenmm) { w = 0.026; h = 0.27; d = 0.05; mat = 'poly'; }   // (the 10mm kit's straight 30-rounder: gun-models.js, MP5_MAG10)
   else if (id === 'sub') { w = 0.026; h = [0.24, 0.29, 0.34, 0.4][mt]; d = 0.042; }
   else if (id === 'ar') { if (mt >= 2) dr = { r: mt >= 3 ? 0.15 : 0.115, t: mt >= 3 ? 0.12 : 0.1, ax: 'x' }; else { w = 0.046; h = mt === 1 ? 0.26 : 0.2; d = 0.104; } }
   else if (id === 'auto12') { if (mt >= 1) dr = { r: 0.114, t: 0.078, ax: 'z' }; else { w = 0.05; h = 0.215; d = 0.095; } }   // the drum, or its box
   else if (id === 'lmg') { w = 0.1; h = 0.22 + 0.03 * mt; d = 0.174; mat = 'olive'; }
+  else if (id === 'scar' && D.akKit) { w = 0.05; h = 0.25; d = 0.09; mat = 'poly'; }   // (the AK kit's curved 30-rounder: gun-models.js, AKM_KIT)
   else if (id === 'scar') { w = 0.048; h = mt ? 0.18 : 0.105; d = 0.104; mat = 'fdeP'; }
   // an akimbo pair's left gun drops its own mag, from its own hand
   if (side === 'L' && HOLDS[W8.cur] && HOLDS[W8.cur].L) { const h = HOLDS[W8.cur]; _cv.set(mp[0] - h.R.position.x, mp[1], mp[2]); h.L.localToWorld(_cv); }
@@ -287,6 +292,16 @@ function settleMag(c, g, fy) {
   for (const ax of _stF) { const q = base.clone().multiply(_stQ.setFromAxisAngle(ax, Math.PI)), d = Math.abs(q.dot(g.quaternion)); if (d > bd) { bd = d; best = q; } }
   c.settle = { t: 0, q0: g.quaternion.clone(), q1: best, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r) };
 }
+// a board, a plate or a bar of a grate, or a flake off one, coming to rest: from however it landed, turned the least
+// it can be to lie flat (a board or a plate face down, its thin side up; a bar on its side) and eased down there over
+// FLAT_SETTLE, keeping the way it was pointing, so it never snaps round
+const FLAT_KINDS = new Set(['plank', 'plate', 'bar', 'flake']), FLAT_SETTLE = 0.16, _sfA = new V3(), _sfB = new V3();
+function settleFlat(c, g, fy) {
+  const bar = c.kind === 'bar', q = g.quaternion, a = _sfA.set(0, bar ? 1 : 0, bar ? 0 : 1).applyQuaternion(q).normalize();
+  if (bar) { _sfB.set(a.x, 0, a.z); if (_sfB.lengthSq() < 1e-6) _sfB.set(1, 0, 0); _sfB.normalize(); } else _sfB.set(0, a.y < 0 ? -1 : 1, 0);
+  const q1 = new THREE.Quaternion().setFromUnitVectors(a, _sfB).multiply(q);
+  c.settle = { t: 0, q0: q.clone(), q1, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r), dur: FLAT_SETTLE };
+}
 function stepDebris(list, dt) {
   tinkT -= dt;
   for (const c of list) {
@@ -301,6 +316,7 @@ function stepDebris(list, dt) {
       if (g.position.y < fy + c.r && c.vy < 0) {
         g.position.y = fy + c.r; c.bounces++;
         if (c.kind === 'mag') { if (c.bounces === 1) SFX.magDrop(Math.min(1, -c.vy / 4)); }
+        else if (c.kind === 'plate' || c.kind === 'bar') { if (c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 18) soundAt(g.position.x, g.position.z, () => SFX.metalDrop(Math.min(1, -c.vy / 4), c.kind === 'plate')); }   // (a grate coming apart: barricades/metal-bars.js)
         else if (c.kind === 'plank') { if (!c.quiet && c.bounces <= 2 && Math.hypot(g.position.x - P.x, g.position.z - P.z) < 16) SFX.plankDrop(Math.min(1, -c.vy / 4)); }   // (a board torn off a window: barricades/planks.js)
         else {
           if (tinkT <= 0 && c.vy < -1.2) { SFX.tink(c.kind === 'shells', Math.min(1, -c.vy / 5) * (c.kind === 'link' ? 0.5 : 1)); tinkT = 0.035; }
@@ -310,13 +326,14 @@ function stepDebris(list, dt) {
         if (c.vy < 0.5) c.bounces = 4;
         if (c.bounces >= 4) {   // settle on its side and roll a little
           if (c.kind === 'mag') settleMag(c, g, fy);   // (a mag tips over onto its side, not snapped there)
+          else if (FLAT_KINDS.has(c.kind)) settleFlat(c, g, fy);   // (and a board or a piece of grate eases down flat)
           else if (c.rest) { c.rest(g); g.position.y = fy + c.restY; } else { g.rotation.x = Math.PI / 2; g.rotation.z = 0; g.position.y = fy + c.r; }
           c.vx *= 0.6; c.vz *= 0.6;
         }
       }
     } else if (c.settle && c.settle.t < 1) {
       // tipping over onto its side (settleMag): eased round to the face it lies on and down onto the ground
-      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / MAG_SETTLE); const k = smooth(S0.t);
+      const S0 = c.settle; S0.t = Math.min(1, S0.t + dt / (S0.dur || MAG_SETTLE)); const k = smooth(S0.t);
       g.quaternion.slerpQuaternions(S0.q0, S0.q1, k); g.position.y = S0.y0 + (S0.y1 - S0.y0) * k;
       const nx = g.position.x + c.vx * dt, nz = g.position.z + c.vz * dt;
       if (!bulletBlocked(nx, nz)) { g.position.x = nx; g.position.z = nz; }

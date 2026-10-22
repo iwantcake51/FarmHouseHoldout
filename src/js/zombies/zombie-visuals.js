@@ -31,16 +31,21 @@ function markReach() {
 }
 function updateZombieVisuals(dt, rdt) {
   markReach();
+  const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
     updateZombieStain(z.stain, rdt, dt);
     // (and in co-op, picked out by a teammate's light even where you can't see: teamBeam, lighting/lightmap.js)
-    const tb = state === 'title' ? 0 : teamBeam(z), v = state === 'title' ? 1 : Math.max(visAt(z.x, z.z) * fogSee(z.x, z.z), tb);   // and out past the edge, only as it comes clear of the fog
+    // the fog's samples are half a metre apart, so one pressed to the far side of a wall can pick up the room's side of
+    // it: so it's checked again where it really stands, past the walls and through the window you're at (sightTo), and
+    // one behind a wall shows nothing, not even its outline through it
+    const tb = state === 'title' ? 0 : teamBeam(z), f = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
+    const v = state === 'title' ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
     z.m.g.visible = z.vis > 0.02 || !!z.redOl;
-    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) z.blob.material.opacity = 0.36 * z.vis; if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
+    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) { z.blob.material.opacity = 0.36 * z.vis; z.blob.visible = z.vis > 0.01; } if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
     if (z.inReach || z.reachA > 0) {
       const on = !!z.inReach; z.inReach = false;
       z.reachA = (z.reachA || 0) + ((on ? 1 : 0) - (z.reachA || 0)) * Math.min(1, rdt * (on ? 9 : 5)); if (!on && z.reachA < 0.01) z.reachA = 0;
@@ -61,7 +66,10 @@ function updateZombieVisuals(dt, rdt) {
     // a zombie behind something is just hidden. The last few of a wave keep their pulsing outline, and their see-through
     // one, at any distance
     const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0;
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    // and only one in a straight line from you: one you make out by leaning to a window, along the outside of the wall
+    // (sightTo's peek), stands behind that wall from up here, so its see-through outline would show through the wall
+    if (z.xr) { const d = !visOn || z.vis < 0.004 || Math.hypot(z.x - V.x, z.z - V.z) <= 0.7 || los(V.x, V.z, z.x, z.z) ? 1 : 0; z.seeK = z.seeK === undefined ? d : z.seeK + (d - z.seeK) * Math.min(1, rdt * 8); }
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK; if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)
@@ -92,7 +100,7 @@ function updateZombieVisuals(dt, rdt) {
       for (const mt of Object.values(m)) if (mt) { if (r.flashOn) mt.emissive.setRGB(0.35 * k2 + 0.6 * k2 * k2, 0.1 * k2 + 0.55 * k2 * k2, 0.07 * k2 + 0.45 * k2 * k2); else mt.emissive.setHex(0); } }
     if (r.eyes && r.eyeT < 1.6) { r.eyeT += dt; const e = clamp(r.eyeT / 1.5, 0, 1); r.eyeGlow = Math.pow(1 - e, 1.5); r.eyes.forEach(o => o.material.color.copy(_eyeLive).lerp(_eyeDead, smooth(e))); }
     const v = visAt(r.x, r.z); r.vis += (v - r.vis) * Math.min(1, rdt * 10);
-    Object.values(r.mats).forEach(mt => { mt.opacity = r.vis; mt.depthWrite = r.vis > 0.05; mt.colorWrite = r.vis > 0.03; }); if (r.dm) r.dm.userData.u.value = r.vis < 0.03 ? 0 : r.vis; if (r.blob) r.blob.material.opacity = 0.42 * r.vis * Math.max(0, 1 - Math.max(0, r.t - 8) * 0.5);
+    Object.values(r.mats).forEach(mt => { mt.opacity = r.vis; mt.depthWrite = r.vis > 0.05; mt.colorWrite = r.vis > 0.03; }); if (r.dm) r.dm.userData.u.value = r.vis < 0.03 ? 0 : r.vis; if (r.blob) { r.blob.material.opacity = 0.42 * r.vis * Math.max(0, 1 - Math.max(0, r.t - 8) * 0.5); r.blob.visible = r.blob.material.opacity > 0.004; }
     r.g.visible = r.vis > 0.03;   // (a body you can't see draws nothing either, as above)
     if (r.t > 10) { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); ragdolls.splice(k, 1); }
   }

@@ -143,7 +143,7 @@ const WIN_LANE = 0.24;
 function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
   const c = pick(CLIMBS[kind + (z.crawl ? 'Crawl' : z.type === 'runner' ? 'Runner' : 'Walker')]);
   const s0 = (z.x - fx) * dx + (z.z - fz) * dz, lat = (z.x - fx) * -dz + (z.z - fz) * dx;
-  z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
+  z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15) / mix(1, INSIDE.climb, insideK()), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
   z.face = Math.atan2(dx, dz);
   // through a window alongside others: into a lane of its own across it (WIN_LANE either side of the middle), the one
   // nearest where it stands that's free, so they go through side by side rather than inside each other

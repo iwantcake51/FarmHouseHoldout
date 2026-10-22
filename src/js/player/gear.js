@@ -349,6 +349,7 @@ function gearPieces() {
   const pieces = []; gearParts.forEach(g => g.traverse(o => { if (o.isMesh) pieces.push(o); }));
   unfight(PM.g, { only: new Set(pieces) });
   gearList.forEach(g => mergeInto(g, finePieces(g)));
+  trimShadows(PM.g);
 }
 
 // ---- co-op: a teammate's survivor in the gear they've earned. Your loadout carries what decides it (gearSpec: the

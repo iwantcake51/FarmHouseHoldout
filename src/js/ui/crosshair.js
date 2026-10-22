@@ -171,7 +171,7 @@ function updateCrosshair(rdt, D) {
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
     let tgt = false;
-    if (!D.melee) tgt = !!aimRay(mz.ox, mz.oz, mz.a, 22).z;
+    if (!D.melee) { const hz = aimRay(mz.ox, mz.oz, mz.a, 22).z; tgt = !!hz && zInView(hz); }   // (only one you can see: not off the screen, in the dark or behind a wall)
     else tgt = zombies.some(z => { const th = z.atkBoard && Math.hypot(z.atkBoard.x - P.x, z.atkBoard.z - P.z) < 1.5 ? 0.75 : 0; return Math.hypot(z.x - P.x, z.z - P.z) < D.range + z.T.r + th && Math.abs(angDiff(Math.atan2(z.x - P.x, z.z - P.z), P.aim)) < D.arc + (th ? 0.25 : 0); });
     xh.classList.toggle('tgt', tgt);
     if (!D.melee) {
@@ -192,7 +192,7 @@ function updateCrosshair(rdt, D) {
       const res = W8.reserve[D.ammo] || 0, aw = $('ammoWarn'), tot = W8.mag[id] || 0, dry = ak ? am.L === 0 && am.R === 0 : have === 0;
       // while reloading the same spot reads "Reloading", or counts the shells going in
       const mode = W8.reloading ? 'loading' : dry ? (res > 0 ? 'reload' : 'none') : tot <= Math.max(1, Math.floor(magCap(id) * 0.25)) ? 'low' : '';
-      const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? (ak ? 'No ammo <kbd>R</kbd>' : 'Reload <kbd>R</kbd>') : mode === 'none' ? 'No ammo' : '';
+      const txt = mode === 'loading' ? (W8.reloading === 'shell' ? `Loading ${W8.shellsIn}/${W8.shellsNeed}` : 'Reloading') : mode === 'low' ? 'Low ammo' : mode === 'reload' ? (ak ? 'No ammo ' + kbd('reload') + '' : 'Reload ' + kbd('reload') + '') : mode === 'none' ? 'No ammo' : '';
       if (!healing && cache.aw !== mode + txt) {
         cache.aw = mode + txt; aw.hidden = !mode;
         aw.classList.remove('low', 'out', 'loading', 'heal'); if (mode) aw.classList.add(mode === 'low' || mode === 'loading' ? mode : 'out');
@@ -221,3 +221,6 @@ function updateCrosshair(rdt, D) {
     if (D.gl) xhGl.setAttribute('stroke-dasharray', (glArc * (1 - W8.glCd / (D.glRecharge || 6))).toFixed(1) + ' 999');
   }
 }
+// a zombie you can actually see: in sight (the fog of war's vis, lighting/vision.js) and on the screen
+const _xhV = new V3();
+function zInView(z) { if (z.vis !== undefined && z.vis < 0.35) return false; _xhV.set(z.x, 1, z.z).project(cam); return Math.abs(_xhV.x) < 0.98 && Math.abs(_xhV.y) < 0.98; }

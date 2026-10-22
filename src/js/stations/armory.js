@@ -17,7 +17,7 @@ const ARMORY_LINES = [
 // what each costs to unlock, in scrap: dearer along its line, a good deal dearer for each better gun, and the heavy
 // ones at the ends (the auto shotgun, the assault rifle, the LMG) far dearer than anything else
 // (about 0.7 scrap a kill: some 170 by wave 10 and 400 by wave 15, before what the bench and the cabinet take)
-const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 40, scar: 100, ar: 150, lmg: 260, smg: 18, sub: 60,
+const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, hunting: 40, scar: 100, ar: 90, lmg: 260, smg: 18, sub: 60,
   crowbar: 10, wrench: 24, sledge: 70, machete: 10, axe: 35, katana: 80 };
 const owns = id => W8.owned.includes(id);
 // each line's next weapon to unlock (null once it's all yours), and how far along it you are
@@ -25,14 +25,14 @@ function lineNext(L) { const k = L.ids.findIndex(id => !owns(id)); return k < 0 
 const lineHave = L => L.ids.filter(owns).length;
 function unlockWeapon(id) {
   const D = WEAP[id], old = W8.slot[D.slot];
-  exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1;
+  exitScope(); giveWeapon(id); buildGuns(); glowGun(id);
   feed('gear', 0, D.name + ' unlocked');
   gotGear({ ic: 'gear', kind: 'Unlocked', name: D.name, on: old ? 'Your ' + gunCall(old) + ' is on the rack' : 'Your ' + SLOT_NAME[D.slot].toLowerCase(), text: statLine(id) });
 }
 // one off the rack into its slot and your hands, as you left it (rounds and all); the one it replaces goes up in its place
 function takeFromRack(id) {
   const D = WEAP[id], s = D.slot;
-  exitScope(); cutReload(); W8.slot[s] = id; delete W8.pin[id]; buildGuns(); equip(s, true); gunGlow = 1;
+  exitScope(); cutReload(); W8.slot[s] = id; delete W8.pin[id]; buildGuns(); equip(s, true); glowGun(id);
   feed('gear', 0, D.name);
 }
 // ---- the rack's panel (stations/station-ui.js hands it over, like the strongbox's): a tab a line, the pill sliding
@@ -54,7 +54,10 @@ function rackNode(L, id, k, nxt, full) {
   const D = WEAP[id], own = owns(id), tier = `<small class="rkTier">${k + 1}</small>`, desc = full && D.desc ? `<p class="rkDesc">${D.desc}</p>` : '';
   if (!own && id === nxt) return `<button type="button" class="rkNode next" data-buy="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b><i class="rkNeed"></i></span><i class="rkProg"><i></i></i></button>`;
   const on = own && W8.slot[D.slot] === id;
-  const tag = own ? `<span class="rkTag">${TICK_IC}${on ? 'Carrying' : 'On the rack'}</span>` : `<span class="rkTag">${LOCK_IC}After the ${WEAP[L.ids[k - 1]].short || WEAP[L.ids[k - 1]].name}</span><span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b></span>`;
+  // one of yours up on the rack: click it to take it down in place of what's in its slot, as you left it, with the
+  // rounds it went up with (takeFromRack)
+  if (own && !on) return `<button type="button" class="rkNode own take" data-take="${id}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}<span class="rkTag">${TICK_IC}On the rack${D.melee ? '' : ` · ${W8.mag[id] ?? 0} in it`}</span><span class="rkTake">Take down</span></button>`;
+  const tag = own ? `<span class="rkTag">${TICK_IC}Carrying</span>` : `<span class="rkTag">${LOCK_IC}After the ${WEAP[L.ids[k - 1]].short || WEAP[L.ids[k - 1]].name}</span><span class="rkBuy">${SCRAP_IC()}<b>${UNLOCK_COST[id]}</b></span>`;
   return `<div class="rkNode ${own ? 'own' : 'lock'}${on ? ' on' : ''}">${tier}<b>${D.name}</b><em>${statLine(id)}</em>${desc}${tag}</div>`;
 }
 function rackTree(L, from = 0, full = false) {   // (full: with each one's description, on a tab of one line)
@@ -105,7 +108,7 @@ function renderRack() {
       const ban = rows.querySelector('.rkAfford'), here = can[t];
       ban.hidden = !here.length; if (here.length) ban.innerHTML = `${SCRAP_IC()}<span>You can unlock ${here.map(id => `<b>${WEAP[id].name}</b>`).join(' or ')} now</span>`;
     } }
-  setT('stNote', 'Each line unlocks in order, first to last · Tab picks a line, or click your loadout · E to step away');
+  setT('stNote', `Each line unlocks in order, first to last · Tab picks a line, or click your loadout · ${keyOn('use')} to step away`);
 }
 let rackSwapT = 0;
 function rackTab(t) {
@@ -132,7 +135,7 @@ const rkSideOn = () => state === 'play' && !P.dead && !!openSt && openSt.id === 
 function rackSideHTML() {
   return `<div class="rlHead" style="--k:0"><b>Loadout</b><span>What you carry</span></div><p class="rlNote" style="--k:1">Take any weapon you've unlocked down off the rack for nothing, as you left it.</p>` + SLOTS.map((s, i) => {
     const id = W8.slot[s], others = W8.owned.filter(o => WEAP[o] && WEAP[o].slot === s && o !== id), cur = s === W8.cur;
-    return `<div class="rlSlot${cur ? ' cur' : ''}${slotTab(s, id) === GUN_RACK.tab ? ' shown' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd>${i + 1}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
+    return `<div class="rlSlot${cur ? ' cur' : ''}${slotTab(s, id) === GUN_RACK.tab ? ' shown' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd class="ki">${keyIcon(KB['slot' + (i + 1)])}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
       <button type="button" class="rlGo" data-go="${slotTab(s, id)}" title="Show its line on the rack">${id ? `<b class="rlGun">${WEAP[id].name}</b><em>${statLine(id)}</em>` : '<b class="rlGun rlEmpty">Empty</b><em>Unlock one from the rack</em>'}<i class="rlArrow">${ARROW_IC}</i></button>
       ${others.length ? `<div class="rlAlt">${others.map(o => `<button type="button" data-take="${o}" title="${statLine(o)}"><span>Swap to</span><b>${WEAP[o].short || WEAP[o].name}</b></button>`).join('')}</div>` : ''}</div>`;
   }).join('');
@@ -190,7 +193,10 @@ function rackGuns() {
     box(R.g, Math.min(0.1, q.wide * 0.7), 0.02, 0.2, HM.hole, x + q.wide / 2, 0.142, 0);   // its notch in the shelf
     x += q.wide + gap;
   });
+  // the rack casts the sun's shadow, the guns in it don't: indoors, under the roof's own shadow, theirs would never
+  // show, and every gun's whole model is in it (hundreds of thousands of points to draw into the shadow map each frame)
   R.g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  guns.forEach(q => q.w.traverse(o => { if (o.isMesh) o.castShadow = false; }));
 }
 {
   const g = new THREE.Group(); g.position.set(cxw(25), 0, cxw(HZ0) + 0.5 + 0.2); scene.add(g);

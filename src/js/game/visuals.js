@@ -2,6 +2,7 @@
 
 // Everything drawn each frame, after the simulation. Each part lives with the system it draws.
 function visuals(dt, rdt) {
+  titleCrowd(dt);   // (the title's yard: a few of them wandering about, the windows boarded: world/title-crowd.js)
   updatePlayerVisuals(dt, rdt);
   const D = W(curId()) || W('pistol');   // after the player's pose, which can take out a different weapon (a weapon key during a bandage)
   updateCamera(rdt);

@@ -14,11 +14,47 @@ function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
   z.limbs[part] = false; netRec('s', part, blast ? 1 : 0);   // (in co-op, what came off goes to the others: net/sync.js)
+  const stub = part === 'armL' || part === 'armR' ? armStump(z, part) : null;   // (made before the arm goes: it's cut from it)
   flingPart(z, z.m[part], dx, dz, 1);
-  z.spurts.push({ part, t: 1.4 });
+  z.spurts.push(stub ? { part, t: STUMP_PUMP.t, o: stub, p: stub.userData.spurt, d: stub.userData.dir, pump: true } : { part, t: 1.4 });
   if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
   if (!blast) soundAt(z.x, z.z, () => SFX.sever());   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
+}
+// an arm taken off whole leaves nothing of it at the shoulder but the bone: the raw socket flat on the side of the
+// chest where it came away, ragged meat round it and strings of it hanging, and the broken end of the upper-arm bone
+// sticking out of it, splintered and bloodied, the shoulder bloodied round it. For STUMP_PUMP.t seconds it pumps blood
+// out in spurts, weaker each beat
+const STUMP_M = { raw: 0xa01c14, meat: 0xc8402e, dark: 0x5e0c08, bone: 0xdccfb8, boneB: 0xa8281e };
+const STUMP_PUMP = { t: 3.2, rate: 1.5 };
+function armStump(z, part) {
+  const arm = z.m[part], par = arm && arm.parent; if (!par) return null;
+  // its own materials, fading with the body (z.fade) as the rest does
+  const op = arm.material.opacity ?? 1, own = c => { const m = lam(c); m.userData.mobile = true; m.transparent = true; m.opacity = op; if (z.fade) z.fade.push(m); return m; };
+  const raw = own(STUMP_M.raw), meat = own(STUMP_M.meat), dark = own(STUMP_M.dark), bone = own(STUMP_M.bone), boneB = own(STUMP_M.boneB);
+  // (at the shoulder, +z down the side and y forward; the chest's side is sd*0.08 across, sd the way in to it)
+  const sd = part === 'armL' ? 1 : -1, fx = sd * 0.08, s = new THREE.Group(); s.position.copy(arm.position); s.rotation.set(Math.PI / 2, 0, 0); par.add(s);
+  box(s, 0.012, 0.13, 0.13, dark, fx - sd * 0.004, 0, 0.012);                       // the torn socket, flat on the chest
+  box(s, 0.01, 0.1, 0.1, raw, fx - sd * 0.01, 0.004, 0.006);                        // raw muscle in it
+  [[0.045, -0.04, 0.03], [-0.05, -0.02, 0.026], [0.03, 0.05, 0.034], [-0.035, 0.045, 0.022], [0, -0.06, 0.03]].forEach(([y, zz, w]) => {   // ragged meat round the edge
+    box(s, rr(0.016, 0.03), w, w * rr(0.7, 1.2), rand() < 0.5 ? meat : raw, fx - sd * rr(0.012, 0.02), y, zz).rotation.x = rr(-0.6, 0.6);
+  });
+  // the bone: the head of it out of the socket, angled out and down, broken off in a splintered end, blood run down it
+  const b = new THREE.Group(); b.position.set(fx - sd * 0.012, rr(-0.01, 0.01), 0.004); b.rotation.set(rr(-0.15, 0.15), 0, sd * rr(0.55, 0.8)); s.add(b);   // (its length along -sd x, tipped down)
+  const L = rr(0.075, 0.095);
+  box(b, L, 0.032, 0.03, bone, -sd * L / 2, 0, 0);
+  box(b, 0.022, 0.044, 0.042, bone, -sd * 0.006, 0, 0);                             // the swell of its head at the socket
+  [[0.012, 0.018, 0.4], [-0.01, 0.014, -0.5], [0.004, 0.022, 0.15]].forEach(([y, l, a]) => { box(b, l, 0.012, 0.014, bone, -sd * (L + l / 2 - 0.004), y, rr(-0.008, 0.008)).rotation.z = a * sd; });   // splinters off the break
+  box(b, 0.006, 0.026, 0.026, boneB, -sd * (L - 0.002), 0, 0);                      // the marrow at the break, bloodied
+  box(b, L * 0.7, 0.034, 0.008, boneB, -sd * L * 0.35, 0, 0.012);                   // blood run along it
+  box(b, L * 0.5, 0.008, 0.032, boneB, -sd * L * 0.3, -0.017, 0); box(b, L * 0.35, 0.034, 0.007, dark, -sd * L * 0.2, 0, -0.016);   // and round the sides and under it
+  box(b, 0.02, 0.036, 0.034, raw, -sd * 0.014, 0, 0);                               // meat still on it at the root
+  // strings of meat hanging from the socket
+  for (let k = 0; k < 3; k++) box(s, 0.01, 0.012, rr(0.04, 0.08), k ? raw : dark, fx - sd * rr(0.01, 0.03), rr(-0.04, 0.04), 0.07 + k * 0.006).rotation.x = rr(-0.2, 0.2);
+  s.traverse(o => { if (o.isMesh) { o.castShadow = true; if (arm.customDepthMaterial) o.customDepthMaterial = arm.customDepthMaterial; } });   // (its shadow fades with the body's too)
+  const t = z.m.torso; if (t) addWound(z, WOUND_ZONE.torso, new V3((part === 'armL' ? -1 : 1) * 0.24, 0.2, 0), 0.12, 2);   // the shoulder bloodied
+  s.userData.spurt = [fx - sd * 0.02, 0, 0.01]; s.userData.dir = [-sd, 0, 0.45];   // (where it pumps from, and which way: out from the socket, a little down)
+  return s;
 }
 // a piece of a zombie torn off (a limb, or just a forearm or shin: zombies/wounds.js) thrown out as a gib, a burst of
 // blood where it came away; v scales how hard it's thrown
@@ -312,11 +348,12 @@ const KILL_VOL = 0.5;
 // (a kill that's not part of a hit, a burn or a bleed running out, is sent on its own in co-op)
 function killZombie(z, dx, dz, wId, part, overkill) { return netAct(z, dx, dz, () => killZombie0(z, dx, dz, wId, part, overkill)); }
 function killZombie0(z, dx, dz, wId, part, overkill) {
+  z.knock = null;   // (killed lying down or getting up: it goes down from the pose it's in)
   if (z.dead) return;
   netRec('k', wId, part);
   killBegin(z, dx, dz);
   if (NREP) { teamAssist(z); return; }   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js); yours an assist if you'd hurt it (net/teamwork.js)
-  run.kills++; popEl('kills');
+  run.kills++; popEl('kills'); runKill(z, wId, part);
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
   if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h), '#ef6a52'); } }
@@ -359,10 +396,12 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   if (rand() < (z.type === 'brute' ? 0.9 : 0.26) * S.dropMul) {
     // ammo is scarce: about half the ammo rolls come up empty, fewer of them for a kill made with a melee weapon (saving
     // rounds pays you back a little). Planks are the rarest roll, and the last 6.5% of the roll drops nothing, so a
-    // plank comes off about one walker in 26 and bandages about one in 21
+    // plank comes off about one walker in 26 and bandages about one in 21; metal, once there's a metalwork bench
+    // (barricades/metal-bars.js), a little less often than planks did (below METAL_DROP of the roll: one in 32)
     const r = rand(), opts = ammoTypes(), curA = gunAmmo(), mel = D.melee ? 0.15 : 0;
     if (r < 0.6) { if (opts.length && rand() < (z.type === 'brute' ? 0.7 : 0.5) + mel) ammoDrop(z.x, z.z, big); }
-    else if (r < 0.935) dropPickup(z.x, z.z, r < 0.75 ? 'planks' : 'med', big);
+    else if (r < 0.75) { if (!METAL.on || r < METAL_DROP) dropPickup(z.x, z.z, 'planks', big); }
+    else if (r < 0.935) dropPickup(z.x, z.z, 'med', big);
   }
 }
 // an ammo box for your guns: most often for the one in your hands
@@ -371,12 +410,14 @@ function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if
 // net/sync.js), shown rising off the body (the whole amount, marked (x2) and a brighter gold when Hoarder doubled it)
 // and rolled into the counter
 function killScrap(z, n, hoard) {
+  n = waveScrap(n);   // (more each wave: game/run-state.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
   floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c');
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
 function killBegin(z, dx, dz) {
+  spitterDies(z);   // (a spitter's sac bursts: zombies/spitter.js)
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);

@@ -20,10 +20,10 @@
 #upgrade.picking #upSkip{opacity:0;transition-delay:0s}
 /* taken instead: it swells and glows in the scrap's orange, stamped with what you got, while the bits fly off it
    (scrapFly) and the cards burn; it goes with the rest of the screen */
-#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);
+#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(var(--acc),.55);
   transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease;animation:skipGlow 1.2s ease-in-out .3s}
 #upSkip.taken b{font-size:21px}
-@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(216,105,44,.8)}}
+@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(var(--acc),.8)}}
 .scrapBit{position:fixed;left:0;top:0;z-index:60;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 4px rgba(255,180,90,.35));will-change:transform}
 .card{all:unset;box-sizing:border-box;position:relative;cursor:pointer;width:260px;min-height:190px;padding:14px 18px 46px;background:var(--card);color:var(--card-ink);font-family:var(--f-type);box-shadow:0 10px 30px rgba(0,0,0,.5);border-top:7px solid var(--rc,#6d665b);
   background-image:repeating-linear-gradient(180deg,transparent 0 23px,rgba(70,110,150,.22) 23px 24px);background-position:0 46px;--rx:0deg;--ry:0deg;overflow:hidden;
@@ -40,7 +40,7 @@
 .card.r-e::after,.card.r-l::after,#upgrade.armed .card:hover::after{opacity:1;animation:sheen 2.8s ease-in-out infinite}
 @keyframes sheen{0%{background-position:130% 0}55%,100%{background-position:-40% 0}}
 .card.r-l{animation:legGlow 2.4s ease-in-out infinite}
-@keyframes legGlow{50%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.75),0 0 46px rgba(216,105,44,.5)}}
+@keyframes legGlow{50%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(var(--acc),.75),0 0 46px rgba(var(--acc),.5)}}
 /* the pick: the chosen card pops and is stamped TAKEN, the others drop away */
 .card .taken{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-12deg) scale(2.2);font-family:var(--f-num);font-weight:800;font-size:44px;letter-spacing:.08em;text-transform:uppercase;
   color:var(--rc);border:4px solid var(--rc);padding:2px 14px;opacity:0;pointer-events:none;mix-blend-mode:multiply}
@@ -62,6 +62,9 @@
 .card .k .stars svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;opacity:.5}
 .card .k .stars svg.next{opacity:1}
 .card .k .stars svg.on{fill:currentColor;opacity:1}
+/* a line whose steps go up in rarity: each star in its own step's rarity colour, filled and outlined alike */
+.card .k .stars.rar svg{stroke:var(--sc);stroke-width:2.4;opacity:.85} .card .k .stars.rar svg.next,.card .k .stars.rar svg.on{opacity:1} .card .k .stars.rar svg.on{fill:var(--sc)}
+.card .k .stars.rar svg{width:12px;height:12px;filter:brightness(.72) saturate(1.6)}   /* (deeper, on the card's pale paper) */
 /* who it's for, in a band in the card's rarity colour: your 9mm pistol, all your guns, you */
 .card .for{display:inline-block;margin-top:8px;padding:3px 8px 2px;font-family:var(--f-ui);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--card);background:var(--rc,#6d665b);border-radius:2px}
 .card .t{font-size:21px;margin:8px 0 6px;padding-bottom:6px;border-bottom:2px solid var(--rule);line-height:1.1}
@@ -95,10 +98,10 @@
 .hrow .ht{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hrow .hw{font-size:10.5px;letter-spacing:.1em;color:var(--dim);white-space:nowrap}
 .hrow .hd{grid-column:1/-1;font-size:12.5px;line-height:1.45;color:#cfc8b8}
-.hrow.r-c{--rc:#8a8478;--rc2:#b3ab9c} .hrow.r-u{--rc:#4f9a58;--rc2:#7cc485} .hrow.r-r{--rc:#3f7cc4;--rc2:#7fb0e8} .hrow.r-e{--rc:#9a58bd;--rc2:#c793e3} .hrow.r-l{--rc:#d8692c;--rc2:#f0a060}
+.hrow.r-c{--rc:#8a8478;--rc2:#b3ab9c} .hrow.r-u{--rc:#4f9a58;--rc2:#7cc485} .hrow.r-r{--rc:#3f7cc4;--rc2:#7fb0e8} .hrow.r-e{--rc:#9a58bd;--rc2:#c793e3} .hrow.r-l{--rc:var(--orange);--rc2:#f0a060}
 .card.r-c{--rc:#6d665b} .card.r-u{--rc:#3f7a46} .card.r-r{--rc:#2f5f9a} .card.r-e{--rc:#74408f} .card.r-l{--rc:#b5541a}
 .card.r-e{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(116,64,143,.45)}
-.card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.55),0 0 34px rgba(216,105,44,.35)}
+.card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(var(--acc),.55),0 0 34px rgba(var(--acc),.35)}
 #upNote{opacity:0;transition:opacity .3s}
 #upgrade.armed #upNote{opacity:1}
 /* the pause screen's two lists side by side on a wide screen: the cards you took, and the gear you bought */
@@ -126,7 +129,7 @@
 #upgrade.waiting .card.picked{transform:translateY(0) scale(1.04) rotate(0)!important}
 #upgrade.waiting .card:not(.picked){opacity:.5!important;filter:saturate(.55);transition:opacity .4s ease,filter .4s ease!important;transition-delay:0s!important}
 #upgrade.waiting #upSkip{opacity:0;transition-delay:0s}
-#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
+#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(var(--acc),.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
 .upWait{display:none;flex-direction:column;align-items:center;gap:6px;text-align:center}
 #upgrade.waiting .upWait{display:flex;animation:waitIn .35s ease both}
 .upWait b{font-family:var(--f-ui);font-weight:700;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink)}
@@ -135,3 +138,15 @@
 @keyframes waitIn{from{opacity:0;transform:translateY(6px)}}
 @keyframes waitDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 @media (prefers-reduced-motion:reduce){.upWait b::after{animation:none;content:"..."}}
+/* a star filling (stations/station-ui.js: starFillSvg), at the stations and on the cards: the liquid seeps in from every
+   point and edge at once, its front a wobbling blob turning as it shrinks away to the middle, then a little pop as it
+   brims; the outline over it */
+.stars svg.fill{fill:none!important;overflow:visible;animation:starPop .38s .86s cubic-bezier(.3,1.6,.5,1) both}   /* (it pops as the last of the liquid's in, well before the cards go) */
+.stars svg.fill .ol{fill:none}
+.stars svg.fill .hole{animation:starSeep .9s cubic-bezier(.12,.55,.4,1) both}   /* (it starts seeping in at once and slows as it fills) */
+.stars svg.fill .wob{animation:starWob .46s ease-in-out infinite alternate}
+.card .k .stars svg .liq{fill:currentColor}.card .k .stars.rar svg .liq{fill:var(--sc)}
+@keyframes starSeep{from{transform:translate(12px,12.3px) rotate(0deg) scale(.56)}to{transform:translate(12px,12.3px) rotate(160deg) scale(0)}}
+@keyframes starWob{from{transform:scale(1.07,.93) rotate(-6deg)}to{transform:scale(.94,1.06) rotate(6deg)}}
+@keyframes starPop{50%{transform:scale(1.35)}}
+@media (prefers-reduced-motion:reduce){.stars svg.fill,.stars svg.fill .hole,.stars svg.fill .wob{animation-duration:.01s;animation-delay:0s}}

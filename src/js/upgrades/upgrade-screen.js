@@ -55,7 +55,7 @@ function dealCards(bonus) {
     const b = document.createElement('button'); b.className = 'card r-' + c.r; b.type = 'button';
     b.style.setProperty('--i', i); b.style.setProperty('--r', rots[i] + 'deg');
     b.innerHTML = `<div class="glare"></div><div class="taken">Taken</div><div class="k"><span></span></div><div class="for"></div><div class="t"></div><div class="d"></div>${info.fx.length ? '<div class="fx"></div>' : ''}${stats ? '<div class="s"></div>' : ''}${c.vis ? '<div class="v"></div>' : ''}<div class="stamp">${RAR[c.r]}</div>`;
-    b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length)); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
+    b.querySelector('.k span').textContent = c.tag; if (u.tierOf) b.querySelector('.k span').insertAdjacentHTML('beforeend', starRow(T(u.tierOf), TIERS[u.tierOf].t.length, tierRars(u.tierOf))); b.querySelector('.for').textContent = c.for; b.querySelector('.t').textContent = c.name; b.querySelector('.d').textContent = c.text;
     // what you get, in numbers: before → after, green when it's better
     info.fx.forEach(f => { const s = document.createElement('span'); s.className = chipCls(f); s.textContent = CHIP_MARK[chipCls(f)] + ' ' + f.t; b.querySelector('.fx').appendChild(s); });
     if (stats) b.querySelector('.s').textContent = u.stats();
@@ -117,9 +117,11 @@ function startCardClock() {
 function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
   const u = dealt[i], c = u.shown; cardsArmed = false;
+  // a tier's next star fills the moment it's taken, before the guns are rebuilt for it (stations/station-ui.js: starFillSvg)
+  { const nx = $('cards').children[i].querySelector('.stars svg.next'); if (nx) nx.outerHTML = starFillSvg('on', nx.getAttribute('style') ? ` style="${nx.getAttribute('style')}"` : ''); }
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); SFX.upgrade();
-  if (u.weaponOf || ((u.target || u.modOf) && (u.target || u.modOf) === curId())) gunGlow = 1;   // the gun in your hands glows only if the card did something to it (a body perk doesn't)
+  if (u.weaponOf || ((u.target || u.modOf) && (u.target || u.modOf) === curId())) glowGun(u.weaponOf || u.target || u.modOf);   // the gun in your hands glows only if the card did something to it (a body perk doesn't)
   P.wraps = 0;   // the wave's bandages come off your arm while the cards are covering you
   // in the history: what it was and, for one that went on a gun, which gun (by its plain name: your pistol, not your 9mm)
   { const nm = u.weaponOf ? WEAP[u.weaponOf].name : c.name, on = u.target ? 'On your ' + gunCall(u.target) : '', prev = run.taken.find(h => h.name === nm && (h.on || '') === on), total = st ? stackTotal(c.name, before) : '';
@@ -194,9 +196,9 @@ function leaveUpgrade(burn) {
   el.classList.remove('armed'); el.classList.add('picking');
   burnCards(burn);
   state = 'leaving';
-  setTimeout(() => { el.classList.remove('show'); }, 1250);
+  setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled and popped)
   // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
-  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); }, 1650);
+  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); }, 1800);
 }
 // (a press has to start once the cards are live, like a card's, so a click held over from the wave doesn't take it)
 $('upSkip').addEventListener('pointerdown', () => { if (cardsArmed) $('upSkip').dataset.down = '1'; });

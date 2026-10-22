@@ -58,12 +58,10 @@ function animateDeath(dt) {
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
   pm.head.rotation.set(-sg * 0.3 * fall, 0, 0.2 * fall * Math.sign(ANIM.deathTwist || 1));
-  const d = ANIM.dropped;
-  if (d && !d.landed) {
-    d.vy -= 12 * dt; d.g.position.x += d.vx * dt; d.g.position.y += d.vy * dt; d.g.position.z += d.vz * dt; d.g.rotateZ(d.spin * dt);
-    if (d.g.position.y < 0.06) { d.g.position.y = 0.06; d.landed = true; const yaw = rr(0, 6.28); if (d.melee) d.g.rotation.set(Math.PI / 2, yaw, 0, 'YXZ'); else d.g.rotation.set(0, yaw, Math.PI / 2 * (rand() < 0.5 ? 1 : -1), 'YXZ'); if (d.melee) SFX.thud(); else SFX.gunDrop(); burst(d.g.position.x, 0.1, d.g.position.z, 3, 'dust'); }
-  }
+  dropFall(dt);
 }
+// the weapon you dropped as you went down, falling and landing (effects/weapon-drop.js)
+function dropFall(dt) { stepDrop(ANIM.dropped, dt); }
 // ---- vaulting: a crouch and a reach for the sill, the push-off with a hand planted on it, the legs tucked and swung
 // over to one side, then reaching down for the ground. A winded scramble goes over belly-first on both hands, low and
 // slow, the legs dragging. The landing itself (knees giving, the dip) is ANIM.land below.
@@ -165,7 +163,7 @@ function worryStep(rdt) {
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
-  if (P.dead) { animateDeath(P.deathDt || 0); return; }
+  if (P.dead) { if (PRAG.me) { stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
   pm.shinL.rotation.x = pm.shinR.rotation.x = 0;   // the knees straight, unless the stride or a landing bends them below
@@ -433,7 +431,7 @@ function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
-  { const t = 1 - titleBlend(), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; } }   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js)
+  { const t = 1 - titleBlend(), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js)
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
@@ -445,7 +443,10 @@ function updatePlayerVisuals(dt, rdt) {
   else { const k = flashT / flashLife, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.55 * s1); flashStar.scale.setScalar(0.95 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.3 * s1 * flashWide, 1, 0.6 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }
   if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
-  glowMats.forEach(m => m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2));   // a soft, pale yellow pulse
+  // a soft, pale yellow pulse on that gun's own materials only (its stain copies, effects/body-blood.js), so the rack's
+  // models and the other guns you carry, which share the plain gun materials, stay as they are
+  const GS = gunGlowId && WSTAIN[gunGlowId];
+  if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) gunGlowId = null; }
   if (rdt > 0) updateMuzzleWisp(rdt);   // the smoke still curling off the muzzle after a heavy shot (effects/muzzle-flash.js)
   if (worldK > 0 && dt > 0) barrelFire(dt);   // (effects/puffs.js; the fire freezes with the world)
 }

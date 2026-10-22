@@ -10,7 +10,7 @@ function hpop() { const c = hp_[0], d = hd_[0], lc = hp_.pop(), ld = hd_.pop(); 
 // what each board in its way costs a brute's route, against 5 for anyone else's: they make short work of boards
 const BRUTE_BOARD_COST = 2.5;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window' && !openAt[idx(i, j)].boards.length) return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = o.boards.length; return b ? 1 + b * (big ? BRUTE_BOARD_COST : 5) : o.kind === 'window' ? 2.2 : 1; } return 1; }
+function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window' && !openAt[idx(i, j)].boards.length) return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = barN(o); return b ? 1 + b * (big ? BRUTE_BOARD_COST : 5) : o.kind === 'window' ? 2.2 : 1; } return 1; }
 function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i, j + dj); }
 function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
 function flowInto(dist, big) {
@@ -58,7 +58,8 @@ function viaField(o) {
   return f;
 }
 // which way in: the walk to each, plus ENTRY_LOAD cells for every zombie already headed for it, and a little chance,
-// so the near ones still get most but every window and the door gets its share
+// so the near ones still get most but every window and the door gets its share. In the later waves that share's evened
+// out (up to INSIDE.load cells a zombie: zombies/ai.js), so they come at every window at once and you can't hold one
 const ENTRY_LOAD = 7;
 function pickEntry(z) {
   const k = idx(clamp(ci(z.x), 0, N - 1), clamp(ci(z.z), 0, N - 1));
@@ -66,7 +67,7 @@ function pickEntry(z) {
   for (const o of openings) {
     const d = viaField(o)[k]; if (d >= 1e8) continue;
     let load = 0; for (const q of zombies) if (q !== z && q.via === o) load++;
-    const s = d + load * ENTRY_LOAD + rand() * 4; if (s < bs) { bs = s; best = o; }
+    const s = d + load * mix(ENTRY_LOAD, INSIDE.load, insideK()) + rand() * 4; if (s < bs) { bs = s; best = o; }
   }
   return best;
 }

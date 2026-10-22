@@ -2,10 +2,10 @@
 // nobody races anyone else for it (netAct in net/sync.js sends none of it; an assist gets its own ammo box). Hurting a zombie a
 // teammate then finishes is an assist, paid straight into your scrap (teamAssist). At the strongbox in the house you
 // pick a teammate and an amount and send them scrap (renderGift). And a wave cleared with teammates still on their feet
-// pays a team bonus (teamBonus).
+// with all of you still on your feet pays everyone a team bonus (teamBonus).
 
 // an assist: at least ASSIST_MIN of the zombie's health done by you, within the last ASSIST_T seconds, pays
-// ASSIST_SCRAP (a brute twice that); the team bonus is TEAM_BONUS for each teammate still standing at the clear; the
+// ASSIST_SCRAP (a brute twice that); the team bonus is TEAM_BONUS for each teammate, if nobody's down at the clear; the
 // strongbox's quick amounts (GIFT_QUICK, then half and all of yours)
 const ASSIST_MIN = 0.2, ASSIST_T = 8, ASSIST_SCRAP = 1, TEAM_BONUS = 2, GIFT_QUICK = [5, 10, 25];
 
@@ -45,7 +45,7 @@ function renderGift() {
   const to = NET.peers.get(GIFT.to), give = rows.querySelector('.gfGive');
   give.disabled = !to || GIFT.amt < 1;
   give.querySelector('span').textContent = have < 1 ? 'No scrap to give' : `Give ${GIFT.amt} scrap to ${to ? to.name : '…'}`;
-  setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · E to step away`);
+  setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · ${keyOn('use')} to step away`);
 }
 const giftQuick = q => { const have = S.scrap | 0; return q === 'all' ? have : q === 'half' ? Math.ceil(have / 2) : Math.min(+q, have); };
 function giftClick(b) {
@@ -60,7 +60,7 @@ function giftClick(b) {
 function giftSend() {
   const to = NET.peers.get(GIFT.to), n = Math.min(GIFT.amt | 0, S.scrap | 0), give = $('stRows').querySelector('.gfGive');
   if (!to || n < 1) { if (give) { give.classList.remove('shake'); void give.offsetWidth; give.classList.add('shake'); } SFX.click(); return; }
-  S.scrap -= n; popEl('scrap'); SFX.scrap();
+  S.scrap -= n; popEl('scrap'); SFX.scrap(); runStat('sent', n);
   netTo(to.id, 'gift', { s: n });
   feed('scrap', n, 'given to ' + to.name);
   const card = $('stRows').querySelector(`.gfP[data-to="${to.id}"]`);
@@ -71,7 +71,7 @@ function giftSend() {
 NET_ON.gift = m => {
   if (state === 'title' || !(m.s > 0)) return;
   const p = NET.peers.get(m.f), n = Math.min(9999, m.s | 0), who = p ? p.name : 'A teammate';
-  S.scrap += n; popEl('scrap'); SFX.scrap();
+  S.scrap += n; popEl('scrap'); SFX.scrap(); runStat('received', n);
   feed('scrap', n, 'from ' + who); floatText(P.x, P.z, '+' + n, '#d4b25c');
   toast(`${who} gave you ${n} scrap`, { kind: 'info', icon: 'scrap', sub: 'From the strongbox' });
 };
@@ -79,15 +79,14 @@ NET_ON.gift = m => {
 function teamAssist(z) {
   if (!netLink() || !(z.myDmg >= z.maxHp * ASSIST_MIN) || run.time - (z.myAt || -99) > ASSIST_T) return;
   z.assist = true;   // (and if the kill dropped ammo, a box of your own: NET_ON.hit, net/sync.js)
-  const n = ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1);
-  S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c');
+  const n = waveScrap(ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1));
+  S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); runStat('assists'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c');
 }
-// the wave's cleared: for every teammate still standing alongside you, a bit of scrap (nothing if you're down)
+// the wave's cleared with every one of you still on your feet: a bit of scrap each (nothing if anyone went down)
 function teamBonus() {
-  if (!netLink() || P.dead) return;
-  let up = 0; for (const p of NET.peers.values()) if (!p.dead) up++;
-  if (!up) return;
-  const n = TEAM_BONUS * up; S.scrap += n; popEl('scrap'); feed('scrap', n, 'team bonus');
+  if (!netLink() || P.dead || !NET.peers.size) return;
+  for (const p of NET.peers.values()) if (p.dead) return;
+  const n = waveScrap(TEAM_BONUS * NET.peers.size); S.scrap += n; popEl('scrap'); feed('scrap', n, 'nobody went down'); runStat('teamBonus', n);
 }
 
 // ---- sharing a gun you've put down (gunDrop, pickups/pickups.js). It's yours alone till you share it (H, standing at
@@ -118,7 +117,7 @@ function shareFx(p, dt) {
   let t = shareTags.get(p);
   if (!t && on) {
     const el = document.createElement('div'); el.className = 'shareTag hud'; el.style.setProperty('--pc', c.pc || NET_COL[1]);
-    el.innerHTML = `<div class="stCard"><b>${c.own === false ? shEsc(c.who || 'Teammate') + "'s" : 'Shared'}</b><span class="stHint"><kbd>${c.own === false ? 'E' : 'H'}</kbd>${c.own === false ? 'take' : 'unshare'}</span></div><i class="stStem"></i><i class="stDot"></i>`;
+    el.innerHTML = `<div class="stCard"><b>${c.own === false ? shEsc(c.who || 'Teammate') + "'s" : 'Shared'}</b><span class="stHint">${kbd(c.own === false ? 'use' : 'share')}${c.own === false ? 'take' : 'unshare'}</span></div><i class="stStem"></i><i class="stDot"></i>`;
     document.body.appendChild(el); shareTags.set(p, t = { el });
   }
   if (t) { t.el.classList.toggle('out', !on); t.el.classList.toggle('near', Math.hypot(p.x - P.x, p.z - P.z) < SHARE.near); }

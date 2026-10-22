@@ -30,7 +30,7 @@ const MOD_UP = {
   spikes: { t: '+12% damage, takes more limbs', up: D => { D.dmg *= 1.12; D.sever += 0.2; } },
   weighted: { t: 'Knockback +30%', up: D => { D.kb *= 1.3; } }
 };
-const roman = n => ['', 'I', 'II', 'III', 'IV'][n] || String(n);
+const roman = n => ['', 'I', 'II', 'III', 'IV', 'V'][n] || String(n);
 const modLv = m => (W8.modLv && W8.modLv[m]) || 1;
 // a mod's name at a level: its own name for each level if it has them (the revolver's barrel by its length), or the
 // name and the level in numerals
@@ -46,12 +46,26 @@ const modsOff = id => (W8.modOff && W8.modOff[id]) || [];
 const modIsOff = m => modsOff(MODS[m].w).includes(m);
 const modOffer = m => !hasMod(m) && !modIsOff(m) && !modReplaced(m) && (!MODS[m].need || (hasMod(MODS[m].need) && modLv(MODS[m].need) >= (MODS[m].needLv || 1))) && !(MODS[m].muzzle && (muzzleTaken(MODS[m].w) || ownTier(MODS[m].w, 'supp') || ownTier(MODS[m].w, 'choke')));   // (a can or choke taken off still holds the muzzle)
 // one thing on the end of the barrel: a can or a choke from the bench, or a muzzle device mod (weapons/gun-mods.js)
+// a line a fitted mod has taken the place of (the AK kit's mag and magwell: weapons/gun-mods.js), and that mod
+const modLocks = (id, k) => (W8.mods[id] || []).find(m => MODS[m].locks && MODS[m].locks.includes(k)) || null;
 const muzzleTaken = id => !!(gunTier(id, 'supp') || gunTier(id, 'choke') || (W8.mods[id] || []).some(m => MODS[m].muzzle));
+// a mod that changes what a gun fires (MODS[m].ammo: the SMG's 10mm kit) empties it into the pouch of what it fired
+// before, so the next mag is the new round; the first time it goes on it comes with its own (gift: a mag in the gun and
+// the rest in the pouch)
+function ammoSwap(id, fn) {
+  const a0 = W(id) && W(id).ammo; fn(); const a1 = W(id) && W(id).ammo;
+  if (!a0 || !a1 || a0 === a1) return;
+  W8.reserve[a0] = (W8.reserve[a0] || 0) + (W8.mag[id] || 0); W8.mag[id] = 0; delete W8.pin[id]; delete W8.relSave[id];
+  const m = (W8.mods[id] || []).find(k => MODS[k].ammo === a1), got = W8.kitGift = W8.kitGift || {};
+  if (m && MODS[m].gift && !got[m]) { got[m] = true; const n = Math.min(magSize(id), MODS[m].gift); W8.mag[id] = n; W8.reserve[a1] = (W8.reserve[a1] || 0) + MODS[m].gift - n; }
+}
 // fit a mod; one with a fire mode becomes the weapon's mode straight away, and one that replaces another takes it off
-function addMod(id, m) {
+function addMod(id, m) { ammoSwap(id, () => addMod0(id, m)); }
+function addMod0(id, m) {
   const r = MODS[m].replaces;
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== r); W8.mods[id].push(m);
   if (MODS[m].fm || W8.fm[id] === r) W8.fm[id] = MODS[m].fm ? m : null;
+  (MODS[m].locks || []).forEach(k => fitTier(id, k, 0));   // (what it takes the place of comes off: the AK kit's mag and magwell)
   recomputeEff();
 }
 // take a mod off a gun or put it back. Off, the mod it replaced comes back on (you had it), what needs it comes off with
@@ -65,11 +79,13 @@ function setMod(id, m, on) {
     addMod(id, m);
   } else {
     if (!hasMod(m)) return;
-    W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
-    if (W8.fm[id] === m) W8.fm[id] = null;
-    if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
-    W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
-    recomputeEff();
+    ammoSwap(id, () => {
+      W8.mods[id] = W8.mods[id].filter(k => k !== m); l.push(m);
+      if (W8.fm[id] === m || (M.semi && W8.fm[id] === 'semi')) W8.fm[id] = null;
+      if (M.replaces && !W8.mods[id].includes(M.replaces)) W8.mods[id].push(M.replaces);
+      W8.mods[id].filter(k => MODS[k].need === m).forEach(k => setMod(id, k, false));
+      recomputeEff();
+    });
   }
 }
 function improveMod(m) { W8.modLv[m] = modLv(m) + 1; recomputeEff(); }
@@ -83,6 +99,7 @@ function fireModeOf(id) {
   if (D.burst) return { k: 'burst', t: 'Burst ' + D.burst, n: D.burst };
   if (fm === 'auto') return { k: 'auto', t: 'Auto' };
   if (fm === 'semi') return { k: 'semi', t: 'Semi' };
+  if (D.akKit) return { k: 'auto', t: 'Auto' };   // (the battle rifle's AK conversion: weapons/gun-mods.js)
   if (D.fan) return fanning(D) ? { k: 'fan', t: 'Fan' } : { k: 'semi', t: 'Aimed' };   // fanned from the hip, single shots down the sights
   if (fm === 'both') return { k: 'both', t: 'Both' };   // the double barrel's twin trigger, both barrels at once
   if (ACTION_MODE[id]) return { k: 'action', t: ACTION_MODE[id] };
@@ -92,10 +109,10 @@ function fireModeOf(id) {
 // modes a gun has out of the box, besides its own: the assault rifle's selector has semi (SEMI: steadier single shots,
 // game/run-state.js)
 const OWN_MODES = { ar: ['semi'] };
-function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }
+function fireModes(id) { return [null, ...(OWN_MODES[id] || []), ...((W8.mods[id] || []).some(m => MODS[m].semi) ? ['semi'] : []), ...Object.keys(MODS).filter(m => MODS[m].fm && (W8.mods[id] || []).includes(m))]; }   // (semi: a mod that makes it an automatic, with a semi setting)
 function cycleFireMode(id) {
   const modes = fireModes(id); if (modes.length < 2) return null;
   const next = modes[(modes.indexOf(W8.fm[id] || null) + 1) % modes.length];
   W8.fm[id] = next; W8.burstLeft = 0; recomputeEff();
-  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' ? 'Full auto' : 'Single shots';
+  return next === 'semi' ? 'Semi-auto' : next ? MODS[next].fm : id === 'revolver' ? 'Aimed shots' : WEAP[id].slot === 'auto' || W(id).akKit ? 'Full auto' : 'Single shots';
 }

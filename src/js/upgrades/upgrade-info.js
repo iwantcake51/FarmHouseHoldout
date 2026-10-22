@@ -6,7 +6,7 @@ const UPG_FX = {
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 kills: scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Refills 25% faster'],
   'Bayonet': ['Shove stab: 45 damage'], 'Shoulder stock': ['Kick −45%', 'Quick shots open up 40% slower'], 'Second wind': ['+25 health below 25%'],
-  'Painkillers': ['+1 health a second', 'After 5 s unhurt'], 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Missing ones start at tier 1', '+14 scrap per one already maxed'],
+  get 'Painkillers'() { return [`+${PAIN_REGEN} health a second`, `After ${REGEN_WAIT} s unhurt`]; }, 'Executioner': ['Headshots 2.2× → 3×'], 'Butcher': ['Dismember 2×'], 'Gunsmith': ['Missing ones start at tier 1', '+14 scrap per one already maxed'],
   'Stubborn': ['+50 max health'],
   'Last stand': ['+60% damage below 30% health'], 'Sure shot': ['5% crit chance a shot'],
   'Bandage roll': ['+2 bandages'], 'Steady aim': ['Spread −12%'], 'Tough skin': ['+15 max health'], 'Quick draw': ['Swaps 40% faster'],
@@ -17,8 +17,15 @@ const UPG_FX = {
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
-  'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave']
+  'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave'],
+  'Long reach': ['Pickup reach +15%'], 'Sticky fingers': ['Pickup reach +25%'], 'Magnetic': ['Pickup reach +40%', 'Drops last 20 s longer']
 };
+// once there's a metalwork bench (barricades/metal-bars.js) the wood's metal and the boards are grates too
+const barWord = () => METAL.on ? 'Boarding/barring' : 'Boarding', boardsWord = () => METAL.on ? 'Boards/grates' : 'Boards';
+Object.defineProperty(UPG_FX, 'Scrap metal', { enumerable: true, get: () => [`+${METAL_AID} metal`, 'Two grates'] });
+Object.defineProperty(UPG_FX, 'Claw hammer', { enumerable: true, get: () => [barWord() + ' 2× faster'] });
+Object.defineProperty(UPG_FX, 'Framing hammer', { enumerable: true, get: () => [barWord() + ' 1.5× faster', boardsWord() + ' +25%'] });
+Object.defineProperty(UPG_FX, 'Nail gun', { enumerable: true, get: () => [barWord() + ' 2× faster', boardsWord() + ' +50%'] });
 // Bullet time does something else in co-op, where slowing time would slow everyone's (zombies/damage.js: BT_EYE)
 Object.defineProperty(UPG_FX, 'Bullet time', { enumerable: true, get: () => netLink() ? ['1 in 5 kills: 3 s dead eye', 'Every hit a headshot', 'Every 8 s at most'] : ['1 in 5 kills slows time', 'Every 8 s at most'] });
 // upgrades that stack on what you already have, from an earlier pick of the same card or an earlier step of the same
@@ -33,9 +40,8 @@ const STACKS = {
   'Strong arms II': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Strong arms III': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Steady aim': stackOf('Spread', 1, () => S.spreadMul, v => v * 0.88, v => '−' + pctDown(v) + '%'),
-  'Tough skin': stackOf('Max health', 100, () => S.maxHp, v => v + 15, v => String(Math.round(v))),
   'Scavenger': stackOf('Drops', 1, () => S.dropMul, v => v * 1.5, v => '+' + pctUp(v) + '%'),
-  'Painkillers': stackOf('Regen', 0, () => S.regen, v => v + 1, v => v + ' health/s'),
+  'Painkillers': stackOf('Regen', 0, () => S.regen, () => PAIN_REGEN, v => v + ' health/s'),
   'Thick soles II': slowStack('soles'),
   'Running shoes': speedStack(BOOTS[1]), 'Trail runners': speedStack(BOOTS[2]),
   'Plate carrier': stackOf('Damage taken', 1, () => S.dmgTaken, v => v * 0.75, v => '−' + pctDown(v) + '%'),
@@ -48,7 +54,7 @@ const stackTotal = (name, before) => { const st = STACKS[name]; return st && Mat
 function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
   // a reload from empty: shell by shell (two a go with Sleight of Hand, or two or three on the pump with Quick hands II or III), or one mag change
-  const reload = D.melee ? 0 : D.perShell ? Math.ceil(mag / (D.loadN || 1)) * D.perShell * relMul(id) + firstShell(id) : (D.reload || 0) * relMul(id);
+  const reload = D.melee ? 0 : D.perShell ? Math.ceil(mag / (D.loadN || 1)) * shellGo(id, D) + firstShell(id) : (D.reload || 0) * relMul(id);
   return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), aimMv: (D.spread || 0) * 0.5 * (D.aimK || 1) * (1 + 0.5 * (D.aimMove ?? 1)), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change. (A chip
@@ -93,7 +99,7 @@ function tierFx(id, k) {
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
-  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : WEAP[id].breakOpen ? 'Both shells at once' : 'Three shells a go', good: true });
+  if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : id === 'scar' ? 'Mags funnelled in' : WEAP[id].breakOpen ? 'Both shells at once' : 'Three shells a go', good: true });
   if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
   return fx;

@@ -8,13 +8,17 @@ const MM = {
   wrenchRed: lam(0xc2261a), forged: lam(0x2a2c30), jawSteel: lam(0xb2b6ba), nut: lam(0x1c1d20), label: lam(0xd8b070), labelRed: lam(0xb8301e),
   ito: lam(0x1e2430), samegawa: lam(0xd8d2c0), gold: lam(0xc8a24a), hamon: lam(0xf2f4f6), saya: lam(0x2a1a14), scale: lam(0x5a3a22), rivet: lam(0xc0a060)
 };
+// the traced weapons' flat colours: the fire axe's handle wood, its black rubber grip, red paint and bright steel, and
+// the machete's black rubber and black coating
+Object.assign(MM, { axeWood: lam(0x8a5a3c), axeGrip: lam(0x2a2724),
+  axePaint: lam(0xb0261c), axeSteel: lam(0xc4c8cc), sogRubber: lam(0x2e2f32), sogBlack: lam(0x1c1d20) });
 // a cylinder standing along +y (radius at its top, radius at its bottom), centred at height y
 function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, seg || 10), mat); m.position.set(x || 0, y, z || 0); m.castShadow = true; g.add(m); return m; }
 // a mod's level on this model (0 without it) picked out of a table indexed by level: improving a mod at the workbench
 // grows the part it adds (a longer blade, more nails, a bigger jaw), so level III looks bigger than level II
 const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0)];
 // the machete's blade length by long-blade level (also what its swing trail stretches by, melee/swing-trail.js)
-const MACHETE_S = [1, 1.36, 1.55, 1.74], KATANA_L = [0.78, 0.92, 1.0, 1.08];
+const MACHETE_S = [1, 1.12, 1.2, 1.28], KATANA_L = [0.78, 0.92, 1.0, 1.08];
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
@@ -152,38 +156,123 @@ const MELEE_MODELS = {
       const t = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.035, 4), MM.rust); t.position.y = 0.095; sp.add(t);
     });
   },
-  // machete: wooden scales with brass rivets and a bird's-head pommel, a finger guard, then a broad blade that widens toward
-  // a clipped tip, with a dark spine and a bright edge
+  // machete (traced: melee/melee-traced.js): a black one (after SOG's SawTooth), its broad blade swelling toward a
+  // clipped point and ground thin to its edge, on a rubber handle with a finger hook, a hook at the pommel and screws
+  // through it. Its spine is plain (sogPlain) till it's given its serrated spine (any level), when the saw teeth are
+  // cut along it; nothing else about it changes. A longer blade (longblade) grows from its base
   machete(g, m) {
-    box(g, 0.042, 0.2, 0.05, MM.scale, 0, 0.0, 0);
-    [-0.06, 0.0, 0.06].forEach(y => [-1, 1].forEach(sd => vcyl(g, 0.007, 0.007, 0.004, MM.rivet, y, 8, sd * 0.022, 0).rotation.z = Math.PI / 2));
-    const pom = box(g, 0.044, 0.05, 0.06, MM.scale, 0, -0.115, -0.012); pom.rotation.x = -0.45;   // bird's-head pommel
-    box(g, 0.012, 0.018, 0.08, MM.iron, 0, 0.11, 0.012);                      // finger guard
-    const s = lvAt(m, 'longblade', MACHETE_S), b = new THREE.Group(); b.position.set(0, 0.12, 0.012); b.scale.set(1, s, 1); g.add(b);
-    const parts = [[0.16, 0.07, 0.08], [0.2, 0.092, 0.26], [0.14, 0.098, 0.43]];
-    parts.forEach(([h, w, y]) => {
-      box(b, 0.011, h, w, GM.blade, 0, y, w / 2 - 0.035);
-      box(b, 0.013, h, 0.01, GM.metal2, 0, y, -0.035);                       // spine
-      box(b, 0.007, h, 0.01, MM.edge, 0, y, w - 0.038);                      // edge
-    });
-    const tip = box(b, 0.011, 0.07, 0.07, GM.blade, 0, 0.52, 0.03); tip.rotation.x = 0.7;     // clipped point
-    box(b, 0.007, 0.07, 0.01, MM.edge, 0, 0.515, 0.06).rotation.x = 0.7;
-    if (m.serrated) { const ts = lvAt(m, 'serrated', [1, 1, 1.25, 1.5]); for (let k = 0; k < 9; k++) { const t = box(b, 0.014, 0.022 * ts, 0.022 * ts, GM.steel, 0, 0.06 + k * 0.045, -0.04); t.rotation.x = 0.78; } }   // saw teeth on the spine, bigger with each level
+    const T = SOG_TRACE, blade = m.serrated ? T.blade : sogPlain();
+    const s = lvAt(m, 'longblade', MACHETE_S), b = new THREE.Group(); b.position.y = SOG_Y0; b.scale.set(1, s, 1); g.add(b);
+    traceEdge(trace(b, blade, 0.006, MM.sogBlack, 0.0004), blade, 0.42, 0.04);   // ground to a keen edge
+    trace(g, T.hilt, 0.026, MM.sogRubber, 0.006);
+    [[607, 990], [663, 990], [643, 1252]].forEach(([x, r]) => [-1, 1].forEach(sd => { const sc = vcyl(g, 0.0045, 0.0045, 0.003, MM.iron, (1110 - r) * 0.000671, 8, sd * 0.0196, -(x - 645) * 0.000671); sc.rotation.z = Math.PI / 2; }));   // the screws, both faces
   },
-  // fire axe: a wooden handle with a flared, taped grip; a red head whose cheeks flare out to a bright bevelled bit, and a pick behind
+  // fire axe (traced: melee/melee-traced.js): a wooden handle, scuffed and worn, swelling under the head, and a long
+  // black rubber grip that curls into a hooked butt; on top, a red-painted head, chipped and worn, its steel bit ground
+  // to a bright bevelled edge and its pick drawn out to a steel point. A steel collar under the head, the handle's wedged
+  // end showing over the eye. A weighted head (weighted) is bigger about its eye
   axe(g, m) {
-    vcyl(g, 0.026, 0.032, 0.98, MM.hickory, 0.37, 10);
-    vcyl(g, 0.038, 0.03, 0.05, MM.hickory, -0.12, 10);                        // flared end of the grip
-    gripWrap(g, 0.034, -0.09, 0.13, 6);
-    const hw = lvAt(m, 'weighted', [1, 1.3, 1.38, 1.46]), head = new THREE.Group(); head.position.y = 0.8; head.scale.setScalar(hw); g.add(head);
-    box(head, 0.06, 0.11, 0.08, MM.redPaint, 0, 0, 0);                        // eye
-    box(head, 0.048, 0.14, 0.08, MM.redPaint, 0, 0, 0.07);                    // cheeks, flaring toward the bit
-    box(head, 0.036, 0.19, 0.06, MM.redPaint, 0, 0, 0.13);
-    box(head, 0.02, 0.23, 0.04, MM.wornSteel, 0, 0, 0.175);                   // ground bevel
-    box(head, 0.008, 0.24, 0.012, MM.edge, 0, 0, 0.198);                      // the edge
-    box(head, 0.04, 0.05, 0.1, MM.redPaint, 0, 0, -0.08);                     // pick
-    const pk = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.08, 4), MM.wornSteel); pk.rotation.x = -Math.PI / 2; pk.position.z = -0.165; pk.castShadow = true; head.add(pk);
-    vcyl(g, 0.036, 0.033, 0.03, MM.iron, 0.73, 10);                           // steel collar under the head
+    trace(g, axeShaft(), 0.024, MM.axeWood, 0.008);
+    trace(g, AXE_TRACE.grip, 0.028, MM.axeGrip, 0.008);
+    axeWear(g);
+    const hw = lvAt(m, 'weighted', [1, 1.3, 1.38, 1.46]), head = new THREE.Group(); head.position.set(0, AXE_PIVOT[1], AXE_PIVOT[0]); head.scale.setScalar(hw); g.add(head);
+    trace(head, AXE_TRACE.red, 0.03, MM.axePaint, 0.002);
+    axeChips(head);
+    taperBy(trace(head, AXE_TRACE.bit, 0.026, MM.axeSteel, 0.0006), x => mix(1, 0.05, smooth(clamp((x - 0.094) / 0.056, 0, 1))));   // ground thin to the edge
+    taperBy(trace(head, AXE_TRACE.spike, 0.02, MM.axeSteel, 0.0006), x => clamp((x + 0.159) / 0.032, 0.05, 1));                      // drawn to a point
+    box(head, 0.036, 0.008, 0.064, MM.iron, 0, 0.056, 0);                           // the handle's wedged end over the eye
+    box(g, 0.04, 0.016, 0.08, MM.iron, 0, 0.727, 0);                                // the collar under the head
   }
 };
+// a traced outline (melee/melee-traced.js, [z, y] pairs) pushed out to depth d across the model (x), centred on it,
+// with a bevel round its edges (rounded over in a few steps on a handle, a hair on a blade, kept from growing the
+// outline much) and any holes through it
+function trace(g, pts, d, mat, bev, holes) {
+  const sh = new THREE.Shape(pts.map(([z, y]) => new THREE.Vector2(z, y)));
+  (holes || []).forEach(h => sh.holes.push(new THREE.Path(h.map(([z, y]) => new THREE.Vector2(z, y)))));
+  const geo = new THREE.ExtrudeGeometry(sh, bev ? { depth: d, bevelEnabled: true, bevelThickness: bev, bevelSize: Math.min(bev, 0.0012), bevelSegments: bev > 0.004 ? 4 : 1, curveSegments: 4 } : { depth: d, bevelEnabled: false });
+  geo.translate(0, 0, -d / 2);
+  const m = new THREE.Mesh(geo, mat); m.rotation.y = -Math.PI / 2; m.castShadow = true; g.add(m); return m;
+}
+// the machete's blade with a plain spine: its traced outline (SOG_TRACE.blade) with the saw teeth along the spine
+// (everything between SOG_TEETH's heights, behind the blade) taken out, the spine run straight along the roots of the
+// teeth, where the blade itself stops
+const SOG_TEETH = [0.088, 0.5068];
+let SOG_PLAIN = null;
+function sogPlain() {
+  if (SOG_PLAIN) return SOG_PLAIN;
+  const B = SOG_TRACE.blade, isTooth = ([z, y]) => z < 0 && y >= SOG_TEETH[0] && y <= SOG_TEETH[1];
+  const teeth = B.filter(isTooth), keep = B.filter(p => !isTooth(p)), at = keep.findLastIndex(([z, y]) => z < 0 && y > SOG_TEETH[1]);
+  // the root of the teeth: at each height, the nearest any of them comes to the blade's middle; then evened out
+  const n = 16, root = [];
+  for (let k = 0; k <= n; k++) {
+    const y = SOG_TEETH[1] - (SOG_TEETH[1] - SOG_TEETH[0]) * k / n;
+    let z = -1; for (const [tz, ty] of teeth) if (Math.abs(ty - y) < 0.012) z = Math.max(z, tz);
+    root.push([z, y]);
+  }
+  for (let q = 0; q < 2; q++) for (let k = 1; k < n; k++) root[k][0] = (root[k - 1][0] + 2 * root[k][0] + root[k + 1][0]) / 4;
+  return (SOG_PLAIN = keep.slice(0, at + 1).concat(root, keep.slice(at + 1)));
+}
+// where a traced outline crosses height y: its front and back edges [lo, hi] (null if it doesn't reach)
+function spanAt(pts, y) {
+  let lo = 1e9, hi = -1e9;
+  for (let i = 0; i < pts.length; i++) { const [z0, y0] = pts[i], [z1, y1] = pts[(i + 1) % pts.length]; if ((y0 - y) * (y1 - y) > 0 || y0 === y1) continue; const zz = z0 + (z1 - z0) * (y - y0) / (y1 - y0); lo = Math.min(lo, zz); hi = Math.max(hi, zz); }
+  return hi > lo ? [lo, hi] : null;
+}
+// the axe's wooden shaft, from its traced outline: both edges evened out (the photo's lumps gone) and carried on
+// straight down into the grip at the grip's own width, so the two meet without the pinch their rounded ends made
+let AXE_SHAFT = null;
+function axeShaft() {
+  if (AXE_SHAFT) return AXE_SHAFT;
+  const W = AXE_TRACE.wood, G = AXE_TRACE.grip, y0 = 0.33, y1 = 0.718, from = 0.405, n = 34, L = [], R = [];
+  const gTop = spanAt(G, 0.35), wLow = spanAt(W, from);
+  for (let k = 0; k <= n; k++) {
+    const y = y0 + (y1 - y0) * k / n;
+    let e = y >= from ? spanAt(W, y) : null;
+    if (!e) { const t = smooth(clamp((y - 0.35) / (from - 0.35), 0, 1)); e = [mix(gTop[0], wLow[0], t), mix(gTop[1], wLow[1], t)]; }
+    L.push([e[0], y]); R.push([e[1], y]);
+  }
+  const even = A => A.map((p, k) => k === 0 || k === A.length - 1 ? p : [(A[k - 1][0] + 2 * p[0] + A[k + 1][0]) / 4, p[1]]);
+  let l = L, r = R; for (let q = 0; q < 3; q++) { l = even(l); r = even(r); }
+  return (AXE_SHAFT = l.concat(r.reverse()));
+}
+// what years of use leave on it: grain running up both faces of the wood, and the
+// rubber grip's moulded ridges round it, every GRIP_RIB up its length
+const GRIP_RIB = 0.036, AXE_GRAIN = lam(0x6a4128), AXE_RIB = lam(0x1d1b19);
+function axeWear(g) {
+  const W = axeShaft(), r = mulberryish(41);
+  for (const sd of [-1, 1]) for (let k = 0; k < 7; k++) {
+    const y = 0.4 + r() * 0.28, len = 0.06 + r() * 0.14, e = spanAt(W, y); if (!e) continue;
+    const z = mix(e[0] + 0.008, e[1] - 0.008, r()), m = box(g, 0.001, len, 0.0022, AXE_GRAIN, sd * 0.0201, y, z); m.rotation.x = (r() - 0.5) * 0.06;
+  }
+  for (let y = -0.08; y < 0.34; y += GRIP_RIB) {
+    const e = spanAt(AXE_TRACE.grip, y); if (!e) continue;
+    box(g, 0.045, 0.003, e[1] - e[0] + 0.002, AXE_RIB, 0, y, (e[0] + e[1]) / 2);
+  }
+}
+// the head's red paint worn through to the steel in chips and along its edges, both faces, and the line where the
+// bit's grind starts
+function axeChips(head) {
+  const R = AXE_TRACE.red, r = mulberryish(7), inside = (z, y) => { let c = false; for (let i = 0, j = R.length - 1; i < R.length; j = i++) { const [zi, yi] = R[i], [zj, yj] = R[j]; if ((yi > y) !== (yj > y) && z < (zj - zi) * (y - yi) / (yj - yi) + zi) c = !c; } return c; };
+  for (const sd of [-1, 1]) for (let k = 0, made = 0; k < 40 && made < 6; k++) {
+    const z = -0.12 + r() * 0.21, y = -0.05 + r() * 0.1, w = 0.004 + r() * 0.012, h = 0.003 + r() * 0.008;
+    if (!inside(z - w, y) || !inside(z + w, y) || !inside(z, y - h) || !inside(z, y + h)) continue;
+    const m = box(head, 0.001, h, w, r() < 0.35 ? MM.iron : MM.axeSteel, sd * 0.0172, y, z); m.rotation.x = (r() - 0.5) * 1.2; made++;
+  }
+  [-1, 1].forEach(sd => box(head, 0.001, 0.104, 0.003, MM.iron, sd * 0.0142, -0.004, 0.0905));   // the grind line
+}
+// a little seeded random, so the wear lands in the same places every time the model's built
+function mulberryish(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// thinned across its width: each point's thickness times f(its z, its y)
+function taperBy(m, f) { const p = m.geometry.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, p.getZ(i) * f(p.getX(i), p.getY(i))); p.needsUpdate = true; m.geometry.computeVertexNormals(); return m; }
+// a blade ground from its spine (-z) to its edge (+z): full thickness to grind of the way across, then down to edge
+// times it at the edge, at every height (how wide the blade is there, from its own outline)
+function traceEdge(m, pts, grind, edge) {
+  return taperBy(m, (z, y) => {
+    let lo = 1e9, hi = -1e9;
+    for (let i = 0; i < pts.length; i++) { const [z0, y0] = pts[i], [z1, y1] = pts[(i + 1) % pts.length]; if ((y0 - y) * (y1 - y) > 0 || y0 === y1) continue; const zz = z0 + (z1 - z0) * (y - y0) / (y1 - y0); lo = Math.min(lo, zz); hi = Math.max(hi, zz); }
+    if (!(hi > lo)) return 1;
+    return mix(1, edge, smooth(clamp(((z - lo) / (hi - lo) - grind) / (1 - grind), 0, 1)));
+  });
+}
 const GUNS = Object.assign({}, GUN_MODELS, MELEE_MODELS);

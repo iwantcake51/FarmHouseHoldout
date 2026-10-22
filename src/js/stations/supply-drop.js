@@ -9,6 +9,7 @@ const DROP_LEAD = 9, HELI_IN = 5.5, HELI_OUT = 4.5, HELI_SPEED = 14, HELI_PASS =
 const HELI_WASH = { t: 1.3, r: 3.6, push: 1, every: 0.05, n: 3 };
 const HELI_PUSH = new THREE.Vector4(0, 0, 1, 0);   // the downwash's push on the grass (updatePushers, world/trees.js)
 function callDrop(cargo) {
+  runStat('drops');
   supplyT = DROP_LEAD; supplyCargo = cargo;
   let x, z; do { x = cxw((rr(FX0 + 2, FX1 - 2)) | 0); z = cxw((rr(FZ0 + 2, FZ1 - 2)) | 0); } while (hardBlocked(ci(x), ci(z)) || (x > HOUSE.x0 - 1 && x < HOUSE.x1 + 1 && z > HOUSE.z0 - 1 && z < HOUSE.z1 + 1));
   supplySpot = { x, z, a: rand() * Math.PI * 2, heard: false, t: -DROP_LEAD, dustT: 0 };
@@ -96,7 +97,7 @@ function stepFlare(dt) {
 const SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
 function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
-  giveWeapon(id); buildGuns(); gunGlow = 1; SFX.upgrade && SFX.upgrade();
+  giveWeapon(id); buildGuns(); glowGun(id); SFX.upgrade && SFX.upgrade();
   gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
 function updateSupplyDrop(dt) {

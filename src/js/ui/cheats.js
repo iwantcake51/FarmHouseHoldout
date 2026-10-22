@@ -3,7 +3,7 @@
 // The switches (CHEAT) are kept between runs and page loads; everything else acts on the run you're in.
 
 const CHEAT_KEY = 'kessler-cheats';
-const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false };
+const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false, fog: false };
 try { Object.assign(CHEAT, JSON.parse(localStorage.getItem(CHEAT_KEY) || '{}')); } catch (e) {}
 const saveCheats = () => { try { localStorage.setItem(CHEAT_KEY, JSON.stringify(CHEAT)); } catch (e) {} };
 const CHEAT_TOGGLES = {
@@ -11,9 +11,10 @@ const CHEAT_TOGGLES = {
   scrap: { name: 'Infinite scrap', text: 'Scrap never drops below 999. Buy anything at the stations.' },
   ammo: { name: 'Infinite ammo', text: 'Every ammo type stays at 999 in reserve. You still reload.' },
   noWaves: { name: 'Waves off', text: 'No zombies spawn. The break timer stops, and a wave in progress stops sending more.' },
-  clock: { name: 'Freeze clock', text: 'The time of day stays where you set it, even during a wave.' }
+  clock: { name: 'Freeze clock', text: 'The time of day stays where you set it, even during a wave.' },
+  fog: { name: 'Fog every wave', text: 'Every wave is a fog round: it rolls in off the fields as the wave starts (world/mist.js).' }
 };
-const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves: 'Waves off', clock: 'Clock frozen' };
+const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves: 'Waves off', clock: 'Clock frozen', fog: 'Fog' };
 let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
@@ -87,7 +88,7 @@ function cheatLiveTick() {
   set('hp', `${Math.ceil(P.hp)} / ${S.maxHp}`); set('scrap', S.scrap); set('planks', `${S.planks} / ${PLANK_MAX}`); set('bands', `${P.band || 0} / ${bandMax()}`);
   set('clock', clockText(tod)); set('wave', Math.max(0, run.wave)); set('wavenext', phase === 'wave' ? 'In progress' : `Next up: wave ${run.wave + 1}`); set('zeds', zombies.filter(z => !z.dead).length + spawnQ.length);
   set('phase', state === 'title' ? 'On the title screen' : phase === 'wave' ? `Wave ${run.wave} in progress` : phase === 'cleared' ? 'Wave cleared' : CHEAT.noWaves ? 'Break (waves off)' : `Break · next wave in ${Math.ceil(Math.max(0, breakT))}s`);
-  const id = curId(); if (id && WEAP[id].ammo) set('mag', `${W8.mag[id] || 0} / ${magSize(id)} · ${W8.reserve[WEAP[id].ammo]} spare`);
+  const id = curId(); if (id && WEAP[id].ammo) set('mag', `${W8.mag[id] || 0} / ${magSize(id)} · ${W8.reserve[W(id).ammo]} spare`);
   const sl = $('chTime'); if (sl && document.activeElement !== sl && Math.abs(+sl.value - tod) > 0.02) sl.value = tod;
   const hs = $('chHp'); if (hs && document.activeElement !== hs && Math.abs(+hs.value - P.hp) > 0.5) hs.value = Math.ceil(P.hp);
   chBody.querySelectorAll('[data-fxon]').forEach(el => el.classList.toggle('on', !!CHEAT_FX[el.dataset.fxon].on()));
@@ -167,7 +168,7 @@ const CHEAT_TABS = {
     return h + (rows.length ? '' : '<p class="chNone">Nothing matches.</p>');
   },
   world() {
-    return chHead('Zombies') + chToggle('noWaves') +
+    return chHead('Zombies') + chToggle('noWaves') + chToggle('fog') +
       `<div class="chRow"><span class="chK">Now</span><b data-live="phase" class="wide"></b></div>` +
       `<div class="chRow"><span class="chK">Wave<small data-live="wavenext"></small></span><b data-live="wave"></b>${chStep('wave', {}, '', run.wave > 0, true)}</div>` +
       `<div class="chRow"><span class="chK">Zombies left</span><b data-live="zeds"></b><span class="chGrp">${chBtn('Kill all', 'killall')}${chBtn('Next wave now', 'nextwave', {}, '', CHEAT.noWaves || phase !== 'break' || state === 'title')}</span></div>` +
@@ -184,19 +185,20 @@ function chLineFits(k, id) {
   const D = WEAP[id];
   if (tierMax(k, id) <= 0) return false;
   if (k === 'choke') return D.ammo === 'shells';
-  if (k === 'loader') return id === 'revolver' || !!D.breakOpen;
+  if (k === 'sight' && NO_SIGHT.has(id)) return false;
+  if (k === 'loader') return id === 'revolver' || id === 'scar' || !!D.breakOpen;
   return true;
 }
 // change the weapon, then let it take the change at once: a new magazine goes straight in, topped up
 function chGun(id, fn) {
   exitScope();
   magChange(id, fn);
-  delete W8.pin[id]; recomputeEff(); buildGuns(); gunGlow = 1;
+  delete W8.pin[id]; recomputeEff(); buildGuns(); glowGun(id);
   if (!W(id).melee) W8.mag[id] = magSize(id);
 }
 // a weapon into its slot and your hands, the way one off the radio arrives (stations/supply-drop.js): giveWeapon only
 // changes the stats, so the models in your hands and on your back are rebuilt for it too
-function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); gunGlow = 1; }
+function chGive(id) { exitScope(); giveWeapon(id); buildGuns(); glowGun(id); }
 function chRemoveMod(id, m) {
   W8.mods[id] = (W8.mods[id] || []).filter(k => k !== m && MODS[k].need !== m);   // and anything that needed it
   Object.keys(MODS).forEach(k => { if (!(W8.mods[id] || []).includes(k) && MODS[k].w === id) delete W8.modLv[k]; });
@@ -281,7 +283,7 @@ const CHEAT_ACTS = {
   bands: () => { P.band = bandMax(); popEl('bands'); },
   scrap: d => { S.scrap = +d.n ? S.scrap + +d.n : 0; popEl('scrap'); },
   planks: () => { S.planks = PLANK_MAX; popEl('planks'); },
-  ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[WEAP[id].ammo] = Math.max(W8.reserve[WEAP[id].ammo], 3 * AMMO_CAN[WEAP[id].ammo]); } }); },
+  ammo: () => { SLOTS.forEach(s => { const id = W8.slot[s]; if (id && WEAP[id].ammo) { W8.mag[id] = magSize(id); W8.reserve[W(id).ammo] = Math.max(W8.reserve[W(id).ammo], 3 * AMMO_CAN[W(id).ammo]); } }); },
   give: d => { chGive(d.id); feed('gear', 0, WEAP[d.id].name); },
   empty: d => { if (!W8.slot[d.s]) return; if (W8.cur === d.s) equip('side', true); W8.slot[d.s] = null; buildGuns(); },
   tier: d => { const id = curId(), k = d.k, n = ownTier(id, k), dd = +d.d;
@@ -294,7 +296,7 @@ const CHEAT_ACTS = {
     else chGun(id, () => { if (lv > 1) { W8.modLv[m] = lv - 1; recomputeEff(); } else chRemoveMod(id, m); }); },
   tune: () => { const id = curId(); chGun(id, () => { if (W8.tune[id]) delete W8.tune[id]; else W8.tune[id] = 1; }); },
   stock: () => { const id = curId(); chGun(id, () => { W8.gt[id] = {}; (W8.mods[id] || []).forEach(m => delete W8.modLv[m]); W8.mods[id] = []; W8.fm[id] = null; delete W8.tune[id]; delete W8.rounds[id]; delete W8.att[id]; W8.own[id] = {}; delete W8.ownAtt[id]; }); },
-  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); gunGlow = 1; },
+  round: d => { const id = curId(); exitScope(); loadRound(id, d.k, true); glowGun(id); },
   maxgun: () => { const id = curId(); chGun(id, () => { W8.gt[id] = W8.gt[id] || {}; for (const k of CH_GUN_LINES) if (chLineFits(k, id)) while (tierFits(k, id)) fitTier(id, k, ownTier(id, k) + 1); recomputeEff(); }); },
   skill: d => chSkill(d.key, +d.d),
   noskills: () => chNoSkills(),

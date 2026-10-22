@@ -1,7 +1,7 @@
 /* Colour tokens, fonts, page and canvas basics. */
 /* Layout: full-bleed 3D field, HUD set straight on the picture in the four corners, paper index cards for upgrades */
 :root{
-  --ink:#ece6d8; --dim:#a39e90; --orange:#d8692c; --blood:#a3281c; --night:#15191b; --gold:#f0bf4c;
+  --ink:#ece6d8; --dim:#a39e90; --acc:216,105,44; --orange:rgb(var(--acc)); --orange-d:color-mix(in srgb,var(--orange) 86%,#2a1a12); --blood:#a3281c; --night:#15191b; --gold:#f0bf4c;
   --card:#e6decb; --card-ink:#28231e; --rule:#b4473a;
   --f-num:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
   --f-ui:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -20,14 +20,16 @@ body.playing #c{cursor:none}
 .hud{position:fixed;z-index:2;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.5)}
 .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .big{font-family:var(--f-num);font-weight:800;line-height:.85;font-variant-numeric:tabular-nums}
-/* scrollbars: a thin dark rail with a squared bar in the HUD's dim ink, warming to orange under the pointer and while
-   dragged (WebKit/Blink); Firefox gets the same colours on its own thin bar */
-::-webkit-scrollbar{width:9px;height:9px}
-::-webkit-scrollbar-track{background:rgba(236,230,216,.035);box-shadow:inset 1px 0 0 rgba(236,230,216,.07)}
-::-webkit-scrollbar-thumb{background:rgba(163,158,144,.42);border:2px solid transparent;background-clip:padding-box;min-height:28px}
-::-webkit-scrollbar-thumb:hover{background-color:rgba(216,105,44,.75)}
-::-webkit-scrollbar-thumb:active{background-color:var(--orange)}
+/* scrollbars: a slim rounded bar on a barely-there rail, thicker and warmer under the pointer and while dragged
+   (WebKit/Blink); Firefox gets the same colours on its own thin bar. Wheel scrolling in the menus glides (smoothWheel,
+   core/dom.js) */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(163,158,144,.34);border:3px solid transparent;border-radius:8px;background-clip:padding-box;min-height:32px}
+::-webkit-scrollbar-thumb:hover{background-color:rgba(var(--acc),.7);border-width:2px}
+::-webkit-scrollbar-thumb:active{background-color:var(--orange);border-width:2px}
 ::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
-@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:rgba(163,158,144,.5) rgba(236,230,216,.035)}}
+*{scrollbar-width:thin;scrollbar-color:rgba(163,158,144,.42) transparent}
+@supports selector(::-webkit-scrollbar){*{scrollbar-width:auto;scrollbar-color:auto}}
 /* a <details> list opens and closes by growing to its height rather than snapping (where the browser can) */
 :root{interpolate-size:allow-keywords}

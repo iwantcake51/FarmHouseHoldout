@@ -118,6 +118,7 @@ function playS(name, o) {
   const lp = Math.min(o.lp || 20000, ear ? ear.lp : 20000);
   if (lp < 20000) { const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.6; n.connect(f); n = f; }
   if (o.hp) { const f = AC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = o.hp; f.Q.value = 0.7; n.connect(f); n = f; }
+  if (o.low) { const f = AC.createBiquadFilter(); f.type = 'lowshelf'; f.frequency.value = o.low[0]; f.gain.value = o.low[1]; n.connect(f); n = f; }   // (o.low: [Hz, dB] more or less bass under that)
   if (o.tone) { const f = AC.createBiquadFilter(); f.type = 'peaking'; f.frequency.value = rr(350, 3200); f.Q.value = 0.9; f.gain.value = rr(-o.tone, o.tone); n.connect(f); n = f; }
   n.connect(g); n = g;
   const pan = o.pan ?? (ear ? ear.pan : 0);

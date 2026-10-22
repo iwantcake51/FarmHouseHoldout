@@ -5,9 +5,13 @@ let frameAvg = 1 / 60, scaleT = 0;
 function adaptResolution(rdt) {
   frameAvg += (rdt - frameAvg) * 0.05; scaleT += rdt;
   if (scaleT < 2) return;
+  // slow: the post-processing's occlusion steps down first (fewer samples, then none: effects/post.js), then the
+  // resolution; with headroom the resolution comes back first, then the occlusion
   let next = renderScale;
-  if (frameAvg > 1 / 45 && renderScale > 1) next = Math.max(1, renderScale - 0.25);
-  else if (frameAvg < 1 / 57 && renderScale < DPR) next = Math.min(DPR, renderScale + 0.25);
+  // (a resolution picked in the settings is left as it is: ui/settings.js)
+  const autoRes = SET.res === 'auto';
+  if (frameAvg > 1 / 45) { if (POST.ok && POST.q > 0) { POST.q--; scaleT = 0; return; } if (autoRes && renderScale > 1) next = Math.max(1, renderScale - 0.25); }
+  else if (frameAvg < 1 / 57) { if (autoRes && renderScale < DPR) next = Math.min(DPR, renderScale + 0.25); else if (POST.ok && POST.q < 2 && scaleT > 6) { POST.q++; scaleT = 0; return; } }
   if (next !== renderScale) { renderScale = next; R.setPixelRatio(renderScale); resize(); scaleT = 0; }
 }
 // the next frame's asked for first, and anything that goes wrong in this one is caught (and told once, in the console),
@@ -20,6 +24,8 @@ function loop(now) {
 function frame(now) {
   const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
   if (document.visibilityState === 'visible') adaptResolution(rdt);
+  tickFps(rdt);   // (the settings' frame-rate counter: ui/settings.js)
+  musicTick();   // (the menus' piano: audio/music.js)
   let simDt = 0;
   const coop = netLink() && state === 'paused';   // (co-op: the farm doesn't stop while you're paused)
   if (state === 'play' || (state === 'dead' && P.dead) || coop) {
@@ -36,7 +42,7 @@ function frame(now) {
   worldT += rdt * worldK;
   netTick(rdt);   // co-op: your pose out, theirs in, the host's farm to the others (net/)
   visuals(state === 'play' || state === 'dead' || coop ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);
-  R.render(scene, cam);
+  renderFrame();   // the farm, with its ambient occlusion and glow (effects/post.js)
   outlinePass(cam);   // the outlines round whole models, over the frame (effects/outlines.js)
   flushModels();   // (old weapon models let go of once nothing draws them: binModel, core/geometry.js)
 }

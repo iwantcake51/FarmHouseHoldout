@@ -108,8 +108,11 @@ function roomForTree(x, z, r) {
   return true;
 }
 function claimTree(x, z, r) { const k = _tgk(Math.floor(x / TG_CELL), Math.floor(z / TG_CELL)); if (!_tgrid.has(k)) _tgrid.set(k, []); _tgrid.get(k).push([x, z, r]); }
-// a tree for the farm's own woods: which pine, how big, where in its cell, and its turn
-const farmTrees = [];
+// a tree for the farm's own woods: which pine, how big, where in its cell, and its turn. The woods, the bushes and
+// rocks and the ring past the edge are all dealt from one fixed seed (FOREST_SEED), so every player has the same
+// trees: in co-op they block, shade and hide alike, and the yard's laid out round the same ones (world/yard.js)
+const farmTrees = [], FOREST_SEED = 0x5eed1, _rngWas = _rng;
+_rng = seeded(FOREST_SEED);
 {
   const spots = [];
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -198,6 +201,7 @@ function plantTrees(list, shadows) {
     }
   }
   plantTrees(out, false);
+  _rng = _rngWas;   // (the woods are in: back to Math.random)
 }
 
 // what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet (or

@@ -6,37 +6,48 @@
   radial-gradient(ellipse 380px 220px at 0% 0%,rgba(6,7,8,.5),transparent 70%),
   radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(0,0,0,.42) 100%)}
 
-#waveBox{top:calc(16px + env(safe-area-inset-top,0px));left:20px;display:flex;gap:14px;align-items:flex-start}
+/* the wave box: the day dial, a hairline in the phase's colour, then the wave: its label and phase, the number, a
+   status line and a slim bar (the break draining, the wave's zombies whittled down, full once it's cleared) */
+#waveBox{top:calc(16px + env(safe-area-inset-top,0px));left:20px;display:flex;gap:12px;align-items:center;--wc:var(--dim)}
+#waveBox[data-ph="wave"]{--wc:var(--orange)}#waveBox[data-ph="clear"]{--wc:var(--gold)}#waveBox[data-ph="break"]{--wc:#9fb8c6}
+#waveBox::before{content:"";order:1;align-self:stretch;width:1px;margin:6px 0;background:linear-gradient(180deg,transparent,var(--wc) 30%,var(--wc) 70%,transparent);opacity:.55;transition:background .4s}
 /* the clock: a 24-hour dial (noon at the top) with the sun or moon riding its band, the time in the middle */
-#clockBox{position:relative;flex:none;width:88px;height:88px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7))}
+#clockBox{position:relative;flex:none;order:0;width:74px;height:74px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7))}
 #dial{position:absolute;inset:0;overflow:visible}
-#dial .face{fill:rgba(10,12,13,.66);stroke:rgba(236,230,216,.22);stroke-width:1}
-#dial .ring path{fill:none;stroke-width:5;opacity:.88}
-#dial .tick{stroke:rgba(236,230,216,.38);stroke-width:1}
-#dial .tick.major{stroke:rgba(236,230,216,.9);stroke-width:1.6}
+#dial .face{fill:rgba(10,12,13,.62);stroke:rgba(236,230,216,.16);stroke-width:1}
+#dial .ring path{fill:none;stroke-width:4.5;opacity:.85}
+#dial .tick{stroke:rgba(236,230,216,.3);stroke-width:1}
+#dial .tick.major{stroke:rgba(236,230,216,.8);stroke-width:1.5}
 #dial .hand{stroke:var(--ink);stroke-width:2;stroke-linecap:round}
 #dial .sun{fill:#ffd060;stroke:#6a4410;stroke-width:1}
 #dial .rays line{stroke:#ffd060;stroke-width:1.5;stroke-linecap:round}
 #dial .moon{fill:#e2e8f4;stroke:#2a3248;stroke-width:1}
 #dial .bite{fill:#1a1f2c}
-#clockTime{position:absolute;left:0;right:0;top:27px;text-align:center;font-family:var(--f-num);font-weight:700;font-size:22px;line-height:1;letter-spacing:.02em;color:var(--ink);text-shadow:0 1px 0 rgba(0,0,0,.75)}
-#clockPhase{position:absolute;left:8px;right:8px;top:52px;text-align:center;font-size:8px;font-weight:600;line-height:1.1;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+#clockTime{position:absolute;left:0;right:0;top:23px;text-align:center;font-family:var(--f-num);font-weight:700;font-size:19px;line-height:1;letter-spacing:.02em;color:var(--ink);text-shadow:0 1px 0 rgba(0,0,0,.75);font-variant-numeric:tabular-nums}
+#clockPhase{position:absolute;left:8px;right:8px;top:44px;text-align:center;font-size:7px;font-weight:600;line-height:1.1;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 #clockBox.paused #clockTime{animation:clockPause 1.8s ease-in-out infinite}
 #clockBox.paused #clockPhase{color:var(--gold)}
 @keyframes clockPause{50%{opacity:.4}}
-/* wave readout: label, big number with an accent rule, status line and a progress bar (break draining, zombies left, cleared) */
-.wv{display:grid;gap:2px;--wc:var(--dim)}
-#waveBox[data-ph="wave"] .wv{--wc:var(--orange)}#waveBox[data-ph="clear"] .wv{--wc:var(--gold)}
-.wv>.lbl:first-child{display:flex;align-items:center;gap:8px;color:var(--wc);transition:color .4s}
-.wv>.lbl:first-child::after{content:"";width:34px;height:1px;background:linear-gradient(90deg,var(--wc),transparent)}
-#wNum{font-size:60px;--rh:1em;line-height:1;color:#ece6d8;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 12px rgba(0,0,0,.5))}
+.wv{order:2;display:grid;gap:0;min-width:186px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
+.wvHead{display:flex;align-items:center;gap:8px;height:16px}
+.wvHead .lbl{font-size:10px;letter-spacing:.24em;color:var(--dim)}
+/* the phase, in its colour: a small tag beside the label */
+.wvChip{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--wc);padding:1px 6px 1px 7px;border:1px solid color-mix(in srgb,var(--wc) 55%,transparent);border-radius:2px;background:color-mix(in srgb,var(--wc) 12%,transparent);line-height:12px;transition:color .4s,border-color .4s,background .4s}
+#waveBox[data-ph="break"] .wvChip::before{content:"Break"}
+#waveBox[data-ph="wave"] .wvChip::before{content:"In round"}
+#waveBox[data-ph="wave"] .wvChip{color:#ec5a4c;border-color:rgba(236,90,76,.6);background:rgba(236,90,76,.14)}   /* (always red, whatever the theme) */
+#waveBox[data-ph="clear"] .wvChip::before{content:"Cleared"}
+#waveBox:not([data-ph]) .wvChip{display:none}
+#wNum{font-size:52px;--rh:1em;line-height:1;margin:1px 0 0 -1px;color:#ece6d8;text-shadow:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
 /* the wave number rolls (ui/hud-text.js): each digit on its drum carries the pale gradient itself */
-#wNum .rs>span{background:linear-gradient(180deg,#fbf7ee 0%,#ece6d8 50%,#bdb09a 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-#wSub{margin-top:4px;font-size:12px;color:var(--ink);max-width:260px}
-#wSub b{font-family:var(--f-num);font-weight:800;font-size:19px;line-height:1;margin-right:2px;color:var(--wc);vertical-align:-1px}
-#wSub kbd{font-family:var(--f-ui);border:1px solid rgba(236,230,216,.35);padding:0 4px;border-radius:2px}
-#wBar{width:170px;height:3px;margin:3px 0 4px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(236,230,216,.06)}
-#wBar i{display:block;height:100%;background:var(--wc);transform-origin:left center;transition:transform .25s ease,background .4s;box-shadow:0 0 8px var(--wc)}
+#wNum .rs>span{background:linear-gradient(180deg,#fbf7ee 0%,#ece6d8 52%,#c3b7a2 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+#wSub{margin-top:3px;font-size:11px;line-height:1.35;color:rgba(236,230,216,.82);max-width:240px}
+#wSub b{font-family:var(--f-num);font-weight:800;font-size:17px;line-height:1;margin-right:3px;color:var(--wc);vertical-align:-1px;font-variant-numeric:tabular-nums}
+#wSub kbd{font-family:var(--f-ui);font-size:10px;border:1px solid rgba(236,230,216,.3);padding:0 4px;border-radius:2px;background:rgba(0,0,0,.25)}
+/* the bar: a slim track with a faint tick every tenth, its fill in the phase's colour with a soft glow at its head */
+#wBar{position:relative;width:186px;height:3px;margin:6px 0 2px;background:rgba(236,230,216,.1);border-radius:2px;overflow:hidden}
+#wBar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 1px),rgba(0,0,0,.32) calc(20% - 1px) 20%);pointer-events:none}
+#wBar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,color-mix(in srgb,var(--wc) 70%,transparent),var(--wc));transform-origin:left center;transition:transform .25s ease,background .4s;box-shadow:0 0 6px var(--wc)}
 #waveBox:not([data-ph]) #wBar{opacity:0}
 
 #moodles{top:calc(18px + env(safe-area-inset-top,0px));right:20px;display:grid;gap:6px;justify-items:end}

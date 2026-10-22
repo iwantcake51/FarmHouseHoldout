@@ -119,7 +119,9 @@ function restBack() {
   const o = STOW.auto, t = o && o.userData.twin, me = STOW.melee, rot = STOW.long && STOW.long.rotation.clone();
   const bq = packBack.quaternion.clone(), bp = packBack.position.clone();
   packBack.quaternion.identity(); packBack.position.set(0, 0, 0); if (STOW.long) STOW.long.rotation.set(0, 0, 0);
-  const vis = [o && o.visible, t && t.visible, me && me.visible]; [o, t, me].forEach(q => { if (q) q.visible = true; });
+  // (each shown while it's measured, the weapon in it too: one in your hands is hidden on the pack, and measured hidden
+  // it would have no shape, and stay where it was hung, under the planks)
+  const vis = [o, t, me].map(q => q && [q.visible, q.userData.gun.visible]); [o, t, me].forEach(q => { if (q) q.visible = q.userData.gun.visible = true; });
   // the melee weapon only ever comes out from the pack, over the planks; without them it's left where it is
   if (me) {
     me.position.z = MELEE_Z; packBody.updateMatrixWorld(true);
@@ -139,7 +141,7 @@ function restBack() {
     if (t) lay(t, new Set([t]));
   }
   packBack.quaternion.copy(bq); packBack.position.copy(bp); if (rot) STOW.long.rotation.copy(rot);
-  [o, t, me].forEach((q, k) => { if (q) q.visible = vis[k]; });
+  [o, t, me].forEach((q, k) => { if (q) [q.visible, q.userData.gun.visible] = vis[k]; });
 }
 const HOLSTER_M = lam(0x1d1d1f), HOOD_M = lam(0x141415), STRAP_M = lam(0x2c2620), BELT_M = lam(0x19191a), SNAP_M = lam(0x2e2f31), BUCKLE_M = lam(0x8a8d90);
 // a duty holster (in the run's colour, player/look.js), moulded round each sidearm (in the gun's own frame): rear and top of the shell, its closed
@@ -235,6 +237,7 @@ function buildStow() {
     outer.userData.gun = copy; outer.userData.inner = inner; outer.userData.q0 = inner.quaternion.clone();
     const sls = [], mags = [], belt = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); if (o.userData.isMag) mags.push(o); if (o.userData.beltK !== undefined) belt.push(o); });
     outer.userData.mags = mags; outer.userData.belt = belt;
+    const legs = []; copy.traverse(o => { if (o.userData.leg) legs.push({ g: o, r0: o.rotation.clone(), down: o.userData.leg.down }); }); outer.userData.legs = legs.length ? legs : null;   // a bipod's legs (player/hold.js: bipodSway)
     return { outer, inner, copy, pv, sls };
   };
   const rig = !!(W8.slot.side && (W(W8.slot.side) || {}).akimbo && HOLDS.side && HOLDS.side.L);
@@ -261,13 +264,19 @@ function buildStow() {
 // planks strapped flat across the back of the pack, one for each you carry up to five: three side by side against the
 // pack, then two more laid crosswise over them under a second strap. They're set over toward the melee weapon's side
 // (which lies over them) so their ends stop short of the long gun flat against the pack's other side. Each is a shade of its own, dealt again whenever
-// it's a fresh plank that shows up there
-const plankStack = [];
+// it's a fresh plank that shows up there. Once there's a metalwork bench (barricades/metal-bars.js) it's metal you carry
+// there instead, in the same places: lengths of angle iron
+const plankStack = [], STOW_STEEL = lam(0x8d949b), STOW_STEEL_DK = lam(0x5d636a);
 {
   const g = new THREE.Group(); g.position.set(-0.06, 0, -0.355); packBack.add(g);
   [[0.8, 0.04, M.board, 0, -0.02], [0.935, -0.05, M.board2, 0, 0.03], [1.07, 0.03, M.board, 0, -0.02], [0.87, -0.11, M.board2, 1, 0.01], [1.0, 0.09, M.board, 1, -0.01]].forEach(([y, tilt, mat, layer, x], k) => {
     const w = 0.52 - layer * 0.04, p = box(g, w, 0.12, 0.04, lam(mat.color.getHex()), x, y, -0.005 * (k % 3) - layer * 0.046); p.rotation.z = tilt; p.userData.wood = mat.color.getHex();
-    for (const n of [-1, 1]) box(p, 0.012, 0.125, 0.045, M.metal, n * (w / 2 - 0.06), 0, 0);   // nails at the ends
+    const nails = [-1, 1].map(n => box(p, 0.012, 0.125, 0.045, M.metal, n * (w / 2 - 0.06), 0, 0));   // nails at the ends
+    // the angle iron in its place: a flat leg against the pack, the other standing out along its top edge, cut ends darker
+    const steel = [box(p, w * 0.96, 0.09, 0.012, STOW_STEEL, 0, -0.005, -0.012), box(p, w * 0.96, 0.012, 0.05, STOW_STEEL, 0, 0.034, 0.008),
+      ...[-1, 1].map(n => box(p, 0.006, 0.092, 0.014, STOW_STEEL_DK, n * w * 0.48, -0.005, -0.012))];
+    steel.forEach(m => { m.visible = false; });
+    p.userData.nails = nails; p.userData.steel = steel; p.userData.met = false;
     p.visible = false; plankStack.push(p);
   });
   plankStack.strap = box(g, 0.05, 0.42, 0.063, STRAP_M, 0.16, 0.94, -0.02); plankStack.strap.visible = false;
@@ -358,7 +367,10 @@ function updateStow(rdt) {
     if (stowed) stowState(o, t);
   }
   const n = Math.min(plankStack.length, S.planks | 0);
-  plankStack.forEach((p, k) => { if (k < n && !p.visible) p.material.color.setHex(plankTint(p.userData.wood)); p.visible = k < n; }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
+  plankStack.forEach((p, k) => {
+    if (k < n && !p.visible) p.material.color.setHex(plankTint(p.userData.wood)); p.visible = k < n;
+    const u = p.userData; if (u.met !== METAL.on) { u.met = METAL.on; p.material.visible = !u.met; u.nails.forEach(m => { m.visible = !u.met; }); u.steel.forEach(m => { m.visible = u.met; }); }   // (planks or metal)
+  }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
   // the melee weapon and the automatic are laid on what's under them again whenever that changes
   const rk = [STOW.auto, STOW.melee, STOW.long].map(o => o ? o.uuid : '').join('|') + '|' + n;
   if (rk !== restKey) { restKey = rk; restBack(); }
@@ -366,4 +378,6 @@ function updateStow(rdt) {
   // bottom lifting out from the pack as you speed up (it can't swing into the pack)
   packBack.rotation.set(Math.max(0, -stowSw.x) * 0.4, 0, stowSw.z * 0.3);
   packBack.position.copy(BACK_PIV).applyQuaternion(packBack.quaternion).negate().add(BACK_PIV);
+  // a bipod on a gun on your back swings with you too, as the pack moves
+  for (const s in STOW) { const o = STOW[s], L = o && o.userData.legs; if (!L) continue; if (o.visible && o.userData.gun.visible) bipodSway(L, o.userData.gun, rdt); else if (L.st) L.st.on = false; }
 }

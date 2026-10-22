@@ -15,6 +15,7 @@ body.dying #c{cursor:default}
 #dead:not([hidden]) .tally>:nth-child(2){animation-delay:1s}
 #dead:not([hidden]) .tally>:nth-child(3){animation-delay:1.1s}
 #dead:not([hidden]) .tally>:nth-child(4){animation-delay:1.2s}
+#dead:not([hidden]) .inner>.runMore{animation-delay:1.32s}
 #dead:not([hidden]) .inner>.btns{animation-delay:1.45s}
 @media (prefers-reduced-motion:reduce){#dead:not([hidden]),#dead:not([hidden]) *{animation-duration:.01s!important;animation-delay:0s!important}}
 #feed{left:20px;bottom:calc(158px + var(--lift,0px) + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-shadow:none}
@@ -24,7 +25,7 @@ body.dying #c{cursor:default}
 .fd.bump b{animation:pop .28s ease-out}
 .fd.out{opacity:0;transform:translateX(-14px)}
 @keyframes fdIn{from{opacity:0;transform:translateX(-24px)}}
-.fd.scrap{--fc:#8fa3b8}.fd.planks{--fc:#c08a52}.fd.ammo{--fc:#d4b25c}.fd.med{--fc:#d0432c}.fd.supply{--fc:#d8692c}.fd.gear{--fc:#f0bf4c}
+.fd.scrap{--fc:#8fa3b8}.fd.planks{--fc:#c08a52}.fd.metal{--fc:#a9bccb}.fd.ammo{--fc:#d4b25c}.fd.med{--fc:#d0432c}.fd.supply{--fc:var(--orange)}.fd.gear{--fc:#f0bf4c}
 .float{position:fixed;left:0;top:0;z-index:2;pointer-events:none;font-family:var(--f-num);font-weight:800;font-size:18px;color:var(--ink);text-shadow:0 1px 2px #000;white-space:nowrap;will-change:transform,opacity}
 /* damage numbers popping off zombies: white body hits, gold headshots, red on the killing blow */
 .float.dmg{font-size:17px;color:#f2ece0;text-shadow:0 0 3px #000,0 1px 2px #000;letter-spacing:.02em}

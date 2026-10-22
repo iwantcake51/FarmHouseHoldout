@@ -68,7 +68,7 @@ function renderSlots() {
   $('slots').innerHTML = SLOTS.map((s, i) => `<span class="${W8.cur === s ? 'on' : ''} ${W8.slot[s] ? '' : 'lock'}"><em>${i + 1}</em>${W8.slot[s] ? WEAP[W8.slot[s]].short : '—'}</span>`).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts
-const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
+const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, metal: GI.metal, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
 const feedItems = [];
 function feed(kind, amount, label) {
   const now = performance.now();

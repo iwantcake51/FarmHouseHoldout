@@ -13,7 +13,7 @@ const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
 // what the inside of the house has: rooms with walls between them (walls), and doors hung in their doorways (doors; only
 // with walls, and without them the doorways stand open). With walls off it's one open floor inside the outer walls, the
 // stations and the furniture set round it against them (world/furniture.js) and a lamp or two over it
-const HOUSE_OPT = { walls: false, doors: false };
+const HOUSE_OPT = { walls: false, doors: false }, OPEN_TRIES = 20;
 // how the walls look: how high, the skirting and the trim along the top, a doorway's frame, and their materials (they
 // fade away round you where they're between you and the camera: IW_LINES, world/cutaway.js)
 const IW = { h: 2.42, base: 0.11, cap: 0.05, head: 2.05, case: 0.075 };
@@ -30,7 +30,7 @@ const TILE_TEX = (() => {
   const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
 })();
 const TILE_M = new Map(), tileMat = c => TILE_M.get(c) || (TILE_M.set(c, lam(c, { map: TILE_TEX })), TILE_M.get(c));
-scene.add(HOUSE_PLAN.g);
+HOUSE_PLAN.g.userData.still = true; scene.add(HOUSE_PLAN.g);   // (its walls' shadows drawn with the rest that stands still, its doors' not: core/still-shadows.js)
 const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
 const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
 const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1 && HOUSE_FP[idx(i, j)] === 1;   // (a room's floor in this run's footprint: world/house.js)
@@ -259,7 +259,7 @@ const IW_LINES = [], IW_MATS = [], IW_BASE = { plaster: 0xd6ccb4, trim: 0x5c4532
 const DOOR_COLS = [0x6a4a34, 0xd8d0c0, 0x8a6a4a, 0x4e5a52, 0x7a3a2c];
 function buildInWalls(W, doors, rnd) {
   const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols, dc = DOOR_COLS[(rnd() * DOOR_COLS.length) | 0];
-  while (g.children.length) { const m = g.children.pop(); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
+  while (g.children.length) { const m = g.children[g.children.length - 1]; g.remove(m); m.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
   IW_MATS.forEach(m => m.dispose()); IW_MATS.length = 0; IW_LINES.length = 0; HOUSE_DOORS.list.length = 0; DOOR_DEBRIS.length = 0;
   const t = THIN.t, H = IW.h;
   // a line's own materials, by colour, each with its fade
@@ -333,7 +333,7 @@ function buildDoor(ln, u, dc, rnd) {
   const ro = HOUSE_PLAN.roomOf, size = r => r >= 0 ? HOUSE_PLAN.rooms[r].length : 0;
   const rA = ax === 'x' ? ro[idx(L - 1, u)] : ro[idx(u, L - 1)], rB = ax === 'x' ? ro[idx(L, u)] : ro[idx(u, L)], side = size(rB) >= size(rA) ? 1 : -1;
   const nx = ax === 'x' ? side : 0, nz = ax === 'x' ? 0 : side, sw = Math.sign(-Math.sin(th0) * nx - Math.cos(th0) * nz) || 1;
-  const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; HOUSE_PLAN.g.add(pv);
+  const pv = new THREE.Group(); pv.position.set(hx, 0, hz); pv.rotation.y = th0; pv.userData.moving = true; HOUSE_PLAN.g.add(pv);
   const paint = ln.mat(dc), panel = ln.mat(_dcShade.setHex(dc).multiplyScalar(0.8).getHex()), brass = ln.mat(0xb08a3a), w = DOOR.w;
   // the leaf, shattered ahead of time into the pieces it'll break into (doorShards: its own pattern, every door), the
   // knob and hinges each on the piece it's fixed to; whole, it's drawn as one (doorLeaf)
@@ -517,7 +517,7 @@ function doorBit(d, q, z, fall) {
   if (q.gone) return; q.gone = true;
   const by = z || P, away = -doorSide(d, by.x, by.z), ox = d.nx * away, oz = d.nz * away;
   // (its own mesh now, where it was on the leaf, with the knob or a hinge if it had one)
-  const g = new THREE.Group(); d.leaf.updateMatrixWorld(true); g.position.set(q.c[0], q.c[1], 0); d.leaf.add(g);
+  const g = new THREE.Group(); d.leaf.updateMatrixWorld(true); g.position.set(q.c[0], q.c[1], 0); g.userData.moving = true; d.leaf.add(g);
   const m = new THREE.Mesh(shardGeo([q], false), d.mats.map(plainMat)); m.castShadow = true; g.add(m);
   for (const e of q.extras) { e.position.x -= q.c[0]; e.position.y -= q.c[1]; e.material = plainMat(e.material); g.add(e); }
   HOUSE_PLAN.g.attach(g); g.rotation.reorder('YXZ');
@@ -527,7 +527,7 @@ function doorBit(d, q, z, fall) {
   // and a few splinters of it, long and thin, every one its own size, thrown out with it
   const n = (rand() * (DOOR_FRAC.slivers + 1)) | 0, sm = _dbMat.get(d.dc) || (_dbMat.set(d.dc, lam(d.dc)), _dbMat.get(d.dc));
   for (let k = 0; k < n; k++) {
-    const sg = new THREE.Group(); sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
+    const sg = new THREE.Group(); sg.userData.moving = true; sg.rotation.order = 'YXZ'; sg.position.set(p.x + rr(-0.1, 0.1), p.y + rr(-0.15, 0.15), p.z + rr(-0.1, 0.1)); sg.rotation.set(rr(0, 6.3), rr(0, 6.3), rr(0, 6.3));
     const m = box(sg, rr(0.015, 0.04), rr(0.08, 0.32), rr(0.012, 0.03), sm, 0, 0, 0); m.castShadow = false; HOUSE_PLAN.g.add(sg);
     const kk = k * 0.3 + (fall ? rr(0.3, 1) : rr(1.6, 3.2));
     DOOR_DEBRIS.push({ g: sg, life: 8, vx: ox * kk + rr(-0.9, 0.9), vy: rr(0.3, 2), vz: oz * kk + rr(-0.9, 0.9), spin: rr(-14, 14), roll: rr(-12, 12), r: 0.015, bounces: 0, kind: 'plank', quiet: true, restY: 0.012,
@@ -551,7 +551,10 @@ function breakDoor(d, z) {
 // a new house: the plan for this seed (the first that keeps every rule; failing that, none), its walls in the grid
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways
 // round the house and what you can see are all worked out again for it
-function houseLayout(seed, live) {
+// the whole of it under a seeded rand too (withSeed, core/math.js), so whatever's dealt along the way with rr or pick
+// (the turn of a car left in the yard, world/props.js) comes out alike for everyone in co-op
+function houseLayout(seed, live) { withSeed(seed ^ 0x2c1b3c6d, () => houseLayout0(seed, live)); }
+function houseLayout0(seed, live) {
   const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
   houseFootprint(rnd, live);   // (its footprint first: whole, or notched at the back, world/house.js)
   yardLayout(rnd, live);   // (the yard round it first: what's outside a window decides whether one can go there, world/yard.js)
@@ -579,7 +582,13 @@ function houseLayout(seed, live) {
     roomsOf(plan.walls, plan.doors);   // (the rooms as they stand)
     if (!done) break;
   }
-  if (!placed) { plan = null; rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts); }   // (no rooms: an open house)
+  // (no rooms: an open house, the furniture tried OPEN_TRIES times round it, and if it won't all go in a notched one,
+  // in the whole rectangle instead; left where it was built, it would stand out in the notch)
+  if (!placed) plan = null;
+  for (let k = 0; !placed && k < OPEN_TRIES * 2; k++) {
+    if (k === OPEN_TRIES && HOUSE.notch) setFootprint(null, live);
+    rk = roomsOf(new Set(), []); wins = chooseWindows(rnd, rk.rooms, rk.kinds); placed = placeFurniture(rnd, new Set(), [], ro, rk.kinds, wins.fronts);
+  }
   // its windows, and whatever hangs on the walls where they've gone taken down
   // (and anything hung on a wall that isn't there this run, or isn't facing the same way)
   setWindows(wins.keys, true); for (const d of WALL_DECOR) { const w = WALL_AT.get(d.k); d.g.visible = !wins.keys.has(d.k) && !!w && w.faces.length === 1 && w.faces[0] === d.dir; }
@@ -598,5 +607,6 @@ function houseLayout(seed, live) {
   for (const w of walls) for (const [a, b, m] of w.inner) { const r = ro[idx(a, b)]; m.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
   buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
-  if (live) { relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
+  if (live) { syncBlock(); relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
+  stillShadowsReset();   // (the furniture and the props moved on purpose: core/still-shadows.js)
 }

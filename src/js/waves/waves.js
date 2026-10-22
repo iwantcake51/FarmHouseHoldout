@@ -1,16 +1,29 @@
 // Wave building, spawning schedule, breaks and wave clear.
 
 // how many of each kind come is set by the wave number alone, whatever the time of day: sprinters from wave 3 (a
-// tenth of the wave, rising to three in ten by wave 12), brutes from wave 5 (one in twenty-five, up to one in eight),
-// and every fifth wave two more brutes on top. They come in a shuffled order.
-const waveMix = n => ({ runner: n >= 3 ? Math.min(0.3, 0.1 + (n - 3) * 0.022) : 0, brute: n >= 5 ? Math.min(0.125, 0.04 + (n - 5) * 0.0085) : 0 });
+// tenth of the wave, rising to three in ten by wave 12), brutes from wave BRUTE_FROM (one in twenty-five, up to one in
+// eight; they can dash from the first: zombies/brute-dash.js), and on that first wave and every fifth after it two
+// more brutes on top; spitters (zombies/spitter.js) from wave SPIT.from. They come in a shuffled order.
+const BRUTE_FROM = 7;
+// From wave LATE.from it climbs faster, whatever you're carrying, so a good gun doesn't make the late waves easy: more
+// of them each wave (LATE.count a wave on top), their health growing faster and faster (LATE.hp, times the square of the
+// waves past it: zombies/spawn.js), and the sprinters' and brutes' shares let go past their usual caps, up to
+// LATE.runner and LATE.brute
+const LATE = { from: 8, count: 1.3, hp: 0.014, runner: 0.42, runnerPer: 0.015, brute: 0.18, brutePer: 0.007 };
+const lateN = n => Math.max(0, n - LATE.from);
+const waveMix = n => ({
+  runner: n >= 3 ? Math.min(Math.min(LATE.runner, 0.3 + LATE.runnerPer * lateN(n)), 0.1 + (n - 3) * 0.022) : 0,
+  brute: n >= BRUTE_FROM ? Math.min(Math.min(LATE.brute, 0.125 + LATE.brutePer * lateN(n)), 0.04 + (n - BRUTE_FROM) * 0.0085) : 0,
+  spitter: n >= SPIT.from ? Math.min(SPIT.shareMax, SPIT.share + SPIT.sharePer * (n - SPIT.from)) : 0
+});
 // In co-op the horde grows with the team: 35% more for each survivor past the first
 const teamK = () => 1 + 0.35 * (netTeam() - 1);
 function buildWave(n) {
-  const count = Math.round((5 + Math.round(n * 3.4)) * teamK()), mix = waveMix(n);
-  const runners = Math.round(count * mix.runner), brutes = Math.round(count * mix.brute);
-  const list = Array.from({ length: Math.max(0, count - runners - brutes) }, () => 'walker');
-  if (n % 5 === 0) list.push('brute', 'brute');
+  const count = Math.round((5 + Math.round(n * 3.4) + Math.round(LATE.count * lateN(n))) * teamK()), mix = waveMix(n);
+  const runners = Math.round(count * mix.runner), brutes = Math.round(count * mix.brute), spitters = Math.round(count * mix.spitter);
+  const list = Array.from({ length: Math.max(0, count - runners - brutes - spitters) }, () => 'walker');
+  for (let k = 0; k < spitters; k++) list.push('spitter');
+  if (n === BRUTE_FROM || (n > BRUTE_FROM && n % 5 === 0)) list.push('brute', 'brute');
   for (let k = 0; k < runners; k++) list.push('runner');
   for (let k = 0; k < brutes; k++) list.push('brute');
   for (let k = list.length - 1; k > 0; k--) { const j = (rand() * (k + 1)) | 0; [list[k], list[j]] = [list[j], list[k]]; }
@@ -31,20 +44,23 @@ function nextSurge() {
 const surgeGap = () => SURGE.build + (SURGE.peak - SURGE.build) * smooth(clamp(surge.done / Math.max(1, surge.n - 1), 0, 1));
 function startWave() {
   spawnQ = buildWave(run.wave + 1);
-  waveBegins(run.wave + 1, spawnQ.length);
-  netSend('wave', { n: run.wave, tot: run.waveTotal });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+  const fog = mistRoll(run.wave + 1);   // (now and then a fog round: world/mist.js)
+  waveBegins(run.wave + 1, spawnQ.length, fog);
+  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0 });   // (co-op: everyone's wave starts with the host's, net/sync.js)
   spawnTurned();   // (and whoever went down last wave comes back out of the fog as one of them)
   surge.lull = 0; nextSurge();
 }
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does
-function waveBegins(n, total) {
-  run.wave = n; phase = 'wave'; skipVotes.clear();   // (the vote to start it early, net/sync.js)
+function waveBegins(n, total, fog) {
+  run.wave = n; phase = 'wave'; skipVotes.clear(); mistSet(fog);   // (the vote to start it early, net/sync.js)
   spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
-  const firsts = { 3: 'Sprinters are coming', 5: 'Something big is coming' };
+  const firsts = { 3: 'Sprinters are coming', [BRUTE_FROM]: 'Something big is coming' };
+  firsts[SPIT.from] = (firsts[SPIT.from] ? firsts[SPIT.from] + ' · and spitters' : 'Spitters are coming') + ', keep moving';   // (zombies/spitter.js)
   run.waveTotal = total;
-  const brutes = run.wave === 5 || run.wave % 5 === 0;   // the wording fits any hour: a wave can start in daylight
-  announce('Wave ' + run.wave, firsts[run.wave] || (run.wave % 5 === 0 ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
+  const brutes = run.wave === BRUTE_FROM || (run.wave > BRUTE_FROM && run.wave % 5 === 0);   // the wording fits any hour: a wave can start in daylight
+  if (fog) announce('Wave ' + run.wave, (firsts[run.wave] ? firsts[run.wave] + ' · ' : '') + 'Fog rolls in off the fields · keep close', { eye: 'Fog', kind: brutes ? 'red' : '' });
+  else announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 // the count under the wave number; in a lull between surges, a word that they've let up for now
@@ -64,7 +80,7 @@ function updateWaves(dt) {
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
 
   if (phase === 'break' && cheatIs('noWaves')) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
-    setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
+    setH('wSub', `Waves off · <kbd class="ki">${keyIcon('f9')}</kbd> cheat menu`);
     waveBar(1, 'break');
   } else if (phase === 'break' && netWaiting()) {
     respawnCheck();   // co-op: the break waits for everyone still choosing their find

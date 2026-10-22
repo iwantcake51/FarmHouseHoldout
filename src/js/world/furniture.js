@@ -14,8 +14,17 @@ const FURN_JIT = { slide: 0.1, turn: 0.045 };
 const FURN_ORDER = ['box', 'bed', 'bench', 'saw', 'shelf', 'rack', 'med', 'radio'];
 // a piece that goes in the same room as one placed before it, and how much each cell further from it counts against a spot
 const FURN_WITH = { rack: 'bench' }, FURN_NEAR = 0.6;
+// every station can be used from any side, not just from the spot in front of it: its footprint is what it stands on,
+// its bounds as it's built (the workbench's set by hand: stations/stations.js), and you're in reach within FOOT_REACH of its edge
+// (stations/station-ui.js: stationDist; turned and moved with it when it's placed for a run: world/furniture.js)
+STATIONS.forEach(s => {
+  if (s.foot) return;
+  const b = new THREE.Box3().setFromObject(s.g); if (b.isEmpty()) return;
+  s.foot = [(b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2, (b.max.x - b.min.x) / 2, (b.max.z - b.min.z) / 2];
+});
 // each piece as it was built: where, how turned, on which cells, and its station's spot and footprint
 FURN.forEach(f => {
+  f.g.userData.still = true;   // (its shadow drawn with the rest that stands still: core/still-shadows.js)
   f.p0 = f.g.position.clone(); f.r0 = f.g.rotation.y; f.c0 = f.cells.map(c => c.slice()); f.at = f.c0.map(c => c.slice());
   f.piv = [cxw(f.c0[0][0]), cxw(f.c0[0][1])];
   if (f.st) { f.u0 = [f.st.x, f.st.z]; if (f.st.foot) f.foot0 = f.st.foot.slice(); }

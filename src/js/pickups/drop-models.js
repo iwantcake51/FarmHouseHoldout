@@ -47,6 +47,19 @@ function dmPlanks(g) {
   });
   dmFinish(g, keep);
 }
+// ---- metal (once there's a metalwork bench): a short length of I-beam with two bars of rebar and an offcut of plate
+// across it, wired together
+function dmMetal(g) {
+  const keep = new Set(), st = lam(0x8d949b), dk = lam(0x4a4f55), rust = lam(0x6e4a34), wire = lam(0x9a9488);
+  // the I-beam: two flanges and the web between them, lying on a flange
+  keep.add(dmBox(g, 0.62, 0.016, 0.16, st, 0, 0.13, 0)); keep.add(dmBox(g, 0.62, 0.016, 0.16, st, 0, 0.28, 0)); keep.add(dmBox(g, 0.62, 0.14, 0.018, st, 0, 0.205, 0));
+  [-1, 1].forEach(s => dmBox(g, 0.004, 0.166, 0.162, dk, s * 0.31, 0.205, 0));   // the cut ends, darker
+  // the rebar and the plate on top of it
+  [-0.035, 0.035].forEach((z, k) => { const m = dmCyl(g, 0.012, 0.7, rust, 0.02 * k, 0.3, z, 8, 0, Math.PI / 2); m.rotation.z = Math.PI / 2; m.rotation.y = (k ? 1 : -1) * 0.12; });
+  keep.add(dmBox(g, 0.26, 0.012, 0.2, lam(0x9aa0a6), -0.12, 0.32, 0.01, 0.35));
+  [-0.2, 0.2].forEach(x => { dmBox(g, 0.012, 0.012, 0.19, wire, x, 0.338, 0); [-1, 1].forEach(s => dmBox(g, 0.012, 0.2, 0.006, wire, x, 0.24, s * 0.092)); });
+  dmFinish(g, keep);
+}
 // ---- the medkit: a white first-aid case, its lid's seam round its middle, a red cross on the lid and the front, a
 // black carry handle and two latches; a rolled bandage beside it with its tail unrolled
 function dmMed(g) {
@@ -145,9 +158,9 @@ function dmCase(g, cargo) {
 }
 // a drop's model by its kind (the gun you put down brings its own)
 function dropModel(g, kind, ammoType, cargo) {
-  if (kind === 'planks') dmPlanks(g);
+  if (kind === 'planks') (cargo && cargo.metal ? dmMetal : dmPlanks)(g);
   else if (kind === 'med') dmMed(g);
   else if (kind === 'supply') crateModel(g, cargo);
   else if (kind === 'gun') g.add(cargo.model);
-  else ({ p9: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);
+  else ({ p9: dmAmmo9, p10: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);
 }
