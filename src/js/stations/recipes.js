@@ -176,8 +176,8 @@ const RECIPES = {
   get med() { return shown(MED); },
   // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
-    return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : `A crate of ammo, ${matWord()}, scrap and bandages lands in the yard`, why: busyWhy,
-      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }];
+    return [{ ic: 'supply', cls: 'drop', group: 'Supplies', cost: SUPPLY.cost, title: () => dropBusy() ? 'Drop on its way' : dropWait() ? 'Radio quiet' : 'Call a supply drop', desc: supplyDesc, why: busyWhy,
+      make: () => { callDrop({ kind: 'supply' }); run.dropAt = Math.max(1, run.wave); feed('supply', 0, 'Supply drop called'); } }];
   }
 };
 // a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)

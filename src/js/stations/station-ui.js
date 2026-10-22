@@ -106,7 +106,7 @@ function renderStation() {
     // a heading above the first card of each group (everything for the weapon in your hands)
     $('stRows').innerHTML = rows.map((r, i) => {
       const head = r.group && r.group !== group ? `<div class="stGroup" style="--k:${Math.min(8, k++)}">${r.group}</div>` : ''; group = r.group || null;
-      return head + `<button type="button" data-i="${ids[i]}" style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
+      return head + `<button type="button" data-i="${ids[i]}"${r.cls ? ` class="${r.cls}"` : ''} style="--ic:${stIconCol(r)};--k:${Math.min(8, k++)}">
       <span class="ic"><svg viewBox="${GI_VB}">${FEED_ICON[r.ic] || FEED_ICON.gear}</svg></span>
       <span class="tx"></span>
       <span class="ft"><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span><span class="st"></span></span>

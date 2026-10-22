@@ -264,3 +264,22 @@
 .rkAfford[hidden]{display:none}
 .rkAfford b{color:var(--gold);font-weight:700}
 .rkAfford svg{width:14px;height:14px;fill:var(--gold);flex:none}
+/* the radio's supply drop (stations/supply-drop.js): one wide card, a crate's worth of hazard stripe down its side and
+   its colour round it, what's in the crate as chips, and a pip a wave counting down to when the radio's free again */
+#stRows button.drop{grid-column:1/-1;grid-template-columns:56px 1fr;padding:14px 16px 13px 14px;gap:10px 16px;position:relative;overflow:hidden;
+  background:linear-gradient(100deg,color-mix(in srgb,var(--ic) 16%,transparent),rgba(236,230,216,.03) 55%),repeating-linear-gradient(135deg,color-mix(in srgb,var(--ic) 70%,#000) 0 8px,#141210 8px 16px) left/6px 100% no-repeat;
+  border:1px solid color-mix(in srgb,var(--ic) 55%,transparent);padding-left:20px}
+#stRows button.drop .ic{width:56px;height:56px;border-width:2px;background:radial-gradient(circle,color-mix(in srgb,var(--ic) 28%,transparent),rgba(0,0,0,.4) 70%)}
+#stRows button.drop .ic svg{width:34px;height:34px}
+#stRows button.drop.ok .ic{animation:dropCall 2.2s ease-in-out infinite}
+@keyframes dropCall{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--ic) 18%,transparent),0 0 18px color-mix(in srgb,var(--ic) 35%,transparent)}}
+#stRows button.drop .tx b{font-size:17px;letter-spacing:.01em}
+#stRows button.drop .tx em b{font-size:inherit;color:var(--ic)}
+#stRows .dropGets{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 2px}
+#stRows .dropGets i{font-style:normal;font:600 10.5px/1.3 var(--f-ui);letter-spacing:.02em;padding:3px 7px 2px;color:#efe6d4;background:rgba(236,230,216,.07);border:1px solid rgba(236,230,216,.18);border-radius:2px}
+#stRows .dropPips{display:flex;align-items:center;gap:4px;margin-top:6px}
+#stRows .dropPips i{width:16px;height:5px;border-radius:1px;background:rgba(236,230,216,.12)}
+#stRows .dropPips i.on{background:var(--ic);box-shadow:0 0 6px color-mix(in srgb,var(--ic) 50%,transparent)}
+#stRows .dropPips small{margin-left:8px;font:600 10px/1 var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+#stRows .dropPips.ready small{color:var(--ic)}
+@media (prefers-reduced-motion:reduce){#stRows button.drop.ok .ic{animation:none}}
