@@ -38,9 +38,9 @@ const XREC = { px: 20, side: 0.45, autoSide: 0.6, adsSemi: 0.5, adsAuto: 0.18, k
 // side to side, a slow swing one way and back (sway: how far, in the round's own kick; swing: how far round it goes
 // each round, so a few rounds a swing, one way first, picked as the spray starts), never just pulling one way. A
 // smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js: the
-// LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly (back: how quickly). The walk is
+// LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly, on a spring (back: how quickly). The walk is
 // eased to (ease), so it glides rather than stepping with each round
-const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 3, cal: { p9: 0.55, p10: 0.75, magnum: 0.8, rifle: 1, shells: 1.1 } };
+const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 4.5, cal: { p9: 0.55, p10: 0.75, magnum: 0.8, rifle: 1, shells: 1.1 } };
 const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
 const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
@@ -63,7 +63,7 @@ const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2
 // you're unsteady: the spread opens up (spread: how much wider at most) and the sway grows (sway: how much more), both
 // coming on over a moment and easing off again (rise, fall: how quick), never snapping
 const XHIT = { px: 34, max: 2.2, side: 0.5, spread: 0.6, sway: 1.6, rise: 14, fall: 1.6 };
-const XR = { x: 0, y: 0, vx: 0, vy: 0, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
+const XR = { x: 0, y: 0, vx: 0, vy: 0, vdx: 0, vdy: 0, c: 1, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
 function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
@@ -72,8 +72,9 @@ function xhKick(D, id, pw, auto) {
   _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
   let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
   if (L < 1) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }
-  if (!auto) {   // (a shot at a time: kicked out along the aim and a little aside, and eased home)
-    const side = rr(-1, 1) * XREC.side, out = rr(0.85, 1.1), v = amt * 22;
+  XR.c = Math.pow(settleK(D), 0.7);   // (how quickly it comes home: slower for a heavier round, SETTLE)
+  if (!auto) {   // (a shot at a time: kicked out along the aim and a little aside, and eased home; harder as a sidearm's spray builds, HANDGUN)
+    const side = rr(-1, 1) * XREC.side, out = rr(0.85, 1.1), v = amt * 22 * (unshouldered(D, id) ? 1 + HANDGUN.kick * (W8.spray || 0) : 1);
     XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; return;
   }
   const A = XAUTO;
@@ -104,9 +105,16 @@ function updateXhRecoil(dt) {
   XR.hbT *= Math.exp(-dt * XHIT.fall); XR.hb += (XR.hbT - XR.hb) * Math.min(1, dt * XHIT.rise);
   const auto = XR.autoT > 0; XR.autoT -= dt;
   // the walk a spray takes the aim on (XAUTO) is glided to as it goes, and back to the cursor once you let go
-  if (auto) { const f = 1 - Math.exp(-dt * XAUTO.ease); XR.dx += (XR.tx - XR.dx) * f; XR.dy += (XR.ty - XR.dy) * f; }
-  else { const f = Math.exp(-dt * XAUTO.back); XR.dx *= f; XR.dy *= f; }
-  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) { springTo(XR, 'x', 'vx', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); springTo(XR, 'y', 'vy', 0, auto ? XREC.kAuto : XREC.k, auto ? XREC.dAuto : XREC.d, h); }
+  // (let go, it's carried on by how it was moving and drawn home on a critically damped spring: it eases out of the
+  // spray's motion, gathers pace and slows into the cursor, never a constant slide or a stop at the end; a heavier
+  // round's more slowly, XR.c)
+  const c = XR.c || 1, wb = XAUTO.back * c;
+  if (auto) { const f = 1 - Math.exp(-dt * XAUTO.ease), nx = XR.dx + (XR.tx - XR.dx) * f, ny = XR.dy + (XR.ty - XR.dy) * f; XR.vdx = (nx - XR.dx) / Math.max(dt, 1e-4); XR.vdy = (ny - XR.dy) / Math.max(dt, 1e-4); XR.dx = nx; XR.dy = ny; }
+  const ks = auto ? XREC.kAuto : XREC.k * c * c, ds = auto ? XREC.dAuto : XREC.d * c;
+  for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) {
+    springTo(XR, 'x', 'vx', 0, ks, ds, h); springTo(XR, 'y', 'vy', 0, ks, ds, h);
+    if (!auto) { springTo(XR, 'dx', 'vdx', 0, wb * wb, 2 * wb, h); springTo(XR, 'dy', 'vdy', 0, wb * wb, 2 * wb, h); }
+  }
   // the sway: eased on with a gun up, a little of it down the sights (XSWAY.ads), off with a melee weapon or at a station
   const D = W(curId()), want = state === 'play' && !P.dead && !openSt && D && !D.melee ? (aiming ? XSWAY.ads : 1) : 0;
   XR.sk += (want - XR.sk) * Math.min(1, dt * 3);

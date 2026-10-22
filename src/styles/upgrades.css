@@ -139,14 +139,12 @@
 @keyframes waitDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
 @media (prefers-reduced-motion:reduce){.upWait b::after{animation:none;content:"..."}}
 /* a star filling (stations/station-ui.js: starFillSvg), at the stations and on the cards: the liquid seeps in from every
-   point and edge at once, its front a wobbling blob turning as it shrinks away to the middle, then a little pop as it
-   brims; the outline over it */
-.stars svg.fill{fill:none!important;overflow:visible;animation:starPop .38s .86s cubic-bezier(.3,1.6,.5,1) both}   /* (it pops as the last of the liquid's in, well before the cards go) */
+   point and edge at once, its front a wobbling blob turning as it shrinks away to the middle; the outline over it */
+.stars svg.fill{fill:none!important;overflow:visible}
 .stars svg.fill .ol{fill:none}
 .stars svg.fill .hole{animation:starSeep .9s cubic-bezier(.12,.55,.4,1) both}   /* (it starts seeping in at once and slows as it fills) */
 .stars svg.fill .wob{animation:starWob .46s ease-in-out infinite alternate}
 .card .k .stars svg .liq{fill:currentColor}.card .k .stars.rar svg .liq{fill:var(--sc)}
 @keyframes starSeep{from{transform:translate(12px,12.3px) rotate(0deg) scale(.56)}to{transform:translate(12px,12.3px) rotate(160deg) scale(0)}}
 @keyframes starWob{from{transform:scale(1.07,.93) rotate(-6deg)}to{transform:scale(.94,1.06) rotate(6deg)}}
-@keyframes starPop{50%{transform:scale(1.35)}}
-@media (prefers-reduced-motion:reduce){.stars svg.fill,.stars svg.fill .hole,.stars svg.fill .wob{animation-duration:.01s;animation-delay:0s}}
+@media (prefers-reduced-motion:reduce){.stars svg.fill .hole,.stars svg.fill .wob{animation-duration:.01s;animation-delay:0s}}

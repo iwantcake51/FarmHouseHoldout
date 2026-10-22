@@ -155,28 +155,24 @@ function breakBoard(o, z) {
   burst(o.x + ox * 0.5, 1.3, o.z + oz * 0.5, 12, 'wood', ox, oz, 3);
   soundAt(o.x, o.z, () => SFX.crack()); setTimeout(() => soundAt(o.x, o.z, () => SFX.crack()), 60); flowDirty = true; lightsDirty = true;
 }
-// shots through the boards: every bullet or pellet that crosses a boarded door or window on its way (weapons/firing.js)
-// takes BOARD_SHOT of its damage off the board on top, so each shot works it a little looser (boardShake) till it splits
-// and is knocked out the way the shot was going. A 9mm round takes about 3 off a 70 board, a pump shell about 17, so
-// shooting through your own boards wears them down slowly rather than shredding them
-const BOARD_SHOT = 0.12;
-// the boarded openings a bullet crosses before it stops at T, each with BOARD_SHOT of its damage added to what acc
-// already has for it (a shot's pellets all go into one acc, so each opening takes one blow a shot: shootBoard)
+// shots through the boards: a bullet or pellet that crosses a boarded door or window on its way (weapons/firing.js)
+// makes the top board jump and splinters fly out the far side, but takes nothing off it: only a melee blow wears the
+// boards down (melee/melee.js: BOARD_MELEE). A shot's openings go into acc, each once
 function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
   let last = null;
   for (let t = 0.1; t < T; t += 0.1) {
     const i = ci(ox + dx * t), j = ci(oz + dz * t); if (!inb(i, j)) continue;
     const o = openAt[idx(i, j)]; if (!o || o === last || !o.boards.length || o.grate) continue;   // (a shot goes clean through a grate's bars and its slit)
-    last = o; const h = acc.get(o);
-    if (h) h.d += dmg * BOARD_SHOT; else acc.set(o, { d: dmg * BOARD_SHOT, dx, dz });
+    last = o; if (!acc.has(o)) acc.set(o, { d: 0, dx, dz });
   }
 }
-// a shot's worth of damage on an opening's boards: the top one jumps and splinters fly out the far side; in co-op the
-// host's game keeps the boards, so a joiner's shots are sent to it and it says when one breaks (net/sync.js)
+// a blow on an opening's boards (d of damage: none from a shot): the top one jumps and splinters fly out the far side;
+// in co-op the host's game keeps the boards, so a joiner's blows are sent to it and it says when one breaks (net/sync.js)
 function shootBoard(o, d, dx, dz) {
   if (!o.boards.length) return;
   const at = { x: o.x + dx, z: o.z + dz, vis: visAt(o.x, o.z) };
-  boardJolt(o, at); netBoardShot(o, d, dx, dz);
+  boardJolt(o, at); if (!(d > 0)) return;
+  netBoardShot(o, d, dx, dz);
   if (!netClient()) hurtBoard(o, d, at);
 }
 // d off the top board; if that's the last of it, it breaks and flies toward at

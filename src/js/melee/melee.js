@@ -50,8 +50,8 @@ function meleeTargets(D) {
 // arrives. A hit staggers what it doesn't kill for stagger seconds and shakes, punches and kicks the view harder; one
 // that meets nothing slams into the ground in front of you
 const HEAVY = { whoosh: 0.45, hit: 0.55, stagger: 0.55 };
-// a swing on the boards: BOARD_MELEE of its damage off the top one, so a run of swings does take a board down, just
-// slower than shooting it (BOARD_SHOT); the opening must be in reach and in front of you
+// a swing on the boards: BOARD_MELEE of its damage off the top one, so a run of swings does take a board down (the only
+// thing that does: shots through them don't, barricades/planks.js); the opening must be in reach and in front of you
 const BOARD_MELEE = 0.15;
 function boardInReach(D) {
   let best = null, bd = 1e9;
@@ -83,8 +83,8 @@ function meleeHit() {
       else if (heavy && z.type !== 'brute') z.stagger = Math.max(z.stagger, HEAVY.stagger);
       hit = true; near = Math.min(near, d); nHit++;
     }
-    // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it (a swing's slower
-    // going than a shot's BOARD_SHOT, barricades/planks.js), the boards jumping and splintering as they do under fire
+    // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it, the boards
+    // jumping and splintering as they do under fire
     const bo = !hit && boardInReach(D);
     if (bo) { shootBoard(bo, D.dmg * S.meleeMul * BOARD_MELEE, fx0, fz0); meleeImpact(heavy, 0.75); shake = Math.max(shake, heavy ? 0.3 : 0.16); SFX.thud(); if (!blade || heavy) SFX.hitBlunt(heavy); }
     if (hit || bo) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR) * (1 + CLEAVE_STAM * Math.max(0, nHit - 1))); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting

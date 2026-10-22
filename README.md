@@ -46,7 +46,10 @@ through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
-leaves a crawler, and a headshot drops them. The dead fall as ragdolls.
+leaves a crawler, and a headshot drops them. From wave 4 some turned wearing armour: soldiers in helmets and vests,
+SWAT in plate carriers, and riot officers whose face shields blunt headshots. Armour soaks up part of each hit where
+it's worn (heavier rounds, slugs and piercing rounds go through more of it), and those hits show in steel with a
+shield. The dead fall as ragdolls.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
 sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Vault through
@@ -59,15 +62,15 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 | Workbench | Gun upgrades, attachments, ammo |
 | Sawhorse / metalwork bench | Planks and metal, and bracing the boards |
 | Medicine cabinet | Bandages and health |
-| Ham radio | Calls in supply drops |
+| Ham radio | Calls in a supply crate (ammo, health, bandages, planks) that grows with the wave, as does its price, once every 5 waves |
 | Gun rack | New guns for your slots |
 | Strongbox (co-op) | Gives scrap to a teammate |
 
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
-then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If you
-go down, you watch a teammate until the wave is cleared, then come back as a new survivor with a full mag in each gun and
-three spares. Clear a wave with nobody down and everyone gets a little scrap. You can add friends by
-their friend code to see when they're online and join their lobby in one click.
+then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
+you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
+survivor with a full mag in each gun and three spares. Clear a wave with nobody down and everyone gets a little
+scrap. You can add friends by their friend code to see when they're online and join their lobby in one click.
 
 ## Controls
 

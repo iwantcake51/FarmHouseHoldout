@@ -18,6 +18,16 @@ const RUN_SPREAD = 1.6, RUN_MISS = 0.55;
 // and the bloom kick back STOCK.kick as hard, and quick shots open the spread STOCK.spray as fast
 const STOCK = { kick: 0.55, spray: 0.6 };
 const stocked = id => gunAtt(id, 'stock');
+// a gun with nothing against your shoulder (a sidearm without its stock, a pair of them) gets away from you quicker
+// shot after shot: its spread opens HANDGUN.spray times as fast, and each kick of the crosshair grows with the spray so far
+// (HANDGUN.kick more at its widest: player/shaky-hands.js)
+const HANDGUN = { spray: 1.6, kick: 0.9 };
+const unshouldered = (D, id) => D.slot === 'side' && !stocked(id);
+// how a gun settles once you stop firing (weapons/combat-update.js, player/shaky-hands.js): after a beat (hold, s) it
+// eases in (over ramp) and dies smoothly away (rate), never at a steady pace; a heavier round takes longer to settle
+// (cal: the battle rifle's and the LMG's rifle rounds the longest)
+const SETTLE = { hold: 0.1, ramp: 0.3, rate: 4.5, cal: { p9: 1, p10: 0.85, magnum: 0.75, shells: 0.8, rifle: 0.55 } };
+const settleK = D => (D && SETTLE.cal[D.ammo]) ?? 1;
 // however loose everything makes it (a shotgun from the hip at a sprint, holding the trigger), a shot never strays more
 // than this either side of where it's aimed (about 40°): past a right angle it would go sideways or behind you, and the
 // crosshair (tan of it, ui/crosshair.js) would fold down to nothing
@@ -281,7 +291,7 @@ function gunFire(id, D, side) {
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
-  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
+  W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1) * (unshouldered(D, id) ? HANDGUN.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
   { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)
   const ej = EJECT[id];

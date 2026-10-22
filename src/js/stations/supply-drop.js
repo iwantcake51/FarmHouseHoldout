@@ -148,7 +148,37 @@ function updateSupplyDrop(dt) {
 // a new run: nothing on its way, no flare, no shadow
 function resetDrops() { HELI_PUSH.w = 0; supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
 const dropBusy = () => supplyT > 0 || !!supplyFall;
-const busyWhy = () => dropBusy() ? 'A drop is already on its way' : '';
+// The supply crate: what the radio sells, once every SUPPLY.every waves (from the wave it was last called on: run.dropAt),
+// for its cost in scrap. What's in it grows with the wave, from a modest top-up on the first wave to a real resupply by
+// wave SUPPLY.full, and so does its price: each is [on wave 1, by SUPPLY.full], in between along the way. Ammo for every
+// calibre you carry (batches: the workbench's crafted batches, AMMO_BATCH), health (hp; full by the end), bandages, and
+// planks (or metal, once there's a metalwork bench)
+const SUPPLY = { every: 5, full: 15, cost: [20, 50], batches: [1.5, 5], hp: [30, 1], band: [1, 3], planks: [3, 8] };
+const dropWait = () => run.dropAt > 0 && run.wave < run.dropAt + SUPPLY.every;
+const supplyAt = k => { const [a, b] = SUPPLY[k], f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return a + (b - a) * f; };
+const supplyCost = () => Math.round(supplyAt('cost') / 5) * 5;
+const supplyAmmo = a => Math.round(AMMO_BATCH[a] * supplyAt('batches'));
+// health back: a share of your full health that grows to all of it (SUPPLY.hp: [hp on wave 1, share by the end])
+const supplyHp = () => { const f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return Math.round(SUPPLY.hp[0] + (S.maxHp * SUPPLY.hp[1] - SUPPLY.hp[0]) * f); };
+// the crate opened (pickups/pickups.js): everything in it, each noted in the feed
+function supplyOpen() {
+  ammoTypes().forEach(a => { const n = supplyAmmo(a); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
+  if (P.hp < S.maxHp || P.bleed) { P.hp = Math.min(S.maxHp, P.hp + supplyHp()); P.bleed = 0; feed('med', 0, 'Patched up'); }
+  const nb = Math.min(Math.round(supplyAt('band')), Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); }
+  const np = addPlanks(Math.round(supplyAt('planks'))); if (np) { feed(matKind(), np, matWord()); popEl('planks'); }
+  feed('supply', 0, 'Supply crate opened');
+}
+// the radio's card's text: what's in the crate, and how long till the radio's free again (one pip a wave)
+function supplyDesc() {
+  if (supplyT > 0) return `Inbound: lands in the yard in <b>${Math.ceil(supplyT)}s</b>`;
+  if (supplyFall) return 'Coming down now';
+  const hp = supplyHp(), nb = Math.round(supplyAt('band')), ammo = ammoTypes().map(a => `+${supplyAmmo(a)} ${AMMO_NAME[a]}`);
+  const gets = [...(ammo.length ? ammo : ['Ammo for your guns']), hp >= S.maxHp ? 'Health to full' : `+${hp} health`, `+${nb} bandage${nb > 1 ? 's' : ''}`, `+${Math.round(supplyAt('planks'))} ${matWord()}`];
+  const left = dropWait() ? run.dropAt + SUPPLY.every - run.wave : 0;
+  const pips = Array.from({ length: SUPPLY.every }, (_, k) => `<i${k < SUPPLY.every - left ? ' class="on"' : ''}></i>`).join('');
+  return `<span class="dropGets">${gets.map(g => `<i>${g}</i>`).join('')}</span><span class="dropPips${left ? '' : ' ready'}">${pips}<small>${left ? `Radio free again in ${left} wave${left > 1 ? 's' : ''}` : `One drop every ${SUPPLY.every} waves`}</small></span>`;
+}
+const busyWhy = () => dropBusy() ? 'A drop is already on its way' : dropWait() ? `Ready on wave ${run.dropAt + SUPPLY.every}` : '';
 // the crate's marker, from the moment it's called down until it's opened: a crate icon and how far off it is, floating
 // over where it'll land (or the crate itself), or pinned to the edge of the screen with an arrow pointing to it while
 // it's off screen

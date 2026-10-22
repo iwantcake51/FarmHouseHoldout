@@ -97,9 +97,9 @@ function kTip(el) {
   if (!el) { tip.classList.remove('on'); return; }
   const on = keyActs().get(el.dataset.k) || [], name = el.dataset.k.startsWith('mouse') ? ({ mouse1: 'Left click', mouse2: 'Right click', mouse3: 'Middle click', mouse4: 'Mouse 4', mouse5: 'Mouse 5' })[el.dataset.k] : keyLabel(el.dataset.k);
   tip.innerHTML = `<b>${kEsc(name)}</b>` + (on.length ? on.map(x => `<span style="--gc:${KGROUP_COL[x.group]}"><i></i>${kEsc(x.name)}${x.hold ? ' <em>hold</em>' : ''}${x.fixed ? ' <em>fixed</em>' : ''}</span>`).join('') : `<span class="none">${BIND_LOCK.has(el.dataset.k) ? 'Kept for the menus' : 'Not bound'}</span>`);
-  const bd = tip.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect();
-  const below = r.top - bd.top < 40;   // (the top row's tip goes under its key, out of the way of the panel's edge)
-  tip.classList.toggle('below', below); tip.style.left = (r.left + r.width / 2 - bd.left) + 'px'; tip.style.top = ((below ? r.bottom : r.top) - bd.top) + 'px';
+  const bd = tip.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect(), view = $('setBody').getBoundingClientRect();
+  const below = r.top - Math.max(view.top, bd.top) < tip.offsetHeight + 14;   // (under its key when there's no room for it above, inside what's in view)
+  tip.classList.toggle('below', below); const hw = tip.offsetWidth / 2 + 6, kx = r.left + r.width / 2 - bd.left, tx = clamp(kx, hw, bd.width - hw); tip.style.left = tx + 'px'; tip.style.setProperty('--ax', (kx - tx + tip.offsetWidth / 2) + 'px'); tip.style.top = ((below ? r.bottom : r.top) - bd.top) + 'px';   // (and inside the board side to side, a key at its edge too: Tab, Ctrl; its point still on the key)
   tip.classList.remove('on'); void tip.offsetWidth; tip.classList.add('on');
   on.forEach(x => { const it = x.a && $('setBody').querySelector(`.kItem[data-row="${x.a}"]`); if (it) it.classList.add('kHot'); });
 }

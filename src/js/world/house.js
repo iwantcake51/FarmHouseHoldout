@@ -70,7 +70,14 @@ function wallForm(i, j, faces, inner) {
   // no room against it); a corner the rooms wrap round, on both its sides
   // (the plaster, the skirting and the clapboard lines lie on the wall's faces: they'd only add to its shadow what's
   // already in it, so they cast none)
-  const pan = (G, d, y0, y1, mat, th, off) => { const [ox_, oz_] = FACE_V[d], m = box(G, ox_ ? th : 1.0, y1 - y0, ox_ ? 1.0 : th, mat, ox_ * (off || 0.514), (y0 + y1) / 2, oz_ * (off || 0.514)); m.castShadow = false; return m; };
+  // (on a corner the rooms wrap round, each side's plaster and skirting run on past the cell's edge to meet the other
+  // side's, so no sliver of the outside wall or its clapboard shows down the corner: wrap)
+  const pan = (G, d, y0, y1, mat, th, off) => {
+    const [ox_, oz_] = FACE_V[d], o = off || 0.514, reach = o + th / 2 - 0.5; let lo = 0, hi = 0;
+    inner.forEach(e => { if (e === d) return; const s = ox_ ? FACE_V[e][1] : FACE_V[e][0]; if (s < 0) lo = reach; else if (s > 0) hi = reach; });
+    const L = 1 + lo + hi, c = (hi - lo) / 2;
+    const m = box(G, ox_ ? th : L, y1 - y0, ox_ ? L : th, mat, ox_ ? ox_ * o : c, (y0 + y1) / 2, ox_ ? c : oz_ * o); m.castShadow = false; return m;
+  };
   // clapboard lines on the outside faces, at the same heights on every cell so the courses run unbroken round the house
   const clap = (G, y0, y1) => { for (let k = 0; k < 6; k++) { const y = 0.45 + k * 0.33; if (y > y0 + 0.02 && y < y1 - 0.02) box(G, 1.015, 0.025, 1.015, mats.clap, 0, y, 0).castShadow = false; } };
   if (kind === 'door') {

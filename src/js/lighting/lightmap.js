@@ -112,8 +112,8 @@ function flashUniforms(rdt) {
   flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0; stepFlDir(rdt);
   if (dark && F && D && !D.melee && flOn > 0) {
     const [lr, half, k] = F, li = k * curDark * flOn;
-    if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62]); });
-    else cones.push([flOx, flOz, flDir(), lr, half, li]);
+    if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62, T('light')]); });
+    else cones.push([flOx, flOz, flDir(), lr, half, li, T('light')]);
   }
   // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
   teamFl.length = 0;
@@ -124,10 +124,11 @@ function flashUniforms(rdt) {
     p.flA = p.flA === undefined ? p.fl[1] : p.flA + angDiff(p.fl[1], p.flA) * Math.min(1, (rdt || 0) * 14);
     const x = a.g.position.x, z = a.g.position.z;
     teamFl.push({ x, z, dir: p.flA, tier: t, on: p.flOn });
-    if (dark && cones.length < FL_N) cones.push([x, z, p.flA, Fp[0], Fp[1], Fp[2] * curDark * p.flOn]);
+    if (dark && cones.length < FL_N) cones.push([x, z, p.flA, Fp[0], Fp[1], Fp[2] * curDark * p.flOn, t]);
   }
   LMU.uFlK.value.w = cones.length;
-  cones.forEach((c, i) => { LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
+  cones.forEach((c, i) => { LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
+    flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
   if (cones.length) flShTex.needsUpdate = true;
 }
 // how strongly a teammate's light picks a zombie out (0 to 1): in the middle of their beam and in its reach, with

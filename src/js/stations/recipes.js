@@ -95,14 +95,18 @@ function multiNote(id, apply) {
 // the group, and so does each improvement on one, and what carries its line on (the burst conversion's levels, then the
 // auto sear after it: MOD_LINE); otherwise the rest, in the group
 const topMod = m => !!MODS[m].conv || !!MODS[m].fm || !!(MOD_LINE[m] && MODS[m].need && MODS[MODS[m].need].conv);
+// where a mod's card sits among the others: by the mod's place in MODS, whether it's new or being improved, and a line's
+// later mod in its first one's place (the auto sear where the burst conversion was), so buying or improving one never
+// moves the cards round
+const modSlot = m => Object.keys(MODS).indexOf(MOD_LINE[m] && MODS[m].need && MOD_LINE[MODS[m].need] ? MODS[m].need : m);
 function tinkerCards(conv = false) {
   const id = curId(), D = id && W(id); if (!D) return [];
   const out = [], group = conv ? undefined : gearGroup(D);
-  modsFor(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
+  modsFor(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, at: modSlot(m), tier: MOD_LINE[m] ? () => MOD_LINE[m] : undefined, for: () => forYour(id), fx: () => modFx(m), cost: tinkerNew(m, id), title: () => MODS[m].name, desc: () => 'New mod · ' + MODS[m].text + multiNote(id, MODS[m].stat), why: () => '',
     make: () => { const fx0 = modFx(m); magChange(id, () => addMod(id, m)); buildGuns(id); glowGun(id); feed('gear', 0, MODS[m].name); gotGear({ ic: 'gear', kind: 'New mod', name: MODS[m].name, gun: id, text: MODS[m].text + magNote(id), fx: fx0 }); } }));
-  modUps(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
+  modUps(id).filter(m => !topMod(m) === !conv).forEach(m => out.push({ ic: 'gear', group, at: modSlot(m), tier: () => [modLv(m), MOD_LINE[m] ? MOD_LINE[m][1] : MOD_MAX], for: () => forYour(id), fx: () => improveFx(id, m), get cost() { return tinkerUp(m, id); }, title: () => MODS[m].names ? modNameAt(m, modLv(m)) + ' → ' + modNameAt(m, modLv(m) + 1) : MODS[m].name + ' ' + roman(modLv(m)) + ' → ' + roman(modLv(m) + 1), desc: () => 'Improve · ' + MOD_UP[m].t + multiNote(id, MOD_UP[m].up), why: () => '',
     make: () => { const fx0 = improveFx(id, m); magChange(id, () => improveMod(m)); buildGuns(id); glowGun(id); feed('gear', 0, modName(m)); gotGear({ ic: 'gear', kind: 'Mod improved', name: modName(m), gun: id, text: MOD_UP[m].t + '.' + magNote(id), fx: fx0 }); } }));
-  return out;
+  return out.sort((a, b) => a.at - b.at);
 }
 // a gun's own upgrades, one card per line (the next tier up) for the gun in your hands: better rounds, a lighter
 // trigger, bigger magazines. Priced by how rare the step is, in the same band as a new mod
@@ -176,8 +180,8 @@ const RECIPES = {
   get med() { return shown(MED); },
   // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
-    return [{ ic: 'supply', group: 'Supplies', cost: 20, title: () => dropBusy() ? 'Drop on its way' : 'Call a supply drop', desc: () => supplyT > 0 ? `Lands in the yard in ${Math.ceil(supplyT)}s` : `A crate of ammo, ${matWord()}, scrap and bandages lands in the yard`, why: busyWhy,
-      make: () => { callDrop({ kind: 'supply' }); feed('supply', 0, 'Supply drop called'); } }];
+    return [{ ic: 'supply', cls: 'drop', group: 'Supplies', cost: supplyCost(), title: () => dropBusy() ? 'Drop on its way' : dropWait() ? 'Radio quiet' : 'Call a supply drop', desc: supplyDesc, why: busyWhy,
+      make: () => { callDrop({ kind: 'supply' }); run.dropAt = Math.max(1, run.wave); feed('supply', 0, 'Supply drop called'); } }];
   }
 };
 // a medicine cabinet upgrade card: three levels, each dearer than the last (MED_UP lives in player/bandages.js, read lazily)

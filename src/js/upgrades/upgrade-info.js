@@ -96,6 +96,8 @@ function tierFx(id, k) {
   if (k === 'supp' && !D0.quiet) { a.dmg *= [1, 1.1, 1.2, 1.3][f]; b.dmg *= [1, 1.1, 1.2, 1.3][n + 1]; }   // the can's bonus is applied as you fire
   if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[f]; b.spread *= m[n + 1]; a.aim *= m[f]; b.aim *= m[n + 1]; }
   const fx = compareFx(a, b);
+  // a hotter powder kicks harder every shot (POWDER_KICK: the recoil and the spread each shot adds), shown against the one fitted
+  if (k === 'ammo' && !D0.melee) fx.push({ t: `KICK +${Math.round((POWDER_KICK[n + 1] / POWDER_KICK[f] - 1) * 100)}%`, good: false });
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (k === 'laser') fx.push({ t: 'Aim beam', good: true });

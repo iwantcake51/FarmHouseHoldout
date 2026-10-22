@@ -163,6 +163,11 @@ $('setBody').addEventListener('input', e => {
   applySettings();
 });
 $('setBody').addEventListener('change', saveSettings);
+// and kept as a slider moves (not only once it's let go), and once more as the page goes, so nothing's lost to a tab
+// shut mid-change. (The browser keeps them for this one address: a different link to the game, like another preview,
+// starts from its own)
+$('setBody').addEventListener('input', saveSettings);
+addEventListener('pagehide', () => { saveSettings(); saveBinds(); });
 // the keys in an open dropdown: up and down move through it, Enter or Space picks, Esc closes just it
 $('setBody').addEventListener('keydown', e => {
   const d = e.target.closest('.sDrop'); if (!d) return;
