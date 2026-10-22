@@ -16,7 +16,7 @@
 .setX{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:rgba(236,230,216,.06);color:var(--dim);cursor:pointer;transition:background .2s,color .2s,rotate .3s cubic-bezier(.2,.9,.3,1)}
 .setX svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
 .setX:hover{background:rgba(var(--acc),.8);color:#fff;rotate:90deg}
-.setBody{overflow-y:auto;padding:6px 20px 14px;overscroll-behavior:contain}
+.setBody{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:6px 20px 14px;overscroll-behavior:contain}   /* (never a sideways bar: a key nudged or its tip near an edge would bring one, and the page would jump as it came and went) */
 .setHeadRow{margin:16px 0 4px;font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--orange-d)}
 .setRow{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid rgba(236,230,216,.05)}
 .setRow:last-child{border-bottom:0}
@@ -138,7 +138,7 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
 /* the keyboard and the mouse, drawn like the real thing: a dark deck, and on it sculpted keycaps, each a skirt with a
    dished top face, the legend in its corner. A bound key's legend takes its group's colour, with a short bar of it
    under the face; walking's keys are the same, the bar dashed. Pointing at one presses it down a little */
-.kBoard{position:sticky;top:0;padding:14px 14px 12px;border-radius:12px;background:linear-gradient(180deg,#25211d,#191613);
+.kBoard{position:sticky;top:10px;padding:14px 14px 12px;border-radius:12px;background:linear-gradient(180deg,#25211d,#191613);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04),0 14px 30px rgba(0,0,0,.45)}
 .kKeys{container-type:inline-size;display:grid;gap:4px;padding:8px;border-radius:7px;background:#100e0c;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6)}
 .kbRow{display:flex;gap:4px}
@@ -184,7 +184,7 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
 .kTip.below{transform:translate(-50%,4px) scale(.92);transform-origin:top center}
 .kTip.below.on{transform:translate(-50%,10px)}
 .kTip.below::after{bottom:auto;top:-5px;rotate:225deg}
-.kTip::after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;margin-left:-4px;rotate:45deg;background:rgba(14,12,10,.97);border:solid rgba(236,230,216,.14);border-width:0 1px 1px 0}
+.kTip::after{content:"";position:absolute;left:var(--ax,50%);bottom:-5px;width:8px;height:8px;margin-left:-4px;rotate:45deg;background:rgba(14,12,10,.97);border:solid rgba(236,230,216,.14);border-width:0 1px 1px 0}
 .kTip b{font:700 12px/1 var(--f-ui);color:var(--ink);letter-spacing:.06em}
 .kTip span{display:flex;align-items:center;gap:6px;font-size:12px;color:#e2dccd;white-space:nowrap}
 .kTip span i{flex:none;width:7px;height:7px;border-radius:2px;background:var(--gc)}
