@@ -14,7 +14,22 @@ let renderScale = DPR;
 // lowered automatically when the frame rate drops (see game/loop.js)
 R.setPixelRatio(renderScale);
 R.shadowMap.enabled = true;
-R.shadowMap.type = THREE.PCFSoftShadowMap;
+// soft-edged shadows: three's own filtering blurs a shadow's edge over a texel or two of its map, a few centimetres, so
+// the line where it starts is hard. Instead each is read SHADOW_SOFT.taps times over a disc, turned a different way at
+// every pixel (a spiral, rotated by a noise of the pixel's place) so the edge fades smoothly with no rings or steps,
+// SHADOW_SOFT.r metres out (the sun's radius in its map's texels follows from that: ui/settings.js, applySettings)
+const SHADOW_SOFT = { r: 0.07, taps: 12 };
+R.shadowMap.type = THREE.PCFShadowMap;
+{ const C = THREE.ShaderChunk, src = C.shadowmap_pars_fragment, a = src.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'), b = src.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )', a);
+  if (a >= 0 && b > a) C.shadowmap_pars_fragment = src.slice(0, a) + `#if defined( SHADOWMAP_TYPE_PCF )
+			float sAng = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+			vec2 sR = shadowRadius / shadowMapSize; float sSum = 0.0;
+			for (int i = 0; i < ${SHADOW_SOFT.taps}; i++) {
+				float sr = sqrt((float(i) + 0.5) / ${SHADOW_SOFT.taps}.0), st = float(i) * 2.39996323 + sAng;
+				sSum += texture2DCompare(shadowMap, shadowCoord.xy + vec2(cos(st), sin(st)) * sr * sR, shadowCoord.z);
+			}
+			shadow = sSum / ${SHADOW_SOFT.taps}.0;
+		` + src.slice(b); }
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1e1716);
 scene.fog = new THREE.Fog(0x1e1716, 42, 78);
@@ -45,4 +60,5 @@ const SUN_R = 34, SUN_D = 52;
 sun.shadow.mapSize.setScalar(R.capabilities.maxTextureSize >= 8192 ? 4096 : 2048);
 Object.assign(sun.shadow.camera, { left: -SUN_R, right: SUN_R, top: SUN_R, bottom: -SUN_R, near: 1, far: SUN_D * 2 });
 sun.shadow.bias = -0.0006;
+sun.shadow.radius = SHADOW_SOFT.r * sun.shadow.mapSize.x / (2 * SUN_R);   // (in texels of its map: kept up as its size changes)
 scene.add(sun, sun.target);

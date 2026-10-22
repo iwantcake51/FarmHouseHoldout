@@ -57,7 +57,7 @@ let shadowSz = 0;
 function applySettings() {
   // the sun's shadow map, made again at its new size the next time it's drawn
   const sz = SHADOW_SZ[SET.shadows] || SHADOW_SZ.high;
-  if (sz !== shadowSz) { shadowSz = sz; sun.shadow.mapSize.setScalar(sz); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  if (sz !== shadowSz) { shadowSz = sz; sun.shadow.mapSize.setScalar(sz); sun.shadow.radius = SHADOW_SOFT.r * sz / (2 * SUN_R); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   // a fixed resolution's set here, and left alone by the frame-rate watch; Auto starts at the screen's own
   const rk = RES_K[SET.res] || 1, want = SET.res === 'auto' ? DPR : Math.max(0.35, DPR * rk);
   if (SET.res !== 'auto' || renderScale > DPR) { renderScale = want; R.setPixelRatio(renderScale); resize(); }
