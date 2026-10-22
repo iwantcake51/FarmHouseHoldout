@@ -90,10 +90,11 @@ function multiNote(id, apply) {
   const t = multiHit(D0, D1) || ((D1.cleave || 1) > (D0.cleave || 1) ? { t: `+ Hits ${D1.cleave} at once` } : null);
   return t ? ' · ' + t.t : '';
 }
-// conv: only the mods that turn the gun into something else (a conversion kit, a second gun), which sit at the top of the
-// bench with the tune-up, out of the group, and so does each improvement on one, and what carries its line on (the
-// burst conversion's levels, then the auto sear after it: MOD_LINE); otherwise the rest, in the group
-const topMod = m => !!MODS[m].conv || !!(MOD_LINE[m] && MODS[m].need && MODS[MODS[m].need].conv);
+// conv: only the mods that turn the gun into something else (a conversion kit, a second gun) or change how it fires (a
+// new fire mode: the Navy trigger group, the twin trigger), which sit at the top of the bench with the tune-up, out of
+// the group, and so does each improvement on one, and what carries its line on (the burst conversion's levels, then the
+// auto sear after it: MOD_LINE); otherwise the rest, in the group
+const topMod = m => !!MODS[m].conv || !!MODS[m].fm || !!(MOD_LINE[m] && MODS[m].need && MODS[MODS[m].need].conv);
 function tinkerCards(conv = false) {
   const id = curId(), D = id && W(id); if (!D) return [];
   const out = [], group = conv ? undefined : gearGroup(D);
