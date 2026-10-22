@@ -132,9 +132,13 @@ const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX
 // full: a card you can't take because you already carry as many as you can (a full bandage bag, a full plank stack)
 // is darkened at the station, so it's plain it can't be had right now (stations/station-ui.js)
 const bagFull = () => (P.band || 0) >= bandMax(), stackFull = () => !plankRoom();
-// the medicine cabinet: bandages, a stitch-up, and its three upgrades
+// the medicine cabinet: bandages, a stitch-up, and its three upgrades. Bandages are its quick buttons along the bottom
+// (stations/station-ui.js: quickBar), as ammo is at the workbench: one, or the bag filled in one go at BAND_COST each
+const BAND_COST = 4, bandRoom = () => Math.max(0, bandMax() - (P.band || 0));
+const bandBuy = n => { P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); popEl('bands'); };
 const MED = [
-  { ic: 'med', for: () => 'For you', full: bagFull, cost: 4, title: () => 'Bandage', desc: () => `Goes in your bag (${P.band || 0}/${bandMax()}). ${keyOn('bandage')} to use: heals ${bandHeal()} over time and stops bleeding`, why: () => (P.band || 0) < bandMax() ? '' : 'Your bag is full', make: () => { P.band = (P.band || 0) + 1; feed('med', 1, 'bandage'); popEl('bands'); } },
+  { ic: 'med', quick: 'one', for: () => 'For you', full: bagFull, cost: BAND_COST, title: () => 'Bandage', desc: () => `Goes in your bag (${P.band || 0}/${bandMax()}). ${keyOn('bandage')} to use: heals ${bandHeal()} over time and stops bleeding`, why: () => bandRoom() ? '' : 'Your bag is full', make: () => bandBuy(1) },
+  { ic: 'med', quick: 'fill', for: () => 'For you', full: bagFull, get cost() { return BAND_COST * Math.max(1, bandRoom()); }, title: () => 'Fill the bag', desc: () => `${bandRoom()} bandages, ${BAND_COST} scrap each`, why: () => bandRoom() ? '' : 'Your bag is full', make: () => bandBuy(bandRoom()) },
   { ic: 'med', for: () => 'For you', cost: 7, title: () => 'Stitch up', desc: () => '+60 health and no more slowdown', why: () => P.hp < S.maxHp ? '' : 'You are at full health', make: () => { const h = Math.min(60, S.maxHp - P.hp); P.hp += h; P.slow = 0; P.bleed = 0; feed('med', Math.round(h), 'health'); } },
   ...['hands', 'dress', 'tonic'].map(medUpgrade)
 ];

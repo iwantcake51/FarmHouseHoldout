@@ -34,14 +34,14 @@
 #stQuick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
 #stQuick[hidden]{display:none}
 #stQuick button{all:unset;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:6px 9px;border:1px solid rgba(236,230,216,.14);background:rgba(0,0,0,.25);color:var(--dim);transition:background .15s,border-color .15s,color .15s,translate .15s}
-#stQuick button > svg{width:18px;height:18px;fill:#d4b25c;opacity:.5}
+#stQuick button > svg{width:18px;height:18px;fill:var(--qc,#d4b25c);opacity:.5}
 #stQuick button span b{display:block;font-size:12px;font-weight:600;letter-spacing:.04em}
 #stQuick button span em{display:block;font-style:normal;font-size:10px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #stQuick .cost{display:flex;align-items:center;gap:3px}#stQuick .cost svg{width:13px;height:13px;fill:#8fa3b8}#stQuick .cost b{font-family:var(--f-num);font-size:15px;font-weight:800;color:#c8d2dc}
 #stQuick .cost.short b{color:#e0805c}
-#stQuick button.ok{color:var(--ink);border-color:rgba(212,178,92,.6);background:linear-gradient(180deg,rgba(212,178,92,.16),rgba(212,178,92,.05))}
+#stQuick button.ok{color:var(--ink);border-color:color-mix(in srgb,var(--qc,#d4b25c) 60%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--qc,#d4b25c) 16%,transparent),color-mix(in srgb,var(--qc,#d4b25c) 5%,transparent))}
 #stQuick button.ok > svg{opacity:1}
-#stQuick button.ok:hover,#stQuick button.ok:focus-visible{background:linear-gradient(180deg,rgba(212,178,92,.26),rgba(212,178,92,.09));translate:0 -1px}
+#stQuick button.ok:hover,#stQuick button.ok:focus-visible{background:linear-gradient(180deg,color-mix(in srgb,var(--qc,#d4b25c) 26%,transparent),color-mix(in srgb,var(--qc,#d4b25c) 9%,transparent));translate:0 -1px}
 #stQuick button:not(.ok){cursor:not-allowed}
 #stQuick button.bump{animation:qBump .3s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes qBump{40%{transform:scale(1.04)}}
