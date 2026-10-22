@@ -6,7 +6,8 @@ let mouseX = innerWidth / 2, mouseY = innerHeight / 2, mouseDown = false, mouseD
 const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), aimPlane = new THREE.Plane(new V3(0, 1, 0), -GUN_Y), aimPt = new V3(0, GUN_Y, 5);
 addEventListener('keydown', e => {
   const k = keyOf(e);
-  if (k === ' ' || k.startsWith('arrow') || k === 'tab') e.preventDefault();
+  const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
+  if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab')) e.preventDefault();
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }

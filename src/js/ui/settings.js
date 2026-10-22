@@ -59,15 +59,11 @@ function setRowHtml(r) {
 }
 // the Controls tab: each group's keys, the ones that can't move shown locked among them
 const LOCK_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5"/></svg>';
-function bindRowsHtml() {
-  return BIND_GROUPS.map(g => `<div class="setHeadRow">${g.name}</div>` +
-    g.fixed.map(([k, t]) => `<div class="setRow kRow kFixed"><div class="setLab"><b>${t}</b></div><span class="kBind" aria-disabled="true">${LOCK_SVG}<span>${k}</span></span></div>`).join('') +
-    g.rows.map(([a, t, hold]) => `<div class="setRow kRow" data-row="${a}"><div class="setLab"><b>${t}</b>${hold ? '<small>Held down</small>' : ''}</div><button type="button" class="kBind" data-act="${a}" aria-label="${t}: ${keyOn(a)}. Change it">${keyOn(a)}</button></div>`).join('')).join('') +
-    '<p class="kNote">Click a key, then press the new one (or a middle or side mouse button). One already in use swaps over. Esc leaves it as it was.</p>';
-}
+// (the tab itself, its keyboard and its search: ui/keyboard-map.js)
 let setTab = 'general';
 function buildSettings() {
-  $('setBody').innerHTML = setTab === 'controls' ? bindRowsHtml() : SET_ROWS.map(setRowHtml).join('');
+  $('setBody').innerHTML = setTab === 'controls' ? controlsHtml() : SET_ROWS.map(setRowHtml).join('');
+  $('settings').classList.toggle('wide', setTab === 'controls'); if (setTab === 'controls') kbRefresh();   // (wider, for the keyboard beside the list)
   $('setBody').classList.remove('tabIn'); void $('setBody').offsetWidth; $('setBody').classList.add('tabIn');
 }
 function showTab(t) {
@@ -78,14 +74,15 @@ function showTab(t) {
 $('setTabs').addEventListener('click', e => { const b = e.target.closest('[role=tab]'); if (b) showTab(b.dataset.tab); });
 // putting a key on something: its button listens for the next key or mouse button (taken before the game sees it)
 let binding = null;
-function stopBinding() { if (!binding) return; const el = binding.el; binding = null; el.classList.remove('listen', 'nope'); el.textContent = keyOn(el.dataset.act); }
-function startBinding(el) { stopBinding(); binding = { el }; el.classList.add('listen'); el.textContent = 'Press a key'; }
+function stopBinding() { if (!binding) return; const el = binding.el; binding = null; $('setBody').classList.remove('kPick'); el.classList.remove('listen', 'nope'); el.textContent = keyOn(el.dataset.act); }
+function startBinding(el) { stopBinding(); binding = { el }; $('setBody').classList.add('kPick'); el.classList.add('listen'); el.textContent = 'Press a key'; }
 function finishBinding(k) {
   const el = binding.el, a = el.dataset.act;
   if (BIND_LOCK.has(k)) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); el.textContent = keyLabel(k) + ' is taken'; setTimeout(() => { if (binding && binding.el === el) el.textContent = 'Press a key'; }, 900); return; }
   const other = setBind(a, k); stopBinding();
   $('setBody').querySelectorAll('.kBind[data-act]').forEach(b => { b.textContent = keyOn(b.dataset.act); b.setAttribute('aria-label', b.closest('.setRow').querySelector('b').textContent + ': ' + keyOn(b.dataset.act) + '. Change it'); });
-  [a, other].forEach(x => { const r = x && $('setBody').querySelector(`[data-row="${x}"]`); if (r) { r.classList.remove('kSet'); void r.offsetWidth; r.classList.add('kSet'); } });
+  [a, other].forEach(x => { const r = x && $('setBody').querySelector(`[data-row="${x}"] .kRow`); if (r) { r.classList.remove('kSet'); void r.offsetWidth; r.classList.add('kSet'); } });
+  kbRefresh();   // (the keyboard lit for the new key: ui/keyboard-map.js)
 }
 addEventListener('keydown', e => {
   if (!binding) return;
@@ -96,7 +93,7 @@ addEventListener('mousedown', e => {
   if (!binding) return;
   const mk = { 1: 'mouse3', 3: 'mouse4', 4: 'mouse5' }[e.button];
   if (mk) { e.preventDefault(); e.stopImmediatePropagation(); finishBinding(mk); }
-  else if (!e.target.closest('.kBind.listen')) stopBinding();
+  else if (!e.target.closest('.kBind.listen, .kk')) stopBinding();   // (a key clicked on the drawing is taken as pressed: ui/keyboard-map.js)
 }, true);
 const setOpen = () => !$('settings').hidden && $('settings').classList.contains('on');
 let setCloseT = 0;
