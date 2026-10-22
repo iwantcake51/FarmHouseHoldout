@@ -14,7 +14,7 @@ function setState(s) {
   if (s !== 'play') exitScope();
   ['title', 'upgrade', 'paused', 'dead'].forEach(id => $(id).hidden = id !== s);
   ['waveBox', 'vitals', 'arms', 'moodles'].forEach(id => $(id).hidden = s === 'title');
-  $('scrim').style.opacity = s === 'title' ? 0.4 : 1;
+  $('scrim').style.opacity = s === 'title' ? 0.22 : 1;
   document.body.classList.toggle('playing', s === 'play');
   document.body.classList.toggle('menu', s === 'paused' || s === 'upgrade');   // the HUD dims behind a menu (styles/screens.css)
   if (s !== 'play') { closeStation(); $('prompt').classList.remove('on'); cache.promptOn = false; }
@@ -55,7 +55,7 @@ function newRun(soft, dark) {
 }
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
-  resetRun(); deathCineEnd(); setState('title'); $('title').scrollTop = 0;
+  resetRun(); deathCineEnd(); titleSky(); setState('title'); $('title').scrollTop = 0;
   if (NET.on) { NET.inGame = false; toggleCoop(true); }   // still in a co-op game: back in its lobby
   // the HUD stops updating on the title, so clear the dying screen effects by hand
   cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig', 'nearVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; cache.nearVig = null; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;

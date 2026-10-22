@@ -52,13 +52,22 @@ function moonK(h) {
   return h >= S.dusk[1] || h < S.dawn[0] ? 1 : 0;
 }
 let skySoft = -1;
+// the title's hour, picked afresh each time you come back to it: deep in the night, the dawn just coming up, or the
+// dusk going down (hours to pick from in each), with the sun or the moon brought low over the fields (flat: how much
+// of its height it keeps), so the shadows reach long across the yard, and a little more light over it all than a run
+// gets at that hour (lift), so the farm shows through behind the menu
+const TITLE_SKY = { night: [21.6, 23.4], dawn: [6.1, 6.7], dusk: [17.5, 18.2], flat: 0.42, lift: 1.3, h: 18.2 };
+function titleSky() { const r = rand(), T = TITLE_SKY, w = r < 1 / 3 ? T.night : r < 2 / 3 ? T.dawn : T.dusk; T.h = rr(w[0], w[1]); }
+titleSky();
 // time of day: sun, ambient, the clock, bugs and mist
 function updateDayNight(rdt) {
-  const h = mix(tod, 18.2, titleBlend());   // the title sits at dusk
+  const tb = titleBlend(), h = mix(tod, TITLE_SKY.h, tb);
   curDark = lightAt(h);
+  if (tb > 0) { const l = mix(1, TITLE_SKY.lift, tb); amb[0] *= l; amb[1] *= l; amb[2] *= l; hemi.intensity *= l; sun.intensity *= l; }
   // the sun or the moon, aimed at the middle of the farm from far enough out that its shadows take in all of it
   { const w = moonK(h); sunDir(h, _sunD); moonDir(h, _moonD);
     sun.position.copy(_sunD.multiplyScalar(1 - w).addScaledVector(_moonD, w)); if (sun.position.lengthSq() < 1e-6) sun.position.set(0, 1, 0);
+    sun.position.normalize().y *= mix(1, TITLE_SKY.flat, tb);   // (low on the title: long shadows)
     sun.intensity *= 1 - SKY_SWAP.dip * Math.sin(Math.PI * w);   // (between the two: twilight)
     const soft = Math.round((1 + SKY_SWAP.soft * w) * 50) / 50;
     if (soft !== skySoft) { skySoft = soft; const r = SUN_R * soft, c = sun.shadow.camera; c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); } }

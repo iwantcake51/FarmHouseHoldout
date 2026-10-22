@@ -84,6 +84,12 @@
     radial-gradient(ellipse 120% 95% at 62% 48%,transparent 52%,rgba(8,6,5,.55) 100%),
     linear-gradient(90deg,rgba(11,10,9,.94) 0%,rgba(12,11,10,.76) 46%,rgba(12,11,10,.32) 100%);
   background-size:auto,240px,cover,auto,auto}
+/* the title lets more of the farm through behind it: dark only behind the words */
+#title{background:var(--tex-specks),var(--tex-grime),
+    radial-gradient(ellipse 120% 95% at 62% 48%,transparent 60%,rgba(8,6,5,.4) 100%),
+    linear-gradient(90deg,rgba(11,10,9,.86) 0%,rgba(12,11,10,.56) 44%,rgba(12,11,10,.1) 100%);
+  background-size:240px,cover,auto,auto}
+#title::before{opacity:.38}
 #dead{--scr-tint:radial-gradient(ellipse 90% 100% at 0% 62%,rgba(96,10,5,.42),transparent 72%)}
 :is(#title,#paused,#dead)::before,:is(#title,#paused,#dead)::after{content:"";position:fixed;z-index:-1;pointer-events:none}
 :is(#title,#paused,#dead)::before{inset:0;background:radial-gradient(ellipse 85% 80% at 58% 50%,transparent 38%,rgba(6,4,3,.7) 100%);opacity:.6;animation:lampFlicker 13s linear infinite}
