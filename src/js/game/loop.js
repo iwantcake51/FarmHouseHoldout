@@ -14,6 +14,27 @@ function adaptResolution(rdt) {
   else if (frameAvg < 1 / 57) { if (autoRes && renderScale < DPR) next = Math.min(DPR, renderScale + 0.25); else if (POST.ok && POST.q < 2 && scaleT > 6) { POST.q++; scaleT = 0; return; } }
   if (next !== renderScale) { renderScale = next; R.setPixelRatio(renderScale); resize(); scaleT = 0; }
 }
+// every shader the farm draws with, built ahead (warmShaders). three builds one the first time something using it is
+// drawn, and that frame stalls while it does (for a long moment on some machines), so the first muzzle flash, the first
+// blood on the ground, the first outline round a window, your own x-ray rim each hitched the early waves. They're all
+// built here instead: everything in the farm, shown or not, on the target it's drawn to, and the blood map's and the
+// outlines' own. Once the title's settled (WARM_AT frames in), and again as a run starts (what it's made new), behind
+// the fade in (warmQ: newRun, ui/screens.js)
+const WARM_AT = 20;
+let warmQ = false, warmN = 0;
+// and the plain shadow's: everything else that casts a moving shadow has its own (a zombie's fades with it), so the
+// first that doesn't (a drop on the ground) would build it mid-wave. A speck far under the ground casts one always
+const WARM_CASTER = (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshLambertMaterial({ colorWrite: false, depthWrite: false })); m.position.set(0, -40, 0); m.castShadow = true; m.frustumCulled = false; scene.add(m); return m; })();
+function warmShaders() {
+  const prev = R.getRenderTarget();
+  try {
+    if (POST.ok) { postTargets(); R.setRenderTarget(PS_RT.sc); } else R.setRenderTarget(null);
+    R.compile(scene, cam);
+    R.setRenderTarget(bmTarget); R.compile(bmScene, bmCam); R.compile(bmAgeScene, bmCam);   // (effects/blood-map.js)
+    olWarm();   // (effects/screen-outlines.js)
+  } catch (e) { console.warn('shader warm-up:', e); }
+  R.setRenderTarget(prev);
+}
 // the next frame's asked for first, and anything that goes wrong in this one is caught (and told once, in the console),
 // so one bad frame can never stop the game dead
 const frameErrs = new Set();
@@ -42,6 +63,7 @@ function frame(now) {
   worldT += rdt * worldK;
   netTick(rdt);   // co-op: your pose out, theirs in, the host's farm to the others (net/)
   visuals(state === 'play' || state === 'dead' || coop ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);
+  if (warmQ || (state === 'title' && ++warmN === WARM_AT)) { warmQ = false; warmShaders(); }
   renderFrame();   // the farm, with its ambient occlusion and glow (effects/post.js)
   outlinePass(cam);   // the outlines round whole models, over the frame (effects/outlines.js)
   flushModels();   // (old weapon models let go of once nothing draws them: binModel, core/geometry.js)

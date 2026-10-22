@@ -18,6 +18,19 @@ const OL_PAD = 9;
 // it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
 const OL_FADE = { in: 10, out: 4 };
 let olLast = 0;   // how far out from a pixel (in CSS pixels) the lines and glow look: their widest ring, 7.5, and a pixel spare
+// a model's mask material: its id and its depth, flat
+const olMaskMat = () => new THREE.ShaderMaterial({ uniforms: { uSlot: { value: 0 } }, side: THREE.DoubleSide,
+  vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'uniform float uSlot;\nvoid main() { highp float z = gl_FragCoord.z * 255.0; gl_FragColor = vec4(uSlot / 255.0, floor(z) / 255.0, fract(z), 1.0); }' });
+// the outlines' two shaders built ahead, on the targets they draw to (game/loop.js: warmShaders): a mask into a small
+// stand-in for the mask, and the lines over the frame. The stand-in's kept, so the shaders it built aren't let go
+let olWarmed = null;
+function olWarm() {
+  if (!olWarmed) olWarmed = { rt: new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, stencilBuffer: false }),
+    m: new THREE.Mesh(new THREE.PlaneGeometry(1, 1), olMaskMat()) };
+  R.setRenderTarget(olWarmed.rt); R.compile(olWarmed.m, cam);
+  R.setRenderTarget(null); olComp.material.uniforms.tMask.value = olWarmed.rt.texture; R.compile(olCompScene, olCompCam);
+}
 function outline(g, col, scl, thick, mat, keep) {
   const ctl = mat || new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
   ctl.userData.olW = thick ? clamp(OL.w[0] + thick * OL.w[1], OL.w[2], OL.w[3]) : OL.w0;
@@ -26,9 +39,7 @@ function outline(g, col, scl, thick, mat, keep) {
   let r = g.userData.ol;
   if (!r) {
     r = g.userData.ol = { g, ctls: [], slot: 0, rad: 0, c: new V3(),
-      mat: new THREE.ShaderMaterial({ uniforms: { uSlot: { value: 0 } }, side: THREE.DoubleSide,
-        vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: 'uniform float uSlot;\nvoid main() { highp float z = gl_FragCoord.z * 255.0; gl_FragColor = vec4(uSlot / 255.0, floor(z) / 255.0, fract(z), 1.0); }' }) };
+      mat: olMaskMat() };
     olRoots.push(r);
   }
   r.ctls.push(ctl);

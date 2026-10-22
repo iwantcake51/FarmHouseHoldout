@@ -72,7 +72,7 @@ NET_ON.gift = m => {
   if (state === 'title' || !(m.s > 0)) return;
   const p = NET.peers.get(m.f), n = Math.min(9999, m.s | 0), who = p ? p.name : 'A teammate';
   S.scrap += n; popEl('scrap'); SFX.scrap(); runStat('received', n);
-  feed('scrap', n, 'from ' + who); floatText(P.x, P.z, '+' + n, '#d4b25c');
+  feed('scrap', n, 'from ' + who); floatText(P.x, P.z, '+' + n + ' scrap', '#d4b25c', 'scrap');
   toast(`${who} gave you ${n} scrap`, { kind: 'info', icon: 'scrap', sub: 'From the strongbox' });
 };
 // your share of a zombie (zombies/damage.js counts it as you hurt it); a teammate's kill of one you'd worked on pays you
@@ -80,7 +80,7 @@ function teamAssist(z) {
   if (!netLink() || !(z.myDmg >= z.maxHp * ASSIST_MIN) || run.time - (z.myAt || -99) > ASSIST_T) return;
   z.assist = true;   // (and if the kill dropped ammo, a box of your own: NET_ON.hit, net/sync.js)
   const n = waveScrap(ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1));
-  S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); runStat('assists'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c');
+  S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); runStat('assists'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c', 'scrap');
 }
 // the wave's cleared with every one of you still on your feet: a bit of scrap each (nothing if anyone went down)
 function teamBonus() {
