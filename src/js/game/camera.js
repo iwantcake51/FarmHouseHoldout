@@ -106,7 +106,7 @@ function updateCamera(rdt) {
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit, vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
-  camPunch *= Math.exp(-rdt * 9); cam.zoom *= 1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk;
+  camPunch *= Math.exp(-rdt * 9); cam.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll()); cam.updateProjectionMatrix();
+  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll() + deathRollK()); cam.updateProjectionMatrix();
 }

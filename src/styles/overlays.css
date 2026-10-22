@@ -189,3 +189,5 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 .shareTag.near .stHint{max-width:80px;opacity:1}
 .shareTag .stHint kbd{font:inherit;font-weight:700;color:#f4f1ea;padding:0 3px;border:1px solid rgba(244,241,234,.3);border-radius:3px}
 @keyframes stCard{from{opacity:0;transform:translate(-50%,5px) scale(.9)}}
+/* going down (ui/screens.js: the death camera): the edges sink into the dark as the view closes in */
+#deathVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 34%,rgba(4,2,2,.45) 64%,rgba(0,0,0,.92) 100%)}

@@ -311,6 +311,7 @@ function netDown() { timeScale = 1; SPEC.id = ''; }
 const RESPAWN_MAGS = 3;
 function netRespawn() {
   unragYou();   // up off the floor (player/player-ragdoll.js)
+  deathCineEnd();   // (the death camera's done: ui/screens.js)
   for (const s of ['side', 'long', 'auto']) {
     const id = W8.slot[s]; if (!id) continue;
     W8.mag[id] = 0; [W8.akMag, W8.relSave, W8.pin, W8.spent, W8.hudSpent, W8.open].forEach(o => { if (o) delete o[id]; });

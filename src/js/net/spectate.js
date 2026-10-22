@@ -6,7 +6,7 @@
 const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
 function camFocus() {
-  if (!netLink() || !P.dead || P.deathT < 1.4) return P;
+  if (!netLink() || !P.dead || !DC.spec) return P;   // (once the death camera's dipped to black: ui/screens.js)
   let first = null;
   for (const p of NET.peers.values()) {
     if (p.dead || p.x === undefined) continue;

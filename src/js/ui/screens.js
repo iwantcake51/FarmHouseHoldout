@@ -1,5 +1,9 @@
 // Title, pause and death screens, starting a run and dying.
 
+// the death camera's timings and where it's up to (below: startDeath, tickDeathCine). Up here, as a new run clears it
+const DEATH_CINE = { push: 0.55, pushT: 3.2, roll: 0.07, vig: 0.85, vigT: 2.4, spec: 2.3, black: 0.55 };
+const DC = { on: false, t: 0, side: 1, spec: false, fading: false, z0: 1 };
+
 let best = 0;
 try { best = +localStorage.getItem('kessler-best') || 0; } catch (e) {}
 ['pHist', 'upHist', 'pBuy'].forEach(id => smoothWheel($(id)));   // the history lists scroll smoothly too
@@ -30,6 +34,7 @@ function resetRun(keepLook) {
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
   bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
   resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one (in co-op you keep the one your teammates have)
+  deathCineEnd();
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; tod = 15;
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1; benchTipsStart();
   zoomT = ZOOM_MAX; hurtFx = 0; flowDirty = true; timeScale = 1; camPunch = 0;   // the intro glides in all the way to the closest zoom
@@ -50,7 +55,7 @@ function newRun(soft, dark) {
 }
 // back to the title from the death screen, with the farm reset behind it
 function backToMenu() {
-  resetRun(); setState('title'); $('title').scrollTop = 0;
+  resetRun(); deathCineEnd(); setState('title'); $('title').scrollTop = 0;
   if (NET.on) { NET.inGame = false; toggleCoop(true); }   // still in a co-op game: back in its lobby
   // the HUD stops updating on the title, so clear the dying screen effects by hand
   cv.style.filter = ''; cache.grey = null; ['hurt', 'lowTint', 'slowmo', 'eyeVig', 'healVig', 'conc', 'hitVig', 'bleedVig', 'nearVig'].forEach(id => { $(id).style.opacity = 0; }); hitVig = bleedVig = 0; cache.nearVig = null; hitVigUp = false; resetHeart(); cache.hitVig = cache.bleedVig = cache.bleeding = null; $('vitals').classList.remove('bleed'); cache.redTint = null;
@@ -134,7 +139,8 @@ function startDeath() {
   ANIM.deathSign = Math.cos(angDiff(P.hitFrom === undefined ? ANIM.yaw : P.hitFrom, ANIM.yaw)) >= 0 ? 1 : -1;
   ANIM.deathTwist = rr(-0.1, 0.1);
   ragYou();   // you go down as a ragdoll, the way the zombies do (player/player-ragdoll.js)
-  timeScale = DEATH_SLOW; P.deathDt = 0; zoomT = Math.min(zoomT * 1.3, ZOOM_MAX);
+  timeScale = DEATH_SLOW; P.deathDt = 0;
+  deathCineStart();   // the camera's last look at you (below)
   if (netLink()) netDown();   // co-op: no slow motion, the farm goes on (net/sync.js)
   const gg = gunMeshes[W8.cur];
   if (gg) {   // the weapon slips out of your hands
@@ -150,16 +156,41 @@ function startDeath() {
   document.body.classList.add('dying');
   SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); SFX.wave();
 }
+// ---- going down, filmed: the view closes in on you slowly and tips over a little the way you fell, black bars slide
+// in top and bottom, the edges darken and the sound goes dull and far away (ui/hud.js). In co-op, once you've lain
+// there DEATH_CINE.spec seconds, it dips to black, and comes up again on the teammate you'll watch (net/spectate.js:
+// camFocus, from DC.spec); the bars go as it does. Solo, the end screen comes up over it (die)
+// (DEATH_CINE and DC, the death camera's timings and where it's up to, are at the top of the file)
+function deathCineStart() {
+  Object.assign(DC, { on: true, t: 0, side: ANIM.deathSign || 1, spec: false, fading: false, z0: zoomT });
+  $('cineBars').classList.add('on'); $('fadeVeil').classList.remove('cine');
+}
+function tickDeathCine(rdt) {
+  if (!DC.on) return;
+  DC.t += rdt;
+  $('deathVig').style.opacity = DC.spec ? 0 : (DEATH_CINE.vig * smooth(clamp(DC.t / DEATH_CINE.vigT, 0, 1))).toFixed(3);
+  if (!netLink() || DC.spec) return;
+  // co-op: to black, then up again on a teammate, the bars gone and the view as it was
+  if (!DC.fading && DC.t > DEATH_CINE.spec) { DC.fading = true; veil(true); }
+  if (DC.fading && DC.t > DEATH_CINE.spec + DEATH_CINE.black) { DC.spec = true; zoomT = DC.z0; zoom = zoomT; $('cineBars').classList.remove('on'); setTimeout(() => { if (DC.spec) veil(false); }, 80); }   // (lifted once the teammate's view has drawn)
+}
+// the push in and the tip, for the camera (game/camera.js); nothing once you're watching someone else
+const deathZoomK = () => DC.on && !DC.spec ? 1 + DEATH_CINE.push * smooth(clamp(DC.t / DEATH_CINE.pushT, 0, 1)) : 1;
+const deathRollK = () => DC.on && !DC.spec ? DC.side * DEATH_CINE.roll * smooth(clamp(DC.t / DEATH_CINE.pushT, 0, 1)) : 0;
+// back up (a respawn, a new run, the menu): the bars, the dark and the veil all lifted
+function deathCineEnd() { if (!DC.on) return; DC.on = false; DC.spec = false; $('cineBars').classList.remove('on'); $('deathVig').style.opacity = 0; if (DC.fading) veil(false); DC.fading = false; }
 // dying plays out in slow motion on its own clock: the world winds down and stops dead the moment your body
 // hits the ground, so nothing keeps closing in, while the fall, the dropped weapon and the blood pool finish
 const DEATH_RATE = 0.55, DEATH_GROUND = 0.86, DEATH_SLOW = 0.6;
 function tickDeath(rdt) {
   P.deathDt = rdt * DEATH_RATE; P.deathT += P.deathDt;
+  tickDeathCine(rdt);
   if (netLink()) return;   // co-op: you're down, not out, until everyone is (net/sync.js)
   timeScale = DEATH_SLOW * Math.pow(1 - clamp(P.deathT / DEATH_GROUND, 0, 1), 1.6);
   if (P.deathT > 1.2 && performance.now() - P.deathAt > 3800 && state === 'play') die();
 }
 function die() {
+  $('cineBars').classList.remove('on');   // (the end screen comes up over the farm as it lies, still close in on you)
   if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} }
   showBest();
   $('deadTitle').textContent = (netLink() ? 'Overrun on wave ' : 'Dead on wave ') + Math.max(1, run.wave);
