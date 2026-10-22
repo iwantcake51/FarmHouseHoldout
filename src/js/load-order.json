@@ -87,6 +87,7 @@
   "audio/footstep-sprite.js",
   "audio/spatial.js",
   "audio/footsteps.js",
+  "audio/music.js",
   "game/state.js",
   "input/keyboard-mouse.js",
   "player/aiming.js",

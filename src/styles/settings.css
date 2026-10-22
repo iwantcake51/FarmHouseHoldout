@@ -23,7 +23,9 @@
 .setLab{display:grid;gap:3px;min-width:0}
 .setLab b{font-weight:600;font-size:13px;color:var(--ink)}
 .setLab small{font-size:11px;color:var(--dim);line-height:1.35}
-/* a dropdown */
+/* a dropdown: its row is lifted over the ones after it while it's open, so the list unrolls over them */
+.setRow{position:relative}
+.setRow.dropOn{z-index:20}
 .sDrop{position:relative;flex:none;width:150px}
 .sDropBtn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border:1px solid rgba(236,230,216,.14);border-radius:4px;background:rgba(236,230,216,.04);color:var(--ink);font:500 12px/1 var(--f-ui);cursor:pointer;transition:border-color .2s,background .2s}
 .sDropBtn:hover,.sDrop.open .sDropBtn{border-color:rgba(216,105,44,.7);background:rgba(216,105,44,.08)}

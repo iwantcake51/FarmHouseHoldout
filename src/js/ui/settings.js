@@ -5,7 +5,7 @@
 // counter in the corner. Its Controls tab puts the keys where you want them (input/keybinds.js), and the HUD can be
 // pared back to its essentials (hudStyle: styles/hud-minimal.css).
 
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', vol: 80, shake: 100 };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', vol: 80, music: 60, shake: 100 };
 const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 const saveSettings = () => { try { localStorage.setItem('kessler-settings', JSON.stringify(SET)); } catch (e) {} };
@@ -25,6 +25,7 @@ const SET_ROWS = [
   { k: 'hud', name: 'HUD style', note: 'Minimalist keeps only the numbers you play by', opts: [['normal', 'Normal'], ['minimal', 'Minimalist']] },
   { head: 'Sound' },
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
+  { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
   { head: 'Comfort' },
   { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: 0, max: 100, unit: '%' }
 ];
@@ -108,10 +109,12 @@ function closeSettings() {
   setCloseT = setTimeout(() => { el.hidden = true; }, 340);   // (once it's popped back down: styles/settings.css)
 }
 // a dropdown: opens with its list unrolling under it, closes on a pick, a click anywhere else, or Esc
-function closeDrops(except) { document.querySelectorAll('.sDrop.open').forEach(d => { if (d === except) return; d.classList.remove('open'); d.querySelector('.sDropBtn').setAttribute('aria-expanded', 'false'); }); }
+function closeDrops(except) { document.querySelectorAll('.sDrop.open').forEach(d => { if (d === except) return; d.classList.remove('open'); const row = d.closest('.setRow'); if (row) row.classList.remove('dropOn'); d.querySelector('.sDropBtn').setAttribute('aria-expanded', 'false'); }); }
 function toggleDrop(d, on) {
   closeDrops(d); on = on ?? !d.classList.contains('open');
   d.classList.toggle('open', on); d.querySelector('.sDropBtn').setAttribute('aria-expanded', String(on));
+  // (its row lifted over the rest: each row eases in on its own layer, which would otherwise keep the list under the next ones)
+  const row = d.closest('.setRow'); if (row) row.classList.toggle('dropOn', on);
   // it opens upward if there's no room below it in the panel
   if (on) { const b = $('setBody').getBoundingClientRect(), r = d.getBoundingClientRect(), h = d.querySelector('.sDropList').scrollHeight; d.classList.toggle('up', r.bottom + h + 8 > b.bottom && r.top - h - 8 > b.top);
     const sel = d.querySelector('[aria-selected="true"]') || d.querySelector('li'); sel.classList.add('hl'); }

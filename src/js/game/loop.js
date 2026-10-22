@@ -25,6 +25,7 @@ function frame(now) {
   const rdt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
   if (document.visibilityState === 'visible') adaptResolution(rdt);
   tickFps(rdt);   // (the settings' frame-rate counter: ui/settings.js)
+  musicTick();   // (the menus' piano: audio/music.js)
   let simDt = 0;
   const coop = netLink() && state === 'paused';   // (co-op: the farm doesn't stop while you're paused)
   if (state === 'play' || (state === 'dead' && P.dead) || coop) {
