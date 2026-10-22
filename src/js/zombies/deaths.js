@@ -36,8 +36,8 @@ const RAG_HIT = { head: [[4], [2, 3]], torso: [[2, 3], [0, 1, 4]], armL: [[5, 6]
 // dead in it (no bounce under bounceV m/s down), and once its trunk's down it's damped (land, then still), nothing on
 // it slides faster than slide m/s (vmax in the air), so it slumps where it falls rather than skidding off or twitching;
 // and whatever turn it has round the upright is taken off it, a little each step in the air (yaw) and fast once it's
-// down (yawDown), so it never spins on the floor
-const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.04, yawDown: 1 };
+// down (yawDown), most of it with only a foot or a hand down (yawTouch), so it never spins on the floor
+const RAG = { grav: 17, h: 1 / 60, maxSteps: 3, iters: 8, land: 0.95, slide: 1.4, vmax: 6, tone: 0.4, toneT: 0.5, grip: 0.5, stick: 0.7, settle: 2, maxT: 5, bounce: 0.08, bounceV: 1.6, air: 0.992, still: 0.9, sleepV: 0.2, sleepT: 0.3, live: 16, hit: 0.62, near: 0.28, all: 0.16, yaw: 0.16, yawTouch: 0.6, yawDown: 1 };
 // how much a round throws a body, by what it is: a 9mm hardly moves it (it drops more or less where it was hit), a
 // magnum or a rifle round some, buckshot and a slug the most (a blast, a swing, a sledgehammer go by their own force)
 const RAG_CAL = { p9: 0.18, p10: 0.32, magnum: 0.6, rifle: 0.7, shells: 1 };
@@ -179,7 +179,7 @@ function ragStep(r, h) {
   for (let k = 0; k < n; k++) if (on[k]) { const w = RAG_MASS[k]; M += w; mx += p[k * 3] * w; mz += p[k * 3 + 2] * w; }
   mx /= M; mz /= M;
   for (let k = 0; k < n; k++) if (on[k]) { const i = k * 3, w = RAG_MASS[k], rx = p[i] - mx, rz = p[i + 2] - mz; Ly += w * (rz * (p[i] - q[i]) - rx * (p[i + 2] - q[i + 2])); Iy += w * (rx * rx + rz * rz); }
-  const wy = Iy > 1e-6 ? Ly / Iy * (r.landT ? RAG.yawDown : RAG.yaw) : 0;
+  const wy = Iy > 1e-6 ? Ly / Iy * (r.landT ? RAG.yawDown : r.touch ? RAG.yawTouch : RAG.yaw) : 0;   // (a foot or a hand on the ground already holds it from spinning round on it)
   for (let k = 0; k < n; k++) {
     if (!on[k]) continue;
     const i = k * 3;
@@ -308,7 +308,7 @@ function ragLimits(r) {
 // down on, and up off the floor; the last pass also grips what's on the ground and bounces what hit it, and the first
 // hard landing of the trunk thumps and knocks a little blood and dust out of it
 function ragWorld(r, last) {
-  const p = r.p, q = r.q, on = r.on, s = r.s; let down = 0;
+  const p = r.p, q = r.q, on = r.on, s = r.s; let down = 0, touch = 0;
   for (let k = 0; k < on.length; k++) {
     if (!on[k]) continue;
     const i = k * 3, rad = RAG_R[k] * s;
@@ -329,14 +329,14 @@ function ragWorld(r, last) {
     if (r.landT && Math.hypot(p[i] - q[i], p[i + 2] - q[i + 2]) / RAG.h < RAG.stick) { q[i] = p[i]; q[i + 2] = p[i + 2]; }
     else { q[i] = p[i] - (p[i] - q[i]) * (1 - RAG.grip); q[i + 2] = p[i + 2] - (p[i + 2] - q[i + 2]) * (1 - RAG.grip); }
     q[i + 1] = vy / RAG.h < -RAG.bounceV ? p[i + 1] + vy * RAG.bounce : p[i + 1];   // (a hard landing bounces a little; anything gentler stops dead)
-    if (k < 4) down++;
+    if (k < 4) down++; else touch++;
     if (!r.pooled && k < 4 && vy / RAG.h < -1.2) {
       r.pooled = true;
       burst(p[i], 0.15, p[i + 2], 5, 'blood', 0, 0, 0.6); burst(p[i], 0.1, p[i + 2], 4, 'dust');
       if (Math.hypot(p[i] - P.x, p[i + 2] - P.z) < 12) soundAt(p[i], p[i + 2], () => SFX.thud());
     }
   }
-  if (last) r.down = down >= 2;
+  if (last) { r.down = down >= 2; r.touch = down + touch; }
 }
 // the rig posed off the points (v: where they are this frame): the whole body turned and placed by its trunk, each
 // limb pointed at its next joint, the head set where its point is and tipped off the shoulders
