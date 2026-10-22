@@ -18,6 +18,10 @@ three friends online.
    wave brings a bonus hand.
 4. **Repeat.** Each wave is bigger and meaner than the last. The run ends when you go down.
 
+When the run ends, **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
+your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call, scrap earned,
+spent and sent to teammates, and every skill and perk you took.
+
 ## What's in it
 
 **The farm.** Every run lays out a new house: its footprint, its rooms, its interior doors, its windows and where the
@@ -56,7 +60,8 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
 then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If you
-go down, you watch a teammate until the wave is cleared, then come back as a new survivor. You can add friends by
+go down, you watch a teammate until the wave is cleared, then come back as a new survivor with a full mag in each gun and
+three spares. Clear a wave with nobody down and everyone gets a little scrap. You can add friends by
 their friend code to see when they're online and join their lobby in one click.
 
 ## Controls
