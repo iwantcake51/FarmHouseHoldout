@@ -4,6 +4,11 @@ const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
 // how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
 // gone as the bandage is
 const BAND_DONE = 0.12;
+// a bandage takes only as long as the health you need from it: needing half its healing (what's missing, less any
+// healing still to come), it goes on in half the time, whatever upgrades you have; never quicker than BAND_MIN of it
+// (just stopping a bleed at full health takes that)
+const BAND_MIN = 0.3;
+const bandNeed = () => clamp((S.maxHp - P.hp - (P.heal || 0)) / bandHeal(), BAND_MIN, 1);
 // how many bandages you can carry: 3 in the pouch on your side, 2 more with the Med pouch upgrade's second pouch
 const bandMax = () => BAND_BASE + (S.pouch ? 2 : 0);
 // medicine cabinet upgrades: steadier hands wrap faster, better dressings heal more, a tonic heals quicker
@@ -21,7 +26,7 @@ function startBandage() {
   if (!(P.band > 0)) { toast('No bandages', { kind: 'bad', icon: 'med', sub: 'Buy them at the medicine cabinet' }); return; }
   if (P.hp >= S.maxHp && !(P.bleed > 0)) { toast('Not hurt', { kind: 'info', icon: 'med', sub: 'Save your bandages for later' }); return; }
   exitScope(); cutReload(); W8.burstLeft = 0; W8.swing = 0;
-  P.bandT = P.bandMax = bandTime(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;
+  P.bandT = P.bandMax = bandTime() * bandNeed(); P.bandBleed = P.bleed > 0; ANIM.bandDone = 0;
   bandSnd = loopS('medkit', { rate: bandRate() }); if (!bandSnd) SFX.rip();   // its sound goes round till it's on (bandSound)
   P.bleed = 0;   // pressing the bandage on stops the bleeding straight away, even if it isn't finished
 }

@@ -176,7 +176,7 @@ function wlFx(id, o, a, b) {
   if (f1.sever > f0.sever) fx.push({ t: f1.sever > 2 ? 'Every limb it hits comes off' : 'Limbs off twice as easily', good: true });
   if ((b.D.burst || 0) !== (a.D.burst || 0) && a.D.burst && b.D.burst) fx.push({ t: `BURST ${a.D.burst} → ${b.D.burst}`, good: b.D.burst > a.D.burst });
   const line = o.k === 'muzzle' ? null : o.k, on = !!o.n;
-  if (line === 'supp' && on) fx.push({ t: 'Quiet shots', good: true });
+  if (line === 'supp' && on) fx.push({ t: o.n > 1 ? 'Even quieter' : 'Quiet shots', good: true });
   if (line === 'light' && on) fx.push({ t: o.n > 1 ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   if (line === 'laser' && on) fx.push({ t: 'Aim beam', good: true });
   if (line === 'sight' && o.n >= 3) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][o.n - 3], good: true });
@@ -186,11 +186,14 @@ function wlFx(id, o, a, b) {
 function wlTip(btn) {
   const id = curId(), o = btn && wlOpts[+btn.dataset.i];
   if (!id || !o || !wlGrps[o.gi]) { wlTipEl.classList.remove('on'); return; }
-  const on = wlIsOn(id, o), bare = wlGrps[o.gi].opts.find(q => q !== o && (q.rk ? q.rk === 'std' : !q.n));
+  // what's on the gun is measured against the step below it on its line (+P loads against hand-loads, the third sight
+  // against the second), or against nothing there for the first step and anything that isn't a line of steps
+  const on = wlIsOn(id, o), opts = wlGrps[o.gi].opts, bare = opts.find(q => q !== o && (q.rk ? q.rk === 'std' : !q.n));
+  const below = o.k && o.n > 1 ? opts.find(q => q.k === o.k && q.n === o.n - 1) : null, base = below || bare;
   let a = null, b = null;
-  if (!on) { a = wlRead(id); b = wlTry(id, o); } else if (bare) { a = wlTry(id, bare); b = wlRead(id); }
+  if (!on) { a = wlRead(id); b = wlTry(id, o); } else if (base) { a = wlTry(id, base); b = wlRead(id); }
   const fx = a ? wlFx(id, o, a, b) : [];
-  wlTipEl.innerHTML = `<span class="wtK">${on ? (bare ? 'On the gun · what it adds' : 'On the gun') : 'Swap to it · free'}</span><b>${o.name}</b><p>${wlDesc(id, o)}</p>` +
+  wlTipEl.innerHTML = `<span class="wtK">${on ? (below ? 'On the gun · over ' + below.name : bare ? 'On the gun · what it adds' : 'On the gun') : 'Swap to it · free'}</span><b>${o.name}</b><p>${wlDesc(id, o)}</p>` +
     (fx.length ? `<div class="fx">${fx.map(f => `<i class="${chipCls(f)}">${CHIP_MARK[chipCls(f)]} ${f.t}</i>`).join('')}</div>` : on ? '' : '<div class="fx"><i class="eq">• No change to the numbers</i></div>');
   // beside the panel, level with the choice: on its far side from the bench if there's room, otherwise over the bench
   const P0 = $('wLoad').getBoundingClientRect(), r = btn.getBoundingClientRect(), w = wlTipEl.offsetWidth, h = wlTipEl.offsetHeight;
