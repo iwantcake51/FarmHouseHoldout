@@ -32,6 +32,9 @@ function updateEyes(dt) {
     // only what you can see right now glows: the view cone as it is this moment, not the body's slower fade, so no eyes
     // or streaks hang about once a zombie is out of sight (and none come back trailing from where it was)
     const seen = smooth(clamp((Math.min(z.vis, visAt(z.x, z.z)) - 0.35) / 0.55, 0, 1));
+    // (and the eyes themselves are drawn only then: lit as they are, they'd bloom through a wall you can't see past,
+    // on a zombie shown there only by its see-through outline)
+    if (eyes) { const on = seen >= 0.01; if (eyes[0].visible !== on) eyes.forEach(o => { o.visible = on; }); }
     if (!eyes || (dead ? z.eyeGlow <= 0.01 : !z.limbs.head) || seen < 0.01) { z.eyeH = null; continue; }
     const H = z.eyeH || (z.eyeH = [[], []]);
     for (let s = 0; s < 2; s++, e++) {

@@ -11,9 +11,10 @@
 // trunk's, not quite the walk's); pace: how fast it gets up (a range, a runner's quicker: RUN_PACE)
 const KNOCK = { force: [10, 14], side: [0.6, 1.05], rest: [0.45, 1.6], wait: [0.4, 1], blend: 0.42, fall: 0.12, pace: [0.8, 1.2] };
 const RUN_PACE = 1.25;
-// the brute's reach: run square into, it's knocked down (hit: past both bodies' edges); clipped, out to clip past them,
-// it's shoved aside (BUMP: how hard, how long it reels)
-const PLOW = { hit: 0.12, clip: 0.75 };
+// the brute's reach: anything in its path is knocked down (hit: how far past both bodies' edges, the crowd never quite
+// touching; lane: how far off its line, as a share of both bodies' width); clipped, out to clip past them, it's shoved
+// aside (BUMP: how hard, how long it reels)
+const PLOW = { hit: 0.5, lane: 1.1, clip: 0.85 };
 const BUMP = { v: 6.5, fwd: 0.35, stagger: 0.7, slow: 1.1 };
 
 // ---- the get-ups: keyed values of the walk's joints (ZJN, zombies/zombie-anim.js; any not given is 0) through time,
@@ -88,10 +89,13 @@ function dashPlow(z, d) {
     const ox = o.x - z.x, oz = o.z - z.z, dist = Math.hypot(ox, oz), reach = z.T.r + o.T.r;
     if (dist > reach + PLOW.clip || ox * d.dx + oz * d.dz < -0.1) continue;   // (only what's in front of it)
     const done = d.plowed || (d.plowed = new Set()); if (done.has(o)) continue;   // (each once a charge)
+    const lat = ox * d.dz - oz * d.dx, inLane = Math.abs(lat) < reach * PLOW.lane;
+    // one square in its path waits till the brute's on it, and goes down; one off to the side is shoved as it passes.
+    // A crawler can't be knocked off its feet, only shoved along the ground
+    const down = inLane && !o.crawl;
+    if (down && dist > reach + PLOW.hit) continue;
     done.add(o);
-    const lat = ox * d.dz - oz * d.dx, side = Math.sign(lat) || (rand() < 0.5 ? -1 : 1), seed = (rand() * 1e9) | 0;
-    // a crawler can't be knocked off its feet, only shoved along the ground
-    const down = dist <= reach + PLOW.hit && Math.abs(lat) < reach * 0.85 && !o.crawl;
+    const side = Math.sign(lat) || (rand() < 0.5 ? -1 : 1), seed = (rand() * 1e9) | 0;
     const s = down ? rr(...KNOCK.side) : 1 / BUMP.fwd, kx = d.dx + d.dz * side * s, kz = d.dz - d.dx * side * s, L = Math.hypot(kx, kz);
     if (down) knockDown(o, kx / L, kz / L, seed); else bumpAside(o, kx / L, kz / L, side, seed);
     if (netLink() && o.id) netSend('zk', { id: o.id, dx: nr(kx / L), dz: nr(kz / L), s: seed, b: down ? 0 : side });
