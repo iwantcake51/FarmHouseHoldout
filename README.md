@@ -64,10 +64,10 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 | Strongbox (co-op) | Gives scrap to a teammate |
 
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
-then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If you
-go down, you watch a teammate until the wave is cleared, then come back as a new survivor with a full mag in each gun and
-three spares. Clear a wave with nobody down and everyone gets a little scrap. You can add friends by
-their friend code to see when they're online and join their lobby in one click.
+then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
+you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
+survivor with a full mag in each gun and three spares. Clear a wave with nobody down and everyone gets a little
+scrap. You can add friends by their friend code to see when they're online and join their lobby in one click.
 
 ## Controls
 
