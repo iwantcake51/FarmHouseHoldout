@@ -9,7 +9,23 @@ function stationDist(s) {
   const [cx, cz, hw, hd] = s.foot, dx = Math.max(0, Math.abs(P.x - cx) - hw), dz = Math.max(0, Math.abs(P.z - cz) - hd);
   return Math.hypot(dx, dz) * STATION_REACH / FOOT_REACH;   // scaled so both kinds compare on the same footing
 }
-function nearestStation() { let best = null, bd = STATION_REACH; for (const s of STATIONS) { if (s.coop && !netLink()) continue; const d = stationDist(s); if (d < bd) { bd = d; best = s; } } return best; }   // (the strongbox is for co-op only)
+// which you'd use: standing on a station's own spot in front of it (within STATION_SPOT) it's always that one, however
+// near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
+// the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
+const STATION_SPOT = 0.7, STATION_FACE = 0.35;
+function nearestStation() {
+  let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
+  const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
+  for (const s of STATIONS) {
+    if (s.coop && !netLink()) continue;
+    const u = Math.hypot(s.x - P.x, s.z - P.z); if (u < sd) { sd = u; spot = s; }
+    const d = stationDist(s); if (d >= STATION_REACH) continue;
+    const cx = s.foot ? s.foot[0] : s.x, cz = s.foot ? s.foot[1] : s.z, l = Math.hypot(cx - P.x, cz - P.z) || 1;
+    const k = d - STATION_FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
+    if (k < bd) { bd = k; best = s; }
+  }
+  return spot || best;
+}
 // the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
