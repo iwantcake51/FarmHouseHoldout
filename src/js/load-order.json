@@ -58,6 +58,7 @@
   "effects/tracers.js",
   "effects/blood-map.js",
   "effects/particles.js",
+  "effects/weapon-drop.js",
   "effects/puffs.js",
   "effects/bullet-holes.js",
   "pickups/drop-models.js",

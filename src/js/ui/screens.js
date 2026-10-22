@@ -142,16 +142,13 @@ function startDeath() {
   timeScale = DEATH_SLOW; P.deathDt = 0;
   deathCineStart();   // the camera's last look at you (below)
   if (netLink()) netDown();   // co-op: no slow motion, the farm goes on (net/sync.js)
+  // the weapon slips out of your hands and falls (effects/weapon-drop.js); in co-op your teammates see it fall the
+  // same, from this one throw. It's only to look at: nobody picks it up
   const gg = gunMeshes[W8.cur];
-  if (gg) {   // the weapon slips out of your hands
-    gg.updateMatrixWorld(true);
-    const inv = gg.matrixWorld.clone().invert(), bb = new THREE.Box3(), tb = new THREE.Box3(), rel = new THREE.Matrix4();
-    gg.traverse(o => { if (!o.isMesh) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); rel.multiplyMatrices(inv, o.matrixWorld); bb.union(tb.copy(o.geometry.boundingBox).applyMatrix4(rel)); });
-    const ctr = bb.isEmpty() ? new V3() : bb.getCenter(new V3()), inner = gg.clone(true), c = new THREE.Group();
-    inner.position.copy(ctr).negate(); inner.rotation.set(0, 0, 0); inner.visible = true; c.add(inner);
-    const wq = new THREE.Quaternion(), ws = new V3(); gg.matrixWorld.decompose(new V3(), wq, ws);
-    c.position.copy(ctr).applyMatrix4(gg.matrixWorld); c.quaternion.copy(wq); c.rotation.order = 'YXZ'; scene.add(c);
-    ANIM.dropped = { g: c, vx: Math.sin(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vz: Math.cos(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), vy: 1.2, spin: rr(-2.2, 2.2), landed: false, melee: !!(W(curId()) || {}).melee };
+  if (gg) {
+    const c = dropCopy(gg), v = [Math.sin(ANIM.yaw) * 0.9 + rr(-0.5, 0.5), 1.2, Math.cos(ANIM.yaw) * 0.9 + rr(-0.5, 0.5)], w = [rr(-5, 5), rr(-2, 2), rr(-5, 5)];
+    ANIM.dropped = makeDrop(c.g, c.h, v, w, !!(W(curId()) || {}).melee);
+    if (netLink()) netSend('wdrop', { s: SLOTS.indexOf(W8.cur), p: c.g.position.toArray().map(nr), q: c.g.quaternion.toArray().map(x => Math.round(x * 1e4) / 1e4), v: v.map(nr), w: w.map(nr) });
   }
   document.body.classList.add('dying');
   SFX.hurt(); setTimeout(() => { if (P.dead) SFX.thump(); }, 0.85 / DEATH_RATE * 1000); SFX.wave();

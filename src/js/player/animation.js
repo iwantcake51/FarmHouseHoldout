@@ -60,14 +60,8 @@ function animateDeath(dt) {
   pm.head.rotation.set(-sg * 0.3 * fall, 0, 0.2 * fall * Math.sign(ANIM.deathTwist || 1));
   dropFall(dt);
 }
-// the weapon you dropped as you went down, falling and landing
-function dropFall(dt) {
-  const d = ANIM.dropped;
-  if (d && !d.landed) {
-    d.vy -= 12 * dt; d.g.position.x += d.vx * dt; d.g.position.y += d.vy * dt; d.g.position.z += d.vz * dt; d.g.rotateZ(d.spin * dt);
-    if (d.g.position.y < 0.06) { d.g.position.y = 0.06; d.landed = true; const yaw = rr(0, 6.28); if (d.melee) d.g.rotation.set(Math.PI / 2, yaw, 0, 'YXZ'); else d.g.rotation.set(0, yaw, Math.PI / 2 * (rand() < 0.5 ? 1 : -1), 'YXZ'); if (d.melee) SFX.thud(); else SFX.gunDrop(); burst(d.g.position.x, 0.1, d.g.position.z, 3, 'dust'); }
-  }
-}
+// the weapon you dropped as you went down, falling and landing (effects/weapon-drop.js)
+function dropFall(dt) { stepDrop(ANIM.dropped, dt); }
 // ---- vaulting: a crouch and a reach for the sill, the push-off with a hand planted on it, the legs tucked and swung
 // over to one side, then reaching down for the ground. A winded scramble goes over belly-first on both hands, low and
 // slow, the legs dragging. The landing itself (knees giving, the dip) is ANIM.land below.

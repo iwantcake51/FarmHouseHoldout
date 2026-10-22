@@ -102,7 +102,17 @@ function buildAvatar(p) {
   p.av = rig;
   return rig;
 }
+// a teammate going down: the weapon falling out of their hands, as they threw it ('wdrop', from startDeath in
+// ui/screens.js), built from the one they were holding. To look at only, and gone once they're back up
+NET_ON.wdrop = m => {
+  const p = NET.peers.get(m.f), a = p && p.av, h = a && a.held && a.held[SLOTS[m.s]]; if (!h) return;
+  dropGone(p);
+  const c = dropCopy(h.g); c.g.position.fromArray(m.p); c.g.quaternion.fromArray(m.q);
+  const id = p.lo && p.lo.slots[SLOTS[m.s]]; p.drop = makeDrop(c.g, c.h, m.v, m.w, !!(WEAP[id] || {}).melee);
+};
+function dropGone(p) { if (p.drop) { scene.remove(p.drop.g); p.drop = null; } }
 function netDropAvatar(p) {
+  dropGone(p);
   const a = p.av; if (!a) return;
   scene.remove(a.g); if (a.blob) scene.remove(a.blob); if (a.tag) a.tag.remove();
   p.av = null;
@@ -124,6 +134,7 @@ function updateAvatars(rdt) {
   for (const p of NET.peers.values()) {
     if (!show || !p.tgt) { if (p.av) { p.av.g.visible = false; p.av.tag.style.opacity = 0; p.av.tagO = 0; if (p.av.blob) p.av.blob.visible = false; } continue; }
     const a = p.av || buildAvatar(p), t = p.tgt;
+    if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
     if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.xr.rim.visible = !p.dead; if (a.xr.sil) a.xr.sil.visible = !p.dead; }   // (down, no outline round them or through walls)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
