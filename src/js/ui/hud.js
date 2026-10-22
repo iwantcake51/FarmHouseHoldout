@@ -75,8 +75,6 @@ function updateHUD(rdt, D) {
     if (!ak) { setRoll('ammo', D.melee ? '—' : String(hm.have)); ammoEl($('ammo'), D.melee ? 0 : hm.have, D.melee ? 0 : magCap(id), false); }
     setRoll('ammoRes', D.melee ? '' : '/ ' + (hm ? hm.res : W8.reserve[D.ammo]));
     if (D.melee) { if (cache.rounds !== 'melee') { cache.rounds = 'melee'; $('rounds').innerHTML = ''; } } else renderRounds(id, D);   // (kept up under the minimalist HUD too, only not shown)
-    // the minimalist HUD's plain bar of what's left in the mag, in place of the rounds (ui/settings.js)
-    if (document.body.classList.contains('hudMin')) { const f = D.melee ? -1 : ak ? (am[AK_ON.left] + am[AK_ON.right]) / (2 * akPer(id) || 1) : hm.have / (magCap(id) || 1), fk = f.toFixed(3); if (cache.magF !== fk) { cache.magF = fk; $('magBar').hidden = f < 0; $('magBar').style.setProperty('--f', Math.max(0, f)); $('magBar').classList.toggle('low', f >= 0 && f <= 0.25); } }
     renderMeleeArt(id, D); renderFireMode(id);
     // reloading shows under the crosshair; touch play has no crosshair, so it stays here for touch
     const xhShown = hasMouse && !usingTouch && !scoped;

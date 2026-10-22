@@ -10,11 +10,11 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
   teal: { name: 'Teal', rgb: '58,166,156' }, steel: { name: 'Steel blue', rgb: '86,140,206' }, violet: { name: 'Violet', rgb: '150,112,214' }, bone: { name: 'Bone', rgb: '206,196,170' } };
 // colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
-const SET_SHAKE_MAX = 50;   // screen shake's slider tops out here: the full shake was too much
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 50 };
+const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75 };
 const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
-SET.shake = Math.min(SET_SHAKE_MAX, SET.shake);   // (a value saved before the cap came down)
+SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
 const saveSettings = () => { try { localStorage.setItem('kessler-settings', JSON.stringify(SET)); } catch (e) {} };
 // the glow's strength by its setting, the shadow map's size, and the resolution as a share of the screen's own
 const BLOOM_K = { off: 0, soft: 0.55, normal: 1, strong: 1.5 };
@@ -36,7 +36,7 @@ const SET_ROWS = [
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
   { head: 'Comfort' },
-  { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: 0, max: SET_SHAKE_MAX, unit: '%' }
+  { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: SET_SHAKE[0], max: SET_SHAKE[1], unit: '%' }
 ];
 const CB_SIM = { prot: [0.567, 0.433, 0, 0.558, 0.442, 0, 0, 0.242, 0.758], deut: [0.625, 0.375, 0, 0.7, 0.3, 0, 0, 0.3, 0.7], trit: [0.95, 0.05, 0, 0, 0.433, 0.567, 0, 0.475, 0.525] };
 const CB_SHIFT = { prot: [0, 0, 0, 0.7, 1, 0, 0.7, 0, 1], deut: [0, 0, 0, 0.7, 1, 0, 0.7, 0, 1], trit: [1, 0, 0.7, 0, 1, 0.7, 0, 0, 0] };

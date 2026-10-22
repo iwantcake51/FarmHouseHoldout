@@ -96,8 +96,9 @@ Touch screens get twin sticks and on-screen buttons.
 | Shadow quality | High, medium, low |
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
-| HUD style | Normal, or Minimalist (the essentials only: no heart trace, round glyphs or clock face) |
-| Master volume, screen shake | 0–100% |
+| HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, and no clock face) |
+| Master volume, music | 0–100% |
+| Screen shake | 50–100% |
 
 All settings are saved in your browser.
 

@@ -119,13 +119,17 @@ function wallForm(i, j, faces, inner) {
       const at = (u, y, f, w, h, d) => box(win, alongX ? w : d, h, alongX ? d : w, mats.trim, alongX ? u : f * 0.512 * ox, y, alongX ? f * 0.512 * oz : u);
       at(0, 0.925, 1, 0.9, 0.08, 0.03);                                                      // apron under the sill, outside
       [-1, 1].forEach(f => [-1, 1].forEach(sd => at(sd * 0.46, 1.445, f, 0.08, 0.86, 0.022)));   // jamb casings on both faces
-      // a louvred shutter folded back either side of it outside, on its hinges
-      const sat = (u, y, w, h, d, off) => box(win, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
-      [-1, 1].forEach(sd => {
+      // a louvred shutter folded back either side of it outside, on its hinges. Each reaches over into the cell beside
+      // it, so each is its own piece, shown only where that's plain wall (setWindows), never over the next window
+      w.shut = [-1, 1].map(sd => {
+        const sg = new THREE.Group(); win.add(sg);
+        const sat = (u, y, w, h, d, off) => box(sg, alongX ? w : d, h, alongX ? d : w, mats.shutter, alongX ? u : off * ox, y, alongX ? off * oz : u);
         const u = sd * 0.67; sat(u, 1.445, 0.3, 0.92, 0.024, 0.53);
         for (let k = 0; k < 7; k++) sat(u, 1.08 + k * 0.105, 0.24, 0.022, 0.012, 0.548);   // the louvres
         [-0.3, 0.3].forEach(y => sat(sd * 0.505, 1.445 + y, 0.05, 0.035, 0.03, 0.53));     // hinges
+        return sg;
       });
+      w.along = alongX ? [1, 0] : [0, 1];   // (which way along the wall the cells beside it are)
       box(win, 1, 0.5, 1, mats.wall, 0, 2.15, 0); clap(win, 1.9, 2.4); box(win, 1.04, 0.06, 1.04, mats.trim, 0, 1.9, 0);
       pan(win, inner[0], 0.015, 0.96, mats.inner, 0.004); pan(win, inner[0], 1.92, 2.4, mats.inner, 0.004); pan(win, inner[0], 0.015, 0.125, mats.base, 0.02, 0.524);
       o = houseOpening(win, i, j, 'window', faces[0]);
@@ -138,7 +142,8 @@ function wallForm(i, j, faces, inner) {
   // stay as they are
   const ops = new Set([w.o && w.o.bg].filter(Boolean));
   foldPieces(g, new Set([w.plain, w.win, ...ops, ...g.children.filter(c => c.isGroup && c !== w.plain && c !== w.win)].filter(Boolean)));
-  [w.plain, w.win].forEach(p => { if (p) foldPieces(p, ops); });
+  [w.plain, w.win].forEach(p => { if (p) foldPieces(p, new Set([...ops, ...(w.shut || [])])); });
+  (w.shut || []).forEach(sg => foldPieces(sg));
   return w;
 }
 // an opening's own parts: where it is and which way out, the boards across it, and the outline that marks it as the
@@ -169,6 +174,16 @@ function setWindows(keys, live) {
     clearBoards(o); o.climbers = [];
     cell[w.k] = on ? OPEN : WALL; openAt[w.k] = on ? o : null; if (live) blockArr[w.k] = on ? 0 : 1;
     if (on) openings.push(o);
+  }
+  // each window's shutters: one folds back against the wall only where the cell beside it is plain wall on the same
+  // face, not another window, the door or the end of the wall
+  for (const w of walls) {
+    if (!w.win || !w.shut) continue;
+    const i = w.k % N, j = (w.k / N) | 0;
+    w.shut.forEach((sg, n) => {
+      const sd = n ? 1 : -1, nk = idx(i + w.along[0] * sd, j + w.along[1] * sd), nw = WALL_AT.get(nk);
+      sg.visible = !!nw && nw.kind !== 'door' && !keys.has(nk) && nw.faces.includes(w.faces[0]);
+    });
   }
 }
 // this run's footprint (notch: the cells cut out of a back corner, {i0, i1, j0, j1}, or null for the whole rectangle):
