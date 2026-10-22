@@ -86,19 +86,42 @@ function tickFeed() {
   for (let k = feedItems.length - 1; k >= 0; k--) { const f = feedItems[k]; if (now - f.t > 3000 && !f.out) { f.out = true; f.el.classList.add('out'); } if (now - f.t > 3500) { f.el.remove(); feedItems.splice(k, 1); } }
 }
 const floats = [];
+// a pickup's label: a little chip in the drop's colour that pops up and eases up off it (FLOAT_UP)
 function floatText(x, z, text, color) {
-  const el = document.createElement('div'); el.className = 'float'; el.textContent = text; if (color) el.style.color = color;
+  const el = document.createElement('div'); el.className = 'float chip'; el.textContent = text; if (color) el.style.color = color;
   document.body.appendChild(el); floats.push({ el, x, z, t: 0 });
 }
-// the little labels that float up when you grab a drop, and the pickup feed
+// how the labels move. A damage number (FLOAT_DMG) bursts off the zombie on a little arc, flung up and out to one side
+// (up, side: px a second at 1080 high) and falling back (grav), tipped as it pops in and leaning the way it's going
+// (tilt, degrees), over life seconds, its last fade of it fading and shrinking away. A pickup's label (FLOAT_UP) rises
+// rise metres, quick and then slowing, over its life, popping in and fading over its last fade
+const FLOAT_DMG = { life: 0.95, up: [230, 300], side: [35, 95], grav: 720, tilt: 14, pop: 0.16, fade: 0.38 };
+const FLOAT_UP = { life: 1.15, rise: 1.1, pop: 0.22, fade: 0.32 };
+const floatBack = t => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };   // (overshoots, then settles)
+// the little labels that float up when you grab a drop, the damage numbers, and the pickup feed
 function stepFloats(rdt) {
-  // floating pickup labels
+  const px = innerHeight / 1080;
   for (let k = floats.length - 1; k >= 0; k--) {
-    const f = floats[k]; f.t += rdt; projV.set(f.x, (f.y0 !== undefined ? f.y0 : 1.2) + f.t * (f.dmg ? 0.9 : 1.2), f.z).project(cam);
-    const life = f.dmg ? 0.75 : 1;
-    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight).toFixed(1)}px) translate(-50%,-50%) scale(${(1 + Math.max(0, 0.2 - f.t) * (f.dmg ? 3 : 2)).toFixed(2)})`;
-    f.el.style.opacity = clamp((1.6 - f.t * 1.6 / life) * (f.dmg && P.dead ? 0 : 1), 0, 1);
-    if (f.t > life) { f.el.remove(); floats.splice(k, 1); }
+    const f = floats[k]; f.t += rdt;
+    let ox = 0, oy = 0, sc = 1, rot = 0, op = 1;
+    if (f.dmg) {
+      const D = FLOAT_DMG, t = f.t, u = t / D.life;
+      if (f.vx === undefined) { f.vx = rr(...D.side) * (rand() < 0.5 ? -1 : 1); f.vy = rr(...D.up); f.r0 = rr(-D.tilt, D.tilt); }
+      ox = f.vx * t * px; oy = -(f.vy * t - 0.5 * D.grav * t * t) * px;
+      sc = t < D.pop ? 0.35 + 0.65 * floatBack(t / D.pop) : 1 - 0.18 * smooth(clamp((u - (1 - D.fade)) / D.fade, 0, 1));
+      rot = f.r0 * (1 - smooth(clamp(t / 0.22, 0, 1))) + Math.sign(f.vx) * 6 * smooth(clamp((t - 0.25) / 0.6, 0, 1));
+      op = (1 - smooth(clamp((u - (1 - D.fade)) / D.fade, 0, 1))) * (P.dead ? 0 : 1);
+      projV.set(f.x, f.y0, f.z).project(cam);
+      if (u >= 1) { f.el.remove(); floats.splice(k, 1); continue; }
+    } else {
+      const U = FLOAT_UP, u = f.t / U.life;
+      sc = f.t < U.pop ? 0.5 + 0.5 * floatBack(f.t / U.pop) : 1;
+      op = 1 - smooth(clamp((u - (1 - U.fade)) / U.fade, 0, 1));
+      projV.set(f.x, (f.y0 !== undefined ? f.y0 : 1.2) + U.rise * (1 - Math.pow(1 - Math.min(1, u), 3)), f.z).project(cam);
+      if (u >= 1) { f.el.remove(); floats.splice(k, 1); continue; }
+    }
+    f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth + ox).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight + oy).toFixed(1)}px) translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
+    f.el.style.opacity = op.toFixed(3);
   }
   tickFeed();
 }

@@ -453,11 +453,15 @@ function killEnd(z) {
   if (z.id) NZ.delete(z.id);
   soundAt(z.x, z.z, () => SFX.headPop(KILL_VOL));   // every kill sounds the same: the skull bursting, from the zombie itself
 }
-// a damage number pops off the zombie; hits landing close together (shotgun pellets, bursts) add up into one number
+// a damage number pops off the zombie (bursting off it on an arc: ui/hud-text.js, stepFloats), bigger the harder the
+// hit (dmgSize: a 10 a touch smaller than plain, a 100 a quarter bigger, never past DMG_SIZE[1]); hits landing close
+// together (shotgun pellets, bursts) add up into one number
+const DMG_SIZE = [0.85, 1.5];
+const dmgSize = d => clamp(0.7 + 0.28 * Math.log10(Math.max(1, d)), DMG_SIZE[0], DMG_SIZE[1]).toFixed(2);
 function dmgNumber(z, dmg, head, y, crit, kind) {
   const now = performance.now();
   if (z.dn && now - z.dn.t0 < 160 && floats.includes(z.dn.f)) {
-    z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = 0;
+    z.dn.amt += dmg; z.dn.t0 = now; z.dn.num.textContent = Math.round(z.dn.amt); z.dn.f.t = Math.min(z.dn.f.t, 0.08); z.dn.el.style.setProperty('--s', dmgSize(z.dn.amt));
     if (head) z.dn.el.classList.add('head');
     if (crit) z.dn.el.classList.add('crit');
     if (kind === 'armor') z.dn.el.classList.add('armor');
@@ -466,6 +470,7 @@ function dmgNumber(z, dmg, head, y, crit, kind) {
     return;
   }
   const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : '') + (kind ? ' ' + kind : ''); num.textContent = Math.round(dmg); el.appendChild(num);
+  el.style.setProperty('--s', dmgSize(dmg));
   document.body.appendChild(el);
   const f = { el, x: z.x + rr(-0.25, 0.25), z: z.z + rr(-0.25, 0.25), y0: y + 0.25, t: 0, dmg: true };
   floats.push(f); z.dn = { el, num, f, amt: dmg, t0: now };
