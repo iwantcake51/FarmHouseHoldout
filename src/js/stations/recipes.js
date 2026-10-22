@@ -176,7 +176,7 @@ const RECIPES = {
   get med() { return shown(MED); },
   // the ham radio: a supply drop (stations/supply-drop.js), brought in by helicopter
   get radio() {
-    return [{ ic: 'supply', cls: 'drop', group: 'Supplies', cost: SUPPLY.cost, title: () => dropBusy() ? 'Drop on its way' : dropWait() ? 'Radio quiet' : 'Call a supply drop', desc: supplyDesc, why: busyWhy,
+    return [{ ic: 'supply', cls: 'drop', group: 'Supplies', cost: supplyCost(), title: () => dropBusy() ? 'Drop on its way' : dropWait() ? 'Radio quiet' : 'Call a supply drop', desc: supplyDesc, why: busyWhy,
       make: () => { callDrop({ kind: 'supply' }); run.dropAt = Math.max(1, run.wave); feed('supply', 0, 'Supply drop called'); } }];
   }
 };

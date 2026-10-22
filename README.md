@@ -59,7 +59,7 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 | Workbench | Gun upgrades, attachments, ammo |
 | Sawhorse / metalwork bench | Planks and metal, and bracing the boards |
 | Medicine cabinet | Bandages and health |
-| Ham radio | Calls in a supply crate (ammo for every gun, full health and bandages, planks, scrap), once every 5 waves |
+| Ham radio | Calls in a supply crate (ammo, health, bandages, planks) that grows with the wave, as does its price, once every 5 waves |
 | Gun rack | New guns for your slots |
 | Strongbox (co-op) | Gives scrap to a teammate |
 
