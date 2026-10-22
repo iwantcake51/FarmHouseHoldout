@@ -117,6 +117,8 @@ function startCardClock() {
 function pickCard(i) {
   if (state !== 'upgrade' || !cardsArmed || !dealt[i]) return;
   const u = dealt[i], c = u.shown; cardsArmed = false;
+  // a tier's next star fills the moment it's taken, before the guns are rebuilt for it (stations/station-ui.js: starFillSvg)
+  { const nx = $('cards').children[i].querySelector('.stars svg.next'); if (nx) nx.outerHTML = starFillSvg('on', nx.getAttribute('style') ? ` style="${nx.getAttribute('style')}"` : ''); }
   const st = !u.weaponOf && !u.modOf && STACKS[c.name], before = st ? st.v() : 0;
   u.ap(); buildGuns(); SFX.upgrade();
   if (u.weaponOf || ((u.target || u.modOf) && (u.target || u.modOf) === curId())) glowGun(u.weaponOf || u.target || u.modOf);   // the gun in your hands glows only if the card did something to it (a body perk doesn't)
@@ -128,8 +130,6 @@ function pickCard(i) {
   // the pick: your card pops forward and gets stamped, the others burn away to ash (upgrades/card-burn.js), then the
   // screen fades out
   const cards = [...$('cards').children];
-  // a tier's next star fills as you take it (stations/station-ui.js: starFillSvg)
-  { const nx = cards[i].querySelector('.stars svg.next'); if (nx) nx.outerHTML = starFillSvg('on', nx.getAttribute('style') ? ` style="${nx.getAttribute('style')}"` : ''); }
   cards[i].classList.add('picked'); settleUpgrade(cards.filter((b, k) => k !== i));
 }
 // none of them: the scrap shown under the cards instead, and all three burn

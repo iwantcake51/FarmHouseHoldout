@@ -9,12 +9,12 @@ const eyeFx = (() => {
   for (let e = 0; e < EYE_MAX; e++) for (let k = 0; k < EYE_PTS - 1; k++) { const a = (e * EYE_PTS + k) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(idx);
   const trail = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
-  trail.frustumCulled = false; trail.renderOrder = 5; scene.add(trail);
+  trail.frustumCulled = false; trail.renderOrder = 5; trail.layers.enable(GLOW_LAYER); scene.add(trail);
   // the halos: one soft sprite per eye
   const hp = new Float32Array(EYE_MAX * 3), hc = new Float32Array(EYE_MAX * 3), hg = new THREE.BufferGeometry();
   hg.setAttribute('position', new THREE.BufferAttribute(hp, 3)); hg.setAttribute('color', new THREE.BufferAttribute(hc, 3));
   const halo = new THREE.Points(hg, new THREE.PointsMaterial({ map: BLOB_TEX, size: 8, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-  halo.frustumCulled = false; halo.renderOrder = 5; scene.add(halo);
+  halo.frustumCulled = false; halo.renderOrder = 5; halo.layers.enable(GLOW_LAYER); scene.add(halo);
   return { trail, pos, col, halo, hp, hc };
 })();
 const _ew = new V3(), _ev = new V3(), _et = new V3(), _en = new V3(), _eo = [];

@@ -16,7 +16,8 @@ function spawnZombie(type, job) {
   const sc = T_.scale * rr(0.94, 1.06);
   m.g.scale.setScalar(sc);
   // the pupils glow, deep in their sockets; effects/eye-glow.js gives them a halo and a light trail
-  m.eyes = m.look.eyeAt.map(([x, y, w, h, z]) => box(m.head, w, h, 0.008, basic(EYE_COL), x, y, z + 0.0011));   // (where each eye is, and how open: zHead; a hair forward, so it never shares a plane with the face round it)
+  m.eyes = m.look.eyeAt.map(([x, y, w, h, z]) => box(m.head, w, h, 0.008, basic(EYE_COL), x, y, z + 0.0011));
+  m.eyes.forEach(e => e.layers.enable(GLOW_LAYER));   // (they bloom: effects/post.js)   // (where each eye is, and how open: zHead; a hair forward, so it never shares a plane with the face round it)
   trimShadows(m.g);
   const stain = stainZombie(m);   // blood on them, like on you (effects/body-blood.js)
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) { o.material.userData.mobile = true; fm.add(o.material); } }); fm.forEach(mt => { mt.transparent = true; });

@@ -5,9 +5,11 @@
 // counter in the corner. Its Controls tab puts the keys where you want them (input/keybinds.js), and the HUD can be
 // pared back to its essentials (hudStyle: styles/hud-minimal.css).
 
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', vol: 80, music: 60, shake: 100 };
+const SET_SHAKE_MAX = 50;   // screen shake's slider tops out here: the full shake was too much
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', vol: 80, music: 60, shake: 50 };
 const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
+SET.shake = Math.min(SET_SHAKE_MAX, SET.shake);   // (a value saved before the cap came down)
 const saveSettings = () => { try { localStorage.setItem('kessler-settings', JSON.stringify(SET)); } catch (e) {} };
 // the glow's strength by its setting, the shadow map's size, and the resolution as a share of the screen's own
 const BLOOM_K = { off: 0, soft: 0.55, normal: 1, strong: 1.5 };
@@ -27,7 +29,7 @@ const SET_ROWS = [
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
   { head: 'Comfort' },
-  { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: 0, max: 100, unit: '%' }
+  { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: 0, max: SET_SHAKE_MAX, unit: '%' }
 ];
 // ---- putting them into effect
 let shadowSz = 0;

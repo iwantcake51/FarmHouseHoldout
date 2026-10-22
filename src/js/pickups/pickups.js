@@ -40,13 +40,13 @@ function dropPickup(x, z, kind, amount, ammoType, cargo) {
   const fineOut = o => !o.userData.fine;   // (the merged detail has no outline of its own)
   const om = outline(g, col, 0, 0, null, fineOut);
   const xr = xray(g, col, true, false, fineOut);
-  const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+  const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending });
   const discMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending });
   const ring = new THREE.Mesh(ringGeo, ringMat), disc = new THREE.Mesh(discGeo, discMat);
   ring.rotation.x = disc.rotation.x = -Math.PI / 2; ring.position.y = 0.035; disc.position.y = 0.033; ring.renderOrder = disc.renderOrder = 2;
   if (kind === 'supply') { ring.scale.setScalar(1.8); disc.scale.setScalar(1.8); root.add(dropBeam(col)); }
   if (kind === 'gun') { ring.scale.setScalar(1.4); disc.scale.setScalar(1.4); }
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: BLOB_TEX, color: col, transparent: true, opacity: 0.26, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending }));
   glow.scale.set(kind === 'supply' ? 1.6 : 1.0, kind === 'supply' ? 1.6 : 1.0, 1); glow.renderOrder = 4;
   root.add(disc, ring, glow);
   g.scale.setScalar(0.01);

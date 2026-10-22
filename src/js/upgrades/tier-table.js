@@ -16,9 +16,9 @@ const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
   // round is what it does (the line's key is still 'ammo')
   ammo: { tag: 'Powder', t: [
-    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. It kicks harder.', ap: () => S.dmgMul *= 1.25 },
-    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers, and more kick.', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: harder hits, and headshots count for more. The hardest kick.', ap: () => S.dmgMul *= 1.25 }] },
+    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but +18% recoil and spread every shot.', ap: () => S.dmgMul *= 1.25 },
+    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but recoil and spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
+    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: recoil and spread per shot up to +60%.', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
     { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= TRIG_UP[0] },
     { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= TRIG_UP[1] },

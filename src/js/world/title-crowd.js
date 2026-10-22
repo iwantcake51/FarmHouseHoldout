@@ -34,7 +34,7 @@ function titleCrowdDeal() {
 // each frame on the title: dealt once, then each one ambles to its spot, turning toward it as it goes, stands there a
 // while, and moves on
 function titleCrowd(dt) {
-  if (state !== 'title' && state !== 'leaving') { TC.on = false; return; }
+  if (state !== 'title') { TC.on = false; return; }   // (only ever on the title itself: 'leaving' is also the card screen easing back into a run)
   if (!TC.on) { try { titleCrowdDeal(); } catch (e) { TC.on = true; console.warn('title crowd', e); } }
   if (!(dt > 0)) return;
   for (const z of zombies) {

@@ -15,6 +15,10 @@
 // sunlit walls don't haze over; in the dark a muzzle flash, a lamp, eyes and spit bloom out
 const AO = { r: 0.55, k: 0.5, bias: 0.025, n: [0, 10, 14], pow: 1.25, keep: 0.9, fade: 2.5 };
 const BLOOM = { th: [0.95, 0.87], knee: [0.07, 0.14], k: [0.1, 0.24], k2: [0.06, 0.15] };
+// the things that glow whatever the hour (zombies' eyes and their halos and trails, muzzle flashes): on a layer of
+// their own, drawn alone into a small target and added into the glow in full, where nothing nearer hides them (the
+// scene's depth). GLOW.k: how strongly
+const GLOW_LAYER = 3, GLOW = { k: 1.35 };
 const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // POST.q: the quality the frame's run at (2 full, 1 fewer occlusion samples, 0 no occlusion: game/loop.js steps it
 // down when the frame rate drops, before the resolution goes)
@@ -108,13 +112,17 @@ void main() {
 }`, { tCur: { value: null }, tHist: { value: null }, uInvView: { value: new THREE.Matrix4() }, uPrevView: { value: new THREE.Matrix4() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPrevSize: { value: new THREE.Vector2() }, uPrevCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uFar: { value: 1 }, uKeep: { value: 0.88 }, uValid: { value: 0 } });
 // the bright parts, softly cut off, boxed down four pixels to one
 const brightMat = psMat(`
-uniform sampler2D tCol; uniform vec2 uPx; uniform float uTh, uKnee;
+uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow;
 varying vec2 vUv;
 void main() {
   vec3 c = (texture2D(tCol, vUv + uPx * vec2(-1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(-1.0, 1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, 1.0)).rgb) * 0.25;
   float l = max(c.r, max(c.g, c.b));
-  gl_FragColor = vec4(c * smoothstep(uTh, uTh + uKnee, l), 1.0);
-}`, { tCol: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 } });
+  vec3 o = c * smoothstep(uTh, uTh + uKnee, l);
+  // and the glowing things, where they're not behind something
+  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see)
+  if (uGlow > 0.0) { float gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? 1.0 : step(gd, texture2D(tSceneD, vUv).r + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
+  gl_FragColor = vec4(o, 1.0);
+}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 } });
 const blurMat = psMat(`
 uniform sampler2D tSrc; uniform vec2 uDir;
 varying vec2 vUv;
@@ -151,7 +159,7 @@ void main() {
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
 const psScene = new THREE.Scene(); psScene.add(psQuad);
 const psCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-const PS_RT = { sc: null, ao: null, ao2: null, hA: null, hB: null, b1: null, b1b: null, b2: null, b2b: null };
+const PS_RT = { sc: null, ao: null, ao2: null, hA: null, hB: null, b1: null, b1b: null, b2: null, b2b: null, gl: null };
 // last frame's view of the occlusion (its history, PS_RT.hA) and the camera it was seen from
 const PS_PREV = { view: new THREE.Matrix4(), size: new THREE.Vector2(), center: new THREE.Vector2(), ok: false };
 const psTarget = (w, h, o) => { const t = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), Object.assign({ minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false }, o || {})); t.texture.generateMipmaps = false; return t; };
@@ -160,7 +168,7 @@ const _psSz = new THREE.Vector2();
 function postTargets() {
   R.getDrawingBufferSize(_psSz); const W = _psSz.x, H = _psSz.y;
   if (W === POST.w && H === POST.h && PS_RT.sc) return;
-  Object.keys(PS_RT).forEach(k => { if (PS_RT[k]) { PS_RT[k].dispose(); if (k === 'sc') PS_RT.sc.depthTexture.dispose(); } });
+  Object.keys(PS_RT).forEach(k => { if (PS_RT[k]) { PS_RT[k].dispose(); if (PS_RT[k].depthTexture) PS_RT[k].depthTexture.dispose(); } });
   POST.w = W; POST.h = H;
   const sc = new THREE.WebGLMultisampleRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true, stencilBuffer: false });
   sc.samples = Math.min(4, R.capabilities.maxSamples || 4); sc.texture.generateMipmaps = false;
@@ -169,6 +177,7 @@ function postTargets() {
   const h2 = [Math.ceil(W / 2), Math.ceil(H / 2)], h4 = [Math.ceil(W / 4), Math.ceil(H / 4)], h8 = [Math.ceil(W / 8), Math.ceil(H / 8)];
   PS_RT.ao = psTarget(...h2); PS_RT.ao2 = psTarget(...h2); PS_RT.hA = psTarget(...h2); PS_RT.hB = psTarget(...h2); PS_PREV.ok = false;
   PS_RT.b1 = psTarget(...h4); PS_RT.b1b = psTarget(...h4); PS_RT.b2 = psTarget(...h8); PS_RT.b2b = psTarget(...h8);
+  PS_RT.gl = psTarget(...h2, { depthBuffer: true }); PS_RT.gl.depthTexture = new THREE.DepthTexture(...h2, THREE.UnsignedIntType); PS_RT.gl.depthTexture.minFilter = PS_RT.gl.depthTexture.magFilter = THREE.NearestFilter;
 }
 function psPass(mat, target) { psQuad.material = mat; R.setRenderTarget(target); R.render(psScene, psCam); }
 function psBlur(src, tmp, w, h) {
@@ -176,6 +185,17 @@ function psBlur(src, tmp, w, h) {
   U.tSrc.value = src.texture; U.uDir.value.set(1 / w, 0); psPass(blurMat, tmp);
   U.tSrc.value = tmp.texture; U.uDir.value.set(0, 1 / h); psPass(blurMat, src);
 }
+// the glowing things alone (GLOW_LAYER), when any are out: the camera seeing only them, nothing else drawn (no
+// shadows, no sky). How strongly they're to glow back, or 0 for none this frame
+function glowPass() {
+  if (!(flash.visible || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
+  const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate, cc = R.getClearAlpha(); R.getClearColor(_glCC);
+  cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1);
+  R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); R.render(scene, cam);
+  cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; R.setClearColor(_glCC, cc);
+  return GLOW.k;
+}
+const _glCC = new THREE.Color();
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 function renderFrame() {
   if (!POST.ok) { R.render(scene, cam); return; }
@@ -206,7 +226,8 @@ function renderFrame() {
   // the glow: the bright parts at a quarter size, blurred, and again at an eighth for its wider haze (none at all with
   // it off in the settings, ui/settings.js)
   const bk = POST.noBloom ? 0 : BLOOM_K[SET.bloom] ?? 1;
-  if (bk > 0) { const U = brightMat.uniforms; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
+  const gk = bk > 0 ? glowPass() : 0;
+  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }

@@ -11,6 +11,7 @@ const tongueG = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0).rotateX(Math.
 const tongueA = new THREE.Mesh(tongueG, addMat(TEX_TONGUE)), tongueB = new THREE.Mesh(tongueG, addMat(TEX_TONGUE));
 tongueB.rotation.z = Math.PI / 2;
 flash.add(flashCore, flashStar, tongueA, tongueB); flash.userData.isFlash = true;
+[flashCore, flashStar, tongueA, tongueB].forEach(o => o.layers.enable(GLOW_LAYER));   // (it blooms: effects/post.js)
 PM.upper.add(flash);
 let flashSize = 1, flashLen = 1, flashWide = 1, flashLife = 0.055;
 // each kind of gun's flash (flashLook): size, its core and star; len and wide, its flame tongues' length and width;
