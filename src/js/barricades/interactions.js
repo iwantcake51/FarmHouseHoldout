@@ -83,30 +83,30 @@ function updateInteractions(dt) {
     // each action on its own row: its key (held keys marked "Hold"), what it does with the thing it's done to picked
     // out bold in that thing's colour (PROMPT_COL; a gun in its rarity's), and any extra as a small chip after it
     const rows = [], hex = c => '#' + c.toString(16).padStart(6, '0');
-    const row = (k, t, extra, col) => { const hold = k.startsWith('Hold '); return `<div class="pr" style="--pa:${col || PROMPT_COL.thing}">${hold ? '<span class="hold">Hold</span>' : ''}<kbd>${hold ? k.slice(5) : k}</kbd><span class="pt">${t}</span>${extra ? `<em>${extra}</em>` : ''}</div>`; };
+    const row = (k, t, extra, col) => { const hold = k.startsWith('Hold '); return `<div class="pr" style="--pa:${col || PROMPT_COL.thing}">${hold ? '<span class="hold">Hold</span>' : ''}<kbd class="ki">${keyIcon(hold ? k.slice(5) : k)}</kbd><span class="pt">${t}</span>${extra ? `<em>${extra}</em>` : ''}</div>`; };
     const off = (t, col) => `<div class="pr off" style="--pa:${col || PROMPT_COL.off}"><span class="pt">${t}</span></div>`;
     if (tk) { const id = takeId(tk), old = W8.slot[WEAP[id].slot], gc = hex(weaponCol(id));
-      rows.push(row(keyOn('use'), `${tk.kind === 'gun' ? 'Pick up' : 'Take'} the <b>${WEAP[id].name.toLowerCase()}</b>`, old && old !== id ? `drops your ${WEAP[old].short || WEAP[old].name}` : '', gc));
+      rows.push(row(KB.use, `${tk.kind === 'gun' ? 'Pick up' : 'Take'} the <b>${WEAP[id].name.toLowerCase()}</b>`, old && old !== id ? `drops your ${WEAP[old].short || WEAP[old].name}` : '', gc));
       // co-op: one you put down can be shared with your team (gunShare, net/teamwork.js); it's yours alone till you do
-      if (tk.kind === 'gun' && tk.cargo.own && netLink()) rows.push(row(keyOn('share'), tk.cargo.shared ? '<b>Stop sharing</b> it' : '<b>Share</b> it with your team', tk.cargo.shared ? 'your team can take it' : '', NET_COL[NET.idx]));
+      if (tk.kind === 'gun' && tk.cargo.own && netLink()) rows.push(row(KB.share, tk.cargo.shared ? '<b>Stop sharing</b> it' : '<b>Share</b> it with your team', tk.cargo.shared ? 'your team can take it' : '', NET_COL[NET.idx]));
       else if (tk.kind === 'gun' && tk.cargo.own === false) rows.push(off(`Shared by <b>${tk.cargo.who || 'a teammate'}</b>`, tk.cargo.pc)); }
-    else if (st) rows.push(row(keyOn('use'), `Use the <b>${st.name.toLowerCase()}</b>`, '', PROMPT_COL.station));
-    if (fv) rows.push(row(keyOn('vault'), 'Hop the <b>fence</b>', '', PROMPT_COL.move));
+    else if (st) rows.push(row(KB.use, `Use the <b>${st.name.toLowerCase()}</b>`, '', PROMPT_COL.station));
+    if (fv) rows.push(row(KB.vault, 'Hop the <b>fence</b>', '', PROMPT_COL.move));
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';
-      if (vaultTarget(o)) rows.push(row(keyOn('vault'), 'Climb through the <b>window</b>', '', PROMPT_COL.move));
+      if (vaultTarget(o)) rows.push(row(KB.vault, 'Climb through the <b>window</b>', '', PROMPT_COL.move));
       const dmg = !fix && phase !== 'break' && repairWhat(o);
-      if (fix && fix.kind === 'grate') rows.push(canFix ? row('Hold ' + keyOn('board'), `Repair the <b>grate</b>`, `${repairCost()} metal`, PROMPT_COL.metal) : off(`<b>${S.planks ? `Only ${S.planks} of ${repairCost()} metal` : 'No metal'}</b> to repair it`, PROMPT_COL.bad));
-      else if (fix) rows.push(row('Hold ' + keyOn('board'), `Repair the <b>${o.boards.length > 1 ? 'damaged board' : 'board'}</b>`, 'free', PROMPT_COL.wood));
+      if (fix && fix.kind === 'grate') rows.push(canFix ? row('Hold ' + KB.board, `Repair the <b>grate</b>`, `${repairCost()} metal`, PROMPT_COL.metal) : off(`<b>${S.planks ? `Only ${S.planks} of ${repairCost()} metal` : 'No metal'}</b> to repair it`, PROMPT_COL.bad));
+      else if (fix) rows.push(row('Hold ' + KB.board, `Repair the <b>${o.boards.length > 1 ? 'damaged board' : 'board'}</b>`, 'free', PROMPT_COL.wood));
       else if (o.grate) rows.push(off(`The ${what} is <b>barred</b>${o.grate.tier ? ` · plated ${roman(o.grate.tier)}` : ''}${dmg ? ' · repair it between waves' : ''}`, PROMPT_COL.metal));
       else if (o.boards.length >= 3) rows.push(off(`The ${what} is <b>fully boarded</b>${dmg ? ' · repair it between waves' : ''}`, PROMPT_COL.wood));
       else if (METAL.on && o.boards.length) rows.push(off('Tear the <b>boards</b> down to bar it', PROMPT_COL.off));
       else if (METAL.on && S.planks < GRATE.cost) rows.push(off(`<b>${S.planks ? `Only ${S.planks} of ${GRATE.cost} metal` : 'No metal left'}</b> · cut some at the metalwork bench`, PROMPT_COL.bad));
       else if (S.planks <= 0) rows.push(off('<b>No planks left</b> · cut some at the sawhorse', PROMPT_COL.bad));
-      else if (METAL.on) rows.push(row('Hold ' + keyOn('board'), `Bar the <b>${what}</b>`, `${GRATE.cost} metal`, PROMPT_COL.metal));
-      else rows.push(row('Hold ' + keyOn('board'), `Board up the <b>${what}</b>`, `${o.boards.length}/3`, PROMPT_COL.wood));
-      if (o.grate) rows.push(row('Hold ' + keyOn('tear'), 'Tear the <b>grate</b> down', '', PROMPT_COL.tear));
-      else if (o.boards.length) rows.push(row('Hold ' + keyOn('tear'), `Tear the <b>${o.boards.length > 1 ? 'boards' : 'board'}</b> down`, '', PROMPT_COL.tear));
+      else if (METAL.on) rows.push(row('Hold ' + KB.board, `Bar the <b>${what}</b>`, `${GRATE.cost} metal`, PROMPT_COL.metal));
+      else rows.push(row('Hold ' + KB.board, `Board up the <b>${what}</b>`, `${o.boards.length}/3`, PROMPT_COL.wood));
+      if (o.grate) rows.push(row('Hold ' + KB.tear, 'Tear the <b>grate</b> down', '', PROMPT_COL.tear));
+      else if (o.boards.length) rows.push(row('Hold ' + KB.tear, `Tear the <b>${o.boards.length > 1 ? 'boards' : 'board'}</b> down`, '', PROMPT_COL.tear));
     }
     setH('pRows', rows.join(''));
   }

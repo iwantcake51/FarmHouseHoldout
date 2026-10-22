@@ -22,18 +22,31 @@ function keyActs() {
   for (const g of BIND_GROUPS) for (const [a, name, hold] of g.rows) add(KB[a], { a, name, group: g.name, hold });
   return m;
 }
+// the keys the list's fixed lines are on, drawn as they are on the keyboard
+const K_FIXED = { 'W A S D': ['w', 'a', 's', 'd'], Mouse: ['mouse1'], 'Right click': ['mouse2'] };
+// a key on the drawing: a face the key's width with Kenney's key for it in the middle, its legend the board's colour
+// showing through, so a wide key (Shift, Space) keeps its lettering at the letters' size instead of stretching it
+// (the icons' boxes are in the pack's units, 48 to a key's height: KM.s brings that to the drawing's)
+const KM = { s: 34 / 48, crop: { enter: [8, 29, 48, 27] } };   // (crop: the part of an odd-shaped key that's used, its lower bar for the L of Enter)
+function mapKey(k, l) {
+  const n = iconOf(k); if (!n) return `<span>${kEsc(l)}</span>`;
+  const I = KEN_ICONS[n], B = KM.crop[n] || I, cx = B[0] + B[2] / 2, cy = B[1] + B[3] / 2, clip = KM.crop[n] ? `km-${n}` : '';
+  return `<svg class="kFace" aria-hidden="true">${clip ? `<clipPath id="${clip}"><rect x="${B[0]}" y="${B[1]}" width="${B[2]}" height="${B[3]}"/></clipPath>` : ''}<rect class="kf" width="100%" height="100%" rx="6"/><svg x="50%" y="50%" overflow="visible"><g transform="scale(${KM.s}) translate(${-cx} ${-cy})"${clip ? ` clip-path="url(#${clip})"` : ''}><rect class="kl" x="${B[0] + 1}" y="${B[1] + 1}" width="${B[2] - 2}" height="${B[3] - 2}" rx="10"/>${I[4].map(d => `<path class="kf" d="${d}"/>`).join('')}</g></svg></svg>`;
+}
 const kEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // ---- the tab's markup
 function controlsHtml() {
   const lock = LOCK_SVG;
   const list = BIND_GROUPS.map(g => {
     const col = KGROUP_COL[g.name];
-    const fixed = g.fixed.map(([k, t]) => `<div class="kItem" data-q="${kEsc((t + ' ' + k + ' ' + g.name).toLowerCase())}"><div class="kIn"><div class="setRow kRow kFixed"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b></div><span class="kBind" aria-disabled="true">${lock}<span>${k}</span></span></div></div></div>`).join('');
-    const rows = g.rows.map(([a, t, hold]) => `<div class="kItem" data-row="${a}" data-q="${kEsc((t + ' ' + keyOn(a) + ' ' + g.name + (hold ? ' hold' : '')).toLowerCase())}"><div class="kIn"><div class="setRow kRow"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b>${hold ? '<i class="kHold">Hold</i>' : ''}</div><button type="button" class="kBind" data-act="${a}" aria-label="${kEsc(t)}: ${keyOn(a)}. Change it">${keyOn(a)}</button></div></div></div>`).join('');
+    const fixed = g.fixed.map(([k, t]) => `<div class="kItem" data-q="${kEsc((t + ' ' + k + ' ' + g.name).toLowerCase())}"><div class="kIn"><div class="setRow kRow kFixed"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b></div><span class="kBind" aria-disabled="true">${lock}${(K_FIXED[k] || []).map(keyIcon).join('') || `<span>${k}</span>`}</span></div></div></div>`).join('');
+    const rows = g.rows.map(([a, t, hold]) => `<div class="kItem" data-row="${a}" data-q="${kEsc((t + ' ' + keyOn(a) + ' ' + g.name + (hold ? ' hold' : '')).toLowerCase())}"><div class="kIn"><div class="setRow kRow"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b>${hold ? '<i class="kHold">Hold</i>' : ''}</div><button type="button" class="kBind" data-act="${a}" aria-label="${kEsc(t)}: ${keyOn(a)}. Change it">${keyIcon(KB[a])}</button></div></div></div>`).join('');
     return `<section class="kGroup" style="--gc:${col}"><h4 class="kGroupHd"><i></i>${g.name}<small>${g.rows.length + g.fixed.length}</small></h4>${fixed}${rows}</section>`;
   }).join('');
-  const keys = KB_ROWS.map(r => `<div class="kbRow">${r.map(([k, l, w]) => `<button type="button" class="kk" data-k="${kEsc(k)}" style="--w:${w || 1}" tabindex="-1"><span>${kEsc(l)}</span></button>`).join('')}</div>`).join('');
-  const mouse = `<div class="kMouse" aria-hidden="true"><button type="button" class="kk mb mL" data-k="mouse1" tabindex="-1"></button><button type="button" class="kk mb mR" data-k="mouse2" tabindex="-1"></button><button type="button" class="kk mb mW" data-k="mouse3" tabindex="-1"></button><button type="button" class="kk mb mS4" data-k="mouse4" tabindex="-1"></button><button type="button" class="kk mb mS5" data-k="mouse5" tabindex="-1"></button><i class="mBody"></i></div>`;
+  const keys = KB_ROWS.map(r => `<div class="kbRow">${r.map(([k, l, w]) => `<button type="button" class="kk" data-k="${kEsc(k)}" style="--w:${w || 1}" tabindex="-1" aria-label="${kEsc(keyLabel(k))}">${mapKey(k, l)}</button>`).join('')}</div>`).join('');
+  // the mouse: Kenney's, each button its own shape to light and click, and the side buttons on its flank
+  const mb = (k, part) => `<path class="kk mb" data-k="${k}" d="${MOUSE_PARTS[part]}"/>`;
+  const mouse = `<svg class="kMouse" viewBox="9.6 9 40.4 46" aria-hidden="true"><path class="mBody" d="${MOUSE_PARTS.body}"/>${mb('mouse1', 'left')}${mb('mouse2', 'right')}${mb('mouse3', 'wheel')}${mb('mouse5', 'side5')}${mb('mouse4', 'side4')}</svg>`;
   const legend = Object.entries(KGROUP_COL).map(([n, c]) => `<span style="--gc:${c}"><i></i>${n}</span>`).join('');
   return `<div class="kWrap">
     <div class="kLeft">

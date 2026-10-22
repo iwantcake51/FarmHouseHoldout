@@ -100,13 +100,13 @@ function showTab(t) {
 $('setTabs').addEventListener('click', e => { const b = e.target.closest('[role=tab]'); if (b) showTab(b.dataset.tab); });
 // putting a key on something: its button listens for the next key or mouse button (taken before the game sees it)
 let binding = null;
-function stopBinding() { if (!binding) return; const el = binding.el; binding = null; $('setBody').classList.remove('kPick'); el.classList.remove('listen', 'nope'); el.textContent = keyOn(el.dataset.act); }
+function stopBinding() { if (!binding) return; const el = binding.el; binding = null; $('setBody').classList.remove('kPick'); el.classList.remove('listen', 'nope'); el.innerHTML = keyIcon(KB[el.dataset.act]); }
 function startBinding(el) { stopBinding(); binding = { el }; $('setBody').classList.add('kPick'); el.classList.add('listen'); el.textContent = 'Press a key'; }
 function finishBinding(k) {
   const el = binding.el, a = el.dataset.act;
   if (BIND_LOCK.has(k)) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); el.textContent = keyLabel(k) + ' is taken'; setTimeout(() => { if (binding && binding.el === el) el.textContent = 'Press a key'; }, 900); return; }
   const other = setBind(a, k); stopBinding();
-  $('setBody').querySelectorAll('.kBind[data-act]').forEach(b => { b.textContent = keyOn(b.dataset.act); b.setAttribute('aria-label', b.closest('.setRow').querySelector('b').textContent + ': ' + keyOn(b.dataset.act) + '. Change it'); });
+  $('setBody').querySelectorAll('.kBind[data-act]').forEach(b => { b.innerHTML = keyIcon(KB[b.dataset.act]); b.setAttribute('aria-label', b.closest('.setRow').querySelector('b').textContent + ': ' + keyOn(b.dataset.act) + '. Change it'); });
   [a, other].forEach(x => { const r = x && $('setBody').querySelector(`[data-row="${x}"] .kRow`); if (r) { r.classList.remove('kSet'); void r.offsetWidth; r.classList.add('kSet'); } });
   kbRefresh();   // (the keyboard lit for the new key: ui/keyboard-map.js)
 }

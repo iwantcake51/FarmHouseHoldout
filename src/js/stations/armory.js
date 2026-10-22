@@ -135,7 +135,7 @@ const rkSideOn = () => state === 'play' && !P.dead && !!openSt && openSt.id === 
 function rackSideHTML() {
   return `<div class="rlHead" style="--k:0"><b>Loadout</b><span>What you carry</span></div><p class="rlNote" style="--k:1">Take any weapon you've unlocked down off the rack for nothing, as you left it.</p>` + SLOTS.map((s, i) => {
     const id = W8.slot[s], others = W8.owned.filter(o => WEAP[o] && WEAP[o].slot === s && o !== id), cur = s === W8.cur;
-    return `<div class="rlSlot${cur ? ' cur' : ''}${slotTab(s, id) === GUN_RACK.tab ? ' shown' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd>${keyOn('slot' + (i + 1))}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
+    return `<div class="rlSlot${cur ? ' cur' : ''}${slotTab(s, id) === GUN_RACK.tab ? ' shown' : ''}" data-s="${s}" style="--k:${i + 2}"><div class="rlSlotHd"><kbd class="ki">${keyIcon(KB['slot' + (i + 1)])}</kbd><span>${SLOT_NAME[s]}</span>${cur ? '<i>In your hands</i>' : ''}</div>
       <button type="button" class="rlGo" data-go="${slotTab(s, id)}" title="Show its line on the rack">${id ? `<b class="rlGun">${WEAP[id].name}</b><em>${statLine(id)}</em>` : '<b class="rlGun rlEmpty">Empty</b><em>Unlock one from the rack</em>'}<i class="rlArrow">${ARROW_IC}</i></button>
       ${others.length ? `<div class="rlAlt">${others.map(o => `<button type="button" data-take="${o}" title="${statLine(o)}"><span>Swap to</span><b>${WEAP[o].short || WEAP[o].name}</b></button>`).join('')}</div>` : ''}</div>`;
   }).join('');

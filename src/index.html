@@ -125,7 +125,7 @@
   <div id="reloadTag"></div>
   <div id="wMods"></div>
   <div id="wName">9mm pistol</div>
-  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd data-bind="fireMode">B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><i class="mb l akOnly" title="Left click"></i><span class="big akOnly" id="ammoL">10</span><i id="ammoSep" class="akOnly"></i><i class="mb r akOnly" title="Right click"></i><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
+  <div class="ammoRow"><div id="fireMode" hidden><span class="fmG"></span><span class="fmT"><kbd data-bind="fireMode">B</kbd><b></b></span></div><img id="meleeArt" alt="" hidden><i class="mb l akOnly" title="Left click" data-key="mouse1"></i><span class="big akOnly" id="ammoL">10</span><i id="ammoSep" class="akOnly"></i><i class="mb r akOnly" title="Right click" data-key="mouse2"></i><span class="big" id="ammo">10</span><span id="ammoRes">/ 36</span></div>
   <div id="rounds"></div>
   <div id="magBar" aria-hidden="true"><i></i></div>
   <div class="slots" id="slots"></div>
@@ -228,12 +228,12 @@
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
       <div class="ctrlGrp"><h4>Movement</h4>
-        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Walk</span></p>
+        <p><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd><span>Walk</span></p>
         <p><kbd data-bind="sprint">Shift</kbd><span>Sprint</span></p>
         <p><kbd data-bind="vault">Space</kbd><span>Vault a window or fence</span></p></div>
       <div class="ctrlGrp"><h4>Combat</h4>
-        <p><kbd>Mouse</kbd><span>Aim and fire</span></p>
-        <p><kbd>Right click</kbd><span>Aim down the sights</span></p>
+        <p><kbd data-key="mouse1">Mouse</kbd><span>Aim and fire</span></p>
+        <p><kbd data-key="mouse2">Right click</kbd><span>Aim down the sights</span></p>
         <p><kbd data-bind="reload">R</kbd><span>Reload</span></p>
         <p><kbd data-bind="slots">1 – 4</kbd><span>Switch weapon</span></p>
         <p><kbd data-bind="shove">V</kbd><span>Shove</span></p></div>
@@ -248,8 +248,8 @@
         <p><kbd data-bind="grenade">G</kbd><span>Underbarrel grenade</span></p>
         <p><kbd data-bind="ammo">X</kbd><span>Load the next kind of round</span></p>
         <p><kbd data-bind="stats">I</kbd><span>Weapon stats</span></p>
-        <p><kbd>Wheel</kbd><span>Zoom</span></p>
-        <p><kbd>Esc</kbd><span>Pause</span></p>
+        <p><kbd data-key="mouse3">Wheel</kbd><span>Zoom</span></p>
+        <p><kbd data-key="escape">Esc</kbd><span>Pause</span></p>
         <p class="ctrlSet"><span>Change any of these in Settings, under Controls</span></p>
       </details>
     </div>
@@ -289,7 +289,7 @@
     <h2 id="deadTitle">Dead on wave 1</h2>
     <div class="tally" id="deadStats"></div>
     <details class="runMore" id="runMore"><summary>Full run stats</summary><div class="rsBody" id="runStatsBody"></div></details>
-    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd>M</kbd></button><span class="note" id="deadBest"></span></div>
+    <div class="btns"><button class="btn" id="againBtn" type="button">New run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="menuBtn" type="button">Main menu <kbd data-key="m">M</kbd></button><span class="note" id="deadBest"></span></div>
   </div>
 </div>
 <!-- menu wear (styles/screens.css): worn print for the big titles and the stamp, a wobble for brush strokes -->

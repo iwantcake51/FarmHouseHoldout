@@ -1,0 +1,28 @@
+/* Keys and mouse buttons drawn from Kenney's input prompts (ui/input-icons.js). A <kbd class="ki"> loses the box every
+   other key hint draws round its letter: the icon is the key, in the colour of where it sits (--kh: its height there) */
+kbd.ki{display:inline-flex!important;align-items:center;gap:1px;padding:0!important;margin:0;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;min-width:0!important;height:auto!important;
+  vertical-align:middle;line-height:1;font-size:inherit;opacity:1}
+.kKey{display:inline-flex;align-items:center}
+.kIco{display:block;flex:none;height:var(--kh,1.55em);width:calc(var(--kh,1.55em) * var(--ar,1));fill:currentColor;overflow:visible}
+.kIco .hi{fill:rgb(var(--acc))}
+.kKey.txt{font:600 max(10px,.8em)/1 var(--f-ui);padding:3px 5px 2px;border:1.5px solid currentColor;border-radius:4px}
+.kDash{margin:0 3px;opacity:.65;font-size:.9em}
+/* each place's size and colour */
+#prompt .pr kbd.ki{--kh:30px;color:#f1ebdf;filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 7px color-mix(in srgb,var(--pa) 50%,transparent));animation:kbdIn .42s .08s cubic-bezier(.2,.9,.3,1.5) both,kiGlow 2.4s .6s ease-in-out infinite}
+@keyframes kiGlow{50%{filter:drop-shadow(0 2px 0 rgba(0,0,0,.55)) drop-shadow(0 0 11px color-mix(in srgb,var(--pa) 75%,transparent))}}
+@media (prefers-reduced-motion:reduce){#prompt .pr kbd.ki{animation:none}}
+#title .ctrls kbd.ki{--kh:21px;color:#d9d1c0}
+#title .ctrls p{column-gap:4px}
+.btn kbd.ki{--kh:1.45em;margin-left:4px}
+.btn.sm kbd.ki{--kh:1.35em}
+#bandBox kbd.ki{--kh:17px;color:var(--dim)}
+#fireMode .fmT kbd.ki{--kh:15px;color:var(--ink)}
+#wSub kbd.ki{--kh:17px;color:var(--ink)}
+#ammoWarn kbd.ki{--kh:18px;color:var(--aw)}
+#stRows kbd.ki,.shareTag .stHint kbd.ki{--kh:1.5em;color:var(--ink)}
+.rlSlotHd kbd.ki{--kh:18px;color:var(--ink)}
+.chTop kbd.ki,#cheatTag kbd.ki{--kh:16px;color:var(--dim)}
+/* the two guns' triggers by the ammo count, as the mouse buttons that fire them */
+.ammoRow .mb.ki{width:auto!important;height:auto!important;margin:0 2px 0 4px;border:0!important;background:none!important;box-shadow:none!important;color:rgba(236,230,216,.6)}
+.ammoRow .mb.ki::after,.ammoRow .mb.ki::before{content:none!important}
+.ammoRow .mb.ki .kIco{--kh:22px}

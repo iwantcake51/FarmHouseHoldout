@@ -84,12 +84,14 @@
 button.kBind:hover{border-color:rgba(var(--acc),.7);background:rgba(var(--acc),.1)}
 button.kBind:active{translate:0 1px;border-bottom-width:2px}
 .kBind:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.kBind .kIco{--kh:24px}
+.kBind .kIco+.kIco{margin-left:-1px}
 .kBind.listen{border-color:var(--orange);color:var(--orange);background:rgba(var(--acc),.12);animation:kListen 1.1s ease-in-out infinite}
 @keyframes kListen{50%{box-shadow:0 0 0 4px rgba(var(--acc),.18)}}
 .kBind.nope{animation:kNope .4s cubic-bezier(.3,.7,.4,1);color:#e07a6a;border-color:#b5483a}
 @keyframes kNope{20%,60%{translate:-4px 0}40%,80%{translate:4px 0}}
 .kFixed .kBind{cursor:default;color:var(--dim);background:none;border-style:dashed;border-bottom-width:1px}
-.kFixed .kBind svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.3;opacity:.7}
+.kFixed .kBind svg:not(.kIco){width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.3;opacity:.7}
 .kFixed .setLab b{color:var(--dim)}
 .setRow.kSet{animation:kSet .9s ease-out}
 @keyframes kSet{from{background:rgba(var(--acc),.16)}}
@@ -140,43 +142,38 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04),0 14px 30px rgba(0,0,0,.45)}
 .kKeys{display:grid;gap:5px;padding:8px;border-radius:7px;background:#100e0c;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6)}
 .kbRow{display:flex;gap:5px}
-.kk{--c:#d8cfbe;position:relative;flex:var(--w) 1 0;min-width:0;height:34px;padding:0;border:0;border-radius:6px;cursor:pointer;
-  background:linear-gradient(180deg,#3b3631,#2a2622 70%,#24201c);box-shadow:0 2px 0 #0b0a09,0 3px 5px rgba(0,0,0,.45);
-  transition:transform .12s ease,box-shadow .12s ease,opacity .25s ease,filter .2s}
-.kk::before{content:"";position:absolute;left:3px;right:3px;top:2px;bottom:5px;border-radius:4px;background:linear-gradient(180deg,#4a443d,#3c3732);box-shadow:inset 0 1px 0 rgba(255,255,255,.09),inset 0 -1px 2px rgba(0,0,0,.25);transition:background .2s}
-.kk span{position:absolute;left:8px;top:7px;pointer-events:none;font:600 10px/1 var(--f-ui);letter-spacing:.02em;color:#9a9284;transition:color .2s}
-.kk::after{content:"";position:absolute;left:8px;bottom:9px;width:0;height:2px;border-radius:1px;background:var(--c);transition:width .25s cubic-bezier(.2,.9,.3,1)}
-.kk:hover{transform:translateY(1px);box-shadow:0 1px 0 #0b0a09,0 2px 3px rgba(0,0,0,.45)}
-.kk:hover::before{background:linear-gradient(180deg,#524b43,#433d37)}
-.kk:active{transform:translateY(2px);box-shadow:0 0 0 #0b0a09,0 1px 2px rgba(0,0,0,.4)}
-.kk.on span{color:var(--c)}
-.kk.on::after{width:calc(100% - 16px);max-width:22px}
-.kk.on.fixed::after{background:repeating-linear-gradient(90deg,var(--c) 0 3px,transparent 3px 5px)}
-.kk.locked{cursor:default;opacity:.55}
-.kk.locked:hover{transform:none;box-shadow:0 2px 0 #0b0a09,0 3px 5px rgba(0,0,0,.45)}
+/* a key: Kenney's (ui/keyboard-map.js: mapKey), a face its width with the pack's key in the middle and its legend the
+   board's colour showing through. Unbound it's dull; bound, in its group's colour; a fixed one (walking, firing) a step
+   paler; pointed at or picked out, brighter, pressed down a pixel */
+.kk{--c:#d8cfbe;--kc:#4b453e;position:relative;flex:var(--w) 1 0;min-width:0;height:34px;padding:0;border:0;background:none;cursor:pointer;
+  filter:drop-shadow(0 2px 0 #050404);transition:translate .12s ease,opacity .25s ease,filter .2s}
+.kk>span{position:absolute;inset:0;display:grid;place-items:center;font:600 10px/1 var(--f-ui);color:#9a9284}
+.kFace{display:block;width:100%;height:100%;overflow:visible}
+.kFace .kf{fill:var(--kc);transition:fill .2s}
+.kFace .kl{fill:#100e0c}
+.kk.on{--kc:var(--c)}
+.kk.on.fixed{--kc:color-mix(in srgb,var(--c) 62%,#4b453e)}
+.kk:hover,.kk.hot{translate:0 1px;filter:drop-shadow(0 1px 0 #050404) drop-shadow(0 0 6px color-mix(in srgb,var(--kc) 45%,transparent))}
+.kk:hover .kf,.kk.hot .kf{fill:color-mix(in srgb,var(--kc) 72%,#fff)}
+.kk:active{translate:0 2px;filter:none}
+.kk.locked{--kc:#2c2824;cursor:default}
+.kk.locked:hover{translate:none;filter:drop-shadow(0 2px 0 #050404)}
+.kk.locked:hover .kf{fill:var(--kc)}
 .kk.dim{opacity:.22}
-.kk.hot{transform:translateY(1px)}
-.kk.hot::before{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 30%,#4a443d),color-mix(in srgb,var(--c) 22%,#3c3732))}
-.kk.hot span{color:#fff}
-.kPick .kk:not(.locked):not(.fixed)::before{animation:kPick 1.6s ease-in-out infinite}
-.kPick .kk:not(.locked):not(.fixed):hover::before{animation:none;background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 35%,#4a443d),color-mix(in srgb,var(--orange) 25%,#3c3732))}
-@keyframes kPick{50%{background:linear-gradient(180deg,#554b40,#463e35)}}
-/* the mouse: the same sculpted plastic, its two buttons split down the middle, the wheel in its slot, two thumb
-   buttons on its side */
-.kMouse{position:relative;width:88px;height:128px;margin:18px auto 6px}
-.kMouse .mBody{position:absolute;inset:0;border-radius:44px 44px 40px 40px/52px 52px 76px 76px;background:linear-gradient(180deg,#3a3530,#26221e 60%,#1f1c19);box-shadow:0 3px 0 #0b0a09,0 8px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);pointer-events:none}
-.kMouse .mb{position:absolute;z-index:1;height:auto;box-shadow:none;background:none;border-radius:0}
-.kMouse .mb::before{inset:0;border-radius:inherit}
-.kMouse .mb::after{left:50%;bottom:6px;margin-left:-5px}
-.kMouse .mb.on::after{width:10px}
-.kMouse .mL{left:4px;top:4px;width:38px;height:50px;border-radius:40px 3px 3px 3px/46px 3px 3px 3px}
-.kMouse .mR{right:4px;top:4px;width:38px;height:50px;border-radius:3px 40px 3px 3px/3px 46px 3px 3px}
-.kMouse .mW{left:37px;top:13px;width:14px;height:24px;border-radius:7px;z-index:2;box-shadow:0 0 0 3px #1c1916}
-.kMouse .mW::before{background:repeating-linear-gradient(180deg,#56504a 0 2px,#3a3530 2px 4px)}
-.kMouse .mS4,.kMouse .mS5{left:-7px;width:9px;height:22px;border-radius:5px 2px 2px 5px;box-shadow:0 2px 0 #0b0a09}
-.kMouse .mS5{top:46px}.kMouse .mS4{top:72px}
-.kMouse .mb:hover,.kMouse .mb:active{transform:none;box-shadow:none}
-.kMouse .mS4:hover,.kMouse .mS5:hover{transform:translateX(1px);box-shadow:0 2px 0 #0b0a09}
+.kPick .kk:not(.locked):not(.fixed) .kf{animation:kPick 1.6s ease-in-out infinite}
+.kPick .kk:not(.locked):not(.fixed):hover .kf{animation:none;fill:var(--orange)}
+@keyframes kPick{50%{fill:color-mix(in srgb,var(--orange) 40%,var(--kc))}}
+/* the mouse: Kenney's, each button its own shape, lit like the keys; the thumb buttons on its left flank */
+.kMouse{display:block;width:96px;height:auto;margin:18px auto 6px;overflow:visible;filter:drop-shadow(0 3px 0 #050404) drop-shadow(0 8px 12px rgba(0,0,0,.45))}
+.kMouse .mBody{fill:#3a352f}
+.kMouse .kk{--kc:#4b453e;fill:var(--kc);stroke:#100e0c;stroke-width:.6;paint-order:stroke;cursor:pointer;filter:none;translate:none;transition:fill .2s,opacity .25s}
+.kMouse .kk.on{--kc:var(--c)}
+.kMouse .kk.on.fixed{--kc:color-mix(in srgb,var(--c) 62%,#4b453e)}
+.kMouse .kk:hover,.kMouse .kk.hot{fill:color-mix(in srgb,var(--kc) 72%,#fff);filter:none;translate:none}
+.kMouse .kk.locked{--kc:#2c2824}
+.kPick .kMouse .kk:not(.locked):not(.fixed){animation:kPickM 1.6s ease-in-out infinite}
+.kPick .kMouse .kk:not(.locked):not(.fixed):hover{animation:none;fill:var(--orange)}
+@keyframes kPickM{50%{fill:color-mix(in srgb,var(--orange) 40%,var(--kc))}}
 .kLegend{display:flex;justify-content:center;gap:18px;margin-top:12px;font:600 10px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .kLegend span{display:flex;align-items:center;gap:7px}
 .kLegend i{width:14px;height:2px;border-radius:1px;background:var(--gc)}

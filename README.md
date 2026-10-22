@@ -170,5 +170,6 @@ Melee weapons work the same way, in `melee/melee-stats.js` and `melee/melee-mode
 ## Credits
 
 Icons from [game-icons.net](https://game-icons.net), by Lorc, Delapouite, sbed and Zeromancer, under
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Built with [three.js](https://threejs.org) and
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Keyboard and mouse prompts from Kenney's
+[Input Prompts](https://kenney.nl/assets/input-prompts) (CC0). Built with [three.js](https://threejs.org) and
 [PeerJS](https://peerjs.com).

@@ -25,14 +25,16 @@ const saveBinds = () => { try { localStorage.setItem('kessler-keys', JSON.string
 const keyOf = e => { const c = e.code || ''; return /^Digit\d$/.test(c) ? c.slice(5) : /^Numpad\d$/.test(c) ? c.slice(6) : (e.key || '').toLowerCase(); };
 const KEY_NAMES = { ' ': 'Space', shift: 'Shift', control: 'Ctrl', alt: 'Alt', capslock: 'Caps', backspace: 'Backspace', delete: 'Del', insert: 'Ins', home: 'Home', end: 'End', pageup: 'PgUp', pagedown: 'PgDn', mouse3: 'Middle click', mouse4: 'Mouse 4', mouse5: 'Mouse 5', dead: '`' };
 const keyLabel = k => !k ? '—' : KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
-// an action's key as written on screen, and in a <kbd>
+// an action's key as written in a sentence, and as it's drawn (ui/input-icons.js: Kenney's key, in a <kbd>)
 const keyOn = a => keyLabel(KB[a]);
-const kbd = a => `<kbd>${keyOn(a)}</kbd>`;
+const kbd = a => `<kbd class="ki">${keyIcon(KB[a])}</kbd>`;
 const bindIs = (k, a) => KB[a] === k;
 // the weapon keys together, as the controls list them: 1 – 4 while they run in order
 function slotKeys() { const s = [1, 2, 3, 4].map(n => KB['slot' + n]); return s.join('') === '1234' ? '1 – 4' : s.map(keyLabel).join(' '); }
 function refreshKeyHints() {
-  document.querySelectorAll('[data-bind]').forEach(el => { const a = el.dataset.bind; el.textContent = a === 'slots' ? slotKeys() : keyOn(a); });
+  // (each drawn as its key: a key that isn't bound to anything, data-key, as well)
+  document.querySelectorAll('[data-bind]').forEach(el => { const a = el.dataset.bind; el.classList.add('ki'); el.innerHTML = a === 'slots' ? slotIcons() : keyIcon(KB[a]); });
+  document.querySelectorAll('[data-key]').forEach(el => { el.classList.add('ki'); el.innerHTML = keyIcon(el.dataset.key); });
   document.querySelectorAll('[data-bind-title]').forEach(el => { el.title = el.dataset.bindTitle.replace('#', keyOn(el.dataset.bindKey)); });
 }
 // putting a key on an action: one already doing something else swaps over to the key this one had, so nothing's lost

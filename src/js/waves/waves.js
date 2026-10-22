@@ -80,7 +80,7 @@ function updateWaves(dt) {
   flowT -= dt; if (flowT <= 0 || flowDirty) { computeFlow(); flowT = 0.25; flowDirty = false; }
 
   if (phase === 'break' && cheatIs('noWaves')) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
-    setH('wSub', 'Waves off · <kbd>F9</kbd> cheat menu');
+    setH('wSub', `Waves off · <kbd class="ki">${keyIcon('f9')}</kbd> cheat menu`);
     waveBar(1, 'break');
   } else if (phase === 'break' && netWaiting()) {
     respawnCheck();   // co-op: the break waits for everyone still choosing their find
