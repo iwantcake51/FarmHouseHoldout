@@ -152,7 +152,7 @@ void main() {
     if (uDbg > 0.5) c = vec3(mix(1.0, ao, k));
   }
   // a fog round's fog (world/mist.js), under the glow, so lamps and flashes in it still bloom through
-  if (uMist.w > 0.0) { vec4 m = mistOf(vUv, viewD(vUv)); c = mix(c, m.rgb, m.a); }
+  if (uMist.w > 0.0) { vec4 m = mistOf(vUv, viewD(vUv)); c = mix(c, m.rgb, m.a) + mGlow * (1.0 - m.a); }
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
 }`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector2() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
