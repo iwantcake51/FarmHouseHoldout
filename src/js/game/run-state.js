@@ -150,6 +150,11 @@ const T = k => !GUN_TIERS.has(k) ? S.tier[k] : k === 'mag' ? magTierIn(tierCtx |
 // tier and capacity of the one still in it. Guns fed a round at a time, the revolver's cylinder and an akimbo pair take
 // the change at once
 const magTierIn = id => (id && W8.pin && W8.pin[id]) ? W8.pin[id].t : gunTier(id, 'mag');
+// scrap pays a little more every wave (SCRAP_WAVE more for each one past the first: about half again by wave 10,
+// double by wave 18), so the later waves keep up with what things cost by then. A fraction left over is paid or not by
+// chance, so it comes out right on average
+const SCRAP_WAVE = 0.06;
+const waveScrap = n => { const v = n * (1 + SCRAP_WAVE * Math.max(0, (run ? run.wave : 1) - 1)), f = Math.floor(v); return f + (rand() < v - f ? 1 : 0); };
 const magCap = id => (W8.pin && W8.pin[id]) ? W8.pin[id].cap : magSize(id);
 function magChange(id, fn) {
   const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');

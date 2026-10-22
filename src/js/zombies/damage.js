@@ -410,6 +410,7 @@ function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if
 // net/sync.js), shown rising off the body (the whole amount, marked (x2) and a brighter gold when Hoarder doubled it)
 // and rolled into the counter
 function killScrap(z, n, hoard) {
+  n = waveScrap(n);   // (more each wave: game/run-state.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
   floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c');
 }

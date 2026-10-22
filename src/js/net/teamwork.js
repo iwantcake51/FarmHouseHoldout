@@ -79,14 +79,14 @@ NET_ON.gift = m => {
 function teamAssist(z) {
   if (!netLink() || !(z.myDmg >= z.maxHp * ASSIST_MIN) || run.time - (z.myAt || -99) > ASSIST_T) return;
   z.assist = true;   // (and if the kill dropped ammo, a box of your own: NET_ON.hit, net/sync.js)
-  const n = ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1);
+  const n = waveScrap(ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1));
   S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); runStat('assists'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c');
 }
 // the wave's cleared with every one of you still on your feet: a bit of scrap each (nothing if anyone went down)
 function teamBonus() {
   if (!netLink() || P.dead || !NET.peers.size) return;
   for (const p of NET.peers.values()) if (p.dead) return;
-  const n = TEAM_BONUS * NET.peers.size; S.scrap += n; popEl('scrap'); feed('scrap', n, 'nobody went down'); runStat('teamBonus', n);
+  const n = waveScrap(TEAM_BONUS * NET.peers.size); S.scrap += n; popEl('scrap'); feed('scrap', n, 'nobody went down'); runStat('teamBonus', n);
 }
 
 // ---- sharing a gun you've put down (gunDrop, pickups/pickups.js). It's yours alone till you share it (H, standing at

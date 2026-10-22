@@ -16,7 +16,7 @@ three friends online.
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
 3. **Cards.** When the last zombie falls, pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
    wave brings a bonus hand.
-4. **Repeat.** Each wave is bigger and meaner than the last. The run ends when you go down.
+4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
 
 When the run ends, **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
 your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call, scrap earned,
