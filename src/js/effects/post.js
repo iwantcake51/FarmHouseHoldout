@@ -170,9 +170,11 @@ function postTargets() {
   if (W === POST.w && H === POST.h && PS_RT.sc) return;
   Object.keys(PS_RT).forEach(k => { if (PS_RT[k]) { PS_RT[k].dispose(); if (PS_RT[k].depthTexture) PS_RT[k].depthTexture.dispose(); } });
   POST.w = W; POST.h = H;
-  const sc = new THREE.WebGLMultisampleRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true, stencilBuffer: false });
+  // (with a stencil: the see-through outlines mark each body's own pixels in it, so a rim never draws over the body it's
+  // round, a gun held or slung against you included: effects/outlines.js)
+  const sc = new THREE.WebGLMultisampleRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true, stencilBuffer: true });
   sc.samples = Math.min(4, R.capabilities.maxSamples || 4); sc.texture.generateMipmaps = false;
-  sc.depthTexture = new THREE.DepthTexture(W, H, THREE.UnsignedIntType); sc.depthTexture.minFilter = sc.depthTexture.magFilter = THREE.NearestFilter;
+  sc.depthTexture = new THREE.DepthTexture(W, H, THREE.UnsignedInt248Type, undefined, undefined, undefined, undefined, undefined, undefined, THREE.DepthStencilFormat); sc.depthTexture.minFilter = sc.depthTexture.magFilter = THREE.NearestFilter;
   PS_RT.sc = sc;
   const h2 = [Math.ceil(W / 2), Math.ceil(H / 2)], h4 = [Math.ceil(W / 4), Math.ceil(H / 4)], h8 = [Math.ceil(W / 8), Math.ceil(H / 8)];
   PS_RT.ao = psTarget(...h2); PS_RT.ao2 = psTarget(...h2); PS_RT.hA = psTarget(...h2); PS_RT.hB = psTarget(...h2); PS_PREV.ok = false;

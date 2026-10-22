@@ -81,9 +81,11 @@ function updateCutaway(rdt) {
 }
 // how much a roof over (x, z) still hides it: the main roof's or the porch's opacity there (1 out from under either). A
 // fading roof still stands in front in depth till it's nearly gone, so the see-through outlines of whatever's under it
-// fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see
+// fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see. Under
+// it means behind the house as the camera sees it too, where the eaves and the roof's slope stand in front of you
+// outside the walls, so the outline eases out with the roof rather than vanishing the moment it stops writing depth
 function roofOver(x, z) {
-  if (inHouseRect(x, z, 0.4)) return roof.op;
+  if (inHouseRect(x, z, 0.4) || (roof.op < 1 && behindHouse({ x, z }))) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
   return 1;
 }
