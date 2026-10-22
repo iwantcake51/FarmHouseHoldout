@@ -154,14 +154,14 @@ function benchGun(s) {
 function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
 // at the workbench, ammo is always a click away along the bottom, wherever you've scrolled the cards to: for the gun in
-// your hands, or a load for every gun you carry; and at the medicine cabinet, bandages the same way: one, or your bag
-// filled in one go. Each shows what it gives and its price, and is lit when you can buy it (the stations' quick
+// your hands, or a load for every gun you carry; and at the medicine cabinet, bandages the same way: one, or your pouch
+// refilled in one go. Each shows what it gives and its price, and is lit when you can buy it (the stations' quick
 // recipes, recipes.js: quick; ST_QUICK says which, what each is called and what it gives)
 const ST_QUICK = {
   bench: { hand: { ic: 'ammo', t: () => gunAmmo() ? 'Ammo: ' + W(curId()).short : 'Ammo', d: () => gunAmmo() ? `+${gunBatch(curId())} ${AMMO_NAME[gunAmmo()]}` : '' },
     all: { ic: 'ammo', t: () => 'Ammo for all', d: () => allAmmo().map(([a, n]) => `+${n}`).join(' · ') } },
-  med: { one: { ic: 'med', t: () => 'Bandage', d: () => `+1 · bag ${P.band || 0}/${bandMax()}` },
-    fill: { ic: 'med', t: () => 'Fill the bag', d: () => `+${bandRoom()} bandage${bandRoom() > 1 ? 's' : ''}` } }
+  med: { one: { ic: 'med', t: () => 'Bandage', d: () => `+1 · pouch ${P.band || 0}/${bandMax()}` },
+    fill: { ic: 'med', t: () => 'Refill pouch', d: () => `+${bandRoom()} bandage${bandRoom() > 1 ? 's' : ''}` } }
 };
 function quickBar(rows) {
   const el = $('stQuick'), Q = ST_QUICK[openSt.id]; el.hidden = !Q; if (!Q) return;
