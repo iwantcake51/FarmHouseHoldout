@@ -25,13 +25,14 @@ function keyActs() {
 // the keys the list's fixed lines are on, drawn as they are on the keyboard
 const K_FIXED = { 'W A S D': ['w', 'a', 's', 'd'], Mouse: ['mouse1'], 'Right click': ['mouse2'] };
 // a key on the drawing: a face the key's width with Kenney's key for it in the middle, its legend the board's colour
-// showing through, so a wide key (Shift, Space) keeps its lettering at the letters' size instead of stretching it
-// (the icons' boxes are in the pack's units, 48 to a key's height: KM.s brings that to the drawing's)
-const KM = { s: 34 / 48, crop: { enter: [8, 29, 48, 27] } };   // (crop: the part of an odd-shaped key that's used, its lower bar for the L of Enter)
+// showing through, so a wide key (Shift, Space) keeps its lettering at the letters' size instead of stretching it. The
+// pack's key is fitted inside the face by whichever's tighter, its width or its height, so it never spills over the
+// keys beside it (KM.crop: the part of an odd-shaped key that's used, the lower bar of Enter's L)
+const KM = { crop: { enter: [8, 29, 48, 27] } };
 function mapKey(k, l) {
   const n = iconOf(k); if (!n) return `<span>${kEsc(l)}</span>`;
-  const I = KEN_ICONS[n], B = KM.crop[n] || I, cx = B[0] + B[2] / 2, cy = B[1] + B[3] / 2, clip = KM.crop[n] ? `km-${n}` : '';
-  return `<svg class="kFace" aria-hidden="true">${clip ? `<clipPath id="${clip}"><rect x="${B[0]}" y="${B[1]}" width="${B[2]}" height="${B[3]}"/></clipPath>` : ''}<rect class="kf" width="100%" height="100%" rx="6"/><svg x="50%" y="50%" overflow="visible"><g transform="scale(${KM.s}) translate(${-cx} ${-cy})"${clip ? ` clip-path="url(#${clip})"` : ''}><rect class="kl" x="${B[0] + 1}" y="${B[1] + 1}" width="${B[2] - 2}" height="${B[3] - 2}" rx="10"/>${I[4].map(d => `<path class="kf" d="${d}"/>`).join('')}</g></svg></svg>`;
+  const I = KEN_ICONS[n], B = KM.crop[n] || I;
+  return `<svg class="kFace" aria-hidden="true"><rect class="kf" width="100%" height="100%" rx="5"/><svg width="100%" height="100%" viewBox="${B[0]} ${B[1]} ${B[2]} ${B[3]}"><rect class="kl" x="${B[0] + 1}" y="${B[1] + 1}" width="${B[2] - 2}" height="${B[3] - 2}" rx="10"/>${I[4].map(d => `<path class="kf" d="${d}"/>`).join('')}</svg></svg>`;
 }
 const kEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // ---- the tab's markup

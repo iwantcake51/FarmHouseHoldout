@@ -102,7 +102,7 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
    letters that matched marked. The keyboard: keycaps lit in the colour of what's on them, a tip over the one you're
    pointing at, and a gentle pulse over all of them while a line listens for its new key */
 #settings.wide .setPanel{width:min(1010px,100%);height:min(700px,calc(100vh - 40px));max-height:none}   /* (a set height: it doesn't jump about as the search narrows the list) */
-.kWrap{display:grid;grid-template-columns:minmax(0,1fr) 452px;gap:24px;align-items:start;padding-top:4px}
+.kWrap{display:grid;grid-template-columns:minmax(0,1fr) 500px;gap:24px;align-items:start;padding-top:4px}
 .kLeft{min-width:0}
 .kSearch{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:0 -2px 6px;padding:10px 12px;border:1px solid rgba(236,230,216,.12);border-radius:6px;
   background:rgba(22,19,16,.97);box-shadow:0 8px 16px -8px rgba(0,0,0,.8);transition:border-color .25s,box-shadow .25s}
@@ -140,12 +140,12 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
    under the face; walking's keys are the same, the bar dashed. Pointing at one presses it down a little */
 .kBoard{position:sticky;top:0;padding:14px 14px 12px;border-radius:12px;background:linear-gradient(180deg,#25211d,#191613);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 1px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04),0 14px 30px rgba(0,0,0,.45)}
-.kKeys{display:grid;gap:5px;padding:8px;border-radius:7px;background:#100e0c;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6)}
-.kbRow{display:flex;gap:5px}
+.kKeys{container-type:inline-size;display:grid;gap:4px;padding:8px;border-radius:7px;background:#100e0c;box-shadow:inset 0 2px 6px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6)}
+.kbRow{display:flex;gap:4px}
 /* a key: Kenney's (ui/keyboard-map.js: mapKey), a face its width with the pack's key in the middle and its legend the
    board's colour showing through. Unbound it's dull; bound, in its group's colour; a fixed one (walking, firing) a step
    paler; pointed at or picked out, brighter, pressed down a pixel */
-.kk{--c:#d8cfbe;--kc:#4b453e;position:relative;flex:var(--w) 1 0;min-width:0;height:34px;padding:0;border:0;background:none;cursor:pointer;
+.kk{--c:#d8cfbe;--kc:#4b453e;position:relative;flex:var(--w) 1 0;min-width:0;height:clamp(22px,calc((100cqw - 13 * 4px) / 15),40px);padding:0;border:0;background:none;cursor:pointer;
   filter:drop-shadow(0 2px 0 #050404);transition:translate .12s ease,opacity .25s ease,filter .2s}
 .kk>span{position:absolute;inset:0;display:grid;place-items:center;font:600 10px/1 var(--f-ui);color:#9a9284}
 .kFace{display:block;width:100%;height:100%;overflow:visible}
