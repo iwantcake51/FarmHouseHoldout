@@ -196,7 +196,7 @@ function leaveUpgrade(burn) {
   el.classList.remove('armed'); el.classList.add('picking');
   burnCards(burn);
   state = 'leaving';
-  setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled and popped)
+  setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled)
   // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
   setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); }, 1800);
 }
