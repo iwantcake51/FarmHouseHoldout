@@ -3,7 +3,7 @@
 // The switches (CHEAT) are kept between runs and page loads; everything else acts on the run you're in.
 
 const CHEAT_KEY = 'kessler-cheats';
-const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false };
+const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false, fog: false };
 try { Object.assign(CHEAT, JSON.parse(localStorage.getItem(CHEAT_KEY) || '{}')); } catch (e) {}
 const saveCheats = () => { try { localStorage.setItem(CHEAT_KEY, JSON.stringify(CHEAT)); } catch (e) {} };
 const CHEAT_TOGGLES = {
@@ -11,9 +11,10 @@ const CHEAT_TOGGLES = {
   scrap: { name: 'Infinite scrap', text: 'Scrap never drops below 999. Buy anything at the stations.' },
   ammo: { name: 'Infinite ammo', text: 'Every ammo type stays at 999 in reserve. You still reload.' },
   noWaves: { name: 'Waves off', text: 'No zombies spawn. The break timer stops, and a wave in progress stops sending more.' },
-  clock: { name: 'Freeze clock', text: 'The time of day stays where you set it, even during a wave.' }
+  clock: { name: 'Freeze clock', text: 'The time of day stays where you set it, even during a wave.' },
+  fog: { name: 'Fog every wave', text: 'Every wave is a fog round: it rolls in off the fields as the wave starts (world/mist.js).' }
 };
-const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves: 'Waves off', clock: 'Clock frozen' };
+const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves: 'Waves off', clock: 'Clock frozen', fog: 'Fog' };
 let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
@@ -167,7 +168,7 @@ const CHEAT_TABS = {
     return h + (rows.length ? '' : '<p class="chNone">Nothing matches.</p>');
   },
   world() {
-    return chHead('Zombies') + chToggle('noWaves') +
+    return chHead('Zombies') + chToggle('noWaves') + chToggle('fog') +
       `<div class="chRow"><span class="chK">Now</span><b data-live="phase" class="wide"></b></div>` +
       `<div class="chRow"><span class="chK">Wave<small data-live="wavenext"></small></span><b data-live="wave"></b>${chStep('wave', {}, '', run.wave > 0, true)}</div>` +
       `<div class="chRow"><span class="chK">Zombies left</span><b data-live="zeds"></b><span class="chGrp">${chBtn('Kill all', 'killall')}${chBtn('Next wave now', 'nextwave', {}, '', CHEAT.noWaves || phase !== 'break' || state === 'title')}</span></div>` +

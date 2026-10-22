@@ -237,7 +237,7 @@ function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x: nr(at.
 NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
-NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot); spawnQ = new Array(m.tot).fill('walker'); };
+NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog); spawnQ = new Array(m.tot).fill('walker'); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
 // starting the next wave early: alone, T does it; in co-op it's a vote, and the wave starts once SKIP_VOTE of everyone
 // in the game (rounded up, the downed too) has pressed T. Pressing it again takes your vote back. The host counts them

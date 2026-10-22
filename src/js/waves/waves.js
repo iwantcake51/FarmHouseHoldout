@@ -44,21 +44,23 @@ function nextSurge() {
 const surgeGap = () => SURGE.build + (SURGE.peak - SURGE.build) * smooth(clamp(surge.done / Math.max(1, surge.n - 1), 0, 1));
 function startWave() {
   spawnQ = buildWave(run.wave + 1);
-  waveBegins(run.wave + 1, spawnQ.length);
-  netSend('wave', { n: run.wave, tot: run.waveTotal });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+  const fog = mistRoll(run.wave + 1);   // (now and then a fog round: world/mist.js)
+  waveBegins(run.wave + 1, spawnQ.length, fog);
+  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0 });   // (co-op: everyone's wave starts with the host's, net/sync.js)
   spawnTurned();   // (and whoever went down last wave comes back out of the fog as one of them)
   surge.lull = 0; nextSurge();
 }
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does
-function waveBegins(n, total) {
-  run.wave = n; phase = 'wave'; skipVotes.clear();   // (the vote to start it early, net/sync.js)
+function waveBegins(n, total, fog) {
+  run.wave = n; phase = 'wave'; skipVotes.clear(); mistSet(fog);   // (the vote to start it early, net/sync.js)
   spawnT = 1.2; S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   const firsts = { 3: 'Sprinters are coming', [BRUTE_FROM]: 'Something big is coming' };
   firsts[SPIT.from] = (firsts[SPIT.from] ? firsts[SPIT.from] + ' · and spitters' : 'Spitters are coming') + ', keep moving';   // (zombies/spitter.js)
   run.waveTotal = total;
   const brutes = run.wave === BRUTE_FROM || (run.wave > BRUTE_FROM && run.wave % 5 === 0);   // the wording fits any hour: a wave can start in daylight
-  announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
+  if (fog) announce('Wave ' + run.wave, (firsts[run.wave] ? firsts[run.wave] + ' · ' : '') + 'Fog rolls in off the fields · keep close', { eye: 'Fog', kind: brutes ? 'red' : '' });
+  else announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 // the count under the wave number; in a lull between surges, a word that they've let up for now

@@ -39,6 +39,10 @@ tune damage, fire rate, recoil and magazine size.
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off.
 
+**Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It stays out
+of the house, parts round you in a ring that thins as it gets close, and anything out in it can't be seen, outlined
+or picked out by your crosshair until it's nearly on you.
+
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler, and a headshot drops them. The dead fall as ragdolls.

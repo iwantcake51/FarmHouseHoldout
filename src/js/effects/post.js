@@ -133,6 +133,7 @@ const compMat = psMat(`
 ${PS_DEPTH}
 uniform sampler2D tCol, tAO, tB1, tB2; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg;
 varying vec2 vUv;
+${MIST_GLSL}
 void main() {
   vec3 c = texture2D(tCol, vUv).rgb;
   if (uAoK > 0.0) {
@@ -142,9 +143,11 @@ void main() {
     c *= mix(1.0, ao, k);
     if (uDbg > 0.5) c = vec3(mix(1.0, ao, k));
   }
+  // a fog round's fog (world/mist.js), under the glow, so lamps and flashes in it still bloom through
+  if (uMist.w > 0.0) { vec4 m = mistOf(vUv, viewD(vUv)); c = mix(c, m.rgb, m.a); }
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
-}`, { tDepth: { value: null }, uNF: { value: new THREE.Vector2() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector2() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
 const psScene = new THREE.Scene(); psScene.add(psQuad);
 const psCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -207,6 +210,7 @@ function renderFrame() {
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }
+  { const now = performance.now(); mistTick(POST.mT ? Math.min(0.1, (now - POST.mT) / 1000) : 0); POST.mT = now; mistUniforms(); }   // (world/mist.js)
   const U = compMat.uniforms;
   U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf); U.tCol.value = sc.texture; U.tAO.value = PS_RT.hA.texture;
   U.uAoK.value = aoN ? AO.k * POST.aoK : 0;

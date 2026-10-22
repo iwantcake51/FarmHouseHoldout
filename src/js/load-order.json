@@ -4,6 +4,7 @@
   "ui/game-icons.js",
   "core/renderer.js",
   "core/math.js",
+  "world/mist.js",
   "effects/screen-outlines.js",
   "effects/post.js",
   "net/net.js",
