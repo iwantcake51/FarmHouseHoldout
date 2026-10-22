@@ -5,8 +5,13 @@
 // counter in the corner. Its Controls tab puts the keys where you want them (input/keybinds.js), and the HUD can be
 // pared back to its essentials (hudStyle: styles/hud-minimal.css).
 
+// the theme colours (the highlight everywhere: --acc in styles/base.css), each [r, g, b]
+const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: 'Crimson', rgb: '204,64,58' }, amber: { name: 'Amber', rgb: '222,166,48' }, moss: { name: 'Moss', rgb: '126,170,72' },
+  teal: { name: 'Teal', rgb: '58,166,156' }, steel: { name: 'Steel blue', rgb: '86,140,206' }, violet: { name: 'Violet', rgb: '150,112,214' }, bone: { name: 'Bone', rgb: '206,196,170' } };
+// colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
+// eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE_MAX = 50;   // screen shake's slider tops out here: the full shake was too much
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', vol: 80, music: 60, shake: 50 };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 50 };
 const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = Math.min(SET_SHAKE_MAX, SET.shake);   // (a value saved before the cap came down)
@@ -25,12 +30,28 @@ const SET_ROWS = [
   { k: 'fps', name: 'Frame rate counter', note: 'Frames a second, top right', bool: true },
   { head: 'Interface' },
   { k: 'hud', name: 'HUD style', note: 'Minimalist keeps only the numbers you play by', opts: [['normal', 'Normal'], ['minimal', 'Minimalist']] },
+  { k: 'theme', name: 'Theme colour', note: 'The highlight on the menus, the HUD and the crosshair', opts: Object.entries(THEMES).map(([k, t]) => [k, `<i class="sSw" style="--sw:rgb(${t.rgb})"></i>${t.name}`]) },
+  { k: 'cb', name: 'Colour blind mode', note: 'Shifts the colours of the whole screen apart for your eyes', opts: [['off', 'Off'], ['prot', 'Protanopia (red)'], ['deut', 'Deuteranopia (green)'], ['trit', 'Tritanopia (blue)']] },
   { head: 'Sound' },
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
   { head: 'Comfort' },
   { k: 'shake', name: 'Screen shake', note: 'Recoil, hits and explosions jolting the view', min: 0, max: SET_SHAKE_MAX, unit: '%' }
 ];
+const CB_SIM = { prot: [0.567, 0.433, 0, 0.558, 0.442, 0, 0, 0.242, 0.758], deut: [0.625, 0.375, 0, 0.7, 0.3, 0, 0, 0.3, 0.7], trit: [0.95, 0.05, 0, 0, 0.433, 0.567, 0, 0.475, 0.525] };
+const CB_SHIFT = { prot: [0, 0, 0, 0.7, 1, 0, 0.7, 0, 1], deut: [0, 0, 0, 0.7, 1, 0, 0.7, 0, 1], trit: [1, 0, 0.7, 0, 1, 0.7, 0, 0, 0] };
+function cbMatrix(k) {
+  const s = CB_SIM[k], h = CB_SHIFT[k], e = [1 - s[0], -s[1], -s[2], -s[3], 1 - s[4], -s[5], -s[6], -s[7], 1 - s[8]], m = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { let v = r === c ? 1 : 0; for (let k2 = 0; k2 < 3; k2++) v += h[r * 3 + k2] * e[k2 * 3 + c]; m.push(v); }
+  return `${m[0]} ${m[1]} ${m[2]} 0 0 ${m[3]} ${m[4]} ${m[5]} 0 0 ${m[6]} ${m[7]} ${m[8]} 0 0 0 0 0 1 0`;
+}
+function applyCb() {
+  let svg = $('cbSvg');
+  if (SET.cb === 'off' || !CB_SIM[SET.cb]) { document.documentElement.style.filter = ''; return; }
+  if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'cbSvg'; svg.setAttribute('width', '0'); svg.setAttribute('height', '0'); svg.style.position = 'absolute'; svg.innerHTML = '<filter id="cbF" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values=""/></filter>'; document.body.appendChild(svg); }
+  svg.querySelector('feColorMatrix').setAttribute('values', cbMatrix(SET.cb));
+  document.documentElement.style.filter = 'url(#cbF)';
+}
 // ---- putting them into effect
 let shadowSz = 0;
 function applySettings() {
@@ -41,7 +62,9 @@ function applySettings() {
   const rk = RES_K[SET.res] || 1, want = SET.res === 'auto' ? DPR : Math.max(0.35, DPR * rk);
   if (SET.res !== 'auto' || renderScale > DPR) { renderScale = want; R.setPixelRatio(renderScale); resize(); }
   $('fps').hidden = !SET.fps;
-  document.body.classList.toggle('hudMin', SET.hud === 'minimal');   // (styles/hud-minimal.css, and the mag bar it shows: ui/hud.js)
+  document.body.classList.toggle('hudMin', SET.hud === 'minimal');
+  document.documentElement.style.setProperty('--acc', (THEMES[SET.theme] || THEMES.ember).rgb);   // (the theme colour)
+  applyCb();   // (styles/hud-minimal.css, and the mag bar it shows: ui/hud.js)
 }
 // the frame-rate counter: frames counted over half a second
 const FPS = { n: 0, t: 0 };
@@ -124,7 +147,7 @@ function toggleDrop(d, on) {
 function pickDrop(d, li) {
   const k = d.dataset.k, v = li.dataset.v; SET[k] = v;
   d.querySelectorAll('li').forEach(q => { q.setAttribute('aria-selected', String(q === li)); q.classList.remove('hl'); });
-  d.querySelector('.sDropBtn span').textContent = li.textContent;
+  d.querySelector('.sDropBtn span').innerHTML = li.innerHTML;   // (a theme's swatch with it)
   toggleDrop(d, false); d.querySelector('.sDropBtn').focus({ preventScroll: true }); applySettings(); saveSettings();
 }
 $('setBody').addEventListener('click', e => {

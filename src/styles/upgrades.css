@@ -20,10 +20,10 @@
 #upgrade.picking #upSkip{opacity:0;transition-delay:0s}
 /* taken instead: it swells and glows in the scrap's orange, stamped with what you got, while the bits fly off it
    (scrapFly) and the cards burn; it goes with the rest of the screen */
-#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);
+#upgrade.picking #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(var(--acc),.55);
   transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease;animation:skipGlow 1.2s ease-in-out .3s}
 #upSkip.taken b{font-size:21px}
-@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(216,105,44,.8)}}
+@keyframes skipGlow{50%{box-shadow:0 0 0 2px var(--orange),0 0 52px rgba(var(--acc),.8)}}
 .scrapBit{position:fixed;left:0;top:0;z-index:60;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 4px rgba(255,180,90,.35));will-change:transform}
 .card{all:unset;box-sizing:border-box;position:relative;cursor:pointer;width:260px;min-height:190px;padding:14px 18px 46px;background:var(--card);color:var(--card-ink);font-family:var(--f-type);box-shadow:0 10px 30px rgba(0,0,0,.5);border-top:7px solid var(--rc,#6d665b);
   background-image:repeating-linear-gradient(180deg,transparent 0 23px,rgba(70,110,150,.22) 23px 24px);background-position:0 46px;--rx:0deg;--ry:0deg;overflow:hidden;
@@ -40,7 +40,7 @@
 .card.r-e::after,.card.r-l::after,#upgrade.armed .card:hover::after{opacity:1;animation:sheen 2.8s ease-in-out infinite}
 @keyframes sheen{0%{background-position:130% 0}55%,100%{background-position:-40% 0}}
 .card.r-l{animation:legGlow 2.4s ease-in-out infinite}
-@keyframes legGlow{50%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.75),0 0 46px rgba(216,105,44,.5)}}
+@keyframes legGlow{50%{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(var(--acc),.75),0 0 46px rgba(var(--acc),.5)}}
 /* the pick: the chosen card pops and is stamped TAKEN, the others drop away */
 .card .taken{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-12deg) scale(2.2);font-family:var(--f-num);font-weight:800;font-size:44px;letter-spacing:.08em;text-transform:uppercase;
   color:var(--rc);border:4px solid var(--rc);padding:2px 14px;opacity:0;pointer-events:none;mix-blend-mode:multiply}
@@ -98,10 +98,10 @@
 .hrow .ht{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hrow .hw{font-size:10.5px;letter-spacing:.1em;color:var(--dim);white-space:nowrap}
 .hrow .hd{grid-column:1/-1;font-size:12.5px;line-height:1.45;color:#cfc8b8}
-.hrow.r-c{--rc:#8a8478;--rc2:#b3ab9c} .hrow.r-u{--rc:#4f9a58;--rc2:#7cc485} .hrow.r-r{--rc:#3f7cc4;--rc2:#7fb0e8} .hrow.r-e{--rc:#9a58bd;--rc2:#c793e3} .hrow.r-l{--rc:#d8692c;--rc2:#f0a060}
+.hrow.r-c{--rc:#8a8478;--rc2:#b3ab9c} .hrow.r-u{--rc:#4f9a58;--rc2:#7cc485} .hrow.r-r{--rc:#3f7cc4;--rc2:#7fb0e8} .hrow.r-e{--rc:#9a58bd;--rc2:#c793e3} .hrow.r-l{--rc:var(--orange);--rc2:#f0a060}
 .card.r-c{--rc:#6d665b} .card.r-u{--rc:#3f7a46} .card.r-r{--rc:#2f5f9a} .card.r-e{--rc:#74408f} .card.r-l{--rc:#b5541a}
 .card.r-e{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(116,64,143,.45)}
-.card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(216,105,44,.55),0 0 34px rgba(216,105,44,.35)}
+.card.r-l{box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 2px rgba(var(--acc),.55),0 0 34px rgba(var(--acc),.35)}
 #upNote{opacity:0;transition:opacity .3s}
 #upgrade.armed #upNote{opacity:1}
 /* the pause screen's two lists side by side on a wide screen: the cards you took, and the gear you bought */
@@ -129,7 +129,7 @@
 #upgrade.waiting .card.picked{transform:translateY(0) scale(1.04) rotate(0)!important}
 #upgrade.waiting .card:not(.picked){opacity:.5!important;filter:saturate(.55);transition:opacity .4s ease,filter .4s ease!important;transition-delay:0s!important}
 #upgrade.waiting #upSkip{opacity:0;transition-delay:0s}
-#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(216,105,44,.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
+#upgrade.waiting #upSkip.taken{opacity:1;transform:scale(1.14);outline-color:var(--orange);color:var(--ink);box-shadow:0 0 0 2px var(--orange),0 0 34px rgba(var(--acc),.55);transition:transform .32s cubic-bezier(.2,1.6,.4,1),box-shadow .3s ease,opacity .3s ease}
 .upWait{display:none;flex-direction:column;align-items:center;gap:6px;text-align:center}
 #upgrade.waiting .upWait{display:flex;animation:waitIn .35s ease both}
 .upWait b{font-family:var(--f-ui);font-weight:700;font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink)}

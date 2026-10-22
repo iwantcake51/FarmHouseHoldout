@@ -22,7 +22,7 @@
 .wlSub small{color:var(--dim);font-size:9px;letter-spacing:.06em}
 /* a group's choices stacked, the marker behind the one that's on */
 .wlGrp{position:relative;display:grid;gap:3px}
-.wlMark{position:absolute;left:0;right:0;top:0;height:var(--h,0);translate:0 var(--y,0);background:rgba(216,105,44,.16);border:1px solid rgba(216,105,44,.75);border-left-width:3px;box-sizing:border-box;pointer-events:none;
+.wlMark{position:absolute;left:0;right:0;top:0;height:var(--h,0);translate:0 var(--y,0);background:rgba(var(--acc),.16);border:1px solid rgba(var(--acc),.75);border-left-width:3px;box-sizing:border-box;pointer-events:none;
   transition:translate .3s cubic-bezier(.3,1.35,.5,1),height .3s cubic-bezier(.2,.8,.3,1)}
 .wlMark.still{transition:none}
 .wlGrp button{all:unset;position:relative;box-sizing:border-box;cursor:pointer;display:grid;gap:1px;padding:6px 9px 5px 11px;border:1px solid rgba(236,230,216,.1);background:rgba(236,230,216,.03);transition:border-color .15s,background .15s,color .15s}

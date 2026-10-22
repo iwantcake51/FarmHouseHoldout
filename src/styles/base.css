@@ -1,7 +1,7 @@
 /* Colour tokens, fonts, page and canvas basics. */
 /* Layout: full-bleed 3D field, HUD set straight on the picture in the four corners, paper index cards for upgrades */
 :root{
-  --ink:#ece6d8; --dim:#a39e90; --orange:#d8692c; --blood:#a3281c; --night:#15191b; --gold:#f0bf4c;
+  --ink:#ece6d8; --dim:#a39e90; --acc:216,105,44; --orange:rgb(var(--acc)); --orange-d:color-mix(in srgb,var(--orange) 86%,#2a1a12); --blood:#a3281c; --night:#15191b; --gold:#f0bf4c;
   --card:#e6decb; --card-ink:#28231e; --rule:#b4473a;
   --f-num:"Saira Extra Condensed","Arial Narrow",Impact,sans-serif;
   --f-ui:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -26,7 +26,7 @@ body.playing #c{cursor:none}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(163,158,144,.34);border:3px solid transparent;border-radius:8px;background-clip:padding-box;min-height:32px}
-::-webkit-scrollbar-thumb:hover{background-color:rgba(216,105,44,.7);border-width:2px}
+::-webkit-scrollbar-thumb:hover{background-color:rgba(var(--acc),.7);border-width:2px}
 ::-webkit-scrollbar-thumb:active{background-color:var(--orange);border-width:2px}
 ::-webkit-scrollbar-corner,::-webkit-scrollbar-button{display:none;background:transparent}
 *{scrollbar-width:thin;scrollbar-color:rgba(163,158,144,.42) transparent}

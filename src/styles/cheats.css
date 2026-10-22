@@ -24,7 +24,7 @@
 .chTg:hover{background:rgba(236,230,216,.08)}
 .chTg .sw{grid-row:span 2;position:relative;width:34px;height:18px;border-radius:9px;background:rgba(236,230,216,.16);transition:background .15s}
 .chTg .sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:translate .15s,background .15s}
-.chTg.on{border-color:rgba(216,105,44,.55);background:rgba(216,105,44,.1)}
+.chTg.on{border-color:rgba(var(--acc),.55);background:rgba(var(--acc),.1)}
 .chTg.on .sw{background:var(--orange)}
 .chTg.on .sw::after{translate:16px 0;background:#fff}
 .chTg b{font-size:12.5px;font-weight:600}
@@ -41,8 +41,8 @@
 .chGrp,.chBtns{display:flex;flex-wrap:wrap;gap:4px}
 .chBtns{margin-top:8px}
 .chBtn{padding:5px 9px;border:1px solid rgba(236,230,216,.2);border-radius:3px;background:rgba(236,230,216,.06);color:var(--ink);font:600 11px var(--f-ui);cursor:pointer;white-space:nowrap}
-.chBtn:hover:not(:disabled){background:rgba(216,105,44,.22);border-color:rgba(216,105,44,.7)}
-.chBtn:active:not(:disabled){background:rgba(216,105,44,.4)}
+.chBtn:hover:not(:disabled){background:rgba(var(--acc),.22);border-color:rgba(var(--acc),.7)}
+.chBtn:active:not(:disabled){background:rgba(var(--acc),.4)}
 .chBtn:disabled{opacity:.3;cursor:default}
 .chBtn small{display:block;color:var(--dim);font-weight:400;font-size:9.5px}
 .chBtn.have{background:rgba(120,190,80,.18);border-color:rgba(159,211,122,.65);color:#cdeeb2}
@@ -74,6 +74,6 @@
 .chDot.on{background:#9fd37a;box-shadow:0 0 6px rgba(159,211,122,.8)}
 .chFx .chGrp{flex:none}
 /* the reminder on the HUD while a switch is on */
-#cheatTag{top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:3px 10px;border:1px solid rgba(216,105,44,.45);border-radius:3px;background:rgba(12,14,15,.6);
+#cheatTag{top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:3px 10px;border:1px solid rgba(var(--acc),.45);border-radius:3px;background:rgba(12,14,15,.6);
   color:var(--orange);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
 @media (prefers-reduced-transparency:reduce){#cheat{background:rgba(12,14,15,.97);-webkit-backdrop-filter:none;backdrop-filter:none}}
