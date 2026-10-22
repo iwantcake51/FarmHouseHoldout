@@ -8,7 +8,7 @@
 
 const MUSIC = { files: ['sounds/menu_1.ogg', 'sounds/menu_2.ogg', 'sounds/menu_3.ogg', 'sounds/menu_4.ogg', 'sounds/menu_5.ogg', 'sounds/menu_6.ogg'],
   vol: 0.5, fade: 6, in: 3, out: 2.5, lp: 2300, echo: 0.32, ahead: 0.6 };
-const MUS = { bus: null, tracks: null, cur: null, order: [], last: -1, on: false };
+const MUS = { bus: null, tracks: null, cur: null, order: [], last: -1, on: false, leave: 0 };
 function musicInit() {
   if (!AC || MUS.bus) return;
   MUS.tracks = MUSIC.files.map(f => loadSound(f));
@@ -32,11 +32,21 @@ function musicStart(i, t, fade) {
   g.gain.setValueCurveAtTime(_musUp, t, fade); src.start(t);
   MUS.last = i; return { src, g, end: t + buf.duration, i };
 }
+// Start pressed on the title: the music goes on one slow, even fade from where it is down to nothing over sec seconds
+// (cineRun, ui/screens.js: timed to be gone halfway through the glide down onto you), left to run out on its own
+const _musOut = new Float32Array(48).map((_, i) => Math.cos(i / 47 * Math.PI / 2) ** 2);
+function musicLeave(sec) {
+  if (!AC || !MUS.bus) return;
+  const g = MUS.bus.gain, t = AC.currentTime, v = g.value;
+  try { g.cancelScheduledValues(t); g.setValueCurveAtTime(_musOut.map(k => k * v), t, sec); } catch (e) { g.setTargetAtTime(0, t, sec / 3); }
+  MUS.leave = t + sec;
+}
 // every frame: playing on the menus, the next piece lined up as this one nears its end, the volume as it's set
 function musicTick() {
   if (!AC) return; musicInit(); if (!MUS.bus) return;
   const want = (state === 'title' || state === 'dead') && SET.music > 0, t = AC.currentTime;
-  MUS.bus.gain.setTargetAtTime(want ? MUSIC.vol * SET.music / 100 * SET.vol / 100 : 0, t, want ? 0.6 : MUSIC.out / 3);
+  if (MUS.leave && (want && state !== 'title' || t > MUS.leave + 0.1)) MUS.leave = 0;   // (its fade out on Start runs to the end untouched)
+  if (!MUS.leave) MUS.bus.gain.setTargetAtTime(want ? MUSIC.vol * SET.music / 100 * SET.vol / 100 : 0, t, want ? 0.6 : MUSIC.out / 3);
   if (MUS.cur && MUS.cur.next && t > MUS.cur.end) MUS.cur = MUS.cur.next;
   if (!want) { if (MUS.cur && t > MUS.cur.end - 0.05) MUS.cur = null; return; }
   if (!MUS.cur || t > MUS.cur.end) { const i = musicNext(); if (i >= 0) MUS.cur = musicStart(i, t + 0.05, MUSIC.in); return; }

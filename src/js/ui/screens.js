@@ -82,22 +82,34 @@ const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStor
 // start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
 // for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
 function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
-// off the title, cinematically: the menu slides away as the picture slowly dims to black and letterbox bars close in
-// (CINE.out, ms), the run's set up in the dark (the new farm, every shader built), and after a held beat (hold) it
-// opens slowly out of black on the intro's glide down onto you, the bars drawing back over bars ms as you get up
-const CINE = { out: 1000, hold: 300, bars: 1500 };
+// off the title, cinematically. Start pressed: the menu drifts away line by line, the title camera starts a slow push
+// in on the farm (CINE.push: how far in, as a share of its zoom) as a vignette closes round it and letterbox bars come
+// in, and the picture dims to black (from CINE.dim ms in, over the rest of CINE.out); the music's been fading since
+// the press (audio/music.js: musicLeave), timed to be gone halfway through the glide down onto you. In the dark the run
+// is set up (the new farm, every shader built); after a held beat (hold) it opens slowly out of black and out of a
+// soft blur (CINE.blur ms) on the intro's glide down, the vignette lifting and the bars drawing back as you get up
+const CINE = { out: 1700, dim: 450, hold: 450, bars: 1600, push: 0.3, blur: 1700 };
+let cineT0 = 0;
+// the title camera's push in once Start's pressed (game/camera.js): an ease in, so it gathers pace into the dark
+const cinePush = () => cineT0 ? 1 + CINE.push * Math.pow(clamp((performance.now() - cineT0) / CINE.out, 0, 1), 2) : 1;
 function cineRun() {
   if (switching) return; switching = true;
-  const t = $('title'); t.classList.add('leaving'); t.classList.remove('arrive');
-  $('fadeVeil').classList.add('cine'); $('cineBars').classList.add('on'); veil(true);
+  const t = $('title'); t.classList.add('leaving', 'cineOut'); t.classList.remove('arrive');
+  cineT0 = performance.now(); document.body.classList.add('cineGo');
+  musicLeave((CINE.out + CINE.hold) / 1000 + INTRO.cam * 0.5);
+  $('fadeVeil').classList.add('cine'); $('cineBars').classList.add('on');
+  setTimeout(() => veil(true), CINE.dim);
   setTimeout(() => {
-    t.classList.remove('leaving');
+    t.classList.remove('leaving', 'cineOut'); cineT0 = 0;
+    cv.classList.add('cineBlur');   // (out of focus while it's dark, sharpening as the dark lifts)
     newRun(true, true);
     // (two frames, so the new view's been drawn, then the held beat)
     requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
       veil(false); switching = false;
-      setTimeout(() => $('cineBars').classList.remove('on'), CINE.bars * 0.4);
-      setTimeout(() => $('fadeVeil').classList.remove('cine'), CINE.bars * 1.6);
+      cv.classList.add('cineSharp'); cv.classList.remove('cineBlur'); document.body.classList.remove('cineGo');
+      setTimeout(() => cv.classList.remove('cineSharp'), CINE.blur + 100);
+      setTimeout(() => $('cineBars').classList.remove('on'), CINE.bars * 0.5);
+      setTimeout(() => $('fadeVeil').classList.remove('cine'), CINE.bars * 1.8);
     }, CINE.hold)));
   }, CINE.out);
 }
