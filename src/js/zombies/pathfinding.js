@@ -1,18 +1,30 @@
 // Flow field toward the player, or every player in co-op (Dijkstra over the grid); fences, boards and a shut door
 // between rooms (DOOR.cost, world/interior.js: it's broken down on the way) cost extra.
 
+import { clamp, mix, N, rand } from '../core/math.js';
+import { netLink } from '../net/net.js';
+import { cell, ci, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from '../world/grid.js';
+import { doorBetween, wallBetween } from '../world/thin-walls.js';
+import { HOUSE_FP, openings } from '../world/house.js';
+import { DOOR } from '../world/interior.js';
+import { hardBlocked } from '../world/collision.js';
+import { zombies } from './zombie-types.js';
+import { barN } from '../barricades/planks.js';
+import { INSIDE, insideK } from './ai.js';
+import { netTargets } from '../net/sync.js';
+
 // brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door. A boarded
 // window's on their way too (they smash the boards off it, zombies/ai.js), but once it's bare it's shut to them again
-const dist = new Float32Array(N * N), distB = new Float32Array(N * N);
+export const dist = new Float32Array(N * N), distB = new Float32Array(N * N);
 const hp_ = [], hd_ = [];
 function hpush(c, d) { hp_.push(c); hd_.push(d); let k = hp_.length - 1; while (k) { const p = (k - 1) >> 1; if (hd_[p] <= hd_[k]) break; [hp_[p], hp_[k]] = [hp_[k], hp_[p]]; [hd_[p], hd_[k]] = [hd_[k], hd_[p]]; k = p; } }
 function hpop() { const c = hp_[0], d = hd_[0], lc = hp_.pop(), ld = hd_.pop(); if (hp_.length) { hp_[0] = lc; hd_[0] = ld; let k = 0; for (;;) { const a = 2 * k + 1, b = a + 1; let m = k; if (a < hp_.length && hd_[a] < hd_[m]) m = a; if (b < hp_.length && hd_[b] < hd_[m]) m = b; if (m === k) break; [hp_[m], hp_[k]] = [hp_[k], hp_[m]]; [hd_[m], hd_[k]] = [hd_[k], hd_[m]]; k = m; } } return [c, d]; }
 // what each board in its way costs a brute's route, against 5 for anyone else's: they make short work of boards
 const BRUTE_BOARD_COST = 2.5;
-const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+export const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window' && !openAt[idx(i, j)].boards.length) return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = barN(o); return b ? 1 + b * (big ? BRUTE_BOARD_COST : 5) : o.kind === 'window' ? 2.2 : 1; } return 1; }
-function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i, j + dj); }
-function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
+export function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i, j + dj); }
+export function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
 function flowInto(dist, big) {
   dist.fill(1e9); hp_.length = 0; hd_.length = 0;
   // from every survivor still standing at once (in co-op there can be four), so each zombie heads for whoever's nearest
@@ -38,7 +50,7 @@ function flowInto(dist, big) {
 // in (pickEntry) and walks to that, then on to you once it's through. Each window and the door has its own field, the
 // walk to it from anywhere outside with the house's other openings shut, worked out the first time it's wanted (the
 // fences and furniture don't move; boards are torn at when it gets there)
-const viaF = new Map();
+export const viaF = new Map();
 const houseCell = (i, j) => inb(i, j) && HOUSE_FP[idx(i, j)] > 0;   // (this run's footprint: world/house.js)
 function viaField(o) {
   let f = viaF.get(o); if (f) return f;
@@ -73,7 +85,7 @@ function pickEntry(z) {
 }
 // the field a zombie steers by: a brute's own (it can only come in by the door); outside while its target's indoors,
 // the one for the way in it was given; otherwise the way to whoever's nearest
-function zField(z, t) {
+export function zField(z, t) {
   if (z.type === 'brute') return distB;
   const i = ci(z.x), j = ci(z.z);
   if (z.out || !houseCell(ci(t.x), ci(t.z)) || houseCell(i, j)) { z.via = null; return dist; }

@@ -1,12 +1,36 @@
 // Dealing, showing and picking upgrade cards, and the upgrade history.
 
+import { $ } from '../core/dom.js';
+import { GI, GI_VB } from '../ui/game-icons.js';
+import { rand, rr } from '../core/math.js';
+import { netLink } from '../net/net.js';
+import { P } from '../player/player.js';
+import { SLOT_NAME } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { MODS } from '../melee/melee-mods.js';
+import { TIERS } from './tier-table.js';
+import { curId, run, S, T } from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { closeStation, starFillSvg, starRow, tierRars } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun, setStateRaw, state } from '../game/state.js';
+import { setMouseDown, setMouseDownR } from '../input/keyboard-mouse.js';
+import { beginBreak } from '../waves/waves.js';
+import { AID_CHANCE, AID_TWO, aidNeed, findKind, kindTag, RAR, UPG } from './upgrades.js';
+import { CHIP_MARK, chipCls, STACKS, stackTotal, upgradeInfo } from './upgrade-info.js';
+import { burnCards } from './card-burn.js';
+import { setState } from '../ui/screens.js';
+import { feed, popEl, setAnnT } from '../ui/hud-text.js';
+import { gunCall } from '../ui/gear-popup.js';
+import { listNames, netChoosing, netPicked } from '../net/sync.js';
+
 let dealt = [], cardsArmed = false, armTimer = 0;
 // every BONUS_EVERY waves (5, 10, 15...) a second hand follows the first: skills and perks only, no aid or weapons
 const BONUS_EVERY = 5;
-let bonusHand = false;
+export let bonusHand = false;
 const bonusKind = u => ['Skill', 'Perk'].includes(findKind(u, u));
 // (and only while there's a skill or perk left to give)
-const bonusDue = () => run.wave > 0 && run.wave % BONUS_EVERY === 0 && UPG.some(u => (!u.can || u.can()) && bonusKind(u));
+export const bonusDue = () => run.wave > 0 && run.wave % BONUS_EVERY === 0 && UPG.some(u => (!u.can || u.can()) && bonusKind(u));
 // or take none of them and SKIP_SCRAP scrap instead (from the first to the second, rolled with each hand)
 const SKIP_SCRAP = [5, 10];
 let skipScrap = 0;
@@ -69,7 +93,7 @@ function dealCards(bonus) {
   });
 }
 // the list of upgrades taken this run, newest first, with what each one does
-function renderHistory(list, countEl) {
+export function renderHistory(list, countEl) {
   const el = $(list); el.innerHTML = ''; $(countEl).textContent = run.taken.length;
   if (!run.taken.length) { el.innerHTML = '<div class="none">Nothing yet. Clear a wave to pick your first skill, perk or aid.</div>'; return; }
   run.taken.slice().reverse().forEach(h => {
@@ -80,17 +104,17 @@ function renderHistory(list, countEl) {
     el.appendChild(r);
   });
 }
-function openUpgrade(bonus) {
+export function openUpgrade(bonus) {
   closeStation(); bonusHand = !!bonus;
   $('upEyebrow').textContent = bonus ? `Wave ${run.wave} bonus · every ${BONUS_EVERY} waves, one more` : 'Wave ' + run.wave + ' cleared · ' + run.kills + ' kills so far';
   $('upKinds').textContent = bonus ? 'Skills · Perks' : 'Skills · Perks · Aid';
   $('upHead').textContent = bonus ? 'One more' : 'Take one';
   $('upgrade').classList.toggle('bonus', bonusHand);
-  dealCards(bonus); cardsArmed = false; mouseDown = mouseDownR = false;
+  dealCards(bonus); cardsArmed = false; setMouseDown(false); setMouseDownR(false);
   setState('upgrade');
   const el = $('upgrade'); el.classList.remove('show', 'armed', 'waiting');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
-  $('announce').style.opacity = 0; annT = 0;
+  $('announce').style.opacity = 0; setAnnT(0);
   clearTimeout(armTimer);
   armTimer = setTimeout(() => { if (state !== 'upgrade') return; cardsArmed = true; el.classList.add('armed'); }, 1000);
   startCardClock();
@@ -147,7 +171,7 @@ function skipCards() {
 // one bumping the count as it lands (one bit for every scrap or so, up to SCRAP_BITS); or into another element (to),
 // which flashes as each lands (its 'got' class: a teammate's card at the strongbox, net/teamwork.js)
 const SCRAP_BITS = 10;
-function scrapFly(el, n, to) {
+export function scrapFly(el, n, to) {
   const land = () => { if (!to) { popEl('scrap'); return; } to.classList.remove('got'); void to.offsetWidth; to.classList.add('got'); };
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) { land(); return; }
   const a = el.getBoundingClientRect(), t = (to || $('scrap')).getBoundingClientRect(), tx = t.width ? t.left + t.width / 2 : 40, ty = t.height ? t.top + t.height / 2 : 30;
@@ -173,9 +197,9 @@ function scrapFly(el, n, to) {
 // too (their pose says which hand they last chose from: cw, net/avatars.js); then the rest burn and it goes. Not past
 // PICK_WAIT_MAX seconds after your own clock ran out, for someone who stops answering. Hands are counted, not waves, so
 // a bonus wave's second hand waits for everyone like the first
-const handNo = () => run.wave * 2 + (bonusHand ? 1 : 0);
+export const handNo = () => run.wave * 2 + (bonusHand ? 1 : 0);
 const PICK_WAIT_MAX = 12;
-let pickWait = null, waitClock = 0;
+export let pickWait = null, waitClock = 0;
 function settleUpgrade(burn) {
   run.cardHand = handNo(); netPicked();
   if (!netLink() || !netChoosing().length) { leaveUpgrade(burn); return; }
@@ -195,7 +219,7 @@ function leaveUpgrade(burn) {
   const el = $('upgrade'); clearInterval(cardClock);
   el.classList.remove('armed'); el.classList.add('picking');
   burnCards(burn);
-  state = 'leaving';
+  setStateRaw('leaving');
   setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled)
   // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
   setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); }, 1800);

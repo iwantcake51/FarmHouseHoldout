@@ -2,15 +2,37 @@
 // opening in place of the three boards, a cage of rebar on the inside face and, tier by tier, steel plate bolted over
 // more of the outside. How it wears under the blows, how it breaks, and the bench itself.
 
+import { GI } from '../ui/game-icons.js';
+import { scene, V3 } from '../core/renderer.js';
+import { clamp, rand, rr, smooth } from '../core/math.js';
+import { lam } from '../core/shaders.js';
+import { box, finePieces, mergeInto, unfight } from '../core/geometry.js';
+import { openings } from '../world/house.js';
+import { torus, xcyl, ycyl, zcyl } from '../world/props.js';
+import { STATIONS } from '../stations/stations.js';
+import { P } from '../player/player.js';
+import { run, S } from '../game/run-state.js';
+import { burst } from '../effects/particles.js';
+import { fx, sparkBurst } from '../effects/puffs.js';
+import { BOARD_HP, BRACE, braceMul, METAL, setFlowDirty, setLightsDirty } from './planks.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { runStat } from '../ui/run-stats.js';
+import { feed, popEl } from '../ui/hud-text.js';
+import { visAt } from '../lighting/vision.js';
+import { openSide } from '../zombies/ai.js';
+import { gotGear } from '../ui/gear-popup.js';
+import { netMetal } from '../net/sync.js';
+
 // a grate costs GRATE.cost metal (the plank count: S.planks) and takes GRATE.t of holding F at your boarding speed
 // (boardRate: slower again in a wave) to bolt up, against BOARD_T for each board; GRATE.tear of holding C to wrench
 // down. Bare, it's GRATE.over times as strong as three boards braced all the way (BRACE.max) together, times the
 // hammers' S.boardMul, and each tier of plating (GRATE.up: its price, dearer each time) makes every grate GRATE.tierHp
 // stronger again
-const GRATE = { cost: 3, t: 2.6, tear: 2.4, over: 1.25, tierHp: 0.3, tiers: 5, rows: 5, up: [18, 26, 36, 48, 64], slitY: 1.45, slitH: 0.05, slitW: 0.24 };
-const METAL_COST = 25;   // the metalwork bench itself, once the boards are braced all the way (BRACE.max)
-const METAL_AID = 6;   // the Scrap metal aid card after a wave (upgrades/upgrades.js): two grates' worth
-const METAL_DROP = 0.72;   // metal drops a little less often than planks (zombies/damage.js: the planks roll is 0.6 to 0.75)
+export const GRATE = { cost: 3, t: 2.6, tear: 2.4, over: 1.25, tierHp: 0.3, tiers: 5, rows: 5, up: [18, 26, 36, 48, 64], slitY: 1.45, slitH: 0.05, slitW: 0.24 };
+export const METAL_COST = 25;   // the metalwork bench itself, once the boards are braced all the way (BRACE.max)
+export const METAL_AID = 6;   // the Scrap metal aid card after a wave (upgrades/upgrades.js): two grates' worth
+export const METAL_DROP = 0.72;   // metal drops a little less often than planks (zombies/damage.js: the planks roll is 0.6 to 0.75)
 const grateHp = () => 3 * BOARD_HP * braceMul(BRACE.max) * GRATE.over * S.boardMul * (1 + GRATE.tierHp * METAL.tier);
 const GRATE_PLACE = 0.7, GRATE_BOLTS = [0.45, 0.66, 0.86];
 
@@ -100,7 +122,7 @@ function buildGrate(o, tier, face = 1) {
 }
 // a grate bolted up across o: hp and sd as addBoard's (a teammate's grate: how strong, which side they stood), h0 what
 // it went up out of (its full strength, for how worn it looks)
-function addGrate(o, hp, sd, h0) {
+export function addGrate(o, hp, sd, h0) {
   if (o.boards.length) return;
   const mine = hp === undefined;
   o.boards.push(mine ? grateHp() : hp);
@@ -112,24 +134,24 @@ function addGrate(o, hp, sd, h0) {
   const clank = () => mine ? SFX.clang(0.55) : soundAt(o.x, o.z, () => SFX.clang(0.55));
   GRATE_BOLTS.forEach(k => setTimeout(clank, k * GRATE_PLACE * 1000));
   burst(o.x + o.nx * side * .55, (G.y0 + G.y1) / 2, o.z + o.nz * side * .55, 4, 'dust');
-  flowDirty = true; lightsDirty = true;
+  setFlowDirty(true); setLightsDirty(true);
 }
 // the plating changed (a tier bought): every grate is taken down and put back up with its new plate, made good, the
 // sheets swinging in one after another
-function regrate(o) {
+export function regrate(o) {
   const G0 = o.grate; if (!G0) return;
   const h0 = G0.hp0 * (1 + GRATE.tierHp * METAL.tier) / (1 + GRATE.tierHp * G0.tier);
   o.bg.remove(G0.g); o.meshes.length = 0;
   const G = buildGrate(o, METAL.tier, G0.face); G.hp0 = h0; o.boards[0] = h0; G.disp = 1;
   G.plates.forEach((p, k) => { p.inT = -k * 0.16; });
   o.grate = G; o.bg.add(G.g); o.meshes.push(G.g); grateStep(o, 0);
-  lightsDirty = true;
+  setLightsDirty(true);
 }
 // ---- wear: every frame, the grate as beaten as its hp says (eased, so a joiner's steps between the host's word on it
 // don't jump): plate by plate it's worked loose, hangs from its top bolt and swings down, then drops off; with the
 // plate gone the bars are beaten in, kinking at their middles, till they snap off their welds and fall; the straps go
 // last. A blow shakes the lot
-function grateStep(o, dt) {
+export function grateStep(o, dt) {
   const G = o.grate; if (!G) return;
   G.t += dt; G.disp += (clamp(o.boards[0] / (G.hp0 || 1), 0, 1) - G.disp) * Math.min(1, dt * 6 || 1);
   const d = G.disp, j = G.jolt = Math.max(0, G.jolt - dt * 3.4), shk = Math.sin(G.t * 47) * j;
@@ -153,7 +175,7 @@ function grateStep(o, dt) {
     p.g.position.y = p.g.userData.y0 === undefined ? (p.g.userData.y0 = p.g.position.y) : p.g.userData.y0 + sl * 0.3;
     p.g.visible = p.inT > 0;
   }
-  const shut = held >= 3; if (shut !== G.shut) { G.shut = shut; lightsDirty = true; }
+  const shut = held >= 3; if (shut !== G.shut) { G.shut = shut; setLightsDirty(true); }
   for (const b of G.bars) {
     if (!b.on) continue;
     if (d < b.th) { barOff(o, b); continue; }
@@ -168,7 +190,7 @@ function grateStep(o, dt) {
   }
 }
 // pieces of grate on the ground: steel that clangs where it lands (weapons/casings.js's debris), a while, then gone
-const looseMetal = [];
+export const looseMetal = [];
 function metalOff(m, o, kind, r, lay, f) {
   m.updateMatrixWorld(true); const wp = new V3(), wq = new THREE.Quaternion(); m.getWorldPosition(wp); m.getWorldQuaternion(wq);
   if (m.parent) m.parent.remove(m); m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq); scene.add(m);
@@ -190,7 +212,7 @@ function barOff(o, b) {
 function strapOff(o, s) { s.on = false; metalOff(s.g, o, 'bar', 0.006, layFlat); soundAt(o.x, o.z, () => SFX.clang(0.5)); }
 // a blow on the grate (boardJolt): the lot shakes in its bolts, sparks and flakes of paint and rust fly off where it
 // landed, and it rings; a brute's (big) twice as hard
-function grateJolt(o, z, big) {
+export function grateJolt(o, z, big) {
   const G = o.grate; if (!G) return;
   G.jolt = Math.min(1.4, G.jolt + (big ? 1.1 : 0.7));
   if (!z) return;
@@ -213,7 +235,7 @@ function flake(x, y, z, dx, dz) {
   while (looseMetal.length > 60) { const q = looseMetal.shift(); scene.remove(q.g); }
 }
 // the grate torn out (breakBoard): what's left of it thrown toward whoever broke it, sparks everywhere, a crash of steel
-function breakGrate(o, z) {
+export function breakGrate(o, z) {
   const G = o.grate; o.boards.pop(); o.meshes.pop(); if (!G) return;
   const sd = z ? openSide(o, z.x, z.z) : -openSide(o, P.x, P.z); G.push = -sd;   // (metalOff throws it the other way to the push: toward sd)
   G.plates.forEach(p => { if (p.on) { p.on = false; metalOff(p.g, o, 'plate', 0.012, layFlat, 1.8); } });
@@ -223,12 +245,12 @@ function breakGrate(o, z) {
   const x = o.x + o.nx * sd * 0.5, zz = o.z + o.nz * sd * 0.5, y = (G.y0 + G.y1) / 2;
   sparkBurst(x, y, zz, 22, o.nx * sd, o.nz * sd, 3); burst(x, y, zz, 8, 'dust', o.nx * sd, o.nz * sd, 2);
   soundAt(o.x, o.z, () => { SFX.snapMetal(); SFX.clang(1.2); }); setTimeout(() => soundAt(o.x, o.z, () => SFX.clang(0.9)), 90);
-  flowDirty = true; lightsDirty = true;
+  setFlowDirty(true); setLightsDirty(true);
 }
 
 // ---- the bench: the sawhorse made over into a metalwork bench. METAL is the team's (every window, every teammate's
 // screen): on once anyone's built it, tier how much plate the grates carry
-function forgeMetal() {
+export function forgeMetal() {
   applyMetal(true, 0, true); netMetal();
   feed('metal', 0, 'Metalwork bench built');
   gotGear({ ic: 'metal', kind: 'Sawhorse', name: 'Metalwork bench', text: `Bar windows and doors with steel grates, ${GRATE.cost} metal each. Tear the boards down first.` });
@@ -236,7 +258,7 @@ function forgeMetal() {
 // on: whether there's a metalwork bench; tier: the grates' plating; fx: the bench changes in a cloud of smoke here.
 // The boards already up stay up (tear them down to bar the opening instead); the planks you carry are no use now and
 // gone, so you start on metal from nothing; the grates up are rebuilt for the new plate
-function applyMetal(on, tier, fx) {
+export function applyMetal(on, tier, fx) {
   const was = METAL.on, t0 = METAL.tier;
   METAL.on = on; METAL.tier = on ? tier : 0;
   if (on !== was) { benchLook(on, fx); metalIcons(on); }
@@ -265,7 +287,7 @@ function metalIcons(on) {
   document.querySelectorAll('svg[data-gi="planks"]').forEach(s => { s.innerHTML = on ? GI.metal : GI.planks; if (s.parentElement) s.parentElement.title = on ? 'Metal' : 'Planks'; });
 }
 // what you carry to bar the openings with, by name and by icon
-const matWord = () => METAL.on ? 'metal' : 'planks', matKind = () => METAL.on ? 'metal' : 'planks';
+export const matWord = () => METAL.on ? 'metal' : 'planks', matKind = () => METAL.on ? 'metal' : 'planks';
 // ---- the metalwork bench: a fabrication bench as a farm shop has one, built from what it's for. A thick steel top,
 // worn bright in the middle and flecked with weld spatter, on square-tube legs with rails round the top and the
 // bottom; a steel shelf under it with a MIG welder on it, its gun and lead hung up on the leg, and lengths of tube

@@ -1,8 +1,37 @@
 // The HUD each frame.
 
+import { $ } from '../core/dom.js';
+import { cam, cv, V3 } from '../core/renderer.js';
+import { cache, clamp, smooth } from '../core/math.js';
+import { P } from '../player/player.js';
+import { roundHue, roundName, roundOn } from '../weapons/rounds.js';
+import { fireModeOf, fireModes, modName } from '../weapons/mod-levels.js';
+import { curId, magCap, run, S, W, W8 } from '../game/run-state.js';
+import { gunExtras } from '../weapons/build-weapons.js';
+import { timeScale } from '../game/hit-feedback.js';
+import { eyeK } from '../zombies/damage.js';
+import { PLANK_MAX } from '../barricades/planks.js';
+import { AC, muff, tn } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { hurtFx, phase, setHurtFx, state } from '../game/state.js';
+import { hasMouse } from '../input/keyboard-mouse.js';
+import { scoped } from '../player/aiming.js';
+import { usingTouch } from '../input/touch.js';
+import { AK_ON, akBusy, akMags, akPer } from '../weapons/akimbo.js';
+import { bandHeal, bandProg } from '../player/bandages.js';
+import { renderSlots, setRoll, setT } from './hud-text.js';
+import { xhHit } from '../player/shaky-hands.js';
+import { hitCam } from '../game/camera.js';
+import { heartStartle, updateHeart } from './vitals.js';
+import { renderMoodles } from './moodles.js';
+import { hudMag, renderRounds } from './rounds.js';
+import { renderMeleeArt } from './melee-art.js';
+import { ANIM, hurtFace } from '../player/animation.js';
+import { spectating } from '../net/spectate.js';
+
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
-const BASE_HP = 100;
+export const BASE_HP = 100;
 // the stamina you've used and not yet won back (everything past the fill), and whether it's coming back yet ('back',
 // dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
 function stamDrain(rdt) {
@@ -12,7 +41,7 @@ function stamDrain(rdt) {
   else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
   else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
 }
-function updateHUD(rdt, D) {
+export function updateHUD(rdt, D) {
   // stamina readout eases toward the real value so it never jumps
   ANIM.stamD = (ANIM.stamD === undefined ? 1 : ANIM.stamD) + (P.stam - (ANIM.stamD === undefined ? 1 : ANIM.stamD)) * Math.min(1, rdt * 10);
   // and what you've used (a sprint, a swing, a shove, a vault) shows just past the fill, here and on the crosshair's ring
@@ -24,7 +53,7 @@ function updateHUD(rdt, D) {
     if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
       const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
   if (state === 'title') return;
-    hurtFx = Math.max(0, hurtFx - rdt * 2);
+    setHurtFx(Math.max(0, hurtFx - rdt * 2));
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
     const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
@@ -97,21 +126,21 @@ function renderFireMode(id) {
 }
 // switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
 // for a moment, and the HUD's rounds roll over to it
-function fireModeSwitched(id) {
+export function fireModeSwitched(id) {
   SFX.click(); tn(0.03, 'square', 900, 700, 0.06); setTimeout(() => tn(0.025, 'square', 1350, 1050, 0.05), 70);
   const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
   x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
   renderFireMode(id);
 }
 // X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
-function roundSwitched(id) {
+export function roundSwitched(id) {
   SFX.click(); setTimeout(() => SFX.click(), 90);
   const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
 }
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
+export let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
 // how strong the hurt blur is on the side of a blow, how long it takes to clear (seconds, for a normal hit), and how
 // strong all round while you bleed, between throbs and at the height of one
 const HURT_BLUR = { hit: 0.95, clear: 1.1, bleed: [0.3, 0.55] };
@@ -131,14 +160,14 @@ const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and h
 // the side a blow came from, for the red flash and the blur on that side
 function setHitSide(x, y) { for (const id of ['hitVig', 'hitBlur']) { const el = $(id); el.style.setProperty('--hx', x); el.style.setProperty('--hy', y); } }
 // (amount: how hard the blow, for how hard your sight blurs on that side and how long it takes to clear; 1 a zombie's swipe)
-function hitFromAt(x, z, amount) {
+export function hitFromAt(x, z, amount) {
   hurtFace(amount || 1);   // (and you wince: player/animation.js)
   hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
   xhHit(x, z, amount);   // (and the crosshair with it: player/shaky-hands.js)
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
   hitBlurK = clamp(amount || 1, 0.5, 2);
-  if (l < 2) { hurtFx = 1; heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
+  if (l < 2) { setHurtFx(1); heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
   const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;
   setHitSide((hx * 100).toFixed(1) + '%', (hy * 100).toFixed(1) + '%');
   hitVigUp = true; heartStartle(); hitBlurV = Math.max(hitBlurV, Math.min(1, 0.55 + 0.25 * hitBlurK));
@@ -162,3 +191,8 @@ function damageVignettes(rdt) {
   if (cache.bleedVig !== bo) { cache.bleedVig = bo; $('bleedVig').style.opacity = bo; $('vitals').style.setProperty('--bp', bp); $('moodles').style.setProperty('--bp', bp); }
   if (cache.bleeding !== bleeding) { cache.bleeding = bleeding; $('vitals').classList.toggle('bleed', bleeding); }
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setHitVig(v) { return (hitVig = v); }
+export function setHitVigUp(v) { return (hitVigUp = v); }
+export function setBleedVig(v) { return (bleedVig = v); }

@@ -1,6 +1,21 @@
 // Laser sight beams: straight out of each laser's lens along its gun's barrel, on the gun in your hands only.
 // The taped-on pointer is red; the mounted laser sight (tier 2) is green.
 
+import { scene, V3 } from '../core/renderer.js';
+import { clamp, smooth } from '../core/math.js';
+import { NET, netLink } from '../net/net.js';
+import { thinNear } from '../world/thin-walls.js';
+import { surfaceY } from '../world/house.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { T, W8 } from '../game/run-state.js';
+import { HOLDS } from './gun-materials.js';
+import { glowTex } from '../effects/textures.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { state } from '../game/state.js';
+import { scoped } from '../player/aiming.js';
+import { zRay } from './firing.js';
+
 // the beam is a ribbon turned to face the camera (so it reads the same from any angle), shaded as light rather than a
 // stick: a thin white-hot core inside a soft coloured glow that shimmers along its length, dust motes drifting out
 // along it catching the light, faded in from the lens and out again with distance (LASER_FADE: where it starts to go,
@@ -57,7 +72,7 @@ const LASER_LOOK = { 1: { w: 0.1, op: 0.62, halo: 0.34, core: 0.08, lens: 0.12, 
 // needed
 const beams = new Map(), _lsA = new V3(), _lsD = new V3(), _lsB = new V3(), _lsQ = new THREE.Quaternion();
 const shownInWorld = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
-function updateLaser(D) {
+export function updateLaser(D) {
   const on = state === 'play' && !P.dead, used = new Set();
   if (on) {
     // the gun in your hands

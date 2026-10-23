@@ -1,9 +1,26 @@
 // Moths, pollen motes, night mist and fireflies.
 
+import { $ } from '../core/dom.js';
+import { cam, DPR, scene, V3 } from '../core/renderer.js';
+import { mix, rand, rr } from '../core/math.js';
+import { LMU } from '../core/shaders.js';
+import { BLOB_TEX } from '../core/geometry.js';
+import { cxw } from './grid.js';
+import { HZ1, ROAD } from './ground.js';
+import { HOUSE, inHouseRect } from './house.js';
+import { BURN_BARREL } from './props.js';
+import { FX0, FX1, FZ0, FZ1 } from './fence.js';
+import { updatePushers } from './trees.js';
+import { stepWind, windAt, WX } from './wind.js';
+import { worldK, worldT } from '../game/state.js';
+import { titleBlend } from '../game/intro.js';
+import { curDark } from '../lighting/day-night.js';
+import { camTarget } from '../game/camera.js';
+
 // inside the house's walls (plus a margin): the bugs and motes keep out
 const inHouse = (x, z, m) => inHouseRect(x, z, m);
 // moths that circle the lamps and the fire after dark
-const moths = (() => {
+export const moths = (() => {
   const centres = [[cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.42], BURN_BARREL.moths];   // outdoor lights only (the barrel's moves each run: world/yard.js)
   const seed = [];
   // a few round each light, not a swarm
@@ -55,7 +72,7 @@ for (let k = 0; k < 14; k++) {
 // the weather: a fog level that drifts toward a new target every minute or so, so banks of fog roll in and burn off
 const fogW = { lv: 0.3, to: 0.3, t: 20 };
 const _aw = { x: 0, z: 0 };
-function stepAtmos(realDt) {
+export function stepAtmos(realDt) {
   const rdt = realDt * worldK, t = worldT, day = 1 - curDark;   // ambient motion runs on the world clock, so it freezes with the world
   stepWind(rdt);   // which way the wind blows and how hard (world/wind.js)
   updatePushers();   // the grass and bushes parting round you and the zombies near you (world/trees.js)
@@ -109,7 +126,7 @@ function stepAtmos(realDt) {
   }
 }
 // fireflies at night: a scattered handful over the whole farm
-const fireflies = (() => {
+export const fireflies = (() => {
   const n = 14, pos = new Float32Array(n * 3), seed = [];
   // they drift up to 1.2 m either way, so none is seeded within that of the house and none wanders in
   while (seed.length < n) { const x = rr(cxw(FX0), cxw(FX1)), z = rr(cxw(FZ0), cxw(FZ1)); if (!inHouse(x, z, 1.4)) seed.push({ x, z, y: rr(0.4, 1.6), p: rand() * 6, s: rr(0.3, 0.8) }); }

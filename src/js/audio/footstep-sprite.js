@@ -1,7 +1,7 @@
 // Where each footstep sits in src/sounds/footsteps.mp3: surface.kind -> [start, length] in seconds. Written by
 // tools/pack-footsteps.py from assets/sounds/Footsteps.zip; run that again rather than editing this by hand.
 
-const FOOT_SPRITE = {
+export const FOOT_SPRITE = {
   'wood.walk': [[0.0,0.3513],[0.4713,0.3092],[0.9005,0.3783],[1.3988,0.375],[1.8938,0.4139],[2.4276,0.4466],[2.9942,0.5121],[3.6263,0.3653],[4.1116,0.3898],[4.6214,0.4557]],
   'wood.run': [[5.1971,0.2632],[5.5804,0.3506],[6.051,0.2936],[6.4646,0.3176],[6.9022,0.3207],[7.3429,0.2883],[7.7512,0.3261],[8.1974,0.3194],[8.6368,0.3348],[9.0916,0.296]],
   'wood.land': [[9.5075,0.3583],[9.9859,0.2256]],

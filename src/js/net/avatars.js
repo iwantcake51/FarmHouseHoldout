@@ -3,6 +3,43 @@
 // in between), with the weapon they're holding in their hands and their name over their head. Their shots are drawn
 // and heard here too: the tracer, the flash and the bang, quieter the further off they are.
 
+import { $ } from '../core/dom.js';
+import { cam, scene, V3 } from '../core/renderer.js';
+import { angDiff, clamp, rr, smooth } from '../core/math.js';
+import { outline } from '../effects/screen-outlines.js';
+import { NET, NET_COL, NET_ON, netLink, netSend, netTo } from './net.js';
+import { lam } from '../core/shaders.js';
+import { blobShadow, mergeInto } from '../core/geometry.js';
+import { bandPouch2, bandRolls, KNEE_Y, P, PACK, PM, PM_BASE, PM_BASE_SRC } from '../player/player.js';
+import { buildLook, dealLook, faceGroups, faceMood, LOOK, shade } from '../player/look.js';
+import { SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { curId, magCap, run, S, T, W, W8 } from '../game/run-state.js';
+import { gearOnAvatar } from '../player/gear.js';
+import { FLASH_COL, flashRGB } from '../effects/muzzle-flash.js';
+import { smoke } from '../effects/smoke.js';
+import { tracer } from '../effects/tracers.js';
+import { dropCopy, makeDrop, stepDrop } from '../effects/weapon-drop.js';
+import { fx } from '../effects/puffs.js';
+import { stepRagdoll } from '../zombies/deaths.js';
+import { xray } from '../effects/outlines.js';
+import { flashes } from '../weapons/explosives.js';
+import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
+import { footstep } from '../audio/footsteps.js';
+import { setLmT, state } from '../game/state.js';
+import { aimPt } from '../input/keyboard-mouse.js';
+import { AK_ON, akMags, akPer } from '../weapons/akimbo.js';
+import { bandHeal, bandProg } from '../player/bandages.js';
+import { bonusDue, bonusHand, pickWait } from '../upgrades/upgrade-screen.js';
+import { flDir, myLight } from '../lighting/lightmap.js';
+import { hudMag } from '../ui/rounds.js';
+import { endSurvivorRagdoll, survivorRagdoll } from '../player/player-ragdoll.js';
+import { ANIM } from '../player/animation.js';
+import { turnedDown } from './sync.js';
+import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
+import { teamDown } from './lobby.js';
+import { myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
+
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
 const POSE_N = POSE_K.length;   // (the weapons come separately: net/arsenal.js)
@@ -13,7 +50,7 @@ const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100
 // be drawn a moment ahead on their screens instead of a moment behind
 const POSE_HZ = 15;
 let poseDr = 0, poseT = 0, poseX = 0, poseZ = 0, poseAt = 0, poseWid = '', poseWnAt = 0;
-function poseOut(rdt) {
+export function poseOut(rdt) {
   if (!netLink()) return;
   poseT -= rdt; if (poseT > 0) return; poseT = 1 / POSE_HZ;
   const j = [];
@@ -111,7 +148,7 @@ NET_ON.wdrop = m => {
   const id = p.lo && p.lo.slots[SLOTS[m.s]]; p.drop = makeDrop(c.g, c.h, m.v, m.w, !!(WEAP[id] || {}).melee);
 };
 function dropGone(p) { if (p.drop) { scene.remove(p.drop.g); p.drop = null; } }
-function netDropAvatar(p) {
+export function netDropAvatar(p) {
   dropGone(p);
   const a = p.av; if (!a) return;
   scene.remove(a.g); if (a.blob) scene.remove(a.blob); if (a.tag) a.tag.remove();
@@ -128,7 +165,7 @@ NET_ON.p = m => {
 };
 // every frame: each teammate's survivor eased toward their last pose, their name over them
 const _tagV = new V3(), TAG_GONE = { stay: 2.5, fade: 1.5 };
-function updateAvatars(rdt) {
+export function updateAvatars(rdt) {
   updateSpecXh(rdt); updateSpecDrops();   // (the crosshair and the drops of whoever you're watching: net/spectate.js)
   const show = netLink() && (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving' || state === 'dead');
   for (const p of NET.peers.values()) {
@@ -186,7 +223,7 @@ function updateAvatars(rdt) {
   }
 }
 // ---- their shots: what your own would show, from where they stand
-function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
+export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
   netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2])]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
@@ -195,7 +232,7 @@ NET_ON.shot = m => {
   for (const e of m.e) tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
   if (!m.q) {   // their flash, in the colour of what they fired, and the light it throws
     const col = flashRGB(m.dr ? FLASH_COL.dragon : m.sh ? FLASH_COL.shells : FLASH_COL.p9);
-    flashes.push({ x: m.x, y: m.y, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col, t: 0.07, max: 0.07 }); lmT = 0;
+    flashes.push({ x: m.x, y: m.y, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col, t: 0.07, max: 0.07 }); setLmT(0);
     fx('star', m.x, m.y, m.z, 0, 0, 0, 0.35, m.sh ? 0.8 : 0.55, 0.06, 1).s.material.color.setRGB(col[0], col[1], col[2]); fx('glow', m.x, m.y, m.z, 0, 0, 0, 0.5, 0.7, 0.07, 0.7);
   }
   if (m.e.length) { const e = m.e[0], L = Math.hypot(e[0] - m.x, e[2] - m.z) || 1; smoke(m.x, m.y, m.z, (e[0] - m.x) / L * 0.8, 0.2, (e[2] - m.z) / L * 0.8, 0.08, m.q ? 0.35 : 0.7, 1.1, m.q ? 0.22 : 0.38); }
@@ -203,4 +240,4 @@ NET_ON.shot = m => {
 };
 // a recorded sound from somewhere on the farm: quieter and duller the further it is from you, and off to its side
 // (earFrom, audio/spatial.js: the further, the quieter and duller; through the house's walls, muffled)
-function heardFrom(name, x, z, vol) { playS(name, { at: [x, z], vol: vol ?? 1, jit: 0.06, tone: 3, verb: indoors() ? 0.4 : 0 }); }
+export function heardFrom(name, x, z, vol) { playS(name, { at: [x, z], vol: vol ?? 1, jit: 0.06, tone: 3, verb: indoors() ? 0.4 : 0 }); }

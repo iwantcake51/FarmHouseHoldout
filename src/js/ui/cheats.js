@@ -2,6 +2,42 @@
 // skills given and taken away, the waves switched off and the clock set to any hour. The game keeps running behind it.
 // The switches (CHEAT) are kept between runs and page loads; everything else acts on the run you're in.
 
+import { $ } from '../core/dom.js';
+import { cv } from '../core/renderer.js';
+import { rand } from '../core/math.js';
+import { NET } from '../net/net.js';
+import { P } from '../player/player.js';
+import { addBlood } from '../effects/body-blood.js';
+import { SLOT_NAME, SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_CAN } from '../weapons/ammo.js';
+import { loadRound, roundName, roundOn, roundOwned, roundText, roundTypes } from '../weapons/rounds.js';
+import { MODS } from '../melee/melee-mods.js';
+import {
+  addMod, improveMod, MOD_MAX, MOD_UP, modLv, modName, modOffer, modReplaced, muzzleTaken, roman
+} from '../weapons/mod-levels.js';
+import { tierName, TIERS } from '../upgrades/tier-table.js';
+import {
+  curId, fitTier, freshStats, hasMod, magChange, magSize, ownTier, recomputeEff, run, S, setS, W, W8
+} from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { burst } from '../effects/particles.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { killZombie } from '../zombies/damage.js';
+import { PLANK_MAX } from '../barricades/planks.js';
+import { tierMax } from '../stations/recipes.js';
+import { SFX } from '../audio/sfx.js';
+import { breakT, glowGun, phase, setBreakT, setShake, setTod, shake, spawnQ, state, tod } from '../game/state.js';
+import { exitScope } from '../player/aiming.js';
+import { equip } from '../weapons/reload.js';
+import { bandMax, interruptBandage, startBandage } from '../player/bandages.js';
+import { AID, giveWeapon, NO_SIGHT, SKILLS, tierFits, UPG } from '../upgrades/upgrades.js';
+import { startDeath } from './screens.js';
+import { feed, popEl, toast } from './hud-text.js';
+import { curDark } from '../lighting/day-night.js';
+import { ANIM } from '../player/animation.js';
+import { hitFromAt } from './hud.js';
+
 const CHEAT_KEY = 'kessler-cheats';
 const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false, fog: false };
 try { Object.assign(CHEAT, JSON.parse(localStorage.getItem(CHEAT_KEY) || '{}')); } catch (e) {}
@@ -15,15 +51,15 @@ const CHEAT_TOGGLES = {
   fog: { name: 'Fog every wave', text: 'Every wave is a fog round: it rolls in off the fields as the wave starts (world/mist.js).' }
 };
 const CHEAT_SHORT = { god: 'God', scrap: '∞ Scrap', ammo: '∞ Ammo', noWaves: 'Waves off', clock: 'Clock frozen', fog: 'Fog' };
-let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
+export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
 // never in co-op: the menu won't open (and shuts if it was), and the switches do nothing there, though they're kept
 // for your next game on your own (cheatIs: whether a switch is on and counts, what the rest of the game asks)
 const cheatsOff = () => NET.on;
-const cheatIs = k => !!CHEAT[k] && !cheatsOff();
+export const cheatIs = k => !!CHEAT[k] && !cheatsOff();
 // every frame of play (game/update.js): keep what the switches promise
-function cheatTick() {
+export function cheatTick() {
   if (cheatsOff()) { if (cheatOn) toggleCheats(false); const t = $('cheatTag'); if (!t.hidden) t.hidden = true; return; }
   CHEAT_HELD.forEach(k => CHEAT_FX[k].hold && CHEAT_FX[k].hold());
   if (CHEAT.god) P.hp = S.maxHp;
@@ -31,7 +67,7 @@ function cheatTick() {
   if (CHEAT.ammo) for (const a in W8.reserve) if (W8.reserve[a] < 999) W8.reserve[a] = 999;
 }
 // god mode: a hit that would have killed you leaves you standing (ui/screens.js: startDeath)
-const cheatSaves = () => { if (!cheatIs('god')) return false; P.hp = S.maxHp; return true; };
+export const cheatSaves = () => { if (!cheatIs('god')) return false; P.hp = S.maxHp; return true; };
 
 // ---- status effects: each one the status icons top right can show (ui/moodles.js), what turns it on, what keeps it on
 // while it's held (every frame, ui/cheats.js: cheatTick) and what clears it. on: whether its icon is showing
@@ -50,14 +86,14 @@ const CHEAT_FX = {
   last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = S.maxHp; } },
   wind: { name: 'Second wind ready', text: 'Gives you the Second wind perk if you haven\'t got it, ready to go again.', on: () => S.secondWind && !S.windUsed, ap: () => { if (!S.secondWind) chSkill('p:Second wind', 1); S.windUsed = false; }, off: () => { S.windUsed = true; } },
   heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else chGive('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
-  dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { tod = 0; }, off: () => { tod = 12; } }
+  dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { setTod(0); }, off: () => { setTod(12); } }
 };
 // held effects: kept on every frame until you let go (for this page only)
 const CHEAT_HELD = new Set();
 
 // ---- the panel ----------------------------------------------------------------------------------------------------
 const chEl = $('cheat'), chBody = $('chBody');
-function toggleCheats(on) {
+export function toggleCheats(on) {
   if (cheatsOff() && on !== false) { if (!cheatOn) toast('No cheats in co-op', { kind: 'bad', sub: 'The cheat menu only works in a game on your own' }); return; }
   cheatOn = on === undefined ? !cheatOn : on;
   chEl.hidden = !cheatOn;
@@ -229,12 +265,12 @@ function chLog(name, tag, text, r, d) {
 // what the skills you have make of the stats a run starts with: plain [[card, times]], tiers { line: step }
 function replaySkills(plain, tiers) {
   const keep = S, hp = P.hp;
-  S = freshStats();
+  setS(freshStats());
   try {
     plain.forEach(([u, n]) => { for (let i = 0; i < n; i++) u.ap(); });
     for (const k in tiers) for (let i = 0; i < tiers[k]; i++) { TIERS[k].t[S.tier[k]].ap(); S.tier[k]++; }
     return S;
-  } finally { S = keep; P.hp = hp; }
+  } finally { setS(keep); P.hp = hp; }
 }
 // taking a skill away: work out the stats with and without it from a fresh start, and set only the stats skills touch
 // to the without, so scrap, planks, what you bought at the bench and the like stay as they are
@@ -273,7 +309,7 @@ const CHEAT_ACTS = {
   healn: d => { P.hp = Math.min(S.maxHp, P.hp + +d.n); },
   // a hit like a zombie's (zombies/ai.js), from a random side: no armour, no dodging it
   hurt: d => { if (P.dead) return; const a = rand() * Math.PI * 2; P.hp -= +d.n; P.hitFrom = a; hitFromAt(P.x + Math.sin(a) * 2, P.z + Math.cos(a) * 2); interruptBandage();
-    addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood');
+    addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); setShake(Math.max(shake, 0.22)); burst(P.x, 1, P.z, 6, 'blood');
     if (P.hp <= 0) { P.hp = 0; startDeath(); } },
   fx: d => { if (!P.dead) CHEAT_FX[d.k].ap(); },
   fxhold: d => { if (CHEAT_HELD.has(d.k)) CHEAT_HELD.delete(d.k); else { CHEAT_HELD.add(d.k); CHEAT_FX[d.k].ap(); } },
@@ -302,8 +338,8 @@ const CHEAT_ACTS = {
   noskills: () => chNoSkills(),
   wave: d => { run.wave = Math.max(0, run.wave + +d.d); },
   killall: () => { spawnQ.length = 0; zombies.filter(z => !z.dead).forEach(z => killZombie(z, 0, 1, curId(), 'torso', 0)); },
-  nextwave: () => { if (phase === 'break' && !CHEAT.noWaves) breakT = 0; },
-  time: d => { tod = +d.h; }
+  nextwave: () => { if (phase === 'break' && !CHEAT.noWaves) setBreakT(0); },
+  time: d => { setTod(+d.h); }
 };
 chEl.addEventListener('click', e => {
   const t = e.target.closest('[data-tab]');
@@ -316,7 +352,7 @@ chEl.addEventListener('click', e => {
 // buttons don't take the keyboard's focus, so Space and the number keys still go to the game after a click
 chEl.addEventListener('mousedown', e => { if (!e.target.closest('input')) e.preventDefault(); });
 chEl.addEventListener('input', e => {
-  if (e.target.id === 'chTime') { tod = +e.target.value; cheatLiveTick(); }
+  if (e.target.id === 'chTime') { setTod(+e.target.value); cheatLiveTick(); }
   if (e.target.id === 'chHp') { P.hp = +e.target.value; cheatLiveTick(); }
   if (e.target.id === 'chFind') { cheatFind = e.target.value; const pos = e.target.selectionStart; renderCheats(); const f = $('chFind'); f.focus(); f.setSelectionRange(pos, pos); }
 });

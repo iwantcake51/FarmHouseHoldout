@@ -23,17 +23,36 @@
 // Anything further round than that, the gun comes down and the chest unwinds as usual. Its second step adds the shotguns (pumped on the run too) and
 // the assault rifle, never the hunting rifle or the LMG.
 
-const WALK_SPEED = 3.0;
-const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
+import { KB } from '../input/keybinds.js';
+import { RIGHT } from '../core/renderer.js';
+import { angDiff, clamp, rr, smooth } from '../core/math.js';
+import { P } from './player.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { burst } from '../effects/particles.js';
+import { fenceTarget, nearestOpening, tryVault, vaultTarget } from './vaulting.js';
+import { openSt } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { footstep } from '../audio/footsteps.js';
+import { state } from '../game/state.js';
+import { keys, mouseDown, mouseDownR } from '../input/keyboard-mouse.js';
+import { aiming } from './aiming.js';
+import { tStick, usingTouch } from '../input/touch.js';
+import { cutReload } from '../weapons/reload.js';
+import { stamUse } from '../melee/melee.js';
+import { INTRO } from '../game/intro.js';
+import { ANIM } from './animation.js';
+
+export const WALK_SPEED = 3.0;
+export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
 // what a sprint burnt starts coming back only once you've stopped sprinting for wait seconds (Iron lungs shortens it),
 // then at rate a second standing still (exh: while you're blown), and a quarter slower while you walk: about 9 s
 // standing, 12 s walking, to win back a whole tank you ran off, against the 7 s it took to run it off
-const RUN_REST = { wait: 1.5, rate: 0.11, exh: 0.09 };
+export const RUN_REST = { wait: 1.5, rate: 0.11, exh: 0.09 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
 // vault you've earned (none till you've built up half your momentum, all of it near flat out)
-const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return 1 - (1 - u) * (1 - u); };
-const vaultRush = () => P.sprint ? smooth(clamp(((P.runUp || 0) - 0.45) / 0.45, 0, 1)) : 0;
-const RG_ARC = 1.3, RG_SPREAD = 3;
+export const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return 1 - (1 - u) * (1 - u); };
+export const vaultRush = () => P.sprint ? smooth(clamp(((P.runUp || 0) - 0.45) / 0.45, 0, 1)) : 0;
+export const RG_ARC = 1.3, RG_SPREAD = 3;
 // the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the plant (brake:
 // seconds, dec: how hard the ground slows you, metres a second each second, building up over bite seconds as your
 // boots dig in; scr: how fast the feet patter, radians a second), then the swing round (turn, plus perRad for each
@@ -43,27 +62,27 @@ const RG_ARC = 1.3, RG_SPREAD = 3;
 // round carries PIVOT.keep of your pace through the plant into the new way, and a full about-face stops you. Everything
 // about it eases in and out, so it reads as one smooth move. You have to be pushing that far round for a moment (wait)
 // before you plant, so the frame between two keys of a diagonal (S, then S and D) doesn't stop you dead
-const PIVOT = { ang: 2.45, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08, scr: 34, turn: 0.1, perRad: 0.045, stepRad: 1.2, lead: 0.6, yawRate: 14, push: 0.35, pushAcc: 10, pushIn: 0.15, cut: 2.8, keep: 0.4, wait: 0.07 };
+export const PIVOT = { ang: 2.45, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08, scr: 34, turn: 0.1, perRad: 0.045, stepRad: 1.2, lead: 0.6, yawRate: 14, push: 0.35, pushAcc: 10, pushIn: 0.15, cut: 2.8, keep: 0.4, wait: 0.07 };
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
-const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
+export const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
 
-function sprintKey() { return keys.has(KB.sprint) || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
+export function sprintKey() { return keys.has(KB.sprint) || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
 function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || D.ammo === 'p10' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
 // a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
 // hands and a stop; it goes a little slower on the run, the faster you're going the slower (RUN_RELOAD.rel of its pace
 // flat out, none of it lost at a walk: runRelK), and you go a touch slower for it (RUN_RELOAD.run of your speed)
-const RUN_RELOAD = { rel: 0.8, run: 0.95 };
-const rgReload = () => { const id = curId(), D = W(id); return !!D && !D.melee && id !== 'lmg'; };
-const runReloading = () => !!P.sprint && !!W8.reloading;
+export const RUN_RELOAD = { rel: 0.8, run: 0.95 };
+export const rgReload = () => { const id = curId(), D = W(id); return !!D && !D.melee && id !== 'lmg'; };
+export const runReloading = () => !!P.sprint && !!W8.reloading;
 // how far into a run you are while reloading: 0 at a walk, 1 flat out
-const runRelK = () => runReloading() ? clamp((Math.hypot(P.vx, P.vz) - WALK_SPEED) / (WALK_SPEED * (SPRINT.mul - 1)), 0, 1) : 0;
+export const runRelK = () => runReloading() ? clamp((Math.hypot(P.vx, P.vz) - WALK_SPEED) / (WALK_SPEED * (SPRINT.mul - 1)), 0, 1) : 0;
 // Run and gun, aiming within its arc of the way you're running: a sprint keeps the gun up, and it fires
 const rgArc = () => runGunOK() && Math.abs(angDiff(P.aim, ANIM.runYaw ?? P.aim)) < RG_ARC;
 function runGunning() { return !!P.sprint && rgArc(); }
 // nothing you can fire while you're sprinting, or while the gun's still coming up out of the low ready after
-function sprintHolds() { return (!!P.sprint && !runGunning()) || (ANIM.ready || 0) > READY_UP; }
+export function sprintHolds() { return (!!P.sprint && !runGunning()) || (ANIM.ready || 0) > READY_UP; }
 // the trigger as the sprint sees it, and which: the left button, the right one with a gun in each hand (it fires the
 // right gun, weapons/akimbo.js), or the right stick pushed out on a touch screen
 function sprintTrig() {
@@ -75,7 +94,7 @@ const sprintDust = n => { for (let k = 0; k < n; k++) burst(P.x + rr(-0.15, 0.15
 
 // each frame, before you move (wx, wz: the way you're pushing): whether you're sprinting, its cost, a skid into the
 // sights or into a shot, and a hard turn
-function updateSprint(dt, moving, wx, wz) {
+export function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
   if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock) P.sprintLock = false;
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
@@ -125,7 +144,7 @@ function updateSprint(dt, moving, wx, wz) {
 // (wx, wz: the way you're pushing) and going at it (within about 60 degrees of straight across, SPRINT.autoVault) at
 // better than a walk. Breaking into a sprint at it (start: sprintStart) takes you over too, even from a standstill
 // up against it, as the vault key would.
-function sprintVault(wx, wz, start) {
+export function sprintVault(wx, wz, start) {
   const sp = Math.hypot(P.vx, P.vz); if (!(wx || wz) || P.pivot || P.skid > 0 || P.dead || P.stun > 0 || (!start && sp < WALK_SPEED * 0.6)) return;
   const o = nearestOpening(), win = vaultTarget(o), t = win || fenceTarget(); if (!t) return;
   let jx, jz;
@@ -134,11 +153,11 @@ function sprintVault(wx, wz, start) {
   if (wx * jx + wz * jz > SPRINT.autoVault && (start || (P.vx * jx + P.vz * jz) / sp > SPRINT.autoVault)) tryVault();
 }
 // the moment you break into a sprint: pressing sprint as you move, or moving off with it held (moving: you're pushing)
-function sprintStart(moving) { const go = sprintKey() && moving, s = go && !P.sprintGoWas; P.sprintGoWas = go; return s; }
+export function sprintStart(moving) { const go = sprintKey() && moving, s = go && !P.sprintGoWas; P.sprintGoWas = go; return s; }
 // the plant and the swing round: your velocity's brought round to what the turn leaves you (nothing, or a cut's share
 // of your pace the new way) at a steady PIVOT.dec, the grip building over the first moment (bite) rather than
 // stopping you dead the instant you plant
-function pivotSlow(dt, tvx, tvz) {
+export function pivotSlow(dt, tvx, tvz) {
   const dx = tvx - P.vx, dz = tvz - P.vz, d = Math.hypot(dx, dz), m = PIVOT.dec * smooth(clamp(P.pivot.t / PIVOT.bite, 0, 1)) * dt;
   if (d <= m) { P.vx = tvx; P.vz = tvz; } else { P.vx += dx / d * m; P.vz += dz / d * m; }
   P.carveW = 0;
@@ -150,7 +169,7 @@ const sprintAcc = () => P.pushT > 0 ? PIVOT.pushAcc * (0.35 + 0.65 * smooth(clam
 // toward a rate that's quicker the further round there is to go (carveK), up to SPRINT.carve (a touch less the more
 // momentum you have), so a bend rolls in and out smoothly. It keeps its pace through the bend less what the bend
 // costs, while its speed comes up to the target on its own clock
-function sprintCarve(dt, tvx, tvz) {
+export function sprintCarve(dt, tvx, tvz) {
   const s0 = Math.hypot(P.vx, P.vz), st = Math.hypot(tvx, tvz);
   if (s0 < 0.6 || !(dt > 0)) { const k = 1 - Math.exp(-dt * sprintAcc()); P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; return; }
   const a0 = Math.atan2(P.vx, P.vz), diff = angDiff(Math.atan2(tvx, tvz), a0), wMax = SPRINT.carve * (1 - 0.3 * (P.runUp || 0));
@@ -170,7 +189,7 @@ function sprintCarve(dt, tvx, tvz) {
 // turn: the scramble to plant your feet (scrK, its quick choppy steps on scrPh, each one a scuff, a puff of dust and a
 // jolt), then the turn round (pivK, its steps on pivPh, kept in time with the body coming round so each foot is set
 // down a little further round), all with the gun still down (unless you've pulled the trigger)
-function sprintAnim(rdt) {
+export function sprintAnim(rdt) {
   const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ);
   if (pv) {
     // the body starts round as the feet dig in and eases round to the new way
@@ -212,8 +231,8 @@ function sprintAnim(rdt) {
 // from side to side (RUN_CAM.side) and down at each footfall (dip), on top of the vault's, the recoil's and the
 // rack's (game/camera.js). It dies smoothly away through a turn or a skid and builds back after (ANIM.bobK)
 const RUN_CAM = { side: 0.015, dip: 0.04 };
-const camRun = { px: 0, pz: 0, bob: 0 };
-function runCam() {
+export const camRun = { px: 0, pz: 0, bob: 0 };
+export function runCam() {
   const k = smooth(clamp(ANIM.sprintK || 0, 0, 1)) * smooth(ANIM.bobK || 0), ph = P.phase, hit = Math.pow(Math.abs(Math.cos(ph)), 6), side = Math.sin(ph) * RUN_CAM.side * k;
   camRun.bob = -RUN_CAM.dip * hit * k; camRun.px = RIGHT.x * side; camRun.pz = RIGHT.z * side;
 }

@@ -1,17 +1,38 @@
 // The upgrade card pool: body, gun tiers, new weapons and mods.
 
-const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
+import { clamp, pick } from '../core/math.js';
+import { netLink } from '../net/net.js';
+import { P } from '../player/player.js';
+import { SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_CAN } from '../weapons/ammo.js';
+import { MODS } from '../melee/melee-mods.js';
+import { modLocks, muzzleTaken } from '../weapons/mod-levels.js';
+import { TIERS } from './tier-table.js';
+import {
+  fitTier, GUN_TIERS, gunTier, magCap, magChange, magSize, ownTier, recomputeEff, S, SCOPE_TOP, T, W, W8
+} from '../game/run-state.js';
+import { addPlanks, METAL, PLANK_MAX, plankRoom } from '../barricades/planks.js';
+import { matWord, METAL_AID } from '../barricades/metal-bars.js';
+import { tierMax } from '../stations/recipes.js';
+import { equip } from '../weapons/reload.js';
+import { bandMax } from '../player/bandages.js';
+import { feed, popEl } from '../ui/hud-text.js';
+import { REGEN_WAIT } from '../player/movement.js';
+import { gunCall } from '../ui/gear-popup.js';
+
+export const RAR = { c: 'Common', u: 'Uncommon', r: 'Rare', e: 'Epic', l: 'Legendary' };
 // less slowdown when you're hit (S.slowRes, zombies/ai.js): each thing that helps takes its share off what's left, so
 // both steps of Thick soles stack (−40% twice makes −64%) and never make you immune to it
-const SLOW_STEP = { soles: 0.4 };
-const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
-function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
-const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && W(id).ammo).map(id => W(id).ammo))];
+export const SLOW_STEP = { soles: 0.4 };
+export const slowAfter = (r, k) => 1 - (1 - r) * (1 - k);
+export function slowLess(k) { S.slowRes = slowAfter(S.slowRes, k); }
+export const ammoTypes = () => [...new Set(SLOTS.map(s => W8.slot[s]).filter(id => id && W(id).ammo).map(id => W(id).ammo))];
 // aid isn't in every hand after a wave (dealCards, upgrades/upgrade-screen.js): AID_CHANCE is how likely a hand is to
 // have any, from the first number when you're short of nothing to the second when you're out of something, and it
 // never reaches a sure thing. Short of: ammo for the guns you carry (under three mags' worth in reserve), health (below
 // 80%), bandages and planks (under half a stack); bandages and planks count for a bit less
-const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
+export const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance of a second aid card when you're out of something
 // within the hand's aid, what you're short of comes up far more than the rest
 const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
@@ -22,17 +43,17 @@ const NEED = {
 };
 const NEED_COUNT = { ammo: 1, health: 1, bandages: 0.6, planks: 0.6 };
 // how short you are of anything, 0 to 1: the worst of them
-const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
+export const aidNeed = () => Math.max(...Object.keys(NEED_COUNT).map(k => NEED_COUNT[k] * clamp(NEED[k](), 0, 1)));
 // Steady aim stacks up to STEADY_MAX times, and Lucky shot (rare) makes LUCK_MISS of the shots that hit nothing cost no
 // ammo at all (luckyKeep, weapons/firing.js)
 const STEADY_MAX = 3, LUCK_MISS = 1 / 4;
 // Sure shot: each shot from a gun firing single shots (semiAuto, weapons/firing.js) has this chance to crit
-const SURE_CRIT = 0.05;
+export const SURE_CRIT = 0.05;
 // Painkillers: how much health a second they give back (once you've gone REGEN_WAIT seconds unhurt: player/movement.js);
 // taken once
-const PAIN_REGEN = 1;
+export const PAIN_REGEN = 1;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
-const UPG = [
+export const UPG = [
   { r: 'c', tag: 'Tools', get name() { return METAL.on ? 'Scrap metal' : 'Wood pile'; }, get text() { return METAL.on ? `+${METAL_AID} metal, enough for two grates.` : '+7 planks.'; }, can: () => plankRoom() >= (METAL.on ? METAL_AID : 7), w: () => needW(NEED.planks()), ap: () => addPlanks(METAL.on ? METAL_AID : 7) },
   { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
@@ -65,10 +86,10 @@ const UPG = [
 ];
 // what a card after a wave is: a skill (something you get better at), a perk (an edge that's always on), aid (supplies
 // and gear handed to you) or a new weapon. Its tag says so, with the tier for the ones that come in tiers
-const AID = new Set(['Wood pile', 'Scrap metal', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
+export const AID = new Set(['Wood pile', 'Scrap metal', 'Field dressing', 'Med pouch', 'Ammo can', 'Bandage roll']), SKILLS = new Set(['Vault fire', 'Iron lungs', 'Adrenaline', 'Second wind', 'Steady aim', 'Tough skin', 'Quick draw']);
 const TIER_KIND = { quick: 'Skill', armor: 'Skill', boots: 'Skill', hammer: 'Skill', eyes: 'Skill', night: 'Skill', feed: 'Perk' };
-const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
-function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
+export const findKind = (u, c) => u.weaponOf ? 'Weapon' : u.tierOf ? TIER_KIND[u.tierOf] || 'Perk' : AID.has(c.name) ? 'Aid' : SKILLS.has(c.name) ? 'Skill' : 'Perk';
+export function kindTag(u, c) { const k = findKind(u, c); return k === 'Weapon' ? c.tag : k; }   // a tiered one's step shows as stars (upgrades/upgrade-screen.js)
 const gunsHeld = () => SLOTS.filter(sl => sl !== 'melee' && W8.slot[sl]).map(sl => W8.slot[sl]);
 const smithable = g => ['ammo', 'trigger', 'mag'].some(k => tierFits(k, g));
 const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(k => tierMax(k, g) > 0 && !tierFits(k, g) && !modLocks(g, k)).length * SMITH_SCRAP : 0;   // (a line the gun doesn't have at all pays nothing)
@@ -77,16 +98,16 @@ const SMITH_SCRAP = 14, smithScrap = g => g ? ['ammo', 'trigger', 'mag'].filter(
 // tube is what it holds; the tube extension mod is how it takes more), the auto shotgun one: from its box straight to the drum,
 // the double barrel none (two barrels are two shells), the hunting rifle two: its fixed magazine extended, then a
 // detachable box (game/run-state.js: DETACH), the SCAR one: its 20-round box
-const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2, hunting: 2, scar: 1 };
+export const MAG_STEPS = { deagle: 2, ar: 2, revolver: 0, pump: 0, auto12: 1, dbl: 0, sub: 2, hunting: 2, scar: 1 };
 // the guns whose rate is their action's, not their trigger's: a pump fires as fast as you work it, a bolt rifle as fast
 // as the bolt, so a lighter trigger does nothing for them. Their own mods (Slam fire, the greased bolt) do that.
 // The double barrel fires as fast as you can pull its triggers, so it has nothing to gain either
-const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
+export const NO_TRIGGER = new Set(['pump', 'hunting', 'dbl']);
 // the guns that take no can: the double barrel's twin muzzles
-const NO_SUPP = new Set(['dbl']);
+export const NO_SUPP = new Set(['dbl']);
 // and the ones that take no sight at all, iron sights only: the LMG, a gun for hosing from the hip
-const NO_SIGHT = new Set(['lmg']);
-function tierFits(k, id) {
+export const NO_SIGHT = new Set(['lmg']);
+export function tierFits(k, id) {
   const D = WEAP[id], n = ownTier(id, k);   // what you've bought, whether or not it's fitted right now
   if (n >= TIERS[k].t.length) return false;
   if (k === 'trigger' && NO_TRIGGER.has(id)) return false;
@@ -111,10 +132,10 @@ for (const k in TIERS) {
     card: () => { const n = T(k), st = L.t[n]; return { r: st.r, tag: `${L.tag} · Tier ${n + 1} of ${L.t.length}`, name: st.name, text: st.text }; },
     ap: () => { L.t[T(k)].ap(); S.tier[k]++; } });
 }
-function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }
+export function statLine(id) { const D = WEAP[id]; if (D.melee) return `DMG ${Math.round(D.dmg)} · ${(1 / D.rate).toFixed(1)} swings/s · ${(D.cleave || 1) > 1 ? 'multi-hit ×' + D.cleave : 'single hit'}`; return `DMG ${Math.round(D.dmg)}${(D.pellets || 1) > 1 ? '×' + D.pellets : ''} · ${(1 / D.rate).toFixed(1)}/s · ${D.mag} rds`; }
 // a weapon into its slot and your hands, fresh and full, with its starting ammo: one unlocked at the gun rack
 // (stations/armory.js), or given by the cheat menu. It's yours from then on, on the rack whenever it's not in your hands
-function giveWeapon(id) {
+export function giveWeapon(id) {
   const D = WEAP[id], s = D.slot;
   if (!W8.owned.includes(id)) W8.owned.push(id);
   W8.slot[s] = id; recomputeEff(); W8.mag[id] = magSize(id); delete W8.pin[id]; delete W8.relSave[id]; if (D.ammo) W8.reserve[D.ammo] += D.start || 0;

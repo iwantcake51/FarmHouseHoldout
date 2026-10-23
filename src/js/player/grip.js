@@ -2,6 +2,9 @@
 // with a vertical foregrip), so the gun lies in the hand rather than floating over it. The fore-end's underside is
 // found once per gun model by casting a ray up at it from below the hold point (gripShape); foreDrop is how far
 // under the hold point player/hold.js aims the fist.
+import { V3 } from '../core/renderer.js';
+import { HAND_DROP, holdOf } from './hold.js';
+
 const GRIP_PALM = 0.054;   // the fist's middle this far under the underside puts the top of the hand against it
 const _gRc = new THREE.Raycaster(), _gO = new V3(), _gD = new V3(), _gHit = new V3();
 function gripShape(s, H) {
@@ -15,7 +18,7 @@ function gripShape(s, H) {
   const g = { drop: yb === null ? null : H.post ? (H.fore[1] - yb) / 2 : H.fore[1] - yb + GRIP_PALM };
   u.grip = g; u.gripFor = H; return g;
 }
-function foreDrop(s, H) {
+export function foreDrop(s, H) {
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand;
   if (H.kind !== 'long') return hd.fore;
   const g = gripShape(s, H); return g.drop ?? hd.fore;

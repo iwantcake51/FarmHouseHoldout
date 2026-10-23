@@ -1,5 +1,31 @@
 // Boarding, station prompts and the on-screen hint.
 
+import { $ } from '../core/dom.js';
+import { keyIcon } from '../ui/input-icons.js';
+import { KB } from '../input/keybinds.js';
+import { cache, rand } from '../core/math.js';
+import { NET, NET_COL, netLink } from '../net/net.js';
+import { ci } from '../world/grid.js';
+import { openings } from '../world/house.js';
+import { STATIONS } from '../stations/stations.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { roman } from '../weapons/mod-levels.js';
+import { S, W8 } from '../game/run-state.js';
+import { nearestTake, takeId, weaponCol } from '../pickups/pickups.js';
+import { addBoard, boardHp, boardRattle, METAL, setFlowDirty, setLightsDirty, tearBoard } from './planks.js';
+import { addGrate, GRATE, regrate } from './metal-bars.js';
+import { fenceTarget, nearestOpening, vaultTarget } from '../player/vaulting.js';
+import { closeStation, nearestStation, openSt, renderStation } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { boardT, phase, setBoardT } from '../game/state.js';
+import { keys } from '../input/keyboard-mouse.js';
+import { touchBoard, touchTear } from '../input/touch.js';
+import { runStat } from '../ui/run-stats.js';
+import { setH } from '../ui/hud-text.js';
+import { netBoardUp, netRepair } from '../net/sync.js';
+
 // boarding under attack is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed. The hammer line
 // (upgrades/tier-table.js: S.boardSpeed) speeds it up in full in the break between waves, when there's time to do it
 // properly; mid-wave only to the power BOARD_TOOL of it, so even the nail gun is quicker but never instant (about 0.9 of
@@ -26,11 +52,11 @@ function repairWhat(o) {
 }
 // mended: the board back to the strength it went up with, nailed tight; the grate rebuilt good as new (its plates swung
 // back in). Anyone's repair, the same on every screen (net/sync.js: 'rp')
-function repairBarricade(o, kind, j, mine) {
+export function repairBarricade(o, kind, j, mine) {
   if (mine) runStat('repairs');
   if (kind === 'grate') { if (!o.grate) return; regrate(o); const s = () => SFX.clang(0.6); mine ? s() : soundAt(o.x, o.z, s); }
   else { const m = o.meshes[j]; if (!m || o.grate) return; o.boards[j] = Math.max(o.boards[j], m.userData.hp0 || boardHp()); m.userData.jolt = 0.5; m.userData.jSide = rand() < 0.5 ? -1 : 1; mine ? SFX.board() : soundAt(o.x, o.z, () => SFX.board()); }
-  o.netT = performance.now() + 1500; flowDirty = true; lightsDirty = true;
+  o.netT = performance.now() + 1500; setFlowDirty(true); setLightsDirty(true);
 }
 // tearing the boards down yourself (hold C, or the touch Tear button): every board on the opening in one TEAR_T hold,
 // a kick at them as you start and another halfway; a grate takes longer (GRATE.tear, barricades/metal-bars.js), kicked
@@ -43,7 +69,7 @@ const tearable = o => !!(o && o.boards.length && !P.vault && !openSt);
 // the colour each kind of prompt picks its thing out in (a gun's is its rarity's colour)
 const OPEN_OK = 0xf4f1ea, OPEN_NO = 0xe2412c;   // an opening's outline: white, red for a window you can't climb through
 const PROMPT_COL = { thing: '#f0bf4c', station: '#e8c070', move: '#8fc4e0', wood: '#d6a066', metal: '#a9bccb', tear: '#e08a6a', bad: '#e2412c', off: '#a39e90' };
-function updateInteractions(dt) {
+export function updateInteractions(dt) {
   // doors, windows and stations
   const o = nearestOpening(), st = nearestStation();
   // the opening you'd work on outlined on your side of it, pulsing as the stations' outlines do (world/house.js)
@@ -57,18 +83,18 @@ function updateInteractions(dt) {
   const fix = phase === 'break' ? repairWhat(o) : null, canFix = !!fix && (fix.kind === 'board' || S.planks >= repairCost());
   const canBoard = !fix && boardable(o);
   if (o && (keys.has(KB.board) || touchBoard) && canFix) {
-    const was = repT, th = fix.kind === 'grate' ? REPAIR.grate : REPAIR.board; repT += dt * S.boardSpeed; boardT = 0;
+    const was = repT, th = fix.kind === 'grate' ? REPAIR.grate : REPAIR.board; repT += dt * S.boardSpeed; setBoardT(0);
     // you're heard at it: a clank or a hammer blow every so often
     if (Math.floor(was / 0.3) !== Math.floor(repT / 0.3)) { if (fix.kind === 'grate') SFX.clang(0.3); else SFX.board(); }
     if (repT >= th) { repT = 0; if (fix.kind === 'grate') S.planks -= repairCost(); repairBarricade(o, fix.kind, fix.j, true); netRepair(o, fix.kind, fix.j); }
   } else repT = 0;
   if (o && (keys.has(KB.board) || touchBoard) && canBoard) {
-    const was = boardT; boardT += dt * boardRate();
+    const was = boardT; setBoardT(boardT + (dt * boardRate()));
     // a grate takes a while: you're heard working at it, a clank every half a hold or so, as it's fitted
     if (METAL.on && Math.floor(was / 0.55) !== Math.floor(boardT / 0.55)) SFX.clang(0.3);
-    if (boardT >= holdT()) { boardT = 0; if (METAL.on) { S.planks -= GRATE.cost; addGrate(o); } else { S.planks--; addBoard(o); } netBoardUp(o); }
+    if (boardT >= holdT()) { setBoardT(0); if (METAL.on) { S.planks -= GRATE.cost; addGrate(o); } else { S.planks--; addBoard(o); } netBoardUp(o); }
   }
-  else boardT = 0;
+  else setBoardT(0);
   if (o && (keys.has(KB.tear) || touchTear) && tearable(o)) {
     const was = tearT, th = tearHold(o); tearT += dt;
     // a kick at it as you start and every quarter of the way after (a board's just the one more, halfway)

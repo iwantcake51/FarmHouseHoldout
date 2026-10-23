@@ -1,5 +1,13 @@
 // Rounds-left glyphs that drop off the HUD.
 
+import { $ } from '../core/dom.js';
+import { cache, rand, rr } from '../core/math.js';
+import { roundOn } from '../weapons/rounds.js';
+import { magCap, magSize, T, W, W8 } from '../game/run-state.js';
+import { EJECT } from '../weapons/casings.js';
+import { state } from '../game/state.js';
+import { AK_ON, akBusy, akMags, akPer } from '../weapons/akimbo.js';
+
 // a fired round drops out of the HUD: it pops up, tumbles off the bottom of the screen and leaves a wisp of smoke. Only
 // the empty case goes (the bullet's gone downrange): the glyph's brass below the bullet (CASE_OF of its height), in its
 // own case colour (a match-grade round's nickel), its mouth open at the top; a rifle case keeps its neck and shoulder.
@@ -113,7 +121,7 @@ function loadRounds(el, from, to) {
 // through a mag change (weapons/reload.js), the mag in the gun as the HUD shows it: the old one's, till it comes out;
 // none, from then till the new one's pushed home (the count at 0, every slot empty); then what the new one holds, and
 // the spare rounds less what went into it. A pair, a revolver's speed loader and a shell at a time show the gun as it is
-function hudMag(id) {
+export function hudMag(id) {
   const D = W(id), have = W8.mag[id] || 0, res = W8.reserve[D.ammo];
   if (W8.reloading !== 'mag' || D.speedload || D.akimbo) return { have, res };
   if (W8.seated) { const take = Math.max(0, Math.min(magSize(id) - have, res)); return { have: have + take, res: res - take }; }
@@ -181,7 +189,7 @@ function renderRoundsAk(id, D) {
   cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
   popRounds(el); if (drawn && n > 40) shakeBelt(el);
 }
-function renderRounds(id, D) {
+export function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
   const drawn = popCheck(id);
   const n = magCap(id), hm = hudMag(id), have = hm.have, out = !!hm.out, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;

@@ -1,29 +1,45 @@
 // Melee swings, stamina cost and slowdown while swinging.
 
+import { angDiff, clamp, rand } from '../core/math.js';
+import { ci, idx, inb, openAt } from '../world/grid.js';
+import { thinHit } from '../world/thin-walls.js';
+import { openings } from '../world/house.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { groundDust } from '../effects/puffs.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { hurtZombie } from '../zombies/damage.js';
+import { shootBoard } from '../barricades/planks.js';
+import { SFX } from '../audio/sfx.js';
+import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake } from '../game/state.js';
+import { bodyOf } from '../weapons/firing.js';
+import { meleeImpact } from './melee-anim.js';
+
 // you slow down while a swing comes through; heavier weapons more, and more again when you're winded
-const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) || {}, p = 1 - W8.swing / W8.swingDur, k = Math.sin(Math.min(1, p * 1.15) * Math.PI); return 1 - Math.min(0.85, k * (D.style === 'chop' && D.two ? 0.6 : D.two ? 0.45 : 0.35) * (P.exh ? 1.55 : 1)); };
+export const swingSlow = () => { if (!(W8.swing > 0)) return 1; const D = W(curId()) || {}, p = 1 - W8.swing / W8.swingDur, k = Math.sin(Math.min(1, p * 1.15) * Math.PI); return 1 - Math.min(0.85, k * (D.style === 'chop' && D.two ? 0.6 : D.two ? 0.45 : 0.35) * (P.exh ? 1.55 : 1)); };
 // heavier weapons cost more stamina per swing (SWING_STAM: a one-hander, a two-hander like the bat or katana, a heavy
 // chopper like the axe or sledge, of a full tank), and one that only hits a single zombie costs SINGLE_STAM of that: it
 // has to land more swings to clear a crowd (one made long enough to sweep through more, melee/melee-stats.js, pays in full)
 const SWING_STAM = { one: 0.07, two: 0.095, chop: 0.15 }, SINGLE_STAM = 0.7;
-const stamCost = D => stamUse((D.style === 'chop' && D.two ? SWING_STAM.chop : D.two ? SWING_STAM.two : SWING_STAM.one) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
+export const stamCost = D => stamUse((D.style === 'chop' && D.two ? SWING_STAM.chop : D.two ? SWING_STAM.two : SWING_STAM.one) * ((D.cleave || 1) < 2 ? SINGLE_STAM : 1) * S.swingStam);   // (Strong arms takes some off: S.swingStam)
 // winded, a swing comes slower (TIRED.swing) and the next one waits longer (TIRED.cd); one that only hits a single
 // zombie (weapons/firing.js) is slowed by just TIRED.single of that, as it's lighter in the hand
-const TIRED = { cd: 1.6, swing: 1.45, single: 2 / 3 };
+export const TIRED = { cd: 1.6, swing: 1.45, single: 2 / 3 };
 // a swing that meets nothing costs only part of that (charged as it starts); the rest is paid when it lands on something
-const SWING_AIR = 0.55;
+export const SWING_AIR = 0.55;
 // each zombie past the first that a swing cleaves through costs CLEAVE_STAM more of its landing cost: carrying the blow
 // on through a crowd takes more out of you than stopping on one
 const CLEAVE_STAM = 0.45;
 // Iron lungs: a bigger tank, so everything costs less of it
-function stamUse(c) { return c / (S.lungs ? LUNGS.tank : 1); }
+export function stamUse(c) { return c / (S.lungs ? LUNGS.tank : 1); }
 // Iron lungs: how much bigger the tank, the breather before it comes back (seconds) and how much faster it refills
-const LUNGS = { tank: 1.25, wait: 0.4, refill: 1.25 };
+export const LUNGS = { tank: 1.25, wait: 0.4, refill: 1.25 };
 // who a swing would land on right now: every zombie in reach and in front of you (or through the gaps in a boarded
 // opening you're standing at), nearest first. The big two-handers cleave through up to D.cleave of them; everything
 // else connects with the nearest one only. The swing and the green reach rim (zombies/zombie-visuals.js) both use it.
 const _mtPool = [], _mt = [];
-function meleeTargets(D) {
+export function meleeTargets(D) {
   let bo = null, bd = 1.7; for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (o.boards.length && d < bd) { bd = d; bo = o; } }
   _mt.length = 0;
   for (const z of zombies) {
@@ -49,7 +65,7 @@ function meleeTargets(D) {
 // melee/melee-anim.js), heard rushing down from p = whoosh (weapons/combat-update.js) and landing at p = hit, as the head
 // arrives. A hit staggers what it doesn't kill for stagger seconds and shakes, punches and kicks the view harder; one
 // that meets nothing slams into the ground in front of you
-const HEAVY = { whoosh: 0.45, hit: 0.55, stagger: 0.55 };
+export const HEAVY = { whoosh: 0.45, hit: 0.55, stagger: 0.55 };
 // a swing on the boards: BOARD_MELEE of its damage off the top one, so a run of swings does take a board down (the only
 // thing that does: shots through them don't, barricades/planks.js); the opening must be in reach and in front of you
 const BOARD_MELEE = 0.15;
@@ -69,8 +85,8 @@ function grateBetween(x0, z0, x1, z1) {
   for (let k = 1; k < n; k++) { const i = ci(x0 + (x1 - x0) * k / n), j = ci(z0 + (z1 - z0) * k / n); if (!inb(i, j)) continue; const o = openAt[idx(i, j)]; if (o && o.grate) return true; }
   return false;
 }
-function heavySwing(D) { return D.style === 'chop' && !!D.two; }
-function meleeHit() {
+export function heavySwing(D) { return D.style === 'chop' && !!D.two; }
+export function meleeHit() {
   const id = curId(), D = W(id); if (!D || !D.melee) return;
   {
     const blade = !D.blunt, heavy = heavySwing(D), fx0 = Math.sin(P.aim), fz0 = Math.cos(P.aim);
@@ -86,25 +102,25 @@ function meleeHit() {
     // nothing living in the way: a boarded opening in reach takes the blow instead, BOARD_MELEE of it, the boards
     // jumping and splintering as they do under fire
     const bo = !hit && boardInReach(D);
-    if (bo) { shootBoard(bo, D.dmg * S.meleeMul * BOARD_MELEE, fx0, fz0); meleeImpact(heavy, 0.75); shake = Math.max(shake, heavy ? 0.3 : 0.16); SFX.thud(); if (!blade || heavy) SFX.hitBlunt(heavy); }
+    if (bo) { shootBoard(bo, D.dmg * S.meleeMul * BOARD_MELEE, fx0, fz0); meleeImpact(heavy, 0.75); setShake(Math.max(shake, heavy ? 0.3 : 0.16)); SFX.thud(); if (!blade || heavy) SFX.hitBlunt(heavy); }
     if (hit || bo) { P.stam = Math.max(0, P.stam - stamCost(D) * (1 - SWING_AIR) * (1 + CLEAVE_STAM * Math.max(0, nHit - 1))); P.stamT = 0; if (P.stam <= 0.001) P.exh = true; }   // the rest of the swing's cost, for connecting
     if (hit) meleeImpact(heavy, Math.min(1.3, 0.85 + 0.15 * kills));   // it stops on the blow and rebounds off it (melee/melee-anim.js)
     // impact: a short jolt of shake, the view nudged along the swing and tipped a touch toward its side
-    if (hit && !heavy) { shake = Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0)); camKick.x += fx0 * 0.12; camKick.z += fz0 * 0.12; camRoll = clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
+    if (hit && !heavy) { setShake(Math.max(shake, 0.26 + (D.kb > 5 ? 0.08 : 0) + (D.style === 'chop' ? 0.1 : 0))); camKick.x += fx0 * 0.12; camKick.z += fz0 * 0.12; setCamRoll(clamp(camRoll + W8.swingSide * 0.025, -0.1, 0.1)); if (blade) SFX.hitBlade(D.style === 'chop'); else SFX.hitBlunt(D.kb > 6); }
     // a heavy one landing: a hard shake and a jolt of zoom, the view driven on along the blow
     // and tipped further, a deep thump under its own hit, and the hammer knocks up the dirt where it comes down
     else if (hit) {
       const sl = !blade || id === 'sledge';
-      shake = Math.max(shake, sl ? 0.62 : 0.54); camPunch = Math.max(camPunch, 0.035 + Math.min(3, kills) * 0.008);
-      camKick.x += fx0 * 0.22; camKick.z += fz0 * 0.22; camRoll = clamp(camRoll + W8.swingSide * 0.045, -0.12, 0.12);
+      setShake(Math.max(shake, sl ? 0.62 : 0.54)); setCamPunch(Math.max(camPunch, 0.035 + Math.min(3, kills) * 0.008));
+      camKick.x += fx0 * 0.22; camKick.z += fz0 * 0.22; setCamRoll(clamp(camRoll + W8.swingSide * 0.045, -0.12, 0.12));
       if (blade) SFX.hitBlade(true); else SFX.hitBlunt(true);
       SFX.heavyHit(sl);
       if (sl) { const d = Math.min(D.range * 0.8, near + 0.2); groundDust(P.x + fx0 * d, P.z + fz0 * d, 0.45, fx0, fz0); }
     }
     // a swing through open air (not into the boards): the weight carries on past where it would have landed, so the view follows it through a
     // little and leans with it, softer than a hit and with no shake (heavier weapons pull it further)
-    else if (!bo) { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += fx0 * 0.07 * w; camKick.z += fz0 * 0.07 * w; camRoll = clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1);
+    else if (!bo) { const w = D.style === 'chop' ? 1.4 : D.two ? 1.2 : 1; camKick.x += fx0 * 0.07 * w; camKick.z += fz0 * 0.07 * w; setCamRoll(clamp(camRoll + W8.swingSide * 0.018 * w, -0.1, 0.1));
       // a heavy one that meets nothing carries on down into the ground in front of you: a thud, a kick of dust and a bump
-      if (heavy) { const d = D.range * 0.8, gx = P.x + fx0 * d, gz = P.z + fz0 * d; if (!bulletBlocked(gx, gz)) { groundDust(gx, gz, 0.6, fx0, fz0); SFX.thud(); shake = Math.max(shake, 0.2); meleeImpact(true, 0.6); } } }
+      if (heavy) { const d = D.range * 0.8, gx = P.x + fx0 * d, gz = P.z + fz0 * d; if (!bulletBlocked(gx, gz)) { groundDust(gx, gz, 0.6, fx0, fz0); SFX.thud(); setShake(Math.max(shake, 0.2)); meleeImpact(true, 0.6); } } }
   }
 }

@@ -4,6 +4,25 @@
 // pick a teammate and an amount and send them scrap (renderGift). And a wave cleared with teammates still on their feet
 // with all of you still on your feet pays everyone a team bonus (teamBonus).
 
+import { $ } from '../core/dom.js';
+import { kbd, keyOn } from '../input/keybinds.js';
+import { GI_VB } from '../ui/game-icons.js';
+import { cam, scene, V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { NET, NET_COL, NET_ON, netLink, netName, netSend, netTo } from './net.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { run, S, W8, waveScrap } from '../game/run-state.js';
+import { dropPickup, layGun, pickups } from '../pickups/pickups.js';
+import { setStStruct, stStruct } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { state } from '../game/state.js';
+import { scrapFly } from '../upgrades/upgrade-screen.js';
+import { runStat } from '../ui/run-stats.js';
+import { feed, FEED_ICON, floatText, popEl, rollText, setT, toast } from '../ui/hud-text.js';
+import { nr } from './sync.js';
+import { foldStatic, teamWeapon } from './arsenal.js';
+
 // an assist: at least ASSIST_MIN of the zombie's health done by you, within the last ASSIST_T seconds, pays
 // ASSIST_SCRAP (a brute twice that); the team bonus is TEAM_BONUS for each teammate, if nobody's down at the clear; the
 // strongbox's quick amounts (GIFT_QUICK, then half and all of yours)
@@ -13,14 +32,14 @@ const ASSIST_MIN = 0.2, ASSIST_T = 8, ASSIST_SCRAP = 1, TEAM_BONUS = 2, GIFT_QUI
 // (stations/station-ui.js), built once and then updated where it stands, so picks and amounts ease rather than jump
 const GIFT = { to: '', amt: 5, struct: '' };
 const giftTeam = () => [...NET.peers.values()].sort((a, b) => a.idx - b.idx);
-function renderGift() {
+export function renderGift() {
   setT('stTitle', 'Strongbox'); setT('stScrap', String(S.scrap));
   const ps = giftTeam(), have = S.scrap | 0;
   if (!ps.some(p => p.id === GIFT.to)) GIFT.to = ps[0] ? ps[0].id : '';
   GIFT.amt = have > 0 ? clamp(GIFT.amt | 0, 1, have) : 0;
   const rows = $('stRows'), struct = 'gift:' + ps.map(p => p.id).join(',');
   if (stStruct !== struct) {
-    stStruct = struct; $('station').classList.remove('wide');
+    setStStruct(struct); $('station').classList.remove('wide');
     const ic = `<svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>`;
     rows.innerHTML = !ps.length ? '<div class="gift" style="--k:0"><p class="gfNone">No one else is here to give scrap to.</p></div>' : `<div class="gift">
       <div class="stGroup" style="--k:0">Give to</div>
@@ -48,7 +67,7 @@ function renderGift() {
   setT('stNote', `${ps.length > 1 ? 'Click who gets it · ' : ''}Enter to give · ${keyOn('use')} to step away`);
 }
 const giftQuick = q => { const have = S.scrap | 0; return q === 'all' ? have : q === 'half' ? Math.ceil(have / 2) : Math.min(+q, have); };
-function giftClick(b) {
+export function giftClick(b) {
   if (b.disabled) return;
   if (b.classList.contains('gfP')) { GIFT.to = b.dataset.to; SFX.click(); }
   else if (b.dataset.d) GIFT.amt += +b.dataset.d;
@@ -57,7 +76,7 @@ function giftClick(b) {
   renderGift();
 }
 // handed over: off your count, to theirs, the bits flying from your scrap on the panel into their card
-function giftSend() {
+export function giftSend() {
   const to = NET.peers.get(GIFT.to), n = Math.min(GIFT.amt | 0, S.scrap | 0), give = $('stRows').querySelector('.gfGive');
   if (!to || n < 1) { if (give) { give.classList.remove('shake'); void give.offsetWidth; give.classList.add('shake'); } SFX.click(); return; }
   S.scrap -= n; popEl('scrap'); SFX.scrap(); runStat('sent', n);
@@ -76,14 +95,14 @@ NET_ON.gift = m => {
   toast(`${who} gave you ${n} scrap`, { kind: 'info', icon: 'scrap', sub: 'From the strongbox' });
 };
 // your share of a zombie (zombies/damage.js counts it as you hurt it); a teammate's kill of one you'd worked on pays you
-function teamAssist(z) {
+export function teamAssist(z) {
   if (!netLink() || !(z.myDmg >= z.maxHp * ASSIST_MIN) || run.time - (z.myAt || -99) > ASSIST_T) return;
   z.assist = true;   // (and if the kill dropped ammo, a box of your own: NET_ON.hit, net/sync.js)
   const n = waveScrap(ASSIST_SCRAP * (z.type === 'brute' ? 2 : 1));
   S.scrap += n; popEl('scrap'); feed('scrap', n, 'assist'); runStat('assists'); floatText(z.x, z.z, '+' + n + ' assist', '#d4b25c', 'scrap');
 }
 // the wave's cleared with every one of you still on your feet: a bit of scrap each (nothing if anyone went down)
-function teamBonus() {
+export function teamBonus() {
   if (!netLink() || P.dead || !NET.peers.size) return;
   for (const p of NET.peers.values()) if (p.dead) return;
   const n = waveScrap(TEAM_BONUS * NET.peers.size); S.scrap += n; popEl('scrap'); feed('scrap', n, 'nobody went down'); runStat('teamBonus', n);
@@ -92,7 +111,7 @@ function teamBonus() {
 // ---- sharing a gun you've put down (gunDrop, pickups/pickups.js). It's yours alone till you share it (H, standing at
 // it): then your teammates see it on their farm where it lies and can pick it up for themselves, with everything that
 // was on it (gunTakeLo). H again takes it back to just yours. Whoever picks it up, it's gone for everyone ('gtk')
-function gunShare(p) {
+export function gunShare(p) {
   if (!netLink() || !p || p.kind !== 'gun' || !p.cargo.own) return;
   const c = p.cargo; c.shared = !c.shared; c.pc = NET_COL[NET.idx];
   if (c.shared) netSend('gsh', { g: c.gid, id: c.id, x: nr(p.x), z: nr(p.z), lo: c.lo, mag: c.mag, ak: c.ak, until: c.until, who: netName() });
@@ -107,7 +126,7 @@ function gunShare(p) {
 const SHARE = { lift: 0.8, fade: 6, near: 2.6 };
 const shEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const shareTags = new Map(), _shC = new THREE.Color(), _shB = new THREE.Color(), _shV = new V3();
-function shareFx(p, dt) {
+export function shareFx(p, dt) {
   const c = p.cargo, on = !!c.shared || c.own === false;
   p.shareK = (p.shareK || 0) + ((on ? 1 : 0) - (p.shareK || 0)) * Math.min(1, dt * SHARE.fade);
   if (!on && p.shareK < 0.003) p.shareK = 0;
@@ -123,7 +142,7 @@ function shareFx(p, dt) {
   if (t) { t.el.classList.toggle('out', !on); t.el.classList.toggle('near', Math.hypot(p.x - P.x, p.z - P.z) < SHARE.near); }
 }
 // the labels over shared guns, kept over them on screen; a label goes once its gun's taken, gone, or no longer shared
-function updateShareTags() {
+export function updateShareTags() {
   for (const [p, t] of shareTags) {
     if (!pickups.includes(p) || (!p.shareK && t.el.classList.contains('out'))) { t.el.remove(); shareTags.delete(p); continue; }
     const show = state === 'play' || state === 'paused';
@@ -134,7 +153,7 @@ function updateShareTags() {
   }
 }
 // a shared gun's picked up (by you or anyone): gone from every farm it was on
-function gunGone(p) { if (netLink() && (p.cargo.shared || !p.cargo.own)) netSend('gtk', { g: p.cargo.gid }); }
+export function gunGone(p) { if (netLink() && (p.cargo.shared || !p.cargo.own)) netSend('gtk', { g: p.cargo.gid }); }
 NET_ON.gsh = m => {
   if (state === 'title' || pickups.some(q => q.kind === 'gun' && q.cargo.gid === m.g)) return;
   const w = teamWeapon(m.lo || {}, m.id); foldStatic(w.g, w.moving);
@@ -145,7 +164,7 @@ NET_ON.gsh = m => {
 };
 NET_ON.gtk = m => { const k = pickups.findIndex(q => q.kind === 'gun' && q.cargo.gid === m.g); if (k >= 0) { scene.remove(pickups[k].g); pickups.splice(k, 1); } };   // (taken by a teammate, or no longer shared)
 // what was on a teammate's gun, now on yours: its tiers, mods, attachments and rounds, owned as well as fitted
-function gunTakeLo(id, lo) {
+export function gunTakeLo(id, lo) {
   W8.mods[id] = (lo.mods || []).slice(); if (W8.modOff) delete W8.modOff[id]; (lo.mods || []).forEach(m => { W8.modLv[m] = (lo.lv || {})[m] || 1; });
   W8.gt[id] = { ...(lo.gt || {}) }; W8.own[id] = Object.assign({}, W8.own[id], lo.gt || {});
   W8.att[id] = { ...(lo.att || {}) }; W8.ownAtt[id] = Object.assign({}, W8.ownAtt[id]); for (const k in lo.att || {}) W8.ownAtt[id][k] = true;

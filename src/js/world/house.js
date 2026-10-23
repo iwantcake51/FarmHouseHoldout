@@ -1,15 +1,27 @@
 // Farmhouse walls, windows, door, porch, lamp and roof.
 
+import { scene } from '../core/renderer.js';
+import { N, smooth } from '../core/math.js';
+import { OL_LAYER, outline } from '../effects/screen-outlines.js';
+import { basic, lam, lit } from '../core/shaders.js';
+import { bgeo, box, finePieces, foldPieces, mergeInto, unfight } from '../core/geometry.js';
+import { cell, ci, cxw, EMPTY, idx, OPEN, openAt, WALL } from './grid.js';
+import { M } from './materials.js';
+import { HX0, HX1, HZ0, HZ1 } from './ground.js';
+import { lowObst } from './props.js';
+import { blockArr } from './collision.js';
+import { clearBoards } from '../barricades/planks.js';
+
 // ---- house ----
 const OPEN_HL = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });   // (an opening's outline pane: unseen, but drawn into the outlines' mask)
-const walls = [], openings = [];
+export const walls = [], openings = [];
 // the house's footprint this run: the rectangle HX0..HX1 by HZ0..HZ1, or that with a notch cut out of one of its back
 // corners (setFootprint). HOUSE_FP: each cell's part in it (0 outside it, 1 a room's floor, 2 the outer wall); HOUSE: the
 // rectangle's edges and wall lines, and the notch (cells, and its edges, or null)
-const HOUSE_FP = new Uint8Array(N * N);
-const HOUSE = { x0: cxw(HX0) - 0.5, x1: cxw(HX1) + 0.5, z0: cxw(HZ0) - 0.5, z1: cxw(HZ1) + 0.5, zN: cxw(HZ0), zS: cxw(HZ1), xW: cxw(HX0), xE: cxw(HX1), notch: null, cut: null };
+export const HOUSE_FP = new Uint8Array(N * N);
+export const HOUSE = { x0: cxw(HX0) - 0.5, x1: cxw(HX1) + 0.5, z0: cxw(HZ0) - 0.5, z1: cxw(HZ1) + 0.5, zN: cxw(HZ0), zS: cxw(HZ1), xW: cxw(HX0), xE: cxw(HX1), notch: null, cut: null };
 // a point inside the house's walls, m further out all round (less than nothing: further in)
-function inHouseRect(x, z, m) {
+export function inHouseRect(x, z, m) {
   if (!(x > HOUSE.x0 - m && x < HOUSE.x1 + m && z > HOUSE.z0 - m && z < HOUSE.z1 + m)) return false;
   const c = HOUSE.cut; return !c || !(x > c[0] + m && x < c[2] - m && z > c[1] + m && z < c[3] - m);
 }
@@ -44,7 +56,7 @@ let HOUSE_DOOR_O = null;   // (the front door's opening: setWindows)
 // the outer walls, a cell at a time: each in the form its place in this run's footprint needs (faces: the sides of it
 // that look out, N S W E; inner: the sides onto a room), built the first time it's wanted and kept for the next run that
 // wants it (WALL_FORMS), so a window's opening and its outline are only ever made once. WALL_AT: this run's, by cell
-const WALL_FORMS = new Map(), WALL_AT = new Map();
+export const WALL_FORMS = new Map(), WALL_AT = new Map();
 const FACE_V = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] };
 function wallForm(i, j, faces, inner) {
   const key = idx(i, j) + ':' + faces.join('') + ':' + inner.join(''); let w = WALL_FORMS.get(key); if (w) return w;
@@ -173,7 +185,7 @@ function houseOpening(G, i, j, kind, face) {
 // this run's windows (keys: the wall cells they're in): each shown in its cell in place of the plain wall, and an
 // opening (boarded up from scratch); every other side cell a plain wall again. live: in play, when what stops shots
 // changes with them too
-function setWindows(keys, live) {
+export function setWindows(keys, live) {
   openings.length = 0; openings.push(HOUSE_DOOR_O);
   for (const w of walls) {
     if (!w.win) continue;
@@ -196,7 +208,7 @@ function setWindows(keys, live) {
 // this run's footprint (notch: the cells cut out of a back corner, {i0, i1, j0, j1}, or null for the whole rectangle):
 // every cell's part in it, each outer wall cell in its form (the rest hidden), the floor and the roof over it. live:
 // in play, when what stops shots changes too (the windows come after: setWindows)
-function setFootprint(notch, live) {
+export function setFootprint(notch, live) {
   HOUSE.notch = notch; HOUSE.cut = notch ? [cxw(notch.i0) - 0.5, cxw(notch.j0) - 0.5, cxw(notch.i1) + 0.5, cxw(notch.j1) + 0.5] : null;
   const inF = (i, j) => i >= HX0 && i <= HX1 && j >= HZ0 && j <= HZ1 && !(notch && i >= notch.i0 && i <= notch.i1 && j >= notch.j0 && j <= notch.j1);
   for (let j = HZ0; j <= HZ1; j++) for (let i = HX0; i <= HX1; i++) {
@@ -220,7 +232,7 @@ function setFootprint(notch, live) {
 // the back left or right corner, FOOT.w cells across and FOOT.d deep (the front, with the door and the porch, is always
 // whole)
 const FOOT = { whole: 0.3, w: [3, 5], d: [2, 4] };
-function houseFootprint(rnd, live) {
+export function houseFootprint(rnd, live) {
   let notch = null;
   if (rnd() >= FOOT.whole) {
     const w = FOOT.w[0] + Math.floor(rnd() * (FOOT.w[1] - FOOT.w[0] + 1)), d = FOOT.d[0] + Math.floor(rnd() * (FOOT.d[1] - FOOT.d[0] + 1)), east = rnd() < 0.5;
@@ -234,7 +246,7 @@ function houseFootprint(rnd, live) {
 // roof's and its own gable end at the back (ROOF: the pitch, how high its eaves are, how far it overhangs, how much
 // lower the wing's ridge sits at least)
 const ROOF = { rise: 2.1 / 5.4, base: 2.5, ov: 0.4, under: 0.35 };
-const roof = (() => {
+export const roof = (() => {
   const g = new THREE.Group(); g.userData.still = true; scene.add(g);
   const mats = [];
   const mk = (c, side) => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true, side: side || THREE.FrontSide }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
@@ -298,7 +310,7 @@ box(scene, 0.18, 0.22, 0.18, basic(0xffd9a0), cxw(21) + 0.7, 2.25, cxw(HZ1) + 0.
   foldPieces(p);
 }
 // ---- porch roof on the two posts: a shallow shed roof off the front wall; it fades like the main roof when it would hide you ----
-const porchRoof = (() => {
+export const porchRoof = (() => {
   const g = new THREE.Group(); g.position.set(cxw(21), 0, cxw(HZ1) + 1.1); g.userData.still = true; scene.add(g);
   const mats = [], mk = c => { const m = new THREE.MeshLambertMaterial({ color: c, transparent: true }); m.userData.base = new THREE.Color(c); mats.push(m); return m; };
   const shingle = mk(0x4b3d36), ridgeM = mk(0x2f2622), trimM = mk(0x4a392d), beamM = mk(0x3e2f25);
@@ -318,8 +330,8 @@ const porchRoof = (() => {
 // how high the ground surface is here: the porch deck, its step and the door's threshold stand above the dirt, and
 // indoors the floorboards and the doormat a touch above it, so blood and brass land on top of them instead of
 // under the boards, and you stand on them (player/animation.js)
-const FLOOR_TILE = new Uint8Array(N * N);   // (the cells with a tiled floor this run: world/interior.js)
-function surfaceY(x, z) {
+export const FLOOR_TILE = new Uint8Array(N * N);   // (the cells with a tiled floor this run: world/interior.js)
+export function surfaceY(x, z) {
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
   if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;
@@ -344,8 +356,8 @@ const HOUSE_PAINT = [
 const _hc = new THREE.Color();
 // fade: from the scheme it had (the title's, as a run starts) to the new one over PAINT_FADE seconds, eased, rather
 // than all at once (stepPaint, every frame from world/cutaway.js)
-const PAINT_FADE = 2.4, PAINT_TW = { t: 1, list: [] };
-function paintHouse(rnd, fade) {
+export const PAINT_FADE = 2.4, PAINT_TW = { t: 1, list: [] };
+export function paintHouse(rnd, fade) {
   const c = HOUSE_PAINT[(rnd() * HOUSE_PAINT.length) | 0], shade = (h, k) => _hc.setHex(h).multiplyScalar(k).getHex(), list = [];
   const paint = (col, hex) => { if (fade) list.push([col, col.clone(), new THREE.Color(hex)]); else col.setHex(hex); };
   for (const w of walls) {
@@ -358,7 +370,7 @@ function paintHouse(rnd, fade) {
   paint(roof.paint.gable.userData.base, c.side);
   PAINT_TW.list = list; PAINT_TW.t = fade ? 0 : 1;
 }
-function stepPaint(rdt) {
+export function stepPaint(rdt) {
   if (PAINT_TW.t >= 1) return;
   PAINT_TW.t = Math.min(1, PAINT_TW.t + rdt / PAINT_FADE); const k = smooth(PAINT_TW.t);
   for (const [col, a, b] of PAINT_TW.list) col.copy(a).lerp(b, k);

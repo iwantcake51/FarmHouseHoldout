@@ -4,15 +4,24 @@
 // station (openStation, stations/station-ui.js). Two that would cover each other: the one further back is lifted clear
 // above the other on a longer stem.
 
+import { cam, V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { netLink } from '../net/net.js';
+import { STATIONS } from '../stations/stations.js';
+import { P } from '../player/player.js';
+import { METAL } from '../barricades/planks.js';
+import { phase, state } from '../game/state.js';
+import { INTRO } from '../game/intro.js';
+
 const BTIP_T = 7.5, BTIP_FADE = 0.6;
 const BTIP_TEXT = { bench: 'Upgrade and fit out your guns', get saw() { return METAL.on ? 'Cut metal and plate the grates' : 'Cut planks to board up windows'; }, med: 'Bandages and healing',
   radio: 'Call in a supply drop', rack: 'Unlock weapons, and swap to ones you have', box: 'Give scrap to a teammate' };
 const BTIP = { on: false, t: 0, gone: {}, els: null, top: {} };
 // a new run (ui/screens.js)
-function benchTipsStart() { BTIP.on = true; BTIP.t = 0; BTIP.gone = {}; }
-function benchTipUsed(id) { BTIP.gone[id] = true; }
+export function benchTipsStart() { BTIP.on = true; BTIP.t = 0; BTIP.gone = {}; }
+export function benchTipUsed(id) { BTIP.gone[id] = true; }
 const _bt = new V3(), _bb = new THREE.Box3();
-function updateBenchTips(rdt) {
+export function updateBenchTips(rdt) {
   if (!BTIP.els) {
     BTIP.els = {};
     STATIONS.forEach((s, k) => {

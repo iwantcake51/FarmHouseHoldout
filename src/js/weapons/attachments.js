@@ -1,6 +1,12 @@
 // Attachment models: muzzle devices, suppressors, lasers, lights, sights, bayonet, brace.
 
-function fitAttachments(g, D, front, y, info) {
+import { box } from '../core/geometry.js';
+import { roundOn } from './rounds.js';
+import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
+import { GM, X } from './gun-materials.js';
+import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-models.js';
+
+export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;
   // muzzle devices: a choked shotgun has no room for a can
   if (isShell && T('choke')) {

@@ -1,6 +1,14 @@
 // Every sound effect. Most play a recording (audio/samples.js), and the synthesized sound written after it plays
 // instead until that recording has loaded; the rest (footsteps, vaulting, zombies, the UI) are only synthesized.
 
+import { RIGHT } from '../core/renderer.js';
+import { clamp, rand, rr } from '../core/math.js';
+import { P } from '../player/player.js';
+import { curId, W, W8 } from '../game/run-state.js';
+import { AC, master, muff, nz, SND_AT, tn } from './audio.js';
+import { echoSet, gunKind, indoors, playS, SUPP_SFX } from './samples.js';
+import { camFocus } from '../net/spectate.js';
+
 // the brute's wall crash (SFX.bruteWall): how far off it's still heard (m), how loud, the lowpass on its body near and
 // at that distance (Hz), and its crack: how loud, its highpass and lowpass (Hz) and how long (s)
 // how far the gore's sounds (flesh hits, headshots, limbs off, heads popped, crushed or split) wander in pitch, either way,
@@ -12,7 +20,7 @@ const BRUTE_CRASH = { far: 26, vol: 0.6, lp: [2600, 450], crack: 0.4, hp: 2200, 
 const SUPP_SND = [{ vol: 1, rate: 1, hp: 0, lp: 1, verb: 1, echo: 1 }, { vol: 0.78, rate: 1.05, hp: 110, lp: 0.85, verb: 0.8, echo: 0.7 }, { vol: 0.6, rate: 1.1, hp: 200, lp: 0.72, verb: 0.62, echo: 0.45 }];
 // the MP5 with the 10mm kit: pitched down, a low shelf under it ([Hz, dB]), a little louder, a little more echo
 const TENMM_SND = { rate: 0.89, low: [180, 6], vol: 1.1, echo: 1.15 };
-const SFX = {
+export const SFX = {
   light() { nz(0.2, 'lowpass', 3200, 260, 0.75); tn(0.13, 'sine', 150, 45, 0.6); },
   heavy() { nz(0.32, 'lowpass', 2600, 180, 0.9); tn(0.22, 'sine', 120, 38, 0.8); },
   shotgun() { nz(0.45, 'lowpass', 2200, 140, 0.95); tn(0.28, 'sine', 110, 32, 0.85); },

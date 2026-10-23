@@ -3,10 +3,17 @@
 // frame what's easier watched than counted where it happens (runWatch): the ground you covered, the health you lost
 // and got back, the scrap that came in and went out, your closest call.
 
-function runStat(k, n) { if (run && run.st) run.st[k] = (run.st[k] || 0) + (n === undefined ? 1 : n); }
+import { $ } from '../core/dom.js';
+import { NET } from '../net/net.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { EFF, run, S, W } from '../game/run-state.js';
+import { state } from '../game/state.js';
+
+export function runStat(k, n) { if (run && run.st) run.st[k] = (run.st[k] || 0) + (n === undefined ? 1 : n); }
 // a kill of yours: what it was, what did it, from how far, and whether it came in a chain (kills RUN_CHAIN s apart)
 const RUN_CHAIN = 1.2;
-function runKill(z, wId, part) {
+export function runKill(z, wId, part) {
   const st = run.st; if (!st) return;
   runStat('k_' + (z.crawl ? 'crawler' : z.type));
   if (part === 'head') runStat('headKills');
@@ -19,7 +26,7 @@ function runKill(z, wId, part) {
 }
 // each frame of a run: what changed since the last (and nothing counted across going down and coming back)
 const RUN_W = { x: 0, z: 0, hp: 0, scrap: 0, live: false };
-function runWatch() {
+export function runWatch() {
   const st = run.st; if (!st) return;
   if (P.dead || state !== 'play') { RUN_W.live = false; return; }
   if (RUN_W.live) {
@@ -63,4 +70,4 @@ function runStatsHtml() {
   h += `<section class="rsG rsWide"><h4>Skills and perks <small>${run.taken.length}</small></h4>${sk ? `<div class="rsChips">${sk}</div>` : '<p class="rsNone">None taken this run</p>'}</section>`;
   return h;
 }
-function renderRunStats() { $('runStatsBody').innerHTML = runStatsHtml(); $('runMore').open = false; }
+export function renderRunStats() { $('runStatsBody').innerHTML = runStatsHtml(); $('runMore').open = false; }

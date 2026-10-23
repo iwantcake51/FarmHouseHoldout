@@ -3,6 +3,13 @@
 // The recordings are in src/sounds/ (cut from the packs in assets/sounds/ by tools/make-sounds.mjs). They load once
 // audio starts; until one's in, or if the browser can't decode it, its synthesized sound in audio/sfx.js plays instead.
 
+import { pick, rand, rr } from '../core/math.js';
+import { inHouseRect } from '../world/house.js';
+import { P } from '../player/player.js';
+import { curId } from '../game/run-state.js';
+import { AC, master, SND_AT } from './audio.js';
+import { earFrom } from './spatial.js';
+
 // how loud each plays, and (gap, s) the least time between two of it, so eight pellets into one zombie are one hit
 const SAMPLES = {
   shot_pistol: { vol: 0.9 }, shot_revolver: { vol: 1.0 }, shot_deagle: { vol: 1.15 }, shot_pump: { vol: 1.1 }, shot_dbl: { vol: 1.15 },
@@ -50,7 +57,7 @@ function houseIR() {
 // beat and dies away over FAR_ECHO.tail seconds, darker as it goes (the air soaks up the highs first). Each ear hears it
 // a little differently, so it's wide
 const FAR_ECHO = { taps: [[180, 0.55], [290, 0.4], [430, 0.32], [610, 0.22], [820, 0.15]], tail: 2.6, gap: 0.09 };
-function farIR() {
+export function farIR() {
   const sr = AC.sampleRate, len = Math.floor(sr * (FAR_ECHO.tail + 0.6)), ir = AC.createBuffer(2, len, sr);
   for (let c = 0; c < 2; c++) {
     const d = ir.getChannelData(c); let lp = 0;
@@ -68,12 +75,12 @@ function farIR() {
 // how the echo reaches you: out in the open, clear (ECHO_AT.out: its level and the top it keeps); indoors, through the
 // walls, quieter and dull (ECHO_AT.in), while the room rings with the shot itself (the shots' verb, audio/sfx.js)
 const ECHO_AT = { out: [0.6, 4200], in: [0.32, 800] };
-function echoSet(inside) {
+export function echoSet(inside) {
   if (!echoOut) return;
   const [g, f] = inside ? ECHO_AT.in : ECHO_AT.out, t = AC.currentTime;
   echoOut.gain.setTargetAtTime(g, t, 0.05); echoLp.frequency.setTargetAtTime(f, t, 0.05);
 }
-function samplesInit() {
+export function samplesInit() {
   try {
     const cv = AC.createConvolver(), hp = AC.createBiquadFilter(), lp = AC.createBiquadFilter();
     cv.buffer = houseIR(); hp.type = 'highpass'; hp.frequency.value = 160; lp.type = 'lowpass'; lp.frequency.value = 6500;
@@ -93,13 +100,13 @@ function samplesInit() {
   }
 }
 // whether you're inside the farmhouse
-const indoors = () => inHouseRect(P.x, P.z, 0);
+export const indoors = () => inHouseRect(P.x, P.z, 0);
 // plays a recorded sound (or one of a list, not the same one twice running). False if it isn't loaded, so the caller
 // plays its synthesized one. o: vol (times its own), rate, jit (the rate's varied by up to this either way, each
 // time), echo (how much goes to the farm's echo: FAR_ECHO), lp (a lowpass at this), hp (a highpass at this), dur (only its first this many seconds, faded out over the
 // back of them), tone (a bump or dip of up to this many dB somewhere in the mids), pan, verb (how much goes to the
 // house's reverb), gap (overrides its own)
-function playS(name, o) {
+export function playS(name, o) {
   if (!AC) return false;
   o = o || {};
   const key = Array.isArray(name) ? name[0] : name;
@@ -136,7 +143,7 @@ function playS(name, o) {
 // Its tick() lines up the next pass shortly before it's due (call it every frame while it should keep going); stop()
 // fades the whole thing out over fade seconds and then cuts it. Null if the recording isn't loaded
 const LOOP_XF = 0.16;
-function loopS(name, o) {
+export function loopS(name, o) {
   if (!AC || !sbuf[name]) return null;
   o = o || {};
   const b = sbuf[name], out = AC.createGain(), xf = Math.min(LOOP_XF, b.duration * 0.3);
@@ -164,5 +171,5 @@ function loopS(name, o) {
 }
 // which family of gun the one in your hands is, for its reload and dry-fire sounds
 const GUN_KIND = { pistol: 'pistol', revolver: 'pistol', deagle: 'pistol', smg: 'smg', sub: 'smg', ar: 'rifle', lmg: 'rifle', hunting: 'rifle', scar: 'rifle', auto12: 'rifle', pump: 'shotgun', dbl: 'shotgun' };
-const gunKind = () => GUN_KIND[curId()] || 'rifle';
-const SUPP_SFX = { pistol: 'supp_pistol', revolver: 'supp_pistol', deagle: 'supp_pistol', smg: 'supp_smg', sub: 'supp_smg', ar: 'supp_rifle', lmg: 'supp_rifle', hunting: 'supp_sniper', scar: 'supp_sniper', pump: 'supp_shotgun', dbl: 'supp_shotgun', auto12: 'supp_shotgun' };
+export const gunKind = () => GUN_KIND[curId()] || 'rifle';
+export const SUPP_SFX = { pistol: 'supp_pistol', revolver: 'supp_pistol', deagle: 'supp_pistol', smg: 'supp_smg', sub: 'supp_smg', ar: 'supp_rifle', lmg: 'supp_rifle', hunting: 'supp_sniper', scar: 'supp_sniper', pump: 'supp_shotgun', dbl: 'supp_shotgun', auto12: 'supp_shotgun' };

@@ -10,10 +10,17 @@
 // BLOOD_FADE (on the world clock, so it waits while the game's paused), the stain drawing back from its thin edges as
 // it goes. A fight leaves you, your weapon and the dead soaked; a quiet spell sees it gone again.
 
+import { V3 } from '../core/renderer.js';
+import { rr } from '../core/math.js';
+import { P, PM } from '../player/player.js';
+import { W8 } from '../game/run-state.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
+import { worldT } from '../game/state.js';
+
 const BLOOD_HOLD = 15, BLOOD_FADE = 1.5;
 // a splash of blood (amt, 0..1 of soaked) on a list of them; what lands within half a second of the last counts as
 // one splash with it, so a list holds no more than a couple of dozen
-function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }
+export function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }
 // how bloody a list of splashes leaves something (0..1): each ages by dt, fades over its last BLOOD_FADE seconds and
 // is dropped once it's gone
 function splashLevel(list, dt) {
@@ -24,12 +31,12 @@ function splashLevel(list, dt) {
   }
   return Math.min(1, b);
 }
-const youSplash = [];   // the splashes on you; a new run starts clean (clearBodyBlood)
-function addBlood(char, wId, wAmt) {
+export const youSplash = [];   // the splashes on you; a new run starts clean (clearBodyBlood)
+export function addBlood(char, wId, wAmt) {
   splashOn(youSplash, char * 1.3);
   if (wId && wAmt) splashOn(W8.bloodW[wId] || (W8.bloodW[wId] = []), wAmt);   // W8 starts afresh each run
 }
-function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
+export function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
 
 const BLOOD_NOISE = `
 vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -127,7 +134,7 @@ const STAIN_FRAG = `
   }`;
 // a copy of a surface's material that carries the stain: frame is what it rides on, su the stain's own uniforms
 // (shared by everything on you, or by one weapon)
-function stainMat(orig, mesh, frame, su, mode, zone) {
+export function stainMat(orig, mesh, frame, su, mode, zone) {
   const m = orig.clone(), baseC = orig.onBeforeCompile, baseKey = orig.customProgramCacheKey;
   const u = Object.assign({ uPart: { value: new THREE.Matrix4().copy(frame.matrixWorld).invert().multiply(mesh.matrixWorld) }, uZone: { value: zone || 0 }, uMode: { value: mode } }, su);
   m.userData.mobile = true; m.userData.bloodOf = orig;
@@ -141,7 +148,7 @@ function stainMat(orig, mesh, frame, su, mode, zone) {
   return m;
 }
 const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent && !o.userData.isOutline && !o.userData.isFlash;
-const WOUND_N = 8;   // wounds a zombie can show at once (zombies/wounds.js)
+export const WOUND_N = 8;   // wounds a zombie can show at once (zombies/wounds.js)
 const stainU = freq => ({ uWound: { value: Array.from({ length: WOUND_N }, () => new THREE.Vector4()) }, uWoundK: { value: new Array(WOUND_N).fill(-1) }, uWoundN: { value: 0 }, uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
 
 // stained copies swapped out for new ones (your gear re-laid, a weapon rebuilt) are let go a few frames later, once the
@@ -152,7 +159,7 @@ function binStains(list) { list.forEach(([, m]) => stainBin.push(m)); stainBinT 
 // ---- on you ----
 const BLOOD_U = stainU(7.5);
 const charBlood = [];   // [original material, the copy on you]
-let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
+export let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
 function buildCharBlood() {
   charBloodDirty = false;
   binStains(charBlood); charBlood.length = 0;   // (let go once the new ones are drawn: binStains, below)
@@ -173,7 +180,7 @@ function buildCharBlood() {
 // back as old splashes fade, fresh blood brightens it, and the copies keep the colour their originals have now (your
 // shirt, skin and pack are re-dyed each run). Anything put on you since (another plank on the pack) is picked up
 // within half a second.
-function updateCharBlood(rdt, dt) {
+export function updateCharBlood(rdt, dt) {
   charBloodChk += rdt;
   if (charBloodChk > 0.5) { charBloodChk = 0; let n = 0; PM.g.traverse(o => { if (o.isMesh) n++; }); if (n !== charBloodN) charBloodDirty = true; }
   if (charBloodDirty) buildCharBlood();
@@ -190,7 +197,7 @@ function syncStains(list) { for (const [o, m] of list) { if (!m.color.equals(o.c
 // ---- on zombies: the same stain as yours, on each zombie's own copies of its materials. They come in with a little
 // old blood on them already (b), which stays; every hit adds a splash over it, and so does being stood next to one
 // that's hit or killed, and those fade like yours ----
-function stainZombie(m) {
+export function stainZombie(m) {
   const u = stainU(7.5), list = [], zones = new Map([[m.torso, 0], [m.armL, 1], [m.armR, 2], [m.legL, 3], [m.legR, 4], [m.head, 5]]);
   m.g.updateMatrixWorld(true);
   const walk = (o, part, zone) => {
@@ -203,8 +210,8 @@ function stainZombie(m) {
   return { u, list, b: rr(0.08, 0.32), sp: [], shown: 0, was: 0, char: 0, burn: 0, glow: 0 };
 }
 // more blood on a zombie (0..1)
-function bloodZombie(z, amt) { if (z && z.stain) splashOn(z.stain.sp, amt); }
-function updateZombieStain(st, rdt, dt) {
+export function bloodZombie(z, amt) { if (z && z.stain) splashOn(z.stain.sp, amt); }
+export function updateZombieStain(st, rdt, dt) {
   if (!st) return;
   const b = Math.min(1, st.b + splashLevel(st.sp, dt));
   if (b > st.was + 0.001) st.u.uFresh.value = 1; else st.u.uFresh.value = Math.max(0, st.u.uFresh.value - rdt / 30);
@@ -217,8 +224,8 @@ function updateZombieStain(st, rdt, dt) {
 
 // ---- on your weapons: each weapon has its own stain, built with the model (weapons/build-weapons.js); the copies you
 // carry on your body share it ----
-const WSTAIN = {};   // weapon id -> { u, list, shown, was }
-function stainWeapon(id, frames, melee) {
+export const WSTAIN = {};   // weapon id -> { u, list, shown, was }
+export function stainWeapon(id, frames, melee) {
   const old = WSTAIN[id]; if (old) binStains(old.list);
   const S = WSTAIN[id] = { u: stainU(melee ? 15 : 17), list: [], shown: old ? old.shown : 0, was: old ? old.was : 0 };
   frames.forEach(f => {
@@ -230,7 +237,7 @@ function stainWeapon(id, frames, melee) {
     f.traverse(o => { if (!stainable(o)) return; const orig = o.material.userData.bloodOf || o.material, m = stainMat(orig, o, f, S.u, melee ? 2 : 1); o.material = m; S.list.push([orig, m]); });
   });
 }
-function updateWeaponBlood(rdt, dt) {
+export function updateWeaponBlood(rdt, dt) {
   if (stainBin.length && --stainBinT <= 0) { stainBin.forEach(m => m.dispose()); stainBin.length = 0; }   // (binStains)
   for (const id in WSTAIN) {
     const S = WSTAIN[id], sp = W8.bloodW[id], b = sp ? splashLevel(sp, dt) : 0;
@@ -239,3 +246,6 @@ function updateWeaponBlood(rdt, dt) {
     syncStains(S.list);
   }
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setCharBloodDirty(v) { return (charBloodDirty = v); }

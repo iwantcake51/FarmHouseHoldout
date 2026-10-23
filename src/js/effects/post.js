@@ -8,6 +8,14 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
+import { cam, R, scene } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
+import { flash } from './muzzle-flash.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { curDark } from '../lighting/day-night.js';
+import { BLOOM_K, SET } from '../ui/settings.js';
+
 // AO: how far round a point it looks for what shades it (metres), how dark the most shaded corner goes, its bias (how
 // near a surface counts as shading, against acne on flat ground), the samples by quality level, and how its shade
 // thins out into the fog; BLOOM: where brightness starts to glow and how softly it comes in, and how strong it is,
@@ -18,13 +26,13 @@ const BLOOM = { th: [0.95, 0.87], knee: [0.07, 0.14], k: [0.1, 0.24], k2: [0.06,
 // the things that glow whatever the hour (zombies' eyes and their halos and trails, muzzle flashes): on a layer of
 // their own, drawn alone into a small target and added into the glow in full, where nothing nearer hides them (the
 // scene's depth). GLOW.k: how strongly
-const GLOW_LAYER = 3, GLOW = { k: 1.35 };
+export const GLOW_LAYER = 3, GLOW = { k: 1.35 };
 const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // POST.q: the quality the frame's run at (2 full, 1 fewer occlusion samples, 0 no occlusion: game/loop.js steps it
 // down when the frame rate drops, before the resolution goes)
 // POST.aoK: how much of the occlusion's shown, eased in and out (AO.fade a second) as it's turned on and off, so a
 // quality change never pops it on or off the whole screen at once
-const POST = { ok: R.capabilities.isWebGL2, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
+export const POST = { ok: R.capabilities.isWebGL2, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
 const PS_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 // linear depth from the depth buffer: an orthographic camera's is straight from near to far
 const PS_DEPTH = `
@@ -159,13 +167,13 @@ void main() {
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
 const psScene = new THREE.Scene(); psScene.add(psQuad);
 const psCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-const PS_RT = { sc: null, ao: null, ao2: null, hA: null, hB: null, b1: null, b1b: null, b2: null, b2b: null, gl: null };
+export const PS_RT = { sc: null, ao: null, ao2: null, hA: null, hB: null, b1: null, b1b: null, b2: null, b2b: null, gl: null };
 // last frame's view of the occlusion (its history, PS_RT.hA) and the camera it was seen from
 const PS_PREV = { view: new THREE.Matrix4(), size: new THREE.Vector2(), center: new THREE.Vector2(), ok: false };
 const psTarget = (w, h, o) => { const t = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), Object.assign({ minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false }, o || {})); t.texture.generateMipmaps = false; return t; };
 const _psSz = new THREE.Vector2();
 // (re)made at the drawing buffer's size whenever it changes
-function postTargets() {
+export function postTargets() {
   R.getDrawingBufferSize(_psSz); const W = _psSz.x, H = _psSz.y;
   if (W === POST.w && H === POST.h && PS_RT.sc) return;
   Object.keys(PS_RT).forEach(k => { if (PS_RT[k]) { PS_RT[k].dispose(); if (PS_RT[k].depthTexture) PS_RT[k].depthTexture.dispose(); } });
@@ -199,7 +207,7 @@ function glowPass() {
 }
 const _glCC = new THREE.Color();
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
-function renderFrame() {
+export function renderFrame() {
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;

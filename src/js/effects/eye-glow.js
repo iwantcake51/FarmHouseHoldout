@@ -1,8 +1,18 @@
 // Zombie eyes: a soft glow round each eye (the game has no bloom pass, so an additive halo stands in for it) and a short
 // streak of light that trails behind them as they move, fading out over a fraction of a second.
 
+import { cam, R, scene, V3 } from '../core/renderer.js';
+import { clamp, smooth } from '../core/math.js';
+import { GLOW_LAYER } from './post.js';
+import { BLOB_TEX } from '../core/geometry.js';
+import { ragdolls } from '../zombies/deaths.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { worldT } from '../game/state.js';
+import { curDark } from '../lighting/day-night.js';
+import { visAt } from '../lighting/vision.js';
+
 // the glow is a pale, washed-out yellow and kept soft (EYE_HALO, EYE_STREAK), so eyes read in the dark without blazing
-const EYE_COL = 0xffe6a8, EYE_GLOW = new THREE.Color(0xfff0b4), EYE_HALO = 0.5, EYE_STREAK = 0.7, EYE_TRAIL_T = 0.26, EYE_PTS = 10, EYE_MAX = 48 * 2;
+export const EYE_COL = 0xffe6a8, EYE_GLOW = new THREE.Color(0xfff0b4), EYE_HALO = 0.5, EYE_STREAK = 0.7, EYE_TRAIL_T = 0.26, EYE_PTS = 10, EYE_MAX = 48 * 2;
 const eyeFx = (() => {
   // the trails: one ribbon of EYE_PTS points per eye, all in one mesh
   const nv = EYE_MAX * EYE_PTS * 2, pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3), idx = [];
@@ -19,7 +29,7 @@ const eyeFx = (() => {
 })();
 const _ew = new V3(), _ev = new V3(), _et = new V3(), _en = new V3(), _eo = [];
 const eyeOwners = () => { _eo.length = 0; for (const z of zombies) _eo.push(z); for (const r of ragdolls) if (r.eyeGlow > 0.01) _eo.push(r); return _eo; };
-function updateEyes(dt) {
+export function updateEyes(dt) {
   const F = eyeFx, now = worldT, glow = 0.55 + 0.45 * curDark;   // brighter in the dark
   cam.getWorldDirection(_ev);
   // the halo is sized in pixels (the camera is orthographic): about 30 cm across in the world

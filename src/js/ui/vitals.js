@@ -1,5 +1,9 @@
 // Health ECG line and heart rate.
 
+import { $ } from '../core/dom.js';
+import { clamp, rr } from '../core/math.js';
+import { P } from '../player/player.js';
+
 // The heart rate follows your body the way a real one does: about 72 at rest, up when you run, get hit or lose
 // blood (losing blood makes the heart race to keep the pressure up), and highest while a wound is still bleeding.
 // It climbs within a couple of seconds and only settles slowly once the cause is gone. Near death it falters, slows
@@ -8,8 +12,8 @@
 // quite the same: each is a little taller or shorter (more so with the breath), its waves a touch different, the
 // baseline drifts as you breathe, and the line goes fuzzy and jumps while you run or take a hit.
 const ECG_HZ = 120, ECG_N = 312, ecg = new Array(ECG_N).fill(0);
-let ecgAcc = 0, ecgPen = 0, breathT = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72, ecgNoise = 0, ecgJolt = 0, ecgJoltV = 0;
-const ECG_R = 0.22;   // the R spike, this long after the start of each beat (the P wave comes first)
+export let ecgAcc = 0, ecgPen = 0, breathT = 0, heartRate = 72, hrStartle = 0, beatT = 0, beatRR = 60 / 72, prevRR = 60 / 72, ecgNoise = 0, ecgJolt = 0, ecgJoltV = 0;
+export const ECG_R = 0.22;   // the R spike, this long after the start of each beat (the P wave comes first)
 const gauss = (t, mu, sd, a) => a * Math.exp(-((t - mu) * (t - mu)) / (2 * sd * sd));
 // one beat, t seconds after it starts, positive up: P, a small Q dip, the tall R, the S dip, then the T wave, which
 // comes in closer at a fast rate (the QT interval shortens with the beat)
@@ -24,8 +28,8 @@ function newBeat(len) {
 }
 let beatCur = newBeat(60 / 72), beatPrev = newBeat(60 / 72);
 // a hit makes your heart jump (ui/hud.js hitFromAt)
-function heartStartle() { hrStartle = Math.min(30, hrStartle + 12); ecgJolt = 1; ecgJoltV = rr(-1, 1) < 0 ? -1 : 1; }
-function updateHeart(rdt, hpF) {
+export function heartStartle() { hrStartle = Math.min(30, hrStartle + 12); ecgJolt = 1; ecgJoltV = rr(-1, 1) < 0 ? -1 : 1; }
+export function updateHeart(rdt, hpF) {
   const dead = P.hp <= 0, lost = clamp(1 - hpF, 0, 1), bleedK = P.bleed > 0 ? Math.min(1, P.bleed / 6) : 0;
   hrStartle = Math.max(0, hrStartle - rdt * 2.5);
   let target = 72 + lost * 55 + bleedK * 38 + (P.sprint ? 26 : 0) + (1 - P.stam) * 22 + P.slow * 14 + (P.adr > 0 ? 28 : 0) + hrStartle;
@@ -57,4 +61,4 @@ function updateHeart(rdt, hpF) {
   for (let k = 0; k < ECG_N; k++) d += (k ? 'L' : 'M') + (k * sx).toFixed(1) + ',' + (20 - ecg[(ecgPen + k) % ECG_N] * 15).toFixed(1);
   $('ecgLine').setAttribute('d', d);
 }
-function resetHeart() { heartRate = 72; hrStartle = 0; beatT = 0; ecgPen = 0; beatRR = prevRR = 60 / 72; beatCur = newBeat(beatRR); beatPrev = newBeat(beatRR); ecgNoise = ecgJolt = 0; ecg.fill(0); }
+export function resetHeart() { heartRate = 72; hrStartle = 0; beatT = 0; ecgPen = 0; beatRR = prevRR = 60 / 72; beatCur = newBeat(beatRR); beatPrev = newBeat(beatRR); ecgNoise = ecgJolt = 0; ecg.fill(0); }

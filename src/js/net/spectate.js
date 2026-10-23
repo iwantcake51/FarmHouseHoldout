@@ -3,9 +3,19 @@
 // top with who you're watching, their health and planks, scrap and kills bottom left, their weapon and its ammo bottom
 // right (sent with their pose: ammoOut in net/avatars.js)
 
-const SPEC = { id: '', key: '' };
+import { $ } from '../core/dom.js';
+import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { NET, NET_COL, netLink } from './net.js';
+import { P } from '../player/player.js';
+import { S, T } from '../game/run-state.js';
+import { dropPickup, pickups } from '../pickups/pickups.js';
+import { state } from '../game/state.js';
+import { DC } from '../ui/screens.js';
+import { paintBar } from './lobby.js';
+
+export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
-function camFocus() {
+export function camFocus() {
   if (!netLink() || !P.dead || !DC.spec) return P;   // (once the death camera's dipped to black: ui/screens.js)
   let first = null;
   for (const p of NET.peers.values()) {
@@ -15,23 +25,23 @@ function camFocus() {
   }
   return first || P;
 }
-const spectating = () => camFocus() !== P;
+export const spectating = () => camFocus() !== P;
 // whose eyes the screen sees through: yours, or watching a teammate, theirs: where they stand and look, how wide they see
 // round them (Wide eyes) and their night vision, sent with their pose (vw: net/avatars.js). The fog of war
 // (lighting/vision.js) and night vision (lighting/lightmap.js, day-night.js) read it
 const _view = { x: 0, z: 0, aim: 0, cone: 1.2, near: 2.4, nv: 0, night: 0 };
-function viewer() {
+export function viewer() {
   const f = camFocus();
   if (f === P || !f.vw) return Object.assign(_view, { x: P.x, z: P.z, aim: P.aim, cone: S.cone, near: S.near, nv: S.nightVis || 0, night: T('night') || 0 });
   return Object.assign(_view, { x: f.x, z: f.z, aim: f.vw[0], cone: f.vw[1], near: f.vw[2], nv: f.vw[3], night: f.vw[4] });
 }
 // step to the next teammate still standing (dir 1) or the one before (-1), round and round
-function specStep(dir) {
+export function specStep(dir) {
   const up = [...NET.peers.values()].filter(p => !p.dead && p.x !== undefined).sort((a, b) => a.idx - b.idx);
   if (up.length < 2) return;
   SPEC.id = up[(up.indexOf(camFocus()) + dir + up.length) % up.length].id; SPEC.key = '';
 }
-function renderSpec() {
+export function renderSpec() {
   const f = camFocus(), on = f !== P && (state === 'play' || state === 'paused'), el = $('spec');
   if (el.hidden === on) { el.hidden = !on; document.body.classList.toggle('spectating', on); SPEC.key = ''; }
   if (!on) return;
@@ -64,7 +74,7 @@ function renderSpec() {
 // sends it, ap: net/avatars.js; SPEC_XH.ease), draws in tighter while they're aiming down the sights, and fades in
 // and out with the watching
 const SPEC_XH = { ease: 12 }, _sxV = new V3();
-function updateSpecXh(rdt) {
+export function updateSpecXh(rdt) {
   const el = $('specXh'), f = camFocus(), on = f !== P && (state === 'play' || state === 'paused') && !!f.ap;
   if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
   if (!on) { SPEC.xh = null; return; }
@@ -80,7 +90,7 @@ function updateSpecXh(rdt) {
 // among your pickups (p.ghost: never yours to take, pickups/pickups.js), kept in step with theirs: new ones dropped in,
 // ones taken or gone taken away, a drop flying in to them moved with it. Watching no one, there are none
 const DROP_KINDS = ['ammo', 'planks', 'med', 'supply'];
-function updateSpecDrops() {
+export function updateSpecDrops() {
   const f = camFocus(), id = f !== P && f.drops ? f.id : null, want = new Map();
   if (id) for (const d of f.drops) want.set(d[0], d);
   for (let k = pickups.length - 1; k >= 0; k--) {
@@ -93,4 +103,4 @@ function updateSpecDrops() {
   for (const d of want.values()) { const p = dropPickup(d[2], d[3], DROP_KINDS[d[1]], d[5] || 1, d[4] || undefined); p.ghost = id; p.guid = d[0]; }
 }
 // yours, for a teammate who's down and might be watching you: what's lying on your farm to be picked up
-function myDrops() { return pickups.filter(p => !p.ghost && DROP_KINDS.includes(p.kind)).slice(-24).map(p => [p.uid, DROP_KINDS.indexOf(p.kind), Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100, p.ammoType || 0, p.amount | 0]); }
+export function myDrops() { return pickups.filter(p => !p.ghost && DROP_KINDS.includes(p.kind)).slice(-24).map(p => [p.uid, DROP_KINDS.indexOf(p.kind), Math.round(p.x * 100) / 100, Math.round(p.z * 100) / 100, p.ammoType || 0, p.amount | 0]); }

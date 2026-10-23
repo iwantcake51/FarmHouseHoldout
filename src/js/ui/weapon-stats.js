@@ -4,9 +4,26 @@
 // it better, red where something's made it worse, with how much. It's docked against the workbench's left side while
 // that's open (sliding out from behind it as it unrolls), and I shows or hides it anywhere.
 
+import { $ } from '../core/dom.js';
+import { rkSideOn } from '../stations/armory.js';
+import { P } from '../player/player.js';
+import { fallOf } from '../weapons/ammo.js';
+import { roundName, roundOn } from '../weapons/rounds.js';
+import { modName } from '../weapons/mod-levels.js';
+import { tierName } from '../upgrades/tier-table.js';
+import { curId, GUN_TIERS, gunTier, magSize, recomputeEff, S, suppMul, W, W8 } from '../game/run-state.js';
+import { EJECT, RACKS } from '../weapons/casings.js';
+import { headMulFor } from '../zombies/zombie-types.js';
+import { openSt, setStStruct } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { state } from '../game/state.js';
+import { EMPTY_MUL, firstShell, relMul, shellGo, SLIDE_PISTOLS, TAC_MUL } from '../weapons/reload.js';
+import { akDur, akPer } from '../weapons/akimbo.js';
+import { RUN_SPREAD } from '../weapons/firing.js';
+
 // shown at the workbench unless you hide it there (wsBench), and elsewhere only once you ask for it (wsOn)
-let wsOn = false, wsBench = true, wsKey = '';
-const wsAtBench = () => !!openSt && openSt.id === 'bench';
+export let wsOn = false, wsBench = true, wsKey = '';
+export const wsAtBench = () => !!openSt && openSt.id === 'bench';
 const wsShown = () => state === 'play' && !P.dead && (wsAtBench() ? wsBench : wsOn && !rkSideOn());   // (the gun rack has your loadout there instead)
 // the numbers for a weapon as it stands (stats this sheet shows; the same sums the game uses)
 function wsNumbers(id) {
@@ -134,7 +151,7 @@ function wsHTML(id) {
 // shows changes. It comes in and goes out with a slide and a fade (styles/weapon-stats.css): docked, out from behind
 // the bench as it unrolls and back in as it rolls up, the bench keeping its place till it's gone so neither jumps
 let wsCloseT = 0;
-function updateWeaponStats() {
+export function updateWeaponStats() {
   const el = $('wStats'), id = curId(), on = wsShown() && !!id, st = $('station');
   if (!st.classList.contains('closing')) { const dock = (on && wsAtBench()) || rkSideOn(); st.classList.toggle('withStats', dock); document.documentElement.classList.toggle('dkS', dock); if (on) el.classList.toggle('docked', dock); }
   if (on && (el.hidden || el.classList.contains('closing'))) {
@@ -147,4 +164,4 @@ function updateWeaponStats() {
   const key = id + JSON.stringify([W8.gt[id], W8.mods[id], W8.modLv, W8.tune[id], W8.fm[id], S.dmgMul, S.rateMul, S.magMul, S.reloadMul, S.spreadMul, S.headMul, W8.att[id], W8.rounds[id]]);
   if (key !== wsKey) { wsKey = key; el.innerHTML = wsHTML(id); }
 }
-function toggleWeaponStats() { if (wsAtBench()) { wsBench = !wsBench; stStruct = ''; } else wsOn = !wsOn; wsKey = ''; SFX.click(); }   // (stStruct: the bench's note says which)
+export function toggleWeaponStats() { if (wsAtBench()) { wsBench = !wsBench; setStStruct(''); } else wsOn = !wsOn; wsKey = ''; SFX.click(); }   // (stStruct: the bench's note says which)

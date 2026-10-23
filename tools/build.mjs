@@ -4,11 +4,12 @@
 //   node tools/build.mjs --dev     readable build with file banners, for debugging
 //   node tools/build.mjs --serve   dev build + local server on http://localhost:5173, rebuilds on every save
 //
-// The game is plain browser JavaScript split across src/js/<system>/*.js. All files share one scope:
-// they are joined in the order listed in src/js/load-order.json and wrapped in a single function.
-// That means any file can call a function from any other file, and load order only matters for
-// top-level statements that run immediately (building the world, creating materials, and so on).
+// The game is browser JavaScript split across src/js/<system>/*.js, each file an ES module that imports what it uses
+// from the others (tools/modules.mjs checks them all on every build). For the browser they are joined in the order
+// listed in src/js/load-order.json into one script, wrapped in a single function, so the order matters for top-level
+// statements that run immediately (building the world, creating materials, and so on).
 import { build as esbuild, transform } from 'esbuild';
+import { checkModules, stripModule } from './modules.mjs';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
@@ -40,12 +41,14 @@ function joinScripts() {
   const onDisk = walk(path.join(SRC, 'js')).filter(f => f.endsWith('.js')).map(f => path.relative(path.join(SRC, 'js'), f).split(path.sep).join('/'));
   const missing = onDisk.filter(f => !order.includes(f));
   if (missing.length) throw new Error('These files are not in src/js/load-order.json, add them:\n  ' + missing.join('\n  '));
-  const parts = order.map(f => {
+  const files = order.map(f => {
     const p = path.join(SRC, 'js', f);
     if (!fs.existsSync(p)) throw new Error('load-order.json lists a file that does not exist: ' + f);
-    const code = f === 'ui/cheats.js' && !cheats ? CHEATS_STUB : fs.readFileSync(p, 'utf8');
-    return `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + code;
+    return { file: f, src: fs.readFileSync(p, 'utf8') };
   });
+  const errs = checkModules(files);
+  if (errs.length) throw new Error(`The game's imports and exports don't add up (${errs.length}):\n  ` + errs.slice(0, 40).join('\n  ') + (errs.length > 40 ? '\n  ...' : ''));
+  const parts = files.map(({ file: f, src }) => `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + (f === 'ui/cheats.js' && !cheats ? CHEATS_STUB : stripModule(src)));
   return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
 }
 // the bundle parsed (and minified, for a production build); on an error, which source file and line it's in, by the

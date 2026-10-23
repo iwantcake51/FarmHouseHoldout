@@ -1,15 +1,25 @@
 // House furniture (pantry shelf, bed, hanging lamps) and yard props (cars, crates, hay bales, burn barrel).
 
+import { R, scene } from '../core/renderer.js';
+import { rand, rr } from '../core/math.js';
+import { basic, lam } from '../core/shaders.js';
+import { box, finePieces, mergeInto, unfight } from '../core/geometry.js';
+import { cell, cxw, idx, inb, OBST } from './grid.js';
+import { M } from './materials.js';
+import { GROUND_ART } from './ground-art.js';
+import { HX0, HZ0 } from './ground.js';
+import { blockArr } from './collision.js';
+
 // low ones (crates, hay bales, and the furniture in the house but the medicine cabinet) stop feet but not eyes or
 // bullets: you see and shoot over them (world/collision.js)
-const lowObst = new Set();
+export const lowObst = new Set();
 // the furniture in the house, placed afresh each run (world/furniture.js): its group, the cells it stands on, whether
 // it's low enough to see and shoot over, which way it faces the room (away from the wall at its back; a corner piece
 // diagonally), and the station it is, if it's one
-const FURN = [], WALL_DECOR = [];
-function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
+export const FURN = [], WALL_DECOR = [];
+export function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
-const HM = {
+export const HM = {
   oak: lam(0x7a5434), oakDk: lam(0x5a3e28), oakLt: lam(0x8e6640), pine: lam(0xa2784b), pine2: lam(0x8d6840),
   paper: lam(0xd9cba4), cream: lam(0xe4dac4), sheet: lam(0xd8d0bc), brass: lam(0xb08a3a), iron: lam(0x34363a), steel: lam(0x8a8d90),
   hole: lam(0x1c1712), ink: lam(0x3a2a1e), inkB: lam(0x4e6a78), inkR: lam(0xa02a20), enamel: lam(0xd8d2c4), enamel2: lam(0xc8c2b4),
@@ -17,10 +27,10 @@ const HM = {
   glazeR: lam(0x8e3a2a), olive: lam(0x4a5236), oliveDk: lam(0x363c28), label: lam(0xc8a040), coffee: lam(0x2a1a10), rope: lam(0xb09a6a),
   kraft: lam(0xa8845a), glassG: lam(0x6a8a5a), glassA: lam(0x7a4a1e), red: lam(0x9a2a22), blue: lam(0x34607e), yellow: lam(0xd0a030)
 };
-function ycyl(g, rT, rB, h, mat, x, y, z, seg, open) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rT, rB, h, seg || 10, 1, !!open), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; }
-function xcyl(g, r, len, mat, x, y, z, seg) { const m = ycyl(g, r, r, len, mat, x, y, z, seg); m.rotation.z = Math.PI / 2; return m; }
-function zcyl(g, r, len, mat, x, y, z, seg) { const m = ycyl(g, r, r, len, mat, x, y, z, seg); m.rotation.x = Math.PI / 2; return m; }
-function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 6, 16, arc || Math.PI * 2), mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; }
+export function ycyl(g, rT, rB, h, mat, x, y, z, seg, open) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rT, rB, h, seg || 10, 1, !!open), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; }
+export function xcyl(g, r, len, mat, x, y, z, seg) { const m = ycyl(g, r, r, len, mat, x, y, z, seg); m.rotation.z = Math.PI / 2; return m; }
+export function zcyl(g, r, len, mat, x, y, z, seg) { const m = ycyl(g, r, r, len, mat, x, y, z, seg); m.rotation.x = Math.PI / 2; return m; }
+export function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 6, 16, arc || Math.PI * 2), mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; }
 {
   // ---- the pantry shelf on the west wall: open front, two bays, three shelves of stores and a few things on top ----
   const s = new THREE.Group(); s.position.set(cxw(17), 0, (cxw(23) + cxw(24)) / 2); scene.add(s);
@@ -118,12 +128,12 @@ function torus(g, r, tube, mat, x, y, z, arc) { const m = new THREE.Mesh(new THR
 // run (world/yard.js): what each is, its model, its footprint in cells (w across x and d along z, as it's built),
 // whether you see and shoot over it, how it's stood on a spot (put: its first cell, turned q quarters) and the cells
 // it's on (at)
-const YARD_PROPS = [];
+export const YARD_PROPS = [];
 const yardProp = (kind, g, w, d, low, put) => { g.userData.still = true; const p = { kind, g, w, d, low, put, at: [] }; YARD_PROPS.push(p); return p; };
 // a prop's cells with its first at (i, j), turned q quarters
-const yardCells = (p, i, j, q) => { const odd = q & 1, w = odd ? p.d : p.w, d = odd ? p.w : p.d, out = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) out.push([i + a, j + b]); return out; };
+export const yardCells = (p, i, j, q) => { const odd = q & 1, w = odd ? p.d : p.w, d = odd ? p.w : p.d, out = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) out.push([i + a, j + b]); return out; };
 // set down there, on the grid (live: in a game, so what stops shots is kept up too: world/collision.js)
-function yardSet(p, i, j, q, live) {
+export function yardSet(p, i, j, q, live) {
   p.at = yardCells(p, i, j, q); p.put(i, j, q); if (!p.home) p.home = [i, j, q];
   for (const [a, b] of p.at) { obstacle(a, b, p.low); if (live) blockArr[idx(a, b)] = p.low ? 0 : 1; }
 }
@@ -151,7 +161,7 @@ function hay(i, j) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0
 // the burn barrel: its fire is particles (barrelFire, effects/puffs.js) over a bed of glowing coals and charred logs
 // inside the rim, which flicker with the light it throws (lighting/lightmap.js). BURN_BARREL: where its mouth is, how wide
 // (and where its moths circle: world/atmosphere.js)
-const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff7a24), ember: basic(0x9a2a0c), moths: [cxw(14), 1.4, cxw(16)] };
+export const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff7a24), ember: basic(0x9a2a0c), moths: [cxw(14), 1.4, cxw(16)] };
 {
   const g = new THREE.Group(); scene.add(g);
   const b = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12, 1, true), M.barrel); b.position.y = 0.45; b.castShadow = true; g.add(b);
@@ -163,9 +173,9 @@ const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: basic(0xff
 }
 // ---- hanging bulbs in the house ----
 // the hanging lamps, one or two a room: where each hangs is laid out with the rooms each run (world/interior.js)
-const HANG = [], hangG = new THREE.Group(), HANG_M = { shade: lam(0x3a4a3a, { side: THREE.DoubleSide }), bulb: basic(0xffd59a) };
+export const HANG = [], hangG = new THREE.Group(), HANG_M = { shade: lam(0x3a4a3a, { side: THREE.DoubleSide }), bulb: basic(0xffd59a) };
 scene.add(hangG);
-function hangLamps() {
+export function hangLamps() {
   while (hangG.children.length) { const g = hangG.children.pop(); g.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); }
   HANG.forEach(([x, z]) => {
     // a green enamel shade on a cord, with its socket and a rolled rim

@@ -1,9 +1,37 @@
 // Keyboard and mouse input.
 
-const keys = new Set();
+import { bindIs, KB, keyOf } from './keybinds.js';
+import { cv, GUN_Y, setZoomT, V3, ZOOM_MAX, ZOOM_MIN, zoomT } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { GUN_RACK, rackTab } from '../stations/armory.js';
+import { P } from '../player/player.js';
+import { SLOTS } from '../weapons/slots.js';
+import { swapRounds } from '../weapons/rounds.js';
+import { cycleFireMode } from '../weapons/mod-levels.js';
+import { curId } from '../game/run-state.js';
+import { nearestTake, takeIt } from '../pickups/pickups.js';
+import { throwGrenade } from '../weapons/explosives.js';
+import { tryVault } from '../player/vaulting.js';
+import { benchGunStep, closeStation, nearestStation, openSt, openStation } from '../stations/station-ui.js';
+import { audioInit } from '../audio/audio.js';
+import { phase, state } from '../game/state.js';
+import { exitScope, moveScope, scoped, setAimHeld, setAiming, startAim } from '../player/aiming.js';
+import { startReload } from '../weapons/reload.js';
+import { shove } from '../player/shove.js';
+import { cancelBandage, startBandage, switchSlot } from '../player/bandages.js';
+import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/screens.js';
+import { fireModeSwitched } from '../ui/hud.js';
+import { toggleWeaponStats } from '../ui/weapon-stats.js';
+import { cheatOn, toggleCheats } from '../ui/cheats.js';
+import { skipBreak } from '../net/sync.js';
+import { specStep, spectating } from '../net/spectate.js';
+import { giftSend, gunShare } from '../net/teamwork.js';
+import { closeSettings, setOpen } from '../ui/settings.js';
+
+export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
-let mouseX = innerWidth / 2, mouseY = innerHeight / 2, mouseDown = false, mouseDownR = false, hasMouse = false;
-const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), aimPlane = new THREE.Plane(new V3(0, 1, 0), -GUN_Y), aimPt = new V3(0, GUN_Y, 5);
+export let mouseX = innerWidth / 2, mouseY = innerHeight / 2, mouseDown = false, mouseDownR = false, hasMouse = false;
+export const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), aimPlane = new THREE.Plane(new V3(0, 1, 0), -GUN_Y), aimPt = new V3(0, GUN_Y, 5);
 addEventListener('keydown', e => {
   const k = keyOf(e);
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
@@ -43,18 +71,18 @@ function keyAct(k, e) {
   }
   for (let n = 1; n <= 4; n++) if (bindIs(k, 'slot' + n)) switchSlot(SLOTS[n - 1]);
   if (bindIs(k, 'wave') && phase === 'break' && !e.repeat) skipBreak();   // (co-op: a vote, counted by the host: net/sync.js)
-  if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) zoomT = clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX);
-  if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) zoomT = clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX);
+  if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) setZoomT(clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX));
+  if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) setZoomT(clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX));
 }
 addEventListener('keyup', e => keys.delete(keyOf(e)));
-addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; aimHeld = false; pauseRun(); });
+addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
   if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
-  if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; aimHeld = true; if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
+  if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; setAimHeld(true); if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 // the middle and side buttons: whatever's bound to them (as mouse3 to mouse5), anywhere on the page; and the side
 // buttons never take the browser back or forward a page, out of the game
 const MOUSE_KEY = { 1: 'mouse3', 3: 'mouse4', 4: 'mouse5' };
@@ -63,4 +91,8 @@ addEventListener('mousedown', e => { if (e.button === 3 || e.button === 4 || e.b
 // (and should a browser still go back, the page holds its place: one step of history of its own, put back each time)
 addEventListener('pointerdown', function guard() { removeEventListener('pointerdown', guard); try { history.pushState({ kessler: 1 }, ''); } catch (e) {} });
 addEventListener('popstate', () => { try { history.pushState({ kessler: 1 }, ''); } catch (e) {} if (state === 'play') pauseRun(); });
-addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preventDefault(); const mk = MOUSE_KEY[e.button]; if (mk) keys.delete(mk); if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; aimHeld = false; exitScope(); aiming = false; } });
+addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preventDefault(); const mk = MOUSE_KEY[e.button]; if (mk) keys.delete(mk); if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; setAimHeld(false); exitScope(); setAiming(false); } });
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setMouseDown(v) { return (mouseDown = v); }
+export function setMouseDownR(v) { return (mouseDownR = v); }

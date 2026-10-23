@@ -122,12 +122,18 @@ browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads
 
 ### How the code fits together
 
-The game is plain JavaScript and three.js (r128), with no framework. The build joins the files in
-`src/js/load-order.json`, in that order, into one script:
+The game is plain JavaScript and three.js (r128), with no framework. Each file in `src/js` is an ES module:
 
-- Every file shares one scope, so there are no imports. Any file can use any other file's functions.
-- Order only matters for code that runs at load time. The build checks the joined script and names the file and line
-  of any error, such as a duplicate name.
+- A file imports what it uses from the other files and exports what they use from it, so the top of a file lists
+  everything it depends on, and an editor can jump to where anything is defined.
+- Another file's variable can only be read. The few that other files change come with a setter in their own file
+  (`setShake`, `setZoom` and so on).
+- The build checks every file's imports and exports (`tools/modules.mjs`). It fails, naming the file and line, on a
+  name that isn't imported, an import of something that isn't exported, an import that isn't used, or an assignment to
+  another file's variable.
+- For the browser, the build joins the files in the order of `src/js/load-order.json` into one script. That order only
+  matters for code that runs at load time, such as building the world. The build also checks the joined script and
+  names the file and line of any error, such as two files declaring the same name.
 - Each frame, `game/loop.js` runs `update(dt)` (`game/update.js`, the simulation) and then `visuals(dt)`
   (`game/visuals.js`, animation, camera and HUD). Those two files list every system in order, so they're the place to
   start reading.

@@ -8,13 +8,13 @@
 // pump's and the bolt rifle's way to fire faster is their own action, not a trigger (NO_TRIGGER, upgrades/upgrades.js)
 // two guns are fired one-handed from the hip: a little looser than one held in both hands
 const AK_SPREAD = 1.15;
-const AUTO_SEAR = { rate: 0.31, trig: 2 };
+export const AUTO_SEAR = { rate: 0.31, trig: 2 };
 // a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
-const SLUG_FALL = [14, 30, 0.85];
+export const SLUG_FALL = [14, 30, 0.85];
 // dragon's breath: full damage to 2 m, down to 20% by 7 m, and nothing at all past 8 m
-const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;
+export const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;
 // how much harder a zombie bleeds (health a second) for each flechette that lands in it
-const DART_BLEED = 1.5;
+export const DART_BLEED = 1.5;
 // the battle rifle's AK conversion kit (akkit): a new lower that takes 30-round AK mags and an auto sear, so the 7.62 NATO
 // semi-auto becomes a 7.62x39 automatic, its fire between the assault rifle's and the semi-auto's. Each round is lighter
 // (dmg) and staggers less, but there are three times as many in the gun and it kicks about half as hard; a mag change is
@@ -33,7 +33,7 @@ const AKKIT = { dmg: 0.52, rate: 0.115, mag: 30, reload: 1.9, spread: 2.6, kick:
 const TENMM = { dmg: 1.4, rate: 1.1, mag: 30, reload: 1.05, spread: 1.15, kick: 1.55, shake: 1.6, sprayK: 1.35, reach: 0.15, stagger: 0.1, gift: 60, cost: 30 };
 // a mod that turns the gun into something else (conv: the AK kit, the burst conversion, a second gun, the sawn-off) is
 // sold at the top of the workbench with the tune-up, not down among the gun's upgrades (stations/recipes.js)
-const GUN_MODS = {
+export const GUN_MODS = {
   match: { w: 'pistol', r: 'c', name: 'Match barrel', text: 'Tighter, harder-hitting shots that keep more of their damage at range.', vis: 'A longer, heavier slide', stat: D => { D.spread *= 0.7; D.dmg *= 1.15; D.reach = (D.reach || 1) + 0.3; } },
   burst: { conv: true, w: 'pistol', r: 'u', fm: 'Burst', name: 'Burst conversion', text: 'Fires 3-round bursts, and keeps bursting while you hold. B switches modes.', vis: 'A switch on the back of the slide', stat: D => { D.burst = 3; D.rate = 0.34; } },
   // the auto sear is the burst conversion's third step (MOD_LINE, weapons/mod-levels.js): it goes in once that's at level

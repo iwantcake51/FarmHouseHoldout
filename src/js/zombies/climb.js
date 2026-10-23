@@ -2,6 +2,16 @@
 // (Project Zomboid's fence climb), a runner vaults a fence and dives head first through a window, and a crawler, with
 // no legs to stand on, drags itself up and over, slowly. Brutes go round (zombies/pathfinding.js).
 
+import { clamp, mix, pick, rand, rr } from '../core/math.js';
+import { ci } from '../world/grid.js';
+import { hardBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { burst } from '../effects/particles.js';
+import { _zsm, zBoost, ZJ, ZJ_N, ZJN } from './zombie-anim.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { INSIDE, insideK } from './ai.js';
+
 // each climb is a run of key poses over its length (t 0..1): s is where it is along the climb, metres from the fence
 // rail or the middle of the window (- before it), y how high off the ground, and the joints (zombies/zombie-anim.js) as
 // they're set at that moment. In between, everything follows a smooth curve through the keys (zombie-anim.js's springs
@@ -140,7 +150,7 @@ const _cp = new Float32Array(ZJ_N + 1);
 // to (x1, z1) on the far side
 // (startClimb, net/sync.js, calls this: in co-op the host's climbs go to the others with their seed)
 const WIN_LANE = 0.24;
-function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
+export function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
   const c = pick(CLIMBS[kind + (z.crawl ? 'Crawl' : z.type === 'runner' ? 'Runner' : 'Walker')]);
   const s0 = (z.x - fx) * dx + (z.z - fz) * dz, lat = (z.x - fx) * -dz + (z.z - fz) * dx;
   z.vault = { kind, c, t: 0, dur: c.dur * rr(0.88, 1.15) / mix(1, INSIDE.climb, insideK()), warp: rr(-0.4, 0.4), mir: rand() < 0.5, fx, fz, dx, dz, s0, ds: s0 - c.k[0].p[ZJ_N], lat, keepLat: kind === 'fence', x0: z.x, z0: z.z, x1, z1, o, ev: 0 };
@@ -156,7 +166,7 @@ function startClimb0(z, kind, fx, fz, dx, dz, x1, z1, o) {
 }
 // along the climb: the zombie's place on the ground follows the keys' s (starting from wherever it stood, and drawn to
 // the middle of a window as it goes in), the events fire as their keys go by, and the pose goes to the animation
-function stepClimb(z, dt) {
+export function stepClimb(z, dt) {
   const v = z.vault, c = v.c; v.t += dt / v.dur; const t = climbT(v);
   climbAt(c, t, _cp);
   const s = _cp[ZJ_N] + v.ds * (1 - _zsm(0, 0.22, t)), lat = v.keepLat ? v.lat : (v.lane || 0) + (v.lat - (v.lane || 0)) * (1 - _zsm(0, 0.3, t));
@@ -173,7 +183,7 @@ function stepClimb(z, dt) {
 // the climb's pose for the animation (zombies/zombie-anim.js): the keys' joints (a crawler's height scaled to it), held
 // to them a little more firmly than usual
 const _cq = new Float32Array(ZJ_N + 1);
-function zClimbPose(z, T, K) {
+export function zClimbPose(z, T, K) {
   const v = z.vault, p = climbAt(v.c, climbT(v), _cq), g = z.an.g;
   for (let q = 0; q < ZJ_N; q++) T[q] = p[q];
   if (v.mir) zMirror(T);

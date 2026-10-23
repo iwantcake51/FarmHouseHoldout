@@ -3,6 +3,16 @@
 // about a while and picks another, and nothing it walks toward or along the way is ever inside the house. A run
 // starting clears them all, and the boards with them (resetRun, ui/screens.js); back on the title they're dealt again.
 
+import { angDiff, clamp, HALF, rand, rr } from '../core/math.js';
+import { ci } from './grid.js';
+import { HOUSE, inHouseRect, openings } from './house.js';
+import { hardBlocked, moveCircle } from './collision.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { animateZombie } from '../zombies/zombie-anim.js';
+import { spawnZombie } from '../zombies/spawn.js';
+import { addBoard, BOARD_HP } from '../barricades/planks.js';
+import { state } from '../game/state.js';
+
 // how many, how fast they amble (m/s), how long they stand about at a spot (s), how far round the house they wander
 // (m past its walls) and how far from it they keep (m)
 const TCROWD = { n: 6, speed: [0.42, 0.7], idle: [1.5, 5.5], roam: 7, keep: 1.4, turn: 2.2 };
@@ -33,7 +43,7 @@ function titleCrowdDeal() {
 }
 // each frame on the title: dealt once, then each one ambles to its spot, turning toward it as it goes, stands there a
 // while, and moves on
-function titleCrowd(dt) {
+export function titleCrowd(dt) {
   if (state !== 'title') { TC.on = false; return; }   // (only ever on the title itself: 'leaving' is also the card screen easing back into a run)
   if (!TC.on) { try { titleCrowdDeal(); } catch (e) { TC.on = true; console.warn('title crowd', e); } }
   if (!(dt > 0)) return;

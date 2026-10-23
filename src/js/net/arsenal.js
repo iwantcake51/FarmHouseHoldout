@@ -6,11 +6,33 @@
 // revolver's cylinder, the double barrel broken open, the belt; and the speed loader or shells in their hand. Dropped
 // mags and loaders come as their own messages and fall where they did for them.
 
+import { V3 } from '../core/renderer.js';
+import { NET, NET_ON, netSend, netTo } from './net.js';
+import { lam } from '../core/shaders.js';
+import { binModel, box, mergeInto } from '../core/geometry.js';
+import { P, packBody, PM } from '../player/player.js';
+import { LOOK, shade } from '../player/look.js';
+import { SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { modLv } from '../weapons/mod-levels.js';
+import { setTierCtx, W, W8 } from '../game/run-state.js';
+import { AKX, BELT, BRK, CRANE, GM, gunMeshes, HOLDS, MAGG, SLIDES, X } from '../weapons/gun-materials.js';
+import { SHELL_MAT } from '../weapons/gun-models.js';
+import { GUNS } from '../melee/melee-models.js';
+import { gearOnAvatar, gearSpec } from '../player/gear.js';
+import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
+import { placeMag } from '../weapons/casings.js';
+import { state } from '../game/state.js';
+import { HSH, placeLoader, SL_RND, SLM } from '../player/hold.js';
+import {
+  BELT_M, BUCKLE_M, buildHolster, HOLSTER_M, HOOD_M, packBack, STOW, STOW_AK, STOW_AT, STOW_RIG
+} from '../player/stow.js';
+
 const r3a = v => Math.round(v * 1000) / 1000, r2a = v => Math.round(v * 100) / 100;
 
 // ---- what moves on a weapon, in the same order on every machine: the holds, the mags, the slides and bolts, the
 // charging handles, the cylinder, the barrels and their rims, the belt's rounds
-function movingOf(holds, rec) {
+export function movingOf(holds, rec) {
   const hs = [holds.R, holds.L].filter(Boolean), out = [...hs, ...rec.magg, ...rec.slides.map(q => q.m)];
   hs.forEach(h => { if (h.userData.charge) out.push(h.userData.charge.m); });
   out.push(...rec.crane); if (rec.brk) out.push(rec.brk.g, ...rec.brk.rims); if (rec.belt) out.push(...rec.belt);
@@ -50,7 +72,7 @@ NET_ON.lo = m => {
 // every second regardless, for anyone who's just built your weapons); what's stowed and showing; what's in your hand
 const _arInv = new THREE.Matrix4(), _arM = new THREE.Matrix4(), _arP = new V3(), _arQ = new THREE.Quaternion(), _arS = new V3();
 const lastParts = {}; let partsKeyT = 0;
-function weaponPose(rdt, msg) {
+export function weaponPose(rdt, msg) {
   loadoutTick();
   partsKeyT -= rdt; const key = partsKeyT <= 0; if (key) partsKeyT = 1;
   PM.g.updateMatrixWorld(true); _arInv.copy(PM.g.matrixWorld).invert();
@@ -83,14 +105,14 @@ function withLoadout(lo, id, fn) {
   try {
     W8.mods[id] = mods; W8.gt[id] = lo.gt || {}; W8.att[id] = lo.att || {}; put(W8.pin, id, lo.pin); put(W8.rounds, id, lo.rnd);
     if (!W8.modLv) W8.modLv = {}; mods.forEach(m => { W8.modLv[m] = (lo.lv || {})[m] || 1; });
-    tierCtx = id; return fn();
+    setTierCtx(id); return fn();
   } finally {
-    tierCtx = null; back(W8.mods, id, keep.mods); back(W8.gt, id, keep.gt); back(W8.att, id, keep.att); back(W8.pin, id, keep.pin); back(W8.rounds, id, keep.rnd);
+    setTierCtx(null); back(W8.mods, id, keep.mods); back(W8.gt, id, keep.gt); back(W8.att, id, keep.att); back(W8.pin, id, keep.pin); back(W8.rounds, id, keep.rnd);
     lvKeep.forEach(([m, had, v]) => { if (had) W8.modLv[m] = v; else delete W8.modLv[m]; });
   }
 }
 // one of their weapons, built as yours would be: a holder (with a hold per hand for a gun) and what moves on it
-function teamWeapon(lo, id) {
+export function teamWeapon(lo, id) {
   const D = Object.assign({}, WEAP[id], { akimbo: !!lo.ak }), mods = {}; (lo.mods || []).forEach(m => { mods[m] = (lo.lv || {})[m] || 1; });
   const g = new THREE.Group(), rec = weaponRec(), holds = {}; let muz = 0;
   try {
@@ -105,7 +127,7 @@ function teamWeapon(lo, id) {
 }
 // what never moves folded into a mesh or two, under each part that does (and under the holder): a teammate's rifle is
 // a handful of draws, not a hundred
-function foldStatic(root, moving) {
+export function foldStatic(root, moving) {
   const stop = new Set(moving);
   for (const node of [root, ...moving]) {
     const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
@@ -128,7 +150,7 @@ function copyModel(o) {
 // their arsenal, kept up to date with their loadout: only a weapon that's changed (a new attachment, mod or rounds, or a
 // weapon swapped in) is built again, once, and its stowed copies are copied from that one; a weapon that has only moved
 // where it rides on them is moved
-function buildArsenal(a, lo, lk) {
+export function buildArsenal(a, lo, lk) {
   a.held = a.held || {}; a.stowed = a.stowed || {}; a.armKey = a.armKey || {}; a.lk = lk;
   const drop = s => {
     if (a.held[s]) binModel(a.held[s].g);
@@ -182,7 +204,7 @@ function buildArsenal(a, lo, lk) {
 }
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
 const _aQ = new THREE.Quaternion();
-function arsenalFrame(p, a, rdt) {
+export function arsenalFrame(p, a, rdt) {
   if (!a.held) return;
   const k = 1 - Math.exp(-rdt * 18), out = new Set();
   for (const e of p.wp || []) {

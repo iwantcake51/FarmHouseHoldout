@@ -3,12 +3,17 @@
 // around, hosting or in a run, can join the lobby you're hosting in one click, and you can invite them into yours.
 // Someone who adds you is added back. Between tabs (?net=local) the same goes over a BroadcastChannel.
 
+import { $ } from '../core/dom.js';
+import { NET, NET_MAX, NET_V, netCode, netJoin, netLib, netName, PEER_OPTS } from './net.js';
+import { SFX } from '../audio/sfx.js';
+import { lobbyRender } from './lobby.js';
+
 const FR_PREFIX = 'fhh-pal-', FR_QUIET = 16, FR_RETRY = 20;   // (seconds before a silent friend shows as away; between tries at reaching one)
-const PALS = { me: '', list: [], st: new Map(), up: false, peer: null, bc: null, t: 0, said: '', msg: '', open: false };
+export const PALS = { me: '', list: [], st: new Map(), up: false, peer: null, bc: null, t: 0, said: '', msg: '', open: false };
 try { PALS.me = localStorage.getItem('fhh-me') || ''; PALS.list = JSON.parse(localStorage.getItem('fhh-friends') || '[]').filter(f => f && f.c); } catch (e) {}
 if (!/^[A-Z0-9]{6}$/.test(PALS.me)) { PALS.me = (netCode() + netCode()).slice(0, 6); try { localStorage.setItem('fhh-me', PALS.me); } catch (e) {} }
 const frSave = () => { try { localStorage.setItem('fhh-friends', JSON.stringify(PALS.list)); } catch (e) {} };
-const frOf = c => PALS.list.find(f => f.c === c);
+export const frOf = c => PALS.list.find(f => f.c === c);
 // what each friend is up to, as they last said: { name, st ('menu' | 'lobby' | 'game'), game (a code to join, if they
 // host a lobby with room), heard, conn, tried, inv (a game code they invited you to) }
 const frState = c => PALS.st.get(c) || (PALS.st.set(c, { heard: 0, tried: 0 }), PALS.st.get(c));
@@ -41,7 +46,7 @@ function frRecv(c, m) {
 }
 
 // ---- reachable at your code
-async function friendsUp() {
+export async function friendsUp() {
   if (PALS.up) return; PALS.up = true;
   if (NET.mode === 'local') { PALS.bc = new BroadcastChannel('fhh-pals'); PALS.bc.onmessage = e => { const x = e.data; if (x && x.to === PALS.me) frRecv(x.from, x.m); }; frBeat(true); return; }
   try { await netLib(); } catch (e) { PALS.up = false; return; }
@@ -67,13 +72,13 @@ function frBeat(all) {
     else if (PALS.peer && PALS.peer.open && now - s.tried > FR_RETRY * 1000) { s.tried = now; try { frConn(PALS.peer.connect(FR_PREFIX + f.c, { reliable: true, serialization: 'json' })); } catch (e) {} }
   }
 }
-function frTick(rdt) {
+export function frTick(rdt) {
   if (!PALS.up) return;
   PALS.t -= rdt; if (PALS.t > 0) return; PALS.t = 5;
   frBeat(false); frRender();
 }
 // whenever what you're doing changes (hosting, joining, starting, leaving), your friends hear about it straight away
-function frAnnounce() {
+export function frAnnounce() {
   if (!PALS.up) return;
   const h = frHello(false), key = h.st + h.game + h.room + h.name; if (key === PALS.said) return; PALS.said = key;
   for (const f of PALS.list) if (frOnline(f.c)) frSend(f.c, h);
@@ -81,7 +86,7 @@ function frAnnounce() {
 addEventListener('pagehide', () => { for (const f of PALS.list) frSend(f.c, { t: 'bye' }); });
 
 // ---- the list
-function frAdd(code, name) {
+export function frAdd(code, name) {
   code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 6) { PALS.msg = 'A friend code is six letters and numbers'; frRender(); return false; }
   if (code === PALS.me) { PALS.msg = 'That’s your own code'; frRender(); return false; }
@@ -92,7 +97,7 @@ function frAdd(code, name) {
 function frRemove(code) { PALS.list = PALS.list.filter(f => f.c !== code); frSave(); frRender(); lobbyRender(); }
 function frInvite(code) { if (!NET.host || NET.inGame) return; frSend(code, { t: 'inv', game: NET.code, name: netName() }); frState(code).sent = performance.now(); frRender(); }
 function frJoin(code) { const s = PALS.st.get(code), g = s && (s.inv || s.game); if (!g || NET.inGame) return; s.inv = ''; netJoin(g); }
-function frRender() {
+export function frRender() {
   if ($('coop').hidden) return;
   $('frMe').textContent = PALS.me;
   $('frMsg').textContent = PALS.msg;

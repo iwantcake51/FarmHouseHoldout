@@ -1,11 +1,13 @@
 // The blocky human rig shared by the player and the zombies.
 
+import { lam } from '../core/shaders.js';
+
 const G = {
   leg: new THREE.BoxGeometry(0.19, 0.55, 0.22).translate(0, -0.275, 0),
   torso: new THREE.BoxGeometry(0.5, 0.6, 0.3), head: new THREE.BoxGeometry(0.32, 0.32, 0.32),
   arm: new THREE.BoxGeometry(0.14, 0.14, 0.56).translate(0, 0, 0.26)
 };
-function human(skin, shirt, pants) {
+export function human(skin, shirt, pants) {
   const mats = { skin: lam(skin), shirt: lam(shirt), pants: lam(pants) };
   const g = new THREE.Group(); g.rotation.order = 'YXZ';
   const mk = (geo, mat, x, y, z, par) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; (par || g).add(m); return m; };

@@ -7,7 +7,20 @@
 // and what was in it sprayed out behind. An arm or a leg shot through below the elbow or knee loses just that much
 // first: the forearm or shin comes off at the joint, the raw end left with a stub of bone sticking out.
 
-const WOUND_ZONE = { torso: 0, armL: 1, armR: 2, legL: 3, legR: 4, head: 5 };
+import { scene, V3 } from '../core/renderer.js';
+import { rand, rr } from '../core/math.js';
+import { lam } from '../core/shaders.js';
+import { WOUND_N } from '../effects/body-blood.js';
+import { run } from '../game/run-state.js';
+import { splatLater, spray } from '../effects/blood-map.js';
+import { burst, gibs } from '../effects/particles.js';
+import { fx } from '../effects/puffs.js';
+import { flingPart, goCrawl, LIMB_STAGGER } from './damage.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { netRec, NREP } from '../net/sync.js';
+
+export const WOUND_ZONE = { torso: 0, armL: 1, armR: 2, legL: 3, legR: 4, head: 5 };
 // each part's box as the shader sees it (lo, hi): an arm or a leg reaches on past its joint while the forearm or shin
 // is still on (zombies/zombie-anim.js: Z_ELBOW, Z_KNEE)
 function woundBox(z, part) {
@@ -17,7 +30,7 @@ function woundBox(z, part) {
   if (part[0] === 'a') return [[-0.07, -0.07, -0.02], [0.07, 0.07, cut ? 0.27 : 0.54]];
   return [[-0.095, cut ? -0.29 : -0.55, -0.11], [0.095, 0, 0.11]];
 }
-const _wInv = new THREE.Matrix4(), _wD = new V3(), _wP = new V3(), _wB = new V3();
+export const _wInv = new THREE.Matrix4(), _wD = new V3(), _wP = new V3(), _wB = new V3();
 // a shot travelling (dx, dz) through part: where it goes in and comes out, in the part's frame. It passes through a
 // point inside the part (the head's near its middle, eyes to brow, as that's what's aimed at)
 function woundPath(z, part, dx, dz) {
@@ -39,7 +52,7 @@ function woundPath(z, part, dx, dz) {
 }
 // a wound on z: zone, p in that part's frame, radius r, kind 0 a hole, 1 an exit, 2 a stump. When they're all used a
 // new one goes over the oldest hole; exits and stumps stay
-function addWound(z, zone, p, r, kind) {
+export function addWound(z, zone, p, r, kind) {
   const st = z.stain; if (!st) return;
   const u = st.u, n = u.uWoundN.value, K = u.uWoundK.value, age = st.wAge || (st.wAge = []);
   let i = n;
@@ -49,7 +62,7 @@ function addWound(z, zone, p, r, kind) {
 }
 // a bullet hitting part: a hole where it goes in, sized by the round; a big round can come out the far side, and one
 // through the head that kills (or nearly takes it off) blows the back of it open
-function shotWound(z, part, dx, dz, D, dealt, kill) {
+export function shotWound(z, part, dx, dz, D, dealt, kill) {
   if (!z.stain || D.melee) return;
   const wp = woundPath(z, part, dx, dz); if (!wp) return;
   const pellet = D.ammo === 'shells', big = D.ammo === 'magnum' || D.ammo === 'rifle' || (D.dmg || 0) >= 60;
@@ -62,7 +75,7 @@ function shotWound(z, part, dx, dz, D, dealt, kill) {
 // few chips of bone and scalp) and the head's thrown back on its neck
 const CHIP_G = new THREE.BoxGeometry(0.045, 0.02, 0.04), CHIP_M = [lam(0xd8cdb6), lam(0x7a1410), lam(0x4e0b08)];
 CHIP_M.forEach(m => { m.userData.mobile = true; });
-function headShot(z, dx, dz) {
+export function headShot(z, dx, dz) {
   const head = z.m.head; if (!head || !head.parent || !z.limbs.head) return;
   netRec('h');
   head.getWorldPosition(_wB);
@@ -80,7 +93,7 @@ function headShot(z, dx, dz) {
 // bone showing (a stump wound and a stub of bone), and the limb can still come off whole later. A leg without its
 // shin can't take a step: it goes down to crawl, the same as one without the leg
 const BONE_G = new THREE.BoxGeometry(0.036, 0.036, 0.06), BONE_M = lam(0xe2d9c4); BONE_M.userData.mobile = true;
-function severLower(z, part, dx, dz) {
+export function severLower(z, part, dx, dz) {
   const arm = part[0] === 'a', key = (arm ? 'fore' : 'shin') + part.slice(3), low = z.m[key];
   if (!low || !low.parent || !z.limbs[part] || (z.cut && z.cut[part]) || (!arm && z.type === 'brute')) return false;   // (a brute's legs stay on: zombies/damage.js sever)
   (z.cut || (z.cut = {}))[part] = true; netRec('l', part);

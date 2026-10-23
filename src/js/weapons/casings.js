@@ -1,8 +1,33 @@
 // Spent casings and dropped magazines, plus pump/bolt cycling.
 
+import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { clamp, rand, rr, smooth } from '../core/math.js';
+import { netSend } from '../net/net.js';
+import { lam } from '../core/shaders.js';
+import { surfaceY } from '../world/house.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P, PM } from '../player/player.js';
+import { roundOn } from './rounds.js';
+import { curId, S, T, W, W8 } from '../game/run-state.js';
+import { BRK, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
+import { REV_CYL } from './gun-models.js';
+import { partTex } from '../effects/textures.js';
+import { smoke } from '../effects/smoke.js';
+import { fx, portFx } from '../effects/puffs.js';
+import { openSt } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { mouseDown } from '../input/keyboard-mouse.js';
+import { tStick } from '../input/touch.js';
+import { MAG_DROP_T } from './reload.js';
+import { rackCam } from '../game/camera.js';
+import { ANIM } from '../player/animation.js';
+import { CHAMBERS, cylFired, cylLive, holdOf, MAG_SLIDE, rackKick, SL_DROPS } from '../player/hold.js';
+import { swapSt } from '../player/swap.js';
+
 // ---- spent casings: semi-autos and automatics throw brass on every shot, the pump and the bolt throw it when cycled,
 // the double barrel and the revolver only drop theirs when opened to reload ----
-const EJECT = { pistol: 'fire', deagle: 'fire', smg: 'fire', sub: 'fire', ar: 'fire', lmg: 'fire', auto12: 'fire', scar: 'fire', pump: 'pump', hunting: 'bolt', dbl: 'breach', revolver: 'breach' };
+export const EJECT = { pistol: 'fire', deagle: 'fire', smg: 'fire', sub: 'fire', ar: 'fire', lmg: 'fire', auto12: 'fire', scar: 'fire', pump: 'pump', hunting: 'bolt', dbl: 'breach', revolver: 'breach' };
 // Each case is turned on a lathe from the real one's profile, in millimetres: from the firing pin's dent in the middle
 // of the primer out across the head to the rim, up the outside past the extractor groove (a revolver's case has a rim
 // standing proud instead), the shoulder and neck on a rifle's, over the mouth and back down inside to the web, each
@@ -82,7 +107,7 @@ const CASE_KIND = {};
 for (const kd in CASE_PROF) { const q = CASE_PROF[kd], sc = CASE_SCALE[kd]; CASE_KIND[kd] = { geo: turnCase(q, sc), r: Math.max(...q.prof.map(v => v[0])) * sc / 1000, len: Math.max(...q.prof.map(v => v[1])) * sc / 1000 }; }
 const CMAT = lam(0xffffff, { vertexColors: true, emissive: 0x241a06 });
 const UBOX_D = new THREE.BoxGeometry(1, 1, 1), DRUM_G = new THREE.CylinderGeometry(1, 1, 1, 14);
-const casings = [];
+export const casings = [];
 for (let k = 0; k < 90; k++) {
   const g = new THREE.Group(); g.rotation.order = 'YXZ'; g.visible = false; scene.add(g);
   const body = new THREE.Mesh(CASE_KIND.p9.geo, CMAT); g.add(body);
@@ -113,7 +138,7 @@ function tickHeldEject(dt) {
 // mode: 'fire' flicks it out of the port to the shooter's right, 'pump'/'bolt' flings it the same way, higher,
 // 'breach' kicks shells out of the double barrel's chambers back over your shoulder, 'dump' drops them out of the
 // revolver's cylinder at your feet. Everything starts where it really comes out of the posed gun
-function ejectCasing(ammo, n, mode, sideSign, now) {
+export function ejectCasing(ammo, n, mode, sideSign, now) {
   const id = curId(), BK = mode === 'breach' && BRK[W8.cur];
   if (!now && openFor(mode) < 0.8) { if (heldEject && heldEject.id === id) heldEject.n += n; else heldEject = { id, ammo, n, mode, t: 0 }; return; }
   const ch0 = mode === 'dump' ? Math.max(0, CHAMBERS - cylLive(id) - cylFired(id)) : 0;   // the fired chambers, below the loaded ones (cylHeads, player/hold.js)
@@ -191,7 +216,7 @@ for (let k = 0; k < 60; k++) {
   links.push({ g, life: 0, vx: 0, vy: 0, vz: 0, spin: 0, roll: 0, r: 0.006, bounces: 4, kind: 'link' });
 }
 let lIdx = 0;
-function ejectLinks(n, z) {
+export function ejectLinks(n, z) {
   PM.g.updateMatrixWorld(true);
   const h = holdOf(W8.cur, 'R');
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
@@ -203,8 +228,8 @@ function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
-const mags = [];
+export function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+export const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
 for (let k = 0; k < 10; k++) {
@@ -215,7 +240,7 @@ for (let k = 0; k < 10; k++) {
 }
 let mIdx = 0;
 // the empty magazine falls out of the well when you start a reload, bounces and lies there a while
-function dropMag(id, side) {
+export function dropMag(id, side) {
   const D = W(id), mp = MAGPOS[W8.cur]; if (!D || !mp) return;
   const gg = gunMeshes[W8.cur]; PM.g.updateMatrixWorld(true);
   // the mag that falls is the one on the model (weapons/gun-models.js): its size across, down and along the gun, or a
@@ -252,7 +277,7 @@ function dropMag(id, side) {
 // on the gun; or, without one, a plain one of the shape and colour given
 const DROP_PUSH = 0.15, _cd = new V3();
 const _mgB = new THREE.Box3(), _mgC = new V3(), _mgS = new V3(), _mgQ = new THREE.Quaternion();
-function placeMag(m, src) {
+export function placeMag(m, src) {
   const c = mags[mIdx = (mIdx + 1) % mags.length];
   while (c.model.children.length) c.model.remove(c.model.children[0]);   // (the copy shares the model's geometry: nothing to free)
   if (src && src.children.length) {
@@ -302,7 +327,7 @@ function settleFlat(c, g, fy) {
   const q1 = new THREE.Quaternion().setFromUnitVectors(a, _sfB).multiply(q);
   c.settle = { t: 0, q0: q.clone(), q1, y0: g.position.y, y1: fy + (c.rest ? c.restY : c.r), dur: FLAT_SETTLE };
 }
-function stepDebris(list, dt) {
+export function stepDebris(list, dt) {
   tinkT -= dt;
   for (const c of list) {
     if (c.life <= 0) continue;
@@ -357,7 +382,7 @@ function stepDebris(list, dt) {
 // handle's up (lift): p muzzle down, r roll, y yaw, z back into the shoulder, h down, w the torso's twist; player/hold.js
 // puts the gun on a loose spring chasing it), where the hand takes the bolt knob (hand), and the knocks at each stop
 // (gun: pitch, roll, back for rackKick in player/hold.js; cam: roll, push, zoom for rackCam in game/camera.js)
-const RACKS = {
+export const RACKS = {
   pump: [
     // torn straight back, a bounce off the stop, shoved home; the muzzle dips and the gun cants a little
     { beat: { back: 0.3, fwd: 0.42, home: 0.7 }, dur: 0.44, delay: 0.08, ex: [1.35, 1.6],
@@ -397,7 +422,7 @@ const RACKS = {
 // where the action is at q through the cycle: off how far back (0 home, 1 at the stop), lift how far the bolt handle
 // is turned up, and grab how much the firing hand is on the bolt. A chambering cycle (chamberCycle) starts part way
 // through with the bolt already open
-function cyclePose(c, q) {
+export function cyclePose(c, q) {
   const o = { off: 0, lift: 0, grab: 0 }, B = c.v.beat, ex = c.v.ex;
   const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
   if (!c.bolt) {
@@ -427,10 +452,10 @@ function cyclePose(c, q) {
 // a pump or bolt gun has to be racked before it fires again: firing leaves it open (W8.open), and it's chambered when
 // a rack drives the action home with a round to feed. A rack cut short (by a reload or a swap) leaves it open, and it's
 // racked again as soon as your hands are free (tickCycle); weapons/firing.js won't fire it till then
-const racked = id => EJECT[id] === 'pump' || EJECT[id] === 'bolt';
-const needsRack = id => racked(id) && !!W8.open[id];
+export const racked = id => EJECT[id] === 'pump' || EJECT[id] === 'bolt';
+export const needsRack = id => racked(id) && !!W8.open[id];
 const rackLast = {};
-function startCycle(id) {
+export function startCycle(id) {
   if (W8.cyc && !W8.cyc.done) ejectCasing(W(W8.cyc.id).ammo, 1, EJECT[W8.cyc.id]);
   const bolt = EJECT[id] === 'bolt', kind = bolt ? 'bolt' : 'pump', list = RACKS[kind];
   // a different way from last time
@@ -452,28 +477,28 @@ function cycleFx(v, bolt) {
 // (W8.held[id]: player/hold.js holds it back). It stays open till it's pushed home: at the end of the load, or, if the
 // load's cut short (a vault, a sprint, putting the gun away), not till you pull the trigger (tickCycle), so a load
 // picked up again carries on with it still open. No case to throw, the last one went with the shot. Returns how long it takes
-function openAction(id) {
+export function openAction(id) {
   startCycle(id); const c = W8.cyc; c.done = true; c.stop = c.v.beat.fwd; W8.held[id] = true;
   return c.delay + c.dur * c.stop;
 }
 // racking a gun that's open to chamber a round, with no case to throw: after a load (an action held open while it was
 // fed is only pushed forward, and a bolt locked), or when a rack was cut short. The rifle's detachable box has its bolt
 // worked in D.detach seconds, the end of its reload (game/run-state.js: DETACH)
-function chamberCycle(id) {
+export function chamberCycle(id) {
   startCycle(id); const c = W8.cyc, B = c.v.beat; c.done = true; c.delay = 0.04;
   if (W8.held[id]) { c.q0 = c.bolt ? B.fwd - B.reach : B.fwd; c.t = c.delay + c.q0 * c.dur; while (c.beat < c.fx.length && c.fx[c.beat][0] < B.fwd) c.beat++; }
   else if (W(id).detach) { const f = W(id).detach / (c.dur + c.delay); c.dur *= f; c.delay *= f; }
 }
 // how long racking a loaded gun takes (chamberCycle) till the round's home and it'll fire, on average over its ways
 // (the crosshair's reload ring counts it in: weapons/reload.js, relRingP)
-function chamberT(id) {
+export function chamberT(id) {
   const bolt = EJECT[id] === 'bolt', list = RACKS[bolt ? 'bolt' : 'pump'], r = W(id).rate / S.rateMul;
   return list.reduce((a, v) => {
     const k = Math.min(1, r / (v.dur + v.delay) * 0.92), B = v.beat, q0 = bolt && W8.boltOpen ? B.fwd - B.reach : 0;
     return a + (q0 ? 0 : 0.04) + (B.home - q0) * v.dur * k;
   }, 0) / list.length;
 }
-function tickCycle(dt) {
+export function tickCycle(dt) {
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }

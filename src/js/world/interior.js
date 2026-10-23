@@ -9,7 +9,37 @@
 // round each doorway under a header; a lamp hangs in each room (two in a big one). In co-op the host's seed lays out
 // everyone's house alike (net/net.js).
 
-const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
+import { scene } from '../core/renderer.js';
+import { clamp, HALF, N, rand, rr, seeded, smooth, withSeed } from '../core/math.js';
+import { NET, netLink } from '../net/net.js';
+import { lam, lit } from '../core/shaders.js';
+import { bgeo, box, finePieces, mergeInto } from '../core/geometry.js';
+import { stillShadowsReset } from '../core/still-shadows.js';
+import { cell, ci, cxw, EMPTY, idx, inb } from './grid.js';
+import { doorBetween, THIN, wX, wZ } from './thin-walls.js';
+import { lamV } from './materials.js';
+import { HX0, HX1, HZ0, HZ1 } from './ground.js';
+import {
+  FLOOR_TILE, HOUSE, HOUSE_FP, houseFootprint, openings, paintHouse, setFootprint, setWindows, WALL_AT, walls
+} from './house.js';
+import { HANG, hangLamps, WALL_DECOR } from './props.js';
+import { applyFurniture, placeFurniture } from './furniture.js';
+import { syncBlock } from './collision.js';
+import { yardLayout } from './yard.js';
+import { viaF } from '../zombies/pathfinding.js';
+import { P } from '../player/player.js';
+import { stepDebris } from '../weapons/casings.js';
+import { burst } from '../effects/particles.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { setFlowDirty } from '../barricades/planks.js';
+import { nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { setShake, shake, state } from '../game/state.js';
+import { relightHouse } from '../lighting/static-lights.js';
+import { setVisKey } from '../lighting/vision.js';
+
+export const IN = { i0: HX0 + 1, i1: HX1 - 1, j0: HZ0 + 1, j1: HZ1 - 1 };
 // what the inside of the house has: rooms with walls between them (walls), and doors hung in their doorways (doors; only
 // with walls, and without them the doorways stand open). With walls off it's one open floor inside the outer walls, the
 // stations and the furniture set round it against them (world/furniture.js) and a lamp or two over it
@@ -31,9 +61,9 @@ const TILE_TEX = (() => {
 })();
 const TILE_M = new Map(), tileMat = c => TILE_M.get(c) || (TILE_M.set(c, lam(c, { map: TILE_TEX })), TILE_M.get(c));
 HOUSE_PLAN.g.userData.still = true; scene.add(HOUSE_PLAN.g);   // (its walls' shadows drawn with the rest that stands still, its doors' not: core/still-shadows.js)
-const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
-const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
-const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1 && HOUSE_FP[idx(i, j)] === 1;   // (a room's floor in this run's footprint: world/house.js)
+export const eKey = (ax, i, j) => (ax === 'x' ? 0 : 65536) + j * 256 + i;
+export const eDec = k => [k >= 65536 ? 'z' : 'x', k % 256, ((k % 65536) / 256) | 0];
+export const inPlan = (i, j) => i >= IN.i0 && i <= IN.i1 && j >= IN.j0 && j <= IN.j1 && HOUSE_FP[idx(i, j)] === 1;   // (a room's floor in this run's footprint: world/house.js)
 // the lines no wall may stand on (the furniture goes in after the walls, round them: world/furniture.js)
 const HOUSE_NO = (() => {
   const no = new Set();
@@ -46,7 +76,7 @@ const HOUSE_NO = (() => {
   no.add(eKey('z', IN.i0, 20));   // the picture on the west wall
   return no;
 })();
-const HOUSE_DOOR = (() => { const o = openings.find(q => q.kind === 'door'); return [o.i - o.nx, o.j - o.nz]; })();
+export const HOUSE_DOOR = (() => { const o = openings.find(q => q.kind === 'door'); return [o.i - o.nx, o.j - o.nz]; })();
 
 // one try at a floor plan from rnd: the walls (edge keys), the doorways in them, or null if it broke a rule
 function planHouse(rnd) {
@@ -255,7 +285,7 @@ const TILE_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 // as a whole, the way the outer walls do (world/cutaway.js): a run of plaster a stretch of wall, its skirting on both
 // sides, the trim along its top, each face in the paint of the room it faces; round each doorway a header over it, a
 // cased frame on both faces and the door itself, hung on one jamb (HOUSE_DOORS: updateDoors)
-const IW_LINES = [], IW_MATS = [], IW_BASE = { plaster: 0xd6ccb4, trim: 0x5c4532, base: 0x4a3828 };
+export const IW_LINES = [], IW_MATS = [], IW_BASE = { plaster: 0xd6ccb4, trim: 0x5c4532, base: 0x4a3828 };
 const DOOR_COLS = [0x6a4a34, 0xd8d0c0, 0x8a6a4a, 0x4e5a52, 0x7a3a2c];
 function buildInWalls(W, doors, rnd) {
   const g = HOUSE_PLAN.g, ro = HOUSE_PLAN.roomOf, cols = HOUSE_PLAN.cols, dc = DOOR_COLS[(rnd() * DOOR_COLS.length) | 0];
@@ -459,9 +489,9 @@ const _dcShade = new THREE.Color();
 // to you DOOR.cost cells (zombies/pathfinding.js). Each blow jolts it in its frame (jolt: how far it jumps, radians)
 // and it's broken up a piece at a time, holes opening in it (doorWear); broken, it comes apart on the floor and it's an
 // open doorway for the rest of the run
-const DOOR = { near: 1.35, jam: 0.6, hold: 0.9, opens: 7, closes: 2.2, swing: 1.68, shut: 0.25, w: 0.94, h: 2.0, reach: 0.47, hp: 150, cost: 6, jolt: 0.05 };
-const HOUSE_DOORS = { list: [], key: '' };
-function updateDoors(dt) {
+export const DOOR = { near: 1.35, jam: 0.6, hold: 0.9, opens: 7, closes: 2.2, swing: 1.68, shut: 0.25, w: 0.94, h: 2.0, reach: 0.47, hp: 150, cost: 6, jolt: 0.05 };
+export const HOUSE_DOORS = { list: [], key: '' };
+export function updateDoors(dt) {
   let key = '';
   const near = (d, x, z) => { const a = x - d.cx, b = z - d.cz; return a * a + b * b < DOOR.near * DOOR.near; };
   for (const d of HOUSE_DOORS.list) {
@@ -483,23 +513,23 @@ function updateDoors(dt) {
 // which side of a door's line a point's on: 1, the side it swings open into
 const doorSide = (d, x, z) => Math.sign((x - d.cx) * d.nx + (z - d.cz) * d.nz) || 1;
 // the shut door on the edge between two cells side by side, if there is one
-function doorOn(i0, j0, i1, j1) {
+export function doorOn(i0, j0, i1, j1) {
   if (!doorBetween(i0, j0, i1, j1) || (i0 !== i1 && j0 !== j1)) return null;
   const ax = i0 !== i1 ? 'x' : 'z', i = ax === 'x' ? Math.max(i0, i1) : i0, j = ax === 'x' ? j0 : Math.max(j0, j1);
   return HOUSE_DOORS.list.find(d => d.ax === ax && d.i === i && d.j === j) || null;
 }
 // a zombie's blow on a door (z: who; heavy: a brute's): a thump through the house, the door jumping in its frame (in
 // from the side it's hit on, or back against its stop) and dust shaken out round it
-function doorBlow(d, z, heavy, dme) {
+export function doorBlow(d, z, heavy, dme) {
   d.jolt = 1; d.js = doorSide(d, z.x, z.z) < 0 ? 1 : -0.35;
   soundAt(d.cx, d.cz, () => nz(heavy ? 0.16 : 0.09, 'lowpass', heavy ? 420 : 620, heavy ? 90 : 160, (heavy ? 0.42 : 0.24) * clamp(1 - dme / 20, 0, 1)), true);
-  if (heavy) shake = Math.max(shake, 0.18 * clamp(1 - dme / 9, 0, 1));
+  if (heavy) setShake(Math.max(shake, 0.18 * clamp(1 - dme / 9, 0, 1)));
   if (z.vis > 0.2) { const s = doorSide(d, z.x, z.z) * 0.12; burst(d.cx + d.nx * s, rr(0.6, 1.8), d.cz + d.nz * s, heavy ? 4 : 2, 'dust'); if (heavy || rand() < 0.4) burst(d.cx + d.nx * s, rr(0.8, 1.6), d.cz + d.nz * s, 2, 'wood', d.nx * Math.sign(s), d.nz * Math.sign(s), 1.5); }
 }
 // a door beaten on (its hp gone down): the pieces in the middle of it broken out one by one as it goes, in its own
 // order (DOOR_FRAC), each splintering off away from whoever's hitting it (z, or null: away from you); past
 // DOOR_FRAC.see of them it's holed through (3 in the grid shut: world/thin-walls.js)
-function doorWear(d, z) {
+export function doorWear(d, z) {
   if (d.broken) return;
   const worn = 1 - Math.max(0, d.hp) / DOOR.hp;
   let any = false; while (d.out < d.order.length && worn >= d.at[d.out]) { doorBit(d, d.order[d.out++], z, false); any = true; }
@@ -538,22 +568,22 @@ function doorBit(d, q, z, fall) {
 }
 // broken down (z: who broke it, or null): the doorway's open from now on, and what's left of the door comes apart,
 // every piece down on the floor
-function breakDoor(d, z) {
+export function breakDoor(d, z) {
   if (d.broken) return;
   d.broken = true; d.shut = false; d.hp = 0; doorGrid(d);
   for (const q of d.bits) doorBit(d, q, z, true);
   doorLeaf(d);
   burst(d.cx, 0.6, d.cz, 10, 'dust');
   soundAt(d.cx, d.cz, () => SFX.crack()); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.crack()), 70); setTimeout(() => soundAt(d.cx, d.cz, () => SFX.thud()), 320);
-  if (Math.hypot(P.x - d.cx, P.z - d.cz) < 7) shake = Math.max(shake, 0.12);
-  flowDirty = true;
+  if (Math.hypot(P.x - d.cx, P.z - d.cz) < 7) setShake(Math.max(shake, 0.12));
+  setFlowDirty(true);
 }
 // a new house: the plan for this seed (the first that keeps every rule; failing that, none), its walls in the grid
 // and built, the lamps hung. live: during a game (rather than as the page loads), so the light, the zombies' ways
 // round the house and what you can see are all worked out again for it
 // the whole of it under a seeded rand too (withSeed, core/math.js), so whatever's dealt along the way with rr or pick
 // (the turn of a car left in the yard, world/props.js) comes out alike for everyone in co-op
-function houseLayout(seed, live) { withSeed(seed ^ 0x2c1b3c6d, () => houseLayout0(seed, live)); }
+export function houseLayout(seed, live) { withSeed(seed ^ 0x2c1b3c6d, () => houseLayout0(seed, live)); }
 function houseLayout0(seed, live) {
   const rnd = seeded(seed), ro = HOUSE_PLAN.roomOf;
   houseFootprint(rnd, live);   // (its footprint first: whole, or notched at the back, world/house.js)
@@ -607,6 +637,6 @@ function houseLayout0(seed, live) {
   for (const w of walls) for (const [a, b, m] of w.inner) { const r = ro[idx(a, b)]; m.color.setHex(r >= 0 ? HOUSE_PLAN.cols[r] : 0xd6ccb4); }
   buildInWalls(W, HOUSE_PLAN.doors, rnd);
   HANG.length = 0; HOUSE_PLAN.rooms.forEach(r => HANG.push(...roomLamps(r))); hangLamps();
-  if (live) { syncBlock(); relightHouse(); flowDirty = true; viaF.clear(); visKey = ''; }
+  if (live) { syncBlock(); relightHouse(); setFlowDirty(true); viaF.clear(); setVisKey(''); }
   stillShadowsReset();   // (the furniture and the props moved on purpose: core/still-shadows.js)
 }

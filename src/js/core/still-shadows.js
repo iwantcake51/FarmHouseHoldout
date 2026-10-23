@@ -13,9 +13,11 @@
 // for anything new to take in. A new floor plan moves the furniture and the props on purpose: stillShadowsReset (from
 // world/interior.js: houseLayout) takes them as they're left, rather than as having moved.
 
+import { R, scene } from './renderer.js';
+
 const STILL_SH = { scan: 90, f: 0, srcs: [], proxies: [], mine: new WeakSet(), moved: new WeakSet(), flips: new WeakMap(), dirty: true, reset: false };
 const STILL_SIDE = { 0: THREE.BackSide, 1: THREE.FrontSide, 2: THREE.DoubleSide };   // (the face each side of a material casts from, as three.js draws shadows)
-function stillShadowsReset() { STILL_SH.reset = true; }
+export function stillShadowsReset() { STILL_SH.reset = true; }
 const _stillV = new THREE.Vector3();
 // whether a mesh is drawn at all: it and every one above it shown, all the way up to the scene
 function shownInScene(o) { for (let p = o; p; p = p.parent) { if (!p.visible) return false; if (p === scene) return true; } return false; }

@@ -11,6 +11,14 @@
 // YARD: how far a side gap stays from the corners, the chance a side gets a second and how far apart the two; how many
 // cells props keep from the house (more off the front, for the porch), from a fence gap and from a path; how far out past
 // the fence they go; how many clear cells between one prop (or stack of them) and the next; and how many tries at a yard where everything can still be got to
+import { clamp, N } from '../core/math.js';
+import { cell, cxw, EMPTY, FENCE, idx, inb, OBST, WALL } from './grid.js';
+import { groundMask, HX0, HX1, HZ0, HZ1, onRoad } from './ground.js';
+import { lowObst, YARD_PROPS, yardCells, yardSet } from './props.js';
+import { quarter } from './furniture.js';
+import { buildFence, FENCE_DOWN, FENCE_GAPS, fenceGap, fenceHp, FX0, FX1, FZ0, FZ1, GAPS } from './fence.js';
+import { blockArr } from './collision.js';
+
 const YARD = { gapEnd: 3, second: 0.35, apart: 5, house: 2, porch: 3, gap: 2, path: 1, out: 5, apartProps: 2, tries: 80 };
 // what goes where: each group's kind, the shape of its cells (before it's turned), and whether it stays inside the fence
 // or out past it
@@ -30,7 +38,7 @@ function yardPaths() {
     return [cxw(HX1) + 1, clamp(u, cxw(HZ0), cxw(HZ1)), cxw(FX1), u];
   });
 }
-function yardLayout(rnd, live) {
+export function yardLayout(rnd, live) {
   // what's set down now comes up off its cells
   for (const p of YARD_PROPS) for (const [i, j] of p.at) { const k = idx(i, j); if (cell[k] === OBST) cell[k] = EMPTY; lowObst.delete(k); if (live) blockArr[k] = 0; }
   // the gaps in the fence, and the fence put up round them

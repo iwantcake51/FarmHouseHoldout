@@ -1,5 +1,31 @@
 // The gun rack: unlocking weapons with scrap, and swapping to any you've unlocked.
 
+import { $ } from '../core/dom.js';
+import { keyIcon } from '../ui/input-icons.js';
+import { KB, keyOn } from '../input/keybinds.js';
+import { GI_VB } from '../ui/game-icons.js';
+import { scene, V3 } from '../core/renderer.js';
+import { outline } from '../effects/screen-outlines.js';
+import { box, finePieces, mergeInto, unfight } from '../core/geometry.js';
+import { cxw } from '../world/grid.js';
+import { HZ0 } from '../world/ground.js';
+import { FURN, HM, obstacle } from '../world/props.js';
+import { STATIONS } from './stations.js';
+import { P } from '../player/player.js';
+import { SLOT_NAME, SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { S, W8 } from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { openSt, renderStation, setStStruct, stStruct } from './station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun, state } from '../game/state.js';
+import { exitScope } from '../player/aiming.js';
+import { cutReload, equip } from '../weapons/reload.js';
+import { giveWeapon, statLine } from '../upgrades/upgrades.js';
+import { feed, FEED_ICON, popEl, setT } from '../ui/hud-text.js';
+import { gotGear, gunCall } from '../ui/gear-popup.js';
+import { foldStatic, teamWeapon } from '../net/arsenal.js';
+
 // Weapons aren't found or ordered: each is unlocked here, in order along its line (ARMORY_LINES), so a line's next
 // weapon can only be bought once the one before it is yours, from the first to the last. A weapon you've unlocked is
 // yours for the run (W8.owned): it goes into its slot and your hands, and what it replaces stays on the rack, to take
@@ -43,7 +69,7 @@ function takeFromRack(id) {
 // you own changes, and the buy buttons' state (enough scrap or not) is kept up every frame. Your loadout is docked on
 // its left, as the stats are at the workbench (rkSide, below)
 const ARMORY_TABS = [{ name: 'Sidearms', lines: [0] }, { name: 'Shotguns', lines: [1] }, { name: 'Snipers', lines: [2] }, { name: 'Rifles', lines: [3] }, { name: 'SMGs', lines: [4] }, { name: 'Melee', lines: [5, 6] }];
-const GUN_RACK = { tab: 0, pane: '', side: '' };
+export const GUN_RACK = { tab: 0, pane: '', side: '' };
 const SCRAP_IC = () => `<svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>`;
 const LOCK_IC = '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
 const TICK_IC = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.6 1.6 5.8 5.8L20.3 8.6 18.7 7z"/></svg>';
@@ -73,11 +99,11 @@ function rackPane(T, ti) {
   }).join('')}</div></div>`;
   return head + `<div class="rkTree">${rackTree(L0, 0, true)}</div>`;
 }
-function renderRack() {
+export function renderRack() {
   setT('stTitle', 'Gun rack'); setT('stScrap', String(S.scrap)); $('station').classList.add('wide');
   const rows = $('stRows');
   if (stStruct !== 'rack') {
-    stStruct = 'rack'; GUN_RACK.pane = ''; GUN_RACK.can = '';
+    setStStruct('rack'); GUN_RACK.pane = ''; GUN_RACK.can = '';
     rows.innerHTML = `<div class="rack" style="--k:0"><div class="rkTabs" role="tablist" style="--k:1;--n:${ARMORY_TABS.length}"><i class="rkPill"></i>${ARMORY_TABS.map((T, i) =>
       `<button type="button" role="tab" data-tab="${i}"><i class="rkCan">Buy</i><span>${T.name}</span><span class="rkPips">${tabIds(T).map(id => `<i data-pip="${id}"></i>`).join('')}</span></button>`).join('')}</div>
       <div class="rkAfford" hidden></div><div class="rkPanes">${ARMORY_TABS.map((T, i) => `<div class="rkPane" data-pane="${i}"></div>`).join('')}</div></div>`;
@@ -111,7 +137,7 @@ function renderRack() {
   setT('stNote', `Each line unlocks in order, first to last · Tab picks a line, or click your loadout · ${keyOn('use')} to step away`);
 }
 let rackSwapT = 0;
-function rackTab(t) {
+export function rackTab(t) {
   t = (t + ARMORY_TABS.length) % ARMORY_TABS.length; if (GUN_RACK.tab === t) return;
   GUN_RACK.tab = t; SFX.click(); renderStation();
   // the new pane's cards rise in one after another (the class is taken off again after, so a frame that never runs
@@ -119,7 +145,7 @@ function rackTab(t) {
   const rk = $('stRows').querySelector('.rack'); if (!rk) return;
   rk.classList.remove('swap'); void rk.offsetWidth; rk.classList.add('swap'); clearTimeout(rackSwapT); rackSwapT = setTimeout(() => rk.classList.remove('swap'), 650);
 }
-function rackClick(b) {
+export function rackClick(b) {
   if (b.dataset.tab) { rackTab(+b.dataset.tab); return; }
   if (b.dataset.take) { takeFromRack(b.dataset.take); SFX.craft(); renderStation(); return; }
   const id = b.dataset.buy; if (!id) return;
@@ -131,7 +157,7 @@ function rackClick(b) {
 // ui/weapon-stats.js docks the panel and makes room for it): your four slots in key order, the weapon in each, the
 // one in your hands edged orange, and the others you've unlocked for each slot to take down for nothing
 let rkSideCloseT = 0, rkSideOpenT = 0;
-const rkSideOn = () => state === 'play' && !P.dead && !!openSt && openSt.id === 'rack';
+export const rkSideOn = () => state === 'play' && !P.dead && !!openSt && openSt.id === 'rack';
 function rackSideHTML() {
   return `<div class="rlHead" style="--k:0"><b>Loadout</b><span>What you carry</span></div><p class="rlNote" style="--k:1">Take any weapon you've unlocked down off the rack for nothing, as you left it.</p>` + SLOTS.map((s, i) => {
     const id = W8.slot[s], others = W8.owned.filter(o => WEAP[o] && WEAP[o].slot === s && o !== id), cur = s === W8.cur;
@@ -150,7 +176,7 @@ function rackGoTab(t) {
   updateRackSide();
 }
 // every frame: shown while the rack's open, rebuilt only when what you carry or own changes
-function updateRackSide() {
+export function updateRackSide() {
   if (!GUN_RACK.built) rackGuns();
   const el = $('rkLoad'), on = rkSideOn();
   if (on && (el.hidden || el.classList.contains('closing'))) {
