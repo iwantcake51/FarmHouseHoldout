@@ -9,7 +9,7 @@ import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { splat, stepBloodMap } from './blood-map.js';
 import { dustBurst, fx, sparkBurst } from './puffs.js';
-import { zFree } from '../zombies/zombie-looks.js';
+import { zFree } from '../zombies/zombie-kit.js';
 import { visAt } from '../lighting/vision.js';
 
 export const parts = [];

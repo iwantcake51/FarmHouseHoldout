@@ -295,7 +295,7 @@ function trackVecs(keys, g) {
 // (it pulls straight out from the shoulder as it's swung), so it goes round the side the arm points to. c.wk, c.wkv
 // are the weapon's own keys
 const MWAY = { step: 1.0, flip: 1.6 };
-const _wyS = new V3(), _wyR = new V3();
+const _wyR = new V3();
 function wayKeys(keys, c) {
   const fv = c.fv, wv = c.wv, T = [], V = [], s = SHOULDER_REST.R;
   const split = (ta, a, tb, b, depth) => {

@@ -11,7 +11,7 @@ import { splat } from '../effects/blood-map.js';
 import { burst } from '../effects/particles.js';
 import { ragdolls, stepRagdoll } from './deaths.js';
 import { STUMP, zombies } from './zombie-types.js';
-import { zFree } from './zombie-looks.js';
+import { zFree } from './zombie-kit.js';
 import { fogSee } from './spawn.js';
 import { rimMat } from '../effects/outlines.js';
 import { openSt } from '../stations/station-ui.js';

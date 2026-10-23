@@ -23,7 +23,7 @@ import { gearOnAvatar, gearSpec } from '../player/gear.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 import { placeMag } from '../weapons/casings.js';
 import { state } from '../game/state.js';
-import { HSH, placeLoader, SL_RND, SLM } from '../player/hold.js';
+import { HSH, placeLoader, SL_RND, SLM } from '../player/hold-loaders.js';
 import {
   BELT_M, BUCKLE_M, buildHolster, HOLSTER_M, HOOD_M, packBack, STOW, STOW_AK, STOW_AT, STOW_RIG
 } from '../player/stow.js';

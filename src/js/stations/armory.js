@@ -48,7 +48,6 @@ const UNLOCK_COST = { revolver: 18, deagle: 60, dbl: 22, pump: 55, auto12: 180, 
 const owns = id => W8.owned.includes(id);
 // each line's next weapon to unlock (null once it's all yours), and how far along it you are
 function lineNext(L) { const k = L.ids.findIndex(id => !owns(id)); return k < 0 ? null : L.ids[k]; }
-const lineHave = L => L.ids.filter(owns).length;
 function unlockWeapon(id) {
   const D = WEAP[id], old = W8.slot[D.slot];
   exitScope(); giveWeapon(id); buildGuns(); glowGun(id);

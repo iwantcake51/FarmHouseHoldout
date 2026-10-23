@@ -57,7 +57,7 @@ export function rollText(el, text, spin) {
 }
 export const setRoll = (id, v, spin) => rollText($(id), v, spin);
 export const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
-export let toastT = 0, annT = 0;
+let toastT = 0, annT = 0;
 // a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)
 export function toast(t, opt) {
   const o = opt || {}, el = $('toast');

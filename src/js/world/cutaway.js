@@ -14,8 +14,7 @@ import { projV } from '../ui/crosshair.js';
 import { camFocus } from '../net/spectate.js';
 
 const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };   // flat direction from the scene toward the camera
-const SQ = Math.SQRT1_2, latOf = (x, z) => SQ * (x - z);
-const HLAT = [latOf(HOUSE.x0, HOUSE.z1), latOf(HOUSE.x1, HOUSE.z0)];
+const SQ = Math.SQRT1_2;
 // a wall face (f: which way it looks, N S W E; at: the line of the wall cells it's on) fades only if the line from you (F:
 // or the teammate you're watching) toward the camera actually passes through it
 function faceCut(F, f, at) {

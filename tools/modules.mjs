@@ -28,22 +28,23 @@ const GLOBALS = new Set(`Array ArrayBuffer AudioContext BigInt Blob Boolean Broa
 
 const parse = src => acorn.parse(src, { ecmaVersion: 2022, sourceType: 'module', locations: true, ranges: true });   // (eslint-scope needs the ranges)
 
-// files: [{ file: 'core/math.js', src }] in load order. Returns a list of problems (empty when all is well)
+// files: [{ file: 'core/math.js', src }] in load order. Returns a list of problems (empty when all is well), with each
+// file's parsed code on it (.asts, by file) for stripModule to reuse
 export function checkModules(files) {
-  const mods = new Map(), errs = [];
+  const mods = new Map(), errs = [], used = new Set(), place = new Map(files.map((f, i) => [f.file, i]));
   const at = (f, node) => `src/js/${f}:${node.loc.start.line}`;
   for (const { file, src } of files) {
     let ast;
     try { ast = parse(src); } catch (e) { errs.push(`src/js/${file}:${e.loc ? e.loc.line : '?'}  ${e.message}`); continue; }
     const scope = eslintScope.analyze(ast, { ecmaVersion: 2022, sourceType: 'module' }).scopes.find(s => s.type === 'module');
-    const exports = new Set();
+    const exports = new Set(), groups = [];
     for (const st of ast.body) if (st.type === 'ExportNamedDeclaration') {
       if (!st.declaration) { errs.push(`${at(file, st)}  export the declaration itself (export const ...), not a list`); continue; }
       const d = st.declaration;
-      if (d.id) exports.add(d.id.name);
-      else for (const v of scope.variables) if (v.defs.some(df => df.parent === d)) exports.add(v.name);
+      const names = d.id ? [d.id.name] : scope.variables.filter(v => v.defs.some(df => df.parent === d)).map(v => v.name);
+      names.forEach(n => exports.add(n)); groups.push({ st, names });
     } else if (/^Export/.test(st.type)) errs.push(`${at(file, st)}  only named exports of declarations are used here`);
-    mods.set(file, { ast, scope, exports });
+    mods.set(file, { ast, scope, exports, groups });
   }
   for (const [file, { ast, scope }] of mods) {
     for (const st of ast.body) {
@@ -53,12 +54,23 @@ export function checkModules(files) {
       for (const sp of st.specifiers) {
         if (sp.type !== 'ImportSpecifier' || sp.imported.name !== sp.local.name) { errs.push(`${at(file, sp)}  import names as they are ({ name }), not renamed or as a namespace`); continue; }
         if (!m.exports.has(sp.imported.name)) errs.push(`${at(file, sp)}  ${from} doesn't export ${sp.imported.name}`);
+        used.add(from + ':' + sp.imported.name);
+        // used as the file loads (not only inside its functions): the file it comes from has to load first
+        const v = scope.variables.find(q => q.name === sp.local.name);
+        const early = v && v.references.find(r => atLoad(r.from, scope, ast));
+        if (early && place.get(from) > place.get(file)) errs.push(`${at(file, early.identifier)}  ${sp.local.name} is used as this file loads, but ${from} loads after it (src/js/load-order.json)`);
       }
     }
     for (const v of scope.variables) {
       if (!v.defs.some(d => d.type === 'ImportBinding')) continue;
       if (!v.references.length) errs.push(`${at(file, v.identifiers[0])}  ${v.name} is imported but not used`);
       for (const r of v.references) if (r.isWrite()) errs.push(`${at(file, r.identifier)}  ${v.name} belongs to another file: change it through its setter`);
+    }
+    // what's declared here and used nowhere, here or (exported) anywhere else
+    for (const v of scope.variables) {
+      const d = v.defs[0]; if (d.type === 'ImportBinding') continue;
+      // (a function calling itself doesn't count)
+      if (!v.references.some(r => r.isRead() && !(r.identifier.range[0] >= d.node.range[0] && r.identifier.range[1] <= d.node.range[1]))) mods.get(file).unread = [...(mods.get(file).unread || []), v];
     }
     const seen = new Set();
     for (const r of scope.through) {
@@ -67,14 +79,36 @@ export function checkModules(files) {
       seen.add(n); errs.push(`${at(file, r.identifier)}  ${n} isn't declared here or imported`);
     }
   }
+  for (const [file, m] of mods) {
+    // (one export statement can declare several names: it's enough that one of them is imported somewhere)
+    for (const g of m.groups) if (!g.names.some(n => used.has(file + ':' + n)) && !g.names.every(n => (m.unread || []).some(v => v.name === n))) errs.push(`${at(file, g.st)}  ${g.names.join(', ')} ${g.names.length > 1 ? 'are' : 'is'} exported but no other file imports ${g.names.length > 1 ? 'them' : 'it'}`);
+    for (const v of m.unread || []) if (!used.has(file + ':' + v.name)) errs.push(`${at(file, v.identifiers[0])}  ${v.name} is declared but never used`);
+  }
+  errs.asts = new Map([...mods].map(([f, m]) => [f, m.ast]));
   return errs;
+}
+// whether code in this scope runs as the file loads: at the top, or in a function called straight away there
+function atLoad(sc, mod, ast) {
+  for (let q = sc; q && q !== mod; q = q.upper) if (q.type === 'function' && !isIIFE(q.block, ast)) return false;
+  return true;
+}
+const iifes = new WeakMap();
+function isIIFE(fn, ast) {
+  if (!iifes.has(ast)) {
+    const set = new Set();
+    const walk = n => { if (!n || typeof n.type !== 'string') return; if (n.type === 'CallExpression' && /Function/.test(n.callee.type)) set.add(n.callee); if (/Function/.test(n.type) && n.type !== 'FunctionDeclaration' && n !== ast) { /* nested functions are walked too: an IIFE inside one only runs when it does, which atLoad's walk up handles */ } for (const k in n) { const c = n[k]; if (Array.isArray(c)) c.forEach(walk); else if (c && typeof c.type === 'string' && k !== 'parent') walk(c); } };
+    walk(ast); iifes.set(ast, set);
+  }
+  return iifes.get(ast).has(fn);
 }
 
 // one file's code without its import statements and export keywords, for joining into the one-scope script
-export function stripModule(src) {
-  const ast = parse(src), cuts = [];
+export function stripModule(src, ast = parse(src)) {
+  const cuts = [];
   for (const st of ast.body) {
-    if (st.type === 'ImportDeclaration') { let e = st.end; while (src[e] === '\n' || src[e] === '\r') e++; cuts.push([st.start, e, '']); }
+    // (an import leaves its lines behind, empty, so every line of the file stays where it was: the dev build's source
+    // map counts on it)
+    if (st.type === 'ImportDeclaration') cuts.push([st.start, st.end, '\n'.repeat((src.slice(st.start, st.end).match(/\n/g) || []).length)]);
     else if (st.type === 'ExportNamedDeclaration' && st.declaration) cuts.push([st.start, st.declaration.start, '']);
   }
   let out = src;

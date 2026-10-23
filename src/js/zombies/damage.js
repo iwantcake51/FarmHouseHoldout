@@ -18,7 +18,7 @@ import { dropPickup } from '../pickups/pickups.js';
 import { makeRagdoll, ragdolls } from './deaths.js';
 import { headMulFor, PART_Y, partMult, zombies } from './zombie-types.js';
 import { zAnimHit } from './zombie-anim.js';
-import { zFree } from './zombie-looks.js';
+import { zFree } from './zombie-kit.js';
 import { rimMat } from '../effects/outlines.js';
 import { timeScale } from '../game/hit-feedback.js';
 import { _wB, addWound, headShot, severLower, shotWound, WOUND_ZONE } from './wounds.js';
@@ -298,7 +298,7 @@ export function partAt(z, y, rel, side) {
   const leg = side > 0 ? 'legR' : 'legL'; return z.limbs[leg] ? leg : z.limbs[side > 0 ? 'legL' : 'legR'] && Math.abs(rel) < 0.3 ? (side > 0 ? 'legL' : 'legR') : null;
 }
 // set just before a scoped shot's hurtZombie when it lands a crit (weapons/firing.js), so the number shows it
-export let critNext = false, headNext = 1;   // the next hit's crit, and how much of its headshot bonus is left at that range (headFade, weapons/ammo.js)
+let critNext = false, headNext = 1;   // the next hit's crit, and how much of its headshot bonus is left at that range (headFade, weapons/ammo.js)
 // fire: one tick of burn damage (zombies/ai.js) with its own orange number; true if it killed
 export const BURN_TICK = 0.5, BURN_DMG = 7;
 export function burnHurt(z) {

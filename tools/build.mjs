@@ -47,8 +47,28 @@ function joinScripts() {
   });
   const errs = checkModules(files);
   if (errs.length) throw new Error(`The game's imports and exports don't add up (${errs.length}):\n  ` + errs.slice(0, 40).join('\n  ') + (errs.length > 40 ? '\n  ...' : ''));
-  const parts = files.map(({ file: f, src }) => `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + (f === 'ui/cheats.js' && !cheats ? CHEATS_STUB : stripModule(src)));
-  return "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n';
+  // (where each file's first line lands in the joined script, for the dev build's source map: stripModule keeps every
+  // line where it was)
+  let line = 2; const at = [];
+  const parts = files.map(({ file: f, src }) => {
+    const code = f === 'ui/cheats.js' && !cheats ? CHEATS_STUB : stripModule(src, errs.asts.get(f));
+    at.push(code === CHEATS_STUB ? null : { file: f, src, line: line + 2, n: code.split('\n').length });
+    line += 2 + (code.match(/\n/g) || []).length;
+    return `\n// ==== ${f} ${'='.repeat(Math.max(4, 66 - f.length))}\n` + code;
+  });
+  return { js: "(() => {\n'use strict';\n" + parts.join('') + '\n})();\n', at };
+}
+// a source map for the dev build, line by line: the browser's errors and debugger show src/js/<file>:<line>
+function sourceMap(at) {
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const vlq = n => { let v = n < 0 ? (-n << 1) | 1 : n << 1, out = ''; do { let d = v & 31; v >>>= 5; if (v) d |= 32; out += B64[d]; } while (v); return out; };
+  const files = at.filter(Boolean), lines = [];
+  let ps = 0, pl = 0;
+  files.forEach((f, si) => {
+    while (lines.length < f.line) lines.push('');
+    for (let i = 0; i < f.n; i++) { lines.push(vlq(0) + vlq(si - ps) + vlq(i - pl) + vlq(0)); ps = si; pl = i; }
+  });
+  return JSON.stringify({ version: 3, file: 'game.js', sources: files.map(f => '../src/js/' + f.file), sourcesContent: files.map(f => f.src), names: [], mappings: lines.join(';') });
 }
 // the bundle parsed (and minified, for a production build); on an error, which source file and line it's in, by the
 // file banners joinScripts puts between them
@@ -87,7 +107,7 @@ async function buildOnce() {
     soundUrl[f] = { url: `sounds/${f}?v=${crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 10)}`, bytes };
   }
   // scripts
-  let js = joinScripts();
+  let { js, at } = joinScripts();
   for (const f of sounds) js = js.split(`'sounds/${f}'`).join(`'${soundUrl[f].url}'`);
   // (audio/samples.js builds its file names, so it's handed the hashes instead)
   js = js.replace('const SOUND_HASH = {};', () => `const SOUND_HASH = ${JSON.stringify(Object.fromEntries(sounds.map(f => [f, soundUrl[f].url.split('?v=')[1]])))};`);
@@ -96,7 +116,8 @@ async function buildOnce() {
   // naming the file and line it's in (checkBundle)
   const checked = await checkBundle(js);
   if (!dev) js = checked;
-  fs.writeFileSync(path.join(OUT, 'game.js'), js);
+  fs.writeFileSync(path.join(OUT, 'game.js'), dev ? js + '//# sourceMappingURL=game.js.map\n' : js);
+  if (dev) fs.writeFileSync(path.join(OUT, 'game.js.map'), sourceMap(at)); else fs.rmSync(path.join(OUT, 'game.js.map'), { force: true });
   // styles: index.css @imports every sheet in cascade order
   const css = await esbuild({ entryPoints: [path.join(SRC, 'styles/index.css')], bundle: true, minify: !dev, write: false, logLevel: 'silent' });
   const cssText = css.outputFiles[0].text;

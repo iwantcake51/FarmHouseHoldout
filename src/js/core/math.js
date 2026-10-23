@@ -12,8 +12,6 @@ export const cache = {};
 export let last = 0;
 export const N = 44, HALF = N / 2;
 export const mix = (a, b, t) => a + (b - a) * t;
-const lerpPose = (a, b, t, out) => { for (const k in b) out[k] = a[k] + (b[k] - a[k]) * t; return out; };
-const _pose = {};
 export const smooth = t => t * t * (3 - 2 * t);
 
 // setters for the variables above that other files change (an imported variable can only be read)

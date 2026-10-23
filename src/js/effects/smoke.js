@@ -24,7 +24,7 @@ export function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint, lift) {
   p.m.position.set(x, y, z); p.vx = vx; p.vy = vy; p.vz = vz; p.s0 = s0 * 1.15; p.s1 = s1 * 1.15; p.life = p.max = life; p.a = a; p.spin = rr(-0.6, 0.6); p.ph = rand() * 6.28;
   m.rotation = rand() * 6.28; p.tint = tint || 0xc9c4ba; p.lift = lift || 1; p.m.visible = true;
 }
-const _sc = new THREE.Color(), _sl = new THREE.Color();
+const _sl = new THREE.Color();
 export function stepSmoke(dt) {
   for (const p of smokes) {
     if (p.life <= 0) continue; p.life -= dt; if (p.life <= 0) { p.m.visible = false; continue; }

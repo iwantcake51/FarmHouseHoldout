@@ -4,7 +4,7 @@ import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
-import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-models.js';
+import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
 export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;

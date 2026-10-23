@@ -19,7 +19,7 @@ import { meleeImpact } from '../melee/melee-anim.js';
 import { cancelBandage } from './bandages.js';
 import { runStat } from '../ui/run-stats.js';
 import { ANIM } from './animation.js';
-import { relKnock } from './hold.js';
+import { relKnock } from './hold-kick.js';
 import { netAct, netRec, nr } from '../net/sync.js';
 
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and

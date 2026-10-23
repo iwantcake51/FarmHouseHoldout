@@ -58,7 +58,7 @@ export const FXK = {
 const fxs = [];
 for (let k = 0; k < 420; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_SMOKE, transparent: true, depthWrite: false, opacity: 0 })); s.visible = false; s.renderOrder = 2; scene.add(s); fxs.push({ s, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.1, s1: 0.5, a: 0.4, spin: 0, kind: 'dust' }); }
 let fxIdx = 0;
-const _fc = new THREE.Color(), _fc2 = new THREE.Color(), _fp = new V3(), _fq = new V3();
+const _fc2 = new THREE.Color(), _fp = new V3(), _fq = new V3();
 export function fx(kind, x, y, z, vx, vy, vz, s0, s1, life, a) {
   const p = fxs[fxIdx = (fxIdx + 1) % fxs.length], K = FXK[kind], m = p.s.material, tex = pick(K.tex);
   if (m.map !== tex) m.map = tex;

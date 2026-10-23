@@ -13,7 +13,7 @@ import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 
 import {
   AKX, BELT, BIPOD, BRK, CHARGE, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
 } from './gun-materials.js';
-import { hi } from './gun-models.js';
+import { hi } from './gun-parts.js';
 import { GUNS } from '../melee/melee-models.js';
 import { fitAttachments } from './attachments.js';
 import { buildGear } from '../player/gear.js';

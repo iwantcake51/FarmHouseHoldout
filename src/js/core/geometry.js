@@ -25,7 +25,6 @@ export const BLOB_TEX = (() => { const c = document.createElement('canvas'); c.w
 const BLOB_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 export function blobShadow(size, op) { const m = new THREE.Mesh(BLOB_G, new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: op, depthWrite: false })); m.scale.setScalar(size); m.renderOrder = 1; m.position.y = 0.02; scene.add(m); return m; }
 export const cylZ = (r, len, mat, seg) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 10), mat); m.rotation.x = Math.PI / 2; m.castShadow = true; return m; };
-function addCylZ(g, r, len, mat, x, y, z) { const m = cylZ(r, len, mat); m.position.set(x, y, z); g.add(m); return m; }
 // Merge many small static pieces into as few meshes as possible, so a detailed model costs a handful of draw calls.
 // Plain lit colours are baked into vertex colours and share one material; anything else (glows, double-sided or
 // see-through materials, or the ones in opt.live that get recoloured at runtime) is merged per material.

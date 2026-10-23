@@ -297,7 +297,7 @@ export function updateZombies(dt) {
 // a zombie's swing landing on you: the damage, the tilt toward it, and what it does by kind: a brute's knocks you back
 // concussed, a crawler's trips you, the rest can open a bleed. In co-op a swing at you from the host's zombie comes here
 // from its message (net/sync.js)
-export let zHitMe = false;
+let zHitMe = false;
 export function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
   P.hitFrom = z.face; hitFromAt(z.x, z.z, z.T.dmg * armMul * (z.crawl ? 0.25 : 1) / 25);

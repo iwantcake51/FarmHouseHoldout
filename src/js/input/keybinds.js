@@ -31,8 +31,6 @@ export const keyLabel = k => !k ? '—' : KEY_NAMES[k] || (k.length === 1 ? k.to
 export const keyOn = a => keyLabel(KB[a]);
 export const kbd = a => `<kbd class="ki">${keyIcon(KB[a])}</kbd>`;
 export const bindIs = (k, a) => KB[a] === k;
-// the weapon keys together, as the controls list them: 1 – 4 while they run in order
-function slotKeys() { const s = [1, 2, 3, 4].map(n => KB['slot' + n]); return s.join('') === '1234' ? '1 – 4' : s.map(keyLabel).join(' '); }
 function refreshKeyHints() {
   // (each drawn as its key: a key that isn't bound to anything, data-key, as well)
   document.querySelectorAll('[data-bind]').forEach(el => { const a = el.dataset.bind; el.classList.add('ki'); el.innerHTML = a === 'slots' ? slotIcons() : keyIcon(KB[a]); });
