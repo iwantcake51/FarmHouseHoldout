@@ -37,6 +37,8 @@ function buildFloor() {
     if (HOUSE_FP[idx(i - 1, j)] === 1 && HOUSE_FP[idx(i - 1, e)] === 1) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.03, L), M.wood); l.rotation.x = -Math.PI / 2; l.position.set(cxw(i) - 0.5, 0.02, z); floorG.add(l); }
     j = e + 1;
   }
+  // (drawn as one mesh for the boards and one for the lines between them; the lines take no shadow, as they never have)
+  mergeInto(floorG, [...floorG.children], { noBake: true }).forEach(m => { if (m.material === M.wood) m.receiveShadow = false; });
 }
 {
   // a doormat inside the front door

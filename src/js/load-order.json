@@ -62,6 +62,7 @@
   "effects/particle-art.js",
   "effects/textures.js",
   "effects/muzzle-flash.js",
+  "effects/sprite-batch.js",
   "effects/smoke.js",
   "effects/tracers.js",
   "effects/blood-map.js",

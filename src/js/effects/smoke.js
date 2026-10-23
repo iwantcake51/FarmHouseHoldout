@@ -1,16 +1,17 @@
 // Gun smoke puffs, lit by the light round them.
 
-import { scene } from '../core/renderer.js';
 import { clamp, HALF, pick, rand, rr } from '../core/math.js';
 import { windAt, WX } from '../world/wind.js';
 import { SMOKE_GAIN, TEX_SMOKE, TEX_SMOKES } from './textures.js';
+import { sbSprite } from './sprite-batch.js';
 import { flashes } from '../weapons/explosives.js';
 import { flashAt, FN, FR, lmCur, visCur } from '../lighting/lightmap.js';
 
 // ---- gun smoke: soft billows (one of the smoke sprites each, turned any way) that roll out of the muzzle, slow, swell
 // and thin out as they drift up and away on the breeze; coloured by whatever light they sit in ----
 export const smokes = [];
-for (let k = 0; k < 120; k++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_SMOKE, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; m.renderOrder = 2; scene.add(m); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
+// (drawn all at once, with the other particles: effects/sprite-batch.js)
+for (let k = 0; k < 120; k++) { const m = sbSprite(TEX_SMOKE); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
 let smIdx = 0;
 // SMOKE_MOVE: how quickly the air takes it over (drag: it slows to the wind's speed, not to a stop), how fast it rises
 // as it cools (rise, flattened in a strong wind), how much of the wind's speed it takes (wind: world/wind.js), how it

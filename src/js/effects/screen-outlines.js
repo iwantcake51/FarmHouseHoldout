@@ -142,7 +142,7 @@ export function outlinePass(camera) {
     // sprites and a gun's muzzle flash left out (and anything that glows additively, a flash's tongues or a laser
     // beam, never gets a line round it)
     r.g.traverse(o => {
-      if (o.userData.isOutline || o.userData.isFlash || o.isSprite || o.isPoints || o.isLine || o.isInstancedMesh) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
+      if (o.userData.isOutline || o.userData.isFlash || o.userData.isSprites || o.isSprite || o.isPoints || o.isLine || o.isInstancedMesh) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       if (!o.isMesh) return;
       const m = o.material; if (!m || (!Array.isArray(m) && (m.visible === false || m.colorWrite === false || m.blending === THREE.AdditiveBlending))) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       _olSw.push(o, m); o.material = r.mat;

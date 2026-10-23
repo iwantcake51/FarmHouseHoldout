@@ -2,12 +2,13 @@
 // all drawn with the particle sprites (effects/textures.js: Kenney's Particle Pack and Light Masks).
 // burst() in effects/particles.js hands its dust, spark, smoke and ember kinds over to these, so every kick-up looks this way.
 
-import { cam, scene, V3 } from '../core/renderer.js';
+import { cam, V3 } from '../core/renderer.js';
 import { pick, rand, rr } from '../core/math.js';
 import { BURN_BARREL } from '../world/props.js';
 import { bulletBlocked } from '../world/collision.js';
 import { windAt } from '../world/wind.js';
 import { partSet, partTex, SMOKE_GAIN, TEX_SMOKE, TEX_SMOKES, TEX_STARS } from './textures.js';
+import { sbSprite } from './sprite-batch.js';
 import { smoke, smokeLight } from './smoke.js';
 import { burst, cubeBurst } from './particles.js';
 import { flashes } from '../weapons/explosives.js';
@@ -56,7 +57,8 @@ export const FXK = {
   star: { tex: TEX_STARS, add: true, col: 0xfff0d0, grav: 0, drag: 0, rise: 0, fin: 0.02, fade: 1 }
 };
 const fxs = [];
-for (let k = 0; k < 420; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_SMOKE, transparent: true, depthWrite: false, opacity: 0 })); s.visible = false; s.renderOrder = 2; scene.add(s); fxs.push({ s, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.1, s1: 0.5, a: 0.4, spin: 0, kind: 'dust' }); }
+// (drawn all at once, with the gun smoke: effects/sprite-batch.js)
+for (let k = 0; k < 420; k++) { const s = sbSprite(TEX_SMOKE); fxs.push({ s, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.1, s1: 0.5, a: 0.4, spin: 0, kind: 'dust' }); }
 let fxIdx = 0;
 const _fc2 = new THREE.Color(), _fp = new V3(), _fq = new V3();
 export function fx(kind, x, y, z, vx, vy, vz, s0, s1, life, a) {
