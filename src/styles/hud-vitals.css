@@ -1,8 +1,8 @@
 /* Bottom-left health: number, ECG, health bar, stamina bar, healing, resources. */
 #vitals{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px;display:grid;gap:8px;width:min(260px,44vw)}
 .hpRow{display:flex;align-items:flex-end;gap:12px}
-#hpTxt{font-size:46px;min-width:2.1ch;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
-#hpMax{font-family:var(--f-num);font-weight:600;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
+#hpTxt{font-size:46px;min-width:3ch;text-align:right;font-variant-numeric:tabular-nums;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#hpMax{font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
 #ecg{flex:1;height:34px;min-width:0}
 /* the heart trace (ui/vitals.js) */
 #ecg path{fill:none;stroke:var(--ink);stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 3px rgba(236,230,216,.35));transition:stroke .9s ease,filter .9s ease}   /* eases between white and red as you drop below or climb back over 30% */
@@ -30,9 +30,11 @@
 #xh .stRun.on{opacity:.9}
 #xh .stRun.back{opacity:.3;transition:opacity 1.1s ease}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
-.bar i{position:absolute;inset:0 auto 0 0;width:100%;background:linear-gradient(180deg,#fbf7ee,#d9d1c0) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#d4e6f6,#86acd2);box-shadow:0 0 6px rgba(236,230,216,.3);transition:width .12s}
-/* (the first layer is health up to the base 100; past it, bonus health from armour and the like is steel blue) */
-#hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:0 0 6px rgba(92,160,255,.45);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
+.bar i{position:absolute;inset:0;background:linear-gradient(180deg,#fbf7ee,#d9d1c0) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#d4e6f6,#86acd2);box-shadow:0 0 6px rgba(236,230,216,.3);clip-path:inset(-8px calc(100% - var(--hp,100%)) -8px -8px);transition:clip-path .12s}
+/* (the first layer is health up to the base 100; past it, bonus health from armour and the like is steel blue. The fill
+   always spans the whole bar and is cut off at your health (--hp), so neither colour moves or stretches as it changes:
+   only the cut does, and --b is just where the base 100 ends on the bar) */
+#hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:inset 0 0 6px rgba(150,200,255,.55);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
 @keyframes healGlow{50%{background:rgba(120,180,255,.36)}}
 #healVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(60,130,230,.32) 100%)}
 .bar b{position:absolute;inset:0 auto 0 0;width:100%;background:rgba(224,64,44,.55);transition:width .6s ease .25s}

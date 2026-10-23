@@ -73,9 +73,9 @@ const feedItems = [];
 function feed(kind, amount, label) {
   const now = performance.now();
   const ex = feedItems.find(f => f.kind === kind && f.label === label && now - f.t < 2600 && amount);
-  if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; ex.el.classList.remove('bump'); void ex.el.offsetWidth; ex.el.classList.add('bump'); return; }
+  if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; ex.el.classList.remove('bump'); void ex.el.offsetWidth; ex.el.classList.add('bump'); ex.el.classList.toggle('alt'); return; }   // (alt: its timer runs from full again)
   const el = document.createElement('div'); el.className = 'fd ' + kind;
-  el.innerHTML = `<svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg>${amount ? '<b></b>' : ''}<span></span>`;
+  el.innerHTML = `<i class="fdI"><svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg></i>${amount ? '<b></b>' : ''}<span></span>`;
   if (amount) el.querySelector('b').textContent = '+' + amount;
   el.querySelector('span').textContent = label;
   $('feed').appendChild(el); feedItems.push({ kind, label, amount, t: now, el });
@@ -86,9 +86,15 @@ function tickFeed() {
   for (let k = feedItems.length - 1; k >= 0; k--) { const f = feedItems[k]; if (now - f.t > 3000 && !f.out) { f.out = true; f.el.classList.add('out'); } if (now - f.t > 3500) { f.el.remove(); feedItems.splice(k, 1); } }
 }
 const floats = [];
-// a pickup's label: a little chip in the drop's colour that pops up and eases up off it (FLOAT_UP)
-function floatText(x, z, text, color) {
-  const el = document.createElement('div'); el.className = 'float chip'; el.textContent = text; if (color) el.style.color = color;
+// what you picked up, popping up off where it lay and easing up (FLOAT_UP): its kind's icon spinning in, glowing in the
+// drop's colour, then how many in that colour and what, in small capitals underneath with a slash of colour under it
+// (a weapon off the ground: just its name). kind is the feed's (FEED_ICON)
+function floatText(x, z, text, color, kind) {
+  const el = document.createElement('div'), m = /^\+(\d+)\s*(.*)$/.exec(text || '');
+  el.className = 'float pick' + (m ? '' : ' named'); if (color) el.style.setProperty('--fc', color);
+  el.innerHTML = `<i class="pkI"><svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg></i><span class="pkT">${m ? '<b></b>' : ''}<em></em></span>`;
+  if (m) el.querySelector('b').textContent = '+' + m[1];
+  el.querySelector('em').textContent = m ? m[2] : text;
   document.body.appendChild(el); floats.push({ el, x, z, t: 0 });
 }
 // how the labels move. A damage number (FLOAT_DMG) bursts off the zombie on a little arc, flung up and out to one side

@@ -92,12 +92,12 @@ function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   $('station').classList.toggle('isRack', openSt.id === 'rack');
-  $('stQuick').hidden = openSt.id !== 'bench'; $('station').classList.toggle('withQuick', openSt.id === 'bench' || (openSt.id === 'saw' && !METAL.on));
+  $('stQuick').hidden = !ST_QUICK[openSt.id]; $('station').classList.toggle('withQuick', !!ST_QUICK[openSt.id] || (openSt.id === 'saw' && !METAL.on));
   forgeBar();   // (the sawhorse's metalwork bench button, below)
   if (openSt.id === 'box') { renderGift(); return; }   // the strongbox: scrap for a teammate (net/teamwork.js)
   if (openSt.id === 'rack') { renderRack(); return; }   // the gun rack: unlocking weapons, your loadout docked beside it (stations/armory.js)
   setT('stTitle', openSt.name); setT('stScrap', String(S.scrap));
-  // (the ammo has no card of its own at the workbench: it's the quick buttons, quickAmmo below)
+  // (the ammo at the workbench and the bandages at the cabinet have no cards of their own: they're the quick buttons, quickBar below)
   const all = RECIPES[openSt.id], ids = all.map((r, i) => i).filter(i => !all[i].quick), rows = ids.map(i => all[i]), struct = openSt.id + rows.map(r => (r.group || '') + '|' + r.title()).join('#');
   const txs = rows.map((r, i) => `${r.for ? `<i class="for">${r.for()}</i>` : ''}<b>${r.title()}${r.tier ? (([n, of, rars]) => starRow(n, of, rars, openSt.id + '|' + (r.group || '') + '|' + ids[i]))(r.tier()) : ''}</b><em>${r.desc()}</em>${cardChips(r)}`);
   let btns = $('stRows').querySelectorAll('button');
@@ -126,7 +126,7 @@ function renderStation() {
     b.querySelector('.cost').classList.toggle('short', short);
     const st = b.querySelector('.ft .st'); st.textContent = status; st.classList.toggle('bad', !ok);
   });
-  quickAmmo(all);
+  quickBar(all);
   { const n = rows.length; setT('stNote', `Click a card · ${openSt.id === 'bench' ? `Tab switches weapon · ${keyOn('stats')} to ${wsBench ? 'hide' : 'show'} the stats · ` : ''}${keyOn('use')} to step away`); $('station').classList.toggle('wide', n > 6); }   // a long list (the bench with attachments) goes three across
 }
 // ---- the workbench's weapon tabs: one for each weapon you carry, in key order, the pill under the one in your hands.
@@ -154,15 +154,21 @@ function benchGun(s) {
 function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
 // at the workbench, ammo is always a click away along the bottom, wherever you've scrolled the cards to: for the gun in
-// your hands, or a load for every gun you carry, each showing what it gives and its price, and lit when you can buy it
-// (the bench's ammo recipes, recipes.js: quick)
-function quickAmmo(rows) {
-  const el = $('stQuick'), on = openSt.id === 'bench'; el.hidden = !on; if (!on) return;
-  if (!el.firstElementChild) el.innerHTML = ['hand', 'all'].map(q => `<button type="button" data-q="${q}"><svg viewBox="${GI_VB}">${FEED_ICON.ammo}</svg><span><b></b><em></em></span><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span></button>`).join('');
+// your hands, or a load for every gun you carry; and at the medicine cabinet, bandages the same way: one, or your pouch
+// refilled in one go. Each shows what it gives and its price, and is lit when you can buy it (the stations' quick
+// recipes, recipes.js: quick; ST_QUICK says which, what each is called and what it gives)
+const ST_QUICK = {
+  bench: { hand: { ic: 'ammo', t: () => gunAmmo() ? 'Ammo: ' + W(curId()).short : 'Ammo', d: () => gunAmmo() ? `+${gunBatch(curId())} ${AMMO_NAME[gunAmmo()]}` : '' },
+    all: { ic: 'ammo', t: () => 'Ammo for all', d: () => allAmmo().map(([a, n]) => `+${n}`).join(' · ') } },
+  med: { one: { ic: 'med', t: () => 'Bandage', d: () => `+1 · pouch ${P.band || 0}/${bandMax()}` },
+    fill: { ic: 'med', t: () => 'Refill pouch', d: () => `+${bandRoom()} bandage${bandRoom() > 1 ? 's' : ''}` } }
+};
+function quickBar(rows) {
+  const el = $('stQuick'), Q = ST_QUICK[openSt.id]; el.hidden = !Q; if (!Q) return;
+  if (el._st !== openSt.id) { el._st = openSt.id; el.innerHTML = Object.keys(Q).map(q => `<button type="button" data-q="${q}" style="--qc:${ST_ICON_COL[Q[q].ic]}"><svg viewBox="${GI_VB}">${FEED_ICON[Q[q].ic]}</svg><span><b></b><em></em></span><span class="cost"><svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg><b></b></span></button>`).join(''); }
   for (const b of el.children) {
-    const i = rows.findIndex(r => r.quick === b.dataset.q), r = rows[i]; if (!r) continue;
-    const t = b.dataset.q === 'hand' ? (gunAmmo() ? 'Ammo: ' + W(curId()).short : 'Ammo') : 'Ammo for all', d = r.why() || (b.dataset.q === 'hand' ? (gunAmmo() ? `+${gunBatch(curId())} ${AMMO_NAME[gunAmmo()]}` : '') : allAmmo().map(([a, n]) => `+${n}`).join(' · '));
-    const ok = !r.why() && S.scrap >= r.cost, k = t + d + r.cost + ok;
+    const i = rows.findIndex(r => r.quick === b.dataset.q), r = rows[i], q = Q[b.dataset.q]; if (!r) continue;
+    const t = q.t(), d = r.why() || q.d(), ok = !r.why() && S.scrap >= r.cost, k = t + d + r.cost + ok;
     if (b._k === k) continue; b._k = k; b.dataset.i = i;
     b.querySelector('span b').textContent = t; b.querySelector('em').textContent = d; b.querySelector('.cost b').textContent = r.cost;
     b.classList.toggle('ok', ok); b.querySelector('.cost').classList.toggle('short', S.scrap < r.cost);
@@ -197,7 +203,7 @@ $('stForge').addEventListener('click', e => {
   if (braceLv() < BRACE.max || S.scrap < METAL_COST) { SFX.click(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
   S.scrap -= METAL_COST; popEl('scrap'); forgeMetal(); SFX.craft(); renderStation();
 });
-$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && openSt.id === 'bench') { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
+$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && ST_QUICK[openSt.id]) { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
 function craft(i) {
   if (!openSt) return;

@@ -61,8 +61,8 @@ const TEAM_RES = ['planks', 'scrap', 'kills'];
 // still to come from a bandage or a medkit
 function paintBar(bar, hp, mx, heal, dead) {
   const f = dead ? 0 : clamp(hp / mx, 0, 1), inc = dead ? 0 : Math.min(1 - f, (heal || 0) / mx), i = bar.querySelector('i');
-  i.style.width = f * 100 + '%'; bar.querySelector('b').style.width = f * 100 + '%';
-  i.style.setProperty('--b', (f > 0 ? Math.min(100, (BASE_HP / mx) / f * 100) : 100).toFixed(1) + '%');
+  i.style.setProperty('--hp', f * 100 + '%'); bar.querySelector('b').style.width = f * 100 + '%';
+  i.style.setProperty('--b', Math.min(100, BASE_HP / mx * 100).toFixed(1) + '%');
   const s = bar.querySelector('s'); s.style.left = f * 100 + '%'; s.style.width = inc * 100 + '%';
 }
 function renderTeam() {

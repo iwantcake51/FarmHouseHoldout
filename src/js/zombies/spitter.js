@@ -20,7 +20,7 @@ const SPIT = {
   from: 5, share: 0.05, sharePer: 0.006, shareMax: 0.12,   // first wave, share of the wave, how it grows (waves/waves.js)
   min: 3.5, max: 11, wind: 0.95, cd: [3.6, 5], first: [0.8, 2.2],   // range, the rear back (s), between spits (s), the first
   speed: 6.5, g: 7, arc: 0.45, arcPer: 0.09, through: 1.45,   // the glob's speed across the ground (m/s) at most, its fall, how high it's lobbed over the line to where it lands (arc, and arcPer more each metre), the height it takes through a window
-  flat: 11, rise: 0.2, body: 0.95, dip: 0.12,   // spat in through a window: flung straight at you (flat m/s across the ground), dipping as it goes rather than lobbed up and over; past rise (m) of climb it's aimed at your middle (body, m up) instead of your feet, and it always dips at least dip (m)
+  flat: 11, dip: 0.12,   // spat in through a window: flung straight at your feet (flat m/s across the ground), dipping as it goes rather than lobbed up and over, at least dip (m)
   dmg: 10, splash: 1.0,   // a glob that catches you (half that at the splash's edge) and how far the splash reaches
   // the splat it leaves: how far it burns, how long it lasts, the burn a second (rising to max times that after ramp
   // seconds stood in it, and easing off again once you're out), the drag at your feet; it spreads over grow seconds and
@@ -188,9 +188,8 @@ function spitAt(z, tx, tz) {
 // the glob's flight, [how long it's in the air, how fast it starts up, its fall]: out in the open lobbed in an arc, its
 // top SPIT.arc (and SPIT.arcPer a metre further) over the line to where it lands (an arc's top is g T² / 8 above the
 // middle of that line), and never faster than SPIT.speed across the ground. Spat in through a window it's flung
-// straight at you instead (SPIT.flat), barely rising and dipping as it goes, through the middle of the window
-// (SPIT.through, metres up) so it doesn't splash on the sill or the head: the curve through there and down to your feet,
-// or to your middle where that would have it climb first
+// straight at you instead (SPIT.flat), dipping as it goes, through the middle of the window (SPIT.through, metres up)
+// so it doesn't splash on the sill or the head, and down to your feet
 function spitPath(x0, y0, z0, tx, tz) {
   const d = Math.hypot(tx - x0, tz - z0), ty = surfaceY(tx, tz) + 0.05, T0 = clamp(Math.max(d / SPIT.speed, Math.sqrt(8 * (SPIT.arc + SPIT.arcPer * d) / SPIT.g)), 0.45, 2.2);
   const lob = [T0, (ty - y0 + 0.5 * SPIT.g * T0 * T0) / T0, SPIT.g];
@@ -200,7 +199,7 @@ function spitPath(x0, y0, z0, tx, tz) {
     const f = s / d; if (f < 0.05 || f > 0.95) return lob;
     // y(u) = y0 + a u - b u² along the way (u 0 to 1): through the window at f, down to y1 at the end
     const curve = y1 => { const b = (SPIT.through - y0 - (y1 - y0) * f) / (f * (1 - f)); return [y1 - y0 + b, b]; };
-    let [a, b] = curve(ty); if (a > SPIT.rise) [a, b] = curve(ty + SPIT.body);
+    let [a, b] = curve(ty);
     b = Math.max(b, SPIT.dip); const T = clamp(d / SPIT.flat, 0.3, 1.2);
     return [T, a / T, 2 * b / (T * T)];
   }
@@ -312,15 +311,15 @@ function updateSpit(dt) {
     if (rand() < dt * SIZZLE.glob) fx('acidSteam', p.x + rr(-0.03, 0.03), p.y, p.z + rr(-0.03, 0.03), rr(-0.1, 0.1), rr(0.1, 0.3), rr(-0.1, 0.1), rr(0.05, 0.08), rr(0.2, 0.32), rr(0.35, 0.6), 0.28);
     // now and then a drop sheds off the end of the trail and falls
     if (rand() < 0.22) { const e = g.hist[Math.min(g.hist.length - 1, 6)]; fx('acid', e.x, e.y, e.z, g.vx * 0.15 + rr(-0.15, 0.15), rr(-0.3, 0.1), g.vz * 0.15 + rr(-0.15, 0.15), rr(0.018, 0.03), 0.01, 0.45, 0.9); }
-    // what it hits first: you (or a teammate's game's you), an inside wall, a wall, a sill or a board, or the ground
-    const meD = Math.hypot(p.x - P.x, p.z - P.z), hitMe = !P.dead && !P.vault && meD < 0.42 && p.y < 1.75;
+    // what it hits first: an inside wall, a wall, a sill or a board, or the ground. Never you in the air: it flies on
+    // through, and only where it comes down does it splash you (acidSplash: SPIT.splash)
     const wall = (THIN.n && thinHit(x0, z0, p.x, p.z) <= 1) || dropHits(p.x, p.y, p.z), ground = p.y <= surfaceY(p.x, p.z) + 0.04;
-    if (!hitMe && !wall && !ground && g.t < 3) continue;
+    if (!wall && !ground && g.t < 3) continue;
     scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); g.trail.geometry.dispose(); globs.splice(k, 1);
     // against a wall it runs down it, so the splat's on the side it came from, a little short of it, its streaks
     // thrown back off the wall; on the ground they run on the way it was going
     const L = Math.hypot(g.vx, g.vz) || 1, dx = g.vx / L, dz = g.vz / L, bx = wall ? x0 - dx * 0.25 : p.x, bz = wall ? z0 - dz * 0.25 : p.z;
-    acidSplash(bx, Math.max(p.y, 0.1), bz, dx, dz, hitMe, wall);
+    acidSplash(bx, Math.max(p.y, 0.1), bz, dx, dz, false, wall);
     if (!wall) acidCrown(bx, bz);   // (on the ground: the crown it throws up)
     acidPool(bx, bz, SPIT.pool.r * (wall ? 0.7 : 1), SPIT.pool.t, wall ? Math.atan2(dz, -dx) : Math.atan2(-dz, dx));
   }

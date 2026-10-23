@@ -33,7 +33,7 @@
 .wvHead .lbl{font-size:10px;letter-spacing:.24em;color:var(--dim)}
 /* the phase, in its colour: a small tag beside the label */
 .wvChip{font-size:8.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--wc);padding:1px 6px 1px 7px;border:1px solid color-mix(in srgb,var(--wc) 55%,transparent);border-radius:2px;background:color-mix(in srgb,var(--wc) 12%,transparent);line-height:12px;transition:color .4s,border-color .4s,background .4s}
-#waveBox[data-ph="break"] .wvChip::before{content:"Break"}
+#waveBox[data-ph="break"] .wvChip::before{content:"Prepare"}
 #waveBox[data-ph="wave"] .wvChip::before{content:"In round"}
 #waveBox[data-ph="wave"] .wvChip{color:#ec5a4c;border-color:rgba(236,90,76,.6);background:rgba(236,90,76,.14)}   /* (always red, whatever the theme) */
 #waveBox[data-ph="clear"] .wvChip::before{content:"Cleared"}

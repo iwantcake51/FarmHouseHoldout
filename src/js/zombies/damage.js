@@ -380,7 +380,7 @@ function killZombie0(z, dx, dz, wId, part, overkill) {
   run.kills++; popEl('kills'); runKill(z, wId, part);
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
-  if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h), '#ef6a52'); } }
+  if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
   if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
   // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds;
@@ -436,7 +436,7 @@ function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if
 function killScrap(z, n, hoard) {
   n = waveScrap(n);   // (more each wave: game/run-state.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
-  floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c');
+  floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list

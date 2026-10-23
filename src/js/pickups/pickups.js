@@ -128,7 +128,7 @@ function updatePickups(dt) {
         else { S.scrap += 2; feed('scrap', 2, 'scrap'); ft = '+2 scrap'; }
         SFX.pick();
       }
-      floatText(p.x, p.z, ft, '#' + pickCol(p.kind, p.ammoType, p.cargo).toString(16).padStart(6, '0'));
+      floatText(p.x, p.z, ft, '#' + pickCol(p.kind, p.ammoType, p.cargo).toString(16).padStart(6, '0'), p.kind === 'planks' && p.cargo && p.cargo.metal ? 'metal' : /scrap/.test(ft) ? 'scrap' : p.kind);
       scene.remove(p.g); pickups.splice(k, 1);
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }
@@ -182,6 +182,6 @@ function takeIt(p) {
     equip(D.slot, true); buildGuns(); glowGun(id);
     gotGear({ ic: 'gear', kind: p.cargo.own === false ? 'From ' + (p.cargo.who || 'a teammate') : 'Picked back up', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your ' + SLOT_WORD[D.slot], text: '' });
   } else { deliverWeapon(id, p.cargo.from); if (p.cargo.from !== 'card') flareDone(); }
-  floatText(p.x, p.z, D.name, '#f0c060'); SFX.pick();
+  floatText(p.x, p.z, D.name, '#f0c060', 'gear'); SFX.pick();
   scene.remove(p.g); const k = pickups.indexOf(p); if (k >= 0) pickups.splice(k, 1);
 }

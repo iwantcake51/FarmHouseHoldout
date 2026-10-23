@@ -2,7 +2,7 @@
 // map as the wave starts and rolls back out once it's cleared. It never comes into the house or over it: it thins away
 // to nothing at its walls (MIST.wall), following the house's own shape (an L-shaped one's notch too). Out in the open
 // it parts round you (or the teammate you're watching) in a ring that thins gradually toward you, its edge torn about
-// by the wind rather than a clean circle, and a flashlight cuts a clear path through it along its beam (MIST.path: a
+// rather than a clean circle, and a flashlight cuts a clear path through it along its beam (MIST.path: a
 // better light a much wider one). The further out you zoom, the more of the screen it takes.
 //
 // It's drawn over the finished frame (effects/post.js: the composite), from where each pixel is on the ground, so
@@ -11,12 +11,12 @@
 
 // a wave's odds of fog (from wave MIST.from, and never two in a row), how many metres round you stay clear and how far
 // it takes to thicken to full past that, how long it takes to roll in and back out (s), the most it hides (1: all, so
-// nothing out in it shows, a tree's top or a car's roof no more than a zombie), how slowly the wind carries it (a
-// lazy drift, not a gale), and how much the lamps and torches out in it light it up (glow) and a flashlight's beam
+// nothing out in it shows, a tree's top or a car's roof no more than a zombie), its own slow drift (drift: which way
+// and how fast, metres a second; the wind doesn't push it about), and how much the lamps and torches out in it light it up (glow) and a flashlight's beam
 // shows in it (beam)
 // path: the clear path a flashlight's beam cuts through it by the light's tier, [its half-width against the beam's own,
 // how much of the beam's reach it runs]; wall: how far out from the house's walls it takes to thicken from nothing
-const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, wind: 0.11, glow: 0.7, beam: 0.55,
+const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, drift: [0.12, 0.07], glow: 0.7, beam: 0.55,
   path: { 1: [0.6, 0.8], 2: [1.55, 1] }, wall: 1.8,
   on: false, last: 0, k: 0, t: 0 };
 // the host's roll for the wave about to start (co-op: sent with it, net/sync.js)
@@ -102,7 +102,7 @@ vec4 mistOf(vec2 uv, float d) {
   if (dp < uMist.y - 2.6) return vec4(0.0);
   float hd = mHouse(q);
   if (hd < 0.0) return vec4(0.0);
-  // the wind's tatters: a soft noise carried slowly along by the wind and twisted through itself, so it billows and drifts
+  // its tatters: a soft noise carried slowly along (MIST.drift) and twisted through itself, so it billows and drifts
   float n = mF(q * 0.14 + dr * 0.14 + mN(q * 0.06 - dr * 0.05) * 1.8), n2 = mN(q * 0.45 + dr * 0.4);
   float ring = smoothstep(uMist.y, uMist.y + uMist.z, dp + (n - 0.5) * 2.6 + (n2 - 0.5) * 0.8);
   // none at the walls, thickening over MIST.wall metres out from them (never over the house)
@@ -110,8 +110,8 @@ vec4 mistOf(vec2 uv, float d) {
   float front = mix(${(HALF + 6).toFixed(1)}, -4.0, uMist.x), rim = max(abs(q.x), abs(q.y));
   float roll = smoothstep(front - 4.0, front + 4.0, rim + (n - 0.5) * 9.0);
   float a = ring * house * roll * (1.0 - fc * 0.94);   // (solid once it's thick: its billows are in its colour and its ragged edges, never thin enough to see through)
-  // its body: slow curls folded through themselves (a second noise warped by the first), drifting with the wind, with
-  // long faint streaks laid along it, denser darker pockets and paler, cooler swells, and a brighter lip where it thins
+  // its body: slow curls folded through themselves (a second noise warped by the first), drifting as it goes, with
+  // long faint streaks laid along its drift, denser darker pockets and paler, cooler swells, and a brighter lip where it thins
   // round the clear ring or a flashlight's path (the light catching its edge)
   vec2 wd = normalize(dr + vec2(0.0007, 0.0003)), wp = vec2(-wd.y, wd.x);
   float cu = mF(q * 0.3 + vec2(n, n2) * 1.7 - dr * 0.55 + uMistL.z * 0.012);
@@ -130,7 +130,7 @@ function mistUniforms() {
   U.uMist.value.set(k, MIST.clear, MIST.ramp, k > 0 ? MIST.max : 0);
   U.uMistP.value.set(F.x, F.z);
   U.uMistH.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
-  U.uMistW.value.set(WIND_V.value.x * MIST.t * MIST.wind, WIND_V.value.y * MIST.t * MIST.wind);
+  U.uMistW.value.set(MIST.drift[0] * MIST.t, MIST.drift[1] * MIST.t);
   U.uMistC.value.setRGB(0.66, 0.67, 0.64).lerp(_mistNight.setRGB(0.1, 0.12, 0.14), clamp(curDark, 0, 1));   // pale by day, a dark blue grey at night
   U.uMistInv.value.copy(cam.matrixWorld);
   U.uMistSz.value.set((cam.right - cam.left) / z, (cam.top - cam.bottom) / z, (cam.right + cam.left) / 2, (cam.top + cam.bottom) / 2);

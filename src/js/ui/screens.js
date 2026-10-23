@@ -48,7 +48,8 @@ function resetRun(keepLook) {
 function newRun(soft, dark) {
   audioInit(); resetRun(soft);
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
-  R.compile(scene, cam);
+  // (game/loop.js: warmShaders, on the next frame's targets)
+  warmQ = true;
   setState('play'); beginBreak(10);
   if (dark) stepPaint(PAINT_FADE * 2);
   startIntro(soft && !dark);   // game/intro.js: the camera glides in, you get up off one knee, then the night is announced

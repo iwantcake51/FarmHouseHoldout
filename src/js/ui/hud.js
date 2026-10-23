@@ -44,9 +44,9 @@ function updateHUD(rdt, D) {
     }
     setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave
     setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
-    $('hpFill').style.width = (hpF * 100) + '%'; $('hpLag').style.width = (hpF * 100) + '%';
+    $('hpFill').style.setProperty('--hp', (hpF * 100) + '%'); $('hpLag').style.width = (hpF * 100) + '%';
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
-    { const b = hpF > 0 ? Math.min(100, (BASE_HP / S.maxHp) / hpF * 100) : 100, bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
+    { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
     // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
     { const inc = Math.min(1 - hpF, ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }

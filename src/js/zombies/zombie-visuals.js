@@ -29,8 +29,26 @@ function markReach() {
   const D = W(curId()); if (!D || !D.melee) return;
   for (const t of meleeTargets(D)) t.z.inReach = true;
 }
+// a crowd in view costs some forty draws a zombie (its body, its body again into the sun's shadow map, and three
+// see-through layers), so only the nearest few get the costly parts: a real shadow for the nearest ZLOD.shadow (the
+// rest keep just the soft blob under them) and the see-through outline for the nearest ZLOD.xray. One already in the
+// set keeps its place until another is ZLOD.keep metres nearer, so nothing flickers between two at the same distance
+const ZLOD = { shadow: 8, xray: 8, keep: 1.5 }, _lod = [];
+function zombieLOD() {
+  const f = camFocus(); _lod.length = 0;
+  for (const z of zombies) if (z.vis > 0.02 || z.redOl) { z.lodD = Math.hypot(z.x - f.x, z.z - f.z) - (z.shOn ? ZLOD.keep : 0); _lod.push(z); } else z.lodR = 1e9;
+  _lod.sort((a, b) => a.lodD - b.lodD);
+  for (let i = 0; i < _lod.length; i++) _lod[i].lodR = i;
+  for (const z of zombies) {
+    const on = z.lodR < ZLOD.shadow;
+    if (z.shOn === on) continue;
+    z.shOn = on;
+    if (!z.casters) { z.casters = []; z.m.g.traverse(o => { if (o.isMesh && o.castShadow && !o.userData.isOutline) z.casters.push(o); }); }
+    for (const o of z.casters) o.castShadow = on;
+  }
+}
 function updateZombieVisuals(dt, rdt) {
-  markReach();
+  markReach(); zombieLOD();
   const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
   for (const z of zombies) {
     if (z.stain) z.stain.burn = z.burn;
@@ -69,7 +87,8 @@ function updateZombieVisuals(dt, rdt) {
     // and only one in a straight line from you: one you make out by leaning to a window, along the outside of the wall
     // (sightTo's peek), stands behind that wall from up here, so its see-through outline would show through the wall
     if (z.xr) { const d = !visOn || z.vis < 0.004 || Math.hypot(z.x - V.x, z.z - V.z) <= 0.7 || los(V.x, V.z, z.x, z.z) ? 1 : 0; z.seeK = z.seeK === undefined ? d : z.seeK + (d - z.seeK) * Math.min(1, rdt * 8); }
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK; if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    if (z.xr) { const lk = z.redOl || z.lodR < ZLOD.xray ? 1 : 0; z.xrK = z.xrK === undefined ? lk : z.xrK + (lk - z.xrK) * Math.min(1, rdt * 6); if (z.xrK < 0.01) z.xrK = 0; }   // (fading out as it drops out of the nearest few)
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK; if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)

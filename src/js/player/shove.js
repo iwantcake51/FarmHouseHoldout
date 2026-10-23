@@ -3,19 +3,19 @@
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
 // MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
 const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
-// while you wrap a bandage you can still bash one-handed, but slower: a longer wind-up and a longer wait before the next
-const SHOVE_BAND = 1.65;
+// a shove in the middle of wrapping a bandage stops it there and then: the bandage is spent (as when you stop it with a
+// click: cancelBandage, player/bandages.js), the weapon's straight back in your hand, and the shove goes out at once
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // the touch button climbs a window or fence when you are at one, and shoves otherwise
 function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
 const hasBayonet = () => gunAtt(curId(), 'bayonet');   // only on the long gun it was fitted to
 function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
+  if (P.bandT > 0 || ANIM.bandP > 0) { if (P.bandT > 0) cancelBandage(); ANIM.bandSwitch = null; ANIM.bandP = 0; ANIM.bandW = 0; ANIM.bandK = 0; }
   const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
   P.stam = Math.max(0, P.stam - cost); P.stamT = 0; if (P.stam <= 0.001) P.exh = true;
-  const band = P.bandT > 0, slow = band ? SHOVE_BAND : 1;
-  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1) * slow; runStat('shoves');
-  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR * slow, hitT: SHOVE_HIT * slow, band };
+  P.shoveCd = SHOVE_CD * (tired ? 1.5 : 1); runStat('shoves');
+  P.shove = { t: 0, hit: false, power: tired ? 0.5 : 1, stab: hasBayonet(), dur: SHOVE_DUR, hitT: SHOVE_HIT };
   exitScope(); cutReload(); W8.burstLeft = 0; W8.cd = Math.max(W8.cd, 0.35);
   if (tired) SFX.pant();
 }
