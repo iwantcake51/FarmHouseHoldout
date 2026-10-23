@@ -19,9 +19,10 @@ three friends online.
    in to you once the cards are done.
    - Now and then a hand comes with a **sacrifice**. Give up three quarters of your scrap and three more cards are
      dealt (the rarer ones likelier), and you take two of the six.
-   - Rarer, a **curse**: never sprint again, nothing heals you, a quarter of your health gone for good (shown in
-     hazard stripes on your bar), slower reloads, hits that hurt more, or half the scrap from kills, for the rest of
-     the run. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
+   - Rarer, a **curse**: a quarter of your stamina, healing at a quarter strength with worse bleeding (Bad blood:
+     double scrap), a quarter of your health gone for good (shown in hazard stripes on your bar), slower reloads, hits
+     that hurt half again as much (Fragile), or half the scrap from kills, for the rest of the run. Some never come
+     together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
      once), and you take two.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
 
@@ -54,9 +55,10 @@ through it.
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler, and a headshot drops them. From wave 4 some turned wearing armour: soldiers in helmets and vests,
-SWAT in plate carriers, and riot officers whose face shields blunt headshots. Armour soaks up part of each hit where
-it's worn (heavier rounds, slugs and piercing rounds go through more of it), and those hits show in steel with a
-shield. The dead fall as ragdolls.
+SWAT in plate carriers, and riot officers whose face shields blunt headshots; builders' hard hats stop a little from
+the start. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
+of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
+shield. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
 sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Vault through

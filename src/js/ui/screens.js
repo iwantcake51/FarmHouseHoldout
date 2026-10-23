@@ -12,7 +12,7 @@ import { P } from '../player/player.js';
 import { rollLook } from '../player/look.js';
 import { clearBodyBlood } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
-import { curId, freshRun, run, S, W, W8 } from '../game/run-state.js';
+import { curId, freshRun, run, S, stamMax, W, W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { casings, mags } from '../weapons/casings.js';
@@ -26,6 +26,7 @@ import { ragdolls } from '../zombies/deaths.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { zFree } from '../zombies/zombie-kit.js';
 import { setTimeScale } from '../game/hit-feedback.js';
+import { clearArmorBits } from '../zombies/armor-break.js';
 import { grenades } from '../weapons/explosives.js';
 import { resetBoards, setFlowDirty } from '../barricades/planks.js';
 import { closeStation } from '../stations/station-ui.js';
@@ -82,7 +83,7 @@ export function setState(s) {
 function resetRun(keepLook) {
   houseLayout(NET.on && NET.inGame && NET.houseSeed != null ? NET.houseSeed : (Math.random() * 2147483647) | 0, true);   // a new floor plan (world/interior.js), the host's in co-op
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
-  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou();
+  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou(); clearArmorBits();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
@@ -90,7 +91,7 @@ function resetRun(keepLook) {
   bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
   resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one (in co-op you keep the one your teammates have)
   deathCineEnd(); mistReset();
-  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
+  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1; benchTipsStart();
   setZoomT(ZOOM_MAX); setHurtFx(0); setFlowDirty(true); setTimeScale(1); setCamPunch(0);   // the intro glides in all the way to the closest zoom
   $('feed').innerHTML = ''; feedItems.length = 0; clearGear();

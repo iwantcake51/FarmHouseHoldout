@@ -9,7 +9,7 @@ import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { roundOn } from '../weapons/rounds.js';
-import { curId, magCap, W, W8 } from '../game/run-state.js';
+import { curId, magCap, stamMax, W, W8 } from '../game/run-state.js';
 import { MUZ } from '../weapons/gun-materials.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { bloom, camRoll, setBloom, state } from '../game/state.js';
@@ -92,6 +92,11 @@ function ammoNow(side) {
   const id = curId(), D = W(id) || {}, ak = !!D.akimbo, am = ak && akMags(id), n = ak ? akPer(id) : magCap(id);
   return ammoDash(n, ak ? am[side === 'L' ? AK_ON.left : AK_ON.right] : W8.mag[id] || 0)[0];
 }
+// the struck-out stretch of the stamina arc: short slashes from `from` along `len` of it, like the bar's hazard stripes
+function cutDash(from, len) {
+  const n = Math.max(1, Math.floor(len / 2.6)), seg = len / n;
+  return `0 ${from.toFixed(2)} ` + Array(n).fill(`${(seg * 0.55).toFixed(2)} ${(seg * 0.45).toFixed(2)}`).join(' ') + ' 0 999';
+}
 function ammoDash(n, filled) {
   const A = ARC();
   if (n > 40) return [`${(A * filled / n).toFixed(2)} 999`, `${A.toFixed(2)} 999`];
@@ -137,12 +142,14 @@ export function updateCrosshair(rdt, D) {
     // stamina under the reticle, with any weapon: it shows as soon as you use some (a swing, a shove, a vault) and fades
     // away once it's full again
     {
-      const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
+      const sd = ANIM.stamD, st = $('xhStam'), sm = stamMax(), cls = P.exh ? 'st exh' : sd < 0.35 * sm ? 'st tired' : 'st', on = P.stam < 0.995 * sm || P.exh;
       if (on || cache.xhSt !== false) {
         st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`);
         // what you've used, just past it, as on the bar under your health (stamDrain, ui/hud.js)
         const sr = $('xhStamRun'); sr.setAttribute('stroke-dasharray', `0 ${(sd * M_ARC()).toFixed(2)} ${(ANIM.drainD * M_ARC()).toFixed(2)} 999`);
         const rc = 'stRun' + (ANIM.drainSt ? ' ' + ANIM.drainSt : ''); if (sr.getAttribute('class') !== rc) sr.setAttribute('class', rc);
+        // and what a Broken stride took, for good, at the end of the arc: struck out (upgrades/sacrifice.js)
+        const sc = $('xhStamCut'); sc.toggleAttribute('hidden', sm >= 1); if (sm < 1) sc.setAttribute('stroke-dasharray', cutDash(sm * M_ARC() + 3.2, (1 - sm) * M_ARC() - 3.2));
       }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
@@ -190,7 +197,7 @@ export function updateCrosshair(rdt, D) {
       lastXh = xk;
       const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
       aR = Math.max(30, outer + XH_CLEAR.a); sR = Math.max(22, outer + XH_CLEAR.s);
-      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL, RL.R.track, RL.L.track].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR);
+      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL, RL.R.track, RL.L.track].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR); $('xhStamCut').setAttribute('r', sR);
       $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;

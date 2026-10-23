@@ -314,7 +314,7 @@ export function zStrike(z, armMul) {
     const k = 1 - S.slowRes; P.slow = Math.min(1, P.slow + 0.85 * k); P.stun = 0.45 * k;
     P.kbx = -dzp / (dp || 1) * side * 2.2 + dxp / (dp || 1) * 1.2; P.kbz = dxp / (dp || 1) * side * 2.2 + dzp / (dp || 1) * 1.2;
     ANIM.stumble = 1; ANIM.stumbleSide = side; setCamRoll(clamp(camRoll - side * 0.07, -0.14, 0.14)); setShake(Math.max(shake, 0.3));
-  } else if (rand() < (z.T.bleed || ZT.walker.bleed)[0]) { if (!(P.bleed > 0)) runStat('bleeds'); P.bleed = Math.min(14, (P.bleed || 0) + (z.T.bleed || ZT.walker.bleed)[1]); }   // a bite that opens you up (ZT: bleed)
+  } else if (rand() < (z.T.bleed || ZT.walker.bleed)[0]) { if (!(P.bleed > 0)) runStat('bleeds'); P.bleed = Math.min(14 * (S.bleedLong || 1), (P.bleed || 0) + (z.T.bleed || ZT.walker.bleed)[1] * (S.bleedLong || 1)); }   // a bite that opens you up (ZT: bleed), for longer under Bad blood (upgrades/sacrifice.js)
   if (!z.crawl) { P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes)); P.stun = 0.22 * (1 - S.slowRes); }
 }
 export function zStruckFx() {
@@ -328,7 +328,7 @@ const WIND_HEAL = 25;   // what Second wind gives back
 let windHp = 0;
 export function playerChecks() {
   const hurt = P.hp < windHp - 1e-6;
-  if (S.secondWind && !S.noHeal && !S.windUsed && hurt && P.hp > 0 && P.hp < hpCap() * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, hpCap() - P.hp)); P.hp = Math.min(hpCap(), P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
+  if (S.secondWind && !S.badBlood && !S.windUsed && hurt && P.hp > 0 && P.hp < hpCap() * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, hpCap() - P.hp)); P.hp = Math.min(hpCap(), P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
   windHp = P.hp;
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }

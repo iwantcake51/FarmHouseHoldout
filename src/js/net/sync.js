@@ -29,6 +29,7 @@ import { zombies } from '../zombies/zombie-types.js';
 import { startClimb0 } from '../zombies/climb.js';
 import { spawnZombie } from '../zombies/spawn.js';
 import { setTimeScale, timeScale } from '../game/hit-feedback.js';
+import { breakArmor, crackArmor } from '../zombies/armor-break.js';
 import {
   ammoDrop, blowApart, crushHead, hitFx, killEnd, killZombie0, NECK_PUMP, sever, splitHead
 } from '../zombies/damage.js';
@@ -236,6 +237,8 @@ function netOp(z, op, dx, dz) {
     case 'k': z.killW = op[1]; killZombie0(z, dx, dz, op[1], op[2], 0); return;
     case 'r': makeRagdoll(z, dx, dz, op[1], op[2], z.killW); if (op[3]) ragdolls[ragdolls.length - 1].neck = NECK_PUMP; return;
     case 'v': shoveZombie(z, dx, dz, op[1], op[2], !!op[3]); return;
+    case 'ac': crackArmor(z, op[1]); return;   // its armour cracking, and coming off (zombies/armor-break.js)
+    case 'a': breakArmor(z, op[1], dx, dz); return;
   }
 }
 // a blast somewhere: the bang and the fire (the damage is the thrower's, in their hits)

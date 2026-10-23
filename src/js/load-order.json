@@ -83,6 +83,7 @@
   "zombies/spawn.js",
   "effects/outlines.js",
   "game/hit-feedback.js",
+  "zombies/armor-break.js",
   "zombies/damage.js",
   "zombies/wounds.js",
   "weapons/explosives.js",

@@ -4,7 +4,7 @@ import { cam, FWD, GUN_Y, RIGHT, V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { moveCircle } from '../world/collision.js';
 import { P } from './player.js';
-import { carryMul, curId, hpCap, S, W, W8 } from '../game/run-state.js';
+import { carryMul, curId, healMul, hpCap, S, W, W8 } from '../game/run-state.js';
 import { bloodyStep } from '../effects/blood-map.js';
 import { VAULT_COOL, vaultGun, vaultLand, vaultTakeoff } from './vaulting.js';
 import { vaultAt } from './vault-plan.js';
@@ -41,7 +41,7 @@ export function updatePlayer(dt) {
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down
   // Painkillers: only once you've gone REGEN_WAIT seconds without losing any health (a bleed's included)
   if (P.hp < (P.hpWas ?? P.hp) - 1e-4) P.calmT = REGEN_WAIT; P.calmT = Math.max(0, (P.calmT || 0) - dt);
-  if (S.regen && !S.noHeal && P.hp < hpCap() && P.calmT <= 0) P.hp = Math.min(hpCap(), P.hp + S.regen * dt);
+  if (S.regen && P.hp < hpCap() && P.calmT <= 0) P.hp = Math.min(hpCap(), P.hp + S.regen * healMul() * dt);
   P.hpWas = P.hp;
   let mx = 0, my = 0;
   if (keys.has('w') || keys.has('arrowup')) my -= 1;

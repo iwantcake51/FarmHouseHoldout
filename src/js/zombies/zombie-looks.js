@@ -15,20 +15,20 @@ import { lam } from '../core/shaders.js';
 import { GLOVE_COLS } from '../player/look.js';
 import { run } from '../game/run-state.js';
 import {
-  worn, zb, zback, zBake, zbandChest, zbandWaist, ZBLOOD, ZBONE, zc, ZDYE, ZF, ZFLASH, zfront, zKit, ZMEAT, zmix, ZROT,
-  zside, ZSKIN_LIVE, ztall
+  worn, zArmor, zArmorAdopt, zb, zback, zBake, zbandChest, zbandWaist, ZBLOOD, ZBONE, zc, ZDYE, ZF, ZFLASH, zfront,
+  zKit, ZMEAT, zmix, ZROT, zside, ZSKIN_LIVE, ztall
 } from './zombie-kit.js';
 import { ZJOBS } from './zombie-jobs.js';
 import { ZGRIME, zGrime, zRot, zTatter } from './zombie-wear.js';
-import { ARMOR, ARMOR_FROM } from './damage.js';
+import { ARMED_JOBS, ARMOR_FROM, ARMOR_KIT } from './damage.js';
 import { state } from '../game/state.js';
 
 // ---- dealing an outfit ----
 const ZTYPE_I = { walker: 0, runner: 1, brute: 2 };
-// (the armoured ones, ARMOR in zombies/damage.js, only from wave ARMOR_FROM, and a few more of them each wave after)
+// (the armoured ones, ARMED_JOBS in zombies/damage.js, only from wave ARMOR_FROM, and a few more of them each wave after)
 function zPickJob(type) {
   const i = ZTYPE_I[type] || 0, wv = (typeof run !== 'undefined' && run.wave) || 0, armed = state === 'play' && wv >= ARMOR_FROM;
-  const w = k => ARMOR[k] ? (armed ? ZJOBS[k].w[i] * (1 + 0.12 * (wv - ARMOR_FROM)) : 0) : ZJOBS[k].w[i];
+  const w = k => ARMED_JOBS[k] ? (armed ? ZJOBS[k].w[i] * (1 + 0.12 * (wv - ARMOR_FROM)) : 0) : ZJOBS[k].w[i];
   let tot = 0; for (const k in ZJOBS) tot += w(k);
   let r = rand() * tot; for (const k in ZJOBS) { r -= w(k); if (r <= 0) return k; }
   return 'casual';
@@ -237,7 +237,7 @@ function zHead(H, o) {
     if (o.hair === 'long') { zb(H, F.hw + 0.01, 0.26, 0.04, hc, 0, -0.02, -0.168); [-1, 1].forEach(s => zb(H, 0.016, 0.22, 0.12, hc, s * (hx + 0.01), -0.02, -0.08)); }
     if (o.hair === 'pony') zb(H, 0.06, 0.18, 0.06, hc, 0, 0.0, -0.19, -0.3, 0, 0);
   }
-  zHat(H, o);
+  if (ARMOR_KIT[o.hat]) zArmor('head', () => zHat(H, o)); else zHat(H, o);   // a helmet or a hard hat is armour (ARMOR_KIT, zombies/damage.js)
 }
 function zHat(H, o) {
   const c = o.hatCol;
@@ -294,7 +294,7 @@ const ZNUDGE = { legL: [0.0004, 0.0003, 0.0009], legR: [-0.0004, 0.0006, -0.0005
 export function dressZombie(m, type, job) {
   const o = zDeal(type, job); o.noJaw = type === 'spitter';
   const K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
-  ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); if (ZNUDGE[p]) m[p].geometry.translate(...ZNUDGE[p]); m[p].material = mat; });
+  ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); zArmorAdopt(K[p]); m[p].geometry = zBake(K[p]); m[p].userData.arm = K[p].arm || null; if (ZNUDGE[p]) m[p].geometry.translate(...ZNUDGE[p]); m[p].material = mat; });
   m.mats = { body: mat }; m.look = o; m.skinCol = o.skin;
   return o;
 }

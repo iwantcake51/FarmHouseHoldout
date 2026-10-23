@@ -9,6 +9,7 @@ import { stepTracers, stepTrails } from '../effects/tracers.js';
 import { stepParticles } from '../effects/particles.js';
 import { stepFx } from '../effects/puffs.js';
 import { updateHoles } from '../effects/bullet-holes.js';
+import { stepArmorBits } from '../zombies/armor-break.js';
 import { stepBoards } from '../barricades/planks.js';
 import { zoomEars } from '../audio/spatial.js';
 import { stepFloats, tickMessages } from '../ui/hud-text.js';
@@ -40,7 +41,7 @@ export function visuals(dt, rdt) {
   updateCutaway(rdt); updateHoles();
   updateLaser(D);
   stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
-  stepParticles(dt); stepFx(dt);
+  stepParticles(dt); stepFx(dt); stepArmorBits(dt);
   stepFloats(rdt);
   updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateBenchTips(rdt); updateWeaponStats(); updateLoadout(); updateRackSide();
   updateCrosshair(rdt, D);

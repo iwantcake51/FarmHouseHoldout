@@ -25,6 +25,11 @@ export function freshStats() {
 // your health's ceiling: your max health less what a Blood price sacrifice took (S.hpCut, a share of it, so it grows
 // with your max health: upgrades/sacrifice.js)
 export const hpCap = () => S.maxHp * (1 - (S.hpCut || 0));
+// your stamina's ceiling, out of 1: all of it, or the share a Broken stride left you (S.stamCap: upgrades/sacrifice.js)
+export const stamMax = () => S.stamCap || 1;
+// how much of any healing reaches you: all of it, or a quarter under Bad blood (S.healMul: upgrades/sacrifice.js; a
+// supply crate's always patches you up in full, stations/supply-drop.js)
+export const healMul = () => S.healMul ?? 1;
 export function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, p10: 0, magnum: 0, shells: 0, rifle: 0 },

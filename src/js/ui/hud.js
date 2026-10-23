@@ -1,12 +1,13 @@
 // The HUD each frame.
 
 import { $ } from '../core/dom.js';
+import { CURSE_ICON, CURSE_VB } from './game-icons.js';
 import { cam, cv, V3 } from '../core/renderer.js';
 import { cache, clamp, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
 import { roundHue, roundName, roundOn } from '../weapons/rounds.js';
 import { fireModeOf, fireModes, modName } from '../weapons/mod-levels.js';
-import { curId, hpCap, magCap, run, S, W, W8 } from '../game/run-state.js';
+import { curId, healMul, hpCap, magCap, run, S, stamMax, W, W8 } from '../game/run-state.js';
 import { gunExtras } from '../weapons/build-weapons.js';
 import { timeScale } from '../game/hit-feedback.js';
 import { eyeK } from '../zombies/damage.js';
@@ -19,6 +20,7 @@ import { scoped } from '../player/aiming.js';
 import { usingTouch } from '../input/touch.js';
 import { AK_ON, akBusy, akMags, akPer } from '../weapons/akimbo.js';
 import { bandHeal, bandProg } from '../player/bandages.js';
+import { CURSES } from '../upgrades/sacrifice.js';
 import { renderSlots, setRoll, setT } from './hud-text.js';
 import { xhHit } from '../player/shaky-hands.js';
 import { hitCam } from '../game/camera.js';
@@ -36,7 +38,7 @@ export const BASE_HP = 100;
 // dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
 function stamDrain(rdt) {
   const up = P.stam > (ANIM.stamPrev ?? P.stam) + 1e-5, down = P.stam < (ANIM.stamPrev ?? P.stam) - 1e-5; ANIM.stamPrev = P.stam;
-  ANIM.drainD = Math.max(0, 1 - ANIM.stamD);
+  ANIM.drainD = Math.max(0, stamMax() - ANIM.stamD);   // (up to your stamina's ceiling: past it is what a Broken stride took, stamCut)
   if (ANIM.drainD < 0.004) ANIM.drainSt = '';
   else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
   else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
@@ -48,10 +50,12 @@ export function updateHUD(rdt, D) {
   // (ui/crosshair.js): bright while you're using it and till it starts coming back, then dimmed, the fill easing on
   // into it till it's gone
   stamDrain(rdt);
-  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
-    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
+  { const sb = $('stamBar'), sm = stamMax(), show = state === 'play' && (P.stam < 0.995 * sm || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
+    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35 * sm) + ':' + sm;
     if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
-      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
+      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35 * sm);
+      // what a Broken stride took, for good: the rest of the bar, struck out (upgrades/sacrifice.js)
+      const cut = $('stamCut'); cut.classList.toggle('on', sm < 1); cut.style.setProperty('--cut', ((1 - sm) * 100).toFixed(2) + '%'); } }
   if (state === 'title') return;
     setHurtFx(Math.max(0, hurtFx - rdt * 2));
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
@@ -75,10 +79,14 @@ export function updateHUD(rdt, D) {
     setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(hpCap()));
     $('hpFill').style.setProperty('--hp', (barF * 100) + '%'); $('hpLag').style.width = (barF * 100) + '%';
     { const ck = Math.round((1 - capF) * 1000); if (cache.hpCut !== ck) { cache.hpCut = ck; const el = $('hpCut'); el.classList.toggle('on', ck > 0); el.style.setProperty('--cut', (ck / 10) + '%'); } }   // (a Blood price's share, in hazard stripes)
+    // the curses you've taken, as chips under the bars, and Bad blood's spoiled look on the health bar itself
+    { const ck = (S.curses || []).join(); if (cache.curses !== ck) { cache.curses = ck; const row = $('curseRow'), on = CURSES.filter(c => (S.curses || []).includes(c.id));
+      row.hidden = !on.length; row.innerHTML = on.map(c => `<span class="curse"><svg viewBox="${CURSE_VB}">${CURSE_ICON[c.id]}</svg><b>${c.name}</b><em>${c.short}</em></span>`).join('');
+      $('vitals').classList.toggle('badBlood', !!S.badBlood); } }
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
     // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
-    { const inc = Math.max(0, Math.min(capF - barF, S.noHeal ? 0 : ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
+    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (barF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
     { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }

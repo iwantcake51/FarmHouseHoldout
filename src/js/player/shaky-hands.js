@@ -13,7 +13,7 @@ import { clamp, mix, rand, rr, smooth } from '../core/math.js';
 import { P } from './player.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv, modsOff } from '../weapons/mod-levels.js';
-import { curId, gunTier, hpCap, S, W, W8 } from '../game/run-state.js';
+import { curId, gunTier, hpCap, S, stamMax, W, W8 } from '../game/run-state.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from '../game/state.js';
 import { hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
@@ -166,7 +166,7 @@ function updateXhRecoil(dt) {
   // a climb's own sway eases in as you go over and out after you land (XWORK.vIn, vOut: a second), never all at once
   const vault = P.vault || (ANIM.postVault || 0) > 0 ? 1 : 0;
   XR.vk = (XR.vk || 0) + (vault - (XR.vk || 0)) * Math.min(1, dt * (vault > (XR.vk || 0) ? XWORK.vIn : XWORK.vOut));
-  const work = Math.max(Math.pow(clamp(1 - P.stam, 0, 1), 1.3) * XWORK.stam, P.sprint ? XWORK.sprint : smooth(XR.post) * XWORK.run, smooth(XR.vk) * XWORK.vault);
+  const work = Math.max(Math.pow(clamp(1 - P.stam / stamMax(), 0, 1), 1.3) * XWORK.stam, P.sprint ? XWORK.sprint : smooth(XR.post) * XWORK.run, smooth(XR.vk) * XWORK.vault);
   XR.un += (work - XR.un) * Math.min(1, dt * XWORK.ease);
   XR.t += dt * (1 + 0.45 * XR.un); XR.bt += dt * (XWORK.breath + XWORK.breathUp * Math.min(1, XR.un / 2));
   // (how much you're moving, eased both ways: a climb counts as moving, though it carries you without a velocity, so

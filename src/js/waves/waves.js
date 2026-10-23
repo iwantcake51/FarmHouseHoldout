@@ -84,7 +84,7 @@ export function waveBegins(n, total, fog) {
   firsts[SPIT.from] = (firsts[SPIT.from] ? firsts[SPIT.from] + ' · and spitters' : 'Spitters are coming') + ', keep moving';   // (zombies/spitter.js)
   run.waveTotal = total;
   const brutes = run.wave === BRUTE_FROM || (run.wave > BRUTE_FROM && run.wave % 5 === 0);   // the wording fits any hour: a wave can start in daylight
-  if (fog) announce('Wave ' + run.wave, (firsts[run.wave] ? firsts[run.wave] + ' · ' : '') + 'Fog', { eye: 'Fog', kind: brutes ? 'red' : '' });
+  if (fog) announce('Wave ' + run.wave, (firsts[run.wave] ? firsts[run.wave] + ' · ' : '') + 'Fog · ' + total + ' incoming', { eye: 'Fog', kind: brutes ? 'red' : '' });
   else announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }

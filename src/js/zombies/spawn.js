@@ -14,7 +14,7 @@ import { zombies, ZT } from './zombie-types.js';
 import { zAnimInit, zombieRig } from './zombie-anim.js';
 import { dressZombie } from './zombie-looks.js';
 import { fadeDepthMat, xray } from '../effects/outlines.js';
-import { ARMOR, BRUTE_ARM } from './damage.js';
+import { armorFor, BRUTE_ARM } from './damage.js';
 import { BRUTE_FROM, LATE, lateN } from '../waves/waves.js';
 import { SPIT, spitterGait, spitterLook } from './spitter.js';
 import { EYE_COL } from '../effects/eye-glow.js';
@@ -46,7 +46,7 @@ export function spawnZombie(type, job) {
   scene.add(m.g);
   const hpMul = 1 + (run.wave - 1) * 0.11 + LATE.hp * lateN(run.wave) ** 2, hp = T_.hp * hpMul;   // (faster past LATE.from: waves/waves.js)
   const z = { type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
-    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), armor: ARMOR[m.look.job] || null, limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * (type === 'brute' ? BRUTE_ARM : 0.3), armR: hp * (type === 'brute' ? BRUTE_ARM : 0.3), legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : type === 'walker' ? walkerPace() : type === 'brute' ? brutePace() : 1) };
+    fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), armor: armorFor(m.look, hp), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * (type === 'brute' ? BRUTE_ARM : 0.3), armR: hp * (type === 'brute' ? BRUTE_ARM : 0.3), legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : type === 'walker' ? walkerPace() : type === 'brute' ? brutePace() : 1) };
   zAnimInit(z); zombies.push(z);
   if (type === 'spitter') spitterGait(z);   // bent over its belly, and its drool and glow kept going (zombies/spitter.js)
 }

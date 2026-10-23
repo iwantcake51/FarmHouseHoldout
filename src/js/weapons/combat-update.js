@@ -6,7 +6,7 @@ import { moveCircle } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { splashOn, youSplash } from '../effects/body-blood.js';
 import { HEAVY_FIRE } from './gun-stats.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { curId, S, stamMax, W, W8 } from '../game/run-state.js';
 import { tickCycle } from './casings.js';
 import { muzzleWorld } from '../effects/muzzle-flash.js';
 import { smoke } from '../effects/smoke.js';
@@ -59,17 +59,19 @@ export function updateCombat(dt) {
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
   // second after you've climbed through or over something. What you ran off (P.runDebt) comes back last, and slowly:
   // only once you've been off a sprint for RUN_REST.wait, at RUN_REST.rate (player/sprint.js)
-  P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, 1 - P.stam);
+  // (all of it out of your stamina's ceiling, stamMax: a Broken stride's quarter, game/run-state.js)
+  const sm = stamMax(); if (P.stam > sm) P.stam = sm;
+  P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, sm - P.stam);
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;
   if (!(P.stamWait > 0)) {
     const lw = S.lungs ? LUNGS.wait / 0.55 : 1, lr = (P.moving ? 0.75 : 1) * (S.lungs ? LUNGS.refill : 1);
-    if (P.stam + P.runDebt < 1) { if (P.stamT > 0.55 * lw) P.stam = Math.min(1 - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
+    if (P.stam + P.runDebt < sm) { if (P.stamT > 0.55 * lw) P.stam = Math.min(sm - P.runDebt, P.stam + dt * (P.exh ? 0.26 : 0.38) * lr); }
     else if (P.runDebt > 0 && P.runT > RUN_REST.wait * lw) { const g = Math.min(P.runDebt, dt * (P.exh ? RUN_REST.exh : RUN_REST.rate) * lr); P.stam += g; P.runDebt -= g; }
   }
-  if (P.exh && P.stam >= 0.34) P.exh = false;
+  if (P.exh && P.stam >= 0.34 * sm) P.exh = false;
   // emptying the tank leaves you sluggish till you could sprint again (SPRINT.unlock); speed creeps back as the stamina does
-  if (P.exh) P.fatigued = true; else if (P.stam >= SPRINT.unlock) P.fatigued = false;
-  const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / SPRINT.unlock, 0, 1) : 1;
+  if (P.exh) P.fatigued = true; else if (P.stam >= SPRINT.unlock * sm) P.fatigued = false;
+  const spT = P.fatigued ? 0.68 + 0.32 * clamp(P.stam / (SPRINT.unlock * sm), 0, 1) : 1;
   P.spdF = (P.spdF || 1) + (spT - (P.spdF || 1)) * Math.min(1, dt * (spT < (P.spdF || 1) ? 4 : 0.9));
   // point the gun (and your eyes) at what's under the cursor: the part of a zombie you're over; a zombie your aim is on
   // or near, at its chest and head (AIM_CHEST of its height, up a touch if it's close); a crawler down on the ground; or
@@ -113,7 +115,7 @@ export function updateCombat(dt) {
   if (W8.heat > 0.7 && W8.wispT <= 0 && !W(curId()).melee && !P.dead) { W8.wispT = 0.09; const mw = muzzleWorld(); smoke(mw.x, mw.y + 0.02, mw.z, rr(-0.1, 0.1), rr(0.25, 0.5), rr(-0.1, 0.1), 0.04, 0.22, rr(0.9, 1.4), 0.16 * Math.min(1, W8.heat - 0.5)); }
   // bleeding wears you down, but never past BLEED_FLOOR: it can leave you hurting, never dead or a scratch from it
   if (P.bleed > 0 && !P.dead) {
-    P.bleed = P.hp <= BLEED_FLOOR ? 0 : Math.max(0, P.bleed - dt); P.hp = Math.max(Math.min(P.hp, BLEED_FLOOR), P.hp - 1.7 * dt * S.dmgTaken); P.dripT = (P.dripT || 0) - dt;
+    P.bleed = P.hp <= BLEED_FLOOR ? 0 : Math.max(0, P.bleed - dt); P.hp = Math.max(Math.min(P.hp, BLEED_FLOOR), P.hp - 1.7 * (S.bleedX || 1) * dt * S.dmgTaken);   // (worse under Bad blood: upgrades/sacrifice.js) P.dripT = (P.dripT || 0) - dt;
     splashOn(youSplash, dt * 0.02);   // it soaks into your clothes (effects/body-blood.js)
     if (P.dripT <= 0) { P.dripT = rr(0.12, 0.3); bleedDrip(); }                          // drops falling from the wound (effects/particles.js)
   }

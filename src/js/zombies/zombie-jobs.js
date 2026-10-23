@@ -2,7 +2,7 @@
 // nurse or a farmer, and the trims they share (collars, buttons, shoulder patches).
 
 import { pick, rand, rr } from '../core/math.js';
-import { worn, zb, zback, zbandChest, zbandWaist, zc, ZDYE, ZF, zfront, zside, ztall } from './zombie-kit.js';
+import { worn, zArmor, zb, zback, zbandChest, zbandWaist, zc, ZDYE, ZF, zfront, zside, ztall } from './zombie-kit.js';
 
 // ---- the jobs: what they wore to work the day it ended ----
 // each fills in the outfit: top (chest and waist), sleeve ('none', 'short', 'long', 'rolled') and its colour, legs
@@ -65,17 +65,19 @@ export const ZJOBS = {
     o.top = base; o.sleeve = 'long'; o.legs = 'long'; o.pants = base; o.shoes = 'boots'; o.boot = 0x141414; o.gloves = 0x18181a; o.hat = 'swat'; o.shell = 0.022;
     o.add.push(K => {
       // the plate carrier: plates front and back over the chest, a cummerbund round the waist, pouches across the front
-      zb(K.torso, 0.46, 0.32, 0.34, vest, 0, 0.12, 0); zbandWaist(K.torso, -0.08, 0.14, vest, 0.016);
-      for (let i = -1; i <= 1; i++) zb(K.torso, 0.1, 0.1, 0.05, zc(vest, 1.15), i * 0.12, -0.04, 0.18);
-      zfront(K.torso, 0.16, 0.035, 0xd8d8d4, 0, 0.22, 0.17, 0.004); zback(K.torso, 0.3, 0.06, 0xd8d8d4, 0, 0.18, 0.17, 0.004);   // SWAT, front and back
-      zb(K.torso, 0.06, 0.12, 0.05, 0x111214, -0.1, 0.18, 0.18);   // the radio on the plate
+      // (each tagged as armour, to break off when it's taken enough: zArmor, zombies/armor-break.js)
+      zArmor('torso', () => {
+        zb(K.torso, 0.46, 0.32, 0.34, vest, 0, 0.12, 0); zbandWaist(K.torso, -0.08, 0.14, vest, 0.016);
+        for (let i = -1; i <= 1; i++) zb(K.torso, 0.1, 0.1, 0.05, zc(vest, 1.15), i * 0.12, -0.04, 0.18);
+        zfront(K.torso, 0.16, 0.035, 0xd8d8d4, 0, 0.22, 0.17, 0.004); zback(K.torso, 0.3, 0.06, 0xd8d8d4, 0, 0.18, 0.17, 0.004);   // SWAT, front and back
+        zb(K.torso, 0.06, 0.12, 0.05, 0x111214, -0.1, 0.18, 0.18);   // the radio on the plate
+      });
       // knee pads, and the thigh holster on the right
-      ['L', 'R'].forEach(s => zb(K['shin' + s], 0.17, 0.08, 0.05, 0x161618, 0, -0.03, 0.115));
-      zb(K.legR, 0.06, 0.15, 0.12, 0x141416, 0.105, -0.12, 0.0);
+      zArmor('legs', () => { ['L', 'R'].forEach(s => zb(K['shin' + s], 0.17, 0.08, 0.05, 0x161618, 0, -0.03, 0.115)); zb(K.legR, 0.06, 0.15, 0.12, 0x141416, 0.105, -0.12, 0.0); });
       zshoulderPatch(K, 0x26292e, 0xd8d8d4);
     });
   } },
-  // a riot officer: the SWAT kit with the helmet's face shield down (ARMOR, zombies/damage.js: it blunts a headshot)
+  // a riot officer: the SWAT kit with the helmet's face shield down (ARMOR_KIT, zombies/damage.js: it blunts a headshot)
   riot: { w: [1, 1, 3], f: o => { ZJOBS.swat.f(o); o.hat = 'riot'; } },
   track: { w: [2, 12, 0], f: o => {
     const c1 = pick([0xc82a22, 0x2a54c8, 0xe8c020, 0x1e8a44, 0xe86a1e, 0xd8d8d8, 0x7a2ab8]), c2 = pick([0xe8e6e0, 0x141416, 0xe8c020, 0x2a54c8]);
@@ -194,8 +196,7 @@ export const ZJOBS = {
     const camo = [0x4a5236, 0x6a5e3e, 0x2a2c22, 0x5a6a3e], base = worn(camo[0], 0.08);
     o.top = base; o.sleeve = rand() < 0.4 ? 'rolled' : 'long'; o.legs = 'long'; o.pants = base; o.shoes = 'boots'; o.boot = pick([0x8a6a3a, 0x2a2420]); o.hat = 'helmet'; o.hatCol = 0x4a5236; o.camo = camo; o.shell = 0.018;
     o.add.push(K => {
-      zb(K.torso, 0.48, 0.3, 0.33, 0x50563c, 0, 0.12, 0);   // the vest
-      for (let i = -1; i <= 1; i++) zb(K.torso, 0.09, 0.1, 0.05, 0x44482f, i * 0.11, -0.02, 0.175);
+      zArmor('torso', () => { zb(K.torso, 0.48, 0.3, 0.33, 0x50563c, 0, 0.12, 0); for (let i = -1; i <= 1; i++) zb(K.torso, 0.09, 0.1, 0.05, 0x44482f, i * 0.11, -0.02, 0.175); });   // the vest and its pouches
       zb(K.torso, 0.02, 0.012, 0.01, 0xb8bcc0, 0, 0.29, 0.155); zfront(K.torso, 0.03, 0.045, 0xb8bcc0, 0, 0.26, 0.165, 0.004);   // dog tags
       zbandWaist(K.torso, -0.25, 0.05, 0x3a3e2a, 0.012);
     });

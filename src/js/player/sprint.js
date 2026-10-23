@@ -27,7 +27,7 @@ import { KB } from '../input/keybinds.js';
 import { RIGHT } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { P } from './player.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { curId, S, stamMax, W, W8 } from '../game/run-state.js';
 import { burst } from '../effects/particles.js';
 import { fenceTarget, nearestOpening, tryVault, vaultTarget } from './vaulting.js';
 import { openSt } from '../stations/station-ui.js';
@@ -67,7 +67,7 @@ const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to 
 export const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
 
-export function sprintKey() { return !S.noSprint && (keys.has(KB.sprint) || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92)); }   // (never under Broken stride: upgrades/sacrifice.js)
+export function sprintKey() { return keys.has(KB.sprint) || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
 function runGunOK() { const id = curId(), D = W(id); return !!S.runGun && !!D && !D.melee && (D.ammo === 'p9' || D.ammo === 'p10' || (S.runGun >= 2 && (D.ammo === 'shells' || id === 'ar'))); }
 // a reload carries on through a sprint (and doesn't stop one starting) with any gun but the LMG, whose belt needs both
@@ -96,7 +96,7 @@ const sprintDust = n => { for (let k = 0; k < n; k++) burst(P.x + rr(-0.15, 0.15
 // sights or into a shot, and a hard turn
 export function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
-  if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock) P.sprintLock = false;
+  if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock * stamMax()) P.sprintLock = false;   // (half of what you can have: a Broken stride's quarter, game/run-state.js)
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
   if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); footstep('run', 1.15); }   // driving off the new way
   if (P.pushT > 0) P.pushT -= dt;

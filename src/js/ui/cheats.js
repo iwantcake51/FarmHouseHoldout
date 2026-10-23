@@ -18,7 +18,7 @@ import {
 } from '../weapons/mod-levels.js';
 import { tierName, TIERS } from '../upgrades/tier-table.js';
 import {
-  curId, fitTier, freshStats, hasMod, hpCap, magChange, magSize, ownTier, recomputeEff, run, S, setS, W, W8
+  curId, fitTier, freshStats, hasMod, hpCap, magChange, magSize, ownTier, recomputeEff, run, S, setS, stamMax, W, W8
 } from '../game/run-state.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { burst } from '../effects/particles.js';
@@ -78,7 +78,7 @@ const CHEAT_FX = {
   slowed: { name: 'Slowed', text: 'A hit has you stumbling.', on: () => P.slow > 0.15 && P.slow <= 0.45, ap: () => { P.slow = 0.4; }, hold: () => { P.slow = Math.max(P.slow, 0.3); }, off: () => { P.slow = 0; } },
   pinned: { name: 'Pinned', text: 'Grabbed and barely moving.', on: () => P.slow > 0.45, ap: () => { P.slow = 1; }, hold: () => { P.slow = Math.max(P.slow, 0.9); }, off: () => { P.slow = 0; P.stun = 0; } },
   conc: { name: 'Concussed', text: 'The screen swims and your aim goes wide.', on: () => P.conc > 0.15, ap: () => { P.conc = 1; }, hold: () => { P.conc = Math.max(P.conc || 0, 0.8); }, off: () => { P.conc = 0; } },
-  winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = 1; P.runDebt = 0; P.exh = P.sprintLock = P.fatigued = false; } },
+  winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = stamMax(); P.runDebt = 0; P.exh = P.sprintLock = P.fatigued = false; } },
   healing: { name: 'Healing', text: 'Health coming back over time, as after a bandage.', on: () => P.bandT <= 0 && P.heal > 0, ap: () => { if (P.hp >= S.maxHp) fxHp(0.5); P.heal = (P.heal || 0) + 50; }, hold: () => { P.heal = Math.max(P.heal || 0, 5); }, off: () => { P.heal = 0; } },
   bandaging: { name: 'Bandaging', text: 'A bandage going on (one is added to your bag if you have none).', on: () => P.bandT > 0, ap: () => { P.band = Math.max(P.band || 0, 1); if (P.hp >= S.maxHp && !(P.bleed > 0)) fxHp(0.9); startBandage(); popEl('bands'); }, off: () => { if (P.bandT > 0) { P.bandT = 0; ANIM.healCut = true; } } },
   hurt: { name: 'Hurt', text: 'Down to 60% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.7 && P.hp / S.maxHp >= 0.35, ap: () => fxHp(0.6), off: () => { P.hp = hpCap(); } },

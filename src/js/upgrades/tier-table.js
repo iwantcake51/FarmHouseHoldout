@@ -1,7 +1,7 @@
 // Tiered upgrade lines (per-gun attachment tiers and character tiers).
 
 import { P } from '../player/player.js';
-import { DETACH, hasShotgun, hpCap, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
+import { DETACH, hasShotgun, healMul, hpCap, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
 import { METAL } from '../barricades/planks.js';
 import { SLOW_STEP, slowLess } from './upgrades.js';
 
@@ -68,9 +68,9 @@ export const TIERS = {
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },
   // armour, footwear and the hammer are skills (TIER_KIND, upgrades/upgrades.js), so none starts below uncommon
   armor: { tag: 'Body', t: [
-    { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = S.noHeal ? Math.min(P.hp, hpCap()) : Math.min(hpCap(), P.hp + 25); } },
+    { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = Math.min(hpCap(), P.hp + 25 * healMul()); } },
     { r: 'r', name: 'Kevlar vest', text: 'Every hit on you does less damage.', ap: () => S.dmgTaken *= 0.8 },
-    { r: 'e', name: 'Plate carrier', text: 'Hits do less again, and your max health goes up.', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp = S.noHeal ? Math.min(P.hp, hpCap()) : Math.min(hpCap(), P.hp + 25); } }] },
+    { r: 'e', name: 'Plate carrier', text: 'Hits do less again, and your max health goes up.', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp = Math.min(hpCap(), P.hp + 25 * healMul()); } }] },
   // footwear: each step a little faster (BOOTS: about +17% in all), green, blue, then epic
   boots: { tag: 'Body', t: [
     { r: 'u', name: 'Good boots', text: 'Faster walking and sprinting.', ap: () => S.speedMul *= BOOTS[0] },

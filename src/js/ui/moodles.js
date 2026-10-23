@@ -15,7 +15,7 @@ export function renderMoodles() {
   if (P.slow > 0.45) list.push(['bad', 'pinned', 'Pinned']); else if (P.slow > 0.15) list.push(['warn', 'pinned', 'Slowed']);
   if (P.heal > 0) list.push(['good', 'heal', 'Healing']);   // no Bandaging icon: the ring round the cursor already shows it going on
   if (P.bleed > 0) list.push(['bad bleed', 'wound', 'Bleeding']);
-  if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35) list.push(['warn', 'lungs', 'Tired']);
+  if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35 * stamMax()) list.push(['warn', 'lungs', 'Tired']);
   if (P.conc > 0.15) list.push(['bad', 'pinned', 'Concussed']);
   if (P.adr > 0) list.push(['good', 'adren', 'Adrenaline']);
   if (P.eye > 0) list.push(['good', 'fire', 'Dead eye']);

@@ -23,4 +23,16 @@ export const GI = {
   wind: '<path d="M372.4 31.2c-77.6 0-116.4 65.7-116.4 65.7s-38.8-65.7-116.4-65.7c-37.1 0-107.7 33.7-107.7 125.1 0 161.2 224.2 324.4 224.2 324.4s224.2-163.1 224.2-324.4c0-91.4-70.6-125.1-107.7-125.1zm-145.4 115.0h60.6v79.4h79.2v60.7h-79.2v79.8h-60.6V286.3h-80.0v-60.7h80.0z"/>',
   fire: '<path d="M256 16c-52.5 252.6-210 277.8 0 454.6C466 293.8 308.5 268.6 256 16zM124.7 167.4C98.5 243.1 46 294.1 46 369.9S151 496 229.7 496c-157.5-126.3-105-202.2-105-328.5zm262.5 0c0 126.3 52.5 202.2-105 328.5C361 496 466 445.6 466 369.9c0-75.7-52.5-126.7-78.7-202.5z"/>'
 };
+// the curses' marks (upgrades/sacrifice.js), drawn simply in a 24 x 24 box for the chips under your health bar and the
+// cheat menu: a cracked lung for Broken stride, a spoiled drop for Bad blood, a split heart for Blood price, a slow clock
+// for Butterfingers, a cracked bone for Fragile, a torn pocket for Empty pockets
+export const CURSE_VB = '0 0 24 24';
+export const CURSE_ICON = {
+  stride: '<path d="M11 3v7c0 1.5-1 2.4-2.2 2.9L6 14c-1.7.7-3 2.4-3 4.6V20c0 .8.7 1.3 1.4 1l4.2-1.6c1.4-.5 2.4-1.9 2.4-3.4V3zm2 0v13c0 1.5 1 2.9 2.4 3.4l4.2 1.6c.7.3 1.4-.2 1.4-1v-1.4c0-2.2-1.3-3.9-3-4.6l-2.8-1.1C14 12.4 13 11.5 13 10V3z"/><path d="M5.5 15.5l2 1.5-1 2.2M18.5 15.5l-2 1.5 1 2.2" fill="none" stroke="#000" stroke-width="1.3" stroke-opacity=".75"/>',
+  blood: '<path d="M12 2.5S5 10.4 5 15.2A7 7 0 0 0 19 15.2C19 10.4 12 2.5 12 2.5z"/><path d="M8.6 14.6c.9 1.6 2.4 2.5 4.4 2.4M10.5 9.8l1.4 2.4-1.8 1.6 1.6 2.2" fill="none" stroke="#000" stroke-width="1.3" stroke-opacity=".75" stroke-linecap="round"/>',
+  price: '<path d="M12 20.8l-1.4-1.3C5.4 14.9 2 11.9 2 8.4 2 5.5 4.3 3.2 7.2 3.2c1.8 0 3.6.9 4.8 2.3 1.2-1.4 3-2.3 4.8-2.3 2.9 0 5.2 2.3 5.2 5.2 0 3.5-3.4 6.5-8.6 11.1z"/><path d="M12.4 5.6l-1.8 4 2.6 1.8-2 3.6 1 3" fill="none" stroke="#000" stroke-width="1.5" stroke-opacity=".8" stroke-linejoin="round"/>',
+  fingers: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2.6a7.4 7.4 0 1 1 0 14.8 7.4 7.4 0 0 1 0-14.8zM11 6.5v6.3l4.6 2.8 1-1.7-3.6-2.2V6.5z"/>',
+  fragile: '<g transform="rotate(45 12 12)"><rect x="10.2" y="5.5" width="3.6" height="13"/><circle cx="10.1" cy="5" r="2.5"/><circle cx="13.9" cy="5" r="2.5"/><circle cx="10.1" cy="19" r="2.5"/><circle cx="13.9" cy="19" r="2.5"/></g><path d="M9.6 10.4l2.6 1.1-1.4 1.6 3.6 1" fill="none" stroke="#000" stroke-width="1.4" stroke-opacity=".8" stroke-linejoin="round"/>',
+  pockets: '<path d="M3.5 4h17v7.5a8.5 8.5 0 0 1-17 0z"/><path d="M3.5 7.5h17M9 12.5l2 2 1.5-1.5 2.5 2.5M8 18.2l1.2-1.4M16 18.2l-1.2-1.4" fill="none" stroke="#000" stroke-width="1.3" stroke-opacity=".75" stroke-linecap="round"/>'
+};
 document.querySelectorAll('svg[data-gi]').forEach(s => { s.setAttribute('viewBox', GI_VB); s.innerHTML = GI[s.dataset.gi] || ''; });
