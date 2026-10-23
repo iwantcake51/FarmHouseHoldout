@@ -209,11 +209,16 @@
 #cards.six .card .fx{margin:6px 0 2px}
 #upgrade.sacked .kinds{display:none}
 #upgrade.sacked .wrap{gap:14px}
-/* the sacrifice's details, in a tip over its button while it's hovered or focused */
-#upSac{position:relative}
-#upSac::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 10px);width:max-content;max-width:300px;padding:8px 11px;
-  font-family:var(--f-ui);font-size:12.5px;line-height:1.4;letter-spacing:.02em;text-transform:none;color:var(--ink);text-align:center;white-space:normal;
+/* the sacrifice's details, in a tip over its button while it's hovered or focused (its own element: the button's
+   ::before and ::after are its painted face, styles/screens.css) */
+.upSacW{position:relative;display:inline-flex}
+.upSacTip{position:absolute;left:50%;bottom:calc(100% + 10px);z-index:6;width:max-content;max-width:300px;padding:8px 11px;
+  font-family:var(--f-ui);font-size:12.5px;line-height:1.4;letter-spacing:.02em;color:var(--ink);text-align:center;
   background:rgba(14,10,9,.96);border:1px solid #7a2a1e;box-shadow:0 8px 24px rgba(0,0,0,.6);opacity:0;pointer-events:none;
   transform:translate(-50%,6px) scale(.97);transition:opacity .18s ease,transform .22s cubic-bezier(.2,.9,.3,1.2)}
-#upgrade.armed #upSac:hover::after,#upgrade.armed #upSac:focus-visible::after{opacity:1;transform:translate(-50%,0) scale(1)}
-#upSac.taken::after{display:none}
+#upSac[hidden]+.upSacTip{display:none}
+#upgrade.armed #upSac:hover+.upSacTip,#upgrade.armed #upSac:focus-visible+.upSacTip{opacity:1;transform:translate(-50%,0) scale(1)}
+#upSac.taken+.upSacTip,#upSac.gone+.upSacTip{display:none}
+/* a card a pick has made moot (the next tier of a line just taken whole), or a second from a sacrifice's new row:
+   greyed out, and it can't be taken */
+#upgrade .card.dead{filter:grayscale(1) brightness(.6);opacity:.55!important;pointer-events:none;transition:filter .35s ease,opacity .35s ease!important;transition-delay:0s!important}

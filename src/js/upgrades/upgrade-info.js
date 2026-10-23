@@ -17,7 +17,7 @@ import { pctDown, pctUp } from '../stations/recipes.js';
 import { firstShell, relMul, shellGo } from '../weapons/reload.js';
 import { stamCost } from '../melee/melee.js';
 import { PAIN_REGEN, SLOW_STEP, slowAfter } from './upgrades.js';
-import { FRONT, FRONT_MOD } from '../player/shaky-hands.js';
+import { FRONT, FRONT_MOD, frontSwayPct } from '../player/shaky-hands.js';
 import { REGEN_WAIT } from '../player/movement.js';
 
 // short effect chips for upgrades that don't change a gun's numbers
@@ -121,8 +121,8 @@ export function tierFx(id, k) {
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   // weight out front: the sway it adds (FRONT, player/shaky-hands.js)
-  { const F = k === 'mag' ? (id === 'ar' ? FRONT.arMag : null) : FRONT[k]; if (F && F[n + 1] - (F[f] || 0) > 0.001) fx.push({ t: `IDLE SWAY +${Math.round((F[n + 1] - (F[f] || 0)) * 100)}%`, good: false }); }
-  if (k === 'laser') fx.push({ t: 'Aim beam', good: true }, { t: `RECOIL SETTLES ${Math.round((LASER_SETTLE[n + 1] / LASER_SETTLE[f] - 1) * 100)}% FASTER`, good: true });
+  { const F = k === 'mag' ? (id === 'ar' ? FRONT.arMag : null) : FRONT[k]; if (F && F[n + 1] - (F[f] || 0) > 0.001) fx.push({ t: `IDLE SWAY +${frontSwayPct(F[n + 1] - (F[f] || 0))}%`, good: false }); }
+  if (k === 'laser') fx.push({ t: 'Aim beam', good: true }, { t: `Recoil settles ${Math.round((LASER_SETTLE[n + 1] / LASER_SETTLE[f] - 1) * 100)}% faster`, good: true });
   if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : id === 'scar' ? 'Mags funnelled in' : WEAP[id].breakOpen ? 'Both shells at once' : 'Three shells a go', good: true });
   if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
@@ -171,7 +171,7 @@ export function modFx(mid) {
   if (D0.melee) { const t = multiHit(D0, D1) || chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
   // a longer barrel: how far out it keeps its full damage (weapons/ammo.js)
   const F0 = D0.fall || FALLOFF[m.w], F1 = D1.fall || FALLOFF[m.w]; if (F0 && ((D1.reach || 1) !== (D0.reach || 1) || F1 !== F0)) fx.push(chip('FULL DMG TO', F0[0] * (D0.reach || 1), F1[0] * (D1.reach || 1), true, v => v.toFixed(1) + ' m'));
-  if (FRONT_MOD[mid]) fx.push({ t: `IDLE SWAY +${Math.round(FRONT_MOD[mid] * 100)}%`, good: false });   // (weight out front: player/shaky-hands.js)
+  if (FRONT_MOD[mid]) fx.push({ t: `IDLE SWAY +${frontSwayPct(FRONT_MOD[mid])}%`, good: false });   // (weight out front: player/shaky-hands.js)
   return fx;
 }
 // a mod you have, made one level better (weapons/mod-levels.js), against how it is now

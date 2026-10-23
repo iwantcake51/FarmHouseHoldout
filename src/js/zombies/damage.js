@@ -471,7 +471,7 @@ export function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmm
 // and rolled into the counter
 function killScrap(z, n, hoard) {
   n = waveScrap(n);   // (more each wave: game/run-state.js)
-  if (S.scrapCut) n = Math.max(1, Math.round(n * (1 - S.scrapCut)));   // (Empty pockets: upgrades/sacrifice.js)
+  if (S.scrapCut || S.scrapX) n = Math.max(1, Math.round(n * (1 - (S.scrapCut || 0)) * (S.scrapX || 1)));   // (Empty pockets halves it, Bad blood doubles it: upgrades/sacrifice.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
   floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
 }

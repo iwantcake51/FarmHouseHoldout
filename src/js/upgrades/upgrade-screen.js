@@ -29,8 +29,17 @@ import { listNames, netChoosing, netPicked } from '../net/sync.js';
 let dealt = [], cardsArmed = false, armTimer = 0;
 // how many cards are still to be taken from this hand (two once a sacrifice is made: upgrades/sacrifice.js), the ones
 // taken so far (by place), and what's on offer to sacrifice beside the scrap (null for nothing)
-let picksLeft = 1, sac = null;
+let picksLeft = 1, sac = null, baseN = 3;
 const picked = new Set();
+// a card still worth taking: one a pick has already made moot (the next tier of a line just taken whole, a perk you
+// now have) is greyed out; and of the cards a sacrifice adds (from baseN on) you take one at most
+const stillGood = u => u.maxAll ? T(u.tierOf) < TIERS[u.tierOf].t.length : (!u.can || u.can());
+const isDead = i => {
+  if (picked.has(i)) return false;
+  if (!dealt[i]) return true;
+  return !stillGood(dealt[i]) || (i >= baseN && [...picked].some(k => k >= baseN));
+};
+function markDead() { [...$('cards').children].forEach((b, i) => b.classList.toggle('dead', !picked.has(i) && isDead(i))); }
 // every BONUS_EVERY waves (5, 10, 15...) a second hand follows the first: skills and perks only, no aid or weapons
 const BONUS_EVERY = 5;
 export let bonusHand = false;
@@ -114,7 +123,7 @@ function renderCard(b, u, i) {
 // rise into the top row as the new ones slide down out from under them into the second (FLIP: each starts where it
 // was, or behind the card above it, and glides to its place in the grid)
 function dealMore(more) {
-  const wrap = $('cards'), old = [...wrap.children], from = old.map(b => b.getBoundingClientRect());
+  const wrap = $('cards'), old = [...wrap.children], from = old.map(b => b.getBoundingClientRect()); baseN = old.length;
   more.forEach(u => { const i = dealt.length; dealt.push(u); const b = renderCard(document.createElement('button'), u, i); b.classList.add('late'); wrap.appendChild(b); });
   wrap.classList.add('six');
   const all = [...wrap.children], to = all.map(b => b.getBoundingClientRect());
@@ -141,8 +150,8 @@ function showSac() {
   const btn = $('upSac'); btn.classList.remove('armed', 'taken', 'curse', 'gone'); delete btn.dataset.down; btn.hidden = !sac;
   if (!sac) return;
   // (short on the button; what it costs and gives in the tip over it, on hover or focus)
-  if (sac.kind === 'scrap') { btn.innerHTML = `<span class="sk">Sacrifice</span> <b>${sac.cost} scrap</b>`; btn.dataset.tip = `Three more cards, the rarer ones likelier. Take two.`; }
-  else { btn.classList.add('curse'); btn.innerHTML = `<span class="sk">Curse</span> <b>${sac.curse.name}</b>`; btn.dataset.tip = `${sac.curse.text} For the rest of the run. Three legendary cards join the hand; take two.`; }
+  if (sac.kind === 'scrap') { btn.innerHTML = `<span class="sk">Sacrifice</span> <b>${sac.cost} scrap</b>`; $('upSacTip').textContent = `Three more cards, the rarer ones likelier. Take two, one of them from the new row.`; }
+  else { btn.classList.add('curse'); btn.innerHTML = `<span class="sk">Curse</span> <b>${sac.curse.name}</b>`; $('upSacTip').textContent = `${sac.curse.text} For the rest of the run. Three legendary cards join the hand: take two, one of them from the new row.`; }
 }
 // taking it: a first press arms it (it asks to be sure: a curse is for good), a second within SAC_SURE seconds seals it
 const SAC_SURE = 3;
@@ -182,7 +191,7 @@ export function renderHistory(list, countEl) {
     const r = document.createElement('div'); r.className = 'hrow r-' + h.r;
     r.innerHTML = '<span class="hn"></span><span class="ht"></span><span class="hw"></span><span class="hd"></span>';
     r.querySelector('.hn').textContent = h.name; if (h.n > 1) { const i = document.createElement('i'); i.textContent = '\u00d7' + h.n; r.querySelector('.hn').appendChild(i); }
-    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + RAR[h.r] + (h.on ? ' \u00b7 ' + h.on : ''); r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
+    r.querySelector('.ht').textContent = h.tag + ' \u00b7 ' + (RAR[h.r] || 'For the rest of the run') + (h.on ? ' \u00b7 ' + h.on : ''); r.querySelector('.hw').textContent = 'Wave ' + h.wave; r.querySelector('.hd').textContent = h.text + (h.total ? ' · ' + h.total : '');
     el.appendChild(r);
   });
 }
@@ -193,7 +202,7 @@ export function openUpgrade(bonus) {
   $('upHead').textContent = bonus ? 'One more' : 'Take one';
   $('upgrade').classList.toggle('bonus', bonusHand);
   dealCards(bonus); cardsArmed = false; setMouseDown(false); setMouseDownR(false);
-  picksLeft = 1; picked.clear(); sac = rollSac(bonus || run.wave % BONUS_EVERY === 0); showSac();
+  picksLeft = 1; picked.clear(); baseN = 3; sac = rollSac(bonus || run.wave % BONUS_EVERY === 0); showSac();
   $('upgrade').classList.remove('sacked', 'cursed');
   setState('upgrade');
   const el = $('upgrade'); el.classList.remove('show', 'armed', 'waiting');
@@ -218,7 +227,8 @@ function startCardClock() {
       clearInterval(cardClock); if (pickWait !== null) return;
       $('upClock').classList.add('out');
       while (picksLeft > 0 && state === 'upgrade') {
-        const live = dealt.map((u, i) => i).filter(i => dealt[i] && !picked.has(i)); if (!live.length) break;
+        const live = dealt.map((u, i) => i).filter(i => !picked.has(i) && !isDead(i));
+        if (!live.length) { picksLeft = 0; settleUpgrade([...$('cards').children].filter((b, k) => !picked.has(k))); break; }
         cardsArmed = true; pickCard(live[(Math.random() * live.length) | 0]);
       }
     }
@@ -226,7 +236,7 @@ function startCardClock() {
   tick(); cardClock = setInterval(tick, 100);
 }
 function pickCard(i) {
-  if (state !== 'upgrade' || !cardsArmed || !dealt[i] || picked.has(i)) return;
+  if (state !== 'upgrade' || !cardsArmed || !dealt[i] || picked.has(i) || isDead(i)) return;
   const u = dealt[i], c = u.shown; cardsArmed = false; picked.add(i);
   $('upSac').classList.add('gone'); $('upSkip').classList.add('gone');   // (once a card's taken, the offers are off)
   // a tier's next star fills the moment it's taken, before the guns are rebuilt for it (stations/station-ui.js: starFillSvg)
@@ -244,7 +254,11 @@ function pickCard(i) {
   const cards = [...$('cards').children];
   cards[i].classList.add('picked');
   // two to take (a sacrifice): the first stays stamped where it is, and the rest wait for the second
-  if (--picksLeft > 0) { $('upHead').textContent = 'One more'; setTimeout(() => { if (state === 'upgrade') cardsArmed = true; }, 380); return; }
+  // (and the ones that pick has made moot greyed out; with nothing left worth taking, the hand's done)
+  if (--picksLeft > 0) {
+    markDead();
+    if (dealt.some((u, k) => !picked.has(k) && !isDead(k))) { $('upHead').textContent = 'One more'; setTimeout(() => { if (state === 'upgrade') cardsArmed = true; }, 380); return; }
+  }
   settleUpgrade(cards.filter((b, k) => !picked.has(k)));
 }
 // none of them: the scrap shown under the cards instead, and all three burn

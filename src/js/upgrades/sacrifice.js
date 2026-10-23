@@ -19,7 +19,7 @@ export const SAC = { chance: 0.28, curse: 0.4, scrap: 0.75, minScrap: 8, boost: 
 // there to take
 const CURSES = [
   { id: 'stride', name: 'Broken stride', text: 'You can never sprint again.', can: () => !S.noSprint, ap: () => { S.noSprint = true; } },
-  { id: 'blood', name: 'Bad blood', text: 'Nothing heals you again: bandages only stop the bleeding.', can: () => !S.noHeal, ap: () => { S.noHeal = true; P.heal = 0; } },
+  { id: 'blood', name: 'Bad blood', text: 'Nothing heals you again: bandages only stop the bleeding, and Second wind is gone for good. Kills pay double scrap.', can: () => !S.noHeal, ap: () => { S.noHeal = true; P.heal = 0; S.secondWind = false; S.scrapX = 2; } },
   { id: 'price', name: 'Blood price', text: 'A quarter of your max health is gone for good, however high it goes.', can: () => !S.hpCut, ap: () => { S.hpCut = 0.25; P.hp = Math.min(P.hp, hpCap()); } },
   { id: 'fingers', name: 'Butterfingers', text: 'Every reload takes 30% longer.', can: () => !S.butter, ap: () => { S.butter = true; S.reloadMul *= 1.3; } },
   { id: 'glass', name: 'Glass bones', text: 'Every hit you take does 25% more.', can: () => !S.glass, ap: () => { S.glass = true; S.dmgTaken *= 1.25; } },
