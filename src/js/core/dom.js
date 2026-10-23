@@ -2,6 +2,10 @@
 
 export const $ = id => document.getElementById(id);
 if (!window.THREE) { $('title').querySelector('p').textContent = 'The 3D engine could not load. Check your connection and reload the page.'; throw new Error('three.js did not load'); }   // (and the game goes no further)
+// colours are used as written, with no conversion between sRGB and linear on the way in or out (three.js converts them
+// by default since r152): every colour, light and shader in the game was tuned that way. It has to be set before the
+// first THREE.Color is made
+THREE.ColorManagement.enabled = false;
 // a scrolling list that eases to where the wheel sends it instead of jumping a notch at a time (it follows a point
 // that each notch moves on, closing on it quickly and settling); a touchpad's own fine scrolling is already smooth,
 // so it's left alone, and a drag of the scrollbar takes over at once

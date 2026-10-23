@@ -4,10 +4,13 @@ import { $ } from './dom.js';
 
 export const V3 = THREE.Vector3;
 export const cv = $('c');
-// with WebGL2 the frame's drawn into its own multisampled target for its post-processing (effects/post.js), which keeps
-// its antialiasing, so the screen itself needn't be multisampled too (that would only double the memory and the work)
+// the frame's drawn into its own multisampled target for its post-processing (effects/post.js), which keeps its
+// antialiasing, so the screen itself needn't be multisampled too (that would only double the memory and the work).
+// three.js needs WebGL2: without it the title says so, and the game goes no further
 const GL2 = (() => { try { const g = document.createElement('canvas').getContext('webgl2'); if (!g) return false; const l = g.getExtension('WEBGL_lose_context'); if (l) l.loseContext(); return true; } catch (e) { return false; } })();
-export const R = new THREE.WebGLRenderer({ canvas: cv, antialias: !GL2, powerPreference: 'high-performance' });
+if (!GL2) { $('title').querySelector('p').textContent = 'Your browser or graphics card has no WebGL 2, which the game needs. Try another browser, or turn on hardware acceleration.'; throw new Error('no WebGL2'); }
+export const R = new THREE.WebGLRenderer({ canvas: cv, antialias: false, powerPreference: 'high-performance' });
+R.outputColorSpace = THREE.LinearSRGBColorSpace;   // (colours out as they are: core/dom.js)
 // a new shader's checked for errors only when asked (?glcheck in the address): checking makes the driver finish compiling
 // it there and then, a stall the first time anything new is drawn (a muzzle flash, a spitter), instead of in parallel
 R.debug.checkShaderErrors = /[?&]glcheck\b/.test(location.search);
@@ -22,16 +25,13 @@ R.shadowMap.enabled = true;
 // SHADOW_SOFT.r metres out (the sun's radius in its map's texels follows from that: ui/settings.js, applySettings)
 export const SHADOW_SOFT = { r: 0.07, taps: 12 };
 R.shadowMap.type = THREE.PCFShadowMap;
-{ const C = THREE.ShaderChunk, src = C.shadowmap_pars_fragment, a = src.indexOf('#if defined( SHADOWMAP_TYPE_PCF )'), b = src.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )', a);
-  if (a >= 0 && b > a) C.shadowmap_pars_fragment = src.slice(0, a) + `#if defined( SHADOWMAP_TYPE_PCF )
-			float sAng = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-			vec2 sR = shadowRadius / shadowMapSize; float sSum = 0.0;
-			for (int i = 0; i < ${SHADOW_SOFT.taps}; i++) {
-				float sr = sqrt((float(i) + 0.5) / ${SHADOW_SOFT.taps}.0), st = float(i) * 2.39996323 + sAng;
-				sSum += texture2DCompare(shadowMap, shadowCoord.xy + vec2(cos(st), sin(st)) * sr * sR, shadowCoord.z);
-			}
-			shadow = sSum / ${SHADOW_SOFT.taps}.0;
-		` + src.slice(b); }
+// (three's PCF already reads the map over a disc turned by a noise of the pixel's place, a Vogel disc, five times: here
+// it's read SHADOW_SOFT.taps times instead, for a smoother edge)
+{ const C = THREE.ShaderChunk, re = /shadow = \(\s*texture\( shadowMap, vec3\( shadowCoord\.xy \+ vogelDiskSample\( 0, 5, phi \)[\s\S]*?\) \* 0\.2;/;
+  if (!re.test(C.shadowmap_pars_fragment)) console.warn('soft shadows: three.js PCF shadow code not as expected');
+  C.shadowmap_pars_fragment = C.shadowmap_pars_fragment.replace(re, `shadow = 0.0;
+				for ( int i = 0; i < ${SHADOW_SOFT.taps}; i ++ ) shadow += texture( shadowMap, vec3( shadowCoord.xy + vogelDiskSample( i, ${SHADOW_SOFT.taps}, phi ) * radius, shadowCoord.z ) );
+				shadow /= ${SHADOW_SOFT.taps}.0;`); }
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1e1716);
 scene.fog = new THREE.Fog(0x1e1716, 42, 78);
@@ -51,9 +51,12 @@ export function resize() {
 }
 addEventListener('resize', resize);
 resize();
-export const hemi = new THREE.HemisphereLight(0xd8c8b0, 0x4a3426, 0.62);
+// LIGHT_K: three.js once scaled these lights up by π in its shaders and no longer does (r155), so every intensity the
+// game sets on them (here and lighting/day-night.js) is scaled by it instead, to light the farm as it was tuned
+export const LIGHT_K = Math.PI;
+export const hemi = new THREE.HemisphereLight(0xd8c8b0, 0x4a3426, 0.62 * LIGHT_K);
 scene.add(hemi);
-export const sun = new THREE.DirectionalLight(0xffc89c, 0.85);
+export const sun = new THREE.DirectionalLight(0xffc89c, 0.85 * LIGHT_K);
 sun.castShadow = true;
 // the sun's shadows cover the whole farm, edge to edge and the tree line round it, from wherever it is in the sky
 // (lighting/day-night.js keeps it aimed at the middle of the map): everything on screen casts its shadow however far

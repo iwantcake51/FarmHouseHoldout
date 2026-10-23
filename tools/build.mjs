@@ -20,7 +20,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src'), OUT = path.join(ROOT, 'dist');
 const args = new Set(process.argv.slice(2));
 const serve = args.has('--serve'), dev = serve || args.has('--dev');
-const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
 // PeerJS, for co-op (src/js/net/net.js loads it the first time someone hosts or joins); the one-file build takes it from a CDN
 const PEER_VER = JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/peerjs/package.json'), 'utf8')).version;
 const PEER_CDN = `https://cdn.jsdelivr.net/npm/peerjs@${PEER_VER}/dist/peerjs.min.js`;
@@ -64,6 +63,14 @@ async function checkBundle(js) {
     throw new Error('The game script has an error and would not run:\n' + where.join('\n'));
   }
 }
+// three.js for the page, as the global THREE the game's files use: only the parts of it they name (every THREE.Something
+// in the joined script), so the download carries none of the rest. A name three.js doesn't have fails the build here
+async function threeBundle(js) {
+  const names = [...new Set(js.match(/\bTHREE\.[A-Za-z_$][\w$]*/g).map(n => n.slice(6)))].sort();
+  const out = await esbuild({ stdin: { contents: `import { ${names.join(', ')} } from 'three';\nwindow.THREE = { ${names.join(', ')} };`, resolveDir: ROOT },
+    bundle: true, minify: true, format: 'iife', target: 'es2020', write: false, logLevel: 'silent', legalComments: 'none' });
+  return out.outputFiles[0].text;
+}
 function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]); }
 
 async function buildOnce() {
@@ -94,8 +101,9 @@ async function buildOnce() {
   const css = await esbuild({ entryPoints: [path.join(SRC, 'styles/index.css')], bundle: true, minify: !dev, write: false, logLevel: 'silent' });
   const cssText = css.outputFiles[0].text;
   fs.writeFileSync(path.join(OUT, 'game.css'), cssText);
-  // three.js r128, self-hosted
-  fs.copyFileSync(path.join(ROOT, 'node_modules/three/build/three.min.js'), path.join(OUT, 'vendor/three.min.js'));
+  // three.js, self-hosted
+  const three = await threeBundle(js);
+  fs.writeFileSync(path.join(OUT, 'vendor/three.min.js'), three);
   fs.copyFileSync(path.join(ROOT, 'node_modules/peerjs/dist/peerjs.min.js'), path.join(OUT, 'vendor/peerjs.min.js'));
   // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
   // fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay the same)
@@ -108,7 +116,7 @@ async function buildOnce() {
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)
-    .replace('<script src="./vendor/three.min.js"></script>', `<script src="${THREE_CDN}"></script>\n<script>window.PEERJS_SRC = '${PEER_CDN}';</script>`)
+    .replace('<script src="./vendor/three.min.js"></script>', () => `<script>${three.replace(/<\/script/gi, '<\\/script')}</script>\n<script>window.PEERJS_SRC = '${PEER_CDN}';</script>`)
     .replace('<script src="./game.js"></script>', () => `<script>window.SOUND_DATA = ${JSON.stringify(soundData())};</script>\n<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`);
   fs.writeFileSync(path.join(OUT, 'standalone.html'), standalone);
   // (the one-file build carries the sounds in it, as data: URLs)

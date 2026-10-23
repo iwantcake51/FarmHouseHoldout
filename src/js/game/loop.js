@@ -3,6 +3,7 @@
 import { cam, DPR, R, renderScale, resize, scene, setRenderScale } from '../core/renderer.js';
 import { clamp, last, setLast } from '../core/math.js';
 import { olWarm, outlinePass } from '../effects/screen-outlines.js';
+import { fadeDepthMat } from '../effects/outlines.js';
 import { POST, postTargets, PS_RT, renderFrame } from '../effects/post.js';
 import { netLink } from '../net/net.js';
 import { flushModels } from '../core/geometry.js';
@@ -42,9 +43,10 @@ function adaptResolution(rdt) {
 // the fade in (warmQ: newRun, ui/screens.js)
 const WARM_AT = 20;
 export let warmQ = false, warmN = 0;
-// and the plain shadow's: everything else that casts a moving shadow has its own (a zombie's fades with it), so the
-// first that doesn't (a drop on the ground) would build it mid-wave. A speck far under the ground casts one always
-const WARM_CASTER = (() => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshLambertMaterial({ colorWrite: false, depthWrite: false })); m.position.set(0, -40, 0); m.castShadow = true; m.frustumCulled = false; scene.add(m); return m; })();
+// and the shadows' own: the plain one (a drop on the ground's) and the one a zombie's fades with (effects/outlines.js:
+// fadeDepthMat), which would otherwise first be built mid-wave. Two specks far under the ground cast them always, every
+// frame, so they're built as the shadow map is really drawn (three keys a shadow's shader to the frame's lights as well)
+const WARM_CASTERS = [null, fadeDepthMat()].map(dm => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshLambertMaterial({ colorWrite: false, depthWrite: false })); m.position.set(0, -40, 0); m.castShadow = true; m.frustumCulled = false; if (dm) m.customDepthMaterial = dm; scene.add(m); return m; });
 function warmShaders() {
   const prev = R.getRenderTarget();
   try {

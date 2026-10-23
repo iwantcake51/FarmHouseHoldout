@@ -1,7 +1,7 @@
 // Day/night cycle colours and the sun.
 
 import { $ } from '../core/dom.js';
-import { hemi, scene, sun, SUN_D, SUN_R, V3 } from '../core/renderer.js';
+import { hemi, LIGHT_K, scene, sun, SUN_D, SUN_R, V3 } from '../core/renderer.js';
 import { cache, clamp, mix, rand, rr, smooth } from '../core/math.js';
 import { LMU } from '../core/shaders.js';
 import { openings } from '../world/house.js';
@@ -27,7 +27,7 @@ function lightAt(h) {
   let k = 0; while (k < DAY.length - 2 && DAY[k + 1][0] <= h) k++;
   const a = DAY[k], b = DAY[k + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1), lerp = (u, v) => u + (v - u) * t;
   _c1.setHex(a[1]).lerp(_c2.setHex(b[1]), t); sun.color.copy(_c1);
-  sun.intensity = lerp(a[2], b[2]); hemi.intensity = lerp(a[3], b[3]);
+  sun.intensity = lerp(a[2], b[2]) * LIGHT_K; hemi.intensity = lerp(a[3], b[3]) * LIGHT_K;
   _c1.setHex(a[4]).lerp(_c2.setHex(b[4]), t); scene.background.copy(_c1); scene.fog.color.copy(_c1);
   _c1.setHex(a[5]).lerp(_c2.setHex(b[5]), t); const lv = lerp(a[6], b[6]);
   amb[0] = _c1.r * lv; amb[1] = _c1.g * lv; amb[2] = _c1.b * lv;
