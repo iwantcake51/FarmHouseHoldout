@@ -134,9 +134,13 @@ browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,
 one-hit kills, waves off, and the game's speed (¼× to 2×). Its sections cover you and your supplies, health and every
 status effect, weapons (any of them, turning in 3D with its numbers, and the upgrades, rounds and mods of the one in
-your hands), skills and perks, curses (taken, lifted, or a sacrifice promised for the next hand), zombies (any kind in
-any outfit sent in at the fence or right in front of you, their armour cracked or broken off, the waves) and the
-world (the hour, fog). The switches are remembered between visits; everything else acts on the run you're in.
+your hands), your character (every part of your look: skin, face, eyes, hair and beard, hat, top, trousers, shoes,
+gloves, wrists, pack and holster, each with its stock colours or any colour at all, shown on a copy of you in a little
+studio whose camera glides in to whatever you're changing, and kept for new runs if you like), skills and perks, curses
+(taken, lifted, or a sacrifice promised for the next hand), zombies (their minds hunting, passive or switched off, and
+their speed, damage and health; any kind in any outfit sent in at the fence or right in front of you; their armour
+cracked or broken off; the waves) and the world (the hour, fog). The switches are remembered between visits;
+everything else acts on the run you're in.
 
 ### How the code fits together
 

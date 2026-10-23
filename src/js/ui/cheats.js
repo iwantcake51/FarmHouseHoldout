@@ -14,6 +14,7 @@ import { cv } from '../core/renderer.js';
 import { rand } from '../core/math.js';
 import { NET } from '../net/net.js';
 import { P } from '../player/player.js';
+import { dealWrist, GLOVE_COLS, LOOK, LOOKS, rollLook, shade, WRIST_KINDS } from '../player/look.js';
 import { addBlood } from '../effects/body-blood.js';
 import { SLOT_NAME, SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
@@ -47,10 +48,10 @@ import { feed, popEl, toast } from './hud-text.js';
 import { curDark } from '../lighting/day-night.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from './hud.js';
-import { gunView, hideGun, showGun } from './gun-view.js';
+import { gunView, hideGun, showFigure, showGun } from './gun-view.js';
 
 const CHEAT_KEY = 'kessler-cheats';
-const CHEAT = { god: false, scrap: false, ammo: false, mag: false, onehit: false, noWaves: false, clock: false, fog: false, speed: 1 };
+const CHEAT = { god: false, scrap: false, ammo: false, mag: false, onehit: false, noWaves: false, clock: false, fog: false, speed: 1, zAI: 'on', zSpeed: 1, zDmg: 1, zHp: 1, keepLook: false, myLook: null };
 try { Object.assign(CHEAT, JSON.parse(localStorage.getItem(CHEAT_KEY) || '{}')); } catch (e) {}
 const saveCheats = () => { try { localStorage.setItem(CHEAT_KEY, JSON.stringify(CHEAT)); } catch (e) {} };
 const CHEAT_TOGGLES = {
@@ -61,6 +62,7 @@ const CHEAT_TOGGLES = {
   onehit: { ico: ['b', 'skull'], name: 'One-hit kills', short: 'One hit', text: 'Anything you hit dies, armour, brutes and all.' },
   noWaves: { ico: ['b', 'flag_triangle'], name: 'Waves off', short: 'Waves off', text: 'No zombies spawn. The break timer stops, and a wave in progress stops sending more.' },
   clock: { ico: ['b', 'hourglass'], name: 'Freeze clock', short: 'Clock frozen', text: 'The time of day stays where you set it, even during a wave.' },
+  keepLook: { ico: ['g', 'poloShirt'], name: 'Keep this look', short: 'Look kept', text: 'Every new run starts with you looking just like this, instead of someone new.' },
   fog: { ico: ['g', 'night'], name: 'Fog every wave', short: 'Fog', text: 'Every wave is a fog round: it rolls in off the fields as the wave starts (world/mist.js).' }
 };
 // the switches along the top, always in reach, and the speeds the game can run at
@@ -75,6 +77,12 @@ const cheatsOff = () => NET.on;
 export const cheatIs = k => !!CHEAT[k] && !cheatsOff();
 // how fast the game runs (game/loop.js): set from the quick bar, never in co-op
 export const cheatSpeed = () => cheatsOff() ? 1 : CHEAT.speed || 1;
+// what the zombies' minds are set to (zombies/ai.js, zombies/spawn.js): off (they stand where they are), passive (they
+// come for you but never lay a hand on you or the boards), and their speed, their damage to you and new ones' health
+const AI_NORMAL = { off: false, passive: false, speed: 1, dmg: 1, hp: 1 };
+export const cheatAI = () => cheatsOff() ? AI_NORMAL : { off: CHEAT.zAI === 'off', passive: CHEAT.zAI === 'passive', speed: CHEAT.zSpeed ?? 1, dmg: CHEAT.zDmg ?? 1, hp: CHEAT.zHp ?? 1 };
+// the look you made in the character section, kept for new runs if you asked (ui/screens.js); null for a fresh one
+export const cheatLook = () => !cheatsOff() && CHEAT.keepLook && CHEAT.myLook ? JSON.parse(JSON.stringify(CHEAT.myLook)) : null;
 // every frame of play (game/update.js): keep what the switches promise
 export function cheatTick() {
   if (cheatsOff()) { if (cheatOn) toggleCheats(false); const t = $('cheatTag'); if (!t.hidden) t.hidden = true; return; }
@@ -131,7 +139,7 @@ const ico = ([set, k], cls = '') => set === 'b' ? `<svg class="chIco ${cls}" vie
 const curseIcon = id => `<svg class="chCi" viewBox="${GI_VB}" aria-hidden="true">${CURSE_ICON[id]}</svg>`;
 
 // the sections down the side: their names and marks (ui/game-icons.js, from game-icons.net)
-const RAIL = [['player', 'You', 'person'], ['health', 'Health', 'heartPlus'], ['weapons', 'Weapons', 'pistolGun'], ['skills', 'Skills', 'skills'], ['curses', 'Curses', 'cursedStar'], ['zombies', 'Zombies', 'zombie'], ['world', 'World', 'sunCloud']];
+const RAIL = [['player', 'You', 'person'], ['look', 'Character', 'poloShirt'], ['health', 'Health', 'heartPlus'], ['weapons', 'Weapons', 'pistolGun'], ['skills', 'Skills', 'skills'], ['curses', 'Curses', 'cursedStar'], ['zombies', 'Zombies', 'zombie'], ['world', 'World', 'sunCloud']];
 function renderRail() {
   const badge = { curses: (S.curses || []).length, skills: run.taken.filter(t => !t.on && t.r !== 'x').length };
   $('chRail').innerHTML = RAIL.map(([k, name, ico]) => `<button type="button" role="tab" data-tab="${k}" class="${!cheatFind && cheatTab === k ? 'on' : ''}" aria-selected="${!cheatFind && cheatTab === k}"><svg viewBox="${GI_VB}" aria-hidden="true">${GI[ico]}</svg><span>${name}</span>${badge[k] ? `<em>${badge[k]}</em>` : ''}</button>`).join('');
@@ -152,7 +160,7 @@ function renderCheats() {
   const wc = chBody.querySelector('.chWc'); if (wc && wc.dataset.id !== lastCard) { wc.classList.add('new'); lastCard = wc.dataset.id; }
   // the turning weapon: the one canvas, kept from render to render so it keeps its picture
   const slot = chBody.querySelector('.chViewSlot');
-  if (slot) { slot.prepend(gunView); showGun(chPick()); } else hideGun();
+  if (slot) { slot.prepend(gunView); if (slot.classList.contains('fig')) { showFigure(lookPart, lookFresh); lookFresh = false; } else showGun(chPick()); } else hideGun();
   cheatTag(); cheatLiveTick();
 }
 // the readouts that change on their own while the menu is open
@@ -172,6 +180,8 @@ function cheatLiveTick() {
 function cheatTag() {
   const on = Object.keys(CHEAT_TOGGLES).filter(k => CHEAT[k]).map(k => CHEAT_TOGGLES[k].short);
   if ((CHEAT.speed || 1) !== 1) on.push('Speed ' + CHEAT.speed + '×');
+  if (CHEAT.zAI !== 'on') on.push('Zombies ' + (CHEAT.zAI === 'off' ? 'switched off' : 'passive'));
+  [['zSpeed', 'speed'], ['zDmg', 'damage'], ['zHp', 'health']].forEach(([k, n]) => { if ((CHEAT[k] ?? 1) !== 1) on.push(`Zombie ${n} ${CHEAT[k]}×`); });
   const el = $('cheatTag'); el.hidden = !on.length || cheatsOff();
   el.textContent = on.length ? 'Cheats · ' + on.join(' · ') + ' · F9' : '';
 }
@@ -194,6 +204,8 @@ function searchAll(q) {
   const wp = Object.keys(WEAP).filter(id => hit(WEAP[id].name, WEAP[id].short || '', SLOT_NAME[WEAP[id].slot], WEAP[id].melee ? '' : calibre(id))); if (wp.length) parts.push(chHead('Weapons', 'Pick one to look it over, then give it to yourself') + `<div class="chWeaps">${wp.map(weapTile).join('')}</div>`);
   const sk = chSkillRows().filter(r => hit(r.name, r.text, r.kind)); if (sk.length) parts.push(chHead('Skills and perks') + sk.map(skillRow).join(''));
   const cu = CURSES.filter(c => hit(c.name, c.text, 'curse')); if (cu.length) parts.push(chHead('Curses') + cu.map(curseRow).join(''));
+  if (hit('zombie ai minds passive switched off hunting speed damage health')) parts.push(mindsCard());
+  if (hit('character look appearance face hair beard hat top shirt trousers shoes skin eyes gloves wrist watch customise customize')) parts.push(chHead('Character') + `<div class="chBtns">${chBtn(ico(['g', 'poloShirt']) + 'Change how you look', 'goto', { t: 'look' }, 'big')}</div>`);
   const zt = Object.keys(ZT).filter(t => hit(t, 'zombie spawn')); if (zt.length) parts.push(chHead('Zombies') + `<div class="chBtns">${zt.map(t => chBtn('Send in a ' + t, 'spawn', { t, n: 1 })).join('')}</div>`);
   return parts.join('') || `<p class="chNone">Nothing matches “${esc(q)}”.</p>`;
 }
@@ -275,7 +287,7 @@ const CHEAT_TABS = {
       `<div class="chCard"><div class="chRow"><span class="chK">Next hand offers<small>${SAC.force ? `A ${SAC.force} sacrifice, once the wave's done` : 'Whatever the odds give it'}${left < 3 ? ' · too few legendaries left for a curse to pay for' : ''}</small></span><span class="chGrp">${chBtn('Scrap', 'sacforce', { k: 'scrap' }, SAC.force === 'scrap' ? 'have' : '')}${chBtn('Curse', 'sacforce', { k: 'curse' }, SAC.force === 'curse' ? 'have' : '')}${chBtn(ico(['b', 'dice']) + 'Chance', 'sacforce', { k: '' }, 'ghost', !SAC.force)}</span></div></div>`;
   },
   zombies() {
-    return chHead('Waves', '', ['b', 'flag_triangle']) + `<div class="chTgs">${chToggle('noWaves')}</div>` + `<div class="chCard">` +
+    return mindsCard() + chHead('Waves', '', ['b', 'flag_triangle']) + `<div class="chTgs">${chToggle('noWaves')}</div>` + `<div class="chCard">` +
       `<div class="chRow"><span class="chK">Now</span><b data-live="phase" class="wide"></b></div>` +
       `<div class="chRow"><span class="chK">Wave<small data-live="wavenext"></small></span><b data-live="wave"></b>${chStep('wave', {}, '', run.wave > 0, true)}</div>` +
       `<div class="chRow"><span class="chK">Zombies left</span><b data-live="zeds"></b><span class="chGrp">${chBtn(ico(['b', 'skull']) + 'Kill all', 'killall', {}, 'warn')}${chBtn('Next wave now', 'nextwave', {}, '', CHEAT.noWaves || phase !== 'break' || state === 'title')}</span></div></div>` +
@@ -288,12 +300,121 @@ const CHEAT_TABS = {
       chHead('Armour', 'On the zombies wearing it', ['b', 'shield']) +
       `<div class="chCard"><div class="chRow"><span class="chK">Wearing armour</span><b data-live="armed"></b><span class="chGrp">${chBtn('Crack it', 'armor', { k: 'crack' })}${chBtn('Break it off', 'armor', { k: 'break' }, 'warn')}</span></div></div>`;
   },
+  look() { return lookSection(); },
   world() {
     return chHead('Time of day', '', ['b', 'hourglass']) + `<div class="chCard"><div class="chTime"><b data-live="clock" class="chClock"></b><input id="chTime" type="range" min="0" max="23.99" step="0.05" value="${tod}" aria-label="Time of day"></div>` +
       `<div class="chBtns">${[['Midnight', 0], ['Dawn', 6], ['Noon', 12], ['Afternoon', 15], ['Dusk', 18.5], ['Night', 21]].map(([l, h]) => chBtn(`${l}<small>${clockText(h)}</small>`, 'time', { h })).join('')}</div></div>` +
       `<div class="chTgs">${chToggle('clock')}${chToggle('fog')}</div>`;
   }
 };
+
+// ---- zombies' minds: on, passive or off, and how fast, how hard and how tough ------------------------------------------
+const MINDS = [['on', 'Hunting', 'As the game has them: they come for you, tear at the boards and hit you.'], ['passive', 'Passive', 'They come for you and crowd round, but never hit you or tear at the boards; spitters hold their acid and brutes never charge.'],
+  ['off', 'Switched off', 'They stand where they are and do nothing at all, wherever they were.']];
+const chSlider = (label, k, min, max, step, sub = '') => `<div class="chSl"><span class="chK">${label}${sub ? `<small>${sub}</small>` : ''}</span><input type="range" data-ck="${k}" min="${min}" max="${max}" step="${step}" value="${CHEAT[k] ?? 1}" aria-label="${esc(label)}"><b data-slv="${k}">${(+(CHEAT[k] ?? 1)).toFixed(2)}×</b></div>`;
+function mindsCard() {
+  const m = MINDS.find(x => x[0] === CHEAT.zAI) || MINDS[0], normal = CHEAT.zAI === 'on' && ['zSpeed', 'zDmg', 'zHp'].every(k => (CHEAT[k] ?? 1) === 1);
+  return chHead('Zombie minds', 'What they do, and how fast, how hard and how tough', ['g', 'brain']) + `<div class="chCard chSpawn">` +
+    `<div class="chSeg">${MINDS.map(([v, n]) => `<button type="button" class="${CHEAT.zAI === v ? 'on' : ''}" data-act="zai" data-v="${v}">${n}</button>`).join('')}</div><p class="chNote">${m[2]}</p>` +
+    chSlider('Speed', 'zSpeed', 0.25, 3, 0.05, 'How fast they walk, run and crawl') + chSlider('Damage to you', 'zDmg', 0, 3, 0.05, 'How hard their hits land on you') + chSlider('Health', 'zHp', 0.25, 5, 0.05, 'How tough the ones that turn up from now on are') +
+    `<div class="chBtns">${chBtn('Back to normal', 'zreset', {}, 'ghost', normal)}</div></div>`;
+}
+
+// ---- you: every part of your look (player/look.js), changed and built on you at once, the studio gliding in to it ----
+let lookPart = 'face', lookFresh = true;
+const LOOK_TABS = [['body', 'Whole'], ['face', 'Face'], ['hair', 'Hair'], ['hat', 'Hat'], ['top', 'Top'], ['legs', 'Trousers'], ['shoes', 'Shoes'], ['hands', 'Hands'], ['gear', 'Gear']];
+// what each part's re-roll deals afresh
+const LOOK_KEYS = { face: ['skin', 'eyes', 'eyes2', 'face'], hair: ['hair', 'hairStyle', 'beard', 'beardCol'], hat: ['hat', 'hatCol'], top: ['top', 'topCol', 'print', 'under', 'dress', 'tie', 'square'],
+  legs: ['pants'], shoes: ['shoes', 'sneak', 'dressShoe'], hands: ['glove', 'wrist'], gear: ['pack', 'roll', 'holster'] };
+const NICE = { tee: 'T-shirt', work: 'Work shirt', poloLong: 'Long-sleeve polo', polo: 'Polo', flannel: 'Flannel', hoodie: 'Hoodie', suit: 'Suit and tie', boots: 'Work boots', blackboots: 'Black boots', tanboots: 'Tan boots',
+  sneakers: 'Sneakers', dress: 'Dress shoes', heavyStubble: 'Heavy stubble', longBeard: 'Long beard', soulPatch: 'Soul patch', muttonChops: 'Mutton chops', vandyke: 'Van Dyke', oneSquint: 'One squint', blackRed: 'Black and red',
+  blueBlack: 'Blue and black', multicam: 'Multicam', tanLeather: 'Tan leather', allBlack: 'All black', none: 'None', stripe: 'Striped', paracord: 'Paracord', string: 'Strings' };
+const nice = v => NICE[v] || String(v).replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()).replace(/ ([A-Z])/g, (_, c) => ' ' + c.toLowerCase());
+const hexOf = c => '#' + ((c >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+const uniq = a => [...new Set(a)];
+const lookGet = path => path.split('.').reduce((o, k) => o == null ? undefined : o[k], LOOK.cur);
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+// a row of choices, of colours (the stock ones, and any colour at all), a switch, a slider
+function lkChoice(label, path, opts) {
+  const cur = lookGet(path);
+  return `<div class="chLk"><span class="chLkL">${label}</span><div class="chLkO">${opts.map(o => { const [v, l] = Array.isArray(o) ? o : [o, nice(o)]; return `<button type="button" class="${same(cur, v) ? 'on' : ''}" data-act="lk" data-f="${path}" data-v="${esc(JSON.stringify(v))}">${esc(l)}</button>`; }).join('')}</div></div>`;
+}
+function lkColour(label, path, sw, none) {
+  const cur = lookGet(path);
+  return `<div class="chLk"><span class="chLkL">${label}</span><div class="chLkO sw">${none ? `<button type="button" class="none${!cur ? ' on' : ''}" data-act="lk" data-f="${path}" data-v="0" title="None">${ico(['g', 'crossMark'])}</button>` : ''}` +
+    uniq(sw).map(c => `<button type="button" class="${cur === c ? 'on' : ''}" style="--c:${hexOf(c)}" data-act="lk" data-f="${path}" data-v="${c}" title="${hexOf(c)}"></button>`).join('') +
+    `<label class="any${cur && !sw.includes(cur) ? ' on' : ''}" title="Any colour"${cur ? ` style="--c:${hexOf(cur)}"` : ''}><input type="color" data-lf="${path}" value="${hexOf(cur || 0x888888)}"></label></div></div>`;
+}
+const lkToggle = (label, path, onV = true, offV = false) => { const on = !!lookGet(path); return `<button type="button" class="chLkT${on ? ' on' : ''}" data-act="lk" data-f="${path}" data-v="${esc(JSON.stringify(on ? offV : onV))}"><i class="sw"></i>${label}</button>`; };
+const lkSlider = (label, path, min, max, step) => `<div class="chLk"><span class="chLkL">${label}</span><input type="range" data-lf="${path}" data-num="1" min="${min}" max="${max}" step="${step}" value="${lookGet(path)}" aria-label="${esc(label)}"></div>`;
+// the tie: a swatch for each colour, and the striped one
+function lkTie() {
+  const cur = LOOK.cur.tie;
+  return `<div class="chLk"><span class="chLkL">Tie</span><div class="chLkO sw">${LOOKS.tie.filter(t => t !== 'stripe').map(c => `<button type="button" class="${cur === c ? 'on' : ''}" style="--c:${hexOf(c)}" data-act="lk" data-f="tie" data-v="${c}" title="${hexOf(c)}"></button>`).join('')}` +
+    `<button type="button" class="txt${cur === 'stripe' ? ' on' : ''}" data-act="lk" data-f="tie" data-v="&quot;stripe&quot;">Striped</button></div></div>`;
+}
+const SNEAK_SW = [0xe8e4dc, 0x2a2a2a, 0x8a8a86, 0xb3261e, 0x2a6cc4, 0x3e7a48, 0xd8b030, 0xa85a24, 0x6a4a9a, 0xd8d2c4, 0xb08a5a];
+function lookEditor(p) {
+  const L = LOOK.cur, F = L.face || {};
+  switch (p) {
+    case 'face': return lkColour('Skin', 'skin', LOOKS.skin) + lkColour('Eyes', 'eyes', LOOKS.eyes) +
+      `<div class="chLkTs">${lkToggle('A different colour in each eye', 'own.odd')}</div>` + ((L.own || {}).odd ? lkColour('Other eye', 'eyes2', LOOKS.eyes) : '') +
+      lkChoice('Eyes', 'face.eye', uniq(LOOKS.eyeShape)) + lkChoice('Brows', 'face.brow', uniq(LOOKS.brow)) + lkChoice('Nose', 'face.nose', uniq(LOOKS.nose)) + lkChoice('Mouth', 'face.mouth', uniq(LOOKS.mouth)) +
+      lkChoice('Scar', 'face.scar', [[null, 'None'], 'cheek', 'brow', 'lip', 'nose']) + lkChoice('Nicked brow', 'face.slit', [[0, 'None'], [-1, 'Left'], [1, 'Right']]) +
+      lkSlider('Eyes apart', 'face.gap', 0.055, 0.085, 0.001) + lkSlider('Eyes up the face', 'face.eyeY', 0.01, 0.05, 0.001) + lkSlider('Lopsided', 'face.lop', -0.008, 0.008, 0.0005) + lkSlider('Ears', 'face.ears', 0.85, 1.4, 0.01) +
+      `<div class="chLkTs">${lkToggle('Bags under the eyes', 'face.bags')}${lkToggle('Lines', 'face.lines')}${lkToggle('Freckles', 'face.freckles')}${lkToggle('Cleft chin', 'face.cleft')}${lkToggle('Grime', 'face.grime')}${lkToggle('A mole', 'face.mole', [0.07, -0.05], null)}${lkToggle('Eye patch', 'face.patch')}</div>` +
+      (F.patch || F.eye === 'oneSquint' ? lkChoice('Which side', 'face.side', [[-1, 'Left'], [1, 'Right']]) : '');
+    case 'hair': return lkChoice('Hair', 'hairStyle', uniq(LOOKS.hairStyle)) + lkColour('Colour', 'hair', LOOKS.hair) + lkChoice('Facial hair', 'beard', uniq(LOOKS.beard)) + lkColour('Beard colour', 'beardCol', LOOKS.hair.map(c => shade(c, 0.9)));
+    case 'hat': return lkChoice('Hat', 'hat', uniq(LOOKS.hat)) + (L.hat !== 'none' ? lkColour('Colour', 'hatCol', LOOKS.hatCol[L.hat] || []) : '');
+    case 'top': return lkChoice('Top', 'top', uniq([...LOOKS.top, 'suit'])) + lkColour(L.top === 'suit' ? 'Suit' : 'Colour', 'topCol', LOOKS.topCol[L.top] || []) +
+      (['tee', 'polo', 'poloLong'].includes(L.top) ? lkColour(L.top === 'tee' ? 'Print' : 'Logo', 'print', [0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30], true) : '') +
+      (LOOKS.underOdds[L.top] !== undefined ? lkColour('Thermal underneath', 'under', LOOKS.under, true) : '') +
+      (L.top === 'suit' ? lkColour('Shirt', 'dress', LOOKS.dress) + lkTie() + lkColour('Pocket square', 'square', [0xeceae4, 0x8a1e1e, 0xb08a2a, 0x1e2a4a], true) : '');
+    case 'legs': return lkColour('Trousers', 'pants', LOOKS.pants);
+    case 'shoes': return lkChoice('Shoes', 'shoes', uniq([...LOOKS.shoes, 'dress'])) + (L.shoes === 'sneakers' ? lkColour('Upper', 'sneak.0', SNEAK_SW) + lkColour('Sole', 'sneak.1', [0xe8e4dc, 0xd8d2c4, 0xb08a5a, 0x2a2a2a]) + lkColour('Stripe', 'sneak.2', SNEAK_SW) : '') +
+      (L.shoes === 'dress' ? lkColour('Leather', 'dressShoe', LOOKS.dressShoe) : '') + '<p class="chNote">Better footwear from the cards goes on over these.</p>';
+    case 'hands': return lkChoice('Gloves', 'glove', Object.keys(GLOVE_COLS)) + '<p class="chNote">Worn once you have Quick hands II.</p>' +
+      ['L', 'R'].map(sd => { const w = (L.wrist || {})[sd]; return `<div class="chLk"><span class="chLkL">${sd === 'L' ? 'Left wrist' : 'Right wrist'}</span><div class="chLkO">${['none', ...uniq(WRIST_KINDS)].map(k => `<button type="button" class="${(w ? w.kind : 'none') === k ? 'on' : ''}" data-act="lkwrist" data-s="${sd}" data-k="${k}">${nice(k)}</button>`).join('')}${w ? `<button type="button" class="re" data-act="lkwrist" data-s="${sd}" data-k="${w.kind}" title="Another one">${ico(['g', 'dice'])}</button>` : ''}</div></div>`; }).join('');
+    case 'gear': return lkColour('Backpack', 'pack', LOOKS.pack) + lkColour('Bedroll', 'roll', LOOKS.roll) + lkColour('Holster', 'holster', LOOKS.holster);
+    default: return '<p class="chNote">Pick a part of you on the right, or re-roll the lot.</p>';
+  }
+}
+function lookSection() {
+  const name = (LOOK_TABS.find(t => t[0] === lookPart) || LOOK_TABS[0])[1];
+  return `<div class="chViewSlot fig"><div class="chFigNav">${LOOK_TABS.map(([k, n]) => `<button type="button" class="${lookPart === k ? 'on' : ''}" data-act="lkpart" data-p="${k}">${n}</button>`).join('')}</div></div>` +
+    chHead(lookPart === 'body' ? 'All of you' : name, lookPart === 'body' ? '' : 'Changes go on you straight away') + `<div class="chCard chLook">${lookEditor(lookPart)}</div>` +
+    `<div class="chBtns">${lookPart !== 'body' ? chBtn(ico(['g', 'dice']) + 'Re-roll the ' + name.toLowerCase(), 'lkrand', { p: lookPart }) : ''}${chBtn(ico(['g', 'dice']) + 'Re-roll everything', 'lkrand', { p: 'body' }, 'warn')}</div>` +
+    `<div class="chTgs">${chToggle('keepLook')}</div>`;
+}
+// your look changed: built on you (and what you carry rebuilt with it), the studio's copy of you made again, and kept
+// for new runs if you asked
+function applyLook(L) {
+  rollLook(L); buildGuns(); lookFresh = true;
+  if (CHEAT.keepLook) { CHEAT.myLook = LOOK.cur; saveCheats(); }
+}
+function lookSet(path, v) {
+  const L = JSON.parse(JSON.stringify(LOOK.cur)), ks = path.split('.');
+  let o = L; for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]] = o[ks[i]] && typeof o[ks[i]] === 'object' ? o[ks[i]] : {};
+  o[ks[ks.length - 1]] = v;
+  // what goes with a change: a hat's own colours, a suit's shirt, tie, trousers and shoes, the beard following the hair
+  // (till it's given a colour of its own), both eyes the one colour (unless they're to differ)
+  L.own = L.own || {};
+  if (path === 'hat' && v !== 'none' && !(LOOKS.hatCol[v] || []).includes(L.hatCol)) L.hatCol = LOOKS.hatCol[v][0];
+  if (path === 'top' && v === 'suit') { L.dress = L.dress ?? LOOKS.dress[0]; L.tie = L.tie ?? LOOKS.tie[0]; L.square = L.square ?? 0; L.shoes = 'dress'; L.dressShoe = L.dressShoe ?? LOOKS.dressShoe[0]; L.pants = L.topCol; }
+  if (path === 'shoes' && v === 'dress') L.dressShoe = L.dressShoe ?? LOOKS.dressShoe[0];
+  if (path === 'hair' && !L.own.beard) delete L.beardCol;
+  if (path === 'beardCol') L.own.beard = true;
+  if (path === 'eyes' && !L.own.odd) L.eyes2 = v;
+  if (path === 'own.odd' && !v) L.eyes2 = L.eyes;
+  applyLook(L);
+}
+// one part dealt afresh (or the whole of you)
+function lookReroll(p) {
+  if (p === 'body') { applyLook(undefined); return; }
+  const L = JSON.parse(JSON.stringify(LOOK.cur)); (LOOK_KEYS[p] || []).forEach(k => delete L[k]);
+  if (p === 'hair' && L.own) delete L.own.beard; if (p === 'face' && L.own) delete L.own.odd;
+  applyLook(L);
+}
 
 // ---- weapons: the one picked (looked over in 3D) and its card ---------------------------------------------------------
 let cheatPick = null, lastCard = null;
@@ -415,7 +536,7 @@ function chSpawn(t, n) {
 
 // ---- what the buttons do ----------------------------------------------------------------------------------------------
 const CHEAT_ACTS = {
-  tg: d => { CHEAT[d.k] = !CHEAT[d.k]; saveCheats(); if (CHEAT[d.k]) cheatTick(); },
+  tg: d => { CHEAT[d.k] = !CHEAT[d.k]; if (d.k === 'keepLook') CHEAT.myLook = CHEAT.keepLook ? LOOK.cur : null; saveCheats(); if (CHEAT[d.k]) cheatTick(); },
   speed: d => { CHEAT.speed = +d.v; saveCheats(); },
   heal: () => { P.hp = hpCap(); P.bleed = 0; P.slow = 0; },
   healn: d => { P.hp = Math.min(hpCap(), P.hp + +d.n); },
@@ -453,6 +574,13 @@ const CHEAT_ACTS = {
   curse: d => { const c = CURSES.find(x => x.id === d.id); if (!c) return; if (+d.d > 0) { if (c.can()) takeCurse(c); } else dropCurse(c); },
   nocurses: () => { CURSES.forEach(dropCurse); },
   sacforce: d => { SAC.force = d.k || null; },
+  zai: d => { CHEAT.zAI = d.v; saveCheats(); },
+  zreset: () => { CHEAT.zAI = 'on'; CHEAT.zSpeed = CHEAT.zDmg = CHEAT.zHp = 1; saveCheats(); },
+  goto: d => { cheatTab = d.t; cheatFind = ''; chFind.value = ''; chBody.scrollTop = 0; },
+  lkpart: d => { lookPart = d.p; },
+  lk: d => { lookSet(d.f, JSON.parse(d.v)); },
+  lkwrist: d => { const L = JSON.parse(JSON.stringify(LOOK.cur)); L.wrist = L.wrist || { L: null, R: null }; L.wrist[d.s] = d.k === 'none' ? null : dealWrist(d.k); applyLook(L); },
+  lkrand: d => { lookReroll(d.p); },
   seg: d => { SPAWN[d.g] = d.v; },
   spawn: d => chSpawn(d.t, +d.n || 1),
   armor: d => { zombies.filter(z => !z.dead && z.armor).forEach(z => Object.keys(z.armor).forEach(k => { if (d.k === 'crack') crackArmor(z, k); else breakArmor(z, k, rand() - 0.5, rand() - 0.5); })); },
@@ -477,7 +605,18 @@ chEl.addEventListener('input', e => {
   if (e.target.id === 'chTime') { setTod(+e.target.value); cheatLiveTick(); }
   if (e.target.id === 'chHp') { P.hp = +e.target.value; cheatLiveTick(); }
   if (e.target.id === 'chFind') { cheatFind = e.target.value; chBody.scrollTop = 0; renderCheats(); }
+  // the zombies' sliders: set as you drag, the number beside them following
+  const ck = e.target.dataset.ck; if (ck) { CHEAT[ck] = +e.target.value; saveCheats(); const b = chBody.querySelector(`[data-slv="${ck}"]`); if (b) b.textContent = (+e.target.value).toFixed(2) + '×'; cheatTag(); }
+  // your look's colours and sliders: put on you a few times a second as you drag, and once more where you let go
+  const lf = e.target.dataset.lf; if (lf) lookLive(lf, e.target, false);
 });
+chEl.addEventListener('change', e => { const lf = e.target.dataset.lf; if (lf) lookLive(lf, e.target, true); });
+let lookLiveT = 0;
+function lookLive(path, el, done) {
+  const v = el.dataset.num ? +el.value : parseInt(el.value.slice(1), 16), now = performance.now();
+  if (!done && now - lookLiveT < 140) return; lookLiveT = now;
+  lookSet(path, v); if (done) renderCheats(); else if (cheatOn) showFigure(lookPart, true);
+}
 // typing in the search box or dragging the slider doesn't move you or fire; F9 and Esc still close the menu (Esc clears
 // a search first), Enter hands the keyboard back to the game
 chEl.addEventListener('keydown', e => {

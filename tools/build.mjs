@@ -33,6 +33,8 @@ function cheatTick() {}
 function cheatSaves() { return false; }
 function cheatIs() { return false; }
 function cheatSpeed() { return 1; }
+function cheatAI() { return { off: false, passive: false, speed: 1, dmg: 1, hp: 1 }; }
+function cheatLook() { return null; }
 function toggleCheats() {}
 `;
 

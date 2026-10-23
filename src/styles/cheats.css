@@ -137,6 +137,46 @@
 .chWt.sel{border-color:var(--orange);background:linear-gradient(180deg,rgba(var(--acc),.2),rgba(var(--acc),.06));box-shadow:0 0 0 1px rgba(var(--acc),.4),0 4px 14px rgba(0,0,0,.35)}
 .chWt.ghost{background:none;border-style:dashed}
 .chWt:disabled{opacity:.35;cursor:default}
+/* the character section: you in the studio, its parts down the right (pick one and the camera glides to it), and what
+   that part can be under it: rows of choices, swatches (and any colour at all), switches and sliders */
+.chViewSlot.fig{grid-template-columns:1fr 116px}
+.chViewSlot.fig .chView{height:300px}
+.chViewSlot.fig::after{left:6%;width:66%}
+.chFigNav{display:flex;flex-direction:column;gap:2px;padding:8px 6px;border-left:1px solid var(--chLine);background:rgba(0,0,0,.25);overflow-y:auto}
+.chFigNav button{padding:6px 9px;border:0;border-radius:3px;background:none;color:var(--dim);font:600 11px var(--f-ui);text-align:left;cursor:pointer;transition:background .15s,color .15s}
+.chFigNav button:hover{color:var(--ink);background:rgba(236,230,216,.06)}
+.chFigNav button.on{color:#1a120c;background:var(--orange)}
+.chLook{padding:6px 10px 8px}
+.chLk{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(236,230,216,.06)}
+.chLk:last-child{border-bottom:0}
+.chLkL{color:#d4cebf;font-size:11px}
+.chLkO{display:flex;flex-wrap:wrap;gap:3px}
+.chLkO button{padding:3px 8px;border:1px solid rgba(236,230,216,.14);border-radius:3px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.chLkO button:hover{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.chLkO button.on{background:rgba(var(--acc),.22);border-color:var(--orange);color:var(--ink)}
+.chLkO button.re .chIco{width:12px;height:12px;vertical-align:-2px}
+/* swatches: round chips of colour, the picked one ringed; the last opens any colour at all */
+.chLkO.sw{gap:4px}
+.chLkO.sw button,.chLkO.sw .any{position:relative;width:20px;height:20px;padding:0;border-radius:50%;border:2px solid rgba(0,0,0,.55);background:var(--c,#888);box-shadow:0 0 0 1px rgba(236,230,216,.18);cursor:pointer}
+.chLkO.sw button.on,.chLkO.sw .any.on{box-shadow:0 0 0 2px var(--orange),0 0 8px rgba(var(--acc),.6)}
+.chLkO.sw button.txt{width:auto;height:20px;padding:0 8px;border-radius:10px;background:rgba(236,230,216,.06);color:#c9c3b5;font:600 10px var(--f-ui)}
+.chLkO.sw button.none{display:grid;place-items:center;background:rgba(236,230,216,.06)}
+.chLkO.sw button.none .chIco{width:10px;height:10px;fill:var(--dim)}
+.chLkO.sw .any{background:conic-gradient(#e2412c,#e8b84a,#6fd07a,#5f9ee8,#a585f4,#e2412c);overflow:hidden}
+.chLkO.sw .any.on{background:var(--c)}
+.chLkO.sw .any input{position:absolute;inset:-6px;opacity:0;cursor:pointer}
+.chLk input[type=range]{width:100%;accent-color:var(--orange);cursor:pointer}
+.chLkTs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0}
+.chLkT{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 5px;border:1px solid rgba(236,230,216,.14);border-radius:12px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer}
+.chLkT .sw{position:relative;width:22px;height:12px;border-radius:6px;background:rgba(236,230,216,.16);transition:background .15s}
+.chLkT .sw::after{content:"";position:absolute;left:2px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:translate .15s,background .15s}
+.chLkT.on{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.chLkT.on .sw{background:var(--orange)}
+.chLkT.on .sw::after{translate:10px 0;background:#fff}
+/* the zombies' minds: sliders with their number beside them */
+.chSl{display:grid;grid-template-columns:150px 1fr 48px;gap:10px;align-items:center;padding:6px 0;border-top:1px solid rgba(236,230,216,.06)}
+.chSl input{width:100%;accent-color:var(--orange);cursor:pointer}
+.chSl b{text-align:right;font:800 14px var(--f-num);font-variant-numeric:tabular-nums}
 /* curses: their mark, what they cost, and taking or lifting them */
 .chCurse{display:flex;align-items:center;gap:10px;margin-bottom:5px;padding:8px 10px;border:1px solid var(--chLine);border-left:3px solid rgba(232,80,58,.35);border-radius:4px;background:var(--chCard);transition:background .15s,border-color .15s}
 .chCurse .chCi{flex:none;width:26px;height:26px;padding:4px;border-radius:50%;background:rgba(232,80,58,.1);fill:#c9705e}
@@ -170,7 +210,10 @@
   .chRail{flex-direction:row;padding:0 6px;border-right:0;border-bottom:1px solid var(--chLine);overflow-x:auto}
   .chRail button{flex:1;padding:7px 6px}
   .chRail button.on::before{left:6px;right:6px;top:auto;bottom:0;width:auto;height:3px;border-radius:2px 2px 0 0}
-  .chViewSlot{grid-template-columns:1fr}
+  .chViewSlot,.chViewSlot.fig{grid-template-columns:1fr}
+  .chFigNav{flex-direction:row;flex-wrap:wrap;border-left:0;border-top:1px solid var(--chLine)}
+  .chLk{grid-template-columns:1fr}
+  .chSl{grid-template-columns:1fr 48px}.chSl input{grid-column:1/-1;grid-row:2}
   .chWc{border-left:0;border-top:1px solid var(--chLine)}
 }
 /* the reminder on the HUD while a switch is on */
