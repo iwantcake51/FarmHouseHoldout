@@ -32,6 +32,7 @@ const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWa
 function cheatTick() {}
 function cheatSaves() { return false; }
 function cheatIs() { return false; }
+function cheatSpeed() { return 1; }
 function toggleCheats() {}
 `;
 

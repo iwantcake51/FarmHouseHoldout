@@ -8,6 +8,7 @@ import { $ } from '../core/dom.js';
 import { KEN_ICONS, MOUSE_PARTS } from './input-icons-data.js';
 import { iconOf, keyIcon } from './input-icons.js';
 import { BIND_GROUPS, BIND_LOCK, KB, keyLabel, keyOn } from '../input/keybinds.js';
+import { GI, GI_VB } from './game-icons.js';
 import { clamp } from '../core/math.js';
 import { binding, finishBinding, LOCK_SVG } from './settings.js';
 
@@ -58,7 +59,7 @@ export function controlsHtml() {
   const legend = Object.entries(KGROUP_COL).map(([n, c]) => `<span style="--gc:${c}"><i></i>${n}</span>`).join('');
   return `<div class="kWrap">
     <div class="kLeft">
-      <label class="kSearch"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.4 10.4 3.4 3.4"/></svg><input type="search" id="kFind" placeholder="Search controls or keys" autocomplete="off" spellcheck="false" aria-label="Search controls"><button type="button" class="kClear" aria-label="Clear the search">×</button></label>
+      <label class="kSearch"><svg viewBox="${GI_VB}" aria-hidden="true">${GI.magnify}</svg><input type="search" id="kFind" placeholder="Search controls or keys" autocomplete="off" spellcheck="false" aria-label="Search controls"><button type="button" class="kClear" aria-label="Clear the search">×</button></label>
       <div class="kList">${list}<p class="kEmpty" hidden>Nothing matches <b></b></p></div>
       <p class="kNote">Click a key on the right of a line, then press the new one, or click it on the keyboard. A key already in use swaps over. Esc leaves it as it was.</p>
     </div>

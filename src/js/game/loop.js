@@ -17,6 +17,7 @@ import {
 } from './state.js';
 import { tickDeath } from '../ui/screens.js';
 import { update } from './update.js';
+import { cheatSpeed } from '../ui/cheats.js';
 import { visuals } from './visuals.js';
 import { netTick } from '../net/sync.js';
 import { SET, tickFps } from '../ui/settings.js';
@@ -73,7 +74,7 @@ function frame(now) {
   const coop = netLink() && state === 'paused';   // (co-op: the farm doesn't stop while you're paused)
   if (state === 'play' || (state === 'dead' && P.dead) || coop) {
     if (P.dead) tickDeath(rdt);
-    simDt = rdt * timeScale; if (simDt > 0) update(simDt);
+    simDt = rdt * timeScale * cheatSpeed(); if (simDt > 0) update(simDt);   // (the cheat menu's game speed: ui/cheats.js)
     if (P.dead) { /* tickDeath owns the time scale */ }
     else if (slowIn > 0) { setSlowIn(slowIn - rdt); setTimeScale(timeScale + ((slowTo - timeScale) * Math.min(1, rdt * 9))); }
     else if (slowHold > 0) { setSlowHold(slowHold - rdt); setTimeScale(timeScale + ((slowTo - timeScale) * Math.min(1, rdt * 9))); }

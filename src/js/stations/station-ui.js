@@ -3,6 +3,7 @@
 import { $, smoothWheel } from '../core/dom.js';
 import { keyOn } from '../input/keybinds.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
+import { BOARD, BOARD_VB } from '../ui/board-icons-data.js';
 import { netLink } from '../net/net.js';
 import { STATIONS } from './stations.js';
 import { rackClick, renderRack, updateRackSide } from './armory.js';
@@ -202,7 +203,7 @@ function quickBar(rows) {
 // ---- the sawhorse's way up to the metalwork bench (barricades/metal-bars.js): one button pinned along the bottom, as
 // the workbench's ammo is, saying what it takes: the boards braced all the way (BRACE.max) and METAL_COST scrap. Grey
 // with what's still missing ticked off as you get it, it eases into colour with a pop once you can, and a click builds it
-const FG_TICK = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z"/></svg>', FG_LOCK = '<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+const FG_TICK = `<svg viewBox="${GI_VB}">${GI.checkMark}</svg>`, FG_LOCK = `<svg viewBox="${BOARD_VB}"><path d="${BOARD.lock_closed}"/></svg>`;   // (game-icons.net, Kenney's board game pack)
 let fgReady = null;
 function forgeBar() {
   const el = $('stForge'), on = !!openSt && openSt.id === 'saw' && !METAL.on;

@@ -161,9 +161,9 @@
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
 <div id="cheat" hidden role="dialog" aria-label="Cheat menu">
-  <div class="chTop"><b>Cheat menu</b><span>The game keeps running</span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
-  <div class="chTabs" role="tablist"><button type="button" data-tab="player">Player</button><button type="button" data-tab="health">Health</button><button type="button" data-tab="weapons">Weapons</button><button type="button" data-tab="skills">Skills</button><button type="button" data-tab="world">World</button></div>
-  <div id="chBody"></div>
+  <div class="chTop"><b>Cheats</b><label class="chSearch"><svg data-gi="magnify" aria-hidden="true"></svg><input id="chFind" type="search" placeholder="Search every cheat" autocomplete="off" spellcheck="false" aria-label="Search every cheat"></label><span class="chSpeed" id="chSpeed" role="group" aria-label="Game speed"></span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
+  <div class="chQuick" id="chQuick"></div>
+  <div class="chMain"><nav class="chRail" id="chRail" role="tablist" aria-label="Sections"></nav><div id="chBody"></div></div>
 </div>
 <!-- /cheats -->
 <div class="hud" id="station" hidden>
@@ -315,7 +315,7 @@
 <div id="settings" hidden>
   <div class="setBack"></div>
   <div class="setPanel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
-    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg></button></div>
+    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
     <div class="setBody" id="setBody"></div>
     <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
   </div>

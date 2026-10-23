@@ -8,6 +8,8 @@
 import { $ } from '../core/dom.js';
 import { keyIcon } from './input-icons.js';
 import { BIND_LOCK, KB, keyLabel, keyOf, keyOn, resetBinds, saveBinds, setBind } from '../input/keybinds.js';
+import { GI, GI_VB } from './game-icons.js';
+import { BOARD, BOARD_VB } from './board-icons-data.js';
 import { DPR, R, renderScale, resize, setRenderScale, SHADOW_SOFT, sun, SUN_R } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { controlsHtml, kbRefresh } from './keyboard-map.js';
@@ -78,7 +80,7 @@ const FPS = { n: 0, t: 0 };
 export function tickFps(rdt) { if (!SET.fps) return; FPS.n++; FPS.t += rdt; if (FPS.t >= 0.5) { $('fps').textContent = Math.round(FPS.n / FPS.t) + ' fps'; FPS.n = 0; FPS.t = 0; } }
 
 // ---- the panel
-const CHEV = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>';
+const CHEV = `<svg viewBox="${GI_VB}" aria-hidden="true">${GI.plainArrow}</svg>`;   // (game-icons.net: ui/game-icons.js)
 function setRowHtml(r) {
   if (r.head) return `<div class="setHeadRow">${r.head}</div>`;
   const lab = `<div class="setLab"><b>${r.name}</b>${r.note ? `<small>${r.note}</small>` : ''}</div>`;
@@ -91,7 +93,7 @@ function setRowHtml(r) {
   return `<div class="setRow">${lab}<div class="sRangeW"><input type="range" class="sRange" data-k="${r.k}" min="${r.min}" max="${r.max}" value="${SET[r.k]}" aria-label="${r.name}" style="--p:${(SET[r.k] - r.min) / (r.max - r.min) * 100}%"><output>${SET[r.k]}${r.unit}</output></div></div>`;
 }
 // the Controls tab: each group's keys, the ones that can't move shown locked among them
-export const LOCK_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5"/></svg>';
+export const LOCK_SVG = `<svg viewBox="${BOARD_VB}" aria-hidden="true"><path d="${BOARD.lock_closed}"/></svg>`;   // (Kenney's board game pack: ui/board-icons-data.js)
 // (the tab itself, its keyboard and its search: ui/keyboard-map.js)
 let setTab = 'general';
 function buildSettings() {

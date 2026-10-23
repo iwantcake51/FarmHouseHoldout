@@ -34,6 +34,7 @@ import { ammoTypes } from '../upgrades/upgrades.js';
 import { runKill } from '../ui/run-stats.js';
 import { feed, floats, floatText, popEl } from '../ui/hud-text.js';
 import { spitterDies } from './spitter.js';
+import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
 import { teamAssist } from '../net/teamwork.js';
 
@@ -366,6 +367,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   let dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   const ar = armorOf(z, part, D, wId), arm = ar ? ar.a : 0, through = dealt * (1 - arm); if (ar) wearArmor(z, ar, dealt * arm + through * ARMOR_SCALE.wear, dx, dz); dealt = through;   // (what it was wearing there: ARMOR_KIT)
   if (z.type === 'brute') dealt *= 1 - BRUTE_HIDE;   // (its bulk: BRUTE_HIDE)
+  if (cheatIs('onehit') && wId !== 'bleed' && wId !== 'fire') dealt = Math.max(dealt, z.hp + 1);   // (the cheat menu's one-hit kills: ui/cheats.js)
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
   dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 || z.type === 'brute' ? 'armor' : '');

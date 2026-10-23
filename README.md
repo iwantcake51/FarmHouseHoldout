@@ -37,7 +37,7 @@ furniture stands, plus a new yard of cars, crates, hay bales and fences. The roo
 you can always see inside. The clock runs from afternoon into night, and the dark is where the lamps, your
 flashlight and the muzzle flashes matter.
 
-**Guns.** A 9mm pistol, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
+**Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
 reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades, and change calibres with conversion kits such as AK mags for the
@@ -130,6 +130,14 @@ npm run fix-imports # rewrites every file's imports and exports to match what it
 Every build also writes `dist/standalone.html`, the whole game in one file. Every push runs CI: all three builds and a
 browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads and pauses.
 
+**F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
+once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,
+one-hit kills, waves off, and the game's speed (¼× to 2×). Its sections cover you and your supplies, health and every
+status effect, weapons (any of them, turning in 3D with its numbers, and the upgrades, rounds and mods of the one in
+your hands), skills and perks, curses (taken, lifted, or a sacrifice promised for the next hand), zombies (any kind in
+any outfit sent in at the fence or right in front of you, their armour cracked or broken off, the waves) and the
+world (the hour, fog). The switches are remembered between visits; everything else acts on the run you're in.
+
 ### How the code fits together
 
 The game is plain JavaScript and three.js (r186, WebGL2), with no framework. The build bundles just the parts of
@@ -196,7 +204,13 @@ Melee weapons work the same way, in `melee/melee-stats.js` and `melee/melee-mode
 
 ## Credits
 
-Icons from [game-icons.net](https://game-icons.net), by Lorc, Delapouite, sbed and Zeromancer, under
-[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Keyboard and mouse prompts from Kenney's
-[Input Prompts](https://kenney.nl/assets/input-prompts) (CC0). Built with [three.js](https://threejs.org) and
-[PeerJS](https://peerjs.com).
+Icons from [game-icons.net](https://game-icons.net), by Lorc, Delapouite, sbed, Zeromancer and the site's other
+artists, under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (the newer ones taken as they are from the
+set's [Iconify package](https://www.npmjs.com/package/@iconify-json/game-icons)). Keyboard and mouse prompts from
+Kenney's [Input Prompts](https://kenney.nl/assets/input-prompts), and the shield, skull, hourglass, locks and the
+other small icons in the menus from Kenney's [Board Game Icons](https://kenney.nl/assets/board-game-icons) (both
+CC0). Built with [three.js](https://threejs.org) and [PeerJS](https://peerjs.com).
+
+Every icon comes from those packs, with one exception: the rarity stars on upgrades (at the stations and on the cards)
+are drawn in code, because neither set has a plain five-pointed star (and their liquid fill is built on that shape).
+The stripes and textures drawn in CSS (the hazard stripes, Bad blood's veins) are patterns, not icons.

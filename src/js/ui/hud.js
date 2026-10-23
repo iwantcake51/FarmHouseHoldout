@@ -1,7 +1,7 @@
 // The HUD each frame.
 
 import { $ } from '../core/dom.js';
-import { CURSE_ICON, CURSE_VB } from './game-icons.js';
+import { CURSE_ICON, GI_VB } from './game-icons.js';
 import { cam, cv, V3 } from '../core/renderer.js';
 import { cache, clamp, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
@@ -81,7 +81,7 @@ export function updateHUD(rdt, D) {
     { const ck = Math.round((1 - capF) * 1000); if (cache.hpCut !== ck) { cache.hpCut = ck; const el = $('hpCut'); el.classList.toggle('on', ck > 0); el.style.setProperty('--cut', (ck / 10) + '%'); } }   // (a Blood price's share, in hazard stripes)
     // the curses you've taken, as chips under the bars, and Bad blood's spoiled look on the health bar itself
     { const ck = (S.curses || []).join(); if (cache.curses !== ck) { cache.curses = ck; const row = $('curseRow'), on = CURSES.filter(c => (S.curses || []).includes(c.id));
-      row.hidden = !on.length; row.innerHTML = on.map(c => `<span class="curse"><svg viewBox="${CURSE_VB}">${CURSE_ICON[c.id]}</svg><b>${c.name}</b><em>${c.short}</em></span>`).join('');
+      row.hidden = !on.length; row.innerHTML = on.map(c => `<span class="curse"><svg viewBox="${GI_VB}">${CURSE_ICON[c.id]}</svg><b>${c.name}</b><em>${c.short}</em></span>`).join('');
       $('vitals').classList.toggle('badBlood', !!S.badBlood); } }
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
