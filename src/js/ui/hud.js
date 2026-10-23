@@ -140,7 +140,7 @@ export function roundSwitched(id) {
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-export let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
+let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
 // how strong the hurt blur is on the side of a blow, how long it takes to clear (seconds, for a normal hit), and how
 // strong all round while you bleed, between throbs and at the height of one
 const HURT_BLUR = { hit: 0.95, clear: 1.1, bleed: [0.3, 0.55] };

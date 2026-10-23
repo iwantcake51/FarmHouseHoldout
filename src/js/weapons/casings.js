@@ -22,7 +22,10 @@ import { tStick } from '../input/touch.js';
 import { MAG_DROP_T } from './reload.js';
 import { rackCam } from '../game/camera.js';
 import { ANIM } from '../player/animation.js';
-import { CHAMBERS, cylFired, cylLive, holdOf, MAG_SLIDE, rackKick, SL_DROPS } from '../player/hold.js';
+import { holdOf } from '../player/hold.js';
+import { rackKick } from '../player/hold-kick.js';
+import { MAG_SLIDE } from '../player/hold-mags.js';
+import { CHAMBERS, cylFired, cylLive, SL_DROPS } from '../player/hold-loaders.js';
 import { swapSt } from '../player/swap.js';
 
 // ---- spent casings: semi-autos and automatics throw brass on every shot, the pump and the bolt throw it when cycled,

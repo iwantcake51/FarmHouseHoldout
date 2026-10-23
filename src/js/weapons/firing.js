@@ -14,8 +14,8 @@ import { curId, gunAtt, magSize, run, S, suppMul, suppressed, T, W, W8 } from '.
 import { AKX, BELT, BIPOD, MUZ, X } from './gun-materials.js';
 import { EJECT, ejectCasing, ejectLinks, needsRack, startCycle } from './casings.js';
 import {
-  flash, flashDress, flashLook, flashStar, flashT, muzzleWisp, muzzleWorld, setFlashLen, setFlashLife, setFlashSize, setFlashT,
-  setFlashWide
+  flash, flashDress, flashLook, flashStar, flashT, muzzleWisp, muzzleWorld, setFlashLen, setFlashLife, setFlashSize,
+  setFlashT, setFlashWide
 } from '../effects/muzzle-flash.js';
 import { smoke } from '../effects/smoke.js';
 import { smokeTrail, tracer, tracerPower } from '../effects/tracers.js';
@@ -41,7 +41,9 @@ import { RG_SPREAD } from '../player/sprint.js';
 import { aimSX, aimSY, XHIT, xhKick, XR } from '../player/shaky-hands.js';
 import { fireCam } from '../game/camera.js';
 import { angerShot, ANIM, worryShot } from '../player/animation.js';
-import { beltKick, bipodKick, gunKick, HOLD, HOLD_DEF, holdOf, recoilFeel } from '../player/hold.js';
+import { HOLD, HOLD_DEF, holdOf } from '../player/hold.js';
+import { gunKick, recoilFeel } from '../player/hold-kick.js';
+import { beltKick, bipodKick } from '../player/hold-sway.js';
 import { shotOut } from '../net/avatars.js';
 
 // how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,

@@ -1,26 +1,18 @@
 // Aiming down the sights, scopes, zoom wheel.
 
 import { $ } from '../core/dom.js';
-import { cv, EL, FWD, GUN_Y, RIGHT, setZoomT, V3, VIEW, zoom, ZOOM_MAX, ZOOM_MIN, zoomT } from '../core/renderer.js';
+import { cv, EL, FWD, RIGHT, setZoomT, V3, VIEW, zoom, ZOOM_MAX, ZOOM_MIN, zoomT } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { P } from './player.js';
-import { curId, SCOPE_GUNS, SCOPES, T, W } from '../game/run-state.js';
+import { curId, SCOPE_GUNS, T, W } from '../game/run-state.js';
 import { nz } from '../audio/audio.js';
-import { SFX } from '../audio/sfx.js';
 import { state } from '../game/state.js';
-import { aimPt } from '../input/keyboard-mouse.js';
 import { usingTouch } from '../input/touch.js';
 
 // ---- scope: hold right click with a scoped gun (the rifles, the revolver) ----
 export let scoped = false, zoomBeforeScope = 1;
 export const scopePt = new V3();
 export function hasScope() { const id = curId(), D = id && W(id); return !!D && !D.melee && !usingTouch && SCOPE_GUNS.has(id) && T('sight') >= 3; }
-function enterScope() {
-  if (scoped || P.vault || state !== 'play') return;
-  scoped = true; zoomBeforeScope = zoomT; setZoomT(SCOPES[T('sight')].zoom);
-  scopePt.set(aimPt.x, GUN_Y, aimPt.z);
-  $('scope').classList.add('on'); SFX.click(); nz(0.12, 'bandpass', 900, 400, 0.15, 2);
-}
 // ---- aiming down the sights: hold right click on any gun; with a scope the view zooms in further, no overlay ----
 export let aiming = false, aimHeld = false;   // aimHeld: the aim button is down, so anything that drops you out of the sights can put you back
 export const scopeAim = () => aiming && hasScope();

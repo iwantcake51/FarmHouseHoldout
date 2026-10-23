@@ -13,14 +13,16 @@ import { LOOK, shade } from './look.js';
 import { SLOTS } from '../weapons/slots.js';
 import { S, W, W8 } from '../game/run-state.js';
 import { gunMeshes, HOLDS, MUZ, setStowDirty, stowDirty, X } from '../weapons/gun-materials.js';
-import { cyl, solid } from '../weapons/gun-models.js';
+import { cyl, solid } from '../weapons/gun-parts.js';
 import { EJECT } from '../weapons/casings.js';
 import { METAL, plankTint } from '../barricades/planks.js';
 import { vaultGun } from './vaulting.js';
 import { akMags } from '../weapons/akimbo.js';
 import { WALK_SPEED } from './sprint.js';
 import { ANIM } from './animation.js';
-import { bipodSway, BOLT_TURN, HOLD, HOLD_DEF } from './hold.js';
+import { HOLD, HOLD_DEF } from './hold.js';
+import { BOLT_TURN } from './hold-kick.js';
+import { bipodSway } from './hold-sway.js';
 
 // each stowed weapon is a copy of its held model (shared geometry and materials), rebuilt whenever the guns are
 export const STOW = {}, stowSw = { x: 0, vx: 0, z: 0, vz: 0 };

@@ -11,7 +11,7 @@ import { SFX } from '../audio/sfx.js';
 import { setShake, shake, state } from '../game/state.js';
 import { mouseDown } from '../input/keyboard-mouse.js';
 import { exitScope } from '../player/aiming.js';
-import { akMags, akStartReload, akTickReload } from './akimbo.js';
+import { akStartReload, akTickReload } from './akimbo.js';
 import { runStat } from '../ui/run-stats.js';
 import { toast } from '../ui/hud-text.js';
 import { rgReload, RUN_RELOAD, runRelK, sprintKey } from '../player/sprint.js';
@@ -19,7 +19,8 @@ import { SHAKY } from '../player/shaky-hands.js';
 import { reloadJolt } from '../game/camera.js';
 import { reloadTick } from '../ui/crosshair.js';
 import { ANIM } from '../player/animation.js';
-import { dropLoader, HSH_FEED, relKnock } from '../player/hold.js';
+import { relKnock } from '../player/hold-kick.js';
+import { dropLoader, HSH_FEED } from '../player/hold-loaders.js';
 import { drawMul, startSwap, swapFire, swapSt } from '../player/swap.js';
 
 // force: draw it again even if it's the slot in your hands (a new weapon just went into it)
@@ -117,7 +118,6 @@ export const CH_REACH = [0.725, 0.805], CH_DRAW = 0.81, CH_BACK = [0.925, 1], CH
 // and out over about a tenth of a second (more for the hand cannon), not a snatch
 export const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, EMPTY_MUL = 1.25, PS_MAG = 0.68, PS_TUG = 0.815, PS_REL = [0.917, 0.872];
 const slideReload = id => !!SLIDE_PISTOLS[id] && !(W(id) || {}).akimbo;
-const slideLocked = id => !!SLIDE_PISTOLS[id] && ((W(id) || {}).akimbo ? akMags(id).R <= 0 : (W8.mag[id] || 0) <= 0);   // a pair's holstered one is the right
 const hasCharge = () => !!CHARGE[W8.cur];
 // Staged reloads. A reload cut short by anything but the trigger (switching weapons, a shove, a sprint, a vault, a
 // bandage) keeps the last of its marks it got to, for that gun (W8.relSave[id], cutReload): begun ('start'), the old

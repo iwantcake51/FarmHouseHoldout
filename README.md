@@ -114,7 +114,8 @@ All settings are saved in your browser.
 npm install
 npm run dev        # builds and serves at http://localhost:5173, rebuilding on every save
 npm run build      # minified build into dist/
-npm run build:dev  # readable build, each file marked, so errors point at the right line
+npm run build:dev  # readable build with a source map, so errors point at src/js/<file>:<line>
+npm run fix-imports # rewrites every file's imports and exports to match what it uses (after moving code about)
 ```
 
 Every build also writes `dist/standalone.html`, the whole game in one file. Every push runs CI: all three builds and a
@@ -129,9 +130,14 @@ three.js the game uses into `vendor/three.min.js`. Each file in `src/js` is an E
   everything it depends on, and an editor can jump to where anything is defined.
 - Another file's variable can only be read. The few that other files change come with a setter in their own file
   (`setShake`, `setZoom` and so on).
-- The build checks every file's imports and exports (`tools/modules.mjs`). It fails, naming the file and line, on a
-  name that isn't imported, an import of something that isn't exported, an import that isn't used, or an assignment to
-  another file's variable.
+- The build checks every file's imports and exports (`tools/modules.mjs`). It fails, naming the file and line, on:
+  - a name that isn't imported;
+  - an import of something that isn't exported, or an import that isn't used;
+  - an export no other file imports, or anything declared and never used;
+  - an assignment to another file's variable;
+  - a file using, as it loads, something from a file that loads after it.
+- To move code from one file to another, move it and run `npm run fix-imports`: it rewrites the imports and exports
+  of every file to match.
 - For the browser, the build joins the files in the order of `src/js/load-order.json` into one script. That order only
   matters for code that runs at load time, such as building the world. The build also checks the joined script and
   names the file and line of any error, such as two files declaring the same name.

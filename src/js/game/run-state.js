@@ -180,7 +180,6 @@ export const curId = () => W8.slot[W8.cur];
 // the bayonet only fits a long gun, the stock only a sidearm
 export const gunAtt = (id, k) => { const D = id && WEAP[id]; return !!(D && W8.att && W8.att[id] && W8.att[id][k] && D.slot === (k === 'bayonet' ? 'long' : 'side')); };
 export const hasMod = m => (W8.mods[MODS[m].w] || []).includes(m);
-const held = id => W8.slot[WEAP[id].slot] === id;
 export const magSize = id => Math.max(1, Math.round(W(id).mag * S.magMul));
 // how the weapon in your hands sets your pace: a blade or a bat is lighter than nothing much (the two-handers less so);
 // primaries weigh you down by their calibre, how many rounds they hold and every attachment bolted on. Sidearms don't

@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node tools/build.mjs --serve",
     "build": "node tools/build.mjs",
-    "build:dev": "node tools/build.mjs --dev"
+    "build:dev": "node tools/build.mjs --dev",
+    "fix-imports": "node tools/fix-imports.mjs"
   },
   "dependencies": {
     "peerjs": "1.5.5",

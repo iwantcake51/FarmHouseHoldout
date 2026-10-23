@@ -3,21 +3,18 @@
 import { scene, V3 } from '../core/renderer.js';
 import { clamp, HALF, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
-import { NET } from '../net/net.js';
 import { BLOB_TEX } from '../core/geometry.js';
 import { P } from '../player/player.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { AMMO_NAME, AMMO_PICKUP_MUL, ammoAmt } from '../weapons/ammo.js';
-import { modLv } from '../weapons/mod-levels.js';
-import { magSize, recomputeEff, run, S, W, W8 } from '../game/run-state.js';
-import { gunMeshes } from '../weapons/gun-materials.js';
+import { magSize, recomputeEff, run, S, W8 } from '../game/run-state.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { glowTex } from '../effects/textures.js';
 import { dropModel } from './drop-models.js';
 import { xray } from '../effects/outlines.js';
 import { addPlanks, METAL, plankRoom } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
-import { glowGun, phase, state } from '../game/state.js';
+import { glowGun, state } from '../game/state.js';
 import { equip } from '../weapons/reload.js';
 import { bandMax } from '../player/bandages.js';
 import { ammoTypes } from '../upgrades/upgrades.js';
@@ -175,20 +172,6 @@ export function nearestTake() {
   for (const p of pickups) { if (!isTake(p) || p.age < 0.4) continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; best = p; } }
   return best;
 }
-// put a weapon down where you stand: a copy of it as you carry it, lying on its side, to pick back up
-const GUN_KEEP = 2;   // rounds a gun you've put down stays on the ground
-function gunDrop(id) {
-  const s = WEAP[id].slot, src = gunMeshes[s]; if (!src) return;
-  const a = rr(0, Math.PI * 2);
-  // it lasts the round it's put down in (or the next, put down between rounds) and the one after (GUN_KEEP)
-  const until = (phase === 'wave' ? run.wave : run.wave + 1) + GUN_KEEP;
-  // (yours, so you can share it with your team: gunShare, net/teamwork.js; gid names it to them, lo is what's on it)
-  dropPickup(P.x + Math.sin(a) * 0.5, P.z + Math.cos(a) * 0.5, 'gun', 1, null, { id, model: layGun(src.clone(true)), mag: W8.mag[id] || 0, ak: W8.akMag[id] ? { ...W8.akMag[id] } : null, until,
-    own: true, gid: (NET.id || 'me') + ':' + (++gunSeq), lo: gunLo(id), shared: false });
-}
-let gunSeq = 0;
-// what's on one of your guns, as a teammate's game needs it to build it and to hand it over (as in myLoadout, net/arsenal.js)
-function gunLo(id) { const mods = (W8.mods[id] || []).slice(), lv = {}; mods.forEach(m => { lv[m] = modLv(m); }); return { mods, lv, gt: { ...(W8.gt[id] || {}) }, pin: null, att: { ...(W8.att[id] || {}) }, rnd: W8.rounds && W8.rounds[id] ? JSON.parse(JSON.stringify(W8.rounds[id])) : null, ak: !!(W(id) || {}).akimbo }; }
 // a gun model laid on its side on the ground, its holds put back square and its flash and outlines left off
 export function layGun(copy) {
   copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });

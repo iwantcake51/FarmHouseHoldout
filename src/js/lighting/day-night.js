@@ -38,7 +38,7 @@ function lightAt(h) {
 // A couple of seconds in lamplight or daylight and it's gone, so the dark outside is as black as ever when you step
 // back out into it. litHere is the light where you stand (lighting/lightmap.js): night ambient is about 0.13 and a lit
 // room well over 0.3
-export let litHere = 1;
+let litHere = 1;
 const DARK_EYES = { dark: 0.2, lit: 0.3, adjust: 40, lose: 2, lift: 0.7 };
 export function updateDarkEyes(dt) {
   const want = state === 'title' ? 0 : clamp((DARK_EYES.lit - litHere) / (DARK_EYES.lit - DARK_EYES.dark), 0, 1), a = P.adapt || 0;

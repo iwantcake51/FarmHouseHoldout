@@ -159,7 +159,7 @@ function binStains(list) { list.forEach(([, m]) => stainBin.push(m)); stainBinT 
 // ---- on you ----
 const BLOOD_U = stainU(7.5);
 const charBlood = [];   // [original material, the copy on you]
-export let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
+let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
 function buildCharBlood() {
   charBloodDirty = false;
   binStains(charBlood); charBlood.length = 0;   // (let go once the new ones are drawn: binStains, below)
