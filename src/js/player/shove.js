@@ -1,15 +1,37 @@
 // Shoving zombies away with F, and the bayonet stab that rides on it.
 
+import { angDiff, clamp, rand, rr } from '../core/math.js';
+import { P } from './player.js';
+import { curId, EFF, gunAtt, S, W, W8 } from '../game/run-state.js';
+import { burst } from '../effects/particles.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { zAnimShove } from '../zombies/zombie-anim.js';
+import { hurtZombie } from '../zombies/damage.js';
+import { fenceTarget, nearestOpening, tryVault, vaultTarget } from './vaulting.js';
+import { openSt } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { camKick, camRoll, setCamRoll, setShake, shake } from '../game/state.js';
+import { aimHeld, exitScope, startAim } from './aiming.js';
+import { cutReload } from '../weapons/reload.js';
+import { bodyOf } from '../weapons/firing.js';
+import { stamUse } from '../melee/melee.js';
+import { meleeImpact } from '../melee/melee-anim.js';
+import { cancelBandage } from './bandages.js';
+import { runStat } from '../ui/run-stats.js';
+import { ANIM } from './animation.js';
+import { relKnock } from './hold.js';
+import { netAct, netRec, nr } from '../net/sync.js';
+
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
 // MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
-const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
+export const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
 // a shove in the middle of wrapping a bandage stops it there and then: the bandage is spent (as when you stop it with a
 // click: cancelBandage, player/bandages.js), the weapon's straight back in your hand, and the shove goes out at once
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
 // the touch button climbs a window or fence when you are at one, and shoves otherwise
-function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
+export function spaceAction() { if (vaultTarget(nearestOpening()) || fenceTarget()) tryVault(); else shove(); }
 const hasBayonet = () => gunAtt(curId(), 'bayonet');   // only on the long gun it was fitted to
-function shove() {
+export function shove() {
   if (P.dead || P.vault || openSt || W8.swing > 0 || (P.shoveCd || 0) > 0) return;
   if (P.bandT > 0 || ANIM.bandP > 0) { if (P.bandT > 0) cancelBandage(); ANIM.bandSwitch = null; ANIM.bandP = 0; ANIM.bandW = 0; ANIM.bandK = 0; }
   const cost = stamUse(SHOVE_COST), tired = P.exh || P.stam < cost * 0.5;
@@ -20,7 +42,7 @@ function shove() {
   if (tired) SFX.pant();
 }
 // runs every frame from updatePlayer: the hit landing at the end of the wind-up
-function tickShove(dt) {
+export function tickShove(dt) {
   const s = P.shove; if (!s) return;
   s.t += dt;
   const p = s.t / s.dur;
@@ -31,7 +53,7 @@ function tickShove(dt) {
 // seconds, only picking its pace back up toward the end (zombies/ai.js). A runner, thrown off its stride, reels longer
 // before it gets going again (SHOVE_RUNNER: how much longer). A co-op teammate's shove lands here too (net/sync.js)
 const SHOVE_RUNNER = { stagger: 1.9, slow: 1.5 };
-function shoveZombie(z, nx, nz, f, power, big) {
+export function shoveZombie(z, nx, nz, f, power, big) {
   z.vx += nx * 9 * f; z.vz += nz * 9 * f;
   const rk = z.type === 'runner' ? SHOVE_RUNNER : { stagger: 1, slow: 1 };
   if (!big) { z.stagger = Math.max(z.stagger, 0.8 * rk.stagger * power); z.atk = Math.max(z.atk, 0.8 * rk.stagger * power); z.lunge = 0; z.pushSlow = z.pushMax = SHOVE_SLOW * rk.slow * power; z.shoved = 1; zAnimShove(z); }
@@ -57,8 +79,8 @@ function landShove(s) {
   }
   if (hit) {
     SFX.hitBlunt(true); if (s.stab) SFX.hitBlade(false);
-    shake = Math.max(shake, brute ? 0.2 : 0.3);
-    camKick.x += Math.sin(P.aim) * 0.22; camKick.z += Math.cos(P.aim) * 0.22; camRoll = clamp(camRoll + (rand() < 0.5 ? -1 : 1) * 0.04, -0.1, 0.1);
+    setShake(Math.max(shake, brute ? 0.2 : 0.3));
+    camKick.x += Math.sin(P.aim) * 0.22; camKick.z += Math.cos(P.aim) * 0.22; setCamRoll(clamp(camRoll + (rand() < 0.5 ? -1 : 1) * 0.04, -0.1, 0.1));
     ANIM.shoveHit = 1;
     if ((W(curId()) || {}).melee) meleeImpact(false, 0.8); else relKnock(-3.2, rr(-1, 1), 0.25, -1.1);   // the weapon rebounds off what it hit
   } else { camKick.x += Math.sin(P.aim) * 0.08; camKick.z += Math.cos(P.aim) * 0.08; }

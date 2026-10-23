@@ -1,14 +1,41 @@
 // The light map: line of sight, light fields and the per-frame light/vision blend.
 
-const FR = 2, FN = N * FR, FNN = FN * FN;
+import { GUN_Y, V3 } from '../core/renderer.js';
+import { angDiff, clamp, HALF, mix, N, smooth } from '../core/math.js';
+import { MIST_U } from '../world/mist.js';
+import { NET, netLink } from '../net/net.js';
+import { FL_MAX, LMU } from '../core/shaders.js';
+import { ci, openAt } from '../world/grid.js';
+import { THIN, thinHit, wxSee, wzSee } from '../world/thin-walls.js';
+import { blockArr, bulletBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { curId, T, W, W8 } from '../game/run-state.js';
+import { gunMeshes, MUZ, X } from '../weapons/gun-materials.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { flashes } from '../weapons/explosives.js';
+import { lightsDirty, setLightsDirty, shutN } from '../barricades/planks.js';
+import { vaultGun } from '../player/vaulting.js';
+import { lmT, setLmT, state, worldT } from '../game/state.js';
+import { muzzle } from '../weapons/firing.js';
+import { STATIC_LIGHTS } from './static-lights.js';
+import { amb, curDark, setLitHere } from './day-night.js';
+import { computeVision } from './vision.js';
+import { spitLights } from '../zombies/spitter.js';
+import { ANIM } from '../player/animation.js';
+import { holdOf } from '../player/hold.js';
+import { SWAP_T, swapSt } from '../player/swap.js';
+import { LIGHT_OL } from '../zombies/zombie-visuals.js';
+import { spectating, viewer } from '../net/spectate.js';
+
+export const FR = 2, FN = N * FR, FNN = FN * FN;
 const lmData = new Uint8Array(FNN * 4);
 const lmTex = new THREE.DataTexture(lmData, FN, FN, THREE.RGBAFormat);
 lmTex.magFilter = THREE.LinearFilter;
 lmTex.minFilter = THREE.LinearFilter;
 LMU.uLightMap.value = lmTex; LMU.uLmRes.value = FN;
-const lmTgt = new Float32Array(FNN * 3).fill(0.5), lmCur = new Float32Array(FNN * 3).fill(0.5), visTgt = new Float32Array(FNN).fill(1), visCur = new Float32Array(FNN).fill(1);
-const sampleX = a => -HALF + (a + 0.5) / FR;
-function los(x0, z0, x1, z1) {
+export const lmTgt = new Float32Array(FNN * 3).fill(0.5), lmCur = new Float32Array(FNN * 3).fill(0.5), visTgt = new Float32Array(FNN).fill(1), visCur = new Float32Array(FNN).fill(1);
+export const sampleX = a => -HALF + (a + 0.5) / FR;
+export function los(x0, z0, x1, z1) {
   if (THIN.n && thinHit(x0, z0, x1, z1) <= 1) return false;   // the inside walls (world/thin-walls.js)
   const dx = x1 - x0, dz = z1 - z0, d = Math.hypot(dx, dz), steps = Math.ceil(d / 0.33);
   const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1);
@@ -24,7 +51,7 @@ function los(x0, z0, x1, z1) {
 // soft: a lamp's fixed field, its shadows' edges softened, each sample lit by how many of SOFT_PTS round it (a quarter
 // of a sample's width out) the lamp can see, not all or nothing (too slow for a muzzle flash's, made every frame)
 const SOFT_PTS = [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]];
-function lightField(x, z, r, cone, soft) {
+export function lightField(x, z, r, cone, soft) {
   const out = []; const a0 = clamp(Math.floor((x - r + HALF) * FR), 0, FN - 1), a1 = clamp(Math.ceil((x + r + HALF) * FR), 0, FN - 1);
   const b0 = clamp(Math.floor((z - r + HALF) * FR), 0, FN - 1), b1 = clamp(Math.ceil((z + r + HALF) * FR), 0, FN - 1);
   for (let b = b0; b <= b1; b++) for (let a = a0; a <= a1; a++) {
@@ -38,7 +65,7 @@ function lightField(x, z, r, cone, soft) {
   }
   return out;
 }
-function addField(field, mul, col) { for (let k = 0; k < field.length; k += 2) { const i = field[k] * 3, f = field[k + 1] * mul; lmTgt[i] += f * col[0]; lmTgt[i + 1] += f * col[1]; lmTgt[i + 2] += f * col[2]; } }
+export function addField(field, mul, col) { for (let k = 0; k < field.length; k += 2) { const i = field[k] * 3, f = field[k + 1] * mul; lmTgt[i] += f * col[0]; lmTgt[i + 1] += f * col[1]; lmTgt[i + 2] += f * col[2]; } }
 const NV_MONO = 0.42, NV_SAT = [0, 0.22, 0.6];
 function computeLight() {
   const dark = curDark, on = state !== 'title';
@@ -48,7 +75,7 @@ function computeLight() {
   const V = viewer();   // (watching a teammate, their night vision: net/spectate.js)
   LMU.uNvMono.value = on ? V.nv * dark * NV_MONO : 0; LMU.uNvSat.value = on ? NV_SAT[V.night] || 0 : 0;
   for (let k = 0; k < FNN; k++) { lmTgt[k * 3] = amb[0]; lmTgt[k * 3 + 1] = amb[1]; lmTgt[k * 3 + 2] = amb[2]; }
-  if (lightsDirty) { lightsDirty = false; STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
+  if (lightsDirty) { setLightsDirty(false); STATIC_LIGHTS.forEach(L => { if (!L.fill && !L.spill) L.field = lightField(L.x, L.z, L.r, L.cone, true); }); }
   const fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;   // fire flicker on the world clock
   STATIC_LIGHTS.forEach(L => {
     if (L.spill) { const b = shutN(L.spill); if (b < 2) addField(L.field, L.int * (b ? 0.4 : 1) * (0.08 + 0.92 * dark), L.col); return; }
@@ -57,7 +84,7 @@ function computeLight() {
   // how much light falls where you stand from the sky and the lamps (not your own muzzle flash or flashlight): what
   // your eyes get used to (updateDarkEyes, lighting/day-night.js)
   { const i = (clamp(Math.floor((P.z + HALF) * FR), 0, FN - 1) * FN + clamp(Math.floor((P.x + HALF) * FR), 0, FN - 1)) * 3;
-    litHere = lmTgt[i] * 0.299 + lmTgt[i + 1] * 0.587 + lmTgt[i + 2] * 0.114; }
+    setLitHere(lmTgt[i] * 0.299 + lmTgt[i + 1] * 0.587 + lmTgt[i + 2] * 0.114); }
   if (on) {
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
@@ -74,17 +101,17 @@ const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
 // the light is on the gun, so it's only on while the gun's out in your hands: put away for a vault (without Vault fire)
 // it goes off, and it comes back on as the gun's drawn again, once the hand has it (SWAP_T.cross, player/swap.js).
 // flOn eases it off and on over a few frames, like a switch clicked
-let flOn = 0;
+export let flOn = 0;
 const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
 // the tier of your light while it's on (0 when it isn't), for your teammates (sent with your pose: net/avatars.js)
-function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
+export function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
 // which way your light points: where you aim, but at a sprint (player/animation.js: faceK) it's on the gun, down at a
 // low ready, so it goes where the gun does: swinging with the stride and round into the bends with your chest, and
 // with Run and gun swept round after the gun as it comes up onto the aim, a little behind it (FL_FOLLOW: how quickly
 // it catches the gun up at a run, and firing on the run). flOff is how far round off your aim it is right now
 const FL_FOLLOW = { run: 11, rg: 6.5 };
 let flOff = 0, flOx = 0, flOz = 0;
-const flDir = () => P.aim + flOff;
+export const flDir = () => P.aim + flOff;
 const _gb0 = new V3(), _gb1 = new V3();
 // the gun in your hands, flat on the ground: where its muzzle is (_gb1) and which way it points, or null with no gun
 // to go by; off its last frame's place, which is plenty for a light. gunYawK is how much that way can be gone by: the
@@ -134,7 +161,7 @@ function flashUniforms(rdt) {
 // how strongly a teammate's light picks a zombie out (0 to 1): in the middle of their beam and in its reach, with
 // nothing in the way; it shows you that zombie even outside your own sight, and outlines it as your own light would
 // (zombies/zombie-visuals.js, LIGHT_OL)
-function teamBeam(z) {
+export function teamBeam(z) {
   if (!teamFl.length || curDark <= 0.05) return 0;
   let b = 0;
   for (const c of teamFl) {
@@ -182,7 +209,7 @@ function flRay(x, z, a, max) {
   return max;
 }
 // how much of the flashlight falls at a point (for what isn't drawn by the lit shader, like smoke): the same cone
-function flashAt(x, z) {
+export function flashAt(x, z) {
   let s = 0;
   for (let i = 0; i < LMU.uFlK.value.w; i++) {
     const f = LMU.uFl.value[i], K = LMU.uFlP.value[i], dx = x - f.x, dz = z - f.y, r = Math.hypot(dx, dz), a = Math.acos(clamp((dx * f.z + dz * f.w) / Math.max(r, 1e-3), -1, 1));
@@ -192,10 +219,10 @@ function flashAt(x, z) {
   return s;
 }
 // blend the light/vision map toward its target and upload it
-function updateLightmap(rdt) {
+export function updateLightmap(rdt) {
   flashUniforms(rdt);
-  for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); lmT = 0; } }
-  lmT -= rdt; if (lmT <= 0) { computeLight(); lmT = 0.07; }
+  for (let k = flashes.length - 1; k >= 0; k--) { flashes[k].t -= rdt; if (flashes[k].t <= 0) { flashes.splice(k, 1); setLmT(0); } }
+  setLmT(lmT - rdt); if (lmT <= 0) { computeLight(); setLmT(0.07); }
   const up = Math.min(1, rdt * 30), down = Math.min(1, rdt * 7), vk = Math.min(1, rdt * (P.dead && !spectating() ? 1.1 : 9));
   for (let k = 0; k < FNN; k++) {
     for (let c = 0; c < 3; c++) { const i = k * 3 + c, t = lmTgt[i], cur = lmCur[i]; const n = lmCur[i] = cur + (t - cur) * (t > cur ? up : down); lmData[k * 4 + c] = n >= 2 ? 255 : n * 127.5; }

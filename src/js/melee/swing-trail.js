@@ -1,5 +1,15 @@
 // Motion-blur ribbon behind melee swings.
 
+import { scene, V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { P, PM } from '../player/player.js';
+import { modLv } from '../weapons/mod-levels.js';
+import { curId, hasMod, W, W8 } from '../game/run-state.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
+import { KATANA_L, MACHETE_S } from './melee-models.js';
+import { heavySwing } from './melee.js';
+import { curSwing } from './melee-anim.js';
+
 // The weapon's place is taken every frame through the fast part of a swing (MSWINGS' fast): a point part way up it
 // and its tip. Between those samples the ribbon is drawn on a smooth curve through them (Catmull-Rom, SW_SUB pieces
 // to a frame), so it sweeps round in an arc however few frames there are, never in straight facets. How strongly it
@@ -9,7 +19,7 @@
 const TRAIL_N = 16, SW_SUB = 4, SW_COLS = (TRAIL_N - 1) * SW_SUB + 1, SW_LIFE = 0.13, SW_FAST = 9;
 const MLEN = { bat: 0.95, crowbar: 0.82, wrench: 0.72, katana: 1.08, sledge: 0.98, machete: 0.78, axe: 0.92 };
 // a blade grown by its mod's level (melee/melee-models.js) leaves a trail as long as it is
-const meleeLen = id => (MLEN[id] || 0.85) + (id === 'machete' && hasMod('longblade') ? 0.66 * (MACHETE_S[modLv('longblade')] - 1) : id === 'katana' && hasMod('folded') ? KATANA_L[modLv('folded')] - KATANA_L[0] : 0);
+export const meleeLen = id => (MLEN[id] || 0.85) + (id === 'machete' && hasMod('longblade') ? 0.66 * (MACHETE_S[modLv('longblade')] - 1) : id === 'katana' && hasMod('folded') ? KATANA_L[modLv('folded')] - KATANA_L[0] : 0);
 const swGeo = new THREE.BufferGeometry(), swPos = new Float32Array(SW_COLS * 6), swAl = new Float32Array(SW_COLS * 2), swV = new Float32Array(SW_COLS * 2);
 swGeo.setAttribute('position', new THREE.BufferAttribute(swPos, 3));
 swGeo.setAttribute('alpha', new THREE.BufferAttribute(swAl, 1));
@@ -28,7 +38,7 @@ trail.visible = false;
 scene.add(trail);
 const trailS = [];
 const _cr = (p0, p1, p2, p3, t, o, k) => { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3); };
-function stepTrail(rdt) {
+export function stepTrail(rdt) {
   const id = curId(), D = id && W(id);
   for (const q of trailS) q.age += rdt;
   while (trailS.length && trailS[0].age > SW_LIFE) trailS.shift();

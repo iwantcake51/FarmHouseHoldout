@@ -1,6 +1,18 @@
 // Pooled particles (blood, dust, sparks, embers, smoke) and flying gibs.
 
-const parts = [];
+import { scene, V3 } from '../core/renderer.js';
+import { rand, rr } from '../core/math.js';
+import { basic, lam } from '../core/shaders.js';
+import { cell, ci, cxw, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from '../world/grid.js';
+import { lowObst } from '../world/props.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P, PM } from '../player/player.js';
+import { splat, stepBloodMap } from './blood-map.js';
+import { dustBurst, fx, sparkBurst } from './puffs.js';
+import { zFree } from '../zombies/zombie-looks.js';
+import { visAt } from '../lighting/vision.js';
+
+export const parts = [];
 const PG = new THREE.BoxGeometry(0.07, 0.07, 0.07);
 const PMAT = { spark: basic(0xffd88a), blood: lam(0x7a1a12), blood2: lam(0x4d0f0b), wood: lam(0xa8804f), dust: lam(0x7d7564), ember: basic(0xff8a32), smoke: lam(0x3a3836) };
 for (let k = 0; k < 280; k++) { const m = new THREE.Mesh(PG, PMAT.blood); m.visible = false; scene.add(m); parts.push({ m, life: 0, vx: 0, vy: 0, vz: 0, kind: 'blood', landed: false }); }
@@ -18,7 +30,7 @@ Object.values(PMAT).forEach(m => { m.userData.mobile = true; });
 const DROP_G = new THREE.IcosahedronGeometry(1, 1), DROP_COL = 0x9a1a10, _dz = new V3(0, 0, 1), _dv = new V3();
 const DROP_N = 640, DROP_MAT = lam(DROP_COL); DROP_MAT.userData.mobile = true;
 const dropIM = new THREE.InstancedMesh(DROP_G, DROP_MAT, DROP_N); dropIM.frustumCulled = false; dropIM.count = 0; dropIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dropIM);
-const drops = [];
+export const drops = [];
 for (let k = 0; k < DROP_N; k++) { const m = new THREE.Object3D(); m.visible = false; drops.push({ m, life: 0, vx: 0, vy: 0, vz: 0, r: 0.01, wait: 0 }); }
 let dropIdx = 0;
 const DROP_THROW = 1.7, DROP_SCATTER = 1.5, DROP_DRAG = 0.6;
@@ -35,7 +47,7 @@ function bloodDrops(x, y, z, n, dirx, dirz, force) {
 // over SPURT.t seconds instead of all at once so it reads as a stream thrown out, slow enough to follow as it arcs
 // down (SPURT.v metres a second), and a little of it back out of the near side. n: how many drops (a big hit, more)
 const SPURT = { t: 0.12, v: 3.6, out: 0.16, back: 0.25 };
-function bloodSpurt(x, y, z, dirx, dirz, n, power) {
+export function bloodSpurt(x, y, z, dirx, dirz, n, power) {
   const p = power || 1;
   for (let k = 0; k < n; k++) {
     const d = drops[dropIdx = (dropIdx + 1) % drops.length], back = k < n * SPURT.back * 0.5, s = back ? -1 : 1;
@@ -48,7 +60,7 @@ function bloodSpurt(x, y, z, dirx, dirz, n, power) {
 // you bleeding: a drop or two falls from the wound (the left arm or your side) carried along at your speed, and spots the
 // ground where it lands, so you leave a trail as you go and a spreading patch where you stand
 const _bw = new V3();
-function bleedDrip() {
+export function bleedDrip() {
   PM.upper.updateMatrixWorld(); const arm = rand() < 0.6;
   _bw.set(arm ? -0.3 : 0.24, arm ? 0.8 : 0.95, rr(-0.05, 0.08)); PM.upper.localToWorld(_bw);
   for (let k = 0, n = rand() < 0.3 ? 2 : 1; k < n; k++) {
@@ -60,7 +72,7 @@ function bleedDrip() {
 }
 // whether a drop at x, y, z has run into something standing there (up to how high it stands, and only its real parts:
 // a fence's post and its two rails, not the gaps between; a window's sill and the wall over it, or a board across it)
-function dropHits(x, y, z) {
+export function dropHits(x, y, z) {
   const i = ci(x), j = ci(z); if (!inb(i, j)) return false;
   const k = idx(i, j), c = cell[k];
   if (c === WALL || (c === OBST && !lowObst.has(k))) return y < 2.4;
@@ -106,7 +118,7 @@ function moveDrops(dt) {
 }
 // dust, sparks, smoke and embers are soft sprites (effects/puffs.js), blood comes out as droplets, and grit stays as
 // little tumbling bits
-function burst(x, y, z, n, kind, dirx, dirz, force) {
+export function burst(x, y, z, n, kind, dirx, dirz, force) {
   if (kind === 'blood') return bloodDrops(x, y, z, n, dirx, dirz, force);
   if (kind === 'dust') return dustBurst(x, y, z, n, dirx, dirz, force);
   if (kind === 'spark') return sparkBurst(x, y, z, n, dirx, dirz, force);
@@ -114,7 +126,7 @@ function burst(x, y, z, n, kind, dirx, dirz, force) {
   if (kind === 'ember') { for (let k = 0; k < n; k++) fx('ember', x + rr(-0.15, 0.15), y, z + rr(-0.15, 0.15), (dirx || 0) * (force || 1) + rr(-1.2, 1.2), rr(0.5, 2.6), (dirz || 0) * (force || 1) + rr(-1.2, 1.2), rr(0.06, 0.12), 0.02, rr(0.5, 1.2), 0.9); return; }
   cubeBurst(x, y, z, n, kind, dirx, dirz, force);
 }
-function cubeBurst(x, y, z, n, kind, dirx, dirz, force, scl) {
+export function cubeBurst(x, y, z, n, kind, dirx, dirz, force, scl) {
   for (let k = 0; k < n; k++) {
     const p = parts[pIdx = (pIdx + 1) % parts.length];
     const isBlood = kind === 'blood';
@@ -126,9 +138,9 @@ function cubeBurst(x, y, z, n, kind, dirx, dirz, force, scl) {
     if (kind === 'spark') { p.life = rr(0.08, 0.24); p.m.scale.setScalar(rr(0.25, 0.5)); p.vx *= 1.6; p.vz *= 1.6; p.vy = rr(0.5, 3); }
   }
 }
-const gibs = [];
+export const gibs = [];
 // blood and dust particles, growing decals and flying gibs
-function stepParticles(dt) {
+export function stepParticles(dt) {
   for (const p of parts) {
     if (p.life <= 0) continue; p.life -= dt;
     const m = p.m;

@@ -1,5 +1,19 @@
 // Deaths: a light ragdoll, taken over from the pose the zombie died in.
 
+import { V3 } from '../core/renderer.js';
+import { clamp, rand, rr } from '../core/math.js';
+import { cell, ci, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from '../world/grid.js';
+import { THIN, thinHit } from '../world/thin-walls.js';
+import { surfaceY } from '../world/house.js';
+import { lowObst } from '../world/props.js';
+import { P } from '../player/player.js';
+import { EFF, W } from '../game/run-state.js';
+import { burst } from '../effects/particles.js';
+import { burnFx } from '../effects/puffs.js';
+import { Z_ELBOW, Z_KNEE, ZHIP } from './zombie-anim.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+
 // The body the moment it dies is taken as thirteen points (hips, shoulders, head, elbows, hands, knees, feet), held
 // together by sticks the rig's own lengths, and let go under its own weight: the killing hit throws the points it
 // landed on (a head shot snaps the head back, a shot to the legs sweeps them out from under it), a limb taken off in
@@ -9,7 +23,7 @@
 // bouncing a little as it lands. The knees only bend one way, the head can't loll right round, and walls, fences, sills
 // and the floor stop it. The rig is then posed off the points every frame (ragPose), smoothed between steps; a body
 // that's lain still for a moment is left as it is and costs nothing
-const ragdolls = [];
+export const ragdolls = [];
 // 0 1 the hips, 2 3 the shoulders, 4 the head, 5 6 the left elbow and hand, 7 8 the right's, 9 10 the left knee and
 // foot, 11 12 the right's: where each is on the rig stood straight with its arms out in front (metres, before the
 // zombie's own size: RAG_AT), how heavy (RAG_MASS) and how far off the ground it rests (RAG_R, half that part's thickness)
@@ -66,7 +80,7 @@ const FALLS = [
   { k: 0.15, legs: [0.2, 0.35], up: 0.9, toneT: 0.55, fwd: [-0.4, 0.4], side: [0.2, 0.6], hip: 0.2, twist: [1.1, 1.9] }
 ];
 const _rgV = new V3(), _rgM = new THREE.Matrix4(), _rgQ = new THREE.Quaternion(), _rgQi = new THREE.Quaternion(), _rgQ2 = new THREE.Quaternion();
-const _rgX = new V3(), _rgY = new V3(), _rgZ = new V3(), _rgH = new V3(), _rgD = new V3(), _rgP = new V3();
+export const _rgX = new V3(), _rgY = new V3(), _rgZ = new V3(), _rgH = new V3(), _rgD = new V3(), _rgP = new V3();
 const _rgS = new V3(), _rgT = new V3(), _rgU = new V3(), _rgN = new V3();
 const _rgUp = new V3(0, 1, 0), _rgDn = new V3(0, -1, 0), _rgFw = new V3(0, 0, 1);
 
@@ -81,7 +95,7 @@ function ragTop(x, z) {
 }
 // the trunk's frame off the hips and shoulders in p: _rgH between the hips, _rgY up the spine, _rgX across it to the
 // right, _rgZ out of its front
-function ragFrame(p) {
+export function ragFrame(p) {
   _rgH.set((p[0] + p[3]) / 2, (p[1] + p[4]) / 2, (p[2] + p[5]) / 2);
   _rgY.set((p[6] + p[9]) / 2 - _rgH.x, (p[7] + p[10]) / 2 - _rgH.y, (p[8] + p[11]) / 2 - _rgH.z).normalize();
   _rgX.set(p[3] - p[0] + p[9] - p[6], p[4] - p[1] + p[10] - p[7], p[5] - p[2] + p[11] - p[8]);
@@ -90,7 +104,7 @@ function ragFrame(p) {
 
 // rig: a survivor's (player/player-ragdoll.js), not a zombie's: its upper body isn't raised to the hips (upY), its arms are
 // one piece each (no forearms: noFore), and it's kept in its own list (list), lying where it fell (keep)
-function makeRagdoll(z, dx, dz, part, force, wId, rig) {
+export function makeRagdoll(z, dx, dz, part, force, wId, rig) {
   const m = z.m, s = z.T.scale, upY = rig ? rig.upY : ZHIP, D = (wId && (W(wId) || EFF[wId])) || {}, n = RAG_AT.length, cut = z.cut || {};
   const p = new Float32Array(n * 3), on = new Uint8Array(n).fill(1);
   if (!z.limbs.head) on[4] = 0;
@@ -381,7 +395,7 @@ function ragPose(r, v) {
     r.blob.position.set((_rgH.x + sx) / 2, 0.02, (_rgH.z + sz) / 2); r.blob.rotation.y = Math.atan2(_rgY.x, _rgY.z); r.blob.scale.set(1.1 * s, 1, 1.1 * s * (1 + lay * 0.9));
   }
 }
-function stepRagdoll(r, dt) {
+export function stepRagdoll(r, dt) {
   r.t += dt;
   if (!r.sleep) {
     // fixed steps, the pose drawn between the last two so it moves smoothly at any frame rate

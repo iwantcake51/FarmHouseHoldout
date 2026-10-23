@@ -1,5 +1,18 @@
 // Fading wall faces and the roof so you can see inside.
 
+import { cam, renderScale, YAW, zoom } from '../core/renderer.js';
+import { clamp, smooth } from '../core/math.js';
+import { LMU, TREE_CUT } from '../core/shaders.js';
+import { ci, idx, inb } from './grid.js';
+import { HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
+import { IW_LINES, updateDoors } from './interior.js';
+import { TREES } from './trees.js';
+import { state } from '../game/state.js';
+import { INTRO, introCamOn } from '../game/intro.js';
+import { _c2, amb } from '../lighting/day-night.js';
+import { projV } from '../ui/crosshair.js';
+import { camFocus } from '../net/spectate.js';
+
 const TOWARD_CAM = { x: Math.sin(YAW), z: Math.cos(YAW) };   // flat direction from the scene toward the camera
 const SQ = Math.SQRT1_2, latOf = (x, z) => SQ * (x - z);
 const HLAT = [latOf(HOUSE.x0, HOUSE.z1), latOf(HOUSE.x1, HOUSE.z0)];
@@ -32,7 +45,7 @@ function lineCut(ln, F) {
   const u = ln.ax === 'x' ? F.z + TOWARD_CAM.z * t : F.x + TOWARD_CAM.x * t;
   return u > ln.lo - IW_CUT.end && u < ln.hi + IW_CUT.end;
 }
-function updateCutaway(rdt) {
+export function updateCutaway(rdt) {
   stepPaint(rdt);   // (a new run's paint easing in: world/house.js)
   const F = camFocus(), fN = faceCut(F, 'N', HOUSE.zN), fW = faceCut(F, 'W', HOUSE.xW);
   const inside = inHouseRect(F.x, F.z, -0.35);
@@ -84,7 +97,7 @@ function updateCutaway(rdt) {
 // fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see. Under
 // it means behind the house as the camera sees it too, where the eaves and the roof's slope stand in front of you
 // outside the walls, so the outline eases out with the roof rather than vanishing the moment it stops writing depth
-function roofOver(x, z) {
+export function roofOver(x, z) {
   if (inHouseRect(x, z, 0.4) || (roof.op < 1 && behindHouse({ x, z }))) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
   return 1;

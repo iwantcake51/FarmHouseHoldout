@@ -14,7 +14,9 @@
     "three": "0.128.0"
   },
   "devDependencies": {
-    "esbuild": "0.23.1"
+    "acorn": "8.15.0",
+    "esbuild": "0.23.1",
+    "eslint-scope": "8.3.0"
   },
   "engines": {
     "node": ">=18"

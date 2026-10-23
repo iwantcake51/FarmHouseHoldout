@@ -1,7 +1,11 @@
 // Gun materials and the per-slot weapon groups held by the player.
 
+import { basic, lam } from '../core/shaders.js';
+import { PM } from '../player/player.js';
+import { SLOTS } from './slots.js';
+
 // ---- gun models: each gun has its own shape, mods and tiers add their own parts ----
-const GM = {
+export const GM = {
   metal: lam(0x2a2b2e), metal2: lam(0x45474a), steel: lam(0x8a8d90), wood: lam(0x5b3f2a), wood2: lam(0x7a5434), brass: lam(0xb08a3e), shell: lam(0x9c2e22), shellB: lam(0x2f62b0), shellO: lam(0xd8682a), shellW: lam(0xe2ded4),
   olive: lam(0x4a5236), oliveD: lam(0x3c4330), red: basic(0xff4a32), laserG: basic(0x5cff74), bat: lam(0x9c7a52), nail: lam(0x9a9a94), wire: lam(0x3a3a38), blade: lam(0xb8bcbf), copper: lam(0xb0663a), filter: lam(0xc0682a), filterB: lam(0x1f4f9a), label: lam(0xe6e2d6), tape: lam(0x8a8a82),
   lens: basic(0xfff2c8), lens2: basic(0x5a8aa8), holo: basic(0x6ad0c0), ember: basic(0xff7a2a), orange: lam(0xd8692c),
@@ -11,8 +15,11 @@ const GM = {
 };
 const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.wood2, GM.poly, GM.park, GM.blued, GM.walnut, GM.olive, GM.ano, GM.furn, GM.anoL, GM.hgPoly, GM.rail,
   GM.oliveD, GM.glockS, GM.glockT, GM.stainless, GM.stainlessD, GM.walnutD, GM.walnut2, GM.engr, GM.engrD, GM.pad, GM.steelDk, GM.magAl, GM.fde, GM.fdeP, GM.fdeG];
-const GLOW_SET = new Set(glowMats);   // the ones that take the upgrade glow (player/animation.js)
-const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {}, CHARGE = {}, BRK = {}, BELT = {}, BIPOD = {};
-let stowDirty = true;
+export const GLOW_SET = new Set(glowMats);   // the ones that take the upgrade glow (player/animation.js)
+export const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {}, CHARGE = {}, BRK = {}, BELT = {}, BIPOD = {};
+export let stowDirty = true;
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });
 gunMeshes.melee.position.set(0, 0, 0.5);
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setStowDirty(v) { return (stowDirty = v); }

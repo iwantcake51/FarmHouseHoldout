@@ -1,8 +1,23 @@
 // Twin-stick touch controls and touch buttons.
 
+import { $ } from '../core/dom.js';
+import { cv } from '../core/renderer.js';
+import { SLOTS } from '../weapons/slots.js';
+import { W8 } from '../game/run-state.js';
+import { nearestTake, takeIt } from '../pickups/pickups.js';
+import { throwGrenade } from '../weapons/explosives.js';
+import { nearestOpening, vaultTarget } from '../player/vaulting.js';
+import { closeStation, nearestStation, openSt, openStation } from '../stations/station-ui.js';
+import { audioInit } from '../audio/audio.js';
+import { state } from '../game/state.js';
+import { startReload } from '../weapons/reload.js';
+import { spaceAction } from '../player/shove.js';
+import { switchSlot } from '../player/bandages.js';
+import { skipBreak } from '../net/sync.js';
+
 const touchUI = $('touch'), stickL = $('stickL'), stickR = $('stickR');
-const tStick = { L: null, R: null };
-let usingTouch = false;
+export const tStick = { L: null, R: null };
+export let usingTouch = false;
 cv.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' || state !== 'play') return;
   usingTouch = true; audioInit(); touchUI.hidden = false; cv.setPointerCapture(e.pointerId);
@@ -18,10 +33,10 @@ cv.addEventListener('pointermove', e => {
 function endTouch(e) { for (const side of ['L', 'R']) { const s = tStick[side]; if (s && s.id === e.pointerId) { tStick[side] = null; const el = side === 'L' ? stickL : stickR; el.hidden = true; el.firstElementChild.style.transform = ''; } } }
 cv.addEventListener('pointerup', endTouch);
 cv.addEventListener('pointercancel', endTouch);
-let touchBoard = false;
+export let touchBoard = false;
 $('tbBoard').addEventListener('pointerdown', () => touchBoard = true);
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('tbBoard').addEventListener(ev, () => touchBoard = false));
-let touchTear = false;   // held, tears the top board down (barricades/interactions.js)
+export let touchTear = false;   // held, tears the top board down (barricades/interactions.js)
 $('tbTear').addEventListener('pointerdown', () => touchTear = true);
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('tbTear').addEventListener(ev, () => touchTear = false));
 $('tbClimb').onclick = () => { const t = nearestTake(); if (t && !openSt) { takeIt(t); return; } const s = nearestStation(); if (s && !vaultTarget(nearestOpening())) { openSt ? closeStation() : openStation(s); } else spaceAction(); };

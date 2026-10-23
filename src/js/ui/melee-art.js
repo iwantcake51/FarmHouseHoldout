@@ -1,5 +1,12 @@
 // The melee weapon in your hands as a flat white silhouette, shown in the HUD where a gun's ammo count sits.
 
+import { $ } from '../core/dom.js';
+import { R, V3 } from '../core/renderer.js';
+import { cache } from '../core/math.js';
+import { modLv } from '../weapons/mod-levels.js';
+import { W8 } from '../game/run-state.js';
+import { GUNS } from '../melee/melee-models.js';
+
 const meleeArtCache = {}, MELEE_ART_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
 // render the model once per weapon and set of mods into an offscreen target, and keep the picture
@@ -31,7 +38,7 @@ function meleeArt(id, mods) {
   return (meleeArtCache[key] = { url: c.toDataURL(), w: w * MELEE_ART_PPU });
 }
 // the HUD's weapon block: the silhouette in place of the ammo count while you hold a melee weapon
-function renderMeleeArt(id, D) {
+export function renderMeleeArt(id, D) {
   const el = $('meleeArt'), on = !!D.melee;
   if (el.hidden === on) { el.hidden = !on; $('ammo').hidden = on; }
   if (!on) return;

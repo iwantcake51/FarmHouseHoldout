@@ -1,18 +1,23 @@
 // Tiered upgrade lines (per-gun attachment tiers and character tiers).
 
+import { P } from '../player/player.js';
+import { DETACH, hasShotgun, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
+import { METAL } from '../barricades/planks.js';
+import { SLOW_STEP, slowLess } from './upgrades.js';
+
 // tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
 // what each step of the feeding line gives: health a feed, the odds a kill (a headshot kill) feeds you, the most a wave
-const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 0.5, cap: 35 }, { h: 6, p: 0.5, ph: 1, cap: 50 }];
+export const FEED = [null, { h: 3, p: 1 / 3, ph: 0.5, cap: 20 }, { h: 5, p: 1 / 3, ph: 0.5, cap: 35 }, { h: 6, p: 0.5, ph: 1, cap: 50 }];
 // what a sight step does for your aimed shots, against the step before: how much tighter, and how much of the spread
 // moving adds to them it takes away
 const sightText = n => `Shots aimed down the sights ${Math.round((1 - SIGHT_AIM[n] / SIGHT_AIM[n - 1]) * 100)}% tighter${n > 1 ? ' again' : ''}, and ${Math.round((1 - SIGHT_MOVE[n] / SIGHT_MOVE[n - 1]) * 100)}% steadier on the move.`;
 // Quick hands: your reload time at each step (a share of the usual): each step takes another 20% off it
 const QUICK = [1, 0.8, 0.6, 0.4];
 // how much each trigger step quickens the fire rate: about a quarter faster in all, maxed (it was over 60%)
-const TRIG_UP = [1.08, 1.07, 1.08];
-const BOOTS = [1.06, 1.05, 1.05];
+export const TRIG_UP = [1.08, 1.07, 1.08];
+export const BOOTS = [1.06, 1.05, 1.05];
 const quickTo = n => { S.reloadMul *= QUICK[n] / QUICK[n - 1]; };
-const TIERS = {
+export const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
   // round is what it does (the line's key is still 'ammo')
   ammo: { tag: 'Powder', t: [
@@ -123,4 +128,4 @@ const TIERS = {
     { r: 'l', name: 'Magnetic', text: 'You pick drops up from 40% further away, and they lie there 20 seconds longer before they\'re gone.', ap: () => { S.pickMul = 1.4; S.dropLife = 20; } }] }
 };
 // what tier n of line k is called on gun id
-const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };
+export const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

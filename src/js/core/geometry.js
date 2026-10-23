@@ -1,27 +1,30 @@
 // Geometry helpers: cached boxes, flat-shaded meshes, cylinders and soft blob shadows.
 
-const geoCache = {}, sharedGeo = new WeakSet();
-const bgeo = (w, h, d) => { const k = w.toFixed(3) + ',' + h.toFixed(3) + ',' + d.toFixed(3); if (!geoCache[k]) sharedGeo.add(geoCache[k] = new THREE.BoxGeometry(w, h, d)); return geoCache[k]; };
+import { scene } from './renderer.js';
+import { lam } from './shaders.js';
+
+export const geoCache = {}, sharedGeo = new WeakSet();
+export const bgeo = (w, h, d) => { const k = w.toFixed(3) + ',' + h.toFixed(3) + ',' + d.toFixed(3); if (!geoCache[k]) sharedGeo.add(geoCache[k] = new THREE.BoxGeometry(w, h, d)); return geoCache[k]; };
 // a model taken down for good (a weapon rebuilt for a new attachment, yours or a teammate's): its own geometry is let go
 // of a few frames on (once the copies drawn from it are gone too), so the GPU doesn't keep every old model it was sent.
 // The cached boxes stay, as other models still use them
-function binModel(o) {
+export function binModel(o) {
   if (o.parent) o.parent.remove(o);
   o.traverse(q => { if (q.isMesh && q.geometry && !sharedGeo.has(q.geometry)) modelBin.add(q.geometry); });
   modelBinT = 3;
 }
 const modelBin = new Set(); let modelBinT = 0;
-function flushModels() { if (modelBin.size && --modelBinT <= 0) { modelBin.forEach(g => g.dispose()); modelBin.clear(); } }
-function box(parent, w, h, d, mat, x, y, z) {
+export function flushModels() { if (modelBin.size && --modelBinT <= 0) { modelBin.forEach(g => g.dispose()); modelBin.clear(); } }
+export function box(parent, w, h, d, mat, x, y, z) {
   const m = new THREE.Mesh(bgeo(w, h, d), mat);
   m.position.set(x || 0, y || 0, z || 0); m.castShadow = true; m.receiveShadow = true;
   parent.add(m); return m;
 }
-const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
-const BLOB_TEX = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+export const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
+export const BLOB_TEX = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const BLOB_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-function blobShadow(size, op) { const m = new THREE.Mesh(BLOB_G, new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: op, depthWrite: false })); m.scale.setScalar(size); m.renderOrder = 1; m.position.y = 0.02; scene.add(m); return m; }
-const cylZ = (r, len, mat, seg) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 10), mat); m.rotation.x = Math.PI / 2; m.castShadow = true; return m; };
+export function blobShadow(size, op) { const m = new THREE.Mesh(BLOB_G, new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: op, depthWrite: false })); m.scale.setScalar(size); m.renderOrder = 1; m.position.y = 0.02; scene.add(m); return m; }
+export const cylZ = (r, len, mat, seg) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg || 10), mat); m.rotation.x = Math.PI / 2; m.castShadow = true; return m; };
 function addCylZ(g, r, len, mat, x, y, z) { const m = cylZ(r, len, mat); m.position.set(x, y, z); g.add(m); return m; }
 // Merge many small static pieces into as few meshes as possible, so a detailed model costs a handful of draw calls.
 // Plain lit colours are baked into vertex colours and share one material; anything else (glows, double-sided or
@@ -30,7 +33,7 @@ function addCylZ(g, r, len, mat, x, y, z) { const m = cylZ(r, len, mat); m.posit
 // (outlines and x-ray rims skip them, since their scaled-hull trick only works on single boxes).
 const _mergeM = new THREE.Matrix4();
 let BAKED_M = null;
-function mergeInto(parent, list, opt) {
+export function mergeInto(parent, list, opt) {
   const live = (opt && opt.live) || null, noBake = !!(opt && opt.noBake);
   parent.updateWorldMatrix(true, true);
   const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert(), groups = new Map(), out = [];
@@ -63,7 +66,7 @@ function mergeInto(parent, list, opt) {
 // of loose pieces each would be a draw of its own in the sun's shadow pass. Folded meshes keep theirs (a piece folded in
 // costs nothing there)
 const _tsV = new THREE.Vector3();
-function trimShadows(root, r) {
+export function trimShadows(root, r) {
   root.updateMatrixWorld(true);
   root.traverse(o => {
     if (!o.isMesh || !o.castShadow || o.userData.fine || !o.geometry) return;
@@ -82,7 +85,7 @@ const foldable = (o, see) => {
   return o.isMesh && !o.isInstancedMesh && !Array.isArray(m) && m && (see || !m.transparent) && !m.map && !m.vertexColors && !m.alphaTest && m.colorWrite !== false && m.visible !== false
     && m.blending === THREE.NormalBlending && !o.renderOrder && !o.customDepthMaterial && o.geometry.attributes.normal && !o.geometry.morphAttributes.position;
 };
-function foldPieces(root, stop, opt) {
+export function foldPieces(root, stop, opt) {
   const parts = [], see = !!(opt && opt.see);
   (function walk(o) { o.children.forEach(c => { if ((stop && stop.has(c)) || !c.visible || Object.keys(c.userData).length) return; if (foldable(c, see)) parts.push(c); walk(c); }); })(root);
   // (a piece with children of its own keeps its place, for them: only childless ones fold)
@@ -90,7 +93,7 @@ function foldPieces(root, stop, opt) {
   return list.length > 1 ? mergeInto(root, list, { noBake: true }) : [];
 }
 // every mesh under g except the ones flagged userData.sil (kept whole for outlines) and anything under a stop node
-function finePieces(g, stop) {
+export function finePieces(g, stop) {
   const out = []; (function walk(o) { o.children.forEach(c => { if (stop && stop.has(c)) return; if (c.isMesh && !c.userData.sil && !c.userData.fine) out.push(c); walk(c); }); })(g);
   return out;
 }
@@ -102,7 +105,7 @@ function finePieces(g, stop) {
 // A pass after the first only has to look at pairs with a piece the pass before moved (and whatever rides on it): every
 // other pair is just as it was, and it was settled then
 const _ufV = new THREE.Vector3(), _ufN = new THREE.Vector3(), _ufE1 = new THREE.Vector3(), _ufE2 = new THREE.Vector3();
-function unfight(root, opt) {
+export function unfight(root, opt) {
   const fixed = (opt && opt.fixed) || null, only = (opt && opt.only) || null, gap = 0.0006;
   root.updateWorldMatrix(true, true);
   const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4();

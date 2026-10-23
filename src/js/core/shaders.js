@@ -1,7 +1,10 @@
 // The light-map shader patch every lit material uses (light, vision, wall cut-away, the blood on the ground and walls)
 // and foliage wind.
 
-const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: { value: N * 2 }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 },
+import { GUN_Y } from './renderer.js';
+import { HALF, N } from './math.js';
+
+export const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: { value: N * 2 }, uLmHalf: { value: HALF }, uUnseen: { value: 0.85 }, uPScr: { value: new THREE.Vector2(-9999, -9999) }, uRad: { value: 120 }, uPZ: { value: 0 },
   // how far your eyes have got used to the dark (lighting/day-night.js): it lifts the black-and-white dark a little
   uAdapt: { value: 0 },
   // night vision (lighting/lightmap.js): how much it lifts the black-and-white dark, and how much of the colour it
@@ -39,7 +42,7 @@ const VERT_BODY = `
 // window frame or a corner. Past the middle line of a window (tw, how far out its ray crossed it) the beam only goes on
 // where it passed between the sill and the head: a beam from gun height through a window only just over the sill
 // lights what stands up outside, not the ground just under it or the top of the wall over it
-const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
+export const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
 const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
 const FL_FN = `
 float flCone(vec4 f, vec4 k, vec2 p, float row) {
@@ -73,7 +76,7 @@ const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nun
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
 // and runs down walls in soft organic stains rather than texels. Things that move (you, zombies, weapons, pickups)
 // opt out with userData.mobile, and carry their own stains.
-const BMU = { uBloodMap: { value: null }, uBloodNoise: { value: null } };
+export const BMU = { uBloodMap: { value: null }, uBloodNoise: { value: null } };
 const WB_DECL = 'uniform sampler2D uBloodMap;\nconst vec2 SOOT = vec2(1.0, 0.17);\n';
 const WB_BODY = `
   {
@@ -160,7 +163,7 @@ const CUT_BODY = `
   }
   #include <clipping_planes_fragment>`;
 // trees: only the parts standing between the camera and you (nearer than you in depth) dither away, in a soft hole round you
-const TREE_CUT = { value: 0 };
+export const TREE_CUT = { value: 0 };
 const TREE_DECL = 'uniform float uTreeCut;\nuniform vec2 uPScr;\nuniform float uRad;\nuniform float uPZ;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }\n';
 const TREE_BODY = `
   if (uTreeCut > 0.001 && gl_FragCoord.z < uPZ) {
@@ -170,7 +173,7 @@ const TREE_BODY = `
     if (th >= keep) discard;
   }
   #include <clipping_planes_fragment>`;
-function lit(mat, cut) {
+export function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
     Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
@@ -192,22 +195,22 @@ function lit(mat, cut) {
   mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + ((this || mat).userData.glow ? 'glow-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
   return mat;
 }
-const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
-const WIND = { value: 0 };
+export const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
+export const WIND = { value: 0 };
 // the wind as the shaders see it (set by stepWind, world/wind.js): [x, z] the way it blows (a unit vector), its strength
 // (0 still to 1 a gale) and where its gusts have rolled to (WIND_GUST, the same sum the particles use: gustAt)
-const WIND_V = { value: new THREE.Vector4(1, 0, 0.4, 0) };
-const WIND_GUST = { k: 0.16, sharp: 6 };
+export const WIND_V = { value: new THREE.Vector4(1, 0, 0.4, 0) };
+export const WIND_GUST = { k: 0.16, sharp: 6 };
 // grass and bushes part round whoever's walking through them: up to four at a time (you, and the zombies nearest you),
 // each [x, z, reach, strength], set every frame by updatePushers (world/trees.js)
-const PUSHERS = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) };
+export const PUSHERS = { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 1, 0)) };
 // instanced foliage bends in the wind; the higher up a vertex sits the more it moves. It leans the way the wind blows,
 // further the stronger it is, flutters about that lean (quicker in a strong wind), and bows right over as a gust rolls
 // through: a band of it sweeping across the field, plant after plant. With push, it also leans away from anyone
 // walking through it (PUSHERS), the tops furthest and pressed down a little, the roots staying put. The bend is worked
 // out in the world and turned back into the plant's own frame, so every plant leans the same way whichever way it was
 // placed. All in the shader, so it costs nothing on the CPU however much grass there is
-function windy(mat, amp, push) {
+export function windy(mat, amp, push) {
   const base = mat.onBeforeCompile, baseKey = mat.customProgramCacheKey;
   mat.onBeforeCompile = function (sh, r) {
     base.call(this || mat, sh, r); sh.uniforms.uWind = WIND; sh.uniforms.uWindV = WIND_V; if (push) sh.uniforms.uPush = PUSHERS;
@@ -235,5 +238,5 @@ function windy(mat, amp, push) {
   mat.customProgramCacheKey = function () { return baseKey.call(this || mat) + '-wind2-' + amp + (push ? '-push-' + push : ''); };
   return mat;
 }
-const basic = c => new THREE.MeshBasicMaterial({ color: c });
-const relit = m => lit(m.clone());
+export const basic = c => new THREE.MeshBasicMaterial({ color: c });
+export const relit = m => lit(m.clone());

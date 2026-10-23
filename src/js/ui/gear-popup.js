@@ -3,12 +3,19 @@
 // saying what it is, what it's on and its main changes, out of the way and gone in a few seconds (what it does in full
 // is in the pause screen's list of all of it, below, and the workbench).
 
+import { $ } from '../core/dom.js';
+import { GI, GI_VB } from './game-icons.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { run } from '../game/run-state.js';
+import { SFX } from '../audio/sfx.js';
+import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
+
 // what a gun's called in a sentence: plain, without its calibre ("your pistol", not "your 9mm pistol")
-const gunCall = id => WEAP[id].name.replace(/^[.\d]+[a-z]*\s+/i, '').toLowerCase();
+export const gunCall = id => WEAP[id].name.replace(/^[.\d]+[a-z]*\s+/i, '').toLowerCase();
 // how each kind of thing is marked, in the popup and the list
 const GEAR_COL = { gear: '#d9a83e', ammo: '#d4b25c', med: '#d0432c', supply: '#d8692c' };
 // o: { ic, kind (what sort of thing), name, gun (the weapon it's on) or whom (who it's for) or on (said outright), text (what it does), fx (chips) }
-function gotGear(o) {
+export function gotGear(o) {
   const on = o.on || (o.gun ? 'On your ' + gunCall(o.gun) : o.whom ? 'For ' + o.whom : '');
   run.bought.push({ name: o.name, kind: o.kind, on, text: o.text, ic: o.ic || 'gear', wave: Math.max(1, run.wave) });
   gearQ.push(Object.assign({ on }, o)); if (!gearShowing) nextGear();
@@ -33,9 +40,9 @@ function nextGear() {
   SFX.pick && SFX.pick();
   clearTimeout(gearT); gearT = setTimeout(() => { el.classList.remove('in'); el.classList.add('out'); gearT = setTimeout(() => { el.hidden = true; el.classList.remove('out'); nextGear(); }, 220); }, hold * 1000);
 }
-function clearGear() { gearQ.length = 0; clearTimeout(gearT); gearShowing = false; gearEl.hidden = true; gearEl.classList.remove('in', 'out'); }
+export function clearGear() { gearQ.length = 0; clearTimeout(gearT); gearShowing = false; gearEl.hidden = true; gearEl.classList.remove('in', 'out'); }
 // the pause screen's list of what you've bought or been given, newest first
-function renderBought(list, countEl) {
+export function renderBought(list, countEl) {
   const el = $(list); el.innerHTML = ''; $(countEl).textContent = run.bought.length;
   if (!run.bought.length) { el.innerHTML = '<div class="none">Nothing yet. Buy attachments, mods and upgrades at the workbench.</div>'; return; }
   run.bought.slice().reverse().forEach(h => {

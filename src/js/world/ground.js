@@ -1,12 +1,20 @@
 // House footprint, the ground (textured and blended in its shader) and grass tufts; past the farm's edge, the ground and
 // grass going on into the haze, the drive carried on out, and the main road it meets.
 
-const HX0 = 16, HX1 = 27, HZ0 = 17, HZ1 = 26;
+import { R, scene } from '../core/renderer.js';
+import { HALF, N, pick, rand, rr } from '../core/math.js';
+import { lam, windy } from '../core/shaders.js';
+import { flat } from '../core/geometry.js';
+import { cxw } from './grid.js';
+import { M } from './materials.js';
+import { GROUND_ART } from './ground-art.js';
+
+export const HX0 = 16, HX1 = 27, HZ0 = 17, HZ1 = 26;
 // the dirt drive out the front of the house: painted into the ground's mask (groundMask), from the porch on past the
 // farm's edge to the main road, which runs across in front of the farm out in the fog. Trees, grass
 // and rocks keep off both (onRoad, also world/trees.js); m widens the margin
-const ROAD = { x: z => cxw(21) + Math.sin(z * 0.45) * 0.35, z0: cxw(HZ1) + 0.6, z: HALF + 7.5, w: 5.4 };
-const onRoad = (x, z, m) => Math.abs(z - ROAD.z) < ROAD.w / 2 + 0.8 + m || (z > ROAD.z0 && z < ROAD.z && Math.abs(x - ROAD.x(z)) < 1.3 + m);
+export const ROAD = { x: z => cxw(21) + Math.sin(z * 0.45) * 0.35, z0: cxw(HZ1) + 0.6, z: HALF + 7.5, w: 5.4 };
+export const onRoad = (x, z, m) => Math.abs(z - ROAD.z) < ROAD.w / 2 + 0.8 + m || (z > ROAD.z0 && z < ROAD.z && Math.abs(x - ROAD.x(z)) < 1.3 + m);
 // the ground is drawn from the SBS packs' textures (world/ground-art.js, tools/pack-ground.py), tiled in the world and
 // faded in and out of each other by Perlin noise in the shader (GROUND_FS), so it's sharp however close you zoom and
 // never repeats. Where it's bare earth rather than grass is painted into a mask that runs out past the farm's edge to
@@ -15,7 +23,7 @@ const onRoad = (x, z, m) => Math.abs(z - ROAD.z) < ROAD.w / 2 + 0.8 + m || (z > 
 // It's painted again each run, for the paths out to where the fence gaps are this time (paths: each from x, z to x, z;
 // world/yard.js), into the same texture (GROUND_MASK)
 const GROUND_SPAN = 104, GROUND_MASK = { c: null, t: null };
-function groundMask(paths) {
+export function groundMask(paths) {
   const S2 = 2048, c = GROUND_MASK.c || (GROUND_MASK.c = document.createElement('canvas')); c.width = c.height = S2; const x = c.getContext('2d');
   const px = v => (v + GROUND_SPAN / 2) / GROUND_SPAN * S2, pm = m => m / GROUND_SPAN * S2;
   x.fillStyle = '#000'; x.fillRect(0, 0, S2, S2);

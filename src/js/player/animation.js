@@ -1,8 +1,37 @@
 // Player animation: walk, turn, limp, swings, recoil, reloads, death; and the per-frame player visuals.
 
+import { GUN_Y, V3 } from '../core/renderer.js';
+import { angDiff, clamp, rr, smooth } from '../core/math.js';
+import { surfaceY } from '../world/house.js';
+import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
+import { faceMood, LOOK } from './look.js';
+import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
+import { SLOTS } from '../weapons/slots.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { GLOW_SET, gunMeshes } from '../weapons/gun-materials.js';
+import {
+  flash, flashCore, flashLen, flashLife, flashSize, flashStar, flashT, flashWide, setFlashT, tongueA, tongueB,
+  updateMuzzleWisp
+} from '../effects/muzzle-flash.js';
+import { stepDrop } from '../effects/weapon-drop.js';
+import { barrelFire } from '../effects/puffs.js';
+import { stepRagdoll } from '../zombies/deaths.js';
+import { pXray } from '../effects/outlines.js';
+import { vaultGun } from './vaulting.js';
+import { vaultAt, VB } from './vault-plan.js';
+import { gunGlow, gunGlowId, setGunGlow, setGunGlowId, state, worldK } from '../game/state.js';
+import { INTRO, introKneel, introLook, introPose, titleBlend } from '../game/intro.js';
+import { PIVOT, sprintAnim, WALK_SPEED } from './sprint.js';
+import { springTo } from '../game/camera.js';
+import { roofOver } from '../world/cutaway.js';
+import { PRAG } from './player-ragdoll.js';
+import { ARM_THIN, armRest, poseHands, reach } from './hold.js';
+import { updatePack, updateStow } from './stow.js';
+import { updateBandStow, updateSwap } from './swap.js';
+
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
+export const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
 const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
 // how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
@@ -32,7 +61,7 @@ const BACKPEDAL = { body: 0.06, chest: 0.05, head: 0.6, ease: 6 };
 // deeper (breath: how much more, how much quicker), and now and then a wince (wince: how often, seconds, at the worst;
 // the knee buckling a little with it)
 const LIMP = { from: 0.45, to: 0.08, warp: 0.3, short: 0.35, stiff: 0.65, out: 0.1, rise: 0.018, sink: 0.028, lean: 0.075, hip: 0.07, rest: 0.26, breath: [1.4, 1.1], wince: [3, 7] };
-const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.22, thigh: 0.11, drop: 0.03, chest: 0.045, ease: 3.5 };
+export const LOOK_DOWN = { near: 0.9, far: 2.6, knee: 0.22, thigh: 0.11, drop: 0.03, chest: 0.045, ease: 3.5 };
 const SPRINT_LOOK = { ahead: 0.9, blend: 0.45, chest: 0.3, head: 0.55, backChest: 0.35, backHead: 0.7, behind: 2.7, neck: 0.75, max: 1.05 };
 // Run and gun at a sprint (ANIM.rgK, player/sprint.js): the legs keep running the way you're going and the upper body
 // twists round from the hips to the aim, up to max (as far as RG_ARC lets you fire), on a stiff spring (k, damp) so it
@@ -66,7 +95,7 @@ function dropFall(dt) { stepDrop(ANIM.dropped, dt); }
 // over to one side, then reaching down for the ground. A winded scramble goes over belly-first on both hands, low and
 // slow, the legs dragging. The landing itself (knees giving, the dip) is ANIM.land below.
 // how far through a stage: vk(t, a, b) eases from 0 to 1 as t goes from a to b
-const vk = (t, a, b) => smooth(clamp((t - a) / (b - a), 0, 1));
+export const vk = (t, a, b) => smooth(clamp((t - a) / (b - a), 0, 1));
 function vaultPhase(v) { return { c: v.t > 0 ? 1 : smooth(clamp(v.pre / v.preDur, 0, 1)), t: Math.min(1, v.t), air: v.t > 0 }; }
 // the body's pose read off the vault's plan (player/vault-plan.js): the hips, the lean and each leg's angle. Through the
 // crouch it eases from standing into the plan's first pose. The body tips about the hips, not the feet.
@@ -128,7 +157,7 @@ function vaultHands(pm, v) {
 // or a third again the gun's own time between shots for a slow one) are one run of fire, and from the run's
 // ANGER_T.shots'th shot it comes in over a moment; stop and it eases back off, slower still
 const ANGER_T = { gap: 0.2, shots: 3, rise: 3.5, fall: 1.6 };
-function angerShot(rate) {
+export function angerShot(rate) {
   const gap = Math.max(ANGER_T.gap, rate * 1.3);
   ANIM.runShots = (ANIM.shotT ?? 9) < gap ? (ANIM.runShots || 0) + 1 : 1; ANIM.shotT = 0; ANIM.shotGap = gap;
 }
@@ -143,7 +172,7 @@ function angerStep(rdt) {
 // a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
 // then eases off
 const HURT_FACE = { hold: 0.4, rise: 25, fall: 2.6 };
-function hurtFace(k = 1) { ANIM.hurtT = Math.max(ANIM.hurtT || 0, HURT_FACE.hold * clamp(k, 0.6, 1.6)); }
+export function hurtFace(k = 1) { ANIM.hurtT = Math.max(ANIM.hurtT || 0, HURT_FACE.hold * clamp(k, 0.6, 1.6)); }
 function hurtStep(rdt) {
   ANIM.hurtT = Math.max(0, (ANIM.hurtT || 0) - rdt);
   const want = !P.dead && ANIM.hurtT > 0 ? 1 : 0, h = ANIM.hurt || 0;
@@ -153,7 +182,7 @@ function hurtStep(rdt) {
 // Pull the trigger on an empty gun and the click startles you (faceMood's w): the face jumps to it at once and holds
 // for WORRY_T.hold, every click starting the hold again, then eases back off over the next second or so
 const WORRY_T = { hold: 0.45, rise: 30, fall: 3.2 };
-function worryShot() { ANIM.worryT = WORRY_T.hold; }
+export function worryShot() { ANIM.worryT = WORRY_T.hold; }
 function worryStep(rdt) {
   ANIM.worryT = Math.max(0, (ANIM.worryT || 0) - rdt);
   const want = !P.dead && ANIM.worryT > 0 ? 1 : 0, w = ANIM.worry || 0;
@@ -427,7 +456,7 @@ function animatePlayer(dt, rdt) {
   introLook(pm);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel
-function updatePlayerVisuals(dt, rdt) {
+export function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
@@ -439,14 +468,14 @@ function updatePlayerVisuals(dt, rdt) {
   updateCharBlood(rdt, dt);   // the stain on you (effects/body-blood.js)
   bandRolls.forEach((m, k) => { m.visible = k < (P.band || 0); });
   updateWeaponBlood(rdt, dt);   // and on your weapons
-  flashT -= rdt; if (flashT <= 0) flash.visible = false;
+  setFlashT(flashT - rdt); if (flashT <= 0) flash.visible = false;
   else { const k = flashT / flashLife, s1 = flashSize * (0.75 + 0.5 * (1 - k)); flashCore.scale.setScalar(0.55 * s1); flashStar.scale.setScalar(0.95 * s1); flashCore.material.opacity = Math.min(1, k * 1.6); flashStar.material.opacity = Math.min(1, k * 1.4); tongueA.scale.set(0.3 * s1 * flashWide, 1, 0.6 * flashLen * s1); tongueB.scale.copy(tongueA.scale); tongueA.material.opacity = tongueB.material.opacity = Math.min(1, k * 1.5); }
-  if (gunGlow > 0) gunGlow = Math.max(0, gunGlow - rdt * 0.8);
+  if (gunGlow > 0) setGunGlow(Math.max(0, gunGlow - rdt * 0.8));
   const gl = gunGlow > 0 ? (0.5 + 0.5 * Math.sin(performance.now() / 70)) * gunGlow : 0;
   // a soft, pale yellow pulse on that gun's own materials only (its stain copies, effects/body-blood.js), so the rack's
   // models and the other guns you carry, which share the plain gun materials, stay as they are
   const GS = gunGlowId && WSTAIN[gunGlowId];
-  if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) gunGlowId = null; }
+  if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) setGunGlowId(null); }
   if (rdt > 0) updateMuzzleWisp(rdt);   // the smoke still curling off the muzzle after a heavy shot (effects/muzzle-flash.js)
   if (worldK > 0 && dt > 0) barrelFire(dt);   // (effects/puffs.js; the fire freezes with the world)
 }

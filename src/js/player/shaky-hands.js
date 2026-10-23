@@ -8,17 +8,32 @@
 //  - the crosshair drifts slowly off the cursor and back, a lazy wander that never quite repeats, nudged by each
 //    heartbeat too. Shots go where the drifted crosshair is (SHAKY.x/y feed the aim: player/movement.js,
 //    weapons/firing.js), so you steer against it. Down the sights it's steadier (SHAKY_ADS)
+import { cam, GUN_Y, V3 } from '../core/renderer.js';
+import { clamp, mix, rand, rr, smooth } from '../core/math.js';
+import { P } from './player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { openSt } from '../stations/station-ui.js';
+import { state } from '../game/state.js';
+import { hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
+import { aiming } from './aiming.js';
+import { tStick } from '../input/touch.js';
+import { HANDGUN, settleK, stocked, unshouldered } from '../weapons/firing.js';
+import { springTo } from '../game/camera.js';
+import { beatT, ECG_R } from '../ui/vitals.js';
+import { ANIM } from './animation.js';
+
 const SHAKY_HP = { from: 0.3, to: 0.05 };
 // the crosshair's wander at its worst (screen px at 1080 high, scaled with the window), and how hard a heartbeat kicks it
 const SHAKY_SWAY = 30, SHAKY_BEAT = 26, SHAKY_ADS = 0.5;
 // the arms' tremble at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved
-const SHAKY_TREM = { p: 0.06, y: 0.05, r: 0.07, m: 0.01 }, SHAKY_AIM_EASE = 7;
+export const SHAKY_TREM = { p: 0.06, y: 0.05, r: 0.07, m: 0.01 }, SHAKY_AIM_EASE = 7;
 // how the tremble moves: each axis is a loose spring (TREM_K stiff, TREM_D damped, about 3 shakes a second) chasing
 // a new random spot every TREM_HOLD seconds or so, stepped at 120 Hz whatever the frame rate, so it's one smooth
 // motion that looks the same at 30 fps as at 144 (never a fast flicker sampled differently every frame), and a
 // heartbeat knocks it with a push (TREM_BEAT), not a jump
 const TREM_K = 900, TREM_D = 24, TREM_HOLD = [0.06, 0.11], TREM_BEAT = 7;
-const SHAKY = { ak: 0, k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, ph: Array.from({ length: 6 }, () => rand() * 6.283) };
+export const SHAKY = { ak: 0, k: 0, t: 0, x: 0, y: 0, bx: 0, by: 0, vbx: 0, vby: 0, lb: 0, ph: Array.from({ length: 6 }, () => rand() * 6.283) };
 const TREM_AX = ['p', 'y', 'r', 'x', 'h'], TREM = { hold: 0 };
 TREM_AX.forEach(a => { TREM[a] = 0; TREM['v' + a] = 0; TREM['g' + a] = 0; });
 // the crosshair's own sway and recoil, on top of the wander (and like it, they move your aim: shots go where the
@@ -46,7 +61,7 @@ const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
 // again), a pair of them, a heavy gun; one with a shoulder stock, or a long gun, the least (XSTEADY)
 const XSTEADY = { side: 2.1, magnum: 1.2, stock: 0.95, pair: 2.3, heavy: 2, auto: 1.1, long: 1 };
-function gunUnsteady(D, id) {
+export function gunUnsteady(D, id) {
   if (D.akimbo) return XSTEADY.pair;
   if (D.heavy) return XSTEADY.heavy;
   if (D.slot === 'side') return stocked(id) ? XSTEADY.stock : XSTEADY.side * (D.ammo === 'magnum' ? XSTEADY.magnum : 1);
@@ -62,9 +77,9 @@ const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2
 // ordinary hit, more for a heavier one up to max times; side: how much it's thrown aside as well), and for a moment
 // you're unsteady: the spread opens up (spread: how much wider at most) and the sway grows (sway: how much more), both
 // coming on over a moment and easing off again (rise, fall: how quick), never snapping
-const XHIT = { px: 34, max: 2.2, side: 0.5, spread: 0.6, sway: 1.6, rise: 14, fall: 1.6 };
-const XR = { x: 0, y: 0, vx: 0, vy: 0, vdx: 0, vdy: 0, c: 1, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
-function xhKick(D, id, pw, auto) {
+export const XHIT = { px: 34, max: 2.2, side: 0.5, spread: 0.6, sway: 1.6, rise: 14, fall: 1.6 };
+export const XR = { x: 0, y: 0, vx: 0, vy: 0, vdx: 0, vdy: 0, c: 1, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
+export function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
   const tight = clamp(sp / Math.max(1e-4, sp0), auto ? XREC.autoTight : 0.3, 1.2), ads = aiming ? (auto ? XREC.adsAuto : XREC.adsSemi) : (D.hipKick || 1);
@@ -90,7 +105,7 @@ function xhKick(D, id, pw, auto) {
   const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * mix(1, XDRIFT.adsMax, SHAKY.ak); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
   XR.tx = tx; XR.ty = ty;
 }
-function xhHit(x, z, amount) {
+export function xhHit(x, z, amount) {
   const k = clamp(amount || 1, 0.1, XHIT.max);
   XR.hbT = Math.min(1, XR.hbT + 0.45 * k);
   if (!hasMouse || tStick.R) return;
@@ -134,8 +149,8 @@ function updateXhRecoil(dt) {
   XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp; XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp + heave;
 }
 // the aim on screen: where the cursor is, plus the wander, the sway and the kick
-const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy, 0, innerHeight);
-function updateShaky(dt) {
+export const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy, 0, innerHeight);
+export function updateShaky(dt) {
   const sk = SHAKY, hpF = P.hp / S.maxHp;
   const want = P.dead || state !== 'play' ? 0 : smooth(clamp((SHAKY_HP.from - hpF) / (SHAKY_HP.from - SHAKY_HP.to), 0, 1));
   sk.k += (want - sk.k) * Math.min(1, dt * 1.6);
@@ -165,7 +180,7 @@ function updateShaky(dt) {
 // the arms' tremble this frame, out of about 1 on each axis (scaled by SHAKY_TREM where it's used), as strong as your
 // health makes it and a little steadier down the sights
 const _trem = { p: 0, y: 0, r: 0, x: 0, h: 0 };
-function shakyTremor() {
+export function shakyTremor() {
   const q = SHAKY.k < 0.002 ? 0 : SHAKY.k * (1 - 0.4 * SHAKY.ak);
   TREM_AX.forEach(a => { _trem[a] = TREM[a] * q; });
   return _trem;

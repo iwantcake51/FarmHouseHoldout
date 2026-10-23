@@ -1,10 +1,18 @@
 // The house stations (workbench, sawhorse, medicine cabinet, radio, and in co-op the strongbox) and their highlight
 // outlines.
 
+import { scene } from '../core/renderer.js';
+import { outline } from '../effects/screen-outlines.js';
+import { basic, lam } from '../core/shaders.js';
+import { box, finePieces, mergeInto, unfight } from '../core/geometry.js';
+import { cxw } from '../world/grid.js';
+import { M } from '../world/materials.js';
+import { FURN, HM, obstacle, torus, xcyl, ycyl, zcyl } from '../world/props.js';
+
 // ---- stations inside the house ----
 // The big pieces of each station stay whole (userData.sil) so the highlight outline can trace them;
 // the small detail is merged into a few meshes per station.
-const STATIONS = [];
+export const STATIONS = [];
 {
   const sil = m => { m.userData.sil = true; return m; }, RED_X = basic(0xb3261c);
   // ---- workbench against the north wall: butcher-block top, a lower shelf, a vise on the front corner, a pegboard of tools ----

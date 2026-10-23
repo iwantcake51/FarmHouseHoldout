@@ -10,6 +10,13 @@
 // shelf in a small room or the kitchen; the stations mostly in the living room; and all of it with room round it,
 // rather than packed up against the next piece.
 
+import { N } from '../core/math.js';
+import { cell, ci, cxw, EMPTY, idx, OBST } from './grid.js';
+import { FURN, lowObst } from './props.js';
+import { STATIONS } from '../stations/stations.js';
+import { eDec, eKey, HOUSE_DOOR, IN, inPlan } from './interior.js';
+import { blockArr } from './collision.js';
+
 const FURN_JIT = { slide: 0.1, turn: 0.045 };
 const FURN_ORDER = ['box', 'bed', 'bench', 'saw', 'shelf', 'rack', 'med', 'radio'];
 // a piece that goes in the same room as one placed before it, and how much each cell further from it counts against a spot
@@ -31,7 +38,7 @@ FURN.forEach(f => {
 });
 FURN.sort((a, b) => FURN_ORDER.indexOf(a.id) - FURN_ORDER.indexOf(b.id));
 // (x, z) turned q quarter turns the way three.js turns about y (+z round toward +x)
-const quarter = (x, z, q) => { for (let k = 0; k < (q & 3); k++) { const t = x; x = z; z = -t; } return [x, z]; };
+export const quarter = (x, z, q) => { for (let k = 0; k < (q & 3); k++) { const t = x; x = z; z = -t; } return [x, z]; };
 // a piece stood with its first cell at (pi, pj), turned q quarters from how it was built: its cells, the way it faces,
 // and its station's spot
 function furnAt(f, pi, pj, q) {
@@ -75,7 +82,7 @@ function furnScore(c, W, occ, ro, kinds, rnd) {
 }
 // every piece placed, between the walls W (doors: the doorways in them; ro: each cell's room, kinds: what each room is),
 // or null if they won't all go in
-function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
+export function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
   const occ = new Uint8Array(N * N), keep = new Uint8Array(N * N), out = new Map();
   for (const [i, j] of fronts) keep[idx(i, j)] = 1;   // in front of each window
   // the way in from the front door: the cell inside it, those either side of that and the row beyond
@@ -113,7 +120,7 @@ function placeFurniture(rnd, W, doors, ro, kinds, fronts) {
 // put each piece where the plan says (or back where it was built, with none): its cells in the grid (low or tall: what
 // you see and shoot over), its model moved and turned (nudged and twisted a little: FURN_JIT), and its station's spot
 // and footprint with it
-function applyFurniture(placed, rnd) {
+export function applyFurniture(placed, rnd) {
   for (const f of FURN) for (const [i, j] of f.at) { const k = idx(i, j); if (cell[k] !== OBST) continue; cell[k] = EMPTY; lowObst.delete(k); blockArr[k] = 0; }   // (where it stood last run, if that's not a wall now: world/house.js)
   for (const f of FURN) {
     const c = placed ? placed.get(f) : furnAt(f, f.c0[0][0], f.c0[0][1], 0);

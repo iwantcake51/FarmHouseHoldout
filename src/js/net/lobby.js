@@ -1,8 +1,21 @@
 // The co-op lobby on the title screen: your name, hosting a game or joining one by its code, who's in, and the host's
 // start button. And the team list in the run: everyone else, with their health.
 
+import { $ } from '../core/dom.js';
+import { GI, GI_VB } from '../ui/game-icons.js';
+import { cache, clamp } from '../core/math.js';
+import {
+  NET, NET_COL, NET_MAX, netHost, netJoin, netLeave, netLink, netName, netRoster, netSend, netStart
+} from './net.js';
+import { METAL } from '../barricades/planks.js';
+import { audioInit } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { state } from '../game/state.js';
+import { BASE_HP } from '../ui/hud.js';
+import { frAdd, frAnnounce, friendsUp, frOf, frRender, PALS } from './friends.js';
+
 const lobbySeen = new Set();   // who's been shown in the seats already
-function lobbyRender() {
+export function lobbyRender() {
   const on = NET.on, room = on && (NET.host || NET.peers.size > 0);
   $('coopPick').hidden = on;
   $('coopRoom').hidden = !room;
@@ -29,7 +42,7 @@ function lobbyRender() {
 }
 // the sheet slides in, and back out before it's gone
 let coopShut = 0;
-function toggleCoop(open) {
+export function toggleCoop(open) {
   const el = $('coop'), shown = !el.hidden && !el.classList.contains('closing'), show = open ?? !shown;
   $('coopBtn').setAttribute('aria-expanded', String(show));
   clearTimeout(coopShut); el.classList.remove('closing');
@@ -59,13 +72,13 @@ const TEAM_RES = ['planks', 'scrap', 'kills'];
 // a teammate's health bar drawn like yours (ui/hud.js): the fill, with anything past the base 100 (armour, Tough skin,
 // Stubborn) in its own colour; the red that trails a hit away (the .bar b's slower width); and the blue of healing
 // still to come from a bandage or a medkit
-function paintBar(bar, hp, mx, heal, dead) {
+export function paintBar(bar, hp, mx, heal, dead) {
   const f = dead ? 0 : clamp(hp / mx, 0, 1), inc = dead ? 0 : Math.min(1 - f, (heal || 0) / mx), i = bar.querySelector('i');
   i.style.setProperty('--hp', f * 100 + '%'); bar.querySelector('b').style.width = f * 100 + '%';
   i.style.setProperty('--b', Math.min(100, BASE_HP / mx * 100).toFixed(1) + '%');
   const s = bar.querySelector('s'); s.style.left = f * 100 + '%'; s.style.width = inc * 100 + '%';
 }
-function renderTeam() {
+export function renderTeam() {
   const el = $('team'), on = netLink() && state !== 'title';
   if (el.hidden === on) { el.hidden = !on; liftFeed(); }
   if (!on) return;
@@ -95,7 +108,7 @@ function renderTeam() {
 // through: styles/coop.css), and a small notice slides in at the top of the screen in their colour for TEAM_DOWN_T
 // seconds; more than one at once stack under each other
 const TEAM_DOWN_T = 3.6;
-function teamDown(p) {
+export function teamDown(p) {
   const d = [...$('team').children].find(c => c.dataset.id === p.id);
   if (d) { d.classList.remove('fell'); void d.offsetWidth; d.classList.add('fell'); }
   const box = $('teamNotes'), n = document.createElement('div');

@@ -1,14 +1,21 @@
 // Player state (P) and the parts of the player model that never change: the belt, the backpack and the bandage pouches.
 // The survivor's look (face, hair, hat, clothes, shoes) is dealt fresh each run in player/look.js.
 
-const P = { stam: 1, exh: false, stamT: 9, x: cxw(21), z: cxw(22), hp: 100, aim: Math.PI, phase: 0, moving: false, vault: null, slow: 0, stun: 0, adr: 0, still: 0, vx: 0, vz: 0 };
-const PM = human(0xd2a07c, 0x4e5a3c, 0x2f3238);
+import { scene } from '../core/renderer.js';
+import { outline } from '../effects/screen-outlines.js';
+import { lam } from '../core/shaders.js';
+import { blobShadow, box, finePieces, mergeInto, trimShadows, unfight } from '../core/geometry.js';
+import { cxw } from '../world/grid.js';
+import { human } from '../characters/rig.js';
+
+export const P = { stam: 1, exh: false, stamT: 9, x: cxw(21), z: cxw(22), hp: 100, aim: Math.PI, phase: 0, moving: false, vault: null, slow: 0, stun: 0, adr: 0, still: 0, vx: 0, vz: 0 };
+export const PM = human(0xd2a07c, 0x4e5a3c, 0x2f3238);
 scene.add(PM.g);
 // knees: the survivor's legs are cut at the knee (KNEE_Y below the hip) and the shin hung from it, so a stride lifts
 // its heel and a sprint kicks it up behind (the zombies keep their straight legs). The shins carry whatever's below the
 // knee: the shoes (player/look.js), boots and knee pads (player/gear.js). The thigh runs a touch past the knee so no gap
 // opens at its back when it bends
-const KNEE_Y = -0.27;
+export const KNEE_Y = -0.27;
 {
   const thigh = new THREE.BoxGeometry(0.19, 0.29, 0.22).translate(0, -0.145, 0), shin = new THREE.BoxGeometry(0.184, 0.28, 0.214).translate(0, -0.14, 0);
   ['L', 'R'].forEach(s => { const leg = PM['leg' + s], m = new THREE.Mesh(shin, leg.material); leg.geometry = thigh; m.position.y = KNEE_Y; m.castShadow = true; leg.add(m); PM['shin' + s] = m; });
@@ -17,11 +24,11 @@ const SURV = { belt: lam(0x2e241a), brass: lam(0xb08a3a), sole: lam(0x1e1a16) };
 PM.mats.shirtDk = lam(0x3e4830);   // seams, collar and cuffs; coloured with the shirt (player/look.js, and build-weapons.js for the jacket)
 PM.mats.skinDk = lam(0xb88762);    // ears and nose, a shade darker than the skin
 // the backpack's cloth and bedroll, recoloured with each run's look
-const PACK = { canvas: lam(0x5a4a34), canvasDk: lam(0x463928), canvasLt: lam(0x6e5c40), roll: lam(0x7a3a2a) };
+export const PACK = { canvas: lam(0x5a4a34), canvasDk: lam(0x463928), canvasLt: lam(0x6e5c40), roll: lam(0x7a3a2a) };
 // the backpack hangs from the tops of its shoulder straps (packPivot) so it can swing on its own (updatePack,
 // player/stow.js); packBody inside it is laid out in the upper body's own coordinates, so anything strapped to the pack
 // (the planks, slung guns, the melee weapon) is placed just as if it were on the upper body
-const PACK_PIV = [0, 1.17, -0.16], packPivot = new THREE.Group(), packBody = new THREE.Group();
+export const PACK_PIV = [0, 1.17, -0.16], packPivot = new THREE.Group(), packBody = new THREE.Group();
 packPivot.position.set(...PACK_PIV); packBody.position.set(-PACK_PIV[0], -PACK_PIV[1], -PACK_PIV[2]);
 PM.upper.add(packPivot); packPivot.add(packBody);
 {
@@ -56,11 +63,11 @@ PM.upper.add(packPivot); packPivot.add(packBody);
 }
 const armorG = new THREE.Group();
 PM.upper.add(armorG);
-const pBlob = blobShadow(1.15, 0.38);
+export const pBlob = blobShadow(1.15, 0.38);
 // bandage rolls standing in pouches, one per bandage in the bag, their tops showing: three in the pouch at your left side,
 // and two more in the second pouch on the front of your belt that comes with the Med pouch upgrade (player/gear.js shows it).
 // Each pouch has a plain red cross on its outer face.
-const bandRolls = [], bandPouch2 = new THREE.Group();
+export const bandRolls = [], bandPouch2 = new THREE.Group();
 {
   const roll = new THREE.CylinderGeometry(0.036, 0.036, 0.07, 10), white = lam(0xeae4d6), red = lam(0xb3261c), canvas = lam(0x6a5a40), seam = lam(0x4a3e2c), redX = lam(0xd2301f);
   const addRoll = (g, x, y, z) => {
@@ -89,6 +96,6 @@ const bandRolls = [], bandPouch2 = new THREE.Group();
 // built from it (net/avatars.js), the rig's parts found again by these names
 ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'].forEach(k => { PM[k].name = 'pm.' + k; });
 packPivot.name = 'pm.pack';
-const PM_BASE = PM.g.clone(true), PM_BASE_SRC = []; PM.g.traverse(o => PM_BASE_SRC.push(o));   // (in the same order as the copy's own traverse: a part of yours to its part of theirs)
+export const PM_BASE = PM.g.clone(true), PM_BASE_SRC = []; PM.g.traverse(o => PM_BASE_SRC.push(o));   // (in the same order as the copy's own traverse: a part of yours to its part of theirs)
 // a barely-there light rim round your own character, just enough to pick yourself out in the dark or in a crowd
-const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.01, null, o => !o.userData.fine); pOutline.opacity = 0.1; pOutline.depthWrite = false;
+export const pOutline = outline(PM.g, 0xf2e8d0, 0, 0.01, null, o => !o.userData.fine); pOutline.opacity = 0.1; pOutline.depthWrite = false;

@@ -4,6 +4,19 @@
 // walk where it leaves off, so there's never a jump from one to the next. One the brute only clips is shoved aside,
 // staggering, and stays on its feet.
 
+import { V3 } from '../core/renderer.js';
+import { clamp, pick, rand, rr, smooth, withSeed } from '../core/math.js';
+import { netClient, netLink, netSend } from '../net/net.js';
+import { surfaceY } from '../world/house.js';
+import { burst } from '../effects/particles.js';
+import { _rgH, _rgZ, makeRagdoll, ragFrame, stepRagdoll } from './deaths.js';
+import { zombies } from './zombie-types.js';
+import { zApply, ZHIP, ZJ, ZJ_N } from './zombie-anim.js';
+import { nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { nr } from '../net/sync.js';
+
 // force: how hard it's thrown (makeRagdoll's, on the order of a heavy hit's: a range, picked each time); side: how
 // much of the throw goes out to the side it was on (a range); rest: how long it lies there before it starts to get
 // up, and wait: how much longer it's given to stop moving first; blend: how long the get-up takes to ease out of the
@@ -82,7 +95,7 @@ const KNOCK_PARTS = ['g', 'lower', 'upper', 'head', 'armL', 'foreL', 'armR', 'fo
 
 // ---- the brute's charge: what it runs into is knocked down, what it clips is shoved aside. The host decides;
 // everyone else's game plays the same (net/sync.js: 'zk', the same seed) ----
-function dashPlow(z, d) {
+export function dashPlow(z, d) {
   if (netClient()) return;
   for (const o of zombies) {
     if (o === z || o.dead || o.knock || o.type === 'brute' || o.vault || o.dash || o.out) continue;
@@ -102,7 +115,7 @@ function dashPlow(z, d) {
   }
 }
 // clipped: thrown aside along (dx, dz) and reeling, arms flung out, leaning off the blow (side: the side it was on)
-function bumpAside(z, dx, dz, side, seed) {
+export function bumpAside(z, dx, dz, side, seed) {
   if (z.dead || z.knock) return;
   withSeed(seed, () => {
     const v = BUMP.v * rr(0.8, 1.15);
@@ -116,7 +129,7 @@ function bumpAside(z, dx, dz, side, seed) {
   soundAt(z.x, z.z, () => { SFX.thud(); }, true);
   burst(z.x, 0.5, z.z, 2, 'dust', dx, dz, 1.2);
 }
-function knockDown(z, dx, dz, seed) {
+export function knockDown(z, dx, dz, seed) {
   if (z.dead || z.knock) return;
   const m = z.m, head0 = m.head.position.clone(), snap = snapPose(m);
   z.atkBoard = z.atkDoor = null; z.atkFence = false; z.vx = z.vz = 0; z.lunge = 0;
@@ -130,7 +143,7 @@ function knockDown(z, dx, dz, seed) {
   burst(z.x, 0.9, z.z, 4, 'dust', dx, dz, 1.5);
 }
 // every frame while it's down or getting up (zombies/ai.js leaves the rest of its turn alone meanwhile)
-function stepKnock(z, dt) {
+export function stepKnock(z, dt) {
   const k = z.knock, m = z.m; k.t += dt;
   if (k.ph === 'down') {
     stepRagdoll(k.r, dt); z.x = k.r.x; z.z = k.r.z;

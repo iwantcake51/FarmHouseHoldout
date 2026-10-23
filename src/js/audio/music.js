@@ -6,6 +6,14 @@
 // quiet over MUSIC.out seconds as a run starts. Its loudness is the Music setting's times the master volume
 // (ui/settings.js); it has its own way out, so nothing done to the game's sound (dying's muffle) touches it.
 
+import { rand } from '../core/math.js';
+import { P } from '../player/player.js';
+import { AC, audioInit } from './audio.js';
+import { farIR } from './samples.js';
+import { loadSound } from './spatial.js';
+import { state } from '../game/state.js';
+import { SET } from '../ui/settings.js';
+
 const MUSIC = { files: ['sounds/menu_1.ogg', 'sounds/menu_2.ogg', 'sounds/menu_3.ogg', 'sounds/menu_4.ogg', 'sounds/menu_5.ogg', 'sounds/menu_6.ogg'],
   vol: 0.5, fade: 6, in: 3, out: 2.5, lp: 2300, echo: 0.32, ahead: 0.6 };
 const MUS = { bus: null, tracks: null, cur: null, order: [], last: -1, on: false, leave: 0 };
@@ -35,14 +43,14 @@ function musicStart(i, t, fade) {
 // Start pressed on the title: the music goes on one slow, even fade from where it is down to nothing over sec seconds
 // (cineRun, ui/screens.js: timed to be gone halfway through the glide down onto you), left to run out on its own
 const _musOut = new Float32Array(48).map((_, i) => Math.cos(i / 47 * Math.PI / 2) ** 2);
-function musicLeave(sec) {
+export function musicLeave(sec) {
   if (!AC || !MUS.bus) return;
   const g = MUS.bus.gain, t = AC.currentTime, v = g.value;
   try { g.cancelScheduledValues(t); g.setValueCurveAtTime(_musOut.map(k => k * v), t, sec); } catch (e) { g.setTargetAtTime(0, t, sec / 3); }
   MUS.leave = t + sec;
 }
 // every frame: playing on the menus, the next piece lined up as this one nears its end, the volume as it's set
-function musicTick() {
+export function musicTick() {
   if (!AC) return; musicInit(); if (!MUS.bus) return;
   lostTick();   // (the drone while you're down: below)
   const want = (state === 'title' || (state === 'dead' && !lostReady())) && SET.music > 0, t = AC.currentTime;

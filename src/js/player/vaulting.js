@@ -1,18 +1,39 @@
 // Climbing through windows and hopping fences.
 
-function nearestOpening() {
+import { RIGHT, V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { cell, ci, cxw, FENCE, idx, inb } from '../world/grid.js';
+import { openings } from '../world/house.js';
+import { playerBlocked } from '../world/collision.js';
+import { P } from './player.js';
+import { curId, S, W } from '../game/run-state.js';
+import { groundDust } from '../effects/puffs.js';
+import { buildVaultPlan, vaultObstacle } from './vault-plan.js';
+import { closeStation } from '../stations/station-ui.js';
+import { nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { footstep } from '../audio/footsteps.js';
+import { exitScope } from './aiming.js';
+import { cutReload } from '../weapons/reload.js';
+import { stamUse } from '../melee/melee.js';
+import { runStat } from '../ui/run-stats.js';
+import { SPRINT, vaultRush } from './sprint.js';
+import { camVault } from '../game/camera.js';
+import { ANIM } from './animation.js';
+
+export function nearestOpening() {
   let best = null, bd = 1.45;
   for (const o of openings) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (d < bd) { bd = d; best = o; } }
   return best;
 }
-function vaultTarget(o) {
+export function vaultTarget(o) {
   if (!o || o.kind !== 'window' || o.boards.length) return null;
   const side = Math.sign((P.x - o.x) * o.nx + (P.z - o.z) * o.nz) || 1;
   const x1 = o.x - o.nx * side * 1.05, z1 = o.z - o.nz * side * 1.05;
   if (playerBlocked(ci(x1), ci(z1))) return null;
   return { x1, z1, px: o.x, pz: o.z, py: 0.98 };   // p: the sill you put your hand on
 }
-function fenceTarget() {
+export function fenceTarget() {
   let best = null, bd = 1.05;
   const pi = ci(P.x), pj = ci(P.z), isF = (i, j) => inb(i, j) && cell[idx(i, j)] === FENCE;
   for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
@@ -37,8 +58,8 @@ function fenceTarget() {
 // vaulting takes a little out of you: 8% stamina through a window, 6% over a fence, and every vault you chain on within
 // a few seconds of the last costs another 4% (vaultHeat cools off over 3 s). Without the breath for it you
 // scramble over instead: slower and lower, panting, and you stumble when you land. Vault fire halves the cost.
-const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
-function tryVault() {
+export const VAULT_COST = 0.08, FENCE_COST = 0.06, VAULT_CHAIN = 0.04, VAULT_COOL = 3;
+export function tryVault() {
   if (P.vault) return;
   const win = vaultTarget(nearestOpening()), t = win || fenceTarget(); if (!t) return;
   runStat(win ? 'vaults' : 'hops');
@@ -89,9 +110,9 @@ function tryVault() {
   nz(0.08, 'lowpass', 600, 200, 0.12);   // boots scuff as you set your feet
 }
 // push off (the camera's tilt follows the jump on its own, see vaultCam in game/camera.js)
-function vaultTakeoff(v) { SFX.vault(); footstep('jump', 1); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
+export function vaultTakeoff(v) { SFX.vault(); footstep('jump', 1); groundDust(P.x, P.z, 0.45, -v.dx, -v.dz); }   // a scuff of dust where you push off
 // touch down: a thump, dust, the knees soak it up and the camera dips and settles on a spring
-function vaultLand(v) {
+export function vaultLand(v) {
   SFX.thud(); footstep('land', v.scramble ? 1.2 : 1); groundDust(P.x, P.z, 1, v.dx, v.dz); ANIM.land = 1; ANIM.landHeavy = !!v.scramble;
   // carry the vault's momentum out of it (movement.js ends the jump still moving), so you run on instead of stopping dead
   const sp = Math.min(3, v.endSpeed || 0); P.vx = v.dx * sp; P.vz = v.dz * sp;
@@ -100,4 +121,4 @@ function vaultLand(v) {
 }
 // Vault fire: the gun stays in your right hand through a vault, on the aim, and you can fire it (the left hand takes the
 // sill on its own; a melee weapon is still put away)
-const vaultGun = () => !!(P.vault && S.vaultFire && !W(curId()).melee);
+export const vaultGun = () => !!(P.vault && S.vaultFire && !W(curId()).melee);

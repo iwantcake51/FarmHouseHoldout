@@ -1,5 +1,22 @@
 // What an upgrade card actually gives you: before → after stat chips.
 
+import { netLink } from '../net/net.js';
+import { reachCleave } from '../melee/melee-stats.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { fallOf, FALLOFF } from '../weapons/ammo.js';
+import { MODS } from '../melee/melee-mods.js';
+import { MOD_UP } from '../weapons/mod-levels.js';
+import { BOOTS } from './tier-table.js';
+import { GUN_TIERS, gunTier, ownTier, POWDER_KICK, recomputeEff, S, SCOPES, TUNE, W, W8 } from '../game/run-state.js';
+import { headMulFor } from '../zombies/zombie-types.js';
+import { METAL } from '../barricades/planks.js';
+import { METAL_AID } from '../barricades/metal-bars.js';
+import { pctDown, pctUp } from '../stations/recipes.js';
+import { firstShell, relMul, shellGo } from '../weapons/reload.js';
+import { stamCost } from '../melee/melee.js';
+import { PAIN_REGEN, SLOW_STEP, slowAfter } from './upgrades.js';
+import { REGEN_WAIT } from '../player/movement.js';
+
 // short effect chips for upgrades that don't change a gun's numbers
 const UPG_FX = {
   'Quick hands': ['Reload 20% faster'], 'Quick hands II': ['Reload 20% → 40% faster'], 'Quick hands III': ['Reload 40% → 60% faster'], 'Wood pile': ['+7 planks'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
@@ -36,7 +53,7 @@ const xTimes = v => (Math.round(v * 10) / 10) + '×';
 const stackOf = (label, base, v, next, val) => ({ label, base, v, next, val });
 const speedStack = m => stackOf('Speed', 1, () => S.speedMul, v => v * m, v => '+' + pctUp(v) + '%');
 const slowStack = k => stackOf('Slowdown when hit', 0, () => S.slowRes, v => slowAfter(v, SLOW_STEP[k]), v => '−' + Math.round(v * 100) + '%');
-const STACKS = {
+export const STACKS = {
   'Strong arms II': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Strong arms III': stackOf('Melee', 1, () => S.meleeMul, v => v * 1.25, v => '+' + pctUp(v) + '%'),
   'Steady aim': stackOf('Spread', 1, () => S.spreadMul, v => v * 0.88, v => '−' + pctDown(v) + '%'),
@@ -49,9 +66,9 @@ const STACKS = {
   'Nail gun': stackOf('Boarding speed', 1, () => S.boardSpeed, v => v * 2, xTimes)
 };
 // what a stacking upgrade adds up to once taken, for the history ('' when it doesn't stack on anything yet)
-const stackTotal = (name, before) => { const st = STACKS[name]; return st && Math.abs(before - st.base) > 1e-6 ? `${st.label} ${st.val(st.v())} in all` : ''; };
+export const stackTotal = (name, before) => { const st = STACKS[name]; return st && Math.abs(before - st.base) > 1e-6 ? `${st.label} ${st.val(st.v())} in all` : ''; };
 // a gun's headline numbers, as the card compares them
-function gunStats(id, D) {
+export function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
   // a reload from empty: shell by shell (two a go with Sleight of Hand, or two or three on the pump with Quick hands II or III), or one mag change
   const reload = D.melee ? 0 : D.perShell ? Math.ceil(mag / (D.loadN || 1)) * shellGo(id, D) + firstShell(id) : (D.reload || 0) * relMul(id);
@@ -59,12 +76,12 @@ function gunStats(id, D) {
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change. (A chip
 // whose good is null is a plain stat, shown grey: chipCls)
-const chipCls = f => f.good === null ? 'eq' : f.good ? 'up' : 'down', CHIP_MARK = { up: '▲', down: '▼', eq: '•' };
-function chip(label, a, b, higherIsBetter, fmt) {
+export const chipCls = f => f.good === null ? 'eq' : f.good ? 'up' : 'down', CHIP_MARK = { up: '▲', down: '▼', eq: '•' };
+export function chip(label, a, b, higherIsBetter, fmt) {
   if (Math.abs(a - b) < 1e-6) return null;
   return { t: `${label} ${fmt(a)} → ${fmt(b)}`, good: (b > a) === higherIsBetter };
 }
-const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => { const d = v * 57.3; return d.toFixed(d < 2 ? 2 : 1) + '°'; };
+export const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => { const d = v * 57.3; return d.toFixed(d < 2 ? 2 : 1) + '°'; };
 // spread from the hip and down the sights: one SPREAD chip when both move together, otherwise a chip for each that
 // changes (a laser only the hip, a sight only the aimed)
 function spreadChips(a, b) {
@@ -76,15 +93,15 @@ function spreadChips(a, b) {
 }
 // damage is judged per shot (pellets included) but written per hit, e.g. 15×8 → 17×9
 function dmgChip(a, b) { const ta = a.dmg * a.pel, tb = b.dmg * b.pel; return Math.abs(ta - tb) < 1e-6 ? null : { t: `DMG ${fmtDmg(a)} → ${fmtDmg(b)}`, good: tb > ta }; }
-function compareFx(a, b) {
+export function compareFx(a, b) {
   return [dmgChip(a, b), chip(a.mag ? 'RATE' : 'SWINGS', a.rate, b.rate, true, v => fmt1(v) + '/s'), chip('MAG', a.mag, b.mag, true, fmt0), chip('RELOAD', a.reload, b.reload, false, v => fmt1(v) + ' s'),
     ...spreadChips(a, b), chip('HEADSHOT', a.head, b.head, true, v => '×' + Math.round(v * 100) / 100)].filter(Boolean);
 }
 // mods that add a feature rather than a number
-const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
+export const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
   ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', stagger: 'Staggers zombies', pierce: 'Goes through zombies' };
 // try a gun's next tier for real, read its numbers, then put it back
-function tierFx(id, k) {
+export function tierFx(id, k) {
   if (!id) return [];
   // n: the step you own (the next one is what's on offer), f: the one fitted now (lower when it's been swapped back or
   // taken off at the loadout panel, ui/loadout.js), which is what the new one is measured against
@@ -107,7 +124,7 @@ function tierFx(id, k) {
   return fx;
 }
 // what loading kind of round k does to gun id, against what's loaded now: tried for real, read, and put back
-function roundFx(id, k) {
+export function roundFx(id, k) {
   const r = W8.rounds[id] = W8.rounds[id] || { own: [], on: 'std' }, k0 = r.on || 'std', D0 = W(id), a = gunStats(id, D0), f0 = roundFeat(D0);
   r.on = k; recomputeEff(); const D1 = W(id), b = gunStats(id, D1), f1 = roundFeat(D1);
   r.on = k0; recomputeEff();
@@ -118,7 +135,7 @@ function roundFx(id, k) {
   if (f1.sever > f0.sever) fx.push({ t: f1.sever > 2 ? 'Every limb it hits comes off' : 'Limbs off twice as easily', good: true });
   return fx;
 }
-const roundFeat = D => ({ pierce: D.pierce || 0, ignite: !!D.ignite, explode: !!D.explode, sever: D.alwaysSever ? 3 : D.severX || 1 });
+export const roundFeat = D => ({ pierce: D.pierce || 0, ignite: !!D.ignite, explode: !!D.explode, sever: D.alwaysSever ? 3 : D.severX || 1 });
 // a new weapon against the one it would replace in that slot
 function weaponFx(id) {
   const D = W(id), cur = W8.slot[D.slot], b = gunStats(id, D);
@@ -138,9 +155,9 @@ function hitsChip(a, b) {
   return { t: b.hits > 1 ? `MULTI-HIT ×${b.hits}` : 'SINGLE HIT', good: null };   // the same as now: a plain stat, neither better nor worse
 }
 // a melee weapon that only hit the nearest zombie and now sweeps through more (reachCleave, melee/melee-stats.js)
-const multiHit = (D0, D1) => (D0.cleave || 1) < 2 && (D1.cleave || 1) >= 2 ? { t: `+ Multi-hit: ${D1.cleave} at once`, good: true } : null;
+export const multiHit = (D0, D1) => (D0.cleave || 1) < 2 && (D1.cleave || 1) >= 2 ? { t: `+ Multi-hit: ${D1.cleave} at once`, good: true } : null;
 // a mod applied to a copy of the gun's current numbers
-function modFx(mid) {
+export function modFx(mid) {
   const m = MODS[mid], D0 = W(m.w); if (!D0) return [];
   const D1 = Object.assign({}, D0); m.stat(D1); reachCleave(D1);
   const fx = compareFx(gunStats(m.w, D0), gunStats(m.w, D1));
@@ -152,7 +169,7 @@ function modFx(mid) {
   return fx;
 }
 // a mod you have, made one level better (weapons/mod-levels.js), against how it is now
-function improveFx(id, m) {
+export function improveFx(id, m) {
   const D0 = W(id), D1 = Object.assign({}, D0); MOD_UP[m].up(D1); reachCleave(D1);
   const fx = compareFx(gunStats(id, D0), gunStats(id, D1));
   if (D1.range > (D0.range || 0)) fx.push({ t: `REACH ${(D0.range || 0).toFixed(2)} → ${D1.range.toFixed(2)} m`, good: true });
@@ -166,7 +183,7 @@ function improveFx(id, m) {
   return fx;
 }
 // a workbench tune-up (TUNE, game/run-state.js) against the weapon as it is
-function tuneFx(id) {
+export function tuneFx(id) {
   if (W8.tune[id]) return [];
   W8.tune[id] = 1; recomputeEff(); const b = gunStats(id, W(id)), Rb = W(id).range; W8.tune[id] = 0; recomputeEff();
   const D0 = W(id), fx = compareFx(gunStats(id, D0), b);
@@ -175,7 +192,7 @@ function tuneFx(id) {
   return fx;
 }
 // the card's chips: the numbers behind its text (the text says how it works, the chips how much)
-function upgradeInfo(u, c) {
+export function upgradeInfo(u, c) {
   let fx = [];
   if (u.tierOf && GUN_TIERS.has(u.tierOf)) { fx = tierFx(u.target, u.tierOf); }
   else if (u.tierOf) { fx = (UPG_FX[c.name] || []).map(t => ({ t, good: true })); }

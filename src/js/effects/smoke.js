@@ -1,8 +1,15 @@
 // Gun smoke puffs, lit by the light round them.
 
+import { scene } from '../core/renderer.js';
+import { clamp, HALF, pick, rand, rr } from '../core/math.js';
+import { windAt, WX } from '../world/wind.js';
+import { SMOKE_GAIN, TEX_SMOKE, TEX_SMOKES } from './textures.js';
+import { flashes } from '../weapons/explosives.js';
+import { flashAt, FN, FR, lmCur, visCur } from '../lighting/lightmap.js';
+
 // ---- gun smoke: soft billows (one of the smoke sprites each, turned any way) that roll out of the muzzle, slow, swell
 // and thin out as they drift up and away on the breeze; coloured by whatever light they sit in ----
-const smokes = [];
+export const smokes = [];
 for (let k = 0; k < 120; k++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_SMOKE, transparent: true, depthWrite: false, opacity: 0 })); m.visible = false; m.renderOrder = 2; scene.add(m); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
 let smIdx = 0;
 // SMOKE_MOVE: how quickly the air takes it over (drag: it slows to the wind's speed, not to a stop), how fast it rises
@@ -11,14 +18,14 @@ let smIdx = 0;
 const SMOKE_MOVE = { drag: 3.4, rise: 0.32, wind: 1, wander: 0.12, swell: 2.6 };
 const _smw = { x: 0, z: 0 };
 // (lift: how much more buoyant than gun smoke it is, for hot smoke that climbs in a column: a flare's)
-function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint, lift) {
+export function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint, lift) {
   const p = smokes[smIdx = (smIdx + 1) % smokes.length], m = p.m.material, tex = pick(TEX_SMOKES);
   if (m.map !== tex) m.map = tex;
   p.m.position.set(x, y, z); p.vx = vx; p.vy = vy; p.vz = vz; p.s0 = s0 * 1.15; p.s1 = s1 * 1.15; p.life = p.max = life; p.a = a; p.spin = rr(-0.6, 0.6); p.ph = rand() * 6.28;
   m.rotation = rand() * 6.28; p.tint = tint || 0xc9c4ba; p.lift = lift || 1; p.m.visible = true;
 }
 const _sc = new THREE.Color(), _sl = new THREE.Color();
-function stepSmoke(dt) {
+export function stepSmoke(dt) {
   for (const p of smokes) {
     if (p.life <= 0) continue; p.life -= dt; if (p.life <= 0) { p.m.visible = false; continue; }
     const k = 1 - p.life / p.max, drag = Math.exp(-dt * SMOKE_MOVE.drag), age = p.max - p.life, M = SMOKE_MOVE;
@@ -61,11 +68,11 @@ function flashNear(x, y, z, out) {
 // then, and how far toward the flash's colour it can go)
 const SMOKE_GLOW = { bright: 1.6, most: 0.92, k: 0.9 };
 const _sg = new THREE.Color();
-function smokeLight(c, pos, gain) {
+export function smokeLight(c, pos, gain) {
   lightColorAt(pos.x, pos.y, pos.z, _sl); const G = gain || SMOKE_GAIN;
   c.setRGB(c.r * Math.min(1.5, 0.1 + _sl.r * 0.82), c.g * Math.min(1.5, 0.1 + _sl.g * 0.82), c.b * Math.min(1.5, 0.1 + _sl.b * 0.82)).multiplyScalar(G);
   const g = flashNear(pos.x, pos.y, pos.z, _sg);
   if (g > 0) c.lerp(_sg.multiplyScalar(SMOKE_GLOW.bright * G), Math.min(SMOKE_GLOW.most, g * SMOKE_GLOW.k));
   return c;
 }
-const lightLevelAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1), k = (b * FN + a) * 3; return (lmCur[k] + lmCur[k + 1] + lmCur[k + 2]) / 3 + flashAt(x, z) * visCur[k / 3]; };   // (the flashlight's drawn per pixel, so it's added here: lighting/lightmap.js)
+export const lightLevelAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1), k = (b * FN + a) * 3; return (lmCur[k] + lmCur[k + 1] + lmCur[k + 2]) / 3 + flashAt(x, z) * visCur[k / 3]; };   // (the flashlight's drawn per pixel, so it's added here: lighting/lightmap.js)

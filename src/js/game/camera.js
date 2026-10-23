@@ -1,10 +1,28 @@
 // Camera follow, aim pan, edge pan, scope view, shake and roll.
 
-const camTarget = new V3(P.x, 0, P.z);
+import { $ } from '../core/dom.js';
+import { cam, CAM_OFF, EL, FWD, GUN_Y, RIGHT, setZoom, V3, VIEW, zoom, zoomT } from '../core/renderer.js';
+import { cache, clamp, rand, rr, smooth } from '../core/math.js';
+import { cxw } from '../world/grid.js';
+import { P } from '../player/player.js';
+import { SCOPES, T } from './run-state.js';
+import { camKick, camPunch, camRoll, setCamPunch, setCamRoll, setShake, shake, state, worldT } from './state.js';
+import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
+import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
+import { usingTouch } from '../input/touch.js';
+import { cinePush, deathRollK, deathZoomK } from '../ui/screens.js';
+import { introCam, introCamOn, introRoll, tickIntro } from './intro.js';
+import { setT } from '../ui/hud-text.js';
+import { camRun, runCam, SPRINT } from '../player/sprint.js';
+import { ANIM } from '../player/animation.js';
+import { camFocus } from '../net/spectate.js';
+import { SET } from '../ui/settings.js';
+
+export const camTarget = new V3(P.x, 0, P.z);
 // the vault camera: roll, a vertical bob and a push along the jump, each a damped spring chasing a target that follows
 // the jump's progress, so the view leans and settles smoothly instead of snapping or jittering. The push is a 2D spring
 // (px, pz), so a new vault that starts before the last one has settled turns it round smoothly instead of flipping it
-const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
+export const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
 // firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
 // little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
 // come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
@@ -12,16 +30,16 @@ const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 }
 // back along the aim, which only followed the arms being shoved back. Only the heaviest guns rattle the screen
 const camRec = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
 const CAM_ROLL = 0.22, CAM_ROLL_AUTO = 0.45, CAM_PUNCH = { zoom: 0.02, vz: 0.9, auto: 0.6 };
-function fireCam(pw, aim, auto) {
+export function fireCam(pw, aim, auto) {
   const c = camRec, sg = rand() < 0.7 ? 1 : -1, P_ = CAM_PUNCH, a = auto ? P_.auto : 1;
   c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1);
   c.zoom += pw * P_.zoom * a; c.vz += pw * P_.vz * a;
-  if (pw > 0.6) shake = Math.max(shake, 0.03 + (pw - 0.6) * 0.3);
+  if (pw > 0.6) setShake(Math.max(shake, 0.03 + (pw - 0.6) * 0.3));
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
 // one way and settles, with only a whisper of push; seating a mag tips it the other way from pulling one
 let reloadRockSide = 1;
-function reloadJolt(s) {
+export function reloadJolt(s) {
   const c = camRec; reloadRockSide = -reloadRockSide;
   c.vr += reloadRockSide * s * rr(0.85, 1.1); c.vpx -= Math.sin(P.aim) * s * 0.15; c.vpz -= Math.cos(P.aim) * s * 0.15;
 }
@@ -29,7 +47,7 @@ function reloadJolt(s) {
 // instead of snapping (weapons/casings.js knocks it on each beat): roll, a push along the aim (back toward you as the
 // action's torn back, forward as it slams home) and a little zoom; it pushes less through a scope
 const camRack = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-function rackCam(roll, push, zm) {
+export function rackCam(roll, push, zm) {
   const c = camRack, k = 1 - 0.6 * (ANIM.scopeK || 0);
   c.vr += roll * rr(0.85, 1.15); c.vpx += Math.sin(P.aim) * push * k; c.vpz += Math.cos(P.aim) * push * k; c.vz += zm;
 }
@@ -38,13 +56,13 @@ function rackCam(roll, push, zm) {
 // jump, and it adds onto everything else the camera's doing (CAM_HIT: how far for a usual hit; a harder one more)
 const camHit = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
 const CAM_HIT = { push: 1.5, roll: 0.3, zoom: 0.3, k: 90, d: 15 };
-function hitCam(x, z, amount) {
+export function hitCam(x, z, amount) {
   const c = camHit, k = clamp(amount || 1, 0.4, 2), dx = P.x - x, dz = P.z - z, L = Math.hypot(dx, dz);
   if (L > 1e-3) { c.vpx += dx / L * CAM_HIT.push * k; c.vpz += dz / L * CAM_HIT.push * k; }
   const side = L > 1e-3 ? Math.sign(dx * RIGHT.x + dz * RIGHT.z) || 1 : rand() < 0.5 ? -1 : 1;
   c.vr += side * CAM_HIT.roll * k * rr(0.8, 1.1); c.vz += CAM_HIT.zoom * k;
 }
-function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
+export function springTo(o, key, vkey, target, k, damp, dt) { const a = -k * (o[key] - target) - damp * o[vkey]; o[vkey] += a * dt; o[key] += o[vkey] * dt; }
 function vaultCam(rdt) {
   const v = P.vault, c = camVault;
   let roll = 0, bob = 0, push = 0;
@@ -64,13 +82,13 @@ function vaultCam(rdt) {
   }
 }
 let titleSpin = 0;
-const TITLE_ZOOM = 0.8;
+export const TITLE_ZOOM = 0.8;
 // the cursor near an edge of the screen eases the view a little that way, so you can see a bit further where you're
 // looking: from EDGE_IN of the way in from an edge, up to EDGE_PAN of the screen's height at the very edge
 const EDGE_IN = 0.14, EDGE_PAN = 0.09, camEdge = { x: 0, y: 0 };
 const edgeK = t => t < EDGE_IN ? -smooth(1 - t / EDGE_IN) : t > 1 - EDGE_IN ? smooth((t - 1 + EDGE_IN) / EDGE_IN) : 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
-function updateCamera(rdt) {
+export function updateCamera(rdt) {
   if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
   else if (scoped) {
     // put the scope point (at gun height) in the middle of the screen
@@ -94,19 +112,19 @@ function updateCamera(rdt) {
     if (introCamOn()) introCam(gx, gz, rdt);   // the glide in at the start of a run (game/intro.js)
     else { camTarget.x += (gx - camTarget.x) * Math.min(1, rdt * 6); camTarget.z += (gz - camTarget.z) * Math.min(1, rdt * 6); }
   }
-  if (!introCamOn()) zoom += (zoomT - zoom) * Math.min(1, rdt * 10);
+  if (!introCamOn()) setZoom(zoom + ((zoomT - zoom) * Math.min(1, rdt * 10)));
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming && !(P.skid > SPRINT.skid * 0.4) ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);   // skidding out of a sprint, into the sights as you slow
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
   cam.zoom = state === 'title' ? TITLE_ZOOM * cinePush() : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
-  shake = Math.max(0, shake - rdt * 1.6);
+  setShake(Math.max(0, shake - rdt * 1.6));
   const shk = SET.shake / 100, sh = shake * shake * 1.2 * shk;   // (as hard as the settings let it: ui/settings.js)
-  const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; camRoll *= Math.exp(-rdt * 4.5);
+  const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; setCamRoll(camRoll * Math.exp(-rdt * 4.5));
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit, vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
-  camPunch *= Math.exp(-rdt * 9); cam.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
+  setCamPunch(camPunch * Math.exp(-rdt * 9)); cam.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
   cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
   cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll() + deathRollK()); cam.updateProjectionMatrix();
 }

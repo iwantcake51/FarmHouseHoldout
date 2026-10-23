@@ -4,6 +4,19 @@
 // run (sprinting), a landing and a push off (vaulting) each have their own; one is never played twice running, and each
 // goes off a touch higher or lower and louder or softer than the last. Till the file's loaded (or with no audio), the
 // synthesized step stands in (SFX.step)
+import { cam, ZOOM_MIN } from '../core/renderer.js';
+import { clamp, rr, smooth } from '../core/math.js';
+import { cxw } from '../world/grid.js';
+import { HX0, HX1, HZ0, HZ1, onRoad } from '../world/ground.js';
+import { surfaceY } from '../world/house.js';
+import { P } from '../player/player.js';
+import { groundDust } from '../effects/puffs.js';
+import { AC } from './audio.js';
+import { SFX } from './sfx.js';
+import { FOOT_SPRITE } from './footstep-sprite.js';
+import { loadSound, playAt, soundAt } from './spatial.js';
+import { setShake, shake } from '../game/state.js';
+
 const FOOT_SND = loadSound('sounds/footsteps.mp3');
 // how loud footsteps are overall (FOOT_LEVEL: turn this one down or up first), and each kind against the others,
 // before how hard the step is (v)
@@ -18,7 +31,7 @@ function footSurface(x, z) {
 }
 // a step of kind ('walk', 'run', 'land' or 'jump') at v (1 a normal one) from where you stand, or from x, z (a
 // zombie's: no synthesized stand-in for those, and pitched by rate)
-function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
+export function footstep(kind, v = 1, x = P.x, z = P.z, rate = 1) {
   const surf = footSurface(x, z), key = surf + '.' + kind, set = FOOT_SPRITE[key], yours = x === P.x && z === P.z;
   if (!FOOT_SND.buf || !set) { if (kind !== 'jump' && yours) SFX.step(v, surf === 'wood'); return; }
   let i = Math.floor(Math.random() * set.length);
@@ -42,7 +55,7 @@ function bruteStep(z) {
   if (z.vis > 0.3) groundDust(fx, fz, BRUTE_STEP.dust, 0, 0);
   if (P.dead) return;
   const k = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - BRUTE_STEP.near) / (BRUTE_STEP.far - BRUTE_STEP.near), 0, 1));
-  if (k > 0) shake = Math.max(shake, BRUTE_STEP.shake * k);
+  if (k > 0) setShake(Math.max(shake, BRUTE_STEP.shake * k));
 }
 // a brute's footfalls are nothing like the rest: the step slowed right down into a deep, heavy stomp, a thump of bass
 // under it (SFX.bruteStomp), and heard from far off (BRUTE_SND: loudest within near metres, gone past far; how loud the
@@ -54,7 +67,7 @@ function bruteStomp(z) {
   footstep('walk', B.level * k, z.x, z.z, B.rate);
   soundAt(z.x, z.z, () => SFX.bruteStomp(B.thump * k));
 }
-function zombieStep(z) {
+export function zombieStep(z) {
   if (z.type === 'brute' && !z.crawl) bruteStep(z);
   if (P.dead || !AC) return;
   if (z.type === 'brute' && !z.crawl) { bruteStomp(z); return; }

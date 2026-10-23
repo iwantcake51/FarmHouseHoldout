@@ -16,10 +16,16 @@
 // smoothly, and the next wave starts on all but clean ground. A splash on top of old blood makes it fresh
 // again. Fading reads the map, so it's drawn into a second copy (ping-pong) and the two swap.
 
+import { R } from '../core/renderer.js';
+import { clamp, HALF, rand, rr } from '../core/math.js';
+import { BMU } from '../core/shaders.js';
+import { P } from '../player/player.js';
+import { phase } from '../game/state.js';
+
 const BM_RES = 1024, BM_STAY = 15, BM_FADE = 40, BM_WASH = 6, BM_WASH_STEP = 0.5;
 const bmOpts = { depthBuffer: false, stencilBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false };
 const bmTargets = [new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts), new THREE.WebGLRenderTarget(BM_RES, BM_RES, bmOpts)];
-let bmTarget = bmTargets[0];
+export let bmTarget = bmTargets[0];
 BMU.uBloodMap.value = bmTarget.texture;
 // smooth tiling value noise for the stains' edges (here and in the shaders)
 BMU.uBloodNoise.value = (() => {
@@ -34,7 +40,7 @@ BMU.uBloodNoise.value = (() => {
   }
   const t = new THREE.DataTexture(d, S, S, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
 })();
-const bmScene = new THREE.Scene(), bmCam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
+export const bmScene = new THREE.Scene(), bmCam = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, -10, 10);
 const BM_KIND = { pool: 0, spray: 1, drop: 2, foot: 3, scorch: 4 };
 const BM_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const BM_FRAG = `
@@ -93,7 +99,7 @@ function wetSplat(x, z, r, k) {
 const bloodWetAt = (x, z) => bloodWet[bwCell(z) * BW_N + bwCell(x)];
 // a footfall (player/movement.js): stepping in wet blood soaks your boots for about eight prints (P.bloodFeet), and each
 // step while they're bloody leaves a print under that foot, toe the way you're walking, fainter each time
-function bloodyStep() {
+export function bloodyStep() {
   P.footSide = -(P.footSide || 1);
   const wet = bloodWetAt(P.x, P.z);
   if (wet > 0.35) P.bloodFeet = Math.max(P.bloodFeet || 0, Math.min(1, wet));
@@ -104,7 +110,7 @@ function bloodyStep() {
 }
 // paint a splash: kind 'spray' | 'drop' | 'scorch' (or 'pool', a soft blob, no longer thrown), size (metres across),
 // ang the way a spray was thrown, grow how long one takes to spread, h how high up walls it goes (metres; sprays default to about a metre)
-function splat(x, z, kind, size, ang, grow, h, str) {
+export function splat(x, z, kind, size, ang, grow, h, str) {
   if (Math.abs(x) > HALF || Math.abs(z) > HALF) return;
   if (kind !== 'scorch' && kind !== 'foot') wetSplat(x, z, size * (kind === 'spray' ? 0.5 : 0.42), kind === 'drop' ? 0.3 : 1);
   let q = null; for (let n = 0; n < bmQuads.length && !q; n++) { const c = bmQuads[bmQ = (bmQ + 1) % bmQuads.length]; if (!c.busy) q = c; }
@@ -120,29 +126,29 @@ function splat(x, z, kind, size, ang, grow, h, str) {
 const POOL_FROM = 0.05;
 // a splash that's still in the air: painted when it lands, t seconds from now (stepBloodMap)
 const bmLater = [];
-function splatLater(t, ...a) { bmLater.push({ t, a }); }
+export function splatLater(t, ...a) { bmLater.push({ t, a }); }
 // a spray thrown from (x, z) along (dx, dz): it's in the air a moment, the first of it landing close in, the main spray
 // further out just after, and its tail flung furthest of all
-function spray(x, z, dx, dz, size, h) {
+export function spray(x, z, dx, dz, size, h) {
   const t = rr(0.18, 0.32), a = Math.atan2(dz, dx);
   splatLater(t * 0.55, x + dx * size * 0.15, z + dz * size * 0.15, 'drop', size * 0.32, undefined, 0, h);
   splatLater(t, x + dx * size * 0.62, z + dz * size * 0.62, 'spray', size, a, 0, h);
   splatLater(t * 1.4, x + dx * size * (1.15 + rand() * 0.4), z + dz * size * (1.15 + rand() * 0.4), 'spray', size * 0.6, a + rr(-0.25, 0.25), 0, h);
 }
 // wipe the farm clean for a new run
-function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmLater.length = 0; bmCleared = false; bmDirty = true; bloodWet.fill(0); }
+export function bloodMapClear() { bmQuads.forEach(q => { q.busy = false; q.m.visible = false; }); bmLater.length = 0; bmCleared = false; bmDirty = true; bloodWet.fill(0); }
 // a wave starting (waves/waves.js): nothing to do now blood keeps its own time
-function bloodAge() {}
+export function bloodAge() {}
 // the aging pass: the map copied into the other target, freshness taken down by uAge, and blood with none left faded
 // by uFade; then the two swap
-const bmAgeScene = new THREE.Scene(), bmAgeM = new THREE.Mesh(BM_QUAD, new THREE.ShaderMaterial({ vertexShader: BM_VERT, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
+export const bmAgeScene = new THREE.Scene(), bmAgeM = new THREE.Mesh(BM_QUAD, new THREE.ShaderMaterial({ vertexShader: BM_VERT, depthTest: false, depthWrite: false, blending: THREE.NoBlending,
   uniforms: { uSrc: { value: null }, uAge: { value: 0 }, uFade: { value: 0 } },
   fragmentShader: `uniform sampler2D uSrc; uniform float uAge, uFade; varying vec2 vUv;
 void main() { vec4 c = texture2D(uSrc, vUv); float fresh = max(0.0, c.a - uAge); gl_FragColor = vec4(max(c.rgb - (fresh > 0.0 ? 0.0 : uFade), 0.0), fresh); }` }));
 bmAgeM.scale.setScalar(HALF); bmAgeM.frustumCulled = false; bmAgeScene.add(bmAgeM);
 const _bmCol = new THREE.Color();
 // each frame: spread the pools still spreading and draw whatever's new into the map
-function stepBloodMap(dt) {
+export function stepBloodMap(dt) {
   bmDry += dt;
   for (let k = bmLater.length - 1; k >= 0; k--) { const L = bmLater[k]; if ((L.t -= dt) <= 0) { bmLater.splice(k, 1); splat(...L.a); } }   // blood landing
   for (const q of bmQuads) {

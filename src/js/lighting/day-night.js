@@ -1,5 +1,19 @@
 // Day/night cycle colours and the sun.
 
+import { $ } from '../core/dom.js';
+import { hemi, scene, sun, SUN_D, SUN_R, V3 } from '../core/renderer.js';
+import { cache, clamp, mix, rand, rr, smooth } from '../core/math.js';
+import { LMU } from '../core/shaders.js';
+import { openings } from '../world/house.js';
+import { fireflies, moths, stepAtmos } from '../world/atmosphere.js';
+import { P } from '../player/player.js';
+import { BOARD_PLACE, boardPlace } from '../barricades/planks.js';
+import { phase, state, tod, worldT } from '../game/state.js';
+import { titleBlend } from '../game/intro.js';
+import { setT } from '../ui/hud-text.js';
+import { dayPart, dialNight } from '../ui/clock.js';
+import { viewer } from '../net/spectate.js';
+
 // [hour, sun colour, sun strength, sky strength, background/fog, ambient colour, ambient level]
 // graded warm on purpose: honey afternoons, a long amber dusk, and nights that sit in plum and ember rather than cold blue
 const DAY = [
@@ -7,8 +21,8 @@ const DAY = [
   [9, 0xffdcae, 0.95, 0.64, 0x786e60, 0xfff0da, 1.0], [15, 0xffd6a4, 0.95, 0.64, 0x786a5c, 0xffeed4, 1.0], [18, 0xff8846, 0.8, 0.6, 0x4a302c, 0xffb48a, 0.8],
   [20, 0xc4b2d6, 0.32, 0.75, 0x17100f, 0x8a7690, 0.29], [24, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27]
 ];
-const _c1 = new THREE.Color(), _c2 = new THREE.Color(), amb = [1, 1, 1];
-let curDark = 0;
+export const _c1 = new THREE.Color(), _c2 = new THREE.Color(), amb = [1, 1, 1];
+export let curDark = 0;
 function lightAt(h) {
   let k = 0; while (k < DAY.length - 2 && DAY[k + 1][0] <= h) k++;
   const a = DAY[k], b = DAY[k + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1), lerp = (u, v) => u + (v - u) * t;
@@ -24,9 +38,9 @@ function lightAt(h) {
 // A couple of seconds in lamplight or daylight and it's gone, so the dark outside is as black as ever when you step
 // back out into it. litHere is the light where you stand (lighting/lightmap.js): night ambient is about 0.13 and a lit
 // room well over 0.3
-let litHere = 1;
+export let litHere = 1;
 const DARK_EYES = { dark: 0.2, lit: 0.3, adjust: 40, lose: 2, lift: 0.7 };
-function updateDarkEyes(dt) {
+export function updateDarkEyes(dt) {
   const want = state === 'title' ? 0 : clamp((DARK_EYES.lit - litHere) / (DARK_EYES.lit - DARK_EYES.dark), 0, 1), a = P.adapt || 0;
   P.adapt = a < want ? Math.min(want, a + dt / DARK_EYES.adjust) : Math.max(want, a - dt / DARK_EYES.lose);
   LMU.uAdapt.value = smooth(P.adapt) * DARK_EYES.lift;
@@ -57,10 +71,10 @@ let skySoft = -1;
 // of its height it keeps), so the shadows reach long across the yard, and a little more light over it all than a run
 // gets at that hour (lift), so the farm shows through behind the menu
 const TITLE_SKY = { night: [21.6, 23.4], dawn: [6.1, 6.7], dusk: [17.5, 18.2], flat: 0.42, lift: 1.3, h: 18.2 };
-function titleSky() { const r = rand(), T = TITLE_SKY, w = r < 1 / 3 ? T.night : r < 2 / 3 ? T.dawn : T.dusk; T.h = rr(w[0], w[1]); }
+export function titleSky() { const r = rand(), T = TITLE_SKY, w = r < 1 / 3 ? T.night : r < 2 / 3 ? T.dawn : T.dusk; T.h = rr(w[0], w[1]); }
 titleSky();
 // time of day: sun, ambient, the clock, bugs and mist
-function updateDayNight(rdt) {
+export function updateDayNight(rdt) {
   const tb = titleBlend(), h = mix(tod, TITLE_SKY.h, tb);
   curDark = lightAt(h);
   if (tb > 0) { const l = mix(1, TITLE_SKY.lift, tb); amb[0] *= l; amb[1] *= l; amb[2] *= l; hemi.intensity *= l; sun.intensity *= l; }
@@ -109,3 +123,6 @@ function updateDayNight(rdt) {
     moths.pts.geometry.attributes.position.needsUpdate = true;
   }
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setLitHere(v) { return (litHere = v); }

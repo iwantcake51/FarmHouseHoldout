@@ -1,5 +1,29 @@
 // Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
+import { scene, V3 } from '../core/renderer.js';
+import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
+import { MIST, mistSee } from '../world/mist.js';
+import { outline } from '../effects/screen-outlines.js';
+import { P } from '../player/player.js';
+import { updateZombieStain } from '../effects/body-blood.js';
+import { curId, T, W } from '../game/run-state.js';
+import { splat } from '../effects/blood-map.js';
+import { burst } from '../effects/particles.js';
+import { ragdolls, stepRagdoll } from './deaths.js';
+import { STUMP, zombies } from './zombie-types.js';
+import { zFree } from './zombie-looks.js';
+import { fogSee } from './spawn.js';
+import { rimMat } from '../effects/outlines.js';
+import { openSt } from '../stations/station-ui.js';
+import { state, worldT } from '../game/state.js';
+import { meleeTargets } from '../melee/melee.js';
+import { flDir, flOn, los, teamBeam } from '../lighting/lightmap.js';
+import { curDark } from '../lighting/day-night.js';
+import { peekOf, sightTo, visAt, visOn } from '../lighting/vision.js';
+import { roofOver } from '../world/cutaway.js';
+import { EYE_COL } from '../effects/eye-glow.js';
+import { camFocus, viewer } from '../net/spectate.js';
+
 // zombies and corpses fading in and out of your vision. Their shadows go with them: the shadow-map depth is dithered
 // away as they fade (fadeDepthMat, effects/outlines.js) and the soft blob under them fades too, so nothing you can't
 // see gives itself away by its shadow
@@ -12,7 +36,7 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 // then fading out the further it is, to nothing at RED_FAR
 const RED_NEAR = 4, RED_FAR = 12;
 // the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
-const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
+export const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
 // how solid (z.vis) a zombie has to be before the rim starts to show, and by when it's full
 const LIGHT_SOLID = [0.6, 0.92];
 // the see-through rim and silhouette (effects/outlines.js) go from red to the same green while it's in reach, so one
@@ -47,7 +71,7 @@ function zombieLOD() {
     for (const o of z.casters) o.castShadow = on;
   }
 }
-function updateZombieVisuals(dt, rdt) {
+export function updateZombieVisuals(dt, rdt) {
   markReach(); zombieLOD();
   const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
   for (const z of zombies) {

@@ -1,26 +1,44 @@
 // Board models and adding/breaking boards on doors and windows, and how many planks you can carry.
 
+import { scene, V3 } from '../core/renderer.js';
+import { clamp, mix, rand, rr, smooth } from '../core/math.js';
+import { netClient } from '../net/net.js';
+import { lam, relit } from '../core/shaders.js';
+import { ci, idx, inb, openAt } from '../world/grid.js';
+import { openings } from '../world/house.js';
+import { P } from '../player/player.js';
+import { run, S } from '../game/run-state.js';
+import { stepDebris } from '../weapons/casings.js';
+import { burst } from '../effects/particles.js';
+import { applyMetal, breakGrate, grateJolt, grateStep, looseMetal } from './metal-bars.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { runStat } from '../ui/run-stats.js';
+import { visAt } from '../lighting/vision.js';
+import { openSide } from '../zombies/ai.js';
+import { netBoardBroke, netBoardShot, netBoardTear } from '../net/sync.js';
+
 // you carry at most PLANK_MAX planks; everything that hands you planks goes through addPlanks, which stops at the cap
 // and returns how many it actually added
-const PLANK_MAX = 15;
-const plankRoom = () => Math.max(0, PLANK_MAX - S.planks);
-function addPlanks(n) { const got = Math.min(n, plankRoom()); S.planks += got; return got; }
+export const PLANK_MAX = 15;
+export const plankRoom = () => Math.max(0, PLANK_MAX - S.planks);
+export function addPlanks(n) { const got = Math.min(n, plankRoom()); S.planks += got; return got; }
 // how strong a board goes up (BOARD_HP, times the hammers' S.boardMul), and the sawhorse's bracing on top: five levels
 // for the rest of the run, each step another BRACE.step stronger for every board you put up (and the ones already up),
 // each dearer than the last (BRACE.cost, stations/recipes.js)
-const BOARD_HP = 70, BRACE = { max: 5, step: 0.2, cost: [8, 12, 17, 23, 30] };
-const braceLv = () => S.brace || 0, braceMul = (n = braceLv()) => 1 + BRACE.step * n;
-const boardHp = () => BOARD_HP * S.boardMul * braceMul();
+export const BOARD_HP = 70, BRACE = { max: 5, step: 0.2, cost: [8, 12, 17, 23, 30] };
+export const braceLv = () => S.brace || 0, braceMul = (n = braceLv()) => 1 + BRACE.step * n;
+export const boardHp = () => BOARD_HP * S.boardMul * braceMul();
 // the metalwork bench (barricades/metal-bars.js): once it's built (on), every opening is barred with a steel grate, one
 // to an opening (o.grate, its hp the one entry in o.boards), in place of boards; tier, how much plate the grates carry.
 // The team's: the same on every screen in co-op
-const METAL = { on: false, tier: 0 };
+export const METAL = { on: false, tier: 0 };
 // how barred an opening is, as the zombies weigh their way in (a grate as three boards), and as sight, light and sound
 // get through it (a grate's bars let them through till three rows of plate or more are still on it)
-function barN(o) { return o.grate ? 3 : o.boards.length; }
-function shutN(o) { return o.grate ? (o.grate.shut ? 3 : 1) : o.boards.length; }
+export function barN(o) { return o.grate ? 3 : o.boards.length; }
+export function shutN(o) { return o.grate ? (o.grate.shut ? 3 : 1) : o.boards.length; }
 // everything across an opening taken off it at once, nothing thrown (a new run, a new floor plan, boards turned to a grate)
-function clearBoards(o) { while (o.boards.length) o.boards.pop(); while (o.meshes.length) o.bg.remove(o.meshes.pop()); o.grate = null; }
+export function clearBoards(o) { while (o.boards.length) o.boards.pop(); while (o.meshes.length) o.bg.remove(o.meshes.pop()); o.grate = null; }
 
 // ---- barricade planks: grained, colour-varied boards with nail heads and split ends ----
 const plankTex = (() => {
@@ -40,7 +58,7 @@ const plankTex = (() => {
 })();
 // each board is one of a few woods, in a shade of its own: a touch lighter or darker, warmer or greyer than the next
 const PLANK_COL = [0xd8c3a0, 0xbfa27c, 0xa98e6c, 0xcdb592];
-function plankTint(c) { const k = new THREE.Color(c), h = {}; k.getHSL(h); return k.setHSL(h.h + rr(-0.012, 0.012), clamp(h.s * rr(0.85, 1.15), 0, 1), clamp(h.l * rr(0.92, 1.08), 0, 1)).getHex(); }
+export function plankTint(c) { const k = new THREE.Color(c), h = {}; k.getHSL(h); return k.setHSL(h.h + rr(-0.012, 0.012), clamp(h.s * rr(0.85, 1.15), 0, 1), clamp(h.l * rr(0.92, 1.08), 0, 1)).getHex(); }
 const NAIL_M = lam(0x3a3836), PLANK_END = lam(0x8a6a48);
 const boardGeo = new THREE.BoxGeometry(1, 1, 1);
 function makePlank(sign) {
@@ -55,11 +73,11 @@ function makePlank(sign) {
   });
   return g;
 }
-let flowDirty = true, lightsDirty = false;
+export let flowDirty = true, lightsDirty = false;
 // hp and side are given for a board a co-op teammate put up (net/sync.js): how strong it went up, and which side of the
 // opening they stood on
 // quiet: up already, no hammering, no dust, not counted (the title's boarded windows: world/title-crowd.js)
-function addBoard(o, hp, sd, quiet) {
+export function addBoard(o, hp, sd, quiet) {
   const n = o.boards.length; if (n >= 3) return;
   const mine = hp === undefined;
   o.boards.push(mine ? boardHp() : hp);
@@ -79,8 +97,8 @@ function addBoard(o, hp, sd, quiet) {
 // putting a board up takes BOARD_PLACE seconds: it's swung in from your side of the opening, one end leading, low and
 // turned, and eased onto the frame (the first BOARD_SWING of it); then it's nailed, a hammer blow at each of BOARD_NAILS
 // knocking it tight against the frame with a little shiver. k runs 0 to 1 (day-night.js steps it each frame)
-const BOARD_PLACE = 0.45, BOARD_SWING = 0.55, BOARD_NAILS = [0.6, 0.84];
-function boardPlace(m, k) {
+export const BOARD_PLACE = 0.45, BOARD_SWING = 0.55, BOARD_NAILS = [0.6, 0.84];
+export function boardPlace(m, k) {
   const u = m.userData, p = u.p0, a = 1 - Math.pow(1 - clamp(k / BOARD_SWING, 0, 1), 3), b = 1 - a;
   let knock = 0; for (const n of BOARD_NAILS) { const d = (k - n) / 0.12; if (d > 0 && d < 1) knock += Math.sin(d * Math.PI) * (1 - d); }
   m.position.set(p.x + b * u.pSide * 0.22, p.y - b * 0.16, p.z + u.pz * (b * 0.34 - knock * 0.014));
@@ -89,7 +107,7 @@ function boardPlace(m, k) {
 }
 // a blow on the boards: the one on top jumps and rattles in its nails, chips and a puff of dust fly off it, and it's
 // pulled a little further loose toward whoever's hitting it (boardShake)
-function boardJolt(o, z, big) {
+export function boardJolt(o, z, big) {
   if (o.grate) { grateJolt(o, z, big); return; }   // (barricades/metal-bars.js)
   const m = o.meshes[o.meshes.length - 1]; if (!m) return;
   m.userData.jolt = 1; m.userData.jSide = rand() < 0.5 ? -1 : 1;
@@ -98,7 +116,7 @@ function boardJolt(o, z, big) {
   if (z.vis > 0.2) { const x = o.x + o.nx * sd * 0.5, zz = o.z + o.nz * sd * 0.5, y = m.position.y; burst(x, y, zz, 2, 'dust'); burst(x, y, zz, 3, 'wood', o.nx * sd, o.nz * sd, 1.2); }
 }
 // every board on o rattling at once (tearing them all down: barricades/interactions.js), a grate as a blow on it
-function boardRattle(o, z) {
+export function boardRattle(o, z) {
   if (o.grate) { grateJolt(o, z); return; }
   o.meshes.forEach(m => { m.userData.jolt = 1; m.userData.jSide = rand() < 0.5 ? -1 : 1; m.userData.pull = o.out * openSide(o, z.x, z.z); });
   burst(o.x + o.nx * openSide(o, z.x, z.z) * 0.5, o.ys[1], o.z + o.nz * openSide(o, z.x, z.z) * 0.5, 3, 'dust');
@@ -127,8 +145,8 @@ function boardShake(rdt) {
 // far side, the far side from you when you tear it down yourself; none, away from you), either whole or snapped in two where the
 // blows landed (each half with long splinters standing out of the break), splinters flying; the pieces clatter to the
 // ground and lie there a while (weapons/casings.js's debris)
-const loosePlanks = [];
-function breakBoard(o, z) {
+export const loosePlanks = [];
+export function breakBoard(o, z) {
   if (o.grate) { breakGrate(o, z); return; }   // (barricades/metal-bars.js)
   o.boards.pop(); const m = o.meshes.pop();
   const sd = z ? openSide(o, z.x, z.z) : -openSide(o, P.x, P.z), ox = o.nx * sd, oz = o.nz * sd;
@@ -158,7 +176,7 @@ function breakBoard(o, z) {
 // shots through the boards: a bullet or pellet that crosses a boarded door or window on its way (weapons/firing.js)
 // makes the top board jump and splinters fly out the far side, but takes nothing off it: only a melee blow wears the
 // boards down (melee/melee.js: BOARD_MELEE). A shot's openings go into acc, each once
-function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
+export function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
   let last = null;
   for (let t = 0.1; t < T; t += 0.1) {
     const i = ci(ox + dx * t), j = ci(oz + dz * t); if (!inb(i, j)) continue;
@@ -168,7 +186,7 @@ function boardsCrossed(ox, oz, dx, dz, T, dmg, acc) {
 }
 // a blow on an opening's boards (d of damage: none from a shot): the top one jumps and splinters fly out the far side;
 // in co-op the host's game keeps the boards, so a joiner's blows are sent to it and it says when one breaks (net/sync.js)
-function shootBoard(o, d, dx, dz) {
+export function shootBoard(o, d, dx, dz) {
   if (!o.boards.length) return;
   const at = { x: o.x + dx, z: o.z + dz, vis: visAt(o.x, o.z) };
   boardJolt(o, at); if (!(d > 0)) return;
@@ -176,7 +194,7 @@ function shootBoard(o, d, dx, dz) {
   if (!netClient()) hurtBoard(o, d, at);
 }
 // d off the top board; if that's the last of it, it breaks and flies toward at
-function hurtBoard(o, d, at) {
+export function hurtBoard(o, d, at) {
   const top = o.boards.length - 1; if (top < 0) return;
   o.boards[top] -= d;
   if (o.boards[top] <= 0) { breakBoard(o, at); netBoardBroke(o, null, at); }
@@ -185,14 +203,14 @@ function hurtBoard(o, d, at) {
 // after another a moment apart, and dropped inside the house (or the grate, in one piece). You
 // don't get the planks back: they're broken (nor the metal from a grate)
 const TEAR_GAP = 70;   // ms between the boards coming off
-function tearBoard(o) {
+export function tearBoard(o) {
   if (!o.boards.length) return;
   runStat('tears', o.grate ? 1 : o.boards.length);
   const at = { x: o.x - o.nx * 2, z: o.z - o.nz * 2 };   // (always into the house, whichever side you tore them from)
   if (netClient()) { netBoardTear(o, at); return; }   // (the host breaks them and says so)
   tearAll(o, at);
 }
-function tearAll(o, at) {
+export function tearAll(o, at) {
   const n = o.boards.length;
   for (let k = 0; k < n; k++) setTimeout(() => { if (!o.boards.length) return; breakBoard(o, at); netBoardBroke(o, null, at); }, k * TEAR_GAP);
 }
@@ -208,16 +226,20 @@ function debrisShade(q, dt) {
   q.dim = d; q.shown = true; g.visible = true; q.mats.forEach(m => m.color.copy(m.userData.c0).multiplyScalar(d));
 }
 // boards knocked about and pieces of them lying about, each frame
-function stepBoards(dt, rdt) {
+export function stepBoards(dt, rdt) {
   stepDebris(loosePlanks, dt); stepDebris(looseMetal, dt); boardShake(rdt);
   for (const o of openings) if (o.grate) grateStep(o, rdt);
   for (const q of loosePlanks) if (q.life > 0) debrisShade(q, rdt);
   for (const q of looseMetal) if (q.life > 0) debrisShade(q, rdt); else if (q.g.parent) scene.remove(q.g);
 }
-function resetBoards() {
+export function resetBoards() {
   openings.forEach(o => { clearBoards(o); o.climbers = []; });
   loosePlanks.forEach(q => scene.remove(q.g)); loosePlanks.length = 0;
   looseMetal.forEach(q => scene.remove(q.g)); looseMetal.length = 0;
   if (METAL.on) applyMetal(false, 0, false);   // (back to the sawhorse: barricades/metal-bars.js)
   lightsDirty = true;
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setFlowDirty(v) { return (flowDirty = v); }
+export function setLightsDirty(v) { return (lightsDirty = v); }

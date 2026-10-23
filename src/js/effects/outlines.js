@@ -1,6 +1,10 @@
 // Outlines: inverted-hull rims for the x-ray through walls, and fading shadows (the outlines round whole models are
 // effects/screen-outlines.js).
 
+import { cam, R, V3 } from '../core/renderer.js';
+import { bandRolls, PM } from '../player/player.js';
+import { LOOK } from '../player/look.js';
+
 // an inverted-hull rim: every piece of g drawn again a little bigger, back faces only, in mat (the x-ray's rims, below)
 function hullOutline(g, col, scl, thick, mat, keep) {
   const om = mat || new THREE.MeshBasicMaterial({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 });
@@ -21,7 +25,7 @@ function hullOutline(g, col, scl, thick, mat, keep) {
 const XRAY_CLIP = [new THREE.Plane(new V3(0, 1, 0), -0.14)];
 R.localClippingEnabled = true;
 const RIM_STENCIL = { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc, stencilZPass: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp };
-const rimMat = col => new THREE.MeshBasicMaterial(Object.assign({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 }, RIM_STENCIL));
+export const rimMat = col => new THREE.MeshBasicMaterial(Object.assign({ color: col, side: THREE.BackSide, transparent: true, opacity: 0.95 }, RIM_STENCIL));
 // drawn only where something solid stands between the camera and the zombie: a red rim over a dark fill,
 // and for zombies a tinted silhouette of the whole body so you can read them through the wall at a glance.
 // withSil: true for the red zombie silhouette, or a colour; keep(mesh) can leave meshes out;
@@ -36,7 +40,7 @@ function halftone(mat, cell) {
   mat.customProgramCacheKey = () => 'halftone' + cell;
   return mat;
 }
-function xray(g, col, noClip, withSil, keep, bias, ht) {
+export function xray(g, col, noClip, withSil, keep, bias, ht) {
   // clipped just above the ground so feet sinking into the dirt or a porch board never light up
   const rim = new THREE.MeshBasicMaterial(Object.assign({ color: col || 0xff3322, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false, depthFunc: THREE.GreaterDepth, clippingPlanes: noClip ? null : XRAY_CLIP }, RIM_STENCIL));
   const fill = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilFail: THREE.ReplaceStencilOp });
@@ -58,7 +62,7 @@ function xray(g, col, noClip, withSil, keep, bias, ht) {
 // pull a material's depth toward the camera by d world units (the camera is orthographic, so this is a flat shift)
 const biasDepth = d => sh => { sh.vertexShader = sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>\n  gl_Position.z -= ${(d * 2 / (cam.far - cam.near)).toFixed(5)} * gl_Position.w;`); };
 // a zombie's shadow dissolves with it: its shadow-map depth is dithered away as it fades
-function fadeDepthMat() {
+export function fadeDepthMat() {
   const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), u = { value: 1 };
   m.userData.u = u;
   m.onBeforeCompile = sh => {
@@ -69,10 +73,10 @@ function fadeDepthMat() {
 }
 // you, seen through trees, walls and anything else in the way: a soft grey rim and a faint pale fill
 // (blood spots and bandage rolls left out; the bias keeps your own gun from counting as cover)
-const pXray = xray(PM.g, 0xe6e2da, false, 0xcfcac0, o => !o.userData.fine && !bandRolls.includes(o) && !(o.parent && bandRolls.includes(o.parent)), 1.0);
+export const pXray = xray(PM.g, 0xe6e2da, false, 0xcfcac0, o => !o.userData.fine && !bandRolls.includes(o) && !(o.parent && bandRolls.includes(o.parent)), 1.0);
 pXray.rim.opacity = 0.75; pXray.sil.opacity = 0.2;
 // pieces added later (each run's hat, player/look.js) get the same see-through fill, silhouette and rim as the rest of you
-function xrayAttach(list) {
+export function xrayAttach(list) {
   list.forEach(o => {
     const f = new THREE.Mesh(o.geometry, pXray.fill); f.userData.isOutline = true; f.renderOrder = -5; o.add(f);
     const m = new THREE.Mesh(o.geometry, pXray.sil); m.userData.isOutline = true; m.renderOrder = -1; o.add(m);

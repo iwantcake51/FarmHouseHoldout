@@ -4,6 +4,13 @@
 // a key clicked on the drawing is taken as the one pressed. Searching filters the lines as you type, the ones that
 // don't match folding away, the matching letters marked, and the keyboard dims all but their keys.
 
+import { $ } from '../core/dom.js';
+import { KEN_ICONS, MOUSE_PARTS } from './input-icons-data.js';
+import { iconOf, keyIcon } from './input-icons.js';
+import { BIND_GROUPS, BIND_LOCK, KB, keyLabel, keyOn } from '../input/keybinds.js';
+import { clamp } from '../core/math.js';
+import { binding, finishBinding, LOCK_SVG } from './settings.js';
+
 // each group's colour, on the keyboard and down the side of its lines
 const KGROUP_COL = { Movement: '#86b4d0', Combat: '#e08a5a', Survival: '#a3c47e' };
 // the keyboard as it's drawn: each key [e.key, label, width in key widths]
@@ -36,7 +43,7 @@ function mapKey(k, l) {
 }
 const kEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // ---- the tab's markup
-function controlsHtml() {
+export function controlsHtml() {
   const lock = LOCK_SVG;
   const list = BIND_GROUPS.map(g => {
     const col = KGROUP_COL[g.name];
@@ -59,7 +66,7 @@ function controlsHtml() {
   </div>`;
 }
 // ---- keeping it up: the keys lit by what's on them, the lines' keys, the search
-function kbRefresh() {
+export function kbRefresh() {
   const body = $('setBody'), acts = keyActs(); if (!body.querySelector('.kBoard')) return;
   body.querySelectorAll('.kk').forEach(el => {
     const on = acts.get(el.dataset.k) || [];

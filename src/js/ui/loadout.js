@@ -5,6 +5,30 @@
 // the next step at the bench still fits that one. It comes out from behind the bench as that unrolls, or pops out when your first purchase for
 // the gun gives it something to show, and a marker slides to whatever you pick (styles/loadout.css).
 
+import { $ } from '../core/dom.js';
+import { clamp } from '../core/math.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { loadRound, roundName, roundOn, roundOwned, ROUNDS, roundTypes } from '../weapons/rounds.js';
+import { MODS } from '../melee/melee-mods.js';
+import { modLocks, modName, modReplaced, modsOff, setMod } from '../weapons/mod-levels.js';
+import { tierName, TIERS } from '../upgrades/tier-table.js';
+import {
+  AMMO_DMG, curId, fitTier, gunAtt, gunTier, hasMod, HEAD_UP, MAG_UP, magChange, ownAtt, ownTier, recomputeEff, S,
+  setAtt, W, W8
+} from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { openSt, renderStation } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun, state } from '../game/state.js';
+import { exitScope } from '../player/aiming.js';
+import { STOCK } from '../weapons/firing.js';
+import {
+  chip, CHIP_MARK, chipCls, compareFx, fmt1, gunStats, MOD_FEATURE, roundFeat
+} from '../upgrades/upgrade-info.js';
+import { feed } from './hud-text.js';
+import { wsAtBench } from './weapon-stats.js';
+
 let wlKey = '', wlSel = '', wlCloseT = 0, wlOpenT = 0, wlOpts = [], wlGrps = [];
 const WL_LINE = { supp: 'Muzzle', choke: 'Muzzle', sight: 'Sight', laser: 'Laser', light: 'Light', loader: 'Loader' };
 const pctPlus = m => '+' + Math.round((m - 1) * 100) + '%';
@@ -89,7 +113,7 @@ function wlMarks(still) {
   });
 }
 // every frame: shown while you're at the workbench with a gun that has something to swap, docked on its right
-function updateLoadout() {
+export function updateLoadout() {
   const el = $('wLoad'), id = curId(), st = $('station'), groups = state === 'play' && !P.dead && wsAtBench() ? wlGroups(id) : [], on = groups.length > 0;
   if (!st.classList.contains('closing')) { st.classList.toggle('withLoad', on); document.documentElement.classList.toggle('dkL', on); }
   if (on && (el.hidden || el.classList.contains('closing'))) {

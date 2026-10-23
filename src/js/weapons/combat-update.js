@@ -1,5 +1,32 @@
 // Per-frame weapon handling: trigger, swings, reloads, bursts, stamina, bleeding, smoke wisps.
 
+import { GUN_Y, V3 } from '../core/renderer.js';
+import { clamp, rr, smooth } from '../core/math.js';
+import { moveCircle } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { splashOn, youSplash } from '../effects/body-blood.js';
+import { HEAVY_FIRE } from './gun-stats.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { tickCycle } from './casings.js';
+import { muzzleWorld } from '../effects/muzzle-flash.js';
+import { smoke } from '../effects/smoke.js';
+import { bleedDrip } from '../effects/particles.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { vaultGun } from '../player/vaulting.js';
+import { openSt } from '../stations/station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { state } from '../game/state.js';
+import { aimPt, hasMouse, mouseDown, mouseDownR, ray } from '../input/keyboard-mouse.js';
+import { aiming, scoped } from '../player/aiming.js';
+import { tStick } from '../input/touch.js';
+import { resumeReload, tickReload, tickShut } from './reload.js';
+import { AK_ON, akTriggers } from './akimbo.js';
+import { aimRay, bodyOf, cursorTarget, fire, SETTLE, settleK } from './firing.js';
+import { HEAVY, heavySwing, LUNGS, meleeHit } from '../melee/melee.js';
+import { tickBandage } from '../player/bandages.js';
+import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
+import { ANIM, LOOK_DOWN } from '../player/animation.js';
+
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
 const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you look (of its height), how near the aim it counts, how far up you'll point
@@ -7,7 +34,7 @@ const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
 const BLEED_FLOOR = 15;   // the health bleeding leaves you on at worst: there it stops, the wound clotted
-function updateCombat(dt) {
+export function updateCombat(dt) {
   W8.cd -= dt;
   if (W8.swing > 0) {
     if (ANIM.mStop > 0) ANIM.mStop -= dt; else W8.swing = Math.max(0, W8.swing - dt);   // (stopped dead a moment on a blow that lands: meleeImpact)

@@ -15,6 +15,18 @@
 // (MSPRING), loose for the weapon in the fist, firmer for the body, so it carries on past where it's sent and settles.
 // A blow that lands (meleeImpact) stops the swing dead for a moment (MSTOP) and throws the springs back off the hit.
 
+import { V3 } from '../core/renderer.js';
+import { angDiff, clamp, mix, rand, smooth } from '../core/math.js';
+import { P } from '../player/player.js';
+import { curId, S, W8 } from '../game/run-state.js';
+import { meleeLen } from './swing-trail.js';
+import { SFX } from '../audio/sfx.js';
+import { HEAVY, heavySwing } from './melee.js';
+import { springTo } from '../game/camera.js';
+import { ANIM } from '../player/animation.js';
+import { ARM_THIN, FIST, SHOULDER_REST } from '../player/hold.js';
+import { SWAP_T, swapSt } from '../player/swap.js';
+
 // the guard per weapon: fist and weapon direction, and the body
 const MGUARD = {
   club:    { F: [0.32, 0.84, 0.28], W: [0.26, 0.55, 0.8], b: { uy: 0.1, ux: 0.02 } },               // crowbar, wrench: low at the right hip, angled up and out ahead
@@ -172,7 +184,7 @@ const MBASH = {
 };
 // how far up the haft a two-hander's left hand has slid for the bash (1: holding it like a bar), sliding up as it's
 // drawn back and down again as it comes back to the guard, gone by the time the shove ends (player/hold.js)
-function meleeBashHand() {
+export function meleeBashHand() {
   const sv = P.shove; if (!sv) return 0;
   const p = clamp(sv.t / sv.dur, 0, 1);
   return smooth(clamp(p / 0.18, 0, 1)) * (1 - smooth(clamp((p - 0.42) / 0.5, 0, 1)));
@@ -197,7 +209,7 @@ function offSpring(target, k, c, rdt) {
   for (let i = 0; i < n; i++) { MS.vL.addScaledVector(_offB.copy(MS.L).sub(target), -k * h).addScaledVector(MS.vL, -c * h); MS.L.addScaledVector(MS.vL, h); }
 }
 function meleeOffTrack(D, sh) { if (D.two) return null; if (sh) return MBASH_L; return W8.swing > 0 ? curSwing(D).L || null : null; }
-function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
+export function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
   const keys = meleeOffTrack(D, sh);
   if (!keys) {
     MS.lW = 0;
@@ -250,7 +262,7 @@ const MSTOP = { light: 0.045, heavy: 0.1, bounce: 0.9 };
 const MBODY = ['uy', 'ux', 'uz', 'hy', 'step', 'dip'];
 // the springs' state: the fist and the weapon's direction with their speeds, and the body (MS.b, each part's speed
 // beside it as v + its name)
-const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1, L: new V3(-0.36, 0.6, 0), vL: new V3() };
+export const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1, L: new V3(-0.36, 0.6, 0), vL: new V3() };
 MBODY.forEach(k => { MS.b[k] = 0; MS.b['v' + k] = 0; });
 const _maF = new V3(), _maW = new V3(), _maA = new V3(), _maB = new V3(), _maQ = new THREE.Quaternion(), _maE = new THREE.Euler();
 // a key's F or W, with 'G' the guard
@@ -321,17 +333,17 @@ function meleeWarp(p, keys, hit, w) {
   const u = (p - hit) / (1 - hit); return hit + (1 - hit) * (1 - Math.pow(1 - u, a));
 }
 // the next swing: one of the style's three, never the same one twice running
-function pickSwing(D) {
+export function pickSwing(D) {
   const n = (MSWINGS[meleeStyle(D)] || MSWINGS.swing).length;
   let v = (rand() * (n - 1)) | 0; if (v >= MS.prevVar && MS.prevVar >= 0) v++; v = Math.min(n - 1, v);
   MS.prevVar = v; W8.swingVar = v;
   return (MSWINGS[meleeStyle(D)] || MSWINGS.swing)[v];
 }
 const meleeStyle = D => heavySwing(D) ? 'heavy' : D.style === 'slash' ? 'slash' : 'swing';
-const curSwing = D => { const s = MSWINGS[meleeStyle(D)] || MSWINGS.swing; return s[clamp(W8.swingVar | 0, 0, s.length - 1)]; };
+export const curSwing = D => { const s = MSWINGS[meleeStyle(D)] || MSWINGS.swing; return s[clamp(W8.swingVar | 0, 0, s.length - 1)]; };
 // a blow landing (melee/melee.js): the swing stopped on it a moment and the springs thrown back off it; hard is how
 // solid (1 for a hit, less for the ground)
-function meleeImpact(heavy, hard) {
+export function meleeImpact(heavy, hard) {
   const w = meleeWeight(curId())[0], rb = hard * (1 - MSTOP.bounce * w);
   ANIM.mStop = Math.max(ANIM.mStop || 0, mix(MSTOP.light, MSTOP.heavy, w) * hard);
   MS.vF.multiplyScalar(-0.3 * rb); MS.vW.multiplyScalar(-0.45 * rb);
@@ -388,7 +400,7 @@ function meleeRun(kind, ph, f, w) {
 // this frame's melee pose: what the swing, the draw or the bash wants, run through the springs. Returns the solved
 // arm and weapon angles and the body (MS.b)
 const _mSol = { rx: 0, ry: 0, sc: 1, rz: 0, hrx: 0, wy: 1, wz: 1 }, _mTB = {};
-function meleePose(id, D, rdt, now, sh) {
+export function meleePose(id, D, rdt, now, sh) {
   const kind = meleeKind(id), g = MGUARD[kind];
   if (MS.kind !== kind) { MS.kind = kind; MS.F.set(g.F[0], g.F[1], g.F[2]); MS.W.set(g.W[0], g.W[1], g.W[2]).normalize(); MS.vF.set(0, 0, 0); MS.vW.set(0, 0, 0); MBODY.forEach(k => { MS.b[k] = g.b[k] || 0; MS.b['v' + k] = 0; }); }
   _maF.set(g.F[0], g.F[1], g.F[2]); _maW.set(g.W[0], g.W[1], g.W[2]).normalize(); MBODY.forEach(k => { _mTB[k] = g.b[k] || 0; });

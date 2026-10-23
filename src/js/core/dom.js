@@ -1,12 +1,12 @@
 // DOM shortcut and the three.js availability check.
 
-const $ = id => document.getElementById(id);
-if (!window.THREE) { $('title').querySelector('p').textContent = 'The 3D engine could not load. Check your connection and reload the page.'; return; }
+export const $ = id => document.getElementById(id);
+if (!window.THREE) { $('title').querySelector('p').textContent = 'The 3D engine could not load. Check your connection and reload the page.'; throw new Error('three.js did not load'); }   // (and the game goes no further)
 // a scrolling list that eases to where the wheel sends it instead of jumping a notch at a time (it follows a point
 // that each notch moves on, closing on it quickly and settling); a touchpad's own fine scrolling is already smooth,
 // so it's left alone, and a drag of the scrollbar takes over at once
 const swOn = new WeakSet();
-function smoothWheel(el) {
+export function smoothWheel(el) {
   if (swOn.has(el)) return; swOn.add(el);
   let to = null, pos = 0, last = 0, raf = 0;
   const step = now => {

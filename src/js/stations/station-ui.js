@@ -1,6 +1,31 @@
 // The station panel: cards, costs and crafting.
 
-let openSt = null, supplyT = 0, supplyFall = null;
+import { $, smoothWheel } from '../core/dom.js';
+import { keyOn } from '../input/keybinds.js';
+import { GI, GI_VB } from '../ui/game-icons.js';
+import { netLink } from '../net/net.js';
+import { STATIONS } from './stations.js';
+import { rackClick, renderRack, updateRackSide } from './armory.js';
+import { P } from '../player/player.js';
+import { SLOT_NAME, SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_NAME, gunBatch } from '../weapons/ammo.js';
+import { TIERS } from '../upgrades/tier-table.js';
+import { curId, S, W, W8 } from '../game/run-state.js';
+import { BRACE, braceLv, METAL } from '../barricades/planks.js';
+import { forgeMetal, METAL_COST } from '../barricades/metal-bars.js';
+import { allAmmo, bandRoom, gunAmmo, RECIPES } from './recipes.js';
+import { SFX } from '../audio/sfx.js';
+import { equip } from '../weapons/reload.js';
+import { bandMax } from '../player/bandages.js';
+import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
+import { FEED_ICON, popEl, setT } from '../ui/hud-text.js';
+import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
+import { updateLoadout } from '../ui/loadout.js';
+import { benchTipUsed } from '../ui/bench-tips.js';
+import { giftClick, renderGift } from '../net/teamwork.js';
+
+export let openSt = null, supplyT = 0, supplyFall = null;
 // how near a station you are: to its spot in front of it, or for one with a footprint (the workbench) to the nearest
 // edge of it, so you can use it from the side as well as the front
 const STATION_REACH = 1.3, FOOT_REACH = 0.85;
@@ -13,7 +38,7 @@ function stationDist(s) {
 // near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
 // the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
 const STATION_SPOT = 0.7, STATION_FACE = 0.35;
-function nearestStation() {
+export function nearestStation() {
   let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   for (const s of STATIONS) {
@@ -29,7 +54,7 @@ function nearestStation() {
 // the panel unrolls from its orange rule as it opens and rolls back up into it as it closes (styles/stations.css);
 // walking from one station to the next while it's open just changes what's on it
 let stCloseT = 0, stOpenT = 0;
-function openStation(s) {
+export function openStation(s) {
   benchTipUsed(s.id);   // its label from the start of the run goes (ui/bench-tips.js)
   const el = $('station'), shut = el.hidden || el.classList.contains('closing');
   clearTimeout(stCloseT); el.classList.remove('closing');
@@ -37,7 +62,7 @@ function openStation(s) {
   updateWeaponStats(); updateLoadout(); updateRackSide();   // docked in place before it's first laid out, so the bench doesn't slide over to make room
   if (shut) { el.classList.remove('opening'); void el.offsetWidth; el.classList.add('opening'); clearTimeout(stOpenT); stOpenT = setTimeout(() => el.classList.remove('opening'), 700); }
 }
-function closeStation() {
+export function closeStation() {
   if (!openSt) return; openSt = null;
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
@@ -62,10 +87,10 @@ const STAR_D = 'M12 2.6l2.85 6.05 6.65.82-4.92 4.56 1.3 6.57L12 17.3l-5.88 3.3 1
 const STAR_BLOB = 'M13.68 0L14.09 2.23L13.22 4.3L11.51 5.87L9.81 7.13L8.56 8.56L7.44 10.24L5.9 11.58L3.89 11.96L1.82 11.47L0 10.87L-1.71 10.82L-3.65 11.22L-5.81 11.41L-7.93 10.91L-9.75 9.75L-11.24 8.16L-12.33 6.28L-12.73 4.14L-12.28 1.94L-11.32 0L-10.6 -1.68L-10.55 -3.43L-10.76 -5.48L-10.41 -7.56L-9.11 -9.11L-7.26 -9.99L-5.45 -10.7L-3.84 -11.82L-2.09 -13.23L0 -14.13L2.2 -13.87L4.08 -12.56L5.54 -10.86L6.77 -9.31L7.93 -7.93L8.99 -6.53L9.95 -5.07L11.04 -3.59L12.41 -1.97Z';
 let starClip = 0;
 // (id: the mask's own name; the same each time a line's drawn while its star fills, so redrawing it doesn't restart it)
-const starFillSvg = (cls, sc, id) => { id = id || 'stf' + (++starClip); return `<svg viewBox="0 0 24 24" class="${cls} fill"${sc || ''}><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-2" y="-2" width="28" height="28"><path d="${STAR_D}" fill="#fff"/><g class="hole"><g class="wob"><path d="${STAR_BLOB}" fill="#777" transform="scale(1.16)"/><path d="${STAR_BLOB}" fill="#000"/></g></g></mask></defs><path class="liq" d="${STAR_D}" mask="url(#${id})"/><path class="ol" d="${STAR_D}"/></svg>`; };
+export const starFillSvg = (cls, sc, id) => { id = id || 'stf' + (++starClip); return `<svg viewBox="0 0 24 24" class="${cls} fill"${sc || ''}><defs><mask id="${id}" maskUnits="userSpaceOnUse" x="-2" y="-2" width="28" height="28"><path d="${STAR_D}" fill="#fff"/><g class="hole"><g class="wob"><path d="${STAR_BLOB}" fill="#777" transform="scale(1.16)"/><path d="${STAR_BLOB}" fill="#000"/></g></g></mask></defs><path class="liq" d="${STAR_D}" mask="url(#${id})"/><path class="ol" d="${STAR_D}"/></svg>`; };
 // key: which line this is (so a star just bought on it fills: the stars it had last time it was drawn, STAR_SEEN)
 const STAR_SEEN = new Map();
-const starRow = (n, of, rars, key) => {
+export const starRow = (n, of, rars, key) => {
   if (!(of > 1)) return '';
   const mixed = rars && new Set(rars.slice(0, of)).size > 1;
   let from = n;
@@ -73,7 +98,7 @@ const starRow = (n, of, rars, key) => {
   return `<span class="stars${mixed ? ' rar' : ''}" title="${n} of ${of}">${Array.from({ length: of }, (_, k) => { const sc = mixed && rars[k] ? ` style="--sc:${STAR_COL[rars[k]]}"` : ''; return k >= from && k < n ? starFillSvg('on', sc, 'stf' + key.replace(/[^a-z0-9]/gi, '') + '_' + k) : `<svg viewBox="0 0 24 24"${k < n ? ' class="on"' : k === n ? ' class="next"' : ''}${sc}>${STAR}</svg>`; }).join('')}</span>`;
 };
 // each step's rarity on line k, as gun id has it (some guns call a step a rarer one: rAs)
-const tierRars = (k, id) => TIERS[k].t.map(st => (st.rAs && st.rAs[id]) || st.r);
+export const tierRars = (k, id) => TIERS[k].t.map(st => (st.rAs && st.rAs[id]) || st.r);
 // what a card does in numbers, green for better and red for worse, like the cards after a wave (upgrades/upgrade-info.js).
 // They're worked out once per card until the weapon in your hands changes
 const chipCache = new Map(); let chipKey = '';
@@ -87,8 +112,8 @@ function cardChips(r) {
 }
 // the panel is rebuilt only when its list of cards changes; otherwise each card's text, cost and state are updated where
 // it stands, so a card dimming or brightening eases over instead of jumping
-let stStruct = '';
-function renderStation() {
+export let stStruct = '';
+export function renderStation() {
   if (!openSt) return;
   benchGuns();   // (the workbench's weapon tabs, hidden at the others)
   $('station').classList.toggle('isRack', openSt.id === 'rack');
@@ -151,7 +176,7 @@ function benchGun(s) {
   // the new weapon's cards rise in one after another (the class is taken off again after, as the rack's are)
   const r = $('stRows'); r.scrollTop = 0; r.classList.remove('swap'); void r.offsetWidth; r.classList.add('swap'); clearTimeout(bgSwapT); bgSwapT = setTimeout(() => r.classList.remove('swap'), 700);
 }
-function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
+export function benchGunStep(d) { const have = SLOTS.filter(s => W8.slot[s]); if (have.length > 1) benchGun(have[(have.indexOf(W8.cur) + d + have.length) % have.length]); }
 $('stGuns').addEventListener('click', e => { const b = e.target.closest('button[data-slot]'); if (b) benchGun(b.dataset.slot); });
 // at the workbench, ammo is always a click away along the bottom, wherever you've scrolled the cards to: for the gun in
 // your hands, or a load for every gun you carry; and at the medicine cabinet, bandages the same way: one, or your pouch
@@ -214,3 +239,8 @@ function craft(i) {
 }
 // the wheel eases the cards along instead of jumping a notch at a time (core/dom.js)
 smoothWheel($('stRows'));
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setSupplyT(v) { return (supplyT = v); }
+export function setSupplyFall(v) { return (supplyFall = v); }
+export function setStStruct(v) { return (stStruct = v); }

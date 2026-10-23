@@ -1,15 +1,22 @@
 // Fog of war: what you can see, recomputed only when it can change.
 
+import { angDiff, clamp, HALF } from '../core/math.js';
+import { openings } from '../world/house.js';
+import { HOUSE_DOORS } from '../world/interior.js';
+import { shutN } from '../barricades/planks.js';
+import { FN, FR, los, sampleX, visCur, visTgt } from './lightmap.js';
+import { viewer } from '../net/spectate.js';
+
 // standing at a window or the door, you can look out through it even when the line from your eyes clips the frame: the
 // opening you're at, and which side of it you're on
-function peekOf(V) {
+export function peekOf(V) {
   let peek = null, pd = 2.1;
   for (const o of openings) { const d = Math.hypot(o.x - V.x, o.z - V.z); if (d < pd) { pd = d; peek = o; } }
   return peek && { o: peek, side: Math.sign((V.x - peek.x) * peek.nx + (V.z - peek.z) * peek.nz) || 1 };
 }
 // how much of the spot (wx, wz) the viewer V can make out past what's in the way: all of it in plain sight, through the
 // window they're at (pk: peekOf) a little less with each board over it, and nothing behind a wall
-function sightTo(V, pk, wx, wz) {
+export function sightTo(V, pk, wx, wz) {
   if (Math.hypot(wx - V.x, wz - V.z) <= 0.7 || los(V.x, V.z, wx, wz)) return 1;
   if (!pk) return 0;
   const o = pk.o, nb = shutN(o), far = Math.hypot(wx - o.x, wz - o.z);
@@ -18,8 +25,8 @@ function sightTo(V, pk, wx, wz) {
   return 0;
 }
 // what you can see: a cone in front of you, a small circle around you, blocked by walls; recomputed only when it can change
-let visKey = '', visAge = 0, visOn = false;   // (visOn: the fog's up, as it is unless you're down: zombies/zombie-visuals.js)
-function computeVision(on) {
+export let visKey = '', visAge = 0, visOn = false;   // (visOn: the fog's up, as it is unless you're down: zombies/zombie-visuals.js)
+export function computeVision(on) {
   visOn = on;
   let bsum = 0; for (const o of openings) bsum = bsum * 4 + shutN(o);
   const V = viewer();   // (you, or the teammate you're watching: net/spectate.js)
@@ -40,4 +47,7 @@ function computeVision(on) {
     }
   }
 }
-const visAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1); return visCur[b * FN + a]; };
+export const visAt = (x, z) => { const a = clamp(Math.floor((x + HALF) * FR), 0, FN - 1), b = clamp(Math.floor((z + HALF) * FR), 0, FN - 1); return visCur[b * FN + a]; };
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setVisKey(v) { return (visKey = v); }

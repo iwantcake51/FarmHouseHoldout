@@ -1,7 +1,33 @@
 // Player movement, statuses and aiming each frame.
 
+import { cam, FWD, GUN_Y, RIGHT, V3 } from '../core/renderer.js';
+import { clamp, smooth } from '../core/math.js';
+import { moveCircle } from '../world/collision.js';
+import { P } from './player.js';
+import { carryMul, curId, S, W, W8 } from '../game/run-state.js';
+import { bloodyStep } from '../effects/blood-map.js';
+import { VAULT_COOL, vaultGun, vaultLand, vaultTakeoff } from './vaulting.js';
+import { vaultAt } from './vault-plan.js';
+import { openSt } from '../stations/station-ui.js';
+import { footstep } from '../audio/footsteps.js';
+import { state } from '../game/state.js';
+import { _pv, aimPlane, aimPt, hasMouse, keys, mouseX, mouseY, ndc, ray } from '../input/keyboard-mouse.js';
+import { aimHeld, aiming, exitScope, hasScope, scopeAim, scoped, scopePt, startAim } from './aiming.js';
+import { tStick } from '../input/touch.js';
+import { reloadSlow } from '../weapons/reload.js';
+import { heavyFireSlow } from '../weapons/firing.js';
+import { swingSlow } from '../melee/melee.js';
+import { tickShove } from './shove.js';
+import {
+  pivotSlow, RUN_RELOAD, runReloading, SPRINT, sprintCarve, sprintPace, sprintStart, sprintVault, updateSprint,
+  WALK_SPEED
+} from './sprint.js';
+import { aimSX, aimSY, updateShaky } from './shaky-hands.js';
+import { ANIM } from './animation.js';
+import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
+
 // Painkillers' regeneration waits this long (seconds) after you last lost health
-const REGEN_WAIT = 5;
+export const REGEN_WAIT = 5;
 // how much a bandage going on slows your walk (Walking wounded takes S.bandLess of it off)
 const BAND_SLOW = 0.55;
 // badly hurt you limp, but you can still get about: slower from HURT_SLOW.from of your health, down to min of your pace
@@ -9,7 +35,7 @@ const BAND_SLOW = 0.55;
 const HURT_SLOW = { from: 0.35, min: 0.85, floor: 0.72 };
 
 // status effects, walking, vaulting and aiming
-function updatePlayer(dt) {
+export function updatePlayer(dt) {
   P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt); P.eye = Math.max(0, (P.eye || 0) - dt); P.adrCd = Math.max(0, (P.adrCd || 0) - dt);
   W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down

@@ -4,6 +4,8 @@
 // now: keyLabel and kbd for what's written as it's needed, and data-bind on what's in the page, kept up by
 // refreshKeyHints.
 
+import { keyIcon, slotIcons } from '../ui/input-icons.js';
+
 // what each does and its key to start with (e.key, lower-cased; ' ' Space; mouse3-5 the middle and side buttons)
 const BIND_DEF = {
   sprint: 'shift', vault: ' ', zoomIn: '=', zoomOut: '-',
@@ -11,24 +13,24 @@ const BIND_DEF = {
   use: 'e', board: 'f', tear: 'c', bandage: 'q', wave: 't', share: 'h', pause: 'p'
 };
 // the groups they're listed in (hold: held down rather than pressed), and the ones that can't move, shown with them
-const BIND_GROUPS = [
+export const BIND_GROUPS = [
   { name: 'Movement', fixed: [['W A S D', 'Walk']], rows: [['sprint', 'Sprint', 1], ['vault', 'Vault a window or fence'], ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out']] },
   { name: 'Combat', fixed: [['Mouse', 'Aim and fire'], ['Right click', 'Aim down the sights']], rows: [['reload', 'Reload'], ['slot1', 'Weapon 1'], ['slot2', 'Weapon 2'], ['slot3', 'Weapon 3'], ['slot4', 'Weapon 4'], ['shove', 'Shove'], ['fireMode', 'Switch fire mode'], ['ammo', 'Load the next kind of round'], ['grenade', 'Underbarrel grenade'], ['stats', 'Weapon stats']] },
   { name: 'Survival', fixed: [], rows: [['use', 'Use a station, pick something up'], ['board', 'Board up a window or door', 1], ['tear', 'Tear a board down', 1], ['bandage', 'Bandage'], ['wave', 'Start the next wave early'], ['share', 'Share a gun with your team'], ['pause', 'Pause']] }
 ];
 // keys kept for what they already do: walking, Esc (back out, pause), the cheat menu, Tab and Enter in the stations
-const BIND_LOCK = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'escape', 'f9', 'tab', 'enter', 'meta', 'contextmenu']);
-const KB = Object.assign({}, BIND_DEF);
+export const BIND_LOCK = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'escape', 'f9', 'tab', 'enter', 'meta', 'contextmenu']);
+export const KB = Object.assign({}, BIND_DEF);
 try { const s = JSON.parse(localStorage.getItem('kessler-keys') || '{}'); for (const a in s) if (a in BIND_DEF && typeof s[a] === 'string' && !BIND_LOCK.has(s[a])) KB[a] = s[a]; } catch (e) {}
-const saveBinds = () => { try { localStorage.setItem('kessler-keys', JSON.stringify(KB)); } catch (e) {} };
+export const saveBinds = () => { try { localStorage.setItem('kessler-keys', JSON.stringify(KB)); } catch (e) {} };
 // the key pressed, as it's bound: a number by its key, whatever Shift does to it (Shift+1 is still 1)
-const keyOf = e => { const c = e.code || ''; return /^Digit\d$/.test(c) ? c.slice(5) : /^Numpad\d$/.test(c) ? c.slice(6) : (e.key || '').toLowerCase(); };
+export const keyOf = e => { const c = e.code || ''; return /^Digit\d$/.test(c) ? c.slice(5) : /^Numpad\d$/.test(c) ? c.slice(6) : (e.key || '').toLowerCase(); };
 const KEY_NAMES = { ' ': 'Space', shift: 'Shift', control: 'Ctrl', alt: 'Alt', capslock: 'Caps', backspace: 'Backspace', delete: 'Del', insert: 'Ins', home: 'Home', end: 'End', pageup: 'PgUp', pagedown: 'PgDn', mouse3: 'Middle click', mouse4: 'Mouse 4', mouse5: 'Mouse 5', dead: '`' };
-const keyLabel = k => !k ? '—' : KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
+export const keyLabel = k => !k ? '—' : KEY_NAMES[k] || (k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
 // an action's key as written in a sentence, and as it's drawn (ui/input-icons.js: Kenney's key, in a <kbd>)
-const keyOn = a => keyLabel(KB[a]);
-const kbd = a => `<kbd class="ki">${keyIcon(KB[a])}</kbd>`;
-const bindIs = (k, a) => KB[a] === k;
+export const keyOn = a => keyLabel(KB[a]);
+export const kbd = a => `<kbd class="ki">${keyIcon(KB[a])}</kbd>`;
+export const bindIs = (k, a) => KB[a] === k;
 // the weapon keys together, as the controls list them: 1 – 4 while they run in order
 function slotKeys() { const s = [1, 2, 3, 4].map(n => KB['slot' + n]); return s.join('') === '1234' ? '1 – 4' : s.map(keyLabel).join(' '); }
 function refreshKeyHints() {
@@ -39,11 +41,11 @@ function refreshKeyHints() {
 }
 // putting a key on an action: one already doing something else swaps over to the key this one had, so nothing's lost
 // (what it swapped with, or null; false if the key can't be used)
-function setBind(a, k) {
+export function setBind(a, k) {
   if (!(a in BIND_DEF) || BIND_LOCK.has(k)) return false;
   const other = Object.keys(KB).find(b => b !== a && KB[b] === k) || null;
   if (other) KB[other] = KB[a];
   KB[a] = k; saveBinds(); refreshKeyHints(); return other;
 }
-function resetBinds() { Object.assign(KB, BIND_DEF); saveBinds(); refreshKeyHints(); }
+export function resetBinds() { Object.assign(KB, BIND_DEF); saveBinds(); refreshKeyHints(); }
 refreshKeyHints();

@@ -7,6 +7,11 @@
 // through. It bounces a little on a hard landing, slides to a stop, and settles flat on its widest side, easing over
 // rather than snapping.
 
+import { scene, V3 } from '../core/renderer.js';
+import { surfaceY } from '../world/house.js';
+import { burst } from './particles.js';
+import { SFX } from '../audio/sfx.js';
+
 // gravity (m/s²), how much of the fall a bounce gives back, how hard it slides to a stop, how quickly it settles flat
 // once down, the fall it takes to bounce at all, and the fall it takes to clatter
 const WDROP = { g: 12, bounce: 0.28, fric: 3.6, settle: 6.5, minBounce: 1.1, loud: 0.6 };
@@ -20,8 +25,8 @@ function dropRest(q, h) {
   return new THREE.Quaternion().setFromUnitVectors(_wdA, _wdUp).multiply(q);
 }
 // g: the weapon, about its middle (its box's half size h); v, w: how it's thrown and how it spins (world, rad/s)
-function makeDrop(g, h, v, w, melee) { return { g, h, vx: v[0], vy: v[1], vz: v[2], w: new V3(...w), melee, down: false, rest: null, done: false }; }
-function stepDrop(d, dt) {
+export function makeDrop(g, h, v, w, melee) { return { g, h, vx: v[0], vy: v[1], vz: v[2], w: new V3(...w), melee, down: false, rest: null, done: false }; }
+export function stepDrop(d, dt) {
   if (!d || d.done || !(dt > 0)) return;
   const g = d.g, p = g.position;
   d.vy -= WDROP.g * dt; p.x += d.vx * dt; p.y += d.vy * dt; p.z += d.vz * dt;
@@ -43,7 +48,7 @@ function stepDrop(d, dt) {
 }
 // a weapon's model, centred on its box, as a group to drop: src is the model as it's held (its world place taken
 // from it), the copy goes into the scene where it was. Its half size and the group back
-function dropCopy(src) {
+export function dropCopy(src) {
   src.updateMatrixWorld(true);
   const inv = src.matrixWorld.clone().invert(), bb = new THREE.Box3(), tb = new THREE.Box3(), rel = new THREE.Matrix4();
   src.traverse(o => { if (!o.isMesh || !o.visible) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); rel.multiplyMatrices(inv, o.matrixWorld); bb.union(tb.copy(o.geometry.boundingBox).applyMatrix4(rel)); });

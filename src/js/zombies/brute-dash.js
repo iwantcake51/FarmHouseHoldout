@@ -6,6 +6,33 @@
 // A shove or a heavy stagger during the crouch breaks it off. The host's game runs it; joiners see the crouch and the
 // stripe ('zdw') and take the hit if it's at them ('zdh': net/sync.js).
 
+import { $ } from '../core/dom.js';
+import { scene } from '../core/renderer.js';
+import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
+import { netSend } from '../net/net.js';
+import { LMU } from '../core/shaders.js';
+import { cell, ci, FENCE, idx, inb, openAt } from '../world/grid.js';
+import { thinRay } from '../world/thin-walls.js';
+import { surfaceY } from '../world/house.js';
+import { breakFence } from '../world/fence.js';
+import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { run, S } from '../game/run-state.js';
+import { burst } from '../effects/particles.js';
+import { fx, groundDust } from '../effects/puffs.js';
+import { zombies } from './zombie-types.js';
+import { zBoost, zMix } from './zombie-anim.js';
+import { nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { camRoll, setCamRoll, setShake, shake } from '../game/state.js';
+import { interruptBandage } from '../player/bandages.js';
+import { BRUTE_FROM } from '../waves/waves.js';
+import { setZHitMe } from './ai.js';
+import { dashPlow } from './knockdown.js';
+import { hitFromAt } from '../ui/hud.js';
+import { netFenceBroke, netTargets, nr } from '../net/sync.js';
+
 // wave: the first wave it can happen (the brutes' first: waves/waves.js); min, max: how far off you must be (metres); rate: the chance a second of starting
 // one while it can; cd: the wait after one (seconds); wind: the crouch; speed, over: how fast it goes, and how far past
 // where you stood; rec: the stumble to a halt after; w: the stripe's width; dmg, stun, kb: what it does to you
@@ -53,7 +80,7 @@ function dashMark(z, d, x, zz) {
   mesh.scale.set(0.001, 1, d.L); mesh.position.set(x, surfaceY(x, zz) + 0.03, zz); mesh.rotation.y = Math.atan2(d.dx, d.dz); mesh.renderOrder = 2; scene.add(mesh);
   dashMarks.push({ z, d, mesh, mat, t: 0, out: 0, flash: 0 });
 }
-function stepDashMarks(dt) {
+export function stepDashMarks(dt) {
   for (let k = dashMarks.length - 1; k >= 0; k--) {
     const m = dashMarks[k], d = m.d, u = m.mat.uniforms; m.t += dt;
     // done with: the charge over, broken off, or the brute gone; it fades out over a fifth of a second
@@ -72,7 +99,7 @@ function stepDashMarks(dt) {
 }
 // the brute's skin glows hot red as it gathers itself, quickening and brightening toward the charge (on top of
 // zFlash's, in zombies/ai.js)
-function dashGlow(z) {
+export function dashGlow(z) {
   const d = z.dash; if (!d || z.flash > 0) return;
   const k = d.ph === 'wind' ? Math.min(1, d.t / BDASH.wind) : d.ph === 'go' ? 1 : Math.max(0, 1 - d.t / 0.4);
   const p = d.ph === 'wind' ? 0.6 + 0.4 * Math.sin(d.t * (10 + 18 * k)) : 0.85, e = 0.04 + 0.2 * k * p;
@@ -80,7 +107,7 @@ function dashGlow(z) {
 }
 const dashCan = () => run.wave >= BDASH.wave;
 // a brute that might start one (the host's game, or alone): far enough off, a clear line to you, not busy
-function dashMaybe(z, dt, t, dp) {
+export function dashMaybe(z, dt, t, dp) {
   if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || z.atkDoor || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
   if (z.dashCd === undefined) z.dashCd = rr(3, 7);
   z.dashCd -= dt; if (z.dashCd > 0 || dp < BDASH.min || dp > BDASH.max || rand() > BDASH.rate * dt) return false;
@@ -89,13 +116,13 @@ function dashMaybe(z, dt, t, dp) {
   dashStart(z, dx, dz, room); netSend('zdw', { id: z.id, dx: nr(dx), dz: nr(dz), L: nr(room) });
   return true;
 }
-function dashStart(z, dx, dz, L) {
+export function dashStart(z, dx, dz, L) {
   z.dash = { ph: 'wind', t: 0, dx, dz, L, gone: 0, hit: new Set() }; z.face = Math.atan2(dx, dz);
   dashMark(z, z.dash, z.x, z.z); soundAt(z.x, z.z, () => SFX.groan(1), true);
 }
 // the dash under way; true while it's taking the brute over (its pathing and swings wait). A joiner's copy (pup) only
 // plays the pose and the timing: where it goes comes with the host's snapshots
-function dashStep(z, dt, pup) {
+export function dashStep(z, dt, pup) {
   const d = z.dash; if (!d) return false;
   d.t += dt;
   if (d.ph === 'wind') {
@@ -121,8 +148,8 @@ function dashStep(z, dt, pup) {
     if (d.gone >= d.L - 1e-3) {   // pulling up: it skids to a halt in a spray of dirt
       d.ph = 'rec'; d.t = 0; d.recT = d.wall ? BDASH_WALL.stun : BDASH.rec; { const r = d.wall ? z.T.r : 0; soundAt(z.x + d.dx * r, z.z + d.dz * r, () => d.wall ? SFX.bruteWall() : SFX.thud(), true); }   // (a crash from where it struck the wall: its own fall-off, SFX.bruteWall)
       const pd = Math.hypot(P.x - z.x, P.z - z.z);
-      if (d.wall) { if (!P.dead) shake = Math.max(shake, BDASH_WALL.shake * (1 - smooth(clamp((pd - BDASH_WALL.near) / (BDASH_WALL.far - BDASH_WALL.near), 0, 1)))); dashWallFx(z, d); }
-      else { shake = Math.max(shake, 0.25 * clamp(1 - pd / 10, 0, 1)); burst(z.x + d.dx * 0.5, 0.1, z.z + d.dz * 0.5, 9, 'dust', d.dx, d.dz, 2.2); }
+      if (d.wall) { if (!P.dead) setShake(Math.max(shake, BDASH_WALL.shake * (1 - smooth(clamp((pd - BDASH_WALL.near) / (BDASH_WALL.far - BDASH_WALL.near), 0, 1))))); dashWallFx(z, d); }
+      else { setShake(Math.max(shake, 0.25 * clamp(1 - pd / 10, 0, 1))); burst(z.x + d.dx * 0.5, 0.1, z.z + d.dz * 0.5, 9, 'dust', d.dx, d.dz, 2.2); }
     }
     return true;
   }
@@ -136,7 +163,7 @@ function dashFence(z, d, step) {
     const ax = z.x + d.dx * (z.T.r + step + 0.15) + d.dz * a * z.T.r, az = z.z + d.dz * (z.T.r + step + 0.15) - d.dx * a * z.T.r, i = ci(ax), j = ci(az);
     if (!inb(i, j) || cell[idx(i, j)] !== FENCE) continue;
     breakFence(i, j, z); netFenceBroke(idx(i, j), z);
-    shake = Math.max(shake, 0.3 * clamp(1 - Math.hypot(P.x - z.x, P.z - z.z) / 10, 0, 1));
+    setShake(Math.max(shake, 0.3 * clamp(1 - Math.hypot(P.x - z.x, P.z - z.z) / 10, 0, 1)));
   }
 }
 // slamming into a wall: dust and grit blown out off it and back along the run, a ring of it along the ground, and a slow
@@ -149,18 +176,18 @@ function dashWallFx(z, d) {
 }
 // caught by it: a hit as hard as a brute's swing, flung along its line and out to the side you were on, stunned for
 // a second and concussed
-function dashHit(z, dx, dz) {
+export function dashHit(z, dx, dz) {
   const sx = P.x - z.x, sz = P.z - z.z, side = Math.sign(sx * dz - sz * dx) || 1;
-  P.hitFrom = z.face; hitFromAt(z.x, z.z, 2.2); interruptBandage(); zHitMe = true;
+  P.hitFrom = z.face; hitFromAt(z.x, z.z, 2.2); interruptBandage(); setZHitMe(true);
   P.hp -= BDASH.dmg * waveDmg() * S.dmgTaken;
   P.kbx = (dx * 0.85 + dz * side * 0.5) * BDASH.kb; P.kbz = (dz * 0.85 - dx * side * 0.5) * BDASH.kb;
   P.conc = 1; P.stun = BDASH.stun; P.slow = Math.min(1, P.slow + 0.7); P.sprint = false; P.runUp = 0;
-  SFX.concuss(); shake = Math.max(shake, 0.85); camRoll = clamp(camRoll + side * 0.1, -0.16, 0.16);
+  SFX.concuss(); setShake(Math.max(shake, 0.85)); setCamRoll(clamp(camRoll + side * 0.1, -0.16, 0.16));
   burst(P.x, 0.1, P.z, 14, 'dust', dx, dz, 2.6); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
 }
 // a zombie's pose while it dashes (zombies/zombie-anim.js): crouched low and leaning in with the arms drawn back, then
 // bent right over into the charge, then pulling up
-function zDashPose(z, a, T, K) {
+export function zDashPose(z, a, T, K) {
   const d = z.dash; if (!d) return;
   if (d.ph === 'wind') {
     // it sinks into a crouch, head down like a bull's, shoulders hunched and the fists drawn back; one foot paws the
@@ -188,4 +215,4 @@ function zDashPose(z, a, T, K) {
 }
 // zombie hits harden as the waves go on: ZDMG_WAVE more a wave past the first (wave 10 about +27%, wave 20 +57%)
 const ZDMG_WAVE = 0.03;
-const waveDmg = () => 1 + ZDMG_WAVE * Math.max(0, (run.wave || 1) - 1);
+export const waveDmg = () => 1 + ZDMG_WAVE * Math.max(0, (run.wave || 1) - 1);

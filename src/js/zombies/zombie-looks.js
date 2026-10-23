@@ -10,6 +10,14 @@
 // by its vertices), which its fade, its hit flash and its burning all work through. The dice are the zombie's own seed
 // (rand), so in co-op every screen dresses it the same.
 
+import { V3 } from '../core/renderer.js';
+import { clamp, pick, rand, rr } from '../core/math.js';
+import { lam } from '../core/shaders.js';
+import { GLOVE_COLS } from '../player/look.js';
+import { run } from '../game/run-state.js';
+import { ARMOR, ARMOR_FROM } from './damage.js';
+import { state } from '../game/state.js';
+
 // ---- the kit: boxes in a part's frame, baked into one geometry ----
 const _zkG = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), _zkPA = _zkG.attributes.position.array, _zkNA = _zkG.attributes.normal.array;
 const _zkM = new THREE.Matrix4(), _zkQ = new THREE.Quaternion(), _zkE = new THREE.Euler(), _zkT = new V3(), _zkS = new V3(), _zkN = new V3(), _zkC = new THREE.Color();
@@ -67,7 +75,7 @@ function zBake(k) {
   return g;
 }
 // a zombie's own geometry let go of once it's off the scene for good (a body cleared away, a limb rotted off the ground)
-function zFree(root) { if (root) root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.userData.zg && !o.userData.isOutline) o.geometry.dispose(); }); }
+export function zFree(root) { if (root) root.traverse(o => { if (o.isMesh && o.geometry && o.geometry.userData.zg && !o.userData.isOutline) o.geometry.dispose(); }); }
 
 // ---- colours ----
 const zc = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
@@ -81,7 +89,7 @@ const ZDIRT = 0x4e4636, worn = (c, k) => zc(zmix(c, ZDIRT, k === undefined ? rr(
 // the living colour of someone's skin, gone grey-green, sallow or bruise-blue with death
 const ZSKIN_LIVE = [0xf2cfae, 0xe3b48f, 0xd2a07c, 0xbd8761, 0x9c6a46, 0x7a4e32, 0x5a3824];
 const ZROT = [0x728a62, 0x7c8a78, 0x8a9070, 0x6c7a7e, 0x7a8866];
-const ZBLOOD = 0x4a120e, ZMEAT = 0x7a1c16, ZBONE = 0xcfc6ae, ZDARK = 0x16100e;
+export const ZBLOOD = 0x4a120e, ZMEAT = 0x7a1c16, ZBONE = 0xcfc6ae, ZDARK = 0x16100e;
 
 // ---- the body's measures in each part's frame (zombies/zombie-anim.js: the rig) ----
 // the chest and waist: the chest's front is ZF.chest out, the waist's ZF.waist
@@ -496,7 +504,7 @@ const ZFACE = {
 };
 // how far the jaw hangs (the gap between the lips) and how wide the mouth is, for each mouth
 const ZMOUTH = { slack: [0.018, 0.028, 0.07, 0.09], gaping: [0.034, 0.044, 0.09, 0.11], snarl: [0.012, 0.02, 0.06, 0.08], grim: [0, 0, 0.06, 0.075] };
-const ZTEETH = [0xbcb08a, 0xa89a72, 0xc8bc98, 0x8a7a58, 0xb0a07a];
+export const ZTEETH = [0xbcb08a, 0xa89a72, 0xc8bc98, 0x8a7a58, 0xb0a07a];
 function zDealFace(o) {
   const eye = pick(ZFACE.eye), M = pick(ZFACE.mouth), m = ZMOUTH[M];
   return { hw: rr(0.265, 0.29), jw: rr(0.2, 0.235), jx: rr(-0.01, 0.01), jr: rr(-0.07, 0.07), mouth: M, drop: rr(m[0], m[1]), mw: rr(m[2], m[3]),
@@ -730,7 +738,7 @@ function zGrime(k, gr) {
 // fraction of a millimetre (too little to see), so no two parts ever share a plane
 const ZNUDGE = { legL: [0.0004, 0.0003, 0.0009], legR: [-0.0004, 0.0006, -0.0005], shinL: [0.0006, -0.0004, 0.0013], shinR: [-0.0006, 0.0008, -0.0011], armL: [0.0005, 0.0009, 0.0006], armR: [-0.0005, -0.0007, 0.0012], foreL: [-0.0011, 0.0005, -0.0008], foreR: [0.0011, -0.0010, 0.0007] };
 // ---- dressing a zombie that's just been built: its parts get their geometry, all of them its own material ----
-function dressZombie(m, type, job) {
+export function dressZombie(m, type, job) {
   const o = zDeal(type, job); o.noJaw = type === 'spitter';
   const K = zBuild(o, type === 'brute'), mat = lam(0xffffff, { vertexColors: true });
   ZPARTS.forEach(p => { zGrime(K[p], ZGRIME[p]); m[p].geometry = zBake(K[p]); if (ZNUDGE[p]) m[p].geometry.translate(...ZNUDGE[p]); m[p].material = mat; });

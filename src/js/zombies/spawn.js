@@ -1,11 +1,30 @@
 // Spawning a zombie: model, outfit, fade materials, x-ray, shadow, and where it comes in from.
 
+import { scene } from '../core/renderer.js';
+import { clamp, HALF, N, rand, rr, smooth } from '../core/math.js';
+import { GLOW_LAYER } from '../effects/post.js';
+import { basic } from '../core/shaders.js';
+import { blobShadow, box, trimShadows } from '../core/geometry.js';
+import { cxw } from '../world/grid.js';
+import { GAPS } from '../world/fence.js';
+import { human } from '../characters/rig.js';
+import { stainZombie } from '../effects/body-blood.js';
+import { run } from '../game/run-state.js';
+import { zombies, ZT } from './zombie-types.js';
+import { zAnimInit, zombieRig } from './zombie-anim.js';
+import { dressZombie } from './zombie-looks.js';
+import { fadeDepthMat, xray } from '../effects/outlines.js';
+import { ARMOR, BRUTE_ARM } from './damage.js';
+import { LATE, lateN } from '../waves/waves.js';
+import { SPIT, spitterGait, spitterLook } from './spitter.js';
+import { EYE_COL } from '../effects/eye-glow.js';
+
 // zombies come out of the fog: each starts 6.5 to 9 m out past the edge of the farm, on the cleared trail in front of
 // one of the gaps in the trees, and walks in along it (z.out, zombies/ai.js). Out there it only shows as it comes clear
 // of the fog: fogSee is how much of it does, none of it FOG_IN metres out and all of it at the edge
 const FOG_IN = 7;
-const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
-function spawnZombie(type, job) {
+export const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
+export function spawnZombie(type, job) {
   const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
   const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = rr(6.5, 9), lat = rr(-0.6, 0.6);
   const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);

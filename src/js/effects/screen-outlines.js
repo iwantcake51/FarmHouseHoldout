@@ -8,11 +8,16 @@
 // outline(g, col, scl, thick, mat) gives the outline's control: a material whose colour, opacity and visible say how
 // it's drawn (mat if one's given). One model can carry several (a zombie lit by your torch, burning, in reach): the
 // thickest one showing is the one drawn. thick sets the line's width (OL.w), a width of 0 the default.
+import { cam, R, scene, V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { POST, PS_RT } from './post.js';
+import { state } from '../game/state.js';
+
 const OL = { w: [0.6, 55, 1, 3], w0: 2.2, glow: 3.5, glowA: 0.3, eps: 0.0015, occ: 0.0015, slots: 64, margin: 10 };   // (occ: how far behind what's drawn there a model can be and still be lined: its own surface, give or take)
 const olRoots = [];
 // a layer the frame never draws but the outlines' mask does: a pane that's only there to have a line drawn round it
 // (an opening's, world/house.js), so it costs nothing in the frame itself
-const OL_LAYER = 1;
+export const OL_LAYER = 1;
 const OL_PAD = 9;
 // an outline turned on or off eases in and fades out rather than snapping (OL_FADE: how fast, in opacity a second): what
 // it's drawn at is u.sh on its control, chasing its opacity while it's visible and nought once it isn't
@@ -25,13 +30,13 @@ const olMaskMat = () => new THREE.ShaderMaterial({ uniforms: { uSlot: { value: 0
 // the outlines' two shaders built ahead, on the targets they draw to (game/loop.js: warmShaders): a mask into a small
 // stand-in for the mask, and the lines over the frame. The stand-in's kept, so the shaders it built aren't let go
 let olWarmed = null;
-function olWarm() {
+export function olWarm() {
   if (!olWarmed) olWarmed = { rt: new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true, stencilBuffer: false }),
     m: new THREE.Mesh(new THREE.PlaneGeometry(1, 1), olMaskMat()) };
   R.setRenderTarget(olWarmed.rt); R.compile(olWarmed.m, cam);
   R.setRenderTarget(null); olComp.material.uniforms.tMask.value = olWarmed.rt.texture; R.compile(olCompScene, olCompCam);
 }
-function outline(g, col, scl, thick, mat, keep) {
+export function outline(g, col, scl, thick, mat, keep) {
   const ctl = mat || new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.95 });
   ctl.userData.olW = thick ? clamp(OL.w[0] + thick * OL.w[1], OL.w[2], OL.w[3]) : OL.w0;
   if (ctl.userData.olRoot) return ctl;   // (more pieces of a model it already outlines: the hat on you, player/look.js)
@@ -93,7 +98,7 @@ function olPlace(r, camera, W, H) {
   r.sx = (_olV.x * 0.5 + 0.5) * W; r.sy = (_olV.y * 0.5 + 0.5) * H; r.sr = r.rad * ppm;
   return true;
 }
-function outlinePass(camera) {
+export function outlinePass(camera) {
   if (state === 'title') return;   // (none on the menus: the farm behind them is scenery, and nothing there is yours to use)
   camera = camera || cam;
   R.getDrawingBufferSize(_olSz); const W = _olSz.x, H = _olSz.y, px = R.getPixelRatio();

@@ -3,6 +3,9 @@
 // on the card), just above it a thin line of glowing embers, and above that a band of blackened, charred card (drawn
 // on a layer inside the card, so it's cut by the same mask). Flakes of ash and a few sparks lift off the burning edge.
 
+import { $ } from '../core/dom.js';
+import { clamp, pick, rand, rr } from '../core/math.js';
+
 const BURN_T = 1.15, BURN_W = 72, BURN_H = 100;   // seconds to burn away; the noise field's size
 // smooth 2D value noise, 0..1, from a hashed lattice
 function burnNoise(seed) {
@@ -36,7 +39,7 @@ function burnFlake(host, x, y, spark) {
 }
 const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // burn the cards you didn't take
-function burnCards(cards) {
+export function burnCards(cards) {
   const host = $('upgrade');
   cards.forEach((card, k) => {
     const F = burnField(), mask = document.createElement('canvas'), fx = document.createElement('canvas');

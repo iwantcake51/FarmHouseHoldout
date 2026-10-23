@@ -4,10 +4,12 @@
 // window's metre-thick wall and the frame over it) and the lean and legs are bent the least they need to clear it,
 // the hips lifted if that's not enough. The result is smoothed and checked again, so it plays back clean and steady.
 
-const VB = { hip: 0.6, torso: 0.9, front: 0.16, back: 0.36, leg: 0.56, legR: 0.11 };
+import { clamp, smooth } from '../core/math.js';
+
+export const VB = { hip: 0.6, torso: 0.9, front: 0.16, back: 0.36, leg: 0.56, legR: 0.11 };
 const VAULT_N = 48;
 // the obstacle in the side view: boxes [s0, y0, s1, y1]
-function vaultObstacle(kind, postNear) {
+export function vaultObstacle(kind, postNear) {
   if (kind === 'window') return [[-0.52, -1, 0.52, 1.04]];   // the sill wall; the frame overhead may be brushed by the head
   return [[-0.07, -1, 0.07, postNear ? 1.12 : 0.82]];
 }
@@ -98,7 +100,7 @@ function stepClear(prev, target, ok, step) {
   const n = nearestClear(prev, ok, 0.2); return n !== null ? n : prev + m;
 }
 // build the plan: v.plan holds VAULT_N + 1 samples of { s, y, lean, legL, legR }
-function buildVaultPlan(v) {
+export function buildVaultPlan(v) {
   const st = VAULT_STYLE[v.kind + (v.scramble ? 'S' : '')], obs = v.obs, S0 = v.s0, S1 = v.s1, out = [];
   let prev = null, lift = 0;
   for (let i = 0; i <= VAULT_N; i++) {
@@ -145,7 +147,7 @@ function buildVaultPlan(v) {
   v.endSpeed = (out[VAULT_N].s - out[VAULT_N - 1].s) * VAULT_N / v.dur;
 }
 // the pose at t, read off the plan
-function vaultAt(v, t) {
+export function vaultAt(v, t) {
   const x = clamp(t, 0, 1) * VAULT_N, i = Math.min(VAULT_N - 1, Math.floor(x)), u = x - i, a = v.plan[i], b = v.plan[i + 1], L = (p, q) => p + (q - p) * u;
   return { s: L(a.s, b.s), y: L(a.y, b.y), lean: L(a.lean, b.lean), legL: L(a.legL, b.legL), legR: L(a.legR, b.legR), twist: L(a.twist || 0, b.twist || 0) };
 }

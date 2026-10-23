@@ -1,20 +1,27 @@
 // Part helpers and the model builder for every gun.
 
+import { V3 } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { box, cylZ, sharedGeo } from '../core/geometry.js';
+import { roundOn } from './rounds.js';
+import { hasMod, T, tierCtx } from '../game/run-state.js';
+import { GM, X } from './gun-materials.js';
+
 // the right fist; melee models are built handle-down along +y
 // where the hunting rifle's bolt knob sits on its bolt (the firing hand works the bolt by it in player/hold.js)
-const BOLT_KNOB = [-0.054, -0.046, -0.008];
+export const BOLT_KNOB = [-0.054, -0.046, -0.008];
 // the revolver's cylinder: its axis height, radius and the circle its chambers sit on (the speed loader matches it,
 // player/hold.js)
-const REV_CYL = { y: 1.1415, r: 0.0245, ch: 0.0137 };
+export const REV_CYL = { y: 1.1415, r: 0.0245, ch: 0.0137 };
 // the revolver's optic rail: from just ahead of the hammer (where the rear sight was) forward along the barrel, stopping
 // short of the front sight on a short barrel
 const REV_RAIL = { z0: 0.55, z1: 0.8 };
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
 // cylinder barrel-sized or bigger gets sides enough for its size (about one per millimetre of radius), so a barrel, a
 // can or a tube always reads round, never faceted
-const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, Math.max(seg || 10, r >= 0.008 ? Math.min(48, Math.round(r * 900)) : 0)); m.position.set(x, y, z); g.add(m); return m; };
-const ring = (g, r, w, mat, x, y, z) => cyl(g, r, w, mat, x, y, z, 14);
-const hi = (g, w, d, x, y, z) => box(g, w, 0.007, d, GM.hi, x, y, z);
+export const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, Math.max(seg || 10, r >= 0.008 ? Math.min(48, Math.round(r * 900)) : 0)); m.position.set(x, y, z); g.add(m); return m; };
+export const ring = (g, r, w, mat, x, y, z) => cyl(g, r, w, mat, x, y, z, 14);
+export const hi = (g, w, d, x, y, z) => box(g, w, 0.007, d, GM.hi, x, y, z);
 // A gun's pieces come out the same every time it's built, and it's built again whenever anything on it changes (an
 // attachment, a mod), for you and for every teammate who sees it; so the slow ones (the profiles, the stippling, the
 // squeezed stocks) are kept once made, by what they were made from, and shared by every build after. Nothing changes a
@@ -28,7 +35,7 @@ function kept(M, cap, key, make) {
 }
 const PROFILES = new Map();
 // a side profile (points in z, y) pushed out to width w across the gun and centred on x, with a soft bevel if asked
-function profile(g, shape, w, mat, x, bev, segs) {
+export function profile(g, shape, w, mat, x, bev, segs) {
   const pts = (Array.isArray(shape) ? shape : [shape]).map(sh => { const e = sh.extractPoints(8); return [e.shape.map(v => [v.x, v.y]), e.holes.map(h => h.map(v => [v.x, v.y]))]; });
   const geo = kept(PROFILES, 2000, JSON.stringify([pts, w, bev || 0, segs || 1]), () => {
     const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: segs || 1, curveSegments: 8 } : { depth: w, bevelEnabled: false, curveSegments: 8 });
@@ -79,7 +86,7 @@ function inset(pts, d) {
 function zAt(P, y) { for (let i = 0; i < P.length - 1; i++) if ((y - P[i][1]) * (y - P[i + 1][1]) <= 0) return P[i][0] + (P[i + 1][0] - P[i][0]) * (y - P[i][1]) / ((P[i + 1][1] - P[i][1]) || 1); return P[Math.abs(y - P[0][1]) < Math.abs(y - P[P.length - 1][1]) ? 0 : P.length - 1][0]; }
 // a rounded solid from a traced side outline (points in z, y): W thick in all, its edges rounded over r in three
 // steps, and still the traced size from the side (grips, stocks and forends, so they don't read as flat slabs)
-function solid(g, pts, W, mat, x, r, holes) { return profile(g, shp(inset(pts, r), holes), Math.max(0.001, W - 2 * r), mat, x, r, 3); }
+export function solid(g, pts, W, mat, x, r, holes) { return profile(g, shp(inset(pts, r), holes), Math.max(0.001, W - 2 * r), mat, x, r, 3); }
 // a smooth function through [z, value] points, eased between them (flat past the ends)
 const pw = P => Object.assign(z => { if (z <= P[0][0]) return P[0][1]; for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const t = (z - P[i - 1][0]) / (P[i][0] - P[i - 1][0]); return P[i - 1][1] + (P[i][1] - P[i - 1][1]) * (1 - Math.cos(Math.PI * t)) / 2; } return P[P.length - 1][1]; }, { key: JSON.stringify(P) });   // (its key: taperX keeps what it squeezed by it)
 // the part of the outline P (points in z, y) inside the convex polygon C, so a panel can never run past the edge
@@ -227,14 +234,14 @@ function tessZ(geo, maxDz) {
   const g2 = new THREE.BufferGeometry(); names.forEach((n, i) => g2.setAttribute(n, new THREE.BufferAttribute(new Float32Array(out[i]), A[i].itemSize))); return g2;
 }
 // a cross-section (points in x, y) run along the gun from z0 to z1, with a soft bevel if asked
-function xsec(g, shape, z0, z1, mat, bev) {
+export function xsec(g, shape, z0, z1, mat, bev) {
   const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: z1 - z0, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 1, curveSegments: 8 } : { depth: z1 - z0, bevelEnabled: false, curveSegments: 8 });
   geo.translate(0, 0, z0); const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
 }
 // an outline from [z, y] points, with optional holes (shapes or paths)
-function shp(pts, holes) { const s = new THREE.Shape(); pts.forEach(([a, b], i) => i ? s.lineTo(a, b) : s.moveTo(a, b)); s.closePath(); if (holes) holes.forEach(h => s.holes.push(h instanceof THREE.Shape ? new THREE.Path(h.getPoints()) : h)); return s; }
+export function shp(pts, holes) { const s = new THREE.Shape(); pts.forEach(([a, b], i) => i ? s.lineTo(a, b) : s.moveTo(a, b)); s.closePath(); if (holes) holes.forEach(h => s.holes.push(h instanceof THREE.Shape ? new THREE.Path(h.getPoints()) : h)); return s; }
 // a rounded rectangle path, for windows through a profile
-function rrect(z0, y0, z1, y1, r) { const p = new THREE.Path(); p.moveTo(z0 + r, y0); p.lineTo(z1 - r, y0); p.quadraticCurveTo(z1, y0, z1, y0 + r); p.lineTo(z1, y1 - r); p.quadraticCurveTo(z1, y1, z1 - r, y1); p.lineTo(z0 + r, y1); p.quadraticCurveTo(z0, y1, z0, y1 - r); p.lineTo(z0, y0 + r); p.quadraticCurveTo(z0, y0, z0 + r, y0); return p; }
+export function rrect(z0, y0, z1, y1, r) { const p = new THREE.Path(); p.moveTo(z0 + r, y0); p.lineTo(z1 - r, y0); p.quadraticCurveTo(z1, y0, z1, y0 + r); p.lineTo(z1, y1 - r); p.quadraticCurveTo(z1, y1, z1 - r, y1); p.lineTo(z0 + r, y1); p.quadraticCurveTo(z0, y1, z0, y1 - r); p.lineTo(z0, y0 + r); p.quadraticCurveTo(z0, y0, z0 + r, y0); return p; }
 // a tube along the bore with n long ribs round it (the grooves between sunk by dep), squashed sideways by sx and
 // narrowing to tp of its radius at the front
 function ribTube(g, r, len, mat, x, y, z, n, dep, sx, tp) {
@@ -278,18 +285,18 @@ function bentMag(z0, yTop, Ls, La, R) {
   return { at, ang, shape, len: Ls + La };
 }
 // a revolved shape round the bore: pts are [radius, z] from back to front
-function lathe(g, pts, mat, x, y, seg) {
+export function lathe(g, pts, mat, x, y, seg) {
   const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), seg || 32); geo.rotateX(Math.PI / 2);
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, 0); m.castShadow = true; g.add(m); return m;
 }
 // a few turns of olive tape round the tube at (x, y) and the thing taped beside it at (tx, ty): a band round the tube
 // and a wrap round the pair
-function tapeWrap(g, x, y, z, r, tx, ty, sx) {
+export function tapeWrap(g, x, y, z, r, tx, ty, sx) {
   ring(g, r, 0.018, GM.odTape, x, y, z).scale.x = sx || 1; r *= sx || 1;
   const x0 = Math.min(x, tx), x1 = Math.max(x + r * 0.6, tx), y0 = Math.min(y - r * 0.5, ty - 0.016), y1 = Math.max(y + r * 0.5, ty + 0.016);
   box(g, x1 - x0, y1 - y0, 0.018, GM.odTape, (x0 + x1) / 2 + 0.002, (y0 + y1) / 2, z);
 }
-const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+export const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
 function guard(g, y, z0, z1, mat) { box(g, 0.016, 0.012, z1 - z0, mat, X, y, (z0 + z1) / 2); box(g, 0.016, 0.05, 0.012, mat, X, y + 0.025, z1); box(g, 0.009, 0.034, 0.01, GM.metal2, X, y + 0.025, z0 + (z1 - z0) * 0.45).rotation.x = 0.25; }
 // the MP5's 50-round drum: a short collar up into the well and the round drum hung right up under it facing forward, as drums do (its round faces to the front and back, along the barrel): its two shells
 // meeting at a raised seam, a hub on each face and the winding key on the front one
@@ -457,9 +464,9 @@ const AKM_KIT = {
   ribs: [[0.6628, 1.0437, 0.7281, 1.0784], [0.6676, 1.0254, 0.7313, 1.0593], [0.6744, 1.0082, 0.7366, 1.0413], [0.6801, 0.9904, 0.742, 1.0233], [0.6888, 0.9742, 0.7496, 1.0065], [0.6964, 0.9574, 0.7587, 0.9905], [0.707, 0.9421, 0.7677, 0.9744], [0.7164, 0.9263, 0.7797, 0.96], [0.7289, 0.9121, 0.7921, 0.9457], [0.7402, 0.8973, 0.8054, 0.9319], [0.7547, 0.8842, 0.8231, 0.9205], [0.7053, 1.0663, 0.7091, 1.0475], [0.7091, 1.0475, 0.715, 1.0298], [0.715, 1.0298, 0.7205, 1.0119], [0.7205, 1.0119, 0.7285, 0.9952], [0.7285, 0.9952, 0.737, 0.9789], [0.737, 0.9789, 0.7466, 0.9632], [0.7466, 0.9632, 0.7576, 0.9482], [0.7576, 0.9482, 0.7701, 0.934], [0.7701, 0.934, 0.7826, 0.9199], [0.7826, 0.9199, 0.7992, 0.9078], [0.6803, 1.053, 0.6846, 1.0344], [0.6846, 1.0344, 0.6909, 1.017], [0.6909, 1.017, 0.6966, 0.9991], [0.6966, 0.9991, 0.7049, 0.9827], [0.7049, 0.9827, 0.7129, 0.9662], [0.7129, 0.9662, 0.7231, 0.9507], [0.7231, 0.9507, 0.7332, 0.9353], [0.7332, 0.9353, 0.7457, 0.9211], [0.7457, 0.9211, 0.7576, 0.9066], [0.7576, 0.9066, 0.7731, 0.8939]],
   seam: [0.7478, 0.8839, 0.8228, 0.9238]
 };
-const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
-const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
-const GUN_MODELS = {
+export const SHELL_MAT = { fire: GM.shellO, slug: GM.shellB, flech: GM.shellW };
+export const shellMat = id => SHELL_MAT[roundOn(id)] || GM.shell;
+export const GUN_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
   // slot, the squared trigger guard with the safety-blade trigger, the slide stop, takedown lever and magazine

@@ -3,11 +3,18 @@
 // cleared and rebuilt; colours something else changes later (the shirt under a jacket, skin) stay shared materials,
 // the rest is baked into a few merged meshes per body part.
 
-const LOOK = { g: {}, cur: null, mirrorY: 0.214, xrayReady: false };
+import { pick, rand, rr } from '../core/math.js';
+import { outline } from '../effects/screen-outlines.js';
+import { basic, lam } from '../core/shaders.js';
+import { box, finePieces, mergeInto, trimShadows, unfight } from '../core/geometry.js';
+import { KNEE_Y, PACK, PM, pOutline } from './player.js';
+import { xrayAttach } from '../effects/outlines.js';
+
+export const LOOK = { g: {}, cur: null, mirrorY: 0.214, xrayReady: false };
 // each group and the rig part it rides on (the hat and the shoes get their own, so gear can hide them)
 const LOOK_ON = { head: PM.head, hat: PM.head, torso: PM.torso, armL: PM.armL, armR: PM.armR, legL: PM.legL, legR: PM.legR, shinL: PM.shinL, shinR: PM.shinR, shoeL: PM.shinL, shoeR: PM.shinR };
 for (const k in LOOK_ON) { const g = new THREE.Group(); LOOK_ON[k].add(g); LOOK.g[k] = g; if (LOOK_ON[k] === PM.shinL || LOOK_ON[k] === PM.shinR) g.position.y = -KNEE_Y; }   // (laid out in the whole leg's space, from the hip)
-const PBOOT = [LOOK.g.shoeL, LOOK.g.shoeR];   // hidden by gear.js when you've upgraded your footwear
+export const PBOOT = [LOOK.g.shoeL, LOOK.g.shoeR];   // hidden by gear.js when you've upgraded your footwear
 const LOOKS = {
   skin: [0xf2cfae, 0xe3b48f, 0xd2a07c, 0xbd8761, 0x9c6a46, 0x7a4e32, 0x5a3824],
   hair: [0x1e1814, 0x3a2a1e, 0x5e4026, 0x8a4a26, 0xc8a060, 0x9a948a],
@@ -54,7 +61,7 @@ const LOOKS = {
 // the work gloves Quick hands II and III put on you (player/gear.js), in the colourways real mechanic's gloves come in:
 // the back (its stretch mesh), the palm and fingertips (synthetic leather), the rubber armour over the knuckles and
 // fingers, the piping down the sides, the wrist strap, its logo tab, and for multicam the camo patches over the back
-const GLOVE_COLS = {
+export const GLOVE_COLS = {
   blackRed: { back: 0x1d1e20, palm: 0x2e2f32, armor: 0x26272a, accent: 0xb3261e, strap: 0x18191a, tab: 0xd8b030 },
   blueBlack: { back: 0x2a6cc4, palm: 0x262729, armor: 0x1c1d1f, accent: 0x18191a, strap: 0x18191a, tab: 0xd8b030 },
   multicam: { back: 0x8a7a58, palm: 0x6e5f44, armor: 0x7a6a4a, accent: 0x5a5038, strap: 0x5e533c, tab: 0xd8b030, camo: [0x5e6844, 0xb4a07a, 0x6a5a40, 0x4a5236, 0x9a8660] },
@@ -63,7 +70,7 @@ const GLOVE_COLS = {
 };
 // (held to 1 a channel: getHex doesn't clamp, so a lightened channel past full would wrap round to nearly nothing and
 // a pale skin's scar come out teal)
-const shade = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
+export const shade = (c, k) => { const o = new THREE.Color(c).multiplyScalar(k); return o.setRGB(Math.min(1, o.r), Math.min(1, o.g), Math.min(1, o.b)).getHex(); };
 const hsl = (h, s, l) => new THREE.Color().setHSL(((h % 1) + 1) % 1, s, l).getHex();
 // a top in any colour: half the time one of the stock colours for that top, otherwise a fresh, slightly worn-looking shade
 const rollTopCol = top => top === 'suit' || rand() < 0.45 ? pick(LOOKS.topCol[top]) : hsl(rand(), rr(0.18, top === 'tee' ? 0.62 : 0.5), rr(0.2, top === 'tee' ? 0.62 : 0.44));
@@ -74,12 +81,12 @@ function rollSneak() {
   const stripe = hsl(h + rr(0.3, 0.7), rr(0.55, 0.85), rr(0.38, 0.6));
   return [up, pick([0xe8e4dc, 0xd8d2c4, 0xb08a5a, 0x2a2a2a]), stripe];
 }
-const lookMats = {}, lm = c => lookMats[c] || (lookMats[c] = lam(c));
+export const lookMats = {}, lm = c => lookMats[c] || (lookMats[c] = lam(c));
 // the hair's shell, outside to outside (the head is 0.32), and how high it comes under each hat: just inside the hat's
 // band, every hat wider than the hair
-const HAIR_W = { hair: 0.336, buzz: 0.328 }, HAIR_CROWN = 0.13, HAT_TUCK = { cap: 0.13, beanie: 0.105, cowboy: 0.15 };
+export const HAIR_W = { hair: 0.336, buzz: 0.328 }, HAIR_CROWN = 0.13, HAT_TUCK = { cap: 0.13, beanie: 0.105, cowboy: 0.15 };
 // deal a look: anything in opt is kept as given (handy for testing), the rest is random
-function dealLook(opt) {
+export function dealLook(opt) {
   const o = opt || {}, L = {};
   const near = (a, b) => { const x = new THREE.Color(a), y = new THREE.Color(b); return Math.abs(x.r - y.r) + Math.abs(x.g - y.g) + Math.abs(x.b - y.b) < 0.25; };
   L.skin = o.skin ?? pick(LOOKS.skin); L.hair = o.hair ?? pick(LOOKS.hair); L.hairStyle = o.hairStyle ?? pick(LOOKS.hairStyle);
@@ -152,12 +159,12 @@ function dealWrists() {
   return w;
 }
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)
-function shirtColours(jacket) {
+export function shirtColours(jacket) {
   const c = jacket ? 0x7a6a4a : (LOOK.cur ? LOOK.cur.topCol : 0x4e5a3c);
   PM.mats.shirt.color.setHex(c); PM.mats.shirtDk.color.setHex(jacket ? 0x5e5036 : shade(c, 0.76));
 }
 // clear the old look and build a new one; attach is false only for the first build, before the x-ray rim exists
-function rollLook(opt) {
+export function rollLook(opt) {
   const L = LOOK.cur = dealLook(opt);
   Object.values(LOOK.g).forEach(g => { while (g.children.length) { const c = g.children[0]; g.remove(c); c.traverse(o => { if (o.isMesh && o.userData.fine) o.geometry.dispose(); }); } });
   PM.mats.skin.color.setHex(L.skin); PM.mats.skinDk.color.setHex(shade(L.skin, 0.86)); PM.mats.pants.color.setHex(L.pants);
@@ -182,7 +189,7 @@ function facePart(H, n, x, y, z, s, most = 99) {
   H.children.slice(n, n + most).forEach(c => { c.position.x -= x; c.position.y -= y; c.position.z -= z; g.add(c); });
   H.add(g); return g;
 }
-function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.brows, f.mouth].filter(Boolean) : []; }
+export function faceGroups(H) { const f = H.userData.face; return f ? [...f.eyes, ...f.brows, f.mouth].filter(Boolean) : []; }
 // Firing for a while sets your face: the brows come down, their inner ends lower, the eyes narrow and the mouth tightens
 // into a grimace; a = 0 (calm) to 1. ANIM.anger drives it (player/animation.js). The trigger clicking on an empty gun
 // gives a start, w = 0 to 1 (ANIM.worry): the brows jump up with their inner ends raised in a worried tilt, the eyes
@@ -194,7 +201,7 @@ const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mou
 const WORRY = { browLift: 0.02, browTilt: 0.38, widen: 0.75, mouthW: 0.5, mouthH: 4.5, jaw: 0.009 };
 const HURT_FX = { browDrop: 0.01, browTilt: 0.32, squeeze: 0.8, mouthW: 1.4, mouthH: 0.55 };
 const AIM_FX = { shut: 0.92, squint: 0.4 };
-function faceMood(H, a, w = 0, h = 0, k = 0) {
+export function faceMood(H, a, w = 0, h = 0, k = 0) {
   const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k)) return; f.a = a; f.w = w; f.h = h; f.k = k;
   const o = w * w;
   f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w - HURT_FX.browDrop * h; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w - HURT_FX.browTilt * h); });
@@ -204,7 +211,7 @@ function faceMood(H, a, w = 0, h = 0, k = 0) {
   m.position.y = m.userData.y0 - WORRY.jaw * o;
   m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o) * (1 + (HURT_FX.mouthW - 1) * h), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o) * (1 + (HURT_FX.mouthH - 1) * h), 1);
 }
-function buildLook(L) {
+export function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
   const hair = lm(L.hair), beard = lm(L.beardCol), skinDk = PM.mats.skinDk, shirt = PM.mats.shirt, shirtDk = PM.mats.shirtDk;
   // ---- face: eyes, brows, nose, mouth and ears, each dealt one of a few shapes (L.face), set a little unevenly

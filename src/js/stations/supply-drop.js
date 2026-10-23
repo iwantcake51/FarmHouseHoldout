@@ -2,20 +2,52 @@
 // coming brings each one in low over the yard, its shadow sweeping across the ground as it lets the crate go, and a red
 // flare lit beside the crate where it lands burns, smoking, until a while after it's opened.
 
+import { GI, GI_VB } from '../ui/game-icons.js';
+import { cam, scene, V3 } from '../core/renderer.js';
+import { clamp, rand, rr, smooth } from '../core/math.js';
+import { lam } from '../core/shaders.js';
+import { ci, cxw } from '../world/grid.js';
+import { HOUSE } from '../world/house.js';
+import { FX0, FX1, FZ0, FZ1 } from '../world/fence.js';
+import { hardBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_BATCH, AMMO_NAME } from '../weapons/ammo.js';
+import { run, S, W8 } from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { partTex } from '../effects/textures.js';
+import { smoke } from '../effects/smoke.js';
+import { dustBurst, fx, groundDust, sparkBurst } from '../effects/puffs.js';
+import { dmCase, dmSupply } from '../pickups/drop-models.js';
+import { dropPickup, pickups } from '../pickups/pickups.js';
+import { flashes } from '../weapons/explosives.js';
+import { addPlanks } from '../barricades/planks.js';
+import { matKind, matWord } from '../barricades/metal-bars.js';
+import { setSupplyFall, setSupplyT, supplyFall, supplyT } from './station-ui.js';
+import { AC, master, noiseBuf, nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun, setLmT, setShake, shake, state, worldT } from '../game/state.js';
+import { bandMax } from '../player/bandages.js';
+import { ammoTypes, giveWeapon } from '../upgrades/upgrades.js';
+import { runStat } from '../ui/run-stats.js';
+import { feed, popEl } from '../ui/hud-text.js';
+import { curDark } from '../lighting/day-night.js';
+import { gotGear, gunCall } from '../ui/gear-popup.js';
+
 // what's on its way (supplyCargo: { kind: 'supply' } or { kind: 'weapon', id }) and where it'll come down (supplySpot,
 // picked when it's called, with the way the helicopter comes in)
 let supplyCargo = null, supplySpot = null;
 const DROP_LEAD = 9, HELI_IN = 5.5, HELI_OUT = 4.5, HELI_SPEED = 14, HELI_PASS = 2.8;
 const HELI_WASH = { t: 1.3, r: 3.6, push: 1, every: 0.05, n: 3 };
-const HELI_PUSH = new THREE.Vector4(0, 0, 1, 0);   // the downwash's push on the grass (updatePushers, world/trees.js)
-function callDrop(cargo) {
+export const HELI_PUSH = new THREE.Vector4(0, 0, 1, 0);   // the downwash's push on the grass (updatePushers, world/trees.js)
+export function callDrop(cargo) {
   runStat('drops');
-  supplyT = DROP_LEAD; supplyCargo = cargo;
+  setSupplyT(DROP_LEAD); supplyCargo = cargo;
   let x, z; do { x = cxw((rr(FX0 + 2, FX1 - 2)) | 0); z = cxw((rr(FZ0 + 2, FZ1 - 2)) | 0); } while (hardBlocked(ci(x), ci(z)) || (x > HOUSE.x0 - 1 && x < HOUSE.x1 + 1 && z > HOUSE.z0 - 1 && z < HOUSE.z1 + 1));
   supplySpot = { x, z, a: rand() * Math.PI * 2, heard: false, t: -DROP_LEAD, dustT: 0 };
 }
 // a crate for what's in it: the square supply crate, or a long olive case with its latches and handle for a weapon
-function crateModel(g, cargo) { if (cargo && cargo.kind === 'weapon') dmCase(g, cargo); else dmSupply(g); }   // (pickups/drop-models.js)
+export function crateModel(g, cargo) { if (cargo && cargo.kind === 'weapon') dmCase(g, cargo); else dmSupply(g); }   // (pickups/drop-models.js)
 // ---- the helicopter: a blade-slap chop over a turbine whine and a low engine rumble, coming in from one side, loudest
 // as it passes over the drop and on away to the other, muffled while it's far; and its shadow on the ground
 const HELI_CURVE = (() => { const c = new Float32Array(1024); for (let i = 0; i < c.length; i++) { const x = i / (c.length - 1) * 2 - 1; c[i] = Math.pow(Math.max(0, x), 6) * 1.6; } return c; })();
@@ -62,13 +94,13 @@ function lightFlare(x, z) {
   const core = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff2ea })); core.position.x = 0.16; t.add(core);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: partTex('glow'), color: 0xff4a30, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })), halo = glow.clone();
   halo.material = glow.material.clone(); halo.material.map = partTex('glowSoft'); glow.position.x = halo.position.x = 0.17; glow.scale.setScalar(0.7); halo.scale.setScalar(2.4); t.add(glow, halo);
-  const light = { x, y: 0.15, z, r: 6.5, int: 1.5, col: [1, 0.15, 0.09], t: 1, max: 1 }; flashes.push(light); lmT = 0;
+  const light = { x, y: 0.15, z, r: 6.5, int: 1.5, col: [1, 0.15, 0.09], t: 1, max: 1 }; flashes.push(light); setLmT(0);
   flare = { g, core, glow, halo, light, t: 0, end: 80, out: -1, smokeT: 0, sparkT: 0, jetT: 0, tip: new V3(), dir: new V3() };
   nz(0.5, 'highpass', 2600, 1800, 0.14); nz(1.4, 'bandpass', 3000, 2400, 0.05, 0.6);   // struck, and the fizz catching
 }
 // the crate's been opened (or left to rot): the flare burns on a few seconds more, then gutters out
-function flareDone() { if (flare && flare.out < 0) flare.end = Math.min(flare.end, flare.t + 5); }
-function flareGone() { if (!flare) return; scene.remove(flare.g); flare.light.t = 0; flare = null; lmT = 0; }
+export function flareDone() { if (flare && flare.out < 0) flare.end = Math.min(flare.end, flare.t + 5); }
+function flareGone() { if (!flare) return; scene.remove(flare.g); flare.light.t = 0; flare = null; setLmT(0); }
 function stepFlare(dt) {
   const f = flare; if (!f) return;
   f.t += dt; if (f.out < 0 && f.t >= f.end) f.out = 0;
@@ -94,21 +126,21 @@ function stepFlare(dt) {
 }
 // a weapon out of its case (taken with E: takeIt in pickups/pickups.js; the one it replaces goes on your gun rack,
 // stations/armory.js): it goes into your hands, and the card says what you got
-const SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
-function deliverWeapon(id, from) {
+export const SLOT_WORD = { side: 'sidearm', long: 'long gun', auto: 'automatic', melee: 'melee weapon' };
+export function deliverWeapon(id, from) {
   const D = WEAP[id], old = W8.slot[D.slot];
   giveWeapon(id); buildGuns(); glowGun(id); SFX.upgrade && SFX.upgrade();
   gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
-function updateSupplyDrop(dt) {
+export function updateSupplyDrop(dt) {
   const sp = supplySpot;
   if (supplyT > 0 && sp) {
-    supplyT -= dt; sp.t = -supplyT;
+    setSupplyT(supplyT - dt); sp.t = -supplyT;
     if (!sp.heard && supplyT <= HELI_IN) { sp.heard = true; heliSound(Math.max(0.5, supplyT), HELI_OUT); }
     if (supplyT <= 0) {
       // let go right overhead: the crate falls turning slowly, the spot lit red as it comes down
       const m = new THREE.Group(); crateModel(m, supplyCargo); m.position.set(sp.x, 18, sp.z); scene.add(m);
-      supplyFall = { m, x: sp.x, z: sp.z, cargo: supplyCargo }; flashes.push({ x: sp.x, z: sp.z, r: 5, int: 1.1, col: [1, 0.25, 0.2], t: 3, max: 3 }); lmT = 0;
+      setSupplyFall({ m, x: sp.x, z: sp.z, cargo: supplyCargo }); flashes.push({ x: sp.x, z: sp.z, r: 5, int: 1.1, col: [1, 0.25, 0.2], t: 3, max: 3 }); setLmT(0);
       supplyCargo = null;
     }
   }
@@ -132,36 +164,36 @@ function updateSupplyDrop(dt) {
           fx('dust', hx + sx * r, 0.08, hz + sz * r, sx * v, rr(0.05, 0.35), sz * v, rr(0.16, 0.26), rr(0.7, 1.25), rr(0.8, 1.3), rr(0.2, 0.32) * (0.5 + 0.5 * wk));
         }
         if (rand() < 0.5 * wk) { const a = rand() * 6.28, r = rr(0.5, 2); fx('debris', hx + Math.sin(a) * r, 0.1, hz + Math.cos(a) * r, Math.sin(a) * rr(1.5, 3), rr(1, 2.2), Math.cos(a) * rr(1.5, 3), 0.06, rr(0.12, 0.2), rr(0.6, 1), 0.8); }
-        if (Math.hypot(hx - P.x, hz - P.z) < 9) shake = Math.max(shake, 0.035 * wk);
+        if (Math.hypot(hx - P.x, hz - P.z) < 9) setShake(Math.max(shake, 0.035 * wk));
       }
     } else if (tr >= HELI_PASS && !supplyFall && supplyT <= 0) supplySpot = null;
   }
   if (supplyFall) {
     const f = supplyFall; f.m.position.y -= dt * 9; f.m.rotation.y += dt * 0.6;
     if (f.m.position.y <= 0) {
-      scene.remove(f.m); supplyFall = null; dropPickup(f.x, f.z, 'supply', 1, undefined, f.cargo); groundDust(f.x, f.z, 1.3); dustBurst(f.x, 0.25, f.z, 10, 0, 0, 1.2); shake = Math.max(shake, 0.25); SFX.thud();
+      scene.remove(f.m); setSupplyFall(null); dropPickup(f.x, f.z, 'supply', 1, undefined, f.cargo); groundDust(f.x, f.z, 1.3); dustBurst(f.x, 0.25, f.z, 10, 0, 0, 1.2); setShake(Math.max(shake, 0.25)); SFX.thud();
       lightFlare(f.x + rr(0.8, 1.1) * (rand() < 0.5 ? 1 : -1), f.z + rr(-0.6, 0.6));   // and a flare beside it
     }
   }
   stepFlare(dt);
 }
 // a new run: nothing on its way, no flare, no shadow
-function resetDrops() { HELI_PUSH.w = 0; supplyT = 0; supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); supplyFall = null; } }
-const dropBusy = () => supplyT > 0 || !!supplyFall;
+export function resetDrops() { HELI_PUSH.w = 0; setSupplyT(0); supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); setSupplyFall(null); } }
+export const dropBusy = () => supplyT > 0 || !!supplyFall;
 // The supply crate: what the radio sells, once every SUPPLY.every waves (from the wave it was last called on: run.dropAt),
 // for its cost in scrap. What's in it grows with the wave, from a modest top-up on the first wave to a real resupply by
 // wave SUPPLY.full, and so does its price: each is [on wave 1, by SUPPLY.full], in between along the way. Ammo for every
 // calibre you carry (batches: the workbench's crafted batches, AMMO_BATCH), health (hp; full by the end), bandages, and
 // planks (or metal, once there's a metalwork bench)
 const SUPPLY = { every: 5, full: 15, cost: [20, 50], batches: [1.5, 5], hp: [30, 1], band: [1, 3], planks: [3, 8] };
-const dropWait = () => run.dropAt > 0 && run.wave < run.dropAt + SUPPLY.every;
+export const dropWait = () => run.dropAt > 0 && run.wave < run.dropAt + SUPPLY.every;
 const supplyAt = k => { const [a, b] = SUPPLY[k], f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return a + (b - a) * f; };
-const supplyCost = () => Math.round(supplyAt('cost') / 5) * 5;
+export const supplyCost = () => Math.round(supplyAt('cost') / 5) * 5;
 const supplyAmmo = a => Math.round(AMMO_BATCH[a] * supplyAt('batches'));
 // health back: a share of your full health that grows to all of it (SUPPLY.hp: [hp on wave 1, share by the end])
 const supplyHp = () => { const f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return Math.round(SUPPLY.hp[0] + (S.maxHp * SUPPLY.hp[1] - SUPPLY.hp[0]) * f); };
 // the crate opened (pickups/pickups.js): everything in it, each noted in the feed
-function supplyOpen() {
+export function supplyOpen() {
   ammoTypes().forEach(a => { const n = supplyAmmo(a); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
   if (P.hp < S.maxHp || P.bleed) { P.hp = Math.min(S.maxHp, P.hp + supplyHp()); P.bleed = 0; feed('med', 0, 'Patched up'); }
   const nb = Math.min(Math.round(supplyAt('band')), Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); }
@@ -169,7 +201,7 @@ function supplyOpen() {
   feed('supply', 0, 'Supply crate opened');
 }
 // the radio's card's text: what's in the crate, and how long till the radio's free again (one pip a wave)
-function supplyDesc() {
+export function supplyDesc() {
   if (supplyT > 0) return `Inbound: lands in the yard in <b>${Math.ceil(supplyT)}s</b>`;
   if (supplyFall) return 'Coming down now';
   const hp = supplyHp(), nb = Math.round(supplyAt('band')), ammo = ammoTypes().map(a => `+${supplyAmmo(a)} ${AMMO_NAME[a]}`);
@@ -178,7 +210,7 @@ function supplyDesc() {
   const pips = Array.from({ length: SUPPLY.every }, (_, k) => `<i${k < SUPPLY.every - left ? ' class="on"' : ''}></i>`).join('');
   return `<span class="dropGets">${gets.map(g => `<i>${g}</i>`).join('')}</span><span class="dropPips${left ? '' : ' ready'}">${pips}<small>${left ? `Radio free again in ${left} wave${left > 1 ? 's' : ''}` : `One drop every ${SUPPLY.every} waves`}</small></span>`;
 }
-const busyWhy = () => dropBusy() ? 'A drop is already on its way' : dropWait() ? `Ready on wave ${run.dropAt + SUPPLY.every}` : '';
+export const busyWhy = () => dropBusy() ? 'A drop is already on its way' : dropWait() ? `Ready on wave ${run.dropAt + SUPPLY.every}` : '';
 // the crate's marker, from the moment it's called down until it's opened: a crate icon and how far off it is, floating
 // over where it'll land (or the crate itself), or pinned to the edge of the screen with an arrow pointing to it while
 // it's off screen
@@ -188,7 +220,7 @@ const dropMark = (() => {
   document.body.appendChild(el); return el;
 })();
 const _dm = new V3(), DM_EDGE = 74;
-function updateDropMarker() {
+export function updateDropMarker() {
   const crate = pickups.find(p => p.kind === 'supply'), f = supplyFall, at = crate || f || (supplyT > 0 && supplySpot);
   if (!at || state !== 'play' || P.dead) { if (!dropMark.hidden) dropMark.hidden = true; return; }
   dropMark.hidden = false;

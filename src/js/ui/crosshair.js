@@ -1,6 +1,30 @@
 // The crosshair.
 
-const projV = new V3();
+import { $ } from '../core/dom.js';
+import { kbd } from '../input/keybinds.js';
+import { cam, GUN_Y, V3 } from '../core/renderer.js';
+import { angDiff, cache, clamp, smooth } from '../core/math.js';
+import { ci } from '../world/grid.js';
+import { thinRay } from '../world/thin-walls.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { roundOn } from '../weapons/rounds.js';
+import { curId, magCap, W, W8 } from '../game/run-state.js';
+import { MUZ } from '../weapons/gun-materials.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { bloom, camRoll, setBloom, state } from '../game/state.js';
+import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
+import { scoped } from '../player/aiming.js';
+import { usingTouch } from '../input/touch.js';
+import { relRingP } from '../weapons/reload.js';
+import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
+import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, spreadOf } from '../weapons/firing.js';
+import { rollText } from './hud-text.js';
+import { los } from '../lighting/lightmap.js';
+import { aimSX, aimSY } from '../player/shaky-hands.js';
+import { ANIM } from '../player/animation.js';
+
+export const projV = new V3();
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
 const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');
@@ -29,7 +53,7 @@ function reloadDraw(side, on, u) {
   if (r.tick && on) { r.tick = false; const P0 = $('xhRPing'); P0.setAttribute('cx', r.head.getAttribute('cx')); P0.setAttribute('cy', r.head.getAttribute('cy')); [r.ring, r.head, r.track, P0].forEach(el => { el.classList.remove('tick'); void el.getBBox(); el.classList.add('tick'); }); }
 }
 // a shell or cartridge loaded by hand (weapons/reload.js): the reload arc pulses as it goes in (styles/crosshair.css)
-function reloadTick() { RL.R.tick = true; }
+export function reloadTick() { RL.R.tick = true; }
 const tks = [0, 1, 2, 3].map(k => $('tk' + k)), xhSgSh = $('xhSgSh'), xhSgR = $('xhSgR');
 // the shotgun reticle: four short arcs of a ring as wide as the spread, one on each diagonal like corner brackets, with
 // wide gaps at the top, bottom and each side. Each arc covers under two fifths of its quarter (never less than 3 px), so
@@ -99,7 +123,7 @@ function blockedShot() {
   return false;
 }
 const xhX = $('xhX');
-function updateCrosshair(rdt, D) {
+export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
   xh.hidden = !showXh;
   if (showXh) {
@@ -153,7 +177,7 @@ function updateCrosshair(rdt, D) {
     if (D.melee && cache.aw && bandPct < 0) { cache.aw = ''; $('ammoWarn').hidden = true; }
     xhAmmo.style.display = xhAmmoBg.style.display = RL.R.track.style.display = RL.R.head.style.display = xhRing.style.display = D.melee ? 'none' : '';
     const ak = !D.melee && !!D.akimbo; [xhAmmoL, xhAmmoBgL, xhRingL, RL.L.track, RL.L.head].forEach(c => c.toggleAttribute('hidden', !ak));
-    bloom *= Math.exp(-rdt * 9);
+    setBloom(bloom * Math.exp(-rdt * 9));
     const mz = muzzle();
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;

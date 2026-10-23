@@ -1,5 +1,25 @@
 // Builds the held weapons from stats, mods and tiers; magazines and drums.
 
+import { scene } from '../core/renderer.js';
+import { binModel, box, foldPieces, trimShadows, unfight } from '../core/geometry.js';
+import { LOOK, shirtColours } from '../player/look.js';
+import { stainWeapon } from '../effects/body-blood.js';
+import { SLOTS } from './slots.js';
+import { WEAP } from './gun-stats.js';
+import { roundName, roundOn } from './rounds.js';
+import { modLv } from './mod-levels.js';
+import { tierName } from '../upgrades/tier-table.js';
+import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 } from '../game/run-state.js';
+import {
+  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
+} from './gun-materials.js';
+import { hi } from './gun-models.js';
+import { GUNS } from '../melee/melee-models.js';
+import { fitAttachments } from './attachments.js';
+import { buildGear } from '../player/gear.js';
+import { state } from '../game/state.js';
+import { movingOf } from '../net/arsenal.js';
+
 function drum(parent, info, big) {
   const r = big ? 0.15 : 0.115, w = big ? 0.12 : 0.1, cy = info.magY - r - 0.02;
   const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 18), GM.metal2); d.rotation.z = Math.PI / 2; d.position.set(X, cy, info.magZ); d.castShadow = true; parent.add(d);
@@ -15,11 +35,11 @@ function magBox(parent, w, h, d, x, y, z) { box(parent, w, h, d, GM.metal2, x, y
 // slot whose model isn't the weapon in it now (one just put in it, or emptied) is built too
 // what moves on a weapon once it's built, gathered as it's built: the mag groups, the slides and bolts, the revolver's
 // crane, the charging handle, the double barrel's barrels and rims, the belt, and where the mag sits (for dropping it)
-const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null, legs: null });
+export const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null, magpos: null, brk: null, belt: null, legs: null });
 // one weapon's model built into parent (a hold group for a gun, the holder itself for a melee weapon), its moving parts
 // noted in rec. It reads the gun's mods, tiers, attachments and rounds from W8 (tierCtx is the gun): a co-op teammate's
 // are swapped in for the moment by withLoadout (net/arsenal.js)
-function buildWeapon(parent, id, D, mods, rec) {
+export function buildWeapon(parent, id, D, mods, rec) {
   const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
   const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
@@ -64,7 +84,7 @@ function unfightSoon(g) {
     ufSoonT = 0; const list = ufSoon.splice(0), slots = new Set();
     list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).includes(q)); if (s) slots.add(s); });
     slots.forEach(s => { const id = W8.slot[s]; if (id && gunMeshes[s].userData.bloodId === id) { foldGun(s); stainWeapon(id, Object.values(HOLDS[s]), false); } });   // (folded now its faces are settled, and stained again)
-    stowDirty = true;
+    setStowDirty(true);
   };
   ufSoonT = typeof requestIdleCallback === 'function' ? requestIdleCallback(run, { timeout: 300 }) : setTimeout(run, 60);
 }
@@ -81,7 +101,7 @@ function foldGun(s) {
   hs.forEach(h => h.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.bloodOf) o.material = o.material.userData.bloodOf; }));
   stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop); });
 }
-function buildGuns(only) {
+export function buildGuns(only) {
   recomputeEff();
   const sigOf = s => modelSig(W8.slot[s]), stale = s => gunMeshes[s].userData.sig !== sigOf(s) || gunMeshes[s].userData.sigRun !== run;
   const sl = only ? SLOTS.filter(s => W8.slot[s] === only || (gunMeshes[s].userData.bloodId || null) !== (W8.slot[s] || null)) : SLOTS.filter(stale);
@@ -93,7 +113,7 @@ function buildGuns(only) {
     const id = W8.slot[s]; if (!id) continue;
     // each mod the weapon has, by its level (1-3): the models grow the part a mod adds as it's improved (lvAt)
     const D = W(id), mods = {}; (W8.mods[id] || []).forEach(m => mods[m] = modLv(m));
-    HOLDS[s] = null; tierCtx = id;
+    HOLDS[s] = null; setTierCtx(id);
     const rec = Object.assign(weaponRec(), { soon: state === 'play' || state === 'upgrade' || state === 'paused' }), build = parent => buildWeapon(parent, id, D, mods, rec);
     SLIDES[s] = rec.slides; MAGG[s] = rec.magg; CRANE[s] = rec.crane; MAGPOS[s] = null; CHARGE[s] = null; BRK[s] = null; BELT[s] = null; BIPOD[s] = null;
     const g = gunMeshes[s];
@@ -106,17 +126,17 @@ function buildGuns(only) {
     MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
     if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
     trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
-    tierCtx = null;
+    setTierCtx(null);
   }
   if (gear) buildGear();
-  if (sl.length || gear) stowDirty = true;   // the copies you carry on your body are rebuilt next frame (player/stow.js)
+  if (sl.length || gear) setStowDirty(true);   // the copies you carry on your body are rebuilt next frame (player/stow.js)
 }
 // what the HUD lists under a gun's name besides its own mods: its upgrade tiers, and the run-wide attachments that
 // actually fit it (the bayonet goes on long guns, the stock on sidearms)
 // what's on a weapon besides its mods, each with its kind for the HUD's chips (ui/hud.js): the tune-up, the powder and
 // the kind of round loaded, the magazine (a gun upgrade) and the attachments
 const EXTRA_KIND = { ammo: 'ammo', mag: 'upg', supp: 'att', sight: 'att', laser: 'att', light: 'att', loader: 'att' };
-function gunExtras(id) {
+export function gunExtras(id) {
   const D = WEAP[id], out = [];
   if (!D) return out;
   if (W8.tune && W8.tune[id]) out.push({ t: 'Tuned', k: 'tune' });

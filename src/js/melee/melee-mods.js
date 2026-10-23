@@ -1,5 +1,7 @@
 // Melee-specific mods, and the combined MODS table.
 
+import { GUN_MODS } from '../weapons/gun-mods.js';
+
 // Melee mods: same shape as gun mods, one weapon each.
 const MELEE_MODS = {
   nails: { w: 'bat', r: 'c', name: 'Nails in the bat', text: 'Hits harder and takes limbs off more often.', vis: 'Nails through the end', stat: D => { D.dmg *= 1.4; D.sever += 0.4; } },
@@ -12,4 +14,4 @@ const MELEE_MODS = {
   spikes: { w: 'sledge', r: 'u', name: 'Railroad spikes', text: 'Hits harder, and its blows tear limbs off.', vis: 'Spikes welded to the head', stat: D => { D.dmg *= 1.2; D.blunt = false; D.sever = 0.8; } },
   weighted: { w: 'axe', r: 'u', name: 'Weighted head', text: 'Knocks zombies far back, with wider swings that catch one more.', vis: 'A heavier head', stat: D => { D.kb *= 2; D.arc += 0.6; D.cleave += 1; } }
 };
-const MODS = Object.assign({}, GUN_MODS, MELEE_MODS);
+export const MODS = Object.assign({}, GUN_MODS, MELEE_MODS);

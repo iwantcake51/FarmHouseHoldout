@@ -1,7 +1,21 @@
 // Forest placement and the foliage: pines of every size with shade pools under them, bushes and rocks, each a handful
 // of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
 
-const treeCells = [], TREES = [];
+import { scene, V3, YAW } from '../core/renderer.js';
+import { _rng, clamp, HALF, N, pick, rand, rr, seeded, setRng } from '../core/math.js';
+import { PUSHERS } from '../core/shaders.js';
+import { BLOB_TEX } from '../core/geometry.js';
+import { cell, cxw, EMPTY, FENCE, idx, inb, OBST, WALL } from './grid.js';
+import { M } from './materials.js';
+import { HX0, HX1, HZ0, HZ1, onRoad, ROAD } from './ground.js';
+import { obstacle } from './props.js';
+import { FX0, FX1, FZ0, FZ1, GAPS, nearGap } from './fence.js';
+import { P } from '../player/player.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { state } from '../game/state.js';
+import { HELI_PUSH } from '../stations/supply-drop.js';
+
+export const treeCells = [], TREES = [];
 // the yard fence stays in view: no pine stands within FENCE_CLEAR cells outside it (FENCE_CLEAR_CAM on the sides that
 // face the camera, where one would stand in front of the fence and hide it), nor in the way in to one of its gaps
 // (a lane GAP_LANE cells either side of the gap, straight out to the forest)
@@ -112,7 +126,7 @@ function claimTree(x, z, r) { const k = _tgk(Math.floor(x / TG_CELL), Math.floor
 // rocks and the ring past the edge are all dealt from one fixed seed (FOREST_SEED), so every player has the same
 // trees: in co-op they block, shade and hide alike, and the yard's laid out round the same ones (world/yard.js)
 const farmTrees = [], FOREST_SEED = 0x5eed1, _rngWas = _rng;
-_rng = seeded(FOREST_SEED);
+setRng(seeded(FOREST_SEED));
 {
   const spots = [];
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -201,13 +215,13 @@ function plantTrees(list, shadows) {
     }
   }
   plantTrees(out, false);
-  _rng = _rngWas;   // (the woods are in: back to Math.random)
+  setRng(_rngWas);   // (the woods are in: back to Math.random)
 }
 
 // what parts the grass and bushes (PUSHERS in core/shaders.js): you, and the three zombies nearest you on their feet (or
 // two, and a helicopter's downwash while one's overhead)
 const _pz = [];
-function updatePushers() {
+export function updatePushers() {
   const U = PUSHERS.value, pl = !P.dead && state !== 'title' && !P.vault;
   U[0].set(P.x, P.z, 0.75, pl ? 0.6 : 0);
   _pz.length = 0;

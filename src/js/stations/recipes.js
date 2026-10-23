@@ -1,7 +1,38 @@
 // What every station can make.
 
+import { keyOn } from '../input/keybinds.js';
+import { NET, netLink } from '../net/net.js';
+import { openings } from '../world/house.js';
+import { P } from '../player/player.js';
+import { SLOTS } from '../weapons/slots.js';
+import { reachCleave } from '../melee/melee-stats.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_NAME, gunBatch } from '../weapons/ammo.js';
+import { loadRound, roundName, roundOn, roundOwned, ROUNDS, roundText, roundTypes } from '../weapons/rounds.js';
+import { MODS } from '../melee/melee-mods.js';
+import {
+  addMod, improveMod, MOD_LINE, MOD_MAX, MOD_UP, modLv, modName, modNameAt, modOffer, modUps, roman
+} from '../weapons/mod-levels.js';
+import { tierName, TIERS } from '../upgrades/tier-table.js';
+import {
+  curId, fitTier, magChange, ownAtt, ownTier, recomputeEff, run, S, SCOPE_TOP, setAtt, TUNE, W, W8
+} from '../game/run-state.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { addPlanks, BRACE, braceLv, braceMul, METAL, PLANK_MAX, plankRoom } from '../barricades/planks.js';
+import { applyMetal, GRATE, matKind, matWord } from '../barricades/metal-bars.js';
+import { tierRars } from './station-ui.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun } from '../game/state.js';
+import { bandHeal, bandMax, MED_UP, medT } from '../player/bandages.js';
+import { MAG_STEPS, NO_SUPP, NO_TRIGGER, tierFits } from '../upgrades/upgrades.js';
+import { improveFx, modFx, multiHit, roundFx, tierFx, tuneFx } from '../upgrades/upgrade-info.js';
+import { feed, popEl } from '../ui/hud-text.js';
+import { busyWhy, callDrop, dropBusy, dropWait, supplyCost, supplyDesc } from './supply-drop.js';
+import { gotGear, gunCall } from '../ui/gear-popup.js';
+import { netMetal } from '../net/sync.js';
+
 const modsFor = id => id ? Object.keys(MODS).filter(m => MODS[m].w === id && modOffer(m)) : [];
-const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
+export const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 // attachments for the gun in your hands, bought and fitted at the workbench: only the ones that fit it show, one card per
 // line (the next tier up), then its rounds; a suppressor and a choke rule each other out on shotguns, the scopes only fit
 // the rifles and the revolver
@@ -10,7 +41,7 @@ const gunAmmo = () => { const D = W(curId()); return D && D.ammo; };
 const ATT_COST = { supp: [12, 15, 18], choke: [10, 14], sight: [10, 14, 18, 22, 26], laser: [10, 14], light: [8, 12], loader: [12] };
 // how many steps a line has on this gun: the scopes only on the rifles and the revolver, as far as SCOPE_TOP says, the mags as far as MAG_STEPS says, the revolver
 // has one speed loader and the double barrel one Sleight of Hand (TIERS.loader has one step)
-function tierMax(k, id) {
+export function tierMax(k, id) {
   const n = TIERS[k].t.length;
   if (k === 'sight') return SCOPE_TOP[id] || 2;
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return MAG_STEPS[id];
@@ -57,12 +88,12 @@ const dmgCost = (id, c, step = 0) => Math.round(c * DMG_PRICE * (1 + DMG_STEP * 
 const hitsHarder = (id, fn) => { const D0 = Object.assign({}, W(id)), D1 = Object.assign({}, D0); fn(D1, id); return D1.dmg * (D1.pellets || 1) > D0.dmg * (D0.pellets || 1) * 1.001; };
 const tuneText = D => D.melee ? `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster swings, +${TUNE.reach} m reach, ${pctUp(TUNE.kb)}% more knockback`
   : `+${pctUp(TUNE.dmg)}% damage, ${pctUp(1 / TUNE.rate)}% faster fire, ${pctDown(TUNE.reload)}% faster reloads, ${pctDown(TUNE.spread)}% tighter spread, +${Math.round(TUNE.crit * 100)}% crit chance, crits +${TUNE.critM}×`;
-const pctUp = m => Math.round((m - 1) * 100), pctDown = m => Math.round((1 - m) * 100);
+export const pctUp = m => Math.round((m - 1) * 100), pctDown = m => Math.round((1 - m) * 100);
 // ammo is sold by the gun: one load for the gun in your hands, or one for every gun you carry at the same price each
 // (so two 9mm guns are two loads of 9mm, and three guns cost three times one)
 const AMMO_COST = 4;
 const ammoGuns = () => SLOTS.map(s => W8.slot[s]).filter(id => id && W(id).ammo);
-const allAmmo = () => { const by = new Map(); ammoGuns().forEach(id => by.set(W(id).ammo, (by.get(W(id).ammo) || 0) + gunBatch(id))); return [...by]; };
+export const allAmmo = () => { const by = new Map(); ammoGuns().forEach(id => by.set(W(id).ammo, (by.get(W(id).ammo) || 0) + gunBatch(id))); return [...by]; };
 // who a bench card is for, written at the top of the card so it's never in doubt
 const forYour = id => 'For your ' + gunCall(id);
 // everything that changes the weapon in your hands sits in one group: its upgrades, new and improved mods and attachments
@@ -134,7 +165,7 @@ const plankWhy = () => plankRoom() ? '' : `You can't carry more than ${PLANK_MAX
 const bagFull = () => (P.band || 0) >= bandMax(), stackFull = () => !plankRoom();
 // the medicine cabinet: bandages and its three upgrades. Bandages are its quick buttons along the bottom
 // (stations/station-ui.js: quickBar), as ammo is at the workbench: one, or the pouch refilled in one go at BAND_COST each
-const BAND_COST = 4, bandRoom = () => Math.max(0, bandMax() - (P.band || 0));
+export const BAND_COST = 4, bandRoom = () => Math.max(0, bandMax() - (P.band || 0));
 const bandBuy = n => { P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); popEl('bands'); };
 const MED = [
   { ic: 'med', quick: 'one', for: () => 'For you', full: bagFull, cost: BAND_COST, title: () => 'Bandage', desc: () => `Goes in your pouch (${P.band || 0}/${bandMax()}). ${keyOn('bandage')} to use: heals ${bandHeal()} over time and stops bleeding`, why: () => bandRoom() ? '' : 'Your pouch is full', make: () => bandBuy(1) },
@@ -177,7 +208,7 @@ function braceCard() {
 }
 // an upgrade you can't take any more of (gone: tuned already, a cabinet upgrade at its top level) isn't shown at all
 const shown = list => list.filter(r => !(r.gone && r.gone()));
-const RECIPES = {
+export const RECIPES = {
   get bench() { return shown(BENCH).concat(tinkerCards(true), gunTierCards(), tinkerCards(), attachmentCards()); },
   get saw() { return shown(SAW); },
   get med() { return shown(MED); },

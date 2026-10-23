@@ -1,10 +1,12 @@
 // Shared world materials.
 
+import { lam, lit, windy } from '../core/shaders.js';
+
 // foliage coloured per vertex (world/trees.js builds each shape with its colours baked in), tinted per instance; the
 // trees get the cut-away that fades them when you're behind one
-const lamV = cut => lit(new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }), cut);
+export const lamV = cut => lit(new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true }), cut);
 
-const M = {
+export const M = {
   groundFar: lam(0x2b2c24), floor: lam(0x6c5037),
   wall: lam(0xc8bea4), found: lam(0x5d5850), trim: lam(0x4a392d), doorFrame: lam(0x3e2f25),
   board: lam(0xa2784b), board2: lam(0x8d6840), tree: windy(lamV('tree'), 0.018), bush: windy(lamV(), 0.05, 0.6), rock: lamV(),

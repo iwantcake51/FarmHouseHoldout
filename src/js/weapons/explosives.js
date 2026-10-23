@@ -1,6 +1,28 @@
 // Explosions, the underbarrel grenade launcher and grenades in flight.
 
-const flashes = [];
+import { GUN_Y, scene } from '../core/renderer.js';
+import { rand } from '../core/math.js';
+import { netLink, netSend } from '../net/net.js';
+import { box } from '../core/geometry.js';
+import { thinHit } from '../world/thin-walls.js';
+import { bulletBlocked } from '../world/collision.js';
+import { P } from '../player/player.js';
+import { curId, EFF, S, W, W8 } from '../game/run-state.js';
+import { GM } from './gun-materials.js';
+import { splat } from '../effects/blood-map.js';
+import { blastFx } from '../effects/puffs.js';
+import { zombies } from '../zombies/zombie-types.js';
+import { hurtZombie, sever } from '../zombies/damage.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { setLmT, setShake, shake } from '../game/state.js';
+import { aimPt } from '../input/keyboard-mouse.js';
+import { interruptBandage } from '../player/bandages.js';
+import { runStat } from '../ui/run-stats.js';
+import { hitFromAt } from '../ui/hud.js';
+import { netAct, nr } from '../net/sync.js';
+
+export const flashes = [];
 // a blast: a white-hot flash, a fireball that balloons and burns out in a blink, sparks and shrapnel, a ring of dust
 // and dirt thrown out along the ground, then a column of smoke that hangs. Zombies near the middle that it kills
 // are blown apart (blowApart in zombies/damage.js); further out they lose limbs and are thrown. remote: a co-op
@@ -11,13 +33,13 @@ const TIP_SHAKE = { near: 2.5, max: 0.12 };
 // how wide the scorch a blast leaves is (metres across): a tip's no more than a dark smudge where it struck, a
 // grenade's a patch the size of a doormat (the soot itself, and how it lies on walls: SOOT in core/shaders.js)
 const SCORCH = { tip: 0.35, blast: 1.0 };
-function explode(x, z, r, dmg, self, remote, small) {
+export function explode(x, z, r, dmg, self, remote, small) {
   if (!remote && netLink()) netSend('boom', { x: nr(x), z: nr(z), r, s: small ? 1 : 0 });
   soundAt(x, z, () => SFX.boom(Math.hypot(P.x - x, P.z - z), r), true);
-  { const d = Math.hypot(P.x - x, P.z - z), k = small ? TIP_SHAKE.max * Math.pow(Math.max(0, 1 - d / TIP_SHAKE.near), 2) : 0.8; shake = Math.max(shake, k); }
+  { const d = Math.hypot(P.x - x, P.z - z), k = small ? TIP_SHAKE.max * Math.pow(Math.max(0, 1 - d / TIP_SHAKE.near), 2) : 0.8; setShake(Math.max(shake, k)); }
   blastFx(x, z, r, small);   // the fire, smoke, sparks and dust (effects/puffs.js)
   splat(x, z, 'scorch', small ? SCORCH.tip : SCORCH.blast, undefined, 0.12);
-  flashes.push({ x, y: 0.7, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); lmT = 0;
+  flashes.push({ x, y: 0.7, z, r: r * 3.2, int: 3, col: [1, 0.72, 0.38], t: 0.3, max: 0.3 }); setLmT(0);
   if (remote) return;
   for (const zb of zombies.slice()) {
     const dx = zb.x - x, dz = zb.z - z, d = Math.hypot(dx, dz); if (d > r) continue;
@@ -34,8 +56,8 @@ function explode(x, z, r, dmg, self, remote, small) {
 EFF.boom = { dmg: 100, kick: 6 };
 EFF.fire = {};
 EFF.bleed = {};
-const grenades = [];
-function throwGrenade() {
+export const grenades = [];
+export function throwGrenade() {
   const D = W(curId()); if (!D || !D.gl || W8.glCd > 0 || P.vault) return;
   W8.glCd = D.glRecharge || 6; SFX.launch(); runStat('grenades');
   const dx = aimPt.x - P.x, dz = aimPt.z - P.z, d = Math.min(14, Math.hypot(dx, dz));
@@ -46,7 +68,7 @@ function throwGrenade() {
   if (netLink()) netSend('nade', { g: [g.x0, g.z0, g.x1, g.z1, g.dur, g.h].map(nr) });   // (teammates see it fly; its blast comes as a 'boom')
 }
 // underbarrel grenades in flight
-function updateGrenades(dt) {
+export function updateGrenades(dt) {
   for (let k = grenades.length - 1; k >= 0; k--) {
     const g = grenades[k]; g.t += dt / g.dur; const t = Math.min(1, g.t);
     let x = g.x0 + (g.x1 - g.x0) * t, z = g.z0 + (g.z1 - g.z0) * t;

@@ -9,6 +9,15 @@
 // it's the same fog in the frame as in play: a zombie out in it can't be seen, outlined or picked out by your
 // crosshair, and one in the thinning ring comes clear as it closes in (mistSee, zombies/zombie-visuals.js).
 
+import { cam } from '../core/renderer.js';
+import { clamp, HALF, N, rand, smooth } from '../core/math.js';
+import { LMU } from '../core/shaders.js';
+import { HOUSE } from './house.js';
+import { phase } from '../game/state.js';
+import { amb, curDark } from '../lighting/day-night.js';
+import { cheatIs } from '../ui/cheats.js';
+import { camFocus } from '../net/spectate.js';
+
 // a wave's odds of fog (from wave MIST.from, and never two in a row), how many metres round you stay clear and how far
 // it takes to thicken to full past that, how long it takes to roll in and back out (s), the most it hides (1: all, so
 // nothing out in it shows, a tree's top or a car's roof no more than a zombie), its own slow drift (drift: which way
@@ -16,17 +25,17 @@
 // shows in it (beam)
 // path: the clear path a flashlight's beam cuts through it by the light's tier, [its half-width against the beam's own,
 // how much of the beam's reach it runs]; wall: how far out from the house's walls it takes to thicken from nothing
-const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, drift: [0.12, 0.07], glow: 0.7, beam: 0.55,
+export const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, drift: [0.12, 0.07], glow: 0.7, beam: 0.55,
   path: { 1: [0.6, 0.8], 2: [1.55, 1] }, wall: 1.8,
   on: false, last: 0, k: 0, t: 0 };
 // the host's roll for the wave about to start (co-op: sent with it, net/sync.js)
-function mistRoll(n) { if (cheatIs('fog')) { MIST.last = n; return true; }   // (the cheat menu's Fog every wave: ui/cheats.js)
+export function mistRoll(n) { if (cheatIs('fog')) { MIST.last = n; return true; }   // (the cheat menu's Fog every wave: ui/cheats.js)
   const on = n >= MIST.from && MIST.last !== n - 1 && rand() < MIST.chance; if (on) MIST.last = n; return on; }
 // a wave beginning with it or without, and its going at the end of the wave or the run
-function mistSet(on) { MIST.on = !!on; }
-function mistReset() { MIST.on = false; MIST.k = 0; MIST.last = 0; }
+export function mistSet(on) { MIST.on = !!on; }
+export function mistReset() { MIST.on = false; MIST.k = 0; MIST.last = 0; }
 // every frame: rolling in through the wave, out once it's over (an ease on the way in and out of each)
-function mistTick(rdt) {
+export function mistTick(rdt) {
   const want = MIST.on && phase === 'wave' ? 1 : 0;
   MIST.t += rdt;
   MIST.k = clamp(MIST.k + (want > MIST.k ? rdt / MIST.rollIn : -rdt / MIST.rollOut), 0, 1);
@@ -58,15 +67,15 @@ function flashClear(x, z) {
   return c * 0.94;
 }
 // how much of a zombie there shows: all of it in the clear, coming out of it through the thinning ring, none in it
-const mistSee = (x, z) => 1 - smooth(clamp((mistAt(x, z) - 0.3) / 0.4, 0, 1));
+export const mistSee = (x, z) => 1 - smooth(clamp((mistAt(x, z) - 0.3) / 0.4, 0, 1));
 // the shader's part (spliced into the composite: effects/post.js), and its uniforms filled in each frame
-const MIST_U = { uMist: { value: new THREE.Vector4() }, uMistP: { value: new THREE.Vector2() }, uMistH: { value: new THREE.Vector4() }, uMistW: { value: new THREE.Vector2() }, uMistC: { value: new THREE.Color() }, uMistInv: { value: new THREE.Matrix4() }, uMistSz: { value: new THREE.Vector4() },
+export const MIST_U = { uMist: { value: new THREE.Vector4() }, uMistP: { value: new THREE.Vector2() }, uMistH: { value: new THREE.Vector4() }, uMistW: { value: new THREE.Vector2() }, uMistC: { value: new THREE.Color() }, uMistInv: { value: new THREE.Matrix4() }, uMistSz: { value: new THREE.Vector4() },
   uMistL: { value: new THREE.Vector4() }, uMistA: { value: new THREE.Color() }, uMistCut: { value: new THREE.Vector4() },
   uFlT: { value: [0, 0, 0, 0, 0, 0] }, uMistPath: { value: new THREE.Vector4() },   // (each light's tier, flashUniforms; the path by tier, MIST.path)
   // (the light map and the flashlight cones: the lit shader's own, core/shaders.js and lighting/lightmap.js, handed
   // over each frame in mistUniforms, as they're made after this)
   uLightMap: { value: null }, uLmRes: { value: 1 }, uFl: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlP: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlK: { value: new THREE.Vector4() } };
-const MIST_GLSL = `
+export const MIST_GLSL = `
 uniform vec4 uMist, uMistH, uMistSz, uMistL; uniform vec2 uMistP, uMistW; uniform vec3 uMistC, uMistA; uniform mat4 uMistInv;
 uniform sampler2D uLightMap; uniform float uLmRes; uniform vec4 uFl[6], uFlP[6], uFlK, uMistCut, uMistPath; uniform float uFlT[6];
 // how far p is outside the house's walls (less than nothing: inside), an L-shaped one's notch cut out (houseSd)
@@ -125,7 +134,7 @@ vec4 mistOf(vec2 uv, float d) {
   vec3 col = base + min(lamp, vec3(0.6)) * uMistL.x * (0.55 + 0.6 * n) + mGlow * 0.9;
   return vec4(col, clamp(a, 0.0, 1.0) * uMist.w);
 }`;
-function mistUniforms() {
+export function mistUniforms() {
   const U = MIST_U, k = mistEase(), F = camFocus(), z = cam.zoom;
   U.uMist.value.set(k, MIST.clear, MIST.ramp, k > 0 ? MIST.max : 0);
   U.uMistP.value.set(F.x, F.z);

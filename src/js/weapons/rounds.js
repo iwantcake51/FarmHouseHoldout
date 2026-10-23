@@ -6,7 +6,19 @@
 // only fire there is: no gun fires incendiary bullets); the hand cannon alone takes explosive tips, and the revolver
 // alone piercing rounds (no other bullet goes through more zombies than its gun already does). A round's effect (fx)
 // is applied last in recomputeEff (game/run-state.js), over everything else on the gun
-const ROUNDS = {
+import { P } from '../player/player.js';
+import { WEAP } from './gun-stats.js';
+import { DART_BLEED, DRAGON_FALL, DRAGON_MAX, SLUG_FALL } from './gun-mods.js';
+import { curId, magSize, recomputeEff, W, W8 } from '../game/run-state.js';
+import { buildGuns } from './build-weapons.js';
+import { exitScope } from '../player/aiming.js';
+import { startReload } from './reload.js';
+import { PIERCE_KEEP } from './firing.js';
+import { toast } from '../ui/hud-text.js';
+import { swapSt } from '../player/swap.js';
+import { roundSwitched } from '../ui/hud.js';
+
+export const ROUNDS = {
   std: { name: 'Standard rounds', as: { shells: 'Buckshot' }, r: 'c', cost: 0, text: D => D.ammo === 'shells' ? 'Plain buckshot.' : 'Plain full-metal-jacket rounds.' },
   slug: { name: 'Slugs', r: 'u', cost: 12, fits: D => D.ammo === 'shells', vis: 'Blue slug shells',
     text: 'One heavy slug instead of shot: huge damage, slams zombies back and staggers them, goes through 3, and barely loses damage at range.',
@@ -41,13 +53,13 @@ const ROUND_ORDER = ['std', 'slug', 'flech', 'fire', 'hollow', 'pierce', 'boom']
 // white, dragon's breath orange, slugs blue, hollow points nickel (in silver cases, weapons/casings.js), piercing
 // rounds steel, explosive tips red (in blackened cases)
 const ROUND_HUE = { flech: '#e2ded4', fire: '#e8742e', slug: '#5a8ee0', hollow: '#cdd2d8', pierce: '#a9b0ba', boom: '#e0503a' };
-const roundHue = (id, D) => ROUND_HUE[roundOn(id)] || '';
-const roundOn = id => (id && W8.rounds && W8.rounds[id] && W8.rounds[id].on) || 'std';
-const roundOwned = (id, k) => k === 'std' || !!(W8.rounds[id] && W8.rounds[id].own.includes(k));
-const roundFits = (id, k) => { const D = WEAP[id]; return !!D && !D.melee && !!D.ammo && (k === 'std' || ROUNDS[k].fits(D, id)); };
-const roundTypes = id => ROUND_ORDER.filter(k => roundFits(id, k));
-const roundName = (id, k) => { const R = ROUNDS[k], D = WEAP[id]; return (R.as && (R.as[id] || R.as[D.ammo])) || R.name; };
-const roundText = (id, k) => typeof ROUNDS[k].text === 'function' ? ROUNDS[k].text(WEAP[id], id) : ROUNDS[k].text;
+export const roundHue = (id, D) => ROUND_HUE[roundOn(id)] || '';
+export const roundOn = id => (id && W8.rounds && W8.rounds[id] && W8.rounds[id].on) || 'std';
+export const roundOwned = (id, k) => k === 'std' || !!(W8.rounds[id] && W8.rounds[id].own.includes(k));
+export const roundFits = (id, k) => { const D = WEAP[id]; return !!D && !D.melee && !!D.ammo && (k === 'std' || ROUNDS[k].fits(D, id)); };
+export const roundTypes = id => ROUND_ORDER.filter(k => roundFits(id, k));
+export const roundName = (id, k) => { const R = ROUNDS[k], D = WEAP[id]; return (R.as && (R.as[id] || R.as[D.ammo])) || R.name; };
+export const roundText = (id, k) => typeof ROUNDS[k].text === 'function' ? ROUNDS[k].text(WEAP[id], id) : ROUNDS[k].text;
 function ownRound(id, k) { const r = W8.rounds[id] = W8.rounds[id] || { own: [], on: 'std' }; if (k !== 'std' && !r.own.includes(k)) r.own.push(k); }
 // what's in the gun goes back in the pouch (a pair's two mags too), so the next rounds loaded are the new kind
 function dumpMag(id) {
@@ -59,7 +71,7 @@ function dumpMag(id) {
 // load kind k into gun id: at the bench the rounds in the gun are swapped straight away for as many of the new kind
 // (the mag isn't topped up: it holds what it held, a pair's two mags each their own share); in the field (swapRounds)
 // the gun is emptied and reloaded
-function loadRound(id, k, fill) {
+export function loadRound(id, k, fill) {
   const had = W8.mag[id] || 0, ak = W8.akMag[id] && { ...W8.akMag[id] };
   ownRound(id, k); dumpMag(id);
   W8.rounds[id].on = k; recomputeEff();
@@ -70,7 +82,7 @@ function loadRound(id, k, fill) {
   buildGuns();
 }
 // X: the next kind of round you own for the gun in your hands, loaded with a reload
-function swapRounds() {
+export function swapRounds() {
   const id = curId(), D = id && W(id); if (!D || D.melee || !D.ammo || W8.reloading || P.vault || P.bandT > 0 || swapSt) return;
   const own = roundTypes(id).filter(k => roundOwned(id, k)); if (own.length < 2) { if (roundTypes(id).length > 1) toast('Only one kind of round for this gun', { icon: 'ammo', sub: 'Buy more at the workbench' }); return; }
   const next = own[(own.indexOf(roundOn(id)) + 1) % own.length];

@@ -1,5 +1,7 @@
 // Gun stats, and the combined weapon table WEAP.
 
+import { MELEE_WEAPONS } from '../melee/melee-stats.js';
+
 // Guns: damage, fire rate, magazine, reload, spread, recoil, starting ammo, rarity in the upgrade pool. Each one does
 // something better than the rest, so there's a reason to pick it (its card says what):
 //   pistol    the starter: accurate, quick to reload, cheap on ammo
@@ -32,7 +34,7 @@
 // your hands (player/sprint.js). Both are looser on the move too (mobile)
 // HEAVY_FIRE: how much of a heavy gun's slowdown each shot builds (build), how long after the last shot it holds (hold,
 // seconds), and how fast it eases off after that (ease, of the whole a second)
-const HEAVY_FIRE = { build: 0.4, hold: 0.25, ease: 1.6 };
+export const HEAVY_FIRE = { build: 0.4, hold: 0.25, ease: 1.6 };
 const GUN_WEAPONS = {
   pistol: { slot: 'side', ammo: 'p9', name: '9mm pistol', short: '9mm', dmg: 27, rate: 0.21, mag: 13, reload: 1.15, spread: 0.03, kick: 1.4, shake: 0.08, start: 65 },
   revolver: { slot: 'side', ammo: 'magnum', name: '.357 revolver', short: '.357', dmg: 68, rate: 0.42, mag: 6, reload: 1.8, perShell: 0.42, spread: 0.006, kick: 3, shake: 0.16, pierce: 1, pierceKeep: 1, aimCrit: 0.3, sprayK: 0.4, mobile: 1.3, start: 18, rar: 'r', desc: 'The marksman\'s handgun: dead accurate with the longest reach. Aimed shots often crit, each round goes through a zombie at full power, and it\'s the only handgun that takes a scope. Slower to fire than the hand cannon, and slow to load: a round at a time, or six with a speed loader.' },
@@ -48,4 +50,4 @@ const GUN_WEAPONS = {
   lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.085, hipK: 1.35, hipKick: 1.9, sideK: 0.23, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.9, sprayK: 0.8, mobile: 1.4, heavy: { fire: 0.45, draw: 1.8, ready: 0.45, run: 1.6 }, rar: 'l', desc: 'A hundred-round belt: the most fire you can keep up. You walk slower carrying it, and slower again while you fire it. Slow to draw and to bring up after a sprint, and loose on the move.' }
 };
 // every weapon in the game, melee first, keyed by id
-const WEAP = Object.assign({}, MELEE_WEAPONS, GUN_WEAPONS);
+export const WEAP = Object.assign({}, MELEE_WEAPONS, GUN_WEAPONS);

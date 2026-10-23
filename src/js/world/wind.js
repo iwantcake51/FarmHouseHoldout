@@ -1,5 +1,11 @@
 // The wind: which way it blows and how hard, changing as the weather does, and the gusts that roll across the farm.
 
+import { WIND, WIND_GUST, WIND_V } from '../core/shaders.js';
+import { inHouseRect } from './house.js';
+import { P } from '../player/player.js';
+import { AC, master } from '../audio/audio.js';
+import { state, worldK, worldT } from '../game/state.js';
+
 // It keeps to a prevailing way for a while and swings round slowly, and its strength settles on a new mood every so
 // often: a still spell, a breeze, or a blustery one (WIND_MOOD: how likely each is, and its strength, 0 to 1). Gusts
 // are bands of stronger air sweeping across the ground the way it blows, faster the harder it blows (gustAt: the same
@@ -14,7 +20,7 @@ const WIND_T = { hold: [25, 70], swing: 1.1, turn: 0.05, ease: 0.07, gust: [2, 8
 // of it indoors
 const WIND_CARRY = { base: 0.1, str: 1.1, gust: 0.9, inside: 0.12 };
 const mrr = (a, b) => a + Math.random() * (b - a);
-const WX = { ang: Math.random() * 6.28, to: 0, str: 0.4, ts: 0.4, t: 0, gp: 0, x: 1, z: 0 };
+export const WX = { ang: Math.random() * 6.28, to: 0, str: 0.4, ts: 0.4, t: 0, gp: 0, x: 1, z: 0 };
 WX.to = WX.ang;
 function windMood() {
   let r = Math.random(); const m = WIND_MOOD.find(m => (r -= m.p) < 0) || WIND_MOOD[1];
@@ -25,11 +31,11 @@ windMood(); WX.str = WX.ts;
 const gustAt = (x, z) => Math.pow(0.5 + 0.5 * Math.sin((x * WX.x + z * WX.z) * WIND_GUST.k - WX.gp), WIND_GUST.sharp);
 const windIndoors = (x, z) => inHouseRect(x, z, 0);
 // the air's speed at a point (into out.x, out.z, metres a second): what carries smoke, dust and anything light along
-function windAt(x, z, out) {
+export function windAt(x, z, out) {
   const v = (WIND_CARRY.base + WIND_CARRY.str * WX.str) * (1 + WIND_CARRY.gust * gustAt(x, z)) * (windIndoors(x, z) ? WIND_CARRY.inside : 1);
   out.x = WX.x * v; out.z = WX.z * v; return out;
 }
-function stepWind(rdt) {
+export function stepWind(rdt) {
   WX.t -= rdt; if (WX.t <= 0) windMood();
   WX.ang += (WX.to - WX.ang) * Math.min(1, rdt * WIND_T.turn); WX.str += (WX.ts - WX.str) * Math.min(1, rdt * WIND_T.ease);
   // a slow wander about the way it's blowing, so it's never dead straight

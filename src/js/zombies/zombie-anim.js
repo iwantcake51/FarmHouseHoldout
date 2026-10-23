@@ -5,17 +5,27 @@
 // throws the joints rather than snapping them to a pose, and every zombie walks in its own way (its gait, dealt as it
 // spawns: a limp, a dragged foot, the arms held out or hanging, how hunched and twitchy it is).
 
+import { angDiff, clamp, pick, rand, rr, smooth } from '../core/math.js';
+import { surfaceY } from '../world/house.js';
+import { P } from '../player/player.js';
+import { burst } from '../effects/particles.js';
+import { zClimbPose } from './climb.js';
+import { zombieStep } from '../audio/footsteps.js';
+import { BRUTE_SMASH } from './ai.js';
+import { zDashPose } from './brute-dash.js';
+import { zSpitPose } from './spitter.js';
+
 // ---- the rig: knees and elbows, and the trunk bending at the hip ----
 // a zombie's legs are cut at the knee and its arms at the elbow (the survivor has knees only, player/player.js), the
 // lower half of each hung from the joint (m.shinL, m.foreL...), so a shamble can drag a stiff leg, a runner kick its
 // heels up, a crawler pull itself along on its forearms and a climber hook its arms over a sill. The upper body hangs
 // from the hips (ZHIP up) instead of the feet, so it bends over at the waist
-const ZHIP = 0.55, Z_KNEE = -0.27, Z_ELBOW = 0.26;
+export const ZHIP = 0.55, Z_KNEE = -0.27, Z_ELBOW = 0.26;
 const ZG = {
   thigh: new THREE.BoxGeometry(0.19, 0.29, 0.22).translate(0, -0.145, 0), shin: new THREE.BoxGeometry(0.184, 0.28, 0.214).translate(0, -0.14, 0),
   upArm: new THREE.BoxGeometry(0.14, 0.14, 0.29).translate(0, 0, 0.125), fore: new THREE.BoxGeometry(0.13, 0.13, 0.29).translate(0, 0, 0.135)
 };
-function zombieRig(m) {
+export function zombieRig(m) {
   ['L', 'R'].forEach(s => {
     const leg = m['leg' + s], sh = new THREE.Mesh(ZG.shin, leg.material); leg.geometry = ZG.thigh; sh.position.y = Z_KNEE; sh.castShadow = true; leg.add(sh); m['shin' + s] = sh;
     const arm = m['arm' + s], fo = new THREE.Mesh(ZG.fore, arm.material); arm.geometry = ZG.upArm; fo.position.z = Z_ELBOW; fo.castShadow = true; arm.add(fo); m['fore' + s] = fo;
@@ -28,9 +38,9 @@ function zombieRig(m) {
 // forward, uy twist (brings the -x shoulder forward +), uz lean (top toward -x +); ly the hips' twist; the head: hx nod
 // down, hy turn toward +x, hz tilt; each shoulder: x pitch (0 straight ahead, + down, - up), y swing toward +x, z roll;
 // elbows (- bends); hips: x (- forward), z (+ toward +x); knees (+ bends). The L limbs are the ones on the -x side
-const ZJN = ['rx', 'rz', 'y', 'fw', 'ux', 'uy', 'uz', 'ly', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'elL', 'elR', 'llx', 'llz', 'lrx', 'lrz', 'klx', 'krx'];
-const ZJ = {}; ZJN.forEach((n, i) => { ZJ[n] = i; });
-const ZJ_N = ZJN.length;
+export const ZJN = ['rx', 'rz', 'y', 'fw', 'ux', 'uy', 'uz', 'ly', 'hx', 'hy', 'hz', 'alx', 'aly', 'alz', 'arx', 'ary', 'arz', 'elL', 'elR', 'llx', 'llz', 'lrx', 'lrz', 'klx', 'krx'];
+export const ZJ = {}; ZJN.forEach((n, i) => { ZJ[n] = i; });
+export const ZJ_N = ZJN.length;
 // each joint's spring: how quick (radians a second) and how damped (under 1 it overshoots and swings back)
 const ZJ_W = new Float32Array(ZJ_N), ZJ_Z = new Float32Array(ZJ_N);
 [[['rx', 'rz', 'fw'], 13, 0.8], [['y'], 16, 0.75], [['ux', 'uy', 'uz', 'ly'], 11, 0.6], [['hx', 'hy'], 8, 0.42], [['hz'], 6, 0.35],
@@ -52,7 +62,7 @@ function zGait(type) {
     elbow: rr(0.1, 0.55), jerk: rr(0.15, 1), seed: rand() * 6.28, next: pick(Z_ATTACKS[type])
   };
 }
-function zAnimInit(z) {
+export function zAnimInit(z) {
   const a = z.an = { j: new Float32Array(ZJ_N), v: new Float32Array(ZJ_N), g: zGait(z.type), atkT: 9, wu: 0, bw: 0, rip: 0, sm: 0, twT: rr(0.5, 3), t: rand() * 9, lastLunge: 0, pside: 1, step: 0 };
   a.j[ZJ.alx] = a.j[ZJ.arx] = -0.15; a.j[ZJ.elL] = a.j[ZJ.elR] = -0.3;
 }
@@ -62,7 +72,7 @@ const Z_ATTACKS = { walker: ['swipe', 'swipe', 'grab', 'bite'], spitter: ['swipe
 
 // knocked by a hit: the joints are thrown (their springs' speed, not their pose), away from where it came from, so the
 // body rocks with it and swings back; harder for the head on a headshot, an arm or a leg flung by its own hit
-function zAnimHit(z, dx, dz, part, power) {
+export function zAnimHit(z, dx, dz, part, power) {
   const a = z.an; if (!a) return;
   const v = a.v, p = clamp(power, 0.2, 1.6) * (z.type === 'brute' ? 0.4 : 1), sf = Math.sin(z.face), cf = Math.cos(z.face);
   const along = dx * sf + dz * cf, side = dx * cf - dz * sf;   // the hit's push along the way it faces, and toward its +x
@@ -74,12 +84,12 @@ function zAnimHit(z, dx, dz, part, power) {
   if ((part === 'legL' || part === 'legR') && !z.crawl) { v[part === 'legL' ? ZJ.klx : ZJ.krx] += 14 * p; v[ZJ.y] -= 1.6 * p; v[ZJ.rz] += (part === 'legL' ? 2.5 : -2.5) * p; }
 }
 // the zombie's flung back by a shove (player/shove.js): rocked onto its heels, the arms thrown up
-function zAnimShove(z) { const a = z.an; if (!a || z.crawl) return; const v = a.v; v[ZJ.ux] -= 9; v[ZJ.rx] -= 4; v[ZJ.alx] -= 10; v[ZJ.arx] -= 9; v[ZJ.hx] -= 8; v[ZJ.fw] -= 2; }
+export function zAnimShove(z) { const a = z.an; if (!a || z.crawl) return; const v = a.v; v[ZJ.ux] -= 9; v[ZJ.rx] -= 4; v[ZJ.alx] -= 10; v[ZJ.arx] -= 9; v[ZJ.hx] -= 8; v[ZJ.fw] -= 2; }
 
-const _zsm = (t0, t1, t) => smooth(clamp((t - t0) / (t1 - t0), 0, 1));
+export const _zsm = (t0, t1, t) => smooth(clamp((t - t0) / (t1 - t0), 0, 1));
 // a pose blended in over another: each joint of o (a map of joint name to angle) by w
-function zMix(T, o, w) { if (w <= 0.001) return; for (const k in o) T[ZJ[k]] += (o[k] - T[ZJ[k]]) * w; }
-function zBoost(K, names, k) { for (const n of names) K[ZJ[n]] = Math.max(K[ZJ[n]], k); }
+export function zMix(T, o, w) { if (w <= 0.001) return; for (const k in o) T[ZJ[k]] += (o[k] - T[ZJ[k]]) * w; }
+export function zBoost(K, names, k) { for (const n of names) K[ZJ[n]] = Math.max(K[ZJ[n]], k); }
 
 // ---- standing gaits ----
 function zWalkPose(z, a, T, k, mv, ph, relP, near) {
@@ -220,7 +230,7 @@ function zRipPose(z, a, T, K) {
   zBoost(K, ['alx', 'arx', 'elL', 'elR'], 2.2);
 }
 // ---- every frame ----
-function animateZombie(z, dt, dp, relP) {
+export function animateZombie(z, dt, dp, relP) {
   const a = z.an, g = a.g, m = z.m, T = _zT, K = _zK, j = a.j, v = a.v;
   if (!(dt > 0)) return;
   a.t += dt;
@@ -287,7 +297,7 @@ function animateZombie(z, dt, dp, relP) {
   const sy = z.vault ? (a.base || 0) : surfaceY(z.x, z.z); a.base = (a.base ?? sy) + (sy - (a.base ?? sy)) * Math.min(1, dt * 14);
   zApply(z, m, j, a.base);
 }
-function zApply(z, m, j, base) {
+export function zApply(z, m, j, base) {
   const s = z.T.scale, sq = z.squash, sf = Math.sin(z.face), cf = Math.cos(z.face), fw = j[ZJ.fw] * s;
   m.g.position.set(z.x + sf * fw, base + Math.max(-0.45 * s, j[ZJ.y]), z.z + cf * fw);
   m.g.rotation.set(j[ZJ.rx], z.face, j[ZJ.rz]);

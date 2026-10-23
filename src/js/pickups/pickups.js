@@ -1,6 +1,34 @@
 // Drops: their models, outlines and collection.
 
-const pickups = [];
+import { scene, V3 } from '../core/renderer.js';
+import { clamp, HALF, rand, rr } from '../core/math.js';
+import { outline } from '../effects/screen-outlines.js';
+import { NET } from '../net/net.js';
+import { BLOB_TEX } from '../core/geometry.js';
+import { P } from '../player/player.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { AMMO_NAME, AMMO_PICKUP_MUL, ammoAmt } from '../weapons/ammo.js';
+import { modLv } from '../weapons/mod-levels.js';
+import { magSize, recomputeEff, run, S, W, W8 } from '../game/run-state.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
+import { buildGuns } from '../weapons/build-weapons.js';
+import { glowTex } from '../effects/textures.js';
+import { dropModel } from './drop-models.js';
+import { xray } from '../effects/outlines.js';
+import { addPlanks, METAL, plankRoom } from '../barricades/planks.js';
+import { SFX } from '../audio/sfx.js';
+import { glowGun, phase, state } from '../game/state.js';
+import { equip } from '../weapons/reload.js';
+import { bandMax } from '../player/bandages.js';
+import { ammoTypes } from '../upgrades/upgrades.js';
+import { feed, floatText, popEl } from '../ui/hud-text.js';
+import { visAt } from '../lighting/vision.js';
+import { deliverWeapon, flareDone, SLOT_WORD, supplyOpen } from '../stations/supply-drop.js';
+import { gotGear, gunCall } from '../ui/gear-popup.js';
+import { camFocus, spectating } from '../net/spectate.js';
+import { gunGone, gunTakeLo, shareFx, updateShareTags } from '../net/teamwork.js';
+
+export const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
 // how close you have to come to a drop to pick it up (m), times S.pickMul (the Long reach line: upgrades/tier-table.js)
@@ -14,7 +42,7 @@ const PICK_R = 0.9;
 const AMMO_COL = 0xffd23a;
 const PICK_COL = { planks: 0xe0a86a, metal: 0xa9c2d6, med: 0xef6a52, supply: 0x4fd0c2, ammo: AMMO_COL };
 const RAR_COL = { c: 0xc4bcad, u: 0x6fd07a, r: 0x5f9ee8, e: 0x9f7af2, l: 0xf0a050 };
-const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'u'];
+export const weaponCol = id => RAR_COL[(WEAP[id] && WEAP[id].rar) || 'u'];
 // (a planks drop is metal once there's a metalwork bench, barricades/metal-bars.js: cargo.metal, steel-blue)
 const pickCol = (kind, ammoType, cargo) => kind === 'gun' ? weaponCol(cargo && cargo.id) : kind === 'supply' && cargo && cargo.kind === 'weapon' ? weaponCol(cargo.id) : kind === 'planks' && cargo && cargo.metal ? PICK_COL.metal : PICK_COL[kind];
 const ringGeo = new THREE.RingGeometry(0.34, 0.44, 28), discGeo = new THREE.CircleGeometry(0.44, 28);
@@ -27,7 +55,7 @@ function dropBeam(col) {
   m.renderOrder = 3; m.userData.isOutline = true; return m;   // (kept out of the crate's outline)
 }
 let dropUid = 0;   // (each drop its own number, so a teammate watching you can follow it: net/spectate.js)
-function dropPickup(x, z, kind, amount, ammoType, cargo) {
+export function dropPickup(x, z, kind, amount, ammoType, cargo) {
   if (kind === 'planks' && METAL.on && !cargo) cargo = { metal: true };   // (metal, not wood, once there's a metalwork bench)
   const root = new THREE.Group(); root.position.set(x, 0, z); scene.add(root);
   const g = new THREE.Group(); root.add(g);
@@ -67,7 +95,7 @@ function greyDrop(p, dt) {
   greyOf(p.col, p.grey, _gc); p.ringMat.color.copy(_gc); p.discMat.color.copy(_gc); p.glow.material.color.copy(_gc); p.om.color.copy(_gc); p.xr.rim.color.copy(_gc);
 }
 // drops: bob, glow, and collecting them
-function updatePickups(dt) {
+export function updatePickups(dt) {
   for (let k = pickups.length - 1; k >= 0; k--) {
     const p = pickups[k]; p.t -= dt; p.ph += dt * 3; p.age += dt;
     // a gun you put down lies there for two rounds (GUN_KEEP): when the round after those starts it gives its 10-second
@@ -140,8 +168,8 @@ function updatePickups(dt) {
 // in it. The one it replaces goes on your gun rack (stations/armory.js), to swap back to there
 const TAKE_R = 1.4;
 const isTake = p => p.kind === 'gun' || (p.kind === 'supply' && !!p.cargo && p.cargo.kind === 'weapon');
-const takeId = p => p.kind === 'gun' ? p.cargo.id : p.cargo.id;
-function nearestTake() {
+export const takeId = p => p.kind === 'gun' ? p.cargo.id : p.cargo.id;
+export function nearestTake() {
   if (P.dead || P.vault || state !== 'play') return null;
   let best = null, bd = TAKE_R;
   for (const p of pickups) { if (!isTake(p) || p.age < 0.4) continue; const d = Math.hypot(p.x - P.x, p.z - P.z); if (d < bd) { bd = d; best = p; } }
@@ -162,7 +190,7 @@ let gunSeq = 0;
 // what's on one of your guns, as a teammate's game needs it to build it and to hand it over (as in myLoadout, net/arsenal.js)
 function gunLo(id) { const mods = (W8.mods[id] || []).slice(), lv = {}; mods.forEach(m => { lv[m] = modLv(m); }); return { mods, lv, gt: { ...(W8.gt[id] || {}) }, pin: null, att: { ...(W8.att[id] || {}) }, rnd: W8.rounds && W8.rounds[id] ? JSON.parse(JSON.stringify(W8.rounds[id])) : null, ak: !!(W(id) || {}).akimbo }; }
 // a gun model laid on its side on the ground, its holds put back square and its flash and outlines left off
-function layGun(copy) {
+export function layGun(copy) {
   copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });
   copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.scale.set(1, 1, 1); copy.visible = true;
   copy.children.forEach(h => { if (h.userData.side) { h.position.x = h.userData.x0 || 0; h.position.y = h.position.z = 0; h.rotation.set(0, 0, 0); h.visible = true; } });
@@ -170,7 +198,7 @@ function layGun(copy) {
   const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
   return lay;
 }
-function takeIt(p) {
+export function takeIt(p) {
   const id = takeId(p), D = WEAP[id], old = W8.slot[D.slot];   // (what it replaces goes on your gun rack: stations/armory.js)
   if (!W8.owned.includes(id)) W8.owned.push(id);
   if (p.kind === 'gun' && p.cargo.gid) gunGone(p);   // (gone for the rest of the team too: net/teamwork.js)

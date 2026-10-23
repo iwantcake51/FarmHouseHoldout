@@ -2,6 +2,48 @@
 // down the doors between rooms, attacks on you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
 // zombies/climb.js.
 
+import { $ } from '../core/dom.js';
+import { RIGHT, V3 } from '../core/renderer.js';
+import { angDiff, clamp, mix, N, rand, rr, smooth } from '../core/math.js';
+import { outline } from '../effects/screen-outlines.js';
+import { netClient } from '../net/net.js';
+import { cell, ci, cxw, EMPTY, FENCE, idx, inb, OPEN, openAt, WALL } from '../world/grid.js';
+import { doorBetween, thinHit, wallBetween } from '../world/thin-walls.js';
+import { breakDoor, doorBlow, doorOn, doorWear } from '../world/interior.js';
+import { breakFence, FENCE_HP, fenceBlow } from '../world/fence.js';
+import { hardBlocked, moveCircle } from '../world/collision.js';
+import { diagOk, DIRS, dist, zField } from './pathfinding.js';
+import { P } from '../player/player.js';
+import { addBlood } from '../effects/body-blood.js';
+import { run, S } from '../game/run-state.js';
+import { splat } from '../effects/blood-map.js';
+import { burst } from '../effects/particles.js';
+import { burnFx } from '../effects/puffs.js';
+import { STUMP, zombies, ZT } from './zombie-types.js';
+import { animateZombie } from './zombie-anim.js';
+import { stepClimb } from './climb.js';
+import { rimMat } from '../effects/outlines.js';
+import { BLEED_R, BURN_TICK, burnHurt, killZombie, legSlow, STUMP_PUMP } from './damage.js';
+import { boardJolt, breakBoard } from '../barricades/planks.js';
+import { nz } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { camKick, camRoll, groanT, phase, setCamRoll, setGroanT, setShake, shake, spawnQ } from '../game/state.js';
+import { SHOVE_SLOW } from '../player/shove.js';
+import { interruptBandage } from '../player/bandages.js';
+import { runStat } from '../ui/run-stats.js';
+import { startDeath } from '../ui/screens.js';
+import { feed } from '../ui/hud-text.js';
+import { los } from '../lighting/lightmap.js';
+import { dashGlow, dashMaybe, dashStep, stepDashMarks, waveDmg } from './brute-dash.js';
+import { stepKnock } from './knockdown.js';
+import { spitStep } from './spitter.js';
+import { ANIM } from '../player/animation.js';
+import { hitFromAt } from '../ui/hud.js';
+import {
+  netBoardBroke, netDoorBroke, netFenceBroke, netLunge, netTargets, puppetBoard, puppetMove, startClimb
+} from '../net/sync.js';
+
 // a wall, a fence or a window frame between a zombie and you stops its swing: it can catch you while you're climbing
 // through a window or over a fence (you're in that cell then, and the cells you're each in don't count), but not once
 // you're past it and the frame is between you
@@ -17,7 +59,7 @@ function reachBlocked(x0, z0, x1, z1) {
   return false;
 }
 // which side of an opening a point's on (1: the side its normal points to, the outside)
-const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 1;
+export const openSide = (o, x, z) => Math.sign((x - o.x) * o.nx + (z - o.z) * o.nz) || 1;
 // a window takes up to WIN_AT_ONCE zombies at a time, side by side (each in its own lane across it: zombies/climb.js),
 // the next starting in as soon as every one already climbing is WIN_GAP of the way through
 const WIN_AT_ONCE = 3, WIN_GAP = 0.12;
@@ -26,8 +68,8 @@ const WIN_AT_ONCE = 3, WIN_GAP = 0.12;
 // (INSIDE.load: what each zombie already headed for a way in counts against it, zombies/pathfinding.js: pickEntry),
 // tear the boards down faster (tear), come over the sill quicker (climb, zombies/climb.js) and closer behind each
 // other (gap, in place of WIN_GAP)
-const INSIDE = { from: 6, full: 14, load: 24, tear: 1.8, climb: 1.35, gap: 0.05 };
-const insideK = () => smooth(clamp(((run.wave || 1) - INSIDE.from) / (INSIDE.full - INSIDE.from), 0, 1));
+export const INSIDE = { from: 6, full: 14, load: 24, tear: 1.8, climb: 1.35, gap: 0.05 };
+export const insideK = () => smooth(clamp(((run.wave || 1) - INSIDE.from) / (INSIDE.full - INSIDE.from), 0, 1));
 function winFree(o, z) {
   const c = o.climbers || (o.climbers = []);
   for (let k = c.length - 1; k >= 0; k--) { const b = c[k]; if (b === z) return true; if (b.dead || !b.vault || b.vault.o !== o) c.splice(k, 1); }
@@ -56,7 +98,7 @@ function fenceCross(z, i, j, bi, bj, fl) {
   startClimb(z, 'fence', fx, fz, dx, dz, cxw(ei), cxw(ej), null);
 }
 // a brute on the boards: a blow every t seconds, each taking dmg off the plank on top (a plain board has 70)
-const BRUTE_SMASH = { t: 1.25, dmg: 75 };
+export const BRUTE_SMASH = { t: 1.25, dmg: 75 };
 // a shut door between rooms in its way: it beats on it till it gives (DOOR.hp, world/interior.js), as it would on the
 // boards (a brute in a few blows: BRUTE_SMASH), each blow a thump and the door jumping in its frame, and it's broken
 // up a piece at a time as it goes (doorWear)
@@ -104,7 +146,7 @@ function zFlash(z, dt) {
 // zombie AI: the way to you, climbing and breaking in, attacks; then the body's animated (zombies/zombie-anim.js). In
 // co-op each goes for whichever survivor still standing is nearest, and on a joiner's screen they're the host's: each
 // eased to where the host's game has it (net/sync.js), only the body and the blood played out here
-function updateZombies(dt) {
+export function updateZombies(dt) {
   const pup = netClient(), tg = netTargets(), allDown = tg.every(q => q.dead);
   let nearest = 99, nearZ = null; zHitMe = false;
   for (let k = zombies.length - 1; k >= 0; k--) {
@@ -193,7 +235,7 @@ function updateZombies(dt) {
         if (z.atk <= 0) {
           z.atk = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
           soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z, true); if (!attackingBoard.grate) boardJolt(attackingBoard, z);
-          shake = Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1));
+          setShake(Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)));
         }
       } else {
         attackingBoard.boards[top] -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * mix(1, INSIDE.tear, insideK()) * dt;
@@ -240,7 +282,7 @@ function updateZombies(dt) {
       const t0 = z.crawlT; z.crawlT = Math.min(1, z.crawlT + dt / 0.8);
       if (t0 < 0.62 && z.crawlT >= 0.62) {
         burst(z.x + Math.sin(z.face) * 0.9, 0.1, z.z + Math.cos(z.face) * 0.9, 6, 'dust', Math.sin(z.face), Math.cos(z.face), 1.2);
-        soundAt(z.x, z.z, () => SFX.thud()); if (dme < 6) shake = Math.max(shake, 0.06);
+        soundAt(z.x, z.z, () => SFX.thud()); if (dme < 6) setShake(Math.max(shake, 0.06));
       }
     } else if (z.crawl && (z.tx === undefined || Math.hypot(z.x - z.tx, z.z - z.tz) > 0.38)) { z.tx = z.x; z.tz = z.z; splat(z.x - Math.sin(z.face) * 0.2, z.z - Math.cos(z.face) * 0.2, 'drop', rr(0.22, 0.34)); }   // dragging itself along, leaving a smear
     if (z.blob) { const c = z.crawl ? 0.5 : 0; z.blob.position.set(z.x + Math.sin(z.face) * c, 0.02, z.z + Math.cos(z.face) * c); z.blob.scale.set(1.1 * z.T.scale * (z.type === 'brute' ? 1.25 : 1), 1, 1.1 * z.T.scale * (z.crawl ? 1.8 : 1)); z.blob.rotation.y = z.face; }
@@ -250,42 +292,45 @@ function updateZombies(dt) {
   stepDashMarks(dt);
   if (zHitMe) zStruckFx();
   playerChecks();
-  groanT -= dt; if (groanT <= 0 && nearest < 30) { soundAt(nearZ.x, nearZ.z, () => SFX.groan(clamp(1 - nearest / 16, 0.1, 1)), true); groanT = rr(1.5, 4); }
+  setGroanT(groanT - dt); if (groanT <= 0 && nearest < 30) { soundAt(nearZ.x, nearZ.z, () => SFX.groan(clamp(1 - nearest / 16, 0.1, 1)), true); setGroanT(rr(1.5, 4)); }
 }
 // a zombie's swing landing on you: the damage, the tilt toward it, and what it does by kind: a brute's knocks you back
 // concussed, a crawler's trips you, the rest can open a bleed. In co-op a swing at you from the host's zombie comes here
 // from its message (net/sync.js)
-let zHitMe = false;
-function zStrike(z, armMul) {
+export let zHitMe = false;
+export function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
   P.hitFrom = z.face; hitFromAt(z.x, z.z, z.T.dmg * armMul * (z.crawl ? 0.25 : 1) / 25);
   P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg(); zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
   // tilt the view toward whoever hit you
-  const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; camRoll = clamp(camRoll - side * 0.055, -0.1, 0.1);
+  const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; setCamRoll(clamp(camRoll - side * 0.055, -0.1, 0.1));
   camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;
   if (z.type === 'brute') {   // concussed: knocked back, ears ringing, the world swims
     P.conc = 1; P.kbx = dxp / (dp || 1) * 7.5; P.kbz = dzp / (dp || 1) * 7.5; P.stun = 0.7; P.slow = Math.min(1, P.slow + 0.4);
-    SFX.concuss(); shake = Math.max(shake, 0.6); camRoll = clamp(camRoll - side * 0.06, -0.14, 0.14);
+    SFX.concuss(); setShake(Math.max(shake, 0.6)); setCamRoll(clamp(camRoll - side * 0.06, -0.14, 0.14));
     burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
   } else if (z.crawl) {   // a crawler grabs at your ankles: you stumble, but it can't bite deep enough to make you bleed
     const k = 1 - S.slowRes; P.slow = Math.min(1, P.slow + 0.85 * k); P.stun = 0.45 * k;
     P.kbx = -dzp / (dp || 1) * side * 2.2 + dxp / (dp || 1) * 1.2; P.kbz = dxp / (dp || 1) * side * 2.2 + dzp / (dp || 1) * 1.2;
-    ANIM.stumble = 1; ANIM.stumbleSide = side; camRoll = clamp(camRoll - side * 0.07, -0.14, 0.14); shake = Math.max(shake, 0.3);
+    ANIM.stumble = 1; ANIM.stumbleSide = side; setCamRoll(clamp(camRoll - side * 0.07, -0.14, 0.14)); setShake(Math.max(shake, 0.3));
   } else if (rand() < (z.T.bleed || ZT.walker.bleed)[0]) { if (!(P.bleed > 0)) runStat('bleeds'); P.bleed = Math.min(14, (P.bleed || 0) + (z.T.bleed || ZT.walker.bleed)[1]); }   // a bite that opens you up (ZT: bleed)
   if (!z.crawl) { P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes)); P.stun = 0.22 * (1 - S.slowRes); }
 }
-function zStruckFx() {
+export function zStruckFx() {
   zHitMe = false; if (P.dead) return;
-  addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); shake = Math.max(shake, 0.22); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35));
+  addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); setShake(Math.max(shake, 0.22)); burst(P.x, 1, P.z, 6, 'blood'); if (rand() < 0.5) splat(P.x, P.z, 'drop', rr(.2, .35));
 }
 const WIND_HEAL = 25;   // what Second wind gives back
 // your health, after whatever hit you this frame: Second wind once a wave, when something hurts you and leaves you
 // below a quarter (not just for being low already: starting a wave on little health doesn't set it off, the next hit
 // does), and going down at none
 let windHp = 0;
-function playerChecks() {
+export function playerChecks() {
   const hurt = P.hp < windHp - 1e-6;
   if (S.secondWind && !S.windUsed && hurt && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, S.maxHp - P.hp)); P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
   windHp = P.hp;
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setZHitMe(v) { return (zHitMe = v); }

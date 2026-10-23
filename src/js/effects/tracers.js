@@ -4,6 +4,14 @@
 // round's power (tracerPower): a 9mm leaves a quick thin streak, a shotgun a spray of hot needles, a rifle or a magnum a
 // fat bolt of light with a halo round it, a long glowing wake that drifts up as it cools and a star where it lands.
 
+import { CAM_OFF, scene, V3 } from '../core/renderer.js';
+import { clamp, rand, rr, smooth } from '../core/math.js';
+import { S } from '../game/run-state.js';
+import { TEX_CORE, TEX_STAR } from './textures.js';
+import { lightLevelAt } from './smoke.js';
+import { flashes } from '../weapons/explosives.js';
+import { setLmT } from '../game/state.js';
+
 const TR_N = 64, TR_SNAP = 0.05, TR_VIEW = CAM_OFF.clone().normalize();
 // strips that run from their origin along +z, each turned about that line to face the camera (trAim)
 const TR_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
@@ -37,14 +45,14 @@ for (let k = 0; k < TR_N; k++) {
 }
 // how hard a round hits, as far as its tracer goes: about 0.25 for a shotgun pellet or an SMG round, 0.35 a 9mm, 0.6 a
 // rifle round on full auto or a .357, 0.9 the .50 and 1.25 the hunting rifle; hotter loads push it up
-function tracerPower(D) { return clamp(Math.pow(D.dmg * S.dmgMul / 120, 0.7) + (D.ammo === 'rifle' ? 0.18 : 0), 0.18, 1.45); }
+export function tracerPower(D) { return clamp(Math.pow(D.dmg * S.dmgMul / 120, 0.7) + (D.ammo === 'rifle' ? 0.18 : 0), 0.18, 1.45); }
 const _trX = new V3(), _trY = new V3(), _trM = new THREE.Matrix4();
 // turn a strip running along d about that line so its flat side faces the camera
 function trAim(m, d) { _trX.crossVectors(d, TR_VIEW).normalize(); _trY.crossVectors(d, _trX); m.quaternion.setFromRotationMatrix(_trM.makeBasis(_trX, _trY, d)); }
 // lay a strip along the shot from a to b metres out, w wide
 function trLay(t, m, a, b, w) { m.position.copy(t.s).addScaledVector(t.d, a); m.scale.set(w, 1, Math.max(0.001, b - a)); }
 // a round from (x0, y0, z0) to (x1, y1, z1); pw its power (tracerPower), style a key of TR_STYLE
-function tracer(x0, y0, z0, x1, y1, z1, pw, style) {
+export function tracer(x0, y0, z0, x1, y1, z1, pw, style) {
   pw = pw || 0.35;
   const t = tracers.find(t => !t.on) || tracers.reduce((a, b) => b.age / b.end > a.age / a.end ? b : a);
   t.s.set(x0, y0, z0); t.d.set(x1 - x0, y1 - y0, z1 - z0); t.L = t.d.length(); if (t.L < 0.05) return; t.d.divideScalar(t.L);
@@ -64,7 +72,7 @@ function tracer(x0, y0, z0, x1, y1, z1, pw, style) {
   t.parts.forEach(m => { m.visible = true; });
   t.star.visible = false; t.haze.visible = big > 0.02;
 }
-function stepTracers(rdt) {
+export function stepTracers(rdt) {
   for (const t of tracers) {
     if (!t.on) continue;
     const a = t.age += rdt;
@@ -77,14 +85,14 @@ function stepTracers(rdt) {
       t.glow.material.opacity = 0.75 * o * (t.supp ? 0.3 : 1); t.core.material.opacity = o * (t.supp ? 0.45 : 1);
     } else t.glow.visible = t.core.visible = false;
     // a big round lights the ground under it as it goes (lighting/lightmap.js), and where it lands
-    if (after <= 0 && t.big > 0.3 && a >= t.lit) { t.lit = a + 0.03; flashes.push({ x: t.s.x + t.d.x * head, z: t.s.z + t.d.z * head, r: 2.2 + 2 * t.big, int: 0.45 + 0.6 * t.big, col: [1, 0.72, 0.38], t: 0.12, max: 0.12 }); lmT = 0; }
+    if (after <= 0 && t.big > 0.3 && a >= t.lit) { t.lit = a + 0.03; flashes.push({ x: t.s.x + t.d.x * head, z: t.s.z + t.d.z * head, r: 2.2 + 2 * t.big, int: 0.45 + 0.6 * t.big, col: [1, 0.72, 0.38], t: 0.12, max: 0.12 }); setLmT(0); }
     // the head glows as it flies and pops where it lands, a star bursting off a big round's
     if (after <= 0) {
       t.head.position.copy(t.s).addScaledVector(t.d, head); t.head.scale.setScalar(t.headS * flick); t.head.material.opacity = t.supp ? 0.3 : 1;
       if (t.big > 0.45) { t.star.visible = true; t.star.position.copy(t.head.position); t.star.scale.setScalar(t.headS * 1.7 * t.big * flick); t.star.material.opacity = 0.7; t.star.material.rotation += rdt * 9; }   // a big round's head flares
     }
     else if (after < t.pop) {
-      if (t.lit >= 0 && t.big > 0.3) { t.lit = -1; flashes.push({ x: t.s.x + t.d.x * (t.L - 0.3), z: t.s.z + t.d.z * (t.L - 0.3), r: 3 + 2.5 * t.big, int: 1.1 * t.big, col: [1, 0.66, 0.32], t: 0.2, max: 0.2 }); lmT = 0; }
+      if (t.lit >= 0 && t.big > 0.3) { t.lit = -1; flashes.push({ x: t.s.x + t.d.x * (t.L - 0.3), z: t.s.z + t.d.z * (t.L - 0.3), r: 3 + 2.5 * t.big, int: 1.1 * t.big, col: [1, 0.66, 0.32], t: 0.2, max: 0.2 }); setLmT(0); }
       const k = after / t.pop;
       t.head.position.copy(t.s).addScaledVector(t.d, Math.max(0, t.L - 0.06)); t.head.scale.setScalar(t.popS * (0.6 + 0.8 * Math.sqrt(k))); t.head.material.opacity = (1 - k) * (1 - k) * (t.supp ? 0.3 : 1);
       if (t.big > 0.3) { t.star.visible = true; t.star.position.copy(t.head.position); t.star.scale.setScalar(t.popS * (1.2 + 1.4 * k) * t.big); t.star.material.opacity = (1 - k) * (1 - k) * (1 - k); }
@@ -117,13 +125,13 @@ const TRAIL_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0,
 const trails = [];
 for (let k = 0; k < 40; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0 }); }
 // strength 0..1: how thick and how long it hangs (a hunting rifle 1, a revolver a bit less, rifle-calibre automatics about half)
-function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
+export function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
   const L = Math.hypot(x1 - x0, z1 - z0); if (L < 0.6 || !strength) return;
   const t = trails.reduce((a, b) => b.life < a.life ? b : a);
   t.m.position.set(x0, (y0 + y1) / 2, z0); t.m.rotation.set(0, Math.atan2(x1 - x0, z1 - z0), 0); t.m.scale.set(0.05, 1, L); t.m.visible = true;
   t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.05 + 0.33 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2;
 }
-function stepTrails(dt) {
+export function stepTrails(dt) {
   for (const t of trails) {
     if (t.life <= 0) continue; t.life -= dt; if (t.life <= 0) { t.m.visible = false; continue; }
     const k = 1 - t.life / t.max;

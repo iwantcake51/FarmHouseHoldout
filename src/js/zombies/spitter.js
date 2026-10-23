@@ -16,7 +16,35 @@
 // In co-op the host's spitters decide when to spit (zombies/ai.js) and every game flies the same glob and makes the same
 // splat ('spw' as it rears back, 'spt' as it lets go: net/sync.js), each burning only its own survivor.
 
-const SPIT = {
+import { scene, V3 } from '../core/renderer.js';
+import { angDiff, clamp, mix, pick, rand, rr, smooth } from '../core/math.js';
+import { netClient, netLink, netSend } from '../net/net.js';
+import { basic, lam } from '../core/shaders.js';
+import { cell, ci, idx, OPEN, openAt } from '../world/grid.js';
+import { THIN, thinHit } from '../world/thin-walls.js';
+import { surfaceY } from '../world/house.js';
+import { P } from '../player/player.js';
+import { run, S } from '../game/run-state.js';
+import { SMOKE_GAIN, TEX_SMOKES } from '../effects/textures.js';
+import { dropHits } from '../effects/particles.js';
+import { fx, FXK, TEX_DOT, TEX_GLOWS } from '../effects/puffs.js';
+import { zombies } from './zombie-types.js';
+import { zBoost, ZJ, zMix } from './zombie-anim.js';
+import { ZBONE, ZMEAT, ZTEETH } from './zombie-looks.js';
+import { nz, tn } from '../audio/audio.js';
+import { SFX } from '../audio/sfx.js';
+import { soundAt } from '../audio/spatial.js';
+import { setShake, shake, state } from '../game/state.js';
+import { interruptBandage } from '../player/bandages.js';
+import { addField, lightField, los } from '../lighting/lightmap.js';
+import { curDark } from '../lighting/day-night.js';
+import { visAt } from '../lighting/vision.js';
+import { playerChecks } from './ai.js';
+import { waveDmg } from './brute-dash.js';
+import { ANIM } from '../player/animation.js';
+import { hitFromAt } from '../ui/hud.js';
+
+export const SPIT = {
   from: 5, share: 0.05, sharePer: 0.006, shareMax: 0.12,   // first wave, share of the wave, how it grows (waves/waves.js)
   min: 3.5, max: 11, wind: 0.95, cd: [3.6, 5], first: [0.8, 2.2],   // range, the rear back (s), between spits (s), the first
   speed: 6.5, g: 7, arc: 0.45, arcPer: 0.09, through: 1.45,   // the glob's speed across the ground (m/s) at most, its fall, how high it's lobbed over the line to where it lands (arc, and arcPer more each metre), the height it takes through a window
@@ -86,7 +114,7 @@ const POOL_BLOOM = { a: 0.5, r: 1.9 };
 // ---- its look ----
 // the skin (and what's on it) tinted toward a sick yellow-green, by part: most at the face and hands
 const SPIT_TINT = [0.62, 0.7, 0.36], SPIT_TINT_K = { head: 0.38, armL: 0.2, armR: 0.2, foreL: 0.3, foreR: 0.3, torso: 0.16 };
-function spitterLook(m) {
+export function spitterLook(m) {
   for (const p in SPIT_TINT_K) {
     const c = m[p] && m[p].geometry.attributes.color; if (!c) continue; const k = SPIT_TINT_K[p];
     for (let i = 0; i < c.count; i++) { const r = c.getX(i), g = c.getY(i), b = c.getZ(i); c.setXYZ(i, r + (SPIT_TINT[0] * (0.6 + r) - r) * k, g + (SPIT_TINT[1] * (0.6 + g) - g) * k, b + (SPIT_TINT[2] * (0.6 + b) - b) * k); }
@@ -157,10 +185,10 @@ function jawStep(z, J, dt, thr) {
   J.g.quaternion.setFromRotationMatrix(_jm.makeBasis(_jx, _jy, J.dir));
 }
 // how it carries itself: bent low over its belly, arms hanging; and it's kept track of for its drool and glow
-function spitterGait(z) { const g = z.an && z.an.g; if (g) { g.hunch = rr(0.28, 0.38); g.lean = rr(0.12, 0.2); g.arms = 2; g.limp = 0; } spitters.add(z); }
+export function spitterGait(z) { const g = z.an && z.an.g; if (g) { g.hunch = rr(0.28, 0.38); g.lean = rr(0.12, 0.2); g.arms = 2; g.limp = 0; } spitters.add(z); }
 
 // ---- the AI (the host's, or alone): true while it's standing off to spit, so nothing else moves it this frame ----
-function spitStep(z, dt, t, dp) {
+export function spitStep(z, dt, t, dp) {
   const s = z.sp || (z.sp = { cd: rr(...SPIT.first), w: 0, thr: 0 });
   s.cd -= dt; s.thr = Math.max(0, s.thr - dt * 2.2);
   if (s.w > 0) {
@@ -177,7 +205,7 @@ function spitStep(z, dt, t, dp) {
   return true;
 }
 // rearing back: a wet gurgle building in its throat, rising as the sac fills
-function spitWindFx(z) { soundAt(z.x, z.z, () => { nz(0.9, 'bandpass', 220, 640, 0.2, 4); nz(0.7, 'bandpass', 380, 900, 0.08, 6); tn(0.85, 'sawtooth', 60, 130, 0.035); }); }
+export function spitWindFx(z) { soundAt(z.x, z.z, () => { nz(0.9, 'bandpass', 220, 640, 0.2, 4); nz(0.7, 'bandpass', 380, 900, 0.08, 6); tn(0.85, 'sawtooth', 60, 130, 0.035); }); }
 // it lets go: the glob from its mouth to where they stand
 function spitAt(z, tx, tz) {
   const h = z.m.head.getWorldPosition(new V3()), sf = Math.sin(z.face), cf = Math.cos(z.face);
@@ -232,7 +260,7 @@ function spitTrailShape(geo, hist, t) {
   pos.needsUpdate = true;
 }
 // a glob's light, and a fresh splat's, into the light map with the lamps (called from lighting/lightmap.js)
-function spitLights(dark) {
+export function spitLights(dark) {
   for (const g of globs) { const p = g.m.position; addField(lightField(p.x, p.z, SPIT_LAMP.glob[0]), SPIT_LAMP.glob[1] * (0.2 + dark), SPIT_LIGHT); }
   for (const q of acidPools) { if (q.tiny || !(q.glow > 0.02)) continue; addField(lightField(q.x, q.z, SPIT_LAMP.pool[0] * (0.6 + q.r * 0.5)), SPIT_LAMP.pool[1] * q.glow * (0.15 + dark), SPIT_LIGHT); }
 }
@@ -260,7 +288,7 @@ function stepCrowns(dt) {
   }
 }
 // the glob: a wobbling, stretched gob of acid glowing green, drawing a strand of itself out behind it
-function launchGlob(z, x0, y0, z0, tx, tz, T, vy, gr = SPIT.g) {
+export function launchGlob(z, x0, y0, z0, tx, tz, T, vy, gr = SPIT.g) {
   const ty = surfaceY(tx, tz) + 0.05, m = new THREE.Mesh(GLOB_G, GLOB_M);
   m.position.set(x0, y0, z0); m.scale.setScalar(0.075); scene.add(m);
   const halo = new THREE.Sprite(HALO_M); halo.scale.setScalar(0.62); halo.position.set(x0, y0, z0); halo.renderOrder = 3; scene.add(halo);
@@ -274,7 +302,7 @@ function launchGlob(z, x0, y0, z0, tx, tz, T, vy, gr = SPIT.g) {
 // ---- every frame: the spitters' drool and glow, the globs in the air, the splats on the ground, and (on a co-op
 // joiner's screen) a puppet spitter's rearing back ----
 const _sv = new V3(), _gq = new V3();
-function updateSpit(dt) {
+export function updateSpit(dt) {
   if (!(dt > 0)) return;
   const pup = netClient();
   spitters.forEach(z => {
@@ -384,7 +412,7 @@ function acidSplash(x, y, z, dx, dz, direct, wall) {
   if (P.dead || P.vault || state !== 'play' || (!direct && d > SPIT.splash)) return;
   const k = direct ? 1 : 1 - 0.5 * d / SPIT.splash;
   P.hp -= SPIT.dmg * k * S.dmgTaken * waveDmg(); P.hitFrom = Math.atan2(-dx, -dz); hitFromAt(x - dx, z - dz, SPIT.dmg * k / 25);
-  interruptBandage(); SFX.hurt(); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; shake = Math.max(shake, 0.18);
+  interruptBandage(); SFX.hurt(); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; setShake(Math.max(shake, 0.18));
   P.slow = Math.min(1, (P.slow || 0) + 0.25 * (1 - S.slowRes));
   playerChecks();
 }
@@ -400,14 +428,14 @@ function acidPool(x, z, r, life, ang, tiny) {
 }
 function dropPool(q) { scene.remove(q.m); q.m.material.dispose(); if (q.bloom) { scene.remove(q.bloom); q.bloom.material.dispose(); } }
 // a spitter going down: its sac bursts
-function spitterDies(z) {
+export function spitterDies(z) {
   if (z.type !== 'spitter') return;
   spitters.delete(z);
   const sp = z.m.spit, at = sp ? sp.sac.getWorldPosition(new V3()) : new V3(z.x, 1.2, z.z); if (sp) sp.sac.visible = false;
   acidSplash(at.x, at.y, at.z, Math.sin(z.face), Math.cos(z.face), false, false);
   acidPool(z.x + Math.sin(z.face) * 0.3, z.z + Math.cos(z.face) * 0.3, SPIT.burst.r, SPIT.burst.t, rand() * 6.283);
 }
-function clearSpit() {
+export function clearSpit() {
   globs.forEach(g => { scene.remove(g.m); g.tail.forEach(q => scene.remove(q)); g.trail.geometry.dispose(); }); globs.length = 0;
   crowns.forEach(c => { scene.remove(c.m); c.m.material.dispose(); }); crowns.length = 0;
   acidPools.forEach(dropPool); acidPools.length = 0; spitters.clear(); P.acidT = 0;
@@ -415,7 +443,7 @@ function clearSpit() {
 
 // ---- its pose: rearing back with its head thrown up and shaking as the sac swells (w), then retching forward, head
 // and chest snapping down and out, as it spits (thr) ----
-function zSpitPose(z, a, T, K) {
+export function zSpitPose(z, a, T, K) {
   const s = z.sp; if (!s) return;
   const w = smooth(clamp(s.w, 0, 1)), th = Math.sin(Math.min(1, s.thr) * Math.PI * 0.5);
   if (w > 0.001) { zMix(T, { ux: -0.4, hx: -0.8, rx: -0.06, alx: -0.25, arx: -0.25, aly: -0.45, ary: 0.45, elL: -0.9, elR: -0.9, fw: -0.06, klx: 0.15, krx: 0.15 }, w); T[ZJ.hz] += 0.06 * Math.sin(a.t * 19) * w; }

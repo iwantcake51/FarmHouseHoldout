@@ -7,8 +7,19 @@
 // (player/stow.js) are placed, and moves the weapons and arms on from there; weapon frames are worked in the
 // character's own frame so they travel with you as you move and turn.
 
+import { V3 } from '../core/renderer.js';
+import { clamp, smooth } from '../core/math.js';
+import { P, PM } from './player.js';
+import { SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { S, W8 } from '../game/run-state.js';
+import { gunMeshes, HOLDS } from '../weapons/gun-materials.js';
+import { ANIM } from './animation.js';
+import { FIST, HOLD, HOLD_DEF, holdOf, reach } from './hold.js';
+import { showStowed, STOW } from './stow.js';
+
 const isMelee = s => { const id = W8.slot[s]; return !!(id && WEAP[id] && WEAP[id].melee); };
-const SWAP_T = { put: 0.3, cross: 0.4, end: 0.65 };   // the old weapon is away, the hand is at the new one, it's up (a melee weapon)
+export const SWAP_T = { put: 0.3, cross: 0.4, end: 0.65 };   // the old weapon is away, the hand is at the new one, it's up (a melee weapon)
 const SWAP_FIRE = 0.34;                                 // how soon you can use a melee weapon you're drawing
 // a gun's draw takes longer, how long by where it rides (DRAW_T: from the hand closing on it to the hold), and it can
 // fire DRAW_FIRE before it's all the way up
@@ -16,20 +27,20 @@ const SWAP_FIRE = 0.34;                                 // how soon you can use 
 // it can fire a little further from the end: about when the gun's up)
 const DRAW_T = { side: 0.5, long: 0.6, auto: 0.55 }, DRAW_FIRE = 0.08, DRAW_FIRE_AT = { side: 0.18 };
 const swapEnd = s => isMelee(s) || !DRAW_T[s] ? SWAP_T.end : SWAP_T.cross + DRAW_T[s];
-const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) - (DRAW_FIRE_AT[s] || DRAW_FIRE);
+export const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) - (DRAW_FIRE_AT[s] || DRAW_FIRE);
 // a one-handed gun (a sidearm) is in the hold by DRAW_SET of its draw; the rest is the settle: the left hand, which
 // came up to the gun where it was and rode on it (DRAW_LH: when it leaves its rest and when it has the gun), and both
 // arms easing into the hold's own pose instead of jumping to it
 const DRAW_SET = 0.82, DRAW_LH = [0.4, 0.8];
 // a heavy gun (the auto shotgun, the LMG: D.heavy, weapons/gun-stats.js) takes this much longer to swap to and to fire
-const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
-const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
-let swapSt = null;
+export const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
+export const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
+export let swapSt = null;
 const _sw = { m: new THREE.Matrix4(), toUp: new THREE.Matrix4(), a: new THREE.Matrix4(), b: new THREE.Matrix4(), c: new THREE.Matrix4(),
   p0: new V3(), p1: new V3(), q0: new THREE.Quaternion(), q1: new THREE.Quaternion(), s0: new V3(), s1: new V3(), h: new V3(), t: new V3(), t2: new V3(),
   liveL: new V3(), armQ: new THREE.Quaternion(), armP: new V3(), armS: new V3(), qa: new THREE.Quaternion(), qb: new THREE.Quaternion() };
 // where an arm's fist is, in upper-body space (the arm is a straight block from the shoulder)
-const fistOf = (arm, out) => out.set(0, 0, FIST * arm.scale.z).applyQuaternion(arm.quaternion).add(arm.position);
+export const fistOf = (arm, out) => out.set(0, 0, FIST * arm.scale.z).applyQuaternion(arm.quaternion).add(arm.position);
 // a world matrix in the character's own frame
 const toBody = (mw, out) => out.copy(PM.g.matrixWorld).invert().multiply(mw);
 
@@ -37,7 +48,7 @@ const toBody = (mw, out) => out.copy(PM.g.matrixWorld).invert().multiply(mw);
 // (a cross draw), and puts it back there the same way. rigFrame is where that hand's gun rides (its copy's frame, in
 // the character's frame), gunGrip the hand's place on a gun at frame f (upper-body space), placeHold puts one gun of
 // the pair at a character-frame matrix
-const rigPair = s => s === 'side' && !!STOW.side && !!STOW.side.userData.rig && !!(HOLDS.side && HOLDS.side.L);
+export const rigPair = s => s === 'side' && !!STOW.side && !!STOW.side.userData.rig && !!(HOLDS.side && HOLDS.side.L);
 const rigFrame = (side, out) => { const o = STOW.side; return toBody((side === 'R' ? o.userData.gun : o.userData.gun2).matrixWorld, out); };
 function gunGrip(out, slot, f) { const gp = (HOLD[W8.slot[slot]] || HOLD_DEF).grip; return out.set(gp[0], gp[1], gp[2]).applyMatrix4(f).applyMatrix4(_sw.toUp); }
 const _rg = new THREE.Matrix4(), _rf = new THREE.Matrix4();
@@ -58,7 +69,7 @@ function rigCarry(slot, a, b, k) {
   }
 }
 // from is null when there's nothing to put away (the weapon in your hands was just replaced): it's only drawn
-function startSwap(from, to) {
+export function startSwap(from, to) {
   if (!gunMeshes[to]) return;
   if (!gunMeshes[from] || from === to) from = null;
   PM.g.updateMatrixWorld(true);
@@ -202,7 +213,7 @@ function armTo(arm, side, t, melee) { reach(arm, side, t, 0, melee); arm.updateM
 // ease an arm from where it is toward a saved pose by w
 function armToward(arm, q, p, s, w) { arm.quaternion.slerp(q, w); arm.position.lerp(p, w); arm.scale.lerp(s, w); arm.updateMatrix(); }
 
-function updateSwap(dt, rdt) {
+export function updateSwap(dt, rdt) {
   const st = swapSt; if (!st) return;
   if (P.dead || P.vault || P.shove || P.bandT > 0 || W8.cur !== st.to) { endSwap(); return; }
   st.t += dt > 0 ? rdt * S.swapMul / drawMul(W8.slot[st.to]) : 0;   // it holds still while the game is paused (Quick draw speeds it up, a heavy gun slows it)
@@ -296,7 +307,7 @@ function updateSwap(dt, rdt) {
 // rides, the same way a swap puts one away, and afterwards draws it again from there; bandP is how far it's gone (at 1
 // it's away, and the copy on your body shows instead)
 const _bs = new THREE.Matrix4();
-function updateBandStow() {
+export function updateBandStow() {
   const k = ANIM.bandP || 0, s = W8.cur, g = gunMeshes[s];
   // the melee pose only turns the weapon in the fist (player/hold.js), so whatever this moved last frame goes back to
   // the fist first: the held frame it's carried from is then the real one, and it's back in the hand once it's drawn

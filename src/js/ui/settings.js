@@ -5,6 +5,13 @@
 // counter in the corner. Its Controls tab puts the keys where you want them (input/keybinds.js), and the HUD can be
 // pared back to its essentials (hudStyle: styles/hud-minimal.css).
 
+import { $ } from '../core/dom.js';
+import { keyIcon } from './input-icons.js';
+import { BIND_LOCK, KB, keyLabel, keyOf, keyOn, resetBinds, saveBinds, setBind } from '../input/keybinds.js';
+import { DPR, R, renderScale, resize, setRenderScale, SHADOW_SOFT, sun, SUN_R } from '../core/renderer.js';
+import { clamp } from '../core/math.js';
+import { controlsHtml, kbRefresh } from './keyboard-map.js';
+
 // the theme colours (the highlight everywhere: --acc in styles/base.css), each [r, g, b]
 const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: 'Crimson', rgb: '204,64,58' }, amber: { name: 'Amber', rgb: '222,166,48' }, moss: { name: 'Moss', rgb: '126,170,72' },
   teal: { name: 'Teal', rgb: '58,166,156' }, steel: { name: 'Steel blue', rgb: '86,140,206' }, violet: { name: 'Violet', rgb: '150,112,214' }, bone: { name: 'Bone', rgb: '206,196,170' } };
@@ -12,12 +19,12 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
 const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75 };
-const SET = Object.assign({}, SET_DEF);
+export const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
 const saveSettings = () => { try { localStorage.setItem('kessler-settings', JSON.stringify(SET)); } catch (e) {} };
 // the glow's strength by its setting, the shadow map's size, and the resolution as a share of the screen's own
-const BLOOM_K = { off: 0, soft: 0.55, normal: 1, strong: 1.5 };
+export const BLOOM_K = { off: 0, soft: 0.55, normal: 1, strong: 1.5 };
 const SHADOW_SZ = { high: R.capabilities.maxTextureSize >= 8192 ? 4096 : 2048, medium: 2048, low: 1024 };
 const RES_K = { auto: 1, full: 1, r75: 0.75, r50: 0.5 };
 // what's on the panel: a heading, then its rows, each a dropdown (opts), a switch (bool) or a slider (min, max, unit)
@@ -60,7 +67,7 @@ function applySettings() {
   if (sz !== shadowSz) { shadowSz = sz; sun.shadow.mapSize.setScalar(sz); sun.shadow.radius = SHADOW_SOFT.r * sz / (2 * SUN_R); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   // a fixed resolution's set here, and left alone by the frame-rate watch; Auto starts at the screen's own
   const rk = RES_K[SET.res] || 1, want = SET.res === 'auto' ? DPR : Math.max(0.35, DPR * rk);
-  if (SET.res !== 'auto' || renderScale > DPR) { renderScale = want; R.setPixelRatio(renderScale); resize(); }
+  if (SET.res !== 'auto' || renderScale > DPR) { setRenderScale(want); R.setPixelRatio(renderScale); resize(); }
   $('fps').hidden = !SET.fps;
   document.body.classList.toggle('hudMin', SET.hud === 'minimal');
   document.documentElement.style.setProperty('--acc', (THEMES[SET.theme] || THEMES.ember).rgb);   // (the theme colour)
@@ -68,7 +75,7 @@ function applySettings() {
 }
 // the frame-rate counter: frames counted over half a second
 const FPS = { n: 0, t: 0 };
-function tickFps(rdt) { if (!SET.fps) return; FPS.n++; FPS.t += rdt; if (FPS.t >= 0.5) { $('fps').textContent = Math.round(FPS.n / FPS.t) + ' fps'; FPS.n = 0; FPS.t = 0; } }
+export function tickFps(rdt) { if (!SET.fps) return; FPS.n++; FPS.t += rdt; if (FPS.t >= 0.5) { $('fps').textContent = Math.round(FPS.n / FPS.t) + ' fps'; FPS.n = 0; FPS.t = 0; } }
 
 // ---- the panel
 const CHEV = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>';
@@ -84,7 +91,7 @@ function setRowHtml(r) {
   return `<div class="setRow">${lab}<div class="sRangeW"><input type="range" class="sRange" data-k="${r.k}" min="${r.min}" max="${r.max}" value="${SET[r.k]}" aria-label="${r.name}" style="--p:${(SET[r.k] - r.min) / (r.max - r.min) * 100}%"><output>${SET[r.k]}${r.unit}</output></div></div>`;
 }
 // the Controls tab: each group's keys, the ones that can't move shown locked among them
-const LOCK_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5"/></svg>';
+export const LOCK_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="5.5" width="7" height="5" rx="1"/><path d="M4 5.5V4a2 2 0 0 1 4 0v1.5"/></svg>';
 // (the tab itself, its keyboard and its search: ui/keyboard-map.js)
 let setTab = 'general';
 function buildSettings() {
@@ -99,10 +106,10 @@ function showTab(t) {
 }
 $('setTabs').addEventListener('click', e => { const b = e.target.closest('[role=tab]'); if (b) showTab(b.dataset.tab); });
 // putting a key on something: its button listens for the next key or mouse button (taken before the game sees it)
-let binding = null;
+export let binding = null;
 function stopBinding() { if (!binding) return; const el = binding.el; binding = null; $('setBody').classList.remove('kPick'); el.classList.remove('listen', 'nope'); el.innerHTML = keyIcon(KB[el.dataset.act]); }
 function startBinding(el) { stopBinding(); binding = { el }; $('setBody').classList.add('kPick'); el.classList.add('listen'); el.textContent = 'Press a key'; }
-function finishBinding(k) {
+export function finishBinding(k) {
   const el = binding.el, a = el.dataset.act;
   if (BIND_LOCK.has(k)) { el.classList.remove('nope'); void el.offsetWidth; el.classList.add('nope'); el.textContent = keyLabel(k) + ' is taken'; setTimeout(() => { if (binding && binding.el === el) el.textContent = 'Press a key'; }, 900); return; }
   const other = setBind(a, k); stopBinding();
@@ -121,14 +128,14 @@ addEventListener('mousedown', e => {
   if (mk) { e.preventDefault(); e.stopImmediatePropagation(); finishBinding(mk); }
   else if (!e.target.closest('.kBind.listen, .kk')) stopBinding();   // (a key clicked on the drawing is taken as pressed: ui/keyboard-map.js)
 }, true);
-const setOpen = () => !$('settings').hidden && $('settings').classList.contains('on');
+export const setOpen = () => !$('settings').hidden && $('settings').classList.contains('on');
 let setCloseT = 0;
 function openSettings() {
   clearTimeout(setCloseT); stopBinding(); buildSettings();
   const el = $('settings'); el.hidden = false; void el.offsetWidth; el.classList.add('on');
   setTimeout(() => { const f = el.querySelector('.sDropBtn'); if (f) f.focus({ preventScroll: true }); }, 60);
 }
-function closeSettings() {
+export function closeSettings() {
   const el = $('settings'); if (el.hidden) return;
   stopBinding(); closeDrops(); el.classList.remove('on'); saveSettings();
   setCloseT = setTimeout(() => { el.hidden = true; }, 340);   // (once it's popped back down: styles/settings.css)

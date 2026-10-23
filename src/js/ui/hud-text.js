@@ -1,7 +1,17 @@
 // HUD text helpers, toasts, announcements, slots, the pickup feed and floating labels.
 
-const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
-const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
+import { $ } from '../core/dom.js';
+import { GI, GI_VB } from './game-icons.js';
+import { cam } from '../core/renderer.js';
+import { cache, clamp, rand, rr, smooth } from '../core/math.js';
+import { P } from '../player/player.js';
+import { SLOTS } from '../weapons/slots.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { W8 } from '../game/run-state.js';
+import { projV } from './crosshair.js';
+
+export const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
+export const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
 // counters that roll like the drums of a slot machine: every digit is a drum (a strip of 0-9) that spins to its new
 // value, up when the number goes up and down when it goes down. A big jump (a reload, an ammo box) spins each drum a
 // whole extra turn and they stop one after another, left to right. setRoll stands in for setT on a counter; digits in
@@ -32,7 +42,7 @@ function rollNum(sp, v, prev, now, str, spin) {
   for (let k = 0; k < s.length; k++) drumTo(cols[k], +s[k], dir, big && dir ? 1 : 0, prev === v ? 0 : big ? 0.42 + 0.12 * k : 0.18, now);
 }
 // spin: every change spins its drums a whole extra turn (the wave number), not just a big jump
-function rollText(el, text, spin) {
+export function rollText(el, text, spin) {
   if (el._rt === text) return;
   el._rt = text;
   const now = performance.now(), parts = String(text).split(/(\d+)/), shape = parts.map((p, i) => i % 2 ? '#' : p).join('');
@@ -45,32 +55,32 @@ function rollText(el, text, spin) {
   });
   el._roll = { shape, nums };
 }
-const setRoll = (id, v, spin) => rollText($(id), v, spin);
-const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
-let toastT = 0, annT = 0;
+export const setRoll = (id, v, spin) => rollText($(id), v, spin);
+export const popEl = id => { const el = $(id); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); };
+export let toastT = 0, annT = 0;
 // a notification card: an icon tile, a short title and an optional hint line, coloured by kind (bad, warn, info, good)
-function toast(t, opt) {
+export function toast(t, opt) {
   const o = opt || {}, el = $('toast');
   $('toastT').textContent = t; $('toastS').textContent = o.sub || ''; $('toastIc').innerHTML = FEED_ICON[o.icon] || FEED_ICON.gear;
   el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
 }
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
 // kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
-function announce(a, b, opt) {
+export function announce(a, b, opt) {
   const o = opt || {}, el = $('announce');
   $('annEye').textContent = o.eye || ''; $('annBig').textContent = a; $('annSmall').textContent = b;
   el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
   el.style.opacity = 1; annT = 2.8;
 }
-function renderSlots() {
+export function renderSlots() {
   const k = SLOTS.map(s => (W8.slot[s] || '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
   $('slots').innerHTML = SLOTS.map((s, i) => `<span class="${W8.cur === s ? 'on' : ''} ${W8.slot[s] ? '' : 'lock'}"><em>${i + 1}</em>${W8.slot[s] ? WEAP[W8.slot[s]].short : '—'}</span>`).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts
-const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, metal: GI.metal, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
-const feedItems = [];
-function feed(kind, amount, label) {
+export const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, metal: GI.metal, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)
+export const feedItems = [];
+export function feed(kind, amount, label) {
   const now = performance.now();
   const ex = feedItems.find(f => f.kind === kind && f.label === label && now - f.t < 2600 && amount);
   if (ex) { ex.amount += amount; ex.t = now; ex.el.querySelector('b').textContent = '+' + ex.amount; ex.el.classList.remove('bump'); void ex.el.offsetWidth; ex.el.classList.add('bump'); ex.el.classList.toggle('alt'); return; }   // (alt: its timer runs from full again)
@@ -85,11 +95,11 @@ function tickFeed() {
   const now = performance.now();
   for (let k = feedItems.length - 1; k >= 0; k--) { const f = feedItems[k]; if (now - f.t > 3000 && !f.out) { f.out = true; f.el.classList.add('out'); } if (now - f.t > 3500) { f.el.remove(); feedItems.splice(k, 1); } }
 }
-const floats = [];
+export const floats = [];
 // what you picked up, popping up off where it lay and easing up (FLOAT_UP): its kind's icon spinning in, glowing in the
 // drop's colour, then how many in that colour and what, in small capitals underneath with a slash of colour under it
 // (a weapon off the ground: just its name). kind is the feed's (FEED_ICON)
-function floatText(x, z, text, color, kind) {
+export function floatText(x, z, text, color, kind) {
   const el = document.createElement('div'), m = /^\+(\d+)\s*(.*)$/.exec(text || '');
   el.className = 'float pick' + (m ? '' : ' named'); if (color) el.style.setProperty('--fc', color);
   el.innerHTML = `<i class="pkI"><svg viewBox="${GI_VB}">${FEED_ICON[kind] || FEED_ICON.gear}</svg></i><span class="pkT">${m ? '<b></b>' : ''}<em></em></span>`;
@@ -105,7 +115,7 @@ const FLOAT_DMG = { life: 0.95, up: [230, 300], side: [35, 95], grav: 720, tilt:
 const FLOAT_UP = { life: 1.15, rise: 1.1, pop: 0.22, fade: 0.32 };
 const floatBack = t => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };   // (overshoots, then settles)
 // the little labels that float up when you grab a drop, the damage numbers, and the pickup feed
-function stepFloats(rdt) {
+export function stepFloats(rdt) {
   const px = innerHeight / 1080;
   for (let k = floats.length - 1; k >= 0; k--) {
     const f = floats[k]; f.t += rdt;
@@ -132,7 +142,10 @@ function stepFloats(rdt) {
   tickFeed();
 }
 // toast and wave announcement timers
-function tickMessages(rdt) {
+export function tickMessages(rdt) {
   if (toastT > 0) { toastT -= rdt; if (toastT <= 0) $('toast').classList.remove('show'); }
   if (annT > 0) { annT -= rdt; if (annT <= 0) { $('announce').style.opacity = 0; $('announce').classList.remove('show'); } }
 }
+
+// setters for the variables above that other files change (an imported variable can only be read)
+export function setAnnT(v) { return (annT = v); }

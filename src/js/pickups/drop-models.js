@@ -2,6 +2,12 @@
 // outline and x-ray rim, with the small detail on them (labels, rounds, rivets, seams, stencils) gathered up and
 // merged into one mesh at the end (userData.fine: outlines skip it).
 
+import { lam } from '../core/shaders.js';
+import { box, mergeInto } from '../core/geometry.js';
+import { M } from '../world/materials.js';
+import { WEAP } from '../weapons/gun-stats.js';
+import { crateModel } from '../stations/supply-drop.js';
+
 const DM = {
   white: lam(0xe9e4d6), red: lam(0xb3261c), grey: lam(0x8c9197), steel: lam(0xa7adb3), dark: lam(0x2d2f32), black: lam(0x18191b),
   rust: lam(0x8b4f2e), rust2: lam(0x6b3a22), brass: lam(0xc9a043), copper: lam(0xb0663a), lead: lam(0x8d8f93),
@@ -127,7 +133,7 @@ function dmAmmoRifle(g) {
 // ---- the supply crate off the radio: ammo for everything, so it stands apart from a weapon's case: an open wooden
 // crate painted teal, its slats and steel corners, rope handles at the ends, the lid knocked off and leaning on it,
 // and a box of every kind of round sat in it poking out over the top
-function dmSupply(g) {
+export function dmSupply(g) {
   const keep = new Set(), W = 0.78, H = 0.42, D = 0.56, y = 0.25, top = y + H / 2;
   keep.add(dmBox(g, W, H, D, DM.teal, 0, y, 0));
   for (let k = 1; k < 3; k++) { const yy = y - H / 2 + k * H / 3; dmBox(g, W + 0.004, 0.012, D + 0.004, DM.tealD, 0, yy, 0); }   // the slats' seams
@@ -145,7 +151,7 @@ function dmSupply(g) {
 }
 // ---- a weapon's case off the radio: an olive hard case, ribbed lid, the seam round its middle, three latches, the
 // handle and its stencilled panel, corner guards (rimmed in the field in the weapon's rarity colour, like a gun)
-function dmCase(g, cargo) {
+export function dmCase(g, cargo) {
   const keep = new Set(), L = WEAP[cargo.id] && WEAP[cargo.id].melee ? 0.9 : 1.1, H = 0.22, D = 0.42, y = 0.15, top = y + H / 2;
   keep.add(dmBox(g, L, H, D, DM.olive, 0, y, 0));
   dmBox(g, L + 0.008, 0.02, D + 0.008, DM.oliveD, 0, y + 0.02, 0);                                    // the seam
@@ -157,7 +163,7 @@ function dmCase(g, cargo) {
   dmFinish(g, keep);
 }
 // a drop's model by its kind (the gun you put down brings its own)
-function dropModel(g, kind, ammoType, cargo) {
+export function dropModel(g, kind, ammoType, cargo) {
   if (kind === 'planks') (cargo && cargo.metal ? dmMetal : dmPlanks)(g);
   else if (kind === 'med') dmMed(g);
   else if (kind === 'supply') crateModel(g, cargo);

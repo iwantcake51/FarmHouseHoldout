@@ -4,7 +4,7 @@
 // a swing lands on up to `cleave` zombies in its arc, nearest first. The one-handers have no cleave and hit only the
 // nearest zombie in reach, so they hit a little harder for it (and cost less stamina a swing, melee/melee.js). How many a
 // weapon hits is shown as a stat on its card (MULTI-HIT, upgrades/upgrade-info.js), never written into its description.
-const MELEE_WEAPONS = {
+export const MELEE_WEAPONS = {
   bat: { slot: 'melee', name: 'Ash bat', short: 'Bat', melee: true, blunt: true, two: true, style: 'swing', dmg: 48, rate: 0.48, range: 1.75, arc: 1.05, sever: 0.2, kb: 4.5, cleave: 3 },
   crowbar: { slot: 'melee', name: 'Crowbar', short: 'Crowbar', melee: true, blunt: true, style: 'swing', dmg: 62, rate: 0.46, range: 1.7, arc: 1.0, sever: 0, kb: 5, rar: 'u', desc: 'Heavy steel. Fast, blunt and reliable.' },
   wrench: { slot: 'melee', name: 'Pipe wrench', short: 'Wrench', melee: true, blunt: true, style: 'swing', dmg: 78, rate: 0.6, range: 1.7, arc: 1.05, sever: 0, kb: 7.5, rar: 'u', desc: 'Crushes skulls and knocks zombies flat on their backs.' },
@@ -16,7 +16,7 @@ const MELEE_WEAPONS = {
 // reach makes a one-hander sweep: made long enough (a long blade, folded steel, a tune-up) its swing carries on past the
 // nearest zombie, catching two from 2 m of reach and three from 2.4 m. Never fewer than the weapon already catches
 const REACH_CLEAVE = [[2.4, 3], [2.0, 2]];
-function reachCleave(D) {
+export function reachCleave(D) {
   if (!D.melee) return;
   const r = REACH_CLEAVE.find(([m]) => D.range >= m - 1e-6);
   if (r && (D.cleave || 1) < r[1]) D.cleave = r[1];

@@ -1,7 +1,14 @@
 // PZ-style status icons.
 
+import { $ } from '../core/dom.js';
+import { GI, GI_VB } from './game-icons.js';
+import { cache } from '../core/math.js';
+import { P } from '../player/player.js';
+import { curId, S, W } from '../game/run-state.js';
+import { curDark } from '../lighting/day-night.js';
+
 const MOOD_ICON = { wound: GI.wound, heal: GI.heal, lungs: GI.lungs, pinned: GI.pinned, adren: GI.adren, night: GI.night, heavy: GI.heavy, wind: GI.wind, fire: GI.fire };   // (ui/game-icons.js)
-function renderMoodles() {
+export function renderMoodles() {
   const list = [];
   const hp = P.hp / S.maxHp;
   if (hp < 0.35) list.push(['bad', 'wound', 'Badly hurt']); else if (hp < 0.7) list.push(['warn', 'wound', 'Hurt']);

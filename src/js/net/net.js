@@ -6,29 +6,38 @@
 // server only introduces the players to each other, the game itself runs player to player), or, with ?net=local in the
 // address, a BroadcastChannel between tabs of one browser, for trying it out on one machine.
 
-const NET_V = 1, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
-const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
+import { LOOK } from '../player/look.js';
+import { setFlowDirty } from '../barricades/planks.js';
+import { state } from '../game/state.js';
+import { enterRun, leaveToMenu } from '../ui/screens.js';
+import { announce, feed } from '../ui/hud-text.js';
+import { netDropAvatar } from './avatars.js';
+import { lobbyRender } from './lobby.js';
+import { PALS } from './friends.js';
+
+export const NET_V = 1, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
+export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
   peer: null, conns: new Map(), conn: null, bc: null, beatT: 0 };
-const NET_ON = {};   // what to do with each kind of message: NET_ON.hit = m => ...
+export const NET_ON = {};   // what to do with each kind of message: NET_ON.hit = m => ...
 // each player's colour, by their place in the game (the host first): their name, their marker and their nameplate
-const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0'];
-const netLink = () => NET.on && NET.inGame;            // in a co-op run
-const netClient = () => NET.on && NET.inGame && !NET.host;   // in one someone else hosts: their game runs the zombies
+export const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0'];
+export const netLink = () => NET.on && NET.inGame;            // in a co-op run
+export const netClient = () => NET.on && NET.inGame && !NET.host;   // in one someone else hosts: their game runs the zombies
 try { NET.name = (localStorage.getItem('fhh-name') || '').slice(0, 16); } catch (e) {}
 // PeerJS's own free server introduces the players by default; ?peer=host:port in the address uses another (one of
 // your own: npx peerjs --port 9000)
-const PEER_OPTS = (() => {
+export const PEER_OPTS = (() => {
   const m = /[?&]peer=([^&]+)/.exec(location.search); if (!m) return { debug: 1 };
   const [host, port] = decodeURIComponent(m[1]).split(':');
   return { debug: 1, host, port: +port || 443, secure: (+port || 443) === 443, path: '/' };
 })();
-const netCode = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let k = 0; k < 4; k++) s += A[(Math.random() * A.length) | 0]; return s; };
-const netName = () => NET.name || 'Survivor';
+export const netCode = () => { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; for (let k = 0; k < 4; k++) s += A[(Math.random() * A.length) | 0]; return s; };
+export const netName = () => NET.name || 'Survivor';
 
 // ---- sending: to everyone (a joiner's goes to the host, who hands it on), or to one player
-function netSend(t, d) { if (!NET.on) return; const m = Object.assign({ t, f: NET.id }, d); if (NET.host) netOut(m, null); else netRaw(NET.hostId, m); }
-function netTo(id, t, d) { if (!NET.on) return; const m = Object.assign({ t, f: NET.id, to: id }, d); netRaw(NET.host ? id : NET.hostId, m); }
+export function netSend(t, d) { if (!NET.on) return; const m = Object.assign({ t, f: NET.id }, d); if (NET.host) netOut(m, null); else netRaw(NET.hostId, m); }
+export function netTo(id, t, d) { if (!NET.on) return; const m = Object.assign({ t, f: NET.id, to: id }, d); netRaw(NET.host ? id : NET.hostId, m); }
 // the host's own: to every joiner but `skip`
 function netOut(m, skip) { for (const id of NET.peers.keys()) if (id !== skip) netRaw(id, m); }
 function netRaw(id, m) {
@@ -50,7 +59,7 @@ function netRecv(m) {
 }
 
 // ---- hosting and joining
-function netLib() {
+export function netLib() {
   if (window.Peer) return Promise.resolve();
   return new Promise((ok, no) => { const s = document.createElement('script'); s.src = window.PEERJS_SRC || './vendor/peerjs.min.js'; s.onload = ok; s.onerror = () => no(new Error('Could not load the connection library')); document.head.appendChild(s); });
 }
@@ -61,7 +70,7 @@ function netReset() {
   Object.assign(NET, { on: false, host: false, id: '', hostId: '', code: '', inGame: false, idx: 0, peer: null, conn: null, bc: null });
   NET.conns.clear(); NET.peers.clear();
 }
-async function netHost() {
+export async function netHost() {
   netReset(); NET.status = 'Opening a game…'; lobbyRender();
   const code = netCode();
   try {
@@ -84,7 +93,7 @@ async function netHost() {
     NET.idx = 0; NET.status = ''; lobbyRender();
   } catch (e) { netReset(); NET.status = 'Could not open a game: ' + (e.message || e.type || e); lobbyRender(); }
 }
-async function netJoin(code) {
+export async function netJoin(code) {
   code = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 4) { NET.status = 'The code is four letters and numbers'; lobbyRender(); return; }
   netReset(); NET.status = 'Joining ' + code + '…'; lobbyRender();
@@ -110,7 +119,7 @@ async function netJoin(code) {
     setTimeout(() => { if (NET.on && !NET.host && !NET.peers.has(NET.hostId) && NET.code === code) netLost('No game with that code'); }, 4000);
   } catch (e) { netReset(); NET.status = e.type === 'peer-unavailable' ? 'No game with that code' : 'Could not join: ' + (e.message || e.type || e); lobbyRender(); }
 }
-function netLeave() { if (NET.on) netSend('bye', {}); netReset(); NET.status = ''; lobbyRender(); }
+export function netLeave() { if (NET.on) netSend('bye', {}); netReset(); NET.status = ''; lobbyRender(); }
 function netProblem(e) { console.warn('net', e); if (e && e.type === 'peer-unavailable' && !NET.host) netLost('No game with that code'); }
 // the host gone: back to the title, the run with them
 function netLost(why) {
@@ -122,11 +131,11 @@ function netLost(why) {
 function netGone(id, why) {
   const p = NET.peers.get(id); if (!p) return;
   NET.peers.delete(id); NET.conns.delete(id); netDropAvatar(p);
-  if (NET.host) { netOut({ t: 'roster', f: NET.id, list: netRoster() }, null); flowDirty = true; }
+  if (NET.host) { netOut({ t: 'roster', f: NET.id, list: netRoster() }, null); setFlowDirty(true); }
   if (state !== 'title') feed('gear', 0, p.name + (why === 'left' ? ' left' : ' lost connection'));
   lobbyRender();
 }
-const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid })));
+export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid })));
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -157,7 +166,7 @@ NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host close
 NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = m.name; lobbyRender(); } };
 NET_ON.beat = () => {};
 // the host starts the run for everyone
-function netStart() {
+export function netStart() {
   if (!NET.host || NET.inGame) return;
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
   netSend('start', { roster: netRoster(), house: NET.houseSeed }); netBegin();
@@ -165,7 +174,7 @@ function netStart() {
 NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
 function netBegin() { NET.inGame = true; lobbyRender(); enterRun(); }
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
-function netBeat(rdt) {
+export function netBeat(rdt) {
   if (!NET.on) return;
   NET.beatT -= rdt; if (NET.beatT > 0) return; NET.beatT = 1;
   if (!NET.inGame) netSend('beat', {});
