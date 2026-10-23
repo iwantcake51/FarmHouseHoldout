@@ -8,7 +8,7 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
-import { cam, R, scene } from '../core/renderer.js';
+import { cam, hemi, R, scene, sun } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
@@ -27,12 +27,16 @@ const BLOOM = { th: [0.95, 0.87], knee: [0.07, 0.14], k: [0.1, 0.24], k2: [0.06,
 // their own, drawn alone into a small target and added into the glow in full, where nothing nearer hides them (the
 // scene's depth). GLOW.k: how strongly
 export const GLOW_LAYER = 3, GLOW = { k: 1.35 };
+// the sun and the sky's light are on the glow layer too: what glows is all unlit, so they change nothing there, but
+// three keys a shadow's shader to the lights of the last draw (the glow pass's, when there is one), and this way it's
+// the same every frame, so one built ahead (game/loop.js: warmShaders) is never built again mid-wave for want of them
+sun.layers.enable(GLOW_LAYER); hemi.layers.enable(GLOW_LAYER);
 const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // POST.q: the quality the frame's run at (2 full, 1 fewer occlusion samples, 0 no occlusion: game/loop.js steps it
 // down when the frame rate drops, before the resolution goes)
 // POST.aoK: how much of the occlusion's shown, eased in and out (AO.fade a second) as it's turned on and off, so a
 // quality change never pops it on or off the whole screen at once
-export const POST = { ok: R.capabilities.isWebGL2, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
+export const POST = { ok: true, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
 const PS_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 // linear depth from the depth buffer: an orthographic camera's is straight from near to far
 const PS_DEPTH = `
@@ -180,8 +184,8 @@ export function postTargets() {
   POST.w = W; POST.h = H;
   // (with a stencil: the see-through outlines mark each body's own pixels in it, so a rim never draws over the body it's
   // round, a gun held or slung against you included: effects/outlines.js)
-  const sc = new THREE.WebGLMultisampleRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true, stencilBuffer: true });
-  sc.samples = Math.min(4, R.capabilities.maxSamples || 4); sc.texture.generateMipmaps = false;
+  const sc = new THREE.WebGLRenderTarget(W, H, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true, stencilBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) });
+  sc.texture.generateMipmaps = false;
   sc.depthTexture = new THREE.DepthTexture(W, H, THREE.UnsignedInt248Type, undefined, undefined, undefined, undefined, undefined, undefined, THREE.DepthStencilFormat); sc.depthTexture.minFilter = sc.depthTexture.magFilter = THREE.NearestFilter;
   PS_RT.sc = sc;
   const h2 = [Math.ceil(W / 2), Math.ceil(H / 2)], h4 = [Math.ceil(W / 4), Math.ceil(H / 4)], h8 = [Math.ceil(W / 8), Math.ceil(H / 8)];

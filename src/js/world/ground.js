@@ -51,11 +51,7 @@ for (const k of [...Object.keys(GROUND_TILE), 'rock', 'rock2']) {
 // darker one wins first, so the seams follow its shapes), drawn with the gradients the plain tiling would have, turned
 // with it, so its mip level never jumps
 const GROUND_NOISE = `
-#if defined(texture2DGradEXT) || defined(GL_EXT_shader_texture_lod)
-#define G_TEX(s, x, dx, dy) texture2DGradEXT(s, x, dx, dy)
-#else
-#define G_TEX(s, x, dx, dy) texture2D(s, x)
-#endif
+#define G_TEX(s, x, dx, dy) textureGrad(s, x, dx, dy)
 vec2 gHash(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453) * 2.0 - 1.0; }
 float gNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
@@ -111,7 +107,6 @@ const GROUND_FS = `
 // a lit material drawing that ground (one program shared by the farm's ground and the ground out past it)
 function groundMat() {
   const m = lam(0xffffff), base = m.onBeforeCompile, mask = groundMask();
-  m.extensions = { derivatives: true, shaderTextureLOD: true };
   m.onBeforeCompile = function (sh, r) {
     base.call(this || m, sh, r);
     Object.assign(sh.uniforms, { uGMask: { value: mask }, uGT: { value: ['grass', 'patchy', 'thin', 'dry', 'earth', 'drive'].map(k => GROUND_TEX[k]) }, uGSpan: { value: GROUND_SPAN }, uGHalf: { value: HALF } });
@@ -139,7 +134,6 @@ const ROCK_FS = `
   }`;
 function rockMat(m) {
   const base = m.onBeforeCompile, baseKey = m.customProgramCacheKey;
-  m.extensions = { derivatives: true, shaderTextureLOD: true };
   m.onBeforeCompile = function (sh, r) {
     base.call(this || m, sh, r);
     sh.uniforms.uGR = { value: [GROUND_TEX.rock, GROUND_TEX.rock2] };

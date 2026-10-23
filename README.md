@@ -122,7 +122,8 @@ browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads
 
 ### How the code fits together
 
-The game is plain JavaScript and three.js (r128), with no framework. Each file in `src/js` is an ES module:
+The game is plain JavaScript and three.js (r186, WebGL2), with no framework. The build bundles just the parts of
+three.js the game uses into `vendor/three.min.js`. Each file in `src/js` is an ES module:
 
 - A file imports what it uses from the other files and exports what they use from it, so the top of a file lists
   everything it depends on, and an editor can jump to where anything is defined.
