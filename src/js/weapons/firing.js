@@ -71,9 +71,10 @@ export const HANDGUN = { spray: 1.6, kick: 0.9 };
 export const unshouldered = (D, id) => D.slot === 'side' && !stocked(id);
 // how a gun settles once you stop firing (weapons/combat-update.js, player/shaky-hands.js): after a beat (hold, s) it
 // eases in (over ramp) and dies smoothly away (rate), never at a steady pace; a heavier round takes longer to settle
-// (cal: the battle rifle's and the LMG's rifle rounds the longest)
+// (cal: the battle rifle's and the LMG's rifle rounds the longest), and a laser makes it quicker (D.settle: LASER_SETTLE,
+// game/run-state.js)
 export const SETTLE = { hold: 0.1, ramp: 0.3, rate: 4.5, cal: { p9: 1, p10: 0.85, magnum: 0.75, shells: 0.8, rifle: 0.55 } };
-export const settleK = D => (D && SETTLE.cal[D.ammo]) ?? 1;
+export const settleK = D => ((D && SETTLE.cal[D.ammo]) ?? 1) * ((D && D.settle) || 1);
 // however loose everything makes it (a shotgun from the hip at a sprint, holding the trigger), a shot never strays more
 // than this either side of where it's aimed (about 40°): past a right angle it would go sideways or behind you, and the
 // crosshair (tan of it, ui/crosshair.js) would fold down to nothing
@@ -355,4 +356,5 @@ function luckyKeep(id, D) {
   if (D.akimbo) akMags(id)[W8.akSide < 0 ? 'L' : 'R']++;
   if (EJECT[id] === 'breach') { W8.spent[id] = Math.max(0, (W8.spent[id] || 0) - 1); W8.hudSpent[id] = Math.max(0, (W8.hudSpent[id] || 0) - 1); }
   feed('ammo', 1, 'saved by Lucky shot');
+  W8.luckyN = (W8.luckyN || 0) + 1; W8.luckyId = id;   // (the HUD throws the round out and brings it back: ui/rounds.js)
 }

@@ -7,7 +7,7 @@ import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
 import { faceMood, LOOK } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { curId, hpCap, W, W8 } from '../game/run-state.js';
 import { GLOW_SET, gunMeshes } from '../weapons/gun-materials.js';
 import {
   flash, flashCore, flashLen, flashLife, flashSize, flashStar, flashT, flashWide, setFlashT, tongueA, tongueB,
@@ -227,7 +227,7 @@ function animatePlayer(dt, rdt) {
   { const s = surfaceY(P.x, P.z), t = s > 0 ? s + SOLE_LIFT : 0; ANIM.standY += (t - ANIM.standY) * Math.min(1, rdt * 16); }
   pm.g.position.set(P.x, ANIM.standY, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, ANIM.standY + 0.02, P.z); pBlob.scale.setScalar(1.15);
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / WALK_SPEED, 0, 1.3), sk = smooth(clamp(ANIM.sprintK || 0, 0, 1)), skid = smooth(clamp(ANIM.skidK || 0, 0, 1));
-  const hpF = P.hp / S.maxHp;
+  const hpF = P.hp / hpCap();
   ANIM.limpK = (ANIM.limpK || 0) + ((P.dead ? 0 : smooth(clamp((LIMP.from - hpF) / (LIMP.from - LIMP.to), 0, 1))) - (ANIM.limpK || 0)) * Math.min(1, rdt * 1.5);
   const limp = ANIM.limpK;
   // a wince now and then while you're badly hurt (LIMP.wince), quicker the worse it is

@@ -30,6 +30,8 @@ PICK = {
     'glow': ('m', 'shape_b.png', 128, 0), 'glowSoft': ('m', 'shape_a.png', 128, 0), 'glowNoise': ('m', 'shape_c.png', 128, 0),
     # a blast's shock ring along the ground
     'ring': ('m', 'ring_b_noise.png', 128, 0),
+    # a flashlight's beam where it falls: a hot spot in rings off the reflector, laid over the cone (core/shaders.js)
+    'flBeam': ('m', 'circle_rings_b.png', 128, 0),
 }
 
 

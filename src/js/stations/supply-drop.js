@@ -13,7 +13,7 @@ import { hardBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { AMMO_BATCH, AMMO_NAME } from '../weapons/ammo.js';
-import { run, S, W8 } from '../game/run-state.js';
+import { hpCap, run, S, W8 } from '../game/run-state.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { partTex } from '../effects/textures.js';
 import { smoke } from '../effects/smoke.js';
@@ -195,7 +195,7 @@ const supplyHp = () => { const f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.f
 // the crate opened (pickups/pickups.js): everything in it, each noted in the feed
 export function supplyOpen() {
   ammoTypes().forEach(a => { const n = supplyAmmo(a); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
-  if (P.hp < S.maxHp || P.bleed) { P.hp = Math.min(S.maxHp, P.hp + supplyHp()); P.bleed = 0; feed('med', 0, 'Patched up'); }
+  if (P.hp < hpCap() || P.bleed) { if (!S.noHeal) P.hp = Math.min(hpCap(), P.hp + supplyHp()); P.bleed = 0; feed('med', 0, 'Patched up'); }
   const nb = Math.min(Math.round(supplyAt('band')), Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); }
   const np = addPlanks(Math.round(supplyAt('planks'))); if (np) { feed(matKind(), np, matWord()); popEl('planks'); }
   feed('supply', 0, 'Supply crate opened');
@@ -205,7 +205,7 @@ export function supplyDesc() {
   if (supplyT > 0) return `Inbound: lands in the yard in <b>${Math.ceil(supplyT)}s</b>`;
   if (supplyFall) return 'Coming down now';
   const hp = supplyHp(), nb = Math.round(supplyAt('band')), ammo = ammoTypes().map(a => `+${supplyAmmo(a)} ${AMMO_NAME[a]}`);
-  const gets = [...(ammo.length ? ammo : ['Ammo for your guns']), hp >= S.maxHp ? 'Health to full' : `+${hp} health`, `+${nb} bandage${nb > 1 ? 's' : ''}`, `+${Math.round(supplyAt('planks'))} ${matWord()}`];
+  const gets = [...(ammo.length ? ammo : ['Ammo for your guns']), S.noHeal ? 'Bleeding stopped' : hp >= hpCap() ? 'Health to full' : `+${hp} health`, `+${nb} bandage${nb > 1 ? 's' : ''}`, `+${Math.round(supplyAt('planks'))} ${matWord()}`];
   const left = dropWait() ? run.dropAt + SUPPLY.every - run.wave : 0;
   const pips = Array.from({ length: SUPPLY.every }, (_, k) => `<i${k < SUPPLY.every - left ? ' class="on"' : ''}></i>`).join('');
   return `<span class="dropGets">${gets.map(g => `<i>${g}</i>`).join('')}</span><span class="dropPips${left ? '' : ' ready'}">${pips}<small>${left ? `Radio free again in ${left} wave${left > 1 ? 's' : ''}` : `One drop every ${SUPPLY.every} waves`}</small></span>`;

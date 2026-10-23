@@ -4,7 +4,7 @@ import { cam, FWD, GUN_Y, RIGHT, V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { moveCircle } from '../world/collision.js';
 import { P } from './player.js';
-import { carryMul, curId, S, W, W8 } from '../game/run-state.js';
+import { carryMul, curId, hpCap, S, W, W8 } from '../game/run-state.js';
 import { bloodyStep } from '../effects/blood-map.js';
 import { VAULT_COOL, vaultGun, vaultLand, vaultTakeoff } from './vaulting.js';
 import { vaultAt } from './vault-plan.js';
@@ -22,7 +22,7 @@ import {
   pivotSlow, RUN_RELOAD, runReloading, SPRINT, sprintCarve, sprintPace, sprintStart, sprintVault, updateSprint,
   WALK_SPEED
 } from './sprint.js';
-import { aimSX, aimSY, updateShaky } from './shaky-hands.js';
+import { aimSX, aimSY, updateShaky, xhStep } from './shaky-hands.js';
 import { ANIM } from './animation.js';
 import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
 
@@ -41,7 +41,7 @@ export function updatePlayer(dt) {
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down
   // Painkillers: only once you've gone REGEN_WAIT seconds without losing any health (a bleed's included)
   if (P.hp < (P.hpWas ?? P.hp) - 1e-4) P.calmT = REGEN_WAIT; P.calmT = Math.max(0, (P.calmT || 0) - dt);
-  if (S.regen && P.hp < S.maxHp && P.calmT <= 0) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
+  if (S.regen && !S.noHeal && P.hp < hpCap() && P.calmT <= 0) P.hp = Math.min(hpCap(), P.hp + S.regen * dt);
   P.hpWas = P.hp;
   let mx = 0, my = 0;
   if (keys.has('w') || keys.has('arrowup')) my -= 1;
@@ -79,7 +79,7 @@ export function updatePlayer(dt) {
     updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
-      const hpF = P.hp / S.maxHp, hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
+      const hpF = P.hp / hpCap(), hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
       const worn = Math.max(HURT_SLOW.floor, hurt * (P.spdF || 1));   // (and blown on top of it: never slower than the floor)
       const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * worn * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
@@ -102,7 +102,7 @@ export function updatePlayer(dt) {
     const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6 * (1 - 0.25 * (ANIM.sprintK || 0)));   // a sprint lengthens the stride more than it quickens it
     // a footstep each time a foot comes down (twice a stride), a run's when you're sprinting, harder the faster you go
     // (audio/footsteps.js picks the ground's own)
-    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25)); bloodyStep(); }   // and a bloody print if your boots are (effects/blood-map.js)
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25)); bloodyStep(); xhStep(clamp(spd / WALK_SPEED, 0.45, 1.3) * (P.sprint ? 1.4 : 1)); }   // and a bloody print if your boots are (effects/blood-map.js)
   }
   P.still = P.moving ? 0 : P.still + dt;
 

@@ -112,7 +112,7 @@
 <div class="hud" id="vitals" hidden>
   <div id="team" hidden aria-label="Your team"></div>
   <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
-  <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
+  <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s><u id="hpCut"></u></div>
   <div id="stamBar"><b id="stamRun"></b><i id="stamFill"></i></div>
   <div class="res">
     <span title="Planks"><svg data-gi="planks"></svg><b id="planks">6</b></span>
@@ -262,7 +262,7 @@
     <div class="kinds" id="upKinds">Skills · Perks · Aid</div>
     <div class="upClock" id="upClock" role="timer" aria-live="off"><span id="upClockT">20</span><i><b id="upClockBar"></b></i></div>
     <div id="cards"></div>
-    <button class="btn ghost" id="upSkip" type="button"></button>
+    <div class="upActs"><button class="btn ghost" id="upSkip" type="button"></button><button class="btn ghost" id="upSac" type="button" hidden></button></div>
     <div class="upWait" id="upWait" role="status"><b>Waiting for other players</b><span id="upWaitWho"></span></div>
     <div class="note" id="upNote">Click a card, or take the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>

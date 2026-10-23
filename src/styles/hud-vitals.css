@@ -36,6 +36,11 @@
    only the cut does, and --b is just where the base 100 ends on the bar) */
 #hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:inset 0 0 6px rgba(150,200,255,.55);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
 @keyframes healGlow{50%{background:rgba(120,180,255,.36)}}
+/* the health a Blood price took (upgrades/sacrifice.js), for good: the end of the bar in red with hazard stripes, its
+   width a share of your max health (--cut) */
+#hpCut{position:absolute;top:0;bottom:0;right:0;width:var(--cut,0%);text-decoration:none;display:none;
+  background:repeating-linear-gradient(-45deg,#b3241a 0 5px,#3a0c08 5px 10px);box-shadow:inset 0 0 0 1px rgba(255,90,70,.55),0 0 8px rgba(200,40,30,.45)}
+#hpCut.on{display:block}
 #healVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(60,130,230,.32) 100%)}
 .bar b{position:absolute;inset:0 auto 0 0;width:100%;background:rgba(224,64,44,.55);transition:width .6s ease .25s}
 .bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(5% - 1px),rgba(8,8,8,.9) calc(5% - 1px) 5%)}

@@ -18,7 +18,7 @@ import {
 } from '../weapons/mod-levels.js';
 import { tierName, TIERS } from '../upgrades/tier-table.js';
 import {
-  curId, fitTier, freshStats, hasMod, magChange, magSize, ownTier, recomputeEff, run, S, setS, W, W8
+  curId, fitTier, freshStats, hasMod, hpCap, magChange, magSize, ownTier, recomputeEff, run, S, setS, W, W8
 } from '../game/run-state.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { burst } from '../effects/particles.js';
@@ -62,12 +62,12 @@ export const cheatIs = k => !!CHEAT[k] && !cheatsOff();
 export function cheatTick() {
   if (cheatsOff()) { if (cheatOn) toggleCheats(false); const t = $('cheatTag'); if (!t.hidden) t.hidden = true; return; }
   CHEAT_HELD.forEach(k => CHEAT_FX[k].hold && CHEAT_FX[k].hold());
-  if (CHEAT.god) P.hp = S.maxHp;
+  if (CHEAT.god) P.hp = hpCap();
   if (CHEAT.scrap && S.scrap < 999) S.scrap = 999;
   if (CHEAT.ammo) for (const a in W8.reserve) if (W8.reserve[a] < 999) W8.reserve[a] = 999;
 }
 // god mode: a hit that would have killed you leaves you standing (ui/screens.js: startDeath)
-export const cheatSaves = () => { if (!cheatIs('god')) return false; P.hp = S.maxHp; return true; };
+export const cheatSaves = () => { if (!cheatIs('god')) return false; P.hp = hpCap(); return true; };
 
 // ---- status effects: each one the status icons top right can show (ui/moodles.js), what turns it on, what keeps it on
 // while it's held (every frame, ui/cheats.js: cheatTick) and what clears it. on: whether its icon is showing
@@ -81,9 +81,9 @@ const CHEAT_FX = {
   winded: { name: 'Winded', text: 'Out of stamina: no sprinting until it\'s back to half.', on: () => !!(P.exh || P.sprintLock), ap: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, hold: () => { P.stam = 0; P.exh = P.sprintLock = true; P.sprint = false; }, off: () => { P.stam = 1; P.runDebt = 0; P.exh = P.sprintLock = P.fatigued = false; } },
   healing: { name: 'Healing', text: 'Health coming back over time, as after a bandage.', on: () => P.bandT <= 0 && P.heal > 0, ap: () => { if (P.hp >= S.maxHp) fxHp(0.5); P.heal = (P.heal || 0) + 50; }, hold: () => { P.heal = Math.max(P.heal || 0, 5); }, off: () => { P.heal = 0; } },
   bandaging: { name: 'Bandaging', text: 'A bandage going on (one is added to your bag if you have none).', on: () => P.bandT > 0, ap: () => { P.band = Math.max(P.band || 0, 1); if (P.hp >= S.maxHp && !(P.bleed > 0)) fxHp(0.9); startBandage(); popEl('bands'); }, off: () => { if (P.bandT > 0) { P.bandT = 0; ANIM.healCut = true; } } },
-  hurt: { name: 'Hurt', text: 'Down to 60% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.7 && P.hp / S.maxHp >= 0.35, ap: () => fxHp(0.6), off: () => { P.hp = S.maxHp; } },
-  badly: { name: 'Badly hurt', text: 'Down to 20% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.35, ap: () => fxHp(0.2), off: () => { P.hp = S.maxHp; } },
-  last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = S.maxHp; } },
+  hurt: { name: 'Hurt', text: 'Down to 60% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.7 && P.hp / S.maxHp >= 0.35, ap: () => fxHp(0.6), off: () => { P.hp = hpCap(); } },
+  badly: { name: 'Badly hurt', text: 'Down to 20% health. Off while god mode is on.', on: () => P.hp / S.maxHp < 0.35, ap: () => fxHp(0.2), off: () => { P.hp = hpCap(); } },
+  last: { name: 'Last stand', text: 'Gives you the Last stand perk if you haven\'t got it, and drops you to 25% health.', on: () => S.lastStand && P.hp / S.maxHp < 0.3, ap: () => { if (!S.lastStand) chSkill('p:Last stand', 1); fxHp(0.25); }, off: () => { P.hp = hpCap(); } },
   wind: { name: 'Second wind ready', text: 'Gives you the Second wind perk if you haven\'t got it, ready to go again.', on: () => S.secondWind && !S.windUsed, ap: () => { if (!S.secondWind) chSkill('p:Second wind', 1); S.windUsed = false; }, off: () => { S.windUsed = true; } },
   heavy: { name: 'Heavy load', text: 'Puts the light machine gun in your hands.', on: () => !!(W(curId()) || {}).slow, ap: () => { exitScope(); if (W8.slot.auto === 'lmg') equip('auto'); else chGive('lmg'); }, off: () => { if ((W(curId()) || {}).slow) equip('side'); } },
   dark: { name: 'Dark', text: 'Sets the clock to midnight.', on: () => curDark > 0.6, ap: () => { setTod(0); }, off: () => { setTod(12); } }
@@ -279,7 +279,7 @@ function setSkills(plain, tiers) {
   const next = replaySkills(plain, tiers);
   for (const k in base) if (typeof base[k] !== 'object' && (now[k] !== base[k] || next[k] !== base[k])) S[k] = next[k];
   for (const k of chTiers()) S.tier[k] = next.tier[k];
-  P.hp = Math.min(P.hp, S.maxHp);
+  P.hp = Math.min(P.hp, hpCap());
 }
 function chSkill(key, d) {
   const [t, nm] = [key.slice(0, 1), key.slice(2)];
@@ -305,8 +305,8 @@ function chNoSkills() {
 // ---- what the buttons do ----------------------------------------------------------------------------------------------
 const CHEAT_ACTS = {
   tg: d => { CHEAT[d.k] = !CHEAT[d.k]; saveCheats(); if (CHEAT[d.k]) cheatTick(); },
-  heal: () => { P.hp = S.maxHp; P.bleed = 0; P.slow = 0; },
-  healn: d => { P.hp = Math.min(S.maxHp, P.hp + +d.n); },
+  heal: () => { P.hp = hpCap(); P.bleed = 0; P.slow = 0; },
+  healn: d => { P.hp = Math.min(hpCap(), P.hp + +d.n); },
   // a hit like a zombie's (zombies/ai.js), from a random side: no armour, no dodging it
   hurt: d => { if (P.dead) return; const a = rand() * Math.PI * 2; P.hp -= +d.n; P.hitFrom = a; hitFromAt(P.x + Math.sin(a) * 2, P.z + Math.cos(a) * 2); interruptBandage();
     addBlood(0.05); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt(); setShake(Math.max(shake, 0.22)); burst(P.x, 1, P.z, 6, 'blood');

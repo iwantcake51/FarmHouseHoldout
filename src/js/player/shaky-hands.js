@@ -12,7 +12,8 @@ import { cam, GUN_Y, V3 } from '../core/renderer.js';
 import { clamp, mix, rand, rr, smooth } from '../core/math.js';
 import { P } from './player.js';
 import { WEAP } from '../weapons/gun-stats.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { modLv, modsOff } from '../weapons/mod-levels.js';
+import { curId, gunTier, hpCap, S, W, W8 } from '../game/run-state.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from '../game/state.js';
 import { hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
@@ -57,15 +58,28 @@ const XREC = { px: 20, side: 0.45, autoSide: 0.6, adsSemi: 0.5, adsAuto: 0.18, k
 // eased to (ease), so it glides rather than stepping with each round
 const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 4.5, cal: { p9: 0.55, p10: 0.75, magnum: 0.8, rifle: 1, shells: 1.1 } };
 const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
-const XSWAY = { px: 2.6, move: 2.2, ads: 0.35 };
+const XSWAY = { px: 2.6, move: 1.3, ads: 0.35 };
 // how unsteady a gun is in the hands, times the sway: a sidearm with nothing to brace it on the most (a magnum more
 // again), a pair of them, a heavy gun; one with a shoulder stock, or a long gun, the least (XSTEADY)
 const XSTEADY = { side: 2.1, magnum: 1.2, stock: 0.95, pair: 2.3, heavy: 2, auto: 1.1, long: 1 };
 export function gunUnsteady(D, id) {
   if (D.akimbo) return XSTEADY.pair;
-  if (D.heavy) return XSTEADY.heavy;
-  if (D.slot === 'side') return stocked(id) ? XSTEADY.stock : XSTEADY.side * (D.ammo === 'magnum' ? XSTEADY.magnum : 1);
-  return D.slot === 'auto' ? XSTEADY.auto : XSTEADY.long;
+  if (D.heavy) return XSTEADY.heavy * frontHeavy(id);
+  if (D.slot === 'side') return (stocked(id) ? XSTEADY.stock : XSTEADY.side * (D.ammo === 'magnum' ? XSTEADY.magnum : 1)) * frontHeavy(id);
+  return (D.slot === 'auto' ? XSTEADY.auto : XSTEADY.long) * frontHeavy(id);
+}
+// weight out toward the muzzle makes a gun harder to hold still: each thing hung on the front adds its share to the sway
+// (FRONT: by attachment tier, the AR's bigger mags too; FRONT_MOD: a gun's own mods, a longer barrel by its level)
+export const FRONT = { laser: [0, 0.05, 0.07], light: [0, 0.05, 0.07], supp: [0, 0.07, 0.09, 0.11], choke: [0, 0.03, 0.05], arMag: [0, 0.04, 0.07, 0.1] };
+export const FRONT_MOD = { match: 0.05, longbarrel: 0.05, comp: 0.04, ported: 0.03, heavy: 0.08, gl: 0.1, bipod: 0.06 };
+function frontHeavy(id) {
+  if (!id) return 1;
+  let k = 1;
+  for (const a of ['laser', 'light', 'supp', 'choke']) k += FRONT[a][gunTier(id, a)] || 0;
+  if (id === 'ar') k += FRONT.arMag[gunTier(id, 'mag')] || 0;
+  const off = modsOff(id);
+  for (const m of W8.mods[id] || []) if (FRONT_MOD[m] && !off.includes(m)) k += FRONT_MOD[m] * (m === 'longbarrel' ? modLv(m) : 1);
+  return k;
 }
 // and how hard you're breathing: winded (as your stamina runs down), at a sprint and for a while after (fade, s), over
 // a vault and just after. Each adds that much again to the sway (times it), which also quickens and takes on the heave
@@ -78,7 +92,17 @@ const XWORK = { stam: 1.5, sprint: 2.2, run: 1.7, fade: 1.8, vault: 2.4, ease: 2
 // you're unsteady: the spread opens up (spread: how much wider at most) and the sway grows (sway: how much more), both
 // coming on over a moment and easing off again (rise, fall: how quick), never snapping
 export const XHIT = { px: 34, max: 2.2, side: 0.5, spread: 0.6, sway: 1.6, rise: 14, fall: 1.6 };
-export const XR = { x: 0, y: 0, vx: 0, vy: 0, vdx: 0, vdy: 0, c: 1, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
+// each footfall jolts the aim a little (xhStep, from player/movement.js): down and a touch aside, on a quick stiff
+// spring (STEP: its size in px at 1080 high, how much aside, its frequency and damping), and between footfalls the aim
+// swings with the stride (side: across with each step, bob: a dip as each foot lands), so moving looks like it's
+// carried by your steps rather than drifting on its own
+const STEP = { px: 3.4, side: 0.45, f: 5.5, z: 0.42, swing: 1.6, bob: 1.8 };
+export function xhStep(k) {
+  if (!(XR.sk > 0.01)) return;
+  const D = W(curId()), a = STEP.px * innerHeight / 1080 * k * XR.sk * (D && !D.melee ? 0.6 + 0.4 * gunUnsteady(D, curId()) : 1) * 60;
+  XR.vfy += a * rr(0.85, 1.1); XR.vfx += a * STEP.side * rr(-1, 1);
+}
+export const XR = { fx: 0, fy: 0, vfx: 0, vfy: 0, x: 0, y: 0, vx: 0, vy: 0, vdx: 0, vdy: 0, c: 1, hb: 0, hbT: 0, autoT: 0, n: 0, dir: 1, swp: 0, tx: 0, ty: 0, dx: 0, dy: 0, sx: 0, sy: 0, sk: 0, un: 0, post: 0, t: 0, bt: 0 }, _xv = new V3();
 export function xhKick(D, id, pw, auto) {
   if (!hasMouse || tStick.R) return;
   const sp = D.spread * S.spreadMul * (aiming ? (D.aimK || 1) : (D.hipK || 1)), sp0 = (WEAP[id] || D).spread || sp;
@@ -129,6 +153,7 @@ function updateXhRecoil(dt) {
   for (let n = Math.ceil(dt / (1 / 120)), h = dt / n, i = 0; i < n; i++) {
     springTo(XR, 'x', 'vx', 0, ks, ds, h); springTo(XR, 'y', 'vy', 0, ks, ds, h);
     if (!auto) { springTo(XR, 'dx', 'vdx', 0, wb * wb, 2 * wb, h); springTo(XR, 'dy', 'vdy', 0, wb * wb, 2 * wb, h); }
+    const sw = 6.2832 * STEP.f; springTo(XR, 'fx', 'vfx', 0, sw * sw, 2 * STEP.z * sw, h); springTo(XR, 'fy', 'vfy', 0, sw * sw, 2 * STEP.z * sw, h);
   }
   // the sway: eased on with a gun up, a little of it down the sights (XSWAY.ads), off with a melee weapon or at a station
   const D = W(curId()), want = state === 'play' && !P.dead && !openSt && D && !D.melee ? (aiming ? XSWAY.ads : 1) : 0;
@@ -146,12 +171,15 @@ function updateXhRecoil(dt) {
   XR.mv = (XR.mv || 0) + ((P.vault ? 1 : Math.min(1, Math.hypot(P.vx, P.vz) / 3)) - (XR.mv || 0)) * Math.min(1, dt * XWORK.mvEase);
   const t = XR.t, mv = XR.mv, amp = (XSWAY.px + XSWAY.move * mv) * innerHeight / 1080 * XR.sk * (D && !D.melee ? gunUnsteady(D, curId()) : 1) * (1 + XR.un) * (1 + XHIT.sway * XR.hb);
   const heave = Math.sin(XR.bt) * amp * XWORK.heave * Math.min(1, XR.un);   // (the chest rising and falling)
-  XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp; XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp + heave;
+  // (the stride's own swing: across with each step, a sharp dip each time a foot lands, STEP)
+  const ph = P.phase || 0, stride = mv * XR.sk * innerHeight / 1080 * (D && !D.melee ? 0.6 + 0.4 * gunUnsteady(D, curId()) : 1);
+  XR.sx = (Math.sin(t * 0.9 + 1.3) * 0.6 + Math.sin(t * 1.7 + 0.4) * 0.4) * amp + Math.sin(ph) * STEP.swing * stride;
+  XR.sy = (Math.sin(t * 0.7 + 2.1) * 0.6 + Math.sin(t * 1.3 + 3.7) * 0.4) * amp + heave + Math.pow(Math.abs(Math.cos(ph)), 4) * STEP.bob * stride;
 }
 // the aim on screen: where the cursor is, plus the wander, the sway and the kick
-export const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy, 0, innerHeight);
+export const aimSX = () => clamp(mouseX + SHAKY.x + XR.x + XR.sx + XR.dx + XR.fx, 0, innerWidth), aimSY = () => clamp(mouseY + SHAKY.y + XR.y + XR.sy + XR.dy + XR.fy, 0, innerHeight);
 export function updateShaky(dt) {
-  const sk = SHAKY, hpF = P.hp / S.maxHp;
+  const sk = SHAKY, hpF = P.hp / hpCap();
   const want = P.dead || state !== 'play' ? 0 : smooth(clamp((SHAKY_HP.from - hpF) / (SHAKY_HP.from - SHAKY_HP.to), 0, 1));
   sk.k += (want - sk.k) * Math.min(1, dt * 1.6);
   // how far down the sights you are, eased, so what's steadier there (the wander, the tremor, how far a spray can walk

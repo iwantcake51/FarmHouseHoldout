@@ -148,3 +148,72 @@
 @keyframes starSeep{from{transform:translate(12px,12.3px) rotate(0deg) scale(.56)}to{transform:translate(12px,12.3px) rotate(160deg) scale(0)}}
 @keyframes starWob{from{transform:scale(1.07,.93) rotate(-6deg)}to{transform:scale(.94,1.06) rotate(6deg)}}
 @media (prefers-reduced-motion:reduce){.stars svg.fill .hole,.stars svg.fill .wob{animation-duration:.01s;animation-delay:0s}}
+
+/* the scrap and the sacrifice side by side under the cards (upgrades/sacrifice.js) */
+.upActs{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center}
+#upSkip.gone,#upSac.gone{opacity:0!important;pointer-events:none!important;transition:opacity .3s ease!important}
+#upSac{font-size:16px;padding:6px 16px 5px;gap:8px;opacity:0;pointer-events:none;transition:opacity .4s ease .6s,transform .2s ease,box-shadow .2s ease;
+  outline-color:#7a2a1e;color:var(--ink)}
+#upSac .sk{font-family:var(--f-ui);font-weight:700;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#e8503a}
+#upSac b{color:#ff7a5a;font-weight:800}
+#upSac i{font-style:normal;color:var(--gold)}
+#upgrade.show #upSac{opacity:.9}
+#upgrade.armed #upSac{pointer-events:auto}
+#upgrade.armed #upSac:hover{opacity:1;outline-color:#e8503a;box-shadow:0 0 22px rgba(220,60,40,.35)}
+/* a curse: in hazard stripes, simmering */
+#upSac.curse{background:linear-gradient(rgba(14,8,7,.82),rgba(14,8,7,.82)),repeating-linear-gradient(-45deg,#8e1d14 0 7px,#1c0806 7px 14px);outline-color:#b3241a;animation:curseSimmer 2.2s ease-in-out infinite}
+@keyframes curseSimmer{50%{box-shadow:0 0 18px rgba(200,40,30,.45),inset 0 0 12px rgba(200,40,30,.25)}}
+/* armed: asks you to press again, shaking a little */
+#upSac.armed{outline-color:#ff5a3a!important;box-shadow:0 0 0 2px #ff5a3a,0 0 30px rgba(255,80,50,.55)!important;animation:sacSure .4s ease-in-out infinite}
+@keyframes sacSure{25%{transform:translateX(-2px) rotate(-.4deg)}75%{transform:translateX(2px) rotate(.4deg)}}
+#upSac.taken{opacity:1!important;transform:scale(1.1);box-shadow:0 0 0 2px #ff5a3a,0 0 46px rgba(255,70,40,.7);transition:transform .3s cubic-bezier(.2,1.6,.4,1),opacity .4s ease 1.2s!important}
+#upgrade.sacked #upSac.taken{opacity:0!important;pointer-events:none}
+/* the hand once it's six: two rows of three, a touch smaller so both rows fit */
+#cards.six{display:grid;grid-template-columns:repeat(3,auto);gap:16px 20px;justify-content:center}
+#cards.six .card{width:232px;min-height:170px;padding:10px 15px 40px}
+#cards.six .card .t{font-size:18px;margin:6px 0 4px}
+#cards.six .card .d{font-size:13px;line-height:20px}
+#cards.six .card .v,#cards.six .card .s{line-height:20px}
+#upgrade.sacked #upNote,#upgrade.sacked .histBox{display:none}
+#upgrade.sacked h3{color:#ff7a5a}
+/* a curse taken: the screen's light goes red */
+#upgrade.cursed{background:radial-gradient(ellipse at 50% 55%,rgba(110,20,14,.4),rgba(14,6,6,.7) 45%,rgba(6,4,4,.92))}
+.hrow.r-x{--rc:#c8301e;--rc2:#ff6a4a;background:linear-gradient(rgba(10,8,8,.82),rgba(10,8,8,.82)),repeating-linear-gradient(-45deg,#6e140e 0 6px,#1a0806 6px 12px)}
+
+/* the foil on the epic and legendary cards: a holographic sheen in shifting colours over the paper, sliding as the
+   card leans toward the cursor, faint on an epic and stronger on a legendary, which also has a slow-turning rim of
+   light and a few glints */
+.card .holo{position:absolute;inset:0;pointer-events:none;opacity:0;mix-blend-mode:color-dodge;
+  background:linear-gradient(115deg,rgba(255,80,160,.0) 10%,rgba(255,90,170,.55) 22%,rgba(255,220,90,.5) 34%,rgba(90,255,170,.5) 46%,rgba(80,170,255,.55) 58%,rgba(190,110,255,.5) 70%,rgba(255,80,160,.0) 84%);
+  background-size:260% 260%;background-position:calc(var(--gx,50%) * .8 + 10%) calc(var(--gy,50%) * .6 + 20%);transition:background-position .25s ease-out,opacity .3s;animation:holoDrift 6s ease-in-out infinite}
+.card.r-e .holo{opacity:.16}
+.card.r-l .holo{opacity:.26}
+#upgrade.armed .card.r-e:hover .holo{opacity:.3} #upgrade.armed .card.r-l:hover .holo{opacity:.45}
+@keyframes holoDrift{0%,100%{filter:hue-rotate(0deg)}50%{filter:hue-rotate(40deg)}}
+/* a fine diagonal grain over the foil, the way a real foil card catches the light in lines */
+.card.r-e .holo::after,.card.r-l .holo::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(55deg,rgba(255,255,255,.18) 0 1px,transparent 1px 4px);mix-blend-mode:overlay}
+.card.r-l::before{content:"";position:absolute;inset:-2px;pointer-events:none;z-index:1;padding:2px;border-radius:inherit;
+  background:conic-gradient(from var(--spin,0deg),transparent 0 70%,rgba(255,200,120,.9) 80%,rgba(255,255,255,.95) 84%,rgba(255,170,80,.9) 88%,transparent 96%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);animation:rimSpin 3.6s linear infinite}
+@property --spin{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes rimSpin{to{--spin:360deg}}
+/* a fully upgraded line (a curse's hand): its stamp says so, in gold */
+.card.maxed .stamp{background:rgba(181,84,26,.12)}
+.card.maxed .stamp::after{content:" · Maxed"}
+@media (prefers-reduced-motion:reduce){.card .holo,.card.r-l::before,#upSac.curse,#upSac.armed{animation:none}}
+/* (six to a hand: each card kept short, its text to three lines and its first two chips, so both rows fit on the
+   screen; the line under the heading goes) */
+#cards.six .card{min-height:0}
+#cards.six .card .d{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#cards.six .card .fx span:nth-child(n+3){display:none}
+#cards.six .card .fx{margin:6px 0 2px}
+#upgrade.sacked .kinds{display:none}
+#upgrade.sacked .wrap{gap:14px}
+/* the sacrifice's details, in a tip over its button while it's hovered or focused */
+#upSac{position:relative}
+#upSac::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 10px);width:max-content;max-width:300px;padding:8px 11px;
+  font-family:var(--f-ui);font-size:12.5px;line-height:1.4;letter-spacing:.02em;text-transform:none;color:var(--ink);text-align:center;white-space:normal;
+  background:rgba(14,10,9,.96);border:1px solid #7a2a1e;box-shadow:0 8px 24px rgba(0,0,0,.6);opacity:0;pointer-events:none;
+  transform:translate(-50%,6px) scale(.97);transition:opacity .18s ease,transform .22s cubic-bezier(.2,.9,.3,1.2)}
+#upgrade.armed #upSac:hover::after,#upgrade.armed #upSac:focus-visible::after{opacity:1;transform:translate(-50%,0) scale(1)}
+#upSac.taken::after{display:none}

@@ -10,7 +10,7 @@ import { P } from '../player/player.js';
 import { addBlood, bloodZombie, stainMat } from '../effects/body-blood.js';
 import { roundOn } from '../weapons/rounds.js';
 import { FEED } from '../upgrades/tier-table.js';
-import { EFF, hasMod, run, S, W, waveScrap } from '../game/run-state.js';
+import { EFF, hasMod, hpCap, run, S, W, waveScrap } from '../game/run-state.js';
 import { splatLater, spray } from '../effects/blood-map.js';
 import { bloodSpurt, burst, gibs } from '../effects/particles.js';
 import { fx, hitMist } from '../effects/puffs.js';
@@ -46,10 +46,11 @@ function canSever(wId) {
 }
 export const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 // a brute's arms are thick with muscle: one takes BRUTE_ARM of its health to come off (an ordinary zombie's 0.3), so a
-// shotgun blast or a heavy round no longer takes one off in a shot (zombies/spawn.js). And it soaks up any one hit: no
-// shot or blow (a blast or fire aside) takes more than BRUTE_HIT of its full health off, so even the hardest-hitting
-// gun needs three to put one down
-export const BRUTE_ARM = 0.8, BRUTE_HIT = 0.34;
+// shotgun blast or a heavy round no longer takes one off in a shot (zombies/spawn.js). And its bulk soaks up BRUTE_HIDE
+// of every hit, whatever it's from, shown in steel with a shield like armour (dmgNumber): a hard enough hit (a bolt
+// gun's round to the head) can still drop one in a shot
+export const BRUTE_ARM = 0.8;
+const BRUTE_HIDE = 0.4;
 // armour, on the zombies that turned wearing it (their outfits: zombies/zombie-looks.js, from wave ARMOR_FROM): the share
 // of a hit it soaks up where it's worn. A soldier's helmet and vest; a SWAT officer's helmet, plate carrier and the pads
 // and holster on the legs; a riot officer's the same with the face shield down, so a headshot does far less. Heavier
@@ -303,7 +304,7 @@ let critNext = false, headNext = 1;   // the next hit's crit, and how much of it
 export const BURN_TICK = 0.5, BURN_DMG = 7;
 export function burnHurt(z) {
   if (z.dead) return true;
-  const dmg = BURN_DMG * (S.lastStand && P.hp < S.maxHp * 0.3 ? 1.6 : 1);
+  const dmg = BURN_DMG * (S.lastStand && P.hp < hpCap() * 0.3 ? 1.6 : 1);
   z.hp -= dmg; z.flash = Math.max(z.flash, 0.05);
   dmgNumber(z, dmg, false, 1.2 * z.T.scale * (z.crawl ? 0.4 : 1), false, 'burn');
   if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); return true; }
@@ -327,7 +328,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
-  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
+  if (S.lastStand && P.hp < hpCap() * 0.3) dmg *= 1.6;
   if (S.momentum && run.time - S.momT < MOM_T) dmg *= 1 + 0.05 * S.momK;   // Momentum: +5% for each quick kill, up to 5
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   if (z.type === 'brute' && D.bruteX) dmg *= D.bruteX;   // the SCAR's heavy rounds (weapons/gun-stats.js)
@@ -335,10 +336,10 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   let dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   const arm = armorOf(z, part, D, wId); dealt *= 1 - arm;   // (what it was wearing there: ARMOR)
-  if (z.type === 'brute' && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed') dealt = Math.min(dealt, z.maxHp * BRUTE_HIT);
+  if (z.type === 'brute') dealt *= 1 - BRUTE_HIDE;   // (its bulk: BRUTE_HIDE)
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
-  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 ? 'armor' : '');
+  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 || z.type === 'brute' ? 'armor' : '');
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
@@ -415,7 +416,7 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   run.kills++; popEl('kills'); runKill(z, wId, part);
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
-  if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
+  if (S.healOnKill && !S.noHeal) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < hpCap()) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), hpCap() - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
   if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
   // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds;
@@ -470,6 +471,7 @@ export function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmm
 // and rolled into the counter
 function killScrap(z, n, hoard) {
   n = waveScrap(n);   // (more each wave: game/run-state.js)
+  if (S.scrapCut) n = Math.max(1, Math.round(n * (1 - S.scrapCut)));   // (Empty pockets: upgrades/sacrifice.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
   floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
 }

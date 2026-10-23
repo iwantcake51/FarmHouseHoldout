@@ -96,6 +96,13 @@ export function updateCutaway(rdt) {
 // fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see. Under
 // it means behind the house as the camera sees it too, where the eaves and the roof's slope stand in front of you
 // outside the walls, so the outline eases out with the roof rather than vanishing the moment it stops writing depth
+// how much of a roof is drawn over (x, z) right now: the house's or the porch's while it's showing, nothing out in the
+// open (an eye's glow blooms through anything over it otherwise: effects/eye-glow.js)
+export function roofCover(x, z) {
+  if (inHouseRect(x, z, 0.4)) return roof.op;
+  if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
+  return 0;
+}
 export function roofOver(x, z) {
   if (inHouseRect(x, z, 0.4) || (roof.op < 1 && behindHouse({ x, z }))) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;

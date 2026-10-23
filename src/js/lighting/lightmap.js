@@ -10,7 +10,8 @@ import { THIN, thinHit, wxSee, wzSee } from '../world/thin-walls.js';
 import { blockArr, bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { curId, T, W, W8 } from '../game/run-state.js';
-import { gunMeshes, MUZ, X } from '../weapons/gun-materials.js';
+import { gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
+import { partTex } from '../effects/textures.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { flashes } from '../weapons/explosives.js';
 import { lightsDirty, setLightsDirty, shutN } from '../barricades/planks.js';
@@ -133,14 +134,24 @@ function stepFlDir(rdt) {
   const go = gy !== null && los(P.x, P.z, _gb1.x, _gb1.z) && !bulletBlocked(_gb1.x, _gb1.z) ? k : 0;
   flOx = P.x + (_gb1.x - P.x) * go; flOz = P.z + (_gb1.z - P.z) * go;
 }
+// a beam comes out of the light's own lens on the gun (lightEm, weapons/attachments.js) at its height, when that's
+// clear of the walls, and points a little down from level, so it lands on the ground FL_TILT of its reach ahead
+const FL_TILT = 0.28, _fe = new V3();
+function lensAt(side) {
+  const h = HOLDS[W8.cur], em = h && h[side] && h[side].userData.lightEm;
+  if (!em || !em.isObject3D) return null;
+  for (let o = em; o; o = o.parent) if (!o.visible) return null;
+  em.getWorldPosition(_fe);
+  return los(P.x, P.z, _fe.x, _fe.z) && !bulletBlocked(_fe.x, _fe.z) ? _fe : null;
+}
 const FL_N = 6, teamFl = [];   // (teamFl: this frame's teammate lights, { x, z, dir, tier, on }: teamBeam)
 function flashUniforms(rdt) {
   const F = FLASH[T('light')], D = W(curId()), cones = [], dark = state !== 'title' && curDark > 0.05;
   flOn = gunOut() ? Math.min(1, flOn + (rdt || 0) * 14) : 0; stepFlDir(rdt);
   if (dark && F && D && !D.melee && flOn > 0) {
     const [lr, half, k] = F, li = k * curDark * flOn;
-    if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg); cones.push([mz.ox, mz.oz, mz.a, lr, half * 0.9, li * 0.62, T('light')]); });
-    else cones.push([flOx, flOz, flDir(), lr, half, li, T('light')]);
+    if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg), e = lensAt(sg < 0 ? 'L' : 'R'); cones.push([e ? e.x : mz.ox, e ? e.z : mz.oz, mz.a, lr, half * 0.9, li * 0.62, T('light'), e ? e.y : GUN_Y]); });
+    else { const e = lensAt('R'); cones.push([e ? e.x : flOx, e ? e.z : flOz, flDir(), lr, half, li, T('light'), e ? e.y : GUN_Y]); }
   }
   // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
   teamFl.length = 0;
@@ -151,10 +162,11 @@ function flashUniforms(rdt) {
     p.flA = p.flA === undefined ? p.fl[1] : p.flA + angDiff(p.fl[1], p.flA) * Math.min(1, (rdt || 0) * 14);
     const x = a.g.position.x, z = a.g.position.z;
     teamFl.push({ x, z, dir: p.flA, tier: t, on: p.flOn });
-    if (dark && cones.length < FL_N) cones.push([x, z, p.flA, Fp[0], Fp[1], Fp[2] * curDark * p.flOn, t]);
+    if (dark && cones.length < FL_N) cones.push([x, z, p.flA, Fp[0], Fp[1], Fp[2] * curDark * p.flOn, t, GUN_Y]);
   }
   LMU.uFlK.value.w = cones.length;
-  cones.forEach((c, i) => { LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
+  if (!LMU.uFlCookie.value) LMU.uFlCookie.value = partTex('flBeam');   // (the pattern a flashlight throws: core/shaders.js)
+  cones.forEach((c, i) => { const tilt = Math.atan2(c[7], c[3] * FL_TILT); LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); LMU.uFlH.value[i].set(c[7], Math.sin(tilt), Math.cos(tilt), 0); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
     flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
   if (cones.length) flShTex.needsUpdate = true;
 }

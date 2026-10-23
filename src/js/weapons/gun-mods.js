@@ -53,7 +53,7 @@ export const GUN_MODS = {
   sawn: { conv: true, w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', fm: 'Both barrels', name: 'Twin trigger', text: 'Fire both barrels at once, or one at a time: B switches.', vis: 'A brass twin trigger', stat: D => { D.both = true; } },
   // a single step, no levels (it has no MOD_UP: weapons/mod-levels.js)
-  bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'The bolt slicked with gun grease runs smoother: 20% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.8; } },
+  bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'The bolt slicked with gun grease runs smoother: 22% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.78; } },
   akimbo2: { conv: true, w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)

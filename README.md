@@ -15,7 +15,14 @@ three friends online.
    position. Press **T** when you're ready, or wait out the timer.
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
 3. **Cards.** When the last zombie falls, pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
-   wave brings a bonus hand.
+   wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. Whatever's still lying about glides
+   in to you once the cards are done.
+   - Now and then a hand comes with a **sacrifice**. Give up three quarters of your scrap and three more cards are
+     dealt (the rarer ones likelier), and you take two of the six.
+   - Rarer, a **curse**: never sprint again, nothing heals you, a quarter of your health gone for good (shown in
+     hazard stripes on your bar), slower reloads, hits that hurt more, or half the scrap from kills, for the rest of
+     the run. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
+     once), and you take two.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
 
 When the run ends, **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,

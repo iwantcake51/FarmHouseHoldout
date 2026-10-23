@@ -82,13 +82,13 @@ export function fitAttachments(g, D, front, y, info) {
   }
   else if (T('light') && !info.noLight) {
     const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can
-    if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
+    if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); lightEm(g, X + 0.06, y - 0.02, mz - 0.158); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
     else if (D.slot === 'auto' && (D.ammo === 'p9' || D.ammo === 'p10')) {   // a submachine gun's: a bigger flashlight, zip-tied on alongside
       const lx = X + 0.066, ly = y - 0.02, lz = mz - 0.27;
-      cyl(g, 0.025, 0.15, GM.metal2, lx, ly, lz); ring(g, 0.031, 0.032, GM.metal, lx, ly, lz + 0.086); cyl(g, 0.027, 0.004, GM.lens, lx, ly, lz + 0.103); ring(g, 0.019, 0.016, GM.rubber, lx, ly, lz - 0.083);   // body, head, lens, tail cap
+      cyl(g, 0.025, 0.15, GM.metal2, lx, ly, lz); ring(g, 0.031, 0.032, GM.metal, lx, ly, lz + 0.086); cyl(g, 0.027, 0.004, GM.lens, lx, ly, lz + 0.103); lightEm(g, lx, ly, lz + 0.108); ring(g, 0.019, 0.016, GM.rubber, lx, ly, lz - 0.083);   // body, head, lens, tail cap
       [-0.045, 0.035].forEach(o => zipTie(g, X, y, lz + o, br, lx, ly, 0.025));
     }
-    else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
+    else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); lightEm(g, X + 0.072, y - 0.02, mz - 0.163); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
   }
   const sight = T('sight');
   if (sight && !info.noSight) {
@@ -277,6 +277,7 @@ function weaponLight(g, at, mz, laserT, tier, x, root) {
   xsec(g, rr(X0 - w / 2 - f, u - h - f, X0 + w / 2 + f, u - 0.002, W_.r + f), z1 - W_.head, z1 - 0.002, M, 0.0015);       // the head
   const ly = laserT ? u - h * 0.42 : u - h * 0.53;
   ring(g, W_.lens + 0.0025, 0.004, GM.metal2, X0, ly, z1 - 0.0005); cyl(g, W_.lens, 0.002, GM.lens, X0, ly, z1 + 0.0018, 24);   // the bezel and the lens, just proud of it
+  lightEm(g, X0, ly, z1 + 0.004, root);
   const [pw, ph, pd] = W_.paddle;
   [-1, 1].forEach(s => { box(g, pw, ph, pd, GM.rubber, X0 + s * (w / 2 + pw / 2), u - h * 0.55, z0 + 0.01).rotation.x = 0.25; });   // the switch paddles, on its sides at the back
   if (tier === 1) [-1, 1].forEach(s => [0.3, 0.62].forEach(t => box(g, 0.0015, 0.005, 0.005, GM.metal, X0 + s * (w / 2 + 0.0008), u - h * 0.45, z0 + L * t)));   // its screws
@@ -286,6 +287,9 @@ function weaponLight(g, at, mz, laserT, tier, x, root) {
   box(g, 0.012, 0.007, 0.003, laserT === 2 ? GM.laserG : GM.red, X0, ey, z1 + 0.0008); em.position.set(X0, ey, z1 + 0.003);
   em.userData.isLaser = true; g.add(em); (root || g).userData.laserEm = em;
 }
+// where a weapon light's beam comes out: a marker just off its lens, found on the gun in your hands (lightEm: its
+// beam's lit from there, lighting/lightmap.js)
+function lightEm(g, x, y, z, root) { const em = new THREE.Object3D(); em.position.set(x, y, z); em.userData.isLightEm = true; g.add(em); (root || g).userData.lightEm = em; }
 // a zip tie cinched round the barrel (x, y, its radius r) and a light lying alongside it (tx, ty, radius tr): a thin
 // black band round each, the strap running between them over the top and under the bottom, and the tie's square head
 function zipTie(g, x, y, z, r, tx, ty, tr) {

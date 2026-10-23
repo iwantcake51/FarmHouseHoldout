@@ -113,6 +113,7 @@
   "waves/waves.js",
   "upgrades/upgrades.js",
   "upgrades/upgrade-info.js",
+  "upgrades/sacrifice.js",
   "upgrades/upgrade-screen.js",
   "upgrades/card-burn.js",
   "ui/run-stats.js",

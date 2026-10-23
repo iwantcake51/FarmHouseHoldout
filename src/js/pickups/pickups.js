@@ -28,8 +28,16 @@ import { gunGone, gunTakeLo, shareFx, updateShareTags } from '../net/teamwork.js
 export const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
-// how close you have to come to a drop to pick it up (m), times S.pickMul (the Long reach line: upgrades/tier-table.js)
-const PICK_R = 0.9;
+// how close you have to come to a drop to pick it up (m). The Long reach line (upgrades/tier-table.js) reaches out
+// S.pickMul times as far: an ammo box, a plank or a bandage that close lifts and glides in to you (GLIDE: its top speed,
+// how fast it gets there, m/s, and how much further off than the reach it lets go if you move away), and is picked up
+// once it's reached you
+const PICK_R = 0.9, GLIDE = { from: 1.2, gain: 5, top: 7, slack: 1.5 };
+const glides = p => p.kind === 'planks' || p.kind === 'med' || p.kind === 'ammo';
+// once the cards after a wave are done with (upgrades/upgrade-screen.js), whatever's still lying about glides in to you
+// and is picked up: all of it at once, at up to SWEEP_TOP m/s (one you've no room for stays where it is)
+const SWEEP_TOP = 11;
+export function sweepDrops() { for (const p of pickups) if (glides(p) && !p.ghost) p.sweep = true; }
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 // (the supply crate off the radio, in teal so it stands apart). An ammo box holds one kind of round, the kind it shows. A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
@@ -128,11 +136,15 @@ export function updatePickups(dt) {
     // one you can't take yet (a full bag or stack) stops where it is and waits there, greyed out, never trailing after
     // you, and sets off again the moment you've room for it
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && !away) {   // (in co-op, every drop is only ever on its own player's farm)
+    // (in reach of the Long reach line, it's lured in: and it keeps coming unless you get well away from it)
+    const reach = PICK_R * (S.pickMul || 1);
+    p.lure = glides(p) && !p.ghost && (p.sweep || (reach > PICK_R && (d < reach || (p.lure && d < reach * GLIDE.slack))));
+    if (!p.homing && !p.lure) p.fly = 0;
+    if ((p.homing || p.lure) && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && !away) {   // (in co-op, every drop is only ever on its own player's farm)
       const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
       if (full) p.fly = 0;
       else {
-        p.fly = (p.fly || 0) + dt; const sp = Math.min(10, 2 + p.fly * 6);   // (from a standstill again after a wait)
+        p.fly = (p.fly || 0) + dt; const sp = p.homing ? Math.min(10, 2 + p.fly * 6) : Math.min(p.sweep ? SWEEP_TOP : GLIDE.top, GLIDE.from + p.fly * GLIDE.gain);   // (from a standstill again after a wait)
         if (d > 0) { const st = Math.min(d, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
         p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
       }
@@ -140,7 +152,7 @@ export function updatePickups(dt) {
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
-    if (d < PICK_R * (S.pickMul || 1) && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
+    if (d < (glides(p) ? PICK_R : reach) && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1), mw = p.cargo && p.cargo.metal ? 'metal' : 'planks'; feed(mw, n, mw); popEl('planks'); ft = '+' + n + (mw === 'metal' ? ' metal' : ''); SFX.pick(); }   // always the one plank (or bar of metal)
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }

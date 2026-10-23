@@ -56,7 +56,7 @@ function attachmentCards() {
   for (const k of ['supp', 'choke', 'sight', 'laser', 'light', 'loader']) {
     if (!tierFits(k, id) || (k === 'choke' && D.ammo !== 'shells')) continue;
     const L = TIERS[k], n = ownTier(id, k), st = L.t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(D, id) : st.text;
-    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id), tierRars(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'supp' && !D.quiet ? dmgCost(id, ATT_COST[k][n], n) : ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
+    out.push({ ic: 'att', group, tier: () => [n, tierMax(k, id), tierRars(k, id)], for: () => forYour(id), fx: () => tierFx(id, k), cost: k === 'supp' && !D.quiet ? Math.round(dmgCost(id, ATT_COST[k][n], n) * SUPP_PRICE) : ATT_COST[k][n], title: () => nm, desc: () => txt, why: () => '',
       make: () => { const fx0 = tierFx(id, k); fitTier(id, k, n + 1); recomputeEff(); buildGuns(id); glowGun(id); feed('gear', 0, nm); gotGear({ ic: 'gear', kind: k === 'loader' && D.ammo === 'shells' ? 'Skill' : 'Attachment', name: nm, gun: id, text: txt, fx: fx0 }); } });
   }
   // rounds for the gun in your hands: every kind it takes that you don't have yet, bought and loaded (only one kind is
@@ -82,6 +82,9 @@ const TUNE_COST = 30;
 // again for each step up a line it is (the second powder, a mod's level III), times how hard the weapon already hits
 // (DMG_GUN: the pistol least, the LMG most; a melee weapon DMG_MELEE)
 const DMG_PRICE = 1.5, DMG_STEP = 0.35, DMG_MELEE = 1;
+// a muzzle can's extra damage is a small part of what it does (it's mostly quiet), so it's priced as hitting harder at
+// only SUPP_PRICE of the usual
+const SUPP_PRICE = 0.8;
 const DMG_GUN = { pistol: 1, revolver: 1.3, deagle: 1.6, dbl: 1.3, pump: 1.4, auto12: 1.9, hunting: 1.6, scar: 1.8, smg: 1.3, sub: 1.5, ar: 1.7, lmg: 2 };
 const dmgCost = (id, c, step = 0) => Math.round(c * DMG_PRICE * (1 + DMG_STEP * step) * (WEAP[id].melee ? DMG_MELEE : DMG_GUN[id] || 1.4));
 // whether a change (fn, applied to a copy of the weapon as it is now) makes each shot or swing hit harder

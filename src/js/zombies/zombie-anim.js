@@ -204,7 +204,7 @@ function zAttackPose(z, a, T, K) {
 // (its beat is BRUTE_SMASH.t)
 function zBoardPose(z, a, T, K) {
   const w = a.bw; if (w < 0.01) return;
-  const brute = z.type === 'brute', u = 1 - clamp(z.atk / (brute ? BRUTE_SMASH.t : 0.9), 0, 1), sg = a.pside, H = sg < 0 ? 'l' : 'r', Oo = sg < 0 ? 'r' : 'l', E = sg < 0 ? 'elL' : 'elR', EO = sg < 0 ? 'elR' : 'elL';
+  const brute = z.type === 'brute', u = 1 - clamp(z.atk / (brute ? z.smashT || BRUTE_SMASH.t : 0.9), 0, 1), sg = a.pside, H = sg < 0 ? 'l' : 'r', Oo = sg < 0 ? 'r' : 'l', E = sg < 0 ? 'elL' : 'elR', EO = sg < 0 ? 'elR' : 'elL';
   const up = _zsm(0.2, 0.85, u), hit = u < 0.16 ? 1 - u / 0.16 : 0, o = {};
   if (brute) {
     o.alx = o.arx = -0.5 - 2.0 * up + 0.2 * hit; o.aly = 0.1; o.ary = -0.1; o.elL = o.elR = -0.35 - 0.9 * up;

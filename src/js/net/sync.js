@@ -19,7 +19,7 @@ import { breakFence } from '../world/fence.js';
 import { P } from '../player/player.js';
 import { LOOK, rollLook } from '../player/look.js';
 import { WEAP } from '../weapons/gun-stats.js';
-import { EFF, magSize, recomputeEff, run, S, W, W8 } from '../game/run-state.js';
+import { EFF, hpCap, magSize, recomputeEff, run, W, W8 } from '../game/run-state.js';
 import { GM } from '../weapons/gun-materials.js';
 import { gearSpec } from '../player/gear.js';
 import { buildGuns } from '../weapons/build-weapons.js';
@@ -166,7 +166,7 @@ export function puppetBoard(z, dme) {
   const o = z.atkBoard; if (!o || !o.boards.length) return;
   z.face += angDiff(Math.atan2(o.x - z.x, o.z - z.z), z.face) * 0.2;
   if (z.atk > 0) return;
-  if (z.type === 'brute') { z.atk = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z, true); if (!o.grate) boardJolt(o, z); setShake(Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1))); }   // (a brute's smash, zombies/ai.js)
+  if (z.type === 'brute') { z.atk = z.smashT = BRUTE_SMASH.t; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(o, z, true); if (!o.grate) boardJolt(o, z); setShake(Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1))); }   // (a brute's smash, zombies/ai.js)
   else { z.atk = 0.9; z.lunge = 1; soundAt(z.x, z.z, () => nz(0.08, 'lowpass', 700, 200, 0.18 * clamp(1 - dme / 18, 0, 1)), true); boardJolt(o, z); }
 }
 // a swing from the host's zombie: everyone sees it lunge, and if it was at you, it lands on you
@@ -379,7 +379,7 @@ function netRespawn() {
   }
   if (!W8.slot[W8.cur]) W8.cur = 'melee';
   const off = [[0, 0], [0.9, 0], [-0.9, 0], [0, 0.9]][NET.idx] || [0, 0];
-  Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
+  Object.assign(P, { dead: false, deathT: 0, hp: hpCap(), bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
   rollLook(); buildGuns();

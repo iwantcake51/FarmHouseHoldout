@@ -15,13 +15,14 @@ import { hardBlocked, moveCircle } from '../world/collision.js';
 import { diagOk, DIRS, dist, zField } from './pathfinding.js';
 import { P } from '../player/player.js';
 import { addBlood } from '../effects/body-blood.js';
-import { run, S } from '../game/run-state.js';
+import { hpCap, run, S } from '../game/run-state.js';
 import { splat } from '../effects/blood-map.js';
 import { burst } from '../effects/particles.js';
 import { burnFx } from '../effects/puffs.js';
 import { STUMP, zombies, ZT } from './zombie-types.js';
 import { animateZombie } from './zombie-anim.js';
 import { stepClimb } from './climb.js';
+import { bruteSmashK } from './spawn.js';
 import { rimMat } from '../effects/outlines.js';
 import { BLEED_R, BURN_TICK, burnHurt, killZombie, legSlow, STUMP_PUMP } from './damage.js';
 import { boardJolt, breakBoard } from '../barricades/planks.js';
@@ -104,7 +105,7 @@ export const BRUTE_SMASH = { t: 1.25, dmg: 75 };
 // up a piece at a time as it goes (doorWear)
 function bashDoor(z, d, armMul, dme, dt) {
   z.face += angDiff(Math.atan2(d.cx - z.x, d.cz - z.z), z.face) * Math.min(1, dt * 8);
-  if (z.type === 'brute') { if (z.atk <= 0) { z.atk = BRUTE_SMASH.t; z.lunge = 1; d.hp -= BRUTE_SMASH.dmg * armMul; doorBlow(d, z, true, dme); } }
+  if (z.type === 'brute') { if (z.atk <= 0) { z.atk = z.smashT = BRUTE_SMASH.t; z.lunge = 1; d.hp -= BRUTE_SMASH.dmg * armMul; doorBlow(d, z, true, dme); } }
   else { d.hp -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt; if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; doorBlow(d, z, false, dme); } }
   doorWear(d, z);
   if (d.hp <= 0) { breakDoor(d, z); if (z.an) z.an.rip = 1; netDoorBroke(d, z); }
@@ -115,7 +116,7 @@ function bashDoor(z, d, armMul, dme, dt) {
 // metres to spare), and if going through is quicker it goes for that stretch of fence and smashes through it
 // (fenceBlow, breakFence in world/fence.js). Looked at again every BFENCE.every seconds
 const BFENCE = { see: 30, margin: 1, every: 0.4, step: 0.25 };
-const fenceSmashM = z => Math.ceil(FENCE_HP / BRUTE_SMASH.dmg) * BRUTE_SMASH.t * z.speed;
+const fenceSmashM = z => Math.ceil(FENCE_HP / BRUTE_SMASH.dmg) * BRUTE_SMASH.t / bruteSmashK() * z.speed;
 function bruteFence(z, t, here, dt) {
   if (z.fenceAt >= 0 && cell[z.fenceAt] !== FENCE) z.fenceAt = -1;   // (gone: knocked down, by it or another)
   if ((z.fenceT = (z.fenceT || 0) - dt) > 0) return z.fenceAt ?? -1;
@@ -233,7 +234,7 @@ export function updateZombies(dt) {
         // a brute doesn't claw at the boards, it smashes them: both fists down every BRUTE_SMASH.t, each blow enough to
         // break a plain board outright, with a heavy crack you feel if you're near
         if (z.atk <= 0) {
-          z.atk = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
+          z.atk = z.smashT = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
           soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z, true); if (!attackingBoard.grate) boardJolt(attackingBoard, z);
           setShake(Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)));
         }
@@ -247,7 +248,7 @@ export function updateZombies(dt) {
     else if (attackingFence >= 0) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 6);
       if (z.atk <= 0) {
-        z.atk = BRUTE_SMASH.t; z.lunge = 1;
+        z.atk = z.smashT = BRUTE_SMASH.t / bruteSmashK(); z.lunge = 1;   // (quicker in the later waves: zombies/spawn.js)
         const fi = attackingFence % N, fj = (attackingFence / N) | 0;
         if (fenceBlow(fi, fj, z, BRUTE_SMASH.dmg * armMul, dme)) { breakFence(fi, fj, z); if (z.an) z.an.rip = 1; netFenceBroke(attackingFence, z); z.fenceAt = -1; }
       }
@@ -327,7 +328,7 @@ const WIND_HEAL = 25;   // what Second wind gives back
 let windHp = 0;
 export function playerChecks() {
   const hurt = P.hp < windHp - 1e-6;
-  if (S.secondWind && !S.windUsed && hurt && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, S.maxHp - P.hp)); P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
+  if (S.secondWind && !S.noHeal && !S.windUsed && hurt && P.hp > 0 && P.hp < hpCap() * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, hpCap() - P.hp)); P.hp = Math.min(hpCap(), P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
   windHp = P.hp;
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }

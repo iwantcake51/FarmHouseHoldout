@@ -7,7 +7,9 @@ import { fallOf, FALLOFF } from '../weapons/ammo.js';
 import { MODS } from '../melee/melee-mods.js';
 import { MOD_UP } from '../weapons/mod-levels.js';
 import { BOOTS } from './tier-table.js';
-import { GUN_TIERS, gunTier, ownTier, POWDER_KICK, recomputeEff, S, SCOPES, TUNE, W, W8 } from '../game/run-state.js';
+import {
+  GUN_TIERS, gunTier, LASER_SETTLE, ownTier, POWDER_KICK, recomputeEff, S, SCOPES, TUNE, W, W8
+} from '../game/run-state.js';
 import { headMulFor } from '../zombies/zombie-types.js';
 import { METAL } from '../barricades/planks.js';
 import { METAL_AID } from '../barricades/metal-bars.js';
@@ -15,10 +17,11 @@ import { pctDown, pctUp } from '../stations/recipes.js';
 import { firstShell, relMul, shellGo } from '../weapons/reload.js';
 import { stamCost } from '../melee/melee.js';
 import { PAIN_REGEN, SLOW_STEP, slowAfter } from './upgrades.js';
+import { FRONT, FRONT_MOD } from '../player/shaky-hands.js';
 import { REGEN_WAIT } from '../player/movement.js';
 
 // short effect chips for upgrades that don't change a gun's numbers
-const UPG_FX = {
+export const UPG_FX = {
   'Quick hands': ['Reload 20% faster'], 'Quick hands II': ['Reload 20% → 40% faster'], 'Quick hands III': ['Reload 40% → 60% faster'], 'Wood pile': ['+7 planks'], 'Field dressing': ['Health to full'], 'Med pouch': ['Carry 5 bandages, not 3'],
   'Ammo can': ['+3 cans of every ammo'], 'Strong arms': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms II': ['Melee +25%', 'Swing stamina −8%'], 'Strong arms III': ['Melee +25%', 'Swing stamina −8%'], 'Vault fire': ['Vaulting 1.25× faster', 'Vaulting costs half the stamina', 'Shoot while vaulting'], 'Run and gun': ['Shoot 9mm guns while sprinting', 'Spread 3× at a sprint'], 'Run and gun II': ['Shotguns and the AR at a sprint'],
   'Scavenger': ['Drops +50%'], 'Hoarder': ['1 in 4 kills: scrap 2×'], 'Thick soles': ['Slowdown when hit −40%'], 'Thick soles II': ['Slowdown when hit −40%'], 'Walking wounded': ['Bandaging slowdown −10%'], 'Walking wounded II': ['Bandaging slowdown −10% → −25%'], 'Walking wounded III': ['Bandaging slowdown −25% → −40%'], 'Adrenaline': ['+15% speed for 1.2 s on a kill', 'Every 4 s at most'], 'Iron lungs': ['Stamina +25%', 'Refills 25% faster'],
@@ -35,7 +38,7 @@ const UPG_FX = {
   'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave'],
-  'Long reach': ['Pickup reach +15%'], 'Sticky fingers': ['Pickup reach +25%'], 'Magnetic': ['Pickup reach +40%', 'Drops last 20 s longer']
+  'Long reach': ['Pickup reach +100%', 'Drops glide to you'], 'Sticky fingers': ['Pickup reach +175%', 'Drops glide to you'], 'Magnetic': ['Pickup reach +300%', 'Drops glide to you', 'Drops last 20 s longer']
 };
 // once there's a metalwork bench (barricades/metal-bars.js) the wood's metal and the boards are grates too
 const barWord = () => METAL.on ? 'Boarding/barring' : 'Boarding', boardsWord = () => METAL.on ? 'Boards/grates' : 'Boards';
@@ -83,7 +86,7 @@ export function chip(label, a, b, higherIsBetter, fmt) {
 }
 export const fmtDmg = s => Math.round(s.dmg) + (s.pel > 1 ? '×' + s.pel : ''), fmt1 = v => v.toFixed(1), fmt0 = v => String(Math.round(v)), fmtDeg = v => { const d = v * 57.3; return d.toFixed(d < 2 ? 2 : 1) + '°'; };
 // spread from the hip and down the sights: one SPREAD chip when both move together, otherwise a chip for each that
-// changes (a laser only the hip, a sight only the aimed)
+// changes (a sight only the aimed)
 function spreadChips(a, b) {
   const kh = a.spread ? b.spread / a.spread : 1, ka = a.aim ? b.aim / a.aim : 1;
   if (Math.abs(kh - ka) < 1e-6) return [chip('SPREAD', a.spread, b.spread, false, fmtDeg)];
@@ -117,7 +120,9 @@ export function tierFx(id, k) {
   if (k === 'ammo' && !D0.melee) fx.push({ t: `KICK +${Math.round((POWDER_KICK[n + 1] / POWDER_KICK[f] - 1) * 100)}%`, good: false });
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
-  if (k === 'laser') fx.push({ t: 'Aim beam', good: true });
+  // weight out front: the sway it adds (FRONT, player/shaky-hands.js)
+  { const F = k === 'mag' ? (id === 'ar' ? FRONT.arMag : null) : FRONT[k]; if (F && F[n + 1] - (F[f] || 0) > 0.001) fx.push({ t: `IDLE SWAY +${Math.round((F[n + 1] - (F[f] || 0)) * 100)}%`, good: false }); }
+  if (k === 'laser') fx.push({ t: 'Aim beam', good: true }, { t: `RECOIL SETTLES ${Math.round((LASER_SETTLE[n + 1] / LASER_SETTLE[f] - 1) * 100)}% FASTER`, good: true });
   if (k === 'loader') fx.push({ t: id === 'revolver' ? 'Six rounds at once' : id === 'scar' ? 'Mags funnelled in' : WEAP[id].breakOpen ? 'Both shells at once' : 'Three shells a go', good: true });
   if (k === 'sight' && n >= 2) fx.push({ t: ['Zooms in when you aim', 'Zooms in further', 'Zooms in furthest'][n - 2], good: true });
   if (k === 'sight' && n >= 2 && WEAP[id].sniper) fx.push({ t: n === 2 ? 'Every scoped headshot crits ×2' : `HEADSHOT CRITS ×${SCOPES[n].crit} → ×${SCOPES[n + 1].crit}`, good: true });
@@ -166,6 +171,7 @@ export function modFx(mid) {
   if (D0.melee) { const t = multiHit(D0, D1) || chip('TARGETS', D0.cleave || 1, D1.cleave || 1, true, fmt0); if (t) fx.push(t); }
   // a longer barrel: how far out it keeps its full damage (weapons/ammo.js)
   const F0 = D0.fall || FALLOFF[m.w], F1 = D1.fall || FALLOFF[m.w]; if (F0 && ((D1.reach || 1) !== (D0.reach || 1) || F1 !== F0)) fx.push(chip('FULL DMG TO', F0[0] * (D0.reach || 1), F1[0] * (D1.reach || 1), true, v => v.toFixed(1) + ' m'));
+  if (FRONT_MOD[mid]) fx.push({ t: `IDLE SWAY +${Math.round(FRONT_MOD[mid] * 100)}%`, good: false });   // (weight out front: player/shaky-hands.js)
   return fx;
 }
 // a mod you have, made one level better (weapons/mod-levels.js), against how it is now

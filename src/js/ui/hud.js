@@ -6,7 +6,7 @@ import { cache, clamp, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
 import { roundHue, roundName, roundOn } from '../weapons/rounds.js';
 import { fireModeOf, fireModes, modName } from '../weapons/mod-levels.js';
-import { curId, magCap, run, S, W, W8 } from '../game/run-state.js';
+import { curId, hpCap, magCap, run, S, W, W8 } from '../game/run-state.js';
 import { gunExtras } from '../weapons/build-weapons.js';
 import { timeScale } from '../game/hit-feedback.js';
 import { eyeK } from '../zombies/damage.js';
@@ -55,7 +55,7 @@ export function updateHUD(rdt, D) {
   if (state === 'title') return;
     setHurtFx(Math.max(0, hurtFx - rdt * 2));
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
-    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
+    const spec = spectating(), hpF = P.hp / hpCap(), barF = P.hp / S.maxHp, capF = hpCap() / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
     { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
     // the world drains to grey as you bleed out (LOW_HP: from what health it starts and where it's all grey), lifted
@@ -72,13 +72,14 @@ export function updateHUD(rdt, D) {
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(Math.min(slow ? 20000 - slow * 18800 : 20000, 20000 * Math.pow(NEAR_DEATH.lp / 20000, near), dz ? DEATH_LP : 20000), AC.currentTime, dz ? 0.9 : near ? 0.4 : 0.12);   // (slow motion's, or close to death's: NEAR_DEATH)
     }
     setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave
-    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
-    $('hpFill').style.setProperty('--hp', (hpF * 100) + '%'); $('hpLag').style.width = (hpF * 100) + '%';
+    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(hpCap()));
+    $('hpFill').style.setProperty('--hp', (barF * 100) + '%'); $('hpLag').style.width = (barF * 100) + '%';
+    { const ck = Math.round((1 - capF) * 1000); if (cache.hpCut !== ck) { cache.hpCut = ck; const el = $('hpCut'); el.classList.toggle('on', ck > 0); el.style.setProperty('--cut', (ck / 10) + '%'); } }   // (a Blood price's share, in hazard stripes)
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
     // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
-    { const inc = Math.min(1 - hpF, ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
-      if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
+    { const inc = Math.max(0, Math.min(capF - barF, S.noHeal ? 0 : ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
+      if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (barF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
     { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
     setRoll('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
