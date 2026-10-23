@@ -12,6 +12,7 @@ import { cam, hemi, R, scene, sun } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
+import { batchSprites } from './sprite-batch.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { curDark } from '../lighting/day-night.js';
 import { BLOOM_K, SET } from '../ui/settings.js';
@@ -212,6 +213,7 @@ function glowPass() {
 const _glCC = new THREE.Color();
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 export function renderFrame() {
+  batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;
