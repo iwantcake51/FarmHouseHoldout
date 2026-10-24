@@ -29,11 +29,12 @@ export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_
 export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', isoOn = () => VCAM.on === 'iso';
 // how it looks and moves: the eye's place on the head (from its middle: up, forward), how quickly it follows the head
 // across and up and down (the stride's bob, smoothed), the furthest up and down you can look, a shot's kick and how
-// it comes home, how far aiming down the sights draws the view in, and the free camera's speeds. side: the eye's a
+// it comes home, how far aiming down the sights draws the view in, and the free camera's speeds. look: how quickly the
+// view takes up the mouse's movement (eased over a few frames, so turning's smooth rather than stepped). side: the eye's a
 // little out toward the arm the gun's in, past the gun (held X to that side: weapons/gun-materials.js), so the gun sits a
 // little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's sight line:
 // fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.15, follow: 10, followY: 6, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
+const FPV = { eye: [0.04, 0.12], side: 0.15, follow: 7, followY: 4.5, look: 16, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
@@ -74,7 +75,7 @@ const EYE_MIN = { optic: 0.15, iron: 0.25 };
 // as a smooth wobble rather than a jitter
 const FP_JOLT = { push: 0.5, zoom: 0.4, ease: 18, relP: 0.035, relR: 0.012, shake: 0.03 };
 // where the view and the free camera are, and its springs (kick: the pitch; ky: the yaw)
-const V = { cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, rc: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0 }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, bobK: 0, bp: 0, br: 0, bx: 0, by: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null };
+const V = { mdx: 0, mdy: 0, cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, rc: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0 }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, bobK: 0, bp: 0, br: 0, bx: 0, by: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null };
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
@@ -121,7 +122,17 @@ export function viewLook(dx, dy) {
   const s = FPV.sens * (SET.sens || 100) / 100 * (1 - 0.35 * (ANIM.ads || 0)) / (SCOPE_V.on && SCOPE_V.mag > 1 && (SCOPE_V.kind === 'scope' || SCOPE_V.kind === 'acog') ? 1 + (SCOPE_V.mag - 1) * 0.6 * SCOPE_V.w : 1);   // (slower through a scope, as it magnifies)
   if (freeOn()) { V.fyaw -= dx * s; V.fpitch = clamp(V.fpitch - dy * s, -FPV.pitch, FPV.pitch); return; }
   fpAimSync();
-  const ex = -dx * s, ey = -dy * s;
+  if (fpOn() && !freeLooking()) { V.mdx += dx * s; V.mdy += dy * s; return; }   // (taken up smoothly, frame by frame: fpLookStep)
+  lookBy(dx * s, dy * s);
+}
+// the mouse's movement taken up by the view, eased: what's still to come goes in a share each frame
+function fpLookStep(rdt) {
+  const k = 1 - Math.exp(-rdt * FPV.look), ax = V.mdx * k, ay = V.mdy * k; V.mdx -= ax; V.mdy -= ay;
+  if (Math.abs(ax) + Math.abs(ay) > 1e-7) lookBy(ax, ay);
+}
+// the view and the aim turned by (dx, dy) radians' worth of the mouse
+function lookBy(dx, dy) {
+  const ex = -dx, ey = -dy;
   if (freeLooking()) { V.flyT = clamp(V.flyT + ex, -FREE_LOOK.yaw, FREE_LOOK.yaw); V.flpT = clamp(V.flpT + ey, -FREE_LOOK.pitch, FREE_LOOK.pitch); return; }
   V.cy += ex * (1 - FA.take); V.cp += ey * (1 - FA.take); V.ftx += ex * FA.take; V.fty += ey * FA.take;
   fpFreeAim(0);
@@ -377,7 +388,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
     // step, a lean, a vault) is eased, the bob more than the rest
-    fpFreeAim(rdt);
+    fpLookStep(rdt); fpFreeAim(rdt);
     const w0 = adsW(), now = performance.now() / 1000;
     // the springs' tip (a shot, a hit, a vault, a reload's beats), eased; the third-person camera's pushes and zooms as
     // dips, turns and a drawing in; a reload's own sway; the shake as a wobble

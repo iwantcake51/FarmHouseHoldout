@@ -105,7 +105,7 @@ const MP5_TILT = 0.35, MP5_DRUM = { y: 1.1784, z: 0.5725, r: 0.013 };
 // how far the claw mount lifts an optic over the receiver, clear of the drum sight
 const MP5_CLAW = 0.03;
 // the drum's aperture: wide enough to frame the hooded front sight's ring round its post, as you see it
-const MP5_AP = 0.0029;
+const MP5_AP = 0.0029, MP5_HOLE = 0.0158;   // (and how far up the drum it is)
 function mp5Rear(g) {
   const K = GM.metal, M2 = GM.metal2, R = MP5.rw, yc = MP5.top - R, D = MP5_DRUM;
   { const sh = new THREE.Shape(), w = 0.0159, rb = R - 0.0003, a0 = Math.atan2(Math.sqrt(rb * rb - w * w), w);
@@ -121,16 +121,23 @@ function mp5Rear(g) {
   const d = new THREE.Group(); d.position.set(X, D.y, D.z); d.rotation.x = MP5_TILT - Math.PI / 2; g.add(d); apPart(d);   // (its z up the drum, its y back)
   lathe(d, [[0, 0], [D.r - 0.0006, 0], [D.r - 0.0006, 0.003], [D.r - 0.0012, 0.0035], [0, 0.0035]], M2, 0, 0, 32);      // the plain band
   knurl(d, D.r, 0.003, K, 0, 0, 0.005, 26, 1, 0.0007);                                                                    // the knurling below the aperture's band
-  cyl(d, D.r - 0.0036, 0.0004, GM.rubber, 0, 0, 0.0197, 20);                                                                // the cup's floor
-  const gap = 0.34; [0, Math.PI].forEach(a => { const sh = new THREE.Shape(); sh.absarc(0, 0, D.r, a - Math.PI / 2 + gap, a + Math.PI / 2 - gap, false); sh.absarc(0, 0, D.r - 0.0036, a + Math.PI / 2 - gap, a - Math.PI / 2 + gap, true); sh.closePath();
-    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.0048, bevelEnabled: false, curveSegments: 10 }); geo.translate(0, 0, 0.0195); const m = new THREE.Mesh(geo, K); m.castShadow = true; d.add(m); });   // the rim, cut for the notch
-  // the aperture's band of the drum, up to the cup (its rim's cut front and back, clear of the sight line), with the hole
-  // straight through it down the gun: thin level slices along the gun, each as wide as the leaning drum is there, so
-  // it's round from above and open along the sight line
-  const h = 0.0138, yr = D.y + h * Math.cos(MP5_TILT), cz = D.z + h * Math.sin(MP5_TILT), Rz = D.r / Math.cos(MP5_TILT), n = 8, b0 = 0.0058, b1 = 0.0052;
+  // the drum's top band, knurled, with the aperture through it just under its top edge (as you see it looking through:
+  // the knurled top of the drum standing up between the ears, the hole near its top): level slices along the gun, each
+  // as wide as the leaning drum is there and as tall as it is there (its top and its foot lean with it), the hole
+  // straight through them down the gun; where the lean brings the top down past the hole (the front of the drum), the
+  // hole's an open notch in that slice, so from behind it's a whole round hole
+  const T = Math.tan(MP5_TILT), h = MP5_HOLE, yr = D.y + h * Math.cos(MP5_TILT), Rz = D.r / Math.cos(MP5_TILT), n = 18, r = MP5_AP;
+  const at = a => [D.y + a * Math.cos(MP5_TILT), D.z + a * Math.sin(MP5_TILT)];   // (a point up the drum's axis: its height and how far along)
+  const [yb0, zb0] = at(0.0065), [yt0, zt0] = at(0.0195), cz = at(h)[1];
   for (let i = 0; i < n; i++) {
-    const z0 = cz - Rz + i * 2 * Rz / n, z1 = z0 + 2 * Rz / n, zin = z0 < cz && z1 > cz ? 0 : Math.min(Math.abs(z0 - cz), Math.abs(z1 - cz)), w = D.r * Math.sqrt(1 - (zin / Rz) ** 2);
-    const sh = shp([[X - w, yr - b0], [X + w, yr - b0], [X + w, yr + b1], [X - w, yr + b1]]), hole = new THREE.Path(); hole.absarc(X, yr, MP5_AP, 0, Math.PI * 2, true); sh.holes.push(hole);
+    const z0 = cz - Rz + i * 2 * Rz / n, z1 = z0 + 2 * Rz / n, zm = (z0 + z1) / 2, zin = z0 < cz && z1 > cz ? 0 : Math.min(Math.abs(z0 - cz), Math.abs(z1 - cz)), w = D.r * Math.sqrt(1 - (zin / Rz) ** 2);
+    const yb = yb0 - (zm - zb0) * T, yt = yt0 - (zm - zt0) * T;
+    let sh;
+    if (yt >= yr + r) { sh = shp([[X - w, yb], [X + w, yb], [X + w, yt], [X - w, yt]]); const hole = new THREE.Path(); hole.absarc(X, yr, r, 0, Math.PI * 2, true); sh.holes.push(hole); }
+    else if (yt > yr - r) {   // (the top's come down through the hole: an open notch)
+      const rr2 = Math.sqrt(r * r - (yt - yr) ** 2), a0 = Math.atan2(yt - yr, rr2);
+      sh = new THREE.Shape(); sh.moveTo(X - w, yb); sh.lineTo(X + w, yb); sh.lineTo(X + w, yt); sh.lineTo(X + rr2, yt); sh.absarc(X, yr, r, a0, Math.PI - a0, true); sh.lineTo(X - w, yt); sh.closePath();
+    } else sh = shp([[X - w, yb], [X + w, yb], [X + w, yt], [X - w, yt]]);
     apPart(xsec(g, sh, z0, z1, K));
   }
   irons(g, { kind: 'ap', yr, rz: D.z, r: MP5_AP });   // (looked through in first person: game/view-cam.js)
