@@ -429,9 +429,15 @@ function animatePlayer(dt, rdt) {
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
   else if (state === 'title') introPose(pm, up, 1);         // and on the title you wait down on that knee
+  // the hands and the weapon (their turn of the chest and the head is the hands' own, made in the mirrored upper body:
+  // player/player.js) on top of what the body's doing in the world (the turn, the lean, the look), which is kept apart
+  // and turned the other way for the head, which is drawn mirrored with the upper body
+  const u0y = up.y, u0z = up.z, wz = pm.head.rotation.z; pm.head.rotation.z = 0;
   poseHands(D, up, ph, runF, rdt, now);
-  pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
-  pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
+  up.y = 2 * u0y - up.y; up.z = 2 * u0z - up.z;   // (the chest isn't mirrored itself, only what's on it)
+  const hY = pm.head.rotation.y, hZ = pm.head.rotation.z; let wy = 0;   // (the hands' turn of the head; the world's, wy and wz)
+  wy += ANIM.tw * 0.6; let hz = wz - ANIM.bank * 0.5;   // the head leads the turn further and stays level
+  wy += ANIM.lookH || 0; hz -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
   // looking about at a station (MENU_LOOK): the head turns on the shoulders to the cursor, whatever the chest is doing
   if (rdt > 0) {
@@ -444,14 +450,15 @@ function animatePlayer(dt, rdt) {
     }
     springTo(ANIM, 'menuH', 'vmenuH', tgt, 130, 17, Math.min(rdt, 0.04));
   }
-  pm.head.rotation.y += ANIM.menuH;
+  wy += ANIM.menuH;
   // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run,
   // looking about or twisted round with Run and gun
   const nk = Math.max(ANIM.lookK || 0, smooth(clamp(ANIM.rgK || 0, 0, 1)) * (1 - (ANIM.rg || 0)));
   if (nk > 0) {
-    const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
-    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * nk;
+    const L = SPRINT_LOOK, hy = wy - hY, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;   // (all of its turn on the shoulders, the hands' too)
+    wy += (clamp(lim, -L.neck, L.neck) - hy) * nk;
   }
+  pm.head.rotation.y = hY - wy; pm.head.rotation.z = hZ - hz;
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);

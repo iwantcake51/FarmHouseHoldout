@@ -16,7 +16,7 @@ import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
-import { AKX, BELT, BRK, CRANE, GM, gunMeshes, HOLDS, MAGG, SLIDES, X } from '../weapons/gun-materials.js';
+import { AKX, BELT, BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, SLIDES, X } from '../weapons/gun-materials.js';
 import { SHELL_MAT } from '../weapons/gun-models.js';
 import { GUNS } from '../melee/melee-models.js';
 import { gearOnAvatar, gearSpec } from '../player/gear.js';
@@ -34,7 +34,7 @@ const r3a = v => Math.round(v * 1000) / 1000, r2a = v => Math.round(v * 100) / 1
 // charging handles, the cylinder, the barrels and their rims, the belt's rounds
 export function movingOf(holds, rec) {
   const hs = [holds.R, holds.L].filter(Boolean), out = [...hs, ...rec.magg, ...rec.slides.map(q => q.m)];
-  hs.forEach(h => { if (h.userData.charge) out.push(h.userData.charge.m); });
+  hs.forEach(h => { if (h.userData.charge) out.push(h.userData.charge.m); const f = flipOf(h); if (f) out.push(f); });   // (the gun's flipped group: folded under itself)
   out.push(...rec.crane); if (rec.brk) out.push(rec.brk.g, ...rec.brk.rims); if (rec.belt) out.push(...rec.belt);
   return out;
 }
@@ -114,7 +114,8 @@ function withLoadout(lo, id, fn) {
 // one of their weapons, built as yours would be: a holder (with a hold per hand for a gun) and what moves on it
 export function teamWeapon(lo, id) {
   const D = Object.assign({}, WEAP[id], { akimbo: !!lo.ak }), mods = {}; (lo.mods || []).forEach(m => { mods[m] = (lo.lv || {})[m] || 1; });
-  const g = new THREE.Group(), rec = weaponRec(), holds = {}; let muz = 0;
+  // (drawn mirrored, as their upper body is: their weapon's sent as it sits in theirs, player/player.js)
+  const g = new THREE.Group(), rec = weaponRec(), holds = {}; let muz = 0; g.scale.x = -1;
   try {
     withLoadout(lo, id, () => {
       if (D.melee) { muz = buildWeapon(g, id, D, mods, rec); return; }
@@ -175,7 +176,7 @@ export function buildArsenal(a, lo, lk) {
     // and stowed: where it rides on them (the sender's own placing of it, pushed down onto the pack and all)
     const rig = s === 'side' && gl.ak;
     const place = (at, hand, pose) => {
-      const copy = copyModel(proto), holds = {}; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
+      const copy = copyModel(proto), holds = {}; copy.scale.x = 1; copy.children.forEach(q => { if (q.userData.side) holds[q.userData.side] = q; });
       if (holds.L && hand === 'R') copy.remove(holds.L); else if (holds.R && hand === 'L') copy.remove(holds.R);
       Object.values(holds).forEach(hd => hd.position.set(0, 0, 0));
       const outer = new THREE.Group(), inner = new THREE.Group(), pv = at.pivot(id, new THREE.Box3().setFromObject(copy));

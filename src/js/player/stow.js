@@ -333,7 +333,7 @@ export function updatePack(dt) {
     }
   }
   packPivot.position.y = PACK_PIV[1] + clamp(q.y - PM.upper.position.y, -L.bounce, L.bounce);
-  packPivot.rotation.set(q.rx, q.ry, q.rz);
+  packPivot.rotation.set(q.rx, -q.ry, -q.rz);   // (swung by the world, on the mirrored upper body: player/player.js)
 }
 // show or hide a stowed weapon; the holster stays on your hip, empty, while the sidearm is out. A pair's left gun goes
 // with it (on2), or on its own while it's put away for a Vault fire vault (player/hold.js)

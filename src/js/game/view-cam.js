@@ -32,10 +32,10 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // across and up and down (the stride's bob, smoothed), the furthest up and down you can look, a shot's kick and how
 // it comes home, how far aiming down the sights draws the view in, and the free camera's speeds. look: how quickly the
 // view takes up the mouse's movement (eased over a few frames, so turning's smooth rather than stepped). side: the eye's a
-// little out toward the arm the gun's in, past the gun (held X to that side: weapons/gun-materials.js), so the gun sits a
-// little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's sight line:
-// fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.15, follow: 7, followY: 4.5, look: 16, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
+// little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
+// so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
+// sight line: fpSightAlign)
+const FPV = { eye: [0.04, 0.12], side: 0.05, follow: 7, followY: 4.5, look: 16, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
@@ -57,9 +57,11 @@ const RECOIL = { p: 0.03, y: 0.016, r: 0.04, z: 0.012, k: 230, d: 16, hip: 2, au
 // reloading in first person, the gun's brought up into view where you can watch your hands work it: its action (mid of
 // the way along it: the well, the port, the cylinder) eased to
 // a place low in the middle of the view (at: across, up, out from your eye, metres; a handgun's: side), turned side on
-// (yaw: its muzzle round to the left, so you see its side and the well and the hands at it), canted (roll) and its muzzle
+// (yaw: its muzzle round to the right, so you see its left side and the well and the left hand at it), canted (roll) and its muzzle
 // tipped up (pitch), never in close enough to clip your eye
-const FP_RELOAD = { at: [0.005, -0.12, -0.43], side: [0.01, -0.11, -0.4], roll: 0.3, pitch: 0.2, yaw: 0.85, mid: 0.42 };
+// only part of the way there (k), and hardly turned: the reload as it is at the hip, just brought up enough to see it,
+// not presented to you
+const FP_RELOAD = { at: [-0.005, -0.12, -0.43], side: [-0.01, -0.11, -0.4], roll: -0.1, pitch: 0.1, yaw: -0.3, mid: 0.42, k: 0.45 };
 // held at the hip in first person, the gun's pushed out a little from your eye (the shorter it is the more, from short
 // to long: so a machine pistol isn't tucked in under your chin), along the view
 const FP_REACH = { short: 0.13, long: 0.035, len: [0.8, 1.3] };
@@ -220,7 +222,7 @@ export function fpReloadPose(gg, k) {
   // (out from your eye at the hip, then up into view to reload)
   { const m = MUZ[W8.cur] || 0.9, L = FP_REACH.len, push = (FP_REACH.short + (FP_REACH.long - FP_REACH.short) * clamp((m - L[0]) / (L[1] - L[0]), 0, 1)) * (1 - w) * (1 - k);
     if (push > 0.002) { _rlD.set(0, 0, -push).applyQuaternion(FP_CAM.quaternion); gg.position.add(_rlD.applyQuaternion(_vcQ.copy(gg.parent.getWorldQuaternion(_rq)).invert())); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
-  if (k < 0.01) return;
+  k *= FP_RELOAD.k; if (k < 0.01) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
   const c = FP_CAM, side = D.slot === 'side', at = side ? FP_RELOAD.side : FP_RELOAD.at;
   gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);

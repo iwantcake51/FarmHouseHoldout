@@ -4,7 +4,7 @@ import { V3 } from '../core/renderer.js';
 import { clamp, rr } from '../core/math.js';
 import { SLOTS } from '../weapons/slots.js';
 import { W8 } from '../game/run-state.js';
-import { BIPOD, gunMeshes, X } from '../weapons/gun-materials.js';
+import { BIPOD, flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
 import { holdOf } from './hold.js';
 
 // a belt-fed gun's belt jiggles: two loose springs, a slow sway of the whole loop and a quicker ripple along it, shaken
@@ -15,13 +15,13 @@ export const BJ = { a: new V3(), va: new V3(), b: new V3(), vb: new V3(), p: new
 export function beltKick() { BJ.va.x += rr(-0.1, 0.1); BJ.va.y += rr(0.08, 0.2); BJ.vb.x += rr(-0.08, 0.08); BJ.vb.y += rr(-0.1, 0.1); }
 export function beltJiggle(belt, h, rdt) {
   if (rdt <= 0) return;
-  BJ.f.set(X + 0.08, 1.16, 0.535).applyMatrix4(h.matrixWorld);
+  BJ.f.set(X + 0.08, 1.16, 0.535).applyMatrix4((flipOf(h) || h).matrixWorld);   // (on the gun's left: its own frame, weapons/gun-materials.js)
   if (!BJ.on) { BJ.p.copy(BJ.f); BJ.v.set(0, 0, 0); BJ.a.set(0, 0, 0); BJ.va.set(0, 0, 0); BJ.b.set(0, 0, 0); BJ.vb.set(0, 0, 0); BJ.on = true; }
   // the loop's own acceleration, turned into the gun's frame with gravity added (less the pull it hangs under when level)
   const vx = (BJ.f.x - BJ.p.x) / rdt, vy = (BJ.f.y - BJ.p.y) / rdt, vz = (BJ.f.z - BJ.p.z) / rdt;
   let ax = (vx - BJ.v.x) / rdt, ay = (vy - BJ.v.y) / rdt, az = (vz - BJ.v.z) / rdt; const am = Math.hypot(ax, ay, az); if (am > 60) { ax *= 60 / am; ay *= 60 / am; az *= 60 / am; }
   BJ.p.copy(BJ.f); BJ.v.set(vx, vy, vz);
-  h.getWorldQuaternion(BJ.q).invert(); BJ.f.set(-ax, -9.8 - ay, -az).applyQuaternion(BJ.q); BJ.f.y += 9.8;
+  (flipOf(h) || h).getWorldQuaternion(BJ.q).invert(); BJ.f.set(-ax, -9.8 - ay, -az).applyQuaternion(BJ.q); BJ.f.y += 9.8;
   for (let n = Math.ceil(rdt / (1 / 240)), dt = rdt / n, i = 0; i < n; i++) {
     BJ.va.addScaledVector(BJ.f, 0.7 * dt).addScaledVector(BJ.a, -1900 * dt).addScaledVector(BJ.va, -10 * dt); BJ.a.addScaledVector(BJ.va, dt);
     BJ.vb.addScaledVector(BJ.f, 0.5 * dt).addScaledVector(BJ.b, -5600 * dt).addScaledVector(BJ.vb, -22 * dt); BJ.b.addScaledVector(BJ.vb, dt);
@@ -45,7 +45,7 @@ export function bipodSway(legs, h, rdt) {
   const vx = (st.f.x - st.p.x) / rdt, vy = (st.f.y - st.p.y) / rdt, vz = (st.f.z - st.p.z) / rdt;
   let ax = (vx - st.v.x) / rdt, ay = (vy - st.v.y) / rdt, az = (vz - st.v.z) / rdt; const am = Math.hypot(ax, ay, az); if (am > 80) { ax *= 80 / am; ay *= 80 / am; az *= 80 / am; }
   st.p.copy(st.f); st.v.set(vx, vy, vz);
-  h.getWorldQuaternion(st.q).invert(); st.f.set(-ax, -ay, -az).applyQuaternion(st.q);   // what the legs feel, in the gun's frame
+  (flipOf(h) || h).getWorldQuaternion(st.q).invert(); st.f.set(-ax, -ay, -az).applyQuaternion(st.q);   // what the legs feel, in the gun's frame
   const S_ = BIPOD_SW;
   legs.forEach(l => {
     const amp = l.down ? 1 : S_.folded;

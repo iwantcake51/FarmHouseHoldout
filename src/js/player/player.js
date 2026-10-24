@@ -92,6 +92,12 @@ export const bandRolls = [], bandPouch2 = new THREE.Group();
   crossOn(bandPouch2, 'z', 1, 0.051, -0.014, 0);
   [-0.045, 0.045].forEach(x => addRoll(bandPouch2, x, 0.055, 0.012));
 }
+// the upper body is built the other way round and drawn mirrored (its x flipped), so its own left is your left: the
+// rig's armR is your right arm, the gun's in your right hand at your right shoulder and the left hand supports it,
+// and every pose of the arms and the weapon comes out right-handed. Anything placed on it from the world's point of
+// view turns the other way for it (the head's look, the pack's swing: player/animation.js, player/stow.js), and the
+// guns themselves are flipped back in their holds so they aren't built backwards (weapons/build-weapons.js: FLIP)
+PM.upper.scale.x = -1;
 // a copy of you as you stand now, before your look, your gear and your weapons go on: a co-op teammate's survivor is
 // built from it (net/avatars.js), the rig's parts found again by these names
 ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'].forEach(k => { PM[k].name = 'pm.' + k; });

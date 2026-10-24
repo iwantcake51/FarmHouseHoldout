@@ -11,7 +11,7 @@ import { modLv } from './mod-levels.js';
 import { tierName } from '../upgrades/tier-table.js';
 import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 } from '../game/run-state.js';
 import {
-  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
+  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
 } from './gun-materials.js';
 import { hi } from './gun-parts.js';
 import { GUNS } from '../melee/melee-models.js';
@@ -39,15 +39,17 @@ export const weaponRec = () => ({ slides: [], magg: [], crane: [], charge: null,
 // one weapon's model built into parent (a hold group for a gun, the holder itself for a melee weapon), its moving parts
 // noted in rec. It reads the gun's mods, tiers, attachments and rounds from W8 (tierCtx is the gun): a co-op teammate's
 // are swapped in for the moment by withLoadout (net/arsenal.js)
-export function buildWeapon(parent, id, D, mods, rec) {
+export function buildWeapon(hold, id, D, mods, rec) {
   const magT = T('mag');   // this gun's own (the mag that's in it: weapons/reload.js)
+  // (a gun in a hand is built inside its flipped group, its notes kept on the hold: flipIn, weapons/gun-materials.js)
+  const parent = hold.userData.side && !D.melee ? flipIn(hold) : hold;
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = mg; rec.magg.push(mg);
+  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); hold.userData.magG = mg; rec.magg.push(mg);
   const info = GUNS[id](parent, mods);
   if (info && info.crane) rec.crane.push(info.crane);
   if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
-  parent.userData.charge = info && info.charge ? { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 } : null;   // each gun of a pair its own
-  if (info && !rec.magpos && (info.magZ || info.mz)) rec.magpos = [X + parent.position.x, (info.magY || 1.04) - 0.12, info.magZ || info.mz];
+  hold.userData.charge = info && info.charge ? { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 } : null;   // each gun of a pair its own
+  if (info && !rec.magpos && (info.magZ || info.mz)) rec.magpos = [X + (parent.userData.x0 ?? parent.position.x), (info.magY || 1.04) - 0.12, info.magZ || info.mz];
   if (D.melee) { unfight(parent); return 0; }
   let front = info.front; const y = info.y;
   if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
@@ -63,6 +65,7 @@ export function buildWeapon(parent, id, D, mods, rec) {
   // pull apart faces that would z-fight (a moment later for a weapon built in play: unfightSoon), then let the slides
   // and bolts note their rest positions
   if (rec.soon) unfightSoon(parent); else unfight(parent);
+  if (parent.userData.lightEm) { hold.userData.lightEm = parent.userData.lightEm; delete parent.userData.lightEm; }
   if (info && info.slide) [info.slide, ...(info.bolts || [])].forEach(b => { rec.slides.push({ m: b, z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc, side: parent.userData.side || 'R' }); b.userData.slideRest = { z0: b.position.z, travel: info.travel, lock: !!info.lock, cyc: !!info.cyc }; });
   return muz;
 }

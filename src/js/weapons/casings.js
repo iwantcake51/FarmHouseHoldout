@@ -9,7 +9,7 @@ import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { roundOn } from './rounds.js';
 import { curId, S, T, W, W8 } from '../game/run-state.js';
-import { BRK, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
+import { BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
 import { REV_CYL } from './gun-models.js';
 import { partTex } from '../effects/textures.js';
 import { smoke } from '../effects/smoke.js';
@@ -150,8 +150,8 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
   const K = CASE_KIND[ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : (ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo) + (CASE_TINT[roundOn(id)] || '')] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
-  const h = holdOf(W8.cur, side);
-  // the gun's own axes in the world: the shooter's right is the gun's -x (the hand holding it is the rig's left)
+  const h = flipOf(holdOf(W8.cur, side)) || holdOf(W8.cur, side);   // (the gun's own frame: weapons/gun-materials.js, flipIn)
+  // the gun's own axes in the world: the shooter's right is the gun's -x
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
   // the revolver's chambers, wherever the cylinder has swung out to on its crane; the double barrel's, on its barrels
   const cyl = mode === 'dump' && (CRANE[W8.cur] || []).find(c => c.parent === h), chambers = [];
@@ -221,7 +221,7 @@ for (let k = 0; k < 60; k++) {
 let lIdx = 0;
 export function ejectLinks(n, z) {
   PM.g.updateMatrixWorld(true);
-  const h = holdOf(W8.cur, 'R');
+  const h = flipOf(holdOf(W8.cur, 'R')) || holdOf(W8.cur, 'R');
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
   _cv.set(X - 0.036, GUN_Y + 0.025, z); h.localToWorld(_cv);
   for (let k = 0; k < n; k++) {

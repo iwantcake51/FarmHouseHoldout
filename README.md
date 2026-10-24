@@ -116,7 +116,7 @@ a real shooter holds them: a handgun's front post sits level in the rear notch, 
 shotgun's front post sits in the middle of the hole through the rear aperture, the whole rear sight too close to your
 eye to see sharp (a soft ghost ring of it round the hole), and the pump and double barrel are aimed down the rib with
 the bead sat on the receiver. An optic on the MP5 sits on a claw mount, clear over its drum sight.
-The red dot's dot and the holographic sight's reticle (an EOTech 512's 68 MOA ring with its four ticks and 1 MOA dot,
+The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye and shows its own magnified view filling the eyepiece whenever you can see it:
@@ -131,6 +131,19 @@ corner or behind you as you turn, with no fading in. Everything works from first
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
 hand the mouse back as they close. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
 and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
+At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
+tucked under your chin), and each shot turns it in your hands as well as kicking the view; through a scope the
+picture rocks a little with it. Reloads are the same ones you see from above, only calmer from your own eyes: the gun
+comes up a touch and turns a little toward you, not over on its side. The flashlight points down the gun's barrel,
+easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
+at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
+
+**Right-handed.** Your survivor shoots right-handed: the right hand on the grip and trigger, working the hunting
+rifle's bolt and the charging handle, and the left on the handguard or the pump, fetching mags and feeding shells,
+rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
+fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
+into the next without a jump: after the last shell the hand goes straight back to the pump, and the hand on the bolt
+eases back to the grip.
 
 ## Settings
 

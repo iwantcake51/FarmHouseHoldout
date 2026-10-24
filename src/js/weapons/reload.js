@@ -43,7 +43,9 @@ export function reloadSlow() {
 }
 const AK_WALK = 0.14;
 // each reload's own feel (player/hold.js): how far the gun's turned for it, a bulge in the hand's way there, a wobble
-export const relJitter = () => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: rr(0, 20) }; };
+// (the next shell of a run of them keeps the seed of the one before: the gun's restless drift through the reload runs
+// on from shell to shell rather than jumping to a new spot, player/hold.js)
+export const relJitter = (next = false) => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: next && W8.relJit ? W8.relJit.seed : rr(0, 20) }; };
 // how much Quick hands shortens a reload: the revolver's no more than REV_QUICK (game/run-state.js), so it always takes its time
 export const relMul = id => id === 'revolver' ? Math.max(REV_QUICK, S.reloadMul) : S.reloadMul;
 // the time before the first round goes in: the revolver's cylinder swung out and its empties dumped first
@@ -210,7 +212,7 @@ export function tickReload(dt) {
     const n = goSize(id, D) - W8.goIn;
     if (n > 0) shellIn(id, D, n);
     W8.goN = 0; W8.goIn = 0;
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = shellGo(id, D, goSize(id, D)) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = shellGo(id, D, goSize(id, D)) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(true); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
     // done: a pump or bolt gun that's open has its action pushed home straight away (weapons/casings.js), one that's
     // chambered is ready as it is; anything else snaps shut
     else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); else if (W8.held[id] && W8.mag[id] > 0) { chamberCycle(id); delete W8.held[id]; } }
