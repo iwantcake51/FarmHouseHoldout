@@ -102,14 +102,22 @@ Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
 Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
-where you face, and you shoot where the crosshair sits in the middle of the screen. The view rides your head as you
-walk, vault and stumble, smoothed out, and shots kick it up a little. Aiming down the sights brings your eye onto the
-gun's own sights and the crosshair goes: the front post sits in the rear notch or aperture, the red dot or the
-holographic ring sits on your target, and the sight picture sways and kicks exactly where your shot will go. A scope
-(the hunting scopes, the ACOG) shows its own magnified view in the eyepiece, with its reticle (a duplex, or the ACOG's
-lit chevron and drop marks), colour fringing and darkening toward the rim, a little parallax, and the tube's shadow
-closing in from the side when your eye's off its axis (bringing it up, a shot's kick, a quick turn); the rest of the
-view dims round it. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
+where you face. The gun and your arms move freely inside a small circle round the middle of the view, the view only
+turning once you push the aim to its edge and drifting back after; the crosshair is wherever the gun points. The view
+rides your head as you walk, vault and stumble, smoothed out, and shots kick it up a little. Raising the sights is a
+smooth, eased swing (a little dip and cant on the way up and down), quicker with a handgun, and brings your eye onto
+the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
+a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
+shotgun's front post sits in the middle of a rear aperture that's too close to your eye to see sharp (just a soft dark
+ghost ring round the hole), and the pump and double barrel are aimed down the rib with the bead sat on the receiver.
+The red dot's dot and the holographic sight's reticle (an EOTech 512's 68 MOA ring with its four ticks and 1 MOA dot,
+grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
+them, inside the sight's window. A scope (the hunting scopes, the ACOG) shows its own magnified view in the eyepiece
+whenever you can see the eyepiece, with its reticle (a duplex, or the ACOG's lit chevron and drop marks), colour
+fringing and darkening toward the rim, a little parallax, and the tube's shadow closing in from the side your eye's
+off its axis (nearly black at the hip, opening up as it comes to your eye; a shot's kick and a quick turn swing it).
+Through a scope the rest of the view dims and goes out of focus, the gun and your hands most. Every sight's glass is
+clear to look through in first person. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
 back. You go back to the view from above whenever you're down.
 
 ## Settings

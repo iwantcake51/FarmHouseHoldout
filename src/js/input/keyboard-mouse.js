@@ -20,7 +20,7 @@ import { startReload } from '../weapons/reload.js';
 import { shove } from '../player/shove.js';
 import { cancelBandage, startBandage, switchSlot } from '../player/bandages.js';
 import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/screens.js';
-import { freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
+import { fpAimPx, freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
 import { fireModeSwitched } from '../ui/hud.js';
 import { toggleWeaponStats } from '../ui/weapon-stats.js';
 import { cheatOn, toggleCheats } from '../ui/cheats.js';
@@ -85,7 +85,8 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; s
 addEventListener('contextmenu', e => e.preventDefault());
 addEventListener('mousemove', e => {
   // looking about in first person or the free camera: the mouse turns the view, and the aim's in the middle of the screen
-  if (!isoOn()) { hasMouse = true; mouseX = innerWidth / 2; mouseY = innerHeight / 2; if (locked()) viewLook(e.movementX || 0, e.movementY || 0); return; }
+  // (or off it, inside first person's free-aim circle)
+  if (!isoOn()) { if (locked()) viewLook(e.movementX || 0, e.movementY || 0); centerMouse(...fpAimPx()); return; }
   mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit();
   // first person or the free camera: a click takes the mouse to look about with (and isn't a shot); flying, it never fires
@@ -105,7 +106,7 @@ addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preve
 // first person: a menu or the pause opened, the mouse is let go; closing it with a click or a key takes it back, and
 // letting it go yourself (Esc) pauses the game, as in any shooter (game/view-cam.js)
 const lookMenu = () => !!openSt || cheatOn || setOpen();
-export const centerMouse = () => { mouseX = innerWidth / 2; mouseY = innerHeight / 2; hasMouse = true; };
+export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; mouseY = innerHeight / 2 + oy; hasMouse = true; };   // (off the middle by the free aim's offset in first person: game/view-cam.js)
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;
 export function lockLost() { if (state === 'play' && !P.dead && !lookMenu()) { lockLostAt = performance.now(); pauseRun(); } }

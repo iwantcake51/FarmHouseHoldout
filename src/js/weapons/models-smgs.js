@@ -7,7 +7,7 @@ import { box } from '../core/geometry.js';
 import { hasMod, T } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  cyl, inset, knurl, lathe, profile, pw, ribTube, ring, rrect, shp, solid, taperX, xsec, zAt
+  apPart, cyl, inset, irons, knurl, lathe, profile, pw, ribTube, ring, rrect, shp, solid, taperX, xsec, zAt
 } from './gun-parts.js';
 
 // the MP5's 50-round drum: a short collar up into the well and the round drum hung right up under it facing forward, as drums do (its round faces to the front and back, along the barrel): its two shells
@@ -45,6 +45,7 @@ function mp5Front(g, dz, barrel) {
   box(g, 0.012, hy - 0.019 - ct.y, 0.02, K, X, (hy - 0.019 + ct.y) / 2 + 0.006, z(1.0555));              // the hood's neck
   lathe(g, [[0.014, z(1.0458)], [0.019, z(1.0448)], [0.021, z(1.0468)], [0.021, z(1.0642)], [0.019, z(1.0662)], [0.014, z(1.0652)], [0.014, z(1.0458)]], K, X, hy, 28);   // the hooded ring
   box(g, 0.0028, 0.013, 0.004, K, X, hy - 0.0072, z(1.0555));                                             // the post in it
+  irons(g, { yf: hy - 0.0007, fz: z(1.0555) });
   if (!barrel) return;
   const ax = MP5.ax;
   cyl(g, 0.0166, 0.033, K, X, ax, z(1.0532), 24);                                                          // the barrel clamp
@@ -107,19 +108,20 @@ function mp5Rear(g) {
     sh.moveTo(X + w, 1.1792); sh.lineTo(X - w, 1.1792); sh.absarc(X, yc, rb, Math.PI - a0, a0, true); sh.closePath();
     xsec(g, sh, 0.5249, 0.5914, K, 0.0006); }                                                                              // the clamp plate
   solid(g, [[0.5262, 1.176], [0.5262, 1.1805], [0.5318, 1.1812], [0.5352, 1.1868], [0.5665, 1.1868], [0.5665, 1.176]], 0.028, K, X, 0.0006);   // the housing's floor
-  [-1, 1].forEach(s2 => solid(g, [[0.5345, 1.1765], [0.5345, 1.1905], [0.5352, 1.1942], [0.5372, 1.1975], [0.5402, 1.1997], [0.5435, 1.2005], [0.5652, 1.2005], [0.5672, 1.1985], [0.5672, 1.1765]], 0.0029, K, X + s2 * 0.01475, 0.0006));   // its ears
+  [-1, 1].forEach(s2 => apPart(solid(g, [[0.5345, 1.1765], [0.5345, 1.1905], [0.5352, 1.1942], [0.5372, 1.1975], [0.5402, 1.1997], [0.5435, 1.2005], [0.5652, 1.2005], [0.5672, 1.1985], [0.5672, 1.1765]], 0.0029, K, X + s2 * 0.01475, 0.0006)));   // its ears
   { const ws = lathe(g, [[0, 0], [0.0054, 0], [0.0054, 0.0006], [0.0042, 0.0014], [0, 0.0016]], M2, X, 1.1868, 18); ws.rotation.x = -Math.PI / 2; ws.position.z = 0.5505; }   // the windage screw
   box(g, 0.0094, 0.0008, 0.001, GM.rubber, X, 1.1884, 0.5505).rotation.y = 0.5;                                              // and its slot
   cyl(g, 0.0027, 0.0008, M2, X - 0.0164, 1.1872, 0.5428, 14).rotation.set(0, 0, Math.PI / 2);                               // the right ear's screw
   [0, Math.PI / 2].forEach(a => { const c = box(g, 0.0004, 0.0036, 0.0007, GM.rubber, X - 0.0168, 1.1872, 0.5428); c.rotation.x = a + Math.PI / 4; });   // its cross
   cyl(g, 0.0032, 0.016, GM.steel, X, 1.1796, 0.5908, 14).rotation.set(0, 0, Math.PI / 2);                                  // the detent's nub
-  const d = new THREE.Group(); d.position.set(X, D.y, D.z); d.rotation.x = MP5_TILT - Math.PI / 2; g.add(d);   // (its z up the drum, its y back)
+  const d = new THREE.Group(); d.position.set(X, D.y, D.z); d.rotation.x = MP5_TILT - Math.PI / 2; g.add(d); apPart(d);   // (its z up the drum, its y back)
   lathe(d, [[0, 0], [D.r - 0.0006, 0], [D.r - 0.0006, 0.0074], [D.r - 0.0012, 0.008], [0, 0.008]], M2, 0, 0, 32);          // the plain band
   knurl(d, D.r, 0.0115, K, 0, 0, 0.01375, 26, 3, 0.0007);                                                                   // the knurling
   cyl(d, D.r - 0.0036, 0.0004, GM.rubber, 0, 0, 0.0197, 20);                                                                // the cup's floor
   const gap = 0.34; [0, Math.PI].forEach(a => { const sh = new THREE.Shape(); sh.absarc(0, 0, D.r, a - Math.PI / 2 + gap, a + Math.PI / 2 - gap, false); sh.absarc(0, 0, D.r - 0.0036, a + Math.PI / 2 - gap, a - Math.PI / 2 + gap, true); sh.closePath();
     const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.0048, bevelEnabled: false, curveSegments: 10 }); geo.translate(0, 0, 0.0195); const m = new THREE.Mesh(geo, K); m.castShadow = true; d.add(m); });   // the rim, cut for the notch
-  const h = 0.0138; cyl(g, 0.0019, 2 * D.r / Math.cos(MP5_TILT) + 0.0004, GM.rubber, X, D.y + h * Math.cos(MP5_TILT), D.z + h * Math.sin(MP5_TILT), 12);   // the aperture, through it
+  const h = 0.0138; apPart(cyl(g, 0.0019, 2 * D.r / Math.cos(MP5_TILT) + 0.0004, GM.rubber, X, D.y + h * Math.cos(MP5_TILT), D.z + h * Math.sin(MP5_TILT), 12));   // the aperture, through it
+  irons(g, { kind: 'ap', yr: D.y + h * Math.cos(MP5_TILT), rz: D.z, r: 0.0019 });   // (looked through in first person: game/view-cam.js)
 }
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.
@@ -141,8 +143,10 @@ export const SMG_MODELS = {
     profile(g, shp(inset([[0.8684, 1.159], [0.8776, 1.1484], [0.8847, 1.1378], [0.8895, 1.131], [0.8985, 1.128], [0.8985, 1.097], [0.906, 1.0945], [0.906, 1.0915], [0.8985, 1.089], [0.8985, 1.062], [0.53, 1.0595], [0.5271, 1.0636], [0.4762, 1.0681], [0.4662, 1.0725], [0.4631, 1.0815], [0.4607, 1.0846], [0.4471, 1.0857], [0.4471, 1.1107], [0.4495, 1.1205], [0.4538, 1.1216], [0.4812, 1.1217], [0.4851, 1.1234], [0.4855, 1.1375], [0.4877, 1.164], [0.5613, 1.164], [0.566, 1.159]], 0.003)), 0.04, P, X, 0.003);
     xsec(g, shp([[X - 0.011, 1.158], [X + 0.011, 1.158], [X + 0.0125, 1.1615], [X + 0.011, 1.1656], [X - 0.011, 1.1656], [X - 0.0125, 1.1615]]), 0.578, 0.842, K, 0.0006);
     for (let k = 0; k < 16; k++) box(g, 0.026, 0.0034, 0.0072, GM.rubber, X, 1.1648, 0.5875 + k * 0.0157);
-    profile(g, shp([[0.838, 1.164], [0.862, 1.159], [0.849, 1.1685], [0.842, 1.1685]]), 0.012, K, X, 0.0008);                                   // front sight
-    profile(g, shp([[0.5368, 1.163], [0.5613, 1.163], [0.5418, 1.1806], [0.5392, 1.1806], [0.5368, 1.1707]]), 0.022, K, X, 0.001);              // rear sight
+    profile(g, shp([[0.838, 1.164], [0.862, 1.159], [0.851, 1.1806], [0.844, 1.1806]]), 0.004, K, X, 0.0006);                                    // front sight, a thin post up level with the rear's top
+    { const RS = [[0.5368, 1.163], [0.5613, 1.163], [0.5418, 1.1806], [0.5392, 1.1806], [0.5368, 1.1707]];                                         // rear sight, leaning back, its notch down the middle
+      [-1, 1].forEach(sd => profile(g, shp(RS), 0.0085, K, X + sd * 0.00675, 0.0006)); profile(g, shp(RS.map(([z, y]) => [z, Math.min(y, 1.1766)])), 0.006, K, X, 0.0004); }
+    irons(g, { kind: 'notch', yr: 1.1806, rz: 0.5405, yf: 1.1806, fz: 0.8475 });
     box(g, 0.008, 0.008, 0.004, GM.rubber, X, 1.174, 0.5395);
     for (let k = 0; k < 5; k++) [-1, 1].forEach(sd => { const y = 1.149 - k * 0.0075, z1 = zAt([[0.8684, 1.159], [0.8776, 1.1484], [0.8847, 1.1378], [0.8895, 1.131], [0.8985, 1.128], [0.8985, 1.1]], y) - 0.008; box(g, 0.0014, 0.0022, z1 - 0.772, GM.rubber, X + sd * 0.0232, y, (z1 + 0.772) / 2); });   // the grooves down its front half
     box(g, 0.0016, 0.016, 0.045, GM.rubber, X + 0.0232, 1.105, 0.68);   // the plate on its left

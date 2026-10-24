@@ -14,7 +14,7 @@ import { cinePush, deathRollK, deathZoomK } from '../ui/screens.js';
 import { introCam, introCamOn, introRoll, tickIntro } from './intro.js';
 import { setT } from '../ui/hud-text.js';
 import { camRun, runCam, SPRINT } from '../player/sprint.js';
-import { isoOn, syncView, viewFrame, viewGround, viewKick } from './view-cam.js';
+import { fpAds, isoOn, syncView, viewFrame, viewGround, viewKick } from './view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
@@ -91,7 +91,7 @@ const EDGE_IN = 0.14, EDGE_PAN = 0.09, camEdge = { x: 0, y: 0 };
 const edgeK = t => t < EDGE_IN ? -smooth(1 - t / EDGE_IN) : t > 1 - EDGE_IN ? smooth((t - 1 + EDGE_IN) / EDGE_IN) : 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
 export function updateCamera(rdt) {
-  // first person or the free camera: the target's under the view, for what's laid out round it (game/view-ISO_CAM.js)
+  // first person or the free camera: the target's under the view, for what's laid out round it (game/view-cam.js)
   syncView(); const iso = isoOn();
   if (!iso) { viewGround(camTarget); if (state === 'play') tickIntro(rdt); }
   else if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
@@ -119,7 +119,9 @@ export function updateCamera(rdt) {
   }
   if (!introCamOn()) setZoom(zoom + ((zoomT - zoom) * Math.min(1, rdt * 10)));
 
-  ANIM.ads = (ANIM.ads || 0) + ((aiming && !(P.skid > SPRINT.skid * 0.4) ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);   // skidding out of a sprint, into the sights as you slow
+  { const want = aiming && !(P.skid > SPRINT.skid * 0.4);   // skidding out of a sprint, into the sights as you slow
+    // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
+    if (iso) { fpAds(null); ANIM.ads = (ANIM.ads || 0) + ((want ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9); } else ANIM.ads = fpAds(want, rdt); }
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
   ISO_CAM.zoom = state === 'title' ? TITLE_ZOOM * cinePush() : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }

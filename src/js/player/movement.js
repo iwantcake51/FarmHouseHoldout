@@ -25,7 +25,7 @@ import {
   WALK_SPEED
 } from './sprint.js';
 import { aimSX, aimSY, updateShaky, xhStep } from './shaky-hands.js';
-import { fpAim, fpOn, freeOn, moveBasis, VCAM } from '../game/view-cam.js';
+import { fpAim, fpAimPx, fpOn, freeOn, moveBasis, VCAM } from '../game/view-cam.js';
 import { ANIM } from './animation.js';
 import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
 
@@ -113,7 +113,7 @@ export function updatePlayer(dt) {
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
   if (P.dead) { /* no more aiming */ }
-  else if (fpOn() && state === 'play') { centerMouse(); P.aim = VCAM.yaw; fpAim(aimPt); }   // first person: you aim where you look (game/view-cam.js)
+  else if (fpOn() && state === 'play') { centerMouse(...fpAimPx()); P.aim = VCAM.yaw; fpAim(aimPt); }   // first person: you aim where you look (game/view-cam.js)
   else if (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.25) {
     const sx = tStick.R.x, sy = tStick.R.y; P.aim = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy);
     aimPt.set(P.x + Math.sin(P.aim) * 6, GUN_Y, P.z + Math.cos(P.aim) * 6);

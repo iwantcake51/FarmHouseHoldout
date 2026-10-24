@@ -109,25 +109,31 @@ export function fitAttachments(g, D, front, y, info) {
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (sight >= 2) {
-      // holographic sight, after an EOTech XPS: a quick-detach base with its lever, the hood at the back with its window
-      // looking straight down the gun at you (the angled glass and the ring reticle inside it), and the battery housing
-      // reaching forward under the window line, rounded over at the front, with its knurled cap on the left
-      box(p, 0.044, 0.008, 0.096, GM.metal, sx, by + 0.004, bz + 0.002); box(p, 0.008, 0.008, 0.026, GM.metal2, sx + 0.025, by + 0.006, bz + 0.024);
-      const fr = new THREE.Shape(), w = 0.025, y1 = by + 0.008, y2 = by + 0.067, cr = 0.011;
-      fr.moveTo(sx - w, y1); fr.lineTo(sx + w, y1); fr.lineTo(sx + w, y2 - cr); fr.quadraticCurveTo(sx + w, y2, sx + w - cr, y2); fr.lineTo(sx - w + cr, y2); fr.quadraticCurveTo(sx - w, y2, sx - w, y2 - cr); fr.closePath();
-      fr.holes.push(rrect(sx - 0.0175, by + 0.023, sx + 0.0175, by + 0.058, 0.006));
-      xsec(p, fr, bz - 0.046, bz + 0.012, GM.metal, 0.0025);                                                 // the hood
-      profile(p, shp([[bz + 0.012, by + 0.008], [bz + 0.054, by + 0.008], [bz + 0.06, by + 0.016], [bz + 0.058, by + 0.026], [bz + 0.048, by + 0.031], [bz + 0.012, by + 0.031]]), 0.046, GM.metal, sx, 0.003);   // battery housing, rounded at the front
-      { const cap = cyl(p, 0.0115, 0.008, GM.metal2, sx + 0.026, by + 0.02, bz + 0.04, 18); cap.rotation.set(0, 0, Math.PI / 2); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, kb = box(p, 0.009, 0.0025, 0.0025, GM.metal, sx + 0.026, by + 0.02 + Math.cos(a) * 0.0115, bz + 0.04 + Math.sin(a) * 0.0115); kb.rotation.x = a; } }
-      [-0.008, 0.008].forEach(o => box(p, 0.011, 0.008, 0.003, GM.rubber, sx + o, by + 0.0155, bz - 0.0475));   // the buttons under the window, at the back
-      const gl = box(p, 0.035, 0.035, 0.002, GM.holoGlass, sx, by + 0.0405, bz + 0.004); gl.rotation.x = -0.1;
-      const rt = new THREE.Mesh(new THREE.TorusGeometry(0.0095, 0.002, 4, 22), GM.red); rt.position.set(sx, by + 0.0405, bz + 0.004); rt.rotation.x = -0.1; p.add(rt);   // the reticle, on the glass
-      box(p, 0.0026, 0.0026, 0.002, GM.red, sx, by + 0.0405, bz + 0.004).rotation.x = -0.1;
-      p.userData.optic = { kind: 'holo', x: sx, y: by + 0.0405, zr: bz - 0.046, zf: bz + 0.012, r: 0.0175 };
+      // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
+      // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
+      // and on the back face under the window the panel with its two arrow buttons, the round one between and four
+      // screws. Its reticle (the 68 MOA ring, its four ticks and the dot) is only seen looking through it, drawn where
+      // your eye sees it (effects/scope-view.js)
+      const H5 = { z0: bz - 0.048, z1: bz - 0.004, wy: by + 0.034, ww: 0.0125, wh: 0.0095 };
+      box(p, 0.03, 0.006, 0.09, GM.metal, sx, by + 0.003, bz);                                                                  // the mount
+      cyl(p, 0.005, 0.006, GM.metal2, sx + 0.019, by + 0.004, bz + 0.02, 12).rotation.set(0, 0, Math.PI / 2);                // its cross-bolt knob
+      profile(p, shp([[H5.z0, by + 0.004], [bz + 0.04, by + 0.004], [bz + 0.046, by + 0.008], [bz + 0.047, by + 0.016], [bz + 0.042, by + 0.0225], [H5.z0, by + 0.0225]]), 0.034, GM.metal, sx, 0.0015);   // the body
+      cyl(p, 0.0085, 0.006, GM.metal2, sx, by + 0.0135, bz + 0.049, 16);                                                       // the battery cap
+      { const fr = shp(rrect(sx - H5.ww - 0.0025, H5.wy - H5.wh - 0.0025, sx + H5.ww + 0.0025, H5.wy + H5.wh + 0.0025, 0.005).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - H5.ww, H5.wy - H5.wh, sx + H5.ww, H5.wy + H5.wh, 0.0035)]);
+        xsec(p, fr, H5.z0, H5.z1, GM.metal, 0.0006); }                                                                        // the window's frame
+      { const hd = shp(rrect(sx - 0.0215, by + 0.006, sx + 0.0215, by + 0.0545, 0.0075).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - 0.0188, by + 0.0085, sx + 0.0188, by + 0.0517, 0.005)]);
+        xsec(p, hd, H5.z0 - 0.002, H5.z1 + 0.002, GM.metal, 0.0005); }                                                       // the hood
+      box(p, 0.027, 0.0145, 0.0015, GM.metal2, sx, by + 0.0135, H5.z0 - 0.0005);                                              // the button panel
+      [-1, 1].forEach(sd => { box(p, 0.0068, 0.0056, 0.0016, GM.rubber, sx + sd * 0.0072, by + 0.0108, H5.z0 - 0.0013); [by + 0.0075, by + 0.0185].forEach(yy => cyl(p, 0.0013, 0.0012, GM.steel, sx + sd * 0.0112, yy, H5.z0 - 0.0013, 8)); });
+      cyl(p, 0.0032, 0.0016, GM.rubber, sx, by + 0.0168, H5.z0 - 0.0013, 14);
+      const gl = box(p, H5.ww * 2, H5.wh * 2, 0.0015, GM.holoGlass, sx, H5.wy, H5.z1 - 0.003); gl.rotation.x = -0.06;
+      p.userData.optic = { kind: 'holo', x: sx, y: H5.wy, zr: H5.z0, zf: H5.z1, r: H5.ww, hw: H5.ww, hh: H5.wh };
     } else {   // micro red dot
       box(p, 0.034, 0.016, 0.05, GM.metal, sx, by + 0.006, bz);                                        // its base, set down on the rail and up into the tube
-      cyl(p, 0.019, 0.055, GM.metal, sx, by + 0.032, bz); ring(p, 0.021, 0.01, GM.metal2, sx, by + 0.032, bz + 0.028);
-      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285);   // the lens on the front ring, the dot showing at the back
+      // the tube, open to look through, and its thicker front ring round the lens
+      lathe(p, [[0.0165, bz - 0.0275], [0.019, bz - 0.0275], [0.019, bz + 0.023], [0.0165, bz + 0.023], [0.0165, bz - 0.0275]], GM.metal, sx, by + 0.032, 28);
+      lathe(p, [[0.0165, bz + 0.023], [0.021, bz + 0.023], [0.021, bz + 0.033], [0.0165, bz + 0.033], [0.0165, bz + 0.023]], GM.metal2, sx, by + 0.032, 28);
+      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285).userData.reticle = true;   // the lens on the front ring, the dot showing at the back (hidden looking down it, the dot drawn where your eye sees it)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), GM.metal2); tt.position.set(sx, by + 0.055, bz); p.add(tt);
       p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }
