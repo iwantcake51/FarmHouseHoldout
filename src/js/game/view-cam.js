@@ -13,6 +13,8 @@ import { clamp, rr, smooth } from '../core/math.js';
 import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
+import { curId, W, W8 } from './run-state.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
@@ -26,8 +28,12 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // how it looks and moves: the eye's place on the head (from its middle: up, forward), how quickly it follows the head
 // across and up and down (the stride's bob, smoothed), the furthest up and down you can look, a shot's kick and how
 // it comes home, how far aiming down the sights and a scope draw the view in (and the eye drops to the gun for it: cheek,
-// down and forward), and the free camera's speeds
-const FPV = { eye: [0.04, 0.12], cheek: [-0.13, 0.06], follow: 16, followY: 9, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, scope: 0.5 };
+// down and forward), and the free camera's speeds. side: the eye's a little out toward the arm the gun's in, past the
+// gun (held X to that side: weapons/gun-materials.js), so the gun sits a little right of the middle of the view, as in
+// any shooter. sight: down the sights the eye goes to the gun's own sight line, just over the top of it (whatever's on
+// it, a scope too), at the cheek of a long gun (this far forward of its butt) or behind a handgun held out (this far
+// back from its rear)
+const FPV = { eye: [0.04, 0.12], side: 0.15, sight: [0.035, 0.1, 0.28], follow: 16, followY: 9, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, scope: 0.5 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // where the view and the free camera are, and its springs (kick: the pitch; ky: the yaw)
 const V = { x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, lookN: 0 };
@@ -41,9 +47,8 @@ export function setViewMode(m) {
   if (m === 'free') {
     // the free camera starts where the view is: the isometric camera's spot (a little in toward you), or your eyes
     const c = VCAM.on === 'fp' ? FP_CAM.position : null;
-    if (c) { V.fx = c.x; V.fy = c.y; V.fz = c.z; V.fyaw = VCAM.yaw; V.fpitch = VCAM.pitch; }
-    else { const o = CAM_OFF.clone().normalize().multiplyScalar(14); V.fx = P.x + o.x; V.fy = o.y; V.fz = P.z + o.z; V.fyaw = Math.atan2(-o.x, -o.z); V.fpitch = -Math.asin(o.y / 14); }
-    V.vx = V.vy = V.vz = 0;
+    if (c) freeTo(c.x, c.y, c.z, VCAM.yaw, VCAM.pitch);
+    else { const o = CAM_OFF.clone().normalize().multiplyScalar(14); freeTo(P.x + o.x, o.y, P.z + o.z, Math.atan2(-o.x, -o.z), -Math.asin(o.y / 14)); }
   }
   if (m === 'fp' && VCAM.mode !== 'fp') { VCAM.yaw = P.aim; VCAM.pitch = -0.12; V.eye = null; }   // looking where you were aiming, a touch down
   VCAM.mode = m;
@@ -76,6 +81,8 @@ export function viewLook(dx, dy) {
   if (freeOn()) { V.fyaw -= dx * s; V.fpitch = clamp(V.fpitch - dy * s, -FPV.pitch, FPV.pitch); return; }
   VCAM.yaw -= dx * s; VCAM.pitch = clamp(VCAM.pitch - dy * s, -FPV.pitch, FPV.pitch);
 }
+// the free camera put somewhere, looking a given way (yaw round from +z, pitch up)
+function freeTo(x, y, z, yaw, pitch) { V.fx = x; V.fy = y; V.fz = z; V.fyaw = yaw; V.fpitch = pitch; V.vx = V.vy = V.vz = 0; }
 // the wheel in the free camera: how fast it flies
 export function freeWheel(dy) { V.speed = clamp(V.speed * Math.exp(-dy * 0.0015), FREE.min, FREE.max); }
 // the lock's gone without being let go (Esc, or the window losing focus): the game pauses, as in any shooter
@@ -112,6 +119,22 @@ export function viewGround(t) { if (freeOn()) t.set(V.fx + Math.sin(V.fyaw) * 4,
 // a point's on the screen this frame (a projected point behind a perspective camera comes out mirrored, past z 1)
 export const onScreen = v => v.z < 1 && v.z > -1;
 
+// where the eye goes down the sights of the gun in your hands (out), from its shape in its hold, worked out once for each
+// gun as it's built (a new scope, a new gun: a new one); false if there's none
+const _sb = new THREE.Box3(), _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4(), SIGHT = { id: null, at: new V3() };
+function sightAt(out) {
+  const g = gunMeshes[W8.cur]; if (!g) return false;
+  if (SIGHT.id !== g.uuid) {
+    // (in the gun's own frame, so it's the same wherever the gun is: in your hands, or on its way there from your back)
+    SIGHT.id = g.uuid; g.updateMatrixWorld(true); _sm.copy(g.matrixWorld).invert(); const b = new THREE.Box3().makeEmpty();
+    g.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.union(_sb.copy(o.geometry.boundingBox).applyMatrix4(_sm2.multiplyMatrices(_sm, o.matrixWorld))); });
+    if (b.isEmpty()) { SIGHT.id = null; return false; }
+    const long = b.max.z - b.min.z > 0.45, S = FPV.sight;
+    SIGHT.at.set((b.min.x + b.max.x) / 2, b.max.y + S[0], long ? b.min.z + S[1] : b.min.z - S[2]);
+  }
+  out.copy(SIGHT.at); g.localToWorld(out); return true;
+}
+
 // each frame, from game/camera.js: the view in use, then the camera placed. roll: the springs' tip (a shot, a hit, a
 // vault), sh: the shake
 export function viewFrame(rdt, roll, sh) {
@@ -130,7 +153,9 @@ export function viewFrame(rdt, roll, sh) {
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
     // step, a lean, a vault) is eased, the bob more than the rest
-    const ads = ANIM.ads || 0; PM.g.updateMatrixWorld(true); _vcE.set(0, FPV.eye[0], FPV.eye[1] + FPV.cheek[1] * ads).applyMatrix4(PM.head.matrixWorld); _vcE.y += FPV.cheek[0] * ads;
+    const ads = smooth(clamp(ANIM.ads || 0, 0, 1)), D = W(curId());
+    PM.g.updateMatrixWorld(true); _vcE.set(D && D.akimbo ? 0 : FPV.side, FPV.eye[0], FPV.eye[1]).applyMatrix4(PM.head.matrixWorld);
+    if (ads > 0.001 && D && !D.melee && !D.akimbo && sightAt(_vcD)) _vcE.lerp(_vcD, ads);
     const rx = _vcE.x - P.x, ry = _vcE.y, rz = _vcE.z - P.z;
     if (!V.eye) V.eye = { x: rx, y: ry, z: rz };
     const k = 1 - Math.exp(-rdt * FPV.follow), ky = 1 - Math.exp(-rdt * FPV.followY);

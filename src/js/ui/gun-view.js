@@ -122,7 +122,9 @@ export function showFigure(key, fresh) {
   if (fresh || !fig) {
     dropStudio();
     figPart.clear(); PM.g.updateMatrixWorld(true);
-    const c = copyPlain(PM.g); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); gvPivot.add(c); gvModel = c; gvSig = '';
+    // (in first person your head's hidden: game/view-cam.js; the copy has it as ever)
+    const hv = PM.head.visible; PM.head.visible = true; const c = copyPlain(PM.g); PM.head.visible = hv;
+    c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); gvPivot.add(c); gvModel = c; gvSig = '';
     c.updateMatrixWorld(true);
   }
   const part = (F.on && figPart.get(PM[F.on])) || gvModel, at = part.localToWorld(new V3(...F.at));
