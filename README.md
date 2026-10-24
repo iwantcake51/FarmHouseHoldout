@@ -137,6 +137,13 @@ picture rocks a little with it. Reloads are the same ones you see from above, on
 comes up a touch and turns a little toward you, not over on its side. The flashlight points down the gun's barrel,
 easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
 at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
+Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
+into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
+turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
+sights). From your own eyes the farm isn't an island in the haze: the woods go on past the road and past the trees
+round the farm out to the horizon, with broadleaf trees and taller pines among them, a power line runs along the far
+side of the road and a mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
+glow sits over it all through the day and night.
 
 **Right-handed.** Your survivor shoots right-handed: the right hand on the grip and trigger, working the hunting
 rifle's bolt and the charging handle, and the left on the handguard or the pump, fetching mags and feeding shells,
