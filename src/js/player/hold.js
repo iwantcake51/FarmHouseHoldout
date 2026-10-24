@@ -108,7 +108,7 @@ const AK_DRAW = 0.55, AK_GRAB = 0.4, AK_DRAW_AT = { side: { p: 1.3, y: -0.42, z:
 // free aim: the arms don't turn in lockstep with the body. As you turn, the arms and the gun lag behind (a heavy gun
 // more), swinging round from the shoulders, then swing on past and settle; looking up or down the same. A loose spring
 // per axis; FREE_SWING is how far out from the shoulders the swing reaches, so the hands carry with it
-const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26, FP_SWING = 0.45;
+const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26, FP_SWING = 0;
 function freeAim(rdt, heavy, ads) {
   const F = FREE_AIM; if (!(rdt > 0)) return F;
   const yw = ANIM.chestYaw ?? ANIM.yaw;   // the chest's turning (player/animation.js), not the hips'
@@ -362,6 +362,9 @@ const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
 // and looking it over from your own eyes, it's turned this far side on to you (radians) for its turns to show it, rather
 // than seen end on down its back
 const FP_INSPECT_TURN = { hand: 1.15, long: 0.35 };
+// sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
+// h up), angled across you (y), canted (r) and tipped only a little down (p)
+const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 } };
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -536,13 +539,19 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up
   if (rd > 0.001) {
     const lg = H.kind === 'long', fk = fpOn() ? FP_SPRINT_BOUNCE : 1, b2 = Math.sin(ph * 2) * fk, b1 = Math.sin(ph) * fk;   // (from your own eyes the gun bounces less: FP_SPRINT_BOUNCE)
-    pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
-    ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+    // (from your own eyes it's drawn in tight against your chest, angled across you and only a little down, still in
+    // the bottom of the view: FP_SPRINT, rather than out and down where it drops from sight)
+    const S = fpOn() ? FP_SPRINT[lg ? 'long' : 'hand'] : null;
+    if (S) { pitch += rd * (S.p + 0.05 * b2); yaw += rd * (S.y + 0.05 * b1); roll += rd * S.r; ox -= rd * S.x; oy += rd * (S.h - 0.012 * b2); oz -= rd * S.z; }
+    else {
+      pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
+      ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+    }
   }
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;
   { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
-  { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (less seen from your own eyes: FP_SWING)
+  { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (not from your own eyes, where the gun stays with the crosshair as you turn: FP_SWING)
   pitch += SR.x * 0.8 * (fpOn() ? FP_BODY_KICK : 1);   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);

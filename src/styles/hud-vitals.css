@@ -1,7 +1,7 @@
 /* Bottom-left health: number, ECG, health bar, stamina bar, healing, resources. */
 #vitals{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px;display:grid;gap:8px;width:min(260px,44vw)}
 .hpRow{display:flex;align-items:flex-end;gap:12px}
-#hpTxt{font-size:46px;min-width:3ch;text-align:right;font-variant-numeric:tabular-nums;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#hpTxt{font-size:46px;text-align:left;font-variant-numeric:tabular-nums;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #hpMax{font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
 #ecg{flex:1;height:34px;min-width:0}
 /* the heart trace (ui/vitals.js) */

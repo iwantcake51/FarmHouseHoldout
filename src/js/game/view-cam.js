@@ -41,7 +41,7 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
+const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.4, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
@@ -61,8 +61,9 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 // muzzle flips up hard and snaps back down, dipping a touch past the aim before it settles; a long gun about your
 // shoulder (back at its butt), so it's shoved straight back into you with less flip. How far at its most (radians, and
 // metres back and up): flip up, plus per unit of the gun's power (flipPw, backPw); a little roll and twist to one side
-// or the other (roll, yaw), and side: a slide sideways. A pump or a bolt gun thumps harder (act). Down the sights a
-// share of each (ads: flip, twist, roll), the whole sight jumping off your eye's line and back
+// or the other (roll, yaw), and side: a slide sideways. A pump or a bolt gun thumps harder (act). Down the sights only
+// a small share of each, the gun held tight into you (ads: flip, twist, roll; adsMove: its slide back, across and up;
+// adsRattle, adsClimb: of the rattle and the climb), the sight jumping a little off your eye's line and back
 // the climb (auto): held on the trigger of a full auto, each shot's own kick is a share (k) and the muzzle climbs a
 // little more each shot (climb, to at most max, radians), wandering side to side as it goes (wander), eased onto on a
 // slower spring (w) and back down once you let go (back, how quickly)
@@ -72,7 +73,7 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 const FP_RECOIL = {
   hand: { flip: 0.1, flipPw: 0.26, back: 0.016, backPw: 0.035, up: 0.008, roll: 0.06, yaw: 0.03, side: 0.004, w: 30, z: 0.5, pivot: [0, -0.07, 0.09] },
   long: { flip: 0.022, flipPw: 0.055, back: 0.018, backPw: 0.04, up: 0.004, roll: 0.04, yaw: 0.02, side: 0.003, w: 26, z: 0.45, pivot: [0, -0.05, 0.36] },
-  act: 1.35, ads: [0.5, 0.6, 0.8],
+  act: 1.35, ads: [0.22, 0.28, 0.35], adsMove: 0.45, adsRattle: 0.35, adsClimb: 0.45,
   auto: { k: 0.55, climb: 0.011, max: 0.085, wander: 0.45, w: 9, back: 5 },
   rattle: { pos: 0.0028, rot: 0.014, f: [29, 37, 46], decay: 13, auto: 0.5, semi: 0.22, view: 0.12 }
 };
@@ -86,7 +87,10 @@ const FP_RECOIL = {
 const FP_RELOAD = { at: [-0.005, -0.12, -0.43], side: [-0.01, -0.11, -0.4], roll: -0.1, pitch: 0.1, yaw: -0.3, mid: 0.42, k: 0.45 };
 // held at the hip in first person, the gun's pushed out a little from your eye (the shorter it is the more, from short
 // to long: so a machine pistol isn't tucked in under your chin), along the view
-const FP_REACH = { short: 0.13, long: 0.035, len: [0.8, 1.3] };
+const FP_REACH = { short: 0.13, long: 0.07, len: [0.8, 1.3] };
+// and at the hip it's held out to your right and up a little (x, y: across and up the view, metres), as a shooter
+// carries it, its muzzle out ahead toward the middle of the view, not down under your chin
+const FP_HIP = { x: 0.13, y: 0.06 };
 // the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
 // (pitch, and acc for speeding up and slowing), per metre a second, on a spring (k, d); less down the sights
 const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 };
@@ -107,7 +111,7 @@ const LAND = { cam: 0.42, k: 110, d: 13 };
 // and drawn in a touch going forward (fwd), rolled into a turn (turn), bobbing in a figure of eight with your stride
 // (bob: across, down, roll), breathing when you stand still (breathe: up, pitch), dipping as you land (land); much less
 // of it down the sights (ads)
-const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.012, bob: [0.0065, 0.0055, 0.016], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
+const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.005, bob: [0.0065, 0.0055, 0.016], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
 const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0 };
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
 // of the sights, so the gun's never pushed into your face (aiming up, say): an optic's, iron sights'
@@ -192,6 +196,9 @@ function lookBy(dx, dy) {
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
 const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny, viewR = () => V.roll * 0.6 + V.tr + V.br;
+// and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
+// stays on the aim as you look round (FREE_LOOK)
+const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
 const freeLooking = () => fpOn() && keys.has(KB.freeLook) && adsW() < 0.3;
 // the aim set from elsewhere (going into first person, a test): the view onto it, nothing off the middle
 function fpAimSync() {
@@ -246,7 +253,8 @@ const _shk = [0, 0, 0, 0, 0, 0];
 function shoulderShake() {
   const S = V.sh, C = V.rc, D = W(curId()), A = FP_RECOIL.ads, R = FP_RECOIL.rattle, rn = rattleAt();
   // (a shot's kick of the gun, every gun: down the sights a share of its turn, and the climb and the rattle on top)
-  _shk[0] = (C.p + C.cp + rn[3]) * A[0]; _shk[1] = (C.y + C.cy + rn[4]) * A[1]; _shk[2] = (C.r + rn[5]) * A[2]; _shk[3] = C.z + rn[2]; _shk[4] = C.x + rn[0]; _shk[5] = C.h + rn[1];
+  const F = FP_RECOIL, q = F.adsRattle, m = F.adsMove, cl = F.adsClimb;
+  _shk[0] = (C.p + C.cp * cl + rn[3] * q) * A[0]; _shk[1] = (C.y + C.cy * cl + rn[4] * q) * A[1]; _shk[2] = (C.r + rn[5] * q) * A[2]; _shk[3] = (C.z + rn[2] * q) * m; _shk[4] = (C.x + rn[0] * q) * m; _shk[5] = (C.h + rn[1] * q) * m;
   if (!(fpOn() && D && D.slot !== 'side')) return _shk;
   const t = performance.now() / 1000, x = clamp(V.adsX ?? 0, 0, 1), tr = SHOULDER_IN.trem * (SHOULDER_IN.gun[curId()] ?? 1) * Math.sin(Math.PI * x) * (V.adsV > 0 ? 1 : 0.4);
   _shk[0] += S.p + tr * (Math.sin(t * 23.1) + 0.6 * Math.sin(t * 37.7 + 1.3)); _shk[1] += S.y + tr * (Math.sin(t * 19.3 + 2.1) + 0.6 * Math.sin(t * 41.9));
@@ -257,13 +265,14 @@ function shoulderShake() {
 // sights come up; from the hold (player/hold.js), after fpRecoil and before your hands go on it
 const _rlC = new V3(), _rlD = new V3(), _rlM = new THREE.Matrix4(), _rlQ = new THREE.Quaternion(), _rlE = new V3(), _rlS = new V3(1, 1, 1);
 // the view this frame, before the camera's placed (at the eye, turned as the view is): what the gun's placed by from the hold
-function viewMat(out) { rigEye(_rlE); _rlQ.setFromEuler(_rE.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ')); return out.compose(_rlE, _rlQ, _rlS); }
+function viewMat(out) { rigEye(_rlE); _rlQ.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ')); return out.compose(_rlE, _rlQ, _rlS); }
 export function fpReloadPose(gg, k) {
   const D = W(curId()), w = adsW(); k *= 1 - w; if (!fpOn() || !gg.parent || !D || D.melee || D.akimbo) return;
   // (out from your eye at the hip, then up into view to reload)
   viewMat(_rlM);   // (the view as it is this frame: the camera's placed after the hold)
-  { const m = MUZ[W8.cur] || 0.9, L = FP_REACH.len, push = (FP_REACH.short + (FP_REACH.long - FP_REACH.short) * clamp((m - L[0]) / (L[1] - L[0]), 0, 1)) * (1 - w) * (1 - k);
-    if (push > 0.002) { _rlD.set(0, 0, -push).applyQuaternion(_rlQ); gg.position.add(_rlD.applyQuaternion(_vcQ.copy(gg.parent.getWorldQuaternion(_rq)).invert())); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
+  { const m = MUZ[W8.cur] || 0.9, L = FP_REACH.len, push = (FP_REACH.short + (FP_REACH.long - FP_REACH.short) * clamp((m - L[0]) / (L[1] - L[0]), 0, 1)) * (1 - w) * (1 - k) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));
+    const hk = (1 - w) * (1 - k) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));   // (not at a sprint, the gun drawn in to your chest)
+    if (hk > 0.002) { _rlD.set(FP_HIP.x * hk, FP_HIP.y * hk, -push).applyQuaternion(_rlQ); gg.updateMatrixWorld(true); _rlC.setFromMatrixPosition(gg.matrixWorld).add(_rlD); gg.position.copy(gg.parent.worldToLocal(_rlC)); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
   k *= FP_RELOAD.k; if (k < 0.01) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
   const side = D.slot === 'side', at = side ? FP_RELOAD.side : FP_RELOAD.at;
@@ -318,7 +327,7 @@ const _vsP = new V3(), _vsO = new V3();
 export function fpViewSway(gg) {
   if (!fpOn() || !gg.parent) return;
   gg.updateMatrixWorld(true); _vsP.setFromMatrixPosition(gg.matrixWorld);
-  _rq.setFromEuler(_rE.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'));
+  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(VS.p, VS.w, VS.r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _vsO.set(VS.x, VS.y, VS.z).applyQuaternion(_rq);
   _rM.makeTranslation(-_vsP.x, -_vsP.y, -_vsP.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_vsP.x + _vsO.x, _vsP.y + _vsO.y, _vsP.z + _vsO.z));
@@ -335,7 +344,7 @@ export function fpRecoil(gg, grip) {
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(C.z) + Math.abs(C.h) + Math.abs(C.x) < 1e-6) return;
   gg.updateMatrixWorld(true);
   // (the turn made in the view's own frame: the view's way, then the turn, then back out of the view's way)
-  _rq.setFromEuler(_rE.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'));
+  _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
   // turned about your wrists or your shoulder (F.pivot, from where it's gripped, in the view's own frame)
   _rp.set(grip[0], grip[1], grip[2]).applyMatrix4(gg.matrixWorld).add(_vcZ.set(F.pivot[0], F.pivot[1], F.pivot[2]).applyQuaternion(_rq));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
@@ -376,7 +385,7 @@ export function fpAim(out) {
 // a shot kicks the view up and a touch aside (game/camera.js: fireCam), on a stiff spring home; and the gun in your
 // hands (FP_RECOIL): its kick, the climb of a full auto and the rattle
 export function viewKick(pw, auto) {
-  if (isoOn()) return; V.vk += pw * FPV.kick * 22 * (auto ? 0.6 : 1); V.vky += pw * FPV.kick * 6 * rr(-0.5, 0.5);
+  if (isoOn()) return; const aw = 1 - FPV.adsKick * adsW(); V.vk += pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vky += pw * FPV.kick * 6 * rr(-0.5, 0.5) * aw;   // (less down the sights: adsKick)
   const C = V.rc, D = W(curId()), hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
   const act = EJECT[curId()], a = (act === 'pump' || act === 'bolt' ? FP_RECOIL.act : 1) * (auto ? AU.k : 1), q = Math.min(pw, 1.25);
   C.kind = hand ? 'hand' : 'long'; C.w = F.w; C.d = 2 * F.z * F.w;

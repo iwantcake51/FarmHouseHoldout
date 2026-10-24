@@ -192,8 +192,9 @@ function worryStep(rdt) {
   if (ANIM.worry < 0.002 && !want) ANIM.worry = 0;
 }
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
-// first person: how much of the stride's rise, fall and sway (stride) and of the lean into moving (lean) the chest keeps
-const FP_BODY = { stride: 0.25, lean: 0.35 };
+// first person: how much of the stride's rise, fall and sway (stride), of the lean into moving (lean) and of the chest
+// leading round and banking into a turn (turn: what swings the arms and the gun about as you look round) the chest keeps
+const FP_BODY = { stride: 0.25, lean: 0.35, turn: 0.15 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) inspectCut();   // (player/inspect.js)
@@ -393,7 +394,7 @@ function animatePlayer(dt, rdt) {
   if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
   // (from your own eyes the chest rides the stride far less, and leans less into how you move: what sways a body nicely
   // seen from above swims the gun about in front of your eyes, which are held steady over it: game/view-cam.js. FP_BODY)
-  const fpB = fpOn(), fS = fpB ? FP_BODY.stride : 1, fL = fpB ? FP_BODY.lean : 1;
+  const fpB = fpOn(), fS = fpB ? FP_BODY.stride : 1, fL = fpB ? FP_BODY.lean : 1, fT = fpB ? FP_BODY.turn : 1;
   pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy * fS + breathe;
   pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads) * fS;
   // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
@@ -426,7 +427,7 @@ function animatePlayer(dt, rdt) {
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
   const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
-  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + (ANIM.lx + alx) * fL - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) * fS + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = (ANIM.lz + alz) * fL + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
+  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + (ANIM.lx + alx) * fL - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) * fS + ANIM.tw * fT + rgTw + (ANIM.lookC || 0), urz = (ANIM.lz + alz) * fL + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank * fT + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // hurt: upright, standing leant a touch off the bad leg, and walking leant over it as it takes the weight (LIMP); a
   // wince only catches you a little
   urx += 0.04 * wince; urz += limpLean - 0.035 * limp * still;

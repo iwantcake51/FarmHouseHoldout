@@ -36,7 +36,7 @@ const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42
 function reloadDraw(side, on, u) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
-  if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
+  if (!on && r.on) { [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick')); $('xhRPing').classList.remove('tick'); }
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
   // course on the gun still in your hands: not one cut short by putting the gun away)
   const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
@@ -133,7 +133,7 @@ export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
   // you come off the sights)
-  if (!showXh && !xh.hidden) Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick')));
+  if (!showXh && !xh.hidden) { Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)

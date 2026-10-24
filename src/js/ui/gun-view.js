@@ -57,7 +57,7 @@ function setup() {
       const k = 2 * camDist() * Math.tan(GV.fov * Math.PI / 360) / Math.max(1, gunView.clientHeight);
       gvCam.matrixWorld.extractBasis(_gvR, _gvU, new V3());
       gvAim.copy(drag.aim).addScaledVector(_gvR, dx * k).addScaledVector(_gvU, -dy * k).clampLength(0, (fig ? 1.2 : gvLen) * GV_PAN);
-    } else { yaw = drag.yaw + dx * 0.011; pitch = clamp(drag.pitch + dy * 0.008, GV.pitch[0], GV.pitch[1]); }
+    } else { yaw = drag.yaw - dx * 0.011; pitch = clamp(drag.pitch + dy * 0.008, GV.pitch[0], GV.pitch[1]); }   // (dragged right, it turns right under the pointer)
   });
   gunView.addEventListener('contextmenu', e => e.preventDefault());
   const up = () => { drag = null; idleT = 0; }; gunView.addEventListener('pointerup', up); gunView.addEventListener('pointercancel', up);

@@ -402,24 +402,25 @@ export const RACKS = {
       lean: { off: { p: -0.09, r: 0.03, y: 0.05, z: -0.035, h: 0.02, w: -0.03 } },
       kick: { back: { gun: [-0.9, 0.3, -0.6], cam: [0.1, -0.6, -0.15] }, home: { gun: [-1.2, -0.3, 1.0], cam: [-0.16, 1.0, 0.36] } } }
   ],
+  // (rolled and turned toward your left, the handle's side up: the rifle's worked right-handed, player/player.js)
   bolt: [
     // deliberate: up, back, a beat, forward, down, the rifle staying on the shoulder with a little roll
     { beat: { reach: 0.12, lift: 0.23, back: 0.43, fwd: 0.51, home: 0.69, lock: 0.77 }, dur: 0.9, delay: 0.15, ex: [1.3, 1.5], hand: [-0.012, -0.004],
-      lean: { grab: { r: -0.13, y: 0.03, h: -0.012 }, lift: { r: -0.05 }, off: { p: 0.04, z: -0.018, w: 0.04 } },
-      kick: { up: { gun: [0, -0.35, 0], cam: [0.05, 0, 0] }, back: { gun: [0.8, 0.2, -0.4], cam: [0.11, -0.5, -0.1] },
-        home: { gun: [-0.3, 0, 0.3], cam: [-0.05, 0.35, 0.08] }, lock: { gun: [-1.0, 0.7, 0.1], cam: [-0.14, 0.2, 0.16] } } },
+      lean: { grab: { r: 0.13, y: -0.03, h: -0.012 }, lift: { r: 0.05 }, off: { p: 0.04, z: -0.018, w: 0.04 } },
+      kick: { up: { gun: [0, 0.35, 0], cam: [0.05, 0, 0] }, back: { gun: [0.8, -0.2, -0.4], cam: [0.11, -0.5, -0.1] },
+        home: { gun: [-0.3, 0, 0.3], cam: [-0.05, 0.35, 0.08] }, lock: { gun: [-1.0, -0.7, 0.1], cam: [-0.14, 0.2, 0.16] } } },
     // one fast sweep: the handle flicked up and torn back in a single motion, then driven home and slapped down with
     // the heel of the hand coming over the top of the knob
     { beat: { reach: 0.1, lift: 0.17, back: 0.36, fwd: 0.4, home: 0.56, lock: 0.62 }, dur: 0.78, delay: 0.12, ex: [1.1, 1.7], hand: [-0.004, 0.016], sweep: 0.05,
-      lean: { grab: { r: -0.08, y: -0.03, h: -0.006 }, lift: { r: -0.03 }, off: { p: 0, z: -0.026, w: 0.09 } },   // the muzzle stays on target
-      kick: { back: { gun: [0.6, 0.3, -0.6], cam: [0.13, -0.6, -0.12] }, home: { gun: [-0.2, 0, 0.35], cam: [-0.04, 0.3, 0.06] },
-        lock: { gun: [-1.3, 1.1, 0.15], cam: [-0.2, 0.25, 0.2] } } },
+      lean: { grab: { r: 0.08, y: 0.03, h: -0.006 }, lift: { r: 0.03 }, off: { p: 0, z: -0.026, w: 0.09 } },   // the muzzle stays on target
+      kick: { back: { gun: [0.6, -0.3, -0.6], cam: [0.13, -0.6, -0.12] }, home: { gun: [-0.2, 0, 0.35], cam: [-0.04, 0.3, 0.06] },
+        lock: { gun: [-1.3, -1.1, 0.15], cam: [-0.2, 0.25, 0.2] } } },
     // the rifle brought down off the shoulder and in toward the chest, rolled over hard, handle side up, to watch the
     // case fly, then put back up level to fire
     { beat: { reach: 0.14, lift: 0.25, back: 0.44, fwd: 0.5, home: 0.66, lock: 0.74 }, dur: 0.95, delay: 0.15, ex: [1.4, 1.4], hand: [-0.014, -0.008],
-      lean: { grab: { r: -0.42, y: 0.16, h: -0.06, p: 0.05, z: -0.04 }, lift: { r: -0.04 }, off: { p: 0.03, z: -0.015, w: 0.03 } },
-      kick: { up: { gun: [0, -0.5, 0], cam: [0.07, 0, 0] }, back: { gun: [0.7, -0.6, -0.35], cam: [0.18, -0.4, -0.08] },
-        home: { gun: [-0.3, 0.2, 0.3], cam: [-0.05, 0.3, 0.06] }, lock: { gun: [-0.9, 1.4, 0.1], cam: [-0.22, 0.2, 0.14] } } }
+      lean: { grab: { r: 0.42, y: -0.16, h: -0.06, p: 0.05, z: -0.04 }, lift: { r: 0.04 }, off: { p: 0.03, z: -0.015, w: 0.03 } },
+      kick: { up: { gun: [0, 0.5, 0], cam: [0.07, 0, 0] }, back: { gun: [0.7, 0.6, -0.35], cam: [0.18, -0.4, -0.08] },
+        home: { gun: [-0.3, -0.2, 0.3], cam: [-0.05, 0.3, 0.06] }, lock: { gun: [-0.9, -1.4, 0.1], cam: [-0.22, 0.2, 0.14] } } }
   ]
 };
 // where the action is at q through the cycle: off how far back (0 home, 1 at the stop), lift how far the bolt handle
