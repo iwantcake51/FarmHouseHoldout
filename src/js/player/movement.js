@@ -1,7 +1,7 @@
 // Player movement, statuses and aiming each frame.
 
 import { cam, FWD, GUN_Y, RIGHT, V3 } from '../core/renderer.js';
-import { clamp, smooth } from '../core/math.js';
+import { angDiff, clamp, smooth } from '../core/math.js';
 import { moveCircle } from '../world/collision.js';
 import { P } from './player.js';
 import { carryMul, curId, healMul, hpCap, S, W, W8 } from '../game/run-state.js';
@@ -38,6 +38,10 @@ const BAND_SLOW = 0.55;
 const HURT_SLOW = { from: 0.35, min: 0.85, floor: 0.72 };
 
 // status effects, walking, vaulting and aiming
+// in first person, a gap between where you look and where you're facing bigger than gap (radians: after a vault, say,
+// looking aside the whole way over) is turned through at k rather than snapped; smaller ones, everyday turning, are taken
+// at once so your aim's exact
+const FP_TURN = { gap: 0.25, k: 9 };
 export function updatePlayer(dt) {
   P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt); P.eye = Math.max(0, (P.eye || 0) - dt); P.adrCd = Math.max(0, (P.adrCd || 0) - dt);
   W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
@@ -113,7 +117,10 @@ export function updatePlayer(dt) {
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
   if (P.dead) { /* no more aiming */ }
-  else if (fpOn() && state === 'play') { centerMouse(...fpAimPx()); P.aim = VCAM.yaw; fpAim(aimPt); }   // first person: you aim where you look (game/view-cam.js)
+  else if (fpOn() && state === 'play') {
+    // (where you look; but a big gap, as after a vault while you looked aside, is turned through smoothly, not snapped)
+    centerMouse(...fpAimPx()); const d = angDiff(VCAM.yaw, P.aim); P.aim = Math.abs(d) > FP_TURN.gap && !P.vault ? P.aim + d * Math.min(1, dt * FP_TURN.k) : P.vault ? P.aim : VCAM.yaw; fpAim(aimPt);
+  }   // first person: you aim where you look (game/view-cam.js)
   else if (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.25) {
     const sx = tStick.R.x, sy = tStick.R.y; P.aim = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy);
     aimPt.set(P.x + Math.sin(P.aim) * 6, GUN_Y, P.z + Math.cos(P.aim) * 6);

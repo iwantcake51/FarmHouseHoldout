@@ -9,13 +9,14 @@
 // the wheel its speed. You stay where you were, and every zombie shows wherever it is.
 import { $ } from '../core/dom.js';
 import { KB } from '../input/keybinds.js';
-import { CAM_OFF, cv, FP_CAM, GUN_Y, ISO_CAM, setCam, V3 } from '../core/renderer.js';
+import { CAM_OFF, cv, FP_CAM, GUN_Y, ISO_CAM, R, setCam, V3 } from '../core/renderer.js';
 import { clamp, rr, smooth } from '../core/math.js';
 import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { curId, SCOPES, T, W, W8 } from './run-state.js';
 import { GM, gunMeshes, HOLDS, X } from '../weapons/gun-materials.js';
+import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
@@ -69,6 +70,8 @@ const BOB = { up: 0.011, pitch: 0.006, side: 0.007, roll: 0.005, speed: 4.2, max
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
 // of the sights, so the gun's never pushed into your face (aiming up, say): an optic's, iron sights'
 const EYE_MIN = { optic: 0.15, iron: 0.25 };
+// down the sights, particles thinned toward the aim: out to r of the view's height, by k at most
+const AIM_THIN = { r: 0.16, k: 1 }, _vcS = new THREE.Vector2();
 // the third-person camera's jolts as first person feels them (game/camera.js): a push along the aim dips the view
 // (push, radians a unit), one across turns it, a zoom draws the view in (zoom); all eased (ease) so they roll rather
 // than snap. A reload's own sway (relP: down onto the gun, relR: rocking with the hands) and the shake (shake: radians)
@@ -374,7 +377,7 @@ function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glas
 // vault), sh: the shake
 export function viewFrame(rdt, roll, sh, jolt) {
   syncView();
-  if (isoOn()) { if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); return; }
+  if (isoOn()) { if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
   // play, a word that a click takes it back
   const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen();
@@ -454,13 +457,15 @@ export function viewFrame(rdt, roll, sh, jolt) {
       S.a = scope ? 1 : smooth(clamp((w - 0.3) / 0.35, 0, 1)); S.w = w;
     }
     sightHide(L && w > 0.5 ? L.hide : []);
+    // particles thinned toward your aim down the sights (effects/sprite-batch.js), round where the crosshair would be
+    { const [ox, oy] = fpAimPx(); R.getDrawingBufferSize(_vcS); SPRITE_RES.set(_vcS.x, _vcS.y); SPRITE_AIM.set(0.5 + ox / innerWidth, 0.5 - oy / innerHeight, AIM_THIN.r, AIM_THIN.k * smooth(clamp((w - 0.3) / 0.6, 0, 1))); }
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
     const fov = (SET.fov || 75) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1)));   // (a touch wider at a sprint)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
-    SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false);
+    SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;
     // the free camera: flown, easing into and out of its speed
     const s = V.speed * (keys.has('shift') ? FREE.fast : 1), cy = Math.cos(V.fyaw), sy = Math.sin(V.fyaw), cp = Math.cos(V.fpitch), spp = Math.sin(V.fpitch);
     let f = 0, r = 0, u = 0;

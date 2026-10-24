@@ -22,6 +22,7 @@ import { STATIC_LIGHTS } from './static-lights.js';
 import { amb, curDark, setLitHere } from './day-night.js';
 import { computeVision } from './vision.js';
 import { spitLights } from '../zombies/spitter.js';
+import { fpOn } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { holdOf } from '../player/hold.js';
 import { SWAP_T, swapSt } from '../player/swap.js';
@@ -112,7 +113,7 @@ export function myLight() { const t = T('light'), D = W(curId()); return FLASH[t
 // it catches the gun up at a run, and firing on the run). flOff is how far round off your aim it is right now
 const FL_FOLLOW = { run: 11, rg: 6.5 };
 let flOff = 0, flOx = 0, flOz = 0;
-export const flDir = () => P.aim + flOff;
+export const flDir = () => fpOn() && FL_FP.on ? FL_FP.yaw : P.aim + flOff;   // (in first person, the gun's own way: fpBarrel)
 const _gb0 = new V3(), _gb1 = new V3();
 // the gun in your hands, flat on the ground: where its muzzle is (_gb1) and which way it points, or null with no gun
 // to go by; off its last frame's place, which is plenty for a light. gunYawK is how much that way can be gone by: the
@@ -144,6 +145,19 @@ function lensAt(side) {
   em.getWorldPosition(_fe);
   return los(P.x, P.z, _fe.x, _fe.z) && !bulletBlocked(_fe.x, _fe.z) ? _fe : null;
 }
+// in first person the light goes where the gun points: round with its barrel and down (tilt) as far as it's pointed
+// down, eased after it a little (ease) so it sweeps rather than jitters; pointing level or up it throws as far as it
+// reaches (tilt never under min)
+const FL_FP = { yaw: 0, tilt: 0.1, on: false, ease: 20, min: 0.04, max: 1.2 }, _fb0 = new V3(), _fb1 = new V3();
+function fpBarrel(rdt) {
+  const g = gunMeshes[W8.cur]; if (!g || !g.visible) { FL_FP.on = false; return false; }
+  const h = holdOf(W8.cur, 'R'), m = MUZ[W8.cur] || 0.9;
+  _fb0.set(X, GUN_Y, m - 0.4).applyMatrix4(h.matrixWorld); _fb1.set(X, GUN_Y, m).applyMatrix4(h.matrixWorld);
+  const dx = _fb1.x - _fb0.x, dz = _fb1.z - _fb0.z, dy = _fb1.y - _fb0.y, yaw = Math.atan2(dx, dz), tilt = clamp(-Math.atan2(dy, Math.hypot(dx, dz)), FL_FP.min, FL_FP.max);
+  if (!FL_FP.on) { FL_FP.yaw = yaw; FL_FP.tilt = tilt; FL_FP.on = true; }
+  const k = Math.min(1, (rdt || 0) * FL_FP.ease); FL_FP.yaw = angDiff(FL_FP.yaw + angDiff(yaw, FL_FP.yaw) * k, 0); FL_FP.tilt += (tilt - FL_FP.tilt) * k;
+  return true;
+}
 const FL_N = 6, teamFl = [];   // (teamFl: this frame's teammate lights, { x, z, dir, tier, on }: teamBeam)
 function flashUniforms(rdt) {
   const F = FLASH[T('light')], D = W(curId()), cones = [], dark = state !== 'title' && curDark > 0.05;
@@ -151,6 +165,7 @@ function flashUniforms(rdt) {
   if (dark && F && D && !D.melee && flOn > 0) {
     const [lr, half, k] = F, li = k * curDark * flOn;
     if (D.akimbo && !P.vault) [-1, 1].forEach(sg => { const mz = muzzle(sg), e = lensAt(sg < 0 ? 'L' : 'R'); cones.push([e ? e.x : mz.ox, e ? e.z : mz.oz, mz.a, lr, half * 0.9, li * 0.62, T('light'), e ? e.y : GUN_Y]); });
+    else if (fpOn() && fpBarrel(rdt)) { const e = lensAt('R'); cones.push([e ? e.x : flOx, e ? e.z : flOz, FL_FP.yaw, lr, half, li, T('light'), e ? e.y : GUN_Y, FL_FP.tilt]); }
     else { const e = lensAt('R'); cones.push([e ? e.x : flOx, e ? e.z : flOz, flDir(), lr, half, li, T('light'), e ? e.y : GUN_Y]); }
   }
   // teammates' lights, switched on and off as theirs is (eased the same way) and swung round with their aim
@@ -166,7 +181,7 @@ function flashUniforms(rdt) {
   }
   LMU.uFlK.value.w = cones.length;
   if (!LMU.uFlCookie.value) LMU.uFlCookie.value = partTex('flBeam');   // (the pattern a flashlight throws: core/shaders.js)
-  cones.forEach((c, i) => { const tilt = Math.atan2(c[7], c[3] * FL_TILT); LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); LMU.uFlH.value[i].set(c[7], Math.sin(tilt), Math.cos(tilt), 0); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
+  cones.forEach((c, i) => { const tilt = c[8] ?? Math.atan2(c[7], c[3] * FL_TILT); LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); LMU.uFlH.value[i].set(c[7], Math.sin(tilt), Math.cos(tilt), 0); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
     flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
   if (cones.length) flShTex.needsUpdate = true;
 }

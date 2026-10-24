@@ -16,6 +16,7 @@
 import { FP_CAM, R, scene } from '../core/renderer.js';
 import { POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
+import { SPRITE_AIM, SPRITE_RES } from './sprite-batch.js';
 import { SCOPE_V } from '../game/view-cam.js';
 
 // the most the scope's view is drawn at
@@ -155,7 +156,11 @@ function scopeOver(S, W, H, f) {
     if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size; }
     // (you're left out of it: the gun's own front sight, or your arm, a hand's breadth from its front lens)
     const pv = PM.g.visible, sh = R.shadowMap.autoUpdate; PM.g.visible = false;
+    // (the particles thinned toward the middle of the scope's own view too, then back as they were for the main view)
+    const am = [SPRITE_AIM.x, SPRITE_AIM.y, SPRITE_AIM.z, SPRITE_AIM.w], ar = [SPRITE_RES.x, SPRITE_RES.y];
+    SPRITE_AIM.set(0.5, 0.5, 0.3, am[3]); SPRITE_RES.set(size, size);
     R.shadowMap.autoUpdate = false; R.autoClear = true; R.setRenderTarget(SC.rt); R.render(scene, scopeCam); R.autoClear = false; R.shadowMap.autoUpdate = sh; PM.g.visible = pv;
+    SPRITE_AIM.set(...am); SPRITE_RES.set(...ar);
   }
   R.setRenderTarget(null);
   // the view round it out of focus, as the scope comes to your eye
