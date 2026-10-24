@@ -17,6 +17,7 @@ import {
 } from './state.js';
 import { tickDeath } from '../ui/screens.js';
 import { update } from './update.js';
+import { scopePass } from '../effects/scope-view.js';
 import { cheatSpeed } from '../ui/cheats.js';
 import { visuals } from './visuals.js';
 import { netTick } from '../net/sync.js';
@@ -89,6 +90,7 @@ function frame(now) {
   if (warmQ || (state === 'title' && ++warmN === WARM_AT)) { warmQ = false; warmShaders(); }
   renderFrame();   // the farm, with its ambient occlusion and glow (effects/post.js)
   outlinePass(cam);   // the outlines round whole models, over the frame (effects/outlines.js)
+  scopePass();   // a scope's view in its eyepiece, in first person (effects/scope-view.js)
   flushModels();   // (old weapon models let go of once nothing draws them: binModel, core/geometry.js)
 }
 setLast(performance.now());

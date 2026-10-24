@@ -23,6 +23,7 @@ import { AK_SLIDE, akBusy, akChargeState, akHasCharge, akSlideBack, akU } from '
 import { BARREL, barrelFree } from '../weapons/firing.js';
 import { meleeBashHand, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
 import { frontHeavy, gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
+import { fpSightAlign } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
@@ -530,6 +531,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
+  if (!ak) fpSightAlign(gg);   // in first person down the sights: brought onto your aim and up to your eye (game/view-cam.js)
   up.x -= SR.x + BR.z * BR_LEAN; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
   pm.upper.position.z = -BR.z;   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle

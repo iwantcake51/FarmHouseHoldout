@@ -141,6 +141,7 @@
   "zombies/knockdown.js",
   "zombies/spitter.js",
   "game/view-cam.js",
+  "effects/scope-view.js",
   "game/camera.js",
   "world/cutaway.js",
   "ui/crosshair.js",

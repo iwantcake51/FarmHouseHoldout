@@ -103,8 +103,13 @@ Touch screens get twin sticks and on-screen buttons.
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
 Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
 where you face, and you shoot where the crosshair sits in the middle of the screen. The view rides your head as you
-walk, vault and stumble, smoothed out, and shots kick it up a little. Aiming down the sights draws it in, more through
-a scope. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
+walk, vault and stumble, smoothed out, and shots kick it up a little. Aiming down the sights brings your eye onto the
+gun's own sights and the crosshair goes: the front post sits in the rear notch or aperture, the red dot or the
+holographic ring sits on your target, and the sight picture sways and kicks exactly where your shot will go. A scope
+(the hunting scopes, the ACOG) shows its own magnified view in the eyepiece, with its reticle (a duplex, or the ACOG's
+lit chevron and drop marks), colour fringing and darkening toward the rim, a little parallax, and the tube's shadow
+closing in from the side when your eye's off its axis (bringing it up, a shot's kick, a quick turn); the rest of the
+view dims round it. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
 back. You go back to the view from above whenever you're down.
 
 ## Settings

@@ -22,7 +22,7 @@ import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, spreadOf } from '../w
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
-import { fpOn, freeOn, onScreen } from '../game/view-cam.js';
+import { fpOn, fpSighted, freeOn, onScreen } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
@@ -130,7 +130,7 @@ function blockedShot() {
 }
 const xhX = $('xhX');
 export function updateCrosshair(rdt, D) {
-  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn();   // (none flying the free camera: game/view-cam.js)
+  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)

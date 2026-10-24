@@ -140,6 +140,7 @@ export const RIFLE_MODELS = {
       { const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); tt.position.set(X, sy + sr + 0.007, (z0 + z1) / 2); g.add(tt);
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
+      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.0035, zf: z1 + 0.002, r: oc * 0.82, relief: 0.085 };   // (looked down in first person: game/view-cam.js)
     }
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };
   },
@@ -320,7 +321,9 @@ export const RIFLE_MODELS = {
         [shp(inset([[0.5756, 1.1873], [0.7156, 1.1869], [0.7233, 1.1944], [0.7356, 1.196], [0.7356, 1.2063], [0.7301, 1.2126], [0.7216, 1.2141], [0.5755, 1.2141], [0.5685, 1.2109], [0.5661, 1.2077], [0.565, 1.2027], [0.5655, 1.1953]], -0.0025))]), 0.025, A, X, 0.0025, 2);
       solid(g, [[0.479, 1.1765], [0.7525, 1.1765], [0.7525, 1.1885], [0.479, 1.1885]], 0.04, A, X, 0.002);    // its base round the rail
       [-1, 1].forEach(sd => profile(g, shp([[0.4983, 1.2045], [0.546, 1.2045], [0.5464, 1.2378], [0.5396, 1.2404], [0.5125, 1.2418], [0.5054, 1.2382], [0.4983, 1.2312]]), 0.005, A, X + sd * 0.0105, 0.001));   // the ears
-      box(g, 0.015, 0.03, 0.006, A, X, 1.2195, 0.52); box(g, 0.004, 0.004, 0.0065, GM.rubber, X, 1.227, 0.52);   // the aperture plate and its hole
+      // the aperture plate up between the ears, the hole through it over the handle's top in line with the front post's
+      // tip (looked through in first person: game/view-cam.js)
+      { const ap = shp([[X - 0.0075, 1.2045], [X + 0.0075, 1.2045], [X + 0.0075, 1.2418], [X - 0.0075, 1.2418]]), hole = new THREE.Path(); hole.absarc(X, 1.2393, 0.0024, 0, Math.PI * 2, true); ap.holes.push(hole); xsec(g, ap, 0.517, 0.523, A); }
       cyl(g, 0.0108, 0.008, GM.metal2, X - 0.0165, 1.2255, 0.517, 18).rotation.set(0, 0, Math.PI / 2);        // windage knob
       ribTube(g, 0.0085, 0.033, GM.metal2, X, 1.1985, 0.5235, 12, 0.0012).rotation.set(0, Math.PI / 2, 0);    // the elevation drum
       [0.533, 0.735].forEach(z => { cyl(g, 0.0068, 0.042, GM.metal2, X, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.009, 0.007, GM.metal2, X + 0.0235, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); });   // the clamp's screws and thumb nuts

@@ -94,7 +94,9 @@ export function fitAttachments(g, D, front, y, info) {
   if (sight && !info.noSight) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy - 0.002, bz = sz + oz;   // mounts sit 2 mm down into the rail or receiver they clamp
-    if (sight === 4) acog(p, sx, by, bz);
+    // (each optic notes its axis on what it's mounted to: [x, y] across, its eyepiece and front lens along z, the
+    // eyepiece's radius and its eye relief, for looking down it in first person: game/view-cam.js)
+    if (sight === 4) { acog(p, sx, by, bz); p.userData.optic = { kind: 'acog', x: sx, y: by + ACOG.axis, zr: bz - 0.0968, zf: bz + HOOD.lensZ, r: 0.0152, relief: 0.045 }; }
     else if (sight >= 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
       // a gun can have a smaller one, further along (the revolver's handgun scope): its lengths by scopeK, its
       // thickness by scopeR, centred at scopeZ
@@ -103,6 +105,7 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(p, 0.025 * rk, 0.3 * lk, GM.metal, sx, sy, cz + 0.01 * lk, 18);
       taper(p, 0.025 * rk, 0.04 * rk, 0.08 * lk, GM.metal, sx, sy, cz + 0.2 * lk); taper(p, 0.03 * rk, 0.025 * rk, 0.05 * lk, GM.metal, sx, sy, cz - 0.16 * lk);
       cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.026 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends
+      p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.026 * rk, relief: 0.085 };
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (sight >= 2) {
@@ -120,11 +123,13 @@ export function fitAttachments(g, D, front, y, info) {
       const gl = box(p, 0.035, 0.035, 0.002, GM.holoGlass, sx, by + 0.0405, bz + 0.004); gl.rotation.x = -0.1;
       const rt = new THREE.Mesh(new THREE.TorusGeometry(0.0095, 0.002, 4, 22), GM.red); rt.position.set(sx, by + 0.0405, bz + 0.004); rt.rotation.x = -0.1; p.add(rt);   // the reticle, on the glass
       box(p, 0.0026, 0.0026, 0.002, GM.red, sx, by + 0.0405, bz + 0.004).rotation.x = -0.1;
+      p.userData.optic = { kind: 'holo', x: sx, y: by + 0.0405, zr: bz - 0.046, zf: bz + 0.012, r: 0.0175 };
     } else {   // micro red dot
       box(p, 0.034, 0.016, 0.05, GM.metal, sx, by + 0.006, bz);                                        // its base, set down on the rail and up into the tube
       cyl(p, 0.019, 0.055, GM.metal, sx, by + 0.032, bz); ring(p, 0.021, 0.01, GM.metal2, sx, by + 0.032, bz + 0.028);
       cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285);   // the lens on the front ring, the dot showing at the back
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), GM.metal2); tt.position.set(sx, by + 0.055, bz); p.add(tt);
+      p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }
   }
   if (roundOn(tierCtx) === 'fire') { ring(g, 0.03, 0.03, GM.ember, X, y, Math.min(front - 0.05, (info.sz || 0.62) + 0.28)); box(g, 0.012, 0.02, 0.05, GM.ember, X + 0.04, y - 0.04, (info.sz || 0.62) - 0.05); }
