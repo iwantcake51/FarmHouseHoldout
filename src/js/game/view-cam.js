@@ -465,7 +465,7 @@ function sightLine() {
     const I = ir.userData.irons; ir.updateMatrixWorld(true);
     SL.obj = ir; SL.kind = I.kind; SL.r = I.r || 0; SL.hw = SL.hh = 0;
     SL.a.set(X, I.yr, I.rz); SL.b.set(X, I.yf, I.fz);
-    SL.relief = I.kind === 'ap' ? IRON.peep : long ? clamp(I.rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null;
+    SL.relief = I.kind === 'ap' ? I.relief ?? IRON.peep : long ? clamp(I.rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null;
     return SL;
   }
   // the top along the middle, front to back

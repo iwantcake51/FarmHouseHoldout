@@ -106,6 +106,11 @@ const MP5_TILT = 0.35, MP5_DRUM = { y: 1.1784, z: 0.5725, r: 0.013 };
 const MP5_CLAW = 0.03;
 // the drum's aperture: wide enough to frame the hooded front sight's ring round its post, as you see it
 const MP5_AP = 0.0029, MP5_HOLE = 0.0158;   // (and how far up the drum it is)
+// the drum's top band is built in level slices along the gun (mp5Rear): enough of them that its leaning top edge reads as
+// one smooth slope, not a staircase, close up to your eye; and your eye's this far behind the hole looking through it,
+// clear of the sight's housing and clamp (the housing runs back a good way behind the drum, and nearer than this it
+// pushes into the view's near edge)
+const MP5_SLICES = 64, MP5_RELIEF = 0.105;
 function mp5Rear(g) {
   const K = GM.metal, M2 = GM.metal2, R = MP5.rw, yc = MP5.top - R, D = MP5_DRUM;
   { const sh = new THREE.Shape(), w = 0.0159, rb = R - 0.0003, a0 = Math.atan2(Math.sqrt(rb * rb - w * w), w);
@@ -126,7 +131,7 @@ function mp5Rear(g) {
   // as wide as the leaning drum is there and as tall as it is there (its top and its foot lean with it), the hole
   // straight through them down the gun; where the lean brings the top down past the hole (the front of the drum), the
   // hole's an open notch in that slice, so from behind it's a whole round hole
-  const T = Math.tan(MP5_TILT), h = MP5_HOLE, yr = D.y + h * Math.cos(MP5_TILT), Rz = D.r / Math.cos(MP5_TILT), n = 18, r = MP5_AP;
+  const T = Math.tan(MP5_TILT), h = MP5_HOLE, yr = D.y + h * Math.cos(MP5_TILT), Rz = D.r / Math.cos(MP5_TILT), n = MP5_SLICES, r = MP5_AP;
   const at = a => [D.y + a * Math.cos(MP5_TILT), D.z + a * Math.sin(MP5_TILT)];   // (a point up the drum's axis: its height and how far along)
   const [yb0, zb0] = at(0.0065), [yt0, zt0] = at(0.0195), cz = at(h)[1];
   for (let i = 0; i < n; i++) {
@@ -140,7 +145,7 @@ function mp5Rear(g) {
     } else sh = shp([[X - w, yb], [X + w, yb], [X + w, yt], [X - w, yt]]);
     apPart(xsec(g, sh, z0, z1, K));
   }
-  irons(g, { kind: 'ap', yr, rz: D.z, r: MP5_AP });   // (looked through in first person: game/view-cam.js)
+  irons(g, { kind: 'ap', yr, rz: D.z, r: MP5_AP, relief: MP5_RELIEF });   // (looked through in first person: game/view-cam.js)
 }
 // Gun models. Each builder adds meshes to the group g (axis +z is the barrel, X is the right-hand offset)
 // and returns where the muzzle is plus mount points for magazines, sights and the moving slide or bolt.

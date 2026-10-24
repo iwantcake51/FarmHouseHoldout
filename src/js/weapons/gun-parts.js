@@ -280,7 +280,8 @@ export function notchRear(g, x, y, z, w, h, d, nw, nd, mat, dot) {
 }
 // what the gun's sights are: the line through them in its own frame, the rear sight's height (yr) and where along it
 // (rz), the front's tip (yf) and where (fz); kind: 'notch' (a front post in a rear notch), 'ap' (a rear aperture, r its
-// hole's radius, its parts in parts: drawn as the out-of-focus ring you look through), or 'bead' (a bead down a rib)
+// hole's radius, its parts in parts: drawn as the out-of-focus ring you look through; relief, how far behind it your eye
+// is, if not the usual), or 'bead' (a bead down a rib)
 export function irons(g, I) { g.userData.irons = Object.assign(g.userData.irons || {}, I); return g.userData.irons; }
 // a rear aperture's parts (looked through from a hand's breadth away in first person, so they're out of focus)
 export function apPart(m) { if (m) m.userData.apPart = true; return m; }
