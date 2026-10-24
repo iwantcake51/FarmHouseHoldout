@@ -117,7 +117,7 @@ export function xhKick(D, id, pw, auto) {
   const amt = XREC.px * innerHeight / 1080 * Math.pow(pw, 0.7) * tight * ads * (auto ? XREC.autoK : 1);
   _xv.set(P.x, GUN_Y, P.z).project(cam);   // (out along your aim: from you on the screen toward the cursor)
   let dx = mouseX - (_xv.x + 1) / 2 * innerWidth, dy = mouseY - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
-  if (L < 1) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }
+  if (L < 1 || fpOn()) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }   // (from your own eyes your aim's straight ahead: a shot climbs it up the screen; you're behind the view, so placing you on it would point it down)
   XR.c = Math.pow(settleK(D), 0.7);   // (how quickly it comes home: slower for a heavier round, SETTLE)
   if (!auto) {   // (a shot at a time: kicked out along the aim and a little aside, and eased home; harder as a sidearm's spray builds, HANDGUN)
     const side = rr(-1, 1) * XREC.side, out = rr(0.85, 1.1), v = amt * 22 * (unshouldered(D, id) ? 1 + HANDGUN.kick * (W8.spray || 0) : 1);
@@ -140,8 +140,14 @@ export function xhHit(x, z, amount) {
   const k = clamp(amount || 1, 0.1, XHIT.max);
   XR.hbT = Math.min(1, XR.hbT + 0.45 * k);
   if (!hasMouse || tStick.R) return;
-  _xv.set(P.x, 1, P.z).project(cam); const px = (_xv.x + 1) / 2 * innerWidth, py = (1 - _xv.y) / 2 * innerHeight;
-  _xv.set(x, 1, z).project(cam); let dx = px - (_xv.x + 1) / 2 * innerWidth, dy = py - (1 - _xv.y) / 2 * innerHeight; const L = Math.hypot(dx, dy);
+  let dx, dy;
+  if (fpOn()) {   // (from your own eyes: away across the view from the side it came from, worked out in the view's own frame, as you're behind it)
+    _xv.set(x, 1, z).applyMatrix4(cam.matrixWorldInverse); const n = Math.hypot(_xv.x, 0.3) || 1; dx = -_xv.x / n * 100; dy = 0.3 / n * 100;   // (scaled up as screen px are)
+  } else {
+    _xv.set(P.x, 1, P.z).project(cam); const px = (_xv.x + 1) / 2 * innerWidth, py = (1 - _xv.y) / 2 * innerHeight;
+    _xv.set(x, 1, z).project(cam); dx = px - (_xv.x + 1) / 2 * innerWidth; dy = py - (1 - _xv.y) / 2 * innerHeight;
+  }
+  const L = Math.hypot(dx, dy);
   if (L < 1) { const a = rand() * 6.283; dx = Math.cos(a); dy = Math.sin(a); } else { dx /= L; dy /= L; }   // (away from it on the screen)
   const side = rr(-1, 1) * XHIT.side, v = XHIT.px * innerHeight / 1080 * k * rr(0.85, 1.15) * 22 * (aiming ? 0.6 : 1);
   XR.vx += (dx - dy * side) * v; XR.vy += (dy + dx * side) * v;

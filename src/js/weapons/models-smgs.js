@@ -80,8 +80,8 @@ function mp5Section(L, Rt) {
   if (Rt) MP5_CH.slice().reverse().forEach(([d, y]) => sh.lineTo(X - R - d, y));
   sh.lineTo(X - R, b + c); sh.closePath(); return sh;
 }
-// its rear sight: a plate clamped down on the receiver's round top; on it the housing, a floor between two ears that
-// slope off at the back, the windage screw lying in it and a cross-head screw in the right ear; the drum standing in
+// its rear sight: a plate clamped down on the receiver's round top; on it the housing, a low floor with the windage
+// screw lying in it (no ears either side: the drum stands clear); the drum standing in
 // the front of the housing leaning forward, a plain band at its foot, knurled above, the top a cup with its rim cut
 // away front and back (the open notch) and an aperture through it; the detent's nub under its front
 // the mag well, part of the gun (the mag that goes in it is its own: in the mag group). The plain MP5's off a side photo
@@ -117,17 +117,14 @@ function mp5Rear(g) {
     sh.moveTo(X + w, 1.1792); sh.lineTo(X - w, 1.1792); sh.absarc(X, yc, rb, Math.PI - a0, a0, true); sh.closePath();
     xsec(g, sh, 0.5249, 0.5914, K, 0.0006); }                                                                              // the clamp plate
   solid(g, [[0.5262, 1.176], [0.5262, 1.1805], [0.5318, 1.1812], [0.5352, 1.1868], [0.5665, 1.1868], [0.5665, 1.176]], 0.028, K, X, 0.0006);   // the housing's floor
-  [-1, 1].forEach(s2 => apPart(solid(g, [[0.5345, 1.1765], [0.5345, 1.1905], [0.5352, 1.1942], [0.5372, 1.1975], [0.5402, 1.1997], [0.5435, 1.2005], [0.5652, 1.2005], [0.5672, 1.1985], [0.5672, 1.1765]], 0.0029, K, X + s2 * 0.01475, 0.0006)));   // its ears
   { const ws = lathe(g, [[0, 0], [0.0054, 0], [0.0054, 0.0006], [0.0042, 0.0014], [0, 0.0016]], M2, X, 1.1868, 18); ws.rotation.x = -Math.PI / 2; ws.position.z = 0.5505; }   // the windage screw
   box(g, 0.0094, 0.0008, 0.001, GM.rubber, X, 1.1884, 0.5505).rotation.y = 0.5;                                              // and its slot
-  cyl(g, 0.0027, 0.0008, M2, X - 0.0164, 1.1872, 0.5428, 14).rotation.set(0, 0, Math.PI / 2);                               // the right ear's screw
-  [0, Math.PI / 2].forEach(a => { const c = box(g, 0.0004, 0.0036, 0.0007, GM.rubber, X - 0.0168, 1.1872, 0.5428); c.rotation.x = a + Math.PI / 4; });   // its cross
   cyl(g, 0.0032, 0.016, GM.steel, X, 1.1796, 0.5908, 14).rotation.set(0, 0, Math.PI / 2);                                  // the detent's nub
   const d = new THREE.Group(); d.position.set(X, D.y, D.z); d.rotation.x = MP5_TILT - Math.PI / 2; g.add(d); apPart(d);   // (its z up the drum, its y back)
   lathe(d, [[0, 0], [D.r - 0.0006, 0], [D.r - 0.0006, 0.003], [D.r - 0.0012, 0.0035], [0, 0.0035]], M2, 0, 0, 32);      // the plain band
   knurl(d, D.r, 0.003, K, 0, 0, 0.005, 26, 1, 0.0007);                                                                    // the knurling below the aperture's band
   // the drum's top band, knurled, with the aperture through it just under its top edge (as you see it looking through:
-  // the knurled top of the drum standing up between the ears, the hole near its top): level slices along the gun, each
+  // the knurled top of the drum standing up over the housing, the hole near its top): level slices along the gun, each
   // as wide as the leaning drum is there and as tall as it is there (its top and its foot lean with it), the hole
   // straight through them down the gun; where the lean brings the top down past the hole (the front of the drum), the
   // hole's an open notch in that slice, so from behind it's a whole round hole
