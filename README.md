@@ -168,7 +168,9 @@ off once it's latched.
 **Inspecting.** Press **Y** (it can be rebound) to look your gun over, from your own eyes or from above: it's brought
 up and in, rolled over to show one side and then the other, swung round to see down its front, and tipped to look
 along its back and top, your head following it. Each move starts gently, swings through and settles into its pose
-with a little give, the hands never quite still. A handgun's turned in the one hand, the other hanging at your side;
+with a little give, the hands never quite still. The hand on the grip keeps hold of it as it was however the gun's
+turned (the wrist turns with it), and the gun's never held further out or nearer in than your arms comfortably reach,
+so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side;
 the revolver's twirled round your trigger finger first, two quick turns of a cowboy's spin that slow as you catch it,
 before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
 away while you look (from above they stay). Firing or reloading puts the gun straight back on the aim for it;

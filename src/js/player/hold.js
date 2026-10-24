@@ -378,6 +378,37 @@ function cylSide(out, s, c) {
   _cyC.subVectors(out, _cyC); if (_cyC.lengthSq() > 1e-4) _cyOut.copy(_cyC).normalize();   // (the way out from the frame, kept as it comes home)
   return out.addScaledVector(_cyOut, 0.04);
 }
+// how far a fist's turned from the gun's grip about the forearm, as its arm points at t with no turn of its own (radians):
+// the gun's up, seen down the forearm, against the fist's. Kept as it is in the hold (GRIP_REST) and, while the gun's
+// looked over, the fist's turned by however far that's moved, so the hand keeps hold of it as it was
+const _twq = new THREE.Quaternion(), _twe = new THREE.Euler(), _twu = new V3(), _twa = new V3(), _twf = new V3(), _twc = new V3(), _twM = new THREE.Matrix4(), GRIP_REST = { R: 0, L: 0 };
+function gripTwist(side, t, s) {
+  const [rx, ry] = armAim(side, t); _twq.setFromEuler(_twe.set(rx, ry, 0));
+  _twa.set(0, 0, 1).applyQuaternion(_twq); _twf.set(0, 1, 0).applyQuaternion(_twq);
+  const h = holdOf(s, side), f = flipOf(h); _twM.multiplyMatrices(gunMeshes[s].matrix, h.matrix); if (f) _twM.multiply(f.matrix);
+  _twu.set(0, 1, 0).transformDirection(_twM); _twu.addScaledVector(_twa, -_twu.dot(_twa));
+  if (_twu.lengthSq() < 1e-6) return GRIP_REST[side];   // (the gun's up straight along the forearm: no telling, keep the hold)
+  _twu.normalize();
+  return Math.atan2(_twc.crossVectors(_twf, _twu).dot(_twa), _twf.dot(_twu));
+}
+function gripFollow(side, t, s, off) {
+  const w = inspectW(); if (!gunMeshes[s] || off > 0.5) return 0;
+  const a = gripTwist(side, t, s); if (w < 0.002) { GRIP_REST[side] = a; return 0; }
+  return angDiff(a, GRIP_REST[side]) * (1 - off);
+}
+// looking the gun over, it's kept where the hands on it can hold it comfortably (INSPECT_REACH: from the shoulder, of
+// the arm's own length FIST): drawn in or eased out along the line from the shoulder, the gripping hand first, then the
+// one on a long gun's handguard, so it's never held out at the full stretch of an arm, or crushed in against the chest
+const INSPECT_REACH = [0.72, 1.15], _irP = new V3();
+function inspectReach(gg, s, H, ak) {
+  const w = inspectW(); if (w < 0.002 || ak) return;
+  for (let it = 0; it < 2; it++) for (const side of H.kind === 'long' && H.fore && HAND.L.w < 0.5 ? ['R', 'L'] : ['R']) {
+    const g = side === 'R' ? H.grip : H.fore, sh = SHOULDER[side];
+    gunPt(_irP, s, 'R', g[0], g[1], g[2]); _irP.x -= sh[0]; _irP.y -= sh[1]; _irP.z -= sh[2];
+    const d = _irP.length() || 1, c = clamp(d, INSPECT_REACH[0] * FIST, INSPECT_REACH[1] * FIST); if (c === d) continue;
+    gg.position.addScaledVector(_irP, (c / d - 1) * w); gg.updateMatrix();
+  }
+}
 // a gun spun a about the trigger finger (just above and in front of where it's gripped, SPIN_AT), round its own
 // across axis, in upper-body space
 const SPIN_AT = [0.03, 0.035], _spP = new V3(), _spA = new V3(), _spQ = new THREE.Quaternion();
@@ -579,6 +610,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
   fpInspectPose(gg, inspectW());   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
+  inspectReach(gg, s, H, ak);   // and never further out or nearer in than the hands on it can hold it
   { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)
     pm.upper.position.z = -BR.z * bk; }   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
@@ -895,7 +927,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   const hr = HAND_ROLL[H.kind] || HAND_ROLL.hand;
-  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w)); reach(pm.armL, 'L', _fL, ak ? -hr.R * (1 - HAND.L.w) : hr.L * (1 - HAND.L.w));   // (turned back straight while a hand's off the gun)
+  // (looking it over, a hand on the gun turns with it however it's turned, so it stays gripped as it was rather than
+  // turning in the hand: gripTwist, player/inspect.js)
+  const twR = gripFollow('R', _fR, s, HAND.R.w), twL = ak ? 0 : gripFollow('L', _fL, s, HAND.L.w);
+  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w) + twR); reach(pm.armL, 'L', _fL, (ak ? -hr.R : hr.L) * (1 - HAND.L.w) + twL);   // (turned back straight while a hand's off the gun)
   // the revolver twirled round the trigger finger (player/inspect.js), after the hands are on it, so they stay put
   if (IN.spin) spinGun(gg, s, H.grip, IN.spin);
   pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp + IN.hp; pm.head.rotation.y += ACT.hy + IN.hy;

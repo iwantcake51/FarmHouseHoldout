@@ -45,8 +45,9 @@ const INSPECT = {
     K(4.6, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   ],
   hand: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)].concat(HAND_KEYS),
-  // held out to the side and a little forward on a loose wrist for the spin, a glance down at it, then looked over
-  revolver: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(0.3, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.15), K(SPIN_T - 0.15, -0.1, 0.08, 0.02, 0.03, 0.035, 0.05, 0.18, 0.02, 0.02, 0.15)]
+  // held out to the side and a little forward on a loose wrist for the spin (from your own eyes turned most of the way
+  // side on, so it's seen wheeling round the finger beside your hand), a glance down at it, then looked over
+  revolver: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(0.3, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(SPIN_T - 0.15, -0.1, 0.08, 0.02, 0.03, 0.035, 0.05, 0.18, 0.02, 0.02, 0.8)]
     .concat(HAND_KEYS.map(k => Object.assign({}, k, { t: k.t + SPIN_T })))
 };
 // the revolver's spin: flicked forward round the trigger finger (at: seconds in, after a little wind back the other way,

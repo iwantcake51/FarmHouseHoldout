@@ -277,7 +277,7 @@ export function fpReloadPose(gg, k) {
 // looking the gun over from your own eyes (player/inspect.js): held up in front of them, its middle (mid of the way along
 // it) brought by k to a place low in the middle of the view (at: across, up, out from your eye; a handgun's nearer),
 // where its turns (made on it as it's held: player/hold.js) show it from every side
-const FP_INSPECT_AT = { long: [0.07, -0.1, -0.74], side: [-0.05, -0.01, -0.5], mid: 0.5, midLong: 0.4 };
+const FP_INSPECT_AT = { long: [0.07, -0.1, -0.74], side: [-0.06, 0.035, -0.46], mid: 0.5, midLong: 0.4 };
 export function fpInspectPose(gg, k) {
   const D = W(curId()); if (!fpOn() || !(k > 0.002) || !gg.parent || !D || D.melee) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
