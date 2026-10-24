@@ -113,7 +113,7 @@ mouse's movement moves the aim in it (the view turns with the rest, and with all
 aim easing after it, and the view drifting back onto it; the crosshair is wherever the gun points. Hold **Alt** to
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
-little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Looking up, your
+little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, with a little dip and cant on the way, quicker with a handgun;
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto

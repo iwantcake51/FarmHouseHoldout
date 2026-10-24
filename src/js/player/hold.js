@@ -354,6 +354,9 @@ const _mlR = new V3(), _mtS = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
 const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from your own eyes it's the view's own pitch, followed closely: game/view-cam.js, fpGunPitch)
+// first person: how much of the hands' own kick (RK) and the body's rock under a shot (SR, BR) is kept, the rest of
+// the kick being the view's (game/view-cam.js: FP_RECOIL), worked out from your own eyes
+const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
@@ -477,7 +480,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (H.kind === 'long') oy += LONG_RAISE;
   { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
   { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (less seen from your own eyes: FP_SWING)
-  pitch += SR.x * 0.8;   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
+  pitch += SR.x * 0.8 * (fpOn() ? FP_BODY_KICK : 1);   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
@@ -499,7 +502,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
-    let hx = kickPitch(k.p), hy = k.y, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
+    const kf = fpOn() ? FP_HAND_KICK : 1;   // (from your own eyes the kick's mostly the view's own: game/view-cam.js, FP_RECOIL)
+    let hx = kickPitch(k.p) * kf, hy = k.y * kf, hz = k.r * kf, hox = h.userData.x0 || 0, hoy = k.h * kf, hoz = k.z * kf;
     if (ak) { hoz -= GP[side].back; hx -= GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
     const u = ak ? akU(side) : 0;
     if (ak) {
@@ -541,9 +545,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  if (!ak) { fpSightAlign(gg); fpRecoil(gg); fpViewSway(gg); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
-  up.x -= SR.x + BR.z * BR_LEAN; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
-  pm.upper.position.z = -BR.z;   // and the upper body shoved back under it (BR)
+  if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
+  { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)
+    pm.upper.position.z = -BR.z * bk; }   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
   const sl = SLIDES[s];
   if (sl && sl.length) {
