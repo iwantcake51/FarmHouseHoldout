@@ -42,9 +42,12 @@ battle rifle, a machine pistol, a submachine gun, an assault rifle and a light m
 reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades, and change calibres with conversion kits such as AK mags for the
 battle rifle or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
-tune damage, fire rate, recoil and magazine size. A suppressor heats up the longer you keep firing through it: the whole can, its bands and clamp too,
-starts to glow a dull red, then orange, then yellow as it gets really hot, with a slight bloom round it, and fades back
-down through the same colours once you stop (just for the look).
+tune damage, fire rate, recoil and magazine size. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
+good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
+barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
+clamp too, glows a dull red, then orange, then yellow, with a slight bloom round it; and overheating, the smoke pours
+off it slow and heavy and hangs in the air, so moving or swinging the gun leaves a trail of it behind. Left alone it
+fades back down through the same colours, still smoking a while.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off.
