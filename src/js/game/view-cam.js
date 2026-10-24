@@ -15,7 +15,7 @@ import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { curId, SCOPES, T, W, W8 } from './run-state.js';
-import { GM, gunMeshes, HOLDS, X } from '../weapons/gun-materials.js';
+import { GM, gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
 import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from './state.js';
@@ -54,6 +54,15 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 // (hip), a full-auto's shots each a share (auto). Down the sights the whole sight turns with it off your eye's line, so a
 // scope's picture and reticle jump and roll and settle with every shot
 const RECOIL = { p: 0.03, y: 0.016, r: 0.04, z: 0.012, k: 230, d: 16, hip: 2, auto: 0.6 };
+// reloading in first person, the gun's brought up into view where you can watch your hands work it: its action (mid of
+// the way along it: the well, the port, the cylinder) eased to
+// a place low in the middle of the view (at: across, up, out from your eye, metres; a handgun's: side), turned side on
+// (yaw: its muzzle round to the left, so you see its side and the well and the hands at it), canted (roll) and its muzzle
+// tipped up (pitch), never in close enough to clip your eye
+const FP_RELOAD = { at: [0.005, -0.12, -0.43], side: [0.01, -0.11, -0.4], roll: 0.3, pitch: 0.2, yaw: 0.85, mid: 0.42 };
+// held at the hip in first person, the gun's pushed out a little from your eye (the shorter it is the more, from short
+// to long: so a machine pistol isn't tucked in under your chin), along the view
+const FP_REACH = { short: 0.13, long: 0.035, len: [0.8, 1.3] };
 // the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
 // (pitch, and acc for speeding up and slowing), per metre a second, on a spring (k, d); less down the sights
 const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 };
@@ -202,6 +211,24 @@ function shoulderShake() {
   _shk[0] += S.p + tr * (Math.sin(t * 23.1) + 0.6 * Math.sin(t * 37.7 + 1.3)); _shk[1] += S.y + tr * (Math.sin(t * 19.3 + 2.1) + 0.6 * Math.sin(t * 41.9));
   _shk[2] += S.r; _shk[3] += S.z;
   return _shk;
+}
+// reloading: the gun up into view (FP_RELOAD), by k (how far into the reload it is, eased: player/hold.js), less as the
+// sights come up; from the hold (player/hold.js), after fpRecoil and before your hands go on it
+const _rlC = new V3(), _rlD = new V3();
+export function fpReloadPose(gg, k) {
+  const D = W(curId()), w = adsW(); k *= 1 - w; if (!fpOn() || !gg.parent || !D || D.melee || D.akimbo) return;
+  // (out from your eye at the hip, then up into view to reload)
+  { const m = MUZ[W8.cur] || 0.9, L = FP_REACH.len, push = (FP_REACH.short + (FP_REACH.long - FP_REACH.short) * clamp((m - L[0]) / (L[1] - L[0]), 0, 1)) * (1 - w) * (1 - k);
+    if (push > 0.002) { _rlD.set(0, 0, -push).applyQuaternion(FP_CAM.quaternion); gg.position.add(_rlD.applyQuaternion(_vcQ.copy(gg.parent.getWorldQuaternion(_rq)).invert())); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
+  if (k < 0.01) return;
+  const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
+  const c = FP_CAM, side = D.slot === 'side', at = side ? FP_RELOAD.side : FP_RELOAD.at;
+  gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);
+  _rlD.set(at[0], at[1], at[2]).applyMatrix4(c.matrixWorld).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
+  _rq.copy(c.quaternion); _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(FP_RELOAD.pitch * k, FP_RELOAD.yaw * k, FP_RELOAD.roll * k, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
+  _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
+  _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
+  _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }
 // at the hip, the shot's turn of the gun put on the gun as it's held (player/hold.js: after fpSightAlign, before your
 // hands go on it), about where it's gripped, turned as the view is; less of it as the sights come up (they take it there)
