@@ -92,13 +92,20 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | Shift | Sprint | Right click | Aim down the sights | Hold C | Tear a board down |
 | Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
-| | | V | Shove | T | Start the next wave early |
+| N | First person view | V | Shove | T | Start the next wave early |
 | | | B | Switch fire mode | H | Share a gun (co-op) |
 | | | X | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | | |
 | | | I | Weapon stats | | |
 
 Touch screens get twin sticks and on-screen buttons.
+
+**First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
+Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
+where you face, and you shoot where the crosshair sits in the middle of the screen. The view rides your head as you
+walk, vault and stumble, smoothed out, and shots kick it up a little. Aiming down the sights draws it in, more through
+a scope. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
+back. You go back to the view from above whenever you're down.
 
 ## Settings
 
@@ -110,6 +117,9 @@ Touch screens get twin sticks and on-screen buttons.
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
 | HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, and no clock face) |
+| View | Isometric, first person |
+| Field of view | 60–100° (first person) |
+| Mouse sensitivity | 25–200% (first person) |
 | Master volume, music | 0–100% |
 | Screen shake | 50–100% |
 
@@ -139,7 +149,9 @@ gloves, wrists, pack and holster, each with its stock colours or any colour at a
 studio whose camera glides in to whatever you're changing, and kept for new runs if you like), skills and perks, curses
 (taken, lifted, or a sacrifice promised for the next hand), zombies (their minds hunting, passive or switched off, and
 their speed, damage and health; any kind in any outfit sent in at the fence or right in front of you; their armour
-cracked or broken off; the waves) and the world (the hour, fog). The switches are remembered between visits;
+cracked or broken off; the waves) and the world (the camera, the hour, fog). Under the camera there's a free camera
+as well, to fly about and watch the farm from anywhere: W A S D where it looks, Space and Ctrl up and down, Shift
+faster, the wheel its speed, and every zombie shown wherever it is; N goes back. The switches are remembered between visits;
 everything else acts on the run you're in.
 
 ### How the code fits together

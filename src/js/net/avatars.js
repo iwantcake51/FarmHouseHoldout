@@ -204,8 +204,8 @@ export function updateAvatars(rdt) {
     // the dot over their head (and their name); when they're off the screen, it waits at its edge on the line toward
     // them, pointing their way
     a.head.getWorldPosition(_tagV); _tagV.y += 0.42; _tagV.project(cam);
-    const W_ = innerWidth, H_ = innerHeight, M = 30, sx = (_tagV.x * 0.5 + 0.5) * W_, sy = (-_tagV.y * 0.5 + 0.5) * H_;
-    const inView = sx > M && sx < W_ - M && sy > M + 20 && sy < H_ - M;
+    const W_ = innerWidth, H_ = innerHeight, M = 30, bh = _tagV.z > 1, sx = (bh ? -1 : 1) * (_tagV.x * 0.5) * W_ + W_ / 2, sy = (bh ? 1 : -1) * (_tagV.y * 0.5) * H_ + H_ / 2;   // (behind you in first person it comes out mirrored: turned back round, and to the edge)
+    const inView = !bh && sx > M && sx < W_ - M && sy > M + 20 && sy < H_ - M;
     let tx = sx, ty = sy;
     if (!inView) {
       const cx = W_ / 2, cy = H_ / 2, dx = sx - cx, dy = sy - cy, t = Math.min((cx - M) / Math.max(1e-3, Math.abs(dx)), (cy - M) / Math.max(1e-3, Math.abs(dy)));

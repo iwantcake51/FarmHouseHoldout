@@ -11,7 +11,9 @@ import { vaultAt } from './vault-plan.js';
 import { openSt } from '../stations/station-ui.js';
 import { footstep } from '../audio/footsteps.js';
 import { state } from '../game/state.js';
-import { _pv, aimPlane, aimPt, hasMouse, keys, mouseX, mouseY, ndc, ray } from '../input/keyboard-mouse.js';
+import {
+  _pv, aimPlane, aimPt, centerMouse, hasMouse, keys, mouseX, mouseY, ndc, ray
+} from '../input/keyboard-mouse.js';
 import { aimHeld, aiming, exitScope, hasScope, scopeAim, scoped, scopePt, startAim } from './aiming.js';
 import { tStick } from '../input/touch.js';
 import { reloadSlow } from '../weapons/reload.js';
@@ -23,6 +25,7 @@ import {
   WALK_SPEED
 } from './sprint.js';
 import { aimSX, aimSY, updateShaky, xhStep } from './shaky-hands.js';
+import { fpAim, fpOn, freeOn, moveBasis, VCAM } from '../game/view-cam.js';
 import { ANIM } from './animation.js';
 import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
 
@@ -48,11 +51,13 @@ export function updatePlayer(dt) {
   if (keys.has('s') || keys.has('arrowdown')) my += 1;
   if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
   if (keys.has('d') || keys.has('arrowright')) mx += 1;
-  if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
+  if (P.dead || freeOn()) mx = my = 0;   // (flying the free camera, you stand where you are: game/view-cam.js) the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
-  // the way you're pushing, on the ground
-  const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml, go = sprintStart(!!(mx || my));
+  // the way you're pushing, on the ground: up and right on the screen, or in first person forward and right of where
+  // you face (game/view-cam.js)
+  const [MF, MR] = moveBasis(FWD, RIGHT);
+  const ml = Math.hypot(mx, my) || 1, wx = (MR.x * mx - MF.x * my) / ml, wz = (MR.z * mx - MF.z * my) / ml, go = sprintStart(!!(mx || my));
   if ((P.sprint || go) && !P.vault && state === 'play') sprintVault(wx, wz, go);   // sprinting at a window or a fence takes you over it (player/sprint.js)
   if (P.vault) {
     const v = P.vault;
@@ -108,6 +113,7 @@ export function updatePlayer(dt) {
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
   if (P.dead) { /* no more aiming */ }
+  else if (fpOn() && state === 'play') { centerMouse(); P.aim = VCAM.yaw; fpAim(aimPt); }   // first person: you aim where you look (game/view-cam.js)
   else if (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.25) {
     const sx = tStick.R.x, sy = tStick.R.y; P.aim = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy);
     aimPt.set(P.x + Math.sin(P.aim) * 6, GUN_Y, P.z + Math.cos(P.aim) * 6);

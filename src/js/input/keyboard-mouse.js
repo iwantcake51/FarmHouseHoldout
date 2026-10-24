@@ -20,13 +20,14 @@ import { startReload } from '../weapons/reload.js';
 import { shove } from '../player/shove.js';
 import { cancelBandage, startBandage, switchSlot } from '../player/bandages.js';
 import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/screens.js';
+import { freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
 import { fireModeSwitched } from '../ui/hud.js';
 import { toggleWeaponStats } from '../ui/weapon-stats.js';
 import { cheatOn, toggleCheats } from '../ui/cheats.js';
 import { skipBreak } from '../net/sync.js';
 import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
-import { closeSettings, setOpen } from '../ui/settings.js';
+import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -39,6 +40,7 @@ addEventListener('keydown', e => {
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
+  if (k === 'escape' && performance.now() - lockLostAt < 400) return;   // (the Esc that let go of the mouse in first person has already paused)
   keyAct(k, e);
 });
 // what a key does: its binding (input/keybinds.js), from the keyboard or a mouse button it's been put on
@@ -50,8 +52,10 @@ function keyAct(k, e) {
   if (state !== 'play') return;
   // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
   if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
+  if (bindIs(k, 'view')) { if (!e.repeat) toggleView(); return; }   // first person and back (ui/settings.js), or out of the free camera
   if (e.repeat && !bindIs(k, 'board') && !bindIs(k, 'tear')) return;
   keys.add(k);
+  if (freeOn()) return;   // (flying the free camera, the keys fly it: game/view-cam.js)
   if (bindIs(k, 'use')) { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) return;   // (no picking things at a station by number: they're clicked)
   if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
@@ -79,8 +83,13 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; s
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
-cv.addEventListener('mousedown', e => { audioInit(); if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
+addEventListener('mousemove', e => {
+  // looking about in first person or the free camera: the mouse turns the view, and the aim's in the middle of the screen
+  if (!isoOn()) { hasMouse = true; mouseX = innerWidth / 2; mouseY = innerHeight / 2; if (locked()) viewLook(e.movementX || 0, e.movementY || 0); return; }
+  mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
+cv.addEventListener('mousedown', e => { audioInit();
+  // first person or the free camera: a click takes the mouse to look about with (and isn't a shot); flying, it never fires
+  if (!isoOn() && state === 'play' && (!locked() || freeOn())) { if (!locked()) wantLock(); return; } if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
   if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; setAimHeld(true); if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 // the middle and side buttons: whatever's bound to them (as mouse3 to mouse5), anywhere on the page; and the side
@@ -92,6 +101,14 @@ addEventListener('mousedown', e => { if (e.button === 3 || e.button === 4 || e.b
 addEventListener('pointerdown', function guard() { removeEventListener('pointerdown', guard); try { history.pushState({ kessler: 1 }, ''); } catch (e) {} });
 addEventListener('popstate', () => { try { history.pushState({ kessler: 1 }, ''); } catch (e) {} if (state === 'play') pauseRun(); });
 addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preventDefault(); const mk = MOUSE_KEY[e.button]; if (mk) keys.delete(mk); if (e.button === 0) mouseDown = false; if (e.button === 2) { mouseDownR = false; setAimHeld(false); exitScope(); setAiming(false); } });
+
+// first person: a menu or the pause opened, the mouse is let go; closing it with a click or a key takes it back, and
+// letting it go yourself (Esc) pauses the game, as in any shooter (game/view-cam.js)
+const lookMenu = () => !!openSt || cheatOn || setOpen();
+export const centerMouse = () => { mouseX = innerWidth / 2; mouseY = innerHeight / 2; hasMouse = true; };
+['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
+let lockLostAt = -1e9;
+export function lockLost() { if (state === 'play' && !P.dead && !lookMenu()) { lockLostAt = performance.now(); pauseRun(); } }
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setMouseDown(v) { return (mouseDown = v); }

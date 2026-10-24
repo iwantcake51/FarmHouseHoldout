@@ -8,12 +8,15 @@ import { thinWalk } from '../world/thin-walls.js';
 import { P } from '../player/player.js';
 import { shutN } from '../barricades/planks.js';
 import { AC, master, MASTER_VOL, setSND_AT, SND_AT } from './audio.js';
+import { isoOn, listener } from '../game/view-cam.js';
 import { camTarget } from '../game/camera.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
 
 const HEAR = { h: 5.4, ref: 3, pan: 0.6 };   // listener height at zoom 1 (m), the distance a sound plays at full volume, how far it pans
 function hearAt(x, z) {
+  // first person or the free camera: heard from the view itself, a sound to its right in the right ear (game/view-cam.js)
+  if (!isoOn()) { const L = listener(), dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz); return { gain: Math.min(1, HEAR.ref / Math.hypot(d, L.y - 0.9, 1)), pan: clamp((dx * L.rx + dz * L.rz) / Math.max(1.5, d), -1, 1) * HEAR.pan }; }
   const zm = Math.max(0.1, cam.zoom || 1), dx = x - camTarget.x, dz = z - camTarget.z;
   const halfW = VIEW * (innerWidth / Math.max(1, innerHeight)) / zm, across = dx * RIGHT.x + dz * RIGHT.z;
   // (divided by the master's own zoom fade, zoomVol, which these already have from the listener's height)
@@ -22,7 +25,7 @@ function hearAt(x, z) {
 // every sound quieter the further out you zoom: full from the default zoom in, down to ZOOM_EAR.low at the furthest out,
 // set on the master bus each frame (zoomEars, from game/visuals.js)
 const ZOOM_EAR = { from: 1, low: 0.45 };
-const zoomVol = () => 1 - (1 - ZOOM_EAR.low) * smooth(clamp((ZOOM_EAR.from - zoom) / (ZOOM_EAR.from - ZOOM_MIN), 0, 1));
+const zoomVol = () => !isoOn() ? 1 : 1 - (1 - ZOOM_EAR.low) * smooth(clamp((ZOOM_EAR.from - zoom) / (ZOOM_EAR.from - ZOOM_MIN), 0, 1));
 export function zoomEars() { if (master) master.gain.setTargetAtTime(MASTER_VOL * zoomVol() * SET.vol / 100, AC.currentTime, 0.08); }   // (and the settings' volume: ui/settings.js)
 // The farmhouse's walls between you and a sound muffle it: each one it comes through takes the top off it (a lowpass
 // down to WALL_MUFF.lp, then lower again for a second) and turns it down (WALL_MUFF.vol). A board-up window counts as a

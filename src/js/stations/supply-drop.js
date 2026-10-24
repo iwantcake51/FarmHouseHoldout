@@ -226,8 +226,9 @@ export function updateDropMarker() {
   if (!at || state !== 'play' || P.dead) { if (!dropMark.hidden) dropMark.hidden = true; return; }
   dropMark.hidden = false;
   _dm.set(at.x, 1.2, at.z).project(cam);
-  let sx = (_dm.x + 1) / 2 * innerWidth, sy = (1 - _dm.y) / 2 * innerHeight, ang = 0;
-  const off = sx < DM_EDGE || sx > innerWidth - DM_EDGE || sy < DM_EDGE + 30 || sy > innerHeight - DM_EDGE;
+  const bh = _dm.z > 1;   // (behind you in first person it comes out mirrored: turned back round, and to the edge)
+  let sx = ((bh ? -_dm.x : _dm.x) + 1) / 2 * innerWidth, sy = (1 - (bh ? -_dm.y : _dm.y)) / 2 * innerHeight, ang = 0;
+  const off = bh || sx < DM_EDGE || sx > innerWidth - DM_EDGE || sy < DM_EDGE + 30 || sy > innerHeight - DM_EDGE;
   if (off) {
     // pinned where the line from the middle of the screen toward it meets an edge, a little in from it
     const cx = innerWidth / 2, cy = innerHeight / 2, dx = sx - cx, dy = sy - cy, k = Math.min((cx - DM_EDGE) / (Math.abs(dx) || 1e-6), (cy - DM_EDGE) / (Math.abs(dy) || 1e-6));

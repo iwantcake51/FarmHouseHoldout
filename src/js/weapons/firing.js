@@ -39,6 +39,7 @@ import { feed } from '../ui/hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { RG_SPREAD } from '../player/sprint.js';
 import { aimSX, aimSY, XHIT, xhKick, XR } from '../player/shaky-hands.js';
+import { fpOn } from '../game/view-cam.js';
 import { fireCam } from '../game/camera.js';
 import { angerShot, ANIM, worryShot } from '../player/animation.js';
 import { HOLD, HOLD_DEF, holdOf } from '../player/hold.js';
@@ -276,7 +277,8 @@ export function gunFire(id, D, side) {
     // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it
     // goes through, and any in front of the one it was aimed at, is hit where that height meets it (partAt), or not at
     // all if it passes over; what it misses doesn't use up a pierce
-    const y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY || GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js)
+    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY || GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
     let m = 0;
     for (let k = 0; k < hits.length && m <= pierce; k++) {
       const { z, off, r } = hits[k];
@@ -285,7 +287,7 @@ export function gunFire(id, D, side) {
       // pattern scatters over the body as before (PELLET_CORE)
       let part = hits[k].part;
       if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) * patTight(hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
-      if (!part && (m > 0 || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
+      if (!part && (m > 0 || fp || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
       hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)

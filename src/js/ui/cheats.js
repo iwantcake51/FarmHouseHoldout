@@ -8,6 +8,7 @@
 
 import { $ } from '../core/dom.js';
 import { keyIcon } from './input-icons.js';
+import { keyOn } from '../input/keybinds.js';
 import { CURSE_ICON, GI, GI_VB } from './game-icons.js';
 import { BOARD, BOARD_VB } from './board-icons-data.js';
 import { cv } from '../core/renderer.js';
@@ -46,9 +47,11 @@ import { clashes, curseRewards, CURSES, dropCurse, SAC, takeCurse } from '../upg
 import { startDeath } from './screens.js';
 import { feed, popEl, toast } from './hud-text.js';
 import { curDark } from '../lighting/day-night.js';
+import { VCAM } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from './hud.js';
 import { gunView, hideGun, showFigure, showGun } from './gun-view.js';
+import { pickView } from './settings.js';
 
 const CHEAT_KEY = 'kessler-cheats';
 const CHEAT = { god: false, scrap: false, ammo: false, mag: false, onehit: false, noWaves: false, clock: false, fog: false, speed: 1, zAI: 'on', zSpeed: 1, zDmg: 1, zHp: 1, keepLook: false, myLook: null };
@@ -302,11 +305,21 @@ const CHEAT_TABS = {
   },
   look() { return lookSection(); },
   world() {
-    return chHead('Time of day', '', ['b', 'hourglass']) + `<div class="chCard"><div class="chTime"><b data-live="clock" class="chClock"></b><input id="chTime" type="range" min="0" max="23.99" step="0.05" value="${tod}" aria-label="Time of day"></div>` +
+    return viewCard() + chHead('Time of day', '', ['b', 'hourglass']) + `<div class="chCard"><div class="chTime"><b data-live="clock" class="chClock"></b><input id="chTime" type="range" min="0" max="23.99" step="0.05" value="${tod}" aria-label="Time of day"></div>` +
       `<div class="chBtns">${[['Midnight', 0], ['Dawn', 6], ['Noon', 12], ['Afternoon', 15], ['Dusk', 18.5], ['Night', 21]].map(([l, h]) => chBtn(`${l}<small>${clockText(h)}</small>`, 'time', { h })).join('')}</div></div>` +
       `<div class="chTgs">${chToggle('clock')}${chToggle('fog')}</div>`;
   }
 };
+
+// ---- the camera: the isometric view, first person, or the free camera flying anywhere (game/view-cam.js) ------------------
+const VIEWS = [['iso', 'Isometric', 'From above the farm, as the game is played.'], ['fp', 'First person', 'Out of your own eyes: the mouse looks about, W A S D walk you where you face. The view key (#) switches to it and back.'],
+  ['free', 'Free camera', 'Fly anywhere to watch: W A S D where it looks, Space and Ctrl up and down, Shift faster, the wheel its speed. Every zombie shows, wherever it is. You stand where you were.']];
+function viewCard() {
+  const v = VIEWS.find(x => x[0] === VCAM.mode) || VIEWS[0];
+  return chHead('Camera', 'How you see the farm', ['g', 'cctvCamera']) + `<div class="chCard chSpawn">` +
+    `<div class="chSeg">${VIEWS.map(([k, n]) => `<button type="button" class="${VCAM.mode === k ? 'on' : ''}" data-act="view" data-v="${k}">${k === 'free' ? ico(['g', 'binoculars']) : ''}${n}</button>`).join('')}</div>` +
+    `<p class="chNote">${v[2].replace('#', keyOn('view'))}</p></div>`;
+}
 
 // ---- zombies' minds: on, passive or off, and how fast, how hard and how tough ------------------------------------------
 const MINDS = [['on', 'Hunting', 'As the game has them: they come for you, tear at the boards and hit you.'], ['passive', 'Passive', 'They come for you and crowd round, but never hit you or tear at the boards; spitters hold their acid and brutes never charge.'],
@@ -575,6 +588,8 @@ const CHEAT_ACTS = {
   nocurses: () => { CURSES.forEach(dropCurse); },
   sacforce: d => { SAC.force = d.k || null; },
   zai: d => { CHEAT.zAI = d.v; saveCheats(); },
+  // (first person's kept in the settings; the free camera's only for now, and the menu closes to fly it)
+  view: d => { pickView(d.v); if (d.v === 'free') toggleCheats(false); },   // (ui/settings.js)
   zreset: () => { CHEAT.zAI = 'on'; CHEAT.zSpeed = CHEAT.zDmg = CHEAT.zHp = 1; saveCheats(); },
   goto: d => { cheatTab = d.t; cheatFind = ''; chFind.value = ''; chBody.scrollTop = 0; },
   lkpart: d => { lookPart = d.p; },

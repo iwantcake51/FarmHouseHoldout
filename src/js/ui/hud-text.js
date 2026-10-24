@@ -8,6 +8,7 @@ import { P } from '../player/player.js';
 import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { W8 } from '../game/run-state.js';
+import { onScreen } from '../game/view-cam.js';
 import { projV } from './crosshair.js';
 
 export const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
@@ -137,7 +138,7 @@ export function stepFloats(rdt) {
       if (u >= 1) { f.el.remove(); floats.splice(k, 1); continue; }
     }
     f.el.style.transform = `translate(${((projV.x + 1) / 2 * innerWidth + ox).toFixed(1)}px,${((1 - projV.y) / 2 * innerHeight + oy).toFixed(1)}px) translate(-50%,-50%) rotate(${rot.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
-    f.el.style.opacity = op.toFixed(3);
+    f.el.style.opacity = (onScreen(projV) ? op : 0).toFixed(3);   // (behind you in first person: game/view-cam.js)
   }
   tickFeed();
 }

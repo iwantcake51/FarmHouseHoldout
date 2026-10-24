@@ -2,7 +2,7 @@
 
 import { $ } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
-import { cam, GUN_Y, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, cache, clamp, smooth } from '../core/math.js';
 import { ci } from '../world/grid.js';
 import { thinRay } from '../world/thin-walls.js';
@@ -22,6 +22,7 @@ import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, spreadOf } from '../w
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
+import { fpOn, freeOn, onScreen } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
@@ -129,7 +130,7 @@ function blockedShot() {
 }
 const xhX = $('xhX');
 export function updateCrosshair(rdt, D) {
-  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
+  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn();   // (none flying the free camera: game/view-cam.js)
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
@@ -188,7 +189,8 @@ export function updateCrosshair(rdt, D) {
     const mz = muzzle();
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
-    const dpx = Math.hypot(mouseX - px, mouseY - py);
+    // (how far the spread opens on the screen: by the cursor's distance from the muzzle, or in first person by the view's own angle)
+    const dpx = fpOn() ? innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360) : Math.hypot(mouseX - px, mouseY - py);
     const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
@@ -254,4 +256,4 @@ export function updateCrosshair(rdt, D) {
 }
 // a zombie you can actually see: in sight (the fog of war's vis, lighting/vision.js) and on the screen
 const _xhV = new V3();
-function zInView(z) { if (z.vis !== undefined && z.vis < 0.35) return false; _xhV.set(z.x, 1, z.z).project(cam); return Math.abs(_xhV.x) < 0.98 && Math.abs(_xhV.y) < 0.98; }
+function zInView(z) { if (z.vis !== undefined && z.vis < 0.35) return false; _xhV.set(z.x, 1, z.z).project(cam); return onScreen(_xhV) && Math.abs(_xhV.x) < 0.98 && Math.abs(_xhV.y) < 0.98; }

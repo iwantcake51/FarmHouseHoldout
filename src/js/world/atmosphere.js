@@ -34,6 +34,7 @@ export const moths = (() => {
 // view (the mist, the road fog) does it out past this, so nothing pops in or out however far you zoom out
 const _vc = new V3(), _vd = new V3(), viewExt = { x: 22, z: 22 };
 function measureView() {
+  if (cam.isPerspectiveCamera) { viewExt.x = viewExt.z = 34; return; }   // (first person or the free camera: out toward the horizon, game/view-cam.js)
   let ex = 0, ez = 0;
   for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
     _vc.set(a, b, -1).unproject(cam); _vd.set(a, b, 1).unproject(cam).sub(_vc);   // the camera is orthographic: a straight ray through each corner
@@ -100,7 +101,9 @@ export function stepAtmos(realDt) {
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
   // thick fog pulls the distance haze in close and tints it with the sky
-  scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
+  // (and the free camera flown up high sees as far again as it is up: game/view-cam.js)
+  const up = cam.isPerspectiveCamera ? Math.max(0, cam.position.y - 4) : 0;
+  scene.fog.near = 42 - fogW.lv * 6 + up; scene.fog.far = 78 - fogW.lv * 18 + up * 1.4;
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
   for (const sp of roadFog) {

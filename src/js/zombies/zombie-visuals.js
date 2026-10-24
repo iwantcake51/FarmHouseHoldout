@@ -20,6 +20,7 @@ import { meleeTargets } from '../melee/melee.js';
 import { flDir, flOn, los, teamBeam } from '../lighting/lightmap.js';
 import { curDark } from '../lighting/day-night.js';
 import { peekOf, sightTo, visAt, visOn } from '../lighting/vision.js';
+import { freeOn, isoOn } from '../game/view-cam.js';
 import { roofOver } from '../world/cutaway.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { camFocus, viewer } from '../net/spectate.js';
@@ -82,7 +83,7 @@ export function updateZombieVisuals(dt, rdt) {
     // it: so it's checked again where it really stands, past the walls and through the window you're at (sightTo), and
     // one behind a wall shows nothing, not even its outline through it
     const tb = state === 'title' ? 0 : teamBeam(z), f = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
-    const v = state === 'title' ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
+    const v = state === 'title' || freeOn() ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
     z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
@@ -106,13 +107,14 @@ export function updateZombieVisuals(dt, rdt) {
     // the outline seen through whatever stands in front of a zombie (the see-through rim and silhouette) shows only in a
     // circle round you: full strength up close, growing fainter the further out it is, gone at the circle's edge; past it
     // a zombie behind something is just hidden. The last few of a wave keep their pulsing outline, and their see-through
-    // one, at any distance
+    // one, at any distance. None out of your own eyes or from the free camera (game/view-cam.js): it's a help for seeing
+    // past walls from overhead, and with a view in among things it would show through your own arms and gun
     const near = 1 - smooth(clamp((Math.hypot(z.x - P.x, z.z - P.z) - RED_NEAR) / (RED_FAR - RED_NEAR), 0, 1)), rA = z.reachA || 0;
     // and only one in a straight line from you: one you make out by leaning to a window, along the outside of the wall
     // (sightTo's peek), stands behind that wall from up here, so its see-through outline would show through the wall
     if (z.xr) { const d = !visOn || z.vis < 0.004 || Math.hypot(z.x - V.x, z.z - V.z) <= 0.7 || los(V.x, V.z, z.x, z.z) ? 1 : 0; z.seeK = z.seeK === undefined ? d : z.seeK + (d - z.seeK) * Math.min(1, rdt * 8); }
     if (z.xr) { const lk = z.redOl || z.lodR < ZLOD.xray ? 1 : 0; z.xrK = z.xrK === undefined ? lk : z.xrK + (lk - z.xrK) * Math.min(1, rdt * 6); if (z.xrK < 0.01) z.xrK = 0; }   // (fading out as it drops out of the nearest few)
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK; if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK * (isoOn() ? 1 : 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)

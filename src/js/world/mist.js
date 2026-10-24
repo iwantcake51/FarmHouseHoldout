@@ -9,7 +9,7 @@
 // it's the same fog in the frame as in play: a zombie out in it can't be seen, outlined or picked out by your
 // crosshair, and one in the thinning ring comes clear as it closes in (mistSee, zombies/zombie-visuals.js).
 
-import { cam } from '../core/renderer.js';
+import { cam, viewRect } from '../core/renderer.js';
 import { clamp, HALF, N, rand, smooth } from '../core/math.js';
 import { LMU } from '../core/shaders.js';
 import { HOUSE } from './house.js';
@@ -90,7 +90,7 @@ vec3 mGlow;   // (light the fog gives off over what it's drawn in: a flashlight'
 // what the lamps add on top of it shows in the fog
 vec4 mistOf(vec2 uv, float d) {
   mGlow = vec3(0.0);
-  vec3 w = (uMistInv * vec4(uMistSz.zw + (uv - 0.5) * uMistSz.xy, -d, 1.0)).xyz;
+  vec3 w = (uMistInv * vec4(uMistSz.zw + (uv - 0.5) * uMistSz.xy * (uNF.z > 0.5 ? d : 1.0), -d, 1.0)).xyz;   // (uNF: effects/post.js)
   vec2 q = w.xz, dr = uMistW;
   // the flashlights' beams: light caught in the air along each cone, brightest near the lens, broken into slow shafts;
   // and the clear path each cuts through the fog (fc), wider for a better light (uMistPath: by tier, flashClear)
@@ -135,14 +135,14 @@ vec4 mistOf(vec2 uv, float d) {
   return vec4(col, clamp(a, 0.0, 1.0) * uMist.w);
 }`;
 export function mistUniforms() {
-  const U = MIST_U, k = mistEase(), F = camFocus(), z = cam.zoom;
+  const U = MIST_U, k = mistEase(), F = camFocus();
   U.uMist.value.set(k, MIST.clear, MIST.ramp, k > 0 ? MIST.max : 0);
   U.uMistP.value.set(F.x, F.z);
   U.uMistH.value.set(HOUSE.x0, HOUSE.z0, HOUSE.x1, HOUSE.z1);
   U.uMistW.value.set(MIST.drift[0] * MIST.t, MIST.drift[1] * MIST.t);
   U.uMistC.value.setRGB(0.66, 0.67, 0.64).lerp(_mistNight.setRGB(0.1, 0.12, 0.14), clamp(curDark, 0, 1));   // pale by day, a dark blue grey at night
   U.uMistInv.value.copy(cam.matrixWorld);
-  U.uMistSz.value.set((cam.right - cam.left) / z, (cam.top - cam.bottom) / z, (cam.right + cam.left) / 2, (cam.top + cam.bottom) / 2);
+  viewRect(cam, U.uMistSz.value);
   U.uMistL.value.set(MIST.glow, MIST.beam, MIST.t % 1000, 0); U.uMistA.value.setRGB(amb[0], amb[1], amb[2]);
   const c = HOUSE.cut; if (c) U.uMistCut.value.set(c[0], c[1], c[2], c[3]); else U.uMistCut.value.set(1e4, 1e4, 1e4 + 1, 1e4 + 1);
   U.uMistPath.value.set(MIST.path[1][0], MIST.path[1][1], MIST.path[2][0], MIST.path[2][1]);

@@ -12,6 +12,7 @@ import { GI, GI_VB } from './game-icons.js';
 import { BOARD, BOARD_VB } from './board-icons-data.js';
 import { DPR, R, renderScale, resize, setRenderScale, SHADOW_SOFT, sun, SUN_R } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
+import { setViewMode, VCAM } from '../game/view-cam.js';
 import { controlsHtml, kbRefresh } from './keyboard-map.js';
 
 // the theme colours (the highlight everywhere: --acc in styles/base.css), each [r, g, b]
@@ -20,7 +21,7 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
 // colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75 };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100 };
 export const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
@@ -41,6 +42,10 @@ const SET_ROWS = [
   { k: 'hud', name: 'HUD style', note: 'Minimalist keeps only the numbers you play by', opts: [['normal', 'Normal'], ['minimal', 'Minimalist']] },
   { k: 'theme', name: 'Theme colour', note: 'The highlight on the menus, the HUD and the crosshair', opts: Object.entries(THEMES).map(([k, t]) => [k, `<i class="sSw" style="--sw:rgb(${t.rgb})"></i>${t.name}`]) },
   { k: 'cb', name: 'Colour blind mode', note: 'Shifts the colours of the whole screen apart for your eyes', opts: [['off', 'Off'], ['prot', 'Protanopia (red)'], ['deut', 'Deuteranopia (green)'], ['trit', 'Tritanopia (blue)']] },
+  { head: 'Camera' },
+  { k: 'view', name: 'View', note: 'From above the farm, or out of your own eyes (the mouse looks about)', opts: [['iso', 'Isometric'], ['fp', 'First person']] },
+  { k: 'fov', name: 'Field of view', note: 'How wide you see in first person', min: 60, max: 100, unit: '°' },
+  { k: 'sens', name: 'Mouse sensitivity', note: 'How far the view turns for the mouse, in first person', min: 25, max: 200, unit: '%' },
   { head: 'Sound' },
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },
@@ -74,6 +79,14 @@ function applySettings() {
   document.body.classList.toggle('hudMin', SET.hud === 'minimal');
   document.documentElement.style.setProperty('--acc', (THEMES[SET.theme] || THEMES.ember).rgb);   // (the theme colour)
   applyCb();   // (styles/hud-minimal.css, and the mag bar it shows: ui/hud.js)
+  if (VCAM.mode !== 'free') setViewMode(SET.view);   // (first person or isometric: game/view-cam.js; the free camera's left be till you leave it)
+}
+// the view key: into first person and back, or out of the free camera to the view picked
+export function toggleView() { pickView(VCAM.mode === 'free' ? SET.view : SET.view === 'fp' ? 'iso' : 'fp'); }
+// a view picked (the cheat menu's free camera too, which isn't kept)
+export function pickView(v) {
+  if (v !== 'free') { SET.view = v; saveSettings(); if (!$('settings').hidden) buildSettings(); }
+  setViewMode(v);
 }
 // the frame-rate counter: frames counted over half a second
 const FPS = { n: 0, t: 0 };

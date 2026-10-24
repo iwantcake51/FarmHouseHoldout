@@ -35,8 +35,10 @@ const eyeOwners = () => { _eo.length = 0; for (const z of zombies) _eo.push(z); 
 export function updateEyes(dt) {
   const F = eyeFx, now = worldT, glow = 0.55 + 0.45 * curDark;   // brighter in the dark
   cam.getWorldDirection(_ev);
-  // the halo is sized in pixels (the camera is orthographic): EYE_SIZE.halo across in the world
-  F.halo.material.size = EYE_SIZE.halo * R.domElement.height / ((cam.top - cam.bottom) / cam.zoom);
+  // the halo is sized in pixels with the isometric camera (it's orthographic): EYE_SIZE.halo across in the world; with
+  // perspective (first person, the free camera) it shrinks with distance as anything does
+  { const M = F.halo.material, ps = !!cam.isPerspectiveCamera; if (M.sizeAttenuation !== ps) { M.sizeAttenuation = ps; M.needsUpdate = true; }
+    M.size = ps ? EYE_SIZE.halo / Math.tan(cam.fov * Math.PI / 360) : EYE_SIZE.halo * R.domElement.height / ((cam.top - cam.bottom) / cam.zoom); }
   let e = 0;
   // the living, and the freshly dead whose eyes are still going out (eyeGlow, zombies/zombie-visuals.js)
   for (const z of eyeOwners()) {

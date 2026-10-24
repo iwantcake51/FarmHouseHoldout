@@ -1,7 +1,7 @@
 // Camera follow, aim pan, edge pan, scope view, shake and roll.
 
 import { $ } from '../core/dom.js';
-import { cam, CAM_OFF, EL, FWD, GUN_Y, RIGHT, setZoom, V3, VIEW, zoom, zoomT } from '../core/renderer.js';
+import { CAM_OFF, EL, FWD, GUN_Y, ISO_CAM, RIGHT, setZoom, V3, VIEW, zoom, zoomT } from '../core/renderer.js';
 import { cache, clamp, rand, rr, smooth } from '../core/math.js';
 import { cxw } from '../world/grid.js';
 import { P } from '../player/player.js';
@@ -14,6 +14,7 @@ import { cinePush, deathRollK, deathZoomK } from '../ui/screens.js';
 import { introCam, introCamOn, introRoll, tickIntro } from './intro.js';
 import { setT } from '../ui/hud-text.js';
 import { camRun, runCam, SPRINT } from '../player/sprint.js';
+import { isoOn, syncView, viewFrame, viewGround, viewKick } from './view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
@@ -35,6 +36,7 @@ export function fireCam(pw, aim, auto) {
   c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1);
   c.zoom += pw * P_.zoom * a; c.vz += pw * P_.vz * a;
   if (pw > 0.6) setShake(Math.max(shake, 0.03 + (pw - 0.6) * 0.3));
+  viewKick(pw, auto);   // (in first person, the view's kicked up: game/view-ISO_CAM.js)
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
 // one way and settles, with only a whisper of push; seating a mag tips it the other way from pulling one
@@ -89,7 +91,10 @@ const EDGE_IN = 0.14, EDGE_PAN = 0.09, camEdge = { x: 0, y: 0 };
 const edgeK = t => t < EDGE_IN ? -smooth(1 - t / EDGE_IN) : t > 1 - EDGE_IN ? smooth((t - 1 + EDGE_IN) / EDGE_IN) : 0;
 // camera follow, aim pan, scope view, zoom, shake, kick and roll
 export function updateCamera(rdt) {
-  if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
+  // first person or the free camera: the target's under the view, for what's laid out round it (game/view-ISO_CAM.js)
+  syncView(); const iso = isoOn();
+  if (!iso) { viewGround(camTarget); if (state === 'play') tickIntro(rdt); }
+  else if (state === 'title') { titleSpin += rdt * 0.08; camTarget.set(cxw(21) + Math.sin(titleSpin) * 3, 0, cxw(22) + Math.cos(titleSpin) * 3); }
   else if (scoped) {
     // put the scope point (at gun height) in the middle of the screen
     const vd = CAM_OFF.clone().normalize(), k = GUN_Y / vd.y, gx = scopePt.x - vd.x * k, gz = scopePt.z - vd.z * k;
@@ -116,15 +121,18 @@ export function updateCamera(rdt) {
 
   ANIM.ads = (ANIM.ads || 0) + ((aiming && !(P.skid > SPRINT.skid * 0.4) ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9);   // skidding out of a sprint, into the sights as you slow
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
-  cam.zoom = state === 'title' ? TITLE_ZOOM * cinePush() : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
+  ISO_CAM.zoom = state === 'title' ? TITLE_ZOOM * cinePush() : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }
   setShake(Math.max(0, shake - rdt * 1.6));
   const shk = SET.shake / 100, sh = shake * shake * 1.2 * shk;   // (as hard as the settings let it: ui/settings.js)
   const kf = Math.exp(-rdt * 16); camKick.x *= kf; camKick.z *= kf; setCamRoll(camRoll * Math.exp(-rdt * 4.5));
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
-  const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit, vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
-  setCamPunch(camPunch * Math.exp(-rdt * 9)); cam.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
-  cam.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
-  cam.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); cam.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll() + deathRollK()); cam.updateProjectionMatrix();
+  const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit;
+  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll, sh);   // (placed in first person or flown: game/view-ISO_CAM.js)
+  if (!iso) return;
+  const vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
+  setCamPunch(camPunch * Math.exp(-rdt * 9)); ISO_CAM.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)
+  ISO_CAM.position.set(camTarget.x + vx + CAM_OFF.x + rr(-sh, sh), CAM_OFF.y + cv.bob + cu.bob + rr(-sh, sh), camTarget.z + vz + CAM_OFF.z + rr(-sh, sh));
+  ISO_CAM.lookAt(camTarget.x + vx, cv.bob + cu.bob, camTarget.z + vz); ISO_CAM.rotateZ((camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll + introRoll() + deathRollK()); ISO_CAM.updateProjectionMatrix();
 }

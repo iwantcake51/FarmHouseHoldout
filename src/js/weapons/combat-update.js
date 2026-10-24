@@ -25,11 +25,12 @@ import { aimRay, bodyOf, cursorTarget, fire, SETTLE, settleK } from './firing.js
 import { HEAVY, heavySwing, LUNGS, meleeHit } from '../melee/melee.js';
 import { tickBandage } from '../player/bandages.js';
 import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
+import { fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
 const PITCH_MAX = 0.75;   // how far down (radians) the arms will point a gun
-const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22;   // where on a zombie you look (of its height), how near the aim it counts, how far up you'll point
+const AIM_CHEST = 1.4, AIM_NEAR = 1.3, AIM_UP = 0.22, AIM_UP_FP = 0.9;   // where on a zombie you look (of its height), how near the aim it counts, how far up you'll point
 
 // trigger, swings, reloads, bursts, stamina, bleeding and bandages
 const groundPlane = new THREE.Plane(new V3(0, 1, 0), 0), _gp = new V3();
@@ -85,6 +86,7 @@ export function updateCombat(dt) {
     let ty = null, tx = aimPt.x, tz = aimPt.z;
     const ct = onFarm ? cursorTarget() : null;
     if (ct) { ty = ct.y; tx = ct.x; tz = ct.zz; }
+    else if (fpOn()) { ty = VCAM.aimY; }   // first person: where you look, no help onto a zombie (game/view-cam.js)
     else {
       const ar = aimRay(P.x, P.z, P.aim, 12);
       if (ar.z && ar.z.crawl) { ty = 0.3; [tx, tz] = bodyOf(ar.z); }
@@ -99,13 +101,14 @@ export function updateCombat(dt) {
     // well down at the dirt by your feet
     if (ty === null && onFarm && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { const d = Math.hypot(_gp.x - P.x, _gp.z - P.z); ty = 0.85 - 0.55 * (1 - smooth(clamp((d - 0.8) / 2.6, 0, 1))); tx = _gp.x; tz = _gp.z; }
     if (ty !== null) {
-      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), ty > GUN_Y ? -AIM_UP : 0, PITCH_MAX);
-      ANIM.aimY = Math.min(GUN_Y, ty);
+      const fp = fpOn();   // (in first person you can point it up as far as you look: at a head above you, or the sky)
+      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), ty > GUN_Y ? -(fp ? AIM_UP_FP : AIM_UP) : 0, PITCH_MAX);
+      ANIM.aimY = fp ? ty : Math.min(GUN_Y, ty);
     }
   }
   // how far down at the ground near your feet you're looking, 0 to 1 (LOOK_DOWN: the knees bend for it,
   // player/animation.js): from the cursor's distance on the ground, whatever's in your hands
-  if (onFarm && !P.dead && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp) && !cursorTarget()) ANIM.lookDnT = 1 - smooth(clamp((Math.hypot(_gp.x - P.x, _gp.z - P.z) - LOOK_DOWN.near) / (LOOK_DOWN.far - LOOK_DOWN.near), 0, 1));
+  if (onFarm && !P.dead && hasMouse && !tStick.R && !scoped && !fpOn() && ray.ray.intersectPlane(groundPlane, _gp) && !cursorTarget()) ANIM.lookDnT = 1 - smooth(clamp((Math.hypot(_gp.x - P.x, _gp.z - P.z) - LOOK_DOWN.near) / (LOOK_DOWN.far - LOOK_DOWN.near), 0, 1));
   if (P.kbx || P.kbz) { moveCircle(P, P.kbx * dt, P.kbz * dt, 0.3, true); const f = Math.exp(-dt * 7); P.kbx *= f; P.kbz *= f; if (Math.abs(P.kbx) + Math.abs(P.kbz) < 0.05) P.kbx = P.kbz = 0; }
   P.conc = Math.max(0, (P.conc || 0) - dt / 3.2);
   W8.heat = Math.max(0, (W8.heat || 0) - dt * 0.55); W8.wispT = (W8.wispT || 0) - dt;

@@ -42,6 +42,7 @@ export function updateBenchTips(rdt) {
     // over the top of the station's model
     if (BTIP.top[s.id] === undefined) { s.g.updateMatrixWorld(true); BTIP.top[s.id] = _bb.setFromObject(s.g).max.y; }
     s.g.getWorldPosition(_bt); _bt.y = BTIP.top[s.id] + 0.25; _bt.project(cam);
+    if (_bt.z > 1) { el.hidden = true; continue; }   // (behind you in first person)
     s.sx = (_bt.x + 1) / 2 * innerWidth; s.sy = (1 - _bt.y) / 2 * innerHeight; s.tz = _bt.z;
     el.style.transform = `translate(${s.sx.toFixed(1)}px,${s.sy.toFixed(1)}px)`;
   }

@@ -23,6 +23,7 @@ import { bandHeal, bandProg } from '../player/bandages.js';
 import { CURSES } from '../upgrades/sacrifice.js';
 import { renderSlots, setRoll, setT } from './hud-text.js';
 import { xhHit } from '../player/shaky-hands.js';
+import { isoOn, viewBasis } from '../game/view-cam.js';
 import { hitCam } from '../game/camera.js';
 import { heartStartle, updateHeart } from './vitals.js';
 import { renderMoodles } from './moodles.js';
@@ -174,7 +175,9 @@ export function hitFromAt(x, z, amount) {
   hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
   xhHit(x, z, amount);   // (and the crosshair with it: player/shaky-hands.js)
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
-  const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
+  const w = innerWidth / 2, h = innerHeight / 2; let dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h;
+  if (!isoOn()) { const [F, Rt] = viewBasis(), rx = x - P.x, rz = z - P.z; dx = (rx * Rt.x + rz * Rt.z) * 60; dy = -(rx * F.x + rz * F.z) * 60; }   // (first person: the side it came from as you face, game/view-cam.js)
+  const l = Math.hypot(dx, dy);
   hitBlurK = clamp(amount || 1, 0.5, 2);
   if (l < 2) { setHurtFx(1); heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
   const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;
