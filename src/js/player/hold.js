@@ -143,6 +143,11 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
 // from its own muzzle (ANIM.barrelS). A shove driving the gun out at what's there (shv) isn't pushed back off it: it's
 // measured from where the gun would be without the shove, so the blow lands and eases back to the hold on its own
 const GUN_BACK = { long: 0.4, hand: 0.2 }, GUN_TIP = 1.2;
+// the tip's worked out about the grip from how far the muzzle has to come back; GUN_TIP_ARM: the shortest lever that's
+// taken for it (a gun drawn in close for a reload would otherwise turn a small push into a great flip), and it's eased
+// onto the angle (GUN_TIP_EASE: up, back down), so it never jumps however the push changes
+const GUN_TIP_ARM = 0.25, GUN_TIP_EASE = { up: 14, down: 8 };
+const easeTip = (o, key, t, rdt) => { const c = o[key] || 0; return (o[key] = c + (t - c) * (1 - Math.exp(-rdt * (t > c ? GUN_TIP_EASE.up : GUN_TIP_EASE.down)))); };
 const _gbM = new V3(), _gbF = new V3(), _gbG = new V3(), _gbQ = new THREE.Quaternion();
 const GP = { R: { back: 0, tip: 0, a: 0 }, L: { back: 0, tip: 0, a: 0 } };
 function gunPush(gg, s, H, ak, rd, rdt, shv) {
@@ -161,7 +166,7 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
       const p = GP[side], tW = Math.max(0, nW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, nZ) * k));
       ease(p, 'back', tB); ease(p, 'tip', Math.max(0, tW - GUN_BACK[lg]));
       at(_gbG, side, H.grip[0], H.grip[1], H.grip[2]);
-      p.a = p.tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - p.tip / Math.max(0.05, fwd - fwdOf(_gbG)), -1, 1))) : 0;
+      easeTip(p, 'a', p.tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - p.tip / Math.max(GUN_TIP_ARM, fwd - fwdOf(_gbG)), -1, 1))) : 0, rdt);
       continue;
     }
     free = Math.min(free, f.wall, f.zom); reach = Math.max(reach, fwd);
@@ -169,14 +174,15 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
   }
   if (ak) { ANIM.barrel = Math.min(ANIM.barrelS.R, ANIM.barrelS.L); return; }
   GP.R.back = GP.L.back = GP.R.tip = GP.L.tip = GP.R.a = GP.L.a = 0;
+  const tipTo = (t) => easeTip(ANIM, 'gtipA', t, rdt);
   ANIM.barrel = free;
   const tW = Math.max(0, needW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, needZ) * k));
   const back = ease(ANIM, 'gpush', tB), tip = ease(ANIM, 'gtip', Math.max(0, tW - GUN_BACK[lg]));
-  if (back < 0.001 && tip < 0.001) return;
+  if (back < 0.001 && tip < 0.001 && !((ANIM.gtipA || 0) > 0.001)) { ANIM.gtipA = 0; return; }
   _gbM.set(0, 0, -back).applyQuaternion(gg.quaternion); gg.position.add(_gbM); gg.updateMatrix();
-  if (tip > 0.001) {
-    gunPt(_gbG, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
-    const a = Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(0.05, reach - back - fwdOf(_gbG)), -1, 1)));
+  gunPt(_gbG, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
+  const a = tipTo(tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(GUN_TIP_ARM, reach - back - fwdOf(_gbG)), -1, 1))) : 0);
+  if (a > 0.001) {
     _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, -a);   // (about its own right axis, muzzle up)
     gg.position.sub(_gbG).applyQuaternion(_gbQ).add(_gbG); gg.quaternion.premultiply(_gbQ); gg.updateMatrix();
   }
@@ -367,6 +373,9 @@ const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from y
 // first person: how much of the hands' own kick (RK) and the body's rock under a shot (SR, BR) is kept, the rest of
 // the kick being the view's (game/view-cam.js: FP_RECOIL), worked out from your own eyes
 const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
+// from your own eyes a gun being reloaded is held up close in front of them, short of any wall: the push back off one
+// (gunPush) fades out this much as the reload comes in, so its tipping and easing never jostles the gun in your hands
+const FP_REL_PUSH = 0.9;
 // a pair, one in each hand, from your own eyes: the view takes none of their kick, so each gun keeps all of its own and
 // more, flipping up on its own wrist (flip: how much more of its muzzle's rise, back: of its shove back) on its own
 // shot while the other stays steady; and at a sprint each hand pumps forward and back with the stride,
@@ -570,7 +579,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
-  gunPush(gg, s, H, ak, rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you
+  gunPush(gg, s, H, ak, fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
   // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away

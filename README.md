@@ -131,7 +131,9 @@ shot's muzzle flash and its glow are hidden by the gun in front of them down the
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
 flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
 going there and turned to face your eye as it goes; a wall it hits takes its hole at the height it really struck. Your
-teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from.
+teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
+against a wall the gun's slid back along its barrel and tipped up off it, easing in and out rather than jumping, and
+mid-reload from your own eyes the gun stays up in front of you, steady in your hands even walking along a wall.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
