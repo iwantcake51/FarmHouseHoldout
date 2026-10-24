@@ -46,8 +46,9 @@ const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
 // the edge; the aim eases after where it's pushed (ease: how quickly) and the view drifts back onto it (back), so the
-// gun comes home to the middle once you stop. Down the sights the circle closes, the view onto the sights (ads)
-const FA = { r: 0.035, take: 0.15, ease: 10, back: 1.2, adsBack: 6, ads: 0 };
+// gun comes home to the middle once you stop. Down the sights the circle closes, the view onto the sights (ads). It's
+// off (take 0): the view turns exactly as the mouse moves and stops when it stops, nothing drifting on after it
+const FA = { r: 0.035, take: 0, ease: 10, back: 1.2, adsBack: 6, ads: 0 };
 // bringing the sights up and putting them down: a spring onto them (w: how stiff, in and out; a handgun's quicker),
 // starting gently, quick through the middle and settling softly; and the arc the gun swings through on the way, dipping
 // (dip, metres) and canting a touch (cant, radians) in the middle of it
@@ -169,7 +170,10 @@ let selfUnlock = false;
 export function wantLock() {
   if (isoOn() || locked() || !cv.requestPointerLock) return;
   V.lockAt = performance.now();
-  try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  // (the mouse's raw movement where the browser has it, no pointer acceleration in the way: the view turns by just as
+  // much as the mouse moves, however fast; plain where it hasn't)
+  const plain = () => { try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} };
+  try { const p = cv.requestPointerLock({ unadjustedMovement: true }); if (p && p.catch) p.catch(e => { if (e && e.name === 'NotSupportedError') plain(); }); } catch (e) { plain(); }
 }
 function unlock() { if (locked()) { selfUnlock = true; document.exitPointerLock(); } }
 // the mouse moved this much (pixels) while it's locked: the view turns, slower down the sights and slower again through

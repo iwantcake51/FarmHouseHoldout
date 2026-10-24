@@ -209,9 +209,15 @@ function rigDraw(h, w) {
 // (a gun pushed in, a hand down at the pouch) to put the fist on it
 const ARM_SHORT = 0.55, ARM_LONG = 1.3, ARM_LONG_FP = 1.6;   // how far an arm shortens or stretches from FIST (further from your own eyes, where the gun's held out ahead of the view and the hand must still close on the handguard)
 const armLong = () => fpOn() ? ARM_LONG_FP : ARM_LONG;
-function armAim(side, t, rest) {
+// a hand holding on to the gun is held to its place on it the way a Blender bone's held by a Child Of constraint: the
+// hand's spot on the gun comes first and the arm reaches it however the gun's held (looking right up, a long handguard
+// far out), stretching as far as ARM_LOCK if it must, rather than the hand stopping short and floating under the gun.
+// lock is the constraint's influence: 1 - the hand's HAND.w, so a hand taken off the gun (to fetch a mag, work an
+// action) is let go of it as it blends off, and taken hold of again as smoothly as it blends back on
+const ARM_LOCK = 2.6;
+function armAim(side, t, rest, lock = 0) {
   const s = (rest ? SHOULDER_REST : SHOULDER)[side], dx = t.x - s[0], dy = t.y - s[1], dz = t.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
-  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, armLong())];
+  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, armLong() + Math.max(0, ARM_LOCK - armLong()) * clamp(lock, 0, 1)), len / FIST];
 }
 // where an arm's fist really gets to, sent to v (in upper-body space): as far along toward it as the arm will go
 const _arV = new V3();
@@ -219,9 +225,10 @@ export function armReach(side, v) {
   const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, armLong() * FIST);
   return c === l ? v : v.set(s[0], s[1], s[2]).addScaledVector(_arV, c / l);
 }
-export function reach(arm, side, t, roll, rest) {
-  const [rx, ry, sc] = armAim(side, t, rest), s = (rest ? SHOULDER_REST : SHOULDER)[side];
+export function reach(arm, side, t, roll, rest, lock = 0) {
+  const [rx, ry, sc, want] = armAim(side, t, rest, lock), s = (rest ? SHOULDER_REST : SHOULDER)[side];
   arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, roll || 0); arm.scale.set(ARM_THIN, ARM_THIN, sc);
+  if (HAND[side]) HAND[side].err = Math.abs(want - sc) * FIST;   // (how far the fist is off where it was sent, metres)
 }
 export function armRest(arm, side, rx, ry) { const s = SHOULDER_REST[side]; arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, 0); arm.scale.set(ARM_THIN, ARM_THIN, 1); }
 // a point on the gun (hold-local) in upper-body space
@@ -940,7 +947,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (looking it over, a hand on the gun turns with it however it's turned, so it stays gripped as it was rather than
   // turning in the hand: gripTwist, player/inspect.js)
   const twR = gripFollow('R', _fR, s, HAND.R.w), twL = ak ? 0 : gripFollow('L', _fL, s, HAND.L.w);
-  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w) + twR); reach(pm.armL, 'L', _fL, (ak ? -hr.R : hr.L) * (1 - HAND.L.w) + twL);   // (turned back straight while a hand's off the gun)
+  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w) + twR, false, 1 - HAND.R.w); reach(pm.armL, 'L', _fL, (ak ? -hr.R : hr.L) * (1 - HAND.L.w) + twL, false, 1 - HAND.L.w);   // (turned back straight while a hand's off the gun; held on to it as it's on it: ARM_LOCK)
   // the revolver twirled round the trigger finger (player/inspect.js), after the hands are on it, so they stay put
   if (IN.spin) spinGun(gg, s, H.grip, IN.spin);
   pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp + IN.hp; pm.head.rotation.y += ACT.hy + IN.hy;

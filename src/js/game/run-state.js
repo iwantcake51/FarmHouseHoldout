@@ -181,7 +181,12 @@ export function magChange(id, fn) {
   const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');
   fn();
   const D = id && W(id); if (!D || !D0) return;
-  if (D.melee || D.perShell || D0.perShell || D.speedload || D.akimbo || D0.akimbo) { delete W8.pin[id]; return; }   // these take it at once (a waiting mag too; a fixed magazine swapped for a box)
+  if (D.melee || D.perShell || D0.perShell || D.speedload || D.akimbo || D0.akimbo) {   // these take it at once (a waiting mag too; a fixed magazine swapped for a box)
+    delete W8.pin[id];
+    // (the second gun taken off with its mag: what was in it goes back with the rest, not into the one left)
+    if (D.ammo && D.ammo === D0.ammo && (W8.mag[id] || 0) > magSize(id)) { W8.reserve[D.ammo] = (W8.reserve[D.ammo] || 0) + W8.mag[id] - magSize(id); W8.mag[id] = magSize(id); delete W8.akMag[id]; }
+    return;
+  }
   if ((magSize(id) !== cap0 || gunTier(id, 'mag') !== t0) && !W8.pin[id]) W8.pin[id] = { cap: cap0, t: t0 };
 }
 // the old mag's out: the new one goes in, model and all

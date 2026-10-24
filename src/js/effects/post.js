@@ -126,17 +126,19 @@ void main() {
 }`, { tCur: { value: null }, tHist: { value: null }, uInvView: { value: new THREE.Matrix4() }, uPrevView: { value: new THREE.Matrix4() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPrevSize: { value: new THREE.Vector2() }, uPrevCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uFar: { value: 1 }, uKeep: { value: 0.88 }, uValid: { value: 0 }, uPs: { value: 0 } });
 // the bright parts, softly cut off, boxed down four pixels to one
 const brightMat = psMat(`
-uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow;
+uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow, uFlashD;
 varying vec2 vUv;
 void main() {
   vec3 c = (texture2D(tCol, vUv + uPx * vec2(-1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(-1.0, 1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, 1.0)).rgb) * 0.25;
   float l = max(c.r, max(c.g, c.b));
   vec3 o = c * smoothstep(uTh, uTh + uKnee, l);
   // and the glowing things, where they're not behind something
-  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see)
-  if (uGlow > 0.0) { float gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? 1.0 : step(gd, texture2D(tSceneD, vUv).r + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
+  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see; nor
+  // does the muzzle flash, which is seen only where nothing's nearer than the muzzle (uFlashD: its depth, 0 for none),
+  // so the gun in front of it, down the sights, hides it)
+  if (uGlow > 0.0) { float sd = texture2D(tSceneD, vUv).r, gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? step(uFlashD, sd + 0.00002) : step(gd, sd + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
   gl_FragColor = vec4(o, 1.0);
-}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 } });
+}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 }, uFlashD: { value: 0 } });
 const blurMat = psMat(`
 uniform sampler2D tSrc; uniform vec2 uDir;
 varying vec2 vUv;
@@ -212,6 +214,13 @@ function glowPass() {
   return GLOW.k;
 }
 const _glCC = new THREE.Color();
+// the muzzle flash's depth on the screen (as the depth buffer has it), just ahead of the muzzle: 0 with none showing
+const _fdV = new THREE.Vector3();
+function flashDepth() {
+  if (!flash.visible || !flash.parent) return 0;
+  flash.updateMatrixWorld(true); _fdV.setFromMatrixPosition(flash.matrixWorld).project(cam);
+  return _fdV.z < -1 || _fdV.z > 1 ? 0 : _fdV.z * 0.5 + 0.5;
+}
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 export function renderFrame() {
   batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
@@ -245,7 +254,7 @@ export function renderFrame() {
   // it off in the settings, ui/settings.js)
   const bk = POST.noBloom ? 0 : BLOOM_K[SET.bloom] ?? 1;
   const gk = bk > 0 ? glowPass() : 0;
-  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
+  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uFlashD.value = flashDepth(); U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }

@@ -16,7 +16,8 @@ function gripShape(s, H) {
   const hit = _gRc.intersectObjects(meshes, false)[0], yb = hit ? h.worldToLocal(_gHit.copy(hit.point)).y : null;
   // a post: the fist halfway up it; a fore-end: the top of the fist against its underside
   const g = { drop: yb === null ? null : H.post ? (H.fore[1] - yb) / 2 : H.fore[1] - yb + GRIP_PALM };
-  u.grip = g; u.gripFor = H; return g;
+  if (g.drop !== null) { u.grip = g; u.gripFor = H; }   // (nothing found, the gun not drawn yet: tried again next time, not kept)
+  return g;
 }
 export function foreDrop(s, H) {
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand;

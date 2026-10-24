@@ -109,9 +109,9 @@ carried along exactly as you move, held steady over your shoulders on a spring s
 reach it, and it turns with the view rather than with your body coming round after it. Your chest stays on your aim and
 the gun points the way you look, whatever's under the crosshair, so it never swims about in front of you as you turn,
 walk or look up and down; the body's stride and lean are toned right down from your own eyes, and the bob and sway
-you do see are first-person ones, on springs of their own. The gun and your arms move inside a small circle round the middle of the view: only a little of the
-mouse's movement moves the aim in it (the view turns with the rest, and with all of it once the aim's at the edge), the
-aim easing after it, and the view drifting back onto it; the crosshair is wherever the gun points. Hold **Alt** to
+you do see are first-person ones, on springs of their own. The view turns exactly as the mouse moves, by the mouse's raw movement where the browser
+gives it (no pointer acceleration), and stops the moment it stops; a stray jump the browser sometimes reports under
+pointer lock is ignored. The crosshair is wherever the gun points. Hold **Alt** to
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
@@ -124,7 +124,9 @@ shotgun's front post sits in the middle of the hole through the rear aperture, a
 down the rib with the bead sat on the receiver. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
-only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. An optic on the MP5 sits on a claw mount, clear over its drum sight.
+only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
+shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
+out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
@@ -149,8 +151,7 @@ at. Coming over a fence or a sill, the view turns smoothly to where you're looki
 Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
 turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
-sights; a sprint bobs no harder than a walk). Whatever of your own arms comes right up to your eye is cut away, and what rides on your back
-isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
+sights; a sprint bobs no harder than a walk). What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
 station you get is the one you're looking at, a click out on the game puts an open station away and takes the mouse
 back, and coming off the sights doesn't replay the crosshair's last reload flash. From your own eyes the farm isn't an island in the haze: the woods go on past the road and past the trees
 round the farm out to the horizon, with broadleaf trees and taller pines among them, a power line runs along the far
@@ -165,7 +166,11 @@ into the next without a jump: after the last shell the hand comes off the loadin
 pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. Loading the revolver a
 round at a time, the cylinder's pushed shut by hand after the last one (or when you stop to shoot): the left hand goes
 to the open cylinder, pushes it round into the frame till it clicks home, and goes back to the grip, the shot going
-off once it's latched.
+off once it's latched. A hand holding the gun is held to its place on it the way a constraint holds a bone in
+Blender: the grip hand on the grip, the support hand under the handguard or round the pump, wherever the gun's held
+and however far up you look, the arm reaching all the way to it rather than the hand stopping short and floating.
+Taking a hand off (for a mag, a shell, the bolt) lets go of the constraint as the hand blends away, and taking hold
+again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is.
 
 **Inspecting.** Press **Y** (it can be rebound) to look your gun over, from your own eyes or from above: it's brought
 up and in, rolled over to show one side and then the other, swung round to see down its front, and tipped to look

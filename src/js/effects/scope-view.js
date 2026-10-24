@@ -88,7 +88,7 @@ void main() {
   float rad = uK * max(max(uWorld * smoothstep(1.0, 2.2, d), uNear * near * smoothstep(0.95, 1.2, d)), close);
   if (rad < 0.4) { gl_FragColor = vec4(texture2D(tC, uv).rgb, 1.0); return; }
   vec3 s = vec3(0.0);
-  for (int i = 0; i < 40; i++) { float f = float(i), r = sqrt((f + 0.5) / 40.0) * rad, a = f * 2.39996; s += texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb; }
+  for (int i = 0; i < 40; i++) { float f = float(i), r = sqrt((f + 0.5) / 40.0) * rad, a = f * 2.39996; s += min(texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb, vec3(1.0)); }   // (a flash's light clipped: it's not smeared out over the sights)
   gl_FragColor = vec4(s / 40.0, 1.0);
 }`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uCoc: { value: 0 }, uFoc: { value: 0 }, uMax: { value: 0 }, uHasD: { value: 0 } });
 // a holographic sight's reticle and a red dot's dot, added on as light

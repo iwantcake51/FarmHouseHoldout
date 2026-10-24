@@ -85,10 +85,19 @@ addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; s
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)
 addEventListener('contextmenu', e => e.preventDefault());
+// a browser now and then reports one wild jump of the mouse under pointer lock (hundreds of pixels in a single event,
+// none of it real): one far bigger than the movement just before it is dropped, rather than flicking the view round
+const LOOK_SPIKE = { px: 250, k: 8 };
+let lookAvg = 0;
+function lookSpike(e) {
+  const m = Math.hypot(e.movementX || 0, e.movementY || 0), spike = m > LOOK_SPIKE.px && m > LOOK_SPIKE.k * Math.max(lookAvg, 6);
+  if (!spike) lookAvg += (m - lookAvg) * 0.3;
+  return spike;
+}
 addEventListener('mousemove', e => {
   // looking about in first person or the free camera: the mouse turns the view, and the aim's in the middle of the screen
   // (or off it, inside first person's free-aim circle)
-  if (!isoOn()) { if (locked()) viewLook(e.movementX || 0, e.movementY || 0); centerMouse(...fpAimPx()); return; }
+  if (!isoOn()) { if (locked() && !lookSpike(e)) viewLook(e.movementX || 0, e.movementY || 0); centerMouse(...fpAimPx()); return; }
   mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit();
   // first person or the free camera: a click takes the mouse to look about with (and isn't a shot); flying, it never fires
