@@ -120,9 +120,11 @@ gently, quick through the middle and settling softly, with a little dip and cant
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
 a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
-shotgun's front post sits in the middle of the hole through the rear aperture, the whole rear sight too close to your
-eye to see sharp (a soft ghost ring of it round the hole), and the pump and double barrel are aimed down the rib with
-the bead sat on the receiver. An optic on the MP5 sits on a claw mount, clear over its drum sight.
+shotgun's front post sits in the middle of the hole through the rear aperture, and the pump and double barrel are aimed
+down the rib with the bead sat on the receiver. Your eye's focused on the front sight, so the parts of the gun nearer
+your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
+hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
+only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. An optic on the MP5 sits on a claw mount, clear over its drum sight.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
@@ -173,8 +175,10 @@ turned (the wrist turns with it), and the gun's never held further out or nearer
 so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side;
 the revolver's twirled round your trigger finger first, two quick turns of a cowboy's spin that slow as you catch it,
 before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
-away while you look (from above they stay). Firing or reloading puts the gun straight back on the aim for it;
-aiming, sprinting, vaulting, switching weapons or pressing Y again eases it back.
+away while you look (from above they stay); a handgun's turned side on across in front of you to show its port side,
+the wrist rolled right over for the other side, its muzzle tipped up to see its front and then down to look along its
+top. At the end it's carried back onto the aim as smoothly as it was turned. Firing or reloading puts the gun straight
+back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressing Y again eases it back.
 
 ## Settings
 

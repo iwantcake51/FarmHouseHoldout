@@ -12,7 +12,8 @@
 // A holographic sight's reticle (an EOTech's 68 MOA ring with its four ticks and the 1 MOA dot) and a red dot's dot are
 // out at the target, where your eye sees them (not on the glass): grainy red light in the sight's window, staying on
 // the aim as your eye moves. An aperture's too close to your eye to see sharp: the whole rear sight, its ears and the
-// ring round the hole, goes to a soft blur (a ghost ring), the front post sharp in the middle of it.
+// ring round the hole, goes as soft as it really would (the hole looking a touch bigger for it), the front post sharp
+// in the middle of it.
 import { FP_CAM, R, scene } from '../core/renderer.js';
 import { POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
@@ -23,8 +24,11 @@ import { SCOPE_V } from '../game/view-cam.js';
 const SCOPE_DIM = { max: 1024 };
 // the blur round a scope's eyepiece (px at 1080 high): the most for the world far from it, and for the gun up close
 // (near, there and down any other sights); the gun's soft nearer than f0 to f1 (metres, or for iron sights as a share
-// of how far off the front sight is); a rear aperture, a hand's breadth from your eye, far softer (close): its ghost ring
-const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, close: 5 };
+// of how far off the front sight is). Down iron sights your eye's focused on the front sight, and whatever of the gun's
+// nearer is out of focus as much as it really is: a blur as wide as your pupil (pupil, metres across) makes it at that
+// distance (the further inside the focus, the more; at most max px), so a rear aperture a hand's breadth from your eye
+// goes soft round its hole, the hole looking a little bigger for it, a rear notch only a touch
+const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, pupil: 0.004, max: 26 };
 // a holographic sight's reticle: the ring's size (68 MOA across, drawn at about that, so it reads clearly but sits well
 // inside the window rather than filling it: k) and a red dot's (2 MOA, at least px)
 const HOLO_RET = { moa: 68, k: 1.05, dot: 1.6 };
@@ -77,16 +81,16 @@ void main() {
 // the blur round a scope's eyepiece: a disc of taps (spread on the golden angle) as wide as how far out of focus each
 // pixel is: none in the eyepiece, the world more toward the edges, what's close to your eye (the gun) most
 const dofMat = overlay(`
-uniform sampler2D tC, tD; uniform vec2 uC, uRes, uNF, uF; uniform float uR, uK, uWorld, uNear, uClose, uHasD;
+uniform sampler2D tC, tD; uniform vec2 uC, uRes, uNF, uF; uniform float uR, uK, uWorld, uNear, uCoc, uFoc, uMax, uHasD;
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes; float d = length(gl_FragCoord.xy - uC) / uR, near = 0.0, close = 0.0;
-  if (uHasD > 0.5) { float z = texture2D(tD, uv).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); near = 1.0 - smoothstep(uF.x, uF.y, vz); close = 1.0 - smoothstep(0.1, 0.22, vz); }
-  float rad = uK * max(max(uWorld * smoothstep(1.0, 2.2, d), uNear * near * smoothstep(0.95, 1.2, d)), uClose * close);
+  if (uHasD > 0.5) { float z = texture2D(tD, uv).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); near = 1.0 - smoothstep(uF.x, uF.y, vz); close = uFoc > 0.0 ? min(uMax, uCoc * max(0.0, 1.0 / max(vz, 0.01) - 1.0 / uFoc)) : 0.0; }
+  float rad = uK * max(max(uWorld * smoothstep(1.0, 2.2, d), uNear * near * smoothstep(0.95, 1.2, d)), close);
   if (rad < 0.4) { gl_FragColor = vec4(texture2D(tC, uv).rgb, 1.0); return; }
   vec3 s = vec3(0.0);
-  for (int i = 0; i < 28; i++) { float f = float(i), r = sqrt((f + 0.5) / 28.0) * rad, a = f * 2.39996; s += texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb; }
-  gl_FragColor = vec4(s / 28.0, 1.0);
-}`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uClose: { value: 0 }, uHasD: { value: 0 } });
+  for (int i = 0; i < 40; i++) { float f = float(i), r = sqrt((f + 0.5) / 40.0) * rad, a = f * 2.39996; s += texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb; }
+  gl_FragColor = vec4(s / 40.0, 1.0);
+}`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uCoc: { value: 0 }, uFoc: { value: 0 }, uMax: { value: 0 }, uHasD: { value: 0 } });
 // a holographic sight's reticle and a red dot's dot, added on as light
 const SIGHT_U = { uKind: { value: 0 }, uA: { value: 0 }, uC: { value: new THREE.Vector2() }, uU: { value: new THREE.Vector2() }, uV: { value: new THREE.Vector2() }, uRet: { value: new THREE.Vector2() }, uRR: { value: 10 }, uDot: { value: 1.5 }, uLens: { value: 10 }, uT: { value: 0 } };
 const SIGHT_FRAG = `
@@ -174,15 +178,16 @@ function scopeOver(S, W, H, f) {
 }
 
 // the frame copied and blurred where it's out of focus (k: how far down the sights), round a scope's eyepiece at (cx, cy)
-// r across, and nearer than f0 to f1 (none for what's beyond it)
-function dof(k, W, H, cx, cy, r, world, f0, f1, close = 0) {
+// r across, and nearer than f0 to f1 (none for what's beyond it); focus: where your eye's focused, down iron sights (f:
+// the view's focal length in px), what's nearer it blurred as your pupil would blur it
+function dof(k, W, H, cx, cy, r, world, f0, f1, focus = 0, f = 0) {
   if (k < 0.02) return;
   const c = FP_CAM, D = dofMat.uniforms, dep = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture;
   if (!dep && !world) return;
   if (!SC.fb || SC.w !== W || SC.h !== H) { if (SC.fb) SC.fb.dispose(); SC.fb = new THREE.FramebufferTexture(W, H); SC.w = W; SC.h = H; }
   R.copyFramebufferToTexture(SC.fb);
   D.tC.value = SC.fb; D.tD.value = dep || null; D.uHasD.value = dep ? 1 : 0; D.uNF.value.set(c.near, c.far); D.uF.value.set(f0, f1); D.uRes.value.set(W, H);
-  D.uC.value.set(cx, cy); D.uR.value = r; D.uK.value = k * k * (3 - 2 * k); D.uWorld.value = world * H / 1080; D.uNear.value = SCOPE_DOF.near * H / 1080; D.uClose.value = close * H / 1080;
+  D.uC.value.set(cx, cy); D.uR.value = r; D.uK.value = k * k * (3 - 2 * k); D.uWorld.value = world * H / 1080; D.uNear.value = SCOPE_DOF.near * H / 1080; D.uCoc.value = SCOPE_DOF.pupil / 2 * f; D.uFoc.value = focus; D.uMax.value = SCOPE_DOF.max * H / 1080;
   drawQuad(dofMat);
 }
 
@@ -191,8 +196,8 @@ function sightOver(S, W, H, f) {
   R.setRenderTarget(null);
   // the gun soft: with iron sights all but the front sight, your eye on it; past a dot or a hologram, your eye on the target
   const iron = S.kind !== 'holo' && S.kind !== 'dot', fs = c.position.distanceTo(S.obj);
-  // (an aperture, right in front of your eye, a soft ghost ring of the whole rear sight round the sharp front post)
-  dof(S.a, W, H, -1e5, -1e5, 1, 0, iron ? fs * SCOPE_DOF.iron0 : SCOPE_DOF.f0, iron ? fs * SCOPE_DOF.iron1 : SCOPE_DOF.f1, S.kind === 'ap' ? SCOPE_DOF.close : 0);
+  // (your eye focused on the front sight: an aperture, right in front of it, a soft ring round the sharp front post)
+  dof(S.a, W, H, -1e5, -1e5, 1, 0, iron ? fs * SCOPE_DOF.iron0 : SCOPE_DOF.f0, iron ? fs * SCOPE_DOF.iron1 : SCOPE_DOF.f1, iron ? fs : 0, f);
   if (S.kind !== 'holo' && S.kind !== 'dot') return;   // (iron sights: nothing over the view)
   U.uA.value = S.a; U.uT.value = performance.now() / 1000;
   // out at the target along the sight's axis, where your eye sees the reticle

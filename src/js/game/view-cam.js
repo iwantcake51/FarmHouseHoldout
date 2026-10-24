@@ -285,14 +285,15 @@ export function fpReloadPose(gg, k) {
 }
 // looking the gun over from your own eyes (player/inspect.js): held up in front of them, its middle (mid of the way along
 // it) brought by k to a place low in the middle of the view (at: across, up, out from your eye; a handgun's nearer),
-// where its turns (made on it as it's held: player/hold.js) show it from every side
-const FP_INSPECT_AT = { long: [0.07, -0.1, -0.74], side: [-0.06, 0.035, -0.46], mid: 0.5, midLong: 0.4 };
-export function fpInspectPose(gg, k) {
+// where its turns (made on it as it's held: player/hold.js) show it from every side; dx, dy, dz: each pose's own shift
+// of it from there (across, up, out from your eye)
+const FP_INSPECT_AT = { long: [0.07, -0.1, -0.74], side: [-0.01, -0.035, -0.42], mid: 0.5, midLong: 0.4 };
+export function fpInspectPose(gg, k, dx = 0, dy = 0, dz = 0) {
   const D = W(curId()); if (!fpOn() || !(k > 0.002) || !gg.parent || !D || D.melee) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
   viewMat(_rlM); const at = D.slot === 'side' ? FP_INSPECT_AT.side : FP_INSPECT_AT.long;
   gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * (D.slot === 'side' ? FP_INSPECT_AT.mid : FP_INSPECT_AT.midLong)).applyMatrix4(h.matrixWorld);
-  _rlD.set(at[0], at[1], at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);
+  _rlD.set(at[0] + dx, at[1] + dy, at[2] - dz).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);
   _rM.makeTranslation(_rlD.x, _rlD.y, _rlD.z).multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }

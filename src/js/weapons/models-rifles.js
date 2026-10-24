@@ -321,9 +321,10 @@ export const RIFLE_MODELS = {
     profile(ch, shp([[0.4545, 1.1585], [0.4705, 1.1585], [0.4705, 1.177], [0.4585, 1.177], [0.4548, 1.172]]), 0.058, GM.metal2, X, 0.0015);
     box(ch, 0.006, 0.006, 0.012, GM.metal2, X + 0.031, 1.1715, 0.468);                                       // its latch
     // ---- without an optic: the carry handle clamped on the rail, the A2 rear sight in its back end (the aperture between
-    // its ears, the windage knob, the elevation drum), the clamp's screws
+    // its ears, the windage knob, the elevation drum), the clamp's screws; the handle's top ahead of the sight kept down below
+    // the line through the hole, so looking through it you see the front post over it, not the handle's back
     if (!sight) {
-      profile(g, shp(inset([[0.4798, 1.1795], [0.4914, 1.2045], [0.5464, 1.2045], [0.5464, 1.2378], [0.5875, 1.2359], [0.7197, 1.224], [0.7272, 1.2221], [0.7443, 1.2194], [0.7494, 1.2148], [0.7518, 1.2099], [0.7521, 1.1795]], 0.0025),
+      profile(g, shp(inset([[0.4798, 1.1795], [0.4914, 1.2045], [0.5464, 1.2045], [0.5464, 1.2275], [0.5875, 1.2272], [0.7197, 1.224], [0.7272, 1.2221], [0.7443, 1.2194], [0.7494, 1.2148], [0.7518, 1.2099], [0.7521, 1.1795]], 0.0025),
         [shp(inset([[0.5756, 1.1873], [0.7156, 1.1869], [0.7233, 1.1944], [0.7356, 1.196], [0.7356, 1.2063], [0.7301, 1.2126], [0.7216, 1.2141], [0.5755, 1.2141], [0.5685, 1.2109], [0.5661, 1.2077], [0.565, 1.2027], [0.5655, 1.1953]], -0.0025))]), 0.025, A, X, 0.0025, 2);
       solid(g, [[0.479, 1.1765], [0.7525, 1.1765], [0.7525, 1.1885], [0.479, 1.1885]], 0.04, A, X, 0.002);    // its base round the rail
       [-1, 1].forEach(sd => apPart(profile(g, shp([[0.4983, 1.2045], [0.546, 1.2045], [0.5464, 1.2378], [0.5396, 1.2404], [0.5125, 1.2418], [0.5054, 1.2382], [0.4983, 1.2312]]), 0.005, A, X + sd * 0.0105, 0.001)));   // the ears

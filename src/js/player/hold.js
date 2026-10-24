@@ -44,7 +44,7 @@ import { bandagePose, bandPhases } from './hold-bandage.js';
 import { foreDrop } from './grip.js';
 import { STOW } from './stow.js';
 import { fistOf, rigPair, SWAP_REST_L } from './swap.js';
-import { inspectCut, inspectPose, inspectW } from './inspect.js';
+import { inspectCut, inspectOut, inspectPose, inspectW } from './inspect.js';
 
 // shoulders roll a little forward and in when you shoulder a gun; the fist grips about its front third
 export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-0.33, 1.08, 0], R: [0.33, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
@@ -362,7 +362,7 @@ const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from y
 const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
 // and looking it over from your own eyes, it's turned this far side on to you (radians) for its turns to show it, rather
 // than seen end on down its back
-const FP_INSPECT_TURN = { hand: 1.15, long: 0.35 };
+const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
 // h up), angled across you (y), canted (r) and tipped only a little down (p)
 const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 } };
@@ -532,7 +532,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the gun about in front of you, FP_REL_TURN)
   { const t = fpOn() ? FP_REL_TURN : 1; pitch += ACT.p * (0.5 + 0.5 * t); roll += ACT.r * t; yaw += ACT.y * t; oy += ACT.h; oz += ACT.z; up.y += ACT.tw; }
   // looking it over (player/inspect.js): turned, brought up and in, the chest and head going with it
-  const IN = inspectPose(rdt, D, id, H.kind === 'hand'); pitch += IN.p; yaw += IN.y + (fpOn() ? FP_INSPECT_TURN[H.kind === 'hand' ? 'hand' : 'long'] * IN.fs : 0); roll += IN.r; up.y += IN.tw;
+  const IN = inspectPose(rdt, D, id, H.kind === 'hand', fpOn()); pitch += IN.p; yaw += IN.y + (fpOn() ? FP_INSPECT_TURN[H.kind === 'hand' ? 'hand' : 'long'] * IN.fs : 0); roll += IN.r; up.y += IN.tw;
   if (!fpOn()) { ox += IN.x; oy += IN.h; oz += IN.z; }   // (from your own eyes it's placed in front of them instead: game/view-cam.js, fpInspectPose)
   oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
   // sprinting (player/sprint.js): the gun comes down to a low ready, muzzle down and across the body, both hands still
@@ -619,7 +619,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
   if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
-  fpInspectPose(gg, inspectW());   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
+  { const IO = inspectOut(); fpInspectPose(gg, inspectW(), IO.x, IO.h, IO.z); }   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
   inspectReach(gg, s, H, ak);   // and never further out or nearer in than the hands on it can hold it
   { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)
     pm.upper.position.z = -BR.z * bk; }   // and the upper body shoved back under it (BR)

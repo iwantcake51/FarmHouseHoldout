@@ -21,8 +21,10 @@ import { openSt } from '../stations/station-ui.js';
 
 // each pose: when (seconds), the gun's turn (p: muzzle down, y: muzzle round, r: rolled over, radians) and its place
 // (x across, h up, z forward, metres), the head (hp: down, hy: round) and the chest (tw: twisted round); fs: from your
-// own eyes, how far it's turned side on to you (player/hold.js, FP_INSPECT_TURN)
-const K = (t, p, y, r, x, h, z, hp, hy, tw, fs = 1) => ({ t, p, y, r, x, h, z, hp, hy, tw, fs });
+// own eyes, how far it's turned side on to you (player/hold.js, FP_INSPECT_TURN); up: how far it's brought up in front
+// of your eyes (game/view-cam.js, fpInspectPose): none at the start and the end, so it's carried there and back as
+// smoothly as it's turned
+const K = (t, p, y, r, x, h, z, hp, hy, tw, fs = 1, up = 1) => ({ t, p, y, r, x, h, z, hp, hy, tw, fs, up });
 const HAND_KEYS = [
   K(0.45, -0.12, -0.3, 1.25, 0.03, 0.1, -0.13, 0.3, -0.12, -0.05),     // brought up close, turned on the wrist: its one side
   K(1.15, -0.16, -0.38, 1.35, 0.035, 0.105, -0.14, 0.32, -0.16, -0.06),
@@ -30,25 +32,43 @@ const HAND_KEYS = [
   K(2.35, -0.06, 0.36, -1.25, -0.015, 0.105, -0.135, 0.31, 0.15, 0.05),
   K(2.95, -0.42, 1.0, -0.3, -0.04, 0.12, -0.1, 0.22, 0.34, 0.1),        // round to look down the muzzle end
   K(3.55, 0.45, -0.2, 0.25, 0.01, 0.08, -0.12, 0.36, -0.04, -0.02),     // tipped down: the back of the slide, the sights
-  K(4.2, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+  K(4.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)   // (and back onto the aim, unhurried)
+];
+// from your own eyes a handgun's looked over differently: what shows its sides to someone looking down on you (rolled
+// on the wrist) shows you only the back of its slide, so it's turned side on across in front of you (muzzle to your
+// left: its right side, the port), the wrist rolled right over (its left side, upside down), its muzzle tipped up to
+// look at its front, then tipped down to look along its top to the sights, held low in the middle of the view
+const HAND_KEYS_FP = [
+  K(0.5, -0.1, 1.15, 0.12, 0, 0, 0, 0.3, -0.05, 0, 0),         // turned side on: its right side, the port
+  K(1.2, -0.14, 1.25, 0.18, -0.02, 0.005, 0, 0.32, -0.07, 0, 0),
+  K(1.9, 0.05, 1.05, 2.75, -0.09, 0.02, -0.03, 0.3, 0.02, 0, 0),    // rolled right over: its left side (brought across clear of the forearm)
+  K(2.6, 0.08, 1.15, 2.85, -0.095, 0.025, -0.03, 0.31, 0.04, 0, 0),
+  K(3.25, -0.85, 0.5, 0.25, 0, 0, 0, 0.24, 0.08, 0, 0),         // muzzle tipped up: its front
+  K(3.85, 0.42, 0.12, 0.05, 0, 0, 0, 0.36, 0, 0, 0),            // tipped down: along its top, the sights
+  K(4.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 ];
 const SPIN_T = 1.45;   // (the revolver's spin first, then it's looked over as any handgun)
 const INSPECT = {
   long: [
-    K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     K(0.5, -0.06, -0.22, 0.85, 0.02, 0.05, -0.08, 0.26, -0.14, -0.06),   // up, in and rolled over: its one side
     K(1.3, -0.1, -0.3, 0.95, 0.025, 0.055, -0.085, 0.28, -0.18, -0.07),   // looked along, drifting
     K(1.95, 0.02, 0.18, -0.85, 0.0, 0.05, -0.08, 0.26, 0.1, 0.04),        // rolled right over: the other side
     K(2.6, 0.0, 0.26, -0.8, -0.01, 0.055, -0.085, 0.27, 0.14, 0.05),
     K(3.25, -0.24, 0.46, -0.3, -0.03, 0.07, -0.06, 0.2, 0.26, 0.1),       // swung round, muzzle up a little: down its front
     K(3.9, 0.2, -0.18, 0.18, 0.01, 0.04, -0.07, 0.3, -0.04, -0.02),       // tipped muzzle down: along its back and top
-    K(4.6, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    K(4.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   ],
-  hand: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)].concat(HAND_KEYS),
+  hand: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)].concat(HAND_KEYS),
   // held out to the side and a little forward on a loose wrist for the spin (from your own eyes turned most of the way
   // side on, so it's seen wheeling round the finger beside your hand), a glance down at it, then looked over
-  revolver: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(0.3, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(SPIN_T - 0.15, -0.1, 0.08, 0.02, 0.03, 0.035, 0.05, 0.18, 0.02, 0.02, 0.8)]
+  revolver: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(0.3, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(SPIN_T - 0.15, -0.1, 0.08, 0.02, 0.03, 0.035, 0.05, 0.18, 0.02, 0.02, 0.8)]
     .concat(HAND_KEYS.map(k => Object.assign({}, k, { t: k.t + SPIN_T })))
+};
+// the same from your own eyes (a long gun's are its own: turned only a little side on, player/hold.js FP_INSPECT_TURN)
+const INSPECT_FP = {
+  hand: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)].concat(HAND_KEYS_FP),
+  revolver: INSPECT.revolver.slice(0, 3).concat(HAND_KEYS_FP.map(k => Object.assign({}, k, { t: k.t + SPIN_T })))
 };
 // the revolver's spin: flicked forward round the trigger finger (at: seconds in, after a little wind back the other way,
 // wind) for turns full turns, quickest as it leaves the hand and slowing as it's caught (dur: seconds); what's left of a
@@ -57,9 +77,10 @@ const INSPECT_SPIN = { revolver: { at: 0.38, dur: 0.85, turns: 2, wind: 0.35, wi
 // the hands never quite still while it's held up (radians: muzzle, turn, roll; f: how quickly)
 const INSP_SHAKE = { p: 0.012, y: 0.01, r: 0.018, f: [1.3, 1.7, 2.1] };
 // how it's chased: a spring per channel, a touch under critical so it carries softly through each move (w: how
-// quick, z: how damped); the blend in and out (wIn, wOut: how quickly it takes over, and lets go)
-const INSP_SPRING = { w: 10, z: 0.72, wIn: 6, wOut: 9 };
-const CH = ['p', 'y', 'r', 'x', 'h', 'z', 'hp', 'hy', 'tw', 'fs'];
+// quick, z: how damped); the blend in and out (wIn, wOut: how quickly it takes over, and lets go: slowly, so stopped
+// part way it's the springs that carry it back onto the aim, unhurried, not the blend that snaps it there)
+const INSP_SPRING = { w: 10, z: 0.72, wIn: 6, wOut: 2.5 };
+const CH = ['p', 'y', 'r', 'x', 'h', 'z', 'hp', 'hy', 'tw', 'fs', 'up'];
 // what's put on the gun this frame (o; spin: the revolver's twirl, radians), and the springs chasing the keyframes (s,
 // and their speeds v)
 const INSP = { t: -1, id: null, w: 0, o: { spin: 0 }, s: {}, v: {}, spin: 0 };
@@ -95,11 +116,11 @@ function spinAt(S, t) {
   return -S.wind * (1 - Math.min(1, u * 4)) + S.turns * 2 * Math.PI * e;
 }
 // each frame from player/hold.js: where it's got to (INSP.o, already weighted), the gun's kind deciding its moves
-export function inspectPose(rdt, D, id, hand) {
+export function inspectPose(rdt, D, id, hand, fp) {
   const I = INSP, now = performance.now();
   if (I.t >= 0 && (mouseDown || W8.reloading || id !== I.id)) inspectCut();   // (firing, reloading or another gun: back at once)
   if (I.t >= 0 && (!D || D.melee || busy())) I.t = -1;   // (anything else: eased back onto the aim)
-  const L = INSPECT[id] || (hand ? INSPECT.hand : INSPECT.long), end = L[L.length - 1].t, S = INSPECT_SPIN[id];
+  const SET = fp ? INSPECT_FP : INSPECT, L = SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long), end = L[L.length - 1].t, S = INSPECT_SPIN[id];
   if (I.t >= 0) { I.t += rdt; if (I.t >= end) I.t = -1; }
   const on = I.t >= 0; hudOff(on);
   I.w += ((on ? 1 : 0) - I.w) * Math.min(1, rdt * (on ? INSP_SPRING.wIn : INSP_SPRING.wOut));
@@ -117,5 +138,8 @@ export function inspectPose(rdt, D, id, hand) {
   I.o.spin = I.spin;
   return I.o;
 }
-// whether it's going (or still settling back): the gun's up in view for it in first person (game/view-cam.js)
-export const inspectW = () => INSP.w;
+// how far it's under way (or still settling back): the gun's up in view for it in first person (game/view-cam.js), the
+// hands shifting for it (player/hold.js)
+export const inspectW = () => clamp(INSP.o.up, 0, 1);
+// what's on the gun this frame, as inspectPose last left it
+export const inspectOut = () => INSP.o;
