@@ -25,9 +25,9 @@ const SCOPE_DIM = { max: 1024 };
 // (near, there and down any other sights); the gun's soft nearer than f0 to f1 (metres, or for iron sights as a share
 // of how far off the front sight is); a rear aperture, a hand's breadth from your eye, far softer (close): its ghost ring
 const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, close: 5 };
-// a holographic sight's reticle: the ring's size (68 MOA across, drawn smaller than that so it's a neat ring well inside
-// the window rather than filling it: k) and a red dot's (2 MOA, at least px)
-const HOLO_RET = { moa: 68, k: 0.6, dot: 1.6 };
+// a holographic sight's reticle: the ring's size (68 MOA across, drawn at about that, so it reads clearly but sits well
+// inside the window rather than filling it: k) and a red dot's (2 MOA, at least px)
+const HOLO_RET = { moa: 68, k: 1.05, dot: 1.6 };
 const MOA = Math.PI / 180 / 60;
 const SC = { rt: null, size: 0, fb: null, w: 0, h: 0 }, _ax = new THREE.Vector2(), _svR = new THREE.Vector2(), _svR2 = new THREE.Vector2(), _sz = new THREE.Vector2(), _sp = new THREE.Vector3(), _st = new THREE.Vector3(), _su = new THREE.Vector3();
 const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200);
