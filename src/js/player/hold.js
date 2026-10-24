@@ -353,7 +353,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
 const _mlR = new V3(), _mtS = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
-const ARM_AIM = { k: 38, d: 12.3 };
+const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from your own eyes it's the view's own pitch, followed closely: game/view-cam.js, fpGunPitch)
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
@@ -362,7 +362,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // how far down you're pointing (weapons/combat-update.js): eased onto on a spring (ARM_AIM), so the arms settle onto
   // whatever the aim finds rather than snapping to it; never down at a sprint, with the gun at the low ready
   { const pT = state === 'play' ? (ANIM.pitchT || 0) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) : 0; if (ANIM.vPitch === undefined) ANIM.vPitch = 0;
-    for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, ARM_AIM.k, ARM_AIM.d, h); }
+    const A = fpOn() ? ARM_AIM_FP : ARM_AIM; for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, A.k, A.d, h); }
   // (a gun that's harder to hold still, a heavy one, a pair, a pistol with nothing to brace it, drifts more at rest: its
   // unsteadiness, player/shaky-hands.js, IDLE_UNSTEADY of it)
   const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) * frontHeavy(id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights

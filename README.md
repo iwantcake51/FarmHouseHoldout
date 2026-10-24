@@ -102,11 +102,17 @@ Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
 Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
-where you face. The gun and your arms move inside a small circle round the middle of the view: only a little of the
+where you face. The view turns the moment the mouse moves, with no easing in the way (turn on **Mouse smoothing** in
+the settings if you'd like it eased over a few frames). Your eye is pinned to you, not to your animated head: it's
+carried along exactly as you move, held steady over your shoulders on a spring so the stride's own rise and sway hardly
+reach it, and it turns with the view rather than with your body coming round after it. Your chest stays on your aim and
+the gun points the way you look, whatever's under the crosshair, so it never swims about in front of you as you turn,
+walk or look up and down; the body's stride and lean are toned right down from your own eyes, and the bob and sway
+you do see are first-person ones, on springs of their own. The gun and your arms move inside a small circle round the middle of the view: only a little of the
 mouse's movement moves the aim in it (the view turns with the rest, and with all of it once the aim's at the edge), the
 aim easing after it, and the view drifting back onto it; the crosshair is wherever the gun points. Hold **Alt** to
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
-rides your head as you walk, vault and stumble, well smoothed, bobs and sways with each stride (more running), banks a
+follows you smoothly up and over a vault, bobs and sways with each stride, banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, with a little dip and cant on the way, quicker with a handgun;
@@ -168,6 +174,7 @@ eases back to the grip.
 | View | Isometric, first person |
 | Field of view | 60–100° (first person) |
 | Mouse sensitivity | 25–200% (first person) |
+| Mouse smoothing | Off (the view turns the moment the mouse does), on (eased over a few frames) (first person) |
 | Master volume, music | 0–100% |
 | Screen shake | 50–100% |
 

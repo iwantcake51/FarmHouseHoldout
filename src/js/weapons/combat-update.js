@@ -25,7 +25,7 @@ import { aimRay, bodyOf, cursorTarget, fire, SETTLE, settleK } from './firing.js
 import { HEAVY, heavySwing, LUNGS, meleeHit } from '../melee/melee.js';
 import { tickBandage } from '../player/bandages.js';
 import { RUN_REST, SHOT_HOLD, SPRINT, sprintHolds } from '../player/sprint.js';
-import { fpOn, VCAM } from '../game/view-cam.js';
+import { fpGunPitch, fpOn, VCAM } from '../game/view-cam.js';
 import { ANIM, LOOK_DOWN } from '../player/animation.js';
 
 const VAULT_BREATH = 1;   // seconds after a vault before stamina starts coming back
@@ -84,7 +84,7 @@ export function updateCombat(dt) {
   const onFarm = state === 'play' && !(openSt && !aiming);
   if (!P.dead && !W(curId()).melee) {
     let ty = null, tx = aimPt.x, tz = aimPt.z;
-    const ct = onFarm ? cursorTarget() : null;
+    const ct = onFarm && !fpOn() ? cursorTarget() : null;   // (in first person, nothing under the crosshair turns the arms: fpGunPitch)
     if (ct) { ty = ct.y; tx = ct.x; tz = ct.zz; }
     else if (fpOn()) { ty = VCAM.aimY; }   // first person: where you look, no help onto a zombie (game/view-cam.js)
     else {
@@ -102,7 +102,7 @@ export function updateCombat(dt) {
     if (ty === null && onFarm && hasMouse && !tStick.R && !scoped && ray.ray.intersectPlane(groundPlane, _gp)) { const d = Math.hypot(_gp.x - P.x, _gp.z - P.z); ty = 0.85 - 0.55 * (1 - smooth(clamp((d - 0.8) / 2.6, 0, 1))); tx = _gp.x; tz = _gp.z; }
     if (ty !== null) {
       const fp = fpOn();   // (in first person you can point it up as far as you look: at a head above you, or the sky)
-      ANIM.pitchT = clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), ty > GUN_Y ? -(fp ? AIM_UP_FP : AIM_UP) : 0, PITCH_MAX);
+      ANIM.pitchT = fp ? clamp(fpGunPitch(), -AIM_UP_FP, PITCH_MAX) : clamp(Math.atan2(GUN_Y - ty, Math.max(0.6, Math.hypot(tx - P.x, tz - P.z))), ty > GUN_Y ? -AIM_UP : 0, PITCH_MAX);
       ANIM.aimY = fp ? ty : Math.min(GUN_Y, ty);
     }
   }
