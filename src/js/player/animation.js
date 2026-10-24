@@ -26,6 +26,7 @@ import { fpOn } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { roofOver } from '../world/cutaway.js';
 import { PRAG } from './player-ragdoll.js';
+import { inspectCut } from './inspect.js';
 import { ARM_THIN, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
@@ -195,6 +196,7 @@ const BODY_YAW = { k: 420, z: 0.72, max: 20 };
 const FP_BODY = { stride: 0.25, lean: 0.35 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
+  if (P.dead) inspectCut();   // (player/inspect.js)
   if (P.dead) { if (PRAG.me) { stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)

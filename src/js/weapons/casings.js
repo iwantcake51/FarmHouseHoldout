@@ -502,6 +502,8 @@ export function chamberT(id) {
   }, 0) / list.length;
 }
 export function tickCycle(dt) {
+  // (a pump's hand still coming onto the forend after a reload: it's worked once it's got hold, weapons/reload.js PUMP_GRAB)
+  if (W8.grabT > 0) { if (curId() !== W8.grabId || W8.reloading) W8.grabT = 0; else { W8.grabT -= dt; if (W8.grabT > 0) return; W8.grabT = 0; if (W8.grabHeld && W8.held[W8.grabId] && (W8.mag[W8.grabId] || 0) > 0) { chamberCycle(W8.grabId); delete W8.held[W8.grabId]; } } }
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }

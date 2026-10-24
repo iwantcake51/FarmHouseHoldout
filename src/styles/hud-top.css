@@ -57,3 +57,6 @@
 .mood.good{--mc:#7fae5a}.mood.warn{--mc:#d8a24a}.mood.bad{--mc:#d0432c}.mood.info{--mc:#7f9cc9}
 @keyframes moodIn{from{opacity:0;transform:translateX(10px)}}
 #scrim{transition:opacity 1.4s ease}
+/* looking your gun over from your own eyes (player/inspect.js): the whole HUD and the crosshair put away, back the
+   moment you stop (from above it all stays) */
+body.fpView.inspecting .hud:not(#station), body.fpView.inspecting #xh, body.fpView.inspecting #lookHint { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }

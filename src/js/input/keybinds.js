@@ -10,12 +10,12 @@ import { keyIcon, slotIcons } from '../ui/input-icons.js';
 const BIND_DEF = {
   sprint: 'shift', vault: ' ', zoomIn: '=', zoomOut: '-',
   reload: 'r', slot1: '1', slot2: '2', slot3: '3', slot4: '4', shove: 'v', fireMode: 'b', ammo: 'x', grenade: 'g', stats: 'i',
-  use: 'e', board: 'f', tear: 'c', bandage: 'q', wave: 't', share: 'h', pause: 'p', view: 'n', freeLook: 'alt'
+  use: 'e', board: 'f', tear: 'c', bandage: 'q', wave: 't', share: 'h', pause: 'p', view: 'n', freeLook: 'alt', inspect: 'y'
 };
 // the groups they're listed in (hold: held down rather than pressed), and the ones that can't move, shown with them
 export const BIND_GROUPS = [
   { name: 'Movement', fixed: [['W A S D', 'Walk']], rows: [['sprint', 'Sprint', 1], ['vault', 'Vault a window or fence'], ['zoomIn', 'Zoom in'], ['zoomOut', 'Zoom out'], ['view', 'First person view'], ['freeLook', 'Free look (first person)', 1]] },
-  { name: 'Combat', fixed: [['Mouse', 'Aim and fire'], ['Right click', 'Aim down the sights']], rows: [['reload', 'Reload'], ['slot1', 'Weapon 1'], ['slot2', 'Weapon 2'], ['slot3', 'Weapon 3'], ['slot4', 'Weapon 4'], ['shove', 'Shove'], ['fireMode', 'Switch fire mode'], ['ammo', 'Load the next kind of round'], ['grenade', 'Underbarrel grenade'], ['stats', 'Weapon stats']] },
+  { name: 'Combat', fixed: [['Mouse', 'Aim and fire'], ['Right click', 'Aim down the sights']], rows: [['reload', 'Reload'], ['slot1', 'Weapon 1'], ['slot2', 'Weapon 2'], ['slot3', 'Weapon 3'], ['slot4', 'Weapon 4'], ['shove', 'Shove'], ['fireMode', 'Switch fire mode'], ['ammo', 'Load the next kind of round'], ['grenade', 'Underbarrel grenade'], ['stats', 'Weapon stats'], ['inspect', 'Inspect your weapon']] },
   { name: 'Survival', fixed: [], rows: [['use', 'Use a station, pick something up'], ['board', 'Board up a window or door', 1], ['tear', 'Tear a board down', 1], ['bandage', 'Bandage'], ['wave', 'Start the next wave early'], ['share', 'Share a gun with your team'], ['pause', 'Pause']] }
 ];
 // keys kept for what they already do: walking, Esc (back out, pause), the cheat menu, Tab and Enter in the stations

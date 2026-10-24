@@ -30,6 +30,7 @@ import { bloom, setBloom, setLmT } from '../game/state.js';
 import { aimPt, hasMouse } from '../input/keyboard-mouse.js';
 import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
 import { tStick } from '../input/touch.js';
+import { inspectCut } from '../player/inspect.js';
 import { breakTrigger, relHeld } from './reload.js';
 import { akMags, akShot } from './akimbo.js';
 import { stamCost, SWING_AIR, TIRED } from '../melee/melee.js';
@@ -223,6 +224,7 @@ export function fire() {
 // side: which of an akimbo pair fires (weapons/akimbo.js), each from its own mag
 export function gunFire(id, D, side) {
   {
+  inspectCut();   // (looking it over: straight back on the aim for the shot, player/inspect.js)
   let shots = 1;
   if (D.akimbo) { if (!akShot(id, D, side || (W8.akSide > 0 ? 'L' : 'R'))) return; run.shots++; }
   else {

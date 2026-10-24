@@ -274,6 +274,19 @@ export function fpReloadPose(gg, k) {
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }
+// looking the gun over from your own eyes (player/inspect.js): held up in front of them, its middle (mid of the way along
+// it) brought by k to a place low in the middle of the view (at: across, up, out from your eye; a handgun's nearer),
+// where its turns (made on it as it's held: player/hold.js) show it from every side
+const FP_INSPECT_AT = { long: [0.07, -0.1, -0.74], side: [-0.05, -0.01, -0.5], mid: 0.5, midLong: 0.4 };
+export function fpInspectPose(gg, k) {
+  const D = W(curId()); if (!fpOn() || !(k > 0.002) || !gg.parent || !D || D.melee) return;
+  const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
+  viewMat(_rlM); const at = D.slot === 'side' ? FP_INSPECT_AT.side : FP_INSPECT_AT.long;
+  gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * (D.slot === 'side' ? FP_INSPECT_AT.mid : FP_INSPECT_AT.midLong)).applyMatrix4(h.matrixWorld);
+  _rlD.set(at[0], at[1], at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);
+  _rM.makeTranslation(_rlD.x, _rlD.y, _rlD.z).multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
+  _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
+}
 // your own arms, from your own eyes: whatever of them comes nearer your eye than SELF_CLIP.near (further looking up:
 // up, as the gun's raised over the shoulders) is cut away, the way a shooter's own upper arms never fill the view, so
 // raising the gun to aim high doesn't put your sleeves over everything. A plane across the view (SELF_PLANES) on the

@@ -161,6 +161,7 @@
   "player/grip.js",
   "player/stow.js",
   "player/swap.js",
+  "player/inspect.js",
   "effects/eye-glow.js",
   "zombies/zombie-visuals.js",
   "ui/hud.js",

@@ -97,6 +97,7 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | | | X | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | | |
 | | | I | Weapon stats | | |
+| | | Y | Inspect your weapon | | |
 
 Touch screens get twin sticks and on-screen buttons.
 
@@ -158,8 +159,20 @@ glow sits over it all through the day and night.
 rifle's bolt and the charging handle, and the left on the handguard or the pump, fetching mags and feeding shells,
 rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
 fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
-into the next without a jump: after the last shell the hand goes straight back to the pump, and the hand on the bolt
-eases back to the grip.
+into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the
+pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. Loading the revolver a
+round at a time, the cylinder's pushed shut by hand after the last one (or when you stop to shoot): the left hand goes
+to the open cylinder, pushes it round into the frame till it clicks home, and goes back to the grip, the shot going
+off once it's latched.
+
+**Inspecting.** Press **Y** (it can be rebound) to look your gun over, from your own eyes or from above: it's brought
+up and in, rolled over to show one side and then the other, swung round to see down its front, and tipped to look
+along its back and top, your head following it. Each move starts gently, swings through and settles into its pose
+with a little give, the hands never quite still. A handgun's turned in the one hand, the other hanging at your side;
+the revolver's twirled round your trigger finger first, two quick turns of a cowboy's spin that slow as you catch it,
+before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
+away while you look (from above they stay). Firing or reloading puts the gun straight back on the aim for it;
+aiming, sprinting, vaulting, switching weapons or pressing Y again eases it back.
 
 ## Settings
 
