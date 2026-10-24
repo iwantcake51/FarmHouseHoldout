@@ -114,14 +114,14 @@ export function fitAttachments(g, D, front, y, info) {
       // and on the back face under the window the panel with its two arrow buttons, the round one between and four
       // screws. Its reticle (the 68 MOA ring, its four ticks and the dot) is only seen looking through it, drawn where
       // your eye sees it (effects/scope-view.js)
-      const H5 = { z0: bz - 0.048, z1: bz - 0.004, wy: by + 0.034, ww: 0.0125, wh: 0.0095 };
+      const H5 = { z0: bz - 0.048, z1: bz - 0.004, wy: by + 0.034, ww: 0.0152, wh: 0.0112, fr: 0.0014, hw: 0.0015 };   // (fr: the frame's width round the window; hw: the hood's walls)
       box(p, 0.03, 0.006, 0.09, GM.metal, sx, by + 0.003, bz);                                                                  // the mount
       cyl(p, 0.005, 0.006, GM.metal2, sx + 0.019, by + 0.004, bz + 0.02, 12).rotation.set(0, 0, Math.PI / 2);                // its cross-bolt knob
       profile(p, shp([[H5.z0, by + 0.004], [bz + 0.04, by + 0.004], [bz + 0.046, by + 0.008], [bz + 0.047, by + 0.016], [bz + 0.042, by + 0.0225], [H5.z0, by + 0.0225]]), 0.034, GM.metal, sx, 0.0015);   // the body
       cyl(p, 0.0085, 0.006, GM.metal2, sx, by + 0.0135, bz + 0.049, 16);                                                       // the battery cap
-      { const fr = shp(rrect(sx - H5.ww - 0.0025, H5.wy - H5.wh - 0.0025, sx + H5.ww + 0.0025, H5.wy + H5.wh + 0.0025, 0.005).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - H5.ww, H5.wy - H5.wh, sx + H5.ww, H5.wy + H5.wh, 0.0035)]);
+      { const fr = shp(rrect(sx - H5.ww - H5.fr, H5.wy - H5.wh - H5.fr, sx + H5.ww + H5.fr, H5.wy + H5.wh + H5.fr, 0.0045).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - H5.ww, H5.wy - H5.wh, sx + H5.ww, H5.wy + H5.wh, 0.0035)]);
         xsec(p, fr, H5.z0, H5.z1, GM.metal, 0.0006); }                                                                        // the window's frame
-      { const hd = shp(rrect(sx - 0.0215, by + 0.006, sx + 0.0215, by + 0.0545, 0.0075).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - 0.0188, by + 0.0085, sx + 0.0188, by + 0.0517, 0.005)]);
+      { const hd = shp(rrect(sx - 0.0215, by + 0.006, sx + 0.0215, by + 0.0545, 0.0075).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - 0.0215 + H5.hw, by + 0.006 + H5.hw, sx + 0.0215 - H5.hw, by + 0.0545 - H5.hw, 0.0075 - H5.hw)]);
         xsec(p, hd, H5.z0 - 0.002, H5.z1 + 0.002, GM.metal, 0.0005); }                                                       // the hood
       box(p, 0.027, 0.0145, 0.0015, GM.metal2, sx, by + 0.0135, H5.z0 - 0.0005);                                              // the button panel
       [-1, 1].forEach(sd => { box(p, 0.0068, 0.0056, 0.0016, GM.rubber, sx + sd * 0.0072, by + 0.0108, H5.z0 - 0.0013); [by + 0.0075, by + 0.0185].forEach(yy => cyl(p, 0.0013, 0.0012, GM.steel, sx + sd * 0.0112, yy, H5.z0 - 0.0013, 8)); });
