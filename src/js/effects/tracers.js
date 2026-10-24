@@ -4,7 +4,7 @@
 // round's power (tracerPower): a 9mm leaves a quick thin streak, a shotgun a spray of hot needles, a rifle or a magnum a
 // fat bolt of light with a halo round it, a long glowing wake that drifts up as it cools and a star where it lands.
 
-import { CAM_OFF, scene, V3 } from '../core/renderer.js';
+import { CAM_OFF, cam, scene, V3 } from '../core/renderer.js';
 import { clamp, rand, rr, smooth } from '../core/math.js';
 import { S } from '../game/run-state.js';
 import { TEX_CORE, TEX_STAR } from './textures.js';
@@ -47,10 +47,23 @@ for (let k = 0; k < TR_N; k++) {
 // rifle round on full auto or a .357, 0.9 the .50 and 1.25 the hunting rifle; hotter loads push it up
 export function tracerPower(D) { return clamp(Math.pow(D.dmg * S.dmgMul / 120, 0.7) + (D.ammo === 'rifle' ? 0.18 : 0), 0.18, 1.45); }
 const _trX = new V3(), _trY = new V3(), _trM = new THREE.Matrix4();
-// turn a strip running along d about that line so its flat side faces the camera
-function trAim(m, d) { _trX.crossVectors(d, TR_VIEW).normalize(); _trY.crossVectors(d, _trX); m.quaternion.setFromRotationMatrix(_trM.makeBasis(_trX, _trY, d)); }
+// turn a strip running along d about that line so its flat side faces the camera: from above, the view's own fixed
+// way; from your own eyes (a perspective camera), toward your eye from the strip's middle, again each frame as you and
+// it move, so a round's streak is seen face on as it goes, never edge on and flat
+function trAim(m, d, at) {
+  let v = TR_VIEW;
+  if (at && cam.isPerspectiveCamera) { v = _trV.subVectors(cam.position, at); const l = v.length(); if (l > 1e-4) v.multiplyScalar(1 / l); else v = TR_VIEW; }
+  _trX.crossVectors(d, v); if (_trX.lengthSq() < 1e-8) _trX.set(1, 0, 0).cross(d); _trX.normalize(); _trY.crossVectors(d, _trX);
+  m.quaternion.setFromRotationMatrix(_trM.makeBasis(_trX, _trY, d));
+}
+// from your own eyes the streaks pass right by you, so they're drawn slimmer than from above (FP_TR: how much)
+const FP_TR = { w: 0.55 }, _trV = new V3(), _trC = new V3();
+const trW = w => cam.isPerspectiveCamera ? w * FP_TR.w : w;
 // lay a strip along the shot from a to b metres out, w wide
-function trLay(t, m, a, b, w) { m.position.copy(t.s).addScaledVector(t.d, a); m.scale.set(w, 1, Math.max(0.001, b - a)); }
+function trLay(t, m, a, b, w) {
+  m.position.copy(t.s).addScaledVector(t.d, a); m.scale.set(trW(w), 1, Math.max(0.001, b - a));
+  if (cam.isPerspectiveCamera) trAim(m, t.d, _trC.copy(t.s).addScaledVector(t.d, (a + b) / 2));
+}
 // a round from (x0, y0, z0) to (x1, y1, z1); pw its power (tracerPower), style a key of TR_STYLE
 export function tracer(x0, y0, z0, x1, y1, z1, pw, style) {
   pw = pw || 0.35;

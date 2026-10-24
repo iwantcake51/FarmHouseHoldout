@@ -126,7 +126,10 @@ your eye are as out of focus as they would really be, by distance and the size o
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
 only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
-out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight.
+out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
+flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
+going there and turned to face your eye as it goes; a wall it hits takes its hole at the height it really struck. Your
+teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a

@@ -385,7 +385,7 @@ export function fpAim(out) {
   for (let t = 0.3; t < D; t += 0.1) if (bulletBlocked(ex + dx * t, ez + dz * t)) { D = t; break; }
   D = Math.max(0.6, thinRay(ex, ez, dx, dz, D));
   out.set(ex + dx * D, GUN_Y, ez + dz * D);
-  VCAM.aimY = clamp(ey + sp / Math.max(0.05, cp) * D, 0, 4);
+  VCAM.aimY = clamp(ey + sp / Math.max(0.05, cp) * D, 0, 40);   // (up into the sky as far as you look: a round flies the line you look down)
   return out;
 }
 // a shot kicks the view up and a touch aside (game/camera.js: fireCam), on a stiff spring home; and the gun in your

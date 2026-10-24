@@ -5,6 +5,7 @@ import { cam, GUN_Y, scene } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
 import { thinNear, thinRay } from '../world/thin-walls.js';
+import { surfaceY } from '../world/house.js';
 import { blockArr, bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
@@ -222,6 +223,12 @@ export function fire() {
   gunFire(id, D);
 }
 // side: which of an akimbo pair fires (weapons/akimbo.js), each from its own mag
+// a round into the ground: a spurt of dirt kicked up and back toward where it came from, and its flash (and from a
+// teammate's shot the same: net/avatars.js)
+export function groundHit(x, y, z, dx, dz, p = 0) {
+  if (p < 4 || rand() < 0.4) impactFx(x, y + 0.02, z, -dx * 0.4, -dz * 0.4);
+  if (p < 2) smoke(x, y + 0.03, z, -dx * 0.3, 0.55, -dz * 0.3, 0.1, 0.45, 0.8, 0.32, 0x8a7458);
+}
 export function gunFire(id, D, side) {
   {
   inspectCut();   // (looking it over: straight back on the aim for the shot, player/inspect.js)
@@ -267,20 +274,24 @@ export function gunFire(id, D, side) {
     // the mark by as much as its spread throws it, and so is anything on past it)
     const one = pellets === 1, dev = one ? (rand() - 0.5) * 2 * sp : 0, aimed = p === 0 && tgt && (!one || Math.abs(Math.sin(dev)) * tgtT < AIM_KEEP);
     const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : dev), dx = Math.sin(a), dz = Math.cos(a);
-    let wallT = 26;
-    for (let t = 0.1; t < 26; t += 0.1) if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
-    wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
-    const endR = Math.min(wallT, D.maxRange || 26);   // how far it can do anything: a wall, or where a dragon's breath pellet burns out
-    const hits = [];
-    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
-    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
-    hits.sort((a, b) => a.t - b.t);
     // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
     // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it
     // goes through, and any in front of the one it was aimed at, is hit where that height meets it (partAt), or not at
     // all if it passes over; what it misses doesn't use up a pierce
-    // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js)
-    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY || GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js;
+    // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
+    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    let wallT = 26, gndT = 99;
+    for (let t = 0.1; t < 26; t += 0.1) {
+      if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
+      if (fp && slope < -1e-4 && y0 + slope * t <= surfaceY(ox + dx * t, oz + dz * t)) { gndT = t; break; }
+    }
+    wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
+    const endR = Math.min(wallT, gndT, D.maxRange || 26);   // how far it can do anything: a wall, the ground, or where a dragon's breath pellet burns out
+    const hits = [];
+    for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
+    if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
+    hits.sort((a, b) => a.t - b.t);
     let m = 0;
     for (let k = 0; k < hits.length && m <= pierce; k++) {
       const { z, off, r } = hits[k];
@@ -304,17 +315,22 @@ export function gunFire(id, D, side) {
     // boards on its way, up to where it stops: the zombie that takes its last pierce, or the wall or its range
     boardsCrossed(ox, oz, dx, dz, n && n === 1 + pierce ? hits[n - 1].t : endR, D.dmg, shotB);
     const endT = n ? Math.max(0.2, hits[n - 1].t) : endR, lastZ = n ? hits[n - 1].z : null;
-    const ey = aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
+    // (from your own eyes the round's where its line has it there, so the tracer goes where you shot, up or down)
+    const ey = fp && !(aimed && lastZ === tgt.z) ? Math.max(0.02, y0 + slope * endT) : aimed && lastZ === tgt.z ? tgt.y : lastZ ? (lastZ.crawl ? 0.3 : 1.0) * lastZ.T.scale : Math.min(GUN_Y, ANIM.aimY || GUN_Y);
+    const hole = pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : D.ammo === 'p10' ? 0.08 : 0.09;
+    // what it ended in, for your teammates' screens to show the same (net/avatars.js): 1 a wall (the hole's size with
+    // it), 2 the ground, 0 anything else
+    const endK = n ? 0 : wallT < 26 && wallT <= endR ? 1 : gndT <= endR ? 2 : 0;
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
-    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT]); }
+    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT, endK, hole]); }
     if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, smokeOf(D, id, quietR, pellets === shots));   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
-      bulletHole(ox, oz, dx, dz, wallT, ey, pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : D.ammo === 'p10' ? 0.08 : 0.09);   // and a hole in it (effects/bullet-holes.js)
+      bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
-    }
+    } else if (!n && gndT <= endR) groundHit(ox + dx * endT, ey, oz + dz * endT, dx, dz, p);   // into the ground, from your own eyes
   }
   if (anyHit) run.hits++;
   shotB.forEach((h, o) => shootBoard(o, h.d, h.dx, h.dz));

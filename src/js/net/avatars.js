@@ -20,7 +20,9 @@ import { FLASH_COL, flashRGB } from '../effects/muzzle-flash.js';
 import { smoke } from '../effects/smoke.js';
 import { tracer } from '../effects/tracers.js';
 import { dropCopy, makeDrop, stepDrop } from '../effects/weapon-drop.js';
-import { fx } from '../effects/puffs.js';
+import { fx, impactFx } from '../effects/puffs.js';
+import { bulletHole } from '../effects/bullet-holes.js';
+import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
 import { flashes } from '../weapons/explosives.js';
@@ -225,11 +227,17 @@ export function updateAvatars(rdt) {
 // ---- their shots: what your own would show, from where they stand
 export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
-  netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2])]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
+  netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2]), e[3] | 0, r3(e[4] || 0)]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
 NET_ON.shot = m => {
   if (state === 'title') return;
-  for (const e of m.e) tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
+  for (const e of m.e) {
+    tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
+    // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground
+    const L = Math.hypot(e[0] - m.x, e[2] - m.z), dx = (e[0] - m.x) / (L || 1), dz = (e[2] - m.z) / (L || 1);
+    if (e[3] === 1 && L > 0.1) { impactFx(e[0] - dx * 0.05, e[1], e[2] - dz * 0.05, -dx, -dz); bulletHole(m.x, m.z, dx, dz, L, e[1], e[4] || 0.08); }
+    else if (e[3] === 2) groundHit(e[0], e[1], e[2], dx, dz);
+  }
   if (!m.q) {   // their flash, in the colour of what they fired, and the light it throws
     const col = flashRGB(m.dr ? FLASH_COL.dragon : m.sh ? FLASH_COL.shells : FLASH_COL.p9);
     flashes.push({ x: m.x, y: m.y, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col, t: 0.07, max: 0.07 }); setLmT(0);
