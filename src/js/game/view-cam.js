@@ -297,10 +297,11 @@ export function fpInspectPose(gg, k) {
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }
 // your own arms, from your own eyes: whatever of them comes nearer your eye than SELF_CLIP.near (further looking up:
-// up, as the gun's raised over the shoulders) is cut away, the way a shooter's own upper arms never fill the view, so
-// raising the gun to aim high doesn't put your sleeves over everything. A plane across the view (SELF_PLANES) on the
-// arms' materials (not the gun's, nor a melee weapon's); out of first person it's put far off, cutting nothing
-const SELF_CLIP = { near: 0.2, up: 0.17 }, SELF_PLANES = [new THREE.Plane(new V3(0, 1, 0), 1e6)], _scD = new V3(), _scP = new V3();
+// up) can be cut away by a plane across the view (SELF_PLANES) on the arms' materials (not the gun's, nor a melee
+// weapon's). It's at the eye itself now, cutting nothing in view: a sleeve sliced off there showed as a hollow wedge,
+// and with your head drawn back looking up (LOOK_UP) the arms never fill the view anyway. Out of first person it's put
+// far off
+const SELF_CLIP = { near: 0, up: 0 }, SELF_PLANES = [new THREE.Plane(new V3(0, 1, 0), 1e6)], _scD = new V3(), _scP = new V3();
 R.localClippingEnabled = true;
 function selfClip(on, c) {
   const pl = SELF_PLANES[0];

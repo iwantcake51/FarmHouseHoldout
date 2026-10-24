@@ -207,15 +207,16 @@ function rigDraw(h, w) {
 }
 // the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch or shorten
 // (a gun pushed in, a hand down at the pouch) to put the fist on it
-const ARM_SHORT = 0.55, ARM_LONG = 1.3;   // how far an arm shortens or stretches from FIST
+const ARM_SHORT = 0.55, ARM_LONG = 1.3, ARM_LONG_FP = 1.6;   // how far an arm shortens or stretches from FIST (further from your own eyes, where the gun's held out ahead of the view and the hand must still close on the handguard)
+const armLong = () => fpOn() ? ARM_LONG_FP : ARM_LONG;
 function armAim(side, t, rest) {
   const s = (rest ? SHOULDER_REST : SHOULDER)[side], dx = t.x - s[0], dy = t.y - s[1], dz = t.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
-  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, ARM_LONG)];
+  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, armLong())];
 }
 // where an arm's fist really gets to, sent to v (in upper-body space): as far along toward it as the arm will go
 const _arV = new V3();
 export function armReach(side, v) {
-  const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, ARM_LONG * FIST);
+  const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, armLong() * FIST);
   return c === l ? v : v.set(s[0], s[1], s[2]).addScaledVector(_arV, c / l);
 }
 export function reach(arm, side, t, roll, rest) {
