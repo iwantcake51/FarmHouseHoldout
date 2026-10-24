@@ -3,6 +3,7 @@
 import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
+import { heatPart } from '../effects/supp-heat.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
@@ -18,14 +19,14 @@ export function fitAttachments(g, D, front, y, info) {
       const r = 0.056 * k, L = 0.15, c = front + 0.03 + L / 2;
       cyl(g, 0.018 * k, 0.04, GM.metal, X, y, front + 0.01);                                     // threaded adapter, over the muzzle
       cyl(g, r * 0.92, 0.012, GM.steel, X, y, front + 0.036, 20);                                // base plate
-      cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24);                                       // the can
+      heatPart(cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24), tierCtx);                    // the can (it glows as it heats: effects/supp-heat.js)
       cyl(g, r * 1.03, 0.012, GM.filterB, X, y, front + 0.042, 24);                               // rolled seam at the base
-      cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
+      heatPart(cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24), tierCtx);  // domed end
       cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
-      cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20);   // threaded on over the muzzle
+      heatPart(cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20), tierCtx);   // threaded on over the muzzle (it glows as it heats: effects/supp-heat.js)
       ring(g, r + 0.004, 0.026, GM.metal2, X, y, front + 0.016); ring(g, r + 0.004, 0.02, GM.metal2, X, y, front + L - 0.012); cyl(g, r * 0.35, 0.006, GM.poly, X, y, front + L + 0.002);
       if (s === 3) for (let i = 0; i < 5; i++) ring(g, r + 0.003, 0.01, GM.metal2, X, y, front + 0.07 + i * 0.05);
       front += L;

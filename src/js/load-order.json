@@ -67,6 +67,7 @@
   "effects/sprite-batch.js",
   "effects/smoke.js",
   "effects/tracers.js",
+  "effects/supp-heat.js",
   "effects/blood-map.js",
   "effects/particles.js",
   "effects/weapon-drop.js",

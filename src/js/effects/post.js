@@ -12,6 +12,7 @@ import { cam, hemi, R, scene, sun, viewRect } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
+import { heatGlowing } from './supp-heat.js';
 import { batchSprites } from './sprite-batch.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { curDark } from '../lighting/day-night.js';
@@ -206,7 +207,7 @@ function psBlur(src, tmp, w, h) {
 // the glowing things alone (GLOW_LAYER), when any are out: the camera seeing only them, nothing else drawn (no
 // shadows, no sky). How strongly they're to glow back, or 0 for none this frame
 function glowPass() {
-  if (!(flash.visible || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
+  if (!(flash.visible || heatGlowing() || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
   const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate, cc = R.getClearAlpha(); R.getClearColor(_glCC);
   cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1);
   R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); R.render(scene, cam);

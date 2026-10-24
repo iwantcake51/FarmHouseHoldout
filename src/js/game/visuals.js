@@ -6,6 +6,7 @@ import { stepCasings } from '../weapons/casings.js';
 import { stepTrail } from '../melee/swing-trail.js';
 import { stepSmoke } from '../effects/smoke.js';
 import { stepTracers, stepTrails } from '../effects/tracers.js';
+import { stepSuppHeat } from '../effects/supp-heat.js';
 import { stepParticles } from '../effects/particles.js';
 import { stepFx } from '../effects/puffs.js';
 import { updateHoles } from '../effects/bullet-holes.js';
@@ -40,7 +41,7 @@ export function visuals(dt, rdt) {
   updateZombieVisuals(dt, rdt); updateEyes(dt);
   updateCutaway(rdt); updateHoles();
   updateLaser(D);
-  stepTracers(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
+  stepTracers(rdt); stepSuppHeat(rdt); stepSmoke(dt); stepTrails(dt); stepTrail(rdt); stepCasings(dt); stepBoards(dt, rdt);
   stepParticles(dt); stepFx(dt); stepArmorBits(dt);
   stepFloats(rdt);
   updateHUD(rdt, D); zoomEars(); updateDropMarker(); updateBenchTips(rdt); updateWeaponStats(); updateLoadout(); updateRackSide();
