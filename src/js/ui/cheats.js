@@ -157,13 +157,13 @@ function renderCheats() {
   renderRail(); renderQuick();
   const keepScroll = chBody.scrollTop, q = cheatFind.trim(), view = q ? 'search' : cheatTab;
   chBody.innerHTML = q ? searchAll(q) : (CHEAT_TABS[cheatTab] || CHEAT_TABS.player)();
-  chBody.scrollTop = keepScroll;
   // it slides in when the section changes (not on every click inside one), and a weapon's bars grow when it's picked
   chBody.classList.toggle('in', chBody.dataset.view !== view); chBody.dataset.view = view;
   const wc = chBody.querySelector('.chWc'); if (wc && wc.dataset.id !== lastCard) { wc.classList.add('new'); lastCard = wc.dataset.id; }
   // the turning weapon: the one canvas, kept from render to render so it keeps its picture
   const slot = chBody.querySelector('.chViewSlot');
   if (slot) { slot.prepend(gunView); if (slot.classList.contains('fig')) { showFigure(lookPart, lookFresh); lookFresh = false; } else showGun(chPick()); } else hideGun();
+  chBody.scrollTop = keepScroll;   // (once the view's back in its slot: put back before it, the page would be a view shorter and jump)
   cheatTag(); cheatLiveTick();
 }
 // the readouts that change on their own while the menu is open

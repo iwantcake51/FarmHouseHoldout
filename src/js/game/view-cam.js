@@ -8,6 +8,7 @@
 // The free camera flies anywhere to watch: W A S D along where it looks, Space and Ctrl up and down, Shift faster and
 // the wheel its speed. You stay where you were, and every zombie shows wherever it is.
 import { $ } from '../core/dom.js';
+import { KB } from '../input/keybinds.js';
 import { CAM_OFF, cv, FP_CAM, GUN_Y, ISO_CAM, setCam, V3 } from '../core/renderer.js';
 import { clamp, rr, smooth } from '../core/math.js';
 import { thinRay } from '../world/thin-walls.js';
@@ -32,17 +33,36 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward the arm the gun's in, past the gun (held X to that side: weapons/gun-materials.js), so the gun sits a
 // little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's sight line:
 // fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.15, follow: 16, followY: 9, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24 };
+const FPV = { eye: [0.04, 0.12], side: 0.15, follow: 10, followY: 6, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
-// free aim: the gun and your arms move about freely inside a little circle of the view (r, radians across), the view
-// turning only once the aim's pushed out to its edge, and drifting back after it (back: how quickly) so the gun comes
-// home to the middle once you stop. Down the sights the circle closes, the view onto the sights (ads: what's left)
-const FA = { r: 0.055, back: 1.1, adsBack: 6, ads: 0 };
-// how long bringing the sights up takes and putting them down, in seconds (a long gun's heavier to raise), and the arc
-// the gun swings through on the way: dipping (dip, metres) and canting a touch (cant, radians) in the middle of it
-const ADS_T = { in: 0.3, out: 0.24, side: 0.22, dip: 0.014, cant: 0.09 };
+// free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
+// the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
+// the edge; the aim eases after where it's pushed (ease: how quickly) and the view drifts back onto it (back), so the
+// gun comes home to the middle once you stop. Down the sights the circle closes, the view onto the sights (ads)
+const FA = { r: 0.045, take: 0.4, ease: 14, back: 1.2, adsBack: 6, ads: 0 };
+// bringing the sights up and putting them down: a spring onto them (w: how stiff, in and out; a handgun's quicker),
+// starting gently, quick through the middle and settling softly; and the arc the gun swings through on the way, dipping
+// (dip, metres) and canting a touch (cant, radians) in the middle of it
+const ADS_T = { in: 15, out: 17, side: 19, dip: 0.014, cant: 0.09 };
+// a shouldered gun meeting your shoulder as it comes up: a jolt (p, y: radians up and across, r: cant, z: metres back)
+// on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun
+const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10, trem: 0.0035, gun: { ar: 1.25, scar: 1.1, lmg: 1.35, sub: 0.9, smg: 0.75 } };
+// the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
+// (pitch, and acc for speeding up and slowing), per metre a second, on a spring (k, d); less down the sights
+const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 };
+// looking up, the head goes back (look: metres, from pitch p0 to p1), so the arms and the gun raised to aim up stay out
+// in front of your eyes rather than in them
+const LOOK_UP = { look: 0.16, p0: 0.2, p1: 1.0 };
+// free look (held: input/keybinds.js, freeLook): the view turns on its own while the aim and the gun stay where they
+// are, as far round as yaw and pitch (radians), easing back onto the aim (back) once it's let go or the sights come up
+const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
+// the third-person camera's jolts as first person feels them (game/camera.js): a push along the aim dips the view
+// (push, radians a unit), one across turns it, a zoom draws the view in (zoom); all eased (ease) so they roll rather
+// than snap. A reload's own sway (relP: down onto the gun, relR: rocking with the hands) and the shake (shake: radians)
+// as a smooth wobble rather than a jitter
+const FP_JOLT = { push: 0.5, zoom: 0.4, ease: 18, relP: 0.035, relR: 0.012, shake: 0.03 };
 // where the view and the free camera are, and its springs (kick: the pitch; ky: the yaw)
-const V = { cy: Math.PI, cp: 0, fax: 0, fay: 0, adsP: null, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null };
+const V = { cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null };
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
@@ -75,8 +95,10 @@ export function syncView() {
 // ---- the mouse: locked to the game while you look about, and let go for a menu
 export const locked = () => document.pointerLockElement === cv;
 let selfUnlock = false;
+// (lockAt: when it was last asked for, so a menu closing as it's asked for, the pause going, doesn't let it straight go)
 export function wantLock() {
   if (isoOn() || locked() || !cv.requestPointerLock) return;
+  V.lockAt = performance.now();
   try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
 }
 function unlock() { if (locked()) { selfUnlock = true; document.exitPointerLock(); } }
@@ -85,35 +107,73 @@ function unlock() { if (locked()) { selfUnlock = true; document.exitPointerLock(
 export function viewLook(dx, dy) {
   const s = FPV.sens * (SET.sens || 100) / 100 * (1 - 0.35 * (ANIM.ads || 0)) / (SCOPE_V.on && SCOPE_V.mag > 1 && (SCOPE_V.kind === 'scope' || SCOPE_V.kind === 'acog') ? 1 + (SCOPE_V.mag - 1) * 0.6 * SCOPE_V.w : 1);   // (slower through a scope, as it magnifies)
   if (freeOn()) { V.fyaw -= dx * s; V.fpitch = clamp(V.fpitch - dy * s, -FPV.pitch, FPV.pitch); return; }
-  const p0 = VCAM.pitch; VCAM.yaw -= dx * s; VCAM.pitch = clamp(VCAM.pitch - dy * s, -FPV.pitch, FPV.pitch);
-  V.fax -= dx * s; V.fay += VCAM.pitch - p0; fpFreeAim(0);
+  fpAimSync();
+  const ex = -dx * s, ey = -dy * s;
+  if (freeLooking()) { V.flyT = clamp(V.flyT + ex, -FREE_LOOK.yaw, FREE_LOOK.yaw); V.flpT = clamp(V.flpT + ey, -FREE_LOOK.pitch, FREE_LOOK.pitch); return; }
+  V.cy += ex * (1 - FA.take); V.cp += ey * (1 - FA.take); V.ftx += ex * FA.take; V.fty += ey * FA.take;
+  fpFreeAim(0);
 }
-// the aim's offset from the view held inside the circle (as it closes down the sights), and drifting home; the view's
-// own way is the aim's less it
+// the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
+// jolts, shake: the view's alone), and its roll
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny, viewR = () => V.roll * 0.6 + V.tr;
+const freeLooking = () => fpOn() && keys.has(KB.freeLook) && adsW() < 0.3;
+// the aim set from elsewhere (going into first person, a test): the view onto it, nothing off the middle
+function fpAimSync() {
+  if (V.ay === VCAM.yaw && V.ap === VCAM.pitch) return;
+  V.cy = VCAM.yaw; V.cp = VCAM.pitch; V.fax = V.fay = V.ftx = V.fty = 0; V.ay = VCAM.yaw; V.ap = VCAM.pitch;
+}
+// the aim's place in the circle (as it closes down the sights): pushed past its edge the view takes the rest; the aim
+// easing after where it's pushed; the view drifting back onto it. The aim's the view's way and its offset
 function fpFreeAim(dt) {
+  fpAimSync();
   const w = adsW(), r = FA.r * (1 - w) + FA.ads * w;
-  if (dt > 0) { const k = Math.exp(-dt * (FA.back + (FA.adsBack - FA.back) * w)); V.fax *= k; V.fay *= k; }
-  const L = Math.hypot(V.fax, V.fay); if (L > r) { V.fax *= r / L; V.fay *= r / L; }
-  V.cy = VCAM.yaw - V.fax; V.cp = clamp(VCAM.pitch - V.fay, -FPV.pitch, FPV.pitch);
+  // (the view moving onto the aim by d leaves the aim where it is)
+  const toView = (dx, dy) => { V.cy += dx; V.cp += dy; V.ftx -= dx; V.fty -= dy; V.fax -= dx; V.fay -= dy; };
+  if (dt > 0) { const k = 1 - Math.exp(-dt * (FA.back + (FA.adsBack - FA.back) * w)); toView(V.ftx * k, V.fty * k); }
+  const L = Math.hypot(V.ftx, V.fty); if (L > r) toView(V.ftx * (1 - r / L), V.fty * (1 - r / L));
+  if (dt > 0) { const k = 1 - Math.exp(-dt * FA.ease); V.fax += (V.ftx - V.fax) * k; V.fay += (V.fty - V.fay) * k; }
+  const La = Math.hypot(V.fax, V.fay); if (La > r * 1.15) { V.fax *= r * 1.15 / La; V.fay *= r * 1.15 / La; }
+  V.cp = clamp(V.cp, -FPV.pitch, FPV.pitch);
+  VCAM.yaw = V.cy + V.fax; VCAM.pitch = clamp(V.cp + V.fay, -FPV.pitch, FPV.pitch); V.ay = VCAM.yaw; V.ap = VCAM.pitch;
 }
 // where the aim is on the screen, from its middle (pixels): where the crosshair sits and the arms point the gun
 // (player/movement.js puts the pointer there)
 const _faQ = new THREE.Quaternion(), _faE = new THREE.Euler(), _faV = new V3();
 export function fpAimPx() {
   if (!fpOn()) return [0, 0];
-  _faV.set(0, 0, -1).applyEuler(_faE.set(VCAM.pitch, VCAM.yaw + Math.PI, 0, 'YXZ')).applyQuaternion(_faQ.setFromEuler(_faE.set(V.cp, V.cy + Math.PI, 0, 'YXZ')).invert());
+  _faV.set(0, 0, -1).applyEuler(_faE.set(VCAM.pitch, VCAM.yaw + Math.PI, 0, 'YXZ')).applyQuaternion(_faQ.setFromEuler(_faE.set(viewP() - V.kick, viewY() - V.ky + Math.PI, viewR(), 'YXZ')).invert());
   const f = innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360), z = Math.max(0.2, -_faV.z);
   return [_faV.x / z * f, -_faV.y / z * f];
 }
-// first person's sights coming up and going down: steady through the time it takes (ADS_T), eased at both ends
-// (game/camera.js: ANIM.ads)
-const smoother = t => t * t * t * (t * (t * 6 - 15) + 10);
+// first person's sights coming up and going down, on a spring (ADS_T) (game/camera.js: ANIM.ads); and a shouldered gun
+// meeting your shoulder on the way up (SHOULDER_IN)
 export function fpAds(want, rdt) {
-  if (want === null) { V.adsP = null; return 0; }
-  const D = W(curId()), side = D && D.slot === 'side';
-  if (V.adsP === null) V.adsP = ANIM.ads || 0;
-  V.adsP = clamp(V.adsP + (want ? rdt / (side ? ADS_T.side : ADS_T.in) : -rdt / (side ? ADS_T.side * 0.85 : ADS_T.out)), 0, 1);
-  return smoother(V.adsP);
+  if (want === null) { V.adsX = null; V.adsV = 0; return 0; }
+  const id = curId(), D = W(id), side = !D || D.slot === 'side', w0 = side ? ADS_T.side : want ? ADS_T.in : ADS_T.out, S = V.sh;
+  if (V.adsX === null) V.adsX = ANIM.ads || 0;
+  const x0 = V.adsX;
+  for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {
+    V.adsV += (w0 * w0 * ((want ? 1 : 0) - V.adsX) - 2 * w0 * V.adsV) * h; V.adsX += V.adsV * h;
+    S.vp += (-SHOULDER_IN.k * S.p - SHOULDER_IN.d * S.vp) * h; S.p += S.vp * h; S.vy += (-SHOULDER_IN.k * S.y - SHOULDER_IN.d * S.vy) * h; S.y += S.vy * h;
+    S.vr += (-SHOULDER_IN.k * S.r - SHOULDER_IN.d * S.vr) * h; S.r += S.vr * h; S.vz += (-SHOULDER_IN.k * S.z - SHOULDER_IN.d * S.vz) * h; S.z += S.vz * h;
+  }
+  V.adsX = clamp(V.adsX, -0.02, 1.02);
+  if (V.adsX < 0.3) S.up = false;
+  if (want && !side && !S.up && x0 < SHOULDER_IN.at && V.adsX >= SHOULDER_IN.at) {
+    S.up = true; const k = SHOULDER_IN.gun[id] ?? 1; S.k = k;
+    S.vp += SHOULDER_IN.p * k * rr(0.8, 1.2); S.vy += SHOULDER_IN.y * k * rr(-1, 1); S.vr += SHOULDER_IN.r * k * rr(0.6, 1) * (Math.random() < 0.5 ? -1 : 1); S.vz += SHOULDER_IN.z * k * rr(0.8, 1.2);
+  }
+  return clamp(V.adsX, 0, 1);
+}
+// the shouldering's shake this frame, and the hands' tremble as it comes up: [up, across, cant, back]
+const _shk = [0, 0, 0, 0];
+function shoulderShake() {
+  const S = V.sh, D = W(curId()), on = fpOn() && D && D.slot !== 'side';
+  if (!on) { _shk[0] = _shk[1] = _shk[2] = _shk[3] = 0; return _shk; }
+  const t = performance.now() / 1000, x = clamp(V.adsX ?? 0, 0, 1), tr = SHOULDER_IN.trem * (SHOULDER_IN.gun[curId()] ?? 1) * Math.sin(Math.PI * x) * (V.adsV > 0 ? 1 : 0.4);
+  _shk[0] = S.p + tr * (Math.sin(t * 23.1) + 0.6 * Math.sin(t * 37.7 + 1.3)); _shk[1] = S.y + tr * (Math.sin(t * 19.3 + 2.1) + 0.6 * Math.sin(t * 41.9));
+  _shk[2] = S.r; _shk[3] = S.z;
+  return _shk;
 }
 // the free camera put somewhere, looking a given way (yaw round from +z, pitch up)
 function freeTo(x, y, z, yaw, pitch) { V.fx = x; V.fy = y; V.fz = z; V.fyaw = yaw; V.fpitch = pitch; V.vx = V.vy = V.vz = 0; }
@@ -225,7 +285,7 @@ const _aimE = new THREE.Euler();
 function aimDir(out) {
   const f = Math.tan(FP_CAM.fov * Math.PI / 360), hh = innerHeight / 2;
   out.set((aimSX() - innerWidth / 2) / hh * f, -(aimSY() - hh) / hh * f, -1).normalize();
-  _aimE.set(V.cp + V.kick, V.cy + Math.PI + V.ky, V.roll * 0.6, 'YXZ'); return out.applyEuler(_aimE);
+  const k = shoulderShake(); _aimE.set(viewP() + k[0], viewY() + Math.PI + k[1], viewR(), 'YXZ'); return out.applyEuler(_aimE);
 }
 // down the sights the gun's brought onto your aim exactly, its sight line turned onto the line a round will take, so the
 // front post, the dot or the reticle sits on what you'll hit and wanders and kicks with it; and up toward your eye, as
@@ -243,7 +303,7 @@ export function fpSightAlign(gg, raise = true) {
   // turned about the line's back end, then raised: the line's offset from your eye, as far as SIGHT_RAISE
   headEye(_vcH); _vcH.sub(_pa); _vcH.addScaledVector(_ad, -_vcH.dot(_ad)); const off = _vcH.length(); if (off > SIGHT_RAISE) _vcH.multiplyScalar(SIGHT_RAISE / off); _vcH.multiplyScalar(raise ? w : 0);
   // and on the way up or down, the arc it swings through: dipped and canted a touch in the middle of it
-  if (raise) { const arc = Math.sin(Math.PI * w); _qa.setFromAxisAngle(_ad, ADS_T.cant * arc); _qi.premultiply(_qa); _vcH.y -= ADS_T.dip * arc; }
+  if (raise) { const arc = Math.sin(Math.PI * w), k = shoulderShake(); _qa.setFromAxisAngle(_ad, ADS_T.cant * arc + k[2]); _qi.premultiply(_qa); _vcH.y -= ADS_T.dip * arc; _vcH.addScaledVector(_ad, -k[3]); }
   _mw.makeTranslation(-_pa.x, -_pa.y, -_pa.z).premultiply(_vcM.makeRotationFromQuaternion(_qi)).premultiply(_vcM.makeTranslation(_pa.x + _vcH.x, _pa.y + _vcH.y, _pa.z + _vcH.z));
   _mw.multiply(gg.matrixWorld).premultiply(_vcM.copy(gg.parent.matrixWorld).invert());
   _mw.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
@@ -264,17 +324,19 @@ const EYEBOX = 0.007;
 // down the sights of anything but a scope, there's no crosshair: you aim with the sights themselves (ui/crosshair.js)
 export const fpSighted = () => fpOn() && V.sw > 0.55;
 const GLASS_SEE = { on: false };
+// whether something's drawn: it and everything it hangs from shown
+const drawnUp = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glass.transparent = see; GM.glass.opacity = see ? 0.12 : 1; GM.glass.depthWrite = !see; GM.glass.needsUpdate = true; GM.holoGlass.opacity = see ? 0.1 : 0.35; } }
 
 // each frame, from game/camera.js: the view in use, then the camera placed. roll: the springs' tip (a shot, a hit, a
 // vault), sh: the shake
-export function viewFrame(rdt, roll, sh) {
+export function viewFrame(rdt, roll, sh, jolt) {
   syncView();
   if (isoOn()) { if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
   // play, a word that a click takes it back
   const menu = state !== 'play' || P.dead || !!openSt || cheatOn || setOpen();
-  if (menu && locked()) unlock();
+  if (menu && locked() && performance.now() - (V.lockAt || 0) > 500) unlock();
   const hint = !menu && !locked(); if (lookHint.hidden === hint) lookHint.hidden = !hint;
   const c = FP_CAM;
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
@@ -284,13 +346,30 @@ export function viewFrame(rdt, roll, sh) {
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
     // step, a lean, a vault) is eased, the bob more than the rest
-    V.roll = roll; fpFreeAim(rdt);
+    fpFreeAim(rdt);
+    const w0 = adsW(), now = performance.now() / 1000;
+    // the springs' tip (a shot, a hit, a vault, a reload's beats), eased; the third-person camera's pushes and zooms as
+    // dips, turns and a drawing in; a reload's own sway; the shake as a wobble
+    { const e = 1 - Math.exp(-rdt * FP_JOLT.ease), j = jolt || { px: 0, pz: 0, zoom: 0 }, fx = Math.sin(VCAM.yaw), fz = Math.cos(VCAM.yaw), re = clamp(ANIM.relEnv || 0, 0, 1);
+      const along = j.px * fx + j.pz * fz, across = j.px * fz - j.pz * fx;
+      V.rollS += (roll + FP_JOLT.relR * re * Math.sin(now * 2.1) - V.rollS) * e; V.roll = V.rollS;
+      V.jp += (-along * FP_JOLT.push - FP_JOLT.relP * re - V.jp) * e; V.jy += (across * FP_JOLT.push - V.jy) * e; V.jz += (j.zoom * FP_JOLT.zoom - V.jz) * e;
+      const a = FP_JOLT.shake * sh; V.np = a * (Math.sin(now * 31) + 0.5 * Math.sin(now * 53 + 1.7)); V.ny = a * (Math.sin(now * 27 + 0.6) + 0.5 * Math.sin(now * 47 + 2.9)); }
+    // free look, eased out and back
+    { const fl = freeLooking(); if (!fl) { V.flyT = 0; V.flpT = 0; } const e = 1 - Math.exp(-rdt * (fl ? FREE_LOOK.ease : FREE_LOOK.back)); V.fly += (V.flyT - V.fly) * e; V.flp += (V.flpT - V.flp) * e; }
+    // leaning with how you move: banked into a sidestep, dipped going forward
+    { const fx = Math.sin(V.cy), fz = Math.cos(V.cy), fwd = P.vx * fx + P.vz * fz, right = P.vx * -fz + P.vz * fx, d = Math.max(rdt, 1e-3);
+      const acc = ((P.vx - V.lvx) * fx + (P.vz - V.lvz) * fz) / d; V.lvx = P.vx; V.lvz = P.vz;
+      const m = 1 - TILT.ads * w0, tr = -right * TILT.roll * m, tp = clamp(-fwd * TILT.pitch - clamp(acc, -25, 25) * TILT.acc, -0.04, 0.04) * m;
+      for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { V.vtr += (TILT.k * (tr - V.tr) - TILT.d * V.vtr) * h; V.tr += V.vtr * h; V.vtp += (TILT.k * (tp - V.tp) - TILT.d * V.vtp) * h; V.tp += V.vtp * h; } }
     PM.g.updateMatrixWorld(true); headEye(_vcE);
     const rx = _vcE.x - P.x, ry = _vcE.y, rz = _vcE.z - P.z;
     if (!V.eye) V.eye = { x: rx, y: ry, z: rz };
     const k = 1 - Math.exp(-rdt * FPV.follow), ky = 1 - Math.exp(-rdt * FPV.followY);
     V.eye.x += (rx - V.eye.x) * k; V.eye.y += (ry - V.eye.y) * ky; V.eye.z += (rz - V.eye.z) * k;
-    V.x = P.x + V.eye.x; V.y = V.eye.y; V.z = P.z + V.eye.z;
+    // looking up, the head back out of the way of the arms raised in front of it
+    { const b = LOOK_UP.look * smooth(clamp((VCAM.pitch - LOOK_UP.p0) / (LOOK_UP.p1 - LOOK_UP.p0), 0, 1)) * (1 - w0);
+      V.x = P.x + V.eye.x - Math.sin(VCAM.yaw) * b; V.y = V.eye.y - b * 0.25; V.z = P.z + V.eye.z - Math.cos(VCAM.yaw) * b; }
     // down the sights: the gun brought onto this frame's aim (the kick's moved on since it was held), and the eye onto
     // its sight line: at the head's own distance behind it, or a scope's eye relief behind its eyepiece
     const w = adsW(), D = W(curId()), LH = D && !D.melee && !D.akimbo ? sightLine() : null, L = w > 0.001 ? LH : null, gg = gunMeshes[W8.cur];
@@ -303,8 +382,8 @@ export function viewFrame(rdt, roll, sh) {
       _vcE.lerp(_vcD, w);
     }
     V.sw = L ? w : 0;
-    c.position.set(_vcE.x + rr(-0.5, 0.5) * sh * 0.25, _vcE.y + rr(-0.5, 0.5) * sh * 0.25, _vcE.z);
-    c.rotation.set(V.cp + V.kick, V.cy + Math.PI + V.ky, roll * 0.6, 'YXZ'); c.updateMatrixWorld(true);
+    c.position.copy(_vcE);
+    c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis
     const scope = !!LH && (LH.kind === 'scope' || LH.kind === 'acog');
@@ -314,7 +393,7 @@ export function viewFrame(rdt, roll, sh) {
     // and a holographic sight's reticle, a red dot's dot, an aperture's ghost ring, each where your eye sees it, and the
     // gun a little out of focus down any of them
     const S = SCOPE_V, over = !!LH;
-    S.on = over && (scope || w > 0.3);
+    S.on = over && drawnUp(LH.obj) && (scope || w > 0.3);   // (not with the gun put away for a vault or a station)
     if (S.on) {
       S.kind = LH.kind; S.eye.copy(_pa); S.obj.copy(_pb); S.dir.copy(_sd); S.r = LH.r; S.hw = LH.hw; S.hh = LH.hh;
       LH.obj.matrixWorld.extractBasis(S.ux, S.uy, _vcH); S.ux.normalize(); S.uy.normalize();
@@ -328,7 +407,7 @@ export function viewFrame(rdt, roll, sh) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1)));
+    const fov = (SET.fov || 75) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2));
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false);

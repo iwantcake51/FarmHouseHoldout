@@ -36,7 +36,7 @@ export const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector
 addEventListener('keydown', e => {
   const k = keyOf(e);
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
-  if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab')) e.preventDefault();
+  if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab' || k === 'alt')) e.preventDefault();   // (Alt: no browser menu bar from free look)
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
@@ -78,7 +78,7 @@ function keyAct(k, e) {
   if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) setZoomT(clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX));
   if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) setZoomT(clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX));
 }
-addEventListener('keyup', e => keys.delete(keyOf(e)));
+addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); });
 addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)

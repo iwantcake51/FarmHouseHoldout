@@ -36,7 +36,7 @@ export function fireCam(pw, aim, auto) {
   c.vr += sg * pw * rr(0.5, 0.75) * CAM_ROLL * (auto ? CAM_ROLL_AUTO : 1);
   c.zoom += pw * P_.zoom * a; c.vz += pw * P_.vz * a;
   if (pw > 0.6) setShake(Math.max(shake, 0.03 + (pw - 0.6) * 0.3));
-  viewKick(pw, auto);   // (in first person, the view's kicked up: game/view-ISO_CAM.js)
+  viewKick(pw, auto);   // (in first person, the view's kicked up: game/view-cam.js)
 }
 // reloading: a small, smooth rotational jolt on each beat (mag out, mag seated, a shell in, the rack): the view rocks
 // one way and settles, with only a whisper of push; seating a mag tips it the other way from pulling one
@@ -83,6 +83,8 @@ function vaultCam(rdt) {
     for (const key of ['roll', 'px', 'pz', 'zoom']) springTo(camHit, key, 'v' + (key === 'roll' ? 'r' : key === 'zoom' ? 'z' : key), 0, CAM_HIT.k, CAM_HIT.d, dt);
   }
 }
+// the jolts handed on to first person (a reload's, a rack's, a shot's, a hit's): pushes along the ground and a zoom
+const FP_JOLT_IN = { px: 0, pz: 0, zoom: 0 };
 let titleSpin = 0;
 export const TITLE_ZOOM = 0.8;
 // the cursor near an edge of the screen eases the view a little that way, so you can see a bit further where you're
@@ -131,7 +133,8 @@ export function updateCamera(rdt) {
   const cc = P.conc || 0, wob = cc > 0 ? Math.sin(worldT * 2.38) * 0.05 * cc : 0;
   vaultCam(rdt); runCam();
   const cv = camVault, cr = camRec, ck = camRack, cu = camRun, ch = camHit;
-  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll, sh);   // (placed in first person or flown: game/view-ISO_CAM.js)
+  FP_JOLT_IN.px = (cr.px + ck.px + ch.px) * shk; FP_JOLT_IN.pz = (cr.pz + ck.pz + ch.pz) * shk; FP_JOLT_IN.zoom = (cr.zoom * 0.35 + ck.zoom + ch.zoom) * shk;
+  viewFrame(rdt, (camRoll + cr.roll + ck.roll + ch.roll) * shk + wob + cv.roll, sh, FP_JOLT_IN);   // (placed in first person or flown, with the pushes and zooms it feels as well: game/view-cam.js)
   if (!iso) return;
   const vx = (camKick.x + cr.px + ck.px + ch.px) * shk + cv.px + cu.px, vz = (camKick.z + cr.pz + ck.pz + ch.pz) * shk + cv.pz + cu.pz;
   setCamPunch(camPunch * Math.exp(-rdt * 9)); ISO_CAM.zoom *= (1 + (cr.zoom * 0.35 + ck.zoom + ch.zoom + camPunch) * shk) * deathZoomK();   // (going down: ui/screens.js)

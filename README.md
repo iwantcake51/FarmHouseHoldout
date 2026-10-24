@@ -93,7 +93,7 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
 | N | First person view | V | Shove | T | Start the next wave early |
-| | | B | Switch fire mode | H | Share a gun (co-op) |
+| Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
 | | | X | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | | |
 | | | I | Weapon stats | | |
@@ -102,23 +102,31 @@ Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
 Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
-where you face. The gun and your arms move freely inside a small circle round the middle of the view, the view only
-turning once you push the aim to its edge and drifting back after; the crosshair is wherever the gun points. The view
-rides your head as you walk, vault and stumble, smoothed out, and shots kick it up a little. Raising the sights is a
-smooth, eased swing (a little dip and cant on the way up and down), quicker with a handgun, and brings your eye onto
+where you face. The gun and your arms move inside a small circle round the middle of the view: only part of the
+mouse's movement moves the aim in it (the view turns with the rest, and with all of it once the aim's at the edge), the
+aim easing after it, and the view drifting back onto it; the crosshair is wherever the gun points. Hold **Alt** to
+look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
+rides your head as you walk, vault and stumble, well smoothed, banks a little into a sidestep and dips a touch going
+forward; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Looking up, your
+head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
+gently, quick through the middle and settling softly, with a little dip and cant on the way, quicker with a handgun;
+a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
 a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
 shotgun's front post sits in the middle of a rear aperture that's too close to your eye to see sharp (just a soft dark
 ghost ring round the hole), and the pump and double barrel are aimed down the rib with the bead sat on the receiver.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's 68 MOA ring with its four ticks and 1 MOA dot,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
-them, inside the sight's window. A scope (the hunting scopes, the ACOG) shows its own magnified view in the eyepiece
-whenever you can see the eyepiece, with its reticle (a duplex, or the ACOG's lit chevron and drop marks), colour
-fringing and darkening toward the rim, a little parallax, and the tube's shadow closing in from the side your eye's
-off its axis (nearly black at the hip, opening up as it comes to your eye; a shot's kick and a quick turn swing it).
-Through a scope the rest of the view dims and goes out of focus, the gun and your hands most. Every sight's glass is
-clear to look through in first person. Esc lets go of the mouse and pauses; a station or a menu lets go of it for you, and closing it takes the mouse
-back. You go back to the view from above whenever you're down.
+them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
+proper eye relief out from your eye and shows its own magnified view filling the eyepiece whenever you can see it:
+the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
+where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
+parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
+off it (nearly black at the hip, opening up as it comes to your eye; a shot's kick and a quick turn swing it). Anything
+in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
+away. Through a scope the rest of the view dims and goes out of focus, the gun a little. Every sight's glass is clear
+to look through in first person. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
+and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
 
 ## Settings
 
@@ -156,8 +164,8 @@ browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,
 one-hit kills, waves off, and the game's speed (¼× to 2×). Its sections cover you and your supplies, health and every
-status effect, weapons (any of them, turning in 3D with its numbers, and the upgrades, rounds and mods of the one in
-your hands), your character (every part of your look: skin, face, eyes, hair and beard, hat, top, trousers, shoes,
+status effect, weapons (any of them, turning in 3D with its numbers, kept in view at the top as you scroll down its
+upgrades, rounds and mods so you see each part go on), your character (every part of your look: skin, face, eyes, hair and beard, hat, top, trousers, shoes,
 gloves, wrists, pack and holster, each with its stock colours or any colour at all, shown on a copy of you in a little
 studio whose camera glides in to whatever you're changing, and kept for new runs if you like), skills and perks, curses
 (taken, lifted, or a sacrifice promised for the next hand), zombies (their minds hunting, passive or switched off, and

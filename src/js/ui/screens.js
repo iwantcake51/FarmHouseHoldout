@@ -44,6 +44,7 @@ import { feedItems, floats } from './hud-text.js';
 import { titleSky } from '../lighting/day-night.js';
 import { resetDrops } from '../stations/supply-drop.js';
 import { clearSpit } from '../zombies/spitter.js';
+import { wantLock } from '../game/view-cam.js';
 import { resetHeart } from './vitals.js';
 import { ragYou, unragYou } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
@@ -177,6 +178,7 @@ export function pauseRun() { if (state !== 'play' || P.dead || switching) return
 export function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
   cancelLeave();
+  wantLock();   // (in first person the mouse is taken straight back, without a click: game/view-cam.js)
   el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
 }
 $('startBtn').onclick = enterRun;

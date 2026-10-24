@@ -57,7 +57,7 @@ PM.upper.add(packPivot); packPivot.add(packBody);
   // fold the small pieces into one mesh per material on the torso, the upper body and the pack
   const rig = new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]);
   unfight(PM.g, { fixed: rig });
-  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, ...Object.values(PACK)]) };   // recoloured at runtime, so kept out of the baked colours
+  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skin, PM.mats.skinDk, PM.mats.pants, ...Object.values(PACK)]) };   // recoloured at runtime (a new look: player/look.js), so kept out of the baked colours
   mergeInto(TO, finePieces(TO, rig), live); mergeInto(U, finePieces(U, new Set([...rig, packPivot])), live); mergeInto(B, finePieces(B, rig), live);
   trimShadows(PM.g);
 }

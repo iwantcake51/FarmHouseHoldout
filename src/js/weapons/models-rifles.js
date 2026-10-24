@@ -136,12 +136,12 @@ export const RIFLE_MODELS = {
       const sr = big ? 0.0215 : 0.019, sy = big ? 1.212 : 1.198, ob = big ? 0.036 : 0.03, oc = big ? 0.026 : 0.024, z0 = big ? 0.6 : 0.63, z1 = big ? 0.97 : 0.93;
       cyl(g, sr, z1 - z0 - 0.12, GM.metal, X, sy, (z0 + z1) / 2, 20);
       lathe(g, [[sr, z1 - 0.062], [sr * 1.15, z1 - 0.045], [ob, z1 - 0.012], [ob, z1], [ob * 0.86, z1 + 0.002]], GM.metal, X, sy, 24);   // objective bell
-      lathe(g, [[oc * 0.8, z0 - 0.004], [oc, z0], [oc, z0 + 0.03], [sr * 1.1, z0 + 0.058], [sr, z0 + 0.062]], GM.metal, X, sy, 24);   // eyepiece
-      cyl(g, ob * 0.86, 0.003, GM.glass, X, sy, z1 + 0.002, 20); cyl(g, oc * 0.82, 0.003, GM.glass, X, sy, z0 - 0.0035, 20);
+      lathe(g, [[oc * 0.94, z0 - 0.004], [oc, z0 - 0.001], [oc, z0 + 0.03], [sr * 1.1, z0 + 0.058], [sr, z0 + 0.062]], GM.metal, X, sy, 24);   // eyepiece
+      cyl(g, ob * 0.86, 0.003, GM.glass, X, sy, z1 + 0.002, 20); cyl(g, oc * 0.94, 0.003, GM.glass, X, sy, z0 - 0.0035, 20);
       { const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); tt.position.set(X, sy + sr + 0.007, (z0 + z1) / 2); g.add(tt);
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
-      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.0035, zf: z1 + 0.002, r: oc * 0.82, relief: 0.085 };   // (looked down in first person: game/view-cam.js)
+      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.105 };   // (looked down in first person: game/view-cam.js)
     }
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };
   },
