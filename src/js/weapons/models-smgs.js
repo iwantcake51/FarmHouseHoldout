@@ -5,7 +5,7 @@ import { V3 } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { box } from '../core/geometry.js';
 import { hasMod, T, tierCtx } from '../game/run-state.js';
-import { heatPart } from '../effects/supp-heat.js';
+import { heatAll } from '../effects/supp-heat.js';
 import { GM, X } from './gun-materials.js';
 import {
   apPart, cyl, inset, irons, knurl, lathe, profile, pw, ribTube, ring, rrect, shp, solid, taperX, xsec, zAt
@@ -289,8 +289,7 @@ export const SMG_MODELS = {
       cyl(g, MP5.ct.r, MP5.fs + MP5.sdShift - MP5.rcvEnd + 0.004, K, X, MP5.ct.y, (MP5.rcvEnd + MP5.fs + MP5.sdShift) / 2, 24);
       mp5Front(g, MP5.sdShift, false);
       ribTube(g, 0.034, z1 - 0.797, P, X, 1.12, (0.797 + z1) / 2, 18, 0.004, 1);
-      heatPart(cyl(g, 0.0235, z2 - z1 + 0.01, K, X, 1.12, (z1 + z2) / 2, 22), tierCtx); ring(g, 0.025, 0.008, K, X, 1.12, z2 - 0.004);   // (the can glows as it heats: effects/supp-heat.js)
-      cyl(g, 0.006, 0.002, GM.rubber, X, 1.12, z2 + 0.0005, 10);
+      heatAll([cyl(g, 0.0235, z2 - z1 + 0.01, K, X, 1.12, (z1 + z2) / 2, 22), ring(g, 0.025, 0.008, K, X, 1.12, z2 - 0.004), cyl(g, 0.006, 0.002, GM.rubber, X, 1.12, z2 + 0.0005, 10)], tierCtx);   // (the can, its ring and its end glow as it heats: effects/supp-heat.js)
       front = z2;
     }
     // ---- the trigger housing: the block, bevelled, the selector's markings side (its bottom runs along the top of the

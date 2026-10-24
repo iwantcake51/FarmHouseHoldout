@@ -3,7 +3,7 @@
 import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
-import { heatPart } from '../effects/supp-heat.js';
+import { heatAll } from '../effects/supp-heat.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
@@ -14,23 +14,24 @@ export function fitAttachments(g, D, front, y, info) {
     const L = T('choke') === 2 ? 0.13 : 0.07; cyl(g, 0.031, L + 0.008, GM.metal2, X, y, front + L / 2 - 0.004); ring(g, 0.034, 0.012, GM.steel, X, y, front + L - 0.006);   // threaded over the muzzle
     for (let i = 0; i < (T('choke') === 2 ? 3 : 1); i++) ring(g, 0.033, 0.006, GM.poly, X, y, front + 0.02 + i * 0.03); front += L;
   } else if (suppressed(D) && !D.quiet && !D.intSupp) {   // (the SMG's can is built into its barrel: weapons/gun-models.js)
-    const s = T('supp');
+    const s = T('supp'), n0 = g.children.length;   // (every piece of the can from here, its bands and clamp too, glows as it heats: heatAll)
     if (s === 1) {   // a blue spin-on oil filter screwed onto a threaded adapter: a smooth can with a rolled lip, a printed band, and a hose clamp
       const r = 0.056 * k, L = 0.15, c = front + 0.03 + L / 2;
       cyl(g, 0.018 * k, 0.04, GM.metal, X, y, front + 0.01);                                     // threaded adapter, over the muzzle
       cyl(g, r * 0.92, 0.012, GM.steel, X, y, front + 0.036, 20);                                // base plate
-      heatPart(cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24), tierCtx);                    // the can (it glows as it heats: effects/supp-heat.js)
+      cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24);                                       // the can
       cyl(g, r * 1.03, 0.012, GM.filterB, X, y, front + 0.042, 24);                               // rolled seam at the base
-      heatPart(cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24), tierCtx);  // domed end
+      cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
       cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
-      heatPart(cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20), tierCtx);   // threaded on over the muzzle (it glows as it heats: effects/supp-heat.js)
+      cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20);   // threaded on over the muzzle
       ring(g, r + 0.004, 0.026, GM.metal2, X, y, front + 0.016); ring(g, r + 0.004, 0.02, GM.metal2, X, y, front + L - 0.012); cyl(g, r * 0.35, 0.006, GM.poly, X, y, front + L + 0.002);
       if (s === 3) for (let i = 0; i < 5; i++) ring(g, r + 0.003, 0.01, GM.metal2, X, y, front + 0.07 + i * 0.05);
       front += L;
     }
+    heatAll(g.children.slice(n0), tierCtx);   // (it glows as it heats: effects/supp-heat.js)
   }
   if (gunAtt(tierCtx, 'bayonet')) {   // long guns only, not the automatics
     ring(g, 0.024, 0.03, GM.metal, X, y, front - 0.03); box(g, 0.03, 0.045, 0.07, GM.poly, X, y - 0.05, front - 0.08);
