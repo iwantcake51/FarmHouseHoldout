@@ -5,8 +5,8 @@ import { box } from '../core/geometry.js';
 import { T } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  apPart, boxes, checker, clipTo, cyl, inset, irons, lathe, notchRear, portFill, profile, pullInside, pw, ribTube,
-  ring, rrect, shp, solid, stipple, taper, taperX, tapeWrap, xsec, zAt
+  apPart, apPlate, boxes, checker, clipTo, cyl, inset, irons, lathe, notchRear, portFill, profile, pullInside, pw,
+  ribTube, ring, rrect, shp, solid, stipple, taper, taperX, tapeWrap, xsec, zAt
 } from './gun-parts.js';
 import { BOLT_KNOB } from './gun-models.js';
 
@@ -240,7 +240,11 @@ export const RIFLE_MODELS = {
     }
     // ---- the flip-up sights: standing, or with an optic on the rail folded down flat on their bases
     [[SCAR.rear, 1.2035], [SCAR.front, 1.1985]].forEach(([S, cut]) => {
-      if (!sight) { const m = solid(g, S, S === SCAR.rear ? 0.022 : 0.016, K, X, 0.0012); if (S === SCAR.rear) apPart(m); return; }
+      if (!sight && S !== SCAR.rear) { solid(g, S, 0.016, K, X, 0.0012); return; }
+      if (!sight) {   // the rear: its post, and on top the aperture plate with its hole, looked through down the gun
+        apPart(solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2345], [0, 1.2345]]), 0.022, K, X, 0.0012));
+        apPlate(g, X, 0.011, 1.2345, 1.2475, 0.4791, 0.4913, 1.2414, 0.0026, K); return;
+      }
       const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
     });
@@ -354,12 +358,14 @@ export const RIFLE_MODELS = {
     const br = [0.0119, 0.0135, 0.0152, 0.017][m.heavy || 0];
     lathe(g, [[0.0001, 0.75], [br, 0.75], [br, 1.164], [br - 0.0018, 1.1695], [br - 0.0018, 1.2011], [br, 1.2052], [br, 1.3445], [0.0001, 1.3445]], GM.blued, X, y0, 24);
     // ---- the A-frame front sight: its base clamped round the barrel with the bayonet lug under it, the tower and its
-    // window, the ears round the post, the sling swivel hanging under it
+    // window, the ears round the post (all left off under an optic), the sling swivel hanging under it
     solid(g, [[1.0365, 1.1162], [1.0901, 1.1162], [1.0945, 1.111], [1.095, 1.0959], [1.0987, 1.0937], [1.1075, 1.0936], [1.1092, 1.0981], [1.1202, 1.0986], [1.1239, 1.1026], [1.1237, 1.1107], [1.1185, 1.1139], [1.1185, 1.1175], [1.1115, 1.1175], [1.1115, 1.161], [1.0365, 1.161]], 0.032, A, X, 0.004);
-    solid(g, [[1.0371, 1.158], [1.0379, 1.1677], [1.0706, 1.2115], [1.1112, 1.2115], [1.1115, 1.158]], 0.022, A, X, 0.002,
-      [shp(inset([[1.0553, 1.163], [1.1006, 1.163], [1.1016, 1.1695], [1.1016, 1.207], [1.0843, 1.207], [1.0806, 1.2068], [1.0774, 1.2045], [1.0517, 1.1691], [1.0522, 1.1656]], -0.002))]);
-    [-1, 1].forEach(sd => profile(g, shp([[1.0812, 1.205], [1.1112, 1.205], [1.1109, 1.2244], [1.1078, 1.2311], [1.1019, 1.2345], [1.0956, 1.2336], [1.0917, 1.2346], [1.0841, 1.229]]), 0.005, A, X + sd * 0.0085, 0.001));
-    profile(g, shp([[1.0918, 1.185], [1.1016, 1.185], [1.1016, 1.2305], [1.0918, 1.2305]]), 0.0045, GM.metal2, X, 0.0006);   // the post
+    if (!sight) {   // (with an optic the tower's off, a low gas block left: nothing standing up in its picture)
+      solid(g, [[1.0371, 1.158], [1.0379, 1.1677], [1.0706, 1.2115], [1.1112, 1.2115], [1.1115, 1.158]], 0.022, A, X, 0.002,
+        [shp(inset([[1.0553, 1.163], [1.1006, 1.163], [1.1016, 1.1695], [1.1016, 1.207], [1.0843, 1.207], [1.0806, 1.2068], [1.0774, 1.2045], [1.0517, 1.1691], [1.0522, 1.1656]], -0.002))]);
+      [-1, 1].forEach(sd => profile(g, shp([[1.0812, 1.205], [1.1112, 1.205], [1.1109, 1.2244], [1.1078, 1.2311], [1.1019, 1.2345], [1.0956, 1.2336], [1.0917, 1.2346], [1.0841, 1.229]]), 0.005, A, X + sd * 0.0085, 0.001));
+      profile(g, shp([[1.0918, 1.185], [1.1016, 1.185], [1.1016, 1.2305], [1.0918, 1.2305]]), 0.0045, GM.metal2, X, 0.0006);   // the post
+    }
     box(g, 0.012, 0.024, 0.012, A, X, 1.104, 1.0525);
     { const t = new THREE.Mesh(new THREE.TorusGeometry(0.0098, 0.0022, 6, 14), GM.metal2); t.rotation.set(-0.35, Math.PI / 2, 0); t.position.set(X, 1.0805, 1.0525); g.add(t); }
     // ---- the A2 birdcage, turned: its lock washer, two rings, five slots round the top and sides (closed underneath, the
@@ -476,7 +482,11 @@ export const RIFLE_MODELS = {
     const bolt = box(g, 0.003, 0.021, 0.06, GM.steel, X - 0.0333, 1.1165, 0.545); bolt.userData.clip = 0.47;
     // the rear sight: the ladder standing up in front of the feed cover (lying flat under an optic)
     const RS = [[0.6539, 1.158], [0.6577, 1.169], [0.658, 1.1789], [0.6552, 1.1851], [0.6625, 1.1993], [0.657, 1.2022], [0.6601, 1.2081], [0.6565, 1.2248], [0.6605, 1.2338], [0.6606, 1.2575], [0.6651, 1.2585], [0.6672, 1.2307], [0.6712, 1.2197], [0.6684, 1.208], [0.6731, 1.2035], [0.6684, 1.2002], [0.6684, 1.1939], [0.6744, 1.184], [0.6764, 1.1589]];
-    if (!sight) { apPart(profile(g, shp(RS), 0.012, K, X, 0.0012)); apPart(cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14)).rotation.set(0, 0, Math.PI / 2); irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755 }); }
+    if (!sight) {   // (the ladder up to the aperture plate at its top, the hole through it looked through down the gun)
+      apPart(profile(g, shp(clipTo(RS, [[0.6, 1.15], [0.7, 1.15], [0.7, 1.2305], [0.6, 1.2305]])), 0.012, K, X, 0.0012)); apPart(cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14)).rotation.set(0, 0, Math.PI / 2);
+      apPlate(g, X, 0.0065, 1.2305, 1.2585, 0.66, 0.6712, 1.236, 0.0026, K);
+      irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755 });
+    }
     else box(g, 0.014, 0.006, 0.06, K, X, 1.1615, 0.69);
     // ---- the pistol grip, raked back, with its grooves; the big round guard and the trigger in it
     const GR = [[0.4329, 1.064], [0.4331, 1.0447], [0.4353, 1.0384], [0.4381, 1.0364], [0.455, 1.034], [0.4604, 1.0281], [0.4627, 1.0207], [0.4636, 1.0099], [0.4615, 0.9988], [0.4366, 0.9632], [0.4334, 0.9553], [0.435, 0.9418], [0.4443, 0.9356], [0.464, 0.9306], [0.494, 0.9306], [0.4961, 0.9338], [0.4952, 0.9453], [0.4981, 0.9586], [0.5144, 0.9875], [0.5226, 0.9976], [0.535, 1.012], [0.535, 1.064]];

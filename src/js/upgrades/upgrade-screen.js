@@ -23,6 +23,7 @@ import { curseRewards, rollSac, SAC, takeCurse } from './sacrifice.js';
 import { burnCards } from './card-burn.js';
 import { setState } from '../ui/screens.js';
 import { feed, popEl, setAnnT } from '../ui/hud-text.js';
+import { wantLock } from '../game/view-cam.js';
 import { gunCall } from '../ui/gear-popup.js';
 import { listNames, netChoosing, netPicked } from '../net/sync.js';
 
@@ -307,6 +308,7 @@ const PICK_WAIT_MAX = 12;
 export let pickWait = null, waitClock = 0;
 function settleUpgrade(burn) {
   run.cardHand = handNo(); netPicked();
+  wantLock();   // (in first person the mouse is taken back with the click that picked: game/view-cam.js)
   if (!netLink() || !netChoosing().length) { leaveUpgrade(burn); return; }
   pickWait = burn;
   const el = $('upgrade'); el.classList.remove('armed'); el.classList.add('waiting');

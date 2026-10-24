@@ -12,7 +12,8 @@ import { GI, GI_VB } from './game-icons.js';
 import { BOARD, BOARD_VB } from './board-icons-data.js';
 import { DPR, R, renderScale, resize, setRenderScale, SHADOW_SOFT, sun, SUN_R } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
-import { setViewMode, VCAM } from '../game/view-cam.js';
+import { state } from '../game/state.js';
+import { setViewMode, VCAM, wantLock } from '../game/view-cam.js';
 import { controlsHtml, kbRefresh } from './keyboard-map.js';
 
 // the theme colours (the highlight everywhere: --acc in styles/base.css), each [r, g, b]
@@ -153,6 +154,7 @@ function openSettings() {
 export function closeSettings() {
   const el = $('settings'); if (el.hidden) return;
   stopBinding(); closeDrops(); el.classList.remove('on'); saveSettings();
+  if (state === 'play') wantLock();   // (back to the game in first person: the mouse straight back, game/view-cam.js)
   setCloseT = setTimeout(() => { el.hidden = true; }, 340);   // (once it's popped back down: styles/settings.css)
 }
 // a dropdown: opens with its list unrolling under it, closes on a pick, a click anywhere else, or Esc

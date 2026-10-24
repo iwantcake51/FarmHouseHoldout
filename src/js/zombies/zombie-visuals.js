@@ -1,6 +1,6 @@
 // Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
-import { scene, V3 } from '../core/renderer.js';
+import { FP_CAM, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { MIST, mistSee } from '../world/mist.js';
 import { outline } from '../effects/screen-outlines.js';
@@ -20,7 +20,7 @@ import { meleeTargets } from '../melee/melee.js';
 import { flDir, flOn, los, teamBeam } from '../lighting/lightmap.js';
 import { curDark } from '../lighting/day-night.js';
 import { peekOf, sightTo, visAt, visOn } from '../lighting/vision.js';
-import { freeOn, isoOn } from '../game/view-cam.js';
+import { fpOn, freeOn, isoOn } from '../game/view-cam.js';
 import { roofOver } from '../world/cutaway.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { camFocus, viewer } from '../net/spectate.js';
@@ -72,6 +72,13 @@ function zombieLOD() {
     for (const o of z.casters) o.castShadow = on;
   }
 }
+// in first person, whether anything of something standing at (x, z) is in a clear line from your eyes: its middle or a
+// shoulder's width (EYE_SEE) either side of it, across the line
+const EYE_SEE = 0.32;
+function eyeSees(x, z) {
+  const e = FP_CAM.position, dx = x - e.x, dz = z - e.z, L = Math.hypot(dx, dz) || 1, sx = -dz / L * EYE_SEE, sz = dx / L * EYE_SEE;
+  return los(e.x, e.z, x, z) || los(e.x, e.z, x + sx, z + sz) || los(e.x, e.z, x - sx, z - sz) ? 1 : 0;
+}
 export function updateZombieVisuals(dt, rdt) {
   markReach(); zombieLOD();
   const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
@@ -83,8 +90,13 @@ export function updateZombieVisuals(dt, rdt) {
     // it: so it's checked again where it really stands, past the walls and through the window you're at (sightTo), and
     // one behind a wall shows nothing, not even its outline through it
     const tb = state === 'title' ? 0 : teamBeam(z), f = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
-    const v = state === 'title' || freeOn() ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
-    z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
+    // in first person: there the moment any of it is in a clear line from your eyes (its middle or either side, so one
+    // stepping out round a corner shows straight away), whichever way you're facing; no fading in and out
+    if (fpOn() && state !== 'title') { z.vis = eyeSees(z.x, z.z) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1); }
+    else {
+      const v = state === 'title' || freeOn() ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
+      z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came
+    }
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
     z.m.g.visible = z.vis > 0.02 || !!z.redOl;
@@ -144,7 +156,8 @@ export function updateZombieVisuals(dt, rdt) {
     if (r.flash > 0 || r.flashOn) { r.flash = Math.max(0, r.flash - dt); const k2 = r.flash / 0.14, m = r.m.mats; r.flashOn = r.flash > 0;
       for (const mt of Object.values(m)) if (mt) { if (r.flashOn) mt.emissive.setRGB(0.35 * k2 + 0.6 * k2 * k2, 0.1 * k2 + 0.55 * k2 * k2, 0.07 * k2 + 0.45 * k2 * k2); else mt.emissive.setHex(0); } }
     if (r.eyes && r.eyeT < 1.6) { r.eyeT += dt; const e = clamp(r.eyeT / 1.5, 0, 1); r.eyeGlow = Math.pow(1 - e, 1.5); r.eyes.forEach(o => o.material.color.copy(r.eyeLive || _eyeLive).lerp(_eyeDead, smooth(e))); }
-    const v = visAt(r.x, r.z); r.vis += (v - r.vis) * Math.min(1, rdt * 10);
+    if (fpOn()) r.vis = eyeSees(r.x, r.z);   // (in first person: as for the living, above)
+    else { const v = visAt(r.x, r.z); r.vis += (v - r.vis) * Math.min(1, rdt * 10); }
     Object.values(r.mats).forEach(mt => { mt.opacity = r.vis; mt.depthWrite = r.vis > 0.05; mt.colorWrite = r.vis > 0.03; }); if (r.dm) r.dm.userData.u.value = r.vis < 0.03 ? 0 : r.vis; if (r.blob) { r.blob.material.opacity = 0.42 * r.vis * Math.max(0, 1 - Math.max(0, r.t - 8) * 0.5); r.blob.visible = r.blob.material.opacity > 0.004; }
     r.g.visible = r.vis > 0.03;   // (a body you can't see draws nothing either, as above)
     if (r.t > 10) { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); ragdolls.splice(k, 1); }

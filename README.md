@@ -102,19 +102,20 @@ Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
 Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
-where you face. The gun and your arms move inside a small circle round the middle of the view: only part of the
+where you face. The gun and your arms move inside a small circle round the middle of the view: only a little of the
 mouse's movement moves the aim in it (the view turns with the rest, and with all of it once the aim's at the edge), the
 aim easing after it, and the view drifting back onto it; the crosshair is wherever the gun points. Hold **Alt** to
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
-rides your head as you walk, vault and stumble, well smoothed, banks a little into a sidestep and dips a touch going
-forward; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Looking up, your
+rides your head as you walk, vault and stumble, well smoothed, bobs and sways with each stride (more running), banks a
+little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, with a little dip and cant on the way, quicker with a handgun;
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
 a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
-shotgun's front post sits in the middle of a rear aperture that's too close to your eye to see sharp (just a soft dark
-ghost ring round the hole), and the pump and double barrel are aimed down the rib with the bead sat on the receiver.
+shotgun's front post sits in the middle of the hole through the rear aperture, the whole rear sight too close to your
+eye to see sharp (a soft ghost ring of it round the hole), and the pump and double barrel are aimed down the rib with
+the bead sat on the receiver. An optic on the MP5 sits on a claw mount, clear over its drum sight.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's 68 MOA ring with its four ticks and 1 MOA dot,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
@@ -124,8 +125,11 @@ where the scope's axis points, so with your eye off the axis they slide together
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
 off it (nearly black at the hip, opening up as it comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
-away. Through a scope the rest of the view dims and goes out of focus, the gun a little. Every sight's glass is clear
-to look through in first person. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
+away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
+from your eye, even aiming straight up. Zombies show the moment any of one is in a clear line from your eyes, round a
+corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
+(the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
+hand the mouse back as they close. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
 and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
 
 ## Settings

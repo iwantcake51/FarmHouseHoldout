@@ -23,7 +23,7 @@ import { AK_SLIDE, akBusy, akChargeState, akHasCharge, akSlideBack, akU } from '
 import { BARREL, barrelFree } from '../weapons/firing.js';
 import { meleeBashHand, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
 import { frontHeavy, gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
-import { fpSightAlign } from '../game/view-cam.js';
+import { fpOn, fpRecoil, fpSightAlign } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
@@ -105,7 +105,7 @@ const AK_DRAW = 0.55, AK_GRAB = 0.4, AK_DRAW_AT = { side: { p: 1.3, y: -0.42, z:
 // free aim: the arms don't turn in lockstep with the body. As you turn, the arms and the gun lag behind (a heavy gun
 // more), swinging round from the shoulders, then swing on past and settle; looking up or down the same. A loose spring
 // per axis; FREE_SWING is how far out from the shoulders the swing reaches, so the hands carry with it
-const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26;
+const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26, FP_SWING = 0.45;
 function freeAim(rdt, heavy, ads) {
   const F = FREE_AIM; if (!(rdt > 0)) return F;
   const yw = ANIM.chestYaw ?? ANIM.yaw;   // the chest's turning (player/animation.js), not the hips'
@@ -466,7 +466,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;
   { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
-  { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; ox += Math.sin(fa.yaw) * FREE_SWING; oy -= Math.sin(fa.pitch) * FREE_SWING; }   // the arms trail a turn and swing on after it
+  { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw += fa.yaw * k; pitch += fa.pitch * k; ox += Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (less seen from your own eyes: FP_SWING)
   pitch += SR.x * 0.8;   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
@@ -531,7 +531,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  if (!ak) fpSightAlign(gg);   // in first person down the sights: brought onto your aim and up to your eye (game/view-cam.js)
+  if (!ak) { fpSightAlign(gg); fpRecoil(gg); }   // in first person down the sights: brought onto your aim and up to your eye; and each shot's turn of it (game/view-cam.js)
   up.x -= SR.x + BR.z * BR_LEAN; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
   pm.upper.position.z = -BR.z;   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle

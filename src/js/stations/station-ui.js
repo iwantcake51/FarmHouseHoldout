@@ -21,6 +21,7 @@ import { equip } from '../weapons/reload.js';
 import { bandMax } from '../player/bandages.js';
 import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
 import { FEED_ICON, popEl, setT } from '../ui/hud-text.js';
+import { wantLock } from '../game/view-cam.js';
 import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { benchTipUsed } from '../ui/bench-tips.js';
@@ -65,6 +66,7 @@ export function openStation(s) {
 }
 export function closeStation() {
   if (!openSt) return; openSt = null;
+  wantLock();   // (in first person, the mouse straight back: game/view-cam.js)
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
   updateWeaponStats(); updateLoadout(); updateRackSide();   // the stats and the loadout slide back in behind it as it rolls up

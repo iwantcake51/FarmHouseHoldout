@@ -47,7 +47,7 @@ import { clashes, curseRewards, CURSES, dropCurse, SAC, takeCurse } from '../upg
 import { startDeath } from './screens.js';
 import { feed, popEl, toast } from './hud-text.js';
 import { curDark } from '../lighting/day-night.js';
-import { VCAM } from '../game/view-cam.js';
+import { VCAM, wantLock } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from './hud.js';
 import { gunView, hideGun, showFigure, showGun } from './gun-view.js';
@@ -126,6 +126,7 @@ export function toggleCheats(on) {
   if (cheatsOff() && on !== false) { if (!cheatOn) toast('No cheats in co-op', { kind: 'bad', sub: 'The cheat menu only works in a game on your own' }); return; }
   cheatOn = on === undefined ? !cheatOn : on;
   chEl.hidden = !cheatOn;
+  if (!cheatOn) wantLock();   // (in first person, the mouse straight back: game/view-cam.js)
   clearInterval(cheatLive);
   if (cheatOn) { renderCheats(); cheatLive = setInterval(cheatLiveTick, 200); }
   else { hideGun(); if (document.activeElement && chEl.contains(document.activeElement)) { document.activeElement.blur(); cv.focus({ preventScroll: true }); } }

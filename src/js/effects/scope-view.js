@@ -6,24 +6,24 @@
 // glass toward its rim, and the shadow of the tube closing in from the side your eye's off the scope's axis (all but
 // black with the gun at your hip, opening up as it comes up to your eye; a shot's kick and a quick turn swing it), the
 // picture and the reticle sliding a little against each other as it does (parallax). Your eye's on the scope, focused
-// down it: round it the rest of the view's dimmed and out of focus, the world more the further from the eyepiece, the
+// down it: round it the rest of the view's out of focus (not darkened), the world more the further from the eyepiece, the
 // gun a little (SCOPE_DOF). Down any sights the gun's a little soft, your eye on what's beyond it: past a holographic
 // sight or a red dot your eye's on the target; with iron sights on the front sight, sharp, the rest of the gun soft.
 // A holographic sight's reticle (an EOTech's 68 MOA ring with its four ticks and the 1 MOA dot) and a red dot's dot are
 // out at the target, where your eye sees them (not on the glass): grainy red light in the sight's window, staying on
-// the aim as your eye moves. An aperture's too close to your eye to see sharp: its ring's a soft dark blur round the
-// hole, the front post sharp in the middle of it (the aperture's own parts are hidden while you look through it).
+// the aim as your eye moves. An aperture's too close to your eye to see sharp: the whole rear sight, its ears and the
+// ring round the hole, goes to a soft blur (a ghost ring), the front post sharp in the middle of it.
 import { FP_CAM, R, scene } from '../core/renderer.js';
 import { POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
 import { SCOPE_V } from '../game/view-cam.js';
 
-// how dim the view round the eyepiece goes, right at its rim and further out; and the most the scope's view is drawn at
-const SCOPE_DIM = { rim: 0.9, out: 0.55, max: 1024 };
+// the most the scope's view is drawn at
+const SCOPE_DIM = { max: 1024 };
 // the blur round a scope's eyepiece (px at 1080 high): the most for the world far from it, and for the gun up close
 // (near, there and down any other sights); the gun's soft nearer than f0 to f1 (metres, or for iron sights as a share
-// of how far off the front sight is)
-const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85 };
+// of how far off the front sight is); a rear aperture, a hand's breadth from your eye, far softer (close): its ghost ring
+const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, close: 5 };
 // a holographic sight's reticle: the ring's size (68 MOA across, drawn a little bigger to read on a screen: k) and a
 // red dot's (2 MOA, at least px)
 const HOLO_RET = { moa: 68, k: 1.7, dot: 1.6 };
@@ -32,14 +32,12 @@ const SC = { rt: null, size: 0, fb: null, w: 0, h: 0 }, _ax = new THREE.Vector2(
 const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200);
 const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: frag, transparent: true, depthTest: false, depthWrite: false, blending: blending ?? THREE.NormalBlending });
 const scopeMat = overlay(`
-uniform sampler2D tS, tD; uniform vec2 uC, uOff, uDim, uAx, uRot, uRes, uNF; uniform float uR, uRI, uW, uKind, uDark, uHasD, uEyeZ;
+uniform sampler2D tS, tD; uniform vec2 uC, uOff, uAx, uRot, uRes, uNF; uniform float uR, uRI, uKind, uDark, uHasD, uEyeZ;
 // a line's coverage, half width w, at distance d (in the lens's units: its radius is 1), smoothed over a pixel
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
 void main() {
   vec2 p = (gl_FragCoord.xy - uC) / uR; float d = length(p), px = 1.0 / uR;
-  // round the eyepiece, as it's brought to your eye: its rim dark, the rest of the view dimmed
-  float outside = uW * mix(uDim.x, uDim.y, smoothstep(1.02, 1.7, d));
   // (whatever's nearer than the eyepiece, a hand, a window's frame, hides it)
   float seen = 1.0;
   if (uHasD > 0.5) { float z = texture2D(tD, gl_FragCoord.xy / uRes).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); seen = smoothstep(uEyeZ - 0.02, uEyeZ - 0.005, vz); }
@@ -73,22 +71,22 @@ void main() {
     col *= 1.0 - 0.3 * smoothstep(0.7, 1.0, d);
   }
   float inside = (1.0 - smoothstep(1.0 - px * 1.5, 1.0 + px * 1.5, d)) * seen;
-  gl_FragColor = vec4(col * inside, mix(outside * seen, 1.0, inside));
-}`, { tS: { value: null }, uC: { value: new THREE.Vector2() }, uR: { value: 100 }, uW: { value: 0 }, uKind: { value: 0 }, uDark: { value: 0 }, uOff: { value: new THREE.Vector2() }, tD: { value: null }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uRI: { value: 100 }, uHasD: { value: 0 }, uEyeZ: { value: 0.1 }, uDim: { value: new THREE.Vector2(SCOPE_DIM.rim, SCOPE_DIM.out) } });
+  gl_FragColor = vec4(col * inside, inside);   // (nothing round it: the view there's as it is, only out of focus)
+}`, { tS: { value: null }, uC: { value: new THREE.Vector2() }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 0 }, uOff: { value: new THREE.Vector2() }, tD: { value: null }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uRI: { value: 100 }, uHasD: { value: 0 }, uEyeZ: { value: 0.1 } });
 // the blur round a scope's eyepiece: a disc of taps (spread on the golden angle) as wide as how far out of focus each
 // pixel is: none in the eyepiece, the world more toward the edges, what's close to your eye (the gun) most
 const dofMat = overlay(`
-uniform sampler2D tC, tD; uniform vec2 uC, uRes, uNF, uF; uniform float uR, uK, uWorld, uNear, uHasD;
+uniform sampler2D tC, tD; uniform vec2 uC, uRes, uNF, uF; uniform float uR, uK, uWorld, uNear, uClose, uHasD;
 void main() {
-  vec2 uv = gl_FragCoord.xy / uRes; float d = length(gl_FragCoord.xy - uC) / uR, near = 0.0;
-  if (uHasD > 0.5) { float z = texture2D(tD, uv).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); near = 1.0 - smoothstep(uF.x, uF.y, vz); }
-  float rad = uK * max(uWorld * smoothstep(1.0, 2.2, d), uNear * near * smoothstep(0.95, 1.2, d));
+  vec2 uv = gl_FragCoord.xy / uRes; float d = length(gl_FragCoord.xy - uC) / uR, near = 0.0, close = 0.0;
+  if (uHasD > 0.5) { float z = texture2D(tD, uv).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); near = 1.0 - smoothstep(uF.x, uF.y, vz); close = 1.0 - smoothstep(0.1, 0.22, vz); }
+  float rad = uK * max(max(uWorld * smoothstep(1.0, 2.2, d), uNear * near * smoothstep(0.95, 1.2, d)), uClose * close);
   if (rad < 0.4) { gl_FragColor = vec4(texture2D(tC, uv).rgb, 1.0); return; }
   vec3 s = vec3(0.0);
   for (int i = 0; i < 28; i++) { float f = float(i), r = sqrt((f + 0.5) / 28.0) * rad, a = f * 2.39996; s += texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb; }
   gl_FragColor = vec4(s / 28.0, 1.0);
-}`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uHasD: { value: 0 } });
-// a holographic sight's reticle and a red dot's dot (added on as light), and an aperture's ghost ring (laid over)
+}`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uClose: { value: 0 }, uHasD: { value: 0 } });
+// a holographic sight's reticle and a red dot's dot, added on as light
 const SIGHT_U = { uKind: { value: 0 }, uA: { value: 0 }, uC: { value: new THREE.Vector2() }, uU: { value: new THREE.Vector2() }, uV: { value: new THREE.Vector2() }, uRet: { value: new THREE.Vector2() }, uRR: { value: 10 }, uDot: { value: 1.5 }, uLens: { value: 10 }, uT: { value: 0 } };
 const SIGHT_FRAG = `
 uniform vec2 uC, uU, uV, uRet; uniform float uKind, uA, uRR, uDot, uLens, uT;
@@ -97,12 +95,6 @@ float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 void main() {
   vec2 f = gl_FragCoord.xy;
-  if (uKind > 1.5) {
-    // the aperture: dark and soft round the hole (uLens its radius), fading out past the ring's body
-    float e = length(f - uC);
-    float a = smoothstep(uLens * 0.9, uLens * 1.5, e) * (1.0 - smoothstep(uLens * 1.9, uLens * 3.2, e));
-    gl_FragColor = vec4(vec3(0.03, 0.03, 0.032), a * 0.55 * uA); return;
-  }
   // in the window (a holographic sight's, its rounded corners) or the lens (a red dot's)
   float m;
   if (uKind < 0.5) {
@@ -122,7 +114,7 @@ void main() {
   } else lit = ln(e, uDot) + 0.6 * exp(-e * e / (uDot * uDot * 5.0)) + 0.12 * exp(-e / (uDot * 4.0));
   gl_FragColor = vec4(vec3(1.0, 0.13, 0.07) * lit * m * uA * 1.3, 1.0);
 }`;
-const holoMat = overlay(SIGHT_FRAG, SIGHT_U, THREE.AdditiveBlending), apMat = overlay(SIGHT_FRAG, SIGHT_U);
+const holoMat = overlay(SIGHT_FRAG, SIGHT_U, THREE.AdditiveBlending);
 const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), scopeMat); quad.frustumCulled = false;
 const quadScene = new THREE.Scene(); quadScene.add(quad);
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -170,7 +162,7 @@ function scopeOver(S, W, H, f) {
   const k = Math.min(1, S.w * 1.25);
   dof(k, W, H, cx, cy, r, SCOPE_DOF.world, SCOPE_DOF.f0, SCOPE_DOF.f1);
   const U = scopeMat.uniforms;
-  U.tS.value = SC.rt ? SC.rt.texture : null; U.uC.value.set(cx, cy); U.uR.value = r; U.uW.value = k; U.uKind.value = S.kind === 'acog' ? 1 : 0; U.uOff.value.copy(S.off); U.uDark.value = dark || !SC.rt ? 1 : 0;
+  U.tS.value = SC.rt ? SC.rt.texture : null; U.uC.value.set(cx, cy); U.uR.value = r; U.uKind.value = S.kind === 'acog' ? 1 : 0; U.uOff.value.copy(S.off); U.uDark.value = dark || !SC.rt ? 1 : 0;
   U.uAx.value.copy(_ax); U.uRI.value = ri; U.uRot.value.set(Math.cos(ang), Math.sin(ang));
   { const dep = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture; U.tD.value = dep || null; U.uHasD.value = dep ? 1 : 0; U.uNF.value.set(c.near, c.far); U.uRes.value.set(W, H); U.uEyeZ.value = -_su.copy(S.eye).applyMatrix4(c.matrixWorldInverse).z; }
   drawQuad(scopeMat);
@@ -178,14 +170,14 @@ function scopeOver(S, W, H, f) {
 
 // the frame copied and blurred where it's out of focus (k: how far down the sights), round a scope's eyepiece at (cx, cy)
 // r across, and nearer than f0 to f1 (none for what's beyond it)
-function dof(k, W, H, cx, cy, r, world, f0, f1) {
+function dof(k, W, H, cx, cy, r, world, f0, f1, close = 0) {
   if (k < 0.02) return;
   const c = FP_CAM, D = dofMat.uniforms, dep = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture;
   if (!dep && !world) return;
   if (!SC.fb || SC.w !== W || SC.h !== H) { if (SC.fb) SC.fb.dispose(); SC.fb = new THREE.FramebufferTexture(W, H); SC.w = W; SC.h = H; }
   R.copyFramebufferToTexture(SC.fb);
   D.tC.value = SC.fb; D.tD.value = dep || null; D.uHasD.value = dep ? 1 : 0; D.uNF.value.set(c.near, c.far); D.uF.value.set(f0, f1); D.uRes.value.set(W, H);
-  D.uC.value.set(cx, cy); D.uR.value = r; D.uK.value = k * k * (3 - 2 * k); D.uWorld.value = world * H / 1080; D.uNear.value = SCOPE_DOF.near * H / 1080;
+  D.uC.value.set(cx, cy); D.uR.value = r; D.uK.value = k * k * (3 - 2 * k); D.uWorld.value = world * H / 1080; D.uNear.value = SCOPE_DOF.near * H / 1080; D.uClose.value = close * H / 1080;
   drawQuad(dofMat);
 }
 
@@ -194,15 +186,10 @@ function sightOver(S, W, H, f) {
   R.setRenderTarget(null);
   // the gun soft: with iron sights all but the front sight, your eye on it; past a dot or a hologram, your eye on the target
   const iron = S.kind !== 'holo' && S.kind !== 'dot', fs = c.position.distanceTo(S.obj);
-  dof(S.a, W, H, -1e5, -1e5, 1, 0, iron ? fs * SCOPE_DOF.iron0 : SCOPE_DOF.f0, iron ? fs * SCOPE_DOF.iron1 : SCOPE_DOF.f1);
-  if (S.kind !== 'ap' && S.kind !== 'holo' && S.kind !== 'dot') return;   // (a notch or a bead: nothing over the view)
+  // (an aperture, right in front of your eye, a soft ghost ring of the whole rear sight round the sharp front post)
+  dof(S.a, W, H, -1e5, -1e5, 1, 0, iron ? fs * SCOPE_DOF.iron0 : SCOPE_DOF.f0, iron ? fs * SCOPE_DOF.iron1 : SCOPE_DOF.f1, S.kind === 'ap' ? SCOPE_DOF.close : 0);
+  if (S.kind !== 'holo' && S.kind !== 'dot') return;   // (iron sights: nothing over the view)
   U.uA.value = S.a; U.uT.value = performance.now() / 1000;
-  if (S.kind === 'ap') {
-    // the aperture's hole, how big it looks this close
-    toPx(S.eye, W, H, U.uC.value); if (_sp.z > 1) return;
-    U.uKind.value = 2; U.uLens.value = S.r / Math.max(0.02, c.position.distanceTo(S.eye)) * f;
-    drawQuad(apMat); return;
-  }
   // out at the target along the sight's axis, where your eye sees the reticle
   toPx(_st.copy(c.position).addScaledVector(S.dir, 100), W, H, U.uRet.value); if (_sp.z > 1) return;   // (well out, inside the view's far end)
   if (S.kind === 'holo') {

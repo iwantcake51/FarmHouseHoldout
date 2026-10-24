@@ -282,5 +282,12 @@ export function notchRear(g, x, y, z, w, h, d, nw, nd, mat, dot) {
 // (rz), the front's tip (yf) and where (fz); kind: 'notch' (a front post in a rear notch), 'ap' (a rear aperture, r its
 // hole's radius, its parts in parts: drawn as the out-of-focus ring you look through), or 'bead' (a bead down a rib)
 export function irons(g, I) { g.userData.irons = Object.assign(g.userData.irons || {}, I); return g.userData.irons; }
-// a rear aperture's parts: left out of the frame in first person down the sights, where the out-of-focus ring's drawn
+// a rear aperture's parts (looked through from a hand's breadth away in first person, so they're out of focus)
 export function apPart(m) { if (m) m.userData.apPart = true; return m; }
+// a rear sight's aperture: a plate across the gun (hw each side of x, from y0 up to y1, rounded at its corners), from z0
+// to z1 along it, the hole r round through it at yh, so you see through it down the gun
+export function apPlate(g, x, hw, y0, y1, z0, z1, yh, r, mat) {
+  const c = Math.min(hw, (y1 - y0) / 2) * 0.45, s = shp(rrect(x - hw, y0, x + hw, y1, c).getPoints(4).map(v => [v.x, v.y])), h = new THREE.Path();
+  h.absarc(x, yh, r, 0, Math.PI * 2, true); s.holes.push(h);
+  return apPart(xsec(g, s, z0, z1, mat, 0.0005));
+}

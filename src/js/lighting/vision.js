@@ -5,6 +5,7 @@ import { openings } from '../world/house.js';
 import { HOUSE_DOORS } from '../world/interior.js';
 import { shutN } from '../barricades/planks.js';
 import { FN, FR, los, sampleX, visCur, visTgt } from './lightmap.js';
+import { fpOn } from '../game/view-cam.js';
 import { viewer } from '../net/spectate.js';
 
 // standing at a window or the door, you can look out through it even when the line from your eyes clips the frame: the
@@ -30,10 +31,10 @@ export function computeVision(on) {
   visOn = on;
   let bsum = 0; for (const o of openings) bsum = bsum * 4 + shutN(o);
   const V = viewer();   // (you, or the teammate you're watching: net/spectate.js)
-  const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), Math.round(V.aim * 48), V.cone, V.near, bsum, HOUSE_DOORS.key].join(',') : 'off';
+  const key = on ? [Math.round(V.x * 16), Math.round(V.z * 16), fpOn() ? 'fp' : Math.round(V.aim * 48), V.cone, V.near, bsum, HOUSE_DOORS.key].join(',') : 'off';
   visAge += 0.07; if (key === visKey && visAge < 0.6) return;
   visKey = key; visAge = 0;
-  const HALFCONE = V.cone, NEAR = V.near;
+  const HALFCONE = fpOn() ? Math.PI : V.cone, NEAR = V.near;   // (in first person, all the way round: you see whatever's on your screen, walls aside)
   const pk = peekOf(V);
   for (let b = 0; b < FN; b++) {
     const wz = sampleX(b);
