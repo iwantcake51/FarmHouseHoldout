@@ -234,6 +234,9 @@ export function buildGear() {
 }
 // how high round the head the night vision's band goes under a hat that stays on: just below its edge
 const NV_UNDER = { cap: 0.089, beanie: 0.066 };
+// and the shroud on the front of that band: its top no higher than top above the band's middle (under the hat's edge),
+// h tall, and out at z, clear of the front of the hat's crown
+const NV_HAT = { top: 0.012, h: 0.05, z: 0.214 };
 // every item your upgrades put on you, onto whatever PM's parts are (yours, or for a moment a teammate's: gearOnAvatar)
 function gearPieces() {
   buildArmor(T('armor'));
@@ -276,15 +279,23 @@ function gearPieces() {
       [-1, 1].forEach(sd => gb(g, 0.018, 0.1, 0.045, GEAR.black, sd * 0.195, 0.17, -0.03));
       gb(g, 0.14, 0.024, 0.14, GEAR.foam, 0, 0.214, -0.02);                                                      // the crown pad under them
     }
-    const fz = hel ? 0.222 : 0.2, tz = fz + 0.05, tx = n2 ? 0 : 0.07;
-    gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, under ? NV_UNDER[L.hat] + 0.03 : 0.15, fz);                         // the shroud
-    gb(g, 0.045, 0.1, 0.045, GEAR.steelDk, 0, 0.1, fz + 0.03);                                                  // the mount arm, down from it
+    // (under a hat the shroud and its arm stay below the hat's edge and stand out in front of its crown: NV_HAT)
+    const fz = hel ? 0.222 : under ? NV_HAT.z : 0.2, tz = fz + 0.05, tx = n2 ? 0 : 0.07;
+    if (under) {
+      const top = NV_UNDER[L.hat] + NV_HAT.top;
+      gb(g, 0.1, NV_HAT.h, 0.02, GEAR.dark, 0, top - NV_HAT.h / 2, fz);                                     // the shroud
+      gb(g, 0.045, top - NV_HAT.h - 0.03, 0.045, GEAR.steelDk, 0, (top - NV_HAT.h + 0.03) / 2, fz + 0.03);   // the mount arm, down from it
+    } else {
+      gb(g, 0.1, 0.075, 0.02, GEAR.dark, 0, 0.15, fz);                                                       // the shroud
+      gb(g, 0.045, 0.1, 0.045, GEAR.steelDk, 0, 0.1, fz + 0.03);                                             // the mount arm, down from it
+    }
     gb(g, n2 ? 0.18 : 0.125, 0.032, 0.05, GEAR.dark, n2 ? 0 : tx / 2, 0.06, tz);                                // the bridge the tubes hang from
     (n2 ? [-0.065, 0.065] : [tx]).forEach(x => {
       gc(g, 0.04, 0.11, GEAR.dark, x, 0.03, tz, 'z', 10); gc(g, 0.046, 0.025, GEAR.black, x, 0.03, tz + 0.06, 'z', 10); gc(g, 0.03, 0.005, GEAR.green, x, 0.03, tz + 0.074, 'z', 10);
     });
-    const bz = hel ? -0.24 : -0.222;
-    gb(g, 0.12, 0.07, 0.04, GEAR.dark, 0, 0.13, bz); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, 0.15, bz - 0.022);   // the battery pack at the back
+    // (under a hat, on the band below the hat's edge, under a cap's brim turned to the back)
+    const bz = hel ? -0.24 : under ? -0.2 : -0.222, byP = under ? NV_UNDER[L.hat] + NV_HAT.top - 0.04 : 0.13;
+    gb(g, 0.12, 0.07, 0.04, GEAR.dark, 0, byP, bz); gb(g, 0.04, 0.02, 0.01, GEAR.green, 0.03, byP + 0.02, bz - 0.022);   // the battery pack at the back
   } else if (T('eyes')) {
     const g = gearItem(PM.head, 0, 0.035, 0);
     gb(g, 0.31, 0.026, 0.03, GEAR.dark, 0, 0.03, 0.172); [-1, 1].forEach(s => { gb(g, 0.13, 0.055, 0.012, GEAR.lens, s * 0.072, 0, 0.181); gb(g, 0.13, 0.008, 0.014, GEAR.lensDk, s * 0.072, -0.03, 0.18); });

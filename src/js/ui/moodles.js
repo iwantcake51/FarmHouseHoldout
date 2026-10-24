@@ -4,18 +4,18 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from './game-icons.js';
 import { cache } from '../core/math.js';
 import { P } from '../player/player.js';
-import { curId, S, W } from '../game/run-state.js';
+import { curId, hpCap, S, W } from '../game/run-state.js';
 import { curDark } from '../lighting/day-night.js';
 
 const MOOD_ICON = { wound: GI.wound, heal: GI.heal, lungs: GI.lungs, pinned: GI.pinned, adren: GI.adren, night: GI.night, heavy: GI.heavy, wind: GI.wind, fire: GI.fire };   // (ui/game-icons.js)
 export function renderMoodles() {
   const list = [];
-  const hp = P.hp / S.maxHp;
+  const hp = P.hp / hpCap();
   if (hp < 0.35) list.push(['bad', 'wound', 'Badly hurt']); else if (hp < 0.7) list.push(['warn', 'wound', 'Hurt']);
   if (P.slow > 0.45) list.push(['bad', 'pinned', 'Pinned']); else if (P.slow > 0.15) list.push(['warn', 'pinned', 'Slowed']);
   if (P.heal > 0) list.push(['good', 'heal', 'Healing']);   // no Bandaging icon: the ring round the cursor already shows it going on
   if (P.bleed > 0) list.push(['bad bleed', 'wound', 'Bleeding']);
-  if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35) list.push(['warn', 'lungs', 'Tired']);
+  if (P.exh || P.sprintLock) list.push(['bad', 'lungs', 'Winded']);   // (blown from a sprint till you're back to half: player/sprint.js) else if (P.stam < 0.35 * stamMax()) list.push(['warn', 'lungs', 'Tired']);
   if (P.conc > 0.15) list.push(['bad', 'pinned', 'Concussed']);
   if (P.adr > 0) list.push(['good', 'adren', 'Adrenaline']);
   if (P.eye > 0) list.push(['good', 'fire', 'Dead eye']);

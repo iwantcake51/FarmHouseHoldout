@@ -113,34 +113,68 @@ const POOL_G = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
 const POOL_BLOOM = { a: 0.5, r: 1.9 };
 
 // ---- its look ----
-// the skin (and what's on it) tinted toward a sick yellow-green, by part: most at the face and hands
-const SPIT_TINT = [0.62, 0.7, 0.36], SPIT_TINT_K = { head: 0.38, armL: 0.2, armR: 0.2, foreL: 0.3, foreR: 0.3, torso: 0.16 };
+// a spitter's turned further than the rest, and you can tell from across the yard: its skin gone a jaundiced, sick
+// yellow-green (SPIT_TINT, by part: most at the face and hands), a sac of acid bulging out of its throat over the
+// collarbone with blisters swelling off it, its chest burst open over a glowing gland under the ribs, its spine
+// standing out of its hunched back in knuckles of bone, clusters of weeping pustules on its shoulders and arms, its
+// clothes and skin eaten through in acid burns, and its eyes a sour green (SPIT_EYE: spawn.js, effects/eye-glow.js)
+const SPIT_TINT = [0.66, 0.74, 0.3], SPIT_TINT_K = { head: 0.55, armL: 0.3, armR: 0.3, foreL: 0.42, foreR: 0.42, torso: 0.28 };
+const SPIT_EYE = { col: 0xc8ff6a, glow: new THREE.Color(0xb4ff5a) };
 export function spitterLook(m) {
   for (const p in SPIT_TINT_K) {
     const c = m[p] && m[p].geometry.attributes.color; if (!c) continue; const k = SPIT_TINT_K[p];
     for (let i = 0; i < c.count; i++) { const r = c.getX(i), g = c.getY(i), b = c.getZ(i); c.setXYZ(i, r + (SPIT_TINT[0] * (0.6 + r) - r) * k, g + (SPIT_TINT[1] * (0.6 + g) - g) * k, b + (SPIT_TINT[2] * (0.6 + b) - b) * k); }
     c.needsUpdate = true;
   }
-  const sacM = lam(0xb0c858, { emissive: 0x30520a, transparent: true, opacity: 0.94 }), coreM = basic(0xd8ff6a);
-  const veinM = lam(0x5a3a3a), bileM = lam(0x6a7a1c, { emissive: 0x141e02 }), soreM = lam(0xc8d86a, { emissive: 0x3a5a08 });
-  [sacM, bileM, soreM].forEach(q => { q.userData.glow = true; });   // (their green kept in the dark: core/shaders.js)
-  // the sac: a swollen, glossy bag of acid under the jaw, lit from inside, veins over it
-  const sac = new THREE.Group(); sac.position.set(0, -0.19, 0.05); m.head.add(sac);
-  const bag = new THREE.Mesh(GLOB_G, sacM); bag.scale.set(0.1, 0.09, 0.095); sac.add(bag);
-  const core = new THREE.Mesh(GLOB_G, coreM); core.scale.set(0.058, 0.05, 0.055); core.position.z = 0.02; sac.add(core);
-  for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, rr(0.08, 0.14)), veinM), a = rr(-1.2, 1.2); v.position.set(Math.sin(a) * 0.09, rr(-0.05, 0.04), Math.cos(a) * 0.085); v.rotation.set(rr(-0.6, 0.6), a, rr(-0.4, 0.4)); sac.add(v); }
+  m.eyeCol = SPIT_EYE.col; m.eyeGlow = SPIT_EYE.glow;
+  const sacM = lam(0xa8c84e, { emissive: 0x30520a, transparent: true, opacity: 0.9 }), coreM = basic(0xd8ff6a);
+  const veinM = lam(0x3a1c22), bileM = lam(0x6a7a1c, { emissive: 0x141e02 }), soreM = lam(0xc8d86a, { emissive: 0x3a5a08 });
+  const boneM = lam(ZBONE), meatM = lam(ZMEAT), holeM = lam(0x160806), burnM = lam(0x2a1a10), crustM = lam(0x9ab83a, { emissive: 0x1e3204 });
+  [sacM, bileM, soreM, crustM].forEach(q => { q.userData.glow = true; });   // (their green kept in the dark: core/shaders.js)
+  const glob = (par, mat, sx, sy, sz, x, y, z) => { const o = new THREE.Mesh(GLOB_G, mat); o.scale.set(sx, sy, sz); o.position.set(x, y, z); par.add(o); return o; };
+  const slab = (par, mat, w, h, d, x, y, z, rx, ry, rz) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); o.position.set(x, y, z); o.rotation.set(rx || 0, ry || 0, rz || 0); par.add(o); return o; };
+  // the sac: a swollen, glossy bag of acid bulging out of the throat over the collarbone, lit from inside, dark veins
+  // over it and blisters swelling off its sides
+  const sac = new THREE.Group(); sac.position.set(0, -0.21, 0.07); m.head.add(sac);
+  glob(sac, sacM, 0.13, 0.115, 0.12, 0, 0, 0);
+  const core = glob(sac, coreM, 0.075, 0.065, 0.07, 0, -0.005, 0.03);
+  for (let k = 0; k < 3; k++) { const a = rr(-1.4, 1.4); glob(sac, sacM, rr(0.035, 0.05), rr(0.03, 0.045), rr(0.035, 0.05), Math.sin(a) * 0.11, rr(-0.06, 0.03), Math.cos(a) * 0.09); }
+  for (let k = 0; k < 9; k++) { const a = rr(-1.5, 1.5); slab(sac, veinM, 0.006, 0.006, rr(0.08, 0.16), Math.sin(a) * 0.118, rr(-0.07, 0.06), Math.cos(a) * 0.108, rr(-0.7, 0.7), a, rr(-0.5, 0.5)); }
   // no jaw where it should be (zombies/zombie-looks.js leaves a dark hole under the upper teeth): a glow down its
   // throat, bile in strings off the teeth, and the jaw itself torn loose, hanging by what's left at the hinges
   const F = m.look.face, lip = -0.075;
-  const throat = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.006), coreM); throat.position.set(F.jx, lip - 0.032, 0.078); m.head.add(throat);
+  const throat = slab(m.head, coreM, 0.07, 0.03, 0.006, F.jx, lip - 0.032, 0.078);
   const strands = [];
-  for (let k = 0; k < 3; k++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1, 0.012).translate(0, -0.5, 0), bileM); s.position.set(F.jx + rr(-0.035, 0.035), lip - 0.018, 0.13); s.userData.len = rr(0.06, 0.16); s.userData.ph = rand() * 6; m.head.add(s); strands.push(s); }
+  for (let k = 0; k < 3; k++) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.012, 1, 0.012).translate(0, -0.5, 0), bileM); st.position.set(F.jx + rr(-0.035, 0.035), lip - 0.018, 0.13); st.userData.len = rr(0.06, 0.16); st.userData.ph = rand() * 6; m.head.add(st); strands.push(st); }
   const jaw = spitterJaw(m, F, lip);
-  // bile down the chin and the chest
-  for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(rr(0.025, 0.05), rr(0.12, 0.3), 0.004), bileM); b.position.set(rr(-0.1, 0.1), rr(0.02, 0.16), 0.107); m.torso.add(b); }
+  // (where it all goes: out on the torso's faces, FRONT, SIDE and BACK, over whatever it's wearing (rig: 0.5 by 0.6 by
+  // 0.3), and along the arms, which run out along z from the shoulder, ARM_R their half-width)
+  const FRONT = 0.172, SIDE = 0.268, BACK = -0.168, ARM_R = 0.074;
+  // its chest burst open on one side: a ragged hole through shirt and skin, raw at the edges, the ribs across it and a
+  // gland glowing in the dark under them
+  const cs = rand() < 0.5 ? -1 : 1, cx = cs * 0.11;
+  slab(m.torso, holeM, 0.14, 0.15, 0.004, cx, 0.08, FRONT);
+  [[0, 0.083, 0.15, 0.022], [0, -0.075, 0.15, 0.022], [-0.07, 0, 0.022, 0.15], [0.07, 0, 0.022, 0.15]].forEach(([dx, dy, w, h]) => slab(m.torso, meatM, w, h, 0.012, cx + dx, 0.08 + dy, FRONT + 0.004, 0, 0, rr(-0.2, 0.2)));
+  glob(m.torso, coreM, 0.04, 0.034, 0.012, cx + rr(-0.01, 0.01), 0.075, FRONT + 0.002);
+  [0.125, 0.085, 0.045].forEach(y => slab(m.torso, boneM, 0.13, 0.013, 0.014, cx, y, FRONT + 0.01, 0, 0, cs * rr(0.12, 0.22)));
+  // the bile down the chin and the front of it
+  for (let k = 0; k < 4; k++) slab(m.torso, bileM, rr(0.025, 0.05), rr(0.12, 0.3), 0.004, -cx + rr(-0.06, 0.06), rr(0.05, 0.18), FRONT + 0.003);
+  // its spine, standing out of its bent back in knuckles of bone, and pustules burst open between the shoulder blades
+  for (let k = 0; k < 7; k++) { const y = 0.27 - k * 0.075; slab(m.torso, boneM, 0.04 - k * 0.003, 0.03, 0.036, 0, y, BACK - 0.012 * Math.sin(k / 6 * Math.PI), rr(-0.2, 0.2)); }
+  for (let k = 0; k < 5; k++) glob(m.torso, soreM, rr(0.016, 0.03), rr(0.016, 0.03), 0.014, rr(-0.17, 0.17), rr(0, 0.22), BACK);
   // the belly swollen tight, sores weeping on it
-  const belly = new THREE.Mesh(GLOB_G, lam(0x9aa860, { emissive: 0x1a2a06 })); belly.scale.set(0.16, 0.15, 0.08); belly.position.set(0, -0.13, 0.1); m.torso.add(belly);
-  for (let k = 0; k < 6; k++) { const s = new THREE.Mesh(GLOB_G, soreM), a = rr(-1, 1); s.scale.setScalar(rr(0.012, 0.024)); s.position.set(Math.sin(a) * 0.13, rr(-0.22, -0.04), 0.1 + Math.cos(a) * 0.07); m.torso.add(s); }
+  glob(m.torso, lam(0x9aa860, { emissive: 0x1a2a06 }), 0.17, 0.15, 0.09, 0, -0.14, 0.1);
+  for (let k = 0; k < 7; k++) { const a = rr(-1, 1); glob(m.torso, soreM, 1, 1, 1, Math.sin(a) * 0.14, rr(-0.24, -0.06), 0.1 + Math.cos(a) * 0.085).scale.setScalar(rr(0.012, 0.026)); }
+  // clusters of pustules swelling up out of its shoulders and down its upper arms, some of them big
+  ['armL', 'armR'].forEach((p, i) => { const a = m[p]; if (!a) return; const sd = i ? 1 : -1;
+    for (let k = 0; k < 7; k++) { const r = k < 2 ? rr(0.028, 0.04) : rr(0.012, 0.022), top = rand() < 0.6;
+      glob(a, soreM, r, r * rr(0.8, 1.1), r, top ? rr(-0.05, 0.05) : sd * ARM_R, top ? ARM_R : rr(-0.05, 0.05), rr(0.02, 0.22)); } });
+  // acid burns eaten into it: scorched patches through cloth and skin, a crust of green round each, on its sides and
+  // its forearms
+  const burn = (par, x, y, z, w, h) => { slab(par, crustM, 0.004, h + 0.024, w + 0.024, x, y, z); slab(par, burnM, 0.006, h, w, x + Math.sign(x) * 0.002, y, z); };
+  burn(m.torso, SIDE * cs, rr(-0.12, 0.05), rr(-0.05, 0.05), rr(0.07, 0.1), rr(0.08, 0.12));
+  burn(m.torso, -SIDE * cs, rr(0.05, 0.18), rr(-0.06, 0.06), rr(0.05, 0.08), rr(0.06, 0.09));
+  [m.foreL, m.foreR].forEach((f, i) => { if (f) burn(f, (i ? 1 : -1) * ARM_R, rr(-0.03, 0.03), rr(0.08, 0.18), rr(0.05, 0.08), rr(0.05, 0.08)); });
   m.spit = { sac, sacM, core, throat, strands, jaw };
 }
 // the jaw, torn loose on one side and hanging by the other hinge (JAW.side picks which), dangling down beside the neck,

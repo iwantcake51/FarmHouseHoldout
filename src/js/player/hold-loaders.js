@@ -79,7 +79,8 @@ let slIdx = 0;
 export function dropLoader() {
   if (!SLM.visible) return;
   SLM.updateWorldMatrix(true, false); SLM.getWorldPosition(_slW); SLM.getWorldQuaternion(_bq); SLM.getWorldScale(_slS); SLM.visible = false;
-  const r2 = v => Math.round(v * 1000) / 1000, m = { p: [_slW.x, _slW.y, _slW.z].map(r2), q: [_bq.x, _bq.y, _bq.z, _bq.w].map(r2), s: r2(_slS.x),
+  const r2 = v => Math.round(v * 1000) / 1000, m = { p: [_slW.x, _slW.y, _slW.z].map(r2), q: [_bq.x, _bq.y, _bq.z, _bq.w].map(r2), s: r2(Math.abs(_slS.x)),   // (the upper body it was in is drawn mirrored: player/player.js)
+   
     v: [P.vx * 0.6 + rr(-0.4, 0.4), rr(-0.6, 0.2), P.vz * 0.6 + rr(-0.4, 0.4)].map(r2), spin: r2(rr(4, 9) * (rand() < 0.5 ? -1 : 1)), roll: r2(rr(-5, 5)) };
   placeLoader(m); netSend('ld', m);   // (co-op: dropped on your teammates' screens too, net/arsenal.js)
 }

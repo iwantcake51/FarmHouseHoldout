@@ -15,13 +15,14 @@ import { hardBlocked, moveCircle } from '../world/collision.js';
 import { diagOk, DIRS, dist, zField } from './pathfinding.js';
 import { P } from '../player/player.js';
 import { addBlood } from '../effects/body-blood.js';
-import { run, S } from '../game/run-state.js';
+import { hpCap, run, S } from '../game/run-state.js';
 import { splat } from '../effects/blood-map.js';
 import { burst } from '../effects/particles.js';
 import { burnFx } from '../effects/puffs.js';
 import { STUMP, zombies, ZT } from './zombie-types.js';
 import { animateZombie } from './zombie-anim.js';
 import { stepClimb } from './climb.js';
+import { bruteSmashK } from './spawn.js';
 import { rimMat } from '../effects/outlines.js';
 import { BLEED_R, BURN_TICK, burnHurt, killZombie, legSlow, STUMP_PUMP } from './damage.js';
 import { boardJolt, breakBoard } from '../barricades/planks.js';
@@ -30,7 +31,6 @@ import { SFX } from '../audio/sfx.js';
 import { soundAt } from '../audio/spatial.js';
 import { camKick, camRoll, groanT, phase, setCamRoll, setGroanT, setShake, shake, spawnQ } from '../game/state.js';
 import { SHOVE_SLOW } from '../player/shove.js';
-import { interruptBandage } from '../player/bandages.js';
 import { runStat } from '../ui/run-stats.js';
 import { startDeath } from '../ui/screens.js';
 import { feed } from '../ui/hud-text.js';
@@ -40,6 +40,7 @@ import { stepKnock } from './knockdown.js';
 import { spitStep } from './spitter.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from '../ui/hud.js';
+import { cheatAI } from '../ui/cheats.js';
 import {
   netBoardBroke, netDoorBroke, netFenceBroke, netLunge, netTargets, puppetBoard, puppetMove, startClimb
 } from '../net/sync.js';
@@ -104,7 +105,7 @@ export const BRUTE_SMASH = { t: 1.25, dmg: 75 };
 // up a piece at a time as it goes (doorWear)
 function bashDoor(z, d, armMul, dme, dt) {
   z.face += angDiff(Math.atan2(d.cx - z.x, d.cz - z.z), z.face) * Math.min(1, dt * 8);
-  if (z.type === 'brute') { if (z.atk <= 0) { z.atk = BRUTE_SMASH.t; z.lunge = 1; d.hp -= BRUTE_SMASH.dmg * armMul; doorBlow(d, z, true, dme); } }
+  if (z.type === 'brute') { if (z.atk <= 0) { z.atk = z.smashT = BRUTE_SMASH.t; z.lunge = 1; d.hp -= BRUTE_SMASH.dmg * armMul; doorBlow(d, z, true, dme); } }
   else { d.hp -= z.T.bdps * armMul * (z.crawl ? 0.5 : 1) * dt; if (z.atk <= 0) { z.atk = 0.9; z.lunge = 1; doorBlow(d, z, false, dme); } }
   doorWear(d, z);
   if (d.hp <= 0) { breakDoor(d, z); if (z.an) z.an.rip = 1; netDoorBroke(d, z); }
@@ -115,7 +116,7 @@ function bashDoor(z, d, armMul, dme, dt) {
 // metres to spare), and if going through is quicker it goes for that stretch of fence and smashes through it
 // (fenceBlow, breakFence in world/fence.js). Looked at again every BFENCE.every seconds
 const BFENCE = { see: 30, margin: 1, every: 0.4, step: 0.25 };
-const fenceSmashM = z => Math.ceil(FENCE_HP / BRUTE_SMASH.dmg) * BRUTE_SMASH.t * z.speed;
+const fenceSmashM = z => Math.ceil(FENCE_HP / BRUTE_SMASH.dmg) * BRUTE_SMASH.t / bruteSmashK() * z.speed;
 function bruteFence(z, t, here, dt) {
   if (z.fenceAt >= 0 && cell[z.fenceAt] !== FENCE) z.fenceAt = -1;   // (gone: knocked down, by it or another)
   if ((z.fenceT = (z.fenceT || 0) - dt) > 0) return z.fenceAt ?? -1;
@@ -148,6 +149,9 @@ function zFlash(z, dt) {
 // eased to where the host's game has it (net/sync.js), only the body and the blood played out here
 export function updateZombies(dt) {
   const pup = netClient(), tg = netTargets(), allDown = tg.every(q => q.dead);
+  // the cheat menu's zombie switches (ui/cheats.js: cheatAI): their minds off (they stand where they are), passive (they
+  // come for you but never lay a hand on you or the boards), and how fast they move
+  const ai = cheatAI();
   let nearest = 99, nearZ = null; zHitMe = false;
   for (let k = zombies.length - 1; k >= 0; k--) {
     const z = zombies[k], m = z.m;
@@ -182,18 +186,19 @@ export function updateZombies(dt) {
     z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
     // climbing over a fence or in through a window: nothing else till it's done
     if (z.vault) { stepClimb(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
+    if (ai.off && !pup) { z.atkBoard = z.atkDoor = null; z.atkFence = false; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     if (pup) puppetBoard(z, dme);   // tearing at the boards the host says it's at
     // a brute's dash (zombies/brute-dash.js): while it crouches, charges and pulls up, nothing else
-    if (dashStep(z, dt, pup) || (!pup && dashMaybe(z, dt, t, dp))) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); dashGlow(z); continue; }
+    if (dashStep(z, dt, pup) || (!pup && !ai.passive && dashMaybe(z, dt, t, dp))) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); dashGlow(z); continue; }
     // a spitter with a line on whoever it's after stands off and spits (zombies/spitter.js)
-    if (z.type === 'spitter' && !z.out && !pup && spitStep(z, dt, t, dp)) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
+    if (z.type === 'spitter' && !z.out && !pup && !ai.passive && spitStep(z, dt, t, dp)) { z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     // still out in the fog (zombies/spawn.js): it walks straight in along its trail to the gap in the trees, where the
     // farm's own pathfinding takes over; out there there's no grid to steer by or bump into
     if (z.out && !pup) {
       const ax = z.gx - z.x, az = z.gz - z.z, al = Math.hypot(ax, az);
       if (al < 0.2) z.out = false;
       else {
-        const sp = Math.min(al, z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)));
+        const sp = Math.min(al, z.speed * ai.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)));
         z.x += ax / al * sp; z.z += az / al * sp;
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       }
@@ -225,6 +230,7 @@ export function updateZombies(dt) {
       }
     }
     const arms = (z.limbs.armL ? 1 : 0) + (z.limbs.armR ? 1 : 0), armMul = arms === 2 ? 1 : arms === 1 ? 0.7 : 0.4;
+    if (ai.passive && !pup) { attackingBoard = attackingDoor = null; attackingFence = -1; }
     if (!pup) { z.atkBoard = attackingBoard; z.atkDoor = attackingDoor; z.atkFence = attackingFence >= 0; }
     if (attackingBoard) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 8);
@@ -233,7 +239,7 @@ export function updateZombies(dt) {
         // a brute doesn't claw at the boards, it smashes them: both fists down every BRUTE_SMASH.t, each blow enough to
         // break a plain board outright, with a heavy crack you feel if you're near
         if (z.atk <= 0) {
-          z.atk = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
+          z.atk = z.smashT = BRUTE_SMASH.t; z.lunge = 1; attackingBoard.boards[top] -= BRUTE_SMASH.dmg * armMul;
           soundAt(z.x, z.z, () => nz(0.16, 'lowpass', 420, 90, 0.4 * clamp(1 - dme / 24, 0, 1)), true); boardJolt(attackingBoard, z, true); if (!attackingBoard.grate) boardJolt(attackingBoard, z);
           setShake(Math.max(shake, 0.2 * clamp(1 - dme / 9, 0, 1)));
         }
@@ -247,7 +253,7 @@ export function updateZombies(dt) {
     else if (attackingFence >= 0) {
       z.face += angDiff(Math.atan2(tx - z.x, tz - z.z), z.face) * Math.min(1, dt * 6);
       if (z.atk <= 0) {
-        z.atk = BRUTE_SMASH.t; z.lunge = 1;
+        z.atk = z.smashT = BRUTE_SMASH.t / bruteSmashK(); z.lunge = 1;   // (quicker in the later waves: zombies/spawn.js)
         const fi = attackingFence % N, fj = (attackingFence / N) | 0;
         if (fenceBlow(fi, fj, z, BRUTE_SMASH.dmg * armMul, dme)) { breakFence(fi, fj, z); if (z.an) z.an.rip = 1; netFenceBroke(attackingFence, z); z.fenceAt = -1; }
       }
@@ -255,12 +261,12 @@ export function updateZombies(dt) {
     else if (!z.out && !pup) {
       const ax = tx - z.x, az = tz - z.z, al = Math.hypot(ax, az);
       if (al > 0.05 && !(dp < z.T.r + 0.5 && here <= 1.6)) {   // they keep closing in while you go down, right up until the world stops
-        const sp = z.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)) * (z.pushSlow > 0 ? 0.2 + 0.8 * Math.pow(1 - z.pushSlow / (z.pushMax || SHOVE_SLOW), 2) : 1);   // still reeling from a shove: slow, and only getting going again toward the end (player/shove.js)
+        const sp = z.speed * ai.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)) * (z.pushSlow > 0 ? 0.2 + 0.8 * Math.pow(1 - z.pushSlow / (z.pushMax || SHOVE_SLOW), 2) : 1);   // still reeling from a shove: slow, and only getting going again toward the end (player/shove.js)
         moveCircle(z, ax / al * sp, az / al * sp, z.T.r);
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * (z.type === 'runner' ? 7 : z.type === 'brute' ? 3.5 : 5));
       } else z.face += angDiff(Math.atan2(dxp, dzp), z.face) * Math.min(1, dt * 6);
       if (t.dead) { if (dp < z.T.r + 0.6 && z.atk <= 0 && z.stagger <= 0) { z.atk = rr(0.8, 1.2); z.lunge = 1; netLunge(z, null); } }   // and claw at you once they reach you
-      else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !reachBlocked(z.x, z.z, t.x, t.z)) {
+      else if (dp < z.T.r + 0.55 && z.atk <= 0 && z.stagger <= 0 && !ai.passive && !reachBlocked(z.x, z.z, t.x, t.z)) {
         z.atk = 1.05; z.lunge = 1;
         if (t.me) { zStrike(z, armMul); netLunge(z, null); }
         else netLunge(z, t.id, armMul);   // a teammate: their game takes the blow (net/sync.js)
@@ -301,7 +307,7 @@ let zHitMe = false;
 export function zStrike(z, armMul) {
   const dxp = P.x - z.x, dzp = P.z - z.z, dp = Math.hypot(dxp, dzp);
   P.hitFrom = z.face; hitFromAt(z.x, z.z, z.T.dmg * armMul * (z.crawl ? 0.25 : 1) / 25);
-  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg(); zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
+  P.hp -= z.T.dmg * armMul * (z.crawl ? 0.25 : 1) * S.dmgTaken * waveDmg() * cheatAI().dmg;   // (the cheat menu's zombie damage: ui/cheats.js) zHitMe = true; interruptBandage();   // a crawler only gets a weak swipe in, but it trips you
   // tilt the view toward whoever hit you
   const side = (-dxp * RIGHT.x - dzp * RIGHT.z) >= 0 ? 1 : -1; setCamRoll(clamp(camRoll - side * 0.055, -0.1, 0.1));
   camKick.x -= dxp / (dp || 1) * -0.25; camKick.z -= dzp / (dp || 1) * -0.25;
@@ -313,7 +319,7 @@ export function zStrike(z, armMul) {
     const k = 1 - S.slowRes; P.slow = Math.min(1, P.slow + 0.85 * k); P.stun = 0.45 * k;
     P.kbx = -dzp / (dp || 1) * side * 2.2 + dxp / (dp || 1) * 1.2; P.kbz = dxp / (dp || 1) * side * 2.2 + dzp / (dp || 1) * 1.2;
     ANIM.stumble = 1; ANIM.stumbleSide = side; setCamRoll(clamp(camRoll - side * 0.07, -0.14, 0.14)); setShake(Math.max(shake, 0.3));
-  } else if (rand() < (z.T.bleed || ZT.walker.bleed)[0]) { if (!(P.bleed > 0)) runStat('bleeds'); P.bleed = Math.min(14, (P.bleed || 0) + (z.T.bleed || ZT.walker.bleed)[1]); }   // a bite that opens you up (ZT: bleed)
+  } else if (rand() < (z.T.bleed || ZT.walker.bleed)[0]) { if (!(P.bleed > 0)) runStat('bleeds'); P.bleed = Math.min(14 * (S.bleedLong || 1), (P.bleed || 0) + (z.T.bleed || ZT.walker.bleed)[1] * (S.bleedLong || 1)); }   // a bite that opens you up (ZT: bleed), for longer under Bad blood (upgrades/sacrifice.js)
   if (!z.crawl) { P.slow = Math.min(1, P.slow + 0.6 * (1 - S.slowRes)); P.stun = 0.22 * (1 - S.slowRes); }
 }
 export function zStruckFx() {
@@ -327,7 +333,7 @@ const WIND_HEAL = 25;   // what Second wind gives back
 let windHp = 0;
 export function playerChecks() {
   const hurt = P.hp < windHp - 1e-6;
-  if (S.secondWind && !S.windUsed && hurt && P.hp > 0 && P.hp < S.maxHp * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, S.maxHp - P.hp)); P.hp = Math.min(S.maxHp, P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
+  if (S.secondWind && !S.badBlood && !S.windUsed && hurt && P.hp > 0 && P.hp < hpCap() * 0.25) { S.windUsed = true; const got = Math.round(Math.min(WIND_HEAL, hpCap() - P.hp)); P.hp = Math.min(hpCap(), P.hp + WIND_HEAL); P.slow = 0; feed('med', got, 'second wind'); SFX.upgrade(); }
   windHp = P.hp;
   if (P.hp <= 0 && !P.dead) { P.hp = 0; startDeath(); }
 }

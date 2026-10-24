@@ -189,8 +189,37 @@ function renderRoundsAk(id, D) {
   cache.roundsPrev = { ak: true, id, n, L: m.L, R: m.R };
   popRounds(el); if (drawn && n > 40) shakeBelt(el);
 }
+// Lucky shot (weapons/firing.js: luckyKeep) gives back the round it fired, so the count never moves: the HUD still throws
+// it out like any other (a gun that ejects as it fires), then it comes back, LUCK_DELAY ms later, spinning up out of
+// nowhere into its slot with a golden flash and a burst of glints, and settles. A shot before it's home fires it for
+// real: the row's redrawn and it's thrown out again from wherever it had got to
+const LUCK_MS = 720, LUCK_DELAY = 240, LUCK_N = 36, LUCK_FRAMES = [];
+for (let k = 0; k <= LUCK_N; k++) {
+  const t = k / LUCK_N, e = 1 - Math.pow(1 - Math.min(1, t / 0.6), 3), s = t < 0.6 ? 0 : caseSpring((t - 0.6) * LUCK_MS / 1000, 6, 0.35);
+  LUCK_FRAMES.push({ transform: `translateY(${((1 - e) * 22 - 4 * s).toFixed(2)}px) rotate(${((1 - e) * -320).toFixed(1)}deg) scale(${(0.3 + 0.7 * e + 0.12 * s).toFixed(3)})`,
+    opacity: Math.min(1, t / 0.25).toFixed(3), filter: `brightness(${(1 + 1.6 * Math.sin(Math.PI * Math.min(1, t / 0.85))).toFixed(3)}) drop-shadow(0 0 ${(6 * Math.sin(Math.PI * t)).toFixed(1)}px rgba(255,214,90,.95))` });
+}
+function luckyReturn(g) {
+  if (calmHud.matches) return;
+  g.style.transformOrigin = '50% 70%';
+  g.animate(LUCK_FRAMES, { duration: LUCK_MS, delay: LUCK_DELAY, easing: 'linear', fill: 'backwards' });
+  const r = g.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  for (let k = 0; k < 7; k++) {
+    const s = document.createElement('i'), a = k / 7 * 6.2832 + rr(-0.3, 0.3), d = rr(14, 26), sz = rr(5, 9);
+    s.className = 'luckSpark'; Object.assign(s.style, { left: (cx - sz / 2) + 'px', top: (cy - sz / 2) + 'px', width: sz + 'px', height: sz + 'px' });
+    document.body.append(s);
+    s.animate([{ transform: 'translate(0,0) scale(.2) rotate(0deg)', opacity: 0 }, { offset: 0.3, transform: `translate(${(Math.cos(a) * d * 0.6).toFixed(1)}px,${(Math.sin(a) * d * 0.6).toFixed(1)}px) scale(1.1) rotate(60deg)`, opacity: 1 },
+      { transform: `translate(${(Math.cos(a) * d).toFixed(1)}px,${(Math.sin(a) * d - 6).toFixed(1)}px) scale(.3) rotate(140deg)`, opacity: 0 }], { duration: 620, delay: LUCK_DELAY + LUCK_MS * 0.45 + k * 18, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'backwards' }).onfinish = () => s.remove();
+  }
+}
 export function renderRounds(id, D) {
   if (D.akimbo) { renderRoundsAk(id, D); return; }
+  // a Lucky shot since the last frame: the round it gave back goes out and comes home (the count itself never changed)
+  if (W8.luckyN !== cache.luckySeen) {
+    cache.luckySeen = W8.luckyN;
+    const el = $('rounds'), g = W8.luckyId === id && state === 'play' && magCap(id) <= 40 && EJECT[id] !== 'pump' && EJECT[id] !== 'bolt' ? el.children[(W8.mag[id] || 0) - 1] : null;
+    if (g) { if (EJECT[id] === 'fire') dropRound(g); luckyReturn(g); }
+  }
   const drawn = popCheck(id);
   const n = magCap(id), hm = hudMag(id), have = hm.have, out = !!hm.out, keeps = EJECT[id] !== 'fire', fired = keeps ? Math.max(0, Math.min(W8.hudSpent[id] || 0, n - have)) : 0;
   const key = id + n + ':' + have + ':' + fired + ':' + T('ammo') + roundOn(id) + (out ? ':out' : '');   // the mag that's in it (game/run-state.js, through a mag change: hudMag), and the fired cases it's kept

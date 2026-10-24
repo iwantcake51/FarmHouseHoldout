@@ -2,14 +2,14 @@
 
 import { $ } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
-import { cam, GUN_Y, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, cache, clamp, smooth } from '../core/math.js';
 import { ci } from '../world/grid.js';
 import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { roundOn } from '../weapons/rounds.js';
-import { curId, magCap, W, W8 } from '../game/run-state.js';
+import { curId, magCap, stamMax, W, W8 } from '../game/run-state.js';
 import { MUZ } from '../weapons/gun-materials.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { bloom, camRoll, setBloom, state } from '../game/state.js';
@@ -22,6 +22,7 @@ import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, spreadOf } from '../w
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
+import { fpOn, fpSighted, freeOn, onScreen } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
@@ -35,7 +36,7 @@ const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42
 function reloadDraw(side, on, u) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
-  if (!on && r.on) [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick'));
+  if (!on && r.on) { [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick')); $('xhRPing').classList.remove('tick'); }
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
   // course on the gun still in your hands: not one cut short by putting the gun away)
   const id = curId(), done = !on && r.on && r.u > 0.85 && r.id === id && !W8.relSave[id];
@@ -92,6 +93,11 @@ function ammoNow(side) {
   const id = curId(), D = W(id) || {}, ak = !!D.akimbo, am = ak && akMags(id), n = ak ? akPer(id) : magCap(id);
   return ammoDash(n, ak ? am[side === 'L' ? AK_ON.left : AK_ON.right] : W8.mag[id] || 0)[0];
 }
+// the struck-out stretch of the stamina arc: short slashes from `from` along `len` of it, like the bar's hazard stripes
+function cutDash(from, len) {
+  const n = Math.max(1, Math.floor(len / 2.6)), seg = len / n;
+  return `0 ${from.toFixed(2)} ` + Array(n).fill(`${(seg * 0.55).toFixed(2)} ${(seg * 0.45).toFixed(2)}`).join(' ') + ' 0 999';
+}
 function ammoDash(n, filled) {
   const A = ARC();
   if (n > 40) return [`${(A * filled / n).toFixed(2)} 999`, `${A.toFixed(2)} 999`];
@@ -124,7 +130,10 @@ function blockedShot() {
 }
 const xhX = $('xhX');
 export function updateCrosshair(rdt, D) {
-  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped;
+  const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
+  // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
+  // you come off the sights)
+  if (!showXh && !xh.hidden) { Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
@@ -137,12 +146,14 @@ export function updateCrosshair(rdt, D) {
     // stamina under the reticle, with any weapon: it shows as soon as you use some (a swing, a shove, a vault) and fades
     // away once it's full again
     {
-      const sd = ANIM.stamD, st = $('xhStam'), cls = P.exh ? 'st exh' : sd < 0.35 ? 'st tired' : 'st', on = P.stam < 0.995 || P.exh;
+      const sd = ANIM.stamD, st = $('xhStam'), sm = stamMax(), cls = P.exh ? 'st exh' : sd < 0.35 * sm ? 'st tired' : 'st', on = P.stam < 0.995 * sm || P.exh;
       if (on || cache.xhSt !== false) {
         st.setAttribute('stroke-dasharray', `${(sd * M_ARC()).toFixed(2)} 999`); $('xhStamBg').setAttribute('stroke-dasharray', `${M_ARC().toFixed(2)} 999`);
         // what you've used, just past it, as on the bar under your health (stamDrain, ui/hud.js)
         const sr = $('xhStamRun'); sr.setAttribute('stroke-dasharray', `0 ${(sd * M_ARC()).toFixed(2)} ${(ANIM.drainD * M_ARC()).toFixed(2)} 999`);
         const rc = 'stRun' + (ANIM.drainSt ? ' ' + ANIM.drainSt : ''); if (sr.getAttribute('class') !== rc) sr.setAttribute('class', rc);
+        // and what a Broken stride took, for good, at the end of the arc: struck out (upgrades/sacrifice.js)
+        const sc = $('xhStamCut'); sc.toggleAttribute('hidden', sm >= 1); if (sm < 1) sc.setAttribute('stroke-dasharray', cutDash(sm * M_ARC() + 3.2, (1 - sm) * M_ARC() - 3.2));
       }
       if (st.getAttribute('class') !== cls) st.setAttribute('class', cls);
       if (cache.xhSt !== on) { cache.xhSt = on; $('xhStamG').classList.toggle('on', on); }
@@ -181,7 +192,8 @@ export function updateCrosshair(rdt, D) {
     const mz = muzzle();
     projV.set(mz.ox, GUN_Y, mz.oz).project(cam);
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
-    const dpx = Math.hypot(mouseX - px, mouseY - py);
+    // (how far the spread opens on the screen: by the cursor's distance from the muzzle, or in first person by the view's own angle)
+    const dpx = fpOn() ? innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360) : Math.hypot(mouseX - px, mouseY - py);
     const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
@@ -190,7 +202,7 @@ export function updateCrosshair(rdt, D) {
       lastXh = xk;
       const outer = D.melee ? 17.5 : sg ? gap + 2.2 : gap + TICK_L;   // the melee brackets at full stretch, the shotgun's arcs, or the ticks' tips
       aR = Math.max(30, outer + XH_CLEAR.a); sR = Math.max(22, outer + XH_CLEAR.s);
-      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL, RL.R.track, RL.L.track].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR);
+      [xhAmmo, xhAmmoBg, xhRing, xhAmmoL, xhAmmoBgL, xhRingL, RL.R.track, RL.L.track].forEach(c => c.setAttribute('r', aR)); xhGl.setAttribute('r', aR + 6); $('xhStam').setAttribute('r', sR); $('xhStamBg').setAttribute('r', sR); $('xhStamRun').setAttribute('r', sR); $('xhStamCut').setAttribute('r', sR);
       $('ammoWarn').style.top = (80 + Math.max(38, sR + 16)) + 'px'; xh.style.setProperty('--ar', aR + 'px'); cache.ammoKey = null;
     }
     xhSpread.style.opacity = gap > 9 && !sg ? 1 : 0;
@@ -247,4 +259,4 @@ export function updateCrosshair(rdt, D) {
 }
 // a zombie you can actually see: in sight (the fog of war's vis, lighting/vision.js) and on the screen
 const _xhV = new V3();
-function zInView(z) { if (z.vis !== undefined && z.vis < 0.35) return false; _xhV.set(z.x, 1, z.z).project(cam); return Math.abs(_xhV.x) < 0.98 && Math.abs(_xhV.y) < 0.98; }
+function zInView(z) { if (z.vis !== undefined && z.vis < 0.35) return false; _xhV.set(z.x, 1, z.z).project(cam); return onScreen(_xhV) && Math.abs(_xhV.x) < 0.98 && Math.abs(_xhV.y) < 0.98; }

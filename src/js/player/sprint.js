@@ -27,7 +27,7 @@ import { KB } from '../input/keybinds.js';
 import { RIGHT } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { P } from './player.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { curId, S, stamMax, W, W8 } from '../game/run-state.js';
 import { burst } from '../effects/particles.js';
 import { fenceTarget, nearestOpening, tryVault, vaultTarget } from './vaulting.js';
 import { openSt } from '../stations/station-ui.js';
@@ -96,7 +96,7 @@ const sprintDust = n => { for (let k = 0; k < n; k++) burst(P.x + rr(-0.15, 0.15
 // sights or into a shot, and a hard turn
 export function updateSprint(dt, moving, wx, wz) {
   // emptying the tank any way at all (a sprint, a swing, a shove, a vault) leaves you blown till it's back to half
-  if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock) P.sprintLock = false;
+  if (P.exh) P.sprintLock = true; else if (P.stam >= SPRINT.unlock * stamMax()) P.sprintLock = false;   // (half of what you can have: a Broken stride's quarter, game/run-state.js)
   if (P.fireQ && (P.fireQT -= dt) <= 0) P.fireQ = null;
   if (P.pivot && (P.pivot.t += dt) >= P.pivot.dur) { P.pivot = null; P.pushT = PIVOT.push; sprintDust(3); footstep('run', 1.15); }   // driving off the new way
   if (P.pushT > 0) P.pushT -= dt;

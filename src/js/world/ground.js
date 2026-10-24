@@ -10,6 +10,9 @@ import { M } from './materials.js';
 import { GROUND_ART } from './ground-art.js';
 
 export const HX0 = 16, HX1 = 27, HZ0 = 17, HZ1 = 26;
+// the power line past the road (world/ground.js): how far apart the poles stand, how far out from the road's middle, how
+// tall, how far either way it runs, and how much each span of wire sags
+const POLES = { gap: 29, z: 5.6, h: 7.6, span: 84, sag: 0.55 };
 // the dirt drive out the front of the house: painted into the ground's mask (groundMask), from the porch on past the
 // farm's edge to the main road, which runs across in front of the farm out in the fog. Trees, grass
 // and rocks keep off both (onRoad, also world/trees.js); m widens the margin
@@ -169,8 +172,12 @@ rockMat(M.rock);
   oA.receiveShadow = oB.receiveShadow = true; scene.add(oA, oB);
 }
 // ---- past the edge of the farm ----
+// what's only seen from your own eyes or the free camera, out toward the horizon: the woods going on past the road and
+// past the ring round the farm (world/trees.js), and the power line along the far side of the road. From above it
+// would only stand between the camera and the farm (shown with the view: world/atmosphere.js)
+export const FAR_VIEW = new THREE.Group(); FAR_VIEW.visible = false; scene.add(FAR_VIEW);
 {
-  const OUT = 104, aniso = R.capabilities.getMaxAnisotropy();
+  const OUT = 170, aniso = R.capabilities.getMaxAnisotropy();
   const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
   // the ground out there: the same ground as the farm's, the same textures, darkening into the woods' floor further out
   // (GROUND_FS), so the edge of the map never shows as a line. It lies just under the farm's own ground (hidden where
@@ -194,5 +201,36 @@ rockMat(M.rock);
     const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(RL / 16, 1); t.anisotropy = aniso;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(RL, W), lam(0xffffff, { map: t, transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(0, -0.006, ROAD.z); m.receiveShadow = true; scene.add(m);
+  }
+  // a power line along the far side of the road: weathered poles (POLES: every gap metres, z out from the road's middle,
+  // height), each with its crossarm and three insulators, the wires sagging between
+  {
+    const L = POLES, wood = lam(0x4e4034), steel = lam(0x8f9294), z = ROAD.z + L.z, wire = new THREE.LineBasicMaterial({ color: 0x1c1b1a }), pts = [];
+    const poleG = new THREE.CylinderGeometry(0.1, 0.14, L.h, 7).translate(0, L.h / 2, 0), armG = new THREE.BoxGeometry(1.9, 0.11, 0.11), insG = new THREE.CylinderGeometry(0.035, 0.05, 0.16, 6);
+    const xs = []; for (let x = -L.span; x <= L.span; x += L.gap) xs.push(x + rr(-1.5, 1.5));
+    const poles = new THREE.InstancedMesh(poleG, wood, xs.length), arms = new THREE.InstancedMesh(armG, wood, xs.length), ins = new THREE.InstancedMesh(insG, steel, xs.length * 3), dm = new THREE.Object3D();
+    xs.forEach((x, k) => {
+      const lean = rr(-0.03, 0.03), yt = L.h - 0.45;
+      dm.position.set(x, 0, z); dm.rotation.set(0, rr(-0.1, 0.1), lean); dm.scale.setScalar(1); dm.updateMatrix(); poles.setMatrixAt(k, dm.matrix);
+      dm.position.set(x - Math.sin(lean) * yt, yt, z); dm.rotation.set(0, 0, lean + rr(-0.04, 0.04)); dm.updateMatrix(); arms.setMatrixAt(k, dm.matrix);
+      [-0.8, 0, 0.8].forEach((o, j) => { dm.position.set(x - Math.sin(lean) * yt + o, yt + 0.13, z); dm.rotation.set(0, 0, 0); dm.updateMatrix(); ins.setMatrixAt(k * 3 + j, dm.matrix); });
+    });
+    FAR_VIEW.add(poles, arms, ins);
+    // each wire from insulator to insulator, hanging in a shallow curve (a parabola's close enough to the real catenary)
+    for (let k = 0; k + 1 < xs.length; k++) [-0.8, 0, 0.8].forEach(o => {
+      const a = xs[k] + o, b = xs[k + 1] + o, y = L.h - 0.45 + 0.2;
+      for (let u = 0; u < 12; u++) { const t0 = u / 12, t1 = (u + 1) / 12; pts.push(a + (b - a) * t0, y - L.sag * 4 * t0 * (1 - t0), z, a + (b - a) * t1, y - L.sag * 4 * t1 * (1 - t1), z); }
+    });
+    const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    FAR_VIEW.add(new THREE.LineSegments(wg, wire));
+  }
+  // a mailbox at the end of the drive, on its post by the road, its little flag down
+  {
+    const zM = ROAD.z - ROAD.w / 2 - 0.9, xM = ROAD.x(zM) + 1.7, g = new THREE.Group(), wood = lam(0x5a4636), tin = lam(0x6f7476), red = lam(0x8a2a22);
+    g.position.set(xM, 0, zM); g.rotation.y = rr(-0.08, 0.08); scene.add(g);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.05, 0.09), wood); post.position.y = 0.525; post.castShadow = true; g.add(post);
+    const box2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.46, 12, 1, false, 0, Math.PI), tin); box2.rotation.set(Math.PI / 2, 0, -Math.PI / 2); box2.position.set(0, 1.07, 0.02); box2.castShadow = true; g.add(box2);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.02, 0.46), tin); base.position.set(0, 1.07, 0.02); g.add(base);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.16, 0.05), red); flag.position.set(0.128, 1.1, -0.1); g.add(flag);
   }
 }

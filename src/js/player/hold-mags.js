@@ -4,7 +4,7 @@
 import { V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { W, W8 } from '../game/run-state.js';
-import { gunMeshes } from '../weapons/gun-materials.js';
+import { flipOf, gunMeshes } from '../weapons/gun-materials.js';
 import { MAG_SEAT } from '../weapons/reload.js';
 import { armReach, HAND, holdOf, walkPath } from './hold.js';
 
@@ -37,6 +37,9 @@ const AKM_WAY = [[0.16, null, [0.8, 0.5]], [0.44, [-0.12, -0.2, 0.16], [-0.3, 0.
 // swinging forward) and pulled down out of the well (AKM_PULL) as it comes free; where that lug is in the gun (AKM_LUG)
 export const AKM_ROCK = 0.5, AKM_PULL = 0.05, AKM_LUG = [1.094, 0.738];
 const MAG_POUCH_TIP = [0.85, 0.5];   // how it's tipped in the pouch, in the gun's frame
+// the ways above are laid out for a support hand on the gun's right: yours is on its left (the left hand: player/player.js),
+// so they're mirrored across the gun as they're used (MIR on x and on the roll)
+const MIR = -1;
 const _mInv = new THREE.Matrix4(), _mM = new THREE.Matrix4(), _mE = new THREE.Euler(), _mQ = new V3(), _mG = new V3(), _mBox = new THREE.Box3(), _mV = new V3();
 const _mK = [], _mTk = [], _mX = new V3(1, 0, 0);   // the way's keys: where the top is, its tip
 // the mag's extent in the hold's frame as it sits in the gun: the middle of its top (where it goes into the well), how
@@ -68,18 +71,18 @@ export function magInHand(out, s, H, mg, rpm) {
   const sh = magShape(mg); if (!sh) return null;
   const hq = holdOf(s, 'R'), lg = H.kind === 'long', way = W(W8.slot[s]) && W(W8.slot[s]).akKit ? AKM_WAY : MAG_WAY[W8.relStyle || 0] || MAG_WAY[0], k = lg ? 1 : 0.5, kp = lg ? 1 : 0.7;   // a handgun's tipped less, swung a little closer in
   const u = clamp((rpm - MAG_TAKE) / (MAG_SEAT - MAG_TAKE), 0, 1), P0 = sh.top, n = way.length + 2;
-  _mM.multiplyMatrices(gunMeshes[s].matrix, hq.matrix); _mInv.copy(_mM).invert();
+  _mM.multiplyMatrices(gunMeshes[s].matrix, hq.matrix); { const f = flipOf(hq); if (f) _mM.multiply(f.matrix); } _mInv.copy(_mM).invert();   // (the gun's own frame, flipped back: weapons/gun-materials.js)
   while (_mK.length < n) { _mK.push([0, new V3()]); _mTk.push([0, new V3()]); }
   // the grip (from the mag's top: low on its left side, down its lean) under a tip, and where the top is with that grip on p
-  const grip = (o, ex, ez) => o.set(-sh.w / 2 - 0.01, -sh.len * MAG_GRIP, 0).applyAxisAngle(_mX, sh.lean).applyEuler(_mE.set(ex, 0, ez));
+  const grip = (o, ex, ez) => o.set(MIR * (-sh.w / 2 - 0.01), -sh.len * MAG_GRIP, 0).applyAxisAngle(_mX, sh.lean).applyEuler(_mE.set(ex, 0, ez));
   const topAt = (o, p, ex, ez) => o.copy(p).applyMatrix4(_mInv).sub(grip(_mG, ex, ez));
   // the keys: the pouch, drawn up out of it, the style's way (along the mag's lean, a handgun's closer in), home
-  _mK[0][0] = 0; topAt(_mK[0][1], POUCH, MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k); _mTk[0][0] = 0; _mTk[0][1].set(MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k, 0);
+  _mK[0][0] = 0; topAt(_mK[0][1], POUCH, MAG_POUCH_TIP[0] * k, MIR * MAG_POUCH_TIP[1] * k); _mTk[0][0] = 0; _mTk[0][1].set(MAG_POUCH_TIP[0] * k, MIR * MAG_POUCH_TIP[1] * k, 0);
   for (let i = 0; i < way.length; i++) {
     const [t, at, tip] = way[i], K = _mK[i + 1], TK = _mTk[i + 1];
-    K[0] = TK[0] = t; TK[1].set(tip[0] * k, tip[1] * k, 0);
+    K[0] = TK[0] = t; TK[1].set(tip[0] * k, MIR * tip[1] * k, 0);
     if (!at) topAt(K[1], _mV.copy(POUCH).add(MAG_DRAW), TK[1].x, TK[1].y);
-    else { K[1].set(at[0] * kp, at[1] * (lg ? 1 : 0.75), at[2] * kp).applyAxisAngle(_mX, sh.lean).add(P0); }
+    else { K[1].set(MIR * at[0] * kp, at[1] * (lg ? 1 : 0.75), at[2] * kp).applyAxisAngle(_mX, sh.lean).add(P0); }
   }
   _mK[n - 1][0] = _mTk[n - 1][0] = 1; _mK[n - 1][1].copy(P0); _mTk[n - 1][1].set(0, 0, 0);
   _mK.length = _mTk.length = n;

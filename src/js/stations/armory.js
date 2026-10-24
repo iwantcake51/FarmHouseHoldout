@@ -3,7 +3,8 @@
 import { $ } from '../core/dom.js';
 import { keyIcon } from '../ui/input-icons.js';
 import { KB, keyOn } from '../input/keybinds.js';
-import { GI_VB } from '../ui/game-icons.js';
+import { GI, GI_VB } from '../ui/game-icons.js';
+import { BOARD, BOARD_VB } from '../ui/board-icons-data.js';
 import { scene, V3 } from '../core/renderer.js';
 import { outline } from '../effects/screen-outlines.js';
 import { box, finePieces, mergeInto, unfight } from '../core/geometry.js';
@@ -70,8 +71,8 @@ function takeFromRack(id) {
 const ARMORY_TABS = [{ name: 'Sidearms', lines: [0] }, { name: 'Shotguns', lines: [1] }, { name: 'Snipers', lines: [2] }, { name: 'Rifles', lines: [3] }, { name: 'SMGs', lines: [4] }, { name: 'Melee', lines: [5, 6] }];
 export const GUN_RACK = { tab: 0, pane: '', side: '' };
 const SCRAP_IC = () => `<svg viewBox="${GI_VB}">${FEED_ICON.scrap}</svg>`;
-const LOCK_IC = '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
-const TICK_IC = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.6 1.6 5.8 5.8L20.3 8.6 18.7 7z"/></svg>';
+const LOCK_IC = `<svg viewBox="${BOARD_VB}"><path d="${BOARD.lock_closed}"/></svg>`;   // (Kenney's board game pack: ui/board-icons-data.js)
+const TICK_IC = `<svg viewBox="${GI_VB}">${GI.checkMark}</svg>`;   // (game-icons.net: ui/game-icons.js)
 const tabIds = T => [...new Set(T.lines.flatMap(l => ARMORY_LINES[l].ids))];
 const nextIds = () => new Set(ARMORY_LINES.map(lineNext).filter(Boolean));
 // one weapon's card: yours (and in your hands, or on the rack), the next to buy, or padlocked behind the one before it
@@ -167,7 +168,7 @@ function rackSideHTML() {
 }
 // the rack's tab a slot's weapon is on (clicking it in your loadout goes there), or for an empty slot the first tab
 // with anything for it
-const ARROW_IC = '<svg viewBox="0 0 24 24"><path d="M9 5.5 15.5 12 9 18.5 7.6 17.1l5.1-5.1-5.1-5.1z"/></svg>';
+const ARROW_IC = `<svg viewBox="${BOARD_VB}"><path d="${BOARD.arrow_right}"/></svg>`;   // (Kenney's board game pack)
 const slotTab = (s, id) => Math.max(0, ARMORY_TABS.findIndex(T => id ? tabIds(T).includes(id) : tabIds(T).some(x => WEAP[x] && WEAP[x].slot === s)));
 function rackGoTab(t) {
   rackTab(t);

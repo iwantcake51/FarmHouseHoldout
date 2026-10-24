@@ -32,6 +32,9 @@ const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWa
 function cheatTick() {}
 function cheatSaves() { return false; }
 function cheatIs() { return false; }
+function cheatSpeed() { return 1; }
+function cheatAI() { return { off: false, passive: false, speed: 1, dmg: 1, hp: 1 }; }
+function cheatLook() { return null; }
 function toggleCheats() {}
 `;
 
@@ -126,14 +129,17 @@ async function buildOnce() {
   const three = await threeBundle(js);
   fs.writeFileSync(path.join(OUT, 'vendor/three.min.js'), three);
   fs.copyFileSync(path.join(ROOT, 'node_modules/peerjs/dist/peerjs.min.js'), path.join(OUT, 'vendor/peerjs.min.js'));
-  // pages: the page asks for game.js and game.css by a hash of their contents, so a browser that cached an older build
-  // fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay the same)
+  // pages: the page asks for game.js, game.css and three.js by a hash of their contents, so a browser that cached an
+  // older build fetches the new one the moment a deploy changes them (and keeps using its cached copy while they stay
+  // the same). three.js changes too: it carries only the parts the game names, so a game that starts using another part
+  // of it needs the new one (an old cached copy left the game without THREE.PerspectiveCamera)
   let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
   if (!cheats) html = html.replace(/<!-- cheats -->[\s\S]*?<!-- \/cheats -->\n?/g, '');   // the cheat menu's panel goes too
   const ver = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 10);
   fs.writeFileSync(path.join(OUT, 'index.html'), html
     .replace('href="./game.css"', `href="./game.css?v=${ver(cssText)}"`)
-    .replace('src="./game.js"', `src="./game.js?v=${ver(js)}"`));
+    .replace('src="./game.js"', `src="./game.js?v=${ver(js)}"`)
+    .replace('src="./vendor/three.min.js"', `src="./vendor/three.min.js?v=${ver(three)}"`));
   // one self-contained file (styles and game inlined, three.js from a CDN) for sharing or embedding
   const standalone = html
     .replace('<link rel="stylesheet" href="./game.css">', () => `<style>${cssText}</style>`)

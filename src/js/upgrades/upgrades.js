@@ -10,7 +10,8 @@ import { MODS } from '../melee/melee-mods.js';
 import { modLocks, muzzleTaken } from '../weapons/mod-levels.js';
 import { TIERS } from './tier-table.js';
 import {
-  fitTier, GUN_TIERS, gunTier, magCap, magChange, magSize, ownTier, recomputeEff, S, SCOPE_TOP, T, W, W8
+  fitTier, GUN_TIERS, gunTier, healMul, hpCap, magCap, magChange, magSize, ownTier, recomputeEff, S, SCOPE_TOP, T, W,
+  W8
 } from '../game/run-state.js';
 import { addPlanks, METAL, PLANK_MAX, plankRoom } from '../barricades/planks.js';
 import { matWord, METAL_AID } from '../barricades/metal-bars.js';
@@ -37,7 +38,7 @@ export const AID_CHANCE = [0.3, 0.8], AID_TWO = 0.35;   // and up to this chance
 const needW = f => 0.3 + 8 * clamp(f, 0, 1);
 const NEED = {
   ammo: () => { const gs = gunsHeld().filter(id => W(id).ammo); return gs.length ? gs.reduce((a, id) => a + 1 - Math.min(1, (W8.reserve[W(id).ammo] || 0) / (3 * magCap(id))), 0) / gs.length : 0; },
-  health: () => (0.8 - P.hp / S.maxHp) / 0.55,
+  health: () => (0.8 - P.hp / hpCap()) / 0.55 * healMul(),
   bandages: () => Math.max(1 - (P.band || 0) / bandMax(), NEED.health() * 0.7),
   planks: () => 1 - S.planks / (PLANK_MAX / 2)
 };
@@ -55,12 +56,12 @@ export const PAIN_REGEN = 1;
 // grey (common) is kept for aid (AID below): every skill, perk and weapon is uncommon or better
 export const UPG = [
   { r: 'c', tag: 'Tools', get name() { return METAL.on ? 'Scrap metal' : 'Wood pile'; }, get text() { return METAL.on ? `+${METAL_AID} metal, enough for two grates.` : '+7 planks.'; }, can: () => plankRoom() >= (METAL.on ? METAL_AID : 7), w: () => needW(NEED.planks()), ap: () => addPlanks(METAL.on ? METAL_AID : 7) },
-  { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < S.maxHp * 0.75, w: () => needW(NEED.health()), ap: () => P.hp = S.maxHp },
+  { r: 'c', tag: 'Med', name: 'Field dressing', text: 'Heal to full health.', can: () => P.hp < hpCap() * 0.75, w: () => needW(NEED.health()), ap: () => P.hp += (hpCap() - P.hp) * healMul() },   // (a quarter of the way under Bad blood: upgrades/sacrifice.js)
   { r: 'u', tag: 'Med', name: 'Med pouch', text: 'Carry 5 bandages instead of 3.', vis: 'An empty pouch on the front of your belt', can: () => !S.pouch, ap: () => { S.pouch = true; popEl('bands'); } },
   { r: 'c', tag: 'Ammo', name: 'Ammo can', text: '3 cans of ammo for each gun you carry.', can: () => ammoTypes().length > 0, w: () => needW(NEED.ammo()), ap: () => ammoTypes().forEach(a => W8.reserve[a] += AMMO_CAN[a]) },
   { r: 'c', tag: 'Med', name: 'Bandage roll', text: '+2 bandages.', can: () => (P.band || 0) < bandMax(), w: () => needW(NEED.bandages()), ap: () => { P.band = Math.min(bandMax(), (P.band || 0) + 2); popEl('bands'); } },
   { r: 'u', tag: 'Gun', name: 'Steady aim', text: 'Every gun\'s shots land closer to the crosshair. Can be taken 3 times.', can: () => S.steady < STEADY_MAX, ap: () => { S.steady++; S.spreadMul *= 0.88; } },
-  { r: 'u', tag: 'Body', name: 'Tough skin', text: 'Raises your max health by 15, and heals you by as much. Taken once.', can: () => !S.tough && S.maxHp < 190, ap: () => { S.tough = true; S.maxHp += 15; P.hp += 15; } },
+  { r: 'u', tag: 'Body', name: 'Tough skin', text: 'Raises your max health by 15, and heals you by as much. Taken once.', can: () => !S.tough && S.maxHp < 190, ap: () => { S.tough = true; S.maxHp += 15; P.hp = Math.min(hpCap(), P.hp + 15 * healMul()); } },
   { r: 'u', tag: 'Body', name: 'Quick draw', text: 'Putting a weapon away and drawing the next takes less time.', can: () => S.swapMul < 1.4, ap: () => S.swapMul = 1.4 },
   { r: 'r', tag: 'Luck', name: 'Lucky shot', text: 'Some shots that miss cost no ammo at all.', can: () => !S.luck, ap: () => S.luck = LUCK_MISS },
   { r: 'u', tag: 'Ammo', name: 'Ammo pouch', text: 'Every ammo box you pick up holds extra rounds.', can: () => S.ammoMul < 1.25, ap: () => S.ammoMul = 1.25 },
@@ -71,7 +72,7 @@ export const UPG = [
   { r: 'u', tag: 'Luck', name: 'Hoarder', text: 'The scrap from a kill is sometimes doubled.', can: () => !S.hoard, ap: () => S.hoard = true },
   { r: 'u', tag: 'Body', name: 'Iron lungs', text: 'More stamina, and it starts coming back sooner after a sprint, swing or vault.', can: () => !S.lungs, ap: () => { S.lungs = true; } },
   { r: 'u', tag: 'Body', name: 'Adrenaline', text: 'A kill gives you a short burst of speed.', can: () => !S.adrenaline, ap: () => S.adrenaline = true },
-  { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind, ap: () => S.secondWind = true },
+  { r: 'r', tag: 'Body', name: 'Second wind', text: 'The first time each wave your health falls below a quarter, you heal.', can: () => !S.secondWind && !S.badBlood, ap: () => S.secondWind = true },
   { r: 'r', tag: 'Med', name: 'Painkillers', get text() { return `Regenerate ${PAIN_REGEN} health per second, once you've gone ${REGEN_WAIT} seconds without being hurt.`; }, can: () => !S.regen, ap: () => S.regen = PAIN_REGEN },
   { r: 'e', tag: 'Gun', name: 'Executioner', text: 'Headshots hit harder with every weapon.', can: () => S.headMul < 3, ap: () => S.headMul = 3 },
   { r: 'e', tag: 'Gore', name: 'Butcher', text: 'Shots and swings take limbs and heads off far more often.', can: () => S.severMul < 2, ap: () => S.severMul = 2 },
@@ -80,7 +81,7 @@ export const UPG = [
   { r: 'e', tag: 'Gun', name: 'Gunsmith', target: null, can: () => gunsHeld().some(smithable),
     card() { this.target = pick(gunsHeld().filter(smithable)); const nm = gunCall(this.target), sc = smithScrap(this.target); return { r: 'e', tag: 'Gun', name: 'Gunsmith', text: `The two lowest of its powder, trigger and magazine go up a tier.` + (sc ? ` Scrap for any already maxed.` : '') }; },
     ap() { const id = this.target; if (!id) return; const sc = smithScrap(id); W8.gt[id] = W8.gt[id] || {}; const ks = ['ammo', 'trigger', 'mag'].filter(k => tierFits(k, id)), none = ks.filter(k => !ownTier(id, k)); magChange(id, () => { ks.sort((a, b) => ownTier(id, a) - ownTier(id, b)).slice(0, 2).forEach(k => fitTier(id, k, ownTier(id, k) + 1)); none.forEach(k => fitTier(id, k, Math.max(1, ownTier(id, k)))); recomputeEff(); }); feed('gear', 0, WEAP[id].name + ' gunsmithed'); if (sc) { S.scrap += sc; feed('scrap', sc, 'scrap'); popEl('scrap'); } } },
-  { r: 'l', tag: 'Body', name: 'Stubborn', text: 'Raises your max health, and heals you by as much.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp += 50; S.stubborn = true; } },
+  { r: 'l', tag: 'Body', name: 'Stubborn', text: 'Raises your max health, and heals you by as much.', can: () => !S.stubborn, ap: () => { S.maxHp += 50; P.hp = Math.min(hpCap(), P.hp + 50 * healMul()); S.stubborn = true; } },
   { r: 'l', tag: 'Mind', name: 'Bullet time', get text() { return netLink() ? 'Now and then a kill gives you a few seconds where every shot goes where you aim and every hit is a headshot.' : 'Now and then a kill slows everything down for a moment, you included.'; }, can: () => !S.bulletTime, ap: () => S.bulletTime = true },
   { r: 'l', tag: 'Mind', name: 'Last stand', text: 'While your health is low, everything you hit takes more damage.', can: () => !S.lastStand, ap: () => S.lastStand = true }
 ];

@@ -1,12 +1,13 @@
 // The HUD each frame.
 
 import { $ } from '../core/dom.js';
+import { CURSE_ICON, GI_VB } from './game-icons.js';
 import { cam, cv, V3 } from '../core/renderer.js';
 import { cache, clamp, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
 import { roundHue, roundName, roundOn } from '../weapons/rounds.js';
 import { fireModeOf, fireModes, modName } from '../weapons/mod-levels.js';
-import { curId, magCap, run, S, W, W8 } from '../game/run-state.js';
+import { curId, healMul, hpCap, magCap, run, S, stamMax, W, W8 } from '../game/run-state.js';
 import { gunExtras } from '../weapons/build-weapons.js';
 import { timeScale } from '../game/hit-feedback.js';
 import { eyeK } from '../zombies/damage.js';
@@ -19,8 +20,10 @@ import { scoped } from '../player/aiming.js';
 import { usingTouch } from '../input/touch.js';
 import { AK_ON, akBusy, akMags, akPer } from '../weapons/akimbo.js';
 import { bandHeal, bandProg } from '../player/bandages.js';
+import { CURSES } from '../upgrades/sacrifice.js';
 import { renderSlots, setRoll, setT } from './hud-text.js';
 import { xhHit } from '../player/shaky-hands.js';
+import { isoOn, viewBasis } from '../game/view-cam.js';
 import { hitCam } from '../game/camera.js';
 import { heartStartle, updateHeart } from './vitals.js';
 import { renderMoodles } from './moodles.js';
@@ -36,7 +39,7 @@ export const BASE_HP = 100;
 // dimmed) or not ('on': you're spending it or catching your breath first); '' once there's none
 function stamDrain(rdt) {
   const up = P.stam > (ANIM.stamPrev ?? P.stam) + 1e-5, down = P.stam < (ANIM.stamPrev ?? P.stam) - 1e-5; ANIM.stamPrev = P.stam;
-  ANIM.drainD = Math.max(0, 1 - ANIM.stamD);
+  ANIM.drainD = Math.max(0, stamMax() - ANIM.stamD);   // (up to your stamina's ceiling: past it is what a Broken stride took, stamCut)
   if (ANIM.drainD < 0.004) ANIM.drainSt = '';
   else if (down || !up) { if (down || ANIM.drainSt !== 'back' || (ANIM.drainHold = (ANIM.drainHold || 0) + rdt) > 0.25) { ANIM.drainSt = 'on'; ANIM.drainHold = 0; } }
   else { ANIM.drainSt = 'back'; ANIM.drainHold = 0; }
@@ -48,14 +51,16 @@ export function updateHUD(rdt, D) {
   // (ui/crosshair.js): bright while you're using it and till it starts coming back, then dimmed, the fill easing on
   // into it till it's gone
   stamDrain(rdt);
-  { const sb = $('stamBar'), show = state === 'play' && (P.stam < 0.995 || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
-    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35);
+  { const sb = $('stamBar'), sm = stamMax(), show = state === 'play' && (P.stam < 0.995 * sm || (W(curId()) || {}).melee) ? 1 : 0, rd = ANIM.drainD, rs = ANIM.drainSt;
+    const key = Math.round(ANIM.stamD * 400) + ':' + Math.round(rd * 400) + ':' + rs + ':' + show + ':' + P.exh + ':' + (P.stam < 0.35 * sm) + ':' + sm;
     if (cache.stam !== key) { cache.stam = key; $('stamFill').style.transform = `scaleX(${ANIM.stamD.toFixed(4)})`;
-      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35); } }
+      const rb = $('stamRun'); rb.style.transform = `translateX(${(ANIM.stamD * 100).toFixed(2)}%) scaleX(${rd.toFixed(4)})`; rb.classList.toggle('on', rs === 'on'); rb.classList.toggle('back', rs === 'back'); sb.style.opacity = show; sb.classList.toggle('exh', P.exh); sb.classList.toggle('big', !!S.lungs); sb.classList.toggle('tired', !P.exh && P.stam < 0.35 * sm);
+      // what a Broken stride took, for good: the rest of the bar, struck out (upgrades/sacrifice.js)
+      const cut = $('stamCut'); cut.classList.toggle('on', sm < 1); cut.style.setProperty('--cut', ((1 - sm) * 100).toFixed(2) + '%'); } }
   if (state === 'title') return;
     setHurtFx(Math.max(0, hurtFx - rdt * 2));
     // (down in co-op and watching a teammate, it's their game you're seeing: only a little drained, no bleeding out: net/spectate.js)
-    const spec = spectating(), hpF = P.hp / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
+    const spec = spectating(), hpF = P.hp / hpCap(), barF = P.hp / S.maxHp, capF = hpCap() / S.maxHp, low = !spec && hpF < 0.3 ? LOW_HP.pulse[0] + Math.sin(performance.now() / 260) * LOW_HP.pulse[1] : 0;
     $('hurt').style.opacity = Math.max(hurtFx * 0.9, low);
     { const ek = spec ? 0 : Math.round(eyeK() * 40) / 40; if (cache.eye !== ek) { cache.eye = ek; $('eyeVig').style.opacity = ek; $('eyeVig').classList.toggle('on', ek > 0); } }   // a dead eye (co-op Bullet time)
     // the world drains to grey as you bleed out (LOW_HP: from what health it starts and where it's all grey), lifted
@@ -72,13 +77,18 @@ export function updateHUD(rdt, D) {
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(Math.min(slow ? 20000 - slow * 18800 : 20000, 20000 * Math.pow(NEAR_DEATH.lp / 20000, near), dz ? DEATH_LP : 20000), AC.currentTime, dz ? 0.9 : near ? 0.4 : 0.12);   // (slow motion's, or close to death's: NEAR_DEATH)
     }
     setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave
-    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(S.maxHp));
-    $('hpFill').style.setProperty('--hp', (hpF * 100) + '%'); $('hpLag').style.width = (hpF * 100) + '%';
+    setT('hpTxt', String(Math.ceil(P.hp))); setT('hpMax', '/ ' + Math.round(hpCap()));
+    $('hpFill').style.setProperty('--hp', (barF * 100) + '%'); $('hpLag').style.width = (barF * 100) + '%';
+    { const ck = Math.round((1 - capF) * 1000); if (cache.hpCut !== ck) { cache.hpCut = ck; const el = $('hpCut'); el.classList.toggle('on', ck > 0); el.style.setProperty('--cut', (ck / 10) + '%'); } }   // (a Blood price's share, in hazard stripes)
+    // the curses you've taken, as chips under the bars, and Bad blood's spoiled look on the health bar itself
+    { const ck = (S.curses || []).join(); if (cache.curses !== ck) { cache.curses = ck; const row = $('curseRow'), on = CURSES.filter(c => (S.curses || []).includes(c.id));
+      row.hidden = !on.length; row.innerHTML = on.map(c => `<span class="curse"><svg viewBox="${GI_VB}">${CURSE_ICON[c.id]}</svg><b>${c.name}</b><em>${c.short}</em></span>`).join('');
+      $('vitals').classList.toggle('badBlood', !!S.badBlood); } }
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
     // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
-    { const inc = Math.min(1 - hpF, ((P.heal || 0) + bandHeal() * bandProg()) / S.maxHp), hk = Math.round(hpF * 500) + ':' + Math.round(inc * 500);
-      if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (hpF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
+    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
+      if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (barF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
     { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }
     setRoll('bands', String(P.band || 0)); { const e = !(P.band > 0); if (cache.bandE !== e) { cache.bandE = e; $('bandBox').classList.toggle('empty', e); } }
@@ -165,7 +175,9 @@ export function hitFromAt(x, z, amount) {
   hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
   xhHit(x, z, amount);   // (and the crosshair with it: player/shaky-hands.js)
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
-  const w = innerWidth / 2, h = innerHeight / 2, dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h, l = Math.hypot(dx, dy);
+  const w = innerWidth / 2, h = innerHeight / 2; let dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h;
+  if (!isoOn()) { const [F, Rt] = viewBasis(), rx = x - P.x, rz = z - P.z; dx = (rx * Rt.x + rz * Rt.z) * 60; dy = -(rx * F.x + rz * F.z) * 60; }   // (first person: the side it came from as you face, game/view-cam.js)
+  const l = Math.hypot(dx, dy);
   hitBlurK = clamp(amount || 1, 0.5, 2);
   if (l < 2) { setHurtFx(1); heartStartle(); hitBlurV = Math.max(hitBlurV, 0.6 * hitBlurK); setHitSide('50%', '50%'); return; }
   const t = Math.min(w / Math.abs(dx / l || 1e-6), h / Math.abs(dy / l || 1e-6)) * 1.08, el = $('hitVig'), hx = (w + dx / l * t) / innerWidth, hy = (h + dy / l * t) / innerHeight;

@@ -77,7 +77,7 @@ export function updateLaser(D) {
   if (on) {
     // the gun in your hands
     const hs = HOLDS[W8.cur], tier = T('laser');
-    if (hs && tier > 0 && !D.melee && !scoped) for (const side of ['R', 'L']) { const em = hs[side] && hs[side].userData.laserEm; if (em && em.isObject3D) lens('h' + side, em, tier, used); }
+    if (hs && tier > 0 && !D.melee && !scoped) for (const side of ['R', 'L']) { const em = hs[side] && laserOf(hs[side]); if (em) lens('h' + side, em, tier, used); }
   }
   // co-op: a teammate's too, on the gun they're holding (their copy of it: net/arsenal.js), wherever it points
   if (state === 'play') for (const p of netLink() ? NET.peers.values() : []) {
@@ -85,6 +85,14 @@ export function updateLaser(D) {
     for (const s in a.held) { const h = a.held[s]; if (h.laserT > 0 && h.g.visible) h.lasers.forEach((em, i) => lens('p' + p.id + s + i, em, h.laserT, used)); }
   }
   beams.forEach((B, k) => { if (!used.has(k)) B.b.visible = B.d.visible = B.lens.visible = false; });
+}
+// the lens on a held gun: wherever in it the model put it (the model's own group sits inside the hold, through its flip),
+// found once and kept while it's still part of that gun
+const inside = (o, h) => { for (; o; o = o.parent) if (o === h) return true; return false; };
+function laserOf(h) {
+  const c = h.userData.lemC; if (c && inside(c, h)) return c;
+  let em = null; h.traverse(o => { const e = o.userData.laserEm; if (!em && e && e.isObject3D) em = e; });
+  h.userData.lemC = em; return em;
 }
 // one lens: shown only if it is (a gun hidden or put away somewhere out of sight has nothing to shine from)
 function lens(key, em, tier, used) {

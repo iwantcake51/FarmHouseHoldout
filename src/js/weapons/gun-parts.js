@@ -268,3 +268,27 @@ export function tapeWrap(g, x, y, z, r, tx, ty, sx) {
   box(g, x1 - x0, y1 - y0, 0.018, GM.odTape, (x0 + x1) / 2 + 0.002, (y0 + y1) / 2, z);
 }
 export const taper = (g, r0, r1, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 18), mat); m.rotation.x = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
+// ---- iron sights, as they're looked through in first person (game/view-cam.js reads ironsOf)
+// a rear sight blade: w across, h tall (its top at y), d deep, centred at z, with a square notch nw wide cut nd down its
+// middle (the front post's tip sits level with the blade's top, in the notch); a white dot either side of the notch on
+// its face toward you, if dot's a material
+export function notchRear(g, x, y, z, w, h, d, nw, nd, mat, dot) {
+  const ew = (w - nw) / 2;
+  [-1, 1].forEach(s => box(g, ew, h, d, mat, x + s * (nw + ew) / 2, y - h / 2, z));
+  box(g, nw, h - nd, d, mat, x, y - nd - (h - nd) / 2, z);
+  if (dot) [-1, 1].forEach(s => box(g, 0.0024, 0.0024, 0.0012, dot, x + s * (nw + ew) / 2, y - nd * 0.6, z - d / 2 - 0.0004));
+}
+// what the gun's sights are: the line through them in its own frame, the rear sight's height (yr) and where along it
+// (rz), the front's tip (yf) and where (fz); kind: 'notch' (a front post in a rear notch), 'ap' (a rear aperture, r its
+// hole's radius, its parts in parts: drawn as the out-of-focus ring you look through; relief, how far behind it your eye
+// is, if not the usual), or 'bead' (a bead down a rib)
+export function irons(g, I) { g.userData.irons = Object.assign(g.userData.irons || {}, I); return g.userData.irons; }
+// a rear aperture's parts (looked through from a hand's breadth away in first person, so they're out of focus)
+export function apPart(m) { if (m) m.userData.apPart = true; return m; }
+// a rear sight's aperture: a plate across the gun (hw each side of x, from y0 up to y1, rounded at its corners), from z0
+// to z1 along it, the hole r round through it at yh, so you see through it down the gun
+export function apPlate(g, x, hw, y0, y1, z0, z1, yh, r, mat) {
+  const c = Math.min(hw, (y1 - y0) / 2) * 0.45, s = shp(rrect(x - hw, y0, x + hw, y1, c).getPoints(4).map(v => [v.x, v.y])), h = new THREE.Path();
+  h.absarc(x, yh, r, 0, Math.PI * 2, true); s.holes.push(h);
+  return apPart(xsec(g, s, z0, z1, mat, 0.0005));
+}

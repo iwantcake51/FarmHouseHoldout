@@ -127,3 +127,6 @@
 #fireMode .fmT kbd[hidden]{display:none}
 #fireMode.sw .fmT b{animation:fmFlash .9s ease-out}
 @keyframes fmFlash{0%,30%{color:var(--orange);text-shadow:0 0 8px rgba(var(--acc),.8)}}
+/* a Lucky shot's glints round the round coming back (ui/rounds.js: luckyReturn): little four-point gold stars */
+.luckSpark{position:fixed;z-index:30;pointer-events:none;background:radial-gradient(circle,#fff6c8 0 25%,#ffd24a 45%,#e8a21a 70%);
+  clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 3px rgba(255,200,60,.9))}

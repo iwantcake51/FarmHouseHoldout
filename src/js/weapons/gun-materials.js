@@ -18,6 +18,12 @@ const glowMats = [GM.metal, GM.metal2, GM.wood, GM.brass, GM.bat, GM.steel, GM.w
 export const GLOW_SET = new Set(glowMats);   // the ones that take the upgrade glow (player/animation.js)
 export const gunMeshes = {}, MUZ = {}, AKX = 0.2, X = 0.1, SLIDES = {}, MAGPOS = {}, MAGG = {}, CRANE = {}, HOLDS = {}, CHARGE = {}, BRK = {}, BELT = {}, BIPOD = {};
 export let stowDirty = true;
+// the guns are built the right way round, but held in the upper body, which is drawn mirrored (player/player.js): each
+// hold carries its gun in a group flipped back about the gun's own centre line (x = X), so it's drawn as it was built.
+// A point on the gun goes through it (flipOf) to reach the hold's frame
+const FLIPS = new WeakMap();
+export function flipIn(h) { const f = new THREE.Group(); f.position.x = 2 * X; f.scale.x = -1; f.userData.flip = true; f.userData.side = h.userData.side; f.userData.x0 = h.userData.x0; h.add(f); f.updateMatrix(); FLIPS.set(h, f); return f; }
+export const flipOf = h => (h && (FLIPS.get(h) || h.children.find(c => c.userData.flip))) || null;   // (a copy's own too: player/stow.js)
 SLOTS.forEach(s => { const g = new THREE.Group(); (s === 'melee' ? PM.armR : PM.upper).add(g); gunMeshes[s] = g; });
 gunMeshes.melee.position.set(0, 0, 0.5);
 

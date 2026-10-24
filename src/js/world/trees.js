@@ -2,12 +2,12 @@
 // of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
 
 import { scene, V3, YAW } from '../core/renderer.js';
-import { _rng, clamp, HALF, N, pick, rand, rr, seeded, setRng } from '../core/math.js';
+import { _rng, clamp, HALF, N, pick, rand, rr, seeded, setRng, smooth } from '../core/math.js';
 import { PUSHERS } from '../core/shaders.js';
 import { BLOB_TEX } from '../core/geometry.js';
 import { cell, cxw, EMPTY, FENCE, idx, inb, OBST, WALL } from './grid.js';
 import { M } from './materials.js';
-import { HX0, HX1, HZ0, HZ1, onRoad, ROAD } from './ground.js';
+import { FAR_VIEW, HX0, HX1, HZ0, HZ1, onRoad, ROAD } from './ground.js';
 import { obstacle } from './props.js';
 import { FX0, FX1, FZ0, FZ1, GAPS, nearGap } from './fence.js';
 import { P } from '../player/player.js';
@@ -110,10 +110,24 @@ const TREE_VAR = [
   { geo: () => pineGeo(4, 0.85, 1.75, PINE2, 1.0), w: 0.36, shade: 2.8, r: 0.85 },
   { geo: () => pineGeo(3, 0.95, 1.85, PINE2, 0.8), w: 0.32, shade: 3.1, r: 0.95 }, { geo: () => pineGeo(4, 0.95, 1.7, PINE, 1.25), w: 0.32, shade: 3.1, r: 0.95 }
 ].map(v => ({ ...v, g: v.geo() }));
+// and out in the far woods (seen from your own eyes) some broadleaf trees among the pines, so the tree line isn't one
+// row of cones: a trunk and a few lumpy blobs of leaves, mostly green, one turning
+const BROADG = [[0x4a5a2c, 0x56662f, 0x3f5028], [0x52602e, 0x5f6a32, 0x46562a], [0x6e6a2c, 0x7a6230, 0x5e5a2a]];
+function broadGeo(greens, h) {
+  const P = [fpiece(new THREE.CylinderGeometry(0.09, 0.16, h, 6), BARK, 0.08, fm4(0, h / 2, 0))];
+  [[0, 0.35, 0, 1.0], [0.55, 0.05, 0.2, 0.75], [-0.5, 0.1, -0.15, 0.8], [0.1, 0.85, -0.1, 0.7], [-0.2, -0.05, 0.5, 0.65]].forEach(([x, y, z, r]) =>
+    P.push(fpiece(new THREE.IcosahedronGeometry(r * rr(0.9, 1.1), 0), pick(greens), 0.12, fm4(x, h + y, z, rand() * 3, rand() * 3, rand() * 3, 1, rr(0.8, 0.95), 1))));
+  return fjoin(P);
+}
+const BROAD_VAR = [{ geo: () => broadGeo(BROADG[0], 2.2), w: 0.5, r: 1.1 }, { geo: () => broadGeo(BROADG[1], 2.6), w: 0.35, r: 1.15 }, { geo: () => broadGeo(BROADG[2], 2.0), w: 0.15, r: 1.05 }].map(v => ({ ...v, g: v.geo() }));
 const pickVar = list => { let t = rand() * list.reduce((a, v) => a + v.w, 0); for (const v of list) { t -= v.w; if (t <= 0) return v; } return list[list.length - 1]; };
 // trees keep their distance: no two trunks closer than TREE_GAP of their two crowns' reach added together, so every
 // trunk stands clear of its neighbours' boughs and no two pines ever grow out of each other
 const TREE_GAP = 0.6, _tgrid = new Map(), TG_CELL = 1.5;
+// the woods out toward the horizon (seen from your own eyes): how far out (r, metres from the middle), the grid they're
+// dealt on, how likely a spot gets one where they meet the ring round the farm and further out (p), how far past the
+// road's far shoulder they start, how much bigger the furthest grow
+const FAR_WOODS = { r: 74, step: 1.6, p: [0.22, 0.62], road: 1.5, grow: 0.6, broad: 0.22, tall: 0.12 };   // (broad: how many are broadleaf; tall: how many stand well over the rest)
 const _tgk = (a, b) => a * 4096 + b;
 function roomForTree(x, z, r) {
   const a = Math.floor(x / TG_CELL), b = Math.floor(z / TG_CELL);
@@ -156,16 +170,16 @@ setRng(seeded(FOREST_SEED));
   }
 }
 // trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own tint
-function plantTrees(list, shadows) {
+function plantTrees(list, shadows, into = scene) {
   const dm = new THREE.Object3D(), c = new THREE.Color();
-  TREE_VAR.forEach(v => {
-    const mine = list.filter(t => t[3] === v); if (!mine.length) return;
+  [...new Set(list.map(t => t[3]))].forEach(v => {
+    const mine = list.filter(t => t[3] === v);
     const im = new THREE.InstancedMesh(v.g, M.tree, mine.length);
     mine.forEach(([x, z, s, , r], k) => {
       dm.position.set(x, 0, z); dm.rotation.set(rr(-0.04, 0.04), r, rr(-0.04, 0.04)); dm.scale.setScalar(s); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix);
       im.setColorAt(k, c.setRGB(rr(0.86, 1.08), rr(0.88, 1.08), rr(0.84, 1.04)));
     });
-    im.castShadow = shadows; im.receiveShadow = true; scene.add(im);
+    im.castShadow = shadows; im.receiveShadow = into === scene; into.add(im);   // (out past the shadows' reach, none)
   });
 }
 {
@@ -215,6 +229,24 @@ function plantTrees(list, shadows) {
     }
   }
   plantTrees(out, false);
+  // and on out toward the horizon, only from your own eyes or the free camera (FAR_VIEW, world/ground.js): past the ring
+  // out to FAR_WOODS.r, and past the road (right from its far shoulder, where from above they'd stand in front of the
+  // farm), thickening as the ring thins so there's no wall where one meets the other, the trees a little bigger further
+  // out so the tree line stands up against the sky, the trails in and the road still clear
+  {
+    const F = FAR_WOODS, far = [];
+    for (let z = -F.r; z < F.r; z += F.step) for (let x = -F.r; x < F.r; x += F.step) {
+      const d = Math.max(Math.abs(x), Math.abs(z)) - HALF - R, past = z > ROAD.z + ROAD.w / 2 + F.road;
+      if ((d < 0 && !past) || Math.hypot(x, z) > F.r) continue;
+      if (rand() >= F.p[0] + (F.p[1] - F.p[0]) * smooth(clamp(Math.max(d, 0) / 8, 0, 1))) continue;
+      const px = x + rr(-0.7, 0.7), pz = z + rr(-0.7, 0.7);
+      if (onRoad(px, pz, 2.2) || onTrail(px, pz)) continue;
+      const v = pickVar(rand() < F.broad ? BROAD_VAR : TREE_VAR), k = clamp((Math.hypot(px, pz) - HALF - R) / (F.r - HALF - R), 0, 1), s = (rr(0.98, 1.22) + k * rr(0.2, F.grow)) * (rand() < F.tall ? rr(1.25, 1.6) : 1);
+      if (!roomForTree(px, pz, v.r * s)) continue;
+      claimTree(px, pz, v.r * s); far.push([px, pz, s, v, rand() * 6.28]);
+    }
+    plantTrees(far, false, FAR_VIEW);
+  }
   setRng(_rngWas);   // (the woods are in: back to Math.random)
 }
 

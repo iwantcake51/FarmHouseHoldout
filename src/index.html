@@ -12,7 +12,7 @@
 </head>
 <body>
 <canvas id="c" tabindex="0" aria-label="Game view"></canvas>
-<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="nearVig"></div><div id="deathVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
+<div id="hurt"></div><div id="lowTint"></div><div id="conc"></div><div id="filmVig"></div><div id="grain"></div><div id="warmGrade"></div><div id="healVig"></div><div id="hitVig"></div><div id="bleedVig"></div><div id="nearVig"></div><div id="deathVig"></div><div class="hurtBlur" id="hitBlur"></div><div class="hurtBlur" id="bleedBlur"></div><div id="adsVig"></div><div id="lookHint" hidden><kbd data-key="mouse1"></kbd><span>Click to look around</span></div><div id="slowmo"></div><div id="eyeVig"></div><div id="introVeil"></div>
 
 <div id="scope" aria-hidden="true"><div class="mask"></div><div class="lens"></div>
   <svg viewBox="-100 -100 200 200" preserveAspectRatio="xMidYMid meet">
@@ -75,6 +75,7 @@
       <circle id="xhStamBg" class="stBg" r="22" transform="rotate(58)"></circle>
       <circle id="xhStamRun" class="stRun" r="22" transform="rotate(58)"></circle>
       <circle id="xhStam" class="st" r="22" transform="rotate(58)"></circle>
+      <circle id="xhStamCut" class="stCut" r="22" transform="rotate(58)" hidden></circle>
     </g>
     <circle id="xhDot" class="dot" r="1.7"></circle>
     <!-- a shot from here can't reach where you're aiming: something solid is in the way -->
@@ -112,8 +113,9 @@
 <div class="hud" id="vitals" hidden>
   <div id="team" hidden aria-label="Your team"></div>
   <div class="hpRow"><span class="big" id="hpTxt">100</span><span id="hpMax">/ 100</span><svg id="ecg" viewBox="0 0 180 34" preserveAspectRatio="none" aria-hidden="true"><path id="ecgLine" d=""></path></svg></div>
-  <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s></div>
-  <div id="stamBar"><b id="stamRun"></b><i id="stamFill"></i></div>
+  <div class="bar" id="hpBar"><b id="hpLag"></b><i id="hpFill"></i><s id="hpHeal"></s><u id="hpCut"></u></div>
+  <div id="stamBar"><b id="stamRun"></b><i id="stamFill"></i><u id="stamCut"></u></div>
+  <div id="curseRow" hidden aria-label="Curses on you"></div>
   <div class="res">
     <span title="Planks"><svg data-gi="planks"></svg><b id="planks">6</b></span>
     <span title="Scrap"><svg data-gi="scrap"></svg><b id="scrap">0</b></span>
@@ -159,9 +161,9 @@
 <!-- cheats -->
 <div class="hud" id="cheatTag" hidden></div>
 <div id="cheat" hidden role="dialog" aria-label="Cheat menu">
-  <div class="chTop"><b>Cheat menu</b><span>The game keeps running</span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
-  <div class="chTabs" role="tablist"><button type="button" data-tab="player">Player</button><button type="button" data-tab="health">Health</button><button type="button" data-tab="weapons">Weapons</button><button type="button" data-tab="skills">Skills</button><button type="button" data-tab="world">World</button></div>
-  <div id="chBody"></div>
+  <div class="chTop"><b>Cheats</b><label class="chSearch"><svg data-gi="magnify" aria-hidden="true"></svg><input id="chFind" type="search" placeholder="Search every cheat" autocomplete="off" spellcheck="false" aria-label="Search every cheat"></label><span class="chSpeed" id="chSpeed" role="group" aria-label="Game speed"></span><kbd>F9</kbd><button type="button" id="chClose" aria-label="Close">×</button></div>
+  <div class="chQuick" id="chQuick"></div>
+  <div class="chMain"><nav class="chRail" id="chRail" role="tablist" aria-label="Sections"></nav><div id="chBody"></div></div>
 </div>
 <!-- /cheats -->
 <div class="hud" id="station" hidden>
@@ -262,7 +264,7 @@
     <div class="kinds" id="upKinds">Skills · Perks · Aid</div>
     <div class="upClock" id="upClock" role="timer" aria-live="off"><span id="upClockT">20</span><i><b id="upClockBar"></b></i></div>
     <div id="cards"></div>
-    <button class="btn ghost" id="upSkip" type="button"></button>
+    <div class="upActs"><button class="btn ghost" id="upSkip" type="button"></button><span class="upSacW"><button class="btn ghost" id="upSac" type="button" hidden></button><span class="upSacTip" id="upSacTip" role="tooltip"></span></span></div>
     <div class="upWait" id="upWait" role="status"><b>Waiting for other players</b><span id="upWaitWho"></span></div>
     <div class="note" id="upNote">Click a card, or take the scrap instead · when the time runs out, one is taken for you</div>
     <details class="histBox" id="upHistBox"><summary>Taken so far <b id="upHistN">0</b></summary><div class="hist" id="upHist"></div></details>
@@ -313,7 +315,7 @@
 <div id="settings" hidden>
   <div class="setBack"></div>
   <div class="setPanel" role="dialog" aria-modal="true" aria-labelledby="setTitle">
-    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg></button></div>
+    <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
     <div class="setBody" id="setBody"></div>
     <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
   </div>

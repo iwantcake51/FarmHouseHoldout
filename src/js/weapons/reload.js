@@ -19,6 +19,7 @@ import { SHAKY } from '../player/shaky-hands.js';
 import { reloadJolt } from '../game/camera.js';
 import { reloadTick } from '../ui/crosshair.js';
 import { ANIM } from '../player/animation.js';
+import { inspectCut } from '../player/inspect.js';
 import { relKnock } from '../player/hold-kick.js';
 import { dropLoader, HSH_FEED } from '../player/hold-loaders.js';
 import { drawMul, startSwap, swapFire, swapSt } from '../player/swap.js';
@@ -43,7 +44,9 @@ export function reloadSlow() {
 }
 const AK_WALK = 0.14;
 // each reload's own feel (player/hold.js): how far the gun's turned for it, a bulge in the hand's way there, a wobble
-export const relJitter = () => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: rr(0, 20) }; };
+// (the next shell of a run of them keeps the seed of the one before: the gun's restless drift through the reload runs
+// on from shell to shell rather than jumping to a new spot, player/hold.js)
+export const relJitter = (next = false) => { W8.relJit = { k: rr(0.82, 1.18), dx: rr(-0.03, 0.03), dy: rr(-0.025, 0.025), seed: next && W8.relJit ? W8.relJit.seed : rr(0, 20) }; };
 // how much Quick hands shortens a reload: the revolver's no more than REV_QUICK (game/run-state.js), so it always takes its time
 export const relMul = id => id === 'revolver' ? Math.max(REV_QUICK, S.reloadMul) : S.reloadMul;
 // the time before the first round goes in: the revolver's cylinder swung out and its empties dumped first
@@ -74,11 +77,13 @@ export function startReload() {
   if (sv && (sv.st === 'out' || sv.st === 'in')) { resumeStage(id, D, sv); return; }
   const missing = magSize(id) - (W8.mag[id] || 0); if (missing <= 0) return;
   if (reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
-  runStat('reloads');
-  // the revolver dumps every empty at once, a beat after the cylinder swings out
+  runStat('reloads'); inspectCut();   // (looking it over: straight back to reload, player/inspect.js)
+  // the revolver dumps every empty at once, a beat after the cylinder swings out; with a speed loader the live rounds go
+  // too (the whole cylinder's tipped out for the loader's full six), back into your pouch
+  if (id === 'revolver' && D.speedload && (W8.mag[id] | 0) > 0) { const live = W8.mag[id] | 0; W8.reserve[D.ammo] += live; W8.mag[id] = 0; W8.spent[id] = (W8.spent[id] || 0) + live; W8.hudSpent[id] = (W8.hudSpent[id] || 0) + live; }
   if (EJECT[id] === 'breach' && W8.spent[id] > 0) { const n = W8.spent[id]; W8.spent[id] = 0; if (id === 'revolver') setTimeout(() => { if (W8.reloading && curId() === id) { ejectCasing(D.ammo, n, 'dump'); reloadJolt(0.12); } else W8.spent[id] = (W8.spent[id] || 0) + n; }, 130); else ejectCasing(D.ammo, n, 'breach'); }
   W8.relStyle = D && D.akKit ? 1 : Math.floor(Math.random() * 3); relJitter();   // which of its ways this reload is done (an AK mag only one: hooked in at the front and rocked back), and its own feel (player/hold.js)
-  W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false; W8.fumble = null;
+  W8.relStop = false; W8.shutQ = false; W8.shutFire = 0; W8.magOut = W8.filled = false; W8.fumble = null; W8.grabT = 0;
   if (D.akimbo && !D.perShell && !D.speedload) { akStartReload(id, D); return; }   // each gun its own (weapons/akimbo.js)
   if (D.perShell) {
     // a reload cuts a rack short (the gun's left open and racked once you stop reloading, weapons/casings.js). The
@@ -208,12 +213,13 @@ export function tickReload(dt) {
     const n = goSize(id, D) - W8.goIn;
     if (n > 0) shellIn(id, D, n);
     W8.goN = 0; W8.goIn = 0;
-    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = shellGo(id, D, goSize(id, D)) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
+    if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) { W8.reloadT = W8.reloadMax = shellGo(id, D, goSize(id, D)) * hurtRel(); W8.relStyle = Math.floor(Math.random() * 3); relJitter(true); W8.fumble = rollFumble(HURT_REL.shellFumble); }   // the next shell, its own way
     // done: a pump or bolt gun that's open has its action pushed home straight away (weapons/casings.js), one that's
     // chambered is ready as it is; anything else snaps shut
-    else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); else if (W8.held[id] && W8.mag[id] > 0) { chamberCycle(id); delete W8.held[id]; } }
+    // (a pump's support hand comes from the loading port to the forend and takes hold of it first: PUMP_GRAB)
+    else if (racked(id)) { W8.reloading = null; if (!needsRack(id)) reloadJolt(0.1); else if (EJECT[id] === 'pump') { W8.grabT = W8.grabMax = PUMP_GRAB * S.reloadMul; W8.grabId = id; W8.grabHeld = !!W8.held[id] && W8.mag[id] > 0; } else if (W8.held[id] && W8.mag[id] > 0) { chamberCycle(id); delete W8.held[id]; } }
     else if (D.breakOpen) W8.reloading = null;   // the barrels are closed next, before it'll fire (tickShut)
-    else { W8.reloading = null; if (!(CRANE[W8.cur] || []).length) SFX.rack(); reloadJolt(0.22); setShake(Math.max(shake, 0.12)); W8.cd = Math.max(W8.cd, 0.25); }   // (a revolver's flicked shut: player/hold.js)
+    else { W8.reloading = null; if (!(CRANE[W8.cur] || []).length) { SFX.rack(); reloadJolt(0.22); setShake(Math.max(shake, 0.12)); } W8.cd = Math.max(W8.cd, 0.25); }   // (a revolver's cylinder is pushed shut by hand next: tickShut)
   } else {
     if (!W8.filled) fillMag(id, D);
     W8.reloading = null; magSwapIn(id);
@@ -228,7 +234,7 @@ export function tickReload(dt) {
 // shell (tail: the double barrel closed, or a pump or bolt gun racked, as long as that takes with its fire rate). The
 // shells fill the ring up to where the tail starts; once they're in (or it's stopped part way), what's left of it (from
 // p0) runs out over the tail as it actually goes. 0 to 1, or -1 when there's no ring
-const relTail = (id, D) => D.breakOpen ? BRK_SHUT * S.reloadMul * (D.shutMul || 1) : racked(id) && needsRack(id) ? chamberT(id) : 0;
+const relTail = (id, D) => D.breakOpen ? BRK_SHUT * S.reloadMul * (D.shutMul || 1) : cylShut(D) ? CYL_SHUT * S.reloadMul : racked(id) && needsRack(id) ? chamberT(id) + (EJECT[id] === 'pump' ? PUMP_GRAB * S.reloadMul : 0) : 0;
 export function relRingP() {
   const R = W8.relRing, id = curId(); if (!R) return -1;
   const shellK = R.tot / (R.tot + R.tail);
@@ -253,9 +259,17 @@ export function relRingP() {
 // it and lifting the barrels shut on it for the rest (player/hold.js poses it to the same marks). A trigger pulled
 // during it is kept, and the shot goes off as it latches (W8.shutQ, then W8.shutFire: weapons/combat-update.js)
 export const BRK_SHUT = 0.3, BRK_GRAB = 0.42, SHELL_IN = 0.7, SHUT_FIRE_WAIT = 0.5;
+// the revolver loaded a round at a time (no speed loader) is shut the same way, by hand: CYL_SHUT long, the support
+// hand going to the open cylinder for the first CYL_GRAB of it, pushing it round into the frame till it latches at
+// CYL_LATCH, and back onto the grip after (player/hold.js poses it to the same marks)
+export const CYL_SHUT = 0.46, CYL_GRAB = 0.36, CYL_LATCH = 0.74;
+export const cylShut = D => !!D && !D.breakOpen && !D.akimbo && !!D.perShell && !D.speedload && (CRANE[W8.cur] || []).length > 0;
+// a pump, once its last shell's in: the support hand comes back from the loading port onto the forend and takes hold of
+// it (PUMP_GRAB seconds) before it's worked (weapons/casings.js: tickCycle; player/hold.js eases the hand on)
+const PUMP_GRAB = 0.2;
 // a pull of the trigger during a break-action's reload or its closing: whether it's taken here (the gun doesn't fire)
 export function breakTrigger(id, D) {
-  if (!D.breakOpen) return false;
+  if (!D.breakOpen && !cylShut(D)) return false;
   if (W8.reloading === 'shell') {
     const rp = 1 - W8.reloadT / W8.reloadMax;
     if ((W8.mag[id] || 0) > 0 && rp < SHELL_IN) W8.reloading = null; else W8.relStop = true;
@@ -269,12 +283,12 @@ export const brkShutP = () => W8.shutT > 0 ? 1 - W8.shutT / W8.shutMax : W8.brkO
 export function tickShut(dt) {
   if (W8.shutFire > 0) W8.shutFire -= dt;
   const D = W(curId());
-  if (!D || !D.breakOpen) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
+  if (!D || (!D.breakOpen && !cylShut(D))) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
   if (W8.reloading === 'shell') { W8.brkOpen = true; return; }
-  if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = BRK_SHUT * S.reloadMul * (D.shutMul || 1); }
+  if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = (D.breakOpen ? BRK_SHUT * (D.shutMul || 1) : CYL_SHUT) * S.reloadMul; }
   if (W8.shutT <= 0) return;
   W8.shutT -= dt;
   if (W8.shutT > 0) return;
-  W8.shutT = 0; SFX.brkShut(); reloadJolt(0.22); setShake(Math.max(shake, 0.12));   // latched
+  W8.shutT = 0; if (D.breakOpen) { SFX.brkShut(); reloadJolt(0.22); setShake(Math.max(shake, 0.12)); }   // latched (the cylinder's own click as it latches: player/hold.js)
   if (W8.shutQ) { W8.shutQ = false; W8.shutFire = SHUT_FIRE_WAIT; }
 }

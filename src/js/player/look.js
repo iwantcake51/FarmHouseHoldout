@@ -15,7 +15,7 @@ export const LOOK = { g: {}, cur: null, mirrorY: 0.214, xrayReady: false };
 const LOOK_ON = { head: PM.head, hat: PM.head, torso: PM.torso, armL: PM.armL, armR: PM.armR, legL: PM.legL, legR: PM.legR, shinL: PM.shinL, shinR: PM.shinR, shoeL: PM.shinL, shoeR: PM.shinR };
 for (const k in LOOK_ON) { const g = new THREE.Group(); LOOK_ON[k].add(g); LOOK.g[k] = g; if (LOOK_ON[k] === PM.shinL || LOOK_ON[k] === PM.shinR) g.position.y = -KNEE_Y; }   // (laid out in the whole leg's space, from the hip)
 export const PBOOT = [LOOK.g.shoeL, LOOK.g.shoeR];   // hidden by gear.js when you've upgraded your footwear
-const LOOKS = {
+export const LOOKS = {
   skin: [0xf2cfae, 0xe3b48f, 0xd2a07c, 0xbd8761, 0x9c6a46, 0x7a4e32, 0x5a3824],
   hair: [0x1e1814, 0x3a2a1e, 0x5e4026, 0x8a4a26, 0xc8a060, 0x9a948a],
   hairStyle: ['short', 'short', 'long', 'buzz', 'bald'],
@@ -41,8 +41,8 @@ const LOOKS = {
     // the suit, rare (SUIT_ODDS): charcoal, navy, black, grey, brown or taupe, with its trousers to match
     suit: [0x2a2c30, 0x2a2c30, 0x1e2434, 0x18181a, 0x4a4a4e, 0x4a3a2a, 0x5a5448]
   },
-  // under a flannel's rolled sleeves, a work shirt's or a tee's: a thermal down to the wrists (white most often, cream,
-  // oatmeal, heather grey, charcoal, or the red of long johns), showing at the open collar too
+  // under a flannel, a work shirt or a tee: a thermal (white most often, cream, oatmeal, heather grey, charcoal, or the
+  // red of long johns), showing at the open collar; its long sleeves are in the shirt's colour (buildLook)
   under: [0xe6e2d8, 0xe6e2d8, 0xe6e2d8, 0xd8cfb8, 0xc8bca0, 0x8a8a86, 0x3a3a3c, 0x7a2a24],
   underOdds: { flannel: 0.5, work: 0.35, tee: 0.22, polo: 0.08 },
   // what a suit comes with: a dress shirt (white, pale blue, pale pink, grey), a tie (red, navy, black, maroon, gold,
@@ -100,13 +100,13 @@ export function dealLook(opt) {
     // and the rest that makes a face someone's: freckles, a mole, a cleft chin, big ears, the grime of the last few days,
     // or (rarely) a patch over one eye
     freckles: rand() < 0.14, mole: rand() < 0.16 ? [rr(-0.12, 0.12), rr(-0.11, 0.0)] : null, cleft: rand() < 0.15, ears: rand() < 0.2 ? 1.35 : rr(0.9, 1.1), grime: rand() < 0.3, patch: rand() < 0.04 };
-  L.beardCol = L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9);
+  L.beardCol = o.beardCol ?? (L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9));   // (set on its own in the cheat menu's character section: ui/cheats.js)
   L.hat = o.hat ?? pick(LOOKS.hat); L.hatCol = o.hatCol ?? (L.hat === 'none' ? 0 : pick(LOOKS.hatCol[L.hat]));
   L.top = o.top ?? (rand() < SUIT_ODDS ? 'suit' : pick(LOOKS.top)); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
   // a thermal under it now and then, never one that would vanish into the shirt over it
   L.under = o.under ?? (rand() < (LOOKS.underOdds[L.top] || 0) ? pick(LOOKS.under) : 0);
   for (let k = 0; k < 6 && o.under === undefined && L.under && near(L.under, L.topCol); k++) L.under = pick(LOOKS.under);
-  if (L.under && near(L.under, L.topCol)) L.under = 0;
+  if (o.under === undefined && L.under && near(L.under, L.topCol)) L.under = 0;
   const suit = L.top === 'suit';
   L.pants = o.pants ?? (suit ? L.topCol : pick(LOOKS.pants)); L.shoes = o.shoes ?? (suit ? 'dress' : pick(LOOKS.shoes));
   if (suit) { L.dress = o.dress ?? pick(LOOKS.dress); L.tie = o.tie ?? pick(LOOKS.tie); L.square = o.square ?? (rand() < 0.4 ? pick([0xeceae4, 0x8a1e1e, 0xb08a2a, 0x1e2a4a]) : 0); }
@@ -121,16 +121,17 @@ export function dealLook(opt) {
   L.holster = o.holster ?? pick(LOOKS.holster);
   L.glove = o.glove ?? pick(Object.keys(GLOVE_COLS));
   L.wrist = o.wrist ?? dealWrists();
+  if (o.own) L.own = o.own;   // (what's been set by hand in the cheat menu's character section, to keep: ui/cheats.js)
   return L;
 }
 // ---- on the wrists, now and then: a watch, a chain, beads, a rubber band or two, a leather cuff, a paracord band or
 // braided strings. Each wrist gets something WRIST_ODDS of the time, never the same kind as the other wrist, in colours
 // of its own; a watch is now and then gold (WATCH_GOLD) or, rarer still, iced out with diamonds round the bezel
 // (WATCH_ICE). Built by buildWrists
-const WRIST_KINDS = ['watch', 'watch', 'chain', 'beads', 'band', 'cuff', 'paracord', 'string'], WRIST_ODDS = 0.3, WATCH_GOLD = 0.08, WATCH_ICE = 0.03;
+export const WRIST_KINDS = ['watch', 'watch', 'chain', 'beads', 'band', 'cuff', 'paracord', 'string'], WRIST_ODDS = 0.3, WATCH_GOLD = 0.08, WATCH_ICE = 0.03;
 const METALS = { steel: 0xb8bcc0, gold: 0xd4a83a, rose: 0xc88a6a, gun: 0x4a4c50, black: 0x202124, platinum: 0xe2e4e8 };
 const LEATHERS = [0x4a2e1c, 0x2a1c14, 0x6a4226, 0x1a1a1c, 0x7a5a3a];
-function dealWrist(kind) {
+export function dealWrist(kind) {
   const muted = () => hsl(rand(), rr(0.15, 0.5), rr(0.15, 0.4)), bright = () => hsl(rand(), rr(0.55, 0.9), rr(0.4, 0.6));
   switch (kind) {
     case 'watch': {
@@ -174,7 +175,7 @@ export function rollLook(opt) {
   // pull flush faces apart, then fold each group's small pieces into a few meshes
   const pieces = new Set(); Object.values(LOOK.g).forEach(g => g.traverse(o => { if (o.isMesh) pieces.add(o); }));
   unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]) });
-  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, PM.mats.pants]) };
+  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skin, PM.mats.skinDk, PM.mats.pants]) };
   const faceParts = new Set(faceGroups(LOOK.g.head));   // (kept whole, so they can move: faceMood)
   Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g, faceParts), live));
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
@@ -356,15 +357,16 @@ export function buildLook(L) {
     box(a, 0.156, 0.156, len, shirt, 0, 0, -0.03 + len / 2);
     if (cuff) box(a, cuff[0], cuff[0], cuff[1], shirtDk, 0, 0, -0.03 + len - cuff[1] / 2 + cuff[2]);
   });
-  // a thermal under it: its sleeves run on to the wrist (WRIST) under the shirt's, with a ribbed cuff and a few rows of
-  // the waffle knit, and it shows at the open collar, a henley's two buttons in it
+  // a thermal under it: long sleeves on to the wrist (WRIST) under the shirt's, in the shirt's own colour so the sleeves
+  // read as the shirt's, with a ribbed cuff and a few rows of the knit; the thermal itself shows at the open collar, a
+  // henley's two buttons in it
   const WRIST = 0.43;
   if (L.under) {
     const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
     [LOOK.g.armL, LOOK.g.armR].forEach(a => {
-      box(a, 0.15, 0.15, WRIST + 0.024, th, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
-      box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
-      [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
+      box(a, 0.15, 0.15, WRIST + 0.024, shirt, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
+      box(a, 0.153, 0.153, 0.035, shirtDk, 0, 0, WRIST - 0.018);
+      [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, shirtDk, 0, 0, z));
     });
     if (L.top === 'work' || L.top === 'flannel') { box(TO, 0.1, 0.06, 0.008, th, 0, 0.27, 0.152); [0.282, 0.258].forEach(y => box(TO, 0.012, 0.012, 0.006, thDk, 0, y, 0.158)); }
     else box(TO, 0.2, 0.014, 0.05, th, 0, 0.306, 0.13);   // a band of it above a crew neck or a polo's collar

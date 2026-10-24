@@ -58,7 +58,7 @@ const sbAttr = (n, k) => { const a = new THREE.InstancedBufferAttribute(new Floa
 const iPos = sbAttr(3, 'iPos'), iSize = sbAttr(2, 'iSize'), iCol = sbAttr(4, 'iCol'), iMisc = sbAttr(3, 'iMisc');
 sbGeo.instanceCount = 0;
 const sbMat = new THREE.ShaderMaterial({
-  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tMap: { value: null } }]),
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tMap: { value: null }, uAim: { value: new THREE.Vector4(0.5, 0.5, 0.2, 0) }, uRes: { value: new THREE.Vector2(1, 1) } }]),
   vertexShader: `
 attribute vec3 iPos; attribute vec2 iSize; attribute vec4 iCol; attribute vec3 iMisc;
 varying vec2 vUv; varying vec4 vCol; varying float vLayer, vAdd;
@@ -73,11 +73,14 @@ void main() {
 }`,
   fragmentShader: `
 precision highp sampler2DArray;
-uniform sampler2DArray tMap;
+uniform sampler2DArray tMap; uniform vec4 uAim; uniform vec2 uRes;
 varying vec2 vUv; varying vec4 vCol; varying float vLayer, vAdd;
 #include <fog_pars_fragment>
 void main() {
   vec4 c = vCol * texture(tMap, vec3(vUv, vLayer));
+  // down the sights, thinned toward the aim (uAim: its middle as a share of the view, how far out it reaches as a share
+  // of the view's height, how much), so smoke and dust in front of the sights never quite hides what you're aiming at
+  if (uAim.w > 0.001) { vec2 d = (gl_FragCoord.xy / uRes - uAim.xy) * vec2(uRes.x / uRes.y, 1.0); c.a *= mix(1.0, 0.2 + 0.8 * smoothstep(0.0, uAim.z, length(d)), uAim.w); }
   gl_FragColor = c;
   #include <fog_fragment>
   gl_FragColor = vec4(gl_FragColor.rgb * c.a, vAdd > 0.5 ? 0.0 : c.a);
@@ -86,6 +89,9 @@ void main() {
   blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor
 });
 sbMat.uniforms.tMap.value = sbTex;
+// where the sprites thin toward your aim down the sights (set each frame: game/view-cam.js, and for a scope's own view:
+// effects/scope-view.js), and the size of what they're drawn into
+export const SPRITE_AIM = sbMat.uniforms.uAim.value, SPRITE_RES = sbMat.uniforms.uRes.value;
 const sbMesh = new THREE.Mesh(sbGeo, sbMat);
 sbMesh.frustumCulled = false; sbMesh.renderOrder = 2; sbMesh.userData.isSprites = true;   // (never outlined: effects/screen-outlines.js)
 scene.add(sbMesh);

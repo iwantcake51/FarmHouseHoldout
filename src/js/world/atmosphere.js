@@ -2,16 +2,17 @@
 
 import { $ } from '../core/dom.js';
 import { cam, DPR, scene, V3 } from '../core/renderer.js';
-import { mix, rand, rr } from '../core/math.js';
+import { clamp, HALF, mix, rand, rr, smooth } from '../core/math.js';
 import { LMU } from '../core/shaders.js';
 import { BLOB_TEX } from '../core/geometry.js';
 import { cxw } from './grid.js';
-import { HZ1, ROAD } from './ground.js';
+import { FAR_VIEW, HZ1, ROAD } from './ground.js';
 import { HOUSE, inHouseRect } from './house.js';
 import { BURN_BARREL } from './props.js';
 import { FX0, FX1, FZ0, FZ1 } from './fence.js';
 import { updatePushers } from './trees.js';
 import { stepWind, windAt, WX } from './wind.js';
+import { SKY_CLOUD, SKY_U, updateSky } from './sky.js';
 import { worldK, worldT } from '../game/state.js';
 import { titleBlend } from '../game/intro.js';
 import { curDark } from '../lighting/day-night.js';
@@ -34,6 +35,7 @@ export const moths = (() => {
 // view (the mist, the road fog) does it out past this, so nothing pops in or out however far you zoom out
 const _vc = new V3(), _vd = new V3(), viewExt = { x: 22, z: 22 };
 function measureView() {
+  if (cam.isPerspectiveCamera) { viewExt.x = viewExt.z = 34; return; }   // (first person or the free camera: out toward the horizon, game/view-cam.js)
   let ex = 0, ez = 0;
   for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
     _vc.set(a, b, -1).unproject(cam); _vd.set(a, b, 1).unproject(cam).sub(_vc);   // the camera is orthographic: a straight ray through each corner
@@ -48,7 +50,11 @@ function measureView() {
 // you are. (They used to be seeded in a patch 28 m across and only ever wrapped round the edge of the view, so zoomed
 // out that patch was all there was: every mote bunched up in one spot drifting across the screen)
 const MOTE_DENSITY = 75 / (28 * 28);   // a light scatter of them, not a haze (as many on screen as there used to be, spread out)
-const MOTE_W = 60;   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
+const MOTE_W = 60;
+// the haze round the farm (uEdge, core/shaders.js): where it starts and where everything's gone into it, seen from above
+// and from your own eyes; and from your own eyes the motes fade out by MOTE_FAR metres off (drawn the same size however
+// far, a field of them out to the horizon was a band of specks across it)
+const NEAR_EDGE = [HALF + 0.5, HALF + 12], FAR_EDGE = [HALF + 9, HALF + 44], MOTE_FAR = [6, 18];   // past the corners of the widest view (the furthest zoom on a wide screen), so they wrap out of sight
 const motes = (() => {
   const MAX = Math.round(MOTE_DENSITY * 4 * MOTE_W * MOTE_W), pos = new Float32Array(MAX * 3), col = new Float32Array(MAX * 3), seed = [];
   for (let k = 0; k < MAX; k++) seed.push({ x: rr(-MOTE_W, MOTE_W), y: rr(0.2, 3), z: rr(-MOTE_W, MOTE_W), p: rand() * 6.28, s: rr(0.15, 0.45), a: 0 });
@@ -80,7 +86,7 @@ export function stepAtmos(realDt) {
   measureView();
   motes.m.opacity = mix(0.42 * Math.max(0, day - 0.15), 0.35, tb);
   if (motes.m.opacity > 0.01) {
-    const W = MOTE_W, ease = Math.min(1, realDt * 1.5);
+    const W = MOTE_W, ease = Math.min(1, realDt * 1.5), persp = !!cam.isPerspectiveCamera;
     for (let k = 0; k < motes.MAX; k++) {
       const q = motes.seed[k]; windAt(q.x, q.z, _aw);   // carried on the wind, wandering about it
       q.x += (_aw.x * 0.8 + Math.sin(t * 0.3 + q.p) * 0.12) * rdt; q.y += Math.sin(t * 0.8 + q.p * 2) * (0.05 + 0.1 * WX.str) * rdt; q.z += (_aw.z * 0.8 + Math.cos(t * 0.4 + q.p) * 0.12) * rdt;
@@ -89,7 +95,8 @@ export function stepAtmos(realDt) {
       if (Math.abs(rx) > W || Math.abs(rz) > W) { q.x = camTarget.x + ((rx % (2 * W)) + 3 * W) % (2 * W) - W; q.z = camTarget.z + ((rz % (2 * W)) + 3 * W) % (2 * W) - W; q.a = 0; }
       q.a += (1 - q.a) * ease;
       motes.pos[k * 3] = q.x; motes.pos[k * 3 + 1] = inHouse(q.x, q.z, 0.3) ? -50 : q.y + Math.sin(t * q.s * 3 + q.p) * 0.15; motes.pos[k * 3 + 2] = q.z;   // none indoors
-      motes.col[k * 3] = motes.col[k * 3 + 1] = motes.col[k * 3 + 2] = q.a;
+      const fa = persp ? 1 - smooth(clamp((Math.hypot(q.x - cam.position.x, q.z - cam.position.z) - MOTE_FAR[0]) / (MOTE_FAR[1] - MOTE_FAR[0]), 0, 1)) : 1;
+      motes.col[k * 3] = motes.col[k * 3 + 1] = motes.col[k * 3 + 2] = q.a * fa;
     }
     motes.pts.geometry.attributes.position.needsUpdate = motes.pts.geometry.attributes.color.needsUpdate = true;
   }
@@ -100,7 +107,14 @@ export function stepAtmos(realDt) {
   fogW.t -= rdt; if (fogW.t <= 0) { fogW.t = rr(35, 80); fogW.to = rand() < 0.45 ? rr(0.6, 1) : rr(0, 0.3); }
   fogW.lv += (fogW.to - fogW.lv) * Math.min(1, rdt * 0.05);
   // thick fog pulls the distance haze in close and tints it with the sky
-  scene.fog.near = 42 - fogW.lv * 6; scene.fog.far = 78 - fogW.lv * 18;
+  // (and the free camera flown up high sees as far again as it is up: game/view-cam.js)
+  const up = cam.isPerspectiveCamera ? Math.max(0, cam.position.y - 4) : 0;
+  scene.fog.near = 42 - fogW.lv * 6 + up; scene.fog.far = 78 - fogW.lv * 18 + up * 1.4;
+  // from your own eyes (or the free camera) the haze round the farm lies further out (FAR_EDGE), over the woods and
+  // the road rather than right at the fence, and the woods on to the horizon, the power line and the sky come into view
+  // (world/ground.js, world/sky.js); thick fog greys the sky out toward the haze
+  { const far = !!cam.isPerspectiveCamera, E = far ? FAR_EDGE : NEAR_EDGE; LMU.uEdge.value.set(E[0], E[1]); FAR_VIEW.visible = far;
+    updateSky(day); SKY_U.uTop.value.lerp(scene.fog.color, fogW.lv * 0.55); SKY_U.uCloudK.value = SKY_CLOUD * (1 - fogW.lv * 0.7); }
   const mo = mix((Math.max(0, curDark - 0.35) * 0.12 + fogW.lv * 0.16) * (0.4 + 0.6 * Math.max(curDark, 0.35)), 0.06, tb);
   const rf = mix(0.42 + fogW.lv * 0.3, 0, tb);
   for (const sp of roadFog) {

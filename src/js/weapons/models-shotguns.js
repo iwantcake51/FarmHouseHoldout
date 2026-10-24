@@ -5,7 +5,7 @@ import { roundOn } from './rounds.js';
 import { T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  checker, clipTo, cyl, inset, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX
+  apPart, apPlate, checker, clipTo, cyl, inset, irons, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX
 } from './gun-parts.js';
 import { SHELL_MAT, shellMat } from './gun-models.js';
 
@@ -42,6 +42,7 @@ export const SHOTGUN_MODELS = {
     box(g, 0.009, 0.0024, 0.655, B, X, 1.1635, 1.058);
     for (let z = 0.75; z < 1.38; z += 0.057) box(g, 0.004, 0.004, 0.026, B, X, 1.1605, z);
     { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.0035, 8, 6), GM.dot); bd.position.set(X, 1.168, 1.378); g.add(bd); }
+    irons(g, { kind: 'bead', yr: 1.1745, rz: 0.518, yf: 1.1715, fz: 1.378 });   // (looked along: the bead sat on the receiver's back, game/view-cam.js)
     // ---- magazine tube and its cap, the barrel's lug that clamps onto it, the swivel stud; with an extension, the tube
     // runs on toward the muzzle and a clamp holds it to the barrel
     const tEnd = [1.146, 1.25, 1.32, 1.385][T('mag')];   // (its magazine line: Tube extension, Long tube, Full-length tube)
@@ -109,6 +110,7 @@ export const SHOTGUN_MODELS = {
     box(brk, 0.012, 0.011, bl - 0.01, B, ...bx(0, 1.1535, z0 + bl / 2));   // the rib, sunk into the valley between them
     box(brk, 0.008, 0.006, bl - 0.02, B, ...bx(0, 1.124, z0 + bl / 2));
     { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 6), GM.dot); bd.position.set(...bx(0, 1.161, z1 - 0.012)); brk.add(bd); }
+    irons(g, { kind: 'bead', yr: 1.1625, rz: z0 + 0.012, yf: 1.163, fz: z1 - 0.012 });   // (down the rib to the bead)
     box(brk, 0.022, 0.024, 0.07, B, ...bx(0, 1.114, z0 + 0.04));   // the lumps, down into the bar
     box(brk, 0.012, 0.008, 0.004, GM.steel, ...bx(0, 1.152, z0 + 0.0015));   // extractor
     profile(brk, shp([[0.012, 0.024], [0.06, 0.028], [0.06, 0.006], [0.04, -0.006], [0.016, -0.012], [0.006, -0.006]]), 0.044, GM.engrD, 0, 0.002);   // forend iron
@@ -139,7 +141,10 @@ export const SHOTGUN_MODELS = {
     // ---- barrel, its bore; the folding front sight, the tall rear sight
     cyl(g, 0.0163, 0.112, St, X, 1.13, 1.247, 18); cyl(g, 0.0095, 0.002, GM.rubber, X, 1.13, 1.3035, 12);
     profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
-    profile(g, shp([[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]], [shp([[0.5145, 1.276], [0.527, 1.276], [0.527, 1.29], [0.5145, 1.29]]), shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012);
+    { const RS = [[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]];
+      apPart(profile(g, shp(clipTo(RS, [[0.4, 1.15], [0.6, 1.15], [0.6, 1.284], [0.4, 1.284]]), [shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012));
+      apPlate(g, X, 0.01, 1.284, 1.3032, 0.5081, 0.5339, 1.29, 0.0028, St); }   // the aperture plate across its top, the hole looked through down the gun
+    irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
     // ---- the charging handle's fin on top: its own group so the reload can pull it back
     const ch = new THREE.Group(); g.add(ch);
     profile(ch, shp([[0.8152, 1.192], [0.8793, 1.192], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);

@@ -3,6 +3,7 @@
 import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
+import { heatPart } from '../effects/supp-heat.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
@@ -18,14 +19,14 @@ export function fitAttachments(g, D, front, y, info) {
       const r = 0.056 * k, L = 0.15, c = front + 0.03 + L / 2;
       cyl(g, 0.018 * k, 0.04, GM.metal, X, y, front + 0.01);                                     // threaded adapter, over the muzzle
       cyl(g, r * 0.92, 0.012, GM.steel, X, y, front + 0.036, 20);                                // base plate
-      cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24);                                       // the can
+      heatPart(cyl(g, r, L - 0.012, GM.filterB, X, y, c + 0.006, 24), tierCtx);                    // the can (it glows as it heats: effects/supp-heat.js)
       cyl(g, r * 1.03, 0.012, GM.filterB, X, y, front + 0.042, 24);                               // rolled seam at the base
-      cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
+      heatPart(cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24), tierCtx);  // domed end
       cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
-      cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20);   // threaded on over the muzzle
+      heatPart(cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20), tierCtx);   // threaded on over the muzzle (it glows as it heats: effects/supp-heat.js)
       ring(g, r + 0.004, 0.026, GM.metal2, X, y, front + 0.016); ring(g, r + 0.004, 0.02, GM.metal2, X, y, front + L - 0.012); cyl(g, r * 0.35, 0.006, GM.poly, X, y, front + L + 0.002);
       if (s === 3) for (let i = 0; i < 5; i++) ring(g, r + 0.003, 0.01, GM.metal2, X, y, front + 0.07 + i * 0.05);
       front += L;
@@ -82,19 +83,21 @@ export function fitAttachments(g, D, front, y, info) {
   }
   else if (T('light') && !info.noLight) {
     const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can
-    if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
+    if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); lightEm(g, X + 0.06, y - 0.02, mz - 0.158); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
     else if (D.slot === 'auto' && (D.ammo === 'p9' || D.ammo === 'p10')) {   // a submachine gun's: a bigger flashlight, zip-tied on alongside
       const lx = X + 0.066, ly = y - 0.02, lz = mz - 0.27;
-      cyl(g, 0.025, 0.15, GM.metal2, lx, ly, lz); ring(g, 0.031, 0.032, GM.metal, lx, ly, lz + 0.086); cyl(g, 0.027, 0.004, GM.lens, lx, ly, lz + 0.103); ring(g, 0.019, 0.016, GM.rubber, lx, ly, lz - 0.083);   // body, head, lens, tail cap
+      cyl(g, 0.025, 0.15, GM.metal2, lx, ly, lz); ring(g, 0.031, 0.032, GM.metal, lx, ly, lz + 0.086); cyl(g, 0.027, 0.004, GM.lens, lx, ly, lz + 0.103); lightEm(g, lx, ly, lz + 0.108); ring(g, 0.019, 0.016, GM.rubber, lx, ly, lz - 0.083);   // body, head, lens, tail cap
       [-0.045, 0.035].forEach(o => zipTie(g, X, y, lz + o, br, lx, ly, 0.025));
     }
-    else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
+    else { ring(g, br + 0.006, 0.03, GM.metal, X, y, mz - 0.27); box(g, 0.05, 0.03, 0.05, GM.metal, X + 0.03, y - 0.012, mz - 0.27); cyl(g, 0.028, 0.16, GM.metal, X + 0.072, y - 0.02, mz - 0.27); ring(g, 0.035, 0.03, GM.metal2, X + 0.072, y - 0.02, mz - 0.18); lightEm(g, X + 0.072, y - 0.02, mz - 0.163); cyl(g, 0.03, 0.004, GM.lens, X + 0.072, y - 0.02, mz - 0.163); ring(g, 0.02, 0.02, GM.rubber, X + 0.072, y - 0.02, mz - 0.355); }   // a ring round the barrel and its arm out to the light
   }
   const sight = T('sight');
   if (sight && !info.noSight) {
     const top = info.top || y + 0.05, sz = info.sz || 0.62, onSlide = side && info.slide, p = onSlide ? info.slide : g;
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy - 0.002, bz = sz + oz;   // mounts sit 2 mm down into the rail or receiver they clamp
-    if (sight === 4) acog(p, sx, by, bz);
+    // (each optic notes its axis on what it's mounted to: [x, y] across, its eyepiece and front lens along z, the
+    // eyepiece's radius and its eye relief, for looking down it in first person: game/view-cam.js)
+    if (sight === 4) { acog(p, sx, by, bz); p.userData.optic = { kind: 'acog', x: sx, y: by + ACOG.axis, zr: bz - 0.1011, zf: bz + HOOD.lensZ, r: 0.0161, relief: 0.072 }; }   // (its eyepiece the cup's lip, so its picture fills the cup)
     else if (sight >= 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
       // a gun can have a smaller one, further along (the revolver's handgun scope): its lengths by scopeK, its
       // thickness by scopeR, centred at scopeZ
@@ -102,29 +105,38 @@ export function fitAttachments(g, D, front, y, info) {
       [-0.06, 0.08].forEach(o => { const z = cz + o * lk; box(p, 0.04 * rk, 0.012, 0.03 * rk, GM.metal, sx, by + 0.006, z); box(p, 0.014 * rk, sy - by, 0.02 * rk, GM.metal, sx, by + (sy - by) / 2, z); ring(p, 0.03 * rk, 0.022 * rk, GM.metal, sx, sy, z); });
       cyl(p, 0.025 * rk, 0.3 * lk, GM.metal, sx, sy, cz + 0.01 * lk, 18);
       taper(p, 0.025 * rk, 0.04 * rk, 0.08 * lk, GM.metal, sx, sy, cz + 0.2 * lk); taper(p, 0.03 * rk, 0.025 * rk, 0.05 * lk, GM.metal, sx, sy, cz - 0.16 * lk);
-      cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.026 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends
+      cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.0285 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends, the eyepiece's filling its bell
+      p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: 0.105 };
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (sight >= 2) {
-      // holographic sight, after an EOTech XPS: a quick-detach base with its lever, the hood at the back with its window
-      // looking straight down the gun at you (the angled glass and the ring reticle inside it), and the battery housing
-      // reaching forward under the window line, rounded over at the front, with its knurled cap on the left
-      box(p, 0.044, 0.008, 0.096, GM.metal, sx, by + 0.004, bz + 0.002); box(p, 0.008, 0.008, 0.026, GM.metal2, sx + 0.025, by + 0.006, bz + 0.024);
-      const fr = new THREE.Shape(), w = 0.025, y1 = by + 0.008, y2 = by + 0.067, cr = 0.011;
-      fr.moveTo(sx - w, y1); fr.lineTo(sx + w, y1); fr.lineTo(sx + w, y2 - cr); fr.quadraticCurveTo(sx + w, y2, sx + w - cr, y2); fr.lineTo(sx - w + cr, y2); fr.quadraticCurveTo(sx - w, y2, sx - w, y2 - cr); fr.closePath();
-      fr.holes.push(rrect(sx - 0.0175, by + 0.023, sx + 0.0175, by + 0.058, 0.006));
-      xsec(p, fr, bz - 0.046, bz + 0.012, GM.metal, 0.0025);                                                 // the hood
-      profile(p, shp([[bz + 0.012, by + 0.008], [bz + 0.054, by + 0.008], [bz + 0.06, by + 0.016], [bz + 0.058, by + 0.026], [bz + 0.048, by + 0.031], [bz + 0.012, by + 0.031]]), 0.046, GM.metal, sx, 0.003);   // battery housing, rounded at the front
-      { const cap = cyl(p, 0.0115, 0.008, GM.metal2, sx + 0.026, by + 0.02, bz + 0.04, 18); cap.rotation.set(0, 0, Math.PI / 2); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, kb = box(p, 0.009, 0.0025, 0.0025, GM.metal, sx + 0.026, by + 0.02 + Math.cos(a) * 0.0115, bz + 0.04 + Math.sin(a) * 0.0115); kb.rotation.x = a; } }
-      [-0.008, 0.008].forEach(o => box(p, 0.011, 0.008, 0.003, GM.rubber, sx + o, by + 0.0155, bz - 0.0475));   // the buttons under the window, at the back
-      const gl = box(p, 0.035, 0.035, 0.002, GM.holoGlass, sx, by + 0.0405, bz + 0.004); gl.rotation.x = -0.1;
-      const rt = new THREE.Mesh(new THREE.TorusGeometry(0.0095, 0.002, 4, 22), GM.red); rt.position.set(sx, by + 0.0405, bz + 0.004); rt.rotation.x = -0.1; p.add(rt);   // the reticle, on the glass
-      box(p, 0.0026, 0.0026, 0.002, GM.red, sx, by + 0.0405, bz + 0.004).rotation.x = -0.1;
+      // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
+      // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
+      // and on the back face under the window the panel with its two arrow buttons, the round one between and four
+      // screws. Its reticle (the 68 MOA ring, its four ticks and the dot) is only seen looking through it, drawn where
+      // your eye sees it (effects/scope-view.js)
+      const H5 = { z0: bz - 0.048, z1: bz - 0.004, wy: by + 0.034, ww: 0.0152, wh: 0.0112, fr: 0.0014, hw: 0.0015 };   // (fr: the frame's width round the window; hw: the hood's walls)
+      box(p, 0.03, 0.006, 0.09, GM.metal, sx, by + 0.003, bz);                                                                  // the mount
+      cyl(p, 0.005, 0.006, GM.metal2, sx + 0.019, by + 0.004, bz + 0.02, 12).rotation.set(0, 0, Math.PI / 2);                // its cross-bolt knob
+      profile(p, shp([[H5.z0, by + 0.004], [bz + 0.04, by + 0.004], [bz + 0.046, by + 0.008], [bz + 0.047, by + 0.016], [bz + 0.042, by + 0.0225], [H5.z0, by + 0.0225]]), 0.034, GM.metal, sx, 0.0015);   // the body
+      cyl(p, 0.0085, 0.006, GM.metal2, sx, by + 0.0135, bz + 0.049, 16);                                                       // the battery cap
+      { const fr = shp(rrect(sx - H5.ww - H5.fr, H5.wy - H5.wh - H5.fr, sx + H5.ww + H5.fr, H5.wy + H5.wh + H5.fr, 0.0045).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - H5.ww, H5.wy - H5.wh, sx + H5.ww, H5.wy + H5.wh, 0.0035)]);
+        xsec(p, fr, H5.z0, H5.z1, GM.metal, 0.0006); }                                                                        // the window's frame
+      { const hd = shp(rrect(sx - 0.0215, by + 0.006, sx + 0.0215, by + 0.0545, 0.0075).getPoints(4).map(v => [v.x, v.y]), [rrect(sx - 0.0215 + H5.hw, by + 0.006 + H5.hw, sx + 0.0215 - H5.hw, by + 0.0545 - H5.hw, 0.0075 - H5.hw)]);
+        xsec(p, hd, H5.z0 - 0.002, H5.z1 + 0.002, GM.metal, 0.0005); }                                                       // the hood
+      box(p, 0.027, 0.0145, 0.0015, GM.metal2, sx, by + 0.0135, H5.z0 - 0.0005);                                              // the button panel
+      [-1, 1].forEach(sd => { box(p, 0.0068, 0.0056, 0.0016, GM.rubber, sx + sd * 0.0072, by + 0.0108, H5.z0 - 0.0013); [by + 0.0075, by + 0.0185].forEach(yy => cyl(p, 0.0013, 0.0012, GM.steel, sx + sd * 0.0112, yy, H5.z0 - 0.0013, 8)); });
+      cyl(p, 0.0032, 0.0016, GM.rubber, sx, by + 0.0168, H5.z0 - 0.0013, 14);
+      const gl = box(p, H5.ww * 2, H5.wh * 2, 0.0015, GM.holoGlass, sx, H5.wy, H5.z1 - 0.003); gl.rotation.x = -0.06;
+      p.userData.optic = { kind: 'holo', x: sx, y: H5.wy, zr: H5.z0, zf: H5.z1, r: H5.ww, hw: H5.ww, hh: H5.wh };
     } else {   // micro red dot
       box(p, 0.034, 0.016, 0.05, GM.metal, sx, by + 0.006, bz);                                        // its base, set down on the rail and up into the tube
-      cyl(p, 0.019, 0.055, GM.metal, sx, by + 0.032, bz); ring(p, 0.021, 0.01, GM.metal2, sx, by + 0.032, bz + 0.028);
-      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285);   // the lens on the front ring, the dot showing at the back
+      // the tube, open to look through, and its thicker front ring round the lens
+      lathe(p, [[0.0165, bz - 0.0275], [0.019, bz - 0.0275], [0.019, bz + 0.023], [0.0165, bz + 0.023], [0.0165, bz - 0.0275]], GM.metal, sx, by + 0.032, 28);
+      lathe(p, [[0.0165, bz + 0.023], [0.021, bz + 0.023], [0.021, bz + 0.033], [0.0165, bz + 0.033], [0.0165, bz + 0.023]], GM.metal2, sx, by + 0.032, 28);
+      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285).userData.reticle = true;   // the lens on the front ring, the dot showing at the back (hidden looking down it, the dot drawn where your eye sees it)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), GM.metal2); tt.position.set(sx, by + 0.055, bz); p.add(tt);
+      p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }
   }
   if (roundOn(tierCtx) === 'fire') { ring(g, 0.03, 0.03, GM.ember, X, y, Math.min(front - 0.05, (info.sz || 0.62) + 0.28)); box(g, 0.012, 0.02, 0.05, GM.ember, X + 0.04, y - 0.04, (info.sz || 0.62) - 0.05); }
@@ -277,6 +289,7 @@ function weaponLight(g, at, mz, laserT, tier, x, root) {
   xsec(g, rr(X0 - w / 2 - f, u - h - f, X0 + w / 2 + f, u - 0.002, W_.r + f), z1 - W_.head, z1 - 0.002, M, 0.0015);       // the head
   const ly = laserT ? u - h * 0.42 : u - h * 0.53;
   ring(g, W_.lens + 0.0025, 0.004, GM.metal2, X0, ly, z1 - 0.0005); cyl(g, W_.lens, 0.002, GM.lens, X0, ly, z1 + 0.0018, 24);   // the bezel and the lens, just proud of it
+  lightEm(g, X0, ly, z1 + 0.004, root);
   const [pw, ph, pd] = W_.paddle;
   [-1, 1].forEach(s => { box(g, pw, ph, pd, GM.rubber, X0 + s * (w / 2 + pw / 2), u - h * 0.55, z0 + 0.01).rotation.x = 0.25; });   // the switch paddles, on its sides at the back
   if (tier === 1) [-1, 1].forEach(s => [0.3, 0.62].forEach(t => box(g, 0.0015, 0.005, 0.005, GM.metal, X0 + s * (w / 2 + 0.0008), u - h * 0.45, z0 + L * t)));   // its screws
@@ -286,6 +299,9 @@ function weaponLight(g, at, mz, laserT, tier, x, root) {
   box(g, 0.012, 0.007, 0.003, laserT === 2 ? GM.laserG : GM.red, X0, ey, z1 + 0.0008); em.position.set(X0, ey, z1 + 0.003);
   em.userData.isLaser = true; g.add(em); (root || g).userData.laserEm = em;
 }
+// where a weapon light's beam comes out: a marker just off its lens, found on the gun in your hands (lightEm: its
+// beam's lit from there, lighting/lightmap.js)
+function lightEm(g, x, y, z, root) { const em = new THREE.Object3D(); em.position.set(x, y, z); em.userData.isLightEm = true; g.add(em); (root || g).userData.lightEm = em; }
 // a zip tie cinched round the barrel (x, y, its radius r) and a light lying alongside it (tx, ty, radius tr): a thin
 // black band round each, the strap running between them over the top and under the bottom, and the tie's square head
 function zipTie(g, x, y, z, r, tx, ty, tr) {

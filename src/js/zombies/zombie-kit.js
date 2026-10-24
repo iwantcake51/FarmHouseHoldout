@@ -8,8 +8,27 @@ import { rr } from '../core/math.js';
 const _zkG = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), _zkPA = _zkG.attributes.position.array, _zkNA = _zkG.attributes.normal.array;
 const _zkM = new THREE.Matrix4(), _zkQ = new THREE.Quaternion(), _zkE = new THREE.Euler(), _zkT = new V3(), _zkS = new V3(), _zkN = new V3(), _zkC = new THREE.Color();
 export const zKit = () => ({ p: [], n: [], c: [] });
+// armour being built (zArmor): every box made meanwhile is noted on its kit as part of that piece (k.arm: the slot it
+// guards and its first vertex), so it can crack and come off later (zombies/armor-break.js)
+let zArmSlot = null;
+export function zArmor(slot, f) { const o = zArmSlot; zArmSlot = slot; try { f(); } finally { zArmSlot = o; } }
+// what's built over a piece of armour after it (a rip, blood down the front: thin boxes inside it) is part of it too, and
+// goes with it when it comes off
+export function zArmorAdopt(k) {
+  if (!k.arm || !k.arm.length) return;
+  const P = k.p, n = P.length / 108, tagged = new Set(k.arm.map(b => b.v / 36)), bb = {}, M = 0.015;
+  const ext = i => { const e = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9]; for (let q = 0; q < 36; q++) for (let a = 0; a < 3; a++) { const v = P[(i * 36 + q) * 3 + a]; if (v < e[a]) e[a] = v; if (v > e[a + 3]) e[a + 3] = v; } return e; };
+  for (const b of k.arm) { const e = ext(b.v / 36), A = bb[b.slot] || (bb[b.slot] = [1e9, 1e9, 1e9, -1e9, -1e9, -1e9]); for (let a = 0; a < 3; a++) { A[a] = Math.min(A[a], e[a]); A[a + 3] = Math.max(A[a + 3], e[a + 3]); } }
+  const first = Math.min(...tagged);
+  for (let i = first + 1; i < n; i++) {
+    if (tagged.has(i)) continue;
+    const e = ext(i); if (Math.min(e[3] - e[0], e[4] - e[1], e[5] - e[2]) > 0.02) continue;
+    for (const slot in bb) { const A = bb[slot]; let inside = true; for (let a = 0; a < 3 && inside; a++) { const c = (e[a] + e[a + 3]) / 2; inside = c > A[a] - M && c < A[a + 3] + M; } if (inside) { k.arm.push({ slot, v: i * 36 }); tagged.add(i); break; } }
+  }
+}
 // a box w by h by d of colour c, its middle at (x, y, z) in the part's frame, turned by (rx, ry, rz)
 export function zb(k, w, h, d, c, x, y, z, rx, ry, rz) {
+  if (zArmSlot) (k.arm || (k.arm = [])).push({ slot: zArmSlot, v: k.p.length / 3 });
   _zkQ.setFromEuler(_zkE.set(rx || 0, ry || 0, rz || 0)); _zkM.compose(_zkT.set(x, y, z), _zkQ, _zkS.set(w, h, d));
   const e = _zkM.elements; _zkC.set(c);
   for (let i = 0; i < _zkPA.length; i += 3) {
