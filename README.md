@@ -177,6 +177,10 @@ and however far up you look, the arm reaching all the way to it rather than the 
 Taking a hand off (for a mag, a shell, the bolt) lets go of the constraint as the hand blends away, and taking hold
 again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is.
 
+**A gun in each hand.** With the second pistol or second machine pistol fitted, each gun kicks on its own shot from
+your own eyes, flipping up on its wrist while the other stays steady, and running with them each hand pumps forward
+and back with your stride, opposite the other, the guns canted out.
+
 **Inspecting.** Press **Y** (it can be rebound) to look your gun over, from your own eyes or from above: it's brought
 up and in, rolled over to show one side and then the other, swung round to see down its front, and tipped to look
 along its back and top, your head following it. Each move starts gently, swings through and settles into its pose

@@ -367,12 +367,18 @@ const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from y
 // first person: how much of the hands' own kick (RK) and the body's rock under a shot (SR, BR) is kept, the rest of
 // the kick being the view's (game/view-cam.js: FP_RECOIL), worked out from your own eyes
 const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
+// a pair, one in each hand, from your own eyes: the view takes none of their kick, so each gun keeps all of its own and
+// more, flipping up on its own wrist (flip: how much more of its muzzle's rise, back: of its shove back) on its own
+// shot while the other stays steady; and at a sprint each hand pumps forward and back with the stride,
+// opposite the other (swing, metres; lift up on each step), the muzzles tipped down (tip, more on the hand that's back:
+// tipSw) and canted out (cant), as you run with a gun in each hand, rather than the pair carried rigid in front of you
+const FP_AK = { flip: 14, back: 2, run: { swing: 0.075, lift: 0.028, tip: 0.3, tipSw: 0.16, cant: 0.42, out: 0.035 } };
 // and looking it over from your own eyes, it's turned this far side on to you (radians) for its turns to show it, rather
 // than seen end on down its back
 const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
 // h up), angled across you (y), canted (r) and tipped only a little down (p)
-const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 } };
+const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 }, ak: { p: 0.04, y: 0, r: 0, x: 0, h: 0.06, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -549,7 +555,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const lg = H.kind === 'long', fk = fpOn() ? FP_SPRINT_BOUNCE : 1, b2 = Math.sin(ph * 2) * fk, b1 = Math.sin(ph) * fk;   // (from your own eyes the gun bounces less: FP_SPRINT_BOUNCE)
     // (from your own eyes it's drawn in tight against your chest, angled across you and only a little down, still in
     // the bottom of the view: FP_SPRINT, rather than out and down where it drops from sight)
-    const S = fpOn() ? FP_SPRINT[lg ? 'long' : 'hand'] : null;
+    const S = fpOn() ? (ak ? FP_SPRINT.ak : FP_SPRINT[lg ? 'long' : 'hand']) : null;
     if (S) { pitch += rd * (S.p + 0.05 * b2); yaw += rd * (S.y + 0.05 * b1); roll += rd * S.r; ox -= rd * S.x; oy += rd * (S.h - 0.012 * b2); oz -= rd * S.z; }
     else {
       pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
@@ -582,8 +588,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
-    const kf = fpOn() ? FP_HAND_KICK : 1;   // (from your own eyes the kick's mostly the view's own: game/view-cam.js, FP_RECOIL)
-    let hx = kickPitch(k.p) * kf, hy = k.y * kf, hz = k.r * kf, hox = h.userData.x0 || 0, hoy = k.h * kf, hoz = k.z * kf;
+    const fpk = fpOn(), kf = fpk ? (ak ? 1 : FP_HAND_KICK) : 1, kp = fpk && ak ? FP_AK.flip : kf, kz = fpk && ak ? FP_AK.back : kf;   // (from your own eyes the kick's mostly the view's own: game/view-cam.js, FP_RECOIL; a pair's is each gun's own, FP_AK)
+    let hx = kickPitch(k.p) * kp, hy = k.y * kp, hz = k.r * kf, hox = h.userData.x0 || 0, hoy = k.h * kz, hoz = k.z * kz;
     if (ak) { hoz -= GP[side].back; hx -= GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
     const u = ak ? akU(side) : 0;
     if (ak) {
@@ -591,6 +597,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const a = AK_HAND[side], on = u > 0 ? 1 - Math.sin(Math.PI * clamp(u, 0, 1)) : 1, dr = now * a.f;
       hz += sg * a.cant * on; hy -= sg * a.toe * on; hx += a.p + Math.sin(dr) * 0.012;
       hox -= sg * a.in; hoy += a.up + Math.sin(dr * 1.3 + 0.5) * 0.004; hoz += a.fwd; hy += Math.sin(dr * 0.7 + 1.3) * 0.01;
+      // running with the pair from your own eyes: each hand pumping with the stride, opposite the other (FP_AK.run)
+      if (fpOn() && rd > 0.001) { const R = FP_AK.run, sw = Math.sin(ph) * sg, w = rd * on; hoz += w * R.swing * sw; hoy += w * R.lift * Math.abs(Math.cos(ph)); hx += w * (R.tip - R.tipSw * sw); hz += sg * w * R.cant; hox += sg * w * R.out; }
       if (side === 'L') {
         // put away for a vault, then drawn: the hand goes down to where it is, and comes back up with it
         h.visible = !ANIM.akHolstered;
