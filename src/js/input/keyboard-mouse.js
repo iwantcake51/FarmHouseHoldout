@@ -90,7 +90,10 @@ addEventListener('mousemove', e => {
   mouseX = e.clientX; mouseY = e.clientY; hasMouse = true; if (scoped) moveScope(e.movementX || 0, e.movementY || 0); });
 cv.addEventListener('mousedown', e => { audioInit();
   // first person or the free camera: a click takes the mouse to look about with (and isn't a shot); flying, it never fires
-  if (!isoOn() && state === 'play' && (!locked() || freeOn())) { if (!locked()) wantLock(); return; } if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
+  // (with a station open, a click out on the game rather than on its panel puts it away and takes the mouse back with
+  // it, instead of grabbing the mouse from under the open panel)
+  if (!isoOn() && state === 'play' && openSt && !locked()) { closeStation(); return; }
+  if (!isoOn() && state === 'play' && (!locked() || freeOn())) { if (!locked() && !lookMenu()) wantLock(); return; } if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
   if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
   if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; setAimHeld(true); if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 // the middle and side buttons: whatever's bound to them (as mouse3 to mouse5), anywhere on the page; and the side

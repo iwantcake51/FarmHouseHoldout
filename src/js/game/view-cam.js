@@ -22,6 +22,7 @@ import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
 import { ANIM } from '../player/animation.js';
+import { BACK_LAYER } from '../player/stow.js';
 import { cheatOn } from '../ui/cheats.js';
 import { SET, setOpen } from '../ui/settings.js';
 
@@ -77,7 +78,7 @@ const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
 // the view's bob with your stride (P.phase: a footfall every half turn): dipping (up, metres) and nodding (pitch) as
 // each foot lands, swaying across (side, metres) and rocking (roll) a step each way; at full walking pace (speed, metres
 // a second), more running, much less down the sights (ads), eased in and out as you start and stop (ease)
-const BOB = { up: 0.011, pitch: 0.006, side: 0.007, roll: 0.005, speed: 4.2, max: 1.4, ads: 0.75, ease: 6, foot: 0.6 };   // (foot: how much the dip lands sharp on each footfall, rather than a plain wave)
+const BOB = { up: 0.011, pitch: 0.006, side: 0.007, roll: 0.005, speed: 4.2, max: 1.0, ads: 0.75, ease: 6, foot: 0.6 };   // (max: a sprint bobs no harder than a walk)   // (foot: how much the dip lands sharp on each footfall, rather than a plain wave)
 // coming down off a vault, the view and the gun dip on landing and come back up on a spring (metres a second of the drop)
 const LAND = { cam: 0.42, k: 110, d: 13 };
 // the gun and your arms from your own eyes, on top of the hold (player/hold.js: fpViewSway), on soft springs (k, d) so
@@ -240,6 +241,22 @@ export function fpReloadPose(gg, k) {
   _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
+}
+// your own arms, from your own eyes: whatever of them comes nearer your eye than SELF_CLIP.near (further looking up:
+// up, as the gun's raised over the shoulders) is cut away, the way a shooter's own upper arms never fill the view, so
+// raising the gun to aim high doesn't put your sleeves over everything. A plane across the view (SELF_PLANES) on the
+// arms' materials (not the gun's, nor a melee weapon's); out of first person it's put far off, cutting nothing
+const SELF_CLIP = { near: 0.2, up: 0.17 }, SELF_PLANES = [new THREE.Plane(new V3(0, 1, 0), 1e6)], _scD = new V3(), _scP = new V3();
+R.localClippingEnabled = true;
+function selfClip(on, c) {
+  const pl = SELF_PLANES[0];
+  if (on) c.layers.disable(BACK_LAYER); else FP_CAM.layers.enable(BACK_LAYER);   // (and what rides on your back's left out: player/stow.js)
+  if (!on) { pl.normal.set(0, 1, 0); pl.constant = 1e6; return; }
+  const walk = o => { if (o === gunMeshes.melee) return; if (o.isMesh && o.material && !Array.isArray(o.material) && o.material.clippingPlanes !== SELF_PLANES) { o.material.clippingPlanes = SELF_PLANES; o.material.needsUpdate = true; } o.children.forEach(walk); };
+  walk(PM.armL); walk(PM.armR);
+  c.getWorldDirection(_scD);
+  const d = SELF_CLIP.near + SELF_CLIP.up * smooth(clamp((VCAM.pitch - 0.1) / 0.6, 0, 1));
+  pl.setFromNormalAndCoplanarPoint(_scD, _scP.copy(c.position).addScaledVector(_scD, d));
 }
 // the gun's own sway from your own eyes (VM): where its springs are headed this frame, and stepped on to it
 function vmStep(rdt, w0, now) {
@@ -437,11 +454,11 @@ function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glas
 // vault), sh: the shake
 export function viewFrame(rdt, roll, sh, jolt) {
   syncView();
-  if (isoOn()) { if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; return; }
+  if (isoOn()) { if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
   // play, a word that a click takes it back
   const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen();
-  if (menu && locked() && performance.now() - (V.lockAt || 0) > 500) unlock();
+  if (menu && locked() && performance.now() - (V.lockAt || 0) > 200) unlock();
   const hint = !menu && !locked(); if (lookHint.hidden === hint) lookHint.hidden = !hint;
   const c = FP_CAM;
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
@@ -502,6 +519,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     V.sw = L ? w : 0;
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx, _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx);
     c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
+    selfClip(fpOn(), c);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis
     const scope = !!LH && (LH.kind === 'scope' || LH.kind === 'acog');

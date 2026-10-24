@@ -354,7 +354,7 @@ const _mlR = new V3(), _mtS = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
 const ARM_AIM = { k: 38, d: 12.3 };
-const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11;
+const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
@@ -469,7 +469,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. It's carried high, muzzle only
   // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up
   if (rd > 0.001) {
-    const lg = H.kind === 'long', b2 = Math.sin(ph * 2), b1 = Math.sin(ph);
+    const lg = H.kind === 'long', fk = fpOn() ? FP_SPRINT_BOUNCE : 1, b2 = Math.sin(ph * 2) * fk, b1 = Math.sin(ph) * fk;   // (from your own eyes the gun bounces less: FP_SPRINT_BOUNCE)
     pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
     ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
   }

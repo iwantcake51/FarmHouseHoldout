@@ -3,7 +3,7 @@
 // against the pack's left side and an automatic on a slant across its back, the melee weapon through the straps at
 // its right edge; the planks you carry, strapped to the back of the pack; and the backpack's own swing.
 
-import { V3 } from '../core/renderer.js';
+import { FP_CAM, ISO_CAM, sun, V3 } from '../core/renderer.js';
 import { angDiff, clamp } from '../core/math.js';
 import { lam } from '../core/shaders.js';
 import { binModel, box } from '../core/geometry.js';
@@ -255,6 +255,7 @@ function buildStow() {
     outer.position.set(...at.pos); if (at.q) inner.quaternion.copy(at.q); else inner.rotation.set(...at.rot); copy.position.set(-pv[0], -pv[1], -pv[2]);
     if (at.flip && at.flip(id)) inner.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), Math.PI));   // turned over on its length
     inner.add(copy); outer.add(inner); at.part().add(outer);
+    if (at.part() !== PM.upper) outer.traverse(o => o.layers.set(BACK_LAYER));   // (riding on your back: not drawn from your own eyes, BACK_LAYER)
     outer.userData.gun = copy; outer.userData.inner = inner; outer.userData.q0 = inner.quaternion.clone();
     const sls = [], mags = [], belt = []; copy.traverse(o => { if (o.userData.slideRest) sls.push(o); if (o.userData.isMag) mags.push(o); if (o.userData.beltK !== undefined) belt.push(o); });
     outer.userData.mags = mags; outer.userData.belt = belt;
@@ -287,6 +288,12 @@ function buildStow() {
 // (which lies over them) so their ends stop short of the long gun flat against the pack's other side. Each is a shade of its own, dealt again whenever
 // it's a fresh plank that shows up there. Once there's a metalwork bench (barricades/metal-bars.js) it's metal you carry
 // there instead, in the same places: lengths of angle iron
+// what rides on your back (the long gun, the automatic, the melee weapon) is drawn on a layer of its own, which the
+// first-person camera leaves out (game/view-cam.js): from your own eyes your back's never in view, but a bat or a barrel
+// poking up over your shoulder was, right over your eye, whenever you looked up. From above, the free camera and the
+// sun's shadows still have it
+export const BACK_LAYER = 4;
+[ISO_CAM, FP_CAM, sun.shadow.camera].forEach(c => c.layers.enable(BACK_LAYER));
 const plankStack = [], STOW_STEEL = lam(0x8d949b), STOW_STEEL_DK = lam(0x5d636a);
 {
   const g = new THREE.Group(); g.position.set(-0.06, 0, -0.355); packBack.add(g);

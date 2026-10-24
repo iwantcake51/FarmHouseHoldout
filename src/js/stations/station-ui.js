@@ -21,7 +21,7 @@ import { equip } from '../weapons/reload.js';
 import { bandMax } from '../player/bandages.js';
 import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
 import { FEED_ICON, popEl, setT } from '../ui/hud-text.js';
-import { wantLock } from '../game/view-cam.js';
+import { fpOn, wantLock } from '../game/view-cam.js';
 import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { benchTipUsed } from '../ui/bench-tips.js';
@@ -39,16 +39,19 @@ function stationDist(s) {
 // which you'd use: standing on a station's own spot in front of it (within STATION_SPOT) it's always that one, however
 // near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
 // the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
-const STATION_SPOT = 0.7, STATION_FACE = 0.35;
+// From your own eyes you reach a touch further and where you look counts for much more (STATION_FP), so the one you're
+// looking at is the one you get
+const STATION_SPOT = 0.7, STATION_FACE = 0.35, STATION_FP = { reach: 1.55, face: 0.9 };
 export function nearestStation() {
-  let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
+  const fp = fpOn(), REACH = fp ? STATION_FP.reach : STATION_REACH, FACE = fp ? STATION_FP.face : STATION_FACE;
+  let best = null, bd = REACH, spot = null, sd = STATION_SPOT;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   for (const s of STATIONS) {
     if (s.coop && !netLink()) continue;
     const u = Math.hypot(s.x - P.x, s.z - P.z); if (u < sd) { sd = u; spot = s; }
-    const d = stationDist(s); if (d >= STATION_REACH) continue;
+    const d = stationDist(s); if (d >= REACH) continue;
     const cx = s.foot ? s.foot[0] : s.x, cz = s.foot ? s.foot[1] : s.z, l = Math.hypot(cx - P.x, cz - P.z) || 1;
-    const k = d - STATION_FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
+    const k = d - FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
     if (k < bd) { bd = k; best = s; }
   }
   return spot || best;

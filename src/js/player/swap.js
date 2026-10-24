@@ -42,7 +42,11 @@ const _sw = { m: new THREE.Matrix4(), toUp: new THREE.Matrix4(), a: new THREE.Ma
 // where an arm's fist is, in upper-body space (the arm is a straight block from the shoulder)
 export const fistOf = (arm, out) => out.set(0, 0, FIST * arm.scale.z).applyQuaternion(arm.quaternion).add(arm.position);
 // a world matrix in the character's own frame
-const toBody = (mw, out) => out.copy(PM.g.matrixWorld).invert().multiply(mw);
+// the character's frame, mirrored as the upper body is (player/player.js): what rides on the upper body and the guns in
+// your hands sit in it the right way round, so a draw's frames blend without losing the mirror, and its keys' x is your right
+const BODY_FLIP = new THREE.Matrix4().makeScale(-1, 1, 1), _bodyM = new THREE.Matrix4();
+const bodyW = () => _bodyM.copy(PM.g.matrixWorld).multiply(BODY_FLIP);
+const toBody = (mw, out) => out.copy(bodyW()).invert().multiply(mw);
 
 // a pair of sidearms in the shoulder rig (player/stow.js): each hand draws the gun under the other arm, both at once
 // (a cross draw), and puts it back there the same way. rigFrame is where that hand's gun rides (its copy's frame, in
@@ -52,7 +56,7 @@ export const rigPair = s => s === 'side' && !!STOW.side && !!STOW.side.userData.
 const rigFrame = (side, out) => { const o = STOW.side; return toBody((side === 'R' ? o.userData.gun : o.userData.gun2).matrixWorld, out); };
 function gunGrip(out, slot, f) { const gp = (HOLD[W8.slot[slot]] || HOLD_DEF).grip; return out.set(gp[0], gp[1], gp[2]).applyMatrix4(f).applyMatrix4(_sw.toUp); }
 const _rg = new THREE.Matrix4(), _rf = new THREE.Matrix4();
-function placeHold(h, f) { _rg.copy(h.parent.matrixWorld).invert().multiply(_rf.copy(PM.g.matrixWorld).multiply(f)); _rg.decompose(h.position, h.quaternion, h.scale); h.scale.set(1, 1, 1); h.updateMatrix(); h.updateMatrixWorld(true); }
+function placeHold(h, f) { _rg.copy(h.parent.matrixWorld).invert().multiply(_rf.copy(bodyW()).multiply(f)); _rg.decompose(h.position, h.quaternion, h.scale); h.scale.set(1, 1, 1); h.updateMatrix(); h.updateMatrixWorld(true); }
 // blendFrame about a point on the gun (gp, in its own frame: the grip) instead of its frame's origin, which is well off
 // the gun, so a gun turned right round comes round in the hand rather than swinging out on a long arm
 const _gpM = new THREE.Matrix4(), _gpI = new THREE.Matrix4();
@@ -198,7 +202,7 @@ function gunDrawFrame(out, slot, stow, live, u) {
 }
 // put an object at a character-frame matrix, whatever its parent
 function placeAt(o, bodyM) {
-  _sw.m.copy(o.parent.matrixWorld).invert().multiply(_sw.c.copy(PM.g.matrixWorld).multiply(bodyM));
+  _sw.m.copy(o.parent.matrixWorld).invert().multiply(_sw.c.copy(bodyW()).multiply(bodyM));
   _sw.m.decompose(o.position, o.quaternion, o.scale); o.scale.set(1, 1, 1); o.updateMatrix(); o.updateMatrixWorld(true);
 }
 // where the right hand holds a slot's weapon when the weapon sits at bodyM, in upper-body space
@@ -227,7 +231,7 @@ export function updateSwap(dt, rdt) {
   // the body eases from the pose you had when the swap began to the new hold's
   { const e = smooth(clamp(t / end, 0, 1)); pm.upper.quaternion.copy(_sw.qa.copy(st.upQ).slerp(pm.upper.quaternion, e)); pm.head.quaternion.copy(_sw.qb.copy(st.headQ).slerp(pm.head.quaternion, e)); }
   pm.g.updateMatrixWorld(true);
-  _sw.toUp.copy(pm.upper.matrixWorld).invert().multiply(pm.g.matrixWorld);
+  _sw.toUp.copy(pm.upper.matrixWorld).invert().multiply(bodyW());
   // the new weapon's held frame and the left hand's place on it, as the normal pose put them
   const live = toBody(gunMeshes[st.to].matrixWorld, _sw.a), liveL = fistOf(pm.armL, _sw.liveL);
   const rigTo = rigPair(st.to), rigFrom = !!st.old && rigPair(st.from);
@@ -315,7 +319,7 @@ export function updateBandStow() {
   if (k <= 0 || k >= 1 || swapSt || P.dead || P.vault || !g || !STOW[s]) return;
   ANIM.bandMoved = true;
   PM.g.updateMatrixWorld(true);
-  _sw.toUp.copy(PM.upper.matrixWorld).invert().multiply(PM.g.matrixWorld);
+  _sw.toUp.copy(PM.upper.matrixWorld).invert().multiply(bodyW());
   if (rigPair(s)) {   // a pair in the shoulder rig: each hand carries its gun back under the other arm
     const liveP = { R: toBody(HOLDS[s].R.matrixWorld, new THREE.Matrix4()), L: toBody(HOLDS[s].L.matrixWorld, new THREE.Matrix4()) };
     rigCarry(s, liveP, { R: rigFrame('R', new THREE.Matrix4()), L: rigFrame('L', new THREE.Matrix4()) }, smooth(k)); return;

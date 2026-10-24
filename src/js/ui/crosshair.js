@@ -131,6 +131,9 @@ function blockedShot() {
 const xhX = $('xhX');
 export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
+  // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
+  // you come off the sights)
+  if (!showXh && !xh.hidden) Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick')));
   xh.hidden = !showXh;
   if (showXh) {
     xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
