@@ -41,18 +41,29 @@ uniform sampler2D tS, tD; uniform vec2 uC, uOff, uAx, uRot, uRes, uNF; uniform f
 // a line's coverage, half width w, at distance d (in the lens's units: its radius is 1), smoothed over a pixel
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+// the eyepiece's glass as it looks with your eye off its axis (at the hip, or coming up): dark coated glass, the sky
+// above you faintly in it, a soft highlight curving round its upper side and a brighter rim where the glass curves
+// away, a little sheen of the coating's colour; not a flat black disc
+vec3 glass(vec2 p, float d) {
+  vec3 c = mix(vec3(0.012, 0.016, 0.02), vec3(0.075, 0.088, 0.1), smoothstep(-0.9, 0.9, p.y) * 0.75);
+  c += vec3(0.05, 0.035, 0.07) * (1.0 - smoothstep(0.0, 0.8, length(p - vec2(0.25, -0.3))));   // the coating's sheen
+  vec2 h = p - vec2(-0.32, 0.38); c += vec3(0.42, 0.45, 0.48) * exp(-dot(h, h) * 14.0) * 0.55;    // the highlight
+  float arc = exp(-pow((d - 0.78) / 0.05, 2.0)) * smoothstep(-0.1, 0.6, -p.x * 0.6 + p.y);           // curving round the top
+  c += vec3(0.3, 0.32, 0.35) * arc * 0.35 + vec3(0.12) * smoothstep(0.86, 0.99, d);                   // and the rim
+  return c;
+}
 void main() {
   vec2 p = (gl_FragCoord.xy - uC) / uR; float d = length(p), px = 1.0 / uR;
   // (whatever's nearer than the eyepiece, a hand, a window's frame, hides it)
   float seen = 1.0;
   if (uHasD > 0.5) { float z = texture2D(tD, gl_FragCoord.xy / uRes).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); seen = smoothstep(uEyeZ - 0.02, uEyeZ - 0.005, vz); }
-  vec3 col = vec3(0.0);
+  vec3 col = glass(p, d);
   if (uDark < 0.5) {
     // the picture: the world as it lies along the scope's axis (uAx, where that points on the screen), magnified, seen
     // through the eyepiece wherever that is: an eye off the axis sees the picture and the reticle together slide
     // against the eyepiece's ring (parallax); colour fringes toward the rim
     vec2 a = (gl_FragCoord.xy - uAx) / uRI, uv = a * 0.5 + 0.5;
-    float ca = 0.008 * d * d;
+    float ca = 0.008 * d * d; vec3 gl = col;
     col = vec3(texture2D(tS, (uv - 0.5) * (1.0 + ca) + 0.5).r, texture2D(tS, uv).g, texture2D(tS, (uv - 0.5) * (1.0 - ca) + 0.5).b);
     col *= vec3(0.98, 1.0, 1.02);   // the coatings' faint cast
     // the reticle, in the scope: on its axis with the picture, turned as the gun's canted
@@ -71,9 +82,10 @@ void main() {
       col = mix(col, vec3(1.0, 0.16, 0.08) * 1.5, ln(cv, 0.008, px));
       col += vec3(1.0, 0.2, 0.1) * 0.35 * exp(-cv * cv / 0.0012);   // its glow
     }
-    // the tube's shadow, closing in from where your eye's off its axis, and the glass darkening to its rim
-    col *= 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55));
+    // the tube's shadow, closing in from where your eye's off its axis, and the glass darkening to its rim; where the
+    // picture's shut off, the glass itself is what you see
     col *= 1.0 - 0.3 * smoothstep(0.7, 1.0, d);
+    col = mix(gl, col, 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55)));
   }
   float inside = (1.0 - smoothstep(1.0 - px * 1.5, 1.0 + px * 1.5, d)) * seen;
   gl_FragColor = vec4(col * inside, inside);   // (nothing round it: the view there's as it is, only out of focus)

@@ -139,7 +139,8 @@ proper eye relief out from your eye and shows its own magnified view filling the
 the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
 where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
-off it (nearly black at the hip, opening up as it comes to your eye; a shot's kick and a quick turn swing it). Anything
+off it (at the hip you see the eyepiece's dark coated glass, with the sky and a curved highlight in it, and the
+picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
 away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
 from your eye, even aiming straight up. Zombies show the moment any of one is in a clear line from your eyes, round a
