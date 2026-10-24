@@ -5,6 +5,7 @@ import { hemi, LIGHT_K, scene, sun, SUN_D, SUN_R, V3 } from '../core/renderer.js
 import { cache, clamp, mix, rand, rr, smooth } from '../core/math.js';
 import { LMU } from '../core/shaders.js';
 import { openings } from '../world/house.js';
+import { SKY_U } from '../world/sky.js';
 import { fireflies, moths, stepAtmos } from '../world/atmosphere.js';
 import { P } from '../player/player.js';
 import { BOARD_PLACE, boardPlace } from '../barricades/planks.js';
@@ -14,12 +15,13 @@ import { setT } from '../ui/hud-text.js';
 import { dayPart, dialNight } from '../ui/clock.js';
 import { viewer } from '../net/spectate.js';
 
-// [hour, sun colour, sun strength, sky strength, background/fog, ambient colour, ambient level]
-// graded warm on purpose: honey afternoons, a long amber dusk, and nights that sit in plum and ember rather than cold blue
+// [hour, sun colour, sun strength, sky strength, background/fog, ambient colour, ambient level, the sky overhead]
+// graded warm on purpose: honey afternoons, a long amber dusk, and nights that sit in plum and ember rather than cold blue;
+// the sky overhead (seen from your own eyes: world/sky.js) a dusty blue by day over the haze, deepening at dusk
 const DAY = [
-  [0, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27], [4.5, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27], [6.5, 0xffa070, 0.62, 0.6, 0x4a3a38, 0xf2c0a0, 0.72],
-  [9, 0xffdcae, 0.95, 0.64, 0x786e60, 0xfff0da, 1.0], [15, 0xffd6a4, 0.95, 0.64, 0x786a5c, 0xffeed4, 1.0], [18, 0xff8846, 0.8, 0.6, 0x4a302c, 0xffb48a, 0.8],
-  [20, 0xc4b2d6, 0.32, 0.75, 0x17100f, 0x8a7690, 0.29], [24, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27]
+  [0, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27, 0x0a0a14], [4.5, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27, 0x0a0a14], [6.5, 0xffa070, 0.62, 0.6, 0x4a3a38, 0xf2c0a0, 0.72, 0x3c4660],
+  [9, 0xffdcae, 0.95, 0.64, 0x786e60, 0xfff0da, 1.0, 0x6a7f96], [15, 0xffd6a4, 0.95, 0.64, 0x786a5c, 0xffeed4, 1.0, 0x6b7d93], [18, 0xff8846, 0.8, 0.6, 0x4a302c, 0xffb48a, 0.8, 0x37324c],
+  [20, 0xc4b2d6, 0.32, 0.75, 0x17100f, 0x8a7690, 0.29, 0x0e0c18], [24, 0xc4b2d6, 0.3, 0.75, 0x130e10, 0x8a7690, 0.27, 0x0a0a14]
 ];
 export const _c1 = new THREE.Color(), _c2 = new THREE.Color(), amb = [1, 1, 1];
 export let curDark = 0;
@@ -28,7 +30,8 @@ function lightAt(h) {
   const a = DAY[k], b = DAY[k + 1], t = clamp((h - a[0]) / (b[0] - a[0]), 0, 1), lerp = (u, v) => u + (v - u) * t;
   _c1.setHex(a[1]).lerp(_c2.setHex(b[1]), t); sun.color.copy(_c1);
   sun.intensity = lerp(a[2], b[2]) * LIGHT_K; hemi.intensity = lerp(a[3], b[3]) * LIGHT_K;
-  _c1.setHex(a[4]).lerp(_c2.setHex(b[4]), t); scene.background.copy(_c1); scene.fog.color.copy(_c1);
+  _c1.setHex(a[4]).lerp(_c2.setHex(b[4]), t); scene.background.copy(_c1); scene.fog.color.copy(_c1); SKY_U.uHor.value.copy(_c1);
+  SKY_U.uTop.value.setHex(a[7]).lerp(_c2.setHex(b[7]), t);
   _c1.setHex(a[5]).lerp(_c2.setHex(b[5]), t); const lv = lerp(a[6], b[6]);
   amb[0] = _c1.r * lv; amb[1] = _c1.g * lv; amb[2] = _c1.b * lv;
   return 1 - clamp((lv - 0.25) / (1 - 0.25), 0, 1);

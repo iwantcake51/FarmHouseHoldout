@@ -29,6 +29,7 @@
   "world/trees.js",
   "world/collision.js",
   "world/wind.js",
+  "world/sky.js",
   "world/atmosphere.js",
   "world/yard.js",
   "zombies/pathfinding.js",
