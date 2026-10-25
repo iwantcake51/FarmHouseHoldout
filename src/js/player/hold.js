@@ -23,7 +23,7 @@ import {
 } from '../weapons/reload.js';
 import { AK_SLIDE, akBusy, akChargeState, akHasCharge, akSlideBack, akU } from '../weapons/akimbo.js';
 import { BARREL, barrelFree } from '../weapons/firing.js';
-import { meleeBashHand, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
+import { meleeBashHand, meleeInspectEnd, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
 import { frontHeavy, gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
 import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpViewSway } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
@@ -44,7 +44,7 @@ import { bandagePose, bandPhases } from './hold-bandage.js';
 import { foreDrop } from './grip.js';
 import { STOW } from './stow.js';
 import { fistOf, rigPair, SWAP_REST_L } from './swap.js';
-import { inspectCut, inspectOut, inspectPose, inspectW } from './inspect.js';
+import { inspectOut, inspectPose, inspectW } from './inspect.js';
 
 // shoulders roll a little forward and in when you shoulder a gun; the fist grips about its front third
 export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-0.33, 1.08, 0], R: [0.33, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
@@ -316,7 +316,6 @@ export function poseHands(D, up, ph, runF, rdt, now) {
   }
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
-  if (D.melee) inspectCut();   // (only a gun's looked over: player/inspect.js)
   bandagePose(pm, up, now, sh);
   swayBipods(rdt);
 }
@@ -328,6 +327,7 @@ const MLUNGE = 0.55;
 // the rig. The body twists, leans and bends with it, the hips turn under it, the weight goes onto the front foot and
 // the knees give (dip); the head stays on what you're hitting
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
+  inspectPose(rdt, D, curId(), false, fpOn(), meleeInspectEnd(curId()));   // (looking it over keeps its time: player/inspect.js; its moves are melee/melee-anim.js's)
   const pm = PM, mh = gunMeshes.melee, a = meleePose(curId(), D, rdt, now, sh), b = MS.b;
   const rd = smooth(clamp(ANIM.ready || 0, 0, 1)), swing = W8.swing > 0 || !!sh;
   const walk = Math.sin(ph) * (0.18 * Math.min(1, runF) * (1 - rd) + 0.5 * rd) * (swing ? 0 : 1);   // the free arm swings as you walk and pumps at a sprint
@@ -342,7 +342,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // stepping in to it: the body goes forward with the weight (MLUNGE, further for a longer weapon), so a swing reaches
   // out as far as it hits
   { const lg = Math.max(0, st) * MLUNGE * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
-  pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2; pm.head.rotation.x -= b.ux * 0.45;
+  pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2 - MS.ihy; pm.head.rotation.x -= b.ux * 0.45 - MS.ihp;   // (looking down at it while it's looked over: MS.ihp, ihy)
   // the weapon in the right fist (shaking at low health: player/shaky-hands.js)
   const q = shakyTremor();
   armRest(pm.armR, 'R', a.rx + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);

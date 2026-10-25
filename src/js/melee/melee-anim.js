@@ -26,6 +26,7 @@ import { springTo } from '../game/camera.js';
 import { ANIM } from '../player/animation.js';
 import { ARM_THIN, FIST, SHOULDER_REST } from '../player/hold.js';
 import { SWAP_T, swapSt } from '../player/swap.js';
+import { inspectBlend, inspectT } from '../player/inspect.js';
 
 // the guard per weapon: fist and weapon direction, and the body
 const MGUARD = {
@@ -35,6 +36,42 @@ const MGUARD = {
   katana:  { F: [0.05, 0.92, 0.36], W: [-0.02, 0.58, 0.81], b: { uy: 0.06, ux: 0.03, dip: 0.06 } }, // two hands at the middle, the point at the throat
   heavy:   { F: [0.13, 0.86, 0.3], W: [-0.44, 0.76, 0.48], b: { uy: 0.16, ux: 0.04, dip: 0.06 } }   // across the body, the head up by the left shoulder
 };
+// looking a melee weapon over (the inspect key: player/inspect.js keeps its time), by kind, as poses through it: when
+// (t, seconds), the fist (F: across, up, ahead of the chest, metres) and which way the weapon points from it (W), how
+// far it's turned in the fist about its handle (r, radians, on top of its own: past a whole turn it's a twirl), where
+// your eyes go (hp: down, hy: round) and the chest's turn (uy). A one-hander's brought up in front of your face blade
+// up, turned to show one flat and then the other, laid across to look along its edge and twirled once in the fingers
+// before it drops back to the guard; the katana's held across in both hands at the chest and turned, then stood up
+// to look up its edge; a heavy one's (the axe, the sledge, the bat) hefted up beside your face, its head turned each
+// way, then tipped out to your right and turned there. The springs it's put on (MSPRING, by its weight) carry
+// it smoothly from pose to pose
+const MK = (t, F, W, r = 0, hp = 0, hy = 0, uy = 0) => ({ t, F, W, r, hp, hy, uy });
+const MINSPECT = {
+  one: [MK(0.55, [0.15, 1.08, 0.34], [-0.22, 0.9, 0.37], 0, 0.26, -0.04, 0.06), MK(1.25, [0.16, 1.1, 0.35], [-0.18, 0.92, 0.34], 1.3, 0.28, -0.06, 0.07),
+    MK(1.95, [0.14, 1.09, 0.35], [-0.26, 0.88, 0.38], -1.35, 0.27, -0.02, 0.06), MK(2.7, [0.12, 1.12, 0.3], [-0.62, 0.22, 0.75], 0.15, 0.33, 0.12, 0.1),
+    MK(3.35, [0.15, 1.08, 0.33], [-0.28, 0.86, 0.4], 2 * Math.PI, 0.25, 0, 0.06), MK(4.1, null, null)],
+  katana: [MK(0.6, [0.05, 1.17, 0.42], [-0.93, 0.16, 0.33], 0, 0.22, 0.05, 0.04), MK(1.4, [0.06, 1.18, 0.43], [-0.92, 0.2, 0.34], 1.4, 0.23, 0.1, 0.05),
+    MK(2.2, [0.05, 1.17, 0.42], [-0.93, 0.14, 0.33], -1.4, 0.22, 0.12, 0.05), MK(3.0, [0.08, 1.06, 0.32], [-0.12, 0.95, 0.3], 0, 0.05, -0.02, 0.02),
+    MK(3.55, [0.08, 1.06, 0.32], [-0.1, 0.96, 0.27], 0.25, 0.0, 0, 0.02), MK(4.4, null, null)],
+  heavy: [MK(0.7, [0.14, 0.9, 0.36], [-0.12, 0.85, 0.5], 0, 0.14, -0.04, 0.05), MK(1.5, [0.15, 0.91, 0.36], [-0.1, 0.86, 0.49], 1.1, 0.16, -0.06, 0.06),
+    MK(2.3, [0.13, 0.9, 0.36], [-0.14, 0.84, 0.51], -1.1, 0.15, 0.02, 0.05), MK(3.2, [0.2, 0.92, 0.38], [0.45, 0.75, 0.48], 0, 0.1, 0.12, 0.1),
+    MK(3.95, [0.21, 0.92, 0.37], [0.47, 0.74, 0.47], 0.6, 0.12, 0.14, 0.11), MK(4.9, null, null)]
+};
+const minspectSet = kind => kind === 'katana' ? MINSPECT.katana : kind === 'heavy' || kind === 'bat' ? MINSPECT.heavy : MINSPECT.one;
+export const meleeInspectEnd = id => { const L = minspectSet(meleeKind(id)); return L[L.length - 1].t; };
+const _miF = new V3(), _miW = new V3(), _miF2 = new V3(), _miW2 = new V3(), _miO = { r: 0, hp: 0, hy: 0, uy: 0 };
+// the pose t seconds in (the guard, g, at the start and the end), each move eased out of one pose and into the next
+function minspectAt(L, g, t, F, Wd) {
+  const at = i => i < 0 || !L[i].F ? null : L[i];
+  let i = -1; while (i < L.length - 1 && t > L[i + 1].t) i++;
+  const a = at(i), b = at(Math.min(i + 1, L.length - 1)), ta = i < 0 ? 0 : L[i].t, tb = L[Math.min(i + 1, L.length - 1)].t;
+  const u = clamp((t - ta) / Math.max(1e-3, tb - ta), 0, 1), e = u * u * u * (u * (u * 6 - 15) + 10);
+  _miF.fromArray(a ? a.F : g.F); _miW.fromArray(a ? a.W : g.W).normalize(); _miF2.fromArray(b ? b.F : g.F); _miW2.fromArray(b ? b.W : g.W).normalize();
+  F.lerpVectors(_miF, _miF2, e); Wd.lerpVectors(_miW, _miW2, e).normalize();
+  for (const k of ['r', 'hp', 'hy', 'uy']) _miO[k] = mix(a ? a[k] : 0, b ? b[k] : 0, e);
+  if (b && !b.F && a) _miO.r = mix(a.r, Math.round(a.r / (2 * Math.PI)) * 2 * Math.PI, e);   // (a twirl's turn finished, not unwound)
+  return _miO;
+}
 const meleeKind = id => id === 'bat' ? 'bat' : id === 'machete' ? 'machete' : id === 'katana' ? 'katana' : id === 'axe' || id === 'sledge' ? 'heavy' : 'club';
 // three swings per style. Blunt and blades land at p 0.4, the heavy two at 0.55 (HEAVY.hit, melee/melee.js), each
 // whipping through the point it lands at; side is which way it goes across you (the view tips with it: melee.js), and
@@ -262,7 +299,7 @@ const MSTOP = { light: 0.045, heavy: 0.1, bounce: 0.9 };
 const MBODY = ['uy', 'ux', 'uz', 'hy', 'step', 'dip'];
 // the springs' state: the fist and the weapon's direction with their speeds, and the body (MS.b, each part's speed
 // beside it as v + its name)
-export const MS = { F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1, L: new V3(-0.36, 0.6, 0), vL: new V3() };
+export const MS = { ihp: 0, ihy: 0, F: new V3(0.2, 1.1, 0.4), vF: new V3(), W: new V3(0, 1, 0), vW: new V3(), b: {}, prevVar: -1, kind: '', lOn: 1, L: new V3(-0.36, 0.6, 0), vL: new V3() };
 MBODY.forEach(k => { MS.b[k] = 0; MS.b['v' + k] = 0; });
 const _maF = new V3(), _maW = new V3(), _maA = new V3(), _maB = new V3(), _maQ = new THREE.Quaternion(), _maE = new THREE.Euler();
 // a key's F or W, with 'G' the guard
@@ -446,6 +483,10 @@ export function meleePose(id, D, rdt, now, sh) {
     const rd = smooth(clamp(ANIM.ready || 0, 0, 1)) * (ANIM.mDrawT === undefined ? 1 : 0);
     if (rd > 0.001) { meleeRun(kind, ph, _maA, _maB); _maF.lerp(_maA, rd); _maW.lerp(_maB, rd).normalize(); }
   }
+  // looked over (player/inspect.js): its poses blended in as the look comes in and out
+  { const wI = !(W8.swing > 0) && !sh && ANIM.mDrawT === undefined ? smooth(clamp(inspectBlend(), 0, 1)) : 0;
+    if (wI > 0.001) { const o = minspectAt(minspectSet(kind), g, Math.max(0, inspectT()), _maA, _maB); _maF.lerp(_maA, wI); _maW.lerp(_maB, wI).normalize(); _mTB.uy = (_mTB.uy || 0) + o.uy * wI; MS.ir = (o.r % (2 * Math.PI)) * wI; MS.ihp = o.hp * wI; MS.ihy = o.hy * wI; }
+    else MS.ir = MS.ihp = MS.ihy = 0; }
   // the springs, a few small steps a frame so the stiff ones stay steady
   // (the fist's and the weapon's by its weight: a light one stiff and well damped, a heavy one looser, lagging into a
   // swing and carrying on past where it's sent)
@@ -464,6 +505,7 @@ export function meleePose(id, D, rdt, now, sh) {
   const back = W8.swing > 0 && 1 - W8.swing / dur > MROLL_BACK;
   const out = meleeSolve(MS.F, _maA.copy(MS.W).normalize(), _mSol, (W8.swing > 0 && !back) || !!sh || ANIM.mDrawT !== undefined, rdt);
   meleeTwist(out, D, id, sh, dur, g, rdt);
+  out.tw += MS.ir || 0;   // (turned in the fist to show it while it's looked over)
   return out;
 }
 // the weapon turned in the fist about its own handle (tw) so its edge (the axe's bit, the blade's edge: +z, melee/

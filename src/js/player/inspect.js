@@ -1,6 +1,7 @@
-// Looking your gun over (the inspect key, Y to start with: input/keybinds.js): the gun's brought up and in, rolled over
+// Looking your weapon over (the inspect key, Y to start with: input/keybinds.js): a gun's brought up and in, rolled over
 // to show one side, then the other, swung round so you see down its muzzle end, and tipped to look along its back and
-// top, your head going with it, before it goes back onto the aim. Seen from your own eyes or from above alike.
+// top, your head going with it, before it goes back onto the aim; a melee weapon's own way (melee/melee-anim.js:
+// MINSPECT). Seen from your own eyes or from above alike.
 // The moves are keyframes (INSPECT: a handgun's turned further and brought closer, on the wrist; a long gun's more
 // about the shoulder; the revolver's twirled round your trigger finger first, a cowboy's spin, INSPECT_SPIN). Each is a
 // pose the gun's brought to: it sets off gently, swings through quickest in the middle and slows into the pose (eased,
@@ -88,11 +89,15 @@ CH.forEach(c => { INSP.o[c] = INSP.s[c] = INSP.v[c] = 0; });
 // whatever's stopping you: your hands are needed, or you're not in a state to stand and look
 const busy = () => state !== 'play' || P.dead || !!openSt || !!W8.reloading || !!swapSt || P.vault || P.sprint || P.bandT > 0 || !!P.shove || aiming || (ANIM.ads || 0) > 0.15 ||
   !!(W8.cyc && W8.cyc.id === curId()) || W8.shutT > 0 || W8.grabT > 0 || W8.swing > 0 || (ANIM.ready || 0) > 0.2;
+// how far into it you are (seconds; below nothing when you're not looking anything over)
+export const inspectT = () => INSP.t;
+// a melee weapon's: just its length, its poses being melee/melee-anim.js's own
+const meleeTimeline = endT => [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(endT, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)];
 // the key: starts it, or (pressed again) stops it
 export function startInspect() {
   const id = curId(), D = W(id);
   if (INSP.t >= 0) { INSP.t = -1; return; }
-  if (!D || D.melee || busy()) return;
+  if (!D || busy()) return;
   INSP.t = 0; INSP.id = id;
 }
 // a shot or a reload ends it on the spot: the gun's straight back on the aim for it, not eased (weapons/firing.js,
@@ -116,11 +121,12 @@ function spinAt(S, t) {
   return -S.wind * (1 - Math.min(1, u * 4)) + S.turns * 2 * Math.PI * e;
 }
 // each frame from player/hold.js: where it's got to (INSP.o, already weighted), the gun's kind deciding its moves
-export function inspectPose(rdt, D, id, hand, fp) {
+// (a melee weapon's moves are its own, melee/melee-anim.js: endT is how long they run, and this keeps their time)
+export function inspectPose(rdt, D, id, hand, fp, endT) {
   const I = INSP, now = performance.now();
   if (I.t >= 0 && (mouseDown || W8.reloading || id !== I.id)) inspectCut();   // (firing, reloading or another gun: back at once)
-  if (I.t >= 0 && (!D || D.melee || busy())) I.t = -1;   // (anything else: eased back onto the aim)
-  const SET = fp ? INSPECT_FP : INSPECT, L = SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long), end = L[L.length - 1].t, S = INSPECT_SPIN[id];
+  if (I.t >= 0 && (!D || busy())) I.t = -1;   // (anything else: eased back onto the aim)
+  const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long), end = L[L.length - 1].t, S = INSPECT_SPIN[id];
   if (I.t >= 0) { I.t += rdt; if (I.t >= end) I.t = -1; }
   const on = I.t >= 0; hudOff(on);
   I.w += ((on ? 1 : 0) - I.w) * Math.min(1, rdt * (on ? INSP_SPRING.wIn : INSP_SPRING.wOut));
@@ -141,5 +147,7 @@ export function inspectPose(rdt, D, id, hand, fp) {
 // how far it's under way (or still settling back): the gun's up in view for it in first person (game/view-cam.js), the
 // hands shifting for it (player/hold.js)
 export const inspectW = () => clamp(INSP.o.up, 0, 1);
+// how far into looking it over it's blended (eased in as it starts, out as it ends: a melee weapon's moves go by this)
+export const inspectBlend = () => INSP.w;
 // what's on the gun this frame, as inspectPose last left it
 export const inspectOut = () => INSP.o;

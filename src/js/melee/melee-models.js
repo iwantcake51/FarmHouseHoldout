@@ -26,6 +26,9 @@ function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(
 const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0)];
 // the machete's blade length by long-blade level (also what its swing trail stretches by, melee/swing-trail.js)
 export const MACHETE_S = [1, 1.12, 1.2, 1.28], KATANA_L = [0.78, 0.92, 1.0, 1.08];
+// the katana's blade: its curve over its length (radians), its width at the habaki and at the tip, how far its kissaki
+// runs on past that, and how many points along it its outline's drawn through
+const KATANA_BLADE = { curve: 0.21, w0: 0.044, w1: 0.032, tip: 0.075, n: 24 };
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
@@ -124,8 +127,8 @@ const MELEE_MODELS = {
     for (const [yy, h] of [[0.02, 0.0145], [0.0385, 0.0145]]) { const n = slab(hd, NUT_KNURL, h, MM.nut, 0); n.rotation.x = -Math.PI / 2; n.position.set(-0.045, yy + h / 2, 0); }
     vcyl(hd, 0.0215, 0.0215, 0.0045, MM.iron, 0.0368, 16, -0.045, 0);
   },
-  // katana: a wrapped handle with diamond ito and a gold menuki, a round tsuba and brass habaki, then a curved blade
-  // built from short segments, each with a dark spine, a bright hamon and an edge, ending in a sharp kissaki
+  // katana: a wrapped handle with diamond ito and a gold menuki, a round tsuba and brass habaki, then a curved blade in
+  // one piece with a dark spine, a bright hamon and an edge along it, ending in a sharp kissaki
   katana(g, m) {
     box(g, 0.03, 0.29, 0.038, MM.samegawa, 0, 0.005, 0);                     // ray-skin under the wrap
     for (let k = 0; k < 6; k++) [-1, 1].forEach(sd => { const d = box(g, 0.032, 0.03, 0.03, MM.ito, 0, -0.115 + k * 0.046, 0); d.rotation.y = Math.PI / 4 * sd; d.scale.set(1, 1, 0.6); });   // diamond wrap
@@ -133,17 +136,29 @@ const MELEE_MODELS = {
     box(g, 0.012, 0.03, 0.012, MM.gold, 0, 0.03, 0.021);                     // menuki
     const tsuba = vcyl(g, 0.052, 0.052, 0.012, MM.iron, 0.162, 14); vcyl(tsuba, 0.046, 0.046, 0.014, GM.brass, 0, 14).scale.set(1, 0.3, 1);
     box(g, 0.016, 0.03, 0.05, GM.brass, 0, 0.185, 0.004);                    // habaki
-    const L = lvAt(m, 'folded', KATANA_L), n = 6, seg = L / n, steel = m.folded ? MM.hamon : GM.blade;
-    let p = new THREE.Group(); p.position.set(0, 0.2, 0.004); g.add(p);
-    for (let k = 0; k < n; k++) {
-      const w = 0.044 - k * 0.002;
-      box(p, 0.01, seg, w, steel, 0, seg / 2, 0);
-      box(p, 0.012, seg, 0.008, GM.metal2, 0, seg / 2, -w / 2 + 0.002);      // spine
-      box(p, 0.0105, seg, 0.012, MM.hamon, 0, seg / 2, w / 2 - 0.009);      // hamon line
-      box(p, 0.006, seg, 0.006, MM.edge, 0, seg / 2, w / 2 - 0.001);        // edge
-      const next = new THREE.Group(); next.position.y = seg; next.rotation.x = -0.035; p.add(next); p = next;   // the gentle curve, back toward the spine
-    }
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.023, 0.08, 4), steel); tip.scale.set(0.24, 1, 1); tip.rotation.y = Math.PI / 4; tip.position.set(0, 0.035, -0.004); tip.castShadow = true; p.add(tip);
+    const L = lvAt(m, 'folded', KATANA_L), steel = m.folded ? MM.hamon : GM.blade;
+    // the blade in one piece: its curve, its taper and its tip all smooth (KATANA_BLADE), the dark spine, the bright
+    // hamon and the edge each one strip along the whole of it rather than short segments with gaps at their joints
+    // (its centre line bends back toward the spine, -z, by K.curve radians over its length; a: across it, -1 the spine
+    // to 1 the edge)
+    const K = KATANA_BLADE, ps = s => K.curve * s / L;
+    const pt = (s, a) => { const p = ps(s), w = K.w0 + (K.w1 - K.w0) * s / L; return [0.004 - K.curve * s * s / (2 * L) + Math.cos(p) * a * w / 2, 0.2 + s + Math.sin(p) * a * w / 2]; };
+    const strip = (a0, a1, t, mat, tip) => {   // a band from a0 to a1 across it, t thick
+      const sh = new THREE.Shape(), n = K.n;
+      for (let i = 0; i <= n; i++) { const [x, y] = pt(L * i / n, a0); i ? sh.lineTo(x, y) : sh.moveTo(x, y); }
+      if (tip) {   // the kissaki: the spine runs on nearly straight, the edge sweeps up to meet it in a point near the spine
+        const p = ps(L), tx = -Math.sin(p), ty = Math.cos(p), nx = Math.cos(p), ny = Math.sin(p), [sx, sy] = pt(L, -1), [ex, ey] = pt(L, 1), w = K.w1;
+        const qx = sx + tx * K.tip + nx * w * 0.18, qy = sy + ty * K.tip + ny * w * 0.18;
+        sh.lineTo(qx, qy); sh.quadraticCurveTo(ex + tx * K.tip * 0.8, ey + ty * K.tip * 0.8, ex, ey);
+      } else { const [x, y] = pt(L, a1); sh.lineTo(x, y); }
+      for (let i = tip ? n - 1 : n; i >= 0; i--) { const [x, y] = pt(L * i / n, a1); sh.lineTo(x, y); }
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 10 }); geo.rotateY(-Math.PI / 2); geo.translate(t / 2, 0, 0);
+      const mh = new THREE.Mesh(geo, mat); mh.castShadow = true; g.add(mh); return mh;
+    };
+    strip(-1, 1, 0.01, steel, true);                    // the blade
+    strip(-1, -0.64, 0.012, GM.metal2, false);          // its spine
+    strip(0.42, 0.86, 0.0106, MM.hamon, false);         // the hamon line
+    strip(0.86, 1, 0.0062, MM.edge, false);             // the edge
   },
   // sledgehammer: a hickory handle with a ribbed rubber grip and an overstrike sleeve, a heavy dark head with bright worn faces
   sledge(g, m) {

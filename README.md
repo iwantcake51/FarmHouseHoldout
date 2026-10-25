@@ -56,7 +56,7 @@ dust in the air at once, it's the faintest, nearly faded puff that's reused for 
 plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
-reach and stamina cost. Sharp blades take heads and limbs off.
+reach and stamina cost. Sharp blades take heads and limbs off. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point.
 
 **Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
@@ -272,7 +272,12 @@ the revolver's twirled round your trigger finger first, two quick turns of a cow
 before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
 away while you look (from above they stay); a handgun's turned side on across in front of you to show its port side,
 the wrist rolled right over for the other side, its muzzle tipped up to see its front and then down to look along its
-top. At the end it's carried back onto the aim as smoothly as it was turned. Firing or reloading puts the gun straight
+top. At the end it's carried back onto the aim as smoothly as it was turned. A melee weapon's looked over its own way: a one-hander (the
+crowbar, the wrench, the machete) is brought up in front of your face, turned to show one flat and then the other,
+laid across to look along its edge and twirled once in the fingers before it drops back to the guard; the katana's
+held across in both hands at the chest and turned, then stood up to look up its edge; the axe, the sledge and the bat
+are hefted up in front of you, their head turned each way, then tipped out to your right and turned there. Each one's
+carried from pose to pose on the same springs as its swings, slower for a heavy one. Firing or reloading puts the gun straight
 back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressing Y again eases it back.
 
 ## Settings
