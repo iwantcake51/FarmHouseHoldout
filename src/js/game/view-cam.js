@@ -682,7 +682,9 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // its sight line: at the head's own distance behind it, or a scope's eye relief behind its eyepiece
     const w = adsW(), D = W(curId()), LH = D && !D.melee && !D.akimbo ? sightLine() : null, L = w > 0.001 ? LH : null, gg = gunMeshes[W8.cur];
     _vcE.set(V.x, V.y, V.z);
-    if (L && gg) fpSightAlign(gg, false);
+    // (the whole upper body turned onto it, not just the gun: straightening the chest for vmLock turned the gun off the
+    // aim it was given, and turning only the gun back would pull it out of the hands, which went with the chest)
+    if (L && gg) fpSightAlign(PM.upper, false);
     if (LH) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
     if (L && gg) {
       if (L.relief !== null) _vcD.copy(_pa).addScaledVector(_sd, -L.relief);
