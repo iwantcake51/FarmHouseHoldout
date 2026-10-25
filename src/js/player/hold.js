@@ -135,17 +135,19 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   g.updateMatrix();
 }
 // the gun pushed back off whatever's in front of you (barrelFree in weapons/firing.js), the way Tarkov or Insurgency:
-// Sandstorm do it: slid straight back along its barrel toward you, hands and all, up to GUN_BACK. A wall closer still tips the
-// muzzle up about the grip till it clears (up to GUN_TIP); a zombie doesn't, it's shot point blank. It comes in fast and
-// eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
+// Sandstorm do it: slid straight back along its barrel toward you, hands and all, but only a little (GUN_BACK: further
+// and the stock goes back past your shoulder, the elbows fold up and the gun ends up by your face). A wall closer still
+// brings it down to a low ready (up to GUN_TIP): the muzzle dips about your shoulder (GUN_TIP_AT, upper-body space) till
+// it clears, the stock staying in the shoulder and the hands on it; a zombie doesn't, it's shot point blank. It comes in
+// fast and eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
 // weapons/firing.js). rd (a sprint's low ready) takes it away. A pair are two guns: each is pushed back and tipped
 // on its own (GP[side], put on its hold in poseGun), so one up against a wall leaves the other out, and each fires
 // from its own muzzle (ANIM.barrelS). A shove driving the gun out at what's there (shv) isn't pushed back off it: it's
 // measured from where the gun would be without the shove, so the blow lands and eases back to the hold on its own
-const GUN_BACK = { long: 0.4, hand: 0.2 }, GUN_TIP = 1.2;
-// the tip's worked out about the grip from how far the muzzle has to come back; GUN_TIP_ARM: the shortest lever that's
-// taken for it (a gun drawn in close for a reload would otherwise turn a small push into a great flip), and it's eased
-// onto the angle (GUN_TIP_EASE: up, back down), so it never jumps however the push changes
+const GUN_BACK = { long: 0.12, hand: 0.08 }, GUN_TIP = 1.2, GUN_TIP_AT = [X, 1.08, 0.1];
+// the tip's worked out about the shoulder from how far the muzzle has to come back; GUN_TIP_ARM: the shortest lever that's
+// taken for it (a gun drawn in close for a reload would otherwise turn a small push into a great dip), and it's eased
+// onto the angle (GUN_TIP_EASE: down, back up), so it never jumps however the push changes
 const GUN_TIP_ARM = 0.25, GUN_TIP_EASE = { up: 14, down: 8 };
 const easeTip = (o, key, t, rdt) => { const c = o[key] || 0; return (o[key] = c + (t - c) * (1 - Math.exp(-rdt * (t > c ? GUN_TIP_EASE.up : GUN_TIP_EASE.down)))); };
 const _gbM = new V3(), _gbF = new V3(), _gbG = new V3(), _gbQ = new THREE.Quaternion();
@@ -162,7 +164,7 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
     at(_gbM, side, X, GUN_Y + 0.03, (MUZ[s] || 0.9) + 0.02);
     const fwd = fwdOf(_gbM), fs = fwd - (shv || 0), f = barrelFree(_gbM.z * fx - _gbM.x * fz, fs + BARREL.clear + 0.05), nW = fs + BARREL.clear - f.wall, nZ = fs + BARREL.clear - f.zom;
     ANIM.barrelS[side] = Math.min(f.wall, f.zom);
-    if (ak) {   // this gun on its own: back along its barrel, then tipped about its grip
+    if (ak) {   // this gun on its own: back along its barrel, then dipped about its grip
       const p = GP[side], tW = Math.max(0, nW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, nZ) * k));
       ease(p, 'back', tB); ease(p, 'tip', Math.max(0, tW - GUN_BACK[lg]));
       at(_gbG, side, H.grip[0], H.grip[1], H.grip[2]);
@@ -180,10 +182,10 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
   const back = ease(ANIM, 'gpush', tB), tip = ease(ANIM, 'gtip', Math.max(0, tW - GUN_BACK[lg]));
   if (back < 0.001 && tip < 0.001 && !((ANIM.gtipA || 0) > 0.001)) { ANIM.gtipA = 0; return; }
   _gbM.set(0, 0, -back).applyQuaternion(gg.quaternion); gg.position.add(_gbM); gg.updateMatrix();
-  gunPt(_gbG, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
+  _gbG.set(GUN_TIP_AT[0], GUN_TIP_AT[1], GUN_TIP_AT[2]);
   const a = tipTo(tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(GUN_TIP_ARM, reach - back - fwdOf(_gbG)), -1, 1))) : 0);
   if (a > 0.001) {
-    _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, -a);   // (about its own right axis, muzzle up)
+    _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, a);   // (about its own right axis, muzzle down)
     gg.position.sub(_gbG).applyQuaternion(_gbQ).add(_gbG); gg.quaternion.premultiply(_gbQ); gg.updateMatrix();
   }
 }
@@ -611,7 +613,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
     const fpk = fpOn(), kf = fpk ? (ak ? 1 : FP_HAND_KICK) : 1, kp = fpk && ak ? FP_AK.flip : kf, kz = fpk && ak ? FP_AK.back : kf;   // (from your own eyes the kick's mostly the view's own: game/view-cam.js, FP_RECOIL; a pair's is each gun's own, FP_AK)
     let hx = kickPitch(k.p) * kp, hy = k.y * kp, hz = k.r * kf, hox = h.userData.x0 || 0, hoy = k.h * kz, hoz = k.z * kz;
-    if (ak) { hoz -= GP[side].back; hx -= GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
+    if (ak) { hoz -= GP[side].back; hx += GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
     const u = ak ? akU(side) : 0;
     if (ak) {
       // this hand's own way of holding it (AK_HAND), eased off while it's down being reloaded, and its own drift

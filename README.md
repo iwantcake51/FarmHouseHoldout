@@ -152,14 +152,19 @@ only a touch soft. The AR's carry handle sits low enough ahead of its rear sight
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
 flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
-going there and turned to face your eye as it goes, one streak a shot (a heavy or suppressed round's smoke trail runs
-along the same line, up into the sky with it). The round itself leaves the gun's muzzle, not the side of you, and in first
+going there, one streak a shot (a heavy or suppressed round's smoke trail runs along the same line, up into the sky
+with it). From your own eyes the streak isn't a flat strip seen edge on: it's a ribbon turned to face your eye all along
+its length, as wide as a streak of light would look at each distance, so it tapers away into the distance as a fine
+bright line with a glowing point at its head, rather than a flat smear by the muzzle that's gone a few metres out. The round itself leaves the gun's muzzle, not the side of you, and in first
 person it's fired from the muzzle straight at what's under the crosshair, so the hole lands where the crosshair is (only
 with the muzzle right up against something does it start from your shoulder instead). From the hip the streak leaves the gun's barrel, bright right from the
 muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck.
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
-against a wall the gun's slid back along its barrel and tipped up off it, easing in and out rather than jumping, and
+against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
+muzzle dipping about your shoulder with the stock still in it and both hands on it, easing in and out rather than
+jumping (it used to slide back as much as 40 cm and flip its muzzle up beside your face, the elbows folded up; indoors
+that looked like a broken hold), and
 mid-reload from your own eyes the gun stays up in front of you, steady in your hands even walking along a wall.
 The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
 ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
