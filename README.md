@@ -158,7 +158,11 @@ its length, as wide as a streak of light would look at each distance, so it tape
 bright line with a glowing point at its head, rather than a flat smear by the muzzle that's gone a few metres out. The round itself leaves the gun's muzzle, not the side of you, and in first
 person it's fired from the muzzle straight at what's under the crosshair, so the hole lands where the crosshair is (only
 with the muzzle right up against something does it start from your shoulder instead). From the hip the streak leaves the gun's barrel, bright right from the
-muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck.
+muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck. A shotgun's ring in first person is drawn where its
+pattern really goes, not at the very edge one pellet in hundreds might reach (the pellets bunch toward the middle), so
+it's about a third smaller than it was; and the pattern's round, each pellet thrown up or down as well as sideways
+inside that ring, rather than all of them flying out level in one flat line. Only where the pellets fly changed, not
+what they hit.
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its

@@ -114,6 +114,11 @@ export function scopeSpread(id, d) {
 // where a pellet goes inside the spread: bunched toward the middle like a real pattern (the sum of three draws), out to
 // the full spread at the edges, so close up most of a shell lands on what you aimed at
 export const pelletOff = sp => (rand() + rand() + rand() - 1.5) / 1.5 * sp;
+// From your own eyes a shotgun's ring (ui/crosshair.js) is drawn where its pattern really goes rather than at the very
+// edge any pellet could reach, which only one in hundreds gets near (they bunch to the middle): SG_FP.ring of the
+// spread holds nearly all of them. And there the pattern's round, not one flat line: each pellet's also thrown up or
+// down (SG_FP.v of its spread), never past that ring. Only where it flies is changed, not what it hits
+export const SG_FP = { ring: 0.7, v: 0.8 };
 // how far (m) from the point you aimed at a shotgun pellet can land and still hit that part (the head, the chest, a limb):
 // a little more than the part itself, as a pellet clipping its edge counts
 const PELLET_CORE = { head: 0.22, torso: 0.3, armL: 0.15, armR: 0.15, legL: 0.17, legR: 0.17 };
@@ -312,14 +317,17 @@ export function gunFire(id, D, side) {
     // it lands near enough to it at that range, AIM_KEEP, so up close it goes where you put it, and further off it's off
     // the mark by as much as its spread throws it, and so is anything on past it)
     const one = pellets === 1, dev = one ? (rand() - 0.5) * 2 * sp : 0, aimed = p === 0 && tgt && (!one || Math.abs(Math.sin(dev)) * tgtT < AIM_KEEP);
-    const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? pelletOff(sp) : dev), dx = Math.sin(a), dz = Math.cos(a);
+    const po = pellets > 1 && !aimed ? pelletOff(sp) : 0;
+    const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? po : dev), dx = Math.sin(a), dz = Math.cos(a);
     // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
     // height you're aiming at, out where you're aiming), and on past at the same slope. Every zombie after the first it
     // goes through, and any in front of the one it was aimed at, is hit where that height meets it (partAt), or not at
     // all if it passes over; what it misses doesn't use up a pierce
     // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js;
     // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
-    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
+    const fp = fpOn(), y0 = mw.y;
+    let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
+    if (fp && pellets > 1 && !aimed) { const R = SG_FP.ring * sp; let v = pelletOff(sp) * SG_FP.v; if (po * po + v * v > R * R) v = Math.sign(v) * Math.sqrt(Math.max(0, R * R - po * po)); slope += Math.tan(v); }   // (up or down, inside the ring: SG_FP)
     let wallT = 26, gndT = 99;
     for (let t = 0.1; t < 26; t += 0.1) {
       if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }

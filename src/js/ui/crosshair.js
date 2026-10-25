@@ -18,7 +18,7 @@ import { scoped } from '../player/aiming.js';
 import { usingTouch } from '../input/touch.js';
 import { relRingP } from '../weapons/reload.js';
 import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
-import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, spreadOf } from '../weapons/firing.js';
+import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, SG_FP, spreadOf } from '../weapons/firing.js';
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
@@ -194,7 +194,9 @@ export function updateCrosshair(rdt, D) {
     const px = (projV.x + 1) / 2 * innerWidth, py = (1 - projV.y) / 2 * innerHeight;
     // (how far the spread opens on the screen: by the cursor's distance from the muzzle, or in first person by the view's own angle)
     const dpx = fpOn() ? innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360) : Math.hypot(mouseX - px, mouseY - py);
-    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id)) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
+    // (from your own eyes a shotgun's ring is drawn where its pattern really goes, SG_FP.ring of its spread: weapons/firing.js)
+    const fpPat = fpOn() && !D.melee && (D.pellets || 1) > 1 ? SG_FP.ring : 1;
+    const target = clamp(5 + Math.tan(D.melee ? 0 : scopeUse() ? scopeSpread(id, scopeDist()) : spreadOf(id) * fpPat) * dpx + bloom, 5, sg ? XH_SG_MAX : 56);   // through a scope it tightens with range; a shotgun's ring can open wider, to show the whole pattern on the move
     gapCur += (target - gapCur) * Math.min(1, rdt * 18);
     const gap = Math.round(gapCur * 2) / 2, xk = gap + (D.melee ? 'm' : sg ? 's' : 't');
     if (gap !== lastGap) { lastGap = gap; tks.forEach((t, k) => t.setAttribute('transform', `rotate(${k * 90}) translate(0,${-gap})`)); xhSpread.setAttribute('r', gap); sgRing(gap); flRing(gap); dbRing(gap); }
