@@ -17,7 +17,11 @@ export const lowObst = new Set();
 // it's low enough to see and shoot over, which way it faces the room (away from the wall at its back; a corner piece
 // diagonally), and the station it is, if it's one
 export const FURN = [], WALL_DECOR = [];
-export function obstacle(i, j, low) { if (inb(i, j)) { cell[idx(i, j)] = OBST; if (low) lowObst.add(idx(i, j)); } }
+// how high a tall obstacle stands (top, metres; BLOCK_TOP.prop if not given; a tree's: its trunk at x, z and its crown r
+// wide at the foot narrowing to its tip at top), for a round from your own eyes going over it (world/collision.js:
+// bulletBlockedAt)
+export const obstTop = new Map();
+export function obstacle(i, j, low, top) { if (inb(i, j)) { const k = idx(i, j); cell[k] = OBST; if (low) lowObst.add(k); if (top !== undefined) obstTop.set(k, top); else obstTop.delete(k); } }
 // ---- furniture: materials and little shape helpers, shared with stations/stations.js ----
 export const HM = {
   oak: lam(0x7a5434), oakDk: lam(0x5a3e28), oakLt: lam(0x8e6640), pine: lam(0xa2784b), pine2: lam(0x8d6840),

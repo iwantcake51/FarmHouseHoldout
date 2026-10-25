@@ -232,7 +232,7 @@ export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
 NET_ON.shot = m => {
   if (state === 'title') return;
   for (const e of m.e) {
-    tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
+    tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);
     // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground
     const L = Math.hypot(e[0] - m.x, e[2] - m.z), dx = (e[0] - m.x) / (L || 1), dz = (e[2] - m.z) / (L || 1);
     if (e[3] === 1 && L > 0.1) { impactFx(e[0] - dx * 0.05, e[1], e[2] - dz * 0.05, -dx, -dz); bulletHole(m.x, m.z, dx, dz, L, e[1], e[4] || 0.08); }

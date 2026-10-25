@@ -5,8 +5,8 @@ import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
 import { thinNear, thinRay } from '../world/thin-walls.js';
-import { surfaceY } from '../world/house.js';
-import { blockArr, bulletBlocked } from '../world/collision.js';
+import { HOUSE_FP, surfaceY } from '../world/house.js';
+import { blockArr, bulletBlocked, bulletBlockedAt } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
@@ -129,6 +129,12 @@ const PAT_CLOSE = { k: 0.5, near: 1, far: 6 }, patTight = t => PAT_CLOSE.k + (1 
 // how far off where you aimed a round can land on a body you had the crosshair on and still hit the part you aimed at
 // (its spread, at that range, still counts: AIM_KEEP)
 const AIM_KEEP = 0.12;
+// a round that meets nothing: how far its streak runs on before it's out of sight (the view's far edge), and its smoke
+const FLY = { far: 180, smoke: 60 };
+// from your own eyes a round fired up over the house meets its ceiling or its roof: anywhere over the house between its
+// eaves and about its ridge (ROOF_ZONE, metres up); over that it's clear
+const ROOF_ZONE = [2.5, 4.5];
+const underRoof = (x, z, y) => { if (y < ROOF_ZONE[0] || y > ROOF_ZONE[1]) return false; const i = ci(x), j = ci(z); return inb(i, j) && HOUSE_FP[idx(i, j)] === 1; };
 // each zombie a round goes through takes a quarter off what it does to the next
 export const PIERCE_KEEP = 0.75;
 // how far off the thing you're looking at through the scope is
@@ -333,7 +339,7 @@ export function gunFire(id, D, side) {
     if (pv) slope += Math.tan(pv);   // (up or down: SG_FP)
     let wallT = 26, gndT = 99;
     for (let t = 0.1; t < 26; t += 0.1) {
-      if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
+      if (fp ? bulletBlockedAt(ox + dx * t, oz + dz * t, y0 + slope * t) || underRoof(ox + dx * t, oz + dz * t, y0 + slope * t) : bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
       if (fp && slope < -1e-4 && y0 + slope * t <= surfaceY(ox + dx * t, oz + dz * t)) { gndT = t; break; }
     }
     wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
@@ -371,9 +377,14 @@ export function gunFire(id, D, side) {
     // what it ended in, for your teammates' screens to show the same (net/avatars.js): 1 a wall (the hole's size with
     // it), 2 the ground, 0 anything else
     const endK = n ? 0 : wallT < 26 && wallT <= endR ? 1 : gndT <= endR ? 2 : 0;
+    // a round that meets nothing at all flies on out of sight: its streak runs on to the edge of the view (FLY.far, or
+    // down to where its line meets the ground out there) rather than stopping dead in mid-air at its range, and it's
+    // marked for your teammates' screens the same way (3: into the distance)
+    const free = !n && wallT >= 26 && gndT > endR && endR >= 26, flyT = free ? (fp && slope < -1e-4 ? Math.min(FLY.far, Math.max(endT, y0 / -slope)) : FLY.far) : endT;
+    const fy = free && fp ? y0 + slope * flyT : ey, sky = free && flyT >= FLY.far, fK = free ? (sky ? 3 : 2) : endK;
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
-    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT, endK, hole]); }
-    if (p === 0) smokeTrail(trO.x, trO.y, trO.z, ox + dx * endT, ey, oz + dz * endT, smokeOf(D, id, quietR, pellets === shots));   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
+    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * flyT, fy, oz + dz * flyT, D.dragon ? trPw * 0.45 : trPw, trSt, sky); if (ends.length < 5) ends.push([ox + dx * flyT, fy, oz + dz * flyT, fK, hole]); }
+    if (p === 0) { const sT = Math.min(flyT, FLY.smoke); smokeTrail(trO.x, trO.y, trO.z, ox + dx * sT, free && fp ? y0 + slope * sT : ey, oz + dz * sT, smokeOf(D, id, quietR, pellets === shots)); }   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
@@ -381,6 +392,7 @@ export function gunFire(id, D, side) {
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     } else if (!n && gndT <= endR) groundHit(ox + dx * endT, ey, oz + dz * endT, dx, dz, p);   // into the ground, from your own eyes
+    else if (free && !sky) groundHit(ox + dx * flyT, fy, oz + dz * flyT, dx, dz, p);   // (or further out, past its range)
   }
   if (anyHit) run.hits++;
   shotB.forEach((h, o) => shootBoard(o, h.d, h.dx, h.dz));

@@ -87,13 +87,14 @@ function trLay(t, m, a, b, w) {
 // a glow sprite s across, kept to at least FP_RIB.head of the view from your own eyes, so a far round's head is
 // still a point of light
 const trSpr = (sp, s) => { sp.scale.setScalar(cam.isPerspectiveCamera ? Math.max(s * 0.7, FP_RIB.head * sp.position.distanceTo(cam.position)) : s); };
-// a round from (x0, y0, z0) to (x1, y1, z1); pw its power (tracerPower), style a key of TR_STYLE
-export function tracer(x0, y0, z0, x1, y1, z1, pw, style) {
+// a round from (x0, y0, z0) to (x1, y1, z1); pw its power (tracerPower), style a key of TR_STYLE; sky: it hit nothing
+// and goes on out of sight there, so it doesn't pop or light anything where it ends
+export function tracer(x0, y0, z0, x1, y1, z1, pw, style, sky) {
   pw = pw || 0.35;
   const t = tracers.find(t => !t.on) || tracers.reduce((a, b) => b.age / b.end > a.age / a.end ? b : a);
   t.s.set(x0, y0, z0); t.d.set(x1 - x0, y1 - y0, z1 - z0); t.L = t.d.length(); if (t.L < 0.05) return; t.d.divideScalar(t.L);
   const st = TR_STYLE[style] || TR_STYLE.std, supp = style === 'supp', big = supp ? 0 : smooth(clamp((pw - 0.45) / 0.7, 0, 1));   // no halo, star or light for a suppressed one
-  t.pw = pw; t.big = big; t.age = 0; t.on = true; t.lit = 0; t.supp = supp;
+  t.pw = pw; t.big = big; t.age = 0; t.on = true; t.lit = 0; t.supp = supp; t.sky = !!sky;
   t.dur = clamp(t.L / (210 + 90 * pw), 0.016, 0.11);                       // slower than a real round, so you see it go
   t.streak = Math.min(t.L, 1.6 + 2.6 * pw + t.L * 0.1);                    // and draw a longer slug
   t.wW = 0.014 + 0.03 * pw; t.wLife = 0.12 + 0.42 * pw; t.wA = (0.2 + 0.3 * pw) * (supp ? 0.35 : 1);
@@ -130,7 +131,7 @@ export function stepTracers(rdt) {
       t.head.position.copy(t.s).addScaledVector(t.d, head); trSpr(t.head, t.headS * flick); t.head.material.opacity = t.supp ? 0.3 : 1;
       if (t.big > 0.45) { t.star.visible = true; t.star.position.copy(t.head.position); trSpr(t.star, t.headS * 1.7 * t.big * flick); t.star.material.opacity = 0.7; t.star.material.rotation += rdt * 9; }   // a big round's head flares
     }
-    else if (after < t.pop) {
+    else if (after < t.pop && !t.sky) {
       if (t.lit >= 0 && t.big > 0.3) { t.lit = -1; flashes.push({ x: t.s.x + t.d.x * (t.L - 0.3), z: t.s.z + t.d.z * (t.L - 0.3), r: 3 + 2.5 * t.big, int: 1.1 * t.big, col: [1, 0.66, 0.32], t: 0.2, max: 0.2 }); setLmT(0); }
       const k = after / t.pop;
       t.head.position.copy(t.s).addScaledVector(t.d, Math.max(0, t.L - 0.06)); trSpr(t.head, t.popS * (0.6 + 0.8 * Math.sqrt(k))); t.head.material.opacity = (1 - k) * (1 - k) * (t.supp ? 0.3 : 1);

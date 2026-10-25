@@ -157,16 +157,17 @@ setRng(seeded(FOREST_SEED));
   spots.sort((a, b) => b[2] - a[2]);
   for (const [i, j, d, p] of spots) {
     if (rand() >= p) continue;
-    let placed = false;
+    let placed = false, top = 0;   // (top: the tree that's stood there, its trunk and how wide and tall its crown is, for a round from your own eyes going over or past it: world/collision.js)
     for (let t = 0; t < 8 && !placed; t++) {
       // (a tree in the outermost row can stand anywhere in its cell: that whole row is solid anyway)
       const v = pickVar(TREE_VAR), s = rr(0.92, 1.12), o = d === 0 ? 0.45 : 0.2, x = cxw(i) + rr(-o, o), z = cxw(j) + rr(-o, o);
       if (!roomForTree(x, z, v.r * s)) continue;
       claimTree(x, z, v.r * s); farmTrees.push([x, z, s, v, rand() * 6.28]); treeCells.push([i, j]); placed = true;
+      if (!v.g.boundingBox) v.g.computeBoundingBox(); top = { top: v.g.boundingBox.max.y * s, x, z, r: v.r * s };
     }
     // the outermost row is the farm's wall: it stays solid all round, a tree in it or not (the boughs either side and
     // the woods behind cover the spot), so the gaps are still the only ways in
-    if (placed || d === 0) obstacle(i, j);
+    if (placed || d === 0) obstacle(i, j, false, top);   // (where none stands, nothing for a round to hit going over)
   }
 }
 // trees placed as [x, z, scale, variant, turn], built as one instanced mesh per variant, each with its own tint

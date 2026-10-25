@@ -158,7 +158,7 @@ hand's breadth from your eye, goes soft and its hole opens up a little for the b
 only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
-flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
+flies the line you looked down: up into the sky (a round that meets nothing streaks on out of sight rather than stopping in mid-air, and from your own eyes it clears whatever it passes over: a wall below the eaves, the house's roof, the narrowing crown of a pine), or down into the ground where it kicks up dirt, its streak of light
 going there, one streak a shot (a heavy or suppressed round's smoke trail runs along the same line, up into the sky
 with it). From your own eyes the streak isn't a flat strip seen edge on: it's a ribbon turned to face your eye all along
 its length, as wide as a streak of light would look at each distance, so it tapers away into the distance as a fine
