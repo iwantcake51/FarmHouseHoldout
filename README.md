@@ -201,6 +201,12 @@ again blends it back on just as smoothly; a fresh mag rides in the fist wherever
 reaches the magwell (a rifle's well, a pistol's grip) it's brought straight onto the well's line and pushed up it,
 never through the side of the gun.
 
+**Each gun handles like itself.** Every weapon has its own weight and give: a light pistol snaps through its
+reload and its slide, a 9mm machine pistol is quick and crisp, the AR is balanced, the battle rifle and the auto
+shotgun swing a little slower and carry on further, and the LMG lumbers into its reload and rocks back after. The
+same slap home moves a light gun more than a heavy one. A mag change opens with a small wind-up of the wrist the other
+way before the gun's rolled over to dump the old mag.
+
 **Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble, the hands stalling a moment as
 the gun's knocked and something clacks. They can also miss the magwell: the fresh mag comes up off the well's line and
 knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. That

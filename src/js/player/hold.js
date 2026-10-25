@@ -29,7 +29,7 @@ import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpViewSway }
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
-  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, kickPitch, RACK, relKnock, REV_FLICK,
+  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, feel, kickPitch, RACK, relKnock, REV_FLICK,
   REV_OPEN, REV_OUT, REV_SWING, RK, SR, stepKick, stepRack, stepRock
 } from './hold-kick.js';
 import {
@@ -484,7 +484,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const flick = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;
   const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
   if (rel) ANIM.relKind = rel;
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);   // (closing the double barrel: the stock comes up to meet the barrels)
+  const FL = feel(id);   // (this gun's own handling: player/hold-kick.js, FEEL)
+  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0) - ANIM.relEnv) * Math.min(1, rdt * 9 * FL.env);   // (closing the double barrel: the stock comes up to meet the barrels)
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
@@ -509,8 +510,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // well to meet the new one (meet); shells rock the port over to the hand as each comes in (show). The beats knock it
   const prevRp = ANIM.relRp || 0, beat = b => !!rel && prevRp < b && rp >= b; ANIM.relRp = rel ? rp : 0;
   if (!ak && rel === 'mag' && !D.speedload) {
-    const m = rpm, k = J.k, dump = bump(m, 0.03, 0.22), fetch = bump(m, 0.16, 0.62), meet = bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : 1;
-    AT.r += (-0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
+    // (and before the dump, a beat the other way, the wrist winding up for it: ant)
+    const m = rpm, k = J.k, ant = bump(m, 0, 0.07), dump = bump(m, 0.03, 0.22), fetch = bump(m, 0.16, 0.62), meet = bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : 1;
+    AT.r += (0.07 * ant - 0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (-0.035 * ant + 0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
     AT.hp += 0.06 * fetch; AT.hy -= 0.26 * fetch; AT.tw -= 0.07 * fetch;
     if (beat(0.1 * mf)) relKnock(1.6, -2.6, -0.2, 0);                    // the old mag shaken free
     if (beat(MAG_SEAT * mf)) relKnock(-3.2, 1.6, 0.7, 0.25);             // the new one slapped home: the gun bounces up
@@ -553,7 +555,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (id === 'dbl') { const shut = Math.max(0, (ANIM.brkPrev ?? 0) - (ANIM.brk || 0)); ANIM.brkPrev = ANIM.brk || 0; ANIM.flkT = Math.min(1, Math.max((ANIM.flkT || 0) * Math.exp(-rdt * 7), shut * 3)); ANIM.flk = (ANIM.flk || 0) + (ANIM.flkT - (ANIM.flk || 0)) * Math.min(1, rdt * 32); pitch -= 0.26 * ANIM.flk; oy += 0.02 * ANIM.flk; }
   if (cg) { AT.r += 0.26 * cg; AT.p -= 0.07 * cg; AT.h += 0.02 * cg; AT.z -= 0.03 * cg; pitch -= 0.05 * slamK; oz -= 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   // the reload's motion, sprung (ACT)
-  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) springTo(ACT, a, 'v' + a, AT[a], a === 'hp' || a === 'hy' || a === 'tw' ? ACT_K * 0.5 : ACT_K, a === 'hp' || a === 'hy' || a === 'tw' ? ACT_D * 0.75 : ACT_D, dt);
+  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) { const hd = a === 'hp' || a === 'hy' || a === 'tw'; springTo(ACT, a, 'v' + a, AT[a], hd ? ACT_K * 0.5 : ACT_K * FL.kK, hd ? ACT_D * 0.75 : ACT_D * FL.dK, dt); }   // (the head and chest your own; the gun's by its weight)
   // (from your own eyes much less of its roll and turn: what shows the well or the port to someone watching only wrenches
   // the gun about in front of you, FP_REL_TURN)
   { const t = fpOn() ? FP_REL_TURN : 1; pitch += ACT.p * (0.5 + 0.5 * t); roll += ACT.r * t; yaw += ACT.y * t; oy += ACT.h; oz += ACT.z; up.y += ACT.tw; }
