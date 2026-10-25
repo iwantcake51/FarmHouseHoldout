@@ -186,6 +186,7 @@ export function hangLamps() {
     const g = new THREE.Group(); g.position.set(x, 0, z); hangG.add(g);
     box(g, 0.012, 0.36, 0.012, M.metal, 0, 2.32, 0).castShadow = false;
     ycyl(g, 0.026, 0.026, 0.07, HM.iron, 0, 2.12, 0); ycyl(g, 0.045, 0.05, 0.02, HM.iron, 0, 2.085, 0);
+    ycyl(g, 0.075, 0.06, 0.03, HM.iron, 0, 2.405, 0);   // (its ceiling rose, where the cord goes up into the ceiling: world/house.js, CEIL)
     ycyl(g, 0.055, 0.22, 0.14, HANG_M.shade, 0, 2.02, 0, 16, true);
     torus(g, 0.22, 0.01, HM.iron, 0, 1.95, 0).rotation.x = Math.PI / 2;
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), HANG_M.bulb); bulb.position.y = 1.97; g.add(bulb);

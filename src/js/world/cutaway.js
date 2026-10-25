@@ -4,7 +4,7 @@ import { cam, renderScale, YAW, zoom } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { LMU, TREE_CUT } from '../core/shaders.js';
 import { ci, idx, inb } from './grid.js';
-import { HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
+import { ceilG, HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
 import { IW_LINES, updateDoors } from './interior.js';
 import { TREES } from './trees.js';
 import { state } from '../game/state.js';
@@ -63,6 +63,7 @@ export function updateCutaway(rdt) {
     const lv = Math.max(amb[0], amb[1], amb[2]);
     roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.02; m.colorWrite = roof.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
   }
+  ceilG.visible = state !== 'title' && !isoOn();   // (the ceiling, from your own eyes only: world/house.js)
   // porch roof: off while you stand on the porch or anywhere indoors (with the main roof gone it would sit there over
   // nothing, in the way of the front rooms), back as you step off it outside
   {

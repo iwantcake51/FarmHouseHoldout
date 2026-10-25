@@ -40,6 +40,39 @@ function buildFloor() {
   // (drawn as one mesh for the boards and one for the lines between them; the lines take no shadow, as they never have)
   mergeInto(floorG, [...floorG.children], { noBake: true }).forEach(m => { if (m.material === M.wood) m.receiveShadow = false; });
 }
+// the ceiling, seen only from your own eyes (the view from above lifts the roof off and looks straight down into the
+// rooms: world/cutaway.js): a plaster ceiling over the whole footprint (an L-shaped house's notch cut out of it) at
+// the height the rooms' walls stand to (CEIL.y, the inside walls' own: world/interior.js, IW.h), and stained timber
+// joists across it, the short way over the house, CEIL.gap apart (each w wide and d deep), resting on the walls; it
+// takes no shadow and casts none (the roof over it does), and none of the floor's light map either (it would lay the
+// walls' dark lines across it), just the room's own light
+const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
+export const ceilG = new THREE.Group(); ceilG.visible = false; scene.add(ceilG);
+const CEIL_M = { plaster: new THREE.MeshLambertMaterial({ color: 0xf6efe0, emissive: 0x3c3428, side: THREE.DoubleSide }), joist: new THREE.MeshLambertMaterial({ color: 0x5a4130, emissive: 0x140e09 }) };   // (emissive: the light the rooms bounce up onto it)
+function buildCeiling() {
+  while (ceilG.children.length) ceilG.children.pop().geometry.dispose();
+  const { x0, x1, z0, z1, cut } = HOUSE, sh = new THREE.Shape();
+  // (the outline in x and z, laid flat face down: an L round the notch when there is one)
+  const pts = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+  if (cut) {
+    const [cx0, cz0, cx1, cz1] = cut, onW = cx0 <= x0 + 0.01, onN = cz0 <= z0 + 0.01;
+    // (the notch is out of a back corner: one side of it on the house's west or east wall, one on its north)
+    const corner = onN ? (onW ? 0 : 1) : (onW ? 3 : 2), ins = onN ? (onW ? [[x0, cz1], [cx1, cz1], [cx1, z0]] : [[cx0, z0], [cx0, cz1], [x1, cz1]]) : (onW ? [[cx1, z1], [cx1, cz0], [x0, cz0]] : [[x1, cz0], [cx0, cz0], [cx0, z1]]);
+    pts.splice(corner, 1, ...ins);
+  }
+  pts.forEach(([x, z], i) => i ? sh.lineTo(x, z) : sh.moveTo(x, z));
+  const pl = new THREE.Mesh(new THREE.ShapeGeometry(sh).rotateX(Math.PI / 2), CEIL_M.plaster); pl.position.y = CEIL.y; ceilG.add(pl);
+  // the joists, the short way across (from wall to wall, round the notch)
+  const alongZ = x1 - x0 >= z1 - z0, a0 = alongZ ? x0 : z0, a1 = alongZ ? x1 : z1, n = Math.max(1, Math.round((a1 - a0) / CEIL.gap));
+  for (let k = 1; k < n; k++) {
+    const a = a0 + (a1 - a0) * k / n;
+    let b0 = alongZ ? z0 : x0, b1 = alongZ ? z1 : x1;
+    if (cut && (alongZ ? a > cut[0] && a < cut[2] : a > cut[1] && a < cut[3])) { const c0 = alongZ ? cut[1] : cut[0], c1 = alongZ ? cut[3] : cut[2]; if (c0 <= b0 + 0.01) b0 = c1; else b1 = c0; }
+    const L = b1 - b0, m = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? CEIL.w : L, CEIL.d, alongZ ? L : CEIL.w), CEIL_M.joist);
+    m.position.set(alongZ ? a : (b0 + b1) / 2, CEIL.y - CEIL.d / 2 + 0.002, alongZ ? (b0 + b1) / 2 : a); ceilG.add(m);
+  }
+  ceilG.children.forEach(m => { m.castShadow = m.receiveShadow = false; });
+}
 {
   // a doormat inside the front door
   const rugM = {}, RM = c => rugM[c] || (rugM[c] = lam(c));
@@ -228,7 +261,7 @@ export function setFootprint(notch, live) {
       else { if (w.win) { w.plain.visible = true; w.win.visible = false; } cell[k] = WALL; openAt[k] = null; if (live) blockArr[k] = 1; }
     } else if (cell[k] === WALL || cell[k] === OPEN || !fp) { cell[k] = EMPTY; openAt[k] = null; lowObst.delete(k); if (live) blockArr[k] = 0; }
   }
-  buildFloor(); buildRoof();
+  buildFloor(); buildRoof(); buildCeiling();
 }
 // the footprint for a run (from its seed, world/interior.js): now and then the whole rectangle, otherwise a notch out of
 // the back left or right corner, FOOT.w cells across and FOOT.d deep (the front, with the door and the porch, is always
