@@ -171,8 +171,11 @@ at. Coming over a fence or a sill, the view turns smoothly to where you're looki
 Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
 turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
-sights; a sprint bobs no harder than a walk). Your arms and the gun ride with your eye, not your chest, so your
-stride's rise and fall doesn't jog them against the view as you walk.
+sights; a sprint bobs no harder than a walk). Your arms and the gun are carried by the view itself, the way
+a shooter's arms are: they're placed against this frame's view (not the one before, which left them trailing a frame
+behind as you walked and turned), the chest's lean and roll as you walk and sidestep are taken off them, and their
+sway turns about your grip, so walking, strafing and turning never leave them lagging or jogging behind the view;
+only their own small sway and bob move them.
 **Vaults and landings from your own eyes.** Crouching for a vault you glance down at the sill or the rail, your hands
 planted on it in view, each on its own side; the view pitches with your lean as you go over, rolls with the way you're
 crossing and widens a touch at the top of the arc, then you land with a dip, a nod and a little rock that settle on a

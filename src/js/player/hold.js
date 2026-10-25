@@ -648,7 +648,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
+  // (the body's world matrices brought up to this frame first: they're still where the body was last frame, and these
+  // place the gun against the view in the world, so it'd be put a frame behind wherever you've walked or turned to)
+  if (fpOn()) PM.g.updateMatrixWorld(true);
+  if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg, H.grip); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
   { const IO = inspectOut(); fpInspectPose(gg, inspectW(), IO.x, IO.h, IO.z); }   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
   inspectReach(gg, s, H, ak);   // and never further out or nearer in than the hands on it can hold it
   { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)

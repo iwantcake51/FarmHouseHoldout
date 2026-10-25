@@ -143,7 +143,7 @@ export const RIFLE_MODELS = {
       { const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); tt.position.set(X, sy + sr + 0.007, (z0 + z1) / 2); g.add(tt);
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
-      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.105 };   // (looked down in first person: game/view-cam.js)
+      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.082 };   // (looked down in first person: game/view-cam.js; your eye a little closer in than another gun's scope, its picture fuller)
       lensOn(g, X, sy, z0 - 0.0052, oc * 0.94);   // (the eyepiece's glass you look into: effects/scope-view.js)
     }
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };

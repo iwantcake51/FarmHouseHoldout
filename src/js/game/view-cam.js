@@ -141,9 +141,24 @@ const FP_JOLT = { push: 0.5, zoom: 0.4, ease: 18, relP: 0.035, relR: 0.012, shak
 const EYE_RIG = { w: 9, vault: 22, pitch: 0.79 };
 const EYE_R = { o: new V3(), v: new V3(), on: false, ref: new V3() };
 const V = { mdx: 0, mdy: 0, cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, rc: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, x: 0, vx: 0, h: 0, vh: 0, w: 30, d: 24, cp: 0, vcp: 0, cy: 0, vcy: 0, tp: 0, ty: 0, t: 0, last: -9, e: 0, ph: [0, 0, 0, 0, 0, 0], kind: 'long' }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, bobK: 0, bp: 0, br: 0, bx: 0, by: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null, land: 0, vland: 0, vaulted: false, lcy: null, vp: 0, vr: 0, vfov: 0, lp: 0, vlp: 0, lr: 0, vlr: 0 };
-// (VM_LOCK: how much of it, up and down and across: the stride's rise and fall, which the eye's spring smooths out of
-// the view; not across, where the eye trails the chest's lean on purpose and the arms with it read as weight)
-const VM_LOCK = { y: 1, xz: 0 }, _vlC = new V3(), _vlD = new V3();
+// Your arms and the gun from your own eyes are carried by the view, as a game's arms are: the upper body (your arms,
+// what's in your hands, and the chest they hang off) is put each frame where it would be with your eye at the view's eye
+// and stood straight up under it, so the chest's own stride, its lean into a walk and its roll into a sidestep, and the
+// eye's spring easing after it, never shift the arms and the gun against the view, which would leave them trailing it
+// and jogging about a beat behind as you move. Only their own sway (VM) moves them on top of it. Its turn is kept as
+// it's posed (the arms already turn with the view). k: how much (eased off through a vault, the hands on the sill)
+const _vlC = new V3(), _vlM = new THREE.Matrix4(), _vlM2 = new THREE.Matrix4(), _vlQ = new THREE.Quaternion(), _vlQ2 = new THREE.Quaternion(), _vlE = new THREE.Euler(), _vlS = new V3(), _vlI = new THREE.Quaternion();
+function vmLock(eye, k) {
+  if (k < 0.001) return;
+  const up = PM.upper; PM.g.updateMatrixWorld(true);
+  chestEye(_vlC);   // (where the posed chest has your eye)
+  up.getWorldQuaternion(_vlQ); _vlE.setFromQuaternion(_vlQ, 'YXZ'); _vlQ2.setFromEuler(_vlE.set(0, _vlE.y, 0, 'YXZ'));   // stood straight, turned as it is
+  _vlQ2.multiply(_vlQ.invert()); if (k < 1) _vlQ2.slerp(_vlI, 1 - k);
+  _vlS.subVectors(eye, _vlC).multiplyScalar(k).add(_vlC);
+  _vlM.makeTranslation(-_vlC.x, -_vlC.y, -_vlC.z).premultiply(_vlM2.makeRotationFromQuaternion(_vlQ2)).premultiply(_vlM2.makeTranslation(_vlS.x, _vlS.y, _vlS.z));
+  _vlM.multiply(up.matrixWorld).premultiply(_vlM2.copy(up.parent.matrixWorld).invert());
+  _vlM.decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
+}
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
@@ -344,9 +359,11 @@ function vmStep(rdt, w0, now) {
 }
 // and put on the gun as it's held (player/hold.js: after fpRecoil), turned about where it's gripped in the view's own frame
 const _vsP = new V3(), _vsO = new V3();
-export function fpViewSway(gg) {
+export function fpViewSway(gg, grip) {
   if (!fpOn() || !gg.parent) return;
-  gg.updateMatrixWorld(true); _vsP.setFromMatrixPosition(gg.matrixWorld);
+  // (turned about where it's gripped: the gun's own group sits down at your feet, and a sway's tilt turned about there
+  // would swing the gun centimetres back and aside, trailing every step and sidestep)
+  gg.updateMatrixWorld(true); _vsP.set(grip[0], grip[1], grip[2]).applyMatrix4(gg.matrixWorld);
   _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(VS.p, VS.w, VS.r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _vsO.set(VS.x, VS.y, VS.z).applyQuaternion(_rq);
@@ -651,12 +668,8 @@ export function viewFrame(rdt, roll, sh, jolt) {
       } }
     vmStep(rdt, w0, now);
     PM.g.updateMatrixWorld(true); rigStep(rdt); rigEye(_vcE);
-    // your arms and the gun carried by your eye, not your chest: the eye's eased (EYE_R) while the chest takes every
-    // stride and sway as it comes, and the arms posed off the chest would bob and shift against the view, a beat apart
-    // from it, as you move and turn. So at the hip the whole of you is moved by however far the chest is from the eye
-    // this frame (VM_LOCK: up and down), and the arms and the gun stay put in the view, moving only with their own sway (VM) on top
-    // (down the sights the gun's on the sight line already)
-    chestEye(_vlC); _vlD.subVectors(_vcE, _vlC);
+    // your arms and what's in your hands carried by the view itself, not by your chest (vmLock)
+    V.vlk = (V.vlk ?? 1) + ((P.vault ? 0 : 1) - (V.vlk ?? 1)) * Math.min(1, rdt * 8); vmLock(_vcE, V.vlk);
     // looking up, the head back out of the way of the arms raised in front of it
     { const b = LOOK_UP.look * smooth(clamp((VCAM.pitch - LOOK_UP.p0) / (LOOK_UP.p1 - LOOK_UP.p0), 0, 1)) * (1 - w0);
       V.x = _vcE.x - Math.sin(VCAM.yaw) * b; V.y = _vcE.y - b * 0.25; V.z = _vcE.z - Math.cos(VCAM.yaw) * b; }
@@ -672,7 +685,6 @@ export function viewFrame(rdt, roll, sh, jolt) {
       _vcE.lerp(_vcD, w);
     }
     V.sw = L ? w : 0;
-    { const k = 1 - w; if (k > 0.001) { PM.g.position.x += _vlD.x * VM_LOCK.xz * k; PM.g.position.y += _vlD.y * VM_LOCK.y * k; PM.g.position.z += _vlD.z * VM_LOCK.xz * k; PM.g.updateMatrixWorld(true); } }
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx, _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx);
     c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);
