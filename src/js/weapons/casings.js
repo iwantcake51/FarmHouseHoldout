@@ -425,13 +425,19 @@ export const RACKS = {
 };
 // where the action is at q through the cycle: off how far back (0 home, 1 at the stop), lift how far the bolt handle
 // is turned up, and grab how much the firing hand is on the bolt. A chambering cycle (chamberCycle) starts part way
-// through with the bolt already open
+// through with the bolt already open. ant is the wind-up before the stroke (0..1..0): the hand settling its grip, the
+// gun easing the other way from where the stroke will throw it (player/hold.js leans it by CYC_ANT of the stroke's
+// own lean, the other way), so the yank comes out of a beat of stillness rather than from nowhere; it takes the
+// first CYC_ANT.pump of a pump's pull (the pull itself the quicker for it) and a bolt's reach
+export const CYC_ANT = { pump: 0.3, lean: 0.4 };
 export function cyclePose(c, q) {
-  const o = { off: 0, lift: 0, grab: 0 }, B = c.v.beat, ex = c.v.ex;
+  const o = { off: 0, lift: 0, grab: 0, ant: 0 }, B = c.v.beat, ex = c.v.ex;
   const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
   if (!c.bolt) {
     if (c.q0 && q < B.fwd) { o.off = 1; return o; }                                                     // already back
-    if (q < B.back) o.off = run(0, B.back, v => Math.pow(v, ex[0]));                                   // yanked back, quickest as it hits the stop
+    const a = B.back * CYC_ANT.pump;
+    if (q < a) o.ant = Math.sin(Math.PI * q / a);                                                       // the grip set, the gun easing the other way
+    else if (q < B.back) o.off = run(a, B.back, v => Math.pow(v, ex[0]));                              // yanked back, quickest as it hits the stop
     else if (q < B.fwd) o.off = run(B.back, B.fwd, v => 1 - 0.08 * Math.sin(v * Math.PI) * (1 - v));   // a little bounce off it
     else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, ex[1]));                      // shoved forward, slamming home
     else o.off = run(B.home, 1, v => 0.05 * Math.sin(Math.min(1, v * 2.5) * Math.PI) * (1 - v));      // and a bounce off the front
@@ -441,7 +447,7 @@ export function cyclePose(c, q) {
   o.grab = smooth(clamp((q - q0) / B.reach, 0, 1)) * (1 - smooth(clamp((q - B.lock - 0.02) / (1 - B.lock - 0.02), 0, 1)));
   if (c.stop) o.grab *= 1 - smooth(clamp((q - B.back) / (c.stop - B.back), 0, 1));                     // pulled back to load: let go of it there
   if (c.q0 && q < B.fwd) { o.lift = o.off = 1; return o; }                                              // already open
-  if (q < B.reach) o.lift = 0;
+  if (q < B.reach) { o.lift = 0; o.ant = Math.sin(Math.PI * clamp((q - q0) / (B.reach - q0), 0, 1)); }   // the hand on its way up to the knob
   else if (q < B.lift) o.lift = run(B.reach, B.lift, v => 1 - (1 - v) * (1 - v));                     // snapped up
   else if (q < B.home) o.lift = 1;
   else if (q < B.lock) o.lift = run(B.home, B.lock, v => 1 - Math.pow(v, 1.5));                        // slapped down

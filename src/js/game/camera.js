@@ -25,6 +25,9 @@ export const camTarget = new V3(P.x, 0, P.z);
 // the jump's progress, so the view leans and settles smoothly instead of snapping or jittering. The push is a 2D spring
 // (px, pz), so a new vault that starts before the last one has settled turns it round smoothly instead of flipping it
 export const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, vpz: 0 };
+// aiming down the sights from above: the gun's raise rides a spring a little under critical (about 5% past, settled
+// in a quarter second), so it comes up, a hair past and settles rather than gliding to a stop
+const ADS_ISO = { k: 120, d: 16 };
 // firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
 // little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
 // come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
@@ -126,7 +129,11 @@ export function updateCamera(rdt) {
   // up once it's there, as long as you're still holding aim)
   { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2));   // skidding out of a sprint, into the sights as you slow
     // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
-    if (iso) { fpAds(null); ANIM.ads = (ANIM.ads || 0) + ((want ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9); } else ANIM.ads = fpAds(want, rdt); }
+    // (from above, on a spring a little under critical, ADS_ISO: the gun comes up, a hair past and settles, and drops
+    // back the same; adsP has the overshoot, for the pose, ads stays 0..1 for everything else)
+    if (iso) { fpAds(null); const t = want ? 1 : 0, A = ADS_ISO; ANIM.adsP = ANIM.adsP ?? (ANIM.ads || 0); ANIM.adsPV = ANIM.adsPV || 0;
+      for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { ANIM.adsPV += ((t - ANIM.adsP) * A.k - ANIM.adsPV * A.d) * h; ANIM.adsP += ANIM.adsPV * h; }
+      ANIM.ads = clamp(ANIM.adsP, 0, 1); } else { ANIM.ads = fpAds(want, rdt); ANIM.adsP = ANIM.ads; ANIM.adsPV = 0; } }
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);
   ISO_CAM.zoom = state === 'title' ? TITLE_ZOOM * cinePush() : zoom * (1 + 0.13 * ANIM.ads + 0.38 * ANIM.scopeK + 0.12 * (ANIM.healFx || 0));   // bandaging leans the view in slowly
   { const vo = (Math.round(ANIM.ads * 40) / 40).toFixed(3); if (cache.adsV !== vo) { cache.adsV = vo; $('adsVig').style.opacity = (vo * 0.8).toFixed(3); } }

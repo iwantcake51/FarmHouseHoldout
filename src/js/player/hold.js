@@ -13,7 +13,7 @@ import {
   BELT, BRK, CHARGE, CRANE, flipOf, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, SLIDES, X
 } from '../weapons/gun-materials.js';
 import { BOLT_KNOB, shellMat } from '../weapons/gun-models.js';
-import { cyclePose, EJECT } from '../weapons/casings.js';
+import { CYC_ANT, cyclePose, EJECT } from '../weapons/casings.js';
 import { vaultGun } from './vaulting.js';
 import { SFX } from '../audio/sfx.js';
 import { state } from '../game/state.js';
@@ -546,6 +546,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // loose spring, and the stops knock it; the torso twists and rocks with it
     const t = _rackT; t.p = t.r = t.y = t.z = t.h = t.w = 0;
     if (cp) for (const src in cy.v.lean) { const L = cy.v.lean[src], k = cp[src]; for (const a in L) t[a] += L[a] * k; }   // this way of working it (RACKS)
+    if (cp && cp.ant) { const L = cy.v.lean[cy.bolt ? 'grab' : 'off']; for (const a in L) t[a] -= L[a] * CYC_ANT.lean * cp.ant; }   // and before it, a beat the other way (CYC_ANT)
     stepRack(rdt, t);
     pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
     up.y += RACK.w; up.x += 0.3 * RACK.p;
@@ -570,7 +571,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // looking it over (player/inspect.js): turned, brought up and in, the chest and head going with it
   const IN = inspectPose(rdt, D, id, H.kind === 'hand', fpOn()); pitch += IN.p; yaw += IN.y + (fpOn() ? FP_INSPECT_TURN[H.kind === 'hand' ? 'hand' : 'long'] * IN.fs : 0); roll += IN.r; up.y += IN.tw;
   if (!fpOn()) { ox += IN.x; oy += IN.h; oz += IN.z; }   // (from your own eyes it's placed in front of them instead: game/view-cam.js, fpInspectPose)
-  oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
+  { const a = ANIM.adsP ?? ads; oy += 0.05 * a; pitch -= 0.03 * a; } roll *= 1 - ads * 0.6;   // aiming: up to the eye (a hair past and back as it comes: game/camera.js, ADS_ISO), steadier
   // sprinting (player/sprint.js): the gun comes down to a low ready, muzzle down and across the body, both hands still
   // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. It's carried high, muzzle only
   // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up

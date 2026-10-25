@@ -230,7 +230,13 @@ port, pressed down into the well and forward under the bolt, the left hand holdi
 rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
 fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
 into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the
-pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. Loading the revolver a
+pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. A pump or a bolt is
+never yanked out of nowhere: there's a beat first, the grip set and the gun easing a touch the other way from where the
+stroke will throw it, then the stroke snaps through on the same timing as before (so the sound and the case flying out
+still land on it), bounces off its stops and the gun follows through on its loose spring. A gun you've drawn doesn't
+stop dead in the hold either: it carries on a hair up as it gets there and seats back into your hands, a heavy one
+more. From above, aiming down the sights brings the gun up on a spring just under critical, a few percent past and
+settled in about a quarter second, and it drops back the same way when you let go. Loading the revolver a
 round at a time, the cylinder's pushed shut by hand after the last one (or when you stop to shoot): the left hand goes
 to the open cylinder, pushes it round into the frame till it clicks home, and goes back to the grip, the shot going
 off once it's latched. A hand holding the gun is held to its place on it the way a constraint holds a bone in

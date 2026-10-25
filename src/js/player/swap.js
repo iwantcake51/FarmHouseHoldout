@@ -16,6 +16,7 @@ import { S, W8 } from '../game/run-state.js';
 import { gunMeshes, HOLDS } from '../weapons/gun-materials.js';
 import { ANIM } from './animation.js';
 import { FIST, HOLD, HOLD_DEF, holdOf, reach } from './hold.js';
+import { relKnock } from './hold-kick.js';
 import { showStowed, STOW } from './stow.js';
 
 const isMelee = s => { const id = W8.slot[s]; return !!(id && WEAP[id] && WEAP[id].melee); };
@@ -32,6 +33,7 @@ export const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) -
 // came up to the gun where it was and rode on it (DRAW_LH: when it leaves its rest and when it has the gun), and both
 // arms easing into the hold's own pose instead of jumping to it
 const DRAW_SET = 0.82, DRAW_LH = [0.4, 0.8];
+const DRAW_SEAT = { p: -0.9, r: 0.45, h: 0.22, z: -0.12 };
 // a heavy gun (the auto shotgun, the LMG: D.heavy, weapons/gun-stats.js) takes this much longer to swap to and to fire
 export const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
 export const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
@@ -222,7 +224,9 @@ export function updateSwap(dt, rdt) {
   if (P.dead || P.vault || P.shove || P.bandT > 0 || W8.cur !== st.to) { endSwap(); return; }
   st.t += dt > 0 ? rdt * S.swapMul / drawMul(W8.slot[st.to]) : 0;   // it holds still while the game is paused (Quick draw speeds it up, a heavy gun slows it)
   const t = st.t, T = SWAP_T, end = st.end;
-  if (t >= end) { endSwap(); return; }
+  // a gun drawn all the way comes to rest with its weight: it carries on a hair up as it stops and seats back into the
+  // hold (DRAW_SEAT, knocks to the reload's loose spring: player/hold-kick.js), a heavy gun the more
+  if (t >= end) { if (!isMelee(st.to)) { const h = drawMul(W8.slot[st.to]), K = DRAW_SEAT; relKnock(K.p * h, K.r, K.h * h, K.z * h); } endSwap(); return; }
   // the melee pose only turns the weapon in the fist (player/hold.js), so whatever this moved last frame goes back to
   // the fist first: the hold it's drawn into is then the real one, not last frame's draw, and it lands in it without a
   // jump when the swap ends (endSwap does the same)
