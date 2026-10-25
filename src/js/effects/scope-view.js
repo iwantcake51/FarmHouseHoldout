@@ -33,11 +33,15 @@ const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.
 // inside the window rather than filling it: k) and a red dot's (2 MOA, at least px)
 const HOLO_RET = { moa: 68, k: 1.05, dot: 1.6 };
 const MOA = Math.PI / 180 / 60;
-const SC = { rt: null, size: 0, fb: null, w: 0, h: 0 }, _ax = new THREE.Vector2(), _svR = new THREE.Vector2(), _svR2 = new THREE.Vector2(), _sz = new THREE.Vector2(), _sp = new THREE.Vector3(), _st = new THREE.Vector3(), _su = new THREE.Vector3();
+const SC = { rt: null, size: 0, fb: null, w: 0, h: 0, on: false, cx: 0, cy: 0, r: 0 }, _ax = new THREE.Vector2(), _svR = new THREE.Vector2(), _svR2 = new THREE.Vector2(), _sz = new THREE.Vector2(), _sp = new THREE.Vector3(), _st = new THREE.Vector3(), _su = new THREE.Vector3();
 const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200);
 const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: frag, transparent: true, depthTest: false, depthWrite: false, blending: blending ?? THREE.NormalBlending });
-const scopeMat = overlay(`
-uniform sampler2D tS, tD; uniform vec2 uC, uOff, uAx, uRot, uRes, uNF; uniform float uR, uRI, uKind, uDark, uHasD, uEyeZ;
+// the eyepiece's lens itself, a real disc of glass in the scope (lensOn), drawn with the farm: from any angle it's the
+// shape it is and anything in front of it hides it. Off your eye's line it's dark coated glass; the scope up to your
+// eye (the gun in your hands, SCOPE_V), the picture down the scope's axis is seen through it
+const LENS_FRAG = `
+uniform sampler2D tS; uniform vec2 uOff, uAx, uRot, uRes; uniform float uR, uRI, uKind, uDark;
+varying vec2 vP; varying vec4 vClip;
 // a line's coverage, half width w, at distance d (in the lens's units: its radius is 1), smoothed over a pixel
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
@@ -53,21 +57,19 @@ vec3 glass(vec2 p, float d) {
   return c;
 }
 void main() {
-  vec2 p = (gl_FragCoord.xy - uC) / uR; float d = length(p), px = 1.0 / uR;
-  // (whatever's nearer than the eyepiece, a hand, a window's frame, hides it)
-  float seen = 1.0;
-  if (uHasD > 0.5) { float z = texture2D(tD, gl_FragCoord.xy / uRes).x, vz = uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)); seen = smoothstep(uEyeZ - 0.02, uEyeZ - 0.005, vz); }
+  vec2 p = vP; float d = length(p), px = 1.0 / max(uR, 1.0);
+  vec2 fc = (vClip.xy / vClip.w * 0.5 + 0.5) * uRes;   // (where on the screen, in the same pixels as the axis)
   vec3 col = glass(p, d);
   if (uDark < 0.5) {
     // the picture: the world as it lies along the scope's axis (uAx, where that points on the screen), magnified, seen
     // through the eyepiece wherever that is: an eye off the axis sees the picture and the reticle together slide
     // against the eyepiece's ring (parallax); colour fringes toward the rim
-    vec2 a = (gl_FragCoord.xy - uAx) / uRI, uv = a * 0.5 + 0.5;
+    vec2 a = (fc - uAx) / uRI, uv = a * 0.5 + 0.5;
     float ca = 0.008 * d * d; vec3 gl = col;
     col = vec3(texture2D(tS, (uv - 0.5) * (1.0 + ca) + 0.5).r, texture2D(tS, uv).g, texture2D(tS, (uv - 0.5) * (1.0 - ca) + 0.5).b);
     col *= vec3(0.98, 1.0, 1.02);   // the coatings' faint cast
     // the reticle, in the scope: on its axis with the picture, turned as the gun's canted
-    vec2 r0 = (gl_FragCoord.xy - uAx) / uR, q = vec2(uRot.x * r0.x + uRot.y * r0.y, -uRot.y * r0.x + uRot.x * r0.y);
+    vec2 r0 = (fc - uAx) / uR, q = vec2(uRot.x * r0.x + uRot.y * r0.y, -uRot.y * r0.x + uRot.x * r0.y);
     if (uKind < 0.5) {
       // a duplex: fine cross hairs in the middle, thick posts out to the rim
       float t = max(ln(abs(q.x), 0.0035, px) * step(abs(q.y), 0.34), ln(abs(q.y), 0.0035, px) * step(abs(q.x), 0.34));
@@ -87,9 +89,19 @@ void main() {
     col *= 1.0 - 0.3 * smoothstep(0.7, 1.0, d);
     col = mix(gl, col, 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55)));
   }
-  float inside = (1.0 - smoothstep(1.0 - px * 1.5, 1.0 + px * 1.5, d)) * seen;
-  gl_FragColor = vec4(col * inside, inside);   // (nothing round it: the view there's as it is, only out of focus)
-}`, { tS: { value: null }, uC: { value: new THREE.Vector2() }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 0 }, uOff: { value: new THREE.Vector2() }, tD: { value: null }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uRI: { value: 100 }, uHasD: { value: 0 }, uEyeZ: { value: 0.1 } });
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const LENS_VERT = 'uniform float uLR; varying vec2 vP; varying vec4 vClip; void main() { vP = position.xy / uLR; vClip = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = vClip; }';
+const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, fragmentShader: LENS_FRAG, side: THREE.DoubleSide,
+  uniforms: { tS: { value: null }, uLR: { value: 1 }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 1 }, uOff: { value: new THREE.Vector2() }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) }, uRI: { value: 100 } } });
+// every eyepiece's glass but the one being looked down (each its own radius: uLR), and the one that is (LENS.live)
+const LENS = { glass: {}, live: null, on: null };
+const glassMat = r => LENS.glass[r] || (LENS.glass[r] = lensMat(false), LENS.glass[r].uniforms.uLR.value = r, LENS.glass[r]);
+// a scope's eyepiece lens (weapons/attachments.js): a disc r across at (x, y, z) on p, facing back toward your eye
+export function lensOn(p, x, y, z, r) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(r, 40), glassMat(r)); m.rotation.y = Math.PI; m.position.set(x, y, z);
+  m.userData.lens = r; m.castShadow = m.receiveShadow = false; p.add(m); return m;
+}
 // the blur round a scope's eyepiece: a disc of taps (spread on the golden angle) as wide as how far out of focus each
 // pixel is: none in the eyepiece, the world more toward the edges, what's close to your eye (the gun) most
 const dofMat = overlay(`
@@ -132,30 +144,42 @@ void main() {
   gl_FragColor = vec4(vec3(1.0, 0.13, 0.07) * lit * m * uA * 1.3, 1.0);
 }`;
 const holoMat = overlay(SIGHT_FRAG, SIGHT_U, THREE.AdditiveBlending);
-const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), scopeMat); quad.frustumCulled = false;
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), holoMat); quad.frustumCulled = false;
 const quadScene = new THREE.Scene(); quadScene.add(quad);
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 function drawQuad(mat) { quad.material = mat; R.render(quadScene, quadCam); }
 // a point's place on the screen, in pixels from its bottom left (W, H: the drawing buffer)
 const toPx = (v, W, H, out) => { _sp.copy(v).project(FP_CAM); return out.set((_sp.x + 1) / 2 * W, (_sp.y + 1) / 2 * H); };
 
+// before the frame's drawn (game/loop.js): what's down the scope that's at your eye, drawn for its lens to show
+// (scopeLens), or every lens back to plain glass
+export function scopePrep() {
+  const S = SCOPE_V, on = S.on && S.a >= 0.01 && (S.kind === 'scope' || S.kind === 'acog') && S.src;
+  let lens = null; if (on) S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; });
+  if (LENS.on && LENS.on !== lens) { LENS.on.material = glassMat(LENS.on.userData.lens); LENS.on = null; }
+  SC.on = false; if (!lens) return;
+  R.getDrawingBufferSize(_sz); const prev = R.getRenderTarget(), ac = R.autoClear;
+  if (scopeLens(S, lens, _sz.x, _sz.y, _sz.y / 2 / Math.tan(FP_CAM.fov * Math.PI / 360))) SC.on = true;
+  R.autoClear = ac; R.setRenderTarget(prev);
+}
 // over the finished frame, in first person (game/loop.js)
 export function scopePass() {
   const S = SCOPE_V; if (!S.on || S.a < 0.01) return;
   R.getDrawingBufferSize(_sz); const W = _sz.x, H = _sz.y, c = FP_CAM, f = H / 2 / Math.tan(c.fov * Math.PI / 360);
   const prev = R.getRenderTarget(), ac = R.autoClear; R.autoClear = false;
-  if (S.kind === 'scope' || S.kind === 'acog') scopeOver(S, W, H, f);
+  if (S.kind === 'scope' || S.kind === 'acog') { R.setRenderTarget(null); if (SC.on) dof(Math.min(1, S.w * 1.25), W, H, SC.cx, SC.cy, SC.r, SCOPE_DOF.world, SCOPE_DOF.f0, SCOPE_DOF.f1); }   // (the view round it out of focus, as the scope comes to your eye)
   else sightOver(S, W, H, f);
   R.autoClear = ac; R.setRenderTarget(prev);
 }
 
-function scopeOver(S, W, H, f) {
+function scopeLens(S, lens, W, H, f) {
   const c = FP_CAM;
   // the eyepiece on the screen: where its middle is and how big it looks from your eye (nothing if it's turned away)
-  if (_st.subVectors(c.position, S.eye).dot(S.dir) > -0.005) return;
-  _sp.copy(S.eye).project(c); if (_sp.z > 1) return;
+  if (_st.subVectors(c.position, S.eye).dot(S.dir) > -0.005) return false;
+  _sp.copy(S.eye).project(c); if (_sp.z > 1) return false;
   const dist = Math.max(0.02, c.position.distanceTo(S.eye)), r = S.r / dist * f, cx = (_sp.x + 1) / 2 * W, cy = (_sp.y + 1) / 2 * H;
-  if (r < 2 || cx < -r || cy < -r || cx > W + r || cy > H + r) return;
+  if (r < 2 || cx < -r || cy < -r || cx > W + r || cy > H + r) return false;
+  SC.cx = cx; SC.cy = cy; SC.r = r;
   // what's down it: the world over as much of your view as the eyepiece covers, S.mag times bigger (not drawn while your
   // eye's so far off its axis that it's black)
   const dark = S.off.length() * 0.55 > 2.1;
@@ -164,13 +188,12 @@ function scopeOver(S, W, H, f) {
   toPx(_st.copy(c.position).addScaledVector(S.dir, 100), W, H, _ax);
   const ri = r + Math.hypot(_ax.x - cx, _ax.y - cy) + 2;
   toPx(_su.copy(S.eye).addScaledVector(S.ux, -0.01), W, H, _svR); toPx(S.eye, W, H, _svR2); const ang = Math.atan2(_svR.y - _svR2.y, _svR.x - _svR2.x);
-  _sp.copy(S.eye).project(c);
   if (!dark) {
     const half = Math.atan(ri / f); scopeCam.fov = 2 * Math.atan(Math.tan(half) / S.mag) * 180 / Math.PI; scopeCam.updateProjectionMatrix();
     scopeCam.position.copy(S.obj); scopeCam.up.set(0, 1, 0).applyQuaternion(c.quaternion); scopeCam.lookAt(_st.copy(S.obj).add(S.dir)); scopeCam.updateMatrixWorld(true);
     const size = Math.min(SCOPE_DIM.max, Math.max(128, Math.round(ri * 2 / 64) * 64));
     if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size; }
-    // (you're left out of it: the gun's own front sight, or your arm, a hand's breadth from its front lens)
+    // (you're left out of it: the gun's own front sight, or your arm, a hand's breadth from its front lens; the lens too)
     const pv = PM.g.visible, sh = R.shadowMap.autoUpdate; PM.g.visible = false;
     // (the particles thinned toward the middle of the scope's own view too, then back as they were for the main view)
     const am = [SPRITE_AIM.x, SPRITE_AIM.y, SPRITE_AIM.z, SPRITE_AIM.w], ar = [SPRITE_RES.x, SPRITE_RES.y];
@@ -178,15 +201,13 @@ function scopeOver(S, W, H, f) {
     R.shadowMap.autoUpdate = false; R.autoClear = true; R.setRenderTarget(SC.rt); R.render(scene, scopeCam); R.autoClear = false; R.shadowMap.autoUpdate = sh; PM.g.visible = pv;
     SPRITE_AIM.set(...am); SPRITE_RES.set(...ar);
   }
-  R.setRenderTarget(null);
-  // the view round it out of focus, as the scope comes to your eye
-  const k = Math.min(1, S.w * 1.25);
-  dof(k, W, H, cx, cy, r, SCOPE_DOF.world, SCOPE_DOF.f0, SCOPE_DOF.f1);
-  const U = scopeMat.uniforms;
-  U.tS.value = SC.rt ? SC.rt.texture : null; U.uC.value.set(cx, cy); U.uR.value = r; U.uKind.value = S.kind === 'acog' ? 1 : 0; U.uOff.value.copy(S.off); U.uDark.value = dark || !SC.rt ? 1 : 0;
-  U.uAx.value.copy(_ax); U.uRI.value = ri; U.uRot.value.set(Math.cos(ang), Math.sin(ang));
-  { const dep = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture; U.tD.value = dep || null; U.uHasD.value = dep ? 1 : 0; U.uNF.value.set(c.near, c.far); U.uRes.value.set(W, H); U.uEyeZ.value = -_su.copy(S.eye).applyMatrix4(c.matrixWorldInverse).z; }
-  drawQuad(scopeMat);
+  // the lens down it, showing it
+  if (!LENS.live) LENS.live = lensMat(true);
+  const U = LENS.live.uniforms;
+  U.uLR.value = lens.userData.lens; U.tS.value = SC.rt ? SC.rt.texture : null; U.uR.value = r; U.uKind.value = S.kind === 'acog' ? 1 : 0; U.uOff.value.copy(S.off); U.uDark.value = dark || !SC.rt ? 1 : 0;
+  U.uAx.value.copy(_ax); U.uRI.value = ri; U.uRot.value.set(Math.cos(ang), Math.sin(ang)); U.uRes.value.set(W, H);
+  lens.material = LENS.live; LENS.on = lens;
+  return true;
 }
 
 // the frame copied and blurred where it's out of focus (k: how far down the sights), round a scope's eyepiece at (cx, cy)

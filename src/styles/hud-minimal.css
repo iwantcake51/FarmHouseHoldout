@@ -1,7 +1,7 @@
 /* The minimalist HUD (Settings, HUD style: ui/settings.js puts body.hudMin on): the same type and colours, with the
    pictures taken out. No heart trace, no rounds, belt or bar in the ammo row (just the count), no fire mode glyph or
-   box, no attachment chips, no clock face; the numbers a little smaller, the bars plainer and thinner. */
-body.hudMin #ecg,body.hudMin #rounds,body.hudMin #wMods,body.hudMin #fireMode .fmG,body.hudMin #dial{display:none}
+   box, no attachment chips, no clock face, no picture of the melee weapon in hand (its name says it); the numbers a little smaller, the bars plainer and thinner. */
+body.hudMin #ecg,body.hudMin #rounds,body.hudMin #wMods,body.hudMin #fireMode .fmG,body.hudMin #dial,body.hudMin #meleeArt{display:none}
 body.hudMin #hpTxt{font-size:38px}
 body.hudMin #hpMax{font-size:16px;margin-bottom:2px}
 body.hudMin #hpBar{height:4px}

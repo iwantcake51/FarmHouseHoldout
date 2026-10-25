@@ -33,7 +33,7 @@ import {
   REV_OPEN, REV_OUT, REV_SWING, RK, SR, stepKick, stepRack, stepRock
 } from './hold-kick.js';
 import {
-  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH
+  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH, POUCH_R
 } from './hold-mags.js';
 import { beltJiggle, BJ, swayBipods } from './hold-sway.js';
 import {
@@ -388,6 +388,8 @@ const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
 // h up), angled across you (y), canted (r) and tipped only a little down (p)
 const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 }, ak: { p: 0.04, y: 0, r: 0, x: 0, h: 0.06, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
+// where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right
+const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03 };
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -804,7 +806,24 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   let akFree = null;
   if (akC && akC.reach > 0.001) { const hc = HOLDS[s][akC.side] && HOLDS[s][akC.side].userData.charge; if (hc) akFree = gunPt(_akH, s, akC.side, hc.at[0], hc.at[1] + 0.012, hc.at[2] - hc.tr * akC.pull); }
   const akOff = sd => akFree && akC.other === sd ? akC.reach : 0;
-  handTarget(_fR, 'R', _hR, akOff('R') ? akFree : null, akOff('R'), rdt);
+  // a bolt gun's rounds go in by the firing hand, the support hand keeping the rifle up by its fore-end: off the grip
+  // (once the bolt's been drawn back) to the cartridges on your right hip for one, up under the open port, pressed down
+  // into the well and forward under the bolt by the thumb, and back for the next; after the last it goes back to the
+  // bolt and pushes it home (weapons/casings.js: chamberCycle)
+  const boltFeed = rel === 'shell' && EJECT[id] === 'bolt' && !ak;
+  let freeR = null, wR = akOff('R');
+  if (boltFeed) {
+    const pt = H.port || H.grip; gunPt(_p1, s, 'R', pt[0], pt[1], pt[2]);
+    _feedAt.copy(_p1); _feedQ.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion);
+    _feedAx.set(0, 0, 1).applyQuaternion(_feedQ); _feedUp.set(0, 1, 0).applyQuaternion(_feedQ);
+    _p2.copy(_p1).addScaledVector(_feedUp, BOLT_FEED.up).addScaledVector(_feedAx, -BOLT_FEED.back); _p2.x += BOLT_FEED.out;   // the round lined up over and behind the port
+    const nGo = W8.goN || 1, last = W8.relStop || (W8.mag[id] || 0) + nGo >= magSize(id) || reserveOf(id) <= nGo, END = last ? _hR : POUCH_R;
+    _p3.copy(POUCH_R).lerp(_p2, 0.5); _p3.y += 0.04;   // up and over on the way, not straight through the stock
+    freeR = walkPath(_p6, [[0, POUCH_R], [0.3, _p3], [0.52, _p2], [0.7, _p1], [0.82, _p1], [1, END]], rp);
+    if (END === _hR && rp > 0.82) { const u = clamp((rp - 0.82) / 0.18, 0, 1), e = u * u * (3 - 2 * u); freeR = _p6.copy(_p1).lerp(_hR, e); freeR.y += 0.02 * Math.sin(Math.PI * u); }
+    wR = W8.relWait > 0 ? 0 : 1;   // (on the bolt while it's drawn back)
+  }
+  handTarget(_fR, 'R', _hR, freeR || (akOff('R') ? akFree : null), wR, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;
@@ -852,7 +871,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
           free = walkPath(_p4, [[0, _hL], [0.24, _p1], [0.36, _p2], [relU, _p2], [relU + 0.09, _p3], [1, _hL]], rr);
         } else { free = null; wt = 0; }   // the slide release: the shooting hand's thumb does it (the gun's roll, above), the support hand back on the grip
       }
-    } else if (rel === 'shell') {
+    } else if (rel === 'shell' && !boltFeed) {
       if (id === 'revolver' && cr.length) partPt(_p1.set(0.035, 0.045, -0.07), s, cr[0]);   // the back of the open cylinder
       else if (brkG && brkG.rims.length) {
         // the next empty chamber of the open barrels, and the line back along its bore the shell comes in on
@@ -931,7 +950,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const ra = brkG ? null : rowAt(rp, n), fed = ra ? ra.k : 0;
       HSH_R.visible = rifle; HSH_R.scale.z = D.ammo === 'magnum' ? 0.6 : 1;   // (a .357's case is short)
       const sm = shellMat(id); HSH_S.forEach(g => { g.children[0].material = sm; });   // in the colour of the kind loaded (weapons/gun-models.js)
-      HSH.quaternion.copy(_feedQ); HSH.position.copy(_fL).addScaledVector(_feedAx, 0.04);
+      HSH.quaternion.copy(_feedQ); HSH.position.copy(boltFeed ? _fR : _fL).addScaledVector(_feedAx, 0.04);
       // a row: the top one lifted to the port and pushed up into the tube in its own push, the rest riding up a place
       // after it's in (the last counted in as its push ends: weapons/reload.js)
       const u = ra && n > 1 ? ra.u : 0, ride = smooth(clamp((u - 0.55) / 0.45, 0, 1)), lift = smooth(clamp(u / 0.4, 0, 1));

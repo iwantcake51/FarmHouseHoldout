@@ -3,7 +3,7 @@
 // slowly on its own, quicker the hotter it is. Warm, the barrel starts to smoke, thin wisps curling up off the muzzle
 // (HEAT_SMOKE), more of them and thicker the hotter it gets, with a puff off it at each shot; overheating, the smoke
 // pours off it slow and heavy and hangs in the air, so moving or swinging the gun leaves a trail of it behind. Hotter
-// still it starts to glow, a dull red at first, then orange, then yellow toward white as it gets really hot, and blooms; left alone it
+// still it starts to glow, a dull red at first, then orange, then a deep yellow as it gets really hot (never washing out to white), and blooms; left alone it
 // fades back down through the same colours. Each gun's can has its own heat. The glow's a thin shell over every piece of
 // the can, its bands, clamp and end caps too (heatAll, from weapons/attachments.js and the MP5SD's built-in can in
 // weapons/models-smgs.js), its own shape drawn again in light on top of it; and it blooms softly round the hot can,
@@ -22,9 +22,10 @@ const SUPP_HEAT = { shot: 0.011, max: 1.3, cool: 0.018, coolHot: 0.05, show: 0.3
 // smoking to as hot as it gets (rate), and more again overheating (trailRate); how thick (a), how long each lasts
 // (life, a second or two more overheating: the trail it leaves hanging); the puff at each shot (shot: how thick)
 const HEAT_SMOKE = { from: 0.2, trail: 0.75, rate: [5, 24], trailRate: 30, a: [0.22, 0.5], trailA: 0.2, life: [1.2, 2.0], trailLife: 2.6, shot: 0.42, tint: 0xccc6bc };
-// the glow's colour as it heats (0 just glowing to 1 white hot), and how bright at each
+// the glow's colour as it heats (0 just glowing to 1 as hot as it gets: yellow, kept saturated, as the glow is added
+// on top of the metal and anything much past 1 in every channel reads as white)
 const HEAT_BLOOM = 1.9;
-const HEAT_RAMP = [[0, [0.38, 0.03, 0.0]], [0.4, [0.95, 0.24, 0.03]], [0.75, [1.0, 0.56, 0.12]], [1, [1.0, 0.86, 0.5]]];
+const HEAT_RAMP = [[0, [0.38, 0.03, 0.0]], [0.4, [0.95, 0.24, 0.03]], [0.75, [1.0, 0.5, 0.06]], [1, [1.0, 0.7, 0.1]]];
 const HEAT = {}, MATS = {};
 const matFor = id => MATS[id] || (MATS[id] = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, visible: false }));
 // the pieces of a can that glow with the heat of gun id's can
@@ -73,7 +74,7 @@ export function stepSuppHeat(dt) {
     const t = Math.min(1, Math.max(0, (h - SUPP_HEAT.show) / (1 - SUPP_HEAT.show))), on = t > 0.002;
     M.visible = on; if (!on) continue;
     glowing = true;
-    ramp(t, M.color).multiplyScalar(0.95 + 0.8 * t); M.opacity = Math.min(1, Math.pow(t, 0.8) * 1.05);
+    ramp(t, M.color).multiplyScalar(0.95 + 0.15 * t); M.opacity = Math.min(1, Math.pow(t, 0.8) * 1.05);
   }
 }
 // whether any can's glowing (the glow pass runs for it: effects/post.js)
@@ -83,7 +84,7 @@ const _hk = {};
 export function heatBloom(on) {
   for (const id in MATS) {
     const M = MATS[id]; if (!M.visible) continue;
-    if (on) { _hk[id] = [M.color.r, M.color.g, M.color.b]; M.color.multiplyScalar(HEAT_BLOOM); }
+    if (on) { _hk[id] = [M.color.r, M.color.g, M.color.b]; M.color.multiplyScalar(HEAT_BLOOM); M.color.b *= 0.5; }   // (the halo's blue held down, so it stays yellow too)
     else if (_hk[id]) { const k = _hk[id]; M.color.setRGB(k[0], k[1], k[2]); delete _hk[id]; }
   }
 }

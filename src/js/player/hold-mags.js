@@ -9,6 +9,7 @@ import { MAG_SEAT } from '../weapons/reload.js';
 import { armReach, HAND, holdOf, walkPath } from './hold.js';
 
 export const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
+export const POUCH_R = new V3(0.2, 0.84, 0.17);   // and on the right hip, the rifle's cartridges (the firing hand loads a bolt gun: player/hold.js)
 // the fresh mag in the support hand: taken from the pouch at MAG_TAKE of the mag change, it rides in the fist (wrapped
 // round it low on its left side, MAG_GRIP of the way down) along a swing of keys to the gun: drawn up out of the pouch,
 // carried out and round, lined up under the well along the mag's own length, its edge hooked in, then rocked straight and
@@ -87,21 +88,40 @@ export function magInHand(out, s, H, mg, rpm) {
   _mK[n - 1][0] = _mTk[n - 1][0] = 1; _mK[n - 1][1].copy(P0); _mTk[n - 1][1].set(0, 0, 0);
   _mK.length = _mTk.length = n;
   walkPath(_mQ, _mK, u); walkPath(_mV, _mTk, u);
-  const ex = _mV.x, ez = _mV.y; grip(_mG, ex, ez);   // (leaves _mE at this tip)
+  // (in the well it goes straight up it: MAG_FUNNEL)
+  const kf = funnel(_mQ, P0, sh, lg);
+  const ex = _mV.x * kf, ez = _mV.y * kf; grip(_mG, ex, ez);   // (leaves _mE at this tip)
   // the group's own transform, so its contents (laid out in the hold's frame, seated) land at that top and tip
   mg.visible = true; mg.rotation.copy(_mE); mg.position.copy(P0).applyEuler(_mE).negate().add(_mQ);
-  MAG_CARRY.u = u; MAG_CARRY.mg = mg; MAG_CARRY.p0 = P0;
+  MAG_CARRY.u = u; MAG_CARRY.mg = mg; MAG_CARRY.p0 = P0; MAG_CARRY.sh = sh; MAG_CARRY.lg = lg;
   return out.copy(_mQ).add(_mG).applyMatrix4(_mM);
 }
 // then the mag goes where the fist really got to (a beat behind where it was sent, on its spring), so it's never out of
 // it; over the last of the way (MAG_GUIDE on) the fist is drawn onto its mark instead, so the mag it carries seats exactly
-export const MAG_CARRY = { u: -1, mg: null, p0: null }, MAG_GUIDE = 0.62, _mF = new V3();
+export const MAG_CARRY = { u: -1, mg: null, p0: null, sh: null, lg: false }, MAG_GUIDE = 0.62, _mF = new V3();
+// the well's mouth: how far below the seated mag's top it opens (a rifle's well, a handgun's whole grip: a share of the
+// mag), and over how much more the mag's brought onto the well's line before it gets there (in). Once its top's into
+// the well it's on that line exactly, nothing across and no tip, so it goes up the well and never through its sides
+const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.035 };
+const _fA = new V3(), _fD = new V3();
+// the mag's top (q, in the hold's frame) brought onto the well's line as it nears the mouth; how much of its own way
+// across and its tip it keeps (1 below the funnel, 0 in the well)
+function funnel(q, P0, sh, lg) {
+  _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean); _fD.subVectors(q, P0);
+  const along = _fD.dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, k = smooth(clamp((-along - mouth) / MAG_FUNNEL.in, 0, 1));
+  if (k >= 1) return 1;
+  _fD.addScaledVector(_fA, -along).multiplyScalar(k);   // (what's across the line, kept only as much as k)
+  q.copy(P0).addScaledVector(_fA, along).add(_fD);
+  return k;
+}
 export function magToFist(fist, want) {
   const c = MAG_CARRY; if (c.u < 0 || !c.mg) return;
   const g = smooth(clamp((c.u - MAG_GUIDE) / (1 - MAG_GUIDE), 0, 1));
   if (want && g > 0) { fist.lerp(want, g); HAND.L.free.lerp(want, g); }   // (its spring too, so it lets go of the mag where it is)
   armReach('L', fist);   // (and only as far as the arm goes)
   _mF.copy(fist).applyMatrix4(_mInv).sub(_mG);   // where its top is with the grip in the fist (in the hold's frame)
+  // (and wherever the fist's got to, once it's up in the well it's on the well's line: the fist goes with it)
+  if (funnel(_mF, c.p0, c.sh, c.lg) < 1) fist.copy(_mF).add(_mG).applyMatrix4(_mM);
   c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mF);
   c.u = -1;
 }

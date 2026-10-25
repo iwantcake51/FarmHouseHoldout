@@ -1,6 +1,7 @@
 // The rifles' models: the hunting rifle, the SCAR 17S (traced off photos, with its AK conversion kit), the assault
 // rifle and the LMG (gun-models.js puts every family together).
 
+import { lensOn } from '../effects/scope-view.js';
 import { box } from '../core/geometry.js';
 import { T } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
@@ -111,7 +112,8 @@ export const RIFLE_MODELS = {
       { const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, true, -Math.PI / 2, Math.PI), B); hood.rotation.x = Math.PI / 2; hood.position.set(X, 1.155, 1.44); g.add(hood); hood.material.side = THREE.DoubleSide; }
       box(g, 0.003, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
       notchRear(g, X, 1.163, 0.9, 0.02, 0.012, 0.008, 0.0042, 0.004, B);   // the notch rear sight on the barrel, its blade level with the post's tip
-      irons(g, { kind: 'notch', yr: 1.163, rz: 0.9, yf: 1.163, fz: 1.436 });
+      // (your eye where your cheek is on the comb, well back from the notch out on the barrel: relief)
+      irons(g, { kind: 'notch', yr: 1.163, rz: 0.9, yf: 1.163, fz: 1.436, relief: 0.46 });
     }
     // ---- the bolt: a polished body in the receiver, the shroud and its safety out the back, the handle out to the
     // right and down to its knob (at BOLT_KNOB). It turns about the bore and runs back and forward (player/hold.js)
@@ -142,6 +144,7 @@ export const RIFLE_MODELS = {
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
       [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
       g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.105 };   // (looked down in first person: game/view-cam.js)
+      lensOn(g, X, sy, z0 - 0.0052, oc * 0.94);   // (the eyepiece's glass you look into: effects/scope-view.js)
     }
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };
   },
@@ -349,10 +352,10 @@ export const RIFLE_MODELS = {
       for (let k = 0; k < 11; k++) { const zc = 0.8105 + k * 0.0197; pts.push([base(zc - 0.0028), zc - 0.0028], [base(zc) + 0.0014, zc - 0.0016], [base(zc) + 0.0014, zc + 0.0016], [base(zc + 0.0028), zc + 0.0028]); }
       pts.push([base(1.02), 1.02], [0.0462, 1.0265], [0.04, 1.0295], [0.0335, 1.0305], [0.0335, 1.0365], [0.03, 1.0365], [0.03, 0.7865]);
       [0, 1].forEach(h => {
-        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.02, Math.PI - 0.04); geo.rotateX(Math.PI / 2);
+        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.004, Math.PI - 0.008);   // (a hairline split, not a gap you see through) geo.rotateX(Math.PI / 2);
         const hm = new THREE.Mesh(geo, H); hm.position.set(X, y0, 0); hm.scale.x = 0.95; hm.castShadow = true; g.add(hm);
       });
-      cyl(g, 0.0435, 0.236, GM.rubber, X, y0, 0.906, 24).scale.x = 0.95;
+      cyl(g, 0.0435, 0.25, GM.rubber, X, y0, 0.9115, 24).scale.x = 0.95;   // (the heat shield, the whole length inside it, so nothing shows through the split)
     }
     // ---- barrel, turned: through the front sight, the groove cut for a launcher's clamp, then on to the muzzle (thicker
     // with each heavy-barrel level)

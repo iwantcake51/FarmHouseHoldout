@@ -3,7 +3,7 @@
 
 import { R, scene } from '../core/renderer.js';
 import { HALF, N, pick, rand, rr } from '../core/math.js';
-import { lam, windy } from '../core/shaders.js';
+import { lam, WIND, WIND_GUST, WIND_V, windy } from '../core/shaders.js';
 import { flat } from '../core/geometry.js';
 import { cxw } from './grid.js';
 import { M } from './materials.js';
@@ -217,12 +217,16 @@ export const FAR_VIEW = new THREE.Group(); FAR_VIEW.visible = false; scene.add(F
     });
     FAR_VIEW.add(poles, arms, ins);
     // each wire from insulator to insulator, hanging in a shallow curve (a parabola's close enough to the real catenary)
-    for (let k = 0; k + 1 < xs.length; k++) [-0.8, 0, 0.8].forEach(o => {
-      const a = xs[k] + o, b = xs[k + 1] + o, y = L.h - 0.45 + 0.2;
-      for (let u = 0; u < 12; u++) { const t0 = u / 12, t1 = (u + 1) / 12; pts.push(a + (b - a) * t0, y - L.sag * 4 * t0 * (1 - t0), z, a + (b - a) * t1, y - L.sag * 4 * t1 * (1 - t1), z); }
+    // (and how far along its span each point is, as the sag's own curve, 0 at the insulators and 1 in the middle, and a
+    // phase of its own for each wire, for its sway: wireSway)
+    const sw = [], ph = [];
+    for (let k = 0; k + 1 < xs.length; k++) [-0.8, 0, 0.8].forEach((o, j) => {
+      const a = xs[k] + o, b = xs[k + 1] + o, y = L.h - 0.45 + 0.2, p = k * 1.7 + j * 0.45 + rr(0, 0.3);
+      for (let u = 0; u < 12; u++) { const t0 = u / 12, t1 = (u + 1) / 12; pts.push(a + (b - a) * t0, y - L.sag * 4 * t0 * (1 - t0), z, a + (b - a) * t1, y - L.sag * 4 * t1 * (1 - t1), z); sw.push(4 * t0 * (1 - t0), 4 * t1 * (1 - t1)); ph.push(p, p); }
     });
-    const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    FAR_VIEW.add(new THREE.LineSegments(wg, wire));
+    const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); wg.setAttribute('aSw', new THREE.Float32BufferAttribute(sw, 1)); wg.setAttribute('aPh', new THREE.Float32BufferAttribute(ph, 1));
+    wireSway(wire);
+    const wl = new THREE.LineSegments(wg, wire); wl.frustumCulled = false; FAR_VIEW.add(wl);
   }
   // a mailbox at the end of the drive, on its post by the road, its little flag down
   {
@@ -233,4 +237,20 @@ export const FAR_VIEW = new THREE.Group(); FAR_VIEW.visible = false; scene.add(F
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.02, 0.46), tin); base.position.set(0, 1.07, 0.02); g.add(base);
     const flag = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.16, 0.05), red); flag.position.set(0.128, 1.1, -0.1); g.add(flag);
   }
+}
+
+// the power line's wires swaying in the wind (WIRE_SWAY): each span swinging slowly out across the road and back, most
+// in its middle and not at all at the insulators, a little up and down with it, further the harder it blows and in a
+// gust as it rolls along the line; each wire a little out of step with its neighbours. All in the shader
+const WIRE_SWAY = { across: 0.09, gust: 0.12, up: 0.025, f: 0.55 };
+function wireSway(mat) {
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.uWind = WIND; sh.uniforms.uWindV = WIND_V;
+    sh.vertexShader = 'uniform float uWind;\nuniform vec4 uWindV;\nattribute float aSw;\nattribute float aPh;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+  float gu = pow(0.5 + 0.5 * sin(dot(transformed.xz, uWindV.xy) * ${WIND_GUST.k.toFixed(3)} - uWindV.w), ${WIND_GUST.sharp.toFixed(1)});
+  float ws = uWindV.z, t = uWind * ${WIRE_SWAY.f.toFixed(3)} + aPh, sw = sin(t) + 0.35 * sin(t * 1.9 + 1.3);
+  float push = (${WIRE_SWAY.across.toFixed(3)} * (0.25 + ws) * sw + ${WIRE_SWAY.gust.toFixed(3)} * ws * gu) * aSw;
+  transformed.z += push * sign(uWindV.y + 0.001); transformed.y += ${WIRE_SWAY.up.toFixed(3)} * (0.3 + ws) * sin(t * 1.3 + 0.7) * aSw;`);
+  };
+  mat.customProgramCacheKey = () => 'wireSway';
 }

@@ -1,7 +1,7 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
 import { $ } from '../core/dom.js';
-import { cam, GUN_Y, scene } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
 import { thinNear, thinRay } from '../world/thin-walls.js';
@@ -158,6 +158,7 @@ export function barrelFree(lat, L) {
 // muzzle position in the world, and the angle from it to the cursor so shots and the laser meet under the crosshair; a
 // gun pushed back off something in front of you fires from just short of it (ANIM.barrel, from gunPush; each of a
 // pair from its own, ANIM.barrelS)
+const TR_ADS = { ads: 0.5, out: 0.7 }, _trO = new V3();
 export function muzzle(sideSign) {
   const D = W(curId()), ak = !!(D && D.akimbo), sg = sideSign || W8.akSide, sx = ak ? AKX * sg : X;
   const bar = ak && ANIM.barrelS ? ANIM.barrelS[sg < 0 ? 'L' : 'R'] : ANIM.barrel, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (bar ?? Infinity) - BARREL.clear));
@@ -248,6 +249,9 @@ export function gunFire(id, D, side) {
   }
   const { ox, oz, a: base } = muzzle();
   const mw = muzzleWorld().clone();
+  // where its tracer starts: the muzzle from the hip; down the sights from your own eyes, your line of sight just out
+  // past the front sight, so the round leaves from the middle of the screen, where you're aiming (TR_ADS)
+  const trO = fpOn() && (ANIM.ads || 0) > TR_ADS.ads ? _trO.set(0, 0, -1).applyQuaternion(FP_CAM.quaternion).multiplyScalar(TR_ADS.out).add(FP_CAM.position) : mw;
   // anything between you and the muzzle can be hit too (a crawler at your feet, the barrel out over it: you shoot down
   // into it), as can a body a touch behind the muzzle
   const back = -Math.max(0.3, (ox - P.x) * Math.sin(P.aim) + (oz - P.z) * Math.cos(P.aim) - 0.25);
@@ -324,8 +328,8 @@ export function gunFire(id, D, side) {
     // it), 2 the ground, 0 anything else
     const endK = n ? 0 : wallT < 26 && wallT <= endR ? 1 : gndT <= endR ? 2 : 0;
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
-    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT, endK, hole]); }
-    if (p === 0) smokeTrail(mw.x, mw.y, mw.z, ox + dx * endT, ey, oz + dz * endT, smokeOf(D, id, quietR, pellets === shots));   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
+    if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * endT, ey, oz + dz * endT, D.dragon ? trPw * 0.45 : trPw, trSt); if (ends.length < 5) ends.push([ox + dx * endT, ey, oz + dz * endT, endK, hole]); }
+    if (p === 0) smokeTrail(trO.x, trO.y, trO.z, ox + dx * endT, ey, oz + dz * endT, smokeOf(D, id, quietR, pellets === shots));   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);

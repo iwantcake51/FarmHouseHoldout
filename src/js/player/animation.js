@@ -148,9 +148,11 @@ function vaultHands(pm, v) {
   const w1 = air ? 1 - vk(t, win ? 0.4 : 0.42, win ? 0.58 : 0.66) : vk(c, 0.3, 1), w2 = 0;
   if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
-  const lat = [v.L[0], v.L[1]];   // to your left
-  [['L', pm.armL, 1], ['R', pm.armR, -1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
-    const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;   // the left hand is already set 0.16 to the left
+  const lat = [v.L[0], v.L[1]];   // (the jump's L: across it, toward your right arm's side as the body's built)
+  // each hand on its own side of the line you cross, never crossed over: the left (sd -1) away along L, the right
+  // toward it (the plant is set 0.16 along L off the line: player/vaulting.js)
+  [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
+    const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;
     _vw.copy(v.plant); _vw.x += lat[0] * dL; _vw.z += lat[1] * dL; _vw.y += 0.03; vaultReach(pm, arm, s, _vw, w1);
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
   });

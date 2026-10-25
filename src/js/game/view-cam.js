@@ -28,6 +28,7 @@ import { keys, lockLost } from '../input/keyboard-mouse.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
 import { ANIM } from '../player/animation.js';
 import { BACK_LAYER } from '../player/stow.js';
+import { vaultGun } from '../player/vaulting.js';
 import { cheatOn } from '../ui/cheats.js';
 import { SET, setOpen } from '../ui/settings.js';
 
@@ -51,8 +52,8 @@ const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 const FA = { r: 0.035, take: 0, ease: 10, back: 1.2, adsBack: 6, ads: 0 };
 // bringing the sights up and putting them down: a spring onto them (w: how stiff, in and out; a handgun's quicker),
 // starting gently, quick through the middle and settling softly; and the arc the gun swings through on the way, dipping
-// (dip, metres) and canting a touch (cant, radians) in the middle of it
-const ADS_T = { in: 15, out: 17, side: 19, dip: 0.014, cant: 0.09 };
+// (dip, metres) and canting over (cant, radians) in the middle of it, the arms tilting with it, both going up and coming down
+const ADS_T = { in: 15, out: 17, side: 19, dip: 0.028, cant: 0.21 };
 // a shouldered gun meeting your shoulder as it comes up: a jolt (p, y: radians up and across, r: cant, z: metres back)
 // on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun
 const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10, trem: 0.0035, gun: { ar: 1.25, scar: 1.1, lmg: 1.35, sub: 0.9, smg: 0.75 } };
@@ -72,8 +73,8 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 // the most, at f: its frequencies), the gun chattering in your hands while it fires and dying away quickly after
 // (decay); the view itself buzzes a little with it (view)
 const FP_RECOIL = {
-  hand: { flip: 0.1, flipPw: 0.26, back: 0.016, backPw: 0.035, up: 0.008, roll: 0.06, yaw: 0.03, side: 0.004, w: 30, z: 0.5, pivot: [0, -0.07, 0.09] },
-  long: { flip: 0.022, flipPw: 0.055, back: 0.018, backPw: 0.04, up: 0.004, roll: 0.04, yaw: 0.02, side: 0.003, w: 26, z: 0.45, pivot: [0, -0.05, 0.36] },
+  hand: { flip: 0.1, flipPw: 0.26, back: 0.026, backPw: 0.05, up: 0.008, roll: 0.06, yaw: 0.03, side: 0.004, w: 30, z: 0.5, pivot: [0, -0.07, 0.09] },
+  long: { flip: 0.022, flipPw: 0.055, back: 0.03, backPw: 0.06, up: 0.004, roll: 0.04, yaw: 0.02, side: 0.003, w: 26, z: 0.45, pivot: [0, -0.05, 0.36] },
   act: 1.35, ads: [0.22, 0.28, 0.35], adsMove: 0.45, adsRattle: 0.35, adsClimb: 0.45,
   auto: { k: 0.55, climb: 0.011, max: 0.085, wander: 0.45, w: 9, back: 5 },
   rattle: { pos: 0.0028, rot: 0.014, f: [29, 37, 46], decay: 13, auto: 0.5, semi: 0.22, view: 0.12 }
@@ -107,6 +108,13 @@ const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
 const BOB = { up: 0.011, pitch: 0.006, side: 0.007, roll: 0.005, speed: 4.2, max: 1.0, ads: 0.75, ease: 6, foot: 0.6 };   // (max: a sprint bobs no harder than a walk)   // (foot: how much the dip lands sharp on each footfall, rather than a plain wave)
 // coming down off a vault, the view and the gun dip on landing and come back up on a spring (metres a second of the drop)
 const LAND = { cam: 0.42, k: 110, d: 13 };
+// a vault from your own eyes: crouching to it, a glance down at the sill or rail your hands go on (look, radians), the
+// view pitching with the body's lean as it goes over (lean: how much of it) and tipping toward the side the legs swing
+// to (roll), let go of again by the time you're down (out: how far through); a touch wider a view in the air (fov).
+// The landing: the knees take it, the view dropping (drop, metres a second, on LAND's spring) and nodding down (nod,
+// radians a second) and rolling a touch (rock), on a looser spring (k, d) that rocks back up past level and settles; a
+// tired scramble lands harder (heavy). With Vault fire the glance and the lean are mostly kept off (fire), the aim held
+const FP_VAULT = { look: 0.34, lean: 0.36, roll: 0.075, out: [0.55, 0.95], fov: 0.06, drop: 0.95, nod: 2.6, rock: 0.5, k: 95, d: 12, heavy: 1.45, fire: 0.3, ease: 14 };
 // the gun and your arms from your own eyes, on top of the hold (player/hold.js: fpViewSway), on soft springs (k, d) so
 // it all eases: tilted into a sidestep (roll, radians per metre a second) and trailing behind it (lag, metres), dipped
 // and drawn in a touch going forward (fwd), rolled into a turn (turn), bobbing in a figure of eight with your stride
@@ -132,7 +140,10 @@ const FP_JOLT = { push: 0.5, zoom: 0.4, ease: 18, relP: 0.035, relR: 0.012, shak
 // the arms and the upper body bending together: player/hold.js, ANIM.pitch)
 const EYE_RIG = { w: 9, vault: 22, pitch: 0.79 };
 const EYE_R = { o: new V3(), v: new V3(), on: false, ref: new V3() };
-const V = { mdx: 0, mdy: 0, cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, rc: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, x: 0, vx: 0, h: 0, vh: 0, w: 30, d: 24, cp: 0, vcp: 0, cy: 0, vcy: 0, tp: 0, ty: 0, t: 0, last: -9, e: 0, ph: [0, 0, 0, 0, 0, 0], kind: 'long' }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, bobK: 0, bp: 0, br: 0, bx: 0, by: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null, land: 0, vland: 0, vaulted: false, lcy: null };
+const V = { mdx: 0, mdy: 0, cy: Math.PI, cp: 0, fax: 0, fay: 0, ftx: 0, fty: 0, ay: null, ap: null, adsX: null, adsV: 0, sh: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, up: false, k: 1 }, rc: { p: 0, vp: 0, y: 0, vy: 0, r: 0, vr: 0, z: 0, vz: 0, x: 0, vx: 0, h: 0, vh: 0, w: 30, d: 24, cp: 0, vcp: 0, cy: 0, vcy: 0, tp: 0, ty: 0, t: 0, last: -9, e: 0, ph: [0, 0, 0, 0, 0, 0], kind: 'long' }, tr: 0, vtr: 0, tp: 0, vtp: 0, lvx: 0, lvz: 0, bobK: 0, bp: 0, br: 0, bx: 0, by: 0, fly: 0, flp: 0, flyT: 0, flpT: 0, jp: 0, jy: 0, jz: 0, np: 0, ny: 0, rollS: 0, x: P.x, y: 1.4, z: P.z, fx: 0, fy: 6, fz: 0, fyaw: 0, fpitch: -0.6, vx: 0, vy: 0, vz: 0, speed: FREE.speed, kick: 0, vk: 0, ky: 0, vky: 0, eye: null, roll: 0, sw: 0, lyaw: null, lpitch: null, land: 0, vland: 0, vaulted: false, lcy: null, vp: 0, vr: 0, vfov: 0, lp: 0, vlp: 0, lr: 0, vlr: 0 };
+// (VM_LOCK: how much of it, up and down and across: the stride's rise and fall, which the eye's spring smooths out of
+// the view; not across, where the eye trails the chest's lean on purpose and the arms with it read as weight)
+const VM_LOCK = { y: 1, xz: 0 }, _vlC = new V3(), _vlD = new V3();
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
@@ -199,7 +210,7 @@ function lookBy(dx, dy) {
 }
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
-const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny, viewR = () => V.roll * 0.6 + V.tr + V.br;
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny, viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr;
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
 const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
@@ -275,13 +286,16 @@ export function fpReloadPose(gg, k) {
   // (out from your eye at the hip, then up into view to reload)
   viewMat(_rlM);   // (the view as it is this frame: the camera's placed after the hold)
   { const m = MUZ[W8.cur] || 0.9, L = FP_REACH.len, push = (FP_REACH.short + (FP_REACH.long - FP_REACH.short) * clamp((m - L[0]) / (L[1] - L[0]), 0, 1)) * (1 - w) * (1 - k) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));
-    const hk = (1 - w) * (1 - k) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));   // (not at a sprint, the gun drawn in to your chest)
-    if (hk > 0.002) { _rlD.set(FP_HIP.x * hk, FP_HIP.y * hk, -push).applyQuaternion(_rlQ); gg.updateMatrixWorld(true); _rlC.setFromMatrixPosition(gg.matrixWorld).add(_rlD); gg.position.copy(gg.parent.worldToLocal(_rlC)); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
+    // (not at a sprint, the gun drawn in to your chest; and kept out to the side through a reload, not brought back
+    // to the middle for it: hs)
+    const hs = (1 - w) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));
+    if (hs > 0.002) { _rlD.set(FP_HIP.x * hs, FP_HIP.y * hs, -push).applyQuaternion(_rlQ); gg.updateMatrixWorld(true); _rlC.setFromMatrixPosition(gg.matrixWorld).add(_rlD); gg.position.copy(gg.parent.worldToLocal(_rlC)); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
   k *= FP_RELOAD.k; if (k < 0.01) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
   const side = D.slot === 'side', at = side ? FP_RELOAD.side : FP_RELOAD.at;
   gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);
-  _rlD.set(at[0], at[1], at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
+  const hs = (1 - w) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));   // (out at the side, where it's held at the hip)
+  _rlD.set(at[0] + FP_HIP.x * hs, at[1] + FP_HIP.y * hs, at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
   _rq.copy(_rlQ); _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(FP_RELOAD.pitch * k, FP_RELOAD.yaw * k, FP_RELOAD.roll * k, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
@@ -465,7 +479,7 @@ function sightLine() {
     const I = ir.userData.irons; ir.updateMatrixWorld(true);
     SL.obj = ir; SL.kind = I.kind; SL.r = I.r || 0; SL.hw = SL.hh = 0;
     SL.a.set(X, I.yr, I.rz); SL.b.set(X, I.yf, I.fz);
-    SL.relief = I.kind === 'ap' ? I.relief ?? IRON.peep : long ? clamp(I.rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null;
+    SL.relief = I.relief ?? (I.kind === 'ap' ? IRON.peep : long ? clamp(I.rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null);   // (a gun's own, where the irons say)
     return SL;
   }
   // the top along the middle, front to back
@@ -615,11 +629,34 @@ export function viewFrame(rdt, roll, sh, jolt) {
     { const m = clamp(Math.hypot(P.vx, P.vz) / BOB.speed, 0, BOB.max) * (P.moving ? 1 : 0) * (1 - BOB.ads * w0), ph = P.phase || 0;
       V.bobK += (m - V.bobK) * (1 - Math.exp(-rdt * BOB.ease)); const k = V.bobK, f = 2 * ((0.5 - 0.5 * Math.cos(2 * ph)) * (1 - BOB.foot) + Math.abs(Math.sin(ph)) * BOB.foot) - 1.1;
       V.bp = BOB.pitch * k * f; V.br = BOB.roll * k * Math.sin(ph); V.bx = BOB.side * k * Math.sin(ph); V.by = BOB.up * k * f; }
-    // landing off a vault
-    { if (V.vaulted && !P.vault) { V.vland -= LAND.cam; VS.vy -= VM.land; } V.vaulted = !!P.vault;
-      for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { V.vland += (-LAND.k * V.land - LAND.d * V.vland) * h; V.land += V.vland * h; } }
+    // over a vault (FP_VAULT): the glance at the sill, the lean, the tip to the side, eased; and the landing off it
+    { const v = P.vault, F = FP_VAULT, fire = vaultGun() ? F.fire : 1;
+      let tp = 0, tr = 0, tf = 0;
+      if (v) {
+        const c = v.t > 0 ? 1 : smooth(clamp(v.pre / Math.max(1e-3, v.preDur), 0, 1)), t = Math.min(1, v.t), go = 1 - smooth(clamp((t - F.out[0]) / (F.out[1] - F.out[0]), 0, 1));
+        const lean = Math.max(0, PM.g.rotation.x), arc = Math.sin(Math.PI * t);
+        tp = -(F.look * c * (1 - smooth(clamp(t / 0.45, 0, 1)) * 0.5) + lean * F.lean) * go * fire;
+        tr = (v.fence ? -(v.twistSide || 1) : -(v.side || 0)) * F.roll * arc * fire;
+        tf = F.fov * (v.t > 0 ? arc : 0);
+      }
+      const e = 1 - Math.exp(-rdt * F.ease); V.vp += (tp - V.vp) * e; V.vr += (tr - V.vr) * e; V.vfov += (tf - V.vfov) * e;
+      if (V.vaulted && !P.vault) {
+        const hv = V.vaultHeavy ? F.heavy : 1, sd = Math.random() < 0.5 ? -1 : 1;
+        V.vland -= F.drop * hv; VS.vy -= VM.land * hv; V.vlp -= F.nod * hv; V.vlr += sd * F.rock * hv;
+      }
+      V.vaulted = !!P.vault; if (v) V.vaultHeavy = !!v.scramble;
+      for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) {
+        V.vland += (-LAND.k * V.land - LAND.d * V.vland) * h; V.land += V.vland * h;
+        V.vlp += (-F.k * V.lp - F.d * V.vlp) * h; V.lp += V.vlp * h; V.vlr += (-F.k * V.lr - F.d * V.vlr) * h; V.lr += V.vlr * h;
+      } }
     vmStep(rdt, w0, now);
     PM.g.updateMatrixWorld(true); rigStep(rdt); rigEye(_vcE);
+    // your arms and the gun carried by your eye, not your chest: the eye's eased (EYE_R) while the chest takes every
+    // stride and sway as it comes, and the arms posed off the chest would bob and shift against the view, a beat apart
+    // from it, as you move and turn. So at the hip the whole of you is moved by however far the chest is from the eye
+    // this frame (VM_LOCK: up and down), and the arms and the gun stay put in the view, moving only with their own sway (VM) on top
+    // (down the sights the gun's on the sight line already)
+    chestEye(_vlC); _vlD.subVectors(_vcE, _vlC);
     // looking up, the head back out of the way of the arms raised in front of it
     { const b = LOOK_UP.look * smooth(clamp((VCAM.pitch - LOOK_UP.p0) / (LOOK_UP.p1 - LOOK_UP.p0), 0, 1)) * (1 - w0);
       V.x = _vcE.x - Math.sin(VCAM.yaw) * b; V.y = _vcE.y - b * 0.25; V.z = _vcE.z - Math.cos(VCAM.yaw) * b; }
@@ -635,6 +672,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
       _vcE.lerp(_vcD, w);
     }
     V.sw = L ? w : 0;
+    { const k = 1 - w; if (k > 0.001) { PM.g.position.x += _vlD.x * VM_LOCK.xz * k; PM.g.position.y += _vlD.y * VM_LOCK.y * k; PM.g.position.z += _vlD.z * VM_LOCK.xz * k; PM.g.updateMatrixWorld(true); } }
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx, _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx);
     c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);
@@ -649,7 +687,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     const S = SCOPE_V, over = !!LH;
     S.on = over && drawnUp(LH.obj) && (scope || w > 0.3);   // (not with the gun put away for a vault or a station)
     if (S.on) {
-      S.kind = LH.kind; S.eye.copy(_pa); S.obj.copy(_pb); S.dir.copy(_sd); S.r = LH.r; S.hw = LH.hw; S.hh = LH.hh;
+      S.kind = LH.kind; S.src = LH.obj; S.eye.copy(_pa); S.obj.copy(_pb); S.dir.copy(_sd); S.r = LH.r; S.hw = LH.hw; S.hh = LH.hh;
       LH.obj.matrixWorld.extractBasis(S.ux, S.uy, _vcH); S.ux.normalize(); S.uy.normalize();
       S.mag = LH.kind === 'acog' ? 4 : 1.5 * ((SCOPES[T('sight')] || SCOPES[3]).zoom);
       // where your eye is off its axis, across the view and up it, as a share of how far it can be and still see all of it
@@ -663,7 +701,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1)));   // (a touch wider at a sprint)
+    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1)));   // (a touch wider at a sprint)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;

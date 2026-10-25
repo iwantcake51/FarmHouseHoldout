@@ -4,6 +4,7 @@ import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
 import { heatAll } from '../effects/supp-heat.js';
+import { lensOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
@@ -98,7 +99,7 @@ export function fitAttachments(g, D, front, y, info) {
     const ox = onSlide ? -p.position.x : 0, oy = onSlide ? -p.position.y : 0, oz = onSlide ? -p.position.z : 0, sx = X + ox, by = top + oy - 0.002, bz = sz + oz;   // mounts sit 2 mm down into the rail or receiver they clamp
     // (each optic notes its axis on what it's mounted to: [x, y] across, its eyepiece and front lens along z, the
     // eyepiece's radius and its eye relief, for looking down it in first person: game/view-cam.js)
-    if (sight === 4) { acog(p, sx, by, bz); p.userData.optic = { kind: 'acog', x: sx, y: by + ACOG.axis, zr: bz - 0.1011, zf: bz + HOOD.lensZ, r: 0.0161, relief: 0.072 }; }   // (its eyepiece the cup's lip, so its picture fills the cup)
+    if (sight === 4) { acog(p, sx, by, bz); p.userData.optic = { kind: 'acog', x: sx, y: by + ACOG.axis, zr: bz - 0.1011, zf: bz + HOOD.lensZ, r: 0.0161, relief: 0.072 }; lensOn(p, sx, by + ACOG.axis, bz - 0.0968 - 0.0009, 0.0153); }   // (its eyepiece the cup's lip, so its picture fills the cup)
     else if (sight >= 3 && SCOPE_GUNS.has(tierCtx)) {   // variable scope in rings
       // a gun can have a smaller one, further along (the revolver's handgun scope): its lengths by scopeK, its
       // thickness by scopeR, centred at scopeZ
@@ -108,6 +109,7 @@ export function fitAttachments(g, D, front, y, info) {
       taper(p, 0.025 * rk, 0.04 * rk, 0.08 * lk, GM.metal, sx, sy, cz + 0.2 * lk); taper(p, 0.03 * rk, 0.025 * rk, 0.05 * lk, GM.metal, sx, sy, cz - 0.16 * lk);
       cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.0285 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends, the eyepiece's filling its bell
       p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: 0.105 };
+      lensOn(p, sx, sy, cz - 0.186 * lk - 0.0027, 0.0285 * rk);   // (the eyepiece's glass you look into: effects/scope-view.js)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (sight >= 2) {

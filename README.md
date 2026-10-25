@@ -45,7 +45,8 @@ battle rifle or 10mm for the SMG. You can also load special rounds (hollow point
 tune damage, fire rate, recoil and magazine size. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
-clamp too, glows a dull red, then orange, then yellow, with a slight bloom round it; and overheating, the smoke pours
+clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
+yellow bloom round it; and overheating, the smoke pours
 off it slow and heavy and hangs in the air, so moving or swinging the gun leaves a trail of it behind. Left alone it
 fades back down through the same colours, still smoking a while.
 
@@ -119,28 +120,35 @@ gives it (no pointer acceleration), and stops the moment it stops; a stray jump 
 pointer lock is ignored. The crosshair is wherever the gun points. Hold **Alt** to
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
-little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
+little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
+is pushed back toward you a little with each shot. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
-gently, quick through the middle and settling softly, with a little dip and cant on the way, quicker with a handgun;
+gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
+and again on the way down, quicker with a handgun;
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
 a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
 shotgun's front post sits in the middle of the hole through the rear aperture, and the pump and double barrel are aimed
-down the rib with the bead sat on the receiver. Your eye's focused on the front sight, so the parts of the gun nearer
+down the rib with the bead sat on the receiver, and the hunting rifle's notch and post with your cheek on the stock, the
+notch well out ahead of your eye rather than right up against it. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
 only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
 flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
-going there and turned to face your eye as it goes; a wall it hits takes its hole at the height it really struck. Your
+going there and turned to face your eye as it goes, one streak a shot (a heavy or suppressed round's smoke trail runs
+along the same line, up into the sky with it). From the hip the streak leaves the gun's barrel, bright right from the
+muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall the gun's slid back along its barrel and tipped up off it, easing in and out rather than jumping, and
 mid-reload from your own eyes the gun stays up in front of you, steady in your hands even walking along a wall.
 The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
 grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
 them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
-proper eye relief out from your eye and shows its own magnified view filling the eyepiece whenever you can see it:
+proper eye relief out from your eye, and its eyepiece is a real disc of glass in the scope, not a picture laid over the
+screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
+with the scope at your eye its own magnified view is seen through that glass:
 the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
 where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
@@ -156,21 +164,29 @@ and a station or a menu lets go of it for you, closing it taking the mouse back.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin), and each shot turns it in your hands as well as kicking the view; through a scope the
 picture rocks a little with it. Reloads are the same ones you see from above, only calmer from your own eyes: the gun
-comes up a touch and turns a little toward you, not over on its side. The flashlight points down the gun's barrel,
+comes up a touch and turns a little toward you, not over on its side, and it stays out to the right where you hold it at
+the hip rather than coming back to the middle for the reload. The flashlight points down the gun's barrel,
 easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
 at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
 Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
 turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
-sights; a sprint bobs no harder than a walk). What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
+sights; a sprint bobs no harder than a walk). Your arms and the gun ride with your eye, not your chest, so your
+stride's rise and fall doesn't jog them against the view as you walk.
+**Vaults and landings from your own eyes.** Crouching for a vault you glance down at the sill or the rail, your hands
+planted on it in view, each on its own side; the view pitches with your lean as you go over, rolls with the way you're
+crossing and widens a touch at the top of the arc, then you land with a dip, a nod and a little rock that settle on a
+spring (a tired scramble lands harder). With Vault fire most of it's held off, so you stay on the aim. What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
 station you get is the one you're looking at, a click out on the game puts an open station away and takes the mouse
 back, and coming off the sights doesn't replay the crosshair's last reload flash. From your own eyes the farm isn't an island in the haze: the woods go on past the road and past the trees
 round the farm out to the horizon, with broadleaf trees and taller pines among them, a power line runs along the far
-side of the road and a mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
+side of the road (its wires swaying slowly in the wind, more as it blows harder and as a gust runs along them) and a
+mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
 glow sits over it all through the day and night.
 
 **Right-handed.** Your survivor shoots right-handed: the right hand on the grip and trigger, working the hunting
-rifle's bolt and the charging handle, and the left on the handguard or the pump, fetching mags and feeding shells,
+rifle's bolt and the charging handle and thumbing its rounds in (to the cartridges on the right hip, up over the open
+port, pressed down into the well and forward under the bolt, the left hand holding the rifle up by its fore-end), and the left on the handguard or the pump, fetching mags and feeding shells,
 rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
 fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
 into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the
@@ -181,7 +197,9 @@ off once it's latched. A hand holding the gun is held to its place on it the way
 Blender: the grip hand on the grip, the support hand under the handguard or round the pump, wherever the gun's held
 and however far up you look, the arm reaching all the way to it rather than the hand stopping short and floating.
 Taking a hand off (for a mag, a shell, the bolt) lets go of the constraint as the hand blends away, and taking hold
-again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is.
+again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is, and once its top
+reaches the magwell (a rifle's well, a pistol's grip) it's brought straight onto the well's line and pushed up it,
+never through the side of the gun.
 
 **A gun in each hand.** With the second pistol or second machine pistol fitted, each gun kicks on its own shot from
 your own eyes, flipping up on its wrist while the other stays steady, and running with them each hand pumps forward
@@ -209,7 +227,7 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 | Shadow quality | High, medium, low |
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
-| HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, and no clock face) |
+| HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, no clock face and no picture of the melee weapon you're holding) |
 | View | Isometric, first person |
 | Field of view | 60–100° (first person) |
 | Mouse sensitivity | 25–200% (first person) |

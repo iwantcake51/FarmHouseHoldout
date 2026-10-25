@@ -37,7 +37,7 @@ const trMat = map => new THREE.MeshBasicMaterial({ map, transparent: true, blend
 const trSprite = map => new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
 const tracers = [];
 for (let k = 0; k < TR_N; k++) {
-  const t = { glow: new THREE.Mesh(TR_G, trMat(TR_STREAK)), core: new THREE.Mesh(TR_G, trMat(TR_STREAK)), wake: new THREE.Mesh(TR_G, trMat(TR_WAKE)), haze: new THREE.Mesh(TR_G, trMat(TR_WAKE)),
+  const t = { glow: new THREE.Mesh(TR_G, trMat(TR_STREAK.clone())), core: new THREE.Mesh(TR_G, trMat(TR_STREAK.clone())), wake: new THREE.Mesh(TR_G, trMat(TR_WAKE)), haze: new THREE.Mesh(TR_G, trMat(TR_WAKE)),
     head: trSprite(TEX_CORE), star: trSprite(TEX_STAR), on: false, age: 0, end: 0, s: new V3(), d: new V3(), L: 0, wakeC: new THREE.Color(), hazeC: new THREE.Color() };
   t.parts = [t.glow, t.core, t.wake, t.haze, t.head, t.star];
   t.parts.forEach(m => { m.visible = false; m.frustumCulled = false; m.renderOrder = 4; scene.add(m); });
@@ -94,6 +94,9 @@ export function stepTracers(rdt) {
     // the slug, from its tail to its head; once it lands its tail catches up to it in TR_SNAP
     if (after < TR_SNAP) {
       const sn = after / TR_SNAP, tail = after > 0 ? t.L - t.streak * (1 - sn) * (1 - sn) : Math.max(0, head - t.streak), o = 1 - sn;
+      // (just out of the muzzle the slug's shorter than its length: only its front's drawn, so it's bright right from
+      // the muzzle rather than fading in from nothing some way in front of it)
+      const f = clamp((head - tail) / t.streak, 0.02, 1); t.glow.material.map.repeat.y = t.core.material.map.repeat.y = f;
       trLay(t, t.glow, tail, head, (0.07 + 0.17 * t.pw) * flick); trLay(t, t.core, tail, head, 0.018 + 0.04 * t.pw);
       t.glow.material.opacity = 0.75 * o * (t.supp ? 0.3 : 1); t.core.material.opacity = o * (t.supp ? 0.45 : 1);
     } else t.glow.visible = t.core.visible = false;
@@ -136,19 +139,21 @@ const TRAIL_TEX = (() => {
 })();
 const TRAIL_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
 const trails = [];
-for (let k = 0; k < 40; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0 }); }
-// strength 0..1: how thick and how long it hangs (a hunting rifle 1, a revolver a bit less, rifle-calibre automatics about half)
+for (let k = 0; k < 40; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0, d: new V3(), L: 0 }); }
+// strength 0..1: how thick and how long it hangs (a hunting rifle 1, a revolver a bit less, rifle-calibre automatics about half).
+// It runs along the shot itself, up into the sky or down at the ground as much as across, turned to face you like a tracer
 export function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
-  const L = Math.hypot(x1 - x0, z1 - z0); if (L < 0.6 || !strength) return;
+  const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0); if (L < 0.6 || !strength) return;
   const t = trails.reduce((a, b) => b.life < a.life ? b : a);
-  t.m.position.set(x0, (y0 + y1) / 2, z0); t.m.rotation.set(0, Math.atan2(x1 - x0, z1 - z0), 0); t.m.scale.set(0.05, 1, L); t.m.visible = true;
-  t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.05 + 0.33 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2;
+  t.d.set(x1 - x0, y1 - y0, z1 - z0).divideScalar(L); t.m.position.set(x0, y0, z0); trAim(t.m, t.d); t.m.scale.set(0.05, 1, L); t.m.visible = true;
+  t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.05 + 0.33 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2; t.L = L;
 }
 export function stepTrails(dt) {
   for (const t of trails) {
     if (t.life <= 0) continue; t.life -= dt; if (t.life <= 0) { t.m.visible = false; continue; }
     const k = 1 - t.life / t.max;
-    t.m.scale.x = t.w0 + k * 0.32; t.m.position.y += dt * 0.12;
+    t.m.scale.x = trW(t.w0 + k * 0.32); t.m.position.y += dt * 0.12;
+    if (cam.isPerspectiveCamera) trAim(t.m, t.d, _trC.copy(t.m.position).addScaledVector(t.d, t.L / 2));
     t.m.material.opacity = t.a * Math.min(1, k * 14) * Math.pow(1 - k, 1.4);
     t.m.material.color.setHex(0xc9c4ba).multiplyScalar(Math.min(1.1, 0.14 + lightLevelAt(t.mx, t.mz) * 0.85));
   }
