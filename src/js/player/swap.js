@@ -18,6 +18,7 @@ import { ANIM } from './animation.js';
 import { FIST, HOLD, HOLD_DEF, holdOf, reach } from './hold.js';
 import { relKnock } from './hold-kick.js';
 import { showStowed, STOW } from './stow.js';
+import { fpShoulder } from '../game/view-cam.js';
 
 const isMelee = s => { const id = W8.slot[s]; return !!(id && WEAP[id] && WEAP[id].melee); };
 export const SWAP_T = { put: 0.3, cross: 0.4, end: 0.65 };   // the old weapon is away, the hand is at the new one, it's up (a melee weapon)
@@ -33,7 +34,7 @@ export const swapFire = s => isMelee(s) || !DRAW_T[s] ? SWAP_FIRE : swapEnd(s) -
 // came up to the gun where it was and rode on it (DRAW_LH: when it leaves its rest and when it has the gun), and both
 // arms easing into the hold's own pose instead of jumping to it
 const DRAW_SET = 0.82, DRAW_LH = [0.4, 0.8];
-const DRAW_SEAT = { p: -0.9, r: 0.45, h: 0.22, z: -0.12 };
+const DRAW_SEAT = { p: -0.9, r: 0.45, h: 0.22, z: -0.12 }, DRAW_SHOULDER = 0.93;   // (DRAW_SHOULDER: how far through a long gun's draw its stock meets your shoulder)
 // a heavy gun (the auto shotgun, the LMG: D.heavy, weapons/gun-stats.js) takes this much longer to swap to and to fire
 export const drawMul = id => ((id && WEAP[id] && WEAP[id].heavy) || {}).draw || 1;
 export const SWAP_REST_L = new V3(-0.22, 0.84, 0.12);          // the left hand, off the weapons while the right one swaps
@@ -153,17 +154,30 @@ function dkCurve(ts, vs, u, out) {
   return out;
 }
 // a draw's keys come at uneven speeds (a long gun barely moves while it's pulled clear, then whips round), so the time
-// through it is mapped onto the distance along its path instead: DRAW_EVEN samples of it, the grip's travel plus its
-// turn (DRAW_TURN metres a radian), and the draw run along that at a pace that eases up from the start and down into
-// the hold (smootherstep), so the gun moves evenly with no lurch partway and no snap at the end
-const DRAW_EVEN = 24, DRAW_TURN = 0.5, _de = { m: new THREE.Matrix4(), p: [], q: [], L: new Float32Array(DRAW_EVEN + 1), s: new V3() };
-function drawEven(x, frameAt) {
+// through it is mapped onto how far the gun goes instead: DRAW_EVEN samples of its path, measured at its grip and out
+// at its muzzle and its butt (DRAW_ENDS: metres along the gun from the grip, by where it rides), whichever of them
+// moves the most, plus the bends in their paths (DRAW_BEND metres a radian: it slows into a sharp turn, as a long gun's
+// muzzle does dipping into the low ready before it comes up to the shoulder, rather than bouncing off it at full
+// speed), and the draw run along that at a pace that eases up from the start and down into the hold (smootherstep),
+// so the gun moves evenly with no lurch partway and no snap at the end
+const DRAW_EVEN = 24, DRAW_ENDS = { side: [0.13, -0.06], long: [0.5, -0.3], auto: [0.45, -0.3] }, DRAW_BEND = 0.22;
+const _de = { m: new THREE.Matrix4(), p: [], L: new Float32Array(DRAW_EVEN + 1), v: new V3(), a: new V3(), b: new V3() };
+function drawEven(x, frameAt, ends, grip) {
   if (x <= 0 || x >= 1) return x;
-  const L = _de.L; let tot = 0;
+  const L = _de.L, pts = [0, ...ends]; let tot = 0;
   for (let j = 0; j <= DRAW_EVEN; j++) {
-    const p = _de.p[j] || (_de.p[j] = new V3()), q = _de.q[j] || (_de.q[j] = new THREE.Quaternion());
-    frameAt(j / DRAW_EVEN, _de.m).decompose(p, q, _de.s);
-    if (j) tot += p.distanceTo(_de.p[j - 1]) + DRAW_TURN * q.angleTo(_de.q[j - 1]);
+    const row = _de.p[j] || (_de.p[j] = [new V3(), new V3(), new V3()]);
+    frameAt(j / DRAW_EVEN, _de.m);
+    pts.forEach((o, n) => row[n].set(grip[0], grip[1], grip[2] + o).applyMatrix4(_de.m));
+    if (j) {
+      let d = 0, bend = 0;
+      for (let n = 0; n < pts.length; n++) {
+        d = Math.max(d, row[n].distanceTo(_de.p[j - 1][n]));
+        // (and the bend at the sample before this one, half to each side of it)
+        if (j > 1) { _de.a.subVectors(_de.p[j - 1][n], _de.p[j - 2][n]); _de.b.subVectors(row[n], _de.p[j - 1][n]); if (_de.a.lengthSq() > 1e-10 && _de.b.lengthSq() > 1e-10) bend = Math.max(bend, DRAW_BEND * _de.a.angleTo(_de.b)); }
+      }
+      tot += d + bend / 2; L[j - 1] += bend / 2;
+    }
     L[j] = tot;
   }
   if (tot < 1e-4) return x;
@@ -282,8 +296,12 @@ export function updateSwap(dt, rdt) {
     // at an even pace along its path (drawEven), so it never lurches between its keys or snaps into the hold
     const frameAt = (uu, out) => newMelee ? meleeDrawFrame(out, stowNew, live, uu, st) : gunDrawFrame(out, st.to, stowNew, live, uu);
     const x = clamp((t - T.cross) / (end - T.cross), 0, 1), oneH = !newMelee && !DRAW_LEFT[st.to];
-    const u = oneH ? drawEven(clamp(x / DRAW_SET, 0, 1), frameAt) : drawEven(x, frameAt);
+    const ends = newMelee ? [0.4, -0.2] : DRAW_ENDS[st.to] || DRAW_ENDS.long, gp = newMelee ? [0, 0, 0] : (HOLD[W8.slot[st.to]] || HOLD_DEF).grip;
+    const u = oneH ? drawEven(clamp(x / DRAW_SET, 0, 1), frameAt, ends, gp) : drawEven(x, frameAt, ends, gp);
     const f = frameAt(u, new THREE.Matrix4());
+    // (from your own eyes a long gun's stock seats into your shoulder as it arrives, just before it's all the way up, so
+    // the settle runs on out of the draw: game/view-cam.js, fpShoulder)
+    if (!st.shoul && !newMelee && !oneH && x >= DRAW_SHOULDER) { st.shoul = true; fpShoulder(drawMul(W8.slot[st.to])); }
     if (newMelee) {
       armTo(pm.armR, 'R', gripAt(_sw.t, st.to, f), true); armToward(pm.armR, rQ, rP, rS, u * u); pm.armR.updateMatrixWorld(true);
       placeAt(gunMeshes.melee, f);

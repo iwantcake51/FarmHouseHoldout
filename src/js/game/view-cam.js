@@ -55,8 +55,9 @@ const FA = { r: 0.035, take: 0, ease: 10, back: 1.2, adsBack: 6, ads: 0 };
 // (dip, metres) and canting over (cant, radians) in the middle of it, the arms tilting with it, both going up and coming down
 const ADS_T = { in: 15, out: 17, side: 19, dip: 0.028, cant: 0.21 };
 // a shouldered gun meeting your shoulder as it comes up: a jolt (p, y: radians up and across, r: cant, z: metres back)
-// on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun
-const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10, trem: 0.0035, gun: { ar: 1.25, scar: 1.1, lmg: 1.35, sub: 0.9, smg: 0.75 } };
+// on a loose spring that shakes out (k, d), and the hands trembling a little on the way up (trem); k per gun; draw: how
+// much harder the stock seats as a long gun comes up from its draw into the hip hold (fpShoulder)
+const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10, trem: 0.0035, draw: 3.2, gun: { ar: 1.25, scar: 1.1, lmg: 1.35, sub: 0.9, smg: 0.75 } };
 // each shot's kick of the gun in your hands, from your own eyes, worked out shot by shot (V.rc), in three parts:
 // the kick: each shot throws the gun on a quick spring that rings a little past home (w: how quick, z: how damped),
 // turning it about where it's held: a handgun about your wrists (pivot: down and back from the grip, metres), so its
@@ -293,6 +294,14 @@ export function fpAds(want, rdt) {
   }
   return clamp(V.adsX, 0, 1);
 }
+// a long gun's stock meeting your shoulder from the hip (the end of its draw, player/swap.js): the same seat of it into
+// the shoulder as raising the sights gives (SHOULDER_IN), k as hard (a heavy gun the more), there at the hip too
+// (fpRecoil) and carried on down the sights if you raise them while it's still settling
+export function fpShoulder(k) {
+  if (!fpOn()) return; const D = W(curId()); if (!D || D.slot === 'side' || D.melee) return;
+  const S = V.sh, g = (SHOULDER_IN.gun[curId()] ?? 1) * SHOULDER_IN.draw * k;   // (draw: from the hip it's a bigger seat than the last of the way up to the sights)
+  S.vp += SHOULDER_IN.p * g * rr(0.8, 1.1); S.vy += SHOULDER_IN.y * 0.6 * g * rr(-1, 1); S.vr += SHOULDER_IN.r * 0.6 * g * rr(0.6, 1) * (Math.random() < 0.5 ? -1 : 1); S.vz += SHOULDER_IN.z * g * rr(0.8, 1.1);
+}
 // the shouldering's shake this frame, and the hands' tremble as it comes up: [up, across, cant, back]
 const _shk = [0, 0, 0, 0, 0, 0];
 function shoulderShake() {
@@ -457,15 +466,16 @@ export function fpRecoil(gg, grip) {
   // from where the mouse is held, unless the free look has the aim off the screen, where that offset's clamped)
   const ax = fpAimPx(true)[0], mx = innerWidth / 2 + fpAimPx()[0], sw = mx > 0 && mx < innerWidth ? aimSX() - mx : 0;
   const xa = Math.atan((V.fly || V.flp ? ax + sw : aimSX() - innerWidth / 2) / (innerHeight / 2) * Math.tan(FP_CAM.fov * Math.PI / 360)) * FP_XH_YAW;
-  const p = (C.p + C.cp + rn[3]) * k, y = (C.y + C.cy + rn[4] - xa) * k, r = (C.r + rn[5]) * k;
-  if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(C.z) + Math.abs(C.h) + Math.abs(C.x) < 1e-6) return;
+  // (and the stock settling into your shoulder, V.sh: fpShoulder, fpAds)
+  const S = V.sh, p = (C.p + C.cp + rn[3] + S.p) * k, y = (C.y + C.cy + rn[4] - xa + S.y) * k, r = (C.r + rn[5] + S.r) * k;
+  if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(C.z) + Math.abs(S.z) + Math.abs(C.h) + Math.abs(C.x) < 1e-6) return;
   gg.updateMatrixWorld(true);
   // (the turn made in the view's own frame: the view's way, then the turn, then back out of the view's way)
   _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
   // turned about your wrists or your shoulder (F.pivot, from where it's gripped, in the view's own frame)
   _rp.set(grip[0], grip[1], grip[2]).applyMatrix4(gg.matrixWorld).add(_vcZ.set(F.pivot[0], F.pivot[1], F.pivot[2]).applyQuaternion(_rq));
   _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
-  _vcZ.set((C.x + rn[0]) * k, (C.h + rn[1]) * k, (C.z + rn[2]) * k).applyQuaternion(_rq);   // (across, up, and back toward you along the view)
+  _vcZ.set((C.x + rn[0]) * k, (C.h + rn[1]) * k, (C.z + rn[2] + S.z) * k).applyQuaternion(_rq);   // (across, up, and back toward you along the view)
   _rM.makeTranslation(-_rp.x, -_rp.y, -_rp.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rp.x + _vcZ.x, _rp.y + _vcZ.y, _rp.z + _vcZ.z));
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);

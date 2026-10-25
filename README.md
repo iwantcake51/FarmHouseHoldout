@@ -251,7 +251,10 @@ never yanked out of nowhere: there's a beat first, the grip set and the gun easi
 stroke will throw it, then the stroke snaps through on the same timing as before (so the sound and the case flying out
 still land on it), bounces off its stops and the gun follows through on its loose spring. A gun you've drawn doesn't
 stop dead in the hold either: it carries on a hair up as it gets there and seats back into your hands, a heavy one
-more. From above, aiming down the sights brings the gun up on a spring just under critical, a few percent past and
+more. A draw is paced by how far the whole gun travels, its muzzle and butt as well as the grip, and it slows into its
+sharp turns (a long gun's muzzle dipping into the low ready before it comes up to the shoulder), so nothing pops or
+bounces on the way out of the holster or off the sling; from your own eyes a long gun's stock seats into your
+shoulder as it arrives, a short jolt up and back that settles out smoothly over a fifth of a second. From above, aiming down the sights brings the gun up on a spring just under critical, a few percent past and
 settled in about a quarter second, and it drops back the same way when you let go. Loading the revolver a
 round at a time, the cylinder's pushed shut by hand after the last one (or when you stop to shoot): the left hand goes
 to the open cylinder, pushes it round into the frame till it clicks home, and goes back to the grip, the shot going
