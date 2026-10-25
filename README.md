@@ -165,8 +165,13 @@ the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks,
 where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
 off it (at the hip you see the eyepiece's dark coated glass, really reflecting the world round you off its curved face: the
-sky, the house, trees, a lamp or a flashlight's glow, more of it the more glancing your look, and a hard glint of the
-sun or moon where it lines up, and the
+sky, the house, trees, a lamp or a flashlight's glow, more of it the more glancing your look. Its glare comes only from
+real lights: the sun or the moon, the burn barrel's fire (flickering with it), the porch lamp and the bulbs in the
+house, each a hard glint on the glass where its light comes off the curve to your eye, smaller the further off it is,
+with a soft bloom round it, brighter at night, fading out when a wall comes between you and it, and the sun's or
+moon's cut down under the roof. The reflection's kept cheap: it's only redrawn while the eyepiece is turned toward you,
+one side of it every other frame (less often down the scope, where only the rim reflects), and only out as far as the
+fog lets you see, and the
 picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
 away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance

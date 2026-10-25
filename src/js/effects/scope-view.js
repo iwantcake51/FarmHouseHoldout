@@ -15,6 +15,12 @@
 // ring round the hole, goes as soft as it really would (the hole looking a touch bigger for it), the front post sharp
 // in the middle of it.
 import { FP_CAM, R, scene, sun } from '../core/renderer.js';
+import { curDark } from '../lighting/day-night.js';
+import { los } from '../lighting/lightmap.js';
+import { STATIC_LIGHTS } from '../lighting/static-lights.js';
+import { worldT } from '../game/state.js';
+import { inHouseRect } from '../world/house.js';
+import { BURN_BARREL } from '../world/props.js';
 import { POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
 import { SPRITE_AIM, SPRITE_RES } from './sprite-batch.js';
@@ -35,33 +41,43 @@ const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniform
 // the eyepiece's lens itself, a real disc of glass in the scope (lensOn), drawn with the farm: from any angle it's the
 // shape it is and anything in front of it hides it. Off your eye's line it's dark coated glass; the scope up to your
 // eye (the gun in your hands, SCOPE_V), the picture down the scope's axis is seen through it
+// the lights that glint on a scope's glass: the GLINT.n nearest lamps and fires within GLINT.r metres (the fixed
+// lights, lighting/static-lights.js, at their bulb's or flame's height), as bright as they're burning (as the lightmap
+// has them: brighter at night, the fire flickering), each fading in and out as a wall comes between it and you; the
+// sun or moon's is cut down under the roof (GLINT.roof); whether a wall's in the way is looked at every GLINT.losEvery
+// frames
+const GLINT = { n: 6, r: 30, k: 1.6, roof: 0.12, ease: 10, losEvery: 4 };
 const LENS_FRAG = `
+#define GLINT_N ${GLINT.n}
 uniform sampler2D tS; uniform samplerCube tEnv; uniform vec2 uOff, uAx, uRot, uRes; uniform float uR, uRI, uKind, uDark, uEnvOn;
-uniform vec3 uSunD, uSunC;
+uniform vec3 uSunD, uSunC, uGP[GLINT_N], uGC[GLINT_N];
 varying vec2 vP; varying vec4 vClip; varying vec3 vW, vN, vT, vB;
 // what the glass reflects: the world round it (tEnv, ENV) off its curved face, more of it the more glancing the look
 // (Fresnel, over the coating's own little), a lamp or a bright sky brighter in it still (the cube keeps light past
-// white), and the sun or moon a hard glint where it lines up
+// white); and the glare, from the lights themselves: the sun or the moon, and each lamp and fire near you (uGP, uGC:
+// where it is and how bright, GLINT), a hard glint on the glass where its light comes off the curve to your eye, small
+// and sharp for one far off, with a soft bloom of it in the coating round it
 vec3 mirror(vec2 p) {
   vec3 v = normalize(cameraPosition - vW), n = normalize(vN); if (dot(n, v) < 0.0) n = -n;
   n = normalize(n - (p.x * normalize(vT) + p.y * normalize(vB)) * 0.32);   // (the glass bulges out toward you)
   vec3 r = reflect(-v, n); float f = 0.035 + 0.965 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);
   vec3 env = uEnvOn > 0.5 ? textureCube(tEnv, r).rgb : vec3(0.0);
-  return env * (0.16 + 0.84 * f) + max(env - 0.75, 0.0) * (0.5 + 0.5 * f) + uSunC * pow(max(dot(r, uSunD), 0.0), 900.0) * 6.0 * (0.25 + 0.75 * f);
+  vec3 g = uSunC * (pow(max(dot(r, uSunD), 0.0), 900.0) * 6.0 + pow(max(dot(r, uSunD), 0.0), 40.0) * 0.12);
+  for (int i = 0; i < GLINT_N; i++) {
+    vec3 l = uGP[i] - vW; float dl = length(l), c = max(dot(r, l / max(dl, 1e-3)), 0.0), sh = 300.0 + 90.0 * dl * dl;   // (the further, the smaller the glint)
+    g += uGC[i] * (pow(c, sh) * 5.0 + pow(c, 24.0) * 0.16) / (1.0 + 0.04 * dl * dl);
+  }
+  return env * (0.16 + 0.84 * f) + max(env - 0.75, 0.0) * (0.5 + 0.5 * f) + g * (0.25 + 0.75 * f);
 }
 // a line's coverage, half width w, at distance d (in the lens's units: its radius is 1), smoothed over a pixel
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
-// the eyepiece's glass as it looks with your eye off its axis (at the hip, or coming up): dark coated glass, the sky
-// above you faintly in it, a soft highlight curving round its upper side and a brighter rim where the glass curves
-// away, a little sheen of the coating's colour; not a flat black disc
+// the eyepiece's glass itself with your eye off its axis (at the hip, or coming up): dark coated glass with a little
+// sheen of the coating's colour and its rim catching a touch more; every highlight on it is a real light's (mirror)
 vec3 glass(vec2 p, float d) {
-  vec3 c = mix(vec3(0.012, 0.016, 0.02), vec3(0.075, 0.088, 0.1), smoothstep(-0.9, 0.9, p.y) * 0.75);
-  c += vec3(0.05, 0.035, 0.07) * (1.0 - smoothstep(0.0, 0.8, length(p - vec2(0.25, -0.3))));   // the coating's sheen
-  vec2 h = p - vec2(-0.32, 0.38); c += vec3(0.42, 0.45, 0.48) * exp(-dot(h, h) * 14.0) * 0.55;    // the highlight
-  float arc = exp(-pow((d - 0.78) / 0.05, 2.0)) * smoothstep(-0.1, 0.6, -p.x * 0.6 + p.y);           // curving round the top
-  c += vec3(0.3, 0.32, 0.35) * arc * 0.35 + vec3(0.12) * smoothstep(0.86, 0.99, d);                   // and the rim
-  return c;
+  vec3 c = mix(vec3(0.012, 0.016, 0.02), vec3(0.045, 0.052, 0.06), smoothstep(-0.9, 0.9, p.y) * 0.75);
+  c += vec3(0.04, 0.028, 0.055) * (1.0 - smoothstep(0.0, 0.8, length(p - vec2(0.25, -0.3))));   // the coating's sheen
+  return c + vec3(0.06) * smoothstep(0.86, 0.99, d);                                                // and the rim
 }
 void main() {
   vec2 p = vP; float d = length(p), px = 1.0 / max(uR, 1.0);
@@ -104,7 +120,8 @@ const LENS_VERT = 'uniform float uLR; varying vec2 vP; varying vec4 vClip; varyi
 // drawn again each frame while a scope's in your hands in first person (so it's never more than six frames old), with
 // you left out of it; and the sun's (or moon's) way and light for its glint
 const ENV_SIZE = 64, ENV = { rt: new THREE.WebGLCubeRenderTarget(ENV_SIZE, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter }), cam: null, face: 0, on: false };
-const ENV_U = { tEnv: { value: ENV.rt.texture }, uEnvOn: { value: 0 }, uSunD: { value: new THREE.Vector3(0, 1, 0) }, uSunC: { value: new THREE.Color() } };
+const ENV_U = { tEnv: { value: ENV.rt.texture }, uEnvOn: { value: 0 }, uSunD: { value: new THREE.Vector3(0, 1, 0) }, uSunC: { value: new THREE.Color() },
+  uGP: { value: Array.from({ length: GLINT.n }, () => new THREE.Vector3()) }, uGC: { value: Array.from({ length: GLINT.n }, () => new THREE.Color(0, 0, 0)) } };
 const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, fragmentShader: LENS_FRAG, side: THREE.DoubleSide,
   uniforms: { ...ENV_U, tS: { value: null }, uLR: { value: 1 }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 1 }, uOff: { value: new THREE.Vector2() }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) }, uRI: { value: 100 } } });
 // A holographic sight's reticle and a red dot's dot as they really are: an image focused out at infinity, seen only
@@ -180,10 +197,10 @@ const toPx = (v, W, H, out) => { _sp.copy(v).project(FP_CAM); return out.set((_s
 export function scopePrep() {
   stepReticles();
   const S = SCOPE_V, on = S.on && S.a >= 0.01 && (S.kind === 'scope' || S.kind === 'acog') && S.src;
-  let lens = null; if (on) S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; });
+  let lens = null; if (on) { lens = S.src.userData.lensMesh; if (lens === undefined) { lens = null; S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; }); S.src.userData.lensMesh = lens; } }   // (found once per sight)
   if (LENS.on && LENS.on !== lens) { LENS.on.material = glassMat(LENS.on.userData.lens); LENS.on = null; }
   SC.on = false; if (!lens) return;
-  envStep();
+  envStep(S);
   R.getDrawingBufferSize(_sz); const prev = R.getRenderTarget(), ac = R.autoClear;
   if (scopeLens(S, lens, _sz.x, _sz.y, _sz.y / 2 / Math.tan(FP_CAM.fov * Math.PI / 360))) SC.on = true;
   R.autoClear = ac; R.setRenderTarget(prev);
@@ -198,9 +215,17 @@ export function scopePass() {
   R.autoClear = ac; R.setRenderTarget(prev);
 }
 
-// one face of the reflected world drawn again, from your eye (a whole cube the first time)
-function envStep() {
-  if (!ENV.cam) { ENV.cam = new THREE.CubeCamera(0.1, 120, ENV.rt); scene.add(ENV.cam); }
+// the reflected world kept up from your eye (a whole cube the first time), and the glare's lights: only while the
+// eyepiece is turned toward you (nothing's seen in it otherwise), one face of the cube drawn again every ENV_EVERY.hip
+// frames, ENV_EVERY.ads down the scope (where the picture fills the glass and only its rim reflects), drawn out to
+// ENV_FAR metres (the fog's hidden the rest) with the shadows left as they are
+const ENV_EVERY = { hip: 2, ads: 5 }, ENV_FAR = 55;
+let envN = 0;
+function envStep(S) {
+  if (_st.subVectors(FP_CAM.position, S.eye).dot(S.dir) > -0.005) return;
+  envN++; glints(envN % GLINT.losEvery === 0);
+  if (ENV.on && envN % (S.w > 0.5 ? ENV_EVERY.ads : ENV_EVERY.hip)) return;
+  if (!ENV.cam) { ENV.cam = new THREE.CubeCamera(0.1, ENV_FAR, ENV.rt); scene.add(ENV.cam); }
   ENV.cam.position.copy(FP_CAM.position); ENV.cam.updateMatrixWorld(true);
   const pv = PM.g.visible, sh = R.shadowMap.autoUpdate, ac = R.autoClear, prev = R.getRenderTarget(), am = [SPRITE_AIM.x, SPRITE_AIM.y, SPRITE_AIM.z, SPRITE_AIM.w];
   PM.g.visible = false; R.shadowMap.autoUpdate = false; R.autoClear = true; SPRITE_AIM.set(0.5, 0.5, 0, 0);   // (no particles thinned out of it)
@@ -208,7 +233,30 @@ function envStep() {
   if (!ENV.on) { ENV.cam.update(R, scene); ENV.on = true; }
   else { const f = ENV.face = (ENV.face + 1) % 6; R.setRenderTarget(ENV.rt, f); R.render(scene, ENV.cam.children[f]); }
   PM.g.visible = pv; R.shadowMap.autoUpdate = sh; R.autoClear = ac; R.setRenderTarget(prev); SPRITE_AIM.set(...am); ENV_U.tEnv.value = ENV.rt.texture;
-  ENV_U.uEnvOn.value = 1; ENV_U.uSunD.value.copy(sun.position).normalize(); ENV_U.uSunC.value.copy(sun.color).multiplyScalar(Math.min(2, sun.intensity));
+  ENV_U.uEnvOn.value = 1;
+}
+// where each lamp's and fire's light is for the glass to glint with (GLINT)
+const glintAt = L => L.barrel ? _glP.set(BURN_BARREL.x, BURN_BARREL.y + 0.28, BURN_BARREL.z) : L.hang ? _glP.set(L.x, 1.97, L.z) : L.glint ? _glP.set(...L.glint) : _glP.set(L.x, 1.1, L.z);
+const _glP = new THREE.Vector3(), _glints = [];
+let glintT = -1;
+function glints(see) {
+  ENV_U.uSunD.value.copy(sun.position).normalize();
+  ENV_U.uSunC.value.copy(sun.color).multiplyScalar(Math.min(2, sun.intensity) * (sun.position.y > 0 ? 1 : 0) * (inHouseRect(FP_CAM.position.x, FP_CAM.position.z, 0) ? GLINT.roof : 1));
+  const c = FP_CAM.position, dark = curDark, fl = 0.85 + Math.sin(worldT * 11.1) * 0.08 + 0.035 + Math.sin(worldT * 37.3) * 0.02 + Math.sin(worldT * 23.9) * 0.015;
+  const dt = glintT < 0 ? 1 : Math.min(0.1, Math.max(0, performance.now() / 1000 - glintT)); glintT = performance.now() / 1000;
+  _glints.length = 0;
+  for (const L of STATIC_LIGHTS) {
+    if (L.fill || L.spill) continue;
+    glintAt(L); const d = _glP.distanceTo(c); if (d > GLINT.r) continue;
+    // (seen or not from where you are, eased: a glint fades out behind a wall rather than blinking off)
+    if (see || L.gs === undefined) L.gs = los(c.x, c.z, _glP.x, _glP.z) ? 1 : 0;   // (looked for every GLINT.losEvery frames)
+    L.gv = (L.gv ?? 1) + (L.gs - (L.gv ?? 1)) * Math.min(1, dt * GLINT.ease);
+    const k = L.int * (L.inside ? 0.55 + 0.6 * dark : 0.15 + 0.85 * dark) * (L.flicker ? fl : 1) * L.gv * GLINT.k;
+    if (k > 0.01) _glints.push([d, _glP.x, _glP.y, _glP.z, L.col, k]);
+  }
+  _glints.sort((a, b) => a[0] - b[0]);
+  const P = ENV_U.uGP.value, C = ENV_U.uGC.value;
+  for (let i = 0; i < GLINT.n; i++) { const g = _glints[i]; if (g) { P[i].set(g[1], g[2], g[3]); C[i].setRGB(g[4][0] * g[5], g[4][1] * g[5], g[4][2] * g[5]); } else C[i].setRGB(0, 0, 0); }
 }
 function scopeLens(S, lens, W, H, f) {
   const c = FP_CAM;
