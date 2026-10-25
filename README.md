@@ -221,6 +221,14 @@ again blends it back on just as smoothly; a fresh mag rides in the fist wherever
 nears the magwell (a rifle's well, a pistol's grip) it's eased gradually onto the well's line in one smooth path,
 never jumping into place, then pushed up it, never through the side of the gun and never past where it seats.
 
+**From the mag to the charging handle.** On a rifle with a charging handle the right hand leaves the grip while the
+left is still coming away from slapping the mag home, the two overlapping rather than one after the other. It eases
+down off the grip a moment, then rises unhurried on a low arc to the handle, settles onto it, draws it back as the
+spring takes up and lets it go; the gun stays canted in your hands through all of it instead of swinging back upright
+in between, and the hand returns to the grip on a slower, easier path. From your own eyes the gun is let out a little
+further, lower and turned onto its side for it, so the arm drawing the handle works low and to the side instead of
+coming up across your view.
+
 **Each gun handles like itself.** Every weapon has its own weight and give: a light pistol snaps through its
 reload and its slide, a 9mm machine pistol is quick and crisp, the AR is balanced, the battle rifle and the auto
 shotgun swing a little slower and carry on further, and the LMG lumbers into its reload and rocks back after. The

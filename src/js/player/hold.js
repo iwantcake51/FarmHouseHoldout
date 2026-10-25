@@ -391,6 +391,8 @@ const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 const FP_SPRINT = { long: { p: 0.48, y: 0.1, r: 0.45, x: 0.03, h: 0.2, z: -0.18 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
 // where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right
 const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03 };
+// the charging hand's wind-up before it rises off the grip: over the first CH_ANT of its reach, CH_ANT_D down
+const CH_ANT = 0.3, CH_ANT_D = 0.014;
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -479,14 +481,17 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // stop (pull, CH_BOUNCE); the hand flicks up and out off it (flick), then comes back down to the grip
   const ease5 = t => t * t * t * (t * (t * 6 - 15) + 10), easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
   const cg = CH ? ease5(clamp((rp - CH_REACH[0]) / (CH_REACH[1] - CH_REACH[0]), 0, 1)) * (1 - ease5(clamp((rp - CH_BACK[0]) / (CH_BACK[1] - CH_BACK[0]), 0, 1))) : 0;
-  const hook = CH ? 1 - ease5(clamp((rp - CH_REACH[1] + 0.02) / 0.025, 0, 1)) : 0;
+  const hook = CH ? 1 - ease5(clamp((rp - CH_REACH[1] + 0.025) / 0.04, 0, 1)) : 0;
+  // (and before it goes, a small wind-up: the hand eases down and back off the grip a moment, then rises on its arc)
+  const chU = CH ? clamp((rp - CH_REACH[0]) / (CH_REACH[1] - CH_REACH[0]), 0, 1) : 0, chAnt = chU > 0 && chU < CH_ANT ? Math.sin(Math.PI * chU / CH_ANT) : 0;
   const drawn = CH ? easeIO(clamp((rp - CH_DRAW) / (CH_PULL - CH_DRAW), 0, 1)) : 0, home = CH ? clamp((rp - CH_SLAM) / 0.012, 0, 1) : 0;
   const bounce = CH ? CH_BOUNCE * Math.sin(clamp((rp - CH_SLAM - 0.012) / 0.03, 0, 1) * Math.PI) : 0, pull = drawn * (1 - home * home) + bounce;
   const flick = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;
   const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
+  { const t = CH ? smooth(clamp((rp - CH_REACH[0] + 0.03) / (CH_REACH[1] - CH_REACH[0] + 0.03), 0, 1)) * (1 - smooth(clamp((rp - CH_SLAM) / (1 - CH_SLAM), 0, 1))) : 0; ANIM.chW = (ANIM.chW || 0) + (t - (ANIM.chW || 0)) * Math.min(1, rdt * 14); }   // (the gun let out and turned over for it from your own eyes, game/view-cam.js FP_CHARGE; eased off if the reload's cut short)
   if (rel) ANIM.relKind = rel;
   const FL = feel(id);   // (this gun's own handling: player/hold-kick.js, FEEL)
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0) - ANIM.relEnv) * Math.min(1, rdt * 9 * FL.env);   // (closing the double barrel: the stock comes up to meet the barrels)
+  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : CH ? rp < CH_SLAM + 0.015 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0) - ANIM.relEnv) * Math.min(1, rdt * 9 * FL.env);   // (closing the double barrel: the stock comes up to meet the barrels)
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
@@ -808,7 +813,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // where it let go but flicked up and out off it; on an arc up over the receiver on the way there and back
     const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn, arc = Math.sin(Math.PI * cg);
     gunPt(_p1, s, 'R', at[0] + 0.012 * arc + 0.018 * flick, at[1] + 0.012 + 0.02 * hook + 0.022 * flick, at[2] - CHARGE[s].tr * hp + 0.025 * hook - 0.012 * flick);
-    _hR.lerp(_p1, cg); _hR.y += arc * 0.04 * (1 - hook * 0.5);
+    _hR.lerp(_p1, cg); _hR.y += arc * (fpOn() ? 0.015 : 0.04) * (1 - hook * 0.5) - CH_ANT_D * chAnt;   // (from your own eyes hardly lifted: it'd bring the arm up across them)
   }
   // the other hand of a pair charging a machine pistol: over to the empty one's handle, drawing it back with it
   let akFree = null;

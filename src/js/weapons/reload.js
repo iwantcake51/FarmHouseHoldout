@@ -147,11 +147,13 @@ export function startReload() {
 export const SL_IN = 0.56, SL_DROP = 0.7, SL_SHUT = 0.84;
 // how far through a mag reload the mag is pushed home, and (for a rifle with a charging handle) when the handle is
 // pulled and let go; player/hold.js poses the hands to the same marks
-export const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.86, CH_SLAM = 0.9;
-// the charging handle's beats (player/hold.js): the hand's on its way up to it over CH_REACH, takes hold and starts
-// drawing it at CH_DRAW (back by CH_PULL), lets go at CH_SLAM, and is back on the grip over CH_BACK; the handle bounces
-// CH_BOUNCE of its travel back off its stop
-export const CH_REACH = [0.725, 0.805], CH_DRAW = 0.81, CH_BACK = [0.925, 1], CH_BOUNCE = 0.06;
+export const MAG_SEAT = 0.84, CH_MAG = 0.76, CH_PULL = 0.845, CH_SLAM = 0.875;
+// the charging handle's beats (player/hold.js): the hand leaves the grip for it as the other hand's still coming away
+// from slapping the mag home (the two overlapping, not one after the other), and is on its way up to it over CH_REACH
+// (unhurried: about a seventh of the reload), settles onto it and starts drawing it at CH_DRAW (back by CH_PULL, the
+// spring taking up as it goes), lets go at CH_SLAM, and is back on the grip over CH_BACK; the handle bounces CH_BOUNCE
+// of its travel back off its stop
+export const CH_REACH = [0.645, 0.775], CH_DRAW = 0.765, CH_BACK = [0.89, 1], CH_BOUNCE = 0.06;
 // a magazine gun run dry takes EMPTY_MUL longer to reload than one with rounds left (it's fumbled out of an empty gun,
 // and the gun's charged or its slide dropped at the end). Pistols whose slide locks back on the last round
 // (player/hold.js holds it there, in the hand and in the holster): a

@@ -87,6 +87,10 @@ const FP_RECOIL = {
 // only part of the way there (k), and hardly turned: the reload as it is at the hip, just brought up enough to see it,
 // not presented to you
 const FP_RELOAD = { at: [-0.005, -0.12, -0.43], side: [-0.01, -0.11, -0.4], roll: -0.1, pitch: 0.1, yaw: -0.3, mid: 0.42, k: 0.45 };
+// and charging a rifle at the end of its reload, the gun's let out a little further from your eye, lower and turned
+// over onto its left side (across, up, out from your eye; roll), so the hand drawing the handle back works low and to
+// the side of it rather than the arm coming up across your eyes
+const FP_CHARGE = { x: -0.02, y: -0.07, z: -0.12, roll: 0.2 };
 // held at the hip in first person, the gun's pushed out a little from your eye (the shorter it is the more, from short
 // to long: so a machine pistol isn't tucked in under your chin), along the view
 const FP_REACH = { short: 0.13, long: 0.07, len: [0.8, 1.3] };
@@ -314,6 +318,13 @@ export function fpReloadPose(gg, k) {
   const hs = (1 - w) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));   // (out at the side, where it's held at the hip)
   _rlD.set(at[0] + FP_HIP.x * hs, at[1] + FP_HIP.y * hs, at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
   _rq.copy(_rlQ); _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(FP_RELOAD.pitch * k, FP_RELOAD.yaw * k, FP_RELOAD.roll * k, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
+  _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
+  _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
+  _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
+  const cw = (ANIM.chW || 0) * (1 - w); if (cw < 0.002) return;
+  _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);
+  _rlD.set(FP_CHARGE.x, FP_CHARGE.y, FP_CHARGE.z).multiplyScalar(cw).applyQuaternion(_rlQ);
+  _rq2.copy(_rlQ).multiply(_vcQ.setFromEuler(_rE.set(0, 0, FP_CHARGE.roll * cw, 'YXZ'))).multiply(_vcQ.copy(_rlQ).invert());
   _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());
   _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
