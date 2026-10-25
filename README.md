@@ -59,7 +59,11 @@ plainly there ever blinks out.
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
 its wrapped handle, both hands on the grip below the guard. From your own eyes a melee weapon in your hands keeps your
-body together with your legs, and a swing doesn't carry you forward.
+body together with your legs, and a swing doesn't carry you forward. From your own eyes each swing is kept where you
+can see it: the wind-up stays at the top of the view rather than behind your head, your arm never sweeps through your
+face, and the blow crosses the view. The weapon is swung round by your arm and held in the fist as it is in the guard,
+so it never spins about its handle or flips over in your hand, and the forearm's roll and the weapon's tilt ease in
+and out of every turn instead of starting and stopping dead.
 
 **Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with

@@ -27,6 +27,7 @@ import { ANIM } from '../player/animation.js';
 import { ARM_THIN, FIST, SHOULDER_REST } from '../player/hold.js';
 import { SWAP_T, swapSt } from '../player/swap.js';
 import { inspectBlend, inspectT } from '../player/inspect.js';
+import { fpOn } from '../game/view-cam.js';
 
 // the guard per weapon: fist and weapon direction, and the body
 const MGUARD = {
@@ -277,6 +278,26 @@ export function meleeOffHand(D, id, sh, rest, handleAt, rdt) {
 }
 // how much further the fist is thrown out from the shoulder through the front of a swing (at full reach ahead)
 const MEXTEND = 0.3;
+// from your own eyes a swing's kept where you can see it (the keys are laid out for the view from above): its arcs
+// drawn in a little toward the guard (shrink), the fist never brought back past a plane in front of your face (zMin,
+// metres ahead of the chest, gone past only a little: soft) nor up over your eyes near the middle of the view (top,
+// within face of the middle; raised above raise there, it's taken out to side, to the right of your eyes), and the
+// weapon never laid back over your shoulder past wBack, so the arm never sweeps
+// through your face, the windup stays at the top of the view, and the blow crosses it rather than flicking past the
+// edge of it; the forearm's roll and the turn in the fist slower too (roll, twist: a second), and the weapon held in
+// the fist as it is in the guard all through the swing, turned by the arm alone (a wrist doesn't wring a weapon round
+// its handle mid-swing), so it doesn't spin about its handle as it comes round
+const FP_MSWING = { shrink: 0.85, zMin: 0.38, soft: 0.3, top: 1.22, face: 0.42, raise: 1.08, side: 0.3, wBack: -0.2, roll: 6, twist: 10 };
+function fpSwing(F, W, g) {
+  const M = FP_MSWING;
+  F.set(g.F[0] + (F.x - g.F[0]) * M.shrink, g.F[1] + (F.y - g.F[1]) * M.shrink, g.F[2] + (F.z - g.F[2]) * M.shrink);
+  if (F.z < M.zMin) F.z = M.zMin - (M.zMin - F.z) * M.soft;
+  const mid = 1 - smooth(clamp((Math.abs(F.x) - 0.12) / (M.face - 0.12), 0, 1));
+  if (F.y > M.top) F.y = M.top + (F.y - M.top) * (1 - 0.8 * mid);
+  // (raised up in the middle, in front of your eyes, it's taken out to the right of them instead, as you'd lift it)
+  const up = smooth(clamp((F.y - M.raise) / 0.16, 0, 1)) * mid; F.x += (Math.max(F.x, M.side) - F.x) * up;
+  if (W.z < M.wBack) { W.z = M.wBack + (W.z - M.wBack) * 0.3; W.normalize(); }
+}
 // how far ahead (seconds) each part is sampled: the hips and legs lead, then the chest, the arm, and the weapon last
 const MCHAIN = { body: 0.06, F: 0.035, W: 0.012 };
 // the springs each part rides on (stiffness, damping): the weapon loosest, so it lags into a swing and whips past
@@ -396,7 +417,16 @@ export function meleeImpact(heavy, hard) {
 // flipped round the handle in a frame and back. The
 // weapon hangs off the arm, so it's scaled back by wy, wz along its length and across it to keep its own size
 // (melee/melee-models.js built them on an arm ARM_THIN thick and FIST long)
-const MREACH = [0.62, 1.42], MROLL_GIVE = 0.6, MROLL_SING = 0.45, MROLL_RATE = 9, MROLL_BACK = 0.8;
+const MREACH = [0.62, 1.42], MROLL_GIVE = 0.6, MROLL_SING = 0.45, MROLL_RATE = 9, MROLL_BACK = 0.8, MTILT_RATE = 12;
+// the forearm's roll, the weapon's tilt and its turn in the fist each follow where they're wanted on a critically
+// damped spring (MTURN: how quick, a second), capped at their own pace (rate, radians a second), so a turn gathers
+// speed and eases to a stop instead of starting and stopping dead at a fixed rate; the short way round (a whole turn
+// is no turn)
+const MTURN = 24;
+function angSpring(o, k, kv, want, rate, dt) {
+  const v = clamp((o[kv] || 0) + (MTURN * MTURN * angDiff(want, o[k]) - 2 * MTURN * (o[kv] || 0)) * dt, -rate, rate);
+  o[kv] = v; return o[k] + v * dt;
+}
 function meleeSolve(F, Wd, out, keep, dt) {
   const s = SHOULDER_REST.R, dx = F.x - s[0], dy = F.y - s[1], dz = F.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
   out.rx = Math.atan2(-dy / len, dz / len); out.ry = Math.asin(clamp(dx / len, -1, 1)); out.sc = clamp(len / FIST, MREACH[0], MREACH[1]);
@@ -415,11 +445,16 @@ function meleeSolve(F, Wd, out, keep, dt) {
     // and the forearm only turns so fast (MROLL_RATE a second): a roll the pointing wants quicker than that it catches
     // up with over the next frames, the weapon lagging a touch off its line meanwhile, rather than the head whipping
     // round the handle in a frame or two
-    if (dt > 0) { const lim = MROLL_RATE * dt; rz = out.rz + clamp(angDiff(rz, out.rz), -lim, lim); }   // (the short way round: a whole turn is no turn)
+    if (dt > 0) rz = angSpring(out, 'rz', 'vrz', rz, fpOn() ? FP_MSWING.roll : MROLL_RATE, dt);   // (the short way round: a whole turn is no turn)
     cy = -w.x * Math.sin(rz) + w.y * Math.cos(rz);
   }
   if (!keep) rz = Math.atan2(Math.sin(rz), Math.cos(rz));   // (at rest, whole turns it's run up taken back off: the same roll)
-  out.rz = rz; out.hrx = Math.atan2(w.z / out.sc, cy / ARM_THIN);
+  out.rz = rz; let hrx = Math.atan2(w.z / out.sc, cy / ARM_THIN);
+  // and the weapon's tilt in the fist only turns so fast too (MTILT_RATE a second): with the forearm lagging its roll,
+  // the weapon can come to lie near square across it, where the least change in the roll swings the tilt that points
+  // it half way round in a frame, flipping the weapon over in the hand; held to its pace it lags a moment instead
+  if (dt > 0 && out.hrx !== undefined) hrx = angSpring(out, 'hrx', 'vhrx', hrx, MTILT_RATE, dt);
+  out.hrx = hrx;
   const sh = Math.sin(out.hrx), ch = Math.cos(out.hrx);
   out.wy = ARM_THIN / Math.hypot(ARM_THIN * ch, out.sc * sh); out.wz = 1 / Math.hypot(ARM_THIN * sh, out.sc * ch);
   return out;
@@ -458,6 +493,7 @@ export function meleePose(id, D, rdt, now, sh) {
     const s = SHOULDER_REST.R, fz = _maF.z - s[2]; if (fz > 0) { const k = 1 + MEXTEND * clamp(fz / 0.5, 0, 1); _maF.set(s[0] + (_maF.x - s[0]) * k, s[1] + (_maF.y - s[1]) * k, s[2] + fz * k); }
     // a heavy head sags under its own weight wherever it's moving slowly (at the top of the wind-up, coming back)
     const slow = 1 - smooth(clamp(MS.vW.length() / 6, 0, 1)); _maW.y -= MHEFT.sag * wt[0] * wt[1] * slow; _maW.normalize();
+    if (fpOn()) fpSwing(_maF, _maW, g);
   } else if (ANIM.mDrawT !== undefined && ANIM.mDrawT >= 0) {
     // the flourish
     const fl = MDRAW[kind], t = ANIM.mDrawT;
@@ -522,7 +558,7 @@ function meleeTwist(out, D, id, sh, dur, g, rdt) {
   if (MS.twKind !== MS.kind) { MS.twKind = MS.kind; MS.tw = 0; MS.twP = undefined; MS.twG = guardEdge(g, new V3()); }
   const tw = MS.tw || 0;
   _mtE.copy(MS.twG);   // (the way the edge faces in the guard)
-  if (W8.swing > 0 && !sh) {
+  if (W8.swing > 0 && !sh && !fpOn()) {   // (from your own eyes it stays turned in the fist as it is in the guard, swung round by the arm alone: FP_MSWING)
     const p = 1 - W8.swing / dur, sw = curSwing(D), fw = sw.fast, wt = meleeWeight(id), hit = heavySwing(D) ? HEAVY.hit : 0.4, wp = t => meleeWarp(t, sw.keys, hit, wt[0]), L = meleeLen(id);
     if (MS.twP === undefined || p < MS.twP || MS.twSw !== sw) {   // (a new swing: the way its blow goes)
       sampleFast(sw.keys, g, wp(fw[0]), wp(fw[0]), wp(fw[0]), _mtA, _mtB, _mtX); _mtN.copy(_mtA).addScaledVector(_mtB, -L);
@@ -548,8 +584,8 @@ function meleeTwist(out, D, id, sh, dur, g, rdt) {
     _mtQ.setFromEuler(_mtR.set(out.rx, out.ry, out.rz)).invert(); _mtA.applyQuaternion(_mtQ).applyAxisAngle(_mtB.set(1, 0, 0), -out.hrx);
     want = tw + angDiff(Math.atan2(_mtA.x, _mtA.z), tw);
   }
-  const lim = MTWIST.rate * Math.max(rdt, 1 / 240);
-  out.tw = MS.tw = tw + clamp(want - tw, -lim, lim);
+  const r = fpOn() ? FP_MSWING.twist : MTWIST.rate, dt = Math.max(rdt, 1 / 240), v = clamp((MS.vtw || 0) + (MTURN * MTURN * (want - tw) - 2 * MTURN * (MS.vtw || 0)) * dt, -r, r);
+  MS.vtw = v; out.tw = MS.tw = tw + v * dt;
 }
 // which way the edge faces with the weapon in the guard and not turned in the fist (the arm's own hold of it)
 function guardEdge(g, o) {
