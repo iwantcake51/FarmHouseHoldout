@@ -122,16 +122,16 @@ export function updateHUD(rdt, D) {
     $('tbWave').hidden = phase !== 'break';
     $('tbAlt').hidden = !D.gl;
 }
-// the fire mode by the ammo count (styles/hud-weapon.css): its rounds and name, with B when the gun can switch; drawn
-// again only when the mode or the gun changes
+// the fire mode by the ammo count (styles/hud-weapon.css): its rounds and name, with B only when the gun can switch;
+// drawn again only when the mode, the gun or whether it can switch changes
 function renderFireMode(id) {
-  const m = fireModeOf(id), el = $('fireMode'), key = m ? id + m.k + m.t : '';
+  const m = fireModeOf(id), el = $('fireMode'), sw = fireModes(id).length > 1, key = m ? id + m.k + m.t + sw : '';
   if (cache.fm === key) return;
   const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
   el.hidden = !m; if (!m) return;
   const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : m.k === 'both' ? 2 : 1;
   g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // pointed rifle and magnum rounds
-  el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = fireModes(id).length < 2;
+  el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = !sw;
   if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
 }
 // switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair

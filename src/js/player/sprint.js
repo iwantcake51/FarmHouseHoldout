@@ -66,6 +66,7 @@ export const PIVOT = { ang: 2.45, minSpd: 0.8, brake: 0.12, dec: 21, bite: 0.08,
 const FIRE_WAIT = 0.9;   // how long a click made while the gun's down waits to go off once it's up
 export const SHOT_HOLD = 0.35;  // after a shot (or while the trigger's held) you don't break back into a sprint for this long
 const READY_UP = 0.2;    // how far down the gun can still be (ANIM.ready) and fire
+const READY_W = { down: 11, up: 14 };
 
 export function sprintKey() { return keys.has(KB.sprint) || !!(usingTouch && tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.92); }
 // a 9mm gun in your hands, and Run and gun: you can fire it on the run
@@ -199,8 +200,11 @@ export function sprintAnim(rdt) {
   const ease = (k, to, up, down) => { ANIM[k] = (ANIM[k] || 0) + (to - (ANIM[k] || 0)) * Math.min(1, rdt * (to > (ANIM[k] || 0) ? up : down)); };
   ease('sprintK', P.sprint ? 0.3 + 0.7 * sprintPace() : 0, 6, 4);   // the gait opens out as the momentum builds
   ease('runBank', P.sprint && !pv ? clamp(-(P.carveW || 0) * SPRINT.bank, -0.22, 0.22) : 0, 9, 6);   // leaning into a bend
-  // down in about a fifth of a second, back up a touch quicker than that (a heavy gun comes up slower: D.heavy.ready)
-  ease('ready', on ? 1 : 0, 8, 6.5 * (((W(curId()) || {}).heavy || {}).ready || 1));
+  // down and back up on a spring (READY_W: how quick, down and up), so the gun starts lowering gently, swings down
+  // through the middle and settles muzzle down rather than dropping at once; back up a touch quicker (a heavy gun
+  // comes up slower: D.heavy.ready)
+  { const w = on ? READY_W.down : READY_W.up * (((W(curId()) || {}).heavy || {}).ready || 1), to = on ? 1 : 0, h = Math.min(rdt, 0.05);
+    ANIM.readyV = (ANIM.readyV || 0) + (w * w * (to - (ANIM.ready || 0)) - 2 * w * (ANIM.readyV || 0)) * h; ANIM.ready = clamp((ANIM.ready || 0) + ANIM.readyV * h, 0, 1.02); }
   ease('faceK', on || P.sprint ? 1 : 0, 6, 5);
   ease('rgK', rg ? 1 : 0, 7, 5);   // the twist goes in a touch slower than the gun comes up, and unwinds as it goes down
   ease('bobK', P.sprint && !pv && !(P.skid > 0) ? 1 : 0, 2.5, 4);   // the view's bob dies smoothly away through a turn or a skid, and builds back as you get going (runCam)

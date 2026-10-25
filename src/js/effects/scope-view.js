@@ -14,7 +14,7 @@
 // the aim as your eye moves. An aperture's too close to your eye to see sharp: the whole rear sight, its ears and the
 // ring round the hole, goes as soft as it really would (the hole looking a touch bigger for it), the front post sharp
 // in the middle of it.
-import { FP_CAM, R, scene } from '../core/renderer.js';
+import { FP_CAM, R, scene, sun } from '../core/renderer.js';
 import { POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
 import { SPRITE_AIM, SPRITE_RES } from './sprite-batch.js';
@@ -36,8 +36,19 @@ const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniform
 // shape it is and anything in front of it hides it. Off your eye's line it's dark coated glass; the scope up to your
 // eye (the gun in your hands, SCOPE_V), the picture down the scope's axis is seen through it
 const LENS_FRAG = `
-uniform sampler2D tS; uniform vec2 uOff, uAx, uRot, uRes; uniform float uR, uRI, uKind, uDark;
-varying vec2 vP; varying vec4 vClip;
+uniform sampler2D tS; uniform samplerCube tEnv; uniform vec2 uOff, uAx, uRot, uRes; uniform float uR, uRI, uKind, uDark, uEnvOn;
+uniform vec3 uSunD, uSunC;
+varying vec2 vP; varying vec4 vClip; varying vec3 vW, vN, vT, vB;
+// what the glass reflects: the world round it (tEnv, ENV) off its curved face, more of it the more glancing the look
+// (Fresnel, over the coating's own little), a lamp or a bright sky brighter in it still (the cube keeps light past
+// white), and the sun or moon a hard glint where it lines up
+vec3 mirror(vec2 p) {
+  vec3 v = normalize(cameraPosition - vW), n = normalize(vN); if (dot(n, v) < 0.0) n = -n;
+  n = normalize(n - (p.x * normalize(vT) + p.y * normalize(vB)) * 0.32);   // (the glass bulges out toward you)
+  vec3 r = reflect(-v, n); float f = 0.035 + 0.965 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);
+  vec3 env = uEnvOn > 0.5 ? textureCube(tEnv, r).rgb : vec3(0.0);
+  return env * (0.16 + 0.84 * f) + max(env - 0.75, 0.0) * (0.5 + 0.5 * f) + uSunC * pow(max(dot(r, uSunD), 0.0), 900.0) * 6.0 * (0.25 + 0.75 * f);
+}
 // a line's coverage, half width w, at distance d (in the lens's units: its radius is 1), smoothed over a pixel
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
@@ -55,7 +66,8 @@ vec3 glass(vec2 p, float d) {
 void main() {
   vec2 p = vP; float d = length(p), px = 1.0 / max(uR, 1.0);
   vec2 fc = (vClip.xy / vClip.w * 0.5 + 0.5) * uRes;   // (where on the screen, in the same pixels as the axis)
-  vec3 col = glass(p, d);
+  vec3 col = glass(p, d), mr = mirror(p);
+  col = col * 0.55 + mr;   // (the reflection's what lights the glass up: the old painted highlight kept faint under it)
   if (uDark < 0.5) {
     // the picture: the world as it lies along the scope's axis (uAx, where that points on the screen), magnified, seen
     // through the eyepiece wherever that is: an eye off the axis sees the picture and the reticle together slide
@@ -83,13 +95,18 @@ void main() {
     // the tube's shadow, closing in from where your eye's off its axis, and the glass darkening to its rim; where the
     // picture's shut off, the glass itself is what you see
     col *= 1.0 - 0.3 * smoothstep(0.7, 1.0, d);
-    col = mix(gl, col, 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55)));
+    col = mix(gl, col + mr * 0.12, 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55)));   // (your eye right up to it, faintly still)
   }
   gl_FragColor = vec4(col, 1.0);
 }`;
-const LENS_VERT = 'uniform float uLR; varying vec2 vP; varying vec4 vClip; void main() { vP = position.xy / uLR; vClip = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = vClip; }';
+const LENS_VERT = 'uniform float uLR; varying vec2 vP; varying vec4 vClip; varying vec3 vW, vN, vT, vB; void main() { vP = position.xy / uLR; vW = (modelMatrix * vec4(position, 1.0)).xyz; mat3 m = mat3(modelMatrix); vN = m * vec3(0.0, 0.0, 1.0); vT = m * vec3(1.0, 0.0, 0.0); vB = m * vec3(0.0, 1.0, 0.0); vClip = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = vClip; }';
+// the world round the gun for every eyepiece to reflect (mirror): a little cube map from your eye, one face of it
+// drawn again each frame while a scope's in your hands in first person (so it's never more than six frames old), with
+// you left out of it; and the sun's (or moon's) way and light for its glint
+const ENV_SIZE = 64, ENV = { rt: new THREE.WebGLCubeRenderTarget(ENV_SIZE, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter }), cam: null, face: 0, on: false };
+const ENV_U = { tEnv: { value: ENV.rt.texture }, uEnvOn: { value: 0 }, uSunD: { value: new THREE.Vector3(0, 1, 0) }, uSunC: { value: new THREE.Color() } };
 const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, fragmentShader: LENS_FRAG, side: THREE.DoubleSide,
-  uniforms: { tS: { value: null }, uLR: { value: 1 }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 1 }, uOff: { value: new THREE.Vector2() }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) }, uRI: { value: 100 } } });
+  uniforms: { ...ENV_U, tS: { value: null }, uLR: { value: 1 }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 1 }, uOff: { value: new THREE.Vector2() }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) }, uRI: { value: 100 } } });
 // A holographic sight's reticle and a red dot's dot as they really are: an image focused out at infinity, seen only
 // through the sight's window and only looking along it. Each sight has a pane just inside its window (reticleOn) whose
 // shader works out, for each point of the pane, which way your eye looks through it; the reticle's there (out along the
@@ -166,6 +183,7 @@ export function scopePrep() {
   let lens = null; if (on) S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; });
   if (LENS.on && LENS.on !== lens) { LENS.on.material = glassMat(LENS.on.userData.lens); LENS.on = null; }
   SC.on = false; if (!lens) return;
+  envStep();
   R.getDrawingBufferSize(_sz); const prev = R.getRenderTarget(), ac = R.autoClear;
   if (scopeLens(S, lens, _sz.x, _sz.y, _sz.y / 2 / Math.tan(FP_CAM.fov * Math.PI / 360))) SC.on = true;
   R.autoClear = ac; R.setRenderTarget(prev);
@@ -180,6 +198,18 @@ export function scopePass() {
   R.autoClear = ac; R.setRenderTarget(prev);
 }
 
+// one face of the reflected world drawn again, from your eye (a whole cube the first time)
+function envStep() {
+  if (!ENV.cam) { ENV.cam = new THREE.CubeCamera(0.1, 120, ENV.rt); scene.add(ENV.cam); }
+  ENV.cam.position.copy(FP_CAM.position); ENV.cam.updateMatrixWorld(true);
+  const pv = PM.g.visible, sh = R.shadowMap.autoUpdate, ac = R.autoClear, prev = R.getRenderTarget(), am = [SPRITE_AIM.x, SPRITE_AIM.y, SPRITE_AIM.z, SPRITE_AIM.w];
+  PM.g.visible = false; R.shadowMap.autoUpdate = false; R.autoClear = true; SPRITE_AIM.set(0.5, 0.5, 0, 0);   // (no particles thinned out of it)
+  ENV_U.tEnv.value = null;   // (and no other scope's glass, on the gun rack, reading the cube as it's drawn)
+  if (!ENV.on) { ENV.cam.update(R, scene); ENV.on = true; }
+  else { const f = ENV.face = (ENV.face + 1) % 6; R.setRenderTarget(ENV.rt, f); R.render(scene, ENV.cam.children[f]); }
+  PM.g.visible = pv; R.shadowMap.autoUpdate = sh; R.autoClear = ac; R.setRenderTarget(prev); SPRITE_AIM.set(...am); ENV_U.tEnv.value = ENV.rt.texture;
+  ENV_U.uEnvOn.value = 1; ENV_U.uSunD.value.copy(sun.position).normalize(); ENV_U.uSunC.value.copy(sun.color).multiplyScalar(Math.min(2, sun.intensity));
+}
 function scopeLens(S, lens, W, H, f) {
   const c = FP_CAM;
   // the eyepiece on the screen: where its middle is and how big it looks from your eye (nothing if it's turned away)

@@ -386,8 +386,9 @@ const FP_AK = { flip: 14, back: 2, run: { swing: 0.075, lift: 0.028, tip: 0.3, t
 // than seen end on down its back
 const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
-// h up), angled across you (y), canted (r) and tipped only a little down (p)
-const FP_SPRINT = { long: { p: 0.1, y: 0.3, r: 0.28, x: 0.0, h: 0.09, z: -0.2 }, hand: { p: 0.18, y: 0.18, r: 0.1, x: 0.02, h: 0.1, z: -0.2 }, ak: { p: 0.04, y: 0, r: 0, x: 0, h: 0.06, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
+// h up), angled a little across you (y), canted over (r) and its muzzle tipped well down (p: a long gun about 27
+// degrees, a handgun about 29), raised to stay in the bottom of the view as it tips
+const FP_SPRINT = { long: { p: 0.48, y: 0.1, r: 0.45, x: 0.03, h: 0.2, z: -0.18 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
 // where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right
 const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03 };
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
@@ -568,8 +569,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up
   if (rd > 0.001) {
     const lg = H.kind === 'long', fk = fpOn() ? FP_SPRINT_BOUNCE : 1, b2 = Math.sin(ph * 2) * fk, b1 = Math.sin(ph) * fk;   // (from your own eyes the gun bounces less: FP_SPRINT_BOUNCE)
-    // (from your own eyes it's drawn in tight against your chest, angled across you and only a little down, still in
-    // the bottom of the view: FP_SPRINT, rather than out and down where it drops from sight)
+    // (from your own eyes it's drawn in tight against your chest, angled across you and muzzle down, still in the
+    // bottom of the view: FP_SPRINT, rather than out and down where it drops from sight)
     const S = fpOn() ? (ak ? FP_SPRINT.ak : FP_SPRINT[lg ? 'long' : 'hand']) : null;
     if (S) { pitch += rd * (S.p + 0.05 * b2); yaw += rd * (S.y + 0.05 * b1); roll += rd * S.r; ox -= rd * S.x; oy += rd * (S.h - 0.012 * b2); oz -= rd * S.z; }
     else {

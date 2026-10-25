@@ -107,6 +107,9 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | | | I | Weapon stats | | |
 | | | Y | Inspect your weapon | | |
 
+The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
+with a mod that adds a setting).
+
 Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
@@ -161,7 +164,9 @@ with the scope at your eye its own magnified view is seen through that glass:
 the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
 where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
-off it (at the hip you see the eyepiece's dark coated glass, with the sky and a curved highlight in it, and the
+off it (at the hip you see the eyepiece's dark coated glass, really reflecting the world round you off its curved face: the
+sky, the house, trees, a lamp or a flashlight's glow, more of it the more glancing your look, and a hard glint of the
+sun or moon where it lines up, and the
 picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
 away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
@@ -181,7 +186,9 @@ at. Coming over a fence or a sill, the view turns smoothly to where you're looki
 Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
 turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
-sights; a sprint bobs no harder than a walk). Your arms and the gun are carried by the view itself, the way
+sights; a sprint bobs no harder than a walk). Breaking into a sprint, the gun comes down on a spring rather than
+dropping at once: it starts lowering gently, swings down through the middle and settles carried low in the bottom of
+the view, canted over with its muzzle tipped well down, and comes back up the same way, a touch quicker. Your arms and the gun are carried by the view itself, the way
 a shooter's arms are: they're placed against this frame's view (not the one before, which left them trailing a frame
 behind as you walked and turned), the chest's lean and roll as you walk and sidestep are taken off them, and their
 sway turns about your grip, so walking, strafing and turning never leave them lagging or jogging behind the view;
