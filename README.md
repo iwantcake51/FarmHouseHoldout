@@ -356,15 +356,29 @@ browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,
 one-hit kills, waves off, and the game's speed (¼× to 2×). Its sections cover you and your supplies, health and every
 status effect, weapons (any of them, turning in 3D with its numbers, kept in view at the top as you scroll down its
-upgrades, rounds and mods so you see each part go on), your character (every part of your look: skin, face, eyes, hair and beard, hat, top, trousers, shoes,
-gloves, wrists, pack and holster, each with its stock colours or any colour at all, shown on a copy of you in a little
-studio whose camera glides in to whatever you're changing, and kept for new runs if you like), skills and perks, curses
+upgrades, rounds and mods so you see each part go on), your character (see below), skills and perks, curses
 (taken, lifted, or a sacrifice promised for the next hand), zombies (their minds hunting, passive or switched off, and
 their speed, damage and health; any kind in any outfit sent in at the fence or right in front of you; their armour
 cracked or broken off; the waves) and the world (the camera, the hour, fog). Under the camera there's a free camera
 as well, to fly about and watch the farm from anywhere: W A S D where it looks, Space and Ctrl up and down, Shift
 faster, the wheel its speed, and every zombie shown wherever it is; your character stands where you left them, facing the way they were, however the camera turns; N goes back. The switches are remembered between visits;
 everything else acts on the run you're in.
+
+The character section changes every part of your look, built on you as you click: skin, face (eye colour, one
+for each eye if you like, eye shape, brows, nose, mouth, scars and marks, and how the face sits), hair and facial
+hair, hat, top, trousers, shoes, gloves, wrists, pack, bedroll and holster, each with its stock colours or any colour
+at all. It opens on the whole of you: a tile for each part with its colours and what it is, a click away from changing
+it. Each part's choices are grouped on cards of their own (a face's colours, its features, its marks, its proportions,
+the sliders saying how far along they are), with a re-roll for that part beside its name. A copy of you stands in a
+little studio above, its camera gliding in to whatever you're changing, and shows you in just your own clothes, so
+nothing you change is hidden under the armour's canvas jacket, boots or gloves; the Upgrade gear switch on it puts
+them back on. Every eye shape has its white, an iris in the eye's colour and a pupil, so the colour you pick is the
+iris's. The mouth always shows, drawn over stubble or a beard. A thermal under a work shirt, flannel, tee or polo has
+its own long sleeves in its own colour out from under the shirt's, and shows at the neck; a top that isn't worn over
+one (a hoodie, a long-sleeve polo, a suit) leaves it off, and it comes back with a top that is. A suit brings its
+trousers and dress shoes, which follow its colour while they match it and go when it does. Your shirt, sleeves and
+torso always share one colour, even with the game paused (the blood that can stain you is drawn on copies that wear
+the very same colour). The look can be kept for new runs.
 
 ### How the code fits together
 

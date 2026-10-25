@@ -41,8 +41,8 @@ export const LOOKS = {
     // the suit, rare (SUIT_ODDS): charcoal, navy, black, grey, brown or taupe, with its trousers to match
     suit: [0x2a2c30, 0x2a2c30, 0x1e2434, 0x18181a, 0x4a4a4e, 0x4a3a2a, 0x5a5448]
   },
-  // under a flannel, a work shirt or a tee: a thermal (white most often, cream, oatmeal, heather grey, charcoal, or the
-  // red of long johns), showing at the open collar; its long sleeves are in the shirt's colour (buildLook)
+  // under a flannel, a work shirt, a tee or a polo: a thermal (white most often, cream, oatmeal, heather grey, charcoal,
+  // or the red of long johns), its long sleeves out from under the shirt's and showing at the neck (buildLook)
   under: [0xe6e2d8, 0xe6e2d8, 0xe6e2d8, 0xd8cfb8, 0xc8bca0, 0x8a8a86, 0x3a3a3c, 0x7a2a24],
   underOdds: { flannel: 0.5, work: 0.35, tee: 0.22, polo: 0.08 },
   // what a suit comes with: a dress shirt (white, pale blue, pale pink, grey), a tie (red, navy, black, maroon, gold,
@@ -159,6 +159,9 @@ function dealWrists() {
   }
   return w;
 }
+// the thermal under the top (0: none): only the tops that are worn over one (LOOKS.underOdds) show it, so one set under a
+// tee stays dealt when you try a hoodie on, and comes back with the tee
+export const thermalOf = L => L.under && LOOKS.underOdds[L.top] !== undefined ? L.under : 0;
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)
 export function shirtColours(jacket) {
   const c = jacket ? 0x7a6a4a : (LOOK.cur ? LOOK.cur.topCol : 0x4e5a3c);
@@ -212,6 +215,18 @@ export function faceMood(H, a, w = 0, h = 0, k = 0) {
   m.position.y = m.userData.y0 - WORRY.jaw * o;
   m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o) * (1 + (HURT_FX.mouthW - 1) * h), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o) * (1 + (HURT_FX.mouthH - 1) * h), 1);
 }
+// how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
+// jaw, a goatee), the line and its corners hw either side of x and as far as h below it (the grim chin's crease)
+const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
+function mouthOver(hair, x, y, hw, h) {
+  let z = MOUTH_Z.face;
+  for (const c of hair) {
+    if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+    c.updateMatrix(); _mb.copy(c.geometry.boundingBox).applyMatrix4(c.matrix);
+    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y - h && _mb.min.y < y + 0.012) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
+  }
+  return z;
+}
 export function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
   const hair = lm(L.hair), beard = lm(L.beardCol), skinDk = PM.mats.skinDk, shirt = PM.mats.shirt, shirtDk = PM.mats.shirtDk;
@@ -224,8 +239,9 @@ export function buildLook(L) {
       box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = -s * 0.22;
       [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * s * 0.036, 0));
     }
-    else if (F.eye === 'beady') { box(H, 0.026, 0.03, 0.012, eyeM, x, y, 0.162); box(H, 0.012, 0.016, 0.012, dark, x - s * 0.003, y, 0.165); }   // small dark eyes, no whites
-    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.022, 0.016, 0.012, dark, x - s * 0.004, y, 0.165); }   // a squint
+    // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
+    else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }
+    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.016, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
     else if (F.eye === 'droopy') {   // the outer corners lower, the lids heavy
       const e = box(H, 0.05, 0.026, 0.012, white, x, y, 0.162); e.rotation.z = s * -0.22; box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.013, 0.012, dark, x - s * 0.004, y, 0.167);
       box(H, 0.058, 0.012, 0.014, PM.mats.skinDk, x, y + 0.012, 0.169).rotation.z = s * -0.22;
@@ -235,7 +251,7 @@ export function buildLook(L) {
     }
     else {
       const h = F.eye === 'wide' ? 0.036 : 0.03;
-      box(H, 0.05, h, 0.012, white, x, y, 0.162); box(H, 0.024, h - 0.002, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.012, h * 0.5, 0.012, dark, x - s * 0.004, y, 0.167);
+      box(H, 0.05, h, 0.012, white, x, y, 0.162); box(H, 0.026, h - 0.002, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, h * 0.45, 0.012, dark, x - s * 0.004, y, 0.167);
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) box(H, 0.046, 0.007, 0.012, PM.mats.skinDk, x, y - 0.026, 0.163);
@@ -298,7 +314,7 @@ export function buildLook(L) {
     }
   }
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
-  const stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
+  const nb = H.children.length, stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
   const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
   const tache = (w, y) => box(H, w, 0.026, 0.026, beard, 0, y ?? -0.072, 0.174);
   const chin = (w, h, y) => box(H, w, h, 0.032, beard, 0, y, 0.168);
@@ -318,8 +334,9 @@ export function buildLook(L) {
   else if (bd === 'sideburns') [-1, 1].forEach(s => box(H, 0.014, 0.1, 0.06, beard, s * 0.166, -0.02, 0.07));
   // the mouth: no lips, just the line of it, dark and all but flush with the face (in front of a full beard): plain,
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
-  const mY = -0.098, mZ = bd === 'full' || bd === 'longBeard' ? 0.187 : 0.1615, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
+  const mY = -0.098, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
   const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0, n2 = H.children.length;
+  const mZ = mouthOver(H.children.slice(nb, n2), mx, mY, mw / 2 + 0.02, 0.03);
   box(H, mw, mh, 0.004, mouthM, mx, mY, mZ);
   if (F.mouth === 'frown') [-1, 1].forEach(s => box(H, 0.012, 0.006, 0.004, mouthM, s * (mw / 2 + 0.003), mY - 0.005, mZ).rotation.z = s * 0.6);
   else if (F.mouth === 'smirk') box(H, 0.016, 0.006, 0.004, mouthM, mx + F.side * (mw / 2 + 0.005), mY + 0.004, mZ).rotation.z = F.side * 0.55;
@@ -357,19 +374,19 @@ export function buildLook(L) {
     box(a, 0.156, 0.156, len, shirt, 0, 0, -0.03 + len / 2);
     if (cuff) box(a, cuff[0], cuff[0], cuff[1], shirtDk, 0, 0, -0.03 + len - cuff[1] / 2 + cuff[2]);
   });
-  // a thermal under it: long sleeves on to the wrist (WRIST) under the shirt's, in the shirt's own colour so the sleeves
-  // read as the shirt's, with a ribbed cuff and a few rows of the knit; the thermal itself shows at the open collar, a
-  // henley's two buttons in it
-  const WRIST = 0.43;
-  if (L.under) {
-    const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
+  // a thermal under it: its own long sleeves on to the wrist (WRIST) out from under the shirt's, in its own colour, with a
+  // ribbed cuff and a few rows of the knit; and it shows at the neck: at the open collar of a work shirt or a flannel
+  // (a henley's two buttons in it), or as a band above a tee's crew neck or a polo's collar
+  const WRIST = 0.43, under = thermalOf(L);
+  if (under) {
+    const th = lm(under), thDk = lm(shade(under, 0.84));
     [LOOK.g.armL, LOOK.g.armR].forEach(a => {
-      box(a, 0.15, 0.15, WRIST + 0.024, shirt, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
-      box(a, 0.153, 0.153, 0.035, shirtDk, 0, 0, WRIST - 0.018);
-      [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, shirtDk, 0, 0, z));
+      box(a, 0.15, 0.15, WRIST + 0.024, th, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
+      box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
+      [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
     });
     if (L.top === 'work' || L.top === 'flannel') { box(TO, 0.1, 0.06, 0.008, th, 0, 0.27, 0.152); [0.282, 0.258].forEach(y => box(TO, 0.012, 0.012, 0.006, thDk, 0, y, 0.158)); }
-    else box(TO, 0.2, 0.014, 0.05, th, 0, 0.306, 0.13);   // a band of it above a crew neck or a polo's collar
+    else box(TO, 0.21, 0.018, 0.058, th, 0, 0.312, 0.128);   // (up out of the collar, its top just over the shoulders)
   }
   if (L.top === 'work' || L.top === 'flannel') {
     [-1, 1].forEach(s => box(TO, 0.12, 0.04, 0.08, shirtDk, s * 0.07, 0.295, 0.125).rotation.y = s * 0.35);
@@ -461,7 +478,7 @@ const WRIST_Z = 0.405;
 let iceMat = null;
 function buildWrists(L) {
   const w = L.wrist; if (!w) return;
-  const long = !!L.under || ['hoodie', 'poloLong', 'suit'].includes(L.top), W0 = long ? 0.176 : 0.15, top = W0 / 2, z = WRIST_Z;
+  const long = !!thermalOf(L) || ['hoodie', 'poloLong', 'suit'].includes(L.top), W0 = long ? 0.176 : 0.15, top = W0 / 2, z = WRIST_Z;
   for (const s of ['L', 'R']) {
     const it = w[s], a = LOOK.g['arm' + s], out = s === 'L' ? -1 : 1; if (!it) continue;
     const band = (wd, len, c, dz) => box(a, wd, wd, len, lm(c), 0, 0, z + (dz || 0));

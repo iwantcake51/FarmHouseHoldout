@@ -147,26 +147,51 @@
 .chFigNav button{padding:6px 9px;border:0;border-radius:3px;background:none;color:var(--dim);font:600 11px var(--f-ui);text-align:left;cursor:pointer;transition:background .15s,color .15s}
 .chFigNav button:hover{color:var(--ink);background:rgba(236,230,216,.06)}
 .chFigNav button.on{color:#1a120c;background:var(--orange)}
-.chLook{padding:6px 10px 8px}
-.chLk{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(236,230,216,.06)}
+/* on the view: the upgrade gear switch, and how to move it */
+.chFigTools{position:absolute;left:10px;right:126px;bottom:9px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}
+.chFigTools>*{pointer-events:auto}
+.chFigTools .chLkT{background:rgba(12,12,12,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.chFigTools span{color:rgba(236,230,216,.45);font-size:10px;pointer-events:none}
+/* the part's name with its re-roll beside it, then its groups, each on a card of its own */
+.chLkHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chLkHead .chBtn{flex:none;margin-top:8px}
+.chLook{display:grid;gap:8px}
+.chLkG{padding:3px 12px 5px;border:1px solid var(--chLine);border-radius:5px;background:linear-gradient(180deg,rgba(236,230,216,.05),rgba(236,230,216,.02))}
+.chLkG h5{margin:8px 0 3px;color:#e6d9c4;font:700 9.5px var(--f-ui);letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.chLkG .chNote{margin:2px 0 6px}
+.chLk{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(236,230,216,.06)}
 .chLk:last-child{border-bottom:0}
 .chLkL{color:#d4cebf;font-size:11px}
 .chLkO{display:flex;flex-wrap:wrap;gap:3px}
-.chLkO button{padding:3px 8px;border:1px solid rgba(236,230,216,.14);border-radius:3px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.chLkO button{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid rgba(236,230,216,.14);border-radius:4px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer;transition:background .12s,border-color .12s,color .12s,box-shadow .12s}
 .chLkO button:hover{border-color:rgba(var(--acc),.6);color:var(--ink)}
-.chLkO button.on{background:rgba(var(--acc),.22);border-color:var(--orange);color:var(--ink)}
+.chLkO button.on{background:rgba(var(--acc),.22);border-color:var(--orange);color:var(--ink);box-shadow:0 0 0 1px rgba(var(--acc),.35)}
 .chLkO button.re .chIco{width:12px;height:12px;vertical-align:-2px}
 /* swatches: round chips of colour, the picked one ringed; the last opens any colour at all */
-.chLkO.sw{gap:4px}
-.chLkO.sw button,.chLkO.sw .any{position:relative;width:20px;height:20px;padding:0;border-radius:50%;border:2px solid rgba(0,0,0,.55);background:var(--c,#888);box-shadow:0 0 0 1px rgba(236,230,216,.18);cursor:pointer}
+.chLkO.sw{gap:5px}
+.chLkO.sw button,.chLkO.sw .any{position:relative;width:22px;height:22px;padding:0;border-radius:50%;border:2px solid rgba(0,0,0,.55);background:var(--c,#888);box-shadow:0 0 0 1px rgba(236,230,216,.18);cursor:pointer}
+.chLkO.sw button:hover,.chLkO.sw .any:hover{transform:scale(1.12)}
+.chLkO.sw button,.chLkO.sw .any{transition:transform .12s,box-shadow .12s}
 .chLkO.sw button.on,.chLkO.sw .any.on{box-shadow:0 0 0 2px var(--orange),0 0 8px rgba(var(--acc),.6)}
-.chLkO.sw button.txt{width:auto;height:20px;padding:0 8px;border-radius:10px;background:rgba(236,230,216,.06);color:#c9c3b5;font:600 10px var(--f-ui)}
+.chLkO.sw button.txt{width:auto;height:22px;padding:0 9px;border-radius:11px;background:rgba(236,230,216,.06);color:#c9c3b5;font:600 10px var(--f-ui)}
 .chLkO.sw button.none{display:grid;place-items:center;background:rgba(236,230,216,.06)}
 .chLkO.sw button.none .chIco{width:10px;height:10px;fill:var(--dim)}
 .chLkO.sw .any{background:conic-gradient(#e2412c,#e8b84a,#6fd07a,#5f9ee8,#a585f4,#e2412c);overflow:hidden}
 .chLkO.sw .any.on{background:var(--c)}
 .chLkO.sw .any input{position:absolute;inset:-6px;opacity:0;cursor:pointer}
 .chLk input[type=range]{width:100%;accent-color:var(--orange);cursor:pointer}
+.chLkR{display:grid;grid-template-columns:1fr 38px;gap:8px;align-items:center}
+.chLkR output{text-align:right;color:var(--ink);font:700 11px var(--f-num);font-variant-numeric:tabular-nums}
+/* little dots of colour: a part's colours on the whole of you, a glove's colourway */
+.dots{display:inline-flex}
+.dots i{width:12px;height:12px;margin-right:-3px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px rgba(14,14,14,.9),0 0 0 2.5px rgba(236,230,216,.14)}
+.dots i:last-child{margin-right:0}
+/* the whole of you: a tile a part, its colours and what it is; click one to change it */
+.chLkSum{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
+.chLkSum button{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;padding:9px 11px;border:1px solid var(--chLine);border-radius:5px;background:var(--chCard);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.chLkSum button:hover{border-color:rgba(var(--acc),.6);background:rgba(var(--acc),.08);transform:translateY(-1px)}
+.chLkSum b{font-size:12px;font-weight:700}
+.chLkSum em{grid-column:1/-1;color:var(--dim);font-size:10.5px;font-style:normal;line-height:1.3}
 .chLkTs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0}
 .chLkT{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 5px;border:1px solid rgba(236,230,216,.14);border-radius:12px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer}
 .chLkT .sw{position:relative;width:22px;height:12px;border-radius:6px;background:rgba(236,230,216,.16);transition:background .15s}
@@ -215,6 +240,7 @@
   .chViewSlot,.chViewSlot.fig{grid-template-columns:1fr}
   .chFigNav{flex-direction:row;flex-wrap:wrap;border-left:0;border-top:1px solid var(--chLine)}
   .chLk{grid-template-columns:1fr}
+  .chFigTools{right:10px;bottom:auto;top:262px}
   .chSl{grid-template-columns:1fr 48px}.chSl input{grid-column:1/-1;grid-row:2}
   .chWc{border-left:0;border-top:1px solid var(--chLine)}
 }

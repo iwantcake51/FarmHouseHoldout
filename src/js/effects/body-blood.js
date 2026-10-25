@@ -160,6 +160,10 @@ function binStains(list) { list.forEach(([, m]) => stainBin.push(m)); stainBinT 
 const BLOOD_U = stainU(7.5);
 const charBlood = [];   // [original material, the copy on you]
 let charBloodDirty = true, bloodShown = 0, bloodWas = 0, charBloodN = 0, charBloodChk = 0;
+// your stained copies wear the very colour of what they're copies of, not a copy of it: re-dye your shirt (a new look in
+// the cheat menu, the armour's jacket going on) and the stained torso changes with the sleeves at once, even with the
+// game paused, when nothing runs to sync them
+function shareColour(m, orig) { m.color = orig.color; if (orig.emissive) m.emissive = orig.emissive; }
 function buildCharBlood() {
   charBloodDirty = false;
   binStains(charBlood); charBlood.length = 0;   // (let go once the new ones are drawn: binStains, below)
@@ -169,7 +173,7 @@ function buildCharBlood() {
   const walk = (o, part, zone) => {
     if (held.has(o) || o.userData.slot !== undefined || o.userData.isOutline) return;
     if (zones.has(o)) { part = o; zone = zones.get(o); }
-    if (stainable(o)) { const orig = o.material.userData.bloodOf || o.material, m = stainMat(orig, o, part, BLOOD_U, 0, zone); o.material = m; charBlood.push([orig, m]); }
+    if (stainable(o)) { const orig = o.material.userData.bloodOf || o.material, m = stainMat(orig, o, part, BLOOD_U, 0, zone); shareColour(m, orig); o.material = m; charBlood.push([orig, m]); }
     o.children.forEach(c => walk(c, part, zone));
   };
   // the upper body's own pieces (vest, pack, pouches) stain in the chest's frame, the hips' in the left leg's
@@ -177,8 +181,7 @@ function buildCharBlood() {
   charBloodN = 0; PM.g.traverse(o => { if (o.isMesh) charBloodN++; });
 }
 // each frame: the stain eases out to how bloody you are (so a hit spreads it rather than popping it on) and draws
-// back as old splashes fade, fresh blood brightens it, and the copies keep the colour their originals have now (your
-// shirt, skin and pack are re-dyed each run). Anything put on you since (another plank on the pack) is picked up
+// back as old splashes fade and fresh blood brightens it (the copies share their originals' colours: shareColour). Anything put on you since (another plank on the pack) is picked up
 // within half a second.
 export function updateCharBlood(rdt, dt) {
   charBloodChk += rdt;
@@ -189,7 +192,6 @@ export function updateCharBlood(rdt, dt) {
   bloodWas = b;
   bloodShown += (b - bloodShown) * Math.min(1, rdt * (b > bloodShown ? 2.2 : BLOOD_BACK));
   BLOOD_U.uBlood.value = bloodShown;
-  syncStains(charBlood);
 }
 const BLOOD_BACK = 6;   // how quickly a stain follows its blood fading (the fade itself is BLOOD_FADE)
 function syncStains(list) { for (const [o, m] of list) { if (!m.color.equals(o.color)) m.color.copy(o.color); if (o.emissive && !m.emissive.equals(o.emissive)) m.emissive.copy(o.emissive); } }

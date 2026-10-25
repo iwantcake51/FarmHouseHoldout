@@ -7,7 +7,7 @@
 import { basic, lam } from '../core/shaders.js';
 import { box, finePieces, mergeInto, trimShadows, unfight } from '../core/geometry.js';
 import { bandPouch2, KNEE_Y, PM } from './player.js';
-import { GLOVE_COLS, HAIR_W, LOOK, lookMats, PBOOT, shade } from './look.js';
+import { GLOVE_COLS, HAIR_W, LOOK, lookMats, PBOOT, shade, shirtColours } from './look.js';
 import { setCharBloodDirty } from '../effects/body-blood.js';
 import { S, setS, setW8, T, W8 } from '../game/run-state.js';
 import { GM } from '../weapons/gun-materials.js';
@@ -231,6 +231,17 @@ export function buildGear() {
   const hatL = (LOOK.cur || {}).hat;
   LOOK.g.hat.visible = !S.stubborn && !(T('night') && hatL === 'cowboy'); LOOK.g.hat.rotation.y = T('night') && hatL === 'cap' ? Math.PI : 0;
   gearPieces();
+}
+// run fn with you as your look alone: every item your upgrades put on you taken off (the jacket's canvas off your
+// shirt, your own shoes and hat back on), and all of it put back after. The cheat menu's studio copies you like this,
+// so the clothes you're changing aren't hidden under the gear (ui/gun-view.js)
+export function bareLook(fn) {
+  const was = gearParts.map(g => g.visible), boots = PBOOT.map(m => m.visible), H = LOOK.g.hat, hat = [H.visible, H.rotation.y], pouch = bandPouch2.visible;
+  gearParts.forEach(g => { g.visible = false; }); PBOOT.forEach(m => { m.visible = true; }); H.visible = true; H.rotation.y = 0; bandPouch2.visible = false; shirtColours(false);
+  try { return fn(); } finally {
+    gearParts.forEach((g, k) => { g.visible = was[k]; }); PBOOT.forEach((m, k) => { m.visible = boots[k]; }); H.visible = hat[0]; H.rotation.y = hat[1]; bandPouch2.visible = pouch;
+    shirtColours(T('armor') >= 1);
+  }
 }
 // how high round the head the night vision's band goes under a hat that stays on: just below its edge
 const NV_UNDER = { cap: 0.089, beanie: 0.066 };

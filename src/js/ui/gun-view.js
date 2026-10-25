@@ -8,6 +8,7 @@ import { V3 } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { binModel } from '../core/geometry.js';
 import { PM } from '../player/player.js';
+import { bareLook } from '../player/gear.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
@@ -29,10 +30,12 @@ const angWrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 export const gunView = document.createElement('canvas');
 gunView.className = 'chView'; gunView.setAttribute('aria-label', 'Drag to look round it, scroll to zoom');
 
-// the model's own colours without the farm's light map (core/shaders.js: lit), so it looks the same by day or night
+// the model's own colours without the farm's light map (core/shaders.js: lit), so it looks the same by day or night;
+// a blood-stained copy is drawn as what it's a copy of (effects/body-blood.js), which has the colour as it is now
 const plainOf = new Map();
 function plain(m) {
   if (Array.isArray(m)) return m.map(plain);
+  if (m.userData && m.userData.bloodOf) m = m.userData.bloodOf;
   let p = plainOf.get(m); if (p) { if (m.color) p.color.copy(m.color); return p; }   // (your skin and shirt are recoloured in place: player/look.js)
   const o = { color: m.color ? m.color.clone() : new THREE.Color(0xffffff), map: m.map || null, vertexColors: !!m.vertexColors, transparent: !!m.transparent, opacity: m.opacity ?? 1, side: m.side };
   if (m.isMeshBasicMaterial) p = new THREE.MeshBasicMaterial(o);
@@ -106,7 +109,7 @@ function copyPlain(o) {
 // back (m), from which way round (0: straight in front of you) and how far above (radians)
 const FOCUS = {
   body: { at: [0, 0.82, 0], dist: 3.4, yaw: 0.55, pitch: 0.1 },
-  face: { on: 'head', at: [0, 0.02, 0.1], dist: 1.2, yaw: 0.12, pitch: 0.04 },
+  face: { on: 'head', at: [0, 0.0, 0.1], dist: 0.95, yaw: 0.12, pitch: 0.04 },
   hair: { on: 'head', at: [0, 0.08, 0], dist: 1.25, yaw: 0.95, pitch: 0.22 },
   hat: { on: 'head', at: [0, 0.16, 0], dist: 1.3, yaw: 0.6, pitch: 0.38 },
   top: { on: 'torso', at: [0, 0.05, 0.05], dist: 1.75, yaw: 0.35, pitch: 0.08 },
@@ -115,15 +118,17 @@ const FOCUS = {
   hands: { on: 'armR', at: [0, 0, 0.5], dist: 0.95, yaw: 0.9, pitch: 0.25 },
   gear: { on: 'torso', at: [0, 0.0, -0.18], dist: 2.6, yaw: Math.PI - 0.6, pitch: 0.22 }
 };
-// show you, the camera headed for view `key`; fresh: copy you again (your look's just changed)
-export function showFigure(key, fresh) {
+// show you, the camera headed for view `key`; fresh: copy you again (your look's just changed); gear: with what your
+// upgrades put on you (the armour's jacket, boots, gloves, the helmet...), or (false) in just the clothes you're changing
+export function showFigure(key, fresh, gear) {
   if (!gvR) setup();
   const F = FOCUS[key] || FOCUS.body, was = fig;
   if (fresh || !fig) {
     dropStudio();
-    figPart.clear(); PM.g.updateMatrixWorld(true);
+    figPart.clear();
     // (in first person your head's hidden: game/view-cam.js; the copy has it as ever)
-    const hv = PM.head.visible; PM.head.visible = true; const c = copyPlain(PM.g); PM.head.visible = hv;
+    const hv = PM.head.visible; PM.head.visible = true;
+    const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = gear ? copy() : bareLook(copy); PM.head.visible = hv;
     c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); gvPivot.add(c); gvModel = c; gvSig = '';
     c.updateMatrixWorld(true);
   }
