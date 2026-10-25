@@ -55,6 +55,9 @@ const AKM_KIT = {
   seam: [0.7478, 0.8839, 0.8228, 0.9238]
 };
 
+// where the hunting rifle's scope rings clamp onto its rail (z: the plain scope's and the big one's): both on the
+// receiver ahead of the ejection port and the bolt in it, between the scope's eyepiece and its objective bell
+const SCOPE_RINGS = { std: [0.742, 0.855], big: [0.738, 0.885] };
 export const RIFLE_MODELS = {
   // hunting rifle: a Winchester Model 70, traced off a side-on photo. A one-piece walnut stock (a straight comb, a
   // pistol grip and a long slim forend, checkered at the grip and forend, swivels under the butt and forend, a black
@@ -111,9 +114,10 @@ export const RIFLE_MODELS = {
       profile(g, shp([[1.42, 1.15], [1.452, 1.15], [1.452, 1.153], [1.42, 1.153]]), 0.024, B, X, 0);
       { const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, true, -Math.PI / 2, Math.PI), B); hood.rotation.x = Math.PI / 2; hood.position.set(X, 1.155, 1.44); g.add(hood); hood.material.side = THREE.DoubleSide; }
       box(g, 0.003, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
-      notchRear(g, X, 1.163, 0.9, 0.02, 0.012, 0.008, 0.0042, 0.004, B);   // the notch rear sight on the barrel, its blade level with the post's tip
+      // the notch rear sight on the barrel, its blade level with the post's tip (taken off for the rail once a red dot
+      // or a holo goes on: that's what you aim with then)
       // (your eye where your cheek is on the comb, well back from the notch out on the barrel: relief)
-      irons(g, { kind: 'notch', yr: 1.163, rz: 0.9, yf: 1.163, fz: 1.436, relief: 0.46 });
+      if (!sight) { notchRear(g, X, 1.163, 0.9, 0.02, 0.012, 0.008, 0.0042, 0.004, B); irons(g, { kind: 'notch', yr: 1.163, rz: 0.9, yf: 1.163, fz: 1.436, relief: 0.46 }); }
     }
     // ---- the bolt: a polished body in the receiver, the shroud and its safety out the back, the handle out to the
     // right and down to its knob (at BOLT_KNOB). It turns about the bore and runs back and forward (player/hold.js)
@@ -123,11 +127,13 @@ export const RIFLE_MODELS = {
     box(bh, 0.005, 0.01, 0.016, GM.steel, 0, 0.015, -0.032);
     { const arm = box(bh, 0.009, 0.06, 0.012, m.bolt ? GM.steel : GM.metal2, -0.03, -0.025, -0.004); arm.rotation.z = -0.87; }
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 10, 8), m.bolt ? GM.steel : GM.metal2); knob.scale.set(1, 0.95, 1.25); knob.position.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]); knob.castShadow = true; bh.add(knob);
-    // ---- scopes off the bench: the plain one, or the big high-power one, in rings on two bases; the ACOG on a one-piece
-    // picatinny base along the receiver, stepped down over its lower rear bridge (weapons/attachments.js puts it on)
+    // ---- any optic off the bench goes on a one-piece picatinny base along the receiver, stepped down over its lower
+    // rear bridge, as on the other guns: the plain scope or the big high-power one in picatinny rings clamped to it, the
+    // red dot, the holo and the ACOG straight on it (weapons/attachments.js puts those on). The rings sit on the
+    // receiver's front, ahead of the port, never over the bolt (SCOPE_RINGS)
     const big = sight >= 5, scope = sight === 3 || big;
     let top = 1.152;
-    if (sight === 4) {
+    if (sight) {
       const z0 = 0.63, z1 = 0.915, b0 = 1.156, RT = b0 + 0.0105;
       profile(g, shp([[z0, 1.1405], [0.762, 1.1405], [0.768, 1.1478], [z1, 1.1478], [z1, b0 + 0.001], [z0, b0 + 0.001]]), 0.022, B, X, 0.0008);
       xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), z0, z1, GM.rail, 0.0006);
@@ -142,7 +148,16 @@ export const RIFLE_MODELS = {
       cyl(g, ob * 0.86, 0.003, GM.glass, X, sy, z1 + 0.002, 20); cyl(g, oc * 0.94, 0.003, GM.glass, X, sy, z0 - 0.0035, 20);
       { const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); tt.position.set(X, sy + sr + 0.007, (z0 + z1) / 2); g.add(tt);
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
-      [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
+      // each ring: its clamp on the rail (the cross-bolt through it, its nut out on the right), a short neck up to the
+      // ring round the tube, and the cap's screws either side
+      (big ? SCOPE_RINGS.big : SCOPE_RINGS.std).forEach(z => {
+        box(g, 0.0345, 0.007, 0.016, B, X, top + 0.0035, z);
+        cyl(g, 0.0032, 0.04, GM.metal2, X, top + 0.0015, z, 10).rotation.set(0, 0, Math.PI / 2);
+        box(g, 0.006, 0.008, 0.008, GM.metal2, X - 0.021, top + 0.0015, z);
+        box(g, 0.02, sy - sr - top - 0.005, 0.014, B, X, (sy - sr + top + 0.007) / 2, z);
+        ring(g, sr + 0.0045, 0.016, B, X, sy, z);
+        [-1, 1].forEach(sd => box(g, 0.006, 0.006, 0.012, B, X + sd * (sr + 0.006), sy, z));
+      });
       g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.082 };   // (looked down in first person: game/view-cam.js; your eye a little closer in than another gun's scope, its picture fuller)
       lensOn(g, X, sy, z0 - 0.0052, oc * 0.94);   // (the eyepiece's glass you look into: effects/scope-view.js)
     }

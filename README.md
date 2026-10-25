@@ -42,7 +42,10 @@ battle rifle, a machine pistol, a submachine gun, an assault rifle and a light m
 reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades, and change calibres with conversion kits such as AK mags for the
 battle rifle or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
-tune damage, fire rate, recoil and magazine size. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
+tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
+receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
+to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
+rear notch comes off for the rail). A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
