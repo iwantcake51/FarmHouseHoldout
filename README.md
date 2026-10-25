@@ -65,7 +65,10 @@ through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
-leaves a crawler, and a headshot drops them. From wave 4 some turned wearing armour: soldiers in helmets and vests,
+leaves a crawler, and a headshot drops them. Their hitboxes are simple shapes, not the model itself: a round meets a
+zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the
+part under your crosshair (the one your first round goes to) is found against one box per limb, fitted round the limb
+and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
 SWAT in plate carriers, and riot officers whose face shields blunt headshots; builders' hard hats stop a little from
 the start. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
 of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a

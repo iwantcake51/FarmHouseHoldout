@@ -1,7 +1,7 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
 import { $ } from '../core/dom.js';
-import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
 import { thinNear, thinRay } from '../world/thin-walls.js';
@@ -28,7 +28,7 @@ import { hurtZombie, partAt, pickPart, setCritNext, setHeadNext } from '../zombi
 import { explode, flashes } from './explosives.js';
 import { boardsCrossed, shootBoard } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
-import { bloom, setBloom, setLmT } from '../game/state.js';
+import { bloom, setBloom, setLmT, worldT } from '../game/state.js';
 import { aimPt, hasMouse } from '../input/keyboard-mouse.js';
 import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
 import { tStick } from '../input/touch.js';
@@ -179,17 +179,43 @@ export function muzzle(sideSign) {
   if (hasMouse && !tStick.R && past > 0.4) { const d = angDiff(Math.atan2(tx, tz), P.aim); if (Math.abs(d) < 0.7) a = P.aim + d * smooth(clamp((past - 0.4) / 1.2, 0, 1)); }
   return { ox, oz, a };
 }
-const partRay = new THREE.Raycaster(), _pn = new THREE.Vector2();
+// what's under the crosshair (from above; in first person nothing is: game/view-cam.js): the body part of the nearest
+// zombie the line from your eye through it meets. Each part is a box (HITBOX), fitted round the part and all it wears
+// in the part's own frame, so it leans and swings with the limb, refitted every HITBOX.refit seconds (an arm off,
+// armour gone); a zombie whose bounding sphere the line misses isn't looked at at all, and the answer's kept for the
+// rest of the frame (it's asked for more than once)
+const HITBOX = { refit: 0.5, sphere: 1.25, PARTS: ['head', 'torso', 'armL', 'armR', 'legL', 'legR'] };
+const partRay = new THREE.Raycaster(), _pn = new THREE.Vector2(), _hbR = new THREE.Ray(), _hbM = new THREE.Matrix4(), _hbM2 = new THREE.Matrix4(), _hbP = new V3(), _hbC = new V3(), _hbB = new THREE.Box3();
+let ctKey = '', ctHit = null;
+// a part's box in its own frame: round every visible mesh under it
+function partBox(o) {
+  const u = o.userData; if (u.hb && worldT - u.hbT < HITBOX.refit && worldT >= u.hbT) return u.hb;
+  const b = u.hb || (u.hb = new THREE.Box3()); b.makeEmpty(); u.hbT = worldT;
+  o.updateMatrixWorld(true); _hbM.copy(o.matrixWorld).invert();
+  o.traverse(m => { if (!m.isMesh || !m.visible || !m.geometry || m.userData.isOutline) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b.union(_hbB.copy(m.geometry.boundingBox).applyMatrix4(_hbM2.multiplyMatrices(_hbM, m.matrixWorld))); });
+  return b;
+}
 export function cursorTarget() {
   if (!hasMouse || tStick.R || scoped) return null;
+  const key = worldT + ':' + aimSX() + ':' + aimSY(); if (key === ctKey) return ctHit;
   _pn.set(aimSX() / innerWidth * 2 - 1, -(aimSY() / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);   // under the crosshair, which wanders at low health
-  const objs = [];
-  for (const z of zombies) { if (z.dead || z.vis < 0.15) continue; for (const p of ['head', 'torso', 'armL', 'armR', 'legL', 'legR']) if (p === 'torso' || z.limbs[p]) objs.push(z.m[p]); }
-  const hit = partRay.intersectObjects(objs, true)[0]; if (!hit) return null;
-  let o = hit.object; while (o && !o.userData.part) o = o.parent; if (!o) return null;
-  let root = o; while (root.parent && root.parent !== scene) root = root.parent;
-  const z = zombies.find(q => q.m.g === root); if (!z) return null;
-  return { z, part: o.userData.part, x: hit.point.x, y: hit.point.y, zz: hit.point.z };
+  const R0 = partRay.ray; let best = null, bd = Infinity;
+  for (const z of zombies) {
+    if (z.dead || z.vis < 0.15) continue;
+    const sc = z.T.scale || 1; _hbC.set(z.x, 0.9 * sc, z.z);
+    if (R0.distanceSqToPoint(_hbC) > (HITBOX.sphere * sc) ** 2 * (z.crawl ? 2.2 : 1)) continue;   // (the line nowhere near it)
+    for (const p of HITBOX.PARTS) {
+      if (p !== 'torso' && !z.limbs[p]) continue;
+      const o = z.m[p]; if (!o || !o.visible) continue;
+      const b = partBox(o); if (b.isEmpty()) continue;
+      _hbR.copy(R0).applyMatrix4(_hbM.copy(o.matrixWorld).invert());
+      if (!_hbR.intersectBox(b, _hbP)) continue;
+      _hbP.applyMatrix4(o.matrixWorld); const d = _hbP.distanceToSquared(R0.origin);
+      if (d < bd) { bd = d; best = { z, part: o.userData.part || p, x: _hbP.x, y: _hbP.y, zz: _hbP.z }; }
+    }
+  }
+  ctKey = key; ctHit = best;
+  return best;
 }
 // crawlers lie stretched out along the ground, so test their whole body, not just their hips: the nearest point of it
 // on the ray no nearer than tMin (so a crawler that's half behind the muzzle is still hit by its half in front)
