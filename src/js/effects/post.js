@@ -8,9 +8,9 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
-import { cam, hemi, R, scene, sun, viewRect } from '../core/renderer.js';
+import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
-import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
+import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
 import { heatBloom, heatGlowing } from './supp-heat.js';
 import { batchSprites } from './sprite-batch.js';
@@ -180,7 +180,10 @@ void main() {
   if (uMist.w > 0.0) { vec4 m = mistOf(vUv, viewD(vUv)); c = mix(c, m.rgb, m.a) + mGlow * (1.0 - m.a); }
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
+  gl_FragDepth = texture2D(tDepth, vUv).r;   // (the scene's depth, for what's drawn over the fog to be hidden behind it)
 }`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+// (the composite writes the scene's depth with its colour, whatever's there: depth tested, as only then is it written)
+Object.assign(compMat, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
 const psScene = new THREE.Scene(); psScene.add(psQuad);
 const psCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -236,7 +239,12 @@ export function renderFrame() {
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;
+  // in a fog round the particles and a sight's reticle are left out of the scene and drawn over the fog afterwards
+  // (OVER_LAYER), hidden behind what's nearer by the scene's own depth, so the fog behind them isn't laid over them
+  const over = MIST.k > 0.001 && cam.layers.isEnabled(OVER_LAYER);
+  if (over) cam.layers.disable(OVER_LAYER);
   R.setRenderTarget(PS_RT.sc); R.render(scene, cam);
+  if (over) cam.layers.enable(OVER_LAYER);
   R.autoClear = true;
   { const now = performance.now(), dt = POST.aoT ? Math.min(0.1, (now - POST.aoT) / 1000) : 0; POST.aoT = now; const want = AO.n[POST.q] && SET.ao === 'on' ? 1 : 0; POST.aoK += clamp(want - POST.aoK, -dt * AO.fade, dt * AO.fade); }
   const ps = cam.isPerspectiveCamera ? 1 : 0, nf = [cam.near, cam.far, ps], sc = PS_RT.sc, aoN = POST.aoK > 0.001 ? AO.n[POST.q] || AO.n[1] : 0;
@@ -275,5 +283,11 @@ export function renderFrame() {
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)
   if (scene.fog) { U.uFogN.value = scene.fog.near; U.uFogF.value = scene.fog.far; }
   psPass(compMat, prev);
+  if (over) {
+    const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate;
+    cam.layers.set(OVER_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.autoClear = false;
+    R.setRenderTarget(prev); R.render(scene, cam);
+    cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh;
+  }
   R.autoClear = ac;
 }

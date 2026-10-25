@@ -67,7 +67,9 @@ the burn barrel, a fence post) stand up out of it and its billows shift as the v
 wall of mist at waist and head height with the tree tops and the sky showing over it, brightening looking toward the
 sun. It stays out of the house, parts round you in a ring that opens a little wider higher up, and anything out in it
 can't be seen, outlined or picked out by your crosshair until it's nearly on you. Lamps and the fire glow in it, and
-your flashlight's beam lights it up and cuts a clear path through it.
+your flashlight's beam lights it up and cuts a clear path through it. Smoke, sparks and the like near you aren't
+buried under the fog beyond them: each shows as much as it would standing where it is (clear in the open ring round
+you, gone deep out in the fog), and a sight's reticle always shows through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg

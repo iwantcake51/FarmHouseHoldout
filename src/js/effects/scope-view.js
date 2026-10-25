@@ -14,7 +14,7 @@
 // the aim as your eye moves. An aperture's too close to your eye to see sharp: the whole rear sight, its ears and the
 // ring round the hole, goes as soft as it really would (the hole looking a touch bigger for it), the front post sharp
 // in the middle of it.
-import { FP_CAM, R, scene, sun } from '../core/renderer.js';
+import { FP_CAM, OVER_LAYER, R, scene, sun } from '../core/renderer.js';
 import { curDark } from '../lighting/day-night.js';
 import { los } from '../lighting/lightmap.js';
 import { STATIC_LIGHTS } from '../lighting/static-lights.js';
@@ -36,7 +36,7 @@ const SCOPE_DIM = { max: 1024 };
 // goes soft round its hole, the hole looking a little bigger for it, a rear notch only a touch
 const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, pupil: 0.004, max: 26 };
 const SC = { rt: null, size: 0, fb: null, w: 0, h: 0, on: false, cx: 0, cy: 0, r: 0 }, _ax = new THREE.Vector2(), _svR = new THREE.Vector2(), _svR2 = new THREE.Vector2(), _sz = new THREE.Vector2(), _sp = new THREE.Vector3(), _st = new THREE.Vector3(), _su = new THREE.Vector3();
-const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200);
+const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200); scopeCam.layers.enable(OVER_LAYER);
 const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: frag, transparent: true, depthTest: false, depthWrite: false, blending: blending ?? THREE.NormalBlending });
 // the eyepiece's lens itself, a real disc of glass in the scope (lensOn), drawn with the farm: from any angle it's the
 // shape it is and anything in front of it hides it. Off your eye's line it's dark coated glass; the scope up to your
@@ -161,7 +161,7 @@ const RET_MATS = {};
 export function reticleOn(p, kind, x, y, z, w, h) {
   const geo = kind === 'holo' ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32);
   const m = new THREE.Mesh(geo, RET_MATS[kind] || (RET_MATS[kind] = retMat(kind))); m.position.set(x, y, z); m.renderOrder = 6;
-  m.userData.reticlePane = true; m.castShadow = m.receiveShadow = false; p.add(m); return m;
+  m.userData.reticlePane = true; m.castShadow = m.receiveShadow = false; m.layers.set(OVER_LAYER); p.add(m); return m;   // (over a fog round's fog: effects/post.js)
 }
 function stepReticles() { RET_U.uT.value = performance.now() / 1000; }
 // every eyepiece's glass but the one being looked down (each its own radius: uLR), and the one that is (LENS.live)

@@ -11,7 +11,8 @@
 //
 // The particle textures (effects/textures.js) are all 128 x 128, so they're copied as they load into the layers of one
 // array texture (SB.size: the layer size; the odd smaller one is scaled up), each the first time it's used.
-import { scene } from '../core/renderer.js';
+import { OVER_LAYER, scene } from '../core/renderer.js';
+import { MIST, mistSee } from '../world/mist.js';
 
 const SB = { size: 128, layers: 48, cap: 1024 };   // (cap: as many as are ever showing at once, so none is dropped from the batch and blinks out)
 const sbAll = [];
@@ -94,6 +95,7 @@ sbMat.uniforms.tMap.value = sbTex;
 export const SPRITE_AIM = sbMat.uniforms.uAim.value, SPRITE_RES = sbMat.uniforms.uRes.value;
 const sbMesh = new THREE.Mesh(sbGeo, sbMat);
 sbMesh.frustumCulled = false; sbMesh.renderOrder = 2; sbMesh.userData.isSprites = true;   // (never outlined: effects/screen-outlines.js)
+sbMesh.layers.set(OVER_LAYER);   // (drawn over a fog round's fog, each as deep in it as it is: effects/post.js)
 scene.add(sbMesh);
 
 // every frame, before it's drawn (effects/post.js: renderFrame): the sprites that show, far ones first. (Not as the
@@ -112,12 +114,13 @@ export function batchSprites(camera) {
     sbDepth[n] = (s.position.x - cx) * _sbF.x + (s.position.y - cy) * _sbF.y + (s.position.z - cz) * _sbF.z; sbOrder[n] = n; n++;
   }
   const ord = sbOrder.subarray(0, n).sort((a, b) => sbDepth[b] - sbDepth[a]);
+  const fog = MIST.k > 0.001;   // (in a fog round's fog, as much of each shows as of a zombie standing there: world/mist.js)
   const P = iPos.array, Z = iSize.array, C = iCol.array, M = iMisc.array;
   for (let k = 0; k < n; k++) {
     const s = sbList[ord[k]], m = s.material, c = m.color;
     P[k * 3] = s.position.x; P[k * 3 + 1] = s.position.y; P[k * 3 + 2] = s.position.z;
     Z[k * 2] = s.scale.x; Z[k * 2 + 1] = s.scale.y;
-    C[k * 4] = c.r; C[k * 4 + 1] = c.g; C[k * 4 + 2] = c.b; C[k * 4 + 3] = m.opacity;
+    C[k * 4] = c.r; C[k * 4 + 1] = c.g; C[k * 4 + 2] = c.b; C[k * 4 + 3] = m.opacity * (fog ? mistSee(s.position.x, s.position.z) : 1);
     M[k * 3] = m.rotation; M[k * 3 + 1] = s._l; M[k * 3 + 2] = m.blending === THREE.AdditiveBlending ? 1 : 0;
   }
   for (const a of [iPos, iSize, iCol, iMisc]) { a.clearUpdateRanges(); a.addUpdateRange(0, n * a.itemSize); a.needsUpdate = true; }

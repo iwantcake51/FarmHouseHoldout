@@ -39,6 +39,10 @@ scene.fog = new THREE.Fog(0x1e1716, 42, 78);
 // with perspective
 export const ISO_CAM = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200), FP_CAM = new THREE.PerspectiveCamera(75, 1, 0.04, 200);
 export let cam = ISO_CAM;
+// what's drawn over a fog round's fog rather than under it (the particles, a sight's reticle: effects/post.js), seen
+// by every camera that draws the farm
+export const OVER_LAYER = 5;
+[ISO_CAM, FP_CAM].forEach(c => c.layers.enable(OVER_LAYER));
 export const VIEW = 9, YAW = Math.PI / 4, EL = 0.66, CAM_D = 40;
 export const CAM_OFF = new V3(Math.sin(YAW) * Math.cos(EL) * CAM_D, Math.sin(EL) * CAM_D, Math.cos(YAW) * Math.cos(EL) * CAM_D);
 // how far you can zoom out and in (cam.zoom, so bigger is closer)
