@@ -115,7 +115,7 @@ export function updatePlayer(dt) {
   P.still = P.moving ? 0 : P.still + dt;
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
-  if (P.dead) { /* no more aiming */ }
+  if (P.dead || freeOn()) { /* no more aiming (flying the free camera, you stand as you were, facing where you were: turning it doesn't turn you) */ }
   else if (fpOn() && state === 'play') {
     // (where you look; but the gap a vault leaves, as you looked aside over it, is closed smoothly, never snapped)
     centerMouse(...fpAimPx());

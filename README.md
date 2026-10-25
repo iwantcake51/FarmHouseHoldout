@@ -351,7 +351,7 @@ studio whose camera glides in to whatever you're changing, and kept for new runs
 their speed, damage and health; any kind in any outfit sent in at the fence or right in front of you; their armour
 cracked or broken off; the waves) and the world (the camera, the hour, fog). Under the camera there's a free camera
 as well, to fly about and watch the farm from anywhere: W A S D where it looks, Space and Ctrl up and down, Shift
-faster, the wheel its speed, and every zombie shown wherever it is; N goes back. The switches are remembered between visits;
+faster, the wheel its speed, and every zombie shown wherever it is; your character stands where you left them, facing the way they were, however the camera turns; N goes back. The switches are remembered between visits;
 everything else acts on the run you're in.
 
 ### How the code fits together
