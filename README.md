@@ -58,10 +58,14 @@ plainly there ever blinks out.
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off.
 
-**Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It stays out
-of the house, parts round you in a tight ring that thins as it gets close, and anything out in it can't be seen,
-outlined or picked out by your crosshair until it's nearly on you. Lamps glow in it, and your flashlight's beam cuts
-through it.
+**Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
+of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
+thicker and thinner patches through it, paler at its tops and darker in its depths. From above, taller things (a tree,
+the burn barrel, a fence post) stand up out of it and its billows shift as the view moves; from your own eyes it's a
+wall of mist at waist and head height with the tree tops and the sky showing over it, brightening looking toward the
+sun. It stays out of the house, parts round you in a ring that opens a little wider higher up, and anything out in it
+can't be seen, outlined or picked out by your crosshair until it's nearly on you. Lamps and the fire glow in it, and
+your flashlight's beam lights it up and cuts a clear path through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
