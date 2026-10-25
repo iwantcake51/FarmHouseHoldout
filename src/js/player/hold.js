@@ -456,7 +456,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // unsteadiness, player/shaky-hands.js, IDLE_UNSTEADY of it)
   const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) * frontHeavy(id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
-  const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
+  // (rp goes by the reload's base, weapons/reload.js: relStep, which stands still through a beat slipped into it: a fumble,
+  // a missed magwell)
+  const rel = W8.reloading, rp = rel ? (W8.relTL ? W8.relU : 1 - W8.reloadT / W8.reloadMax) : 0;
   // the double barrel being closed after its reload (weapons/reload.js: tickShut): shP how far through (-1: it isn't),
   // shK how far the barrels have swung up, quickening as they go so they swing home hard
   const shP = !rel && !D.akimbo && D.breakOpen ? brkShutP() : -1, shK = shP >= 0 ? Math.pow(clamp((shP - BRK_GRAB) / (1 - BRK_GRAB), 0, 1), 2) : 0;
@@ -673,7 +675,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       }
       else if (q.lock && rel === 'mag' && SLIDE_PISTOLS[id]) { off = 0; held = true; }   // rounds still in it: the slide stays put
       else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
-      else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
+      else if (q.lock && rel === 'mag') { off = rp < 0.88 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (fast ? 60 : off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
       const zc = q.z0 - q.travel * off, cl = q.m.userData.clip;

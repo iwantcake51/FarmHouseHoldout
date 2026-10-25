@@ -80,6 +80,9 @@ export const SFX = {
   metalDrop(v, plate) { const f = rr(0.85, 1.15) * (plate ? 0.8 : 1.3); tn(0.16, 'triangle', 520 * f, 360 * f, 0.12 * v); tn(0.24, 'sine', 1400 * f, 1300 * f, 0.04 * v); nz(0.06, 'bandpass', 2600 * f, 1300, 0.18 * v, 2.2); },
   plankDrop(v) { if (playS(['wood_hit_1', 'wood_hit_2'], { vol: 0.55 * v, rate: 1.15, gap: 0.04 })) return; tn(0.09, 'triangle', rr(190, 240), 110, 0.22 * v); nz(0.07, 'bandpass', 900, 400, 0.25 * v, 1.6); },
   click() { tn(0.03, 'square', 1300, 900, 0.1); },
+  // a fresh mag's top knocking the magwell's lip as it misses the well (weapons/reload.js: MAG_MISS): a short, quieter,
+  // higher knock than going home, and a dry scrape after it
+  magTap() { const f = rr(0.92, 1.08); if (!playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()), { vol: 0.32, rate: 1.35 * f, gap: 0.05 })) { tn(0.03, 'triangle', 760 * f, 420, 0.1); nz(0.03, 'bandpass', 1900 * f, 900, 0.14, 2.4); } setTimeout(() => nz(0.05, 'bandpass', 2600 * f, 1400, 0.05, 1.6), 35); },
   magOut() { if (playS('magout_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.04, 'square', 900, 600, 0.1); nz(0.05, 'bandpass', 1500, 900, 0.15, 2); },
   magIn() { if (playS('magin_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) return; tn(0.05, 'square', 600, 400, 0.14); nz(0.06, 'bandpass', 1200, 700, 0.2, 2); },
   shell() { const id = curId(); if (id === 'hunting' || id === 'revolver' ? playS('round_in', { gap: 0.03, rate: id === 'revolver' ? 1.25 : 1, vol: id === 'revolver' ? 0.8 : 1 }) : playS('shell_load', { gap: 0.03 })) return; tn(0.04, 'square', 700, 500, 0.12); nz(0.07, 'bandpass', 2200, 1200, 0.22, 3); },

@@ -201,6 +201,14 @@ again blends it back on just as smoothly; a fresh mag rides in the fist wherever
 reaches the magwell (a rifle's well, a pistol's grip) it's brought straight onto the well's line and pushed up it,
 never through the side of the gun.
 
+**Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble, the hands stalling a moment as
+the gun's knocked and something clacks. They can also miss the magwell: the fresh mag comes up off the well's line and
+knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. That
+can happen once, twice or up to three times running at low health, and once in a while with steady hands too. The mag
+is only ever off the line below the well's mouth, so it never goes through the side of the gun. Every one of these beats
+is part of the reload's own length, so the reload ring fills over the whole reload as it really goes, and the old mag
+falling, the new one going home and their sounds all land on the animation's own marks.
+
 **A gun in each hand.** With the second pistol or second machine pistol fitted, each gun kicks on its own shot from
 your own eyes, flipping up on its wrist while the other stays steady, and running with them each hand pumps forward
 and back with your stride, opposite the other, the guns canted out.
