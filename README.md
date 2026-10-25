@@ -285,7 +285,9 @@ slowing through the move and then catching it back up, all in one smooth motion 
 knocked partway through and something clacking. The revolver never fumbles: its rounds go in one at a time anyway. They can also miss the magwell: the fresh mag comes up off the well's line and
 knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. That
 can happen once, twice or up to three times running at low health, and once in a while with steady hands too. The mag
-is only ever off the line below the well's mouth, so it never goes through the side of the gun. Every one of these beats
+is only ever off the line below the well's mouth, so it never goes through the side of the gun. A hand leaving the gun
+for a mag, a shell or a handle gathers speed rather than starting off at full tilt, and when a reload's done the hand
+carries on back to its grip with the way it was going, settling onto it without stopping short or overshooting. Every one of these beats
 is part of the reload's own length, so the reload ring fills over the whole reload as it really goes, and the old mag
 falling, the new one going home and their sounds all land on the animation's own marks.
 

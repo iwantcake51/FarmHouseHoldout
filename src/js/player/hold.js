@@ -263,20 +263,27 @@ export function walkPath(out, keys, p) {
   const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
   return out.copy(a[1]).multiplyScalar(h00).addScaledVector(_wpA, h10 * dt).addScaledVector(b[1], h01).addScaledVector(_wpB, h11 * dt);
 }
+// a hand going off the gun or back onto it: the spring it moves on (k, d) and how quickly what it chases eases to where
+// it's to be (lead, a second)
+const HAND_W = { lead: 30, k: 420, d: 41 };
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
   const h = HAND[side], kf = stiff ? 1300 : 480, df = stiff ? 62 : 30;   // (stiff: carrying a fresh mag up to the gun)
-  // the free hand follows its path on a loose spring: a beat behind it, settling with a little give when it stops
-  if (free) {
-    if (!h.fv || h.w < 0.01) { h.fv = h.fv || new V3(); h.free.copy(free); h.fv.set(0, 0, 0); }
-    else if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) {
-      h.fv.x += (kf * (free.x - h.free.x) - df * h.fv.x) * dt; h.fv.y += (kf * (free.y - h.free.y) - df * h.fv.y) * dt; h.fv.z += (kf * (free.z - h.free.z) - df * h.fv.z) * dt;
-      h.free.addScaledVector(h.fv, dt);
-    }
+  // the free hand follows its path on a loose spring: a beat behind it, settling with a little give when it stops; and
+  // once its path ends (the reload's done) the same spring carries it on to its place on the gun as it's handed back,
+  // with the way it was going, rather than stopping it dead where the path left off
+  const to = free || (h.fv && h.w > 0.001 ? onGun : null);
+  if (free && (!h.fv || h.w < 0.01)) { h.fv = h.fv || new V3(); h.free.copy(free); h.fv.set(0, 0, 0); }
+  else if (to && rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, dd = free ? df : 2 * Math.sqrt(kf), i = 0; i < n; i++) {   // (homing on the gun, damped just enough not to overshoot its grip)
+    h.fv.x += (kf * (to.x - h.free.x) - dd * h.fv.x) * dt; h.fv.y += (kf * (to.y - h.free.y) - dd * h.fv.y) * dt; h.fv.z += (kf * (to.z - h.free.z) - dd * h.fv.z) * dt;
+    h.free.addScaledVector(h.fv, dt);
   }
-  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) { h.vw = (h.vw || 0) + (-420 * (h.w - wt) - 41 * (h.vw || 0)) * dt; h.w = clamp(h.w + h.vw * dt, 0, 1); }
-  if (Math.abs(wt - h.w) < 0.002 && Math.abs(h.vw || 0) < 0.02) { h.w = wt; h.vw = 0; }
+  // how far it's off the gun, on its spring: the spring chases an eased copy of where it's to be (HAND_W.lead), so a
+  // hand leaving the gun or coming back to it gathers speed rather than starting off at full speed in a single frame
+  h.wf = h.wf ?? h.w;
+  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) { h.wf += (wt - h.wf) * (1 - Math.exp(-dt * HAND_W.lead)); h.vw = (h.vw || 0) + (-HAND_W.k * (h.w - h.wf) - HAND_W.d * (h.vw || 0)) * dt; h.w = clamp(h.w + h.vw * dt, 0, 1); }
+  if (Math.abs(wt - h.w) < 0.002 && Math.abs(h.vw || 0) < 0.02) { h.w = h.wf = wt; h.vw = 0; }
   return out.copy(onGun).lerp(h.free, h.w);
 }
 
@@ -310,7 +317,7 @@ export function poseHands(D, up, ph, runF, rdt, now) {
   bandPhases(rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
-  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = 0; ANIM.relEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
+  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = HAND.L.wf = HAND.R.wf = 0; ANIM.relEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
   const sh = shovePose();
   if (sh && !D.melee) {
     up.x += sh.lean; up.y += sh.tw;
