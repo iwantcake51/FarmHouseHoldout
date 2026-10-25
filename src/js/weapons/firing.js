@@ -40,6 +40,7 @@ import { pickSwing } from '../melee/melee-anim.js';
 import { SURE_CRIT } from '../upgrades/upgrades.js';
 import { feed } from '../ui/hud-text.js';
 import { los } from '../lighting/lightmap.js';
+import { swapSt } from '../player/swap.js';
 import { RG_SPREAD } from '../player/sprint.js';
 import { aimSX, aimSY, XHIT, xhKick, XR } from '../player/shaky-hands.js';
 import { fpOn } from '../game/view-cam.js';
@@ -164,7 +165,13 @@ export function muzzle(sideSign) {
   const bar = ak && ANIM.barrelS ? ANIM.barrelS[sg < 0 ? 'L' : 'R'] : ANIM.barrel, m = Math.max(0.15, Math.min(MUZ[W8.cur] || 0.9, (bar ?? Infinity) - BARREL.clear));
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim), rx = Math.cos(P.aim), rz = -Math.sin(P.aim);
   let ox = P.x + fx * m + rx * sx, oz = P.z + fz * m + rz * sx;
+  // (the round leaves the gun's own muzzle, where the gun really is in your hands, as long as nothing's between you and
+  // it; the place out in front of you at your side is only for when it isn't drawn)
+  { const D2 = W(curId()); if (D2 && !D2.melee && !swapSt && !P.vault) { const mw = muzzleWorld(sideSign); if (Number.isFinite(mw.x) && Math.hypot(mw.x - P.x, mw.z - P.z) < 2 && !bulletBlocked(mw.x, mw.z) && los(P.x, P.z, mw.x, mw.z)) { ox = mw.x; oz = mw.z; } } }
   if (bulletBlocked(ox, oz) || !los(P.x, P.z, ox, oz)) { ox = P.x + fx * 0.3; oz = P.z + fz * 0.3; }
+  // from your own eyes it goes from the muzzle straight at what the crosshair's on (aimPt: where your line of sight
+  // meets something), however close that is, so it lands where you aimed and not off to the side of it
+  if (fpOn()) { const tx = aimPt.x - ox, tz = aimPt.z - oz; return { ox, oz, a: Math.hypot(tx, tz) > 0.05 ? Math.atan2(tx, tz) : P.aim }; }
   // turned onto the cursor from the muzzle, eased in only once the cursor is well out past the muzzle: with the cursor
   // near you (closer than a long gun's muzzle) the angle from the muzzle would swing wildly with every small move
   let a = P.aim;
@@ -286,7 +293,7 @@ export function gunFire(id, D, side) {
     // all if it passes over; what it misses doesn't use up a pierce
     // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js;
     // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
-    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(1, Math.hypot(aimPt.x - ox, aimPt.z - oz));
+    const fp = fpOn(), y0 = mw.y, slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
     let wallT = 26, gndT = 99;
     for (let t = 0.1; t < 26; t += 0.1) {
       if (bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }

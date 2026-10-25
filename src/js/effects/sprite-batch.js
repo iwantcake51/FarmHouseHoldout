@@ -13,7 +13,7 @@
 // array texture (SB.size: the layer size; the odd smaller one is scaled up), each the first time it's used.
 import { scene } from '../core/renderer.js';
 
-const SB = { size: 128, layers: 48, cap: 640 };
+const SB = { size: 128, layers: 48, cap: 1024 };   // (cap: as many as are ever showing at once, so none is dropped from the batch and blinks out)
 const sbAll = [];
 // a particle's sprite-like record: what the particle systems set, and what the batch reads
 export function sbSprite(map) {

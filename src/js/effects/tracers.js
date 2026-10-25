@@ -139,13 +139,17 @@ const TRAIL_TEX = (() => {
 })();
 const TRAIL_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, 0.5);
 const trails = [];
-for (let k = 0; k < 40; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0, d: new V3(), L: 0 }); }
+for (let k = 0; k < 40; k++) { const m = new THREE.Mesh(TRAIL_G, new THREE.MeshBasicMaterial({ map: TRAIL_TEX, transparent: true, depthWrite: false, opacity: 0, side: THREE.DoubleSide })); m.visible = false; m.renderOrder = 3; scene.add(m); trails.push({ m, life: 0, max: 1, a: 0, w0: 0.05, mx: 0, mz: 0, d: new V3(), L: 0, fp: false }); }
 // strength 0..1: how thick and how long it hangs (a hunting rifle 1, a revolver a bit less, rifle-calibre automatics about half).
 // It runs along the shot itself, up into the sky or down at the ground as much as across, turned to face you like a tracer
 export function smokeTrail(x0, y0, z0, x1, y1, z1, strength) {
-  const L = Math.hypot(x1 - x0, y1 - y0, z1 - z0); if (L < 0.6 || !strength) return;
+  // (from above it lies flat along the shot at its height, as a line of smoke seen from over it does: turned to face
+  // that camera, a shot toward it would stand up off the ground in a short banded strip)
+  const fp = cam.isPerspectiveCamera, L = fp ? Math.hypot(x1 - x0, y1 - y0, z1 - z0) : Math.hypot(x1 - x0, z1 - z0); if (L < 0.6 || !strength) return;
   const t = trails.reduce((a, b) => b.life < a.life ? b : a);
-  t.d.set(x1 - x0, y1 - y0, z1 - z0).divideScalar(L); t.m.position.set(x0, y0, z0); trAim(t.m, t.d); t.m.scale.set(0.05, 1, L); t.m.visible = true;
+  if (fp) { t.d.set(x1 - x0, y1 - y0, z1 - z0).divideScalar(L); t.m.position.set(x0, y0, z0); trAim(t.m, t.d); }
+  else { t.d.set(x1 - x0, 0, z1 - z0).divideScalar(L); t.m.position.set(x0, (y0 + y1) / 2, z0); t.m.rotation.set(0, Math.atan2(x1 - x0, z1 - z0), 0); }
+  t.fp = fp; t.m.scale.set(0.05, 1, L); t.m.visible = true;
   t.max = t.life = 0.9 + 1.3 * strength; t.a = 0.05 + 0.33 * strength; t.w0 = 0.04 + 0.04 * strength; t.mx = (x0 + x1) / 2; t.mz = (z0 + z1) / 2; t.L = L;
 }
 export function stepTrails(dt) {
@@ -153,7 +157,7 @@ export function stepTrails(dt) {
     if (t.life <= 0) continue; t.life -= dt; if (t.life <= 0) { t.m.visible = false; continue; }
     const k = 1 - t.life / t.max;
     t.m.scale.x = trW(t.w0 + k * 0.32); t.m.position.y += dt * 0.12;
-    if (cam.isPerspectiveCamera) trAim(t.m, t.d, _trC.copy(t.m.position).addScaledVector(t.d, t.L / 2));
+    if (t.fp && cam.isPerspectiveCamera) trAim(t.m, t.d, _trC.copy(t.m.position).addScaledVector(t.d, t.L / 2));
     t.m.material.opacity = t.a * Math.min(1, k * 14) * Math.pow(1 - k, 1.4);
     t.m.material.color.setHex(0xc9c4ba).multiplyScalar(Math.min(1.1, 0.14 + lightLevelAt(t.mx, t.mz) * 0.85));
   }

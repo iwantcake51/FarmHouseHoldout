@@ -106,7 +106,7 @@ export const MAG_CARRY = { u: -1, mg: null, p0: null, sh: null, lg: false, miss:
 // the well's mouth: how far below the seated mag's top it opens (a rifle's well, a handgun's whole grip: a share of the
 // mag), and over how much more the mag's brought onto the well's line before it gets there (in). Once its top's into
 // the well it's on that line exactly, nothing across and no tip, so it goes up the well and never through its sides
-const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.035 };
+const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13 };
 // missing the well (weapons/reload.js: MAG_MISS): wherever the mag was when it went wrong, it's drawn back down out of
 // the well to just under its mouth (pre: how far under), brought off the well's line (off: metres across and fore and
 // aft, as each miss has it, side and fwd) and tipped a little with it (MAG_MISS_TIP, radians), pushed up into the
@@ -151,7 +151,11 @@ export function magToFist(fist, want) {
   armReach('L', fist);   // (and only as far as the arm goes)
   _mF.copy(fist).applyMatrix4(_mInv).sub(_mG);   // where its top is with the grip in the fist (in the hold's frame)
   // (and wherever the fist's got to, once it's up in the well it's on the well's line: the fist goes with it)
-  if (funnel(_mF, c.p0, c.sh, c.lg, c.miss ? 1e-4 : MAG_FUNNEL.in) < 1) fist.copy(_mF).add(_mG).applyMatrix4(_mM);   // (missing the well: only in the well itself, so the miss keeps its way off the line under it)
+  // (and never further up the well than seated: a fist carried on past it on its spring would take the mag up through
+  // the gun before it snapped back to its seat)
+  { const k = funnel(_mF, c.p0, c.sh, c.lg, c.miss ? 1e-4 : MAG_FUNNEL.in); _fA.set(0, 1, 0).applyAxisAngle(_mX, c.sh.lean); const up = _fD.subVectors(_mF, c.p0).dot(_fA);
+    if (up > 0) _mF.addScaledVector(_fA, -up);
+    if (k < 1 || up > 0) fist.copy(_mF).add(_mG).applyMatrix4(_mM); }   // (missing the well: only in the well itself, so the miss keeps its way off the line under it)
   c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mF);
   c.u = -1;
 }

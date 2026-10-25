@@ -93,6 +93,8 @@ const FP_REACH = { short: 0.13, long: 0.07, len: [0.8, 1.3] };
 // and at the hip it's held out to your right and up a little (x, y: across and up the view, metres), as a shooter
 // carries it, its muzzle out ahead toward the middle of the view, not down under your chin
 const FP_HIP = { x: 0.13, y: 0.06 };
+const FP_XH_YAW = 1;
+const ADS_EYE_MAX = 0.45;   // (the furthest down the sights takes your eye from where your head has it, metres: viewFrame)   // (how much of the crosshair's sideways wander the hip-held gun turns with: fpRecoil)
 // the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
 // (pitch, and acc for speeding up and slowing), per metre a second, on a spring (k, d); less down the sights
 const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 };
@@ -377,7 +379,10 @@ const _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), _vcQ = new TH
 export function fpRecoil(gg, grip) {
   const C = V.rc, k = 1 - adsW(); if (!fpOn() || !gg.parent || k < 0.01) return;
   const rn = rattleAt(), F = C.kind === 'hand' ? FP_RECOIL.hand : FP_RECOIL.long;
-  const p = (C.p + C.cp + rn[3]) * k, y = (C.y + C.cy + rn[4]) * k, r = (C.r + rn[5]) * k;
+  // (and turned left and right with the crosshair as a shot kicks it aside or it sways: the gun at the hip points where
+  // the crosshair is, so the two go across together, FP_XH_YAW of it)
+  const xa = Math.atan((aimSX() - innerWidth / 2) / (innerHeight / 2) * Math.tan(FP_CAM.fov * Math.PI / 360)) * FP_XH_YAW;
+  const p = (C.p + C.cp + rn[3]) * k, y = (C.y + C.cy + rn[4] - xa) * k, r = (C.r + rn[5]) * k;
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(C.z) + Math.abs(C.h) + Math.abs(C.x) < 1e-6) return;
   gg.updateMatrixWorld(true);
   // (the turn made in the view's own frame: the view's way, then the turn, then back out of the view's way)
@@ -682,6 +687,9 @@ export function viewFrame(rdt, roll, sh, jolt) {
     if (L && gg) {
       if (L.relief !== null) _vcD.copy(_pa).addScaledVector(_sd, -L.relief);
       else _vcD.copy(_pa).addScaledVector(_sd, clamp(_vcH.subVectors(_vcE, _pa).dot(_sd), -0.8, -(L.kind === 'holo' || L.kind === 'dot' ? EYE_MIN.optic : EYE_MIN.iron)));
+      // (never further from your head than ADS_EYE_MAX: with the gun not yet up, coming back off a vault or being drawn,
+      // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
+      _vcH.subVectors(_vcD, _vcE); const dl = _vcH.length(); if (dl > ADS_EYE_MAX) _vcD.copy(_vcE).addScaledVector(_vcH, ADS_EYE_MAX / dl);
       _vcE.lerp(_vcD, w);
     }
     V.sw = L ? w : 0;

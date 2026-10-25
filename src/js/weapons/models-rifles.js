@@ -1,7 +1,7 @@
 // The rifles' models: the hunting rifle, the SCAR 17S (traced off photos, with its AK conversion kit), the assault
 // rifle and the LMG (gun-models.js puts every family together).
 
-import { lensOn } from '../effects/scope-view.js';
+import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { box } from '../core/geometry.js';
 import { T } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
@@ -352,7 +352,7 @@ export const RIFLE_MODELS = {
       for (let k = 0; k < 11; k++) { const zc = 0.8105 + k * 0.0197; pts.push([base(zc - 0.0028), zc - 0.0028], [base(zc) + 0.0014, zc - 0.0016], [base(zc) + 0.0014, zc + 0.0016], [base(zc + 0.0028), zc + 0.0028]); }
       pts.push([base(1.02), 1.02], [0.0462, 1.0265], [0.04, 1.0295], [0.0335, 1.0305], [0.0335, 1.0365], [0.03, 1.0365], [0.03, 0.7865]);
       [0, 1].forEach(h => {
-        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.004, Math.PI - 0.008);   // (a hairline split, not a gap you see through) geo.rotateX(Math.PI / 2);
+        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.004, Math.PI - 0.008); geo.rotateX(Math.PI / 2);   // (a hairline split, not a gap you see through)
         const hm = new THREE.Mesh(geo, H); hm.position.set(X, y0, 0); hm.scale.x = 0.95; hm.castShadow = true; g.add(hm);
       });
       cyl(g, 0.0435, 0.25, GM.rubber, X, y0, 0.9115, 24).scale.x = 0.95;   // (the heat shield, the whole length inside it, so nothing shows through the split)
@@ -423,11 +423,14 @@ export const RIFLE_MODELS = {
       const sy = top + 0.038;
       profile(g, shp([[sz - 0.03, top], [sz + 0.03, top], [sz + 0.024, top + 0.017], [sz - 0.024, top + 0.017]]), 0.032, A, X, 0.001);
       box(g, 0.012, 0.011, 0.02, A, X + 0.019, top + 0.006, sz); cyl(g, 0.0055, 0.01, GM.metal2, X + 0.026, top + 0.006, sz, 12).rotation.set(0, 0, Math.PI / 2);
-      [-0.03, 0.03].forEach(o => { box(g, 0.011, 0.015, 0.015, A, X, top + 0.016, sz + o); ring(g, 0.025, 0.013, A, X, sy, sz + o); });
-      cyl(g, 0.021, 0.115, A, X, sy, sz, 20);
-      taper(g, 0.021, 0.025, 0.025, A, X, sy, sz + 0.068); ring(g, 0.0252, 0.011, GM.metal2, X, sy, sz + 0.085);
-      cyl(g, 0.022, 0.004, GM.glass, X, sy, sz + 0.091, 20); ring(g, 0.023, 0.011, GM.metal2, X, sy, sz - 0.062); cyl(g, 0.019, 0.003, GM.glass, X, sy, sz - 0.069, 20);
-      box(g, 0.004, 0.004, 0.002, GM.red, X, sy, sz - 0.0715);
+      // (the tube hollow, its rings round it: you look through it, down its length to the front lens)
+      const hol = (r0, r1, z0, z1, m) => lathe(g, [[r0, z0], [r1, z0], [r1, z1], [r0, z1], [r0, z0]], m, X, sy, 24);
+      [-0.03, 0.03].forEach(o => { box(g, 0.011, 0.015, 0.015, A, X, top + 0.016, sz + o); hol(0.0205, 0.025, sz + o - 0.0065, sz + o + 0.0065, A); });
+      hol(0.0185, 0.021, sz - 0.0575, sz + 0.0575, A);
+      lathe(g, [[0.0185, sz + 0.0555], [0.021, sz + 0.0555], [0.025, sz + 0.0805], [0.0215, sz + 0.0805], [0.0185, sz + 0.0555]], A, X, sy, 24); hol(0.0215, 0.0252, sz + 0.0795, sz + 0.0905, GM.metal2);
+      cyl(g, 0.022, 0.004, GM.glass, X, sy, sz + 0.091, 20); hol(0.0185, 0.023, sz - 0.0675, sz - 0.0565, GM.metal2); cyl(g, 0.019, 0.003, GM.glass, X, sy, sz - 0.069, 20);
+      // (its dot out at infinity, seen through the front lens; looked down in first person like any red dot: game/view-cam.js)
+      reticleOn(g, 'dot', X, sy, sz + 0.087, 0.021); g.userData.optic = { kind: 'dot', x: X, y: sy, zr: sz - 0.069, zf: sz + 0.091, r: 0.019 };
       cyl(g, 0.0085, 0.013, GM.metal2, X, sy + 0.026, sz + 0.008, 14).rotation.set(0, 0, 0); cyl(g, 0.0085, 0.013, GM.metal2, X - 0.026, sy, sz + 0.008, 14).rotation.set(0, 0, Math.PI / 2);
     }
     // ---- laser, taped to the left of the handguard with olive tape: a pointer, then a proper module

@@ -4,7 +4,7 @@ import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
 import { heatAll } from '../effects/supp-heat.js';
-import { lensOn } from '../effects/scope-view.js';
+import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
@@ -116,8 +116,8 @@ export function fitAttachments(g, D, front, y, info) {
       // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
       // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
       // and on the back face under the window the panel with its two arrow buttons, the round one between and four
-      // screws. Its reticle (the 68 MOA ring, its four ticks and the dot) is only seen looking through it, drawn where
-      // your eye sees it (effects/scope-view.js)
+      // screws. Its reticle (the 68 MOA ring, its four ticks and the dot) is only seen looking through it, out at
+      // infinity along the sight (effects/scope-view.js: reticleOn)
       const H5 = { z0: bz - 0.048, z1: bz - 0.004, wy: by + 0.034, ww: 0.0152, wh: 0.0112, fr: 0.0014, hw: 0.0015 };   // (fr: the frame's width round the window; hw: the hood's walls)
       box(p, 0.03, 0.006, 0.09, GM.metal, sx, by + 0.003, bz);                                                                  // the mount
       cyl(p, 0.005, 0.006, GM.metal2, sx + 0.019, by + 0.004, bz + 0.02, 12).rotation.set(0, 0, Math.PI / 2);                // its cross-bolt knob
@@ -131,13 +131,14 @@ export function fitAttachments(g, D, front, y, info) {
       [-1, 1].forEach(sd => { box(p, 0.0068, 0.0056, 0.0016, GM.rubber, sx + sd * 0.0072, by + 0.0108, H5.z0 - 0.0013); [by + 0.0075, by + 0.0185].forEach(yy => cyl(p, 0.0013, 0.0012, GM.steel, sx + sd * 0.0112, yy, H5.z0 - 0.0013, 8)); });
       cyl(p, 0.0032, 0.0016, GM.rubber, sx, by + 0.0168, H5.z0 - 0.0013, 14);
       const gl = box(p, H5.ww * 2, H5.wh * 2, 0.0015, GM.holoGlass, sx, H5.wy, H5.z1 - 0.003); gl.rotation.x = -0.06;
+      reticleOn(p, 'holo', sx, H5.wy, H5.z1 - 0.0065, H5.ww * 2, H5.wh * 2);   // (its reticle, out at infinity, seen through the window: effects/scope-view.js)
       p.userData.optic = { kind: 'holo', x: sx, y: H5.wy, zr: H5.z0, zf: H5.z1, r: H5.ww, hw: H5.ww, hh: H5.wh };
     } else {   // micro red dot
       box(p, 0.034, 0.016, 0.05, GM.metal, sx, by + 0.006, bz);                                        // its base, set down on the rail and up into the tube
       // the tube, open to look through, and its thicker front ring round the lens
       lathe(p, [[0.0165, bz - 0.0275], [0.019, bz - 0.0275], [0.019, bz + 0.023], [0.0165, bz + 0.023], [0.0165, bz - 0.0275]], GM.metal, sx, by + 0.032, 28);
       lathe(p, [[0.0165, bz + 0.023], [0.021, bz + 0.023], [0.021, bz + 0.033], [0.0165, bz + 0.033], [0.0165, bz + 0.023]], GM.metal2, sx, by + 0.032, 28);
-      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); box(p, 0.004, 0.004, 0.003, GM.red, sx, by + 0.032, bz - 0.0285).userData.reticle = true;   // the lens on the front ring, the dot showing at the back (hidden looking down it, the dot drawn where your eye sees it)
+      cyl(p, 0.016, 0.003, GM.glass, sx, by + 0.032, bz + 0.0335, 18); reticleOn(p, 'dot', sx, by + 0.032, bz + 0.031, 0.0155);   // the lens on the front ring, its dot seen through it out at infinity (effects/scope-view.js)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), GM.metal2); tt.position.set(sx, by + 0.055, bz); p.add(tt);
       p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }

@@ -16,6 +16,7 @@ import { setT } from '../ui/hud-text.js';
 import { camRun, runCam, SPRINT } from '../player/sprint.js';
 import { fpAds, isoOn, syncView, viewFrame, viewGround, viewKick } from './view-cam.js';
 import { ANIM } from '../player/animation.js';
+import { swapSt } from '../player/swap.js';
 import { camFocus } from '../net/spectate.js';
 import { SET } from '../ui/settings.js';
 
@@ -121,7 +122,9 @@ export function updateCamera(rdt) {
   }
   if (!introCamOn()) setZoom(zoom + ((zoomT - zoom) * Math.min(1, rdt * 10)));
 
-  { const want = aiming && !(P.skid > SPRINT.skid * 0.4);   // skidding out of a sprint, into the sights as you slow
+  // (and not while the gun's still being brought back up into your hands, off a vault or being drawn: the sights come
+  // up once it's there, as long as you're still holding aim)
+  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2));   // skidding out of a sprint, into the sights as you slow
     // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
     if (iso) { fpAds(null); ANIM.ads = (ANIM.ads || 0) + ((want ? 1 : 0) - (ANIM.ads || 0)) * Math.min(1, rdt * 9); } else ANIM.ads = fpAds(want, rdt); }
   ANIM.scopeK = (ANIM.scopeK || 0) + ((scopeAim() ? SCOPES[T('sight')].view : 0) - (ANIM.scopeK || 0)) * Math.min(1, rdt * 7);

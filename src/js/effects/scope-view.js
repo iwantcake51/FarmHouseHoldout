@@ -29,10 +29,6 @@ const SCOPE_DIM = { max: 1024 };
 // distance (the further inside the focus, the more; at most max px), so a rear aperture a hand's breadth from your eye
 // goes soft round its hole, the hole looking a little bigger for it, a rear notch only a touch
 const SCOPE_DOF = { world: 7, near: 3.5, f0: 0.6, f1: 1.3, iron0: 0.5, iron1: 0.85, pupil: 0.004, max: 26 };
-// a holographic sight's reticle: the ring's size (68 MOA across, drawn at about that, so it reads clearly but sits well
-// inside the window rather than filling it: k) and a red dot's (2 MOA, at least px)
-const HOLO_RET = { moa: 68, k: 1.05, dot: 1.6 };
-const MOA = Math.PI / 180 / 60;
 const SC = { rt: null, size: 0, fb: null, w: 0, h: 0, on: false, cx: 0, cy: 0, r: 0 }, _ax = new THREE.Vector2(), _svR = new THREE.Vector2(), _svR2 = new THREE.Vector2(), _sz = new THREE.Vector2(), _sp = new THREE.Vector3(), _st = new THREE.Vector3(), _su = new THREE.Vector3();
 const scopeCam = new THREE.PerspectiveCamera(10, 1, 0.08, 200);
 const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniforms, vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }', fragmentShader: frag, transparent: true, depthTest: false, depthWrite: false, blending: blending ?? THREE.NormalBlending });
@@ -94,6 +90,46 @@ void main() {
 const LENS_VERT = 'uniform float uLR; varying vec2 vP; varying vec4 vClip; void main() { vP = position.xy / uLR; vClip = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_Position = vClip; }';
 const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, fragmentShader: LENS_FRAG, side: THREE.DoubleSide,
   uniforms: { tS: { value: null }, uLR: { value: 1 }, uR: { value: 100 }, uKind: { value: 0 }, uDark: { value: 1 }, uOff: { value: new THREE.Vector2() }, uAx: { value: new THREE.Vector2() }, uRot: { value: new THREE.Vector2(1, 0) }, uRes: { value: new THREE.Vector2(1, 1) }, uRI: { value: 100 } } });
+// A holographic sight's reticle and a red dot's dot as they really are: an image focused out at infinity, seen only
+// through the sight's window and only looking along it. Each sight has a pane just inside its window (reticleOn) whose
+// shader works out, for each point of the pane, which way your eye looks through it; the reticle's there (out along the
+// sight's own axis, the way it points) when that way lines up with the ring, the ticks or the dot, so from anywhere off
+// the sight's line it's not in the window at all, it moves with the gun as one, and anything in front of the window
+// (your hand, your body) hides it. Sizes in MOA, as the real ones are (the EOTech's 68 MOA ring with its ticks and 1
+// MOA dot; a 2 MOA dot), never thinner than a pixel and a bit (RET_MIN), the light grainy as a hologram's is
+const RET_MIN = 1.3, RET_U = { uT: { value: 0 } };
+const RET_VERT = 'varying vec3 vV, vAx, vUp; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; vAx = normalize((modelViewMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz); vUp = normalize((modelViewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); gl_Position = projectionMatrix * mv; }';
+const RET_FRAG = `
+uniform float uKind, uT; varying vec3 vV, vAx, vUp;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
+float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+void main() {
+  vec3 v = normalize(vV); float c = dot(v, vAx); if (c < 0.9) discard;
+  vec3 rt = normalize(cross(vAx, vUp)), up = cross(rt, vAx);
+  vec2 m = vec2(dot(v, rt), dot(v, up)) / c / 0.000290888;   // (how far off the sight's line this look is, in MOA)
+  float px = max(length(fwidth(m)), 0.0001), e = length(m), lit;
+  if (uKind < 0.5) {
+    float w = max(1.1, px * ${RET_MIN.toFixed(2)});
+    lit = ln(abs(e - 34.0), w, px);
+    lit = max(lit, ln(min(min(seg(m, vec2(32.0, 0.0), vec2(45.0, 0.0)), seg(m, vec2(-32.0, 0.0), vec2(-45.0, 0.0))), min(seg(m, vec2(0.0, 32.0), vec2(0.0, 45.0)), seg(m, vec2(0.0, -32.0), vec2(0.0, -45.0)))), w, px));
+    lit = max(lit, ln(e, max(0.6, px * ${RET_MIN.toFixed(2)}), px));
+    lit *= 0.55 + 0.6 * hash(floor(gl_FragCoord.xy / 1.3) + floor(uT * 9.0));
+    lit += 0.18 * exp(-pow(abs(e - 34.0) / (w * 3.0), 2.0)) + 0.5 * exp(-e * e / (w * w * 3.0));
+  } else { float r = max(1.0, px * ${RET_MIN.toFixed(2)}); lit = ln(e, r, px) + 0.6 * exp(-e * e / (r * r * 5.0)) + 0.12 * exp(-e / (r * 4.0)); }
+  if (lit < 0.004) discard;
+  gl_FragColor = vec4(vec3(1.0, 0.13, 0.07) * lit * 1.3, 1.0);
+}`;
+const retMat = kind => new THREE.ShaderMaterial({ vertexShader: RET_VERT, fragmentShader: RET_FRAG, uniforms: { uKind: { value: kind === 'holo' ? 0 : 1 }, uT: RET_U.uT }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+const RET_MATS = {};
+// a sight's reticle pane (weapons/attachments.js): w by h (a holographic sight's window) or a disc r across (a red
+// dot's), at (x, y, z) on p, square to the sight's axis
+export function reticleOn(p, kind, x, y, z, w, h) {
+  const geo = kind === 'holo' ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32);
+  const m = new THREE.Mesh(geo, RET_MATS[kind] || (RET_MATS[kind] = retMat(kind))); m.position.set(x, y, z); m.renderOrder = 6;
+  m.userData.reticlePane = true; m.castShadow = m.receiveShadow = false; p.add(m); return m;
+}
+function stepReticles() { RET_U.uT.value = performance.now() / 1000; }
 // every eyepiece's glass but the one being looked down (each its own radius: uLR), and the one that is (LENS.live)
 const LENS = { glass: {}, live: null, on: null };
 const glassMat = r => LENS.glass[r] || (LENS.glass[r] = lensMat(false), LENS.glass[r].uniforms.uLR.value = r, LENS.glass[r]);
@@ -115,36 +151,7 @@ void main() {
   for (int i = 0; i < 40; i++) { float f = float(i), r = sqrt((f + 0.5) / 40.0) * rad, a = f * 2.39996; s += min(texture2D(tC, uv + vec2(cos(a), sin(a)) * r / uRes).rgb, vec3(1.0)); }   // (a flash's light clipped: it's not smeared out over the sights)
   gl_FragColor = vec4(s / 40.0, 1.0);
 }`, { tC: { value: null }, tD: { value: null }, uC: { value: new THREE.Vector2() }, uRes: { value: new THREE.Vector2() }, uNF: { value: new THREE.Vector2() }, uF: { value: new THREE.Vector2() }, uR: { value: 100 }, uK: { value: 0 }, uWorld: { value: 0 }, uNear: { value: 0 }, uCoc: { value: 0 }, uFoc: { value: 0 }, uMax: { value: 0 }, uHasD: { value: 0 } });
-// a holographic sight's reticle and a red dot's dot, added on as light
-const SIGHT_U = { uKind: { value: 0 }, uA: { value: 0 }, uC: { value: new THREE.Vector2() }, uU: { value: new THREE.Vector2() }, uV: { value: new THREE.Vector2() }, uRet: { value: new THREE.Vector2() }, uRR: { value: 10 }, uDot: { value: 1.5 }, uLens: { value: 10 }, uT: { value: 0 } };
-const SIGHT_FRAG = `
-uniform vec2 uC, uU, uV, uRet; uniform float uKind, uA, uRR, uDot, uLens, uT;
-float ln(float d, float w) { return 1.0 - smoothstep(w - 0.6, w + 0.6, d); }
-float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-void main() {
-  vec2 f = gl_FragCoord.xy;
-  // in the window (a holographic sight's, its rounded corners) or the lens (a red dot's)
-  float m;
-  if (uKind < 0.5) {
-    vec2 q = inverse(mat2(uU, uV)) * (f - uC), b = abs(q) - vec2(1.0 - 0.28);
-    float sd = length(max(b, 0.0)) + min(max(b.x, b.y), 0.0) - 0.28;
-    m = 1.0 - smoothstep(-0.03, 0.01, sd);
-  } else m = 1.0 - smoothstep(uLens - 1.0, uLens + 1.0, length(f - uC));
-  vec2 p = f - uRet; float e = length(p), lit;
-  if (uKind < 0.5) {
-    // the ring, its four ticks (square to the sight) and the dot in the middle, speckled as a hologram's light is
-    vec2 ux = normalize(uU), uy = normalize(uV); float w = max(0.7, uRR * 0.055);
-    lit = ln(abs(e - uRR), w);
-    lit = max(lit, ln(min(min(seg(p, ux * uRR * 0.94, ux * uRR * 1.32), seg(p, -ux * uRR * 0.94, -ux * uRR * 1.32)), min(seg(p, uy * uRR * 0.94, uy * uRR * 1.32), seg(p, -uy * uRR * 0.94, -uy * uRR * 1.32))), w));
-    lit = max(lit, ln(e, uDot));
-    lit *= 0.55 + 0.6 * hash(floor(f / 1.3) + floor(uT * 9.0));
-    lit += 0.18 * exp(-pow(abs(e - uRR) / (w * 3.0), 2.0)) + 0.5 * exp(-e * e / (uDot * uDot * 6.0));
-  } else lit = ln(e, uDot) + 0.6 * exp(-e * e / (uDot * uDot * 5.0)) + 0.12 * exp(-e / (uDot * 4.0));
-  gl_FragColor = vec4(vec3(1.0, 0.13, 0.07) * lit * m * uA * 1.3, 1.0);
-}`;
-const holoMat = overlay(SIGHT_FRAG, SIGHT_U, THREE.AdditiveBlending);
-const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), holoMat); quad.frustumCulled = false;
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), dofMat); quad.frustumCulled = false;
 const quadScene = new THREE.Scene(); quadScene.add(quad);
 const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 function drawQuad(mat) { quad.material = mat; R.render(quadScene, quadCam); }
@@ -154,6 +161,7 @@ const toPx = (v, W, H, out) => { _sp.copy(v).project(FP_CAM); return out.set((_s
 // before the frame's drawn (game/loop.js): what's down the scope that's at your eye, drawn for its lens to show
 // (scopeLens), or every lens back to plain glass
 export function scopePrep() {
+  stepReticles();
   const S = SCOPE_V, on = S.on && S.a >= 0.01 && (S.kind === 'scope' || S.kind === 'acog') && S.src;
   let lens = null; if (on) S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; });
   if (LENS.on && LENS.on !== lens) { LENS.on.material = glassMat(LENS.on.userData.lens); LENS.on = null; }
@@ -225,25 +233,11 @@ function dof(k, W, H, cx, cy, r, world, f0, f1, focus = 0, f = 0) {
 }
 
 function sightOver(S, W, H, f) {
-  const c = FP_CAM, U = SIGHT_U;
+  const c = FP_CAM;
   R.setRenderTarget(null);
   // the gun soft: with iron sights all but the front sight, your eye on it; past a dot or a hologram, your eye on the target
   const iron = S.kind !== 'holo' && S.kind !== 'dot', fs = c.position.distanceTo(S.obj);
   // (your eye focused on the front sight: an aperture, right in front of it, a soft ring round the sharp front post)
   dof(S.a, W, H, -1e5, -1e5, 1, 0, iron ? fs * SCOPE_DOF.iron0 : SCOPE_DOF.f0, iron ? fs * SCOPE_DOF.iron1 : SCOPE_DOF.f1, iron ? fs : 0, f);
-  if (S.kind !== 'holo' && S.kind !== 'dot') return;   // (iron sights: nothing over the view)
-  U.uA.value = S.a; U.uT.value = performance.now() / 1000;
-  // out at the target along the sight's axis, where your eye sees the reticle
-  toPx(_st.copy(c.position).addScaledVector(S.dir, 100), W, H, U.uRet.value); if (_sp.z > 1) return;   // (well out, inside the view's far end)
-  if (S.kind === 'holo') {
-    // the window, its front, square to the sight
-    toPx(S.obj, W, H, U.uC.value); if (_sp.z > 1) return;
-    toPx(_su.copy(S.obj).addScaledVector(S.ux, S.hw), W, H, U.uU.value).sub(U.uC.value);
-    toPx(_su.copy(S.obj).addScaledVector(S.uy, S.hh), W, H, U.uV.value).sub(U.uC.value);
-    U.uKind.value = 0; U.uRR.value = f * Math.tan(HOLO_RET.moa / 2 * MOA * HOLO_RET.k); U.uDot.value = Math.max(0.9, U.uRR.value / 30);
-  } else {
-    toPx(S.obj, W, H, U.uC.value); if (_sp.z > 1) return;
-    U.uKind.value = 1; U.uLens.value = S.r / Math.max(0.02, c.position.distanceTo(S.obj)) * f; U.uDot.value = Math.max(HOLO_RET.dot * H / 1080, f * Math.tan(MOA));
-  }
-  drawQuad(holoMat);
+  // (a dot's or a hologram's reticle is in the sight itself, seen through its window: reticleOn)
 }

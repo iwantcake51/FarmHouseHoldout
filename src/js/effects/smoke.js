@@ -11,7 +11,9 @@ import { flashAt, FN, FR, lmCur, visCur } from '../lighting/lightmap.js';
 // and thin out as they drift up and away on the breeze; coloured by whatever light they sit in ----
 export const smokes = [];
 // (drawn all at once, with the other particles: effects/sprite-batch.js)
-for (let k = 0; k < 120; k++) { const m = sbSprite(TEX_SMOKE); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
+// (enough of them for a suppressed gun overheating on full auto, its trail hanging seconds in the air; SMOKE_N)
+const SMOKE_N = 280;
+for (let k = 0; k < SMOKE_N; k++) { const m = sbSprite(TEX_SMOKE); smokes.push({ m, life: 0, max: 1, vx: 0, vy: 0, vz: 0, s0: 0.2, s1: 1, a: 0.3, spin: 0, ph: 0 }); }
 let smIdx = 0;
 // SMOKE_MOVE: how quickly the air takes it over (drag: it slows to the wind's speed, not to a stop), how fast it rises
 // as it cools (rise, flattened in a strong wind), how much of the wind's speed it takes (wind: world/wind.js), how it
@@ -20,7 +22,14 @@ const SMOKE_MOVE = { drag: 3.4, rise: 0.32, wind: 1, wander: 0.12, swell: 2.6 };
 const _smw = { x: 0, z: 0 };
 // (lift: how much more buoyant than gun smoke it is, for hot smoke that climbs in a column: a flare's)
 export function smoke(x, y, z, vx, vy, vz, s0, s1, life, a, tint, lift) {
-  const p = smokes[smIdx = (smIdx + 1) % smokes.length], m = p.m.material, tex = pick(TEX_SMOKES);
+  // a puff that's done with, or failing that the faintest still showing, so none that you can see vanishes to make room
+  // for a new one (whatever does go is all but gone already)
+  let p = null, best = Infinity;
+  for (let n = 0; n < smokes.length; n++) {
+    const q = smokes[smIdx = (smIdx + 1) % smokes.length]; if (q.life <= 0) { p = q; break; }
+    const k = 1 - q.life / q.max, v = q.a * Math.min(1, k * 12) * Math.pow(1 - k, 1.35); if (v < best) { best = v; p = q; }
+  }
+  const m = p.m.material, tex = pick(TEX_SMOKES);
   if (m.map !== tex) m.map = tex;
   p.m.position.set(x, y, z); p.vx = vx; p.vy = vy; p.vz = vz; p.s0 = s0 * 1.15; p.s1 = s1 * 1.15; p.life = p.max = life; p.a = a; p.spin = rr(-0.6, 0.6); p.ph = rand() * 6.28;
   m.rotation = rand() * 6.28; p.tint = tint || 0xc9c4ba; p.lift = lift || 1; p.m.visible = true;

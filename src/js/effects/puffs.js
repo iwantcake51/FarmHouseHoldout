@@ -62,7 +62,10 @@ for (let k = 0; k < 420; k++) { const s = sbSprite(TEX_SMOKE); fxs.push({ s, lif
 let fxIdx = 0;
 const _fc2 = new THREE.Color(), _fp = new V3(), _fq = new V3();
 export function fx(kind, x, y, z, vx, vy, vz, s0, s1, life, a) {
-  const p = fxs[fxIdx = (fxIdx + 1) % fxs.length], K = FXK[kind], m = p.s.material, tex = pick(K.tex);
+  // (one that's done with, or failing that the one nearest its end, faded all but away: none you can see blinks out)
+  let p = null, best = Infinity;
+  for (let n = 0; n < fxs.length; n++) { const q = fxs[fxIdx = (fxIdx + 1) % fxs.length]; if (q.life <= 0) { p = q; break; } const r = q.life / q.max; if (r < best) { best = r; p = q; } }
+  const K = FXK[kind], m = p.s.material, tex = pick(K.tex);
   if (m.map !== tex) m.map = tex;
   const bl = K.add ? THREE.AdditiveBlending : THREE.NormalBlending; if (m.blending !== bl) { m.blending = bl; m.needsUpdate = true; }
   m.rotation = K.upright ? rr(-0.25, 0.25) : rand() * 6.28;

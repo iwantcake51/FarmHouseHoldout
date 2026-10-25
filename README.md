@@ -48,7 +48,9 @@ barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; ho
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
 yellow bloom round it; and overheating, the smoke pours
 off it slow and heavy and hangs in the air, so moving or swinging the gun leaves a trail of it behind. Left alone it
-fades back down through the same colours, still smoking a while.
+fades back down through the same colours, still smoking a while. However fast you fire, the smoke keeps coming: with a lot of smoke and
+dust in the air at once, it's the faintest, nearly faded puff that's reused for a new one, so nothing that's still
+plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
 reach and stamina cost. Sharp blades take heads and limbs off.
@@ -121,7 +123,7 @@ pointer lock is ignored. The crosshair is wherever the gun points. Hold **Alt** 
 look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
-is pushed back toward you a little with each shot. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
+is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
 and again on the way down, quicker with a handgun;
@@ -138,15 +140,22 @@ shot's muzzle flash and its glow are hidden by the gun in front of them down the
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
 flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
 going there and turned to face your eye as it goes, one streak a shot (a heavy or suppressed round's smoke trail runs
-along the same line, up into the sky with it). From the hip the streak leaves the gun's barrel, bright right from the
-muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck. Your
+along the same line, up into the sky with it). The round itself leaves the gun's muzzle, not the side of you, and in first
+person it's fired from the muzzle straight at what's under the crosshair, so the hole lands where the crosshair is (only
+with the muzzle right up against something does it start from your shoulder instead). From the hip the streak leaves the gun's barrel, bright right from the
+muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck.
+From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall the gun's slid back along its barrel and tipped up off it, easing in and out rather than jumping, and
 mid-reload from your own eyes the gun stays up in front of you, steady in your hands even walking along a wall.
-The red dot's dot and the holographic sight's reticle (an EOTech 512's ring with its four ticks and centre dot, kept small inside the window,
-grainy red light, slim body with its thin hood loop over the window) are drawn out at the target, where your eye sees
-them, inside the sight's window, turning with the gun as it cants. A scope (the hunting scopes, the ACOG) sits a
-proper eye relief out from your eye, and its eyepiece is a real disc of glass in the scope, not a picture laid over the
+The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
+ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
+reticle is light collimated inside the sight's window, so it's only seen looking through that glass from behind, along
+the sight's line. It sits out at infinity, the same size and on the same aim point however far your eye is from the
+window, sliding with the sight rather than with your eye, and it turns with the gun as it cants. From the hip, from the
+side or from in front there's nothing to see in the glass, and it never shows through your body, your hands or anything
+else in front of the window. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
+proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
 with the scope at your eye its own magnified view is seen through that glass:
 the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
@@ -156,7 +165,8 @@ off it (at the hip you see the eyepiece's dark coated glass, with the sky and a 
 picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
 away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
-from your eye, even aiming straight up. Zombies show the moment any of one is in a clear line from your eyes, round a
+from your eye, even aiming straight up. Aiming waits until the gun's back up in your hands after a vault or a weapon switch,
+and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
 corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
 hand the mouse back as they close. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
@@ -200,9 +210,9 @@ off once it's latched. A hand holding the gun is held to its place on it the way
 Blender: the grip hand on the grip, the support hand under the handguard or round the pump, wherever the gun's held
 and however far up you look, the arm reaching all the way to it rather than the hand stopping short and floating.
 Taking a hand off (for a mag, a shell, the bolt) lets go of the constraint as the hand blends away, and taking hold
-again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is, and once its top
-reaches the magwell (a rifle's well, a pistol's grip) it's brought straight onto the well's line and pushed up it,
-never through the side of the gun.
+again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is, and as its top
+nears the magwell (a rifle's well, a pistol's grip) it's eased gradually onto the well's line in one smooth path,
+never jumping into place, then pushed up it, never through the side of the gun and never past where it seats.
 
 **Each gun handles like itself.** Every weapon has its own weight and give: a light pistol snaps through its
 reload and its slide, a 9mm machine pistol is quick and crisp, the AR is balanced, the battle rifle and the auto
