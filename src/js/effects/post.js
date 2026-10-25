@@ -46,6 +46,7 @@ const PS_DEPTH = `
 uniform sampler2D tDepth; uniform vec3 uNF;
 float viewD(vec2 uv) { float z = texture2D(tDepth, uv).r; return uNF.z > 0.5 ? uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)) : uNF.x + z * (uNF.y - uNF.x); }`;
 const psMat = (frag, uniforms, defines) => new THREE.ShaderMaterial({ uniforms, defines: defines || {}, vertexShader: PS_VERT, fragmentShader: frag, depthTest: false, depthWrite: false });
+const AO_NEAR = [0.55, 1.1];
 // the hemisphere it samples, more of them near the middle
 const AO_KERNEL = (() => {
   const n = AO.n[AO.n.length - 1], ks = [];
@@ -70,9 +71,13 @@ void main() {
   vec3 dx = abs(pr.z - P.z) < abs(P.z - pl.z) ? pr - P : P - pl, dy = abs(pu.z - P.z) < abs(P.z - pd.z) ? pu - P : P - pd;
   vec3 N = normalize(cross(dx, dy));
   // turned a different way every couple of centimetres, so its few samples blur into a smooth shade; the pattern's
-  // fixed to the world, not the screen, so it moves with what it's on as the camera moves instead of crawling over it
-  vec3 wq = floor((uInvView * vec4(P, 1.0)).xyz * 40.0);
-  float rn = fract(sin(dot(wq, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;
+  // fixed to the world, not the screen, so it moves with what it's on as the camera moves instead of crawling over it.
+  // From your own eyes it's turned pixel by pixel instead (interleaved gradient noise, which the blur takes out
+  // entirely): there the arms and the gun are a few tens of centimetres off, where a couple of centimetres is a big
+  // patch of screen, each its own shade, a blotchy pattern the blur couldn't smooth
+  float rn;
+  if (uNF.z > 0.5) rn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
+  else { vec3 wq = floor((uInvView * vec4(P, 1.0)).xyz * 40.0); rn = fract(sin(dot(wq, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853; }
   vec3 rv = vec3(cos(rn), sin(rn), 0.0), T = normalize(rv - N * dot(rv, N)), B = cross(N, T);
   mat3 tbn = mat3(T, B, N);
   float occ = 0.0;
@@ -85,6 +90,9 @@ void main() {
     occ += step(s.z + uBias, sz) * range;
   }
   float ao = 1.0 - occ / max(uN, 1.0);
+  // (and none on what's in your own hands: from your eyes, fading out within arm's reach, AO_NEAR, as a shooter keeps
+  // it off its viewmodel)
+  if (uNF.z > 0.5) ao = mix(1.0, ao, smoothstep(${AO_NEAR[0].toFixed(2)}, ${AO_NEAR[1].toFixed(2)}, d));
   gl_FragColor = vec4(ao, d / uNF.y, 0.0, 1.0);
 }`, { tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uR: { value: AO.r }, uBias: { value: AO.bias }, uN: { value: 8 }, uK: { value: AO_KERNEL }, uInvView: { value: new THREE.Matrix4() } });
 // a wide, soft blur one way: a tap counts less the further its depth is from the middle's, but gently (a smooth

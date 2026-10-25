@@ -370,7 +370,7 @@ export const RIFLE_MODELS = {
         const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.004, Math.PI - 0.008); geo.rotateX(Math.PI / 2);   // (a hairline split, not a gap you see through)
         const hm = new THREE.Mesh(geo, H); hm.position.set(X, y0, 0); hm.scale.x = 0.95; hm.castShadow = true; g.add(hm);
       });
-      cyl(g, 0.0435, 0.25, GM.rubber, X, y0, 0.9115, 24).scale.x = 0.95;   // (the heat shield, the whole length inside it, so nothing shows through the split)
+      cyl(g, 0.0435, 0.244, GM.rubber, X, y0, 0.9115, 24).scale.x = 0.95;   // (the heat shield, the whole length inside it, so nothing shows through the split; its ends just inside the handguard's, not on them)
     }
     // ---- barrel, turned: through the front sight, the groove cut for a launcher's clamp, then on to the muzzle (thicker
     // with each heavy-barrel level)

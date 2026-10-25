@@ -28,7 +28,7 @@ const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0
 export const MACHETE_S = [1, 1.12, 1.2, 1.28], KATANA_L = [0.78, 0.92, 1.0, 1.08];
 // the katana's blade: its curve over its length (radians), its width at the habaki and at the tip, how far its kissaki
 // runs on past that, and how many points along it its outline's drawn through
-const KATANA_BLADE = { curve: 0.21, w0: 0.044, w1: 0.032, tip: 0.075, n: 24 };
+const KATANA_BLADE = { curve: 0.21, w0: 0.044, w1: 0.032, tip: 0.075, n: 24 }, KATANA_GRIP = 0.085;
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
@@ -155,10 +155,15 @@ const MELEE_MODELS = {
       const geo = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 10 }); geo.rotateY(-Math.PI / 2); geo.translate(t / 2, 0, 0);
       const mh = new THREE.Mesh(geo, mat); mh.castShadow = true; g.add(mh); return mh;
     };
-    strip(-1, 1, 0.01, steel, true);                    // the blade
+    // (the blade itself stops just inside the spine and the edge, which are each their own strip: laid on the same
+    // outline, their sides and the blade's were the same faces and flickered through each other along the back)
+    strip(-0.96, 0.95, 0.01, steel, true);              // the blade
     strip(-1, -0.64, 0.012, GM.metal2, false);          // its spine
     strip(0.42, 0.86, 0.0106, MM.hamon, false);         // the hamon line
     strip(0.86, 1, 0.0062, MM.edge, false);             // the edge
+    // (held in the fist KATANA_GRIP lower than it's drawn: the right hand just under the tsuba, the left at the end of
+    // the handle by the kashira, player/hold.js MELEE_LH, both on the wrap and neither on the guard or the blade)
+    g.children.forEach(c => { c.position.y -= KATANA_GRIP; });
   },
   // sledgehammer: a hickory handle with a ribbed rubber grip and an overstrike sleeve, a heavy dark head with bright worn faces
   sledge(g, m) {

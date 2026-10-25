@@ -57,9 +57,16 @@ export const reserveOf = id => { const D = W(id); return D.ammo ? W8.reserve[D.a
 // hurt hands (SHAKY.k, player/shaky-hands.js: low health, eased): a reload goes up to HURT_REL.slow slower, and now
 // and then the hands fumble it (up to HURT_REL.fumble of the time a reload, of the time a shell for one fed a round at
 // a time): they stall partway, the gun knocked and something clacking, for a moment before they carry on
-const HURT_REL = { slow: 0.35, fumble: 0.4, shellFumble: 0.18, stall: [0.28, 0.55] };
+// (never with the revolver: its cylinder's fed and shut with no hesitation). A fumble doesn't freeze the hands: they
+// slow to a near stop and pick up again (fumbleW), moving FUMBLE.adv of the stall's own time through the reload on the
+// way, at full speed going into it and coming out of it, so nothing jolts to a halt or jumps away
+const HURT_REL = { slow: 0.35, fumble: 0.4, shellFumble: 0.18, stall: [0.28, 0.55] }, FUMBLE = { adv: 0.35, knock: 0.6 };
 const hurtRel = () => 1 + HURT_REL.slow * SHAKY.k;
-const rollFumble = (chance, B) => SHAKY.k > 0.02 && rand() < chance * SHAKY.k ? [{ t: rr(0.25, 0.7) * B, d: rr(HURT_REL.stall[0], HURT_REL.stall[1]) * (0.6 + 0.4 * SHAKY.k), kind: 'fumble' }] : [];
+const rollFumble = (chance, B, id) => id !== 'revolver' && SHAKY.k > 0.02 && rand() < chance * SHAKY.k ? [{ t: rr(0.25, 0.7) * B, d: rr(HURT_REL.stall[0], HURT_REL.stall[1]) * (0.6 + 0.4 * SHAKY.k), kind: 'fumble' }] : [];
+// how far a fumble's base has gone at k of the way through it (in its own time): a cubic that leaves at full speed,
+// slows to a near stop in the middle and is back at full speed at the end, FUMBLE.adv along
+const fumbleW = k => 2 * k * k * k - 3 * k * k + k + FUMBLE.adv * (3 * k * k - 2 * k * k * k);
+const segAdv = g => g.kind === 'fumble' ? FUMBLE.adv * g.d : 0;
 // missing the magwell: the fresh mag's top comes up off the well's line and catches its lip, bounces back off it and is
 // lined up again before it goes in (player/hold-mags.js: magMiss). Now and then with steady hands (calm: the chance of
 // one), and with hurt ones most of the time, once, twice or as many as three times running, each slower (hurt: the
@@ -78,7 +85,7 @@ const MAG_TAKE_U = 0.42;   // (player/hold-mags.js: MAG_TAKE, where the mag's ta
 // mag out, the new one seated, the slide dropped, a shell in), and the beats slipped into it (segs: a fumble, a missed
 // magwell), each at a point of the base (t, seconds) for d seconds of its own, in which the base stands still. The reload
 // takes the lot (reloadMax), and the crosshair's ring fills over all of it, so it follows the reload as it really goes
-function relPlan(B, segs) { segs.sort((a, b) => a.t - b.t); W8.relTL = { B, segs }; W8.reloadMax = W8.reloadT = B + segs.reduce((a, g) => a + g.d, 0); relStep(); }
+function relPlan(B, segs) { segs.sort((a, b) => a.t - b.t); W8.relTL = { B, segs }; W8.reloadMax = W8.reloadT = B + segs.reduce((a, g) => a + g.d - segAdv(g), 0); relStep(); }
 // where the reload's base is now (W8.relU, 0 to 1: what player/hold.js and the marks below go by), and any beat it's in
 // (W8.relSeg, W8.relSegK how far through it)
 function relStep() {
@@ -89,8 +96,8 @@ function relStep() {
   for (const g of TL.segs) {
     const s0 = g.t + acc;
     if (e < s0) { base = e - acc; break; }
-    if (e < s0 + g.d) { base = g.t; W8.relSeg = g; W8.relSegK = (e - s0) / g.d; break; }
-    acc += g.d;
+    if (e < s0 + g.d) { W8.relSeg = g; W8.relSegK = (e - s0) / g.d; base = g.t + (g.kind === 'fumble' ? g.d * fumbleW(W8.relSegK) : 0); break; }
+    acc += g.d - segAdv(g);
   }
   if (base < 0) base = e - acc;
   W8.relU = clamp(base / TL.B, 0, 1);
@@ -129,15 +136,15 @@ export function startReload() {
     if (W8.cyc && W8.cyc.id === id) { if (!W8.cyc.done) ejectCasing(D.ammo, 1, EJECT[id]); W8.cyc = null; }
     W8.relWait = racked(id) && !W8.held[id] && (EJECT[id] === 'bolt' || (W8.mag[id] || 0) <= 0) ? openAction(id) : 0;
     W8.reloading = 'shell'; W8.shellsIn = 0; W8.shellsNeed = Math.min(missing, reserveOf(id)); W8.goN = 0; W8.goIn = 0;
-    { const B = (shellGo(id, D, goSize(id, D)) + firstShell(id)) * hurtRel(); relPlan(B, rollFumble(HURT_REL.shellFumble, B)); }
+    { const B = (shellGo(id, D, goSize(id, D)) + firstShell(id)) * hurtRel(); relPlan(B, rollFumble(HURT_REL.shellFumble, B, id)); }
     W8.relRing = { id, el: 0, tot: W8.relWait + W8.reloadT + shellGo(id, D) * hurtRel() * (Math.ceil(W8.shellsNeed / (D.loadN || 1)) - 1), tail: relTail(id, D), p0: -1, t0: -1 };
-  } else if (D.speedload) { W8.reloading = 'mag'; { const B = D.reload * relMul(id) * hurtRel(); relPlan(B, rollFumble(HURT_REL.fumble, B)); } W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
+  } else if (D.speedload) { W8.reloading = 'mag'; { const B = D.reload * relMul(id) * hurtRel(); relPlan(B, rollFumble(HURT_REL.fumble, B, id)); } W8.slLive = W8.mag[id] | 0; W8.seated = W8.pulled = W8.slammed = false; SFX.cylOpen(); reloadJolt(0.12); }   // the cylinder swings out
   else {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
     // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer
     const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
     W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
-    { const B = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty && !D.detach ? EMPTY_MUL : 1) * hurtRel(); relPlan(B, [...rollFumble(HURT_REL.fumble, B), ...rollMisses(B)]); }   // (the rifle's box: its bolt's worked after, empty or not)
+    { const B = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty && !D.detach ? EMPTY_MUL : 1) * hurtRel(); relPlan(B, [...rollFumble(HURT_REL.fumble, B, id), ...rollMisses(B)]); }   // (the rifle's box: its bolt's worked after, empty or not)
     W8.seated = W8.pulled = W8.slammed = false;
     SFX.magOut(); reloadJolt(0.12);   // (the old mag falls a beat later, at magOutP: tickReload)
   }
@@ -227,7 +234,7 @@ export function tickReload(dt) {
   // clacking as it starts; a missed magwell, the mag's top clacking off the well's lip as it catches it (MISS_HIT of the
   // way through it), the gun knocked by it
   { const g = W8.relSeg;
-    if (g && g.kind === 'fumble' && !g.hit) { g.hit = true; relKnock(rr(1.4, 2.4), rr(-2.6, 2.6), -0.25, rr(-0.5, 0.2)); reloadJolt(0.12); SFX.click(); }
+    if (g && g.kind === 'fumble' && !g.hit && W8.relSegK >= 0.3) { g.hit = true; const K = FUMBLE.knock; relKnock(rr(1.4, 2.4) * K, rr(-2.6, 2.6) * K, -0.25 * K, rr(-0.5, 0.2) * K); reloadJolt(0.06); SFX.click(); }   // (as it slows: a softer knock, FUMBLE.knock)
     if (g && g.kind === 'miss' && !g.hit && W8.relSegK >= MISS_HIT) { g.hit = true; relKnock(rr(0.7, 1.2), rr(-1.2, 1.2) * g.side, -0.15, rr(-0.3, 0.3)); reloadJolt(0.07); SFX.magTap(); } }
   if (W8.reloading === 'mag' && D.speedload) {
     const p = W8.relU;
@@ -257,8 +264,8 @@ export function tickReload(dt) {
     if (n > 0) shellIn(id, D, n);
     W8.goN = 0; W8.goIn = 0;
     if (W8.mag[id] < magSize(id) && reserveOf(id) > 0 && !W8.relStop) {   // the next shell, its own way
-      const B = shellGo(id, D, goSize(id, D)) * hurtRel(), f = rollFumble(HURT_REL.shellFumble, B); relPlan(B, f); W8.relStyle = Math.floor(Math.random() * 3); relJitter(true);
-      if (W8.relRing && f.length) W8.relRing.tot += f[0].d;   // (the ring takes the fumble's time too)
+      const B = shellGo(id, D, goSize(id, D)) * hurtRel(), f = rollFumble(HURT_REL.shellFumble, B, id); relPlan(B, f); W8.relStyle = Math.floor(Math.random() * 3); relJitter(true);
+      if (W8.relRing && f.length) W8.relRing.tot += f[0].d - segAdv(f[0]);   // (the ring takes the fumble's time too)
     }
     // done: a pump or bolt gun that's open has its action pushed home straight away (weapons/casings.js), one that's
     // chambered is ready as it is; anything else snaps shut

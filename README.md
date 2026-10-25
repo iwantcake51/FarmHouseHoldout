@@ -41,7 +41,7 @@ flashlight and the muzzle flashes matter.
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
 reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades, and change calibres with conversion kits such as AK mags for the
-battle rifle or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
+battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
@@ -56,7 +56,9 @@ dust in the air at once, it's the faintest, nearly faded puff that's reused for 
 plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
-reach and stamina cost. Sharp blades take heads and limbs off. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point.
+reach and stamina cost. Sharp blades take heads and limbs off. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
+its wrapped handle, both hands on the grip below the guard. From your own eyes a melee weapon in your hands keeps your
+body together with your legs, and a swing doesn't carry you forward.
 
 **Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
@@ -132,8 +134,11 @@ the gun points the way you look, whatever's under the crosshair, so it never swi
 walk or look up and down; the body's stride and lean are toned right down from your own eyes, and the bob and sway
 you do see are first-person ones, on springs of their own. The view turns exactly as the mouse moves, by the mouse's raw movement where the browser
 gives it (no pointer acceleration), and stops the moment it stops; a stray jump the browser sometimes reports under
-pointer lock is ignored. The crosshair is wherever the gun points. Hold **Alt** to
-look round freely while the gun stays where it's aimed, and the view eases back onto it when you let go. The view
+pointer lock is ignored. Turning, your eye stays put over your hips rather than swinging round with your shoulders,
+and the gun and your arms are already turned with you when the view's placed, so a turn starting or stopping never
+makes them jump or stutter. The crosshair is wherever the gun points. Hold **Alt** to
+look round freely while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
+away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
 is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
@@ -143,14 +148,16 @@ and again on the way down, quicker with a handgun;
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
 a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
-shotgun's front post sits in the middle of the hole through the rear aperture, and the pump and double barrel are aimed
-down the rib with the bead sat on the receiver, and the hunting rifle's notch and post with your cheek on the stock, the
+shotgun's front post sits in the middle of the hole through the rear aperture, the pump's Mossberg-style ghost ring
+(a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
+fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring, the double barrel is
+aimed down the rib with the bead sat on the receiver, and the hunting rifle's notch and post with your cheek on the stock, the
 notch well out ahead of your eye rather than right up against it. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
 only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
-out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. Each round
+out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
 flies the line you looked down: up into the sky, or down into the ground where it kicks up dirt, its streak of light
 going there, one streak a shot (a heavy or suppressed round's smoke trail runs along the same line, up into the sky
 with it). From your own eyes the streak isn't a flat strip seen edge on: it's a ribbon turned to face your eye all along
@@ -207,12 +214,15 @@ comes up a touch and turns a little toward you, not over on its side, and it sta
 the hip rather than coming back to the middle for the reload. The flashlight points down the gun's barrel,
 easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
 at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
-Each footfall lands with a little dip in the view, and the gun and your arms move on their own soft springs: tilted
+Walking bobs the view softly, the way your head really rides on a stride: a small, rounded rise and fall with each
+step, a slight sway and roll toward the foot you're on, all eased in and out with no jolts, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
 turn, breathing slowly when you stand still and dropping a little as you land off a vault (almost none of it down the
 sights; a sprint bobs no harder than a walk). Breaking into a sprint, the gun comes down on a spring rather than
 dropping at once: it starts lowering gently, swings down through the middle and settles carried low in the bottom of
-the view, canted over with its muzzle tipped well down, and comes back up the same way, a touch quicker. Your arms and the gun are carried by the view itself, the way
+the view, canted over with its muzzle tipped well down, and comes back up the same way, a touch quicker. However long
+the gun, its stock is kept low and out ahead of your face while you run (a long gun's butt is pushed down and forward
+clear of your eye, so the hunting rifle's or the SCAR's stock never fills the view). Your arms and the gun are carried by the view itself, the way
 a shooter's arms are: they're placed against this frame's view (not the one before, which left them trailing a frame
 behind as you walked and turned), the chest's lean and roll as you walk and sidestep are taken off them, and their
 sway turns about your grip, so walking, strafing and turning never leave them lagging or jogging behind the view;
@@ -265,8 +275,9 @@ shotgun swing a little slower and carry on further, and the LMG lumbers into its
 same slap home moves a light gun more than a heavy one. A mag change opens with a small wind-up of the wrist the other
 way before the gun's rolled over to dump the old mag.
 
-**Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble, the hands stalling a moment as
-the gun's knocked and something clacks. They can also miss the magwell: the fresh mag comes up off the well's line and
+**Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble: the hands lose their rhythm,
+slowing through the move and then catching it back up, all in one smooth motion rather than a frozen pause, the gun
+knocked partway through and something clacking. The revolver never fumbles: its rounds go in one at a time anyway. They can also miss the magwell: the fresh mag comes up off the well's line and
 knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. That
 can happen once, twice or up to three times running at low health, and once in a while with steady hands too. The mag
 is only ever off the line below the well's mouth, so it never goes through the side of the gun. Every one of these beats
@@ -299,7 +310,7 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 
 | Setting | Options |
 | --- | --- |
-| Ambient occlusion | On, off |
+| Ambient occlusion | On, off (soft shading in corners and creases; close to your eye, on the gun in your hands, it fades out rather than leaving a grainy pattern) |
 | Glow | Off, soft, normal, strong |
 | Shadow quality | High, medium, low |
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |

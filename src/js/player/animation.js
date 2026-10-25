@@ -443,7 +443,7 @@ function animatePlayer(dt, rdt) {
   // the hands and the weapon (their turn of the chest and the head is the hands' own, made in the mirrored upper body:
   // player/player.js) on top of what the body's doing in the world (the turn, the lean, the look), which is kept apart
   // and turned the other way for the head, which is drawn mirrored with the upper body
-  const u0y = up.y, u0z = up.z, wz = pm.head.rotation.z; pm.head.rotation.z = 0;
+  const u0y = up.y, u0z = up.z, wz = pm.head.rotation.z; pm.head.rotation.z = 0; up.u0y = u0y; up.u0z = u0z;   // (u0: for player/hold.js, which puts the chest's turn on early)
   poseHands(D, up, ph, runF, rdt, now);
   up.y = 2 * u0y - up.y; up.z = 2 * u0z - up.z;   // (the chest isn't mirrored itself, only what's on it)
   const hY = pm.head.rotation.y, hZ = pm.head.rotation.z; let wy = 0;   // (the hands' turn of the head; the world's, wy and wz)

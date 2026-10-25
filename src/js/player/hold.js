@@ -25,7 +25,7 @@ import { AK_SLIDE, akBusy, akChargeState, akHasCharge, akSlideBack, akU } from '
 import { BARREL, barrelFree } from '../weapons/firing.js';
 import { meleeBashHand, meleeInspectEnd, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
 import { frontHeavy, gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
-import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpViewSway } from '../game/view-cam.js';
+import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpSprintClear, fpViewSway } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
@@ -323,7 +323,10 @@ export function poseHands(D, up, ph, runF, rdt, now) {
 }
 
 // how far forward the body goes as the weight comes onto the front foot in a swing (m, at full step)
-const MLUNGE = 0.55;
+const MLUNGE = 0.55, FP_MLUNGE = 0.08;
+// where a two-handed weapon's left fist closes on it, up its handle from the right one (metres; the katana's below it,
+// at the end of its handle, the right hand under the tsuba: melee/melee-models.js KATANA_GRIP)
+const MELEE_LH = { katana: -0.12 };
 // a melee weapon in your hands: the pose (the guard, a swing, the flourish once it's drawn, or a bash) comes from
 // melee/melee-anim.js as the fist's place and the weapon's direction, already through its springs; here it goes onto
 // the rig. The body twists, leans and bends with it, the hips turn under it, the weight goes onto the front foot and
@@ -343,7 +346,9 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   pm.g.position.y -= 0.085 * dp;
   // stepping in to it: the body goes forward with the weight (MLUNGE, further for a longer weapon), so a swing reaches
   // out as far as it hits
-  { const lg = Math.max(0, st) * MLUNGE * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
+  // (from your own eyes only a hint of it, FP_MLUNGE: your eye's carried with the body, so the whole view lurched
+  // forward half a metre each swing)
+  { const lg = Math.max(0, st) * MLUNGE * (fpOn() ? FP_MLUNGE : 1) * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
   pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2 - MS.ihy; pm.head.rotation.x -= b.ux * 0.45 - MS.ihp;   // (looking down at it while it's looked over: MS.ihp, ihy)
   // the weapon in the right fist (shaking at low health: player/shaky-hands.js)
   const q = shakyTremor();
@@ -357,7 +362,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // like a bar); one-handed, the free arm swings out against the turn for balance
   if (D.two) {
     pm.armR.updateMatrix(); mh.updateMatrix();
-    _fL.set(0, 0.15 + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+    _fL.set(0, (MELEE_LH[curId()] ?? 0.15) + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
     if (MS.lOn < 1) _fL.lerpVectors(SWAP_REST_L, _fL, MS.lOn);   // (not on it yet through the draw flourish)
     reach(pm.armL, 'L', _fL, 0, true);
   } else {
@@ -658,11 +663,15 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
   // (the body's world matrices brought up to this frame first: they're still where the body was last frame, and these
-  // place the gun against the view in the world, so it'd be put a frame behind wherever you've walked or turned to)
-  if (fpOn()) PM.g.updateMatrixWorld(true);
+  // place the gun against the view in the world, so it'd be put a frame behind wherever you've walked or turned to;
+  // the chest's turn too, which player/animation.js only puts on once the hands are done (mirrored as it puts it: up.u0),
+  // or the gun's placed against last frame's chest and jolts each time a turn starts or stops, the chest's twist on the
+  // hips jumping, and shakes walking)
+  if (fpOn()) { if (up.u0y !== undefined) pm.upper.rotation.set(up.x, 2 * up.u0y - up.y, 2 * up.u0z - up.z); PM.g.updateMatrixWorld(true); }
   if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg, H.grip); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
   { const IO = inspectOut(); fpInspectPose(gg, inspectW(), IO.x, IO.h, IO.z); }   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
   inspectReach(gg, s, H, ak);   // and never further out or nearer in than the hands on it can hold it
+  if (!ak) fpSprintClear(gg, rd);   // (sprinting from your own eyes: out of your face, last, so nothing after brings it back up: game/view-cam.js)
   { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)
     pm.upper.position.z = -BR.z * bk; }   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
