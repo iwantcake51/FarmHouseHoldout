@@ -63,7 +63,7 @@ export function rackCam(roll, push, zm) {
 // and pushed in a touch. It's an impulse given to a soft spring that eases straight back with barely a sway, never a
 // jump, and it adds onto everything else the camera's doing (CAM_HIT: how far for a usual hit; a harder one more)
 const camHit = { roll: 0, vr: 0, px: 0, vpx: 0, pz: 0, vpz: 0, zoom: 0, vz: 0 };
-const CAM_HIT = { push: 1.5, roll: 0.3, zoom: 0.3, k: 90, d: 15 };
+const CAM_HIT = { push: 2.2, roll: 0.42, zoom: 0.3, k: 90, d: 11 };   // (a touch under its damping, so a blow shakes the view back and forth along the line it came in on as it settles)
 export function hitCam(x, z, amount) {
   const c = camHit, k = clamp(amount || 1, 0.4, 2), dx = P.x - x, dz = P.z - z, L = Math.hypot(dx, dz);
   if (L > 1e-3) { c.vpx += dx / L * CAM_HIT.push * k; c.vpz += dz / L * CAM_HIT.push * k; }

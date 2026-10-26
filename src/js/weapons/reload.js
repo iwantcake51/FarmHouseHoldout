@@ -102,6 +102,14 @@ function relStep() {
   if (base < 0) base = e - acc;
   W8.relU = clamp(base / TL.B, 0, 1);
 }
+// the time the beats of this go not yet reached will add (a fumble, a missed magwell): the ring isn't told of one until
+// it happens, so it fills as the reload's planned to go, and only stretches out once the hands actually fumble
+export function relUnseen() {
+  const TL = W8.relTL; if (!TL || !TL.segs.length || !W8.reloading) return 0;
+  const e = W8.reloadMax - W8.reloadT; let acc = 0, n = 0;
+  for (const g of TL.segs) { const s0 = g.t + acc, add = g.d - segAdv(g); if (e < s0) n += add; acc += add; }
+  return n;
+}
 // how many shells this go loads, fixed as it starts (so counting some in partway through doesn't change it), and
 // whether they go in one at a time off a row in the palm (the pump with Quick hands) rather than together
 function goSize(id, D) { if (!W8.goN) W8.goN = Math.max(1, Math.min(D.loadN || 1, magSize(id) - (W8.mag[id] || 0), reserveOf(id))); return W8.goN; }
@@ -291,10 +299,10 @@ export function tickReload(dt) {
 const relTail = (id, D) => D.breakOpen ? BRK_SHUT * S.reloadMul * (D.shutMul || 1) : cylShut(D) ? CYL_SHUT * S.reloadMul : racked(id) && needsRack(id) ? chamberT(id) + (EJECT[id] === 'pump' ? PUMP_GRAB * S.reloadMul : 0) : 0;
 export function relRingP() {
   const R = W8.relRing, id = curId(); if (!R) return -1;
-  const shellK = R.tot / (R.tot + R.tail);
-  if (W8.reloading === 'shell' && R.id === id) return Math.min(shellK, R.el / (R.tot + R.tail));
+  const tot = R.tot - (W8.reloading === 'shell' && R.id === id ? relUnseen() : 0), shellK = tot / (tot + R.tail);
+  if (W8.reloading === 'shell' && R.id === id) return Math.min(shellK, R.el / (tot + R.tail));
   if (W8.reloading || R.id !== id) { W8.relRing = null; return -1; }
-  if (R.p0 < 0) R.p0 = Math.min(shellK, R.el / (R.tot + R.tail));
+  if (R.p0 < 0) R.p0 = Math.min(shellK, R.el / (tot + R.tail));
   let f = -1;
   if (W8.shutT > 0) f = 1 - W8.shutT / W8.shutMax;   // the barrels being closed
   else if (W8.brkOpen) f = 0;   // (they start closing this frame)

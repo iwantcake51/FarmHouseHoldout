@@ -30,6 +30,10 @@ import {
 // eight; they can dash from the first: zombies/brute-dash.js), and on that first wave and every fifth after it two
 // more brutes on top; spitters (zombies/spitter.js) from wave SPIT.from. They come in a shuffled order.
 export const BRUTE_FROM = 7;
+// and how many brutes a wave may have, so they come in slowly: just the one on the first brute wave (in plain clothes,
+// no armour on it: zombies/spawn.js), then more and more allowed a wave (1 + k times the waves since, to the power pow)
+const BRUTE_RAMP = { k: 0.5, pow: 1.5 };
+const bruteCap = n => 1 + Math.floor(BRUTE_RAMP.k * Math.pow(Math.max(0, n - BRUTE_FROM), BRUTE_RAMP.pow));
 // From wave LATE.from it climbs faster, whatever you're carrying, so a good gun doesn't make the late waves easy: more
 // of them each wave (LATE.count a wave on top), their health growing faster and faster (LATE.hp, times the square of the
 // waves past it: zombies/spawn.js), and the sprinters' and brutes' shares let go past their usual caps, up to
@@ -48,9 +52,10 @@ function buildWave(n) {
   const runners = Math.round(count * mix.runner), brutes = Math.round(count * mix.brute), spitters = Math.round(count * mix.spitter);
   const list = Array.from({ length: Math.max(0, count - runners - brutes - spitters) }, () => 'walker');
   for (let k = 0; k < spitters; k++) list.push('spitter');
-  if (n === BRUTE_FROM || (n > BRUTE_FROM && n % 5 === 0)) list.push('brute', 'brute');
+  const bonus = n === BRUTE_FROM || (n > BRUTE_FROM && n % 5 === 0) ? 2 : 0, nb = n >= BRUTE_FROM ? Math.min(bruteCap(n), Math.max(1, brutes + bonus)) : 0;
   for (let k = 0; k < runners; k++) list.push('runner');
-  for (let k = 0; k < brutes; k++) list.push('brute');
+  for (let k = 0; k < nb; k++) list.push('brute');
+  for (let k = nb; k < brutes; k++) list.push('walker');   // (the brutes held back for now come as walkers, so the wave's no smaller)
   for (let k = list.length - 1; k > 0; k--) { const j = (rand() * (k + 1)) | 0; [list[k], list[j]] = [list[j], list[k]]; }
   return list;
 }
@@ -85,7 +90,7 @@ export function waveBegins(n, total, fog) {
   run.waveTotal = total;
   const brutes = run.wave === BRUTE_FROM || (run.wave > BRUTE_FROM && run.wave % 5 === 0);   // the wording fits any hour: a wave can start in daylight
   if (fog) announce('Wave ' + run.wave, (firsts[run.wave] ? firsts[run.wave] + ' · ' : '') + 'Fog · ' + total + ' incoming', { eye: 'Fog', kind: brutes ? 'red' : '' });
-  else announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? 'Brutes in the treeline' : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
+  else announce('Wave ' + run.wave, firsts[run.wave] || (brutes ? (run.wave === BRUTE_FROM ? 'A brute in the treeline' : 'Brutes in the treeline') : total + ' closing in'), { eye: brutes ? 'Horde' : 'Incoming', kind: brutes ? 'red' : '' });
   SFX.wave();
 }
 // the count under the wave number; in a lull between surges, a word that they've let up for now

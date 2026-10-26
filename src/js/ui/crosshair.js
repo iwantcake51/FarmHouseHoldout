@@ -16,7 +16,7 @@ import { bloom, camRoll, setBloom, state } from '../game/state.js';
 import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
 import { scoped } from '../player/aiming.js';
 import { usingTouch } from '../input/touch.js';
-import { relRingP } from '../weapons/reload.js';
+import { relRingP, relUnseen } from '../weapons/reload.js';
 import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
 import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, SG_FP, spreadOf } from '../weapons/firing.js';
 import { rollText } from './hud-text.js';
@@ -253,7 +253,7 @@ export function updateCrosshair(rdt, D) {
     xhAmmo.classList.remove('flash'); xhAmmoBg.classList.remove('out');
     // a shell at a time: by time, through to the gun closed or racked after (weapons/reload.js: relRingP)
     const sp = relRingP(), on = W8.reloading === 'mag' || sp >= 0;
-    if (W8.reloading === 'mag') rp = 1 - W8.reloadT / W8.reloadMax; else if (sp >= 0) rp = sp;
+    if (W8.reloading === 'mag') { const kn = W8.reloadMax - relUnseen(); rp = clamp((W8.reloadMax - W8.reloadT) / Math.max(kn, 1e-3), 0, 1); } else if (sp >= 0) rp = sp;   // (a fumble's time only once it's happened: relUnseen)
     reloadDraw('R', on, rp); reloadDraw('L', false, 0);
     xhAmmo.style.opacity = on ? 0.25 : 1;
     }

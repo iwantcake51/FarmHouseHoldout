@@ -59,19 +59,35 @@ const BRUTE_HIDE = 0.4;
 // so much before it breaks (hp, a share of the zombie's own health). A soldier's helmet and vest; a SWAT officer's
 // helmet, plate carrier and the pads and holster on the legs; a riot officer's the same with the face shield down, so
 // a headshot does far less; a builder's hard hat, which stops little and splits soon. Heavier rounds go through more of
-// it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND), a melee blow jars through it
-// (ARMOR_MELEE takes that much of it off), and a brute wears it thinner on its bulk (ARMOR_BRUTE). A blast, fire and
-// bleeding go round it. Every hit it blunts shows its number in steel, with a shield (dmgNumber)
+// it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND); a melee blow by what it hits with
+// (ARMOR_MELEE: how much of the armour still counts): a blunt one jars straight through it, a spiked one (nails, railroad
+// spikes) catches on it and an edge (a blade, an axe) glances off; and a brute wears it thinner on its bulk
+// (ARMOR_BRUTE). Every helmet is armour, a fireman's or a builder's hard hat only a little; one without a face shield
+// only guards the top of the head (above the brow, HELM_BROW), so a shot in the face goes round it. A blast, fire and
+// bleeding go round it all. Every hit it blunts shows its number in steel, with a shield (dmgNumber)
 export const ARMOR_FROM = 4;
 export const ARMED_JOBS = { soldier: 1, swat: 1, riot: 1 };
 export const ARMOR_KIT = {
-  helmet: { a: 0.3, hp: 0.6, metal: true }, swat: { a: 0.34, hp: 0.75, metal: true }, riot: { a: 0.5, hp: 0.9, metal: true }, hardhat: { a: 0.15, hp: 0.22 },
+  helmet: { a: 0.3, hp: 0.6, metal: true }, swat: { a: 0.34, hp: 0.75, metal: true }, riot: { a: 0.5, hp: 0.9, metal: true, face: true }, hardhat: { a: 0.15, hp: 0.22 }, fire: { a: 0.12, hp: 0.25 },
   vest: { a: 0.35, hp: 1.1 }, carrier: { a: 0.4, hp: 1.4, metal: true }, pads: { a: 0.2, hp: 0.45 }
 };
 // what each armed job wears below the hat (the hat's own piece is the hat: zHat)
 const JOB_ARMOR = { soldier: { torso: 'vest' }, swat: { torso: 'carrier', legs: 'pads' }, riot: { torso: 'carrier', legs: 'pads' } };
 const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3 };
-const ARMOR_MELEE = 0.6, ARMOR_BRUTE = 0.6;
+const ARMOR_MELEE = { blunt: 0.35, spiked: 0.8, edge: 0.9 }, ARMOR_BRUTE = 0.6;
+// where a helmet's brim is on the head (metres up the head from its pivot): a round that lands below it is in the face
+const HELM_BROW = 0.075;
+// where on the zombie this round struck, as high as it was there (weapons/firing.js sets it before each hit; null where
+// it's not known, a shot from above picking a part at random: then a head hit's on the top of it HELM_TOP of the time)
+const HIT_AT = { y: null }, HELM_TOP = 0.35;
+export const setHitY = y => { HIT_AT.y = y; };
+const _hyV = new THREE.Vector3();
+function onHelmet(z, D) {
+  if (D.melee) return true;   // (a blow comes down on it)
+  const y = HIT_AT.y; if (y === null || !z.m.head) return rand() < HELM_TOP;
+  z.m.head.updateWorldMatrix(true, false); _hyV.set(z.x, y, z.z); z.m.head.worldToLocal(_hyV);
+  return _hyV.y > HELM_BROW;
+}
 // the guns that punch through it on their own: the .50 hand cannon, and the battle rifle's full-power 7.62 (not once
 // it's been converted to take AK mags: weapons/gun-mods.js)
 const ARMOR_GUN = { deagle: 0.55, scar: 0.6 };
@@ -93,7 +109,8 @@ const armorPowK = wId => { const B = WEAP[wId], E = EFF[wId]; return B && E && B
 function armorOf(z, part, D, wId) {
   const A = z.armor; if (!A || wId === 'boom' || wId === 'fire' || wId === 'bleed') return null;
   const slot = part === 'legL' || part === 'legR' ? 'legs' : part, P = A[slot]; if (!P || P.broken) return null;
-  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1) * armorGun(wId);
+  if (slot === 'head' && !ARMOR_KIT[P.kind].face && !onHelmet(z, D)) return null;   // (in the face, under the brim)
+  const k = D.melee ? ARMOR_MELEE[D.spiked ? 'spiked' : D.blunt ? 'blunt' : 'edge'] : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1) * armorGun(wId);
   return { slot, P, a: clamp(ARMOR_KIT[P.kind].a * k * armorWaveK() * armorPowK(wId) * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, ARMOR_SCALE.max) };
 }
 // a hit worn into a piece: it cracks, then comes off (zombies/armor-break.js)

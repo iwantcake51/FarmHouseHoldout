@@ -77,8 +77,9 @@ export function gunUnsteady(D, id) {
   return D.slot === 'auto' ? XSTEADY.auto : XSTEADY.long;
 }
 // weight out toward the muzzle makes a gun harder to hold still: each thing hung on the front adds its share to the sway
-// (FRONT: by attachment tier, the AR's bigger mags too; FRONT_MOD: a gun's own mods, a longer barrel by its level)
-export const FRONT = { laser: [0, 0.1, 0.14], light: [0, 0.1, 0.14], supp: [0, 0.14, 0.18, 0.22], choke: [0, 0.06, 0.1], arMag: [0, 0.08, 0.14, 0.2] };
+// (FRONT: by attachment tier, the AR's bigger mags too; FRONT_MOD: a gun's own mods, a longer barrel by its level). A
+// laser or a light is too light to tell (none)
+export const FRONT = { laser: [0, 0, 0], light: [0, 0, 0], supp: [0, 0.14, 0.18, 0.22], choke: [0, 0.06, 0.1], arMag: [0, 0.08, 0.14, 0.2] };
 export const FRONT_MOD = { match: 0.1, longbarrel: 0.1, comp: 0.08, ported: 0.06, heavy: 0.16, gl: 0.2, bipod: 0.12 };
 // how much more a long gun sways for d more weight out front, as a percentage (the attachment cards: upgrades/upgrade-info.js)
 export const frontSwayPct = d => Math.round(d * XSWAY.front / XSWAY.px * 100);

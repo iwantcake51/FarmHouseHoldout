@@ -18,19 +18,19 @@ import { amb, curDark } from '../lighting/day-night.js';
 import { cheatIs } from '../ui/cheats.js';
 import { camFocus } from '../net/spectate.js';
 
-// a wave's odds of fog (from wave MIST.from, and never two in a row), how many metres round you stay clear and how far
+// a wave's odds of fog (from wave MIST.from, and never within MIST.gap waves of the last), how many metres round you stay clear and how far
 // it takes to thicken to full past that, how long it takes to roll in and back out (s), the most it hides (1: all, so
 // nothing out in it shows, a tree's top or a car's roof no more than a zombie), its own slow drift (drift: which way
 // and how fast, metres a second; the wind doesn't push it about), and how much the lamps and torches out in it light it up (glow) and a flashlight's beam
 // shows in it (beam)
 // path: the clear path a flashlight's beam cuts through it by the light's tier, [its half-width against the beam's own,
 // how much of the beam's reach it runs]; wall: how far out from the house's walls it takes to thicken from nothing
-export const MIST = { chance: 0.22, from: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, drift: [0.12, 0.07], glow: 0.7, beam: 0.55,
+export const MIST = { chance: 0.12, from: 3, gap: 3, clear: 2.4, ramp: 3.2, rollIn: 8, rollOut: 4, max: 1, drift: [0.12, 0.07], glow: 0.7, beam: 0.55,
   path: { 1: [0.6, 0.8], 2: [1.55, 1] }, wall: 1.8,
   on: false, last: 0, k: 0, t: 0 };
 // the host's roll for the wave about to start (co-op: sent with it, net/sync.js)
 export function mistRoll(n) { if (cheatIs('fog')) { MIST.last = n; return true; }   // (the cheat menu's Fog every wave: ui/cheats.js)
-  const on = n >= MIST.from && MIST.last !== n - 1 && rand() < MIST.chance; if (on) MIST.last = n; return on; }
+  const on = n >= MIST.from && n - MIST.last > MIST.gap && rand() < MIST.chance; if (on) MIST.last = n; return on; }
 // a wave beginning with it or without, and its going at the end of the wave or the run
 export function mistSet(on) { MIST.on = !!on; }
 export function mistReset() { MIST.on = false; MIST.k = 0; MIST.last = 0; }

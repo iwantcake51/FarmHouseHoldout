@@ -150,7 +150,7 @@ export function roundSwitched(id) {
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)
 const _hvA = new V3(), _hvB = new V3();
-let hitVig = 0, hitVigUp = false, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
+let hitVig = 0, hitVigUp = false, hitVigHold = 0, bleedVig = 0, bleedPh = 0, hitBlurV = 0, hitBlurK = 1;
 // how strong the hurt blur is on the side of a blow, how long it takes to clear (seconds, for a normal hit), and how
 // strong all round while you bleed, between throbs and at the height of one
 const HURT_BLUR = { hit: 0.95, clear: 1.1, bleed: [0.3, 0.55] };
@@ -169,8 +169,37 @@ const DEATH_LP = 650;   // how dull and far off it all sounds while you lie ther
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
 // the side a blow came from, for the red flash and the blur on that side
 function setHitSide(x, y) { for (const id of ['hitVig', 'hitBlur']) { const el = $(id); el.style.setProperty('--hx', x); el.style.setProperty('--hy', y); } }
+// where on the screen (from its middle, pixels: x right, y down) a point at (x, z) on the ground lies from you: from above
+// as it's drawn, from your own eyes as you face (game/view-cam.js)
+function hitDir(x, z, out) {
+  _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
+  out[0] = (_hvB.x - _hvA.x) * innerWidth / 2; out[1] = -(_hvB.y - _hvA.y) * innerHeight / 2;
+  if (!isoOn()) { const [F, Rt] = viewBasis(), rx = x - P.x, rz = z - P.z; out[0] = (rx * Rt.x + rz * Rt.z) * 60; out[1] = -(rx * F.x + rz * F.z) * 60; }
+  return out;
+}
+const _hd = [0, 0];
+// the arcs pointing at what hit you (HIT_ARC: how many at once, how long they hold full, and fade after, seconds), each
+// on where the blow came from, turned to stay on it as you (and the view) turn
+const HIT_ARC = { n: 4, hold: 0.35, fade: 1.1 }, hitArcs = [];
+function hitArc(x, z, amount) {
+  if (!hitArcs.length) for (let i = 0; i < HIT_ARC.n; i++) { const el = document.createElement('div'); el.className = 'hitArc'; document.body.appendChild(el); hitArcs.push({ el, t: 9, x: 0, z: 0, k: 1, o: -1 }); }
+  // (the one nearest that spot already showing takes it, so a zombie clawing away at you doesn't fill the ring; else the oldest)
+  let A = hitArcs.find(a => a.t < HIT_ARC.hold + HIT_ARC.fade && Math.hypot(a.x - x, a.z - z) < 1.2) || hitArcs.reduce((m, a) => a.t > m.t ? a : m);
+  A.t = 0; A.x = x; A.z = z; A.k = clamp(0.75 + 0.25 * (amount || 1), 0.75, 1);
+}
+function hitArcsStep(rdt) {
+  // (round you: the middle of the screen from your own eyes, where you stand on it from above)
+  if (hitArcs.length) { let cx = 50, cy = 50; if (isoOn()) { _hvA.set(P.x, 1, P.z).project(cam); cx = (_hvA.x * 0.5 + 0.5) * 100; cy = (0.5 - _hvA.y * 0.5) * 100; }
+    const k = cx.toFixed(1) + ',' + cy.toFixed(1); if (cache.hitArcAt !== k) { cache.hitArcAt = k; for (const A of hitArcs) { A.el.style.left = cx.toFixed(1) + '%'; A.el.style.top = cy.toFixed(1) + '%'; } } }
+  for (const A of hitArcs) {
+    A.t += rdt; const life = HIT_ARC.hold + HIT_ARC.fade, o = A.t >= life ? 0 : A.k * (A.t < HIT_ARC.hold ? 1 : 1 - smooth((A.t - HIT_ARC.hold) / HIT_ARC.fade));
+    const ov = Math.round(o * 50) / 50; if (ov !== A.o) { A.o = ov; A.el.style.opacity = ov; }
+    if (o > 0) { hitDir(A.x, A.z, _hd); A.el.style.setProperty('--a', (Math.atan2(_hd[0], -_hd[1]) * 180 / Math.PI).toFixed(1) + 'deg'); }
+  }
+}
 // (amount: how hard the blow, for how hard your sight blurs on that side and how long it takes to clear; 1 a zombie's swipe)
 export function hitFromAt(x, z, amount) {
+  if (Math.hypot(x - P.x, z - P.z) > 0.05) hitArc(x, z, amount);
   hurtFace(amount || 1);   // (and you wince: player/animation.js)
   hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
   xhHit(x, z, amount);   // (and the crosshair with it: player/shaky-hands.js)
@@ -187,7 +216,9 @@ export function hitFromAt(x, z, amount) {
 // the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
 // health number, health bar and Bleeding icon throb with it
 function damageVignettes(rdt) {
-  if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) hitVigUp = false; } else hitVig = Math.max(0, hitVig - rdt / 0.45);
+  hitArcsStep(rdt);
+  // (snapped in, held a moment so it can't be missed, then drained away)
+  if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) { hitVigUp = false; hitVigHold = 0.25; } } else if (hitVigHold > 0) hitVigHold -= rdt; else hitVig = Math.max(0, hitVig - rdt / 0.9);
   { const v = Math.round(smooth(hitVig) * 100) / 100; if (cache.hitVig !== v) { cache.hitVig = v; $('hitVig').style.opacity = v; } }
   const bleeding = P.bleed > 0 && !P.dead;
   if (bleeding && bleedVig === 0) bleedPh = 0.1;   // the first throb comes straight away
