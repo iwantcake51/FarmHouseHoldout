@@ -228,6 +228,7 @@ function unlock() { if (locked()) { selfUnlock = true; document.exitPointerLock(
 export function viewLook(dx, dy) {
   const s = FPV.sens * (SET.sens || 100) / 100 * (1 - 0.35 * (ANIM.ads || 0)) / (SCOPE_V.on && SCOPE_V.mag > 1 && (SCOPE_V.kind === 'scope' || SCOPE_V.kind === 'acog') ? 1 + (SCOPE_V.mag - 1) * 0.6 * SCOPE_V.w : 1);   // (slower through a scope, as it magnifies)
   if (freeOn()) { V.fyaw -= dx * s; V.fpitch = clamp(V.fpitch - dy * s, -FPV.pitch, FPV.pitch); return; }
+  if (state !== 'play' || openSt || cheatOn || setOpen()) return;   // (no looking round till a menu's quite gone: the cards still going as they're taken, a station's)
   fpAimSync();
   if (fpOn() && !freeLooking() && SET.smooth === 'on') { V.mdx += dx * s; V.mdy += dy * s; return; }   // (taken up smoothly, frame by frame: fpLookStep)
   lookBy(dx * s, dy * s);

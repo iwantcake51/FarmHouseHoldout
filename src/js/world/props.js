@@ -169,6 +169,10 @@ export const BURN_BARREL = { x: cxw(14), z: cxw(16), y: 0.84, r: 0.28, coal: bas
 {
   const g = new THREE.Group(); scene.add(g);
   const b = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.9, 12, 1, true), M.barrel); b.position.y = 0.45; b.castShadow = true; g.add(b);
+  // its inside, charred black from the fire (an open drum drew only its outside: you saw straight through its far wall),
+  // and the rolled rim round its mouth
+  const bi = new THREE.Mesh(b.geometry, lam(0x241812, { side: THREE.BackSide })); bi.position.y = 0.45; g.add(bi);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.012, 6, 24), M.barrel); rim.rotation.x = Math.PI / 2; rim.position.y = 0.9; g.add(rim);
   const bed = new THREE.Mesh(new THREE.CircleGeometry(0.31, 14), BURN_BARREL.ember); bed.rotation.x = -Math.PI / 2; bed.position.y = 0.8; g.add(bed);
   for (let k = 0; k < 7; k++) { const a = k * 0.9 + rr(-0.2, 0.2), d = rr(0.04, 0.2), c = new THREE.Mesh(new THREE.DodecahedronGeometry(rr(0.045, 0.075)), BURN_BARREL.coal); c.position.set(Math.sin(a) * d, 0.81, Math.cos(a) * d); c.rotation.set(rand() * 3, rand() * 3, 0); g.add(c); }
   [[0.5, 0.15], [2.3, -0.1], [4.1, 0.2]].forEach(([a, t]) => { const l = box(g, 0.07, 0.07, 0.42, M.tire, Math.sin(a) * 0.05, 0.88, Math.cos(a) * 0.05); l.rotation.set(0.5 + t, a, 0); });   // charred logs propped in the coals

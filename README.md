@@ -106,7 +106,8 @@ you, gone deep out in the fog), and a sight's reticle always shows through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
-leaves a crawler, and a headshot drops them. Their hitboxes are simple shapes, not the model itself: a round meets a
+leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
+forearms), and a headshot drops them. Their hitboxes are simple shapes, not the model itself: a round meets a
 zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the
 part under your crosshair (the one your first round goes to) is found against one box per limb, fitted round the limb
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
@@ -244,7 +245,9 @@ from your eye, even aiming straight up. Aiming waits until the gun's back up in 
 and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
 corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
-hand the mouse back as they close. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
+hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too), and the
+view doesn't turn till a menu's quite gone (the cards still flying off after a pick). Sprinting, the crosshair fades out
+as the gun comes down, and back as it comes up. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
 and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried further right and lower on its sling, its belt and box down out of the

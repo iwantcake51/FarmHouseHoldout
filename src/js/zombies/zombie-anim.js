@@ -151,10 +151,14 @@ function zBrutePose(z, a, T, k, mv, ph, relP) {
 // ---- dragging itself along: one arm reaches out and claws in while the other comes round, the body surging forward
 // with each pull and rolling toward the arm that's pulling, the head craned up at you, what's left of the legs
 // dragging behind and kicking feebly ----
+// a crawler's body: how far over (radians from upright), its feet's lift off the ground (of its height) and the chest
+// raised off it (radians back)
+const CRAWL_LIE = { rx: 1.38, y: 0.07, chest: -0.24 };
 function zCrawlPose(z, a, T, mv, ph, relP, near) {
   const g = a.g, s = z.T.scale, one = !(z.limbs.armL && z.limbs.armR);
-  T[ZJ.rx] = 1.2 + 0.05 * Math.sin(2 * ph) * mv; T[ZJ.y] = 0.2 * s + 0.025 * Math.max(0, Math.sin(2 * ph)) * mv;
-  T[ZJ.rz] = (one ? 0.18 : 0.1) * Math.sin(ph) * mv; T[ZJ.uy] = 0.15 * Math.sin(ph) * mv; T[ZJ.ux] = 0;
+  // (laid almost flat, the hips and what's left of the legs on the ground, the chest lifted onto its forearms: CRAWL_LIE)
+  T[ZJ.rx] = CRAWL_LIE.rx + 0.04 * Math.sin(2 * ph) * mv; T[ZJ.y] = CRAWL_LIE.y * s + 0.02 * Math.max(0, Math.sin(2 * ph)) * mv;
+  T[ZJ.rz] = (one ? 0.18 : 0.1) * Math.sin(ph) * mv; T[ZJ.uy] = 0.15 * Math.sin(ph) * mv; T[ZJ.ux] = CRAWL_LIE.chest;
   T[ZJ.hx] = -0.75 + 0.06 * Math.sin(2 * ph); T[ZJ.hy] = clamp(relP, -0.9, 0.9) * 0.5; T[ZJ.hz] = g.tilt * 0.6;
   [['l', 0], ['r', Math.PI]].forEach(([sd, off]) => {
     const u = (((ph + (one ? 0 : off)) / (2 * Math.PI)) % 1 + 1) % 1, X = ZJ['a' + sd + 'x'], Z = ZJ['a' + sd + 'z'], E = ZJ[sd === 'l' ? 'elL' : 'elR'], sg = sd === 'l' ? -1 : 1;
@@ -173,8 +177,8 @@ function zCrawlPose(z, a, T, mv, ph, relP, near) {
 function zCollapsePose(z, T, K, t) {
   const s = z.T.scale;
   if (t < 0.25) { const q = smooth(t / 0.25); zMix(T, { y: -0.14, rx: 0.25, ux: 0.25, klx: 1.1, krx: 1.1, alx: -1.0, arx: -0.8, elL: -0.9, elR: -0.7, hx: -0.3 }, q); }
-  else if (t < 0.62) { const q = (t - 0.25) / 0.37; zMix(T, { y: -0.14 + (0.2 * s + 0.14) * q, rx: 0.25 + 1.15 * q * q, ux: 0.25 - 0.25 * q, alx: -1.0 - 0.6 * q, arx: -0.8 - 0.75 * q, elL: -0.3, elR: -0.3, klx: 0.6, krx: 0.6, hx: -0.5 }, 1); }
-  else { const q = (t - 0.62) / 0.38; zMix(T, { rx: 1.4 - 0.2 * smooth(q), y: 0.2 * s }, 1 - smooth(q)); }
+  else if (t < 0.62) { const q = (t - 0.25) / 0.37; zMix(T, { y: -0.14 + (CRAWL_LIE.y * s + 0.14) * q, rx: 0.25 + (CRAWL_LIE.rx - 0.25) * q * q, ux: 0.25 - 0.25 * q, alx: -1.0 - 0.6 * q, arx: -0.8 - 0.75 * q, elL: -0.3, elR: -0.3, klx: 0.6, krx: 0.6, hx: -0.5 }, 1); }
+  else { const q = (t - 0.62) / 0.38; zMix(T, { rx: CRAWL_LIE.rx + 0.05 * (1 - smooth(q)), y: CRAWL_LIE.y * s }, 1 - smooth(q)); }
   zBoost(K, ['rx', 'y'], 1.6);
 }
 

@@ -42,13 +42,13 @@ addEventListener('keydown', e => {
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
-  if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
+  if (k === 'escape' && cheatOn) { toggleCheats(false); menuEscAt = performance.now(); return; }   // (the browser lets go of the mouse on that Esc too: lockLost)
   if (k === 'escape' && performance.now() - lockLostAt < 400) return;   // (the Esc that let go of the mouse in first person has already paused)
   keyAct(k, e);
 });
 // what a key does: its binding (input/keybinds.js), from the keyboard or a mouse button it's been put on
 function keyAct(k, e) {
-  if (k === 'escape' || bindIs(k, 'pause')) { if (P.dead) return; if (openSt && state === 'play') { closeStation(); return; } if (state === 'play') pauseRun(); else if (state === 'paused' && !(k === 'escape' && cancelLeave())) resumeRun(); return; }   // Esc backs out of a leave-the-run question first
+  if (k === 'escape' || bindIs(k, 'pause')) { if (P.dead) return; if (openSt && state === 'play') { closeStation(); menuEscAt = performance.now(); return; } if (state === 'play') pauseRun(); else if (state === 'paused' && !(k === 'escape' && cancelLeave())) resumeRun(); return; }   // Esc backs out of a leave-the-run question first
   // the wave key starts the run from the title, a new run from the death screen, and the next wave during a break
   if (bindIs(k, 'wave') && !e.repeat && (state === 'title' || (state === 'dead' && P.dead))) { enterRun(); return; }
   if (k === 'm' && !e.repeat && state === 'dead') { leaveToMenu(); return; }
@@ -125,7 +125,10 @@ const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen();
 export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; mouseY = innerHeight / 2 + oy; hasMouse = true; };   // (off the middle by the free aim's offset in first person: game/view-cam.js)
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;
-export function lockLost() { if (state === 'play' && !P.dead && !lookMenu()) { lockLostAt = performance.now(); pauseRun(); } }
+// the mouse let go in first person: the pause menu, unless it was let go by the Esc that just closed a menu (the cheat
+// menu, a station's) or one's still open
+let menuEscAt = -1e9;
+export function lockLost() { if (state === 'play' && !P.dead && !lookMenu() && !cheatOn && !openSt && performance.now() - menuEscAt > 500) { lockLostAt = performance.now(); pauseRun(); } }
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setMouseDown(v) { return (mouseDown = v); }
