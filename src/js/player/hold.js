@@ -127,6 +127,7 @@ function freeAim(rdt, heavy, ads) {
   return F;
 }
 // a hand that leaves the gun blends out to a free target and back; w is how far off the gun it is
+const PS_LEAD = 0.08;   // (how far ahead of the slide dropping, in the slide's share of the reload, the support hand's sent to the stop)
 export const HAND = { L: { w: 0, free: new V3(-0.2, 0.8, 0.2) }, R: { w: 0, free: new V3(0.2, 0.8, 0.2) } };
 const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new V3(), _akH = new V3();
 export const SUPPORT_REACH = 1.27, SUPPORT_KNEE = 0.03, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
@@ -597,9 +598,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const tug = smooth(clamp((rp - PS_TUG) / (PS_REL[0] - PS_TUG), 0, 1)) * (rp < PS_REL[0] ? 1 : 0), slam = Math.sin(clamp((rp - PS_REL[0]) / 0.05, 0, 1) * Math.PI);
     AT.r -= 0.22 * psW; AT.y += 0.1 * psW; AT.p -= 0.04 * psW; pitch += 0.06 * slam; oz += 0.012 * tug - 0.01 * slam;
   }
-  if (PS && W8.relVar === 1) {   // the slide release: the gun rolled in to the shooting hand's thumb, which drops the slide, and the slam jolts it
+  if (PS && W8.relVar === 1) {   // the slide release: the gun turned a little to the support hand as its thumb comes over to the slide stop and presses it, and the slam jolts it
     const th = Math.sin(clamp((rp - (PS_REL[1] - 0.09)) / 0.15, 0, 1) * Math.PI), slam = Math.sin(clamp((rp - PS_REL[1]) / 0.05, 0, 1) * Math.PI);
-    AT.r += 0.3 * th; AT.y -= 0.07 * th; AT.p -= 0.05 * th; pitch += 0.07 * slam; oz -= 0.01 * slam;
+    AT.r -= 0.1 * th; AT.y += 0.04 * th; AT.p -= 0.03 * th; pitch += 0.07 * slam; oz -= 0.01 * slam;
   }
   // the double barrel snapped shut with a flick of the wrist: the barrels swinging up into place jolt the gun up
   // (over a few frames, not in one: flkT is the flick, flk the wrist catching up with it)
@@ -935,7 +936,14 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
         if (W8.relVar === 0) {
           gunPt(_p1, s, 'R', A[0], A[1] + 0.04, A[2] + dz - 0.01); gunPt(_p2, s, 'R', A[0], A[1], A[2] + dz); gunPt(_p3, s, 'R', A[0] + 0.01, A[1] + 0.05, A[2] - 0.07);
           free = walkPath(_p4, [[0, _hL], [0.24, _p1], [0.36, _p2], [relU, _p2], [relU + 0.09, _p3], [1, _hL]], rr);
-        } else { free = null; wt = 0; }   // the slide release: the shooting hand's thumb does it (the gun's roll, above), the support hand back on the grip
+        } else {
+          // the slide release: the support hand comes up off the grip over the slide stop, its thumb presses it down (the
+          // slide drops as it does, at relU) and it goes straight back round the grip
+          gunPt(_p1, s, 'R', B[0] + 0.03, B[1] + 0.035, B[2] - 0.025); gunPt(_p2, s, 'R', B[0] + 0.014, B[1] + 0.008, B[2]); gunPt(_p3, s, 'R', B[0] + 0.014, B[1] - 0.008, B[2] + 0.004);
+          // (led by PS_LEAD: the hand's eased on its way, and gets there that much behind where it's sent)
+          const u = relU - PS_LEAD, a = Math.max(0.02, u - 0.2);
+          free = walkPath(_p4, [[0, _hL], [a, _hL], [a + (u - a) * 0.55, _p1], [u - 0.025, _p2], [u, _p3], [Math.min(0.97, u + 0.07), _p1], [Math.min(0.99, u + 0.2), _hL], [1, _hL]], rr);
+        }
       }
     } else if (rel === 'shell' && !boltFeed) {
       if (id === 'revolver' && cr.length) partPt(_p1.set(0.035, 0.045, -0.07), s, cr[0]);   // the back of the open cylinder

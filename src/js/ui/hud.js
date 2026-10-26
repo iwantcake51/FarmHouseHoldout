@@ -73,7 +73,7 @@ export function updateHUD(rdt, D) {
     if (cache.grey !== fk) {
       cache.grey = fk;
       cv.style.filter = (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
-      $('slowmo').style.opacity = slow; $('slowmo').style.setProperty('--bar', slow);
+      $('slowmo').style.opacity = slow;   // (a cool dimming at the edges only: no letterbox bars)
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(Math.min(slow ? 20000 - slow * 18800 : 20000, 20000 * Math.pow(NEAR_DEATH.lp / 20000, near), dz ? DEATH_LP : 20000), AC.currentTime, dz ? 0.9 : near ? 0.4 : 0.12);   // (slow motion's, or close to death's: NEAR_DEATH)
     }
     setRoll('wNum', String(Math.max(1, run.wave)).padStart(2, '0'), true);   // it spins round to the new wave

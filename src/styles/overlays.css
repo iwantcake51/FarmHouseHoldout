@@ -71,7 +71,6 @@
 @keyframes annFade{from{opacity:0;transform:translateY(6px)}}
 
 #slowmo{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at center,transparent 50%,rgba(20,32,44,.55) 100%)}
-#slowmo::before,#slowmo::after{content:"";position:absolute;left:0;right:0;height:calc(5.5vh * var(--bar,0));background:rgba(5,7,9,.85)}#slowmo::before{top:0}#slowmo::after{bottom:0}
 /* a dead eye (co-op Bullet time, zombies/damage.js): a warm glow at the edges of your sight that beats with it and eases off */
 #eyeVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(255,150,50,.16) 82%,rgba(230,90,30,.38) 100%)}
 #eyeVig.on{animation:eyeBeat .5s ease-in-out infinite alternate}
