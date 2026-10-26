@@ -15,9 +15,34 @@ export function binModel(o) {
 }
 const modelBin = new Set(); let modelBinT = 0;
 export function flushModels() { if (modelBin.size && --modelBinT <= 0) { modelBin.forEach(g => g.dispose()); modelBin.clear(); } }
+// Two pieces of one model with faces in the same plane, facing the same way, flicker through each other wherever they
+// overlap (z-fighting). So each model's faces are noted as its boxes, profiles and bore cylinders go on (by the group
+// they're added to: never the scene itself), with the patch of the plane each covers, and a face that would lie over
+// one already there (in the same plane, facing the same way, the two patches overlapping) is pushed out ZFIGHT.nudge m
+// for each one under it (up to ZFIGHT.max). The later piece (the detail on a body, as they're built) sits that hair
+// proud and always shows; a tenth of a millimetre is nothing to see, and plenty for the depth buffer up close (a gun in
+// your hands); a big piece (furniture, the house: over ZFIGHT.big m) is seen from much further off, so it's pushed
+// ZFIGHT.far instead (unfight's gap). Pieces side by side in a row (a rail's slots) don't overlap, so they're left be
+const ZFIGHT = { nudge: 0.0001, far: 0.0006, big: 0.25, q: 2e-5, cap: 6000, max: 3 };
+const ZF_PLANES = new WeakMap();
+// axis: which way the face looks (and its kind); at: where its plane is along that; r: [a0, a1, b0, b1], the patch it covers
+export function zfPush(parent, axis, at, r, big) {
+  if (!parent || parent.isScene) return 0;
+  let M = ZF_PLANES.get(parent); if (!M) ZF_PLANES.set(parent, M = new Map());
+  const q = Math.round(at / ZFIGHT.q), e = 1e-6; let n = 0;
+  for (let k = q - 1; k <= q + 1; k++) { const L = M.get(axis + k); if (L) for (const o of L) if (o[0] < r[1] - e && r[0] < o[1] - e && o[2] < r[3] - e && r[2] < o[3] - e) n++; }
+  if (M.size < ZFIGHT.cap) { const k = axis + q; let L = M.get(k); if (!L) M.set(k, L = []); if (L.length < 64) L.push(r); }
+  return Math.min(n, ZFIGHT.max) * (big ? ZFIGHT.far : ZFIGHT.nudge);
+}
+// (a span c ± s/2 along one axis, over the patch r: its two faces pushed out as they need; the new middle and size)
+export function zfSpan(parent, axis, c, s, r, big) { const a = zfPush(parent, axis + '-', c - s / 2, r, big), b = zfPush(parent, axis + '+', c + s / 2, r, big); return [c + (b - a) / 2, s + a + b]; }
 export function box(parent, w, h, d, mat, x, y, z) {
   const m = new THREE.Mesh(bgeo(w, h, d), mat);
-  m.position.set(x || 0, y || 0, z || 0); m.castShadow = true; m.receiveShadow = true;
+  x = x || 0; y = y || 0; z = z || 0;
+  const big = Math.max(w, h, d) > ZFIGHT.big;
+  const [cx, sw] = zfSpan(parent, 'x', x, w, [y - h / 2, y + h / 2, z - d / 2, z + d / 2], big), [cy, sh] = zfSpan(parent, 'y', y, h, [x - w / 2, x + w / 2, z - d / 2, z + d / 2], big), [cz, sd] = zfSpan(parent, 'z', z, d, [x - w / 2, x + w / 2, y - h / 2, y + h / 2], big);
+  m.position.set(cx, cy, cz); m.castShadow = true; m.receiveShadow = true;
+  if (sw !== w || sh !== h || sd !== d) m.scale.set(w ? sw / w : 1, h ? sh / h : 1, d ? sd / d : 1);   // (as a scale: bgeo's boxes are shared to the millimetre)
   parent.add(m); return m;
 }
 export const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };

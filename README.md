@@ -37,7 +37,9 @@ the other one, that eye squinting along the gun and your head tipped over the st
 3. **Cards.** When the last zombie falls (time slows for a moment, the edges of the view cooling, with no black bars over it), pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
    wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. Whatever's still lying about glides
    in to you once the cards are done. Each kind of drop is modelled once, its overlapping faces pulled apart so nothing on it
-   flickers, and copied for every one that falls, so a crowd dropping loot never stutters.
+   flickers, and copied for every one that falls, so a crowd dropping loot never stutters. Every drop lights the ground
+   and the walls round it in its own colour (a crate's and a weapon's a little wider), more so after dark, dimming as it
+   greys out when you're full and as it runs out.
    - Now and then a hand comes with a **sacrifice**. Give up three quarters of your scrap and three more cards are
      dealt (the rarer ones likelier), and you take two of the six.
    - Rarer, a **curse**: half your stamina, healing at a quarter strength with worse bleeding (Bad blood:
@@ -129,7 +131,9 @@ Brutes come in slowly: the first brute wave sends just one, in plain clothes wit
 lets a few more in.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
-sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Vault through
+sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Once a grate is
+plated, a wide firing slit is cut through the plate at first-person eye height, so from your own eyes you can see out
+along it and shoot through it (zombies outside show through it too). Vault through
 windows and hop fences to escape, and shove zombies off you when they get close. A shove with a gun is a short wind-up and a blow with the gun itself, gathering speed into the blow rather than snapping out, and easing back to the aim.
 
 **Stations.**
@@ -273,7 +277,11 @@ drops and teammates are only seen through walls from above, as zombies are (a dr
 wall, and every drop behind them got a hollow box drawn over the glass). Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
 from your eye, even aiming straight up. Aiming waits until the gun's back up in your hands after a vault or a weapon switch,
 and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
-corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
+corner or behind you as you turn, with no fading in. The check looks from either side of your eyes to a zombie's middle, a
+reach either side of it and where it's heading, and one that's just been seen stays drawn a moment after (the walls in
+front of it still hide it), so none pops in out of nowhere as it comes round a corner or past a door frame. Zombie eye
+glow no longer shows through the back of a zombie's head: the halo and streak are hidden by the head in the glow too,
+not just in the picture. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
 hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too). There's no
 click to look about: the mouse is taken with the click on Start (or the host's Start in co-op), and any click or key
@@ -281,7 +289,11 @@ takes it back once no menu's open. In co-op your teammates see you as you stand,
 not with your chest held straight for your own eyes. And the
 view doesn't turn till a menu's quite gone (the cards still flying off after a pick). Sprinting, the crosshair fades out
 as the gun comes down, and back as it comes up. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
-and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
+and a station or a menu lets go of it for you, closing it taking the mouse back. Wide eyes works from your own eyes too:
+from above it widens your view cone and the circle you see round you, and out of your own eyes (where you already see
+all round as far as the screen goes) it opens the view itself 10% wider (14% with Eyes in the back of your head, not
+down the sights), and anything close by off the edges of the screen (within 4 m, then 6 m) shows as a soft pale arc
+round the middle of the screen on its side, stronger the closer it is. The cards say which you get. You go back to the view from above whenever you're down.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried further right and lower on its sling, its belt and box down out of the
 middle of the view), and each shot turns it in your hands as well as kicking the view; through a scope the
@@ -313,7 +325,9 @@ only their own small sway and bob move them.
 planted on it in view, each on its own side; the view pitches with your lean as you go over, rolls with the way you're
 crossing and widens a touch at the top of the arc, then you land with a dip, a nod and a little rock that settle on a
 spring (a tired scramble lands harder). With Vault fire most of it's held off, so you stay on the aim. Your gun never leaves your hand for a vault: the right hand keeps hold of it (the left takes the sill), lowered out of the way unless you have Vault fire, and it comes back up on its own as you land, so it's never whipped off your back and back into your hands (a melee weapon is still put away and drawn after). Your eye keeps up with your body all the way over (it used to trail a hand's breadth behind it late in the jump). With Vault fire and your aim further round than your chest can twist, your head turns the rest on your neck, smoothly, and doesn't swing on past the aim as your hips come back under you. What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
-station you get is the one you're looking at, a click out on the game puts an open station away and takes the mouse
+station you get is the one you're looking at (a ray out from your eyes against each station's box, within about two
+metres; nothing is picked up if you're not looking at one), outlined while you look at it, an open one staying open
+while you're still in reach of it, and a click out on the game puts an open station away and takes the mouse
 back, and coming off the sights doesn't replay the crosshair's last reload flash. From your own eyes the farm isn't an island in the haze: the woods go on past the road and past the trees
 round the farm out to the horizon, with broadleaf trees and taller pines among them, a power line runs along the far
 side of the road (its wires swaying slowly in the wind, more as it blows harder and as a gust runs along them) and a
@@ -520,6 +534,12 @@ three.js the game uses into `vendor/three.min.js`. Each file in `src/js` is an E
 - For the browser, the build joins the files in the order of `src/js/load-order.json` into one script. That order only
   matters for code that runs at load time, such as building the world. The build also checks the joined script and
   names the file and line of any error, such as two files declaring the same name.
+- Two pieces of one model whose faces lie in the same plane, facing the same way, flicker through each other where they
+  overlap (z-fighting). The model helpers (`box` in `core/geometry.js`, `profile`, `solid` and `cyl` in
+  `weapons/gun-parts.js`) note each face's plane and the patch it covers, per group; a face that would lie over one
+  already there is pushed out a hair (0.1 mm on gun-sized parts, 0.6 mm on anything over 25 cm), so the later piece (the
+  detail on a body, as models are built) always shows. Pieces side by side in a row aren't touched, and nothing is
+  pushed more than three times. Build models body first, details after, and this takes care of itself.
 - Each frame, `game/loop.js` runs `update(dt)` (`game/update.js`, the simulation) and then `visuals(dt)`
   (`game/visuals.js`, animation, camera and HUD). Those two files list every system in order, so they're the place to
   start reading.

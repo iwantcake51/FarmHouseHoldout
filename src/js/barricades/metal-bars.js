@@ -29,7 +29,7 @@ import { netMetal } from '../net/sync.js';
 // down. Bare, it's GRATE.over times as strong as three boards braced all the way (BRACE.max) together, times the
 // hammers' S.boardMul, and each tier of plating (GRATE.up: its price, dearer each time) makes every grate GRATE.tierHp
 // stronger again
-export const GRATE = { cost: 3, t: 2.6, tear: 2.4, over: 1.25, tierHp: 0.3, tiers: 5, rows: 5, up: [18, 26, 36, 48, 64], slitY: 1.45, slitH: 0.05, slitW: 0.24 };
+export const GRATE = { cost: 3, t: 2.6, tear: 2.4, over: 1.25, tierHp: 0.3, tiers: 5, rows: 5, up: [18, 26, 36, 48, 64], slitY: 1.39, slitH: 0.1, slitW: 0.3 };
 export const METAL_COST = 25;   // the metalwork bench itself, once the boards are braced all the way (BRACE.max)
 export const METAL_AID = 6;   // the Scrap metal aid card after a wave (upgrades/upgrades.js): two grates' worth
 export const METAL_DROP = 0.72;   // metal drops a little less often than planks (zombies/damage.js: the planks roll is 0.6 to 0.75)
@@ -93,26 +93,33 @@ function buildGrate(o, tier, face = 1) {
   // flat straps across the bars on the room side, welded at each crossing
   const ns = o.kind === 'door' ? 5 : 3, stTh = shuffled(ns, rng);
   for (let k = 0; k < ns; k++) {
-    const sy = y0 + H * (k + 1) / (ns + 1), sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi + out * 0.009); g.add(sp);   // (between the bars and the plate)
+    let sy = y0 + H * (k + 1) / (ns + 1); const sc = GRATE.slitH / 2 + 0.03; if (Math.abs(sy - GRATE.slitY) < sc) sy = GRATE.slitY + (Math.sign(sy - GRATE.slitY) || 1) * sc;   // (never across the slit)
+    const sp = new THREE.Group(); sp.position.set(-W + 0.03, sy, zi + out * 0.009); g.add(sp);   // (between the bars and the plate)
     box(sp, W * 2 - 0.06, 0.034, 0.008, GR_M.strap, W - 0.03, 0, 0);
     G.straps.push({ g: sp, th: 0.05 + 0.16 * stTh[k] / Math.max(1, ns - 1), on: true });
   }
-  // the plate: tier rows of it, from the sill up, each its own sheet with rivets along its top and bottom; the row at
-  // chest height left with a firing slit through it (GRATE.slit*). Each hangs, once it's worked loose, from the bolt
-  // in one top corner, so its group stands at that corner
-  const rows = GRATE.rows, rh = H / rows, slitRow = clamp(Math.floor((GRATE.slitY - y0) / rh), 0, rows - 1), cover = Math.min(rows, tier), fall = shuffled(cover, rng);
+  // the plate: tier rows of it, from the sill up, each its own sheet with rivets along its top and bottom, and a firing
+  // slit cut through at your eyes' height in first person (GRATE.slit*: its middle, how tall, and half its width), so
+  // from inside you can look out along it and shoot through it; it cuts through whichever rows it crosses. Each hangs,
+  // once it's worked loose, from the bolt in one top corner, so its group stands at that corner
+  const rows = GRATE.rows, rh = H / rows, cover = Math.min(rows, tier), fall = shuffled(cover, rng);
+  const sw = GRATE.slitW, g0 = GRATE.slitY - GRATE.slitH / 2, g1 = GRATE.slitY + GRATE.slitH / 2;
   for (let r = 0; r < cover; r++) {
     const side = rng() < 0.5 ? -1 : 1, top = y0 + (r + 1) * rh + 0.006, z = zo + out * (0.012 + r * 0.0025);
     const pg = new THREE.Group(); pg.position.set(side * W, top, z); g.add(pg);
     const mat = lam(GR_PLATE[(rng() * GR_PLATE.length) | 0], { map: PLATE_TEX }), hh = rh + 0.012, cx = -side * W;   // (the sheet's middle, from the corner)
     const sheet = (x0, x1, ya, yb) => { const m = box(pg, x1 - x0, yb - ya, 0.006, mat, cx + (x0 + x1) / 2, -hh + (ya + yb) / 2, 0); m.rotation.z = (rng() - 0.5) * 0.006; return m; };
-    if (r === slitRow) {
-      const sw = GRATE.slitW, sm = GRATE.slitY - (top - hh), s0 = sm - GRATE.slitH / 2, s1 = sm + GRATE.slitH / 2;
-      sheet(-W, -sw, 0, hh); sheet(sw, W, 0, hh); sheet(-sw, sw, 0, s0); sheet(-sw, sw, s1, hh);
-      [s0, s1].forEach(y => box(pg, sw * 2 + 0.02, 0.01, 0.022, GR_M.frame, cx, -hh + y + (y === s0 ? -0.005 : 0.005), out * 0.008));   // the slit's lips, bent out
+    const b = top - hh, s0 = clamp(g0 - b, 0, hh), s1 = clamp(g1 - b, 0, hh);   // (the slit in this sheet's own height)
+    if (s1 - s0 > 0.002) {
+      sheet(-W, -sw, 0, hh); sheet(sw, W, 0, hh);
+      if (s0 > 0.002) sheet(-sw, sw, 0, s0);
+      if (s1 < hh - 0.002) sheet(-sw, sw, s1, hh);
+      // the slit's lips, bent out, along whichever of its edges this sheet has
+      if (g0 - b >= 0) box(pg, sw * 2 + 0.02, 0.01, 0.022, GR_M.frame, cx, -hh + s0 - 0.005, out * 0.008);
+      if (g1 - b <= hh) box(pg, sw * 2 + 0.02, 0.01, 0.022, GR_M.frame, cx, -hh + s1 + 0.005, out * 0.008);
     } else sheet(-W, W, 0, hh);
     const riv = [];
-    for (let q = 0; q < 5; q++) [0.022, hh - 0.022].forEach(y => { const m = ycyl(pg, 0.009, 0.011, 0.008, GR_M.rivet, cx + (q - 2) * (W * 2 - 0.08) / 4, -hh + y, out * 0.006, 8); m.rotation.x = Math.PI / 2; riv.push(m); });
+    for (let q = 0; q < 5; q++) [0.022, hh - 0.022].forEach(y => { const rx = (q - 2) * (W * 2 - 0.08) / 4; if (s1 - s0 > 0.002 && Math.abs(rx) < sw + 0.015 && y > s0 - 0.015 && y < s1 + 0.015) return; const m = ycyl(pg, 0.009, 0.011, 0.008, GR_M.rivet, cx + rx, -hh + y, out * 0.006, 8); m.rotation.x = Math.PI / 2; riv.push(m); });
     mergeInto(pg, riv);
     G.plates.push({ g: pg, side, th: 0.84 - 0.4 * fall[r] / Math.max(1, cover - 1), on: true, ph: rng() * 6, z0: z, inT: 1 });   // (the first starts working loose at 0.96)
   }

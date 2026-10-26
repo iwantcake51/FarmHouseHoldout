@@ -14,6 +14,7 @@ import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.j
 import { flash } from './muzzle-flash.js';
 import { heatBloom, heatGlowing } from './supp-heat.js';
 import { batchSprites } from './sprite-batch.js';
+import { eyeDepth } from './eye-glow.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { curDark } from '../lighting/day-night.js';
 import { BLOOM_K, SET } from '../ui/settings.js';
@@ -27,8 +28,8 @@ const AO = { r: 0.55, k: 0.5, bias: 0.025, n: [0, 10, 14], pow: 1.25, keep: 0.9,
 const BLOOM = { th: [0.95, 0.87], knee: [0.07, 0.14], k: [0.1, 0.24], k2: [0.06, 0.15] };
 // the things that glow whatever the hour (zombies' eyes and their halos and trails, muzzle flashes): on a layer of
 // their own, drawn alone into a small target and added into the glow in full, where nothing nearer hides them (the
-// scene's depth). GLOW.k: how strongly
-export const GLOW_LAYER = 3, GLOW = { k: 1.35 };
+// scene's depth, within GLOW.tol m: the glow pass is drawn at half size). GLOW.k: how strongly
+export const GLOW_LAYER = 3, GLOW = { k: 1.35, tol: 0.03 };
 // the sun and the sky's light are on the glow layer too: what glows is all unlit, so they change nothing there, but
 // three keys a shadow's shader to the lights of the last draw (the glow pass's, when there is one), and this way it's
 // the same every frame, so one built ahead (game/loop.js: warmShaders) is never built again mid-wave for want of them
@@ -135,19 +136,20 @@ void main() {
 }`, { tCur: { value: null }, tHist: { value: null }, uInvView: { value: new THREE.Matrix4() }, uPrevView: { value: new THREE.Matrix4() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPrevSize: { value: new THREE.Vector2() }, uPrevCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uFar: { value: 1 }, uKeep: { value: 0.88 }, uValid: { value: 0 }, uPs: { value: 0 } });
 // the bright parts, softly cut off, boxed down four pixels to one
 const brightMat = psMat(`
-uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow, uFlashD;
+uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow, uFlashD; uniform vec3 uNF;
 varying vec2 vUv;
+float linD(float z) { return uNF.z > 0.5 ? uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)) : uNF.x + z * (uNF.y - uNF.x); }
 void main() {
   vec3 c = (texture2D(tCol, vUv + uPx * vec2(-1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(-1.0, 1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, 1.0)).rgb) * 0.25;
   float l = max(c.r, max(c.g, c.b));
   vec3 o = c * smoothstep(uTh, uTh + uKnee, l);
   // and the glowing things, where they're not behind something
-  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see; nor
-  // does the muzzle flash, which is seen only where nothing's nearer than the muzzle (uFlashD: its depth, 0 for none),
+  // (a halo or a trail writes its depth, a little nearer than the eye, so the back of the zombie's own head hides it; the
+  // muzzle flash writes none, and is seen only where nothing's nearer than the muzzle (uFlashD: its depth, 0 for none),
   // so the gun in front of it, down the sights, hides it)
-  if (uGlow > 0.0) { float sd = texture2D(tSceneD, vUv).r, gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? step(uFlashD, sd + 0.00002) : step(gd, sd + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
+  if (uGlow > 0.0) { float sd = texture2D(tSceneD, vUv).r, gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? step(uFlashD, sd + 0.00002) : step(linD(gd), linD(sd) + ${GLOW.tol.toFixed(3)}); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
   gl_FragColor = vec4(o, 1.0);
-}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 }, uFlashD: { value: 0 } });
+}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 }, uFlashD: { value: 0 }, uNF: { value: new THREE.Vector3() } });
 const blurMat = psMat(`
 uniform sampler2D tSrc; uniform vec2 uDir;
 varying vec2 vUv;
@@ -260,7 +262,7 @@ function glowPass() {
   if (!(flash.visible || heatGlowing() || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
   const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate, cc = R.getClearAlpha(); R.getClearColor(_glCC);
   cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1);
-  R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); heatBloom(true); R.render(scene, cam); heatBloom(false);
+  R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); heatBloom(true); eyeDepth(true); R.render(scene, cam); eyeDepth(false); heatBloom(false);
   cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; R.setClearColor(_glCC, cc);
   return GLOW.k;
 }
@@ -310,7 +312,7 @@ export function renderFrame() {
   // it off in the settings, ui/settings.js)
   const bk = POST.noBloom ? 0 : BLOOM_K[SET.bloom] ?? 1;
   const gk = bk > 0 ? glowPass() : 0;
-  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uFlashD.value = flashDepth(); U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
+  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uFlashD.value = flashDepth(); U.uNF.value.set(...nf); U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }

@@ -25,6 +25,7 @@ import { renderSlots, setRoll, setT } from './hud-text.js';
 import { xhHit } from '../player/shaky-hands.js';
 import { isoOn, viewBasis } from '../game/view-cam.js';
 import { hitCam } from '../game/camera.js';
+import { senseStep } from './sense.js';
 import { heartStartle, updateHeart } from './vitals.js';
 import { renderMoodles } from './moodles.js';
 import { hudMag, renderRounds } from './rounds.js';
@@ -216,7 +217,7 @@ export function hitFromAt(x, z, amount) {
 // the hit side snaps in fast and eases out; bleeding throbs slowly at the edges, swelling in and ebbing away, and the
 // health number, health bar and Bleeding icon throb with it
 function damageVignettes(rdt) {
-  hitArcsStep(rdt);
+  hitArcsStep(rdt); senseStep(rdt);
   // (snapped in, held a moment so it can't be missed, then drained away)
   if (hitVigUp) { hitVig = Math.min(1, hitVig + rdt / 0.07); if (hitVig >= 1) { hitVigUp = false; hitVigHold = 0.25; } } else if (hitVigHold > 0) hitVigHold -= rdt; else hitVig = Math.max(0, hitVig - rdt / 0.9);
   { const v = Math.round(smooth(hitVig) * 100) / 100; if (cache.hitVig !== v) { cache.hitVig = v; $('hitVig').style.opacity = v; } }

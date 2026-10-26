@@ -22,6 +22,7 @@ import { STATIC_LIGHTS } from './static-lights.js';
 import { amb, curDark, setLitHere } from './day-night.js';
 import { computeVision } from './vision.js';
 import { spitLights } from '../zombies/spitter.js';
+import { dropLights } from '../pickups/pickups.js';
 import { fpOn } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 import { holdOf } from '../player/hold.js';
@@ -37,7 +38,9 @@ lmTex.minFilter = THREE.LinearFilter;
 LMU.uLightMap.value = lmTex; LMU.uLmRes.value = FN;
 export const lmTgt = new Float32Array(FNN * 3).fill(0.5), lmCur = new Float32Array(FNN * 3).fill(0.5), visTgt = new Float32Array(FNN).fill(1), visCur = new Float32Array(FNN).fill(1);
 export const sampleX = a => -HALF + (a + 0.5) / FR;
-export function los(x0, z0, x1, z1) {
+// thru: a grate doesn't block it, however much plate it carries (from your own eyes, in first person, you see out through
+// its slit and its bars as they really are: zombies/zombie-visuals.js)
+export function los(x0, z0, x1, z1, thru) {
   if (THIN.n && thinHit(x0, z0, x1, z1) <= 1) return false;   // the inside walls (world/thin-walls.js)
   const dx = x1 - x0, dz = z1 - z0, d = Math.hypot(dx, dz), steps = Math.ceil(d / 0.33);
   const si = ci(x0), sj = ci(z0), ti = ci(x1), tj = ci(z1);
@@ -46,7 +49,7 @@ export function los(x0, z0, x1, z1) {
     if (i === ti && j === tj) return true;
     if (i === si && j === sj) continue;
     if (i < 0 || j < 0 || i >= N || j >= N || blockArr[j * N + i]) return false;
-    const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2) return false;   // two or more boards (or a plated grate) shut out sight and light
+    const ob = openAt[j * N + i]; if (ob && shutN(ob) >= 2 && !(thru && ob.grate)) return false;   // two or more boards (or a plated grate) shut out sight and light
   }
   return true;
 }
@@ -91,6 +94,7 @@ function computeLight() {
     for (const f of flashes) addField(lightField(f.x, f.z, f.r), f.int * (f.t / f.max) * (0.3 + dark), f.col);
     for (const z of zombies) if (z.burn > 0 && z.vis > 0.02) addField(lightField(z.x, z.z, 3.5), 0.8 * (0.3 + dark) * z.vis, [1, 0.5, 0.15]);   // only the fires you can see
     spitLights(dark);   // a spitter's glob, and its fresh splats, glowing green (zombies/spitter.js)
+    dropLights(dark);   // and every drop in its own colour (pickups/pickups.js)
   }
   computeVision(on && (!P.dead || spectating()));   // as you die the fog of war lifts and every zombie fades into view, till you're watching a teammate: then it's theirs
 }

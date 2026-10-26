@@ -1,13 +1,14 @@
 // Part builders for the gun models: cylinders and rings along the bore, profiles extruded from traced outlines,
 // lathes, tapers, stippling and checkering, and the caches that keep shared shapes built once.
 
-import { box, cylZ, sharedGeo } from '../core/geometry.js';
+import { box, cylZ, sharedGeo, zfPush, zfSpan } from '../core/geometry.js';
 import { GM, X } from './gun-materials.js';
 
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
 // cylinder barrel-sized or bigger gets sides enough for its size (about one per millimetre of radius), so a barrel, a
 // can or a tube always reads round, never faceted
-export const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, Math.max(seg || 10, r >= 0.008 ? Math.min(48, Math.round(r * 900)) : 0)); m.position.set(x, y, z); g.add(m); return m; };
+// (two the same size round the same line: the later a hair bigger, so they don't flicker through each other: zfPush)
+export const cyl = (g, r, len, mat, x, y, z, seg) => { const m = cylZ(r, len, mat, Math.max(seg || 10, r >= 0.008 ? Math.min(48, Math.round(r * 900)) : 0)); const dr = zfPush(g, 'r' + x.toFixed(4) + ',' + y.toFixed(4) + ':', r, [z - len / 2, z + len / 2, 0, 1]); if (dr) m.scale.set((r + dr) / r, 1, (r + dr) / r); m.position.set(x, y, z); g.add(m); return m; };
 export const ring = (g, r, w, mat, x, y, z) => cyl(g, r, w, mat, x, y, z, 14);
 export const hi = (g, w, d, x, y, z) => box(g, w, 0.007, d, GM.hi, x, y, z);
 // A gun's pieces come out the same every time it's built, and it's built again whenever anything on it changes (an
@@ -30,7 +31,10 @@ export function profile(g, shape, w, mat, x, bev, segs) {
     geo.translate(0, 0, -w / 2); geo.rotateY(-Math.PI / 2);   // the outline's x runs down the gun (+z), the width across it
     return geo;
   });
-  const m = new THREE.Mesh(geo, mat); m.position.x = x; m.castShadow = true; g.add(m); return m;
+  // (its two sides pushed out a hair where another piece of the gun already has a side in the same plane: zfSpan)
+  let z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9; pts.forEach(([o]) => o.forEach(([a, b]) => { z0 = Math.min(z0, a); z1 = Math.max(z1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b); }));
+  const hw = w / 2 + (bev || 0), [cx, sw] = zfSpan(g, 'x', x, hw * 2, [y0, y1, z0, z1]);
+  const m = new THREE.Mesh(geo, mat); m.position.x = cx; if (sw !== hw * 2) m.scale.x = sw / (hw * 2); m.castShadow = true; g.add(m); return m;
 }
 // a port cut through a profile (w wide, bevel bev) should only show on the shooter's right: plug the left half of the
 // cut with the body's own material, flush with its outside, and put a dark wall down the middle

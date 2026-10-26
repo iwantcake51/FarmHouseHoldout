@@ -101,6 +101,11 @@ body.freeView .benchTip{display:none}
 .hitArc{position:fixed;left:50%;top:50%;width:44vmin;height:44vmin;margin:-22vmin 0 0 -22vmin;border-radius:50%;z-index:2;pointer-events:none;opacity:0;--a:0deg;
   background:conic-gradient(from calc(var(--a) - 32deg),rgba(235,30,16,0) 0deg,rgba(235,30,16,.95) 18deg,rgba(255,60,40,1) 32deg,rgba(235,30,16,.95) 46deg,rgba(235,30,16,0) 64deg,transparent 64deg);
   -webkit-mask-image:radial-gradient(circle,transparent 60%,#000 63%,#000 69%,transparent 73%);mask-image:radial-gradient(circle,transparent 60%,#000 63%,#000 69%,transparent 73%);filter:drop-shadow(0 0 6px rgba(200,20,10,.8))}
+/* Wide eyes from your own eyes (ui/sense.js): a soft pale arc round the middle of the screen, wider and further out than
+   a blow's, on the side something close by is off the edge of the screen */
+.senseArc{position:fixed;left:50%;top:50%;width:58vmin;height:58vmin;margin:-29vmin 0 0 -29vmin;border-radius:50%;z-index:2;pointer-events:none;opacity:0;--a:0deg;
+  background:conic-gradient(from calc(var(--a) - 40deg),rgba(244,232,206,0) 0deg,rgba(244,232,206,.7) 26deg,rgba(255,246,226,.95) 40deg,rgba(244,232,206,.7) 54deg,rgba(244,232,206,0) 80deg,transparent 80deg);
+  -webkit-mask-image:radial-gradient(circle,transparent 63%,#000 66%,#000 69%,transparent 72%);mask-image:radial-gradient(circle,transparent 63%,#000 66%,#000 69%,transparent 72%);filter:drop-shadow(0 0 5px rgba(255,236,200,.55))}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
 /* close to death the edges of the world darken, a soft dark ring closing in a little, breathing slowly (ui/hud.js:
    NEAR_DEATH) */
