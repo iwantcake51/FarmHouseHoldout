@@ -270,7 +270,8 @@ sights; a sprint bobs no harder than a walk). Breaking into a sprint, the gun co
 dropping at once: it starts lowering gently, swings down through the middle and settles carried low in the bottom of
 the view, canted over with its muzzle tipped well down, and comes back up the same way, a touch quicker. However long
 the gun, its stock is kept low and out ahead of your face while you run (a long gun's butt is pushed down and forward
-clear of your eye, so the hunting rifle's or the SCAR's stock never fills the view). Turning as you sprint, the run follows your view round closely
+clear of your eye, so the hunting rifle's or the SCAR's stock never fills the view). Turning as you sprint, the arms and gun trail the turn a little on their springs, swung out and leant into it, and
+settle back with a touch of overshoot as it ends, so it's fluid rather than stiff, and the run follows your view round closely
 (a few degrees behind at most, where a held key's turn carves round wide), so you never run off to one side of where you
 look, and the arms and gun stay as still in the view as they do walking: the glance a sprinting body gives toward where
 you look is left out, the chest already being on your aim. Your arms and the gun are carried by the view itself, the way

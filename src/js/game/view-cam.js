@@ -130,6 +130,9 @@ const FP_VAULT = { look: 0.34, lean: 0.36, roll: 0.075, out: [0.55, 0.95], fov: 
 // and drawn in a touch going forward (fwd), rolled into a turn (turn), bobbing in a figure of eight with your stride
 // (bob: across, down, roll), breathing when you stand still (breathe: up, pitch), dipping as you land (land); much less
 // of it down the sights (ads)
+// at a sprint, how much more the turn swings them (k), and how far they trail it round (yaw, radians for each radian a
+// second of turn; never past max) and out to the side (side, metres)
+const VM_RUN = { k: 2.6, yaw: 0.012, max: 0.09, side: 0.0016 };
 const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.005, bob: [0.0038, 0.0034, 0.009], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
 const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0 };
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
@@ -443,8 +446,11 @@ function vmStep(rdt, w0, now) {
   const fx = Math.sin(V.cy), fz = Math.cos(V.cy), fwd = P.vx * fx + P.vz * fz, right = P.vx * -fz + P.vz * fx, m = 1 - VM.ads * w0;
   const turn = clamp(angDiff(V.cy, V.lcy ?? V.cy) / rdt, -8, 8); V.lcy = V.cy;
   const k = V.bobK || 0, ph = P.phase || 0, still = 1 - clamp(k * 2, 0, 1), B = VM.bob;
-  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph)) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6)) * m, z: Math.max(0, fwd) * VM.fwd * m,
-    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6)) * m, w: 0, r: (-right * VM.roll - turn * VM.turn + B[2] * k * Math.sin(ph)) * m };
+  // (turning at a sprint the arms and gun aren't nailed to the view: they trail it a little on the springs, swung out
+  // to the side and leant into the turn, and settle back with a hint of overshoot as it ends: VM_RUN)
+  const rk = 1 + (VM_RUN.k - 1) * clamp(ANIM.sprintK || 0, 0, 1);
+  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1)) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6)) * m, z: Math.max(0, fwd) * VM.fwd * m,
+    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6)) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1), -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['x', 'y', 'z', 'p', 'w', 'r']) { const va = 'v' + a; VS[va] += (VM.k * (T[a] - VS[a]) - VM.d * VS[va]) * h; VS[a] += VS[va] * h; }
 }
 // and put on the gun as it's held (player/hold.js: after fpRecoil), turned about where it's gripped in the view's own frame
