@@ -118,7 +118,7 @@ export function tierFits(k, id) {
   if (modLocks(id, k)) return false;   // (taken by a mod: the battle rifle's AK kit has its own mags)
   if (k === 'loader') return id === 'revolver' || id === 'scar' || !!D.breakOpen;   // the revolver's speed loader; the battle rifle's flared magwell; the double barrel's Sleight of Hand (the pump's loading comes with Quick hands: game/run-state.js)
   if (k === 'supp') return !(W8.mods[id] || []).some(m => MODS[m].muzzle) && (n > 0 || !muzzleTaken(id));   // a better can replaces the one you have; otherwise the muzzle must be free (a can taken off a shotgun for its choke still goes back on)
-  if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles and the revolver, each as far as SCOPE_TOP says
+  if (k === 'sight' && n >= 2) return n < (SCOPE_TOP[id] || 2);   // the scopes only go on the rifles, the revolver and the hand cannon, each as far as SCOPE_TOP says
   if (k === 'mag' && MAG_STEPS[id] !== undefined) return n < MAG_STEPS[id];
   return true;
 }

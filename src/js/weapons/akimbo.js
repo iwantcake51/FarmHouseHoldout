@@ -17,9 +17,10 @@ import { reloadJolt } from '../game/camera.js';
 import { ANIM, worryShot } from '../player/animation.js';
 
 const AK_SIDES = ['L', 'R'];
-// which gun is on which side as you see it: the rig's 'R' hand is the one on your left as you face (its 'L' on your
-// right), so left click fires the 'R' gun, and the HUD and crosshair show it on the left
-export const AK_ON = { left: 'R', right: 'L' };
+// which gun is on which side as you see it: the rig's 'L' hand holds the gun on your left (from your own eyes, or
+// behind you), so left click fires the 'L' gun and right click the 'R' one, and the HUD and crosshair show each on its
+// own side
+export const AK_ON = { left: 'L', right: 'R' };
 export const akPer = id => Math.max(1, Math.round(magSize(id) / 2));   // one gun's magazine
 // each hand's rounds. The total is the truth: when something else changed it (a new gun, a bigger mag), the difference
 // is shared out, filling the right gun first and emptying the left first

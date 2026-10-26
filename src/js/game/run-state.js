@@ -127,9 +127,10 @@ function tuneUp(D) {
 }
 export const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
 // the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
-// scope (on the rail it gets with any optic: weapons/gun-models.js), the assault rifle the ACOG, the hunting rifle and
+// scope (on the rail it gets with any optic: weapons/gun-models.js), the hand cannon as far as an ACOG (on the rail
+// along its barrel: weapons/models-pistols.js optRail), the assault rifle the ACOG, the hunting rifle and
 // the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
-export const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
 // zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
 export const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };

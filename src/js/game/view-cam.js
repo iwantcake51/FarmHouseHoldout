@@ -42,7 +42,7 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.4, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
+const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.15, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
@@ -64,9 +64,10 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 // muzzle flips up hard and snaps back down, dipping a touch past the aim before it settles; a long gun about your
 // shoulder (back at its butt), so it's shoved straight back into you with less flip. How far at its most (radians, and
 // metres back and up): flip up, plus per unit of the gun's power (flipPw, backPw); a little roll and twist to one side
-// or the other (roll, yaw), and side: a slide sideways. A pump or a bolt gun thumps harder (act). Down the sights only
-// a small share of each, the gun held tight into you (ads: flip, twist, roll; adsMove: its slide back, across and up;
-// adsRattle, adsClimb: of the rattle and the climb), the sight jumping a little off your eye's line and back
+// or the other (roll, yaw), and side: a slide sideways. A pump or a bolt gun thumps harder (act). Down the sights a
+// good share of each, the gun held tight into you but still kicking (ads: flip, twist, roll; adsMove: its slide back,
+// across and up; adsRattle, adsClimb: of the rattle and the climb), the sight jumping off your eye's line and back: and
+// the shot goes where the reticle is (fpAim), so the climb of a held trigger is there to pull down
 // the climb (auto): held on the trigger of a full auto, each shot's own kick is a share (k) and the muzzle climbs a
 // little more each shot (climb, to at most max, radians), wandering side to side as it goes (wander), eased onto on a
 // slower spring (w) and back down once you let go (back, how quickly)
@@ -76,7 +77,7 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 const FP_RECOIL = {
   hand: { flip: 0.1, flipPw: 0.26, back: 0.026, backPw: 0.05, up: 0.008, roll: 0.06, yaw: 0.03, side: 0.004, w: 30, z: 0.5, pivot: [0, -0.07, 0.09] },
   long: { flip: 0.022, flipPw: 0.055, back: 0.03, backPw: 0.06, up: 0.004, roll: 0.04, yaw: 0.02, side: 0.003, w: 26, z: 0.45, pivot: [0, -0.05, 0.36] },
-  act: 1.35, ads: [0.22, 0.28, 0.35], adsMove: 0.45, adsRattle: 0.35, adsClimb: 0.45,
+  act: 1.35, ads: [0.55, 0.5, 0.6], adsMove: 0.8, adsRattle: 0.6, adsClimb: 0.7,
   auto: { k: 0.55, climb: 0.011, max: 0.085, wander: 0.45, w: 9, back: 5 },
   rattle: { pos: 0.0028, rot: 0.014, f: [29, 37, 46], decay: 13, auto: 0.5, semi: 0.22, view: 0.12 }
 };
@@ -175,6 +176,7 @@ function vmLock(eye, k) {
   _vlM.decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
 }
 const _vlW = new V3();
+V.sd = new V3(0, 0, 1); V.sdW = 0;
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
@@ -499,8 +501,17 @@ export function viewBasis() {
 }
 // where you're aiming in first person, out along the look: the ground where it meets it, a wall in the way, or a long
 // way out; and the height the look's at there (VCAM.aimY: the arms point the gun at it, and an unaimed round flies to it)
+// down the sights the shot goes where the reticle is, not where the view looks: along the sight's own line (the
+// optic's axis, the rear sight over the front), so wherever the sway or a shot's kick has the reticle, that's where it
+// lands. Blended in as the sights come up (SIGHT_SHOT, of the way up) and out as they go down
+const SIGHT_SHOT = [0.35, 0.85];
 export function fpAim(out) {
-  const ex = V.x, ey = V.y, ez = V.z, cp = Math.cos(VCAM.pitch), sp = Math.sin(VCAM.pitch), dx = Math.sin(VCAM.yaw), dz = Math.cos(VCAM.yaw);
+  let cp = Math.cos(VCAM.pitch), sp = Math.sin(VCAM.pitch), dx = Math.sin(VCAM.yaw), dz = Math.cos(VCAM.yaw);
+  const ex = V.x, ey = V.y, ez = V.z, sw = smooth(clamp((V.sdW - SIGHT_SHOT[0]) / (SIGHT_SHOT[1] - SIGHT_SHOT[0]), 0, 1));
+  if (sw > 0) {
+    const d = V.sd, x = dx * cp + (d.x - dx * cp) * sw, y = sp + (d.y - sp) * sw, z = dz * cp + (d.z - dz * cp) * sw, n = Math.hypot(x, y, z) || 1, h = Math.hypot(x, z) || 1e-6;
+    cp = h / n; sp = y / n; dx = x / h; dz = z / h;
+  }
   let D = 26;
   if (sp < -1e-3) D = Math.min(D, ey / -sp * cp);
   for (let t = 0.3; t < D; t += 0.1) if (bulletBlocked(ex + dx * t, ez + dz * t)) { D = t; break; }
@@ -787,6 +798,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
       _vcE.lerp(_vcD, w);
     }
     V.sw = L ? w : 0;
+    V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx, _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx);
     c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);

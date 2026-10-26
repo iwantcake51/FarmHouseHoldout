@@ -28,6 +28,8 @@ export const camVault = { roll: 0, vr: 0, bob: 0, vb: 0, px: 0, vpx: 0, pz: 0, v
 // aiming down the sights from above: the gun's raise rides a spring a little under critical (about 5% past, settled
 // in a quarter second), so it comes up, a hair past and settles rather than gliding to a stop
 const ADS_ISO = { k: 120, d: 16 };
+// how far (radians) a wall has the gun tipped down before the sights go down, and how near level before they come back
+const WALL_ADS = { on: 0.12, off: 0.03 };
 // firing: each shot kicks the view on its own, apart from the gun's kick in the arms (player/hold.js): it tips only a
 // little (mostly one way, like a gun climbing: CAM_ROLL, and less again on a full automatic, CAM_ROLL_AUTO, whose kicks
 // come too fast to settle) and punches in a touch (CAM_PUNCH: how hard, by the gun's power, so a 9mm barely nudges and
@@ -127,7 +129,11 @@ export function updateCamera(rdt) {
 
   // (and not while the gun's still being brought back up into your hands, off a vault or being drawn: the sights come
   // up once it's there, as long as you're still holding aim)
-  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2));   // skidding out of a sprint, into the sights as you slow
+  // (nor while a wall has the gun tipped down out of the way, player/hold.js gunPush: the sights would come up to your
+  // eye with the gun pointing at the floor; they go down as it tips, WALL_ADS.on radians, and come back once it's all
+  // but level again, WALL_ADS.off, so it doesn't flicker at the edge)
+  { const tip = ANIM.gtipA || 0; ANIM.wallAds = tip > WALL_ADS.on || (!!ANIM.wallAds && tip > WALL_ADS.off); }
+  { const want = aiming && !(P.skid > SPRINT.skid * 0.4) && !(!iso && (swapSt || P.vault || (ANIM.postVault || 0) > 0.2 || ANIM.wallAds));   // skidding out of a sprint, into the sights as you slow
     // (in first person, steadily over the time it takes, eased at both ends: game/view-cam.js)
     // (from above, on a spring a little under critical, ADS_ISO: the gun comes up, a hair past and settles, and drops
     // back the same; adsP has the overshoot, for the pose, ads stays 0..1 for everything else)

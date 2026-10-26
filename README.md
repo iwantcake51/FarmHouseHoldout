@@ -46,7 +46,9 @@ battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. You ca
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
-rear notch comes off for the rail). A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
+rear notch comes off for the rail). The hand cannon takes sights up to the ACOG: the red dot and the holo on its slide,
+and a handgun scope or the ACOG on the rail along its barrel (which stays put while the slide works), held out at arm's
+length with a handgun's long eye relief rather than up against your eye. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
@@ -148,7 +150,7 @@ look round freely while the gun stays where it's aimed: your arms and the gun ho
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
-is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the sight itself jumps, rolls and rattles off your eye's line and comes back. Looking up, your
+is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the gun still kicks in your hands: the sight itself jumps, rolls and rattles off your eye's line and comes back, and a held trigger climbs it. The shot goes where the reticle is (along the sight's own line, the optic's axis or the rear sight over the front), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
 and again on the way down, quicker with a handgun;
@@ -302,7 +304,8 @@ carries on back to its grip with the way it was going, settling onto it without 
 is part of the reload's own length, so the reload ring fills over the whole reload as it really goes, and the old mag
 falling, the new one going home and their sounds all land on the animation's own marks.
 
-**A gun in each hand.** With the second pistol or second machine pistol fitted, each gun kicks on its own shot from
+**A gun in each hand.** With the second pistol or second machine pistol fitted, left click fires the gun on your left and
+right click the one on your right, and each gun kicks on its own shot from
 your own eyes, flipping up on its wrist while the other stays steady, and running with them each hand pumps forward
 and back with your stride, opposite the other, the guns canted out.
 
