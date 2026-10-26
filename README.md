@@ -435,7 +435,10 @@ way before the gun's rolled over to dump the old mag.
 **Getting hit.** You always know where it came from: red floods in from that side of the screen (from the bottom
 for a blow from behind) and holds a moment before it drains, a red arc round the middle of the view (round you, from
 above) points at it and keeps pointing as you turn, fading over a second or so, and the view's knocked away from it and
-shakes back along that line as it settles. None of it covers the middle of the screen.
+shakes back along that line as it settles. In first person your head flinches from the blow: it snaps back from one in
+front (forward from one behind), turns and tips away from the side it came from, the eye jolted back a couple of
+centimetres, and comes straight back to where you were looking within half a second, harder for a harder hit and as
+strong as **Screen shake** lets it. None of it covers the middle of the screen.
 
 **Low health.** Your hands tremble and the crosshair wanders, a heartbeat knocking it now and then: a slow, smoothed
 tremble, small from your own eyes and kept calm from above too, never a jitter.
@@ -447,10 +450,13 @@ the last, a last turn straight round, and the end pressed down and taped. A shor
 forearm turns slowly in the hand as the gauze goes round, and the hand holding it drifts a little with your breathing.
 In first person both arms are brought up and forward off your shoulders (which are behind the view), the forearm laid
 across the bottom of the view with the wrap going on where you can watch it, and the right hand and the roll coming in
-over it; it all stays where it is in the view as you look up or down, as the weapons do. Your teammates see your arms,
+over it from the side (not across your eyes, so even the canvas jacket's thick sleeve doesn't hide the wrap); it all stays where it is in the view as you look up or down, as the weapons do. Your teammates see your arms,
 bandaging or with a melee weapon, turned where you're looking up or down, as they already did with a gun. Each bandage stays on your arm
-till the run ends, up to three of them up the forearm, wound snug over whatever sleeve or glove is there (round the
-sleeve itself, flat over a snap, seam or patch on it, each turn only a hair over the last), with a
+till the run ends, up to three of them up the forearm, wound snug over whatever's there: the bare arm, a sleeve, a
+glove, the canvas jacket's sleeve, a rolled-up sleeve, a watch. Each one follows what's under it along the arm (tight on
+a sleeve, up over a cuff's edge or a roll and straight back down past it, drawn up over a snap or a watch face the way
+a bandage pulled tight is, never floating off the arm and never with anything poking through it), its corners pulled
+tight round the arm's, and each turn sits only on the turns actually under it, a gauze layer's thickness over each, with a
 spot of blood slowly seeping through each. The blood you pick up killing zombies up close stains your clothes and
 skin, never a fresh bandage: those stay clean but for their own seep.
 

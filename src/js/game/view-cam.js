@@ -116,6 +116,12 @@ const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 
 // a touch with it (roll, pitch: radians for each m/s of it, up to max), on a spring (k, d); and a blow that lands knocks
 // the view back, a nod up and the eye jolted back off it (hitP, hitZ: how hard, by the blow's weight; kz, dz its spring)
 const MELEE_CAM = { roll: 0.012, pitch: 0.005, max: 0.07, k: 70, d: 12, hitP: 0.8, hitZ: 3, kz: 180, dz: 19 };
+// a hit: your head flinches from it, snapping back and away from the side it came from and tipping off it, the eye
+// jolted back, then it comes straight back to where you were looking (fpFlinch). How hard each way for a usual hit
+// (spun up at once, as a velocity: pitch up from a blow in front, down a little from one behind; yaw and roll away
+// from its side; back: the eye's jolt), and the spring that brings it home (k, d: stiff, a touch under its damping,
+// so it settles with the faintest give past)
+const FLINCH = { pitch: 1.2, behind: 0.35, yaw: 0.7, roll: 1.1, back: 0.55, k: 150, d: 17, max: 1.8 };
 // free look (held: input/keybinds.js, freeLook): the view turns on its own while the aim and the gun stay where they
 // are, as far round as yaw and pitch (radians), easing back onto the aim (back) once it's let go or the sights come up
 const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
@@ -303,7 +309,7 @@ function lookBy(dx, dy) {
 }
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
-const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny, viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0);
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y, viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r;
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
 const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
@@ -832,6 +838,24 @@ function meleeCam(rdt) {
     V.vmk += (-C.kz * V.mk - C.dz * V.vmk) * h; V.mk += V.vmk * h; V.vmz += (-C.kz * V.mz - C.dz * V.vmz) * h; V.mz += V.vmz * h;
   }
 }
+// the flinch (FLINCH): where it's got to and how fast it's going, each way
+const FL = { p: 0, y: 0, r: 0, z: 0, vp: 0, vy: 0, vr: 0, vz: 0 };
+function flinchStep(rdt) {
+  const C = FLINCH;
+  for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['p', 'y', 'r', 'z']) {
+    const v = 'v' + a; FL[v] += (-C.k * FL[a] - C.d * FL[v]) * h; FL[a] += FL[v] * h;
+  }
+}
+// hit from (x, z) on the ground (amount: how hard, 1 a zombie's swipe), in first person: the flinch, as hard as the
+// screen shake setting lets it (ui/settings.js)
+export function fpFlinch(x, z, amount) {
+  if (!fpOn() || P.dead) return;
+  const C = FLINCH, k = clamp(amount || 1, 0.5, C.max) * SET.shake / 100, [F, Rt] = viewBasis(), rx = x - P.x, rz = z - P.z, L = Math.hypot(rx, rz);
+  const fwd = L > 0.05 ? (rx * F.x + rz * F.z) / L : 1, side = L > 0.05 ? (rx * Rt.x + rz * Rt.z) / L : (rand() < 0.5 ? -0.5 : 0.5);
+  const j = rr(0.85, 1.15);   // (no two quite alike)
+  FL.vp += (fwd >= 0 ? C.pitch * (0.45 + 0.55 * fwd) : -C.behind * -fwd) * k * j;
+  FL.vy += side * C.yaw * k * j; FL.vr += side * C.roll * k * rr(0.8, 1.2); FL.vz += C.back * Math.max(0.3, fwd) * k;
+}
 export function fpMeleeHit(heavy, hard) {
   if (!fpOn()) return;
   const C = MELEE_CAM, k = hard * (heavy ? 1.5 : 1);
@@ -872,7 +896,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
       const acc = ((P.vx - V.lvx) * fx + (P.vz - V.lvz) * fz) / d; V.lvx = P.vx; V.lvz = P.vz;
       const m = 1 - TILT.ads * w0, tr = -right * TILT.roll * m, tp = clamp(-fwd * TILT.pitch - clamp(acc, -25, 25) * TILT.acc, -0.04, 0.04) * m;
       for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { V.vtr += (TILT.k * (tr - V.tr) - TILT.d * V.vtr) * h; V.tr += V.vtr * h; V.vtp += (TILT.k * (tp - V.tp) - TILT.d * V.vtp) * h; V.tp += V.vtp * h; } }
-    meleeCam(rdt);
+    meleeCam(rdt); flinchStep(rdt);
     // the shots' turn of the gun, ringing out
     recoilStep(rdt);
     // bobbing with your stride
@@ -930,7 +954,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)
-    c.position.set(_vcE.x - Math.cos(V.cy) * V.bx - Math.sin(V.cy) * (V.mz || 0), _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx - Math.cos(V.cy) * (V.mz || 0));   // (and jolted back off a blow: V.mz, MELEE_CAM)
+    c.position.set(_vcE.x - Math.cos(V.cy) * V.bx - Math.sin(V.cy) * ((V.mz || 0) + FL.z), _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx - Math.cos(V.cy) * ((V.mz || 0) + FL.z));   // (and jolted back off a blow: V.mz, MELEE_CAM)
     c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
