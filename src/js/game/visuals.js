@@ -19,6 +19,7 @@ import { updateDarkEyes, updateDayNight } from '../lighting/day-night.js';
 import { updateLaser } from '../weapons/laser.js';
 import { updateDropMarker } from '../stations/supply-drop.js';
 import { updateCamera } from './camera.js';
+import { poseSnap } from '../net/avatars.js';
 import { updateCutaway } from '../world/cutaway.js';
 import { updateCrosshair } from '../ui/crosshair.js';
 import { updatePlayerVisuals } from '../player/animation.js';
@@ -34,6 +35,7 @@ import { titleCrowd } from '../world/title-crowd.js';
 export function visuals(dt, rdt) {
   titleCrowd(dt);   // (the title's yard: a few of them wandering about, the windows boarded: world/title-crowd.js)
   updatePlayerVisuals(dt, rdt);
+  poseSnap();   // (your pose for your teammates, before the first-person view holds your arms on it: net/avatars.js)
   const D = W(curId()) || W('pistol');   // after the player's pose, which can take out a different weapon (a weapon key during a bandage)
   updateCamera(rdt);
   updateDayNight(rdt); updateDarkEyes(dt);

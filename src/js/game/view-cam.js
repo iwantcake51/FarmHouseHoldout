@@ -11,7 +11,6 @@
 // your eyes are, your arms and the gun in them below.
 // The free camera flies anywhere to watch: W A S D along where it looks, Space and Ctrl up and down, Shift faster and
 // the wheel its speed. You stay where you were, and every zombie shows wherever it is.
-import { $ } from '../core/dom.js';
 import { KB } from '../input/keybinds.js';
 import { CAM_OFF, cv, FP_CAM, GUN_Y, ISO_CAM, R, setCam, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
@@ -180,7 +179,7 @@ function vmLock(eye, k) {
 }
 const _vlW = new V3();
 V.sd = new V3(0, 0, 1); V.sdW = 0;
-const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3(), lookHint = $('lookHint');
+const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3();
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
 // (picking cards between waves too, and as they go: upgrades/upgrade-screen.js)
@@ -214,8 +213,11 @@ export function syncView() {
 export const locked = () => document.pointerLockElement === cv;
 let selfUnlock = false;
 // (lockAt: when it was last asked for, so a menu closing as it's asked for, the pause going, doesn't let it straight go)
-export function wantLock() {
-  if (isoOn() || locked() || !cv.requestPointerLock) return;
+// (ahead: taken now, for the first-person run being started by this click (ui/screens.js: enterRun), the view still
+// the title's above: browsers only hand the mouse over in answer to a click or a key, so it's taken with the click on
+// Start rather than asking for another once you're in)
+export function wantLock(ahead) {
+  if ((ahead ? VCAM.mode === 'iso' : isoOn()) || locked() || !cv.requestPointerLock) return;
   V.lockAt = performance.now();
   // (the mouse's raw movement where the browser has it, no pointer acceleration in the way: the view turns by just as
   // much as the mouse moves, however fast; plain where it hasn't)
@@ -714,12 +716,11 @@ function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glas
 // vault), sh: the shake
 export function viewFrame(rdt, roll, sh, jolt) {
   syncView();
-  if (isoOn()) { EYE_R.on = false; if (!lookHint.hidden) lookHint.hidden = true; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
+  if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
   // play, a word that a click takes it back
   const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen();
   if (menu && locked() && performance.now() - (V.lockAt || 0) > 200) unlock();
-  const hint = !menu && !locked(); if (lookHint.hidden === hint) lookHint.hidden = !hint;
   const c = FP_CAM;
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
     V.vk += (-FPV.kickK * V.kick - FPV.kickD * V.vk) * dt; V.kick += V.vk * dt;

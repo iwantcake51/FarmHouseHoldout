@@ -53,14 +53,22 @@ const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100
 // be drawn a moment ahead on their screens instead of a moment behind
 const POSE_HZ = 15;
 let poseDr = 0, poseT = 0, poseX = 0, poseZ = 0, poseAt = 0, poseWid = '', poseWnAt = 0;
+// your pose as your body has it, taken each frame before the first-person view takes your arms and chest over to hold
+// them on the view (game/view-cam.js): what your teammates see is you as you stand, looking up or down where you look,
+// not your upper body stood straight for your own eyes (game/visuals.js calls it)
+const poseSnapJ = [];
+export function poseSnap() {
+  if (!netLink()) return;
+  const j = poseSnapJ; j.length = 0;
+  const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
+  POSE_K.forEach((k, n) => put(PM[k], n === 0));
+  j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
+}
 export function poseOut(rdt) {
   if (!netLink()) return;
   poseT -= rdt; if (poseT > 0) return; poseT = 1 / POSE_HZ;
-  const j = [];
-  const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
-  POSE_K.forEach((k, n) => put(PM[k], n === 0));
+  const j = poseSnapJ.length ? poseSnapJ.slice() : (poseSnap(), poseSnapJ.slice());
   j[0] = r3(P.x); j[2] = r3(P.z);   // (where you are this frame: the rig only catches up when it's drawn, after this)
-  j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
   const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,

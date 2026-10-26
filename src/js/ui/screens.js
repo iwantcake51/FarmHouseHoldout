@@ -139,7 +139,7 @@ function switchScreens(dark, fn) {
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
 // start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
 // for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
-export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
+export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
 // off the title, cinematically. Start pressed: the menu drifts away line by line, the title camera starts a slow push
 // in on the farm (CINE.push: how far in, as a share of its zoom) as a vignette closes round it and letterbox bars come
 // in, and the picture dims to black (from CINE.dim ms in, over the rest of CINE.out); the music's been fading since

@@ -59,4 +59,4 @@
 #scrim{transition:opacity 1.4s ease}
 /* looking your gun over from your own eyes (player/inspect.js): the whole HUD and the crosshair put away, back the
    moment you stop (from above it all stays) */
-body.fpView.inspecting .hud:not(#station), body.fpView.inspecting #xh, body.fpView.inspecting #lookHint { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }
+body.fpView.inspecting .hud:not(#station), body.fpView.inspecting #xh { opacity: 0 !important; pointer-events: none; transition: opacity 0.35s ease !important; }

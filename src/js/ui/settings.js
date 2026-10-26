@@ -84,7 +84,9 @@ function applySettings() {
   if (VCAM.mode !== 'free') setViewMode(SET.view);   // (first person or isometric: game/view-cam.js; the free camera's left be till you leave it)
 }
 // the view key: into first person and back, or out of the free camera to the view picked
-export function toggleView() { pickView(VCAM.mode === 'free' ? SET.view : SET.view === 'fp' ? 'iso' : 'fp'); }
+// (only out of the free camera: from above or from your own eyes is picked before a run, in the settings, and stays for
+// it; mid-run only the cheat menu changes it)
+export function toggleView() { if (VCAM.mode === 'free') pickView(SET.view); }
 // a view picked (the cheat menu's free camera too, which isn't kept)
 export function pickView(v) {
   if (v !== 'free') { SET.view = v; saveSettings(); if (!$('settings').hidden) buildSettings(); }
@@ -100,8 +102,8 @@ function setRowHtml(r) {
   if (r.head) return `<div class="setHeadRow">${r.head}</div>`;
   const lab = `<div class="setLab"><b>${r.name}</b>${r.note ? `<small>${r.note}</small>` : ''}</div>`;
   if (r.opts) {
-    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0];
-    return `<div class="setRow">${lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn" aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
+    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0], held = r.k === 'view' && state !== 'title';   // (the view's kept for the run: toggleView)
+    return `<div class="setRow${held ? ' held' : ''}">${held ? `<div class="setLab"><b>${r.name}</b><small>Picked before a run, and kept for it (the cheat menu can switch it)</small></div>` : lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn"${held ? ' disabled' : ''} aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
       <ul class="sDropList" role="listbox" tabindex="-1">${r.opts.map(([v, t], i) => `<li role="option" data-v="${v}" style="--i:${i}" aria-selected="${v === cur[0]}">${t}</li>`).join('')}</ul></div></div>`;
   }
   if (r.bool) return `<div class="setRow">${lab}<button type="button" class="sTog" role="switch" data-k="${r.k}" aria-checked="${!!SET[r.k]}" aria-label="${r.name}"><i></i></button></div>`;

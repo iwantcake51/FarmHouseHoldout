@@ -148,7 +148,7 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | Shift | Sprint | Right click | Aim down the sights | Hold C | Tear a board down |
 | Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
-| N | First person view | V | Shove | T | Start the next wave early |
+| N | Back out of the free camera | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
 | | | X | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | | |
@@ -245,7 +245,10 @@ from your eye, even aiming straight up. Aiming waits until the gun's back up in 
 and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
 corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
-hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too), and the
+hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too). There's no
+click to look about: the mouse is taken with the click on Start (or the host's Start in co-op), and any click or key
+takes it back once no menu's open. In co-op your teammates see you as you stand, looking up and down where you look,
+not with your chest held straight for your own eyes. And the
 view doesn't turn till a menu's quite gone (the cards still flying off after a pick). Sprinting, the crosshair fades out
 as the gun comes down, and back as it comes up. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
 and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
@@ -387,7 +390,7 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
 | HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, no clock face and no picture of the melee weapon you're holding) |
-| View | Isometric, first person |
+| View | Isometric, first person (picked before a run and kept for it; the cheat menu can switch it mid-run) |
 | Field of view | 60–100° (first person) |
 | Mouse sensitivity | 25–200% (first person) |
 | Mouse smoothing | Off (the view turns the moment the mouse does), on (eased over a few frames) (first person) |

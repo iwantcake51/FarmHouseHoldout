@@ -85,10 +85,6 @@
 /* a soft warm grade over the whole picture: honey in the middle, a little ember at the edges */
 #warmGrade{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;background:radial-gradient(ellipse 90% 85% at 50% 45%,rgba(255,176,96,.32),rgba(255,140,70,.18) 55%,rgba(120,50,30,.32) 100%)}
 /* first person, the free camera: the mouse is let go (a menu closed, or Esc), and a click takes it back (game/view-cam.js) */
-#lookHint{position:fixed;left:50%;top:calc(50% + 46px);transform:translateX(-50%);z-index:6;pointer-events:none;display:flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:999px;
-  background:rgba(14,12,11,.72);border:1px solid rgba(var(--acc),.35);color:#efe6d8;font:600 13px/1 var(--ui,inherit);letter-spacing:.02em;box-shadow:0 6px 18px rgba(0,0,0,.35);animation:lookHintIn .35s ease-out}
-#lookHint kbd{display:inline-flex}#lookHint kbd svg,#lookHint kbd img{width:22px;height:22px}
-@keyframes lookHintIn{from{opacity:0;transform:translate(-50%,6px)}to{opacity:1;transform:translateX(-50%)}}
 /* flying the free camera, the stations' first-run tips stay out of the view */
 body.freeView .benchTip{display:none}
 #adsVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 78% 72% at center,transparent 62%,rgba(6,7,8,.1) 80%,rgba(6,7,8,.26) 100%);opacity:0}

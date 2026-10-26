@@ -10,6 +10,7 @@ import {
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
+import { wantLock } from '../game/view-cam.js';
 import { state } from '../game/state.js';
 import { BASE_HP } from '../ui/hud.js';
 import { frAdd, frAnnounce, friendsUp, frOf, frRender, PALS } from './friends.js';
@@ -60,7 +61,7 @@ $('coopHost').onclick = () => netHost();
 $('coopJoin').onclick = () => netJoin($('coopCode').value);
 $('coopCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') netJoin($('coopCode').value); });
 $('coopName').addEventListener('keydown', e => e.stopPropagation());   // typing a name never starts the run (T)
-$('coopGo').onclick = () => netStart();
+$('coopGo').onclick = () => { wantLock(true); netStart(); };   // (in first person the mouse is taken with this click: game/view-cam.js)
 $('coopLeave').onclick = () => netLeave();
 $('coopCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('coopCopy').textContent = 'Copied'; setTimeout(() => { $('coopCopy').textContent = 'Copy'; }, 1400); } catch (e) {} };
 // a link with ?join=CODE opens the lobby and joins straight away
