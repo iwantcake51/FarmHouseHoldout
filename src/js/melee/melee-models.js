@@ -91,8 +91,12 @@ const MELEE_MODELS = {
     // over the middle, bare steel worn bright at both working ends (CROW_STEEL: how far along the bar)
     const body = new THREE.Mesh(CROW_GEO(), CROW_M || (CROW_M = lam(0xffffff, { vertexColors: true }))); body.castShadow = true; g.add(body);
     // the claw: the bar's end flattened out wide and split down the middle into two prongs, carrying on round the curl
-    const cl = new THREE.Group(); cl.position.set(0, 0.565, 0.13); cl.rotation.x = -0.12; g.add(cl);
-    box(cl, 0.03, 0.03, 0.011, MM.wornSteel, 0, 0.0, 0);
+    // (seated on the bar's very end, along the way it comes off the curl, CROW_PATH's last bend: the bar's end capped
+    // round, and the claw's root a little into it, so the bar runs straight into the flattened claw with no gap)
+    const [e1, e0] = [CROW_PATH[CROW_PATH.length - 1], CROW_PATH[CROW_PATH.length - 2]], dl = Math.hypot(e1[0] - e0[0], e1[1] - e0[1]), dy = (e1[0] - e0[0]) / dl, dz = (e1[1] - e0[1]) / dl;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(CROW_R, 8, 6), MM.wornSteel); cap.position.set(0, e1[0], e1[1]); g.add(cap);
+    const cl = new THREE.Group(); cl.position.set(0, e1[0] + dy * 0.008, e1[1] + dz * 0.008); cl.rotation.x = Math.atan2(-dz, -dy); g.add(cl);
+    box(cl, 0.03, 0.03, 0.011, MM.wornSteel, 0, 0.0, 0); box(cl, 0.028, 0.02, 0.022, MM.wornSteel, 0, 0.012, 0);   // (and the taper from the round bar down to the flat)
     [-1, 1].forEach(e => { const pr = box(cl, 0.011, 0.04, 0.008, MM.wornSteel, e * 0.0085, -0.032, -0.001); pr.rotation.z = e * 0.06; const tp = box(cl, 0.009, 0.012, 0.0045, MM.edge, e * 0.0098, -0.056, -0.002); tp.rotation.z = e * 0.06; });
     // the pry end: the foot flattened to a chisel edge with a nail slot in it
     const pr = new THREE.Group(); pr.position.set(0, -0.128, -0.043); pr.rotation.x = 1.05; g.add(pr);

@@ -3,7 +3,7 @@
 // merged into one mesh at the end (userData.fine: outlines skip it).
 
 import { lam } from '../core/shaders.js';
-import { box, mergeInto } from '../core/geometry.js';
+import { box, mergeInto, unfight } from '../core/geometry.js';
 import { M } from '../world/materials.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { crateModel } from '../stations/supply-drop.js';
@@ -28,8 +28,10 @@ function dmRound(g, x, y, z, r, len, nose, flat) {
 function dmRoundFlat(g, x, y, z, r, len, nose, ry) {
   const h = new THREE.Group(); h.position.set(x, y, z); h.rotation.set(0, ry || 0, -Math.PI / 2); g.add(h); dmRound(h, 0, -len / 2, 0, r, len, nose); return h;
 }
-// everything under g but the bold pieces (keep) merged into one mesh
+// everything under g but the bold pieces (keep) merged into one mesh, once any faces lying on each other are pulled
+// apart (a label on a box, a band round a can: core/geometry.js unfight), so none of them flicker as it turns
 function dmFinish(g, keep) {
+  unfight(g);
   const list = []; g.traverse(o => { if (o.isMesh && !keep.has(o)) list.push(o); });
   mergeInto(g, list);
 }
@@ -162,11 +164,23 @@ export function dmCase(g, cargo) {
   [-1, 1].forEach(sx => [-1, 1].forEach(sz => dmBox(g, 0.06, H + 0.01, 0.06, DM.dark, sx * (L / 2 - 0.02), y, sz * (D / 2 - 0.02))));   // corner guards
   dmFinish(g, keep);
 }
-// a drop's model by its kind (the gun you put down brings its own)
+// a drop's model by its kind (the gun you put down brings its own). Each kind's built once and copied after (DM_BUILT):
+// building one (pulling its faces apart, merging its detail) takes a few milliseconds, too long to spend in the middle of a
+// fight every time something drops. The copies share its geometry and materials (pickups/pickups.js copies the
+// materials of any it changes)
+const DM_BUILT = new Map();
 export function dropModel(g, kind, ammoType, cargo) {
-  if (kind === 'planks') (cargo && cargo.metal ? dmMetal : dmPlanks)(g);
-  else if (kind === 'med') dmMed(g);
-  else if (kind === 'supply') crateModel(g, cargo);
-  else if (kind === 'gun') g.add(cargo.model);
-  else ({ p9: dmAmmo9, p10: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(g);
+  if (kind === 'gun') { g.add(cargo.model); return; }
+  if (kind === 'supply' && cargo && cargo.kind === 'weapon') { crateModel(g, cargo); return; }   // (a case with what's in it)
+  const key = kind + ':' + (ammoType || '') + ':' + (kind === 'planks' && cargo && cargo.metal ? 'metal' : '');
+  let m = DM_BUILT.get(key);
+  if (!m) {
+    m = new THREE.Group();
+    if (kind === 'planks') (cargo && cargo.metal ? dmMetal : dmPlanks)(m);
+    else if (kind === 'med') dmMed(m);
+    else if (kind === 'supply') crateModel(m, cargo);
+    else ({ p9: dmAmmo9, p10: dmAmmo9, magnum: dmAmmoMag, shells: dmShells }[ammoType] || dmAmmoRifle)(m);
+    DM_BUILT.set(key, m);
+  }
+  m.children.forEach(c => g.add(c.clone(true)));
 }

@@ -84,10 +84,14 @@ const INSP_SPRING = { w: 10, z: 0.72, wIn: 6, wOut: 2.5 };
 const CH = ['p', 'y', 'r', 'x', 'h', 'z', 'hp', 'hy', 'tw', 'fs', 'up'];
 // what's put on the gun this frame (o; spin: the revolver's twirl, radians), and the springs chasing the keyframes (s,
 // and their speeds v)
-const INSP = { t: -1, id: null, w: 0, o: { spin: 0 }, s: {}, v: {}, spin: 0 };
+const INSP = { t: -1, id: null, w: 0, o: { spin: 0 }, s: {}, v: {}, spin: 0, rate: 1 };
+const INSP_MENU = { stop: 3.2, go: 4 };   // (how quickly it slows to a stop under a menu, and picks up again after: a second's worth)
 CH.forEach(c => { INSP.o[c] = INSP.s[c] = INSP.v[c] = 0; });
 // whatever's stopping you: your hands are needed, or you're not in a state to stand and look
-const busy = () => state !== 'play' || P.dead || !!openSt || !!W8.reloading || !!swapSt || P.vault || P.sprint || P.bandT > 0 || !!P.shove || aiming || (ANIM.ads || 0) > 0.15 ||
+// (a menu coming up over it, the pause or the cards between waves (inMenu), isn't one: it slows to a stop where it is
+// and carries on when the menu goes, INSP.rate)
+const inMenu = () => state === 'paused' || state === 'upgrade';
+const busy = () => (state !== 'play' && !inMenu()) || P.dead || !!openSt || !!W8.reloading || !!swapSt || P.vault || P.sprint || P.bandT > 0 || !!P.shove || aiming || (ANIM.ads || 0) > 0.15 ||
   !!(W8.cyc && W8.cyc.id === curId()) || W8.shutT > 0 || W8.grabT > 0 || W8.swing > 0 || (ANIM.ready || 0) > 0.2;
 // how far into it you are (seconds; below nothing when you're not looking anything over)
 export const inspectT = () => INSP.t;
@@ -124,10 +128,11 @@ function spinAt(S, t) {
 // (a melee weapon's moves are its own, melee/melee-anim.js: endT is how long they run, and this keeps their time)
 export function inspectPose(rdt, D, id, hand, fp, endT) {
   const I = INSP, now = performance.now();
-  if (I.t >= 0 && (mouseDown || W8.reloading || id !== I.id)) inspectCut();   // (firing, reloading or another gun: back at once)
+  if (I.t >= 0 && ((mouseDown && !inMenu()) || W8.reloading || id !== I.id)) inspectCut();   // (a click on a menu over it isn't a shot)   // (firing, reloading or another gun: back at once)
   if (I.t >= 0 && (!D || busy())) I.t = -1;   // (anything else: eased back onto the aim)
   const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long), end = L[L.length - 1].t, S = INSPECT_SPIN[id];
-  if (I.t >= 0) { I.t += rdt; if (I.t >= end) I.t = -1; }
+  { const menu = inMenu(); I.rate += ((menu ? 0 : 1) - I.rate) * Math.min(1, rdt * (menu ? INSP_MENU.stop : INSP_MENU.go)); }
+  if (I.t >= 0) { I.t += rdt * I.rate; if (I.t >= end) I.t = -1; }
   const on = I.t >= 0; hudOff(on);
   I.w += ((on ? 1 : 0) - I.w) * Math.min(1, rdt * (on ? INSP_SPRING.wIn : INSP_SPRING.wOut));
   if (!(rdt > 0)) return I.o;

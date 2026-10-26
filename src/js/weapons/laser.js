@@ -1,7 +1,7 @@
 // Laser sight beams: straight out of each laser's lens along its gun's barrel, on the gun in your hands only.
 // The taped-on pointer is red; the mounted laser sight (tier 2) is green.
 
-import { scene, V3 } from '../core/renderer.js';
+import { R, scene, V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { NET, netLink } from '../net/net.js';
 import { thinNear } from '../world/thin-walls.js';
@@ -16,20 +16,32 @@ import { state } from '../game/state.js';
 import { scoped } from '../player/aiming.js';
 import { zRay } from './firing.js';
 
-// the beam is a ribbon turned to face the camera (so it reads the same from any angle), shaded as light rather than a
-// stick: a thin white-hot core inside a soft coloured glow that shimmers along its length, dust motes drifting out
-// along it catching the light, faded in from the lens and out again with distance (LASER_FADE: where it starts to go,
-// and where it's gone, in metres). It's drawn additively, so it brightens whatever it crosses
+// the beam is a line of light drawn on the screen itself: its two ends projected and a strip laid between them across
+// the screen, so it's never seen edge-on or flat however it's looked along (from your own eyes, down its own length,
+// a strip turned to face the camera spun and showed its flat face). It's as wide as its glow would be in the world
+// (uW metres from above, uWfp from your own eyes, where it's a fine pencil of light), but never thinner than uPx pixels
+// so it never breaks up far off. Shaded as light rather than a stick: a thin white-hot core inside a soft coloured
+// glow that shimmers along its length, dust motes drifting out along it catching the light, faded in from the lens and
+// out again with distance (LASER_FADE: where it starts to go, and where it's gone, in metres). It's drawn additively,
+// so it brightens whatever it crosses
 const LASER_VS = `
-uniform float uW; varying vec2 vUv; varying float vLen;
+uniform float uW, uWfp, uPx; uniform vec2 uRes; varying vec2 vUv; varying float vLen;
 void main() {
   vec3 a = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz, b = (modelMatrix * vec4(0.0, 0.0, 1.0, 1.0)).xyz;
-  vec3 d = b - a; vLen = length(d); d /= max(vLen, 1e-4);
-  vec3 toCam = vec3(viewMatrix[0][2], viewMatrix[1][2], viewMatrix[2][2]);   // the camera's back axis, in the world
-  vec3 side = normalize(cross(d, toCam) + vec3(1e-5));
-  vec3 p = mix(a, b, position.z) + side * position.x * uW;
+  vLen = length(b - a);
+  mat4 pv = projectionMatrix * viewMatrix;
+  vec4 ca = pv * vec4(a, 1.0), cb = pv * vec4(b, 1.0);
+  bool persp = projectionMatrix[3][3] < 0.5;
+  // (a far end behind the eye pulled back in front of it, so the line's direction on screen stays true)
+  if (persp && cb.w < 0.01) cb = mix(ca, cb, (ca.w - 0.01) / max(ca.w - cb.w, 1e-4));
+  vec4 c = mix(ca, cb, position.z);
+  vec2 sa = ca.xy / max(ca.w, 1e-4) * uRes, sb = cb.xy / max(cb.w, 1e-4) * uRes, dir = sb - sa;
+  dir = dot(dir, dir) > 1e-6 ? normalize(dir) : vec2(1.0, 0.0);
+  // half its width in pixels here: its width in the world as far off as this point is, or uPx, whichever's more
+  float wPx = max(uPx, (persp ? uWfp : uW) * projectionMatrix[1][1] * uRes.y / (persp ? max(c.w, 1e-3) : 1.0));
+  c.xy += vec2(-dir.y, dir.x) * position.x * wPx / uRes * c.w;
   vUv = vec2(position.x + 0.5, position.z);
-  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+  gl_Position = c;
 }`;
 const LASER_FS = `
 uniform vec3 uCol; uniform float uT, uOp; uniform vec2 uFade; varying vec2 vUv; varying float vLen;
@@ -48,10 +60,11 @@ void main() {
 const TEX_LDOT = glowTex(64, 64, (x, w) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.12, 'rgba(255,255,255,0.9)'); g.addColorStop(0.3, 'rgba(255,255,255,0.32)'); g.addColorStop(0.6, 'rgba(255,255,255,0.08)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w); });
 const glowSprite = () => new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_LDOT, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
 // one beam per gun: an akimbo pair has a laser on each, each running from its own gun to where that gun's shots go
+const LASER_RES = new THREE.Vector2(1, 1);   // (half the drawing buffer's size, pixels: one for every beam)
 const mkBeam = () => {
   const geo = new THREE.PlaneGeometry(1, 1, 1, 24).rotateX(Math.PI / 2).translate(0, 0, 0.5);   // x across, z along (0-1)
   const b = new THREE.Mesh(geo, new THREE.ShaderMaterial({ vertexShader: LASER_VS, fragmentShader: LASER_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    uniforms: { uCol: { value: new THREE.Color(0xff3a24) }, uT: { value: 0 }, uOp: { value: 1 }, uW: { value: 0.08 }, uFade: { value: new THREE.Vector2(...LASER_FADE) } } }));
+    uniforms: { uCol: { value: new THREE.Color(0xff3a24) }, uT: { value: 0 }, uOp: { value: 1 }, uW: { value: 0.08 }, uWfp: { value: 0.02 }, uPx: { value: 7 }, uRes: { value: LASER_RES }, uFade: { value: new THREE.Vector2(...LASER_FADE) } } }));
   b.frustumCulled = false;
   const d = new THREE.Group(), halo = glowSprite(), core = glowSprite(), lens = glowSprite();
   core.material.color.set(0xffffff); d.add(halo, core);
@@ -65,7 +78,7 @@ const LASER_RUN = 20, LASER_MIN = 8, LASER_MAX = LASER_FADE[1] + 0.5;
 // each tier's colours (beam, glow) and size: the taped-on pointer a thin, dim red; the mounted module green, about as
 // fine and only a little brighter
 const LASER_COL = { 1: [0xff3a24, 0xff5a3a], 2: [0x3cff5a, 0x7dff8e] };
-const LASER_LOOK = { 1: { w: 0.1, op: 0.62, halo: 0.34, core: 0.08, lens: 0.12, dot: 0.8 }, 2: { w: 0.085, op: 0.5, halo: 0.28, core: 0.065, lens: 0.1, dot: 0.7 } };
+const LASER_LOOK = { 1: { w: 0.1, wfp: 0.022, op: 0.62, halo: 0.34, core: 0.08, lens: 0.12, dot: 0.8 }, 2: { w: 0.085, wfp: 0.019, op: 0.5, halo: 0.28, core: 0.065, lens: 0.1, dot: 0.7 } };
 // the laser on the gun in your hands shines (both of a pair), straight out of its lens along the barrel wherever the
 // gun points, whether it's on the aim, being reloaded or coming out. A gun in its holster or on your back has its laser
 // switched off: put away for a vault or a bandage, or carried, it shines nothing. One beam per lens, made as it's first
@@ -74,6 +87,7 @@ const beams = new Map(), _lsA = new V3(), _lsD = new V3(), _lsB = new V3(), _lsQ
 const shownInWorld = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 export function updateLaser(D) {
   const on = state === 'play' && !P.dead, used = new Set();
+  R.getDrawingBufferSize(LASER_RES).multiplyScalar(0.5);
   if (on) {
     // the gun in your hands
     const hs = HOLDS[W8.cur], tier = T('laser');
@@ -126,7 +140,7 @@ function beam(B, tier, reach) {
   B.len = L <= B.len ? L : Math.min(L, B.len + Math.max((L - B.len) * Math.min(1, dt * LASER_RUN), dt * LASER_MIN));
   _lsB.copy(_lsA).addScaledVector(_lsD, Math.max(0.01, B.len));
   laser.position.copy(_lsA); laser.lookAt(_lsB); laser.scale.set(1, 1, Math.max(0.01, B.len));
-  u.uT.value = t + B.ph; u.uW.value = look.w; u.uOp.value = look.op * (0.94 + 0.06 * Math.sin(t * 41 + B.ph));
+  u.uT.value = t + B.ph; u.uW.value = look.w; u.uWfp.value = look.wfp; u.uOp.value = look.op * (0.94 + 0.06 * Math.sin(t * 41 + B.ph));
   // the dot where it lands, pulsing a little, its halo breathing round a hard point: only once the beam's reached what
   // it lands on, and fading with the beam far off. The lens glints
   const pulse = 1 + 0.14 * Math.sin(t * 8.5 + B.ph) + 0.05 * Math.sin(t * 23);

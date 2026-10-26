@@ -34,9 +34,10 @@ the other one, that eye squinting along the gun and your head tipped over the st
 1. **Break.** The clock is stopped. Board up the windows and doors, spend scrap at the stations and get into
    position. Press **T** when you're ready, or wait out the timer.
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
-3. **Cards.** When the last zombie falls, pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
+3. **Cards.** When the last zombie falls (time slows for a moment, the edges of the view cooling, with no black bars over it), pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
    wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. Whatever's still lying about glides
-   in to you once the cards are done.
+   in to you once the cards are done. Each kind of drop is modelled once, its overlapping faces pulled apart so nothing on it
+   flickers, and copied for every one that falls, so a crowd dropping loot never stutters.
    - Now and then a hand comes with a **sacrifice**. Give up three quarters of your scrap and three more cards are
      dealt (the rarer ones likelier), and you take two of the six.
    - Rarer, a **curse**: half your stamina, healing at a quarter strength with worse bleeding (Bad blood:
@@ -62,7 +63,7 @@ flashlight and the muzzle flashes matter.
 **Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
 reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
-suppressors, stocks, grips and underbarrel grenades, and change calibres with conversion kits such as AK mags for the
+suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
@@ -86,7 +87,7 @@ reach and stamina cost. Sharp blades take heads and limbs off. The bat is one sm
 nails driven right through the barrel, round heads on the wood and points out the far side, and Barbed wire, its own
 mod now (no nails needed), is two twisted strands wound up the barrel with barbs every few centimetres. The crowbar is
 one red hex bar, the steel worn bright at both ends: a short angled pry foot with a nail slot, the long shaft and a
-tight gooseneck down to a flattened claw split into two prongs. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
+tight gooseneck running straight into a flattened claw split into two prongs, with no gap where the bar meets it. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
 its wrapped handle, both hands on the grip below the guard. From your own eyes a melee weapon in your hands keeps your
 body together with your legs, and a swing doesn't carry you forward. From your own eyes each swing is kept where you
 can see it: the wind-up stays at the top of the view rather than behind your head, your arm never sweeps through your
@@ -360,7 +361,7 @@ never jumping into place, then pushed up it, never through the side of the gun a
 
 **From the mag to the charging handle.** A gun is only charged when it was run dry: reloaded with a round still in
 the chamber (a tactical reload), every gun just swaps the mag, with no charging handle, no bolt worked on the
-detachable-box rifle and no slide dropped on a pistol. Run dry, on a rifle with a charging handle the right hand leaves the grip while the
+detachable-box rifle and no slide dropped on a pistol. Run dry, a pistol's slide is dropped one of two ways: slingshotted over the top by the support hand, or released with the slide stop, the support hand coming up off the grip so its thumb presses the stop down as the slide flies home. Run dry, on a rifle with a charging handle the right hand leaves the grip while the
 left is still coming away from slapping the mag home, the two overlapping rather than one after the other. It eases
 down off the grip a moment, then rises unhurried on a low arc to the handle, settles onto it, draws it back as the
 spring takes up and lets it go; the gun stays canted in your hands through all of it instead of swinging back upright
@@ -423,7 +424,7 @@ the revolver's twirled round your trigger finger first, two quick turns of a cow
 before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
 away while you look (from above they stay); a handgun's turned side on across in front of you to show its port side,
 the wrist rolled right over for the other side, its muzzle tipped up to see its front and then down to look along its
-top. At the end it's carried back onto the aim as smoothly as it was turned. A melee weapon's looked over its own way: a one-hander (the
+top. At the end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short: it slows to a stop where it is under the menu and carries on once the menu's gone. A melee weapon's looked over its own way: a one-hander (the
 crowbar, the wrench, the machete) is brought up in front of your face, turned to show one flat and then the other,
 laid across to look along its edge and twirled once in the fingers before it drops back to the guard; the katana's
 held across in both hands at the chest and turned, then stood up to look up its edge; the axe, the sledge and the bat
