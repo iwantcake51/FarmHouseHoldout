@@ -198,7 +198,9 @@ the gun's own sights as the crosshair goes and the free-aim circle closes. Every
 a real shooter holds them: a handgun's front post sits level in the rear notch (the 9mm's are a Glock's own: a slim
 post with a round white dot, in a rear block that narrows to its top with a white U painted round its square notch, so
 the dot sits in the U), the AR, battle rifle, LMG, MP5 and auto
-shotgun's front post sits in the middle of the hole through the rear aperture, the pump's Mossberg-style ghost ring
+shotgun's front post sits in the middle of the hole through the rear aperture (the AR's carry handle holds an open
+A1-style aperture: a thin ring round a big hole on a slim stem, wide apart from its ears, so the world shows all round
+it; every gun's front post is a thin blade a couple of millimetres across, not a block that hides what it's on), the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
 fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring, the double barrel is
 aimed the way a side-by-side is, the eye a little above the rib so it's a narrow strip running out to an ivory front

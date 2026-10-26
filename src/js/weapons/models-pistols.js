@@ -47,7 +47,7 @@ export const PISTOL_MODELS = {
     // the Glock's own sights: a slim front post, its back face upright and its front sloped, a round white dot on its
     // back; the rear a block narrower at its top than its base, its square notch outlined by a white U, the dot sitting
     // in the U as you line them up
-    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]]), 0.0034, GM.rubber, X);
+    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]]), 0.003, GM.rubber, X);
     cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248, 12);
     glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
     irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 });
@@ -125,7 +125,7 @@ export const PISTOL_MODELS = {
     cyl(g, 0.0172, bl, S2, X, 1.152, 0.672 + bl / 2, 24);
     box(g, 0.012, 0.005, bl, S2, X, 1.1705, 0.672 + bl / 2);
     profile(g, shp([[0.672, 1.14], [z1 - 0.004, 1.14], [z1, 1.135], [z1 - 0.003, 1.126], [0.672, 1.125]]), 0.024, S2, X, 0.002);
-    profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.004, S2, X, 0.0005); box(g, 0.0046, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
+    profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.003, S2, X, 0.0004); box(g, 0.0034, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
     if (!optic) irons(g, { kind: 'notch', yr: 1.182, rz: 0.558, yf: 1.182, fz: z1 - 0.009 });
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.152, z1 + 0.0005, 14);
     // ---- the rail, with an optic: flat on the top strap, then on a base saddled over the barrel's top (the rib under it),
@@ -154,7 +154,7 @@ export const PISTOL_MODELS = {
     xsec(g, shp([[X - 0.0105, 1.181], [X + 0.0105, 1.181], [X + 0.0085, 1.1875], [X - 0.0085, 1.1875]]), 0.674, 0.908, S2, 0.0006);
     for (let k = 0; k < 9; k++) box(g, 0.022, 0.003, 0.005, D, X, 1.1865, 0.745 + k * 0.0165);
     [-1, 1].forEach(sd => { box(g, 0.0022, 0.011, 0.194, D, X + sd * 0.0156, 1.161, 0.776); box(g, 0.0016, 0.003, 0.226, D, X + sd * 0.0152, 1.177, 0.792); });
-    box(g, 0.004, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
+    box(g, 0.003, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.16, 0.9165, 14);
     // ---- frame: the lip under the barrel, takedown buttons, slide stop, the guard and trigger, the hammer
     box(g, 0.03, 0.008, 0.22, S2, X, 1.122, 0.782);

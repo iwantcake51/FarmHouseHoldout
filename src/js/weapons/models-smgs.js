@@ -45,7 +45,7 @@ function mp5Front(g, dz, barrel) {
   const hy = 1.2144 - 0.021;   // (its top where the photo has it)
   box(g, 0.012, hy - 0.019 - ct.y, 0.02, K, X, (hy - 0.019 + ct.y) / 2 + 0.006, z(1.0555));              // the hood's neck
   lathe(g, [[0.014, z(1.0458)], [0.019, z(1.0448)], [0.021, z(1.0468)], [0.021, z(1.0642)], [0.019, z(1.0662)], [0.014, z(1.0652)], [0.014, z(1.0458)]], K, X, hy, 28);   // the hooded ring
-  box(g, 0.0028, 0.013, 0.004, K, X, hy - 0.0072, z(1.0555));                                             // the post in it
+  box(g, 0.0022, 0.013, 0.004, K, X, hy - 0.0072, z(1.0555));                                             // the post in it
   irons(g, { yf: hy - 0.0007, fz: z(1.0555) });
   if (!barrel) return;
   const ax = MP5.ax;
