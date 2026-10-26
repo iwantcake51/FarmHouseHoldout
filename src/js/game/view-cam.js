@@ -26,6 +26,7 @@ import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
 import { aimSX, aimSY } from '../player/shaky-hands.js';
 import { ANIM } from '../player/animation.js';
+import { REL_KNOCK } from '../player/hold-kick.js';
 import { BACK_LAYER } from '../player/stow.js';
 import { vaultGun } from '../player/vaulting.js';
 import { cheatOn } from '../ui/cheats.js';
@@ -685,6 +686,7 @@ function aimDir(out) {
 // poseGun: gg, the gun in your hands, before your hands are put on it) and again as the view's placed
 const SIGHT_RAISE = 0.12;
 const _pa = new V3(), _pb = new V3(), _ad = new V3(), _sd = new V3(), _vcH = new V3(), _qa = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _mw = new THREE.Matrix4(), _vcM = new THREE.Matrix4();
+const ADS_KNOCK = 0.4, _knR = new V3(), _knU = new V3(0, 1, 0);
 export function fpSightAlign(gg, raise = true) {
   const w = adsW(), D = W(curId()); if (!fpOn() || w < 0.001 || !D || D.melee || D.akimbo) return;
   const L = sightLine(); if (!L || !gg.parent) return;
@@ -697,6 +699,9 @@ export function fpSightAlign(gg, raise = true) {
   // and on the way up or down, the arc it swings through: dipped and canted a touch in the middle of it
   if (raise) { const arc = Math.sin(Math.PI * w), k = shoulderShake(); _qa.setFromAxisAngle(_ad, ADS_T.cant * arc + k[2]); _qi.premultiply(_qa); _vcH.y -= ADS_T.dip * arc; _vcH.addScaledVector(_ad, -k[3]);
     _vcH.add(_faV.set(k[4], k[5], 0).applyEuler(_aimE.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'))); }   // (and the kick's slide across and up)
+  // (and, once it's all on your eye, a reload's knocks put back on as much as ADS_KNOCK: your hands and the gun jolting
+  // as a mag's shaken out or slapped home, rather than the gun held dead still down the sights through it)
+  if (!raise) { const kn = ADS_KNOCK * w; if (kn > 0.001) { _knR.crossVectors(_ad, _knU).normalize(); _qi.premultiply(_qa.setFromAxisAngle(_knR, -REL_KNOCK.p * kn)).premultiply(_qa.setFromAxisAngle(_ad, REL_KNOCK.r * kn)); } }
   _mw.makeTranslation(-_pa.x, -_pa.y, -_pa.z).premultiply(_vcM.makeRotationFromQuaternion(_qi)).premultiply(_vcM.makeTranslation(_pa.x + _vcH.x, _pa.y + _vcH.y, _pa.z + _vcH.z));
   _mw.multiply(gg.matrixWorld).premultiply(_vcM.copy(gg.parent.matrixWorld).invert());
   _mw.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);

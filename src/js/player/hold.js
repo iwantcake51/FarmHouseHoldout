@@ -29,7 +29,7 @@ import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpSprintClea
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
-  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, feel, kickPitch, RACK, relKnock, REV_FLICK,
+  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, feel, kickPitch, RACK, relKnock, REV_FLICK, stepKnock,
   REV_OPEN, REV_OUT, REV_SWING, RK, SR, stepKick, stepRack, stepRock
 } from './hold-kick.js';
 import {
@@ -422,8 +422,12 @@ const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // h up), angled a little across you (y), canted over (r) and its muzzle tipped well down (p: a long gun about 27
 // degrees, a handgun about 29), raised to stay in the bottom of the view as it tips
 const FP_SPRINT = { long: { p: 0.48, y: 0.1, r: 0.45, x: 0.03, h: 0.2, z: -0.18 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
-// where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right
-const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03 };
+// where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right.
+// Then the round's laid in the port on top of the ones in the well (lay, metres up off the port's bottom, over the
+// reload's stretch at[0] to at[1]), pressed down into it by the thumb (press, metres, at[1] to at[2]), held there a
+// beat and let go, the magazine's spring pushing it back up under the feed lips (rise, at[3] to at[4]); the hand goes
+// with it, its thumb on the round (thumb: how far above the round it presses)
+const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03, lay: 0.014, press: 0.03, rise: 0.008, thumb: 0.012, at: [0.6, 0.72, 0.82, 0.86, 0.92] };
 // the charging hand's wind-up before it rises off the grip: over the first CH_ANT of its reach, CH_ANT_D down
 const CH_ANT = 0.3, CH_ANT_D = 0.014;
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
@@ -601,7 +605,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (over a few frames, not in one: flkT is the flick, flk the wrist catching up with it)
   if (id === 'dbl') { const shut = Math.max(0, (ANIM.brkPrev ?? 0) - (ANIM.brk || 0)); ANIM.brkPrev = ANIM.brk || 0; ANIM.flkT = Math.min(1, Math.max((ANIM.flkT || 0) * Math.exp(-rdt * 7), shut * 3)); ANIM.flk = (ANIM.flk || 0) + (ANIM.flkT - (ANIM.flk || 0)) * Math.min(1, rdt * 32); pitch -= 0.26 * ANIM.flk; oy += 0.02 * ANIM.flk; }
   if (cg) { AT.r += 0.26 * cg; AT.p -= 0.07 * cg; AT.h += 0.02 * cg; AT.z -= 0.03 * cg; pitch -= 0.05 * slamK; oz -= 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
-  // the reload's motion, sprung (ACT)
+  // the reload's motion, sprung (ACT), and its knocks on their own (KNOCK)
+  if (rdt > 0) stepKnock(rdt);
   if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) { const hd = a === 'hp' || a === 'hy' || a === 'tw'; springTo(ACT, a, 'v' + a, AT[a], hd ? ACT_K * 0.5 : ACT_K * FL.kK, hd ? ACT_D * 0.75 : ACT_D * FL.dK, dt); }   // (the head and chest your own; the gun's by its weight)
   // (from your own eyes much less of its roll and turn: what shows the well or the port to someone watching only wrenches
   // the gun about in front of you, FP_REL_TURN)
@@ -878,8 +883,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     _p2.copy(_p1).addScaledVector(_feedUp, BOLT_FEED.up).addScaledVector(_feedAx, -BOLT_FEED.back); _p2.x += BOLT_FEED.out;   // the round lined up over and behind the port
     const nGo = W8.goN || 1, last = W8.relStop || (W8.mag[id] || 0) + nGo >= magSize(id) || reserveOf(id) <= nGo, END = last ? _hR : POUCH_R;
     _p3.copy(POUCH_R).lerp(_p2, 0.5); _p3.y += 0.04;   // up and over on the way, not straight through the stock
-    freeR = walkPath(_p6, [[0, POUCH_R], [0.3, _p3], [0.52, _p2], [0.7, _p1], [0.82, _p1], [1, END]], rp);
-    if (END === _hR && rp > 0.82) { const u = clamp((rp - 0.82) / 0.18, 0, 1), e = u * u * (3 - 2 * u); freeR = _p6.copy(_p1).lerp(_hR, e); freeR.y += 0.02 * Math.sin(Math.PI * u); }
+    // (down onto the round laid in the port and pressing it in, its thumb on it: BOLT_FEED)
+    const B = BOLT_FEED, A = B.at; _p4.copy(_p1).addScaledVector(_feedUp, B.lay + B.thumb); _p5.copy(_p1).addScaledVector(_feedUp, B.lay + B.thumb - B.press);
+    freeR = walkPath(_p6, [[0, POUCH_R], [0.3, _p3], [0.5, _p2], [A[1], _p4], [A[2], _p5], [A[3], _p5], [1, END]], rp);
+    if (END === _hR && rp > A[3]) { const u = clamp((rp - A[3]) / (1 - A[3]), 0, 1), e = u * u * (3 - 2 * u); freeR = _p6.copy(_p5).lerp(_hR, e); freeR.y += 0.02 * Math.sin(Math.PI * u); }
     wR = W8.relWait > 0 ? 0 : 1;   // (on the bolt while it's drawn back)
   }
   handTarget(_fR, 'R', _hR, freeR || (akOff('R') ? akFree : null), wR, rdt);
@@ -1015,14 +1022,18 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const u = ra && n > 1 ? ra.u : 0, ride = smooth(clamp((u - 0.55) / 0.45, 0, 1)), lift = smooth(clamp(u / 0.4, 0, 1));
       const push = smooth(clamp((u - 0.3) / 0.6, 0, 1));
       HSH_S.forEach((g, k) => { g.visible = !rifle && k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else if (k === fed && u > 0) g.position.set(0, 0.016 * lift, 0.06 * push); else g.position.set(0, (fed - k + (u > 0 ? ride : 0)) * HSH_GAP, 0); });
-      if (n === 1 && rp > FEED_IN[0]) {
+      if (n === 1 && rp > (D.ammo === 'rifle' && boltFeed ? BOLT_FEED.at[0] : FEED_IN[0])) {
         // lined up on the port as the hand gets there, then pushed in: how far, and which way, by the gun
         const k = smooth(clamp((rp - FEED_IN[1]) / (FEED_IN[2] - FEED_IN[1]), 0, 1)), a = Math.min(1, k * 2), b = Math.max(0, k * 2 - 1);
         _feedV.copy(_feedAt);
-        if (D.ammo === 'rifle') _feedV.addScaledVector(_feedUp, -0.02 * a).addScaledVector(_feedAx, 0.035 * b);
+        if (D.ammo === 'rifle' && boltFeed) { const B = BOLT_FEED, A = B.at, ss = (x, y) => smooth(clamp((rp - x) / (y - x), 0, 1));
+          _feedV.addScaledVector(_feedUp, B.lay - B.press * ss(A[1], A[2]) + B.rise * ss(A[3], A[4])); }
+        else if (D.ammo === 'rifle') _feedV.addScaledVector(_feedUp, -0.02 * a).addScaledVector(_feedAx, 0.035 * b);
         else if (EJECT[id] === 'pump') _feedV.addScaledVector(_feedUp, 0.016 * a).addScaledVector(_feedAx, 0.075 * b);
         else _feedV.addScaledVector(_feedAx, (D.ammo === 'magnum' ? 0.034 : 0.066) * k);
-        HSH.position.lerp(_feedV, smooth(clamp((rp - FEED_IN[0]) / (FEED_IN[1] - FEED_IN[0]), 0, 1)));
+        // (a bolt gun's round goes with the fingers right down onto the port, not on ahead of them: BOLT_FEED)
+        const fi = D.ammo === 'rifle' && boltFeed ? [BOLT_FEED.at[0], BOLT_FEED.at[1]] : FEED_IN;
+        HSH.position.lerp(_feedV, smooth(clamp((rp - fi[0]) / (fi[1] - fi[0]), 0, 1)));
       }
     }
     // the loader rides in front of the left fist from the pouch until it's let go, rounds pointing into the cylinder,

@@ -187,7 +187,8 @@ makes them jump or stutter. The crosshair is wherever the gun points. Hold **Alt
 look round freely while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride, banks a
-little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
+little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently; reloading down the sights,
+the gun and your hands on it still jolt a little as the old mag's shaken out and the new one slapped home. Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
 is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. Down the sights the gun still kicks in your hands: the sight itself jumps, rolls and rattles off your eye's line and comes back, and a held trigger climbs it. The shot goes where the reticle is (along the sight's own line, the optic's axis or the rear sight over the front), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
@@ -305,7 +306,9 @@ glow sits over it all through the day and night.
 
 **Right-handed.** Your survivor shoots right-handed: the right hand on the grip and trigger, working the hunting
 rifle's bolt and the charging handle and thumbing its rounds in (to the cartridges on the right hip, up over the open
-port, pressed down into the well and forward under the bolt, the left hand holding the rifle up by its fore-end), and the left on the handguard or the pump, fetching mags and feeding shells,
+port, carried down onto it in the fingers, laid in on top of the rounds in the well and pressed down into it by the
+thumb, then let go, the magazine's spring lifting it a hair up under the feed lips, the left hand holding the rifle
+up by its fore-end), and the left on the handguard or the pump, fetching mags and feeding shells,
 rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
 fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
 into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the

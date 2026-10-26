@@ -42,7 +42,12 @@ export const _rackT = { p: 0, r: 0, y: 0, z: 0, h: 0, w: 0 };
 // the support hand is -), yaw, up (h), back (z), the head's pitch and turn (hp, hy) and the chest's (tw)
 export const ACT = { p: 0, vp: 0, r: 0, vr: 0, y: 0, vy: 0, h: 0, vh: 0, z: 0, vz: 0, hp: 0, vhp: 0, hy: 0, vhy: 0, tw: 0, vtw: 0 }, ACT_K = 260, ACT_D = 26;
 export const ACT_AX = ['p', 'r', 'y', 'h', 'z', 'hp', 'hy', 'tw'], _actT = { p: 0, r: 0, y: 0, h: 0, z: 0, hp: 0, hy: 0, tw: 0 };
-export function relKnock(p, r, h, z) { const k = _feel.knock; ACT.vp += p * k; ACT.vr += r * rr(0.85, 1.15) * k; ACT.vh += (h || 0) * k; ACT.vz += (z || 0) * k; }   // (as hard as this gun takes it: feel)
+export function relKnock(p, r, h, z) { const k = _feel.knock, rk = r * rr(0.85, 1.15) * k; ACT.vp += p * k; ACT.vr += rk; ACT.vh += (h || 0) * k; ACT.vz += (z || 0) * k; REL_KNOCK.vp += p * k; REL_KNOCK.vr += rk; REL_KNOCK.vh += (h || 0) * k; }
+// the same knocks on their own, rocking back to nothing (REL_KNOCK_K, REL_KNOCK_D): down the sights the gun's held on your eye's
+// line, which takes the reload's whole motion off it, knocks and all, so this much of them is put back on there
+// (game/view-cam.js: fpSightAlign), the gun and your hands on it jolting as a mag's shaken out or slapped home
+export const REL_KNOCK = { p: 0, vp: 0, r: 0, vr: 0, h: 0, vh: 0 }, REL_KNOCK_K = 230, REL_KNOCK_D = 17;
+export function stepKnock(rdt) { for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['p', 'r', 'h']) springTo(REL_KNOCK, a, 'v' + a, 0, REL_KNOCK_K, REL_KNOCK_D, dt); }   // (as hard as this gun takes it: feel)
 export const REV_OPEN = 0.06, REV_SWING = 1.75, REV_OUT = [0.012, 0.01];   // the revolver's cylinder: how soon it's out, how far it swings (radians) and is carried out and down (m)
 // and flicked shut (player/hold.js, the crane): the wrist cants the gun a touch further open (wind: seconds, its kick
 // to the gun's roll), then snaps it hard the other way (snap), the cylinder swinging home on it a moment later (swing:
