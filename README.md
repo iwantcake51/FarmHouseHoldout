@@ -19,6 +19,13 @@ whole of you), and **Keep this look every run** keeps the survivor you've made: 
 start of every run and every time you're back on your feet in co-op, and it's remembered in your browser. With it off,
 every run deals someone new. The cheat menu's character section is the same editor, with the same switch.
 
+On your wrists you can wear a watch (field, sport, digital, leather, steel bracelet, and now and then gold or iced
+out), a curb chain, beads, a rubber band, a stitched leather cuff with press studs, a cobra-weave paracord band or
+braided strings, set for each wrist or the same on **Both**; the hands view shows both wrists. Each is built true to
+size and round where the real thing is: a watch's round case with its bezel, markers, hour, minute and seconds hands,
+lugs and crown; a chain's links each turned through the last; round beads. Your arms sit flush against your chest
+(no gap at the shoulder), and the studio stands you with both arms the same length, however your hands were posed.
+
 ## How a run goes
 
 1. **Break.** The clock is stopped. Board up the windows and doors, spend scrap at the stations and get into

@@ -4,7 +4,7 @@
 import { V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { lam } from '../core/shaders.js';
-import { box } from '../core/geometry.js';
+import { box, roundRectAt } from '../core/geometry.js';
 import { P, PM } from './player.js';
 import { W8 } from '../game/run-state.js';
 import { equip } from '../weapons/reload.js';
@@ -51,24 +51,6 @@ const WRAP_AT = [[0.34, 0.48], [0.19, 0.33], [0.05, 0.18]];
 const WRAP = { w: 0.044, lap: 0.5, thick: 0.0021, r: 0.016, gap: 0.004, fin: 0.86, seep: 7, seg: [3, 4] };
 const WRAP_M = lam(0xffffff, { vertexColors: true }), WRAP_TAPE = lam(0xd8d0bf);
 const WRAP_GAUZE = new THREE.Color(0xfbf9f3), WRAP_SEEP_C = new THREE.Color(0x6e140d), WRAP_SEEP_E = new THREE.Color(0xa0402e);
-// a point round the arm's rounded-off section (half sizes ax, ay, corners r), u of the way round it from the middle of
-// its outer side: [x, y, outward x, outward y]; and how far round that is
-function wrapRR(u, ax, ay, r, out) {
-  const sx = 2 * (ax - r), sy = 2 * (ay - r), arc = Math.PI * r / 2, L = 2 * sx + 2 * sy + 4 * arc;
-  let s = (((u % 1) + 1) % 1) * L + sy / 2;   // (started from the middle of the side)
-  const side = [sy, arc, sx, arc, sy, arc, sx, arc], cx = ax - r, cy = ay - r;
-  let k = 0; while (k < 7 && s > side[k]) { s -= side[k]; k++; }
-  if (k === 8) k = 0;
-  const f = side[k] ? s / side[k] : 0, a = (Math.floor(k / 2) + f) * Math.PI / 2;
-  switch (k) {
-    case 0: out[0] = ax; out[1] = -cy + sy * f; out[2] = 1; out[3] = 0; break;
-    case 2: out[0] = cx - sx * f; out[1] = ay; out[2] = 0; out[3] = 1; break;
-    case 4: out[0] = -ax; out[1] = cy - sy * f; out[2] = -1; out[3] = 0; break;
-    case 6: out[0] = -cx + sx * f; out[1] = -ay; out[2] = 0; out[3] = -1; break;
-    default: { const c = [[cx, cy], , [-cx, cy], , [-cx, -cy], , [cx, -cy]][k - 1]; out[0] = c[0] + Math.cos(a) * r; out[1] = c[1] + Math.sin(a) * r; out[2] = Math.cos(a); out[3] = Math.sin(a); }
-  }
-  return out;
-}
 // where round its section each sample of a turn falls (the sides split in WRAP.seg[0], each rounded corner in [1]), so
 // the corners are always taken round smoothly however short they are
 function wrapSamples(ax, ay, r) {
@@ -97,7 +79,7 @@ function wrapBuild(w, turns) {
     const t = ts[j], d = WRAP.thick * t, zc = z1 - zs[j] * pitch;
     path.push({ t, z: zc, d });
     rows.forEach(([o, b, sh], r) => {
-      wrapRR(t, w.hx + d + b, w.hy + d + b, WRAP.r + d + b, _wrp); const v = (j * nr + r);
+      roundRectAt(t, w.hx + d + b, w.hy + d + b, WRAP.r + d + b, _wrp); const v = (j * nr + r);
       pos[v * 3] = _wrp[0]; pos[v * 3 + 1] = _wrp[1]; pos[v * 3 + 2] = zc + o * WRAP.w;
       at[v * 2] = (t % 1) * per0; at[v * 2 + 1] = zc + o * WRAP.w; shade[v] = sh;
     });
@@ -132,8 +114,8 @@ const _wp = new V3(), _wn = new V3(), _wt = new V3();
 function wrapAt(w, t) {
   const j = clamp(w.ts.findIndex(x => x >= t), 1, w.segs), p0 = w.path[j - 1], p1 = w.path[j], f = clamp((t - p0.t) / Math.max(1e-5, p1.t - p0.t), 0, 1);
   const z = p0.z + (p1.z - p0.z) * f, d = p0.d + (p1.d - p0.d) * f;
-  wrapRR(t, w.hx + d, w.hy + d, WRAP.r + d, _wrp); _wp.set(_wrp[0], _wrp[1], z); _wn.set(_wrp[2], _wrp[3], 0);
-  wrapRR(t + 0.01, w.hx + d, w.hy + d, WRAP.r + d, _wrp); _wt.set(_wrp[0], _wrp[1], z).sub(_wp).normalize();
+  roundRectAt(t, w.hx + d, w.hy + d, WRAP.r + d, _wrp); _wp.set(_wrp[0], _wrp[1], z); _wn.set(_wrp[2], _wrp[3], 0);
+  roundRectAt(t + 0.01, w.hx + d, w.hy + d, WRAP.r + d, _wrp); _wt.set(_wrp[0], _wrp[1], z).sub(_wp).normalize();
 }
 const wraps = WRAP_AT.map(([z0, z1]) => {
   const g = new THREE.Group(); PM.armL.add(g); g.visible = false; g.userData.fine = true;

@@ -196,3 +196,37 @@ function shrinkFace(o, c, side, d) {
   _ufV.set(0, 0, 0); _ufV[s] = (side > 0 ? mn : mx) * S0 * (1 - f); _ufV.applyQuaternion(o.quaternion);
   o.scale[s] = S0 * f; o.position.add(_ufV); o.updateMatrixWorld(true);
 }
+// a point round a rounded-off rectangle (half sizes ax, ay, corners r), u of the way round it from the middle of its
+// +x side, counter-clockwise: out = [x, y, outward x, outward y] (an arm's section: a bandage's turns, a band round a
+// wrist)
+export function roundRectAt(u, ax, ay, r, out) {
+  const sx = 2 * (ax - r), sy = 2 * (ay - r), arc = Math.PI * r / 2, L = 2 * sx + 2 * sy + 4 * arc;
+  let s = (((u % 1) + 1) % 1) * L + sy / 2;   // (started from the middle of the side)
+  const side = [sy, arc, sx, arc, sy, arc, sx, arc], cx = ax - r, cy = ay - r;
+  let k = 0; while (k < 7 && s > side[k]) { s -= side[k]; k++; }
+  if (k === 8) k = 0;
+  const f = side[k] ? s / side[k] : 0, a = (Math.floor(k / 2) + f) * Math.PI / 2;
+  switch (k) {
+    case 0: out[0] = ax; out[1] = -cy + sy * f; out[2] = 1; out[3] = 0; break;
+    case 2: out[0] = cx - sx * f; out[1] = ay; out[2] = 0; out[3] = 1; break;
+    case 4: out[0] = -ax; out[1] = cy - sy * f; out[2] = -1; out[3] = 0; break;
+    case 6: out[0] = -cx + sx * f; out[1] = -ay; out[2] = 0; out[3] = -1; break;
+    default: { const c = [[cx, cy], , [-cx, cy], , [-cx, -cy], , [cx, -cy]][k - 1]; out[0] = c[0] + Math.cos(a) * r; out[1] = c[1] + Math.sin(a) * r; out[2] = Math.cos(a); out[3] = Math.sin(a); }
+  }
+  return out;
+}
+// how far round a rounded-off rectangle it is
+export const roundRectLen = (ax, ay, r) => 4 * (ax - r) + 4 * (ay - r) + 2 * Math.PI * r;
+// a band round it: a rounded-off rectangular ring (inside half sizes ax, ay, corners r) thick, len long along z and
+// centred on 0, its edges softly rounded over (kept, one for each size)
+const ringCache = {};
+export function roundRing(ax, ay, r, len, thick) {
+  const k = [ax, ay, r, len, thick].map(v => v.toFixed(4)).join(',');
+  if (ringCache[k]) return ringCache[k];
+  const sh = (hx, hy, rr, hole) => { const s = hole ? new THREE.Path() : new THREE.Shape(); s.moveTo(-hx + rr, -hy); s.lineTo(hx - rr, -hy); s.quadraticCurveTo(hx, -hy, hx, -hy + rr); s.lineTo(hx, hy - rr); s.quadraticCurveTo(hx, hy, hx - rr, hy); s.lineTo(-hx + rr, hy); s.quadraticCurveTo(-hx, hy, -hx, hy - rr); s.lineTo(-hx, -hy + rr); s.quadraticCurveTo(-hx, -hy, -hx + rr, -hy); return s; };
+  const bv = Math.min(thick * 0.35, len * 0.3), o = sh(ax + thick - bv, ay + thick - bv, r + thick - bv);
+  o.holes.push(sh(ax + bv, ay + bv, r + bv, true));
+  const g = new THREE.ExtrudeGeometry(o, { depth: Math.max(1e-4, len - 2 * bv), bevelEnabled: true, bevelThickness: bv, bevelSize: bv * 0.9, bevelSegments: 2, curveSegments: 5 });
+  g.translate(0, 0, -(len - 2 * bv) / 2); sharedGeo.add(g);
+  return ringCache[k] = g;
+}

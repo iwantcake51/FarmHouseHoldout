@@ -27,7 +27,7 @@ import { springTo } from '../game/camera.js';
 import { roofOver } from '../world/cutaway.js';
 import { PRAG } from './player-ragdoll.js';
 import { inspectCut } from './inspect.js';
-import { ARM_THIN, armRest, poseHands, reach } from './hold.js';
+import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 
@@ -84,7 +84,7 @@ function animateDeath(dt) {
   pm.lower.rotation.y = 0; pm.lower.position.y = 0; pm.upper.position.y = 0;
   pm.legL.rotation.x = 0.55 * kn * (1 - fall * 0.6); pm.legR.rotation.x = 0.25 * kn * (1 - fall * 0.4);
   const flail = Math.sin(t * 9) * 0.1 * (1 - fall);
-  pm.armL.position.set(-0.33, 1.08, 0); pm.armR.position.set(0.33, 1.08, 0); pm.armL.scale.set(ARM_THIN, ARM_THIN, 1); pm.armR.scale.set(ARM_THIN, ARM_THIN, 1);
+  pm.armL.position.set(-ARM_X, 1.08, 0); pm.armR.position.set(ARM_X, 1.08, 0); pm.armL.scale.set(ARM_THIN, ARM_THIN, 1); pm.armR.scale.set(ARM_THIN, ARM_THIN, 1);
   pm.armL.rotation.set(sg > 0 ? -1.2 * kn - 0.9 * fall + flail : -0.4 * kn - 2.2 * fall + flail, 0.5 * fall, -0.5 * fall);
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);

@@ -9,6 +9,7 @@ import { clamp } from '../core/math.js';
 import { binModel } from '../core/geometry.js';
 import { PM } from '../player/player.js';
 import { bareLook } from '../player/gear.js';
+import { ARM_THIN, ARM_X } from '../player/hold.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
@@ -123,19 +124,19 @@ const FOCUS = {
   top: { on: 'torso', at: [0, 0.05, 0.05], dist: 1.75, yaw: 0.35, pitch: 0.08 },
   legs: { at: [0, 0.42, 0.02], dist: 1.9, yaw: 0.45, pitch: 0.05 },
   shoes: { at: [0, 0.08, 0.06], dist: 1.15, yaw: 0.55, pitch: 0.42 },
-  hands: { on: 'armR', at: [0, 0, 0.5], dist: 0.95, yaw: 0.9, pitch: 0.25 },
+  hands: { at: [0, 0.72, 0.04], dist: 1.55, yaw: 0.3, pitch: 0.16 },   // (both wrists, from in front)
   gear: { on: 'torso', at: [0, 0.0, -0.18], dist: 2.6, yaw: Math.PI - 0.6, pitch: 0.22 }
 };
 // the copy of you stood easy: up straight, feet together, arms down at your sides a little out from you, the weapon in
 // your hands put away (what's slung or holstered stays), each part set back where the rig has it at rest
 // (characters/rig.js)
-const EASY = { arm: 1.48, out: 0.1 };
+const EASY = { arm: 1.5, out: 0.06 };
 function standEasy() {
   const at = (o, x, y, z) => { const c = figPart.get(o); if (c) { c.position.set(x, y, z); c.rotation.set(0, 0, 0); } return c; };
   at(PM.upper, 0, 0, 0); at(PM.lower, 0, 0, 0); at(PM.torso, 0, 0.86, 0); at(PM.head, 0, 1.33, 0);
   at(PM.legL, -0.13, 0.55, 0); at(PM.legR, 0.13, 0.55, 0);
   [PM.shinL, PM.shinR].forEach(o => { const c = figPart.get(o); if (c) c.rotation.set(0, 0, 0); });
-  [[PM.armL, -1], [PM.armR, 1]].forEach(([o, sg]) => { const c = at(o, sg * 0.33, 1.08, 0); if (c) c.rotation.set(EASY.arm, 0, sg * EASY.out, 'ZXY'); });   // (down, then out from the side)
+  [[PM.armL, -1], [PM.armR, 1]].forEach(([o, sg]) => { const c = at(o, sg * ARM_X, 1.08, 0); if (c) { c.rotation.set(EASY.arm, 0, sg * EASY.out, 'ZXY'); c.scale.set(ARM_THIN, ARM_THIN, 1); } });   // (down, then out from the side; as long as each other, whatever stretch a held gun had given one)
   const g = figPart.get(gunMeshes[W8.cur]); if (g) g.visible = false;
 }
 // show you, the camera headed for view `key`; fresh: copy you again (your look's just changed); gear: with what your

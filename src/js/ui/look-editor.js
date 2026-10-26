@@ -104,11 +104,13 @@ export function lookEditor(p) {
     case 'shoes': return lkGroup('Shoes', lkChoice('Shoes', 'shoes', uniq([...LOOKS.shoes, 'dress'])) + (L.shoes === 'sneakers' ? lkColour('Upper', 'sneak.0', SNEAK_SW) + lkColour('Sole', 'sneak.1', [0xe8e4dc, 0xd8d2c4, 0xb08a5a, 0x2a2a2a]) + lkColour('Stripe', 'sneak.2', SNEAK_SW) : '') +
       (L.shoes === 'dress' ? lkColour('Leather', 'dressShoe', LOOKS.dressShoe) : ''), 'Better footwear from the cards goes on over these.');
     case 'hands': return lkGroup('Gloves', `<div class="chLk"><span class="chLkL">Colourway</span><div class="chLkO">${Object.keys(GLOVE_COLS).map(k => { const C = GLOVE_COLS[k]; return `<button type="button" class="glv${L.glove === k ? ' on' : ''}" data-act="lk" data-f="glove" data-v="${lkEsc(JSON.stringify(k))}"><span class="dots">${[C.back, C.palm, C.accent].map(c => `<i style="--c:${hexOf(c)}"></i>`).join('')}</span>${nice(k)}</button>`; }).join('')}</div></div>`, 'Worn once you have Quick hands II: switch on Upgrade gear on the view to see them on you.') +
-      lkGroup('Wrists', ['L', 'R'].map(sd => { const w = (L.wrist || {})[sd]; return `<div class="chLk"><span class="chLkL">${sd === 'L' ? 'Left' : 'Right'}</span><div class="chLkO">${['none', ...uniq(WRIST_KINDS)].map(k => `<button type="button" class="${(w ? w.kind : 'none') === k ? 'on' : ''}" data-act="lkwrist" data-s="${sd}" data-k="${k}">${nice(k)}</button>`).join('')}${w ? `<button type="button" class="re" data-act="lkwrist" data-s="${sd}" data-k="${w.kind}" title="Another one">${lkIco('dice')}</button>` : ''}</div></div>`; }).join(''));
+      lkGroup('Wrists', ['B', 'L', 'R'].map(sd => { const w = sd === 'B' ? lkBoth(L) : (L.wrist || {})[sd]; return `<div class="chLk"><span class="chLkL">${sd === 'B' ? 'Both' : sd === 'L' ? 'Left' : 'Right'}</span><div class="chLkO">${['none', ...uniq(WRIST_KINDS)].map(k => `<button type="button" class="${(w ? w.kind : 'none') === k ? 'on' : ''}" data-act="lkwrist" data-s="${sd}" data-k="${k}">${nice(k)}</button>`).join('')}${w ? `<button type="button" class="re" data-act="lkwrist" data-s="${sd}" data-k="${w.kind}" title="Another one">${lkIco('dice')}</button>` : ''}</div></div>`; }).join(''));
     case 'gear': return lkGroup('What you carry', lkColour('Backpack', 'pack', LOOKS.pack) + lkColour('Bedroll', 'roll', LOOKS.roll) + lkColour('Holster', 'holster', LOOKS.holster));
     default: return lookSummary(L);
   }
 }
+// what's on both wrists, when it's the same kind on each (Both)
+const lkBoth = L => { const w = L.wrist || {}; return w.L && w.R && w.L.kind === w.R.kind ? w.L : null; };
 // your look changed: built on you (and what you carry rebuilt with it), the studio's copy of you made again, and kept
 // for new runs if you're keeping it (player/look.js: lookChanged)
 function applyLook(L) { rollLook(L); buildGuns(); LE.fresh = true; lookChanged(); }
@@ -154,7 +156,7 @@ export function lookAct(act, d) {
     case 'lkpart': LE.part = d.p; return true;
     case 'lkgear': LE.gear = !LE.gear; LE.fresh = true; return true;
     case 'lk': lookSet(d.f, JSON.parse(d.v)); return true;
-    case 'lkwrist': { const L = JSON.parse(JSON.stringify(LOOK.cur)); L.wrist = L.wrist || { L: null, R: null }; L.wrist[d.s] = d.k === 'none' ? null : dealWrist(d.k); applyLook(L); return true; }
+    case 'lkwrist': { const L = JSON.parse(JSON.stringify(LOOK.cur)); L.wrist = L.wrist || { L: null, R: null }; const it = d.k === 'none' ? null : dealWrist(d.k); if (d.s === 'B') { L.wrist.L = it; L.wrist.R = it && JSON.parse(JSON.stringify(it)); } else L.wrist[d.s] = it; applyLook(L); return true; }   // (Both: the same thing on each wrist)
     case 'lkrand': lookReroll(d.p); return true;
     case 'lkkeep': keepLook(!LOOK_SAVE.on); return true;
   }

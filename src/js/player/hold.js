@@ -47,7 +47,10 @@ import { fistOf, rigPair, SWAP_REST_L } from './swap.js';
 import { inspectOut, inspectPose, inspectW } from './inspect.js';
 
 // shoulders roll a little forward and in when you shoulder a gun; the fist grips about its front third
-export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-0.33, 1.08, 0], R: [0.33, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
+// where your arms hang from: thinned (ARM_THIN), each is drawn in to sit flush against the side of the chest
+// (characters/rig.js's 0.33 is for its full-width arms; yours left a slit of light between arm and chest)
+export const ARM_X = 0.25 + 0.07 * 0.84 - 0.003;
+export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-ARM_X, 1.08, 0], R: [ARM_X, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
 // gun-local points (the model's own coordinates): grip is the firing hand, fore the support hand (on long guns the back of
 // the handguard, where you'd really hold it). blade turns the torso side-on (the gun stays on the aim) and pull brings the
 // gun back into the shoulder; both are solved so the arms reach without stretching much

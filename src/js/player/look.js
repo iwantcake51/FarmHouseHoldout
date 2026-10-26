@@ -6,7 +6,7 @@
 import { pick, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { basic, lam } from '../core/shaders.js';
-import { box, finePieces, mergeInto, trimShadows, unfight } from '../core/geometry.js';
+import { box, finePieces, mergeInto, roundRectAt, roundRectLen, roundRing, trimShadows, unfight } from '../core/geometry.js';
 import { KNEE_Y, PACK, PM, pOutline } from './player.js';
 import { xrayAttach } from '../effects/outlines.js';
 
@@ -485,56 +485,96 @@ export function buildLook(L) {
   buildWrists(L);
   return sils;
 }
-// what's on the wrists (L.wrist, dealWrists): just back from the hand (WRIST_Z), on the bare wrist or over a long
-// sleeve's cuff, its face or clasp on top
-const WRIST_Z = 0.405;
+// what's on the wrists (L.wrist, dealWrists): just back from the hand (WRIST_Z), snug on the bare wrist or over a long
+// sleeve's cuff, its face or clasp on top. Each is built at its true size and round where the real thing is round (a
+// watch's case, a bead, a chain's links): the arm's thinned (ARM_THIN, player/hold.js), so it's all set in a group that
+// undoes that (WR_TRUE) rather than squashed with it; its bands are rounded off over the wrist's corners (roundRing)
+const WRIST_Z = 0.405, WR_TRUE = 1 / 0.84, WR_ARM = 0.07 * 0.84, WR_R = 0.016;
 let iceMat = null;
+const wrSph = new THREE.SphereGeometry(1, 10, 8), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 6, 12), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
+const _wrq = [0, 0, 0, 0], _wrq2 = [0, 0, 0, 0];
 function buildWrists(L) {
   const w = L.wrist; if (!w) return;
-  const long = !!thermalOf(L) || ['hoodie', 'poloLong', 'suit'].includes(L.top), W0 = long ? 0.176 : 0.15, top = W0 / 2, z = WRIST_Z;
+  const long = !!thermalOf(L) || ['hoodie', 'poloLong', 'suit'].includes(L.top), h0 = (long ? 0.176 * 0.84 / 2 : WR_ARM) + 0.002, z = WRIST_Z;
   for (const s of ['L', 'R']) {
-    const it = w[s], a = LOOK.g['arm' + s], out = s === 'L' ? -1 : 1; if (!it) continue;
-    const band = (wd, len, c, dz) => box(a, wd, wd, len, lm(c), 0, 0, z + (dz || 0));
+    const it = w[s], out = s === 'L' ? -1 : 1; if (!it) continue;
+    const G = new THREE.Group(); G.scale.set(WR_TRUE, WR_TRUE, 1); G.position.z = z; LOOK.g['arm' + s].add(G);
+    const mesh = (geo, c, x, y, zz) => { const m = new THREE.Mesh(geo, typeof c === 'number' ? lm(c) : c); m.position.set(x || 0, y || 0, zz || 0); m.castShadow = false; G.add(m); return m; };
+    const ring = (h, len, thick, c, dz) => mesh(roundRing(h, h, WR_R + (h - h0), len, thick), c, 0, 0, dz || 0);
+    const cyl = (r, ht, c, x, y, zz, axis) => { const m = mesh(wrCyl, c, x, y, zz); m.scale.set(r, ht, r); if (axis === 'x') m.rotation.z = Math.PI / 2; else if (axis === 'z') m.rotation.x = Math.PI / 2; return m; };
+    // things strung round the wrist (beads, links, a weave's knots), n of them evenly round it at h out, each put by at(k, point, outward, along)
+    const round = (h, n, at) => { const r = WR_R + (h - h0); for (let k = 0; k < n; k++) { roundRectAt(k / n, h, h, r, _wrq); roundRectAt(k / n + 0.002, h, h, r, _wrq2); at(k, _wrq[0], _wrq[1], _wrq[2], _wrq[3], _wrq2[0] - _wrq[0], _wrq2[1] - _wrq[1]); } };
+    const perim = h => roundRectLen(h, h, WR_R + (h - h0)), top = h0;
     if (it.kind === 'watch') {
-      const st = it.style, m = it.metal, dig = st === 'digital', cw = dig ? 0.052 : 0.046, dark = new THREE.Color(it.face).getHSL({}).l < 0.4;
-      // the strap, or a bracelet of links (steel, gold, platinum) with its links picked out
-      if (st === 'gold' || st === 'ice' || st === 'steel') { band(W0, 0.022, m); [-0.006, 0.006].forEach(dz => band(W0 + 0.002, 0.003, shade(m, 0.72), dz)); }
-      else { band(W0, 0.018, it.strap); if (st === 'leather') band(W0 + 0.002, 0.004, shade(it.strap, 0.7), 0); }
-      box(a, cw, 0.014, cw, lm(m), 0, top + 0.007, z);                                           // the case
-      box(a, 0.008, 0.008, 0.007, lm(shade(m, 0.85)), out * (cw / 2 + 0.003), top + 0.007, z);   // the crown, on the outside
-      box(a, cw - 0.012, 0.003, cw - 0.012, lm(it.face), 0, top + 0.0155, z);                     // the face
-      if (dig) { box(a, 0.026, 0.0014, 0.012, lm(0x2a2e26), 0, top + 0.0172, z); [-1, 1].forEach(k => box(a, 0.006, 0.006, 0.006, lm(0x5a5a5e), k * 0.017, top + 0.016, z - cw / 2 - 0.001)); }   // the digits; the buttons
-      else {
-        const hc = lm(dark ? 0xeceae4 : 0x1a1a1c), mk = (len, turn) => { const o = len / 2 - 0.002; box(a, 0.003, 0.0014, len, hc, Math.sin(turn) * o, top + 0.0175, z + Math.cos(turn) * o).rotation.y = turn; };
-        mk(0.011, it.turn); mk(0.016, it.turn2);   // the hands, at their own time
-        [0, 1, 2, 3].forEach(k => { const an = k * Math.PI / 2; box(a, 0.004, 0.0012, 0.004, hc, Math.sin(an) * 0.014, top + 0.0172, z + Math.cos(an) * 0.014); });   // twelve, three, six, nine
+      const st = it.style, m = it.metal, dig = st === 'digital', dark = new THREE.Color(it.face).getHSL({}).l < 0.4, R = dig ? 0.019 : 0.0175;
+      // the strap or bracelet round the wrist, on lugs either side of the case
+      if (st === 'gold' || st === 'ice' || st === 'steel') {
+        ring(h0, 0.02, 0.0034, m); const n = Math.round(perim(h0 + 0.0034) / 0.0068);
+        round(h0 + 0.0034, n, (k, x, y, nx, ny, tx, ty) => { if (y > top - 0.004 && Math.abs(x) < R) return; [-0.0068, 0, 0.0068].forEach(dz => { const b = mesh(bgeoW(0.0058, 0.0012, dz ? 0.0058 : 0.0064), dz ? shade(m, 0.8) : shade(m, 1.12), x + nx * 0.0004, y + ny * 0.0004, dz); b.rotation.z = Math.atan2(ty, tx); }); });   // its links, the middle row brighter
+      } else {
+        ring(h0, 0.019, 0.0026, it.strap);
+        if (st === 'leather') [-1, 1].forEach(e => ring(h0 + 0.0026, 0.0012, 0.0004, shade(it.strap, 0.62), e * 0.0075));   // its stitching
+        // the buckle and its keeper underneath
+        const bk = st === 'sport' || st === 'digital' ? 0x2a2a2c : m; mesh(bgeoW(0.018, 0.0022, 0.022), bk, 0, -top - 0.003, 0); mesh(bgeoW(0.012, 0.0024, 0.014), it.strap, 0, -top - 0.0036, 0);
+      }
+      const cy = top + 0.0062;
+      [-1, 1].forEach(e => [-1, 1].forEach(f => mesh(bgeoW(0.0035, 0.004, 0.006), m, f * R * 0.62, top + 0.0035, e * (R + 0.002))));   // the lugs
+      if (dig) {
+        // a digital: a squared-off case, its screen with the time on it, buttons down the sides
+        mesh(bgeoW(R * 2, 0.011, R * 2), m, 0, cy, 0); mesh(bgeoW(R * 2 - 0.008, 0.0016, R * 2 - 0.009), it.face, 0, cy + 0.0056, 0);
+        const dg = lm(0x23271f); [-0.0085, -0.0035, 0.0035, 0.0085].forEach(x => mesh(bgeoW(0.0036, 0.0006, 0.0062), dg, x, cy + 0.0066, 0.0006)); [-1, 1].forEach(e => mesh(bgeoW(0.0009, 0.0006, 0.0009), dg, 0, cy + 0.0066, 0.0006 + e * 0.0016));
+        [-1, 1].forEach(e => [-0.006, 0.006].forEach(dz => cyl(0.0016, 0.004, 0x5a5a5e, e * (R + 0.0014), cy, dz, 'x')));
+      } else {
+        // a round case, its bezel (a sport watch's turning one marked off), the dial with its markers and hands, the crown out on the side
+        cyl(R, 0.009, m, 0, cy - 0.0008, 0); const bz = mesh(wrBezel, st === 'sport' ? 0x18181a : shade(m, 0.9), 0, cy + 0.0042, 0); bz.rotation.x = Math.PI / 2; bz.scale.set(R - 0.0016, R - 0.0016, 0.0048);   // (the bezel a ring round the dial, not a disc over it)
+        cyl(R - 0.0026, 0.001, it.face, 0, cy + 0.0042, 0);
+        const hc = dark ? 0xeceae4 : 0x1a1a1c;
+        for (let k = 0; k < 12; k++) { const an = k * Math.PI / 6, big = k % 3 === 0, rr2 = R - 0.0058; const b = mesh(bgeoW(big ? 0.0014 : 0.0009, 0.0006, big ? 0.0034 : 0.002), hc, Math.sin(an) * rr2, cy + 0.005, Math.cos(an) * rr2); b.rotation.y = an; }
+        if (st === 'sport') for (let k = 0; k < 12; k++) { const an = k * Math.PI / 6; mesh(bgeoW(0.0012, 0.0005, 0.0012), k ? 0xd8d8d8 : 0xd8402a, Math.sin(an) * (R - 0.0016), cy + 0.0066, Math.cos(an) * (R - 0.0016)); }
+        const hand = (len, wd, c, turn) => { const o = len / 2 - 0.0015, b = mesh(bgeoW(wd, 0.0005, len), c, Math.sin(turn) * o, cy + 0.0053, Math.cos(turn) * o); b.rotation.y = turn; };
+        hand(0.0085, 0.0016, hc, it.turn); hand(0.0125, 0.0011, hc, it.turn2); hand(0.013, 0.0005, 0xc8302a, it.turn2 * 7.3);   // hour, minute and the red seconds
+        cyl(0.0012, 0.0012, hc, 0, cy + 0.0055, 0);
+        cyl(0.0019, 0.004, shade(m, 0.85), out * (R + 0.002), cy - 0.0005, 0, 'x');   // the crown
       }
       if (st === 'ice') {
-        // diamonds set all the way round the bezel, catching the light (lit by nothing, so they always shine)
+        // diamonds set all the way round the bezel and down the bracelet, catching the light (lit by nothing, so they always shine)
         iceMat = iceMat || basic(0xf2faff);
-        for (let k = 0; k < 16; k++) { const an = k * Math.PI / 8, rr2 = cw / 2 - 0.003, c = Math.max(Math.abs(Math.cos(an)), Math.abs(Math.sin(an))); box(a, 0.005, 0.004, 0.005, iceMat, Math.sin(an) / c * rr2, top + 0.0155, z + Math.cos(an) / c * rr2); }
-        [-0.006, 0.006].forEach(dz => [-1, 1].forEach(k => box(a, 0.004, 0.003, 0.004, iceMat, k * 0.03, top + 0.0012, z + dz)));   // and down the bracelet
+        for (let k = 0; k < 20; k++) { const an = k * Math.PI / 10, g = mesh(wrGem, iceMat, Math.sin(an) * (R - 0.0016), cy + 0.0064, Math.cos(an) * (R - 0.0016)); g.scale.setScalar(0.0016); }
+        round(h0 + 0.0036, 26, (k, x, y, nx, ny) => { if (y > top - 0.004) return; const g = mesh(wrGem, iceMat, x + nx * 0.0012, y + ny * 0.0012, 0); g.scale.setScalar(0.0014); });
       }
     } else if (it.kind === 'chain') {
-      band(W0, 0.009, it.metal); band(W0 + 0.003, 0.004, shade(it.metal, 0.7), 0.0025); band(W0 + 0.003, 0.004, shade(it.metal, 1.15), -0.0025);   // links, light and dark
-      box(a, 0.012, 0.006, 0.01, lm(it.metal), 0, top + 0.003, z);                                // the clasp
+      // a curb chain: oval links each turned across the last, and its clasp underneath
+      const n = 2 * Math.round(perim(h0 + 0.0025) / 0.0144);
+      round(h0 + 0.0025, n, (k, x, y, nx, ny, tx, ty) => { const l = mesh(wrLink, k % 2 ? shade(it.metal, 0.84) : it.metal, x, y, 0); l.scale.set(0.0052, 0.0034, 0.0034); l.rotation.set(k % 2 ? Math.PI / 2 : 0, 0, Math.atan2(ty, tx), 'ZYX'); });   // (each turned about its own length: lying flat, then standing up through the last)
+      const c = mesh(wrSph, it.metal, 0, -top - 0.004, 0.002); c.scale.set(0.0035, 0.0028, 0.006);
     } else if (it.kind === 'beads') {
-      // beads strung tight round the wrist, a few to a side (as many as it has colours for)
-      const h = top + 0.006, per = it.cols.length / 4, sp = 2 * h / per, sz = sp * 0.9;
-      it.cols.forEach((c, k) => { const side = Math.floor(k / per), t = -h + sp * (k % per + 0.5), x = side === 0 ? t : side === 2 ? -t : side === 1 ? h : -h, y = side === 0 ? h : side === 2 ? -h : side === 1 ? -t : t; box(a, sz, sz, sz, lm(c), x, y, z); });
+      // round beads strung tight round the wrist, the colours in the order they were strung
+      const br = 0.0052, n = Math.round(perim(h0 + br) / (br * 2.02));
+      round(h0 + br * 0.85, n, (k, x, y) => { const b = mesh(wrSph, it.cols[k % it.cols.length], x, y, 0); b.scale.setScalar(br); });
     } else if (it.kind === 'band') {
-      band(W0, 0.014, it.col); if (it.col2) band(W0 - 0.002, 0.012, it.col2, -0.018);   // a rubber band, and now and then another behind it
+      // a rubber band or a hair tie, and now and then another behind it
+      ring(h0, 0.005, 0.0024, it.col); if (it.col2) ring(h0, 0.0045, 0.0022, it.col2, -0.012);
     } else if (it.kind === 'cuff') {
-      band(W0 + 0.002, 0.042, it.col); band(W0 + 0.004, 0.004, shade(it.col, 0.7), 0.017); band(W0 + 0.004, 0.004, shade(it.col, 0.7), -0.017);   // a leather cuff, its edges stitched
-      box(a, 0.012, 0.006, 0.012, lm(it.metal), 0, top + 0.004, z);                               // the snap
+      // a leather cuff: a wide band, its edges stitched, closed with two press studs on top
+      ring(h0, 0.04, 0.0036, it.col); const sc = lm(shade(it.col, 1.45));
+      [-1, 1].forEach(e => round(h0 + 0.0036, Math.round(perim(h0 + 0.0036) / 0.0045), (k, x, y, nx, ny, tx, ty) => { if (k % 2) return; const b = mesh(bgeoW(0.0025, 0.0005, 0.0009), sc, x + nx * 0.0002, y + ny * 0.0002, e * 0.0155); b.rotation.z = Math.atan2(ty, tx); }));
+      [-0.008, 0.008].forEach(dz => { cyl(0.0042, 0.0016, it.metal, 0, top + 0.0044, dz); cyl(0.0022, 0.0008, shade(it.metal, 0.7), 0, top + 0.0055, dz); });
     } else if (it.kind === 'paracord') {
-      band(W0, 0.022, it.col); const c2 = lm(it.col2 || shade(it.col, 0.62));
-      for (let k = 0; k < 5; k++) { const b = box(a, 0.007, 0.004, 0.02, c2, -0.024 + k * 0.012, top + 0.001, z); b.rotation.y = 0.5; }   // the weave
-      box(a, 0.024, 0.008, 0.018, lm(0x1c1c1e), out * (top + 0.002), 0, z);                        // the buckle, on the outside
+      // a cobra weave: knots crossing over each other the length of it, two colours if it has them, and its side-release buckle on the outside
+      ring(h0, 0.021, 0.0025, shade(it.col, 0.75)); const c2 = it.col2 || shade(it.col, 0.82);
+      round(h0 + 0.0025, Math.round(perim(h0 + 0.0025) / 0.0052), (k, x, y, nx, ny, tx, ty) => { if (nx * out > 0.7) return; [-1, 1].forEach(e => { const b = mesh(wrSph, (k % 2) ? it.col : c2, x + nx * 0.0014, y + ny * 0.0014, e * 0.0052); b.scale.set(0.0034, 0.0022, 0.0062); b.rotation.set(0, e * (k % 2 ? 0.55 : -0.55), Math.atan2(ty, tx), 'ZYX'); }); });
+      const bx = out * (top + 0.0035); mesh(bgeoW(0.006, 0.019, 0.024), 0x1c1c1e, bx, 0, 0); [-1, 1].forEach(e => mesh(bgeoW(0.0066, 0.004, 0.003), 0x0e0e10, bx, e * 0.005, 0));
     } else {
-      // braided strings, three together
-      it.cols.forEach((c, k) => band(W0 + 0.001 * k, 0.004, c, (k - 1) * 0.005));
+      // braided strings, three twisted together round the wrist, knotted underneath with their ends hanging
+      it.cols.forEach((c, k) => {
+        const pts = []; for (let j = 0; j <= 48; j++) { const u = j / 48; roundRectAt(u, h0 + 0.0016, h0 + 0.0016, WR_R + 0.0016, _wrq); const ph = u * Math.PI * 2 * 14 + k * Math.PI * 2 / 3; pts.push(new THREE.Vector3(_wrq[0] + _wrq[2] * 0.0009 * Math.cos(ph), _wrq[1] + _wrq[3] * 0.0009 * Math.cos(ph), 0.0016 * Math.sin(ph))); }
+        mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, 0.0011, 5, true), c);
+        const e = mesh(bgeoW(0.0016, 0.012, 0.0016), c, (k - 1) * 0.0022, -top - 0.007, 0.002 * (k - 1)); e.rotation.z = (k - 1) * 0.2;
+      });
+      const kn = mesh(wrSph, it.cols[0], 0, -top - 0.0022, 0); kn.scale.setScalar(0.0032);
     }
   }
 }
+// (boxes of their own here, not the shared cache: these are folded into the arm's merged mesh, sizes too fine to share)
+const bgeoW = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 rollLook(spawnLook());
