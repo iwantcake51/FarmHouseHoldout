@@ -22,8 +22,20 @@ export const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: 
   // each beam's height and tilt: the lens's height, and the sine and cosine of how far down from level it points; and
   // the pattern of its light where it lands (a flashlight's hot spot and rings: lighting/lightmap.js sets it)
   uFlH: { value: Array.from({ length: 6 }, () => new THREE.Vector4(1.1, 0, 1, 0)) }, uFlCookie: { value: null },
+  // (the shaders read those three from one small float texture, a column a beam and a row each (flPack), not as
+  // uniform arrays: every lit material is its own, and three sends a material's arrays again each time it draws one,
+  // so the arrays alone were over a thousand calls a frame)
+  uFlTex: { value: null },
   // and their shadows: how far each ray across each beam got before something stopped it (a row a beam: flashShadows)
   uFlSh: { value: null } };
+const FL_TEX = new Float32Array(6 * 3 * 4);
+LMU.uFlTex.value = new THREE.DataTexture(FL_TEX, 6, 3, THREE.RGBAFormat, THREE.FloatType);
+LMU.uFlTex.value.magFilter = LMU.uFlTex.value.minFilter = THREE.NearestFilter;
+// the beams' uFl, uFlP and uFlH, as they're set for the frame, into the texture the shaders read them from
+export function flPack(n) {
+  [LMU.uFl, LMU.uFlP, LMU.uFlH].forEach((U, row) => { for (let i = 0; i < n; i++) U.value[i].toArray(FL_TEX, (row * 6 + i) * 4); });
+  LMU.uFlTex.value.needsUpdate = true;
+}
 const VERT_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
 const VERT_BODY = `
   vec4 lmW = vec4(transformed, 1.0);
@@ -78,7 +90,7 @@ vec4 lmCubic(vec2 uv) {
   return mix(mix(texture2D(uLightMap, c0), texture2D(uLightMap, vec2(c1.x, c0.y)), s1.x), mix(texture2D(uLightMap, vec2(c0.x, c1.y)), texture2D(uLightMap, c1), s1.x), s1.y);
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlH[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform sampler2D uFlTex;\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -118,7 +130,11 @@ const FRAG_BODY = `
   vec4 lmS = lmCubic(vLmUv);
   if (uFlK.w > 0.5) {
     float fl = 0.0;
-    for (int i = 0; i < 6; i++) { if (float(i) >= uFlK.w) break; fl += flCone(uFl[i], uFlP[i], uFlH[i], vWp.xz, (float(i) + 0.5) / 6.0) * uFlP[i].z; }
+    for (int i = 0; i < 6; i++) {
+      if (float(i) >= uFlK.w) break;
+      float u = (float(i) + 0.5) / 6.0; vec4 fP = texture2D(uFlTex, vec2(u, 0.5));
+      fl += flCone(texture2D(uFlTex, vec2(u, 0.5 / 3.0)), fP, texture2D(uFlTex, vec2(u, 2.5 / 3.0)), vWp.xz, u) * fP.z;
+    }
     lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(1.0));
   }
   vec3 lmBase = gl_FragColor.rgb, lmC = lmBase * lmS.rgb * 2.0;
@@ -184,7 +200,7 @@ const TREE_BODY = `
 export function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlH: LMU.uFlH, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFlTex: LMU.uFlTex, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     // (glow: what it gives off of its own, its emissive, kept out of the light map's shading, so it shows in full colour
     // in the dark instead of going grey with everything else: acid, zombies/spitter.js)

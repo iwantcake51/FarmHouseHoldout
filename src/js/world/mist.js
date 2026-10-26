@@ -5,7 +5,7 @@
 // rather than a clean circle, and a flashlight cuts a clear path through it along its beam (MIST.path: a
 // better light a much wider one). The further out you zoom, the more of the screen it takes.
 //
-// It's drawn over the finished frame (effects/post.js: the composite), from where each pixel is on the ground, so
+// It's marched at half the resolution and laid over the finished frame (effects/post.js), from where each pixel is on the ground, so
 // it's the same fog in the frame as in play: a zombie out in it can't be seen, outlined or picked out by your
 // crosshair, and one in the thinning ring comes clear as it closes in (mistSee, zombies/zombie-visuals.js).
 

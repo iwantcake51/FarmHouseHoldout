@@ -4,7 +4,7 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, HALF, mix, N, smooth } from '../core/math.js';
 import { MIST_U } from '../world/mist.js';
 import { NET, netLink } from '../net/net.js';
-import { FL_MAX, LMU } from '../core/shaders.js';
+import { FL_MAX, flPack, LMU } from '../core/shaders.js';
 import { ci, openAt } from '../world/grid.js';
 import { THIN, thinHit, wxSee, wzSee } from '../world/thin-walls.js';
 import { blockArr, bulletBlocked } from '../world/collision.js';
@@ -183,7 +183,7 @@ function flashUniforms(rdt) {
   if (!LMU.uFlCookie.value) LMU.uFlCookie.value = partTex('flBeam');   // (the pattern a flashlight throws: core/shaders.js)
   cones.forEach((c, i) => { const tilt = c[8] ?? Math.atan2(c[7], c[3] * FL_TILT); LMU.uFl.value[i].set(c[0], c[1], Math.sin(c[2]), Math.cos(c[2])); LMU.uFlP.value[i].set(c[3], c[4], c[5], c[2]); LMU.uFlH.value[i].set(c[7], Math.sin(tilt), Math.cos(tilt), 0); MIST_U.uFlT.value[i] = c[6];   // (its tier: the path it cuts through fog, world/mist.js)
     flashShadows(i, c[0], c[1], c[2], c[4], c[3]); });
-  if (cones.length) flShTex.needsUpdate = true;
+  if (cones.length) { flShTex.needsUpdate = true; flPack(cones.length); }
 }
 // how strongly a teammate's light picks a zombie out (0 to 1): in the middle of their beam and in its reach, with
 // nothing in the way; it shows you that zombie even outside your own sight, and outlines it as your own light would
