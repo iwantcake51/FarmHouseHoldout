@@ -15,7 +15,7 @@ import { partTex } from '../effects/textures.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { flashes } from '../weapons/explosives.js';
 import { lightsDirty, setLightsDirty, shutN } from '../barricades/planks.js';
-import { vaultGun } from '../player/vaulting.js';
+import { vaultHold } from '../player/vaulting.js';
 import { lmT, setLmT, state, worldT } from '../game/state.js';
 import { muzzle } from '../weapons/firing.js';
 import { STATIC_LIGHTS } from './static-lights.js';
@@ -104,7 +104,7 @@ const FLASH = { 1: [13, 0.42, 1.2], 2: [18, 0.62, 1.9] };
 // it goes off, and it comes back on as the gun's drawn again, once the hand has it (SWAP_T.cross, player/swap.js).
 // flOn eases it off and on over a few frames, like a switch clicked
 export let flOn = 0;
-const gunOut = () => !(P.vault && !vaultGun()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
+const gunOut = () => !(P.vault && !vaultHold()) && !(swapSt && swapSt.to === W8.cur && swapSt.t < SWAP_T.cross);
 // the tier of your light while it's on (0 when it isn't), for your teammates (sent with your pose: net/avatars.js)
 export function myLight() { const t = T('light'), D = W(curId()); return FLASH[t] && D && !D.melee && flOn > 0.5 && (state === 'play' || state === 'paused') && !P.dead ? t : 0; }   // (paused in co-op you're still out there, light and all)
 // which way your light points: where you aim, but at a sprint (player/animation.js: faceK) it's on the gun, down at a

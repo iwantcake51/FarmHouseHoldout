@@ -6,7 +6,7 @@ import { moveCircle } from '../world/collision.js';
 import { P } from './player.js';
 import { carryMul, curId, healMul, hpCap, S, W, W8 } from '../game/run-state.js';
 import { bloodyStep } from '../effects/blood-map.js';
-import { VAULT_COOL, vaultGun, vaultLand, vaultTakeoff } from './vaulting.js';
+import { VAULT_COOL, vaultHold, vaultLand, vaultTakeoff } from './vaulting.js';
 import { vaultAt } from './vault-plan.js';
 import { openSt } from '../stations/station-ui.js';
 import { footstep } from '../audio/footsteps.js';
@@ -75,9 +75,9 @@ export function updatePlayer(dt) {
       v.t += dt / v.dur; const t = Math.min(1, v.t), q = vaultAt(v, t), lat = v.lat0 + (v.lat1 - v.lat0) * smooth(t);
       P.x = v.C[0] + v.dx * q.s + v.L[0] * lat; P.z = v.C[1] + v.dz * q.s + v.L[1] * lat;
       if (v.t >= 1) {
-        // the weapon was put away for the jump (unless Vault fire kept it in hand): it's drawn again as you land, the
-        // hands coming off the sill to it rather than it appearing in them (player/swap.js)
-        const kept = vaultGun(); P.vault = null; vaultLand(v);
+        // a melee weapon was put away for the jump (a gun stays in hand): it's drawn again as you land, the hands
+        // coming off the sill to it rather than it appearing in them (player/swap.js)
+        const kept = vaultHold(); P.vault = null; vaultLand(v);
         if (!kept && W8.slot[W8.cur] && !swapSt) { startSwap(null, W8.cur); W8.cd = Math.max(W8.cd, swapFire(W8.cur) * drawMul(W8.slot[W8.cur]) / S.swapMul); }
         if (aimHeld) startAim();   // still holding aim (or pressed it on the way through): back down the sights
       }

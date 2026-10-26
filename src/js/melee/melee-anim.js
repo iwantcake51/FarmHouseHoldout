@@ -27,7 +27,7 @@ import { ANIM } from '../player/animation.js';
 import { ARM_THIN, FIST, SHOULDER_REST } from '../player/hold.js';
 import { SWAP_T, swapSt } from '../player/swap.js';
 import { inspectBlend, inspectT } from '../player/inspect.js';
-import { fpOn } from '../game/view-cam.js';
+import { fpMeleeHit, fpOn } from '../game/view-cam.js';
 
 // the guard per weapon: fist and weapon direction, and the body
 const MGUARD = {
@@ -404,6 +404,7 @@ export const curSwing = D => { const s = MSWINGS[meleeStyle(D)] || MSWINGS.swing
 export function meleeImpact(heavy, hard) {
   const w = meleeWeight(curId())[0], rb = hard * (1 - MSTOP.bounce * w);
   ANIM.mStop = Math.max(ANIM.mStop || 0, mix(MSTOP.light, MSTOP.heavy, w) * hard);
+  fpMeleeHit(heavy, hard);   // (and from your own eyes the view's knocked back off it: game/view-cam.js)
   MS.vF.multiplyScalar(-0.3 * rb); MS.vW.multiplyScalar(-0.45 * rb);
   const b = MS.b; b.vuy *= -0.25 * hard; b.vhy *= -0.2; b.vux -= 1.4 * hard; b.vdip += (heavy ? 1.6 : 0.6) * hard;
 }

@@ -24,7 +24,7 @@ import { netAct, netRec, nr } from '../net/sync.js';
 
 // the shove has a shape: a quick wind-up, a hard blow with the weapon itself, then the recovery (shovePose and
 // MBASH: player/hold.js, melee/melee-anim.js). You don't step into it; only the weapon goes out
-export const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.46, SHOVE_HIT = 0.09, SHOVE_SLOW = 2.6;
+export const SHOVE_CD = 0.85, SHOVE_COST = 0.14, SHOVE_RANGE = 1.6, SHOVE_ARC = 1.15, SHOVE_DUR = 0.58, SHOVE_HIT = 0.15, SHOVE_SLOW = 2.6;
 // a shove in the middle of wrapping a bandage stops it there and then: the bandage is spent (as when you stop it with a
 // click: cancelBandage, player/bandages.js), the weapon's straight back in your hand, and the shove goes out at once
 EFF.bayonet = { melee: true, dmg: 45, sever: 0.3, kb: 2 };
