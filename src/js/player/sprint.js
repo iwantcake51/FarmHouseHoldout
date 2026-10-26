@@ -41,6 +41,7 @@ import { cutReload } from '../weapons/reload.js';
 import { stamUse } from '../melee/melee.js';
 import { INTRO } from '../game/intro.js';
 import { ANIM } from './animation.js';
+import { fpOn } from '../game/view-cam.js';
 
 export const WALK_SPEED = 3.0;
 export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
@@ -170,17 +171,21 @@ const sprintAcc = () => P.pushT > 0 ? PIVOT.pushAcc * (0.35 + 0.65 * smooth(clam
 // toward a rate that's quicker the further round there is to go (carveK), up to SPRINT.carve (a touch less the more
 // momentum you have), so a bend rolls in and out smoothly. It keeps its pace through the bend less what the bend
 // costs, while its speed comes up to the target on its own clock
+// In first person the way you push turns with your view, so the run follows the view round (FP_CARVE) far closer than
+// it would a key held another way: turning as you run never has you running off to one side of where you look, or your
+// body (and the arms and gun on it) trailing round behind your view, and a bend you look round costs you less pace
+const FP_CARVE = { k: 30, max: 16, cost: 0.35 };
 export function sprintCarve(dt, tvx, tvz) {
-  const s0 = Math.hypot(P.vx, P.vz), st = Math.hypot(tvx, tvz);
+  const s0 = Math.hypot(P.vx, P.vz), st = Math.hypot(tvx, tvz), fp = fpOn();
   if (s0 < 0.6 || !(dt > 0)) { const k = 1 - Math.exp(-dt * sprintAcc()); P.vx += (tvx - P.vx) * k; P.vz += (tvz - P.vz) * k; P.carveW = 0; return; }
-  const a0 = Math.atan2(P.vx, P.vz), diff = angDiff(Math.atan2(tvx, tvz), a0), wMax = SPRINT.carve * (1 - 0.3 * (P.runUp || 0));
-  P.carveW = (P.carveW || 0) + (clamp(diff * SPRINT.carveK, -wMax, wMax) - (P.carveW || 0)) * (1 - Math.exp(-dt * SPRINT.carveIn));
+  const a0 = Math.atan2(P.vx, P.vz), diff = angDiff(Math.atan2(tvx, tvz), a0), wMax = (fp ? FP_CARVE.max : SPRINT.carve) * (1 - 0.3 * (P.runUp || 0));
+  P.carveW = (P.carveW || 0) + (clamp(diff * (fp ? FP_CARVE.k : SPRINT.carveK), -wMax, wMax) - (P.carveW || 0)) * (1 - Math.exp(-dt * (fp ? FP_CARVE.k : SPRINT.carveIn)));
   let step = P.carveW * dt;
   if (step * diff <= 0) step = 0;   // still swinging the old way round: hold the line till it swings the new way
   else if (Math.abs(step) > Math.abs(diff)) { step = diff; P.carveW = diff / dt; }   // and never past the way you're pushing
   const a = a0 + step;
-  const sp = (s0 + (st - s0) * (1 - Math.exp(-dt * sprintAcc()))) * (1 - Math.abs(step) * SPRINT.bendCost);
-  P.runUp = Math.max(0, (P.runUp || 0) - Math.abs(step) * 0.25);
+  const cost = fp ? FP_CARVE.cost : 1, sp = (s0 + (st - s0) * (1 - Math.exp(-dt * sprintAcc()))) * (1 - Math.abs(step) * SPRINT.bendCost * cost);
+  P.runUp = Math.max(0, (P.runUp || 0) - Math.abs(step) * 0.25 * cost);
   P.vx = Math.sin(a) * sp; P.vz = Math.cos(a) * sp;
 }
 

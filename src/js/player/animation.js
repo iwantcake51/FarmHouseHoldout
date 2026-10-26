@@ -424,7 +424,7 @@ function animatePlayer(dt, rdt) {
   // Right behind you, you keep to the shoulder you were looking over
   if (rdt > 0) {
     if (ANIM.lookC === undefined) ANIM.lookC = ANIM.vlookC = ANIM.lookH = ANIM.vlookH = 0;
-    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (1 - smooth(clamp(ANIM.rgK || 0, 0, 1))) * (P.vault ? 0 : 1);
+    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (1 - smooth(clamp(ANIM.rgK || 0, 0, 1))) * (P.vault || fpOn() ? 0 : 1);   // (not in first person, whose chest is already on the aim: turned again on top of it, your arms and gun swung across the view as you ran round a bend)
     const rel = angDiff(P.aim, ANIM.yaw), ar = Math.abs(rel); let sd = Math.sign(rel) || 1;
     if (ar > L.behind && ANIM.lookSide) sd = ANIM.lookSide; ANIM.lookSide = sd;
     const back = smooth(clamp((ar - L.ahead) / L.blend, 0, 1)), chest = (Math.sign(rel) * Math.min(ar, L.chest) * (1 - back) + sd * L.backChest * back) * fk;
