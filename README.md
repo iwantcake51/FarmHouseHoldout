@@ -81,7 +81,11 @@ dust in the air at once, it's the faintest, nearly faded puff that's reused for 
 plainly there ever blinks out.
 
 **Melee.** An ash bat, crowbar, pipe wrench, machete, katana, fire axe and sledgehammer, each with its own swings,
-reach and stamina cost. Sharp blades take heads and limbs off. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
+reach and stamina cost. Sharp blades take heads and limbs off. The bat is one smooth turned piece of ash; its Nails are real
+nails driven right through the barrel, round heads on the wood and points out the far side, and Barbed wire, its own
+mod now (no nails needed), is two twisted strands wound up the barrel with barbs every few centimetres. The crowbar is
+one red hex bar, the steel worn bright at both ends: a short angled pry foot with a nail slot, the long shaft and a
+tight gooseneck down to a flattened claw split into two prongs. The katana's curved blade is one piece, its spine, hamon and edge running unbroken to the point, and it's held by
 its wrapped handle, both hands on the grip below the guard. From your own eyes a melee weapon in your hands keeps your
 body together with your legs, and a swing doesn't carry you forward. From your own eyes each swing is kept where you
 can see it: the wind-up stays at the top of the view rather than behind your head, your arm never sweeps through your
