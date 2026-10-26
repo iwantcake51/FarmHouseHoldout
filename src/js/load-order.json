@@ -166,6 +166,7 @@
   "player/inspect.js",
   "effects/eye-glow.js",
   "zombies/zombie-visuals.js",
+  "ui/sense.js",
   "ui/hud.js",
   "ui/weapon-stats.js",
   "ui/loadout.js",

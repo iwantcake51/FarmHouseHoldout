@@ -22,6 +22,8 @@ import { bandMax } from '../player/bandages.js';
 import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
 import { FEED_ICON, popEl, setT } from '../ui/hud-text.js';
 import { fpOn, wantLock } from '../game/view-cam.js';
+import { FP_CAM, V3 } from '../core/renderer.js';
+import { THIN, thinHit } from '../world/thin-walls.js';
 import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { benchTipUsed } from '../ui/bench-tips.js';
@@ -39,19 +41,40 @@ function stationDist(s) {
 // which you'd use: standing on a station's own spot in front of it (within STATION_SPOT) it's always that one, however
 // near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
 // the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
-// From your own eyes you reach a touch further and where you look counts for much more (STATION_FP), so the one you're
-// looking at is the one you get
-const STATION_SPOT = 0.7, STATION_FACE = 0.35, STATION_FP = { reach: 1.55, face: 0.9 };
+// From your own eyes it's the one you're looking at: a ray straight out from your eyes along the middle of the screen,
+// against each station's bounding box (grown by STATION_FP.pad m all round, so its edge is easy to land on), the
+// nearest it meets within STATION_FP.reach m, and not through an inside wall. None looked at, none at all
+const STATION_SPOT = 0.7, STATION_FACE = 0.35, STATION_FP = { reach: 2.1, pad: 0.06 };
+const _sRay = new THREE.Ray(), _sHit = new V3();
+function stationBox(s) {
+  const g = s.g, key = g.position.x + ',' + g.position.z + ',' + g.rotation.y;   // (worked out again only if it's been moved)
+  if (s.boxKey !== key) { g.updateMatrixWorld(true); s.box = new THREE.Box3().setFromObject(g).expandByScalar(STATION_FP.pad); s.boxKey = key; }
+  return s.box;
+}
+function lookedAtStation() {
+  FP_CAM.getWorldPosition(_sRay.origin); FP_CAM.getWorldDirection(_sRay.direction);
+  // (one that's open stays yours while you're still in reach of it, wherever the sway of your view drifts)
+  if (openSt && STATIONS.includes(openSt) && stationBox(openSt).distanceToPoint(_sRay.origin) < STATION_FP.reach) return openSt;
+  let best = null, bd = STATION_FP.reach;
+  for (const s of STATIONS) {
+    if (s.coop && !netLink()) continue;
+    if (!_sRay.intersectBox(stationBox(s), _sHit)) continue;
+    const d = _sHit.distanceTo(_sRay.origin); if (d >= bd) continue;
+    if (THIN.n && thinHit(_sRay.origin.x, _sRay.origin.z, _sHit.x, _sHit.z) <= 1) continue;
+    bd = d; best = s;
+  }
+  return best;
+}
 export function nearestStation() {
-  const fp = fpOn(), REACH = fp ? STATION_FP.reach : STATION_REACH, FACE = fp ? STATION_FP.face : STATION_FACE;
-  let best = null, bd = REACH, spot = null, sd = STATION_SPOT;
+  if (fpOn()) return lookedAtStation();
+  let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   for (const s of STATIONS) {
     if (s.coop && !netLink()) continue;
     const u = Math.hypot(s.x - P.x, s.z - P.z); if (u < sd) { sd = u; spot = s; }
-    const d = stationDist(s); if (d >= REACH) continue;
+    const d = stationDist(s); if (d >= STATION_REACH) continue;
     const cx = s.foot ? s.foot[0] : s.x, cz = s.foot ? s.foot[1] : s.z, l = Math.hypot(cx - P.x, cz - P.z) || 1;
-    const k = d - FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
+    const k = d - STATION_FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
     if (k < bd) { bd = k; best = s; }
   }
   return spot || best;

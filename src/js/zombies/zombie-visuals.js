@@ -72,12 +72,31 @@ function zombieLOD() {
     for (const o of z.casters) o.castShadow = on;
   }
 }
-// in first person, whether anything of something standing at (x, z) is in a clear line from your eyes: its middle or a
-// shoulder's width (EYE_SEE) either side of it, across the line
-const EYE_SEE = 0.32;
-function eyeSees(x, z) {
-  const e = FP_CAM.position, dx = x - e.x, dz = z - e.z, L = Math.hypot(dx, dz) || 1, sx = -dz / L * EYE_SEE, sz = dx / L * EYE_SEE;
-  return los(e.x, e.z, x, z) || los(e.x, e.z, x + sx, z + sz) || los(e.x, e.z, x - sx, z - sz) ? 1 : 0;
+// in first person, whether anything of something standing at (x, z) is in a clear line from your eyes. The walls in the
+// grid are whole cells, thicker than the walls you see, so a zombie stepping out round a corner or past a door frame is
+// in plain sight a moment before a single line from the eye clears: so the lines start from the eye and either side of
+// it (FP_SEE.eye, as far as the head's width lets you see round an edge), and go to its middle, a reach's width
+// (FP_SEE.side) either side of it, and where it'll be in FP_SEE.lead s. One that's been in sight stays drawn
+// FP_SEE.hold s after (the walls in front of it hide it on their own, so nothing shows through), and one within
+// FP_SEE.near m always is: so none of them pops in or out at an edge. A grate's no wall to them (its slit and bars are
+// there to see through)
+const FP_SEE = { eye: 0.22, side: 0.5, lead: 0.4, hold: 0.6, near: 1.8 };
+function eyeSees(z, rdt) {
+  const e = FP_CAM.position, dx = z.x - e.x, dz = z.z - e.z, L = Math.hypot(dx, dz) || 1, ux = -dz / L, uz = dx / L;
+  // (how fast it's going, from where it was last frame, smoothed: its own vx/vz are only knockback)
+  if (z.fpPx !== undefined && rdt > 0) { const k = Math.min(1, rdt * 6); z.fpVx = (z.fpVx || 0) + (clamp((z.x - z.fpPx) / rdt, -6, 6) - (z.fpVx || 0)) * k; z.fpVz = (z.fpVz || 0) + (clamp((z.z - z.fpPz) / rdt, -6, 6) - (z.fpVz || 0)) * k; }
+  z.fpPx = z.x; z.fpPz = z.z;
+  let see = L < FP_SEE.near;
+  if (!see) {
+    const lx = z.x + (z.fpVx || 0) * FP_SEE.lead, lz = z.z + (z.fpVz || 0) * FP_SEE.lead;
+    see: for (const eo of [0, FP_SEE.eye, -FP_SEE.eye]) {
+      const ex = e.x + ux * eo, ez = e.z + uz * eo;
+      for (const [tx, tz] of [[z.x, z.z], [z.x + ux * FP_SEE.side, z.z + uz * FP_SEE.side], [z.x - ux * FP_SEE.side, z.z - uz * FP_SEE.side], [lx, lz]])
+        if (los(ex, ez, tx, tz, true)) { see = true; break see; }
+    }
+  }
+  z.fpHold = see ? FP_SEE.hold : Math.max(0, (z.fpHold || 0) - rdt);
+  return see || z.fpHold > 0 ? 1 : 0;
 }
 export function updateZombieVisuals(dt, rdt) {
   markReach(); zombieLOD();
@@ -92,7 +111,7 @@ export function updateZombieVisuals(dt, rdt) {
     const tb = state === 'title' ? 0 : teamBeam(z), f = state === 'title' ? 1 : visAt(z.x, z.z) * fogSee(z.x, z.z);   // and out past the edge, only as it comes clear of the fog
     // in first person: there the moment any of it is in a clear line from your eyes (its middle or either side, so one
     // stepping out round a corner shows straight away), whichever way you're facing; no fading in and out
-    if (fpOn() && state !== 'title') { z.vis = eyeSees(z.x, z.z) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1); }
+    if (fpOn() && state !== 'title') { z.vis = eyeSees(z, rdt) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1); }
     else {
       const v = state === 'title' || freeOn() ? 1 : Math.max(f > 0.004 && visOn ? f * sightTo(V, pk, z.x, z.z) : f, tb) * (MIST.k > 0 ? mistSee(z.x, z.z) : 1);   // (and nothing of one out in a fog round's fog: world/mist.js)
       z.vis += (v - z.vis) * Math.min(1, rdt * (v > z.vis ? 7 : 8));   // gone almost as quickly as it came

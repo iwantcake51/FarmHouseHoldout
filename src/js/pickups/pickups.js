@@ -15,7 +15,8 @@ import { xray } from '../effects/outlines.js';
 import { isoOn } from '../game/view-cam.js';
 import { addPlanks, METAL, plankRoom } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
-import { glowGun, state } from '../game/state.js';
+import { glowGun, state, worldT } from '../game/state.js';
+import { addField, lightField } from '../lighting/lightmap.js';
 import { equip } from '../weapons/reload.js';
 import { bandMax } from '../player/bandages.js';
 import { ammoTypes } from '../upgrades/upgrades.js';
@@ -130,6 +131,7 @@ export function updatePickups(dt) {
     // theirs show instead: ghosts of the ones on their farm, there to see and never to take (p.ghost: updateSpecDrops,
     // net/spectate.js)
     const away = spectating(), seen = visAt(p.x, p.z);
+    p.lampK = (0.8 + 0.2 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey);   // (how brightly it lights round it: dropLights)
     if (p.ghost) { p.t = 99; p.g.visible = away && camFocus().id === p.ghost; p.glow.material.opacity = 0.32 * (0.75 + 0.25 * pulse); continue; }
     p.g.visible = !away;
     p.glow.material.opacity = (0.32 + 0.3 * (1 - seen)) * (0.75 + 0.25 * pulse) * (0.3 + 0.7 * lit) * gone * (1 - p.grey * 1.2); p.glow.position.y = 0.55 + Math.sin(p.ph) * 0.06;
@@ -172,6 +174,20 @@ export function updatePickups(dt) {
     } else if (p.t <= 0) { if (p.kind === 'supply') flareDone(); scene.remove(p.g); pickups.splice(k, 1); }
   }
   updateShareTags();
+}
+// each drop lights the ground and walls round it in its own colour (into the light map: lighting/lightmap.js), more so
+// in the dark: DROP_LAMP [radius m, strength], a crate's and a weapon's wider. Its patch of light is worked out again
+// only once it's moved or every DROP_LAMP.re s (a board going up between it and a wall), as most lie still
+const DROP_LAMP = { drop: [1.5, 0.3], gun: [1.9, 0.34], supply: [2.6, 0.45], re: 0.5 }, _dlc = [0, 0, 0];
+export function dropLights(dark) {
+  const away = spectating();
+  for (const p of pickups) {
+    if (p.ghost ? !p.g.visible : away) continue;
+    const L = DROP_LAMP[p.kind] || DROP_LAMP.drop, k = (p.lampK || 0) * L[1] * (0.12 + dark); if (k < 0.004) continue;
+    if (!p.lf || Math.abs(p.lfx - p.x) + Math.abs(p.lfz - p.z) > 0.08 || worldT - p.lfT > DROP_LAMP.re) { p.lf = lightField(p.x, p.z, L[0], null, true); p.lfx = p.x; p.lfz = p.z; p.lfT = worldT; }
+    const c = p.grey > 0.004 ? greyOf(p.col, p.grey, _gc) : p.col; _dlc[0] = c.r; _dlc[1] = c.g; _dlc[2] = c.b;
+    addField(p.lf, k, _dlc);
+  }
 }
 
 // weapons are taken on purpose, with E (or the touch button), never just by walking over them: a weapon's case, and a

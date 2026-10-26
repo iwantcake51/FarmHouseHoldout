@@ -131,6 +131,9 @@ const LAND = { cam: 0.42, k: 110, d: 13 };
 // The landing: the knees take it, the view dropping (drop, metres a second, on LAND's spring) and nodding down (nod,
 // radians a second) and rolling a touch (rock), on a looser spring (k, d) that rocks back up past level and settles; a
 // tired scramble lands harder (heavy). With Vault fire the glance and the lean are mostly kept off (fire), the aim held
+// Wide eyes from your own eyes (upgrades/tier-table.js): the view that much wider, by how far up the line you are; and
+// what's close by off the edges of the screen sensed (ui/sense.js)
+const WIDE_FOV = [0, 0.1, 0.14];
 const FP_VAULT = { look: 0.34, lean: 0.36, roll: 0.075, out: [0.55, 0.95], fov: 0.06, drop: 0.95, nod: 2.6, rock: 0.5, k: 95, d: 12, heavy: 1.45, fire: 0.3, ease: 14 };
 // the gun and your arms from your own eyes, on top of the hold (player/hold.js: fpViewSway), on soft springs (k, d) so
 // it all eases: tilted into a sidestep (roll, radians per metre a second) and trailing behind it (lag, metres), dipped
@@ -955,7 +958,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV)
+    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0)) * (1 + (WIDE_FOV[T('eyes') || 0] || 0) * (1 - (ANIM.ads || 0)));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV; wider with Wide eyes, but not down the sights: WIDE_FOV)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;

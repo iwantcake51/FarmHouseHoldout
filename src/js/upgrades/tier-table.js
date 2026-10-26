@@ -4,6 +4,7 @@ import { P } from '../player/player.js';
 import { DETACH, hasShotgun, healMul, hpCap, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
 import { METAL } from '../barricades/planks.js';
 import { SLOW_STEP, slowLess } from './upgrades.js';
+import { fpOn } from '../game/view-cam.js';
 
 // tiered upgrade lines: each step has its own name, rarity and look (as: what a particular gun calls it instead)
 // what each step of the feeding line gives: health a feed, the odds a kill (a headshot kill) feeds you, the most a wave
@@ -83,8 +84,10 @@ export const TIERS = {
   eyes: { tag: 'Senses', t: [
     // wide eyes (what were Wide eyes and Peripheral vision): a much wider cone, its edges reaching a little way round
     // behind your shoulders, and a bigger circle round you
-    { r: 'u', name: 'Wide eyes', text: 'Your view opens wider, round to a little behind you, and you see anything close by in every direction.', ap: () => { S.cone += 0.6; S.near = 4; } },
-    { r: 'r', name: 'Eyes in the back of your head', text: 'You see zombies further out all around you, behind you too.', ap: () => { S.cone += 0.2; S.near = 6; } }] },
+    // (out of your own eyes, where you see all round already, the view itself opens wider and you sense what's close by
+    // off the edges of the screen: WIDE_FOV, game/view-cam.js, and ui/sense.js)
+    { r: 'u', name: 'Wide eyes', get text() { return fpOn() ? 'Your view opens wider, and you sense anything close by off the edges of your sight.' : 'Your view opens wider, round to a little behind you, and you see anything close by in every direction.'; }, ap: () => { S.cone += 0.6; S.near = 4; } },
+    { r: 'r', name: 'Eyes in the back of your head', get text() { return fpOn() ? 'Wider again, and you sense zombies further out all around you, behind you too.' : 'You see zombies further out all around you, behind you too.'; }, ap: () => { S.cone += 0.2; S.near = 6; } }] },
   night: { tag: 'Senses', t: [
     // a night vision monocular (one tube on a head mount, player/gear.js), then binocular goggles (two)
     { r: 'r', name: 'Night vision monocular', text: 'Nights are far brighter, with a hint of colour.', ap: () => S.nightVis = 1 },

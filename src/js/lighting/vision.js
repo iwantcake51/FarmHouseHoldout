@@ -18,7 +18,7 @@ export function peekOf(V) {
 // how much of the spot (wx, wz) the viewer V can make out past what's in the way: all of it in plain sight, through the
 // window they're at (pk: peekOf) a little less with each board over it, and nothing behind a wall
 export function sightTo(V, pk, wx, wz) {
-  if (Math.hypot(wx - V.x, wz - V.z) <= 0.7 || los(V.x, V.z, wx, wz)) return 1;
+  if (Math.hypot(wx - V.x, wz - V.z) <= 0.7 || los(V.x, V.z, wx, wz, fpOn())) return 1;   // (from your own eyes a grate's slit and bars are seen through: los)
   if (!pk) return 0;
   const o = pk.o, nb = shutN(o), far = Math.hypot(wx - o.x, wz - o.z);
   // through the gaps between heavy boards you only make out what's close to the window

@@ -19,6 +19,7 @@ import { stamCost } from '../melee/melee.js';
 import { PAIN_REGEN, SLOW_STEP, slowAfter } from './upgrades.js';
 import { FRONT, FRONT_MOD, frontSwayPct } from '../player/shaky-hands.js';
 import { REGEN_WAIT } from '../player/movement.js';
+import { fpOn } from '../game/view-cam.js';
 
 // short effect chips for upgrades that don't change a gun's numbers
 export const UPG_FX = {
@@ -35,13 +36,16 @@ export const UPG_FX = {
   'Canvas jacket': ['+25 max health'], 'Kevlar vest': ['Damage taken −20%'], 'Plate carrier': ['Damage taken −25%', '+25 max health'],
   'Good boots': ['Speed +6%'], 'Running shoes': ['Speed +5%'], 'Trail runners': ['Speed +5%'],
   'Claw hammer': ['Boarding 2× faster'], 'Framing hammer': ['Boarding 1.5× faster', 'Boards +25%'], 'Nail gun': ['Boarding 2× faster', 'Boards +50%'],
-  'Wide eyes': ['View cone +50%', 'See a little behind you', 'See 4 m around you'], 'Eyes in the back of your head': ['Sense 6 m around you'],
   'Night vision monocular': ['See far more at night', 'A hint of colour'], 'Night vision goggles': ['Nights look like dusk', 'Muted colour in the dark'],
   'Iron stomach': ['1 in 3 kills: +3 health', 'Up to 20 a wave'], 'Bloodthirst': ['1 in 3 kills: +5 health', 'Up to 35 a wave'], 'Vampire': ['1 in 2 kills: +6 health', 'Up to 50 a wave'],
   'Long reach': ['Pickup reach +100%', 'Drops glide to you'], 'Sticky fingers': ['Pickup reach +175%', 'Drops glide to you'], 'Magnetic': ['Pickup reach +300%', 'Drops glide to you', 'Drops last 20 s longer']
 };
 // once there's a metalwork bench (barricades/metal-bars.js) the wood's metal and the boards are grates too
 const barWord = () => METAL.on ? 'Boarding/barring' : 'Boarding', boardsWord = () => METAL.on ? 'Boards/grates' : 'Boards';
+// out of your own eyes (game/view-cam.js) you see all round already: there the eyes line widens the view and you sense
+// what's close off the edges of the screen (ui/sense.js)
+Object.defineProperty(UPG_FX, 'Wide eyes', { enumerable: true, get: () => fpOn() ? ['View 10% wider', 'Sense 4 m around you'] : ['View cone +50%', 'See a little behind you', 'See 4 m around you'] });
+Object.defineProperty(UPG_FX, 'Eyes in the back of your head', { enumerable: true, get: () => fpOn() ? ['View 14% wider', 'Sense 6 m around you'] : ['Sense 6 m around you'] });
 Object.defineProperty(UPG_FX, 'Scrap metal', { enumerable: true, get: () => [`+${METAL_AID} metal`, 'Two grates'] });
 Object.defineProperty(UPG_FX, 'Claw hammer', { enumerable: true, get: () => [barWord() + ' 2× faster'] });
 Object.defineProperty(UPG_FX, 'Framing hammer', { enumerable: true, get: () => [barWord() + ' 1.5× faster', boardsWord() + ' +25%'] });
