@@ -318,6 +318,14 @@ way before the gun's rolled over to dump the old mag.
 **Low health.** Your hands tremble and the crosshair wanders, a heartbeat knocking it now and then: a slow, smoothed
 tremble, small from your own eyes and kept calm from above too, never a jitter.
 
+**Bandaging.** The gun goes away, your left forearm comes up across you and your right hand winds a roll of gauze
+round it. The strip comes off the roll onto the arm turn by turn, just where the hand's gone round, the roll in your
+fist thinning as it goes: one turn straight round to anchor it, then a spiral up the forearm with each turn over half
+the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. In first
+person the arm's held across in front of you, so you can look down and watch it go on. Each bandage stays on your arm
+till the run ends, up to three of them up the forearm, sized to sit over whatever sleeve or glove is there, with a
+spot of blood slowly seeping through each.
+
 **Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble: the hands lose their rhythm,
 slowing through the move and then catching it back up, all in one smooth motion rather than a frozen pause, the gun
 knocked partway through and something clacking. The revolver never fumbles: its rounds go in one at a time anyway. They can also miss the magwell: the fresh mag comes up off the well's line and

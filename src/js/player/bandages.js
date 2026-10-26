@@ -13,7 +13,7 @@ import { runStat } from '../ui/run-stats.js';
 import { feed, popEl, toast } from '../ui/hud-text.js';
 import { ANIM } from './animation.js';
 
-export const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
+const BAND_BASE = 3, BAND_TIME = 2.4, BAND_HEAL = 25, HEAL_RATE = 4.5;
 // how long a finished bandage shows on the crosshair at 100% before it goes (ui/crosshair.js): just a blink, so it's
 // gone as the bandage is
 const BAND_DONE = 0.12;
@@ -31,7 +31,9 @@ export const MED_UP = {
   tonic: { max: 3, cost: [10, 16, 26], name: 'Clotting tonic', desc: n => `Bandages heal 40% quicker (${healRate(n).toFixed(1)} → ${healRate(n + 1).toFixed(1)} health/s)` }
 };
 export const medT = k => (S.med && S.med[k]) || 0;
-export function bandTime(n = medT('hands')) { return BAND_TIME * Math.pow(0.78, n) * S.bandMul; }
+function bandTime(n = medT('hands')) { return BAND_TIME * Math.pow(0.78, n) * S.bandMul; }
+// how long one turn of the bandage round your arm takes (a sound for each, below; the hand goes round with it: player/hold-bandage.js)
+export const wrapTurn = () => 0.45 * bandTime() / BAND_TIME;
 export function bandHeal(n = medT('dress')) { return BAND_HEAL + 12 * n; }
 function healRate(n = medT('tonic')) { return HEAL_RATE * Math.pow(1.4, n); }
 // what a bandage of h will really heal: no more than you're missing, less what's already on its way in (P.heal), as a
@@ -83,7 +85,7 @@ export function tickBandage(dt) {
   ANIM.bandDone = Math.max(0, (ANIM.bandDone || 0) - dt);
   if (P.bandT > 0) {
     P.bandT -= dt;
-    const wr = 0.45 * bandTime() / BAND_TIME;
+    const wr = wrapTurn();
     if (Math.floor((P.bandT + dt) / wr) !== Math.floor(P.bandT / wr)) SFX.wrap();
     if (P.bandT <= 0) { const h = bandHeal() * healMul(); P.bandT = 0; P.band--; runStat('bandages'); const got = bandGot(h); P.heal = (P.heal || 0) + h; P.bleed = 0; P.wraps = (P.wraps || 0) + 1; ANIM.bandDone = BAND_DONE; if (got > 0) feed('med', got, 'health over time'); popEl('bands'); }   // and it stays on your arm
     // back to full health before it's on (healing from the last one, or regen): the wrap stops there, done. The bandage
