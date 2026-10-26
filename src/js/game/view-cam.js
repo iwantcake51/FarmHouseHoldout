@@ -158,7 +158,9 @@ const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.011, bob: [0.0036, 0
 const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0 };
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
 // of the sights, so the gun's never pushed into your face (aiming up, say): an optic's, iron sights'
-const EYE_MIN = { optic: 0.15, iron: 0.25 };
+// (a handgun's irons, hand: the eye a little further back off the slide, which carries the rear sight and slams back
+// 7 cm at it with each shot, filling the view at iron's distance; much further and your own forearms rise into view)
+const EYE_MIN = { optic: 0.15, iron: 0.25, hand: 0.32 };
 // down the sights, particles thinned toward the aim: out to r of the view's height, by k at most
 const AIM_THIN = { r: 0.16, k: 1 }, _vcS = new THREE.Vector2();
 // the third-person camera's jolts as first person feels them (game/camera.js): a push along the aim dips the view
@@ -917,7 +919,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     if (LH) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
     if (L && gg) {
       if (L.relief !== null) _vcD.copy(_pa).addScaledVector(_sd, -L.relief);
-      else _vcD.copy(_pa).addScaledVector(_sd, clamp(_vcH.subVectors(_vcE, _pa).dot(_sd), -0.8, -(L.kind === 'holo' || L.kind === 'dot' ? EYE_MIN.optic : EYE_MIN.iron)));
+      else _vcD.copy(_pa).addScaledVector(_sd, clamp(_vcH.subVectors(_vcE, _pa).dot(_sd), -0.8, -(L.kind === 'holo' || L.kind === 'dot' ? EYE_MIN.optic : D.slot === 'side' ? EYE_MIN.hand : EYE_MIN.iron)));
       // (never further from your head than ADS_EYE_MAX: with the gun not yet up, coming back off a vault or being drawn,
       // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
       _vcH.subVectors(_vcD, _vcE); const dl = _vcH.length(); if (dl > ADS_EYE_MAX) _vcD.copy(_vcE).addScaledVector(_vcH, ADS_EYE_MAX / dl);

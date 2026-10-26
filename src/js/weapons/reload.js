@@ -77,7 +77,7 @@ function rollMisses(B) {
   const k = SHAKY.k, n = k > 0.05 && rand() < MAG_MISS.hurt * k ? 1 + Math.floor(rand() * (1 + (MAG_MISS.most - 1) * k)) : rand() < MAG_MISS.calm ? 1 : 0;
   // (at the point of the base where the mag's just short of the well: MAG_MISS.at of its way up from the pouch)
   const at = (MAG_TAKE_U + MAG_MISS.at * (MAG_SEAT - MAG_TAKE_U)) * magK() * B, out = [];
-  for (let i = 0; i < Math.min(n, MAG_MISS.most); i++) out.push({ t: at, d: rr(MAG_MISS.d[0], MAG_MISS.d[1]) * (1 + MAG_MISS.slow * k) * clamp(B / MAG_MISS.B, MAG_MISS.lo, 1.1), kind: 'miss', side: rand() < 0.5 ? -1 : 1, fwd: rr(-1, 1), hit: false });
+  for (let i = 0; i < Math.min(n, MAG_MISS.most); i++) out.push({ t: at, d: rr(MAG_MISS.d[0], MAG_MISS.d[1]) * (1 + MAG_MISS.slow * k) * clamp(B / MAG_MISS.B, MAG_MISS.lo, 1.1), kind: 'miss', side: i && out[i - 1] ? -out[i - 1].side : rand() < 0.5 ? -1 : 1, fwd: rr(-1, 1), amt: rr(0.4, 0.95), pre: rr(0.35, 1), bounce: rr(0.25, 1), hit: false });   // (no two alike: each its own size, drop and bounce (player/hold-mags.js: magMiss), and one after another from the other side)
   return out;
 }
 const MAG_TAKE_U = 0.42;   // (player/hold-mags.js: MAG_TAKE, where the mag's taken from the pouch)
@@ -244,7 +244,7 @@ export function tickReload(dt) {
   // way through it), the gun knocked by it
   { const g = W8.relSeg;
     if (g && g.kind === 'fumble' && !g.hit && W8.relSegK >= 0.3) { g.hit = true; const K = FUMBLE.knock; relKnock(rr(1.4, 2.4) * K, rr(-2.6, 2.6) * K, -0.25 * K, rr(-0.5, 0.2) * K); reloadJolt(0.06); SFX.click(); }   // (as it slows: a softer knock, FUMBLE.knock)
-    if (g && g.kind === 'miss' && !g.hit && W8.relSegK >= MISS_HIT) { g.hit = true; relKnock(rr(0.7, 1.2), rr(-1.2, 1.2) * g.side, -0.15, rr(-0.3, 0.3)); reloadJolt(0.07); SFX.magTap(); } }
+    if (g && g.kind === 'miss' && !g.hit && W8.relSegK >= MISS_HIT) { g.hit = true; const a = g.amt ?? 1; relKnock(rr(0.5, 1) * a, rr(-1.2, 1.2) * g.side * a, -0.15 * a, rr(-0.3, 0.3)); reloadJolt(0.07 * a); SFX.magTap(); } }
   if (W8.reloading === 'mag' && D.speedload) {
     const p = W8.relU;
     if (!W8.seated && p >= SL_IN) { W8.seated = true; fillMag(id, D); SFX.shell(); setTimeout(() => SFX.shell(), 45); reloadJolt(0.2); }

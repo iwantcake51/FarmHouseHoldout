@@ -34,7 +34,7 @@ import {
   REV_OPEN, REV_OUT, REV_SWING, RK, SR, stepKick, stepRack, stepRock
 } from './hold-kick.js';
 import {
-  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH, POUCH_R
+  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH, POUCH_R, pouchFor
 } from './hold-mags.js';
 import { beltJiggle, BJ, swayBipods } from './hold-sway.js';
 import {
@@ -336,7 +336,7 @@ function shovePose() {
 
 // arms, hands and weapon for this frame; up is the upper-body rotation, which this adds lean and twist to
 export function poseHands(D, up, ph, runF, rdt, now) {
-  const pm = PM, s = W8.cur;
+  const pm = PM, s = W8.cur; pouchFor(fpOn());
   stepKick(RK.R, rdt); stepKick(RK.L, rdt); stepRock(rdt);
   bandPhases(rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
@@ -438,6 +438,9 @@ const FP_SPRINT = { long: { p: 0.42, y: -0.55, r: 0.5, x: -0.07, h: 0.22, z: -0.
 const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03, lay: 0.014, press: 0.03, rise: 0.008, thumb: 0.012, at: [0.6, 0.72, 0.82, 0.86, 0.92] };
 // the charging hand's wind-up before it rises off the grip: over the first CH_ANT of its reach, CH_ANT_D down
 const CH_ANT = 0.3, CH_ANT_D = 0.014;
+// guns whose charging handle is on the bolt carrier (the battle rifle's, out on its side): it runs back and forward with
+// every shot and stays locked back with the bolt on an empty mag, till the reload's charge lets it fly home
+const CH_ON_BOLT = new Set(['scar']);
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -762,6 +765,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else if (q.lock && rel === 'mag') { off = rp < 0.88 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (fast ? 60 : off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
+      if (q === sl[0]) ANIM.boltOff = off;   // (how far back the bolt is: a charging handle on the carrier rides with it, CH_ON_BOLT)
       const zc = q.z0 - q.travel * off, cl = q.m.userData.clip;
       if (cl === undefined) q.m.position.z = zc;
       else {   // a bolt seen through a port in the gun's side: whatever has run back past the port's rear edge is inside the receiver, out of sight
@@ -798,7 +802,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     ANIM.magDrop = show ? md : 0.22;
   }
   // the charging handle: drawn back by the right hand and let go
-  if (CHARGE[s] && !ak) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * pull; c.updateMatrix(); }
+  if (CHARGE[s] && !ak) { const c = CHARGE[s].m; c.position.z = -CHARGE[s].tr * (CH_ON_BOLT.has(id) ? Math.max(pull, ANIM.boltOff || 0) : pull); c.updateMatrix(); }
   else if (ak && HOLDS[s]) for (const sd of ['R', 'L']) { const c = HOLDS[s][sd] && HOLDS[s][sd].userData.charge; if (c) { c.m.position.z = akC && akC.side === sd ? -c.tr * akC.pull : 0; c.m.updateMatrix(); } }   // a pair's: the one being charged
   // the double barrel breaks open for its whole reload (the barrels drop on the hinge, the breech up at you) and is
   // closed after it, the support hand lifting the barrels up on the forend till they latch (shK); the brass of each
@@ -884,7 +888,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (cg > 0.001) {
     // on its handle (coming onto it from a little above and in front: hook), back with it, and once it's let go, still
     // where it let go but flicked up and out off it; on an arc up over the receiver on the way there and back
-    const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn, arc = Math.sin(Math.PI * cg);
+    const at = CHARGE[s].at, hp = Math.max(rp < CH_SLAM ? pull : drawn, CH_ON_BOLT.has(id) && rp < CH_SLAM ? ANIM.boltOff || 0 : 0), arc = Math.sin(Math.PI * cg);   // (a handle locked back with the bolt: the hand goes to it there)
     gunPt(_p1, s, 'R', at[0] + 0.012 * arc + 0.018 * flick, at[1] + 0.012 + 0.02 * hook + 0.022 * flick, at[2] - CHARGE[s].tr * hp + 0.025 * hook - 0.012 * flick);
     _hR.lerp(_p1, cg); _hR.y += arc * (fpOn() ? 0.015 : 0.04) * (1 - hook * 0.5) - CH_ANT_D * chAnt;   // (from your own eyes hardly lifted: it'd bring the arm up across them)
   }

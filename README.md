@@ -214,16 +214,16 @@ shotgun's front post sits in the middle of the hole through the rear aperture (t
 A1-style aperture: a thin ring round a big hole on a slim stem, wide apart from its ears, so the world shows all round
 it; every gun's front post is a thin blade a couple of millimetres across, not a block that hides what it's on), the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
-fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring, the double barrel is
-aimed the way a side-by-side is, the eye a little above the rib so it's a narrow strip running out to an ivory front
-bead with a smaller mid bead halfway along it, the action and top lever well down out of the way, the LMG's
+fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring (your eye held back from it as a ghost ring is used, clear of the tang safety, which used to sit a couple of centimetres from your eye and get sliced off at the edge of the view), the double barrel is
+aimed the way a side-by-side is, the eye a little above the rib and back on the comb behind your hand so it's a narrow strip running out to a single ivory front
+bead, the action, top lever and your sleeve well down out of the way, the LMG's
 aperture held a hand's breadth out from your eye with your cheek on the stock, and the hunting rifle's notch and post with your cheek on the stock, the
 notch well out ahead of your eye rather than right up against it. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
-only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. A
+only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. The AR's charging handle is a real T: a shaft into the upper, swept wings with a finger hook at each tip, grip grooves and the latch on the left wing. The battle rifle's charging handle rides on its bolt carrier: it runs back and forward with every shot and stays locked back with the bolt on an empty mag, until the reload sends it home. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
-out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
+out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight, and looking through the drum itself your eye's a little further back off it, so the drum doesn't fill the view. A handgun's irons are held a little further from your eye, so the slide slamming back with each shot (the rear sight rides on it) no longer swamps the view; the hand cannon's rear sight sits on a base no wider than itself, wholly under its notch, and its ported compensator's top and ports sit well under the sights. An ACOG on the hand cannon sits further back on its barrel rail and closer to your eye, its picture bigger. Every rifle scope has a rubber eyecup: from your own eyes a dark shell round the scope's picture, as an ACOG's body is, with your eye far enough back to see it. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
 flies the line you looked down: up into the sky (a round that meets nothing streaks on out of sight rather than stopping in mid-air, and from your own eyes it clears whatever it passes over: a wall below the eaves, the house's roof, the narrowing crown of a pine), or down into the ground where it kicks up dirt, its streak of light
 going there, one streak a shot (a heavy or suppressed round's smoke trail runs along the same line, up into the sky
 with it). From your own eyes the streak isn't a flat strip seen edge on: it's a ribbon turned to face your eye all along
@@ -355,7 +355,7 @@ off once it's latched. A hand holding the gun is held to its place on it the way
 Blender: the grip hand on the grip, the support hand under the handguard or round the pump, wherever the gun's held
 and however far up you look, the arm reaching all the way to it rather than the hand stopping short and floating.
 Taking a hand off (for a mag, a shell, the bolt) lets go of the constraint as the hand blends away, and taking hold
-again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is, and as its top
+again blends it back on just as smoothly; a fresh mag rides in the fist wherever the fist really is (from your own eyes the hand takes it from just below the bottom of the view rather than down at the hip, and the long carry over to the gun is spread across half its way, so the hand isn't flung the last half metre in a few frames), and as its top
 nears the magwell (a rifle's well, a pistol's grip) it's eased gradually onto the well's line in one smooth path,
 never jumping into place, then pushed up it, never through the side of the gun and never past where it seats.
 
@@ -400,7 +400,7 @@ skin, never a fresh bandage: those stay clean but for their own seep.
 **Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble: the hands lose their rhythm,
 slowing through the move and then catching it back up, all in one smooth motion rather than a frozen pause, the gun
 knocked partway through and something clacking. The revolver never fumbles: its rounds go in one at a time anyway. They can also miss the magwell: the fresh mag comes up off the well's line and
-knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. That
+knocks into its lip with a short clack, the gun jolted by it, then it's drawn back down, lined up and tried again. No two misses look alike: each is its own size (most small), its own drop back and bounce, and one after another come from alternate sides. That
 can happen once, twice or up to three times running at low health, and once in a while with steady hands too. The mag
 is only ever off the line below the well's mouth, so it never goes through the side of the gun. A hand leaving the gun
 for a mag, a shell or a handle gathers speed rather than starting off at full tilt, and when a reload's done the hand

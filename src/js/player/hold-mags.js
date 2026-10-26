@@ -9,6 +9,11 @@ import { MAG_SEAT, MISS_HIT } from '../weapons/reload.js';
 import { armReach, HAND, holdOf, walkPath } from './hold.js';
 
 export const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
+// (from your own eyes it's met higher up and further forward, just under the bottom of the view, POUCH_FP: the hand
+// came up from the hip, out of sight, and covered the last half metre to the gun in a few frames, a fresh mag jumping
+// into your hand at the gun; pouchFor puts POUCH where it is for this frame)
+const POUCH_HIP = POUCH.clone(), POUCH_FP = new V3(-0.2, 0.9, 0.26);   // (not so high it reaches the well's funnel, MAG_FUNNEL, which straightened the mag and jerked the hand off it as it was taken)
+export function pouchFor(fp) { POUCH.copy(fp ? POUCH_FP : POUCH_HIP); }
 export const POUCH_R = new V3(0.2, 0.84, 0.17);   // and on the right hip, the rifle's cartridges (the firing hand loads a bolt gun: player/hold.js)
 // the fresh mag in the support hand: taken from the pouch at MAG_TAKE of the mag change, it rides in the fist (wrapped
 // round it low on its left side, MAG_GRIP of the way down) along a swing of keys to the gun: drawn up out of the pouch,
@@ -20,20 +25,21 @@ export const POUCH_R = new V3(0.2, 0.84, 0.17);   // and on the right hip, the r
 // carries that speed on into its fall)
 export const MAG_SLIDE = 0.12;
 export const MAG_TAKE = 0.42, MAG_GRIP = 0.68, MAG_DRAW = new V3(0.03, 0.08, 0.1);   // (out of the pouch: up and forward, clear of the shoulder)
-// by reload style (W8.relStyle), after the pouch and the draw up out of it (the first key, at the pouch plus MAG_DRAW):
+// by reload style (W8.relStyle), after the pouch and the draw up out of it (the first key, at the pouch plus MAG_DRAW;
+// drawn quickly and the long carry over to the gun given half the way, so the hand isn't flung across the last of it):
 // [u, where the mag's top is off the well's mouth (x out to the right, y up, z forward, along the mag's own seated
 // lean, so "below" is down a raked grip), its tip (x: top tipped forward, the foot back toward you; z: rolled)]
 const MAG_WAY = [
   // swung out low to the left, brought in under the well, lined up with it and pushed straight up home
-  [[0.16, null, [0.8, 0.5]], [0.44, [-0.17, -0.2, 0.08], [0.48, 0.42]], [0.7, [-0.03, -0.1, -0.012], [0.18, 0.1]], [0.86, [0, -0.03, -0.004], [0.08, 0.01]]],
+  [[0.14, null, [0.8, 0.5]], [0.48, [-0.17, -0.2, 0.08], [0.48, 0.42]], [0.7, [-0.03, -0.1, -0.012], [0.18, 0.1]], [0.86, [0, -0.03, -0.004], [0.08, 0.01]]],
   // brought round from in front, its front hooked into the well first, rocked back and slapped in
-  [[0.16, null, [0.8, 0.5]], [0.42, [-0.13, -0.18, 0.2], [0.1, 0.34]], [0.7, [0, -0.048, 0.034], [-0.34, 0.05]], [0.87, [0, -0.012, 0.009], [-0.11, 0]]],
+  [[0.14, null, [0.8, 0.5]], [0.47, [-0.13, -0.18, 0.2], [0.1, 0.34]], [0.7, [0, -0.048, 0.034], [-0.34, 0.05]], [0.87, [0, -0.012, 0.009], [-0.11, 0]]],
   // out wide and round from behind, its back hooked in first, rocked forward home
-  [[0.16, null, [0.8, 0.5]], [0.44, [-0.21, -0.16, -0.17], [0.7, 0.42]], [0.7, [-0.02, -0.06, -0.045], [0.38, 0.08]], [0.87, [0, -0.013, -0.009], [0.12, 0]]]
+  [[0.14, null, [0.8, 0.5]], [0.48, [-0.21, -0.16, -0.17], [0.7, 0.42]], [0.7, [-0.02, -0.06, -0.045], [0.38, 0.08]], [0.87, [0, -0.013, -0.009], [0.12, 0]]]
 ];
 // an AK mag (the battle rifle's AK kit): brought up in front of the well with its foot swung forward, its front lug
 // hooked into the well first, then rocked back about it until the catch clicks
-const AKM_WAY = [[0.16, null, [0.8, 0.5]], [0.44, [-0.12, -0.2, 0.16], [-0.3, 0.32]], [0.66, [0, -0.034, 0.024], [-0.48, 0.04]], [0.78, [0, -0.012, 0.009], [-0.22, 0]], [0.9, [0, -0.002, 0.001], [-0.03, 0]]];
+const AKM_WAY = [[0.14, null, [0.8, 0.5]], [0.48, [-0.12, -0.2, 0.16], [-0.3, 0.32]], [0.66, [0, -0.034, 0.024], [-0.48, 0.04]], [0.78, [0, -0.012, 0.009], [-0.22, 0]], [0.9, [0, -0.002, 0.001], [-0.03, 0]]];
 // and the old one out: thumb on the paddle, the mag rocked forward about its front lug (AKM_ROCK, radians, its foot
 // swinging forward) and pulled down out of the well (AKM_PULL) as it comes free; where that lug is in the gun (AKM_LUG)
 export const AKM_ROCK = 0.5, AKM_PULL = 0.05, AKM_LUG = [1.094, 0.738];
@@ -131,22 +137,22 @@ const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13 };
 // mouth's lip (lip: how far short of the mouth it stops), gathering speed into the knock (MISS_HIT of the way through),
 // knocked a little back down off it (bounce), then lined up again under the mouth and put back where it was. It's only
 // ever off the line below the mouth, so it never goes through the side of the well
-const MAG_MISS_OFF = [0.012, 0.009], MAG_MISS_TIP = [0.1, 0.07], MAG_MISS_V = { pre: 0.03, lip: 0.003, bounce: 0.008, clear: 0.002 };
+const MAG_MISS_OFF = [0.01, 0.008], MAG_MISS_TIP = [0.075, 0.05], MAG_MISS_V = { pre: 0.026, lip: 0.003, bounce: 0.007, clear: 0.002 };   // (each miss scales them by its own amt, pre and bounce: weapons/reload.js, so no two look alike)
 const _mmL = new V3();
 function magMiss(q, P0, sh, lg, m, k) {
   _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean);
   const d0 = -_fD.subVectors(q, P0).dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, V = MAG_MISS_V, H = MISS_HIT;
-  const pre = mouth + V.pre, hit = mouth + V.lip, back = 0.52, line = 0.8;
+  const a = m.amt ?? 1, bo = V.bounce * (m.bounce ?? 1) * a, pre = mouth + V.pre * (m.pre ?? 1), hit = mouth + V.lip, back = 0.52, line = 0.8;
   let d, off;
   if (k < 0.25) { const u = smooth(k / 0.25); d = d0 + (pre - d0) * u; off = u; }   // down and off the line
   else if (k < H) { const u = (k - 0.25) / (H - 0.25); d = pre + (hit - pre) * u * u; off = 1; }   // up into the lip, quickening
-  else if (k < back) { const u = (k - H) / (back - H); d = hit + V.bounce * Math.sin(Math.PI / 2 * u); off = 1; }   // knocked back off it
-  else if (k < line) { const u = smooth((k - back) / (line - back)); d = hit + V.bounce + (pre - hit - V.bounce) * u; off = 1 - u; }   // lined up again
+  else if (k < back) { const u = (k - H) / (back - H); d = hit + bo * Math.sin(Math.PI / 2 * u); off = 1; }   // knocked back off it
+  else if (k < line) { const u = smooth((k - back) / (line - back)); d = hit + bo + (pre - hit - bo) * u; off = 1 - u; }   // lined up again
   else { const u = smooth((k - line) / (1 - line)); d = pre + (d0 - pre) * u; off = 0; }   // and on as it was
   off *= clamp((d - mouth) / V.clear, 0, 1);
-  _mmL.set(MIR * m.side * MAG_MISS_OFF[0], 0, m.fwd * MAG_MISS_OFF[1]); _mmL.addScaledVector(_fA, -_mmL.dot(_fA));   // (across the well's line)
+  _mmL.set(MIR * m.side * MAG_MISS_OFF[0] * a, 0, m.fwd * MAG_MISS_OFF[1] * a); _mmL.addScaledVector(_fA, -_mmL.dot(_fA));   // (across the well's line)
   q.addScaledVector(_fA, d0 - d).addScaledVector(_mmL, off);
-  return off;
+  return off * a;
 }
 const _fA = new V3(), _fD = new V3();
 // the mag's top (q, in the hold's frame) brought onto the well's line as it nears the mouth; how much of its own way
