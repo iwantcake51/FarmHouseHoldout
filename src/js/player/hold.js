@@ -347,7 +347,10 @@ export function poseHands(D, up, ph, runF, rdt, now) {
     up.x += sh.lean; up.y += sh.tw;
     pm.legR.rotation.x -= 0.12 * Math.max(0, sh.lean) / 0.07; pm.shinL.rotation.x += 0.1 * Math.max(0, sh.lean) / 0.07;   // just the weight onto the front foot (your left: the rig's legs aren't mirrored as the upper body is, player/player.js, and its legR is your left)
   }
-  FP_PIV.p = 0;   // (a melee weapon isn't pointed with the look)
+  // (a melee weapon isn't pointed with the look; but from your own eyes the view carries your arms up and down with it,
+  // so the look's noted for your teammates too, who see your arms and what's in them turned where you look, about your
+  // shoulders, as they do with a gun: net/avatars.js, poseSnap)
+  FP_PIV.p = D.melee && fpOn() ? ANIM.pitch : 0; if (D.melee) { FP_PIV.b = 0; FP_PIV.o[0] = FP_PIV.o[1] = FP_PIV.o[2] = 0; }
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
   bandagePose(pm, up, now, sh);

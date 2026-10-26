@@ -441,8 +441,12 @@ tremble, small from your own eyes and kept calm from above too, never a jitter.
 **Bandaging.** The gun goes away, your left forearm comes up across you and your right hand winds a roll of gauze
 round it. The strip comes off the roll onto the arm turn by turn, just where the hand's gone round, the roll in your
 fist thinning as it goes: one turn straight round to anchor it, then a spiral up the forearm with each turn over half
-the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. In first
-person the arm's held across in front of you, so you can look down and watch it go on. Each bandage stays on your arm
+the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. The
+forearm turns slowly in the hand as the gauze goes round, and the hand holding it drifts a little with your breathing.
+In first person both arms are brought up and forward off your shoulders (which are behind the view), the forearm laid
+across the bottom of the view with the wrap going on where you can watch it, and the right hand and the roll coming in
+over it; it all stays where it is in the view as you look up or down, as the weapons do. Your teammates see your arms,
+bandaging or with a melee weapon, turned where you're looking up or down, as they already did with a gun. Each bandage stays on your arm
 till the run ends, up to three of them up the forearm, wound snug over whatever sleeve or glove is there (round the
 sleeve itself, flat over a snap, seam or patch on it, each turn only a hair over the last), with a
 spot of blood slowly seeping through each. The blood you pick up killing zombies up close stains your clothes and
