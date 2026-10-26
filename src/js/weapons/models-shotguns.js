@@ -14,6 +14,8 @@ import { SHELL_MAT, shellMat } from './gun-models.js';
 // middle, from z0 to z1 along the gun, their tops at top). The picatinny rail on the receiver ahead of it (from z0, or
 // zs with an optic, the rear sight taken off: to z1; its foot at y, its top at top)
 const GHOST = { y: 1.1785, z: 0.566, fz: 1.372, r: 0.0036, t: 0.0016, ex: 0.011, ez0: 0.556, ez1: 0.574, top: 1.1875 };
+// the double barrel's beads (radius, m) and how far over the rib's top your eye looks down it at the breech
+const DBL_SIGHT = { front: 0.0034, mid: 0.0021, eye: 0.0145 };
 const PUMP_RAIL = { z0: 0.58, zs: 0.53, z1: 0.712, y: 1.1615, top: 1.1725 };
 export const SHOTGUN_MODELS = {
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
@@ -138,8 +140,13 @@ export const SHOTGUN_MODELS = {
     });
     box(brk, 0.012, 0.011, bl - 0.01, B, ...bx(0, 1.1535, z0 + bl / 2));   // the rib, sunk into the valley between them
     box(brk, 0.008, 0.006, bl - 0.02, B, ...bx(0, 1.124, z0 + bl / 2));
-    { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 6), GM.dot); bd.position.set(...bx(0, 1.161, z1 - 0.012)); brk.add(bd); }
-    irons(g, { kind: 'bead', yr: 1.1625, rz: z0 + 0.012, yf: 1.163, fz: z1 - 0.012 });   // (down the rib to the bead)
+    // the sights: an ivory bead on the rib at the muzzle and a smaller one halfway along it, looked at down the rib from
+    // a little above it (DBL_SIGHT.eye over the rib's top at the breech), the way a side-by-side is aimed: the rib a
+    // narrow strip running out to the beads, the action and top lever well down out of the way, the front bead sitting
+    // on the mid bead's shoulders
+    { const D = DBL_SIGHT, top = 1.159, bead = (r, z) => { const bd = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), GM.dot); bd.position.set(...bx(0, top + r * 0.8, z)); brk.add(bd); };
+      bead(D.front, z1 - 0.012); bead(D.mid, z0 + bl * 0.5);
+      irons(g, { kind: 'bead', yr: top + D.eye, rz: z0 + 0.012, yf: top + D.front * 1.8, fz: z1 - 0.012 }); }   // (down the rib to the front bead's top)
     box(brk, 0.022, 0.024, 0.07, B, ...bx(0, 1.114, z0 + 0.04));   // the lumps, down into the bar
     box(brk, 0.012, 0.008, 0.004, GM.steel, ...bx(0, 1.152, z0 + 0.0015));   // extractor
     profile(brk, shp([[0.012, 0.024], [0.06, 0.028], [0.06, 0.006], [0.04, -0.006], [0.016, -0.012], [0.006, -0.006]]), 0.044, GM.engrD, 0, 0.002);   // forend iron

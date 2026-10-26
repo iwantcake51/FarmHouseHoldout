@@ -507,7 +507,7 @@ export const RIFLE_MODELS = {
     if (!sight) {   // (the ladder up to the aperture plate at its top, the hole through it looked through down the gun)
       apPart(profile(g, shp(clipTo(RS, [[0.6, 1.15], [0.7, 1.15], [0.7, 1.2305], [0.6, 1.2305]])), 0.012, K, X, 0.0012)); apPart(cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14)).rotation.set(0, 0, Math.PI / 2);
       apPlate(g, X, 0.0065, 1.2305, 1.2585, 0.66, 0.6712, 1.236, 0.0026, K);
-      irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755 });
+      irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755, relief: 0.13 });   // (your cheek on the stock, the aperture a hand's breadth out, not right at your eye)
     }
     else box(g, 0.014, 0.006, 0.06, K, X, 1.1615, 0.69);
     // ---- the pistol grip, raked back, with its grooves; the big round guard and the trigger in it

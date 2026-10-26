@@ -99,6 +99,9 @@ const FP_REACH = { short: 0.13, long: 0.07, len: [0.8, 1.3] };
 // and at the hip it's held out to your right and up a little (x, y: across and up the view, metres), as a shooter
 // carries it, its muzzle out ahead toward the middle of the view, not down under your chin
 const FP_HIP = { x: 0.13, y: 0.06 };
+// a gun of its own: the LMG carried further over to the right and lower, at the hip on its sling, so its belt and the
+// box under the feed tray are down out of the middle of the view
+const FP_HIP_GUN = { lmg: { x: 0.2, y: -0.01 } };
 const FP_XH_YAW = 1;
 const ADS_EYE_MAX = 0.45;   // (the furthest down the sights takes your eye from where your head has it, metres: viewFrame)   // (how much of the crosshair's sideways wander the hip-held gun turns with: fpRecoil)
 // the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
@@ -380,13 +383,14 @@ export function fpReloadPose(gg, k) {
     // (not at a sprint, the gun drawn in to your chest; and kept out to the side through a reload, not brought back
     // to the middle for it: hs)
     const hs = (1 - w) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));
-    if (hs > 0.002) { _rlD.set(FP_HIP.x * hs, FP_HIP.y * hs, -push).applyQuaternion(_rlQ); gg.updateMatrixWorld(true); _rlC.setFromMatrixPosition(gg.matrixWorld).add(_rlD); gg.position.copy(gg.parent.worldToLocal(_rlC)); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
+    const HP = FP_HIP_GUN[curId()] || FP_HIP;
+    if (hs > 0.002) { _rlD.set(HP.x * hs, HP.y * hs, -push).applyQuaternion(_rlQ); gg.updateMatrixWorld(true); _rlC.setFromMatrixPosition(gg.matrixWorld).add(_rlD); gg.position.copy(gg.parent.worldToLocal(_rlC)); gg.updateMatrix(); gg.updateMatrixWorld(true); } }
   k *= FP_RELOAD.k; if (k < 0.01) return;
   const h = HOLDS[W8.cur] && HOLDS[W8.cur].R; if (!h) return;
   const side = D.slot === 'side', at = side ? FP_RELOAD.side : FP_RELOAD.at;
   gg.updateMatrixWorld(true); _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);
   const hs = (1 - w) * (1 - smooth(clamp(ANIM.ready || 0, 0, 1)));   // (out at the side, where it's held at the hip)
-  _rlD.set(at[0] + FP_HIP.x * hs, at[1] + FP_HIP.y * hs, at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
+  _rlD.set(at[0] + (FP_HIP_GUN[curId()] || FP_HIP).x * hs, at[1] + (FP_HIP_GUN[curId()] || FP_HIP).y * hs, at[2]).applyMatrix4(_rlM).sub(_rlC).multiplyScalar(k);   // (where it's to go, from where it is)
   _rq.copy(_rlQ); _rq2.copy(_rq).multiply(_vcQ.setFromEuler(_rE.set(FP_RELOAD.pitch * k, FP_RELOAD.yaw * k, FP_RELOAD.roll * k, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _rM.makeTranslation(-_rlC.x, -_rlC.y, -_rlC.z).premultiply(_rM2.makeRotationFromQuaternion(_rq2)).premultiply(_rM2.makeTranslation(_rlC.x + _rlD.x, _rlC.y + _rlD.y, _rlC.z + _rlD.z));
   _rM.multiply(gg.matrixWorld).premultiply(_rM2.copy(gg.parent.matrixWorld).invert());

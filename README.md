@@ -162,7 +162,9 @@ a real shooter holds them: a handgun's front post sits level in the rear notch, 
 shotgun's front post sits in the middle of the hole through the rear aperture, the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
 fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring, the double barrel is
-aimed down the rib with the bead sat on the receiver, and the hunting rifle's notch and post with your cheek on the stock, the
+aimed the way a side-by-side is, the eye a little above the rib so it's a narrow strip running out to an ivory front
+bead with a smaller mid bead halfway along it, the action and top lever well down out of the way, the LMG's
+aperture held a hand's breadth out from your eye with your cheek on the stock, and the hunting rifle's notch and post with your cheek on the stock, the
 notch well out ahead of your eye rather than right up against it. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
@@ -219,7 +221,8 @@ corner or behind you as you turn, with no fading in. Everything works from first
 hand the mouse back as they close. Esc lets go of the mouse and pauses; resuming takes it straight back without a click,
 and a station or a menu lets go of it for you, closing it taking the mouse back. You go back to the view from above whenever you're down.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
-tucked under your chin), and each shot turns it in your hands as well as kicking the view; through a scope the
+tucked under your chin; the LMG carried further right and lower on its sling, its belt and box down out of the
+middle of the view), and each shot turns it in your hands as well as kicking the view; through a scope the
 picture rocks a little with it. Reloads are the same ones you see from above, only calmer from your own eyes: the gun
 comes up a touch and turns a little toward you, not over on its side, and it stays out to the right where you hold it at
 the hip rather than coming back to the middle for the reload. The flashlight points down the gun's barrel,
