@@ -44,7 +44,7 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.085 };
+const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.022, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.085 };
 // each shot draws the view in a touch (punch: how hard a shot of power 1 starts it in, about 2.5% at its deepest; a full
 // auto's less, auto; never past max all told), on a soft spring (k, d) that lets it back out
 const FIRE_FOV = { punch: 0.055, auto: 0.5, max: 0.05, k: 110, d: 15 };
@@ -86,11 +86,11 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 // the most, at f: its frequencies), the gun chattering in your hands while it fires and dying away quickly after
 // (decay); the view itself buzzes a little with it (view)
 const FP_RECOIL = {
-  hand: { flip: 0.1, flipPw: 0.26, back: 0.026, backPw: 0.05, up: 0.008, roll: 0.06, yaw: 0.03, side: 0.004, w: 30, z: 0.5, pivot: [0, -0.07, 0.09] },
-  long: { flip: 0.022, flipPw: 0.055, back: 0.03, backPw: 0.06, up: 0.004, roll: 0.04, yaw: 0.02, side: 0.003, w: 26, z: 0.45, pivot: [0, -0.05, 0.36] },
-  act: 1.35, ads: [0.7, 0.7, 0.75], adsMove: 0.8, adsRattle: 0.6, adsClimb: 0.7, dir: { bias: -0.12, spread: 0.6, max: 0.95 },
-  auto: { k: 0.55, climb: 0.011, max: 0.085, wander: 0.45, w: 9, back: 5 },
-  rattle: { pos: 0.0028, rot: 0.014, f: [29, 37, 46], decay: 13, auto: 0.5, semi: 0.22, view: 0.12 }
+  hand: { flip: 0.045, flipPw: 0.11, back: 0.016, backPw: 0.03, up: 0.004, roll: 0.022, yaw: 0.01, side: 0.0015, w: 30, z: 0.55, pivot: [0, -0.07, 0.09] },
+  long: { flip: 0.01, flipPw: 0.024, back: 0.018, backPw: 0.034, up: 0.002, roll: 0.014, yaw: 0.007, side: 0.001, w: 26, z: 0.5, pivot: [0, -0.05, 0.36] },
+  act: 1.2, ads: [0.5, 0.35, 0.4], adsMove: 0.7, adsRattle: 0.4, adsClimb: 0.6, dir: { bias: -0.05, spread: 0.2, max: 0.35 },
+  auto: { k: 0.55, climb: 0.007, max: 0.055, wander: 0.25, w: 9, back: 5 },
+  rattle: { pos: 0.0012, rot: 0.005, f: [29, 37, 46], decay: 15, auto: 0.5, semi: 0.22, view: 0.05 }
 };
 // reloading in first person, the gun's brought up into view where you can watch your hands work it: its action (mid of
 // the way along it: the well, the port, the cylinder) eased to
@@ -546,7 +546,6 @@ export function fpViewSway(gg, grip) {
 // hands go on it), about where it's gripped, turned as the view is; less of it as the sights come up (they take it there)
 const _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), _vcQ = new THREE.Quaternion(), _rE = new THREE.Euler(), _rp = new V3(), _rM = new THREE.Matrix4(), _rM2 = new THREE.Matrix4();
 export function fpRecoil(gg, grip) {
-  V.rcGrip = grip;   // (where it's held, for its tip down the sights: adsKickTilt)
   const C = V.rc, k = 1 - adsW(); if (!fpOn() || !gg.parent || k < 0.01) return;
   const rn = rattleAt(), F = C.kind === 'hand' ? FP_RECOIL.hand : FP_RECOIL.long;
   // (and turned left and right with the crosshair as a shot kicks it aside or it sways: the gun at the hip points where
@@ -874,17 +873,17 @@ export function fpMeleeHit(heavy, hard) {
   V.vmk = (V.vmk || 0) + C.hitP * k; V.vmz = (V.vmz || 0) + C.hitZ * k * 0.1;
 }
 // down the sights, once your eye's been placed on them: each shot's turn of the gun (FP_RECOIL.ads) put on the whole of
-// what you hold up (your arms and the gun with them), about your shoulder for a long gun or your wrists for a handgun
-// (the kick's pivot from where it's gripped), so the gun tips up and aside off the line your eye's on rather than
-// taking your eye with it (its shove back your eye does ride: shoulderShake)
-const _ktQ = new THREE.Quaternion(), _ktE = new THREE.Euler(), _ktP = new V3(), _ktT = new V3(), _ktM = new THREE.Matrix4(), _ktM2 = new THREE.Matrix4();
-function adsKickTilt(gg, w) {
-  const C = V.rc, A = FP_RECOIL.ads, F = C.kind === 'hand' ? FP_RECOIL.hand : FP_RECOIL.long, g = V.rcGrip;
+// what you hold up (your arms and the gun with them), about the front sight (front: where it is in the world), so the
+// post stays put in the middle of the view, still pointed where you aim, while the rest of the gun (the rear sight, the
+// receiver, your hands) tips up and aside about it and settles back (its shove back your eye does ride: shoulderShake)
+const _ktQ = new THREE.Quaternion(), _ktE = new THREE.Euler(), _ktP = new V3(), _ktM = new THREE.Matrix4(), _ktM2 = new THREE.Matrix4();
+function adsKickTilt(front, w) {
+  const C = V.rc, A = FP_RECOIL.ads;
   const p = C.p * A[0] * w, y = C.y * A[1] * w, r = C.r * A[2] * w;
-  if (!g || Math.abs(p) + Math.abs(y) + Math.abs(r) < 1e-6) return false;
-  const U = PM.upper; U.updateMatrixWorld(true); gg.updateMatrixWorld(true);
+  if (Math.abs(p) + Math.abs(y) + Math.abs(r) < 1e-6) return false;
+  const U = PM.upper; U.updateMatrixWorld(true);
   _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
-  _ktP.set(g[0], g[1], g[2]).applyMatrix4(gg.matrixWorld).add(_ktT.set(F.pivot[0], F.pivot[1], F.pivot[2]).applyQuaternion(_rq));
+  _ktP.copy(front);
   _ktQ.copy(_rq).multiply(_vcQ.setFromEuler(_ktE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _ktM.makeTranslation(-_ktP.x, -_ktP.y, -_ktP.z).premultiply(_ktM2.makeRotationFromQuaternion(_ktQ)).premultiply(_ktM2.makeTranslation(_ktP.x, _ktP.y, _ktP.z));
   _ktM.multiply(U.matrixWorld).premultiply(_ktM2.copy(U.parent.matrixWorld).invert());
@@ -981,9 +980,9 @@ export function viewFrame(rdt, roll, sh, jolt) {
       // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
       _vcH.subVectors(_vcD, _vcE); const dl = _vcH.length(); if (dl > ADS_EYE_MAX) _vcD.copy(_vcE).addScaledVector(_vcH, ADS_EYE_MAX / dl);
       _vcE.lerp(_vcD, w);
-      // (then the shot's kick tips the gun off that line, your eye left where it is; and the line measured again, where
-      // the shots now go and the sight's picture is)
-      if (adsKickTilt(gg, w)) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
+      // (then the shot's kick tips the gun about its front sight, your eye left where it is: iron sights' shots still go
+      // where the post is, in the middle; an optic's line is measured again, as its dot or picture shows where it points)
+      if (adsKickTilt(_pb, w) && L.kind !== 'iron' && L.kind !== 'ap') { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)

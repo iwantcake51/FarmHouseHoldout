@@ -57,6 +57,7 @@
 .coopSeg button[aria-checked=true]{color:#1a1612;background:var(--orange)}
 .coopSeg button:disabled{cursor:default}
 .coopSeg button:disabled:not([aria-checked=true]){opacity:.5}
+.titleView{justify-content:flex-start;gap:16px;max-width:520px}   /* the view for a run on your own, on the title under the story (ui/settings.js: titleViewRender) */
 .coopMsg{min-height:1.2em;font-family:var(--f-type);font-size:12px;color:#e09a6a;animation:coopPart .3s ease both}
 .coopMsg:empty{display:none}
 @media (prefers-reduced-motion:reduce){.coop,.coop *{animation-duration:.01s!important;animation-delay:0s!important}}

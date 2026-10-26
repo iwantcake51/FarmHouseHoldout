@@ -25,7 +25,7 @@ export function lobbyRender() {
   $('coopShow').textContent = NET.code;
   $('coopMsg').textContent = NET.status || (room && !NET.host ? 'Waiting for the host to start…' : room && NET.peers.size === 0 ? 'Send this code to your friends. They join from their title screen.' : '');
   $('coopGo').hidden = !NET.host; $('coopGo').disabled = NET.inGame;
-  $('startBtn').hidden = on;
+  $('startBtn').hidden = on; $('titleView').hidden = on;   // (your own view's for a run on your own: in co-op it's the lobby's, below)
   // the view everyone plays in: the host's to pick (net/net.js), shown to the rest
   for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !NET.host || NET.inGame; }
   $('coopViewNote').textContent = NET.host ? 'Everyone plays in it' : 'The host picks it';
