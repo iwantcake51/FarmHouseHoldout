@@ -284,7 +284,15 @@ reticle is light collimated inside the sight's window, so it's only seen looking
 the sight's line. It sits out at infinity, the same size and on the same aim point however far your eye is from the
 window, sliding with the sight rather than with your eye, and it turns with the gun as it cants. From the hip, from the
 side or from in front there's nothing to see in the glass, and it never shows through your body, your hands or anything
-else in front of the window. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
+else in front of the window. The dot is drawn over what's behind it rather than added to it, so it stays red against
+a bright sky as well as in the dark, with only a faint bloom round it. On a handgun the red dot is a pistol sight cut
+into the slide, one of four dealt to each handgun once a run (and the same one on your teammates' screens): a Trijicon
+RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window, its battery cap on top, 2.5
+MOA), a Holosun 507C (a squared shroud, solar panel on top, battery tray in the right side and buttons in the left, 2
+MOA) or a Leupold DeltaPoint Pro (the widest, tallest window and a rear-sight notch across its back, 2.5 MOA), each its
+true size, the glass at the front and the emitter on the base behind the window, the slide's own rear sight showing
+low in the window below the dot. The handgun's holo step is the same sight with a circle-dot instead: a 32 MOA ring
+round a 2 MOA dot. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
 with the scope at your eye its own magnified view is seen through that glass:

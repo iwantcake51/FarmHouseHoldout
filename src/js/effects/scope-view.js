@@ -130,12 +130,15 @@ const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, frag
 // shader works out, for each point of the pane, which way your eye looks through it; the reticle's there (out along the
 // sight's own axis, the way it points) when that way lines up with the ring, the ticks or the dot, so from anywhere off
 // the sight's line it's not in the window at all, it moves with the gun as one, and anything in front of the window
-// (your hand, your body) hides it. Sizes in MOA, as the real ones are (the EOTech's 68 MOA ring with its ticks and 1
-// MOA dot; a 2 MOA dot), never thinner than a pixel and a bit (RET_MIN), the light grainy as a hologram's is
-const RET_MIN = 1.3, RET_U = { uT: { value: 0 } };
+// (your hand, your body) hides it. Sizes in MOA, as the real ones are: the EOTech's 68 MOA ring with its ticks and 1
+// MOA dot ('holo'); a red dot's dot, its size the sight's own (moa: an RMR's 3.25, a 507C's 2...: 'dot'); a pistol
+// sight's circle-dot, a 32 MOA ring round a 2 MOA dot ('cdot'). Never thinner than a pixel and a bit (RET_MIN), the
+// hologram's light grainy as a hologram's is. The light's drawn over what's behind it, not added to it, so the dot's
+// red whatever it's against (a bright sky would wash an added red out to pink and white), with a faint bloom round it
+const RET_MIN = 1.3, RET_U = { uT: { value: 0 } }, RET_KIND = { holo: 0, dot: 1, cdot: 2 };
 const RET_VERT = 'varying vec3 vV, vAx, vUp; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; vAx = normalize((modelViewMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz); vUp = normalize((modelViewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); gl_Position = projectionMatrix * mv; }';
 const RET_FRAG = `
-uniform float uKind, uT; varying vec3 vV, vAx, vUp;
+uniform float uKind, uMoa, uT; varying vec3 vV, vAx, vUp;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
@@ -143,25 +146,31 @@ void main() {
   vec3 v = normalize(vV); float c = dot(v, vAx); if (c < 0.9) discard;
   vec3 rt = normalize(cross(vAx, vUp)), up = cross(rt, vAx);
   vec2 m = vec2(dot(v, rt), dot(v, up)) / c / 0.000290888;   // (how far off the sight's line this look is, in MOA)
-  float px = max(length(fwidth(m)), 0.0001), e = length(m), lit;
+  float px = max(length(fwidth(m)), 0.0001), e = length(m), core, halo;
   if (uKind < 0.5) {
     float w = max(1.1, px * ${RET_MIN.toFixed(2)});
-    lit = ln(abs(e - 34.0), w, px);
-    lit = max(lit, ln(min(min(seg(m, vec2(32.0, 0.0), vec2(45.0, 0.0)), seg(m, vec2(-32.0, 0.0), vec2(-45.0, 0.0))), min(seg(m, vec2(0.0, 32.0), vec2(0.0, 45.0)), seg(m, vec2(0.0, -32.0), vec2(0.0, -45.0)))), w, px));
-    lit = max(lit, ln(e, max(0.6, px * ${RET_MIN.toFixed(2)}), px));
-    lit *= 0.55 + 0.6 * hash(floor(gl_FragCoord.xy / 1.3) + floor(uT * 9.0));
-    lit += 0.18 * exp(-pow(abs(e - 34.0) / (w * 3.0), 2.0)) + 0.5 * exp(-e * e / (w * w * 3.0));
-  } else { float r = max(1.0, px * ${RET_MIN.toFixed(2)}); lit = ln(e, r, px) + 0.6 * exp(-e * e / (r * r * 5.0)) + 0.12 * exp(-e / (r * 4.0)); }
-  if (lit < 0.004) discard;
-  gl_FragColor = vec4(vec3(1.0, 0.13, 0.07) * lit * 1.3, 1.0);
+    core = ln(abs(e - 34.0), w, px);
+    core = max(core, ln(min(min(seg(m, vec2(32.0, 0.0), vec2(45.0, 0.0)), seg(m, vec2(-32.0, 0.0), vec2(-45.0, 0.0))), min(seg(m, vec2(0.0, 32.0), vec2(0.0, 45.0)), seg(m, vec2(0.0, -32.0), vec2(0.0, -45.0)))), w, px));
+    core = max(core, ln(e, max(0.6, px * ${RET_MIN.toFixed(2)}), px));
+    core *= 0.6 + 0.5 * hash(floor(gl_FragCoord.xy / 1.3) + floor(uT * 9.0));
+    halo = 0.14 * exp(-pow(abs(e - 34.0) / (w * 3.0), 2.0)) + 0.4 * exp(-e * e / (w * w * 3.0));
+  } else {
+    // (with the ring round it, the dot and the ring kept fine so the dark gap between them still shows when the whole
+    // circle's only a dozen pixels across)
+    float cd = step(1.5, uKind), r = max(uMoa * 0.5, px * mix(${RET_MIN.toFixed(2)}, 0.9, cd));
+    core = ln(e, r, px); halo = mix(0.4, 0.22, cd) * exp(-e * e / (r * r * mix(5.0, 2.5, cd))) + mix(0.08, 0.0, cd) * exp(-e / (r * 4.0));
+    if (cd > 0.5) { float w = max(0.5, px * 0.75); core = max(core, ln(abs(e - 16.0), w, px)); halo += 0.06 * exp(-pow(abs(e - 16.0) / (w * 2.0), 2.0)); }
+  }
+  float a = clamp(core + halo, 0.0, 1.0); if (a < 0.004) discard;
+  gl_FragColor = vec4(1.0, 0.07 + 0.06 * (1.0 - clamp(core, 0.0, 1.0)), 0.04, a);   // (deep red at its heart, a touch warmer in its bloom)
 }`;
-const retMat = kind => new THREE.ShaderMaterial({ vertexShader: RET_VERT, fragmentShader: RET_FRAG, uniforms: { uKind: { value: kind === 'holo' ? 0 : 1 }, uT: RET_U.uT }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+const retMat = (kind, moa) => new THREE.ShaderMaterial({ vertexShader: RET_VERT, fragmentShader: RET_FRAG, uniforms: { uKind: { value: RET_KIND[kind] ?? 1 }, uMoa: { value: moa }, uT: RET_U.uT }, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const RET_MATS = {};
-// a sight's reticle pane (weapons/attachments.js): w by h (a holographic sight's window) or a disc r across (a red
-// dot's), at (x, y, z) on p, square to the sight's axis
-export function reticleOn(p, kind, x, y, z, w, h) {
-  const geo = kind === 'holo' ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32);
-  const m = new THREE.Mesh(geo, RET_MATS[kind] || (RET_MATS[kind] = retMat(kind))); m.position.set(x, y, z); m.renderOrder = 6;
+// a sight's reticle pane (weapons/attachments.js): w by h (a window with corners) or, with no h, a disc w across (a
+// round one), at (x, y, z) on p, square to the sight's axis; moa: a dot's size
+export function reticleOn(p, kind, x, y, z, w, h, moa = 2) {
+  const geo = h ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32), k = kind + ':' + moa;
+  const m = new THREE.Mesh(geo, RET_MATS[k] || (RET_MATS[k] = retMat(kind, moa))); m.position.set(x, y, z); m.renderOrder = 6;
   m.userData.reticlePane = true; m.castShadow = m.receiveShadow = false; m.layers.set(OVER_LAYER); p.add(m); return m;   // (over a fog round's fog: effects/post.js)
 }
 function stepReticles() { RET_U.uT.value = performance.now() / 1000; }

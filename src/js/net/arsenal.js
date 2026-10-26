@@ -49,7 +49,7 @@ function myLoadout() {
   for (const s of SLOTS) {
     const id = W8.slot[s]; if (!id) continue;
     const mods = W8.mods[id] || [], lv = {}; mods.forEach(m => { lv[m] = modLv(m); });
-    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo };
+    guns[id] = { mods, lv, gt: W8.gt[id] || {}, pin: (W8.pin && W8.pin[id]) || null, att: W8.att[id] || {}, rnd: (W8.rounds && W8.rounds[id]) || null, ak: !!(W(id) || {}).akimbo, rd: (W8.rds && W8.rds[id]) || null };   // (rd: which red dot it wears: weapons/attachments.js)
     const o = STOW[s]; if (o) { stow[s] = stowPose(o); if (o.userData.twin) stow[s + '2'] = stowPose(o.userData.twin); }
   }
   return { slots: Object.assign({}, W8.slot), guns, stow, hol: LOOK.cur ? LOOK.cur.holster : 0x1d1d1f, gear: gearSpec() };
@@ -99,16 +99,16 @@ NET_ON.ld = m => { if (state !== 'title') placeLoader(m); };
 // attachments and rounds, not yours
 function withLoadout(lo, id, fn) {
   const has = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
-  const keep = { mods: [has(W8.mods, id), W8.mods[id]], gt: [has(W8.gt, id), W8.gt[id]], att: [has(W8.att, id), W8.att[id]], pin: [has(W8.pin, id), W8.pin && W8.pin[id]], rnd: [has(W8.rounds, id), W8.rounds && W8.rounds[id]] };
+  const keep = { mods: [has(W8.mods, id), W8.mods[id]], gt: [has(W8.gt, id), W8.gt[id]], att: [has(W8.att, id), W8.att[id]], pin: [has(W8.pin, id), W8.pin && W8.pin[id]], rnd: [has(W8.rounds, id), W8.rounds && W8.rounds[id]], rd: [has(W8.rds, id), W8.rds && W8.rds[id]] };
   const mods = lo.mods || [], lvKeep = mods.map(m => [m, has(W8.modLv, m), W8.modLv && W8.modLv[m]]);
   const put = (o, k, v) => { if (o) { if (v === null || v === undefined) delete o[k]; else o[k] = v; } };
   const back = (o, k, [had, v]) => { if (o) { if (had) o[k] = v; else delete o[k]; } };
   try {
-    W8.mods[id] = mods; W8.gt[id] = lo.gt || {}; W8.att[id] = lo.att || {}; put(W8.pin, id, lo.pin); put(W8.rounds, id, lo.rnd);
+    W8.mods[id] = mods; W8.gt[id] = lo.gt || {}; W8.att[id] = lo.att || {}; put(W8.pin, id, lo.pin); put(W8.rounds, id, lo.rnd); put(W8.rds, id, lo.rd);
     if (!W8.modLv) W8.modLv = {}; mods.forEach(m => { W8.modLv[m] = (lo.lv || {})[m] || 1; });
     setTierCtx(id); return fn();
   } finally {
-    setTierCtx(null); back(W8.mods, id, keep.mods); back(W8.gt, id, keep.gt); back(W8.att, id, keep.att); back(W8.pin, id, keep.pin); back(W8.rounds, id, keep.rnd);
+    setTierCtx(null); back(W8.mods, id, keep.mods); back(W8.gt, id, keep.gt); back(W8.att, id, keep.att); back(W8.pin, id, keep.pin); back(W8.rounds, id, keep.rnd); back(W8.rds, id, keep.rd);
     lvKeep.forEach(([m, had, v]) => { if (had) W8.modLv[m] = v; else delete W8.modLv[m]; });
   }
 }

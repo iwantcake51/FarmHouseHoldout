@@ -2,7 +2,7 @@
 
 import { box } from '../core/geometry.js';
 import { roundOn } from './rounds.js';
-import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx } from '../game/run-state.js';
+import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx, W8 } from '../game/run-state.js';
 import { heatAll } from '../effects/supp-heat.js';
 import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
@@ -115,7 +115,8 @@ export function fitAttachments(g, D, front, y, info) {
       { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
-    } else if (sight >= 2) {
+    } else if (side && sight <= 2) pistolDot(p, sx, by, bz, sight === 2 ? 'cdot' : 'dot');
+    else if (sight >= 2) {
       // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
       // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
       // and on the back face under the window the panel with its two arrow buttons, the round one between and four
@@ -151,6 +152,57 @@ export function fitAttachments(g, D, front, y, info) {
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }
   return front;
+}
+// a handgun's red dot (its first sight step; the second shows a circle-dot in it instead), cut into the slide, after
+// the four you see most, each its true size: a Trijicon RMR, its hood a shield, the sides raked in to a flat top; an SRO,
+// the RMR's base under a big round window with the battery cap on top; a Holosun 507C, a squared shroud with flat sides,
+// the solar panel on top at the back, the battery tray in the right side and the buttons in the left; a Leupold
+// DeltaPoint Pro, wide and tall with the biggest window and a rear-sight notch across its back. PDOT: its length, width
+// and height, the window's middle up from the base and its half width and height, the hood's depth, its dot (MOA).
+// Which one a gun has is dealt once a run (W8.rds) and goes to your teammates with your loadout (net/arsenal.js)
+const PDOT = {
+  rmr: { L: 0.045, W: 0.0255, H: 0.025, wy: 0.0155, ww: 0.0105, wh: 0.0058, hood: 0.017, moa: 3.25,
+    out: [[-0.01275, 0.004], [0.01275, 0.004], [0.01275, 0.0115], [0.0108, 0.0225], [0.0065, 0.025], [-0.0065, 0.025], [-0.0108, 0.0225], [-0.01275, 0.0115]] },
+  sro: { L: 0.049, W: 0.027, H: 0.033, wy: 0.0195, ww: 0.0118, wh: 0.0118, hood: 0.015, moa: 2.5, round: true },
+  h507: { L: 0.044, W: 0.026, H: 0.025, wy: 0.0155, ww: 0.0102, wh: 0.0062, hood: 0.03, moa: 2, cr: 0.002,
+    out: [[-0.013, 0.004], [0.013, 0.004], [0.013, 0.0205], [0.0105, 0.025], [-0.0105, 0.025], [-0.013, 0.0205]] },
+  dpp: { L: 0.044, W: 0.03, H: 0.03, wy: 0.0178, ww: 0.0122, wh: 0.0086, hood: 0.02, moa: 2.5, cr: 0.003,
+    out: [[-0.015, 0.004], [0.015, 0.004], [0.0148, 0.0235], [0.0128, 0.0285], [0.008, 0.03], [-0.008, 0.03], [-0.0128, 0.0285], [-0.0148, 0.0235]] }
+};
+const PDOT_KINDS = Object.keys(PDOT);
+const pdotOf = id => { const r = W8.rds || (W8.rds = {}); if (!PDOT[r[id]]) r[id] = PDOT_KINDS[Math.floor(Math.random() * PDOT_KINDS.length)]; return r[id]; };
+function pistolDot(p, sx, by, bz, ret) {
+  const k = pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
+  box(p, Q.W, low - by, Q.L, GM.metal, sx, (by + low) / 2, bz);   // the base, down in the slide's cut, up to the window's foot
+  // the hood round the window, its front a little rounded off
+  let hood;
+  if (Q.round) {
+    const R = Q.W / 2, o = [[sx - R, by + 0.004], [sx + R, by + 0.004]]; for (let i = 0; i <= 16; i++) { const a = Math.PI * i / 16; o.push([sx + R * Math.cos(a), wy + R * Math.sin(a)]); }
+    const h = new THREE.Path(); h.absarc(sx, wy, Q.ww, 0, Math.PI * 2, false); hood = shp(o, [h]);
+  } else {
+    const hole = Q.cr ? rrect(sx - Q.ww, wy - Q.wh, sx + Q.ww, wy + Q.wh, Q.cr) : shp([[-Q.ww, -Q.wh], [Q.ww, -Q.wh], [Q.ww, 0.001], [Q.ww - 0.003, Q.wh], [0.003 - Q.ww, Q.wh], [-Q.ww, 0.001]].map(([x, y]) => [sx + x, wy + y]));
+    hood = shp(Q.out.map(([x, y]) => [sx + x, by + y]), [hole]);
+  }
+  xsec(p, hood, zf - Q.hood, zf, GM.metal, 0.0005);
+  // the glass at the front, tinted, and the dot (or circle-dot) seen through it out at infinity (effects/scope-view.js)
+  if (Q.round) cyl(p, Q.ww, 0.0012, GM.holoGlass, sx, wy, zf - 0.003, 24); else box(p, Q.ww * 2, Q.wh * 2, 0.0012, GM.holoGlass, sx, wy, zf - 0.003);
+  reticleOn(p, ret, sx, wy, zf - 0.0065, Q.round ? Q.ww : Q.ww * 2, Q.round ? 0 : Q.wh * 2, Q.moa);
+  // the emitter on the base at the back, its LED looking forward at the glass
+  box(p, 0.0042, 0.0026, 0.0032, GM.rubber, sx, low + 0.0013, zr + 0.0065); box(p, 0.0016, 0.001, 0.0004, GM.dotR, sx, low + 0.0014, zr + 0.0083);
+  const btn = (x, z) => box(p, 0.0014, 0.0042, 0.0062, GM.rubber, x, by + 0.006, z);
+  if (k === 'rmr' || k === 'sro') {
+    [-1, 1].forEach(sd => btn(sx + sd * (Q.W / 2 + 0.0005), zr + 0.012));   // its two buttons, one each side
+    const el = cyl(p, 0.0026, 0.001, GM.metal2, sx + 0.0055, low + 0.0005, zr + 0.0115, 12); el.rotation.x = Math.PI / 2;   // the elevation screw on top
+    cyl(p, 0.0024, 0.001, GM.metal2, sx + Q.W / 2 + 0.0005, by + 0.0062, zr + 0.0035, 12).rotation.z = Math.PI / 2;           // the windage screw in the side
+    if (k === 'sro') { const cap = cyl(p, 0.0062, 0.0018, GM.metal2, sx, wy + Q.W / 2 - 0.0004, zf - Q.hood / 2, 20); cap.rotation.x = Math.PI / 2; }   // the battery cap on top
+  } else if (k === 'h507') {
+    box(p, 0.016, 0.0006, 0.009, GM.glass, sx, by + Q.H + 0.0003, zf - Q.hood + 0.0065);              // the solar panel
+    box(p, 0.0012, 0.0085, 0.014, GM.metal2, sx + Q.W / 2 + 0.0006, by + 0.011, zf - Q.hood + 0.013);   // the battery tray
+    [-0.0035, 0.0035].forEach(o => box(p, 0.0012, 0.0038, 0.0038, GM.rubber, sx - Q.W / 2 - 0.0006, by + 0.0118, zf - Q.hood + 0.013 + o));   // its - and + buttons
+  } else {   // the DeltaPoint's rear sight: two ears across its back, a square notch between them
+    [-1, 1].forEach(sd => box(p, 0.0095, wy - 0.003 - low, 0.0036, GM.metal, sx + sd * 0.0072, (low + wy - 0.003) / 2, zr + 0.0022));
+  }
+  p.userData.optic = { kind: 'dot', x: sx, y: wy, zr, zf, r: Math.min(Q.ww, Q.wh), hw: Q.ww, hh: Q.wh };
 }
 // the ACOG (the fourth sight step): a Trijicon TA31 on its flat-top mount, traced off a side-on photo with the
 // trace-photo skill (.claude/skills/trace-photo) at its true size, z along it from its middle and y up from the rail's
