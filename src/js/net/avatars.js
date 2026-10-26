@@ -110,8 +110,10 @@ function ammoOut(msg, now) {
 
 // ---- their survivors
 const AV_SWAP = ['skin', 'shirt', 'pants', 'shirtDk', 'skinDk'];
-function buildAvatar(p) {
-  const L = p.look || dealLook();
+// a survivor in look L, built from the same body as yours (PM_BASE) with their own materials and the look on it, the
+// joints as they stand at rest; what buildAvatar makes a teammate from, and the look card shows (ui/look-card.js).
+// partMap: each part of yours to its part of theirs; groups: what the look was built into, by where it goes
+export function lookFigure(L) {
   const g = PM_BASE.clone(true), partMap = new Map(); { let k = 0; g.traverse(o => { partMap.set(PM_BASE_SRC[k++], o); }); }
   // their own materials for everything coloured by the look; the rest (the belt, the buckles, the webbing) is shared
   const mats = { skin: lam(L.skin), shirt: lam(L.topCol), pants: lam(L.pants), shirtDk: lam(shade(L.topCol, 0.76)), skinDk: lam(shade(L.skin, 0.86)) };
@@ -123,9 +125,14 @@ function buildAvatar(p) {
   // the look, built onto their rig: buildLook works on whatever LOOK.g and PM.mats hold, so for a moment they hold theirs
   const groups = {}, on = { head: rig.head, hat: rig.head, torso: rig.torso, armL: rig.armL, armR: rig.armR, legL: rig.legL, legR: rig.legR, shinL: rig.shinL, shinR: rig.shinR, shoeL: rig.shinL, shoeR: rig.shinR };
   for (const k in on) { const q = new THREE.Group(); on[k].add(q); groups[k] = q; if (k.startsWith('shin') || k.startsWith('shoe')) q.position.y = -KNEE_Y; }
-  const keepG = LOOK.g, keepM = PM.mats, keepY = LOOK.mirrorY;
+  const keepG = LOOK.g, keepM = PM.mats, keepY = LOOK.mirrorY, keepW = LOOK.wr;   // (your own loose bracelets too: wristSway)
   try { LOOK.g = groups; PM.mats = Object.assign({}, keepM, mats); buildLook(L); } catch (e) { console.warn('avatar look', e); }
-  finally { rig.mirrorY = LOOK.mirrorY; LOOK.g = keepG; PM.mats = keepM; LOOK.mirrorY = keepY; }
+  finally { rig.mirrorY = LOOK.mirrorY; LOOK.g = keepG; PM.mats = keepM; LOOK.mirrorY = keepY; LOOK.wr = keepW; }
+  rig.groups = groups;
+  return rig;
+}
+function buildAvatar(p) {
+  const L = p.look || dealLook(), rig = lookFigure(L), { g, partMap, groups } = rig;
   // the eyes, brows and mouth each folded into a mesh of their own and kept off the joint's, so they can move as their
   // face does (faceMood, player/look.js)
   rig.faceH = groups.head; const faceParts = new Set(faceGroups(groups.head));

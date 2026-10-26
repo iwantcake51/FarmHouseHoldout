@@ -7,6 +7,8 @@ import { $ } from '../core/dom.js';
 import { NET, NET_MAX, NET_V, netCode, netJoin, netLib, netName, PEER_OPTS } from './net.js';
 import { SFX } from '../audio/sfx.js';
 import { lobbyRender } from './lobby.js';
+import { LOOK } from '../player/look.js';
+import { lookCardOn } from '../ui/look-card.js';
 
 const FR_PREFIX = 'fhh-pal-', FR_QUIET = 16, FR_RETRY = 20;   // (seconds before a silent friend shows as away; between tries at reaching one)
 export const PALS = { me: '', list: [], st: new Map(), up: false, peer: null, bc: null, t: 0, said: '', msg: '', open: false };
@@ -22,7 +24,7 @@ const frOnline = c => { const s = PALS.st.get(c); return !!s && performance.now(
 // what you're doing, for them
 function frHello(q) {
   const st = NET.inGame ? 'game' : NET.on ? 'lobby' : 'menu', room = NET.host && !NET.inGame ? NET_MAX - 1 - NET.peers.size : 0;
-  return { t: 'hi', v: NET_V, name: netName(), st, game: room > 0 ? NET.code : '', room, q: q ? 1 : 0 };
+  return { t: 'hi', v: NET_V, name: netName(), st, game: room > 0 ? NET.code : '', room, q: q ? 1 : 0, look: LOOK.cur };   // (look: your survivor, for the card they see on hovering you: ui/look-card.js)
 }
 function frSend(c, m) {
   try {
@@ -35,6 +37,7 @@ function frRecv(c, m) {
   const s = frState(c); s.heard = performance.now();
   if (m.t === 'hi') {
     Object.assign(s, { name: String(m.name || 'Survivor').slice(0, 16), st: m.st, game: m.v === NET_V ? m.game || '' : '', room: m.room || 0 });
+    if (m.look && typeof m.look === 'object' && !Array.isArray(m.look)) s.look = m.look;
     let f = frOf(c);
     if (!f) { f = { c, n: s.name }; PALS.list.push(f); frSave(); PALS.msg = s.name + ' added you as a friend'; }   // they added you: added back
     else if (f.n !== s.name) { f.n = s.name; frSave(); }
@@ -121,6 +124,7 @@ export function frRender() {
     if (r.invite) btn('Invite', 'coopCopy', () => frInvite(r.f.c));
     if (r.sent) btn('Invited', 'coopCopy', () => {});
     btn('×', 'frDel', () => frRemove(r.f.c), 'Remove ' + r.name);
+    lookCardOn(li, 'f:' + r.f.c, () => { const s = PALS.st.get(r.f.c); return s && s.look && { look: s.look, name: r.name, col: r.on ? '#6fd07a' : '#5c5850', sub: r.what }; });   // (their survivor, as they last said: ui/look-card.js)
     ul.appendChild(li);
   }
 }

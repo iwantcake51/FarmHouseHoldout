@@ -19,6 +19,33 @@ whole of you), and **Keep this look every run** keeps the survivor you've made: 
 start of every run and every time you're back on your feet in co-op, and it's remembered in your browser. With it off,
 every run deals someone new. The cheat menu's character section is the same editor, with the same switch.
 
+The studio lights you like a photo shoot: a warm key light high in front, a cool fill from the other side and two rim
+lights from behind that pick your outline out of the dark, with a soft shadow on the floor under you. A bar over the
+view turns you a quarter either way, shows you straight from the front or the back, sets the view back, and stops or
+starts the slow turn. **Undo** and **Redo** sit by the close button (or Ctrl+Z, and Ctrl+Y or Ctrl+Shift+Z); each
+change is a step, and dragging a slider is one step, not one per pixel. On the **Whole** tab every part's card has a
+padlock: lock the parts you like and **Random** deals only the rest (a locked part shows a padlock on its tab too).
+The tabs sit in one row that scrolls, the one you're on always brought into view, and ← / → (or Q / E) step through
+them. The sliders fill up to their handle and the change follows as you drag; the menu scrolls with the game's own
+scrollbar.
+
+The clothes and marks are made to look like the real thing rather than stuck-on blocks: freckles, moles, bags,
+lines and grime lie flat on the skin (a mole just raised), scars are a pale pink with a darker edge, and a scar
+through an eyebrow leaves a gap in it. A work shirt or flannel has its button placket, buttons, and a chest pocket with
+a buttoned flap (a flannel's plaid in pale lines); a tee its crew neck and a print flat on it; a hoodie the edge of its
+hood, a kangaroo pocket with slanted openings, eyelets and thin drawcords with tipped ends; a polo its placket, buttons
+and a small logo. Bedrolls come in real bedroll colours with a little variation, never the same twice.
+
+Your pack is a proper hiking pack: a rounded body with a lid and a back flap, zips, rows of webbing with bar-tacked
+stitching, side compression straps with ladder buckles, padded shoulder straps with a sternum strap and clip, a mesh
+side pocket with a bottle in it and a zipped one on the other side, a pouch on the bottom and a grab loop on top, the
+bedroll strapped under the lid with darker ends and cinch straps (holstered weapons still hang where they did). The
+planks you carry (or metal bars, once you have the metalwork bench) are held on with cinch straps, the planks' end
+grain and nail heads showing.
+A watch or band sits right on your skin or sleeve, never floating off it. A chain, beads, strings or a metal watch
+bracelet hang loose: drawn down by gravity whichever way your arm is turned, swinging on a spring as your arm moves
+and turning a little round your wrist.
+
 On your wrists you can wear a watch (field, sport, digital, leather, steel bracelet, and now and then gold or iced
 out), a curb chain, beads, a rubber band, a stitched leather cuff with press studs, a cobra-weave paracord band or
 braided strings, set for each wrist or the same on **Both**; the hands view shows both wrists. Each is built true to
@@ -151,7 +178,9 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
 you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
 survivor with a full mag in each gun and three spares. Clear a wave with nobody down and everyone gets a little
-scrap. You can add friends by their friend code to see when they're online and join their lobby in one click.
+scrap. You can add friends by their friend code to see when they're online and join their lobby in one click. Rest
+the pointer on someone's seat in the lobby, or on a friend in your friends list, and their survivor, as they've made
+them, stands on a little card beside it, turning slowly under the studio lights (your own seat shows yours).
 
 ## Controls
 

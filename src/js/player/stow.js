@@ -299,7 +299,9 @@ const plankStack = [], STOW_STEEL = lam(0x8d949b), STOW_STEEL_DK = lam(0x5d636a)
   const g = new THREE.Group(); g.position.set(-0.06, 0, -0.355); packBack.add(g);
   [[0.8, 0.04, M.board, 0, -0.02], [0.935, -0.05, M.board2, 0, 0.03], [1.07, 0.03, M.board, 0, -0.02], [0.87, -0.11, M.board2, 1, 0.01], [1.0, 0.09, M.board, 1, -0.01]].forEach(([y, tilt, mat, layer, x], k) => {
     const w = 0.52 - layer * 0.04, p = box(g, w, 0.12, 0.04, lam(mat.color.getHex()), x, y, -0.005 * (k % 3) - layer * 0.046); p.rotation.z = tilt; p.userData.wood = mat.color.getHex();
-    const nails = [-1, 1].map(n => box(p, 0.012, 0.125, 0.045, M.metal, n * (w / 2 - 0.06), 0, 0));   // nails at the ends
+    // the sawn ends a shade darker (end grain), and two nail heads near each end where it was pulled off a fence or a wall
+    const endM = lam(mat.color.getHex()); p.userData.endM = endM;
+    const nails = [-1, 1].flatMap(n => [box(p, 0.004, 0.118, 0.038, endM, n * (w / 2 - 0.0015), 0, 0), ...[-0.03, 0.03].map(dy => box(p, 0.009, 0.009, 0.004, M.metal, n * (w / 2 - 0.05), dy + n * 0.006, -0.0215))]);
     // the angle iron in its place: a flat leg against the pack, the other standing out along its top edge, cut ends darker
     const steel = [box(p, w * 0.96, 0.09, 0.012, STOW_STEEL, 0, -0.005, -0.012), box(p, w * 0.96, 0.012, 0.05, STOW_STEEL, 0, 0.034, 0.008),
       ...[-1, 1].map(n => box(p, 0.006, 0.092, 0.014, STOW_STEEL_DK, n * w * 0.48, -0.005, -0.012))];
@@ -307,8 +309,17 @@ const plankStack = [], STOW_STEEL = lam(0x8d949b), STOW_STEEL_DK = lam(0x5d636a)
     p.userData.nails = nails; p.userData.steel = steel; p.userData.met = false;
     p.visible = false; plankStack.push(p);
   });
-  plankStack.strap = box(g, 0.05, 0.42, 0.063, STRAP_M, 0.16, 0.94, -0.02); plankStack.strap.visible = false;
-  plankStack.strap2 = box(g, 0.05, 0.34, 0.028, STRAP_M, -0.1, 0.94, -0.08); plankStack.strap2.visible = false;
+  // the cinch straps: each a flat webbing band down the outside of the stack, wrapped round its top and bottom edges back
+  // to the pack, with its cam buckle on the front (the second only once the stack's deep enough to need it)
+  const cinch = (x, y0, y1, zo) => {
+    const c = new THREE.Group(); c.position.x = x; g.add(c);
+    box(c, 0.035, y1 - y0, 0.004, STRAP_M, 0, (y0 + y1) / 2, zo);
+    [y0, y1].forEach(y => box(c, 0.035, 0.004, -zo + 0.01, STRAP_M, 0, y, zo / 2 + 0.005));
+    box(c, 0.042, 0.036, 0.008, BUCKLE_M, 0, (y0 + y1) / 2 + 0.06, zo - 0.004); box(c, 0.03, 0.006, 0.01, STRAP_M, 0, (y0 + y1) / 2 + 0.072, zo - 0.007);
+    return c;
+  };
+  plankStack.strap = cinch(0.16, 0.73, 1.15, -0.072); plankStack.strap.visible = false;
+  plankStack.strap2 = cinch(-0.12, 0.76, 1.12, -0.074); plankStack.strap2.visible = false;
 }
 // the backpack hangs from the tops of its shoulder straps and swings on its own, like a real one: it bounces a beat
 // behind each step, lags back as you set off and swings on as you pull up, rocks with your stride and out to the side
@@ -396,7 +407,7 @@ export function updateStow(rdt) {
   }
   const n = Math.min(plankStack.length, S.planks | 0);
   plankStack.forEach((p, k) => {
-    if (k < n && !p.visible) p.material.color.setHex(plankTint(p.userData.wood)); p.visible = k < n;
+    if (k < n && !p.visible) { p.material.color.setHex(plankTint(p.userData.wood)); p.userData.endM.color.copy(p.material.color).multiplyScalar(0.72); } p.visible = k < n;
     const u = p.userData; if (u.met !== METAL.on) { u.met = METAL.on; p.material.visible = !u.met; u.nails.forEach(m => { m.visible = !u.met; }); u.steel.forEach(m => { m.visible = u.met; }); }   // (planks or metal)
   }); plankStack.strap.visible = n > 0; plankStack.strap2.visible = n > 3;
   // the melee weapon and the automatic are laid on what's under them again whenever that changes

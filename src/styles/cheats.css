@@ -47,7 +47,7 @@
 .chRail button.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 2px 2px 0;background:var(--orange);box-shadow:0 0 8px rgba(var(--acc),.7)}
 .chRail button.on svg{color:var(--orange)}
 .chRail em{position:absolute;top:5px;right:16px;min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:#b3241a;color:#fff;font:700 9.5px/15px var(--f-num);font-style:normal;letter-spacing:0}
-#chBody{overflow-y:auto;overscroll-behavior:contain;padding:2px 16px 18px;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
+#chBody{overflow-y:auto;overscroll-behavior:contain;padding:2px 16px 18px}   /* (the game's own scrollbar: styles/base.css) */
 #chBody.in>*{animation:chFade .22s ease both}   /* (only when the section changes, not every click: ui/cheats.js) */
 @keyframes chFade{from{opacity:0;translate:0 4px}}
 .chH{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:16px 0 7px;color:var(--orange);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
@@ -179,7 +179,20 @@
 .chLkO.sw .any{background:conic-gradient(#e2412c,#e8b84a,#6fd07a,#5f9ee8,#a585f4,#e2412c);overflow:hidden}
 .chLkO.sw .any.on{background:var(--c)}
 .chLkO.sw .any input{position:absolute;inset:-6px;opacity:0;cursor:pointer}
-.chLk input[type=range]{width:100%;accent-color:var(--orange);cursor:pointer}
+/* a slider: a slim rail filled in orange as far as it's set (--p), a round grip that grows a little under the pointer
+   and lights while it's held, its number beside it */
+.chLk input[type=range]{width:100%;height:22px;margin:0;background:transparent;cursor:pointer;-webkit-appearance:none;appearance:none;--p:50%}
+.chLk input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(90deg,var(--orange) var(--p),rgba(236,230,216,.14) var(--p))}
+.chLk input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(236,230,216,.14)}
+.chLk input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--orange)}
+.chLk input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;background:#f1ebde;border:2px solid var(--orange);box-shadow:0 1px 4px rgba(0,0,0,.5);transition:transform .12s,box-shadow .12s}
+.chLk input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#f1ebde;border:2px solid var(--orange);box-shadow:0 1px 4px rgba(0,0,0,.5);transition:transform .12s,box-shadow .12s}
+.chLk input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
+.chLk input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25);box-shadow:0 0 0 5px rgba(var(--acc),.22),0 1px 4px rgba(0,0,0,.5)}
+.chLk input[type=range]:hover::-moz-range-thumb{transform:scale(1.15)}
+.chLk input[type=range]:active::-moz-range-thumb{transform:scale(1.25);box-shadow:0 0 0 5px rgba(var(--acc),.22)}
+.chLk input[type=range]:focus-visible{outline:none}
+.chLk input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px rgba(var(--acc),.45)}
 .chLkR{display:grid;grid-template-columns:1fr 38px;gap:8px;align-items:center}
 .chLkR output{text-align:right;color:var(--ink);font:700 11px var(--f-num);font-variant-numeric:tabular-nums}
 /* little dots of colour: a part's colours on the whole of you, a glove's colourway */
@@ -188,9 +201,18 @@
 .dots i:last-child{margin-right:0}
 /* the whole of you: a tile a part, its colours and what it is; click one to change it */
 .chLkSum{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
-.chLkSum button{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;padding:9px 11px;border:1px solid var(--chLine);border-radius:5px;background:var(--chCard);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
-.chLkSum button:hover{border-color:rgba(var(--acc),.6);background:rgba(var(--acc),.08);transform:translateY(-1px)}
+.chLkSum .lkCard{position:relative;display:grid}
+.chLkSum .lkMain{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;padding:9px 11px;border:1px solid var(--chLine);border-radius:5px;background:var(--chCard);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.chLkSum .lkMain:hover{border-color:rgba(var(--acc),.6);background:rgba(var(--acc),.08);transform:translateY(-1px)}
 .chLkSum b{font-size:12px;font-weight:700}
+/* each card's padlock, in its corner: open and faint until it's clicked, then shut and lit (Random survivor leaves that
+   part be), the card itself edged in the same colour */
+.chLkSum .lkMain{padding-right:34px}
+.chLkSum .lkLock{position:absolute;right:6px;bottom:6px;display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;opacity:.55;transition:opacity .15s,color .15s,background .15s,border-color .15s}
+.chLkSum .lkLock .chIco{width:12px;height:12px;fill:currentColor}
+.chLkSum .lkLock:hover{opacity:1;color:var(--ink);background:rgba(236,230,216,.06)}
+.chLkSum .lkLock.on{opacity:1;color:var(--orange);border-color:rgba(var(--acc),.4);background:rgba(var(--acc),.1)}
+.chLkSum .lkCard.locked .lkMain{border-color:rgba(var(--acc),.35)}
 .chLkSum em{grid-column:1/-1;color:var(--dim);font-size:10.5px;font-style:normal;line-height:1.3}
 .chLkTs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0}
 .chLkT{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 5px;border:1px solid rgba(236,230,216,.14);border-radius:12px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer}

@@ -6,7 +6,7 @@
 // about, scroll to zoom, double-click to set it all back; let go and a weapon (or the whole of you) carries on turning.
 import { V3 } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
-import { binModel } from '../core/geometry.js';
+import { binModel, BLOB_TEX } from '../core/geometry.js';
 import { PM } from '../player/player.js';
 import { bareLook } from '../player/gear.js';
 import { ARM_THIN, ARM_X } from '../player/hold.js';
@@ -24,8 +24,10 @@ let gvR = null, gvScene = null, gvCam = null, gvPivot = null, gvModel = null, gv
 let yaw = 1.1, pitch = 0.16, gvZoom = 1, idleT = 9, drag = null, gvLen = 0.5, gvH = 0.2;
 // showing you rather than a weapon: where on you the camera's headed (fig.to: the point, how far back, from which way
 // round and how far above) and where it is on the way there (fig.at, fig.dist), and each part of you the views look at
-let fig = null;
+let fig = null, gvRig = null, gvFloor = null, gvSpin = true;
 const figPart = new Map();
+// the studio's lights: [colour, strength, and where from (to the camera's right, up, toward it)]; sky: [above, below, strength]
+export const STUDIO_LIGHT = { sky: [0xfff0dc, 0x1c1610, 1.15], key: [0xfff0dc, 3.4, 1.6, 2.4, 2.2], fill: [0xc4d6ff, 1.05, -2.3, 0.8, 1.4], rimW: [0xffc48a, 2.6, -1.5, 1.9, -2.4], rimC: [0xa8c0ff, 1.5, 1.9, 1.4, -2.1] };
 // where the camera looks: the gun's middle, or wherever it's been moved to (panned), and how far that may wander (of
 // the gun's length)
 const gvAim = new V3(), GV_PAN = 0.75, _gvR = new V3(), _gvU = new V3(), _gvL = new V3();
@@ -35,8 +37,8 @@ gunView.className = 'chView'; gunView.setAttribute('aria-label', 'Drag to look r
 
 // the model's own colours without the farm's light map (core/shaders.js: lit), so it looks the same by day or night;
 // a blood-stained copy is drawn as what it's a copy of (effects/body-blood.js), which has the colour as it is now
-const plainOf = new Map();
-function plain(m) {
+const plainOf = new WeakMap();
+export function plain(m) {
   if (Array.isArray(m)) return m.map(plain);
   if (m.userData && m.userData.bloodOf) m = m.userData.bloodOf;
   let p = plainOf.get(m); if (p) { if (m.color) p.color.copy(m.color); return p; }   // (your skin and shirt are recoloured in place: player/look.js)
@@ -49,10 +51,17 @@ function setup() {
   gvR = new THREE.WebGLRenderer({ canvas: gunView, antialias: true, alpha: true });
   gvR.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   gvScene = new THREE.Scene(); gvCam = new THREE.PerspectiveCamera(GV.fov, 2, 0.01, 20);
-  gvScene.add(new THREE.HemisphereLight(0xfff2dc, 0x2a2018, 2.4));
-  const key = new THREE.DirectionalLight(0xfff0d8, 3.2); key.position.set(1.5, 2.2, 2); gvScene.add(key);
-  const rim = new THREE.DirectionalLight(0xffb070, 2.2); rim.position.set(-2, 1, -1.6); gvScene.add(rim);
+  // a photographer's three lights (STUDIO_LIGHT): a warm key high and to the front-right, a softer cool fill from the
+  // other side so the shadowed half still reads, and two rims from behind (warm on one side, cool on the other) that pick
+  // the outline out of the dark backdrop; under them a low wash of sky and floor so nothing goes flat black. They're fixed
+  // to the camera's turning, so whichever way round you're looked at the light falls the same way
+  const L = STUDIO_LIGHT, rig = new THREE.Group(); gvRig = rig; gvScene.add(rig);
+  rig.add(new THREE.HemisphereLight(L.sky[0], L.sky[1], L.sky[2]));
+  for (const [c, k, x, y, z] of [L.key, L.fill, L.rimW, L.rimC]) { const d = new THREE.DirectionalLight(c, k); d.position.set(x, y, z); rig.add(d); }
   gvPivot = new THREE.Group(); gvScene.add(gvPivot);
+  // the soft dark patch you stand on (only when it's you in here, not a gun)
+  gvFloor = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }));
+  gvFloor.scale.set(1.1, 1, 0.8); gvFloor.position.y = 0.004; gvFloor.visible = false; gvScene.add(gvFloor);
   // the left button turns it; the right or middle button, or the left with Shift held, moves it about (pan)
   gunView.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch, pan: e.button === 2 || e.button === 1 || e.shiftKey, aim: gvAim.clone() }; try { gunView.setPointerCapture(e.pointerId); } catch (er) {} idleT = 0; });
   gunView.addEventListener('pointermove', e => {
@@ -120,7 +129,7 @@ function copyPlain(o) {
 const gvBlink = {};
 const FOCUS = {
   body: { at: [0, 0.82, 0], dist: 3.4, yaw: 0.55, pitch: 0.1 },
-  face: { on: 'head', at: [0, 0.0, 0.1], dist: 0.95, yaw: 0.12, pitch: 0.04 },
+  face: { on: 'head', at: [0, 0.01, 0.1], dist: 1.22, yaw: 0.14, pitch: 0.05 },   // (the whole head and a hat in the frame, not cut off)
   hair: { on: 'head', at: [0, 0.08, 0], dist: 1.25, yaw: 0.95, pitch: 0.22 },
   hat: { on: 'head', at: [0, 0.16, 0], dist: 1.3, yaw: 0.6, pitch: 0.38 },
   top: { on: 'torso', at: [0, 0.05, 0.05], dist: 1.75, yaw: 0.35, pitch: 0.08 },
@@ -131,15 +140,15 @@ const FOCUS = {
 };
 // the copy of you stood easy: up straight, feet together, arms down at your sides a little out from you, the weapon in
 // your hands put away (what's slung or holstered stays), each part set back where the rig has it at rest
-// (characters/rig.js)
+// (characters/rig.js). get: the copy's part for each of yours (a teammate's look on a card: ui/look-card.js)
 const EASY = { arm: 1.5, out: 0.06 };
-function standEasy() {
-  const at = (o, x, y, z) => { const c = figPart.get(o); if (c) { c.position.set(x, y, z); c.rotation.set(0, 0, 0); } return c; };
+export function standEasy(get = o => figPart.get(o)) {
+  const at = (o, x, y, z) => { const c = get(o); if (c) { c.position.set(x, y, z); c.rotation.set(0, 0, 0); } return c; };
   at(PM.upper, 0, 0, 0); at(PM.lower, 0, 0, 0); at(PM.torso, 0, 0.86, 0); at(PM.head, 0, 1.33, 0);
   at(PM.legL, -0.13, 0.55, 0); at(PM.legR, 0.13, 0.55, 0);
-  [PM.shinL, PM.shinR].forEach(o => { const c = figPart.get(o); if (c) c.rotation.set(0, 0, 0); });
+  [PM.shinL, PM.shinR].forEach(o => { const c = get(o); if (c) c.rotation.set(0, 0, 0); });
   [[PM.armL, -1], [PM.armR, 1]].forEach(([o, sg]) => { const c = at(o, sg * ARM_X, 1.08, 0); if (c) { c.rotation.set(EASY.arm, 0, sg * EASY.out, 'ZXY'); c.scale.set(ARM_THIN, ARM_THIN, 1); } });   // (down, then out from the side; as long as each other, whatever stretch a held gun had given one)
-  const g = figPart.get(gunMeshes[W8.cur]); if (g) g.visible = false;
+  const g = get(gunMeshes[W8.cur]); if (g) g.visible = false;
 }
 // show you, the camera headed for view `key`; fresh: copy you again (your look's just changed); gear: with what your
 // upgrades put on you (the armour's jacket, boots, gloves, the helmet...), or (false) in just the clothes you're changing;
@@ -162,6 +171,16 @@ export function showFigure(key, fresh, gear, easy, room = 1) {
   if (!was || was.key !== key) { yaw = was ? yaw : F.yaw; pitch = was ? pitch : F.pitch; gvZoom = 1; gvAim.set(0, 0, 0); idleT = 0; fig.glide = 1; }
   if (!gvRaf) { gvLast = performance.now(); gvRaf = requestAnimationFrame(gvTick); }
 }
+// the studio's view buttons (ui/look-menu.js): a quarter turn either way, straight on from the front or the back, back
+// to where this part's view starts, or the slow turn of the whole of you on or off (what it is now, returned)
+export function studioView(cmd) {
+  if (cmd === 'spin') { gvSpin = !gvSpin; return gvSpin; }
+  if (!fig) return gvSpin;
+  const F = FOCUS[fig.key] || FOCUS.body, to = cmd === 'left' ? yaw - Math.PI / 4 : cmd === 'right' ? yaw + Math.PI / 4 : cmd === 'front' ? 0 : cmd === 'back' ? Math.PI : F.yaw;
+  fig.to.yaw = yaw + angWrap(to - yaw); if (cmd === 'reset' || cmd === 'front' || cmd === 'back') { fig.to.pitch = cmd === 'reset' ? F.pitch : 0.08; gvZoom = 1; gvAim.set(0, 0, 0); }
+  fig.glide = 1; idleT = 0; return gvSpin;
+}
+export const studioSpin = () => gvSpin;
 // let it go (the menu shut, or another section open): it stops drawing
 export function hideGun() { if (gvRaf) cancelAnimationFrame(gvRaf); gvRaf = 0; }
 function gvTick(t) {
@@ -175,7 +194,7 @@ function gvTick(t) {
     fig.at.lerp(fig.to.at, k); fig.dist += (fig.to.dist - fig.dist) * k;
     if (fig.glide && !drag) { yaw += angWrap(fig.to.yaw - yaw) * k; pitch += (fig.to.pitch - pitch) * k; if (Math.abs(angWrap(fig.to.yaw - yaw)) < 0.01 && Math.abs(fig.to.pitch - pitch) < 0.01) fig.glide = 0; }
     if (drag) fig.glide = 0;
-    if (fig.key === 'body' && !drag && !fig.glide && idleT > GV.idle) yaw += GV.spin * 0.6 * dt * Math.min(1, (idleT - GV.idle) / 0.8);   // (the whole of you turns slowly)
+    if (fig.key === 'body' && gvSpin && !drag && !fig.glide && idleT > GV.idle) yaw += GV.spin * 0.6 * dt * Math.min(1, (idleT - GV.idle) / 0.8);   // (the whole of you turns slowly, unless it's been told to stay still)
   } else if (!drag && idleT > GV.idle) yaw += GV.spin * dt * Math.min(1, (idleT - GV.idle) / 0.8);   // (easing back into turning)
   const w = gunView.clientWidth, h = gunView.clientHeight;
   if (w && h) {
@@ -183,6 +202,7 @@ function gvTick(t) {
     gvCam.aspect = w / h;
     const d = camDist(), look = fig ? _gvL.copy(fig.at).add(gvAim) : gvAim;
     gvCam.position.set(Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.cos(yaw) * Math.cos(pitch) * d).add(look); gvCam.lookAt(look); gvCam.updateProjectionMatrix(); gvCam.updateMatrixWorld();
+    gvRig.rotation.y = yaw; gvFloor.visible = !!fig;
     if (fig) { const H = LOOK.g.head.userData.face, b = blinkStep(gvBlink, real); if (H) H.eyes.forEach(e => { const c = figPart.get(e); if (c) c.scale.y = Math.max(0.07, 1 - b); }); }   // (you blink in here too)
     gvR.render(gvScene, gvCam);
   }
