@@ -223,7 +223,9 @@ and a station or a menu lets go of it for you, closing it taking the mouse back.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried further right and lower on its sling, its belt and box down out of the
 middle of the view), and each shot turns it in your hands as well as kicking the view; through a scope the
-picture rocks a little with it. Reloads are the same ones you see from above, only calmer from your own eyes: the gun
+picture rocks a little with it. Fired cases fly out to the right and a touch forward, as a rifle throws them, never up
+and back into your face, and one that would pass right by your eye isn't drawn until it's out past arm's length.
+Reloads are the same ones you see from above, only calmer from your own eyes: the gun
 comes up a touch and turns a little toward you, not over on its side, and it stays out to the right where you hold it at
 the hip rather than coming back to the middle for the reload. The flashlight points down the gun's barrel,
 easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming

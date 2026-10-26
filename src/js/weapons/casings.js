@@ -1,6 +1,7 @@
 // Spent casings and dropped magazines, plus pump/bolt cycling.
 
-import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { fpOn } from '../game/view-cam.js';
 import { clamp, rand, rr, smooth } from '../core/math.js';
 import { netSend } from '../net/net.js';
 import { lam } from '../core/shaders.js';
@@ -170,6 +171,9 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
     else if (mode === 'pump' || mode === 'bolt') { side = rr(2.3, 3.3); up = rr(2.2, 3.2); back = rr(0.2, 0.8); }   // racked out hard
+    // (from your own eyes, just behind and above the port, out to the right and a touch forward as a rifle throws them,
+    // not up and back into your face: FP_EJECT)
+    if (right && fpOn()) { back = -rr(FP_EJECT.fwd[0], FP_EJECT.fwd[1]); up *= FP_EJECT.up; }
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
     else {   // dump: the whole cylinder's worth slides out of the chambers together, each case falling its own way
       side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8);
@@ -188,11 +192,14 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
 // motion on screen) and a thread of smoke for its first moments in the air
 // (made on first use: the sprites are loaded in effects/textures.js, which loads after this file)
 let caseGlows = null, cgIdx = 0;
+// first person: how fast (m/s) a fired or racked case goes forward instead of back, how much of its rise it keeps, and
+// how near your eye a case can be and still be drawn
+const FP_EJECT = { fwd: [0.3, 0.9], up: 0.6, near: 0.4 };
 const _cg = new V3(), _cg2 = new V3();
 function stepCaseTrails(dt) {
   if (!caseGlows) { caseGlows = []; const mat = new THREE.SpriteMaterial({ map: partTex('trace2'), color: 0xff9a48, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); for (let k = 0; k < 110; k++) { const s = new THREE.Sprite(mat.clone()); s.visible = false; scene.add(s); caseGlows.push({ s, t: 0, max: 0.2 }); } }
   for (const c of casings) {
-    if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag') continue;
+    if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag' || !c.g.visible) continue;   // (nor its streak, by your eye: hideNearEye)
     c.age += dt; if (c.bounces >= 1 || dt <= 0) continue;
     const g = caseGlows[cgIdx = (cgIdx + 1) % caseGlows.length], p = c.g.position, heat = c.hot * (1 - c.age / 0.45);
     g.s.position.copy(p); g.s.visible = true; g.t = g.max = 0.1 + 0.08 * heat; g.a = 0.95 * heat;
@@ -231,7 +238,13 @@ export function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-export function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+export function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); hideNearEye(); stepCaseTrails(dt); }
+// from your own eyes, a case is never drawn right in front of your eye (FP_EJECT.near, m): one that would pass that
+// close to the camera is left out for those frames, rather than filling the screen with brass
+function hideNearEye() {
+  const fp = fpOn(), e = FP_CAM.position, r2 = FP_EJECT.near * FP_EJECT.near;
+  for (const c of casings) if (c.life > 0) c.g.visible = !fp || c.g.position.distanceToSquared(e) > r2;
+}
 export const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
