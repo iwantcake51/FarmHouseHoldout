@@ -308,6 +308,17 @@ side of the road (its wires swaying slowly in the wind, more as it blows harder 
 mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
 glow sits over it all through the day and night.
 
+**How the body moves.** Your survivor's animation runs through an animation graph, the way a game engine's does. Getting
+about is a blend space: a forward stride, a backpedal and a side step each way are separate gaits, mixed by which way
+you're going relative to where your hips face, so a diagonal is part stride and part side step, and the mix slides
+round as you change direction. Walking backwards is its own walk: shorter steps, each foot lifted early and reached
+back, landing toe first on bent knees. Strafing is a real side step: the leading foot steps out, the other closes in
+after it, the hips riding over each foot and rocking as the other lifts, and the feet never cross. Over that, a state
+machine knows whether you're getting about, landing, vaulting or getting up at the start of a run. Changing state
+never snaps the pose: where each joint was, and how fast it was moving, is carried into the new state and dies away
+smoothly over a moment (inertial blending). The same catches any joint that would jump from one frame to the next for
+any other reason, so nothing pops.
+
 **Right-handed.** Your survivor shoots right-handed: the right hand on the grip and trigger, working the hunting
 rifle's bolt and the charging handle and thumbing its rounds in (to the cartridges on the right hip, up over the open
 port, carried down onto it in the fingers, laid in on top of the rounds in the well and pressed down into it by the

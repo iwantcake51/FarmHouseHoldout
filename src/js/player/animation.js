@@ -30,6 +30,8 @@ import { inspectCut } from './inspect.js';
 import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
+import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
+const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
@@ -200,6 +202,7 @@ const FP_BODY = { stride: 0.25, lean: 0.35, turn: 0.15 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
   if (P.dead) inspectCut();   // (player/inspect.js)
+  if (P.dead) agReset();   // (a ragdoll or the fall: nothing to hand over from, coming back up)
   if (P.dead) { if (PRAG.me) { stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
@@ -273,6 +276,7 @@ function animatePlayer(dt, rdt) {
   // how far off the hips' facing you're actually going: the legs swing along that line, partly as a side step
   ANIM.r2 = (ANIM.r2 || 0) + ((spd > 0.3 && !P.vault ? clamp(angDiff(mvRel, ANIM.legYaw), -1.3, 1.3) : 0) - (ANIM.r2 || 0)) * Math.min(1, rdt * 10);
   ANIM.legDirS = (ANIM.legDirS ?? 1) + (ANIM.legDir - (ANIM.legDirS ?? 1)) * Math.min(1, rdt * 7);   // the stride's way, blended
+  locoWeights(angDiff(Math.atan2(P.vx, P.vz), ANIM.yaw + ANIM.legYaw), spd > 0.3 && !P.vault, rdt);   // which way you're going off the hips: the blend space's mix (player/anim-graph.js)
   // the stride's size follows your speed on a short lag, so turning round on the spot (your speed dipping through
   // nothing for a frame) doesn't snap the legs together
   ANIM.strideK = (ANIM.strideK ?? 0) + (Math.min(1, runF) - (ANIM.strideK ?? 0)) * Math.min(1, rdt * 9);
@@ -296,12 +300,13 @@ function animatePlayer(dt, rdt) {
     // the stride runs along the line you're going: fore and aft as far as the hips face it, and the rest a side step,
     // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
     // a little and the steps shorten
-    const st = ANIM.legDirS * s * stride, sc = Math.cos(ANIM.r2), sn = Math.sin(ANIM.r2), bad = 1 - limp * LIMP.short, splay = 0.045 * ads;
-    pm.legL.rotation.x = st * sc;
-    pm.legR.rotation.x = -st * sc * bad;   // (the bad leg's step shorter)
-    const zl = -st * sn * 0.5, zr = st * sn * 0.5 * bad;
+    // (the blend space: player/anim-graph.js. The knees bend as each leg swings through, most just after it leaves the
+    // ground so the heel lifts clear, and at a sprint they kick right up behind; a little give in the standing knee too)
+    const bad = 1 - limp * LIMP.short, splay = 0.045 * ads, kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.08 * sk;
+    const LP = locoPose(_lp, ph, stride, kn, give, bad, 1 - limp * LIMP.stiff, limp);
+    pm.legL.rotation.x = LP.lx; pm.legR.rotation.x = LP.rx;   // (the bad leg's step shorter)
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
-    pm.legL.rotation.z = (zl > 0 ? zl * 0.35 : zl) - splay; pm.legR.rotation.z = (zr < 0 ? zr * 0.35 : zr) + splay; pm.lower.rotation.z = spd <= 0.3 ? ANIM.legYaw * 0.035 : 0;
+    pm.legL.rotation.z = LP.lz - splay; pm.legR.rotation.z = LP.rz + splay; pm.lower.rotation.z = (spd <= 0.3 ? ANIM.legYaw * 0.035 : 0) + LP.hz * Math.min(1, runF);
     // limping: the stiff bad leg swung round the side a little as it comes through (LIMP.out), and the hip on the good
     // side dropping while the bad one has the weight (LIMP.hip)
     if (limp > 0.001) { const m = Math.min(1, runF); pm.legR.rotation.z += LIMP.out * limp * gs * gs * m; pm.lower.rotation.z += LIMP.hip * limp * smooth(bs) * m; }
@@ -315,11 +320,7 @@ function animatePlayer(dt, rdt) {
       pm.legL.rotation.z = mix(pm.legL.rotation.z, Math.max(0, q) * 0.08 * lift); pm.legR.rotation.z = mix(pm.legR.rotation.z, -Math.max(0, -q) * 0.08 * lift);
       pm.lower.position.y = Math.abs(q) * 0.016 * lift; pm.lower.rotation.z += q * 0.035 * lift;
     }
-    // the knees: each bends as its leg swings through, most just after it leaves the ground, so the heel lifts clear;
-    // at a sprint it kicks right up behind. A little give in the standing knee too
-    const kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.08 * sk;
-    pm.shinL.rotation.x = kn * Math.pow(Math.max(0, -Math.cos(ph + 0.35)), 1.3) + give;
-    pm.shinR.rotation.x = kn * Math.pow(Math.max(0, Math.cos(ph + 0.35)), 1.3) * (1 - limp * LIMP.stiff) + give * (1 - limp);   // (the bad knee kept stiff)
+    pm.shinL.rotation.x = LP.kl; pm.shinR.rotation.x = LP.kr;   // (the bad knee kept stiff)
     // hurt and standing: the weight off the bad leg, its knee bent and the hip dropped that side (LIMP.rest), buckling a
     // little more with a wince
     { const r = limp * (1 - Math.min(1, runF)) * (1 - (ANIM.stepW || 0));
@@ -391,21 +392,21 @@ function animatePlayer(dt, rdt) {
   const breathe = Math.sin(ANIM.brPh) * 0.01 * (1 + LIMP.breath[0] * limp) * still;   // (quicker and deeper hurt: LIMP.breath)
   // the weight goes over the foot you stand on: the hips carry you side to side once a stride (less at a run, where
   // the feet land closer to the line), and standing still you drift slowly from foot to foot
-  const shift = P.vault ? 0 : -ANIM.legDirS * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
+  const shift = P.vault ? 0 : -ANIM.legDirS * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) * _lp.twist + Math.sin(now * 0.55) * 0.007 * still;
   // the chest rides the hips' bob on a spring: it lags them a little and settles just past each footfall
   if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
   // (from your own eyes the chest rides the stride far less, and leans less into how you move: what sways a body nicely
   // seen from above swims the gun about in front of your eyes, which are held steady over it: game/view-cam.js. FP_BODY)
   const fpB = fpOn(), fS = fpB ? FP_BODY.stride : 1, fL = fpB ? FP_BODY.lean : 1, fT = fpB ? FP_BODY.turn : 1;
   pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy * fS + breathe;
-  pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads) * fS;
+  pm.lower.position.x = shift + (P.vault || ANIM.land > 0 ? 0 : _lp.hx * run1); pm.upper.position.x = shift * (0.75 - 0.5 * ads) * fS;
   // (and back over the hips: from your own eyes the view puts the chest under your eye each frame, game/view-cam.js:
   // vmLock, and with the hips leant into a sprint some of that lands forward; a gun's hold sets it again after this,
   // player/hold.js, but with a melee weapon nothing did, and it built up frame on frame, the chest running off ahead of
   // the legs)
   pm.upper.position.z = 0;
   // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
-  if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1;
+  if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1 * _lp.twist;   // (not with a side step's)
   // lean into movement relative to where you face, sway with the stride, rock back when hit
   const md = Math.atan2(P.vx, P.vz), rel = spd > 0.2 ? angDiff(md, ANIM.yaw) : 0;
   const lxT = Math.cos(rel) * 0.1 * run1 * (1 - 0.75 * ads), lzT = -Math.sin(rel) * 0.09 * run1 * (1 - 0.75 * ads);
@@ -478,6 +479,8 @@ function animatePlayer(dt, rdt) {
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
+  // the state the body's in, for the animation graph to hand over from one to the next without a snap (player/anim-graph.js)
+  agState(P.vault ? 'vault' : ANIM.land > 0 ? 'land' : INTRO.t >= 0 || state === 'title' ? 'intro' : 'loco', rdt);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel
 export function updatePlayerVisuals(dt, rdt) {
