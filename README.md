@@ -113,7 +113,7 @@ part under your crosshair (the one your first round goes to) is found against on
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
 SWAT in plate carriers, and riot officers whose face shields blunt headshots; builders' hard hats stop a little from
 the start. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
-of it, and the .50 hand cannon and the battle rifle fired in semi punch through far more of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
+of it, and the .50 hand cannon and the battle rifle (not once converted to AK mags) punch through far more of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
 shield. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
@@ -239,7 +239,7 @@ fog lets you see, and the
 picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
 away. The outlines and glows round drops and teammates are left off the eyepiece, so the magnified picture down it is clean; and
-drops and teammates are only seen through walls from above, as zombies are (from your own eyes your gun and scope counted as the
+drops and teammates are only seen through walls from above, as zombies are (a drop's glow too) (from your own eyes your gun and scope counted as the
 wall, and every drop behind them got a hollow box drawn over the glass). Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
 from your eye, even aiming straight up. Aiming waits until the gun's back up in your hands after a vault or a weapon switch,
 and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
