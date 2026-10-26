@@ -137,18 +137,47 @@ const yardProp = (kind, g, w, d, low, put) => { g.userData.still = true; const p
 // a prop's cells with its first at (i, j), turned q quarters
 export const yardCells = (p, i, j, q) => { const odd = q & 1, w = odd ? p.d : p.w, d = odd ? p.w : p.d, out = []; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) out.push([i + a, j + b]); return out; };
 // set down there, on the grid (live: in a game, so what stops shots is kept up too: world/collision.js)
+// (a prop with ends: a car, whose first and last rows along its length (its hood and trunk) are low, seen and shot
+// over, and the rest (the cabin) as high as p.ends)
 export function yardSet(p, i, j, q, live) {
   p.at = yardCells(p, i, j, q); p.put(i, j, q); if (!p.home) p.home = [i, j, q];
-  for (const [a, b] of p.at) { obstacle(a, b, p.low); if (live) blockArr[idx(a, b)] = p.low ? 0 : 1; }
+  const long = p.d, along = ([a, b]) => q & 1 ? a - i : b - j;
+  for (const c of p.at) { const [a, b] = c, end = p.ends !== undefined && (along(c) === 0 || along(c) === long - 1), low = p.low || end;
+    obstacle(a, b, low, p.ends !== undefined && !end ? p.ends : undefined); if (!low) lowObst.delete(idx(a, b)); if (live) blockArr[idx(a, b)] = low ? 0 : 1; }
 }
+// an old rusted-out car left in the yard (built along z, its nose at +z): a body with its hood and trunk below the
+// waistline, the cabin over the middle with its windscreen and back window raked (CAR_CAB: its side's outline), glass set
+// into each side and end, round wheels in dark arches, grille, lamps and bumpers. You see and shoot over its hood and
+// trunk; only the cabin is cover (yardSet: ends)
+const CAR_CAB = [[-1.1, 0.86], [-0.78, 1.42], [0.28, 1.42], [0.78, 0.9]];
+const CAR_M = { glass: lam(0x2a3a42), side: lam(0x2a3a42, { side: THREE.DoubleSide }), chrome: lam(0x8a8c8a), lamp: lam(0xd8cfa2), tail: lam(0x7a1e18), grille: lam(0x1e1d1c), rim: lam(0x6a6862), arch: lam(0x141312) };
 function car(i0, j0, q) {
   const g = new THREE.Group(); scene.add(g);
-  box(g, 1.75, 0.7, 3.8, M.rust, 0, 0.6, 0); box(g, 1.55, 0.55, 1.9, M.rust2, 0, 1.22, -0.2); box(g, 1.58, 0.42, 1.7, M.glass, 0, 1.24, -0.2);
-  box(g, 1.8, 0.12, 0.2, M.metal, 0, 0.42, 1.92); box(g, 1.8, 0.12, 0.2, M.metal, 0, 0.42, -1.92);
-  [[-.85, 1.2], [.85, 1.2], [-.85, -1.25], [.85, -1.25]].forEach(([a, b]) => box(g, 0.25, 0.55, 0.55, M.tire, a, 0.28, b));
+  box(g, 1.76, 0.42, 3.86, M.rust, 0, 0.55, 0);                                   // the lower body
+  box(g, 1.72, 0.12, 1.06, M.rust, 0, 0.82, 1.38); box(g, 1.72, 0.1, 0.78, M.rust, 0, 0.81, -1.5);   // the hood and the trunk lid
+  box(g, 1.74, 0.06, 2.0, M.rust2, 0, 0.79, -0.15);                                // the waist under the cabin
+  // the cabin: its side outline pushed across, the glass set a hair proud of each side and end
+  const sh = new THREE.Shape(); CAR_CAB.forEach(([z, y], k) => k ? sh.lineTo(z, y) : sh.moveTo(z, y));
+  const cab = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 1.5, bevelEnabled: false }), M.rust2); cab.rotation.y = -Math.PI / 2; cab.position.x = 0.75; cab.castShadow = true; g.add(cab);
+  const win = new THREE.Shape(); [[-0.98, 0.93], [-0.72, 1.36], [0.24, 1.36], [0.64, 0.93]].forEach(([z, y], k) => k ? win.lineTo(z, y) : win.moveTo(z, y));
+  [-1, 1].forEach(sd => { const w = new THREE.Mesh(new THREE.ShapeGeometry(win), CAR_M.side); w.rotation.y = -Math.PI / 2; w.position.x = sd * 0.756; g.add(w); });
+  [[0.28, 1.42, 0.78, 0.9], [-0.78, 1.42, -1.1, 0.86]].forEach(([z1, y1, z0, y0]) => { const len = Math.hypot(z1 - z0, y1 - y0) - 0.1, gl = box(g, 1.36, len, 0.01, CAR_M.glass, 0, (y0 + y1) / 2, (z0 + z1) / 2); gl.rotation.x = Math.atan2(z1 - z0, y1 - y0); gl.position.add(new THREE.Vector3(0, 0, Math.sign(z0) * 0.008)); });   // windscreen, back window
+  // the nose and the tail: grille and headlamps, tail lamps, the bumpers
+  box(g, 1.1, 0.2, 0.02, CAR_M.grille, 0, 0.62, 1.935); [-0.66, 0.66].forEach(x => box(g, 0.24, 0.13, 0.02, CAR_M.lamp, x, 0.66, 1.935));
+  [-0.68, 0.68].forEach(x => box(g, 0.26, 0.11, 0.02, CAR_M.tail, x, 0.66, -1.935));
+  box(g, 1.82, 0.1, 0.14, CAR_M.chrome, 0, 0.36, 1.98); box(g, 1.82, 0.1, 0.14, CAR_M.chrome, 0, 0.36, -1.98);
+  // round wheels in dark arches, a hub on each
+  [[-0.84, 1.22], [0.84, 1.22], [-0.84, -1.24], [0.84, -1.24]].forEach(([a, b]) => {
+    box(g, 0.02, 0.36, 0.78, CAR_M.arch, Math.sign(a) * 0.881, 0.5, b);
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.24, 16), M.tire); t.rotation.z = Math.PI / 2; t.position.set(a, 0.33, b); t.castShadow = true; g.add(t);
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 12), CAR_M.rim); h.rotation.z = Math.PI / 2; h.position.set(a + Math.sign(a) * 0.12, 0.33, b); g.add(h);
+  });
+  unfight(g); mergeInto(g, finePieces(g));
   // (its length along z, as built: a quarter turn lays it across x, and a car's a little off square where it was left)
-  yardSet(yardProp('car', g, 2, 4, false, (i, j, q) => { const odd = q & 1; g.position.set(cxw(i) - 0.5 + (odd ? 2 : 1), 0, cxw(j) - 0.5 + (odd ? 1 : 2)); g.rotation.y = q * Math.PI / 2 + rr(-0.07, 0.07); }), i0, j0, q);
+  const p = yardProp('car', g, 2, 4, false, (i, j, q) => { const odd = q & 1; g.position.set(cxw(i) - 0.5 + (odd ? 2 : 1), 0, cxw(j) - 0.5 + (odd ? 1 : 2)); g.rotation.y = q * Math.PI / 2 + rr(-0.07, 0.07); });
+  p.ends = CAR_ROOF; yardSet(p, i0, j0, q);
 }
+const CAR_ROOF = 1.42;   // (how high the cabin is: a round fired from your own eyes over its roof flies on)
 car(8, 29, 0);
 car(32, 9, 1);
 function crate(i, j) { const c = box(scene, 0.9, 0.9, 0.9, M.crate, cxw(i), 0.45, cxw(j)); box(c, 0.92, 0.08, 0.92, M.wood, 0, 0.3, 0); box(c, 0.92, 0.08, 0.92, M.wood, 0, -0.3, 0); yardSet(yardProp('crate', c, 1, 1, true, (a, b) => { c.position.set(cxw(a), 0.45, cxw(b)); c.rotation.y = rr(-.2, .2); }), i, j, 0); }

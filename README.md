@@ -53,7 +53,8 @@ spent and sent to teammates, and every skill and perk you took.
 ## What's in it
 
 **The farm.** Every run lays out a new house: its footprint, its rooms, its interior doors, its windows and where the
-furniture stands, plus a new yard of cars, crates, hay bales and fences. The roof and walls fade away around you so
+furniture stands, plus a new yard of cars, crates, hay bales and fences. The old rusted cars
+have their hoods and trunks low below the windows: you see and shoot over those, and only the cabin is cover. The roof and walls fade away around you so
 you can always see inside; from your own eyes the rooms have a proper ceiling over them instead, warm plaster with
 stained timber joists running across the house, the lamps hanging from it on their cords. The clock runs from afternoon into night, and the dark is where the lamps, your
 flashlight and the muzzle flashes matter.
