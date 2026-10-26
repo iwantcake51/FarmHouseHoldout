@@ -24,7 +24,7 @@ import { suppHeat } from '../effects/supp-heat.js';
 import { dragonBreath, impactFx } from '../effects/puffs.js';
 import { bulletHole } from '../effects/bullet-holes.js';
 import { zombies } from '../zombies/zombie-types.js';
-import { hurtZombie, partAt, pickPart, setCritNext, setHeadNext } from '../zombies/damage.js';
+import { hurtZombie, partAt, pickPart, setCritNext, setHeadNext, setHitY } from '../zombies/damage.js';
 import { explode, flashes } from './explosives.js';
 import { boardsCrossed, shootBoard } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
@@ -368,7 +368,9 @@ export function gunFire(id, D, side) {
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); setCritNext(crit); setHeadNext(headFade(id, hits[k].t));
+      setHitY(aimed && z === tgt.z ? tgt.y : fp ? y0 + slope * hits[k].t : null);   // (how high it struck: a helmet only guards the top of the head, zombies/damage.js)
       hurtZombie(z, D.dmg * S.dmgMul * suppMul(D) * Math.pow(D.pierceKeep ?? PIERCE_KEEP, m - 1) * falloff(id, hits[k].t) * (crit ? critX : 1), dx, dz, D.kick * falloff(id, hits[k].t), id, part);
+      setHitY(null);
     }
     const n = m;   // (the ones it went into, now at the front of hits)
     if (n) anyHit = true;

@@ -94,7 +94,7 @@ face, and the blow crosses the view. The weapon is swung round by your arm and h
 so it never spins about its handle or flips over in your hand, and the forearm's roll and the weapon's tilt ease in
 and out of every turn instead of starting and stopping dead.
 
-**Fog rounds.** Now and then a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
+**Fog rounds.** Once in a while (never within three waves of the last) a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
 thicker and thinner patches through it, paler at its tops and darker in its depths. From above, taller things (a tree,
 the burn barrel, a fence post) stand up out of it and its billows shift as the view moves; from your own eyes it's a
@@ -117,10 +117,15 @@ drops in the air cost anything to draw, so a shotgun on a crowd stays smooth. Th
 zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the
 part under your crosshair (the one your first round goes to) is found against one box per limb, fitted round the limb
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
-SWAT in plate carriers, and riot officers whose face shields blunt headshots; builders' hard hats stop a little from
-the start. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
+SWAT in plate carriers, and riot officers whose face shields blunt headshots; every helmet counts, even a builder's
+hard hat or a fireman's, which stop only a little. A helmet without a face shield only guards the top of the head: a
+round in the face, under the brim, goes round it. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
 of it, and the .50 hand cannon and the battle rifle (not once converted to AK mags) punch through far more of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
-shield. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
+shield. A melee blow depends on what it lands with: a blunt one (the bat, the crowbar, the wrench, the sledge) jars
+through most of it, a spiked one (nails in the bat, spikes on the sledge) catches on it, and an edge (the machete, the
+katana, the axe) mostly glances off. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
+Brutes come in slowly: the first brute wave sends just one, in plain clothes with no armour on it, and each wave after
+lets a few more in.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
 sawhorse to a metalwork bench and bar the openings with steel grates instead, reinforced in five tiers. Vault through
@@ -373,6 +378,11 @@ shotgun swing a little slower and carry on further, and the LMG lumbers into its
 same slap home moves a light gun more than a heavy one. A mag change opens with a small wind-up of the wrist the other
 way before the gun's rolled over to dump the old mag.
 
+**Getting hit.** You always know where it came from: red floods in from that side of the screen (from the bottom
+for a blow from behind) and holds a moment before it drains, a red arc round the middle of the view (round you, from
+above) points at it and keeps pointing as you turn, fading over a second or so, and the view's knocked away from it and
+shakes back along that line as it settles. None of it covers the middle of the screen.
+
 **Low health.** Your hands tremble and the crosshair wanders, a heartbeat knocking it now and then: a slow, smoothed
 tremble, small from your own eyes and kept calm from above too, never a jitter.
 
@@ -394,8 +404,9 @@ can happen once, twice or up to three times running at low health, and once in a
 is only ever off the line below the well's mouth, so it never goes through the side of the gun. A hand leaving the gun
 for a mag, a shell or a handle gathers speed rather than starting off at full tilt, and when a reload's done the hand
 carries on back to its grip with the way it was going, settling onto it without stopping short or overshooting. Every one of these beats
-is part of the reload's own length, so the reload ring fills over the whole reload as it really goes, and the old mag
-falling, the new one going home and their sounds all land on the animation's own marks.
+is part of the reload's own length, so the reload ring fills over the whole reload as it really goes (a fumble or a
+miss isn't known ahead: the ring fills as the reload's planned to go, and only stretches out once the hands actually
+slip), and the old mag falling, the new one going home and their sounds all land on the animation's own marks.
 
 **A gun in each hand.** With the second pistol or second machine pistol fitted, left click fires the gun on your left and
 right click the one on your right, and each gun kicks on its own shot from

@@ -94,8 +94,14 @@ body.freeView .benchTip{display:none}
 #hurt{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 62%,rgba(170,22,12,.42) 100%);opacity:0}
 /* getting hit (ui/hud.js hitFromAt): red from the side the blow came from, kept off the middle of the screen */
 #hitVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;--hx:50%;--hy:100%;
-  background:radial-gradient(ellipse 62% 78% at var(--hx) var(--hy),rgba(150,10,6,.82),rgba(140,10,6,.42) 38%,rgba(120,8,4,0) 72%);
+  background:radial-gradient(ellipse 85% 100% at var(--hx) var(--hy),rgba(170,12,6,.9),rgba(150,10,6,.55) 40%,rgba(120,8,4,0) 78%);
   -webkit-mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%);mask-image:radial-gradient(ellipse 70% 70% at center,transparent 30%,#000 78%)}
+/* where a blow came from (ui/hud.js hitArcs): a red arc round the middle of the screen, on the side it came from (round
+   the back for one from behind you), turning to stay on it as you turn and fading over a second or so; thin, so it
+   never hides what you're looking at */
+.hitArc{position:fixed;left:50%;top:50%;width:44vmin;height:44vmin;margin:-22vmin 0 0 -22vmin;border-radius:50%;z-index:2;pointer-events:none;opacity:0;--a:0deg;
+  background:conic-gradient(from calc(var(--a) - 32deg),rgba(235,30,16,0) 0deg,rgba(235,30,16,.95) 18deg,rgba(255,60,40,1) 32deg,rgba(235,30,16,.95) 46deg,rgba(235,30,16,0) 64deg,transparent 64deg);
+  -webkit-mask-image:radial-gradient(circle,transparent 60%,#000 63%,#000 69%,transparent 73%);mask-image:radial-gradient(circle,transparent 60%,#000 63%,#000 69%,transparent 73%);filter:drop-shadow(0 0 6px rgba(200,20,10,.8))}
 /* bleeding (ui/hud.js damageVignettes): a dark red ring round the edge that throbs with each beat of blood you lose */
 /* close to death the edges of the world darken, a soft dark ring closing in a little, breathing slowly (ui/hud.js:
    NEAR_DEATH) */

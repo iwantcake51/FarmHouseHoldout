@@ -29,6 +29,8 @@ export function spawnZombie(type, job) {
   const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
   const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = rr(6.5, 9), lat = rr(-0.6, 0.6);
   const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);
+  // (the run's first brute comes in plain clothes, with nothing on it to soak up your shots: BRUTE_RAMP, waves/waves.js)
+  if (type === 'brute' && run.wave > 0) { if (!run.bruteSeen && !job) job = 'casual'; run.bruteSeen = true; }
   const m = human(0xffffff, 0xffffff, 0xffffff);
   zombieRig(m);   // knees, elbows and a waist (zombies/zombie-anim.js)
   dressZombie(m, type, job);   // its body and what it was wearing when it turned (zombies/zombie-looks.js)
