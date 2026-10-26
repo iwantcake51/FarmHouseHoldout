@@ -14,6 +14,7 @@
 // the aim as your eye moves. An aperture's too close to your eye to see sharp: the whole rear sight, its ears and the
 // ring round the hole, goes as soft as it really would (the hole looking a touch bigger for it), the front post sharp
 // in the middle of it.
+import { OL_HOLE } from './screen-outlines.js';
 import { FP_CAM, OVER_LAYER, R, scene, sun } from '../core/renderer.js';
 import { curDark } from '../lighting/day-night.js';
 import { los } from '../lighting/lightmap.js';
@@ -199,10 +200,10 @@ export function scopePrep() {
   const S = SCOPE_V, on = S.on && S.a >= 0.01 && (S.kind === 'scope' || S.kind === 'acog') && S.src;
   let lens = null; if (on) { lens = S.src.userData.lensMesh; if (lens === undefined) { lens = null; S.src.traverse(o => { if (!lens && o.userData.lens) lens = o; }); S.src.userData.lensMesh = lens; } }   // (found once per sight)
   if (LENS.on && LENS.on !== lens) { LENS.on.material = glassMat(LENS.on.userData.lens); LENS.on = null; }
-  SC.on = false; if (!lens) return;
+  SC.on = false; OL_HOLE.r = 0; if (!lens) return;
   envStep(S);
   R.getDrawingBufferSize(_sz); const prev = R.getRenderTarget(), ac = R.autoClear;
-  if (scopeLens(S, lens, _sz.x, _sz.y, _sz.y / 2 / Math.tan(FP_CAM.fov * Math.PI / 360))) SC.on = true;
+  if (scopeLens(S, lens, _sz.x, _sz.y, _sz.y / 2 / Math.tan(FP_CAM.fov * Math.PI / 360))) { SC.on = true; Object.assign(OL_HOLE, { x: SC.cx, y: SC.cy, r: SC.r }); }
   R.autoClear = ac; R.setRenderTarget(prev);
 }
 // over the finished frame, in first person (game/loop.js)
@@ -278,7 +279,7 @@ function scopeLens(S, lens, W, H, f) {
     const half = Math.atan(ri / f); scopeCam.fov = 2 * Math.atan(Math.tan(half) / S.mag) * 180 / Math.PI; scopeCam.updateProjectionMatrix();
     scopeCam.position.copy(S.obj); scopeCam.up.set(0, 1, 0).applyQuaternion(c.quaternion); scopeCam.lookAt(_st.copy(S.obj).add(S.dir)); scopeCam.updateMatrixWorld(true);
     const size = Math.min(SCOPE_DIM.max, Math.max(128, Math.round(ri * 2 / 64) * 64));
-    if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size; }
+    if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, stencilBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size; }   // (stencil: the see-through rims round drops and teammates mark their own models in it to stay off them, effects/outlines.js: xray; without it, every rim was drawn whole down the scope, a hollow box round each drop)
     // (you're left out of it: the gun's own front sight, or your arm, a hand's breadth from its front lens; the lens too)
     const pv = PM.g.visible, sh = R.shadowMap.autoUpdate; PM.g.visible = false;
     // (the particles thinned toward the middle of the scope's own view too, then back as they were for the main view)

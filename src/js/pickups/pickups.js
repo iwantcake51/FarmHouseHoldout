@@ -12,6 +12,7 @@ import { buildGuns } from '../weapons/build-weapons.js';
 import { glowTex } from '../effects/textures.js';
 import { dropModel } from './drop-models.js';
 import { xray } from '../effects/outlines.js';
+import { isoOn } from '../game/view-cam.js';
 import { addPlanks, METAL, plankRoom } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
 import { glowGun, state } from '../game/state.js';
@@ -120,7 +121,8 @@ export function updatePickups(dt) {
     p.wph = (p.wph || 0) + dt * Math.PI * 2 * (0.9 + 9 * warn * warn);
     const beat = 0.5 + 0.5 * Math.cos(p.wph), lit = warn > 0 ? 1 - Math.min(1, warn * 2) * (1 - beat) : 1, gone = clamp(p.t / 0.35, 0, 1);
     p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
-    p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
+    p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.xr.rim.visible = isoOn();   // (see-through only from above, as zombies are: from your own eyes your gun and scope would count as the wall, and its rim was drawn over them, a hollow box round each drop down the scope)
+    p.ringMat.opacity *= 0.35 + 0.65 * lit;
     if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
     if (p.kind === 'gun') shareFx(p, dt);   // shared with your team: in the sharer's colour, labelled (net/teamwork.js)
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer

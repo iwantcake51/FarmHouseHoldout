@@ -25,6 +25,7 @@ import { bulletHole } from '../effects/bullet-holes.js';
 import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
+import { isoOn } from '../game/view-cam.js';
 import { flashes } from '../weapons/explosives.js';
 import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
@@ -175,7 +176,7 @@ export function updateAvatars(rdt) {
     const a = p.av || buildAvatar(p), t = p.tgt;
     if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
-    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.xr.rim.visible = !p.dead; if (a.xr.sil) a.xr.sil.visible = !p.dead; }   // (down, no outline round them or through walls)
+    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { const xo = !p.dead && isoOn(); a.xr.rim.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; and through walls only from above, as zombies are)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;

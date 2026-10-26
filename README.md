@@ -223,7 +223,9 @@ one side of it every other frame (less often down the scope, where only the rim 
 fog lets you see, and the
 picture opens up out of it as the scope comes to your eye; a shot's kick and a quick turn swing it). Anything
 in front of the eyepiece (your hands, a window frame as you vault) hides it, and nothing's drawn for a gun that's put
-away. Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
+away. The outlines and glows round drops and teammates are left off the eyepiece, so the magnified picture down it is clean; and
+drops and teammates are only seen through walls from above, as zombies are (from your own eyes your gun and scope counted as the
+wall, and every drop behind them got a hollow box drawn over the glass). Through a scope the rest of the view goes out of focus, the gun a little. Every sight's glass is clear to look through in first person; aiming a dot or a holo keeps the gun a natural distance
 from your eye, even aiming straight up. Aiming waits until the gun's back up in your hands after a vault or a weapon switch,
 and your eye never pulls back out of your head to reach the sights. Zombies show the moment any of one is in a clear line from your eyes, round a
 corner or behind you as you turn, with no fading in. Everything works from first person: picking cards between waves
