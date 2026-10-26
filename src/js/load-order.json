@@ -152,6 +152,7 @@
   "ui/rounds.js",
   "ui/melee-art.js",
   "player/player-ragdoll.js",
+  "player/anim-graph.js",
   "player/animation.js",
   "player/hold.js",
   "player/hold-kick.js",
