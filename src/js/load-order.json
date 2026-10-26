@@ -181,6 +181,7 @@
   "net/sync.js",
   "net/arsenal.js",
   "net/avatars.js",
+  "ui/look-card.js",
   "net/lobby.js",
   "net/spectate.js",
   "net/teamwork.js",

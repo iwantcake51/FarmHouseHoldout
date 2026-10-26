@@ -4,7 +4,7 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
 import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
-import { blinkStep, faceMood, LOOK } from './look.js';
+import { blinkStep, faceMood, LOOK, wristSway } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, hpCap, W, W8 } from '../game/run-state.js';
@@ -501,7 +501,7 @@ export function updatePlayerVisuals(dt, rdt) {
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   { const t = (1 - titleBlend()) * (fpOn() ? 0 : 1), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js; and none of it in first person: game/view-cam.js)
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultHold()) && !(ANIM.bandP >= 1); });   // a melee weapon's put away while you vault (it rides on your body, player/stow.js), a gun stays in hand; and while you bandage
-  updatePack(dt); updateStow(rdt);
+  updatePack(dt); updateStow(rdt); wristSway(dt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
   updateBandStow();      // and so does putting it away for a bandage, or drawing it again after
   updateCharBlood(rdt, dt);   // the stain on you (effects/body-blood.js)

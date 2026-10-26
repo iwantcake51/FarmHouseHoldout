@@ -35,25 +35,53 @@ PM.upper.add(packPivot); packPivot.add(packBody);
   const sil = m => { m.userData.sil = true; return m; }, TO = PM.torso, xc = (g, r, len, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 10), mat); m.rotation.z = Math.PI / 2; m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
   // the belt and its brass buckle
   box(TO, 0.52, 0.07, 0.32, SURV.belt, 0, -0.27, 0); box(TO, 0.08, 0.06, 0.02, SURV.brass, 0, -0.27, 0.165); box(TO, 0.04, 0.03, 0.022, SURV.belt, 0, -0.27, 0.167);
-  // the backpack: canvas body, a lid with buckled straps, side pockets with a bottle, a bottom pouch,
-  // a bedroll on top and shoulder straps over the front. The back face stays at z -0.33, where the planks and slung guns ride.
-  // the harness (shoulder straps and the chest strap) is on you; the pack itself, with everything on it, is on packBody
-  const U = PM.upper, B = packBody, { canvas, canvasDk, canvasLt, roll } = PACK, web = lam(0x2c2620), steel = lam(0x8a8d90);
-  sil(box(B, 0.42, 0.44, 0.18, canvas, 0, 0.93, -0.24));
-  sil(box(B, 0.44, 0.08, 0.21, canvasDk, 0, 1.15, -0.245));
-  box(B, 0.32, 0.13, 0.02, canvasDk, 0, 1.06, -0.343);
-  [-1, 1].forEach(s => {
-    box(B, 0.04, 0.24, 0.012, web, s * 0.1, 1.04, -0.352); box(B, 0.05, 0.04, 0.019, SURV.brass, s * 0.1, 0.96, -0.354);
-    box(B, 0.05, 0.2, 0.11, canvasLt, s * 0.235, 0.84, -0.245); if (s < 0) box(B, 0.058, 0.045, 0.118, canvasDk, s * 0.236, 0.95, -0.245);
-    box(U, 0.061, 0.02, 0.33, web, s * 0.15, 1.17, -0.005);
-    box(U, 0.065, 0.4, 0.02, web, s * 0.15, 0.97, 0.158); box(U, 0.05, 0.035, 0.026, SURV.brass, s * 0.15, 0.79, 0.16);
-    xc(B, 0.075, 0.03, web, s * 0.13, 1.255, -0.25);
+  // the backpack: a rucksack of padded canvas, its body and lid and pouches soft, rounded slabs (packPad: an outline with
+  // rounded corners pushed out with rounded edges, never a sharp box) rather than crates; a lid over the top with its
+  // buckled straps down the back, a zip round the back panel and three rows of webbing across it (all a few millimetres
+  // proud, under where the planks and slung guns ride: the back face stays flat at z -0.33), compression straps with
+  // ladder buckles down each side, a mesh pocket with a steel bottle on the right and a zipped one on the left, a
+  // rounded pouch under it, a grab loop on top and the bedroll strapped under the lid with two cinch straps. The
+  // harness is on you: padded shoulder straps over the shoulders and down your front, their webbing tails and buckles
+  // below, and a sternum strap with its clip across them. The pack itself, with everything on it, is on packBody
+  const U = PM.upper, B = packBody, { canvas, canvasDk, canvasLt, roll } = PACK, web = lam(0x2c2620), steel = lam(0x8a8d90), clip = lam(0x1a1a1b), zip = lam(0x3a3430);
+  const rrect = (w, h, r) => { const sh = new THREE.Shape(), x = w / 2, y = h / 2; sh.moveTo(-x + r, -y); sh.lineTo(x - r, -y); sh.quadraticCurveTo(x, -y, x, -y + r); sh.lineTo(x, y - r); sh.quadraticCurveTo(x, y, x - r, y); sh.lineTo(-x + r, y); sh.quadraticCurveTo(-x, y, -x, y - r); sh.lineTo(-x, -y + r); sh.quadraticCurveTo(-x, -y, -x + r, -y); return sh; };
+  // w x h across the back, d deep (z), corners rounded r, edges rounded bev; at x, y, z (its middle)
+  const packPad = (g, w, h, d, r, bev, mat, x, y, z) => {
+    const geo = new THREE.ExtrudeGeometry(rrect(w - 2 * bev, h - 2 * bev, Math.max(0.002, r - bev)), { depth: Math.max(0.001, d - 2 * bev), bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: 5 });
+    geo.translate(0, 0, -(d - 2 * bev) / 2); const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+  };
+  sil(packPad(B, 0.42, 0.46, 0.18, 0.06, 0.024, canvas, 0, 0.93, -0.24));                        // the body
+  sil(packPad(B, 0.44, 0.085, 0.205, 0.04, 0.02, canvasDk, 0, 1.15, -0.245));                    // the lid
+  packPad(B, 0.34, 0.11, 0.016, 0.03, 0.006, canvasDk, 0, 1.08, -0.334);                         // its flap down the back
+  // the zip round the back panel, and the webbing rows across it (bar-tacked every few centimetres)
+  [[0, 1.0, 0.3, 0.004], [0, 0.71, 0.3, 0.004]].forEach(([x, y, w, h]) => box(B, w, h, 0.003, zip, x, y, -0.3315));
+  [-1, 1].forEach(sd => box(B, 0.004, 0.29, 0.003, zip, sd * 0.15, 0.855, -0.3315));
+  [0.78, 0.84, 0.9].forEach(y => { box(B, 0.3, 0.022, 0.004, web, 0, y, -0.332); for (let k = -2; k <= 2; k++) box(B, 0.004, 0.024, 0.005, canvasDk, k * 0.07, y, -0.333); });
+  [-1, 1].forEach(sd => {
+    // the lid's straps down the back to their buckles
+    box(B, 0.03, 0.2, 0.004, web, sd * 0.1, 1.05, -0.343); box(B, 0.042, 0.032, 0.01, clip, sd * 0.1, 0.95, -0.344);
+    // compression straps across each side, with their ladder buckles
+    [0.8, 1.02].forEach(y => { box(B, 0.004, 0.024, 0.17, web, sd * 0.211, y, -0.24); box(B, 0.008, 0.03, 0.026, clip, sd * 0.213, y, -0.3); });
+    // the shoulder straps: padded, over the top of each shoulder and down your front, a webbing tail on from their foot
+    // through a ladder buckle, its loose end hanging
+    packPad(U, 0.066, 0.026, 0.33, 0.012, 0.008, web, sd * 0.15, 1.172, -0.005);
+    packPad(U, 0.068, 0.34, 0.024, 0.022, 0.008, web, sd * 0.15, 1.0, 0.162);
+    box(U, 0.032, 0.12, 0.006, web, sd * 0.15, 0.77, 0.155); box(U, 0.044, 0.026, 0.012, clip, sd * 0.15, 0.82, 0.16); box(U, 0.03, 0.05, 0.005, web, sd * 0.15 + sd * 0.012, 0.79, 0.163).rotation.z = sd * 0.12;
   });
-  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 10), steel); bottle.position.set(0.235, 0.96, -0.245); bottle.castShadow = true; B.add(bottle);
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.03, 8), web); cap.position.y = 0.09; bottle.add(cap);
-  box(U, 0.25, 0.03, 0.014, web, 0, 1.02, 0.164); box(U, 0.058, 0.042, 0.02, SURV.sole, 0, 1.02, 0.166);
-  sil(box(B, 0.38, 0.15, 0.15, canvasLt, 0, 0.64, -0.25)); box(B, 0.3, 0.012, 0.01, web, 0, 0.67, -0.327); box(B, 0.02, 0.04, 0.012, SURV.brass, 0.12, 0.65, -0.329);
-  sil(xc(B, 0.07, 0.4, roll, 0, 1.255, -0.25)); xc(B, 0.03, 0.41, canvasDk, 0, 1.255, -0.25);
+  // the sternum strap across the shoulder straps and its two-piece clip
+  box(U, 0.25, 0.02, 0.008, web, 0, 1.03, 0.176); box(U, 0.05, 0.03, 0.014, clip, -0.012, 1.03, 0.178); box(U, 0.024, 0.022, 0.012, clip, 0.024, 1.03, 0.178);
+  // side pockets: mesh on the right with the bottle in it, zipped on the left
+  packPad(B, 0.05, 0.15, 0.12, 0.02, 0.012, canvasLt, 0.233, 0.83, -0.245);
+  packPad(B, 0.046, 0.17, 0.12, 0.02, 0.012, canvasLt, -0.231, 0.85, -0.245); box(B, 0.003, 0.15, 0.003, zip, -0.2545, 0.86, -0.26);
+  const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 12), steel); bottle.position.set(0.235, 0.96, -0.245); bottle.castShadow = true; B.add(bottle);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.03, 10), web); cap.position.y = 0.09; bottle.add(cap);
+  // the pouch under it, its zip and pull
+  sil(packPad(B, 0.38, 0.15, 0.15, 0.05, 0.02, canvasLt, 0, 0.64, -0.25)); box(B, 0.28, 0.004, 0.003, zip, 0, 0.67, -0.3255); box(B, 0.012, 0.03, 0.004, steel, 0.12, 0.655, -0.327);
+  // the grab loop on top of the lid
+  box(B, 0.06, 0.006, 0.02, web, 0, 1.196, -0.18); [-1, 1].forEach(sd => box(B, 0.006, 0.02, 0.02, web, sd * 0.03, 1.19, -0.18));
+  // the bedroll, strapped on top under the lid's overhang: the roll, its rolled-up ends a shade darker, and two cinch straps round it
+  sil(xc(B, 0.07, 0.4, roll, 0, 1.255, -0.25));
+  [-1, 1].forEach(sd => { xc(B, 0.055, 0.004, canvasDk, sd * 0.2, 1.255, -0.25); xc(B, 0.073, 0.026, web, sd * 0.12, 1.255, -0.25); });
   // fold the small pieces into one mesh per material on the torso, the upper body and the pack
   const rig = new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]);
   unfight(PM.g, { fixed: rig });

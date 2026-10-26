@@ -14,7 +14,8 @@ export const lkIco = k => `<svg class="chIco" viewBox="${GI_VB}" aria-hidden="tr
 // which part of you is being changed (part: one of LOOK_TABS), whether the studio's copy of you wants making again
 // (fresh: the look's just changed), and gear: the studio shows you with what your upgrades put on you (off: in just
 // your own clothes, so what's being changed isn't hidden under the armour's jacket, boots or gloves)
-export const LE = { part: 'body', fresh: true, gear: false };
+// locks: the parts a re-roll of the whole of you leaves as they are (each part's padlock on the Whole page)
+export const LE = { part: 'body', fresh: true, gear: false, locks: new Set() };
 export const LOOK_TABS = [['body', 'Whole'], ['face', 'Face'], ['hair', 'Hair'], ['hat', 'Hat'], ['top', 'Top'], ['legs', 'Trousers'], ['shoes', 'Shoes'], ['hands', 'Hands'], ['gear', 'Gear']];
 // what each part's re-roll deals afresh
 const LOOK_KEYS = { face: ['skin', 'eyes', 'eyes2', 'face'], hair: ['hair', 'hairStyle', 'beard', 'beardCol'], hat: ['hat', 'hatCol'], top: ['top', 'topCol', 'print', 'under', 'dress', 'tie', 'square'],
@@ -42,7 +43,7 @@ const lkToggle = (label, path, onV = true, offV = false) => { const on = !!lookG
 // a slider, with how far along it is
 function lkSlider(label, path, min, max, step) {
   const v = lookGet(path), pc = Math.round((v - min) / (max - min) * 100);
-  return `<div class="chLk"><span class="chLkL">${label}</span><div class="chLkR"><input type="range" data-lf="${path}" data-num="1" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${lkEsc(label)}"><output>${pc}%</output></div></div>`;
+  return `<div class="chLk"><span class="chLkL">${label}</span><div class="chLkR"><input type="range" class="lkRange" style="--p:${pc}%" data-lf="${path}" data-num="1" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${lkEsc(label)}"><output>${pc}%</output></div></div>`;
 }
 const lkGroup = (title, body, note = '') => body ? `<section class="chLkG"><h5>${title}</h5>${body}${note ? `<p class="chNote">${note}</p>` : ''}</section>` : '';
 // the tie: a swatch for each colour, and the striped one
@@ -72,7 +73,9 @@ function lookSummary(L) {
     hands: [[GLOVE_COLS[L.glove].back, GLOVE_COLS[L.glove].palm], `${nice(L.glove)} gloves${wr.length ? ', ' + wr.join(' and ') : ''}`],
     gear: [[L.pack, L.roll, L.holster], 'Pack, bedroll, holster']
   };
-  return `<div class="chLkSum">${LOOK_TABS.slice(1).map(([k, n]) => `<button type="button" data-act="lkpart" data-p="${k}"><b>${n}</b>${dots(rows[k][0])}<em>${lkEsc(rows[k][1])}</em></button>`).join('')}</div>`;
+  // (each a card: click it to change that part; its padlock keeps it as it is through Random survivor)
+  return `<div class="chLkSum">${LOOK_TABS.slice(1).map(([k, n]) => { const lk = LE.locks.has(k); return `<div class="lkCard${lk ? ' locked' : ''}"><button type="button" class="lkMain" data-act="lkpart" data-p="${k}"><b>${n}</b>${dots(rows[k][0])}<em>${lkEsc(rows[k][1])}</em></button>` +
+    `<button type="button" class="lkLock${lk ? ' on' : ''}" data-act="lklock" data-p="${k}" aria-pressed="${lk}" title="${lk ? 'Locked: Random survivor leaves it be' : 'Lock it, so Random survivor leaves it be'}">${lkIco(lk ? 'padlock' : 'padlockOpen')}</button></div>`; }).join('')}</div>`;
 }
 export function lookEditor(p) {
   const L = LOOK.cur, F = L.face || {}, own = L.own || {};
@@ -113,7 +116,20 @@ export function lookEditor(p) {
 const lkBoth = L => { const w = L.wrist || {}; return w.L && w.R && w.L.kind === w.R.kind ? w.L : null; };
 // your look changed: built on you (and what you carry rebuilt with it), the studio's copy of you made again, and kept
 // for new runs if you're keeping it (player/look.js: lookChanged)
-function applyLook(L) { rollLook(L); buildGuns(); LE.fresh = true; lookChanged(); }
+function putLook(L) { rollLook(L); buildGuns(); LE.fresh = true; lookChanged(); }
+// every change can be taken back (Undo, Ctrl+Z) and put back again (Redo, Ctrl+Y or Ctrl+Shift+Z): the look as it was
+// before each, up to LOOK_HIST.max of them. A slider dragged or a colour picked is one change however long it's moved
+// for (the same part changed again within LOOK_HIST.join s joins the last)
+const LOOK_HIST = { max: 60, join: 0.8 }, HIST = { undo: [], redo: [], key: '', t: 0 };
+const snap = () => JSON.parse(JSON.stringify(LOOK.cur));
+function applyLook(L, key) {
+  const now = performance.now() / 1000;
+  if (!(key && key === HIST.key && now - HIST.t < LOOK_HIST.join)) { HIST.undo.push(snap()); if (HIST.undo.length > LOOK_HIST.max) HIST.undo.shift(); }
+  HIST.key = key || ''; HIST.t = now; HIST.redo.length = 0;
+  putLook(L);
+}
+export const lookHist = () => ({ undo: HIST.undo.length > 0, redo: HIST.redo.length > 0 });
+function lookStep(from, to) { if (!from.length) return false; to.push(snap()); putLook(from.pop()); HIST.key = ''; return true; }
 const stockHat = c => Object.values(LOOKS.hatCol).some(a => a.includes(c));
 function lookSet(path, v) {
   const was = LOOK.cur, L = JSON.parse(JSON.stringify(was)), ks = path.split('.');
@@ -136,11 +152,20 @@ function lookSet(path, v) {
   if (path === 'own.beard' && !v) delete L.beardCol;
   if (path === 'eyes' && !L.own.odd) L.eyes2 = v;
   if (path === 'own.odd' && !v) L.eyes2 = L.eyes;
-  applyLook(L);
+  applyLook(L, path);
 }
 // one part dealt afresh (or the whole of you)
 function lookReroll(p) {
-  if (p === 'body') { applyLook(undefined); return; }
+  if (p === 'body') {
+    // (all of you dealt afresh, but for the parts you've locked)
+    if (!LE.locks.size) { applyLook(undefined); return; }
+    const C = LOOK.cur, L = { own: {} };
+    LE.locks.forEach(q => (LOOK_KEYS[q] || []).forEach(k => { if (C[k] !== undefined) L[k] = JSON.parse(JSON.stringify(C[k])); }));
+    if (LE.locks.has('hair') && C.own) L.own.beard = C.own.beard; if (LE.locks.has('face') && C.own) L.own.odd = C.own.odd;
+    // (a suit's trousers and shoes stay the suit's only if they're kept with it)
+    if (LE.locks.has('top') && C.top === 'suit') { if (!LE.locks.has('legs')) L.pants = C.topCol; if (!LE.locks.has('shoes')) { L.shoes = 'dress'; L.dressShoe = C.dressShoe; } }
+    applyLook(L); return;
+  }
   const L = JSON.parse(JSON.stringify(LOOK.cur)); (LOOK_KEYS[p] || []).forEach(k => delete L[k]);
   if (p === 'hair' && L.own) delete L.own.beard; if (p === 'face' && L.own) delete L.own.odd;
   // a fresh top that isn't a suit takes the suit's trousers and shoes off with it
@@ -156,18 +181,28 @@ export function lookAct(act, d) {
     case 'lkpart': LE.part = d.p; return true;
     case 'lkgear': LE.gear = !LE.gear; LE.fresh = true; return true;
     case 'lk': lookSet(d.f, JSON.parse(d.v)); return true;
-    case 'lkwrist': { const L = JSON.parse(JSON.stringify(LOOK.cur)); L.wrist = L.wrist || { L: null, R: null }; const it = d.k === 'none' ? null : dealWrist(d.k); if (d.s === 'B') { L.wrist.L = it; L.wrist.R = it && JSON.parse(JSON.stringify(it)); } else L.wrist[d.s] = it; applyLook(L); return true; }   // (Both: the same thing on each wrist)
+    case 'lkwrist': { const L = JSON.parse(JSON.stringify(LOOK.cur)); L.wrist = L.wrist || { L: null, R: null }; const it = d.k === 'none' ? null : dealWrist(d.k); if (d.s === 'B') { L.wrist.L = it; L.wrist.R = it && JSON.parse(JSON.stringify(it)); } else L.wrist[d.s] = it; applyLook(L, 'wrist'); return true; }   // (Both: the same thing on each wrist)
     case 'lkrand': lookReroll(d.p); return true;
     case 'lkkeep': keepLook(!LOOK_SAVE.on); return true;
+    case 'lklock': if (LE.locks.has(d.p)) LE.locks.delete(d.p); else LE.locks.add(d.p); return true;
+    case 'lkundo': lookStep(HIST.undo, HIST.redo); return true;
+    case 'lkredo': lookStep(HIST.redo, HIST.undo); return true;
   }
   return false;
 }
-// a colour picked or a slider dragged (el: its input, data-lf its part of the look): put on you a few times a second
-// as it moves (moved(): the studio's copy made again) and once more where it's let go (done(): the editor drawn again)
-let lookLiveT = 0;
+// a colour picked or a slider dragged (el: its input, data-lf its part of the look): the slider's fill and number follow
+// the pointer at once; the look is put on you once a frame at most as it moves (LIVE_MS apart at the least, the latest
+// value each time: moved(), the studio's copy made again), and once more where it's let go (done(): the editor drawn again)
+const LIVE_MS = 45;
+let lookLiveT = 0, liveRaf = 0, livePend = null;
 export function lookLive(el, last, moved, done) {
-  const path = el.dataset.lf, v = el.dataset.num ? +el.value : parseInt(el.value.slice(1), 16), now = performance.now(), out = el.nextElementSibling;
-  if (out && out.tagName === 'OUTPUT') out.textContent = Math.round((v - el.min) / (el.max - el.min) * 100) + '%';   // (how far along, as you drag)
-  if (!last && now - lookLiveT < 140) return; lookLiveT = now;
-  lookSet(path, v); if (last) done(); else moved();
+  const path = el.dataset.lf, v = el.dataset.num ? +el.value : parseInt(el.value.slice(1), 16), out = el.nextElementSibling;
+  if (el.dataset.num) { const pc = Math.round((v - el.min) / (el.max - el.min) * 100); el.style.setProperty('--p', pc + '%'); if (out && out.tagName === 'OUTPUT') out.textContent = pc + '%'; }   // (how far along, as you drag)
+  if (last) { cancelAnimationFrame(liveRaf); liveRaf = 0; livePend = null; lookSet(path, v); done(); return; }
+  livePend = [path, v];
+  if (!liveRaf) liveRaf = requestAnimationFrame(function go(t) {
+    liveRaf = 0; if (!livePend) return;
+    if (t - lookLiveT < LIVE_MS) { liveRaf = requestAnimationFrame(go); return; }
+    lookLiveT = t; const [p, x] = livePend; livePend = null; lookSet(p, x); moved();
+  });
 }

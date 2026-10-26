@@ -323,9 +323,19 @@
 <div id="lookMenu" hidden>
   <div class="lmBack"></div>
   <div class="lmPanel" role="dialog" aria-modal="true" aria-labelledby="lmTitle">
-    <div class="lmStage" id="lmStage"><div class="lmHint">Drag to turn · Scroll to zoom</div></div>
+    <div class="lmStage" id="lmStage">
+      <div class="lmView" id="lmView" role="toolbar" aria-label="Turn the view">
+        <button type="button" data-view="left" title="Turn a quarter left"><svg data-gi="turnL" aria-hidden="true"></svg></button>
+        <button type="button" data-view="front" title="From the front">Front</button>
+        <button type="button" data-view="back" title="From behind">Back</button>
+        <button type="button" data-view="right" title="Turn a quarter right"><svg data-gi="turnR" aria-hidden="true"></svg></button>
+        <button type="button" data-view="reset" title="Back to the start of this view"><svg data-gi="returnArrow" aria-hidden="true"></svg></button>
+        <button type="button" data-view="spin" class="lmSpin" title="Keep turning slowly on the Whole page" aria-pressed="true">Turn</button>
+      </div>
+      <div class="lmHint">Drag to turn · Right-drag to move · Scroll to zoom · Double-click to reset</div>
+    </div>
     <div class="lmSide">
-      <div class="lmTop"><div class="lmHead"><h3 id="lmTitle">Your survivor</h3><small id="lmSub"></small></div><button class="setX" id="lmX" type="button" aria-label="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
+      <div class="lmTop"><div class="lmHead"><h3 id="lmTitle">Your survivor</h3><small id="lmSub"></small></div><div class="lmTopR"><span class="lmHist"><button type="button" class="lmIco" id="lmUndo" data-act="lkundo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg data-gi="undo" aria-hidden="true"></svg></button><button type="button" class="lmIco redo" id="lmRedo" data-act="lkredo" title="Redo (Ctrl+Y)" aria-label="Redo"><svg data-gi="undo" aria-hidden="true"></svg></button></span><button class="setX" id="lmX" type="button" aria-label="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div></div>
       <div class="lmTabs" id="lmTabs" role="tablist" aria-label="Parts of you"></div>
       <div class="lmBody" id="lmBody"></div>
       <div class="lmFoot"><span id="lmKeep"></span><button class="setLink lmRoll" id="lmRoll" type="button" data-act="lkrand" data-p="body"></button><button class="btn sm" id="lmDone" type="button">Done</button></div>

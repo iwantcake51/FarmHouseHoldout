@@ -14,6 +14,8 @@ import { wantLock } from '../game/view-cam.js';
 import { state } from '../game/state.js';
 import { BASE_HP } from '../ui/hud.js';
 import { frAdd, frAnnounce, friendsUp, frOf, frRender, PALS } from './friends.js';
+import { LOOK } from '../player/look.js';
+import { lookCardOn } from '../ui/look-card.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already
 export function lobbyRender() {
@@ -35,6 +37,8 @@ export function lobbyRender() {
     const tag = document.createElement('em'); tag.textContent = (p.id === NET.hostId ? 'Host' : '') + (p.id === NET.id ? (p.id === NET.hostId ? ' · You' : 'You') : ''); li.appendChild(tag);
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (p.id !== NET.id && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
+    // the pointer on a seat shows whoever's in it as they've made themselves (ui/look-card.js)
+    lookCardOn(li, 'p:' + p.id, () => ({ look: p.id === NET.id ? LOOK.cur : (NET.peers.get(p.id) || p).look, name: p.name || 'Survivor', col: NET_COL[p.idx], sub: tag.textContent }));
     ol.appendChild(li);
   }
   for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Open seat'; ol.appendChild(li); }
