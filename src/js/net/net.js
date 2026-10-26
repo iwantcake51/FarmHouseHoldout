@@ -14,9 +14,12 @@ import { announce, feed } from '../ui/hud-text.js';
 import { netDropAvatar } from './avatars.js';
 import { lobbyRender } from './lobby.js';
 import { PALS } from './friends.js';
+import { SET } from '../ui/settings.js';
+import { setViewMode, VCAM } from '../game/view-cam.js';
 
 export const NET_V = 1, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
+  view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
   peer: null, conns: new Map(), conn: null, bc: null, beatT: 0 };
 export const NET_ON = {};   // what to do with each kind of message: NET_ON.hit = m => ...
@@ -69,6 +72,7 @@ function netReset() {
   for (const p of NET.peers.values()) netDropAvatar(p);
   Object.assign(NET, { on: false, host: false, id: '', hostId: '', code: '', inGame: false, idx: 0, peer: null, conn: null, bc: null });
   NET.conns.clear(); NET.peers.clear();
+  if (VCAM.mode !== 'free') setViewMode(SET.view);   // (out of the game: your own view again, the one in the settings)
 }
 export async function netHost() {
   netReset(); NET.status = 'Opening a game…'; lobbyRender();
@@ -90,7 +94,7 @@ export async function netHost() {
         });
       });
     }
-    NET.idx = 0; NET.status = ''; lobbyRender();
+    NET.idx = 0; NET.view = SET.view; NET.status = ''; lobbyRender();   // (the host's own view to start with: they can change it in the lobby)
   } catch (e) { netReset(); NET.status = 'Could not open a game: ' + (e.message || e.type || e); lobbyRender(); }
 }
 export async function netJoin(code) {
@@ -131,7 +135,7 @@ function netLost(why) {
 function netGone(id, why) {
   const p = NET.peers.get(id); if (!p) return;
   NET.peers.delete(id); NET.conns.delete(id); netDropAvatar(p);
-  if (NET.host) { netOut({ t: 'roster', f: NET.id, list: netRoster() }, null); setFlowDirty(true); }
+  if (NET.host) { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null); setFlowDirty(true); }
   if (state !== 'title') feed('gear', 0, p.name + (why === 'left' ? ' left' : ' lost connection'));
   lobbyRender();
 }
@@ -146,7 +150,7 @@ NET_ON.hello = m => {
   if (NET.peers.size >= NET_MAX - 1) return turn('That game is full');
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
   NET.peers.set(m.f, { id: m.f, name: String(m.name || 'Survivor').slice(0, 16), look: m.look, idx, fid: m.fid, heard: performance.now() });
-  netOut({ t: 'roster', f: NET.id, list: netRoster() }, null);
+  netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null);
   lobbyRender();
 };
 NET_ON.nope = m => netLost(m.why);
@@ -160,8 +164,15 @@ NET_ON.roster = m => {
     if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid }); else NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, heard: performance.now() });
   }
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
+  if (m.view) NET.view = m.view;
   NET.status = ''; lobbyRender();
 };
+// the host's pick of the view everyone plays in: isometric or first person, from the lobby
+export function netSetView(v) {
+  if (!NET.host || NET.inGame || (v !== 'iso' && v !== 'fp')) return;
+  NET.view = v; netSend('view', { view: v }); lobbyRender();
+}
+NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; NET.view = m.view; lobbyRender(); };
 NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host closed the game'); else netGone(m.f, 'left'); };
 NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = m.name; lobbyRender(); } };
 NET_ON.beat = () => {};
@@ -169,10 +180,10 @@ NET_ON.beat = () => {};
 export function netStart() {
   if (!NET.host || NET.inGame) return;
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
-  netSend('start', { roster: netRoster(), house: NET.houseSeed }); netBegin();
+  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view }); netBegin();
 }
-NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
-function netBegin() { NET.inGame = true; lobbyRender(); enterRun(); }
+NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; if (m.view) NET.view = m.view; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
+function netBegin() { NET.inGame = true; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); enterRun(); }   // (everyone in the host's view: ui/settings.js keeps it for the run)
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 export function netBeat(rdt) {
   if (!NET.on) return;

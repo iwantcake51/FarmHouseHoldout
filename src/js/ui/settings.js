@@ -15,6 +15,7 @@ import { clamp } from '../core/math.js';
 import { state } from '../game/state.js';
 import { setViewMode, VCAM, wantLock } from '../game/view-cam.js';
 import { controlsHtml, kbRefresh } from './keyboard-map.js';
+import { NET, netLink } from '../net/net.js';
 
 // the theme colours (the highlight everywhere: --acc in styles/base.css), each [r, g, b]
 const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: 'Crimson', rgb: '204,64,58' }, amber: { name: 'Amber', rgb: '222,166,48' }, moss: { name: 'Moss', rgb: '126,170,72' },
@@ -81,15 +82,17 @@ function applySettings() {
   document.body.classList.toggle('hudMin', SET.hud === 'minimal');
   document.documentElement.style.setProperty('--acc', (THEMES[SET.theme] || THEMES.ember).rgb);   // (the theme colour)
   applyCb();   // (styles/hud-minimal.css, and the mag bar it shows: ui/hud.js)
-  if (VCAM.mode !== 'free') setViewMode(SET.view);   // (first person or isometric: game/view-cam.js; the free camera's left be till you leave it)
+  if (VCAM.mode !== 'free') setViewMode(viewFor());   // (first person or isometric: game/view-cam.js; the free camera's left be till you leave it)
 }
+// the view to play in: your own pick, or in a co-op run the host's, which everyone plays in (picked in the lobby: net/net.js)
+const viewFor = () => netLink() ? NET.view : SET.view;
 // the view key: into first person and back, or out of the free camera to the view picked
 // (only out of the free camera: from above or from your own eyes is picked before a run, in the settings, and stays for
 // it; mid-run only the cheat menu changes it)
-export function toggleView() { if (VCAM.mode === 'free') pickView(SET.view); }
+export function toggleView() { if (VCAM.mode === 'free') pickView(viewFor()); }
 // a view picked (the cheat menu's free camera too, which isn't kept)
 export function pickView(v) {
-  if (v !== 'free') { SET.view = v; saveSettings(); if (!$('settings').hidden) buildSettings(); }
+  if (v !== 'free' && !netLink()) { SET.view = v; saveSettings(); if (!$('settings').hidden) buildSettings(); }   // (the host's view in co-op isn't kept as yours)
   setViewMode(v);
 }
 // the frame-rate counter: frames counted over half a second
@@ -102,8 +105,9 @@ function setRowHtml(r) {
   if (r.head) return `<div class="setHeadRow">${r.head}</div>`;
   const lab = `<div class="setLab"><b>${r.name}</b>${r.note ? `<small>${r.note}</small>` : ''}</div>`;
   if (r.opts) {
-    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0], held = r.k === 'view' && state !== 'title';   // (the view's kept for the run: toggleView)
-    return `<div class="setRow${held ? ' held' : ''}">${held ? `<div class="setLab"><b>${r.name}</b><small>Picked before a run, and kept for it (the cheat menu can switch it)</small></div>` : lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn"${held ? ' disabled' : ''} aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
+    const cur = r.opts.find(o => o[0] === SET[r.k]) || r.opts[0], held = r.k === 'view' && (state !== 'title' || NET.on);   // (the view's kept for the run: toggleView; in co-op the host picks it)
+    const why = NET.on ? 'In co-op the host picks it for everyone, in the lobby' : 'Picked before a run, and kept for it (the cheat menu can switch it)';
+    return `<div class="setRow${held ? ' held' : ''}">${held ? `<div class="setLab"><b>${r.name}</b><small>${why}</small></div>` : lab}<div class="sDrop" data-k="${r.k}"><button type="button" class="sDropBtn"${held ? ' disabled' : ''} aria-haspopup="listbox" aria-expanded="false"><span>${cur[1]}</span>${CHEV}</button>
       <ul class="sDropList" role="listbox" tabindex="-1">${r.opts.map(([v, t], i) => `<li role="option" data-v="${v}" style="--i:${i}" aria-selected="${v === cur[0]}">${t}</li>`).join('')}</ul></div></div>`;
   }
   if (r.bool) return `<div class="setRow">${lab}<button type="button" class="sTog" role="switch" data-k="${r.k}" aria-checked="${!!SET[r.k]}" aria-label="${r.name}"><i></i></button></div>`;

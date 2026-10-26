@@ -5,7 +5,7 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netHost, netJoin, netLeave, netLink, netName, netRoster, netSend, netStart
+  NET, NET_COL, NET_MAX, netHost, netJoin, netLeave, netLink, netName, netRoster, netSend, netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -26,6 +26,9 @@ export function lobbyRender() {
   $('coopMsg').textContent = NET.status || (room && !NET.host ? 'Waiting for the host to start…' : room && NET.peers.size === 0 ? 'Send this code to your friends. They join from their title screen.' : '');
   $('coopGo').hidden = !NET.host; $('coopGo').disabled = NET.inGame;
   $('startBtn').hidden = on;
+  // the view everyone plays in: the host's to pick (net/net.js), shown to the rest
+  for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !NET.host || NET.inGame; }
+  $('coopViewNote').textContent = NET.host ? 'Everyone plays in it' : 'The host picks it';
   // the players: the host first, then everyone in the order they came, and the empty places
   const list = on ? netRoster() : [];
   if (on && !NET.host) { list.length = 0; list.push({ id: NET.id, name: netName(), idx: NET.idx }, ...[...NET.peers.values()]); }
@@ -67,6 +70,7 @@ $('coopCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key 
 $('coopName').addEventListener('keydown', e => e.stopPropagation());   // typing a name never starts the run (T)
 $('coopGo').onclick = () => { wantLock(true); netStart(); };   // (in first person the mouse is taken with this click: game/view-cam.js)
 $('coopLeave').onclick = () => netLeave();
+$('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetView(b.dataset.v); };
 $('coopCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('coopCopy').textContent = 'Copied'; setTimeout(() => { $('coopCopy').textContent = 'Copy'; }, 1400); } catch (e) {} };
 // a link with ?join=CODE opens the lobby and joins straight away
 { const m = /[?&]join=([A-Za-z0-9]{4})/.exec(location.search); if (m) setTimeout(() => { toggleCoop(true); $('coopCode').value = m[1].toUpperCase(); netJoin(m[1]); }, 300); }
