@@ -63,10 +63,12 @@ PM.upper.add(packPivot); packPivot.add(packBody);
     // compression straps across each side, with their ladder buckles
     [0.8, 1.02].forEach(y => { box(B, 0.004, 0.024, 0.17, web, sd * 0.211, y, -0.24); box(B, 0.008, 0.03, 0.026, clip, sd * 0.213, y, -0.3); });
     // the shoulder straps: padded, over the top of each shoulder and down your front, a webbing tail on from their foot
-    // through a ladder buckle, its loose end hanging
-    packPad(U, 0.066, 0.026, 0.33, 0.012, 0.008, web, sd * 0.15, 1.172, -0.005);
-    packPad(U, 0.068, 0.34, 0.024, 0.022, 0.008, web, sd * 0.15, 1.0, 0.162);
-    box(U, 0.032, 0.12, 0.006, web, sd * 0.15, 0.77, 0.155); box(U, 0.044, 0.026, 0.012, clip, sd * 0.15, 0.82, 0.16); box(U, 0.03, 0.05, 0.005, web, sd * 0.15 + sd * 0.012, 0.79, 0.163).rotation.z = sd * 0.12;
+    // through a ladder buckle, its loose end hanging (a millimetre or two over whatever you wear there: the top of a
+    // jacket's collar or a hood's edges at the neck, a plate carrier's front, a suit's pocket flaps, so they lie over it
+    // rather than flickering through it, player/look.js and player/gear.js)
+    packPad(U, 0.066, 0.026, 0.33, 0.012, 0.008, web, sd * 0.15, 1.1735, -0.005);
+    packPad(U, 0.068, 0.34, 0.024, 0.022, 0.008, web, sd * 0.15, 1.0, 0.1635);
+    box(U, 0.032, 0.12, 0.006, web, sd * 0.15, 0.768, 0.155); box(U, 0.044, 0.026, 0.012, clip, sd * 0.15, 0.82, 0.16); box(U, 0.03, 0.05, 0.005, web, sd * 0.15 + sd * 0.012, 0.79, 0.163).rotation.z = sd * 0.12;
   });
   // the sternum strap across the shoulder straps and its two-piece clip
   box(U, 0.25, 0.02, 0.008, web, 0, 1.03, 0.176); box(U, 0.05, 0.03, 0.014, clip, -0.012, 1.03, 0.178); box(U, 0.024, 0.022, 0.012, clip, 0.024, 1.03, 0.178);

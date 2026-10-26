@@ -257,7 +257,9 @@ function mouthOver(hair, x, y, hw, h) {
   }
   return z;
 }
-const SKIN_MARK = { t: 0.0012, in: 0.0004 };
+// (lay: each kind of mark a hair further out than the last, so where two overlap, freckles on a smear of grime or a
+// scar across freckles, one's plainly over the other rather than the two flickering through each other)
+const SKIN_MARK = { t: 0.0012, in: 0.0004, lay: { freckle: 0.0002, grime: 0.0004, scar: 0.0006 } };
 // a round flat button (or eyelet) facing out the front: r across, h thick, at x, y, z
 const BTN_G = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
 function btn(g, r, h, m, x, y, z) { const b = new THREE.Mesh(BTN_G, m); b.scale.set(r, r, h); b.position.set(x, y, z); b.castShadow = true; g.add(b); return b; }
@@ -272,7 +274,7 @@ export function buildLook(L) {
   const scarM = lm(new THREE.Color(L.skin).lerp(new THREE.Color(0xf0c0b4), 0.38).multiplyScalar(1.06).getHex()), scarEdge = lm(shade(L.skin, 0.84));
   const mark = (w, h, m, x, y, rz, z0 = 0.16) => { const b = box(H, w, h, SKIN_MARK.t, m, x, y, z0 + SKIN_MARK.t / 2 - SKIN_MARK.in); if (rz) b.rotation.z = rz; return b; };
   const scarLine = (len, x, y, rz, z0, w = 0.0075) => { const g = new THREE.Group(); g.position.set(x, y, 0); g.rotation.z = rz || 0; H.add(g);
-    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.t / 2 - SKIN_MARK.in));
+    [-1, 1].forEach(q => box(g, 0.003, len * 0.92, SKIN_MARK.t, scarEdge, q * (w / 2 + 0.0012), 0, (z0 ?? 0.16) + SKIN_MARK.lay.scar + SKIN_MARK.t / 2 - SKIN_MARK.in));
     box(g, w, len, SKIN_MARK.t * 1.6, scarM, 0, 0, (z0 ?? 0.16) + SKIN_MARK.t * 0.8 - SKIN_MARK.in); return g; };
   const face = H.userData.face = { eyes: [], brows: [], mouth: null, aim: aimEye(L) };
   [-1, 1].forEach(s => {
@@ -285,7 +287,7 @@ export function buildLook(L) {
     }
     // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
     else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }
-    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.016, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
+    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.014, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
     else if (F.eye === 'droopy') {   // the outer corners lower, the lids heavy
       const e = box(H, 0.05, 0.026, 0.012, white, x, y, 0.162); e.rotation.z = s * -0.22; box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.013, 0.012, dark, x - s * 0.004, y, 0.167);
       box(H, 0.058, 0.012, 0.014, PM.mats.skinDk, x, y + 0.012, 0.169).rotation.z = s * -0.22;
@@ -331,12 +333,12 @@ export function buildLook(L) {
   if (F.scar === 'cheek') scarLine(0.075, F.side * 0.1, -0.035, F.side * 0.3);
   else if (F.scar === 'nose') scarLine(0.05, 0, N[3] + 0.01, Math.PI / 2 + F.side * 0.25, 0.16 + N[2], 0.006);
   // freckles: a scatter of small, uneven flecks across the nose and cheeks; a mole, the one thing a touch raised
-  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy)); }
+  if (F.freckles) { const fr = lm(shade(L.skin, 0.78)); [[-0.1, -0.02, 6], [-0.085, -0.04, 5], [-0.115, -0.045, 7], [-0.07, -0.025, 4], [0.1, -0.025, 6], [0.088, -0.045, 5], [0.118, -0.04, 7], [0.072, -0.03, 4], [-0.02, -0.012, 5], [0.024, -0.016, 4], [0.006, -0.03, 4]].forEach(([fx, fy, w]) => mark(w / 1000, w / 1000, fr, fx, fy, 0, 0.16 + SKIN_MARK.lay.freckle)); }
   if (F.mole) box(H, 0.009, 0.009, 0.004, lm(shade(L.skin, 0.5)), F.mole[0], F.mole[1], 0.1605);
   if (F.cleft) mark(0.004, 0.024, PM.mats.skinDk, 0, -0.145);
   // grime: smears of dirt worked into the skin, soft-edged (a darker middle in a lighter smudge)
   if (F.grime) { const gr = new THREE.Color(L.skin).multiplyScalar(0.62).lerp(new THREE.Color(0x3a3020), 0.35), g1 = lm(gr.getHex()), g0 = lm(new THREE.Color(L.skin).lerp(gr, 0.5).getHex());
-    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.t); }); }
+    [[0.06, 0.032, F.side * 0.095, -0.06, 0.3], [0.046, 0.018, -F.side * 0.06, 0.12, 0.08]].forEach(([w, h, x, y, rz]) => { mark(w, h, g0, x, y, rz, 0.16 + SKIN_MARK.lay.grime); mark(w * 0.62, h * 0.55, g1, x, y, rz, 0.16 + SKIN_MARK.lay.grime + SKIN_MARK.t); }); }
   // ---- hair: short, long, buzzed or none, as one shell round the back and sides of the head (HAIR_W across, a few mm
   // proud of it) that runs up into a top over the crown when there's no hat (or only a bandana, worn as a headband
   // round it). Under a hat the shell stops tucked just inside the hat's band (HAT_TUCK), narrower than every hat, so
