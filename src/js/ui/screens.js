@@ -18,7 +18,7 @@ import { buildGuns } from '../weapons/build-weapons.js';
 import { casings, mags } from '../weapons/casings.js';
 import { smokes } from '../effects/smoke.js';
 import { bloodMapClear } from '../effects/blood-map.js';
-import { drops, gibs, parts } from '../effects/particles.js';
+import { clearDrops, gibs, parts } from '../effects/particles.js';
 import { dropCopy, makeDrop } from '../effects/weapon-drop.js';
 import { clearHoles } from '../effects/bullet-holes.js';
 import { pickups } from '../pickups/pickups.js';
@@ -89,7 +89,7 @@ function resetRun(keepLook) {
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
-  bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
+  bloodMapClear(); clearBodyBlood(); clearDrops(); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
   resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(spawnLook()); buildGuns();   // a new look for every run, or the one you're keeping (player/look.js: spawnLook, made in the title's Character menu); the title already dealt one (in co-op you keep the one your teammates have)
   deathCineEnd(); mistReset();
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.readyV = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);

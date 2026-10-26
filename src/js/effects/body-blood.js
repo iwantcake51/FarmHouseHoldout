@@ -147,7 +147,7 @@ export function stainMat(orig, mesh, frame, su, mode, zone) {
   m.customProgramCacheKey = () => (baseKey ? baseKey.call(orig) : '') + '-stain';
   return m;
 }
-const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent && !o.userData.isOutline && !o.userData.isFlash;
+const stainable = o => o.isMesh && !Array.isArray(o.material) && o.material.isMeshLambertMaterial && !o.material.transparent && !o.userData.isOutline && !o.userData.isFlash && !o.userData.noStain;   // (noStain: a fresh bandage, clean but for its own seep: player/hold-bandage.js)
 export const WOUND_N = 8;   // wounds a zombie can show at once (zombies/wounds.js)
 const stainU = freq => ({ uWound: { value: Array.from({ length: WOUND_N }, () => new THREE.Vector4()) }, uWoundK: { value: new Array(WOUND_N).fill(-1) }, uWoundN: { value: 0 }, uChar: { value: 0 }, uEmber: { value: 0 }, uBlood: { value: 0 }, uFresh: { value: 0 }, uSeed: { value: new V3(rr(0, 40), rr(0, 40), rr(0, 40)) }, uFreq: { value: freq }, uLo: { value: new V3() }, uHi: { value: new V3(1, 1, 1) } });
 

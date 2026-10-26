@@ -119,13 +119,13 @@ function wrapAt(w, t) {
 }
 const wraps = WRAP_AT.map(([z0, z1]) => {
   const g = new THREE.Group(); PM.armL.add(g); g.visible = false; g.userData.fine = true;
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), WRAP_M); mesh.castShadow = false; mesh.userData.fine = true; g.add(mesh);
-  const tape = box(g, 0.032, 0.0025, 0.022, WRAP_TAPE, 0, 0, 0); tape.castShadow = false; tape.userData.fine = true; tape.matrixAutoUpdate = false;
+  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), WRAP_M); mesh.castShadow = false; mesh.userData.fine = mesh.userData.noStain = true; g.add(mesh);
+  const tape = box(g, 0.032, 0.0025, 0.022, WRAP_TAPE, 0, 0, 0); tape.castShadow = false; tape.userData.fine = tape.userData.noStain = true; tape.matrixAutoUpdate = false;
   return { g, mesh, tape, z0, z1, hx: 0.077, hy: 0.077, geo: null, seep: 0, key: null };
 });
 // the roll in your right hand as it's wound on (thinner as it goes), and the strip running from it to the arm
-const bandRoll = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, WRAP.w, 14), lam(0xe9e3d6)); bandRoll.visible = false; bandRoll.userData.fine = true; bandRoll.castShadow = false; PM.upper.add(bandRoll);
-const wrapTail = box(PM.upper, WRAP.w, 0.0022, 1, lam(0xece6da), 0, 0, 0); wrapTail.visible = false; wrapTail.userData.fine = true; wrapTail.castShadow = false;
+const bandRoll = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, WRAP.w, 14), lam(0xe9e3d6)); bandRoll.visible = false; bandRoll.userData.fine = bandRoll.userData.noStain = true; bandRoll.castShadow = false; PM.upper.add(bandRoll);
+const wrapTail = box(PM.upper, WRAP.w, 0.0022, 1, lam(0xece6da), 0, 0, 0); wrapTail.visible = false; wrapTail.userData.fine = wrapTail.userData.noStain = true; wrapTail.castShadow = false;
 // each wrap goes on over whatever's on the arm there (a sleeve and its cuff, the canvas jacket, gloves, an armband), so
 // it's sized to sit just outside the widest of them across its length rather than sinking into a sleeve or having a
 // cuff poke through it; refit every few frames while any is showing (gear and clothes change with upgrades and runs)

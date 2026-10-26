@@ -109,7 +109,9 @@ you, gone deep out in the fog), and a sight's reticle always shows through it.
 charge through fences and plough through the crowd. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
 forearms), and a headshot drops them. A shotgun blast that takes a head doesn't knock it off whole: it bursts into a red
-mist, flinging chips of skull, scalp and gore. Their hitboxes are simple shapes, not the model itself: a round meets a
+mist, flinging chips of skull, scalp and gore. Blood thrown from a hit flies as teardrops, round head first with a tail
+drawn out behind (longer the faster it goes), each flattened its own way, and leaves its mark where it lands; only the
+drops in the air cost anything to draw, so a shotgun on a crowd stays smooth. Their hitboxes are simple shapes, not the model itself: a round meets a
 zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the
 part under your crosshair (the one your first round goes to) is found against one box per limb, fitted round the limb
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
@@ -347,7 +349,8 @@ fist thinning as it goes: one turn straight round to anchor it, then a spiral up
 the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. In first
 person the arm's held across in front of you, so you can look down and watch it go on. Each bandage stays on your arm
 till the run ends, up to three of them up the forearm, sized to sit over whatever sleeve or glove is there, with a
-spot of blood slowly seeping through each.
+spot of blood slowly seeping through each. The blood you pick up killing zombies up close stains your clothes and
+skin, never a fresh bandage: those stay clean but for their own seep.
 
 **Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble: the hands lose their rhythm,
 slowing through the move and then catching it back up, all in one smooth motion rather than a frozen pause, the gun
