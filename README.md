@@ -195,7 +195,9 @@ gently, quick through the middle and settling softly, the gun and your arms dipp
 and again on the way down, quicker with a handgun;
 a shouldered gun (the AR most) jolts and shakes out a little as the stock meets your shoulder. It brings your eye onto
 the gun's own sights as the crosshair goes and the free-aim circle closes. Every gun's iron sights are lined up the way
-a real shooter holds them: a handgun's front post sits level in the rear notch, the AR, battle rifle, LMG, MP5 and auto
+a real shooter holds them: a handgun's front post sits level in the rear notch (the 9mm's are a Glock's own: a slim
+post with a round white dot, in a rear block that narrows to its top with a white U painted round its square notch, so
+the dot sits in the U), the AR, battle rifle, LMG, MP5 and auto
 shotgun's front post sits in the middle of the hole through the rear aperture, the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
 fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring, the double barrel is

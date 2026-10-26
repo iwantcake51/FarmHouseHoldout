@@ -226,8 +226,16 @@ export function xsec(g, shape, z0, z1, mat, bev) {
   const geo = new THREE.ExtrudeGeometry(shape, bev ? { depth: z1 - z0, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 1, curveSegments: 8 } : { depth: z1 - z0, bevelEnabled: false, curveSegments: 8 });
   geo.translate(0, 0, z0); const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
 }
-// an outline from [z, y] points, with optional holes (shapes or paths)
-export function shp(pts, holes) { const s = new THREE.Shape(); pts.forEach(([a, b], i) => i ? s.lineTo(a, b) : s.moveTo(a, b)); s.closePath(); if (holes) holes.forEach(h => s.holes.push(h instanceof THREE.Shape ? new THREE.Path(h.getPoints()) : h)); return s; }
+// an outline from [z, y] points, with optional holes (shapes or paths). Each hole's wound the other way round from the
+// outline: three.js only turns a hole round when it turns the outline round itself, so a hole wound the same way as an
+// outline that's already clockwise came out with its walls facing into the solid, drawn from behind and so not at all,
+// and you saw through the hole's sides into the part (the M4's trigger guard)
+const ccw = P => { let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p.x * q.y - q.x * p.y; } return a > 0; };
+export function shp(pts, holes) {
+  const s = new THREE.Shape(); pts.forEach(([a, b], i) => i ? s.lineTo(a, b) : s.moveTo(a, b)); s.closePath();
+  if (holes) { const out = ccw(s.getPoints()); holes.forEach(h => { const hp = h.getPoints(); s.holes.push(ccw(hp) === out ? new THREE.Path(hp.reverse()) : h instanceof THREE.Shape ? new THREE.Path(hp) : h); }); }
+  return s;
+}
 // a rounded rectangle path, for windows through a profile
 export function rrect(z0, y0, z1, y1, r) { const p = new THREE.Path(); p.moveTo(z0 + r, y0); p.lineTo(z1 - r, y0); p.quadraticCurveTo(z1, y0, z1, y0 + r); p.lineTo(z1, y1 - r); p.quadraticCurveTo(z1, y1, z1 - r, y1); p.lineTo(z0 + r, y1); p.quadraticCurveTo(z0, y1, z0, y1 - r); p.lineTo(z0, y0 + r); p.quadraticCurveTo(z0, y0, z0 + r, y0); return p; }
 // a tube along the bore with n long ribs round it (the grooves between sunk by dep), squashed sideways by sx and
@@ -277,6 +285,19 @@ export function notchRear(g, x, y, z, w, h, d, nw, nd, mat, dot) {
   [-1, 1].forEach(s => box(g, ew, h, d, mat, x + s * (nw + ew) / 2, y - h / 2, z));
   box(g, nw, h - nd, d, mat, x, y - nd - (h - nd) / 2, z);
   if (dot) [-1, 1].forEach(s => box(g, 0.0024, 0.0024, 0.0012, dot, x + s * (nw + ew) / 2, y - nd * 0.6, z - d / 2 - 0.0004));
+}
+// a Glock's own rear sight: a block narrower at its top than its dovetail base (w0 across the bottom, w1 the top, h tall
+// over y, d along the gun at z), its square-bottomed notch (nw wide, nd deep), and the white U painted round the notch on
+// its back face (the line t wide, gap off the notch's edge), so the front post's dot sits in the U
+const GLOCK_REAR = {};
+export function glockRear(g, x, y, z, w0, w1, h, d, nw, nd, mat, white) {
+  const S = new THREE.Shape([[-w0 / 2, -h], [w0 / 2, -h], [w1 / 2, 0], [nw / 2, 0], [nw / 2, -nd], [-nw / 2, -nd], [-nw / 2, 0], [-w1 / 2, 0]].map(([a, b]) => new THREE.Vector2(a, b)));
+  const k = [w0, w1, h, d, nw, nd].join(), geo = GLOCK_REAR[k] || (GLOCK_REAR[k] = new THREE.ExtrudeGeometry(S, { depth: d, bevelEnabled: false }).translate(0, 0, -d / 2)); sharedGeo.add(geo);
+  const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m);
+  const t = 0.0011, gap = 0.0007, ux = nw / 2 + gap + t / 2, ul = nd + gap + t, zf = z - d / 2 - 0.0003;
+  [-1, 1].forEach(s => box(g, t, ul, 0.0006, white, x + s * ux, y - ul / 2, zf));
+  box(g, 2 * ux + t, t, 0.0006, white, x, y - ul + t / 2, zf);
+  return m;
 }
 // what the gun's sights are: the line through them in its own frame, the rear sight's height (yr) and where along it
 // (rz), the front's tip (yf) and where (fz); kind: 'notch' (a front post in a rear notch), 'ap' (a rear aperture, r its

@@ -6,7 +6,7 @@ import { roundOn } from './rounds.js';
 import { T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  clipTo, cyl, inset, irons, lathe, notchRear, portFill, profile, pullInside, ring, rrect, shp, solid, stipple, xsec,
+  clipTo, cyl, glockRear, inset, irons, lathe, notchRear, portFill, profile, pullInside, ring, rrect, shp, solid, stipple, xsec,
   zAt
 } from './gun-parts.js';
 import { REV_CYL, REV_RAIL } from './gun-models.js';
@@ -44,8 +44,12 @@ export const PISTOL_MODELS = {
     portFill(sl, 0.687, 1.133, 0.757, 1.155, 0.028, 0.0025, S2);
     box(sl, 0.006, 0.014, 0.066, GM.metal2, X - 0.009, 1.146, 0.72);   // the barrel's hood in the port
     [-1, 1].forEach(sd => { for (let k = 0; k < 7; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.549 + k * 0.0075); for (let k = 0; k < 5; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.788 + k * 0.0075); });
-    box(sl, 0.004, 0.008, 0.008, GM.rubber, X, 1.165, 0.829); box(sl, 0.003, 0.003, 0.002, GM.dot, X, 1.167, 0.825);
-    notchRear(sl, X, 1.169, 0.555, 0.016, 0.008, 0.01, 0.0045, 0.0035, GM.rubber, GM.dot);   // the rear sight, its notch the front post's width and a hair more, a white dot either side
+    // the Glock's own sights: a slim front post, its back face upright and its front sloped, a round white dot on its
+    // back; the rear a block narrower at its top than its base, its square notch outlined by a white U, the dot sitting
+    // in the U as you line them up
+    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]]), 0.0034, GM.rubber, X);
+    cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248, 12);
+    glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
     irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 });
     cyl(sl, 0.0065, 0.002, GM.rubber, X, 1.142, 0.8455, 12);
     // ---- the magazine, lying back at the grip's rake (it drops out along it): the body up inside the grip, then the
