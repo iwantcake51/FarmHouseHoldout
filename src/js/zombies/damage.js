@@ -37,6 +37,7 @@ import { spitterDies } from './spitter.js';
 import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
 import { teamAssist } from '../net/teamwork.js';
+import { semiAuto } from '../weapons/firing.js';
 
 // blunt weapons and small calibres bruise and break, they don't cut things off
 function canSever(wId) {
@@ -72,6 +73,10 @@ export const ARMOR_KIT = {
 const JOB_ARMOR = { soldier: { torso: 'vest' }, swat: { torso: 'carrier', legs: 'pads' }, riot: { torso: 'carrier', legs: 'pads' } };
 const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3 };
 const ARMOR_MELEE = 0.6, ARMOR_BRUTE = 0.6;
+// the guns that punch through it on their own: the .50 hand cannon, and the battle rifle's full-power rounds fired one
+// at a time (in semi; let rip on full auto it's no better than any 7.62)
+const ARMOR_GUN = { deagle: 0.55, scar: 0.6 }, ARMOR_GUN_SEMI = new Set(['scar']);
+const armorGun = wId => ARMOR_GUN[wId] === undefined || (ARMOR_GUN_SEMI.has(wId) && !semiAuto(wId)) ? 1 : ARMOR_GUN[wId];
 // how armour keeps up: thin and easy to punch through early, thicker later (k from its first wave to its last, eased),
 // and stiffer the harder your gun hits against its stock damage (pow of what your upgrades added, up to powMax more), so
 // it never stops mattering; never more than max of a hit. What wears a piece down: what it stopped, and wear of what
@@ -89,7 +94,7 @@ const armorPowK = wId => { const B = WEAP[wId], E = EFF[wId]; return B && E && B
 function armorOf(z, part, D, wId) {
   const A = z.armor; if (!A || wId === 'boom' || wId === 'fire' || wId === 'bleed') return null;
   const slot = part === 'legL' || part === 'legR' ? 'legs' : part, P = A[slot]; if (!P || P.broken) return null;
-  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1);
+  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1) * armorGun(wId);
   return { slot, P, a: clamp(ARMOR_KIT[P.kind].a * k * armorWaveK() * armorPowK(wId) * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, ARMOR_SCALE.max) };
 }
 // a hit worn into a piece: it cracks, then comes off (zombies/armor-break.js)

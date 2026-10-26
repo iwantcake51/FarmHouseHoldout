@@ -113,7 +113,7 @@ part under your crosshair (the one your first round goes to) is found against on
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,
 SWAT in plate carriers, and riot officers whose face shields blunt headshots; builders' hard hats stop a little from
 the start. Armour soaks up part of each hit where it's worn (heavier rounds, slugs and piercing rounds go through more
-of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
+of it, and the .50 hand cannon and the battle rifle fired in semi punch through far more of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
 shield. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
 
 **Holding the house.** Nail up to three boards over every window and door, and repair them between waves. Upgrade the
