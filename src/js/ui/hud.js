@@ -23,7 +23,7 @@ import { bandHeal, bandProg } from '../player/bandages.js';
 import { CURSES } from '../upgrades/sacrifice.js';
 import { renderSlots, setRoll, setT } from './hud-text.js';
 import { xhHit } from '../player/shaky-hands.js';
-import { isoOn, viewBasis } from '../game/view-cam.js';
+import { fpFlinch, isoOn, viewBasis } from '../game/view-cam.js';
 import { hitCam } from '../game/camera.js';
 import { senseStep } from './sense.js';
 import { heartStartle, updateHeart } from './vitals.js';
@@ -203,6 +203,7 @@ export function hitFromAt(x, z, amount) {
   if (Math.hypot(x - P.x, z - P.z) > 0.05) hitArc(x, z, amount);
   hurtFace(amount || 1);   // (and you wince: player/animation.js)
   hitCam(x, z, amount);   // (and the view's knocked with the blow: game/camera.js)
+  fpFlinch(x, z, amount);   // (and from your own eyes, your head flinches from it: game/view-cam.js)
   xhHit(x, z, amount);   // (and the crosshair with it: player/shaky-hands.js)
   _hvA.set(P.x, 1, P.z).project(cam); _hvB.set(x, 1, z).project(cam);
   const w = innerWidth / 2, h = innerHeight / 2; let dx = (_hvB.x - _hvA.x) * w, dy = -(_hvB.y - _hvA.y) * h;
