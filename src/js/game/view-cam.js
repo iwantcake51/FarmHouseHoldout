@@ -41,7 +41,10 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.15, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.06 };
+const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.15, pitch: 1.45, sens: 0.0022, kick: 0.05, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.085 };
+// each shot draws the view in a touch (punch: how hard a shot of power 1 starts it in, about 2.5% at its deepest; a full
+// auto's less, auto; never past max all told), on a soft spring (k, d) that lets it back out
+const FIRE_FOV = { punch: 0.055, auto: 0.5, max: 0.05, k: 110, d: 15 };
 const FREE = { speed: 7, min: 1, max: 40, fast: 3, acc: 7, top: 40 };
 // free aim: the gun and your arms move about inside a little circle of the view (r, radians across). Only a share of
 // the mouse's movement (take) moves the aim in it, the view turning with the rest and with all of it once the aim's at
@@ -106,9 +109,6 @@ const ADS_EYE_MAX = 0.45;   // (the furthest down the sights takes your eye from
 // the view leaning with how you move: banked into a sidestep (roll), dipped going forward and lifted backing off
 // (pitch, and acc for speeding up and slowing), per metre a second, on a spring (k, d); less down the sights
 const TILT = { roll: 0.0036, pitch: 0.0024, acc: 0.0006, k: 60, d: 13, ads: 0.6 };
-// looking up, the head goes back (look: metres, from pitch p0 to p1), so the arms and the gun raised to aim up stay out
-// in front of your eyes rather than in them
-const LOOK_UP = { look: 0.16, p0: 0.2, p1: 1.0 };
 // free look (held: input/keybinds.js, freeLook): the view turns on its own while the aim and the gun stay where they
 // are, as far round as yaw and pitch (radians), easing back onto the aim (back) once it's let go or the sights come up
 const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
@@ -133,7 +133,12 @@ const FP_VAULT = { look: 0.34, lean: 0.36, roll: 0.075, out: [0.55, 0.95], fov: 
 // at a sprint, how much more the turn swings them (k), and how far they trail it round (yaw, radians for each radian a
 // second of turn; never past max) and out to the side (side, metres)
 const VM_RUN = { k: 2.6, yaw: 0.012, max: 0.09, side: 0.0016 };
-const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.005, bob: [0.0038, 0.0034, 0.009], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
+// looking round, the gun and your arms trail the view on those springs, whichever way it goes (round, up, down, or
+// both at once, so a diagonal flick sways them diagonally): left behind across the view (x, metres) and turned back
+// against it (yaw), dropped below it or left above it (y, metres; pitch, radians), each for each radian a second of
+// turn and never past max (radians a second of it counted); rolled the other way to a turn (VM.turn)
+const VM_LOOK = { x: 0.0032, yaw: 0.0085, y: 0.0026, pitch: 0.007, max: 6 };
+const VM = { roll: 0.022, lag: 0.0035, fwd: 0.0022, turn: 0.011, bob: [0.0038, 0.0034, 0.009], breathe: [0.0014, 0.0035], land: 0.55, k: 75, d: 12.5, ads: 0.88 };
 const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw: 0, vr: 0 };
 // down the sights without a set eye relief (a red dot, a holo, a handgun's irons), the nearest your eye comes to the back
 // of the sights, so the gun's never pushed into your face (aiming up, say): an optic's, iron sights'
@@ -181,6 +186,25 @@ function vmLock(eye, k) {
   _vlM.decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
 }
 const _vlW = new V3();
+// and the look up or down: the arms and gun are held level from your own eyes (player/hold.js: FP_PIV) and the whole
+// upper body, arms, hands and gun together, turned with the view about your eye, so they sit in the view where they do
+// looking straight ahead, however far you look up or down, as a game's arms do, and your chest and shoulders stay
+// below the view rather than filling it as you look down (pointed about the shoulder instead, the gun rode up the view
+// as you looked down and the arms tipped past it)
+const _fcA = new THREE.Matrix4(), _fcM = new THREE.Matrix4(), _fcE = new V3(), _fcQ = new THREE.Quaternion(), _fcR = new THREE.Euler();
+// (that move, in the upper body's own frame as it is once locked, Wl: the view's turn about your eye, about the view's
+// own level axis across it)
+function carryMat(out, Wl, k) {
+  _fcE.set(FPV.side, FPV.eye[0], FPV.eye[1]).add(PM.head.position).applyMatrix4(Wl);
+  _fcQ.setFromEuler(_fcR.set(0, VCAM.yaw, 0)); out.makeRotationFromQuaternion(_fcQ).multiply(_fcM.makeRotationX(-VCAM.pitch * k)).multiply(_fcM.makeRotationFromQuaternion(_fcQ.invert()));
+  out.premultiply(_fcM.makeTranslation(_fcE.x, _fcE.y, _fcE.z)).multiply(_fcM.makeTranslation(-_fcE.x, -_fcE.y, -_fcE.z));
+  return out.premultiply(_fcM.copy(Wl).invert()).multiply(Wl);
+}
+function fpCarry(k) {
+  if (k < 0.001) return;
+  const up = PM.upper; up.updateMatrix(); up.updateMatrixWorld(true);
+  carryMat(_fcA, up.matrixWorld, k).premultiply(up.matrix).decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
+}
 V.sd = new V3(0, 0, 1); V.sdW = 0;
 const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3();
 
@@ -369,9 +393,9 @@ export function fpSprintClear(gg, rd) {
   _spcP.setFromMatrixPosition(gg.matrixWorld).addScaledVector(_spcU, -Math.max(0, down) * rd).addScaledVector(_spcF, -Math.max(0, out) * rd);
   gg.position.copy(gg.parent.worldToLocal(_spcP)); gg.updateMatrix(); gg.updateMatrixWorld(true);
 }
-// vmLock's move of the upper body as it'll be made this frame, undone (see vmLock: from where the posed chest has your
-// eye onto the eye, stood straight)
-const _liM = new THREE.Matrix4(), _liM2 = new THREE.Matrix4(), _liC = new V3(), _liS = new V3(), _liQ = new THREE.Quaternion(), _liQ2 = new THREE.Quaternion(), _liE = new THREE.Euler(), _rlS2 = new V3();
+// vmLock's move of the upper body as it'll be made this frame, and fpCarry's after it, undone (see vmLock: from where
+// the posed chest has your eye onto the eye, stood straight)
+const _liM = new THREE.Matrix4(), _liM2 = new THREE.Matrix4(), _liM3 = new THREE.Matrix4(), _liC = new V3(), _liS = new V3(), _liQ = new THREE.Quaternion(), _liQ2 = new THREE.Quaternion(), _liE = new THREE.Euler(), _rlS2 = new V3();
 function lockInv(out) {
   const k = V.vlk ?? 1, up = PM.upper;
   if (k < 0.001) return out.identity();
@@ -379,7 +403,10 @@ function lockInv(out) {
   _liQ2.multiply(_liQ.invert()); if (k < 1) _liQ2.slerp(_vlI, 1 - k);
   _liS.subVectors(_rlE, _liC).multiplyScalar(k).add(_liC);
   out.makeTranslation(-_liC.x, -_liC.y, -_liC.z).premultiply(_liM2.makeRotationFromQuaternion(_liQ2)).premultiply(_liM2.makeTranslation(_liS.x, _liS.y, _liS.z));
-  return out.invert();
+  // (and fpCarry's after it, undone too: in the upper body's frame once it's locked, which is the same whatever it's
+  // been left at since the last frame)
+  _liM3.multiplyMatrices(out, up.matrixWorld); carryMat(_liM2, _liM3, k).invert().premultiply(_liM3).multiply(_liM3.invert());
+  return out.invert().multiply(_liM2);
 }
 export function fpReloadPose(gg, k) {
   const D = W(curId()), w = adsW(); k *= 1 - w; if (!fpOn() || !gg.parent || !D || D.melee || D.akimbo) return;
@@ -426,7 +453,7 @@ export function fpInspectPose(gg, k, dx = 0, dy = 0, dz = 0) {
 // your own arms, from your own eyes: whatever of them comes nearer your eye than SELF_CLIP.near (further looking up:
 // up) can be cut away by a plane across the view (SELF_PLANES) on the arms' materials (not the gun's, nor a melee
 // weapon's). It's at the eye itself now, cutting nothing in view: a sleeve sliced off there showed as a hollow wedge,
-// and with your head drawn back looking up (LOOK_UP) the arms never fill the view anyway. Out of first person it's put
+// and with the arms carried round with the view (fpCarry) they never come at your eyes anyway. Out of first person it's put
 // far off
 const SELF_CLIP = { near: 0, up: 0 }, SELF_PLANES = [new THREE.Plane(new V3(0, 1, 0), 1e6)], _scD = new V3(), _scP = new V3();
 R.localClippingEnabled = true;
@@ -445,12 +472,13 @@ function vmStep(rdt, w0, now) {
   if (!(rdt > 0)) return;
   const fx = Math.sin(V.cy), fz = Math.cos(V.cy), fwd = P.vx * fx + P.vz * fz, right = P.vx * -fz + P.vz * fx, m = 1 - VM.ads * w0;
   const turn = clamp(angDiff(V.cy, V.lcy ?? V.cy) / rdt, -8, 8); V.lcy = V.cy;
+  const lt = clamp(turn, -VM_LOOK.max, VM_LOOK.max), lp = clamp((V.cp - (V.lcp ?? V.cp)) / rdt, -VM_LOOK.max, VM_LOOK.max); V.lcp = V.cp;
   const k = V.bobK || 0, ph = P.phase || 0, still = 1 - clamp(k * 2, 0, 1), B = VM.bob;
   // (turning at a sprint the arms and gun aren't nailed to the view: they trail it a little on the springs, swung out
   // to the side and leant into the turn, and settle back with a hint of overshoot as it ends: VM_RUN)
   const rk = 1 + (VM_RUN.k - 1) * clamp(ANIM.sprintK || 0, 0, 1);
-  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1)) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6)) * m, z: Math.max(0, fwd) * VM.fwd * m,
-    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6)) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1), -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
+  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1) + lt * VM_LOOK.x) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6) - lp * VM_LOOK.y) * m, z: Math.max(0, fwd) * VM.fwd * m,
+    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6) - lp * VM_LOOK.pitch) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1) - lt * VM_LOOK.yaw, -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['x', 'y', 'z', 'p', 'w', 'r']) { const va = 'v' + a; VS[va] += (VM.k * (T[a] - VS[a]) - VM.d * VS[va]) * h; VS[a] += VS[va] * h; }
 }
 // and put on the gun as it's held (player/hold.js: after fpRecoil), turned about where it's gripped in the view's own frame
@@ -537,6 +565,7 @@ export function fpAim(out) {
 // hands (FP_RECOIL): its kick, the climb of a full auto and the rattle
 export function viewKick(pw, auto) {
   if (isoOn()) return; const aw = 1 - FPV.adsKick * adsW(); V.vk += pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vky += pw * FPV.kick * 6 * rr(-0.5, 0.5) * aw;   // (less down the sights: adsKick)
+  if ((V.ff || 0) < FIRE_FOV.max) V.vff = (V.vff || 0) + pw * FIRE_FOV.punch * (auto ? FIRE_FOV.auto : 1) * 10;
   const C = V.rc, D = W(curId()), hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
   const act = EJECT[curId()], a = (act === 'pump' || act === 'bolt' ? FP_RECOIL.act : 1) * (auto ? AU.k : 1), q = Math.min(pw, 1.25);
   C.kind = hand ? 'hand' : 'long'; C.w = F.w; C.d = 2 * F.z * F.w;
@@ -731,6 +760,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
     V.vk += (-FPV.kickK * V.kick - FPV.kickD * V.vk) * dt; V.kick += V.vk * dt;
     V.vky += (-FPV.kickK * V.ky - FPV.kickD * V.vky) * dt; V.ky += V.vky * dt;
+    V.vff = (V.vff || 0) + (-FIRE_FOV.k * (V.ff || 0) - FIRE_FOV.d * (V.vff || 0)) * dt; V.ff = clamp((V.ff || 0) + V.vff * dt, -FIRE_FOV.max, FIRE_FOV.max);
   }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
@@ -789,10 +819,8 @@ export function viewFrame(rdt, roll, sh, jolt) {
       if (EYE_R.on && k > 0.001) { PM.g.position.x -= (o.x * c + o.z * sn) * k; PM.g.position.z -= (-o.x * sn + o.z * c) * k; PM.g.updateMatrixWorld(true); } }
     rigEye(_vcE);
     // your arms and what's in your hands carried by the view itself, not by your chest (vmLock)
-    V.vlk = (V.vlk ?? 1) + ((P.vault ? 0 : 1) - (V.vlk ?? 1)) * Math.min(1, rdt * 8); vmLock(_vcE, V.vlk);
-    // looking up, the head back out of the way of the arms raised in front of it
-    { const b = LOOK_UP.look * smooth(clamp((VCAM.pitch - LOOK_UP.p0) / (LOOK_UP.p1 - LOOK_UP.p0), 0, 1)) * (1 - w0);
-      V.x = _vcE.x - Math.sin(VCAM.yaw) * b; V.y = _vcE.y - b * 0.25; V.z = _vcE.z - Math.cos(VCAM.yaw) * b; }
+    V.vlk = (V.vlk ?? 1) + ((P.vault ? 0 : 1) - (V.vlk ?? 1)) * Math.min(1, rdt * 8); vmLock(_vcE, V.vlk); fpCarry(V.vlk);
+    V.x = _vcE.x; V.y = _vcE.y; V.z = _vcE.z;
     // down the sights: the gun brought onto this frame's aim (the kick's moved on since it was held), and the eye onto
     // its sight line: at the head's own distance behind it, or a scope's eye relief behind its eyepiece
     const w = adsW(), D = W(curId()), LH = D && !D.melee && !D.akimbo ? sightLine() : null, L = w > 0.001 ? LH : null, gg = gunMeshes[W8.cur];
@@ -839,7 +867,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1)));   // (a touch wider at a sprint)
+    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;

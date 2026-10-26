@@ -23,6 +23,7 @@ import { gearOnAvatar, gearSpec } from '../player/gear.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 import { placeMag } from '../weapons/casings.js';
 import { state } from '../game/state.js';
+import { SNAP_GUN } from './avatars.js';
 import { HSH, placeLoader, SL_RND, SLM } from '../player/hold-loaders.js';
 import {
   BELT_M, BUCKLE_M, buildHolster, HOLSTER_M, HOOD_M, packBack, STOW, STOW_AK, STOW_AT, STOW_RIG
@@ -79,7 +80,7 @@ export function weaponPose(rdt, msg) {
   const wp = [];
   SLOTS.forEach((s, k) => {
     const g = gunMeshes[s]; if (!W8.slot[s] || !g.visible || P.dead) return;
-    _arM.multiplyMatrices(_arInv, g.matrixWorld).decompose(_arP, _arQ, _arS);
+    (SNAP_GUN.on && SNAP_GUN.s === s ? _arM.copy(SNAP_GUN.m) : _arM.multiplyMatrices(_arInv, g.matrixWorld)).decompose(_arP, _arQ, _arS);   // (the gun in hand pointed where you look, as your arms are: net/avatars.js, poseSnap)
     const parts = partVals(myMoving(s), []), pk = parts.join(','), send = key || pk !== lastParts[s]; lastParts[s] = pk;
     wp.push([k, r3a(_arP.x), r3a(_arP.y), r3a(_arP.z), r3a(_arQ.x), r3a(_arQ.y), r3a(_arQ.z), r3a(_arQ.w), send ? parts : 0]);
   });

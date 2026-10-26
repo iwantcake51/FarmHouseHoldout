@@ -132,6 +132,17 @@ const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.
 export const SUPPORT_REACH = 1.27, SUPPORT_KNEE = 0.03, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
+// how far the gun's pointed down with the look this frame (p, about its pivot, X 1.08 0.1, then moved by o and turned by
+// b with the blade: posePivot). From your own eyes it isn't: the arms and gun are held level and the view carries them
+// up and down with it (game/view-cam.js: fpCarry), so they never move in the view; your teammates still see them
+// pointed where you look, turned by this onto your pose as it's sent (net/avatars.js: poseSnap, lookTurn)
+export const FP_PIV = { p: 0, b: 0, o: [0, 0, 0], at: [X, 1.08, 0.1] };
+const _lkM = new THREE.Matrix4(), _lkY = new THREE.Matrix4();
+export function lookTurn(out) {
+  const a = FP_PIV.at, o = FP_PIV.o;
+  _lkY.makeRotationY(FP_PIV.b); out.copy(_lkY).multiply(_lkM.makeTranslation(o[0] + a[0], o[1] + a[1], o[2] + a[2])).multiply(_lkM.makeRotationX(FP_PIV.p)).multiply(_lkM.makeTranslation(-o[0] - a[0], -o[1] - a[1], -o[2] - a[2]));
+  return out.multiply(_lkY.invert());
+}
 function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   _e.set(rx, ry, rz); _q.setFromEuler(_e); _v.set(px, py, pz).applyQuaternion(_q);
   g.position.set(px - _v.x + ox, py - _v.y + oy, pz - _v.z + oz); g.quaternion.copy(_q);
@@ -330,6 +341,7 @@ export function poseHands(D, up, ph, runF, rdt, now) {
     up.x += sh.lean; up.y += sh.tw;
     pm.legR.rotation.x -= 0.12 * Math.max(0, sh.lean) / 0.07; pm.shinL.rotation.x += 0.1 * Math.max(0, sh.lean) / 0.07;   // just the weight onto the front foot (your left: the rig's legs aren't mirrored as the upper body is, player/player.js, and its legR is your left)
   }
+  FP_PIV.p = 0;   // (a melee weapon isn't pointed with the look)
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
   bandagePose(pm, up, now, sh);
@@ -524,7 +536,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6), rd = smooth(clamp(ANIM.ready || 0, 0, 1));   // (rd: down at a low ready, sprinting)
-  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  FP_PIV.p = fpOn() ? ANIM.pitch * (1 - rd) : 0;   // (from your own eyes the look's left off the hold: FP_PIV)
+  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) - FP_PIV.p + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
   // gun never quite still in the hands while they work on it
   const J = W8.relJit || REL_JIT0, AT = _actT;
@@ -617,6 +630,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (not from your own eyes, where the gun stays with the crosshair as you turn: FP_SWING)
   pitch += SR.x * 0.8 * (fpOn() ? FP_BODY_KICK : 1);   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
+  FP_PIV.b = -blade; FP_PIV.o[0] = ox; FP_PIV.o[1] = oy; FP_PIV.o[2] = oz;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
   gunPush(gg, s, H, ak, fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)

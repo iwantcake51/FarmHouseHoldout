@@ -25,7 +25,9 @@ import { bulletHole } from '../effects/bullet-holes.js';
 import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
-import { isoOn } from '../game/view-cam.js';
+import { fpOn, isoOn } from '../game/view-cam.js';
+import { FP_PIV, lookTurn } from '../player/hold.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
 import { flashes } from '../weapons/explosives.js';
 import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
@@ -56,13 +58,23 @@ let poseDr = 0, poseT = 0, poseX = 0, poseZ = 0, poseAt = 0, poseWid = '', poseW
 // your pose as your body has it, taken each frame before the first-person view takes your arms and chest over to hold
 // them on the view (game/view-cam.js): what your teammates see is you as you stand, looking up or down where you look,
 // not your upper body stood straight for your own eyes (game/visuals.js calls it)
+// From your own eyes your arms and gun are held level and the view carries them (player/hold.js: FP_PIV): here they're
+// turned to point where you look (lookTurn) as the hold would have them, and the gun in your hands with them (SNAP_GUN,
+// what net/arsenal.js sends of it, in your body's frame)
 const poseSnapJ = [];
+export const SNAP_GUN = { on: false, s: null, m: new THREE.Matrix4() };
+const _psL = new THREE.Matrix4(), _psM = new THREE.Matrix4(), _psP = new V3(), _psQ = new THREE.Quaternion(), _psS = new V3(), _psE = new THREE.Euler();
 export function poseSnap() {
   if (!netLink()) return;
-  const j = poseSnapJ; j.length = 0;
+  const j = poseSnapJ, look = fpOn() && Math.abs(FP_PIV.p) > 1e-4; j.length = 0;
+  if (look) lookTurn(_psL);
   const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
-  POSE_K.forEach((k, n) => put(PM[k], n === 0));
+  const putT = o => { _psM.compose(o.position, o.quaternion, o.scale).premultiply(_psL).decompose(_psP, _psQ, _psS); _psE.setFromQuaternion(_psQ, o.rotation.order);
+    j.push(r2(_psP.x), r2(_psP.y), r2(_psP.z), r2(_psE.x), r2(_psE.y), r2(_psE.z)); };
+  POSE_K.forEach((k, n) => (look && (k === 'armL' || k === 'armR') ? putT : put)(PM[k], n === 0));
   j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
+  const g = gunMeshes[W8.cur]; SNAP_GUN.on = look && !!g; SNAP_GUN.s = W8.cur;
+  if (SNAP_GUN.on) { const u = PM.upper; g.updateMatrix(); SNAP_GUN.m.compose(u.position, u.quaternion, u.scale).multiply(_psL).multiply(g.matrix); }
 }
 export function poseOut(rdt) {
   if (!netLink()) return;

@@ -172,7 +172,14 @@ carried along exactly as you move, held steady over your shoulders on a spring s
 reach it, and it turns with the view rather than with your body coming round after it. Your chest stays on your aim and
 the gun points the way you look, whatever's under the crosshair, so it never swims about in front of you as you turn,
 walk or look up and down; the body's stride and lean are toned right down from your own eyes, and the bob and sway
-you do see are first-person ones, on springs of their own. The view turns exactly as the mouse moves, by the mouse's raw movement where the browser
+you do see are first-person ones, on springs of their own. Looking up or down, your arms and the gun go with the view
+as one, turned about your eye, so they sit in the same place on screen however far you look, and your chest and
+shoulders stay out of sight below it: looking straight down you see the gun and your feet, not a wall of shoulders
+(your teammates still see your arms and gun pointed where you look). Looking round, they trail the view a little on
+their springs: left behind across the screen and turned back against the turn, dropped or left above it as you look
+up or down (a diagonal flick sways them diagonally), and rolled the other way to a turn, settling with a hint of
+overshoot; much less of it down the sights. The view widens a touch at a sprint and draws in a touch with each shot.
+The view turns exactly as the mouse moves, by the mouse's raw movement where the browser
 gives it (no pointer acceleration), and stops the moment it stops; a stray jump the browser sometimes reports under
 pointer lock is ignored. Turning, your eye stays put over your hips rather than swinging round with your shoulders,
 and the gun and your arms are already turned with you when the view's placed, so a turn starting or stopping never
