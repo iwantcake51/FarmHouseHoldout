@@ -12,6 +12,7 @@ import { bareLook } from '../player/gear.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 
 // how it turns (radians a second) and how far it tips, how close the camera comes and how far it'll zoom either way,
@@ -125,9 +126,23 @@ const FOCUS = {
   hands: { on: 'armR', at: [0, 0, 0.5], dist: 0.95, yaw: 0.9, pitch: 0.25 },
   gear: { on: 'torso', at: [0, 0.0, -0.18], dist: 2.6, yaw: Math.PI - 0.6, pitch: 0.22 }
 };
+// the copy of you stood easy: up straight, feet together, arms down at your sides a little out from you, the weapon in
+// your hands put away (what's slung or holstered stays), each part set back where the rig has it at rest
+// (characters/rig.js)
+const EASY = { arm: 1.48, out: 0.1 };
+function standEasy() {
+  const at = (o, x, y, z) => { const c = figPart.get(o); if (c) { c.position.set(x, y, z); c.rotation.set(0, 0, 0); } return c; };
+  at(PM.upper, 0, 0, 0); at(PM.lower, 0, 0, 0); at(PM.torso, 0, 0.86, 0); at(PM.head, 0, 1.33, 0);
+  at(PM.legL, -0.13, 0.55, 0); at(PM.legR, 0.13, 0.55, 0);
+  [PM.shinL, PM.shinR].forEach(o => { const c = figPart.get(o); if (c) c.rotation.set(0, 0, 0); });
+  [[PM.armL, -1], [PM.armR, 1]].forEach(([o, sg]) => { const c = at(o, sg * 0.33, 1.08, 0); if (c) c.rotation.set(EASY.arm, 0, sg * EASY.out, 'ZXY'); });   // (down, then out from the side)
+  const g = figPart.get(gunMeshes[W8.cur]); if (g) g.visible = false;
+}
 // show you, the camera headed for view `key`; fresh: copy you again (your look's just changed); gear: with what your
-// upgrades put on you (the armour's jacket, boots, gloves, the helmet...), or (false) in just the clothes you're changing
-export function showFigure(key, fresh, gear) {
+// upgrades put on you (the armour's jacket, boots, gloves, the helmet...), or (false) in just the clothes you're changing;
+// easy: stood easy (standEasy), not as you are (on the title you're down on one knee, with a gun in your hands);
+// room: how much further back than usual the camera stands (a bigger view shows more round the part being changed)
+export function showFigure(key, fresh, gear, easy, room = 1) {
   if (!gvR) setup();
   const F = FOCUS[key] || FOCUS.body, was = fig;
   if (fresh || !fig) {
@@ -136,11 +151,11 @@ export function showFigure(key, fresh, gear) {
     // (in first person your head's hidden: game/view-cam.js; the copy has it as ever)
     const hv = PM.head.visible; PM.head.visible = true;
     const copy = () => { PM.g.updateMatrixWorld(true); return copyPlain(PM.g); }, c = gear ? copy() : bareLook(copy); PM.head.visible = hv;
-    c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); gvPivot.add(c); gvModel = c; gvSig = '';
+    c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); if (easy) standEasy(); gvPivot.add(c); gvModel = c; gvSig = '';
     c.updateMatrixWorld(true);
   }
   const part = (F.on && figPart.get(PM[F.on])) || gvModel, at = part.localToWorld(new V3(...F.at));
-  fig = { key, to: { at, dist: F.dist, yaw: F.yaw, pitch: F.pitch }, at: was ? was.at : at.clone(), dist: was ? was.dist : F.dist };
+  fig = { key, to: { at, dist: F.dist * room, yaw: F.yaw, pitch: F.pitch }, at: was ? was.at : at.clone(), dist: was ? was.dist : F.dist * room };
   if (!was || was.key !== key) { yaw = was ? yaw : F.yaw; pitch = was ? pitch : F.pitch; gvZoom = 1; gvAim.set(0, 0, 0); idleT = 0; fig.glide = 1; }
   if (!gvRaf) { gvLast = performance.now(); gvRaf = requestAnimationFrame(gvTick); }
 }

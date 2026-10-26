@@ -202,7 +202,7 @@
       <p>Board up. Prepare for the horde. Survive as long as you can.</p>
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
-    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
+    <div class="btns"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="lookBtnTitle" type="button">Character</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
     <div class="coop" id="coop" hidden>
       <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
       <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
@@ -318,6 +318,18 @@
     <div class="setTop"><h3 id="setTitle">Settings</h3><div class="setTabs" id="setTabs" role="tablist" aria-label="Settings pages"><button type="button" role="tab" data-tab="general" aria-selected="true">General</button><button type="button" role="tab" data-tab="controls" aria-selected="false">Controls</button><i class="setTabInk" aria-hidden="true"></i></div><button class="setX" id="setX" type="button" aria-label="Close settings"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
     <div class="setBody" id="setBody"></div>
     <div class="setFoot"><button class="setLink" id="setReset" type="button">Reset to defaults</button><button class="btn sm" id="setDone" type="button">Done</button></div>
+  </div>
+</div>
+<div id="lookMenu" hidden>
+  <div class="lmBack"></div>
+  <div class="lmPanel" role="dialog" aria-modal="true" aria-labelledby="lmTitle">
+    <div class="lmStage" id="lmStage"><div class="lmHint">Drag to turn · Scroll to zoom</div></div>
+    <div class="lmSide">
+      <div class="lmTop"><div class="lmHead"><h3 id="lmTitle">Your survivor</h3><small id="lmSub"></small></div><button class="setX" id="lmX" type="button" aria-label="Close"><svg data-gi="crossMark" aria-hidden="true"></svg></button></div>
+      <div class="lmTabs" id="lmTabs" role="tablist" aria-label="Parts of you"></div>
+      <div class="lmBody" id="lmBody"></div>
+      <div class="lmFoot"><span id="lmKeep"></span><button class="setLink lmRoll" id="lmRoll" type="button" data-act="lkrand" data-p="body"></button><button class="btn sm" id="lmDone" type="button">Done</button></div>
+    </div>
   </div>
 </div>
 <div id="fps" hidden></div>

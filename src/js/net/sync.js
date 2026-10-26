@@ -17,7 +17,7 @@ import { openings } from '../world/house.js';
 import { breakDoor, doorBlow, doorWear, HOUSE_DOORS } from '../world/interior.js';
 import { breakFence } from '../world/fence.js';
 import { P } from '../player/player.js';
-import { LOOK, rollLook } from '../player/look.js';
+import { LOOK, rollLook, spawnLook } from '../player/look.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { EFF, hpCap, magSize, recomputeEff, run, W, W8 } from '../game/run-state.js';
 import { GM } from '../weapons/gun-materials.js';
@@ -385,7 +385,7 @@ function netRespawn() {
   Object.assign(P, { dead: false, deathT: 0, hp: hpCap(), bleed: 0, slow: 0, eye: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, vault: null, x: cxw(21) + off[0], z: cxw(22) + off[1] });
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
-  rollLook(); buildGuns();
+  rollLook(spawnLook()); buildGuns();   // (back as you were, if you're keeping your look: player/look.js)
   netSend('look', { look: LOOK.cur });   // (your teammates rebuild you as you are now)
   feed('med', P.hp, 'back on your feet'); SFX.upgrade();
 }

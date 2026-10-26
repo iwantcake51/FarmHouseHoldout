@@ -1,5 +1,6 @@
 // Keyboard and mouse input.
 
+import { closeLookMenu, lookMenuOpen } from '../ui/look-menu.js';
 import { bindIs, KB, keyOf } from './keybinds.js';
 import { cv, GUN_Y, setZoomT, V3, ZOOM_MAX, ZOOM_MIN, zoomT } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
@@ -39,6 +40,7 @@ addEventListener('keydown', e => {
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
   if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab' || k === 'alt')) e.preventDefault();   // (Alt: no browser menu bar from free look)
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
+  if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); return; }
   if (k === 'escape' && performance.now() - lockLostAt < 400) return;   // (the Esc that let go of the mouse in first person has already paused)
@@ -119,7 +121,7 @@ addEventListener('mouseup', e => { if (e.button === 3 || e.button === 4) e.preve
 
 // first person: a menu or the pause opened, the mouse is let go; closing it with a click or a key takes it back, and
 // letting it go yourself (Esc) pauses the game, as in any shooter (game/view-cam.js)
-const lookMenu = () => !!openSt || cheatOn || setOpen();
+const lookMenu = () => !!openSt || cheatOn || setOpen() || lookMenuOpen();
 export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; mouseY = innerHeight / 2 + oy; hasMouse = true; };   // (off the middle by the free aim's offset in first person: game/view-cam.js)
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;

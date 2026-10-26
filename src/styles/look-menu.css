@@ -1,0 +1,44 @@
+/* The title's Character menu (ui/look-menu.js): a wide dark sheet over the dimmed title, popping up like the settings
+   panel. On the left your survivor in the studio, big, on a soft warm floor light; on the right the parts of you as
+   tabs along the top, what each can be under them (the character editor's own rows, swatches and switches:
+   styles/cheats.css), and at the foot the switch that keeps this look, a random one, and Done. */
+#lookMenu{--chLine:rgba(236,230,216,.1);--chCard:rgba(236,230,216,.035);position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px}
+#lookMenu[hidden]{display:none}
+#lookMenu .lmBack{position:absolute;inset:0;background:rgba(8,7,6,.6);backdrop-filter:blur(6px) saturate(.8);-webkit-backdrop-filter:blur(6px) saturate(.8);opacity:0;transition:opacity .32s ease}
+#lookMenu.on .lmBack{opacity:1}
+.lmPanel{position:relative;width:min(1080px,100%);height:min(700px,calc(100vh - 40px));display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);overflow:hidden;
+  background:var(--tex-specks),linear-gradient(170deg,rgba(30,25,21,.97),rgba(16,14,12,.97) 60%,rgba(22,17,14,.97));background-size:240px,auto;
+  border:1px solid rgba(236,230,216,.1);border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4),inset 0 1px 0 rgba(236,230,216,.06);
+  opacity:0;transform:translateY(18px) scale(.95);transition:opacity .26s ease,transform .34s cubic-bezier(.2,.9,.3,1.12)}
+#lookMenu.on .lmPanel{opacity:1;transform:none}
+#lookMenu:not(.on) .lmPanel{transition:opacity .22s ease,transform .3s cubic-bezier(.55,0,.8,.3)}
+/* the studio: you, lit warm from the front, standing on a soft pool of light */
+.lmStage{position:relative;min-height:0;background:radial-gradient(ellipse 60% 70% at 50% 58%,rgba(255,196,140,.16),transparent 70%),linear-gradient(180deg,rgba(40,34,28,.55),rgba(10,10,10,.75));border-right:1px solid rgba(236,230,216,.07)}
+.lmStage::after{content:"";position:absolute;left:22%;right:22%;bottom:7%;height:22px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.55),transparent 70%);pointer-events:none}
+.lmStage .chView{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.lmHint{position:absolute;left:0;right:0;bottom:14px;z-index:2;text-align:center;color:rgba(236,230,216,.4);font:500 11px var(--f-ui);letter-spacing:.04em;pointer-events:none}
+.lmSide{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;min-height:0}
+.lmTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 20px 12px}
+.lmHead h3{margin:0;font:800 30px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
+.lmHead small{display:block;margin-top:6px;color:var(--dim);font-size:11.5px}
+/* the parts of you: one row of tabs, the picked one lit */
+.lmTabs{display:flex;flex-wrap:wrap;gap:4px;padding:0 20px 12px;border-bottom:1px solid rgba(236,230,216,.07)}
+.lmTabs button{padding:6px 11px;border:1px solid rgba(236,230,216,.12);border-radius:999px;background:rgba(236,230,216,.04);color:var(--dim);font:600 11.5px var(--f-ui);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.lmTabs button:hover{color:var(--ink);border-color:rgba(var(--acc),.5)}
+.lmTabs button.on{color:#1a120c;background:var(--orange);border-color:var(--orange)}
+.lmBody{overflow-y:auto;overflow-x:hidden;padding:14px 20px 16px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
+.lmBody .chLook,.lmBody>.chLkG+.chLkG{margin-top:8px}
+.lmBody>.chLkG{margin-bottom:8px}
+.lmBody .chLkSum{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lmFoot{display:flex;align-items:center;gap:12px;padding:12px 20px 16px;border-top:1px solid rgba(236,230,216,.07)}
+.lmFoot #lmKeep{margin-right:auto}
+.lmFoot button{white-space:nowrap}
+.lmKeepSw{padding:6px 12px 6px 6px;font-size:11.5px}
+.lmRoll{display:inline-flex;align-items:center;gap:6px}
+.lmRoll .chIco{width:14px;height:14px;fill:currentColor}
+/* narrow screens: you above, the editor below */
+@media (max-width:760px){
+  .lmPanel{grid-template-columns:1fr;grid-template-rows:38vh minmax(0,1fr)}
+  .lmStage{border-right:0;border-bottom:1px solid rgba(236,230,216,.07)}
+  .lmBody .chLkSum{grid-template-columns:1fr}
+}

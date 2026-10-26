@@ -9,7 +9,7 @@ import { cxw } from '../world/grid.js';
 import { PAINT_FADE, stepPaint } from '../world/house.js';
 import { houseLayout } from '../world/interior.js';
 import { P } from '../player/player.js';
-import { rollLook } from '../player/look.js';
+import { rollLook, spawnLook } from '../player/look.js';
 import { clearBodyBlood } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, freshRun, run, S, stamMax, W, W8 } from '../game/run-state.js';
@@ -52,7 +52,7 @@ import { SL_DROPS } from '../player/hold-loaders.js';
 import { setBleedVig, setHitVig, setHitVigUp } from './hud.js';
 import { benchTipsStart } from './bench-tips.js';
 import { clearGear, renderBought } from './gear-popup.js';
-import { cheatLook, cheatSaves } from './cheats.js';
+import { cheatSaves } from './cheats.js';
 import { netDown, netRunStart, nr, turnedDown } from '../net/sync.js';
 import { toggleCoop } from '../net/lobby.js';
 import { setWarmQ } from '../game/loop.js';
@@ -90,7 +90,7 @@ function resetRun(keepLook) {
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
   bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
-  resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(cheatLook() || undefined); buildGuns();   // a new look for every run (player/look.js), or the one kept in the cheat menu (ui/cheats.js); the title already dealt one (in co-op you keep the one your teammates have)
+  resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(spawnLook()); buildGuns();   // a new look for every run, or the one you're keeping (player/look.js: spawnLook, made in the title's Character menu); the title already dealt one (in co-op you keep the one your teammates have)
   deathCineEnd(); mistReset();
   P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.readyV = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1; benchTipsStart();

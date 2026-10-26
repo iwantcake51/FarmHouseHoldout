@@ -167,6 +167,19 @@ export function shirtColours(jacket) {
   const c = jacket ? 0x7a6a4a : (LOOK.cur ? LOOK.cur.topCol : 0x4e5a3c);
   PM.mats.shirt.color.setHex(c); PM.mats.shirtDk.color.setHex(jacket ? 0x5e5036 : shade(c, 0.76));
 }
+// ---- your own look, kept: made in the title's Character menu (ui/look-menu.js) or the cheat menu, and when it's to be
+// kept (LOOK_SAVE.on) it's who you are on the title, at the start of every run and every time you're back on your feet
+// in co-op; otherwise every run deals someone new. Kept in this browser (localStorage, LOOK_KEY)
+const LOOK_KEY = 'fhh-look';
+export const LOOK_SAVE = { on: false, look: null };
+try { const k = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (k && k.look) Object.assign(LOOK_SAVE, { on: !!k.on, look: k.look }); } catch (e) {}
+function storeLook() { try { localStorage.setItem(LOOK_KEY, JSON.stringify({ on: LOOK_SAVE.on, look: LOOK_SAVE.look })); } catch (e) {} }
+// the look to spawn in (a copy, so the run's changes never reach what's kept), or undefined for someone new
+export const spawnLook = () => LOOK_SAVE.on && LOOK_SAVE.look ? JSON.parse(JSON.stringify(LOOK_SAVE.look)) : undefined;
+// keep the look you have now (on), or go back to a new one each run (off: what was kept stays, for switching back on)
+export function keepLook(on) { LOOK_SAVE.on = !!on; if (on && LOOK.cur) LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); }
+// your look's just been changed by hand: kept, if you're keeping it
+export function lookChanged() { if (LOOK_SAVE.on && LOOK.cur) { LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); } }
 // clear the old look and build a new one; attach is false only for the first build, before the x-ray rim exists
 export function rollLook(opt) {
   const L = LOOK.cur = dealLook(opt);
@@ -524,4 +537,4 @@ function buildWrists(L) {
     }
   }
 }
-rollLook();
+rollLook(spawnLook());

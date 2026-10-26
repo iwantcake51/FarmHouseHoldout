@@ -9,6 +9,16 @@ three friends online.
 
 ---
 
+## Your survivor
+
+**Character** on the title opens the character menu: your survivor stood in a little studio on the left, live and
+big, that you can drag round and zoom in on, and on the right the parts of you as tabs along the top (the whole of
+you, face, hair, hat, top, trousers, shoes, hands, gear) with everything each can be underneath, every change going
+straight onto you while the camera glides in to the part you're changing. **Random** deals that part afresh (or the
+whole of you), and **Keep this look every run** keeps the survivor you've made: it's who you are on the title, at the
+start of every run and every time you're back on your feet in co-op, and it's remembered in your browser. With it off,
+every run deals someone new. The cheat menu's character section is the same editor, with the same switch.
+
 ## How a run goes
 
 1. **Break.** The clock is stopped. Board up the windows and doors, spend scrap at the stations and get into
@@ -398,7 +408,7 @@ its own long sleeves in its own colour out from under the shirt's, and shows at 
 one (a hoodie, a long-sleeve polo, a suit) leaves it off, and it comes back with a top that is. A suit brings its
 trousers and dress shoes, which follow its colour while they match it and go when it does. Your shirt, sleeves and
 torso always share one colour, even with the game paused (the blood that can stain you is drawn on copies that wear
-the very same colour). The look can be kept for new runs.
+the very same colour). Its switch keeps the look for every run, as the title's Character menu does (see Your survivor).
 
 ### How the code fits together
 
