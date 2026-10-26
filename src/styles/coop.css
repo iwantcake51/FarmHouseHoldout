@@ -48,6 +48,15 @@
 .coopList li.empty::after{content:"";width:5px;height:5px;margin-left:-4px;border-radius:50%;background:currentColor;animation:seatWait 1.6s ease-in-out infinite}
 @keyframes seatWait{50%{opacity:.15}}
 .coopList li em{margin-left:auto;font-style:normal;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+/* the view everyone plays in: the host picks, the rest see what's picked */
+.coopView{display:flex;align-items:center;justify-content:space-between;gap:12px;font-family:var(--f-type);font-size:12px;color:var(--dim)}
+.coopView small{display:block;font-family:var(--f-ui);font-size:10px;color:rgba(163,158,144,.7)}
+.coopSeg{display:flex;padding:2px;gap:2px;background:rgba(236,230,216,.05);border:1px solid rgba(236,230,216,.14);border-radius:2px}
+.coopSeg button{font:600 11px var(--f-ui);color:var(--dim);background:none;border:0;border-radius:1px;padding:4px 10px;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+.coopSeg button:hover:not(:disabled){color:var(--ink)}
+.coopSeg button[aria-checked=true]{color:#1a1612;background:var(--orange)}
+.coopSeg button:disabled{cursor:default}
+.coopSeg button:disabled:not([aria-checked=true]){opacity:.5}
 .coopMsg{min-height:1.2em;font-family:var(--f-type);font-size:12px;color:#e09a6a;animation:coopPart .3s ease both}
 .coopMsg:empty{display:none}
 @media (prefers-reduced-motion:reduce){.coop,.coop *{animation-duration:.01s!important;animation-delay:0s!important}}

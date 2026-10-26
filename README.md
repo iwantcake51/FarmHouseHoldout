@@ -180,7 +180,9 @@ you go down, a low drone drifts in while you watch a teammate until the wave is 
 survivor with a full mag in each gun and three spares. Clear a wave with nobody down and everyone gets a little
 scrap. You can add friends by their friend code to see when they're online and join their lobby in one click. Rest
 the pointer on someone's seat in the lobby, or on a friend in your friends list, and their survivor, as they've made
-them, stands on a little card beside it, turning slowly under the studio lights (your own seat shows yours).
+them, stands on a little card beside it, turning slowly under the studio lights (your own seat shows yours). The
+host also picks the view everyone plays in, **Isometric** or **First person**, under the seats; the others see the
+pick but can't change it, and their own choice in the settings comes back once they leave the game.
 
 ## Controls
 
@@ -205,8 +207,8 @@ with a mod that adds a setting).
 
 Touch screens get twin sticks and on-screen buttons.
 
-**First person.** Press **N** (or pick it in **Settings → Camera**) to see out of your own eyes instead of from above.
-Click once to take the mouse, then look anywhere, up and down too: W A S D walk you forward, back and to the sides of
+**First person.** Pick it for **View** in **Settings** before a run (in co-op the host picks it for everyone, in the
+lobby) to see out of your own eyes instead of from above. The mouse is taken as the run starts; look anywhere, up and down too: W A S D walk you forward, back and to the sides of
 where you face. The view turns the moment the mouse moves, with no easing in the way (turn on **Mouse smoothing** in
 the settings if you'd like it eased over a few frames). Your eye is pinned to you, not to your animated head: it's
 carried along exactly as you move, held steady over your shoulders on a spring so the stride's own rise and sway hardly
@@ -506,7 +508,7 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
 | HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, no clock face and no picture of the melee weapon you're holding) |
-| View | Isometric, first person (picked before a run and kept for it; the cheat menu can switch it mid-run) |
+| View | Isometric, first person (picked before a run and kept for it; the cheat menu can switch it mid-run; in co-op the host's pick in the lobby is used instead) |
 | Field of view | 60–100° (first person) |
 | Mouse sensitivity | 25–200% (first person) |
 | Mouse smoothing | Off (the view turns the moment the mouse does), on (eased over a few frames) (first person) |
