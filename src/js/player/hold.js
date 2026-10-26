@@ -266,6 +266,9 @@ export function walkPath(out, keys, p) {
 // a hand going off the gun or back onto it: the spring it moves on (k, d) and how quickly what it chases eases to where
 // it's to be (lead, a second)
 const HAND_W = { lead: 30, k: 420, d: 41 };
+// the reload pose's spring (ANIM.relEnv): how quickly (rad/s, critically damped) the gun goes into it, and comes back
+// out to the hold once the reload's done: unhurried, so the way back eases off and settles rather than snapping
+const REL_ENV = { in: 11, out: 6.5 };
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
@@ -317,7 +320,7 @@ export function poseHands(D, up, ph, runF, rdt, now) {
   bandPhases(rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
-  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = HAND.L.wf = HAND.R.wf = 0; ANIM.relEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
+  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = HAND.L.wf = HAND.R.wf = 0; ANIM.relEnv = ANIM.vrelEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
   const sh = shovePose();
   if (sh && !D.melee) {
     up.x += sh.lean; up.y += sh.tw;
@@ -483,7 +486,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const cyP = !rel && cylShut(D) ? brkShutP() : -1;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
-  const CH = rel === 'mag' && CHARGE[s] && !D.akimbo;   // (a pair charges its own way: weapons/akimbo.js, akChargeState)
+  const CH = rel === 'mag' && CHARGE[s] && !D.akimbo && W8.relDry !== false;   // (only run dry, weapons/reload.js; a pair charges its own way: weapons/akimbo.js, akChargeState)
   // an empty pistol's reload: the mag change in the first PS_MAG of it, then the support hand drops the slide (rr is how
   // far through that, relU when it lets go)
   const PS = rel === 'mag' && W8.relEmpty && !CH && !D.akimbo, rpm = CH ? Math.min(1, rp / CH_MAG) : PS ? Math.min(1, rp / PS_MAG) : rp;
@@ -505,7 +508,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   { const t = CH ? smooth(clamp((rp - CH_REACH[0] + 0.03) / (CH_REACH[1] - CH_REACH[0] + 0.03), 0, 1)) * (1 - smooth(clamp((rp - CH_SLAM) / (1 - CH_SLAM), 0, 1))) : 0; ANIM.chW = (ANIM.chW || 0) + (t - (ANIM.chW || 0)) * Math.min(1, rdt * 14); }   // (the gun let out and turned over for it from your own eyes, game/view-cam.js FP_CHARGE; eased off if the reload's cut short)
   if (rel) ANIM.relKind = rel;
   const FL = feel(id);   // (this gun's own handling: player/hold-kick.js, FEEL)
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : CH ? rp < CH_SLAM + 0.015 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0) - ANIM.relEnv) * Math.min(1, rdt * 9 * FL.env);   // (closing the double barrel: the stock comes up to meet the barrels)
+  // how far into the reload pose the gun is: in for the reload, out once it's done. On a critically damped spring
+  // (REL_ENV), not eased straight at it, so it sets off from rest and settles in: eased, the way back to the hold left at
+  // full speed the instant the reload's last beat went, a jump just as the mag was slapped home
+  { const tg = rel === 'mag' ? ((PS ? rp < 0.95 : CH ? rp < CH_SLAM + 0.015 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0;   // (closing the double barrel: the stock comes up to meet the barrels)
+    const w = (tg < ANIM.relEnv ? REL_ENV.out : REL_ENV.in) * FL.env;
+    if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'relEnv', 'vrelEnv', tg, w * w, 2 * w, dt);
+    ANIM.relEnv = clamp(ANIM.relEnv, 0, 1); }
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
@@ -535,7 +544,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     AT.r += (0.07 * ant - 0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (-0.035 * ant + 0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
     AT.hp += 0.06 * fetch; AT.hy -= 0.26 * fetch; AT.tw -= 0.07 * fetch;
     if (beat(0.1 * mf)) relKnock(1.6, -2.6, -0.2, 0);                    // the old mag shaken free
-    if (beat(MAG_SEAT * mf)) relKnock(-3.2, 1.6, 0.7, 0.25);             // the new one slapped home: the gun bounces up
+    if (beat(MAG_SEAT * mf)) relKnock(-2.4, 1.2, 0.5, 0.2);              // the new one slapped home: the gun bounces up
   } else if (!ak && rel === 'mag' && D.speedload) {
     AT.hy -= 0.2 * bump(rp, 0.08, 0.42);
     if (beat(SL_IN)) relKnock(-1.4, 0.6, 0.2, 0.6);                      // the loader pushed in

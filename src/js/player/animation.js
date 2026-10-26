@@ -33,7 +33,7 @@ import { updateBandStow, updateSwap } from './swap.js';
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-export const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
+export const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0, vrelEnv: 0 };
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
 const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
 // how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
@@ -399,6 +399,11 @@ function animatePlayer(dt, rdt) {
   const fpB = fpOn(), fS = fpB ? FP_BODY.stride : 1, fL = fpB ? FP_BODY.lean : 1, fT = fpB ? FP_BODY.turn : 1;
   pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy * fS + breathe;
   pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads) * fS;
+  // (and back over the hips: from your own eyes the view puts the chest under your eye each frame, game/view-cam.js:
+  // vmLock, and with the hips leant into a sprint some of that lands forward; a gun's hold sets it again after this,
+  // player/hold.js, but with a melee weapon nothing did, and it built up frame on frame, the chest running off ahead of
+  // the legs)
+  pm.upper.position.z = 0;
   // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
   if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1;
   // lean into movement relative to where you face, sway with the stride, rock back when hit

@@ -271,13 +271,19 @@ again blends it back on just as smoothly; a fresh mag rides in the fist wherever
 nears the magwell (a rifle's well, a pistol's grip) it's eased gradually onto the well's line in one smooth path,
 never jumping into place, then pushed up it, never through the side of the gun and never past where it seats.
 
-**From the mag to the charging handle.** On a rifle with a charging handle the right hand leaves the grip while the
+**From the mag to the charging handle.** A gun is only charged when it was run dry: reloaded with a round still in
+the chamber (a tactical reload), every gun just swaps the mag, with no charging handle, no bolt worked on the
+detachable-box rifle and no slide dropped on a pistol. Run dry, on a rifle with a charging handle the right hand leaves the grip while the
 left is still coming away from slapping the mag home, the two overlapping rather than one after the other. It eases
 down off the grip a moment, then rises unhurried on a low arc to the handle, settles onto it, draws it back as the
 spring takes up and lets it go; the gun stays canted in your hands through all of it instead of swinging back upright
 in between, and the hand returns to the grip on a slower, easier path. From your own eyes the gun is let out a little
 further, lower and turned onto its side for it, so the arm drawing the handle works low and to the side instead of
 coming up across your view.
+
+**Back to the hold.** Once a reload's last beat is done, the gun comes out of the reload pose on a critically damped
+spring: it sets off from rest, eases out and settles into the hold over about half a second, instead of leaving at
+full speed the instant the mag is slapped home (the slap itself a softer bounce than before).
 
 **Each gun handles like itself.** Every weapon has its own weight and give: a light pistol snaps through its
 reload and its slide, a 9mm machine pistol is quick and crisp, the AR is balanced, the battle rifle and the auto
@@ -370,7 +376,8 @@ hair, hat, top, trousers, shoes, gloves, wrists, pack, bedroll and holster, each
 at all. It opens on the whole of you: a tile for each part with its colours and what it is, a click away from changing
 it. Each part's choices are grouped on cards of their own (a face's colours, its features, its marks, its proportions,
 the sliders saying how far along they are), with a re-roll for that part beside its name. A copy of you stands in a
-little studio above, its camera gliding in to whatever you're changing, and shows you in just your own clothes, so
+little studio above, its camera gliding in to whatever you're changing (drag to turn it, scroll down to back out and up
+to come in), and shows you in just your own clothes, so
 nothing you change is hidden under the armour's canvas jacket, boots or gloves; the Upgrade gear switch on it puts
 them back on. Every eye shape has its white, an iris in the eye's colour and a pupil, so the colour you pick is the
 iris's. The mouth always shows, drawn over stubble or a beard. A thermal under a work shirt, flannel, tee or polo has

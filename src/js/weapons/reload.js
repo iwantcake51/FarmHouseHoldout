@@ -143,8 +143,8 @@ export function startReload() {
     // a pistol with rounds still in it swaps the mag and that's all (a touch quicker); an empty one ends by dropping the
     // slide off its stop, one of two ways. Any gun run dry takes EMPTY_MUL longer
     const empty = (W8.mag[id] || 0) <= 0, tac = slideReload(id) && !empty;
-    W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relVar = Math.random() < 0.5 ? 0 : 1;
-    { const B = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty && !D.detach ? EMPTY_MUL : 1) * hurtRel(); relPlan(B, [...rollFumble(HURT_REL.fumble, B, id), ...rollMisses(B)]); }   // (the rifle's box: its bolt's worked after, empty or not)
+    W8.reloading = 'mag'; W8.relEmpty = slideReload(id) && !tac; W8.relDry = empty; W8.relVar = Math.random() < 0.5 ? 0 : 1;
+    { const B = D.reload * S.reloadMul * (tac ? TAC_MUL : 1) * (empty && !D.detach ? EMPTY_MUL : 1) * hurtRel(); relPlan(B, [...rollFumble(HURT_REL.fumble, B, id), ...rollMisses(B)]); }   // (the rifle's box: its bolt's worked after only if it was run dry)
     W8.seated = W8.pulled = W8.slammed = false;
     SFX.magOut(); reloadJolt(0.12);   // (the old mag falls a beat later, at magOutP: tickReload)
   }
@@ -170,7 +170,8 @@ export const CH_REACH = [0.645, 0.775], CH_DRAW = 0.765, CH_BACK = [0.89, 1], CH
 // and out over about a tenth of a second (more for the hand cannon), not a snatch
 export const SLIDE_PISTOLS = { pistol: 1, deagle: 1 }, TAC_MUL = 0.85, EMPTY_MUL = 1.25, PS_MAG = 0.68, PS_TUG = 0.815, PS_REL = [0.917, 0.872];
 const slideReload = id => !!SLIDE_PISTOLS[id] && !(W(id) || {}).akimbo;
-const hasCharge = () => !!CHARGE[W8.cur];
+// (a gun's only charged when it was run dry: with a round still in the chamber the mag's swapped and that's all, W8.relDry)
+const hasCharge = () => !!CHARGE[W8.cur] && W8.relDry !== false;
 // Staged reloads. A reload cut short by anything but the trigger (switching weapons, a shove, a sprint, a vault, a
 // bandage) keeps the last of its marks it got to, for that gun (W8.relSave[id], cutReload): begun ('start'), the old
 // mag out ('out': what was left in it goes back in your pouch and the gun stands empty, its well bare), the new one in
@@ -196,14 +197,14 @@ export function cutReload() {
     else if (W8.seated) { if ((hasCharge() || W8.relEmpty || D.speedload) && !W8.slammed) sv = { st: 'in', p: D.speedload ? (W8.pulled ? SL_DROP : SL_IN) : magSeatP(), pulled: !!(D.speedload && W8.pulled) }; }
     else if (W8.magOut) { sv = { st: 'out', p: magOutP() }; W8.reserve[D.ammo] += W8.mag[id] || 0; W8.mag[id] = 0; }
     else sv = { st: 'start' };
-    if (sv) W8.relSave[id] = Object.assign(sv, { max: W8.relTL ? W8.relTL.B : W8.reloadMax, relEmpty: W8.relEmpty, relVar: W8.relVar, relStyle: W8.relStyle, jit: W8.relJit });
+    if (sv) W8.relSave[id] = Object.assign(sv, { max: W8.relTL ? W8.relTL.B : W8.reloadMax, relEmpty: W8.relEmpty, relDry: W8.relDry, relVar: W8.relVar, relStyle: W8.relStyle, jit: W8.relJit });
   }
   W8.reloading = null; W8.reloadT = 0; W8.relTL = null;
 }
 function resumeStage(id, D, sv) {
   if (sv.st === 'out' && reserveOf(id) <= 0) { toast('No ' + AMMO_NAME[D.ammo] + ' left', { kind: 'bad', icon: 'ammo', sub: 'Craft some at the workbench' }); return; }
   W8.reloading = 'mag'; W8.relTL = null; W8.reloadMax = sv.max; W8.reloadT = sv.max * (1 - sv.p);   // (picked up with nothing slipped in: the base is the whole of it)
-  W8.relEmpty = sv.relEmpty; W8.relVar = sv.relVar; W8.relStyle = sv.relStyle; if (sv.jit) W8.relJit = sv.jit;
+  W8.relEmpty = sv.relEmpty; W8.relDry = sv.relDry; W8.relVar = sv.relVar; W8.relStyle = sv.relStyle; if (sv.jit) W8.relJit = sv.jit;
   W8.magOut = true; W8.seated = W8.filled = sv.st === 'in'; W8.pulled = sv.pulled; W8.slammed = false; W8.relStop = false;
   SFX.click(); reloadJolt(0.1);
 }
@@ -276,7 +277,7 @@ export function tickReload(dt) {
   } else {
     if (!W8.filled) fillMag(id, D);
     W8.reloading = null; magSwapIn(id);
-    if (D.detach) { W8.open[id] = true; delete W8.held[id]; }   // the rifle's box in: the bolt's worked to chamber a round (tickCycle, weapons/casings.js)
+    if (D.detach && W8.relDry !== false) { W8.open[id] = true; delete W8.held[id]; }   // the rifle's box in: run dry, the bolt's worked to chamber a round (tickCycle, weapons/casings.js); with one still chambered it's left shut
     if (!W8.seated && !D.speedload) { SFX.magIn(); reloadJolt(0.26); setShake(Math.max(shake, 0.12)); }   // (seated already, unless it was cut short)
   }
 }

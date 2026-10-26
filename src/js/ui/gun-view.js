@@ -15,8 +15,8 @@ import { setTierCtx, W, W8 } from '../game/run-state.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
 
 // how it turns (radians a second) and how far it tips, how close the camera comes and how far it'll zoom either way,
-// and how long it waits after you let go before it turns on its own again (s)
-const GV = { spin: 0.42, pitch: [-0.7, 0.9], fov: 26, fill: 1.15, zoom: [0.55, 1.8], idle: 1.6 };
+// how long it waits after you let go before it turns on its own again (s), and how much the wheel zooms (per unit it rolls)
+const GV = { spin: 0.42, pitch: [-0.7, 0.9], fov: 26, fill: 1.15, zoom: [0.55, 1.8], idle: 1.6, wheel: 0.001 };
 let gvR = null, gvScene = null, gvCam = null, gvPivot = null, gvModel = null, gvSig = '', gvRaf = 0, gvLast = 0;
 let yaw = 1.1, pitch = 0.16, gvZoom = 1, idleT = 9, drag = null, gvLen = 0.5, gvH = 0.2;
 // showing you rather than a weapon: where on you the camera's headed (fig.to: the point, how far back, from which way
@@ -64,7 +64,14 @@ function setup() {
   });
   gunView.addEventListener('contextmenu', e => e.preventDefault());
   const up = () => { drag = null; idleT = 0; }; gunView.addEventListener('pointerup', up); gunView.addEventListener('pointercancel', up);
-  gunView.addEventListener('wheel', e => { e.preventDefault(); gvZoom = clamp(gvZoom * (e.deltaY > 0 ? 1.1 : 0.9), GV.zoom[0], GV.zoom[1]); }, { passive: false });
+  // the wheel zooms like anywhere else: rolled toward you (down) it backs out, away from you it comes in, by as much as
+  // it rolled (a notch about a tenth; a trackpad's little deltas a little at a time). It goes no further: the menu's own
+  // gliding scroll (core/dom.js) would otherwise scroll the list under the view at the same time
+  gunView.addEventListener('wheel', e => {
+    e.preventDefault(); e.stopPropagation();
+    const d = clamp(e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1), -200, 200);
+    gvZoom = clamp(gvZoom * Math.exp(-d * GV.wheel), GV.zoom[0], GV.zoom[1]);
+  }, { passive: false });
   gunView.addEventListener('dblclick', () => { if (fig) { yaw = fig.to.yaw; pitch = fig.to.pitch; } else { yaw = 1.1; pitch = 0.16; } gvZoom = 1; gvAim.set(0, 0, 0); idleT = 9; });
 }
 // what the model is built from, to rebuild it only when something on it changes
