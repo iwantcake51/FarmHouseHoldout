@@ -36,9 +36,10 @@ const HAND_KEYS = [
   K(4.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)   // (and back onto the aim, unhurried)
 ];
 // from your own eyes a handgun's looked over differently: what shows its sides to someone looking down on you (rolled
-// on the wrist) shows you only the back of its slide, so it's turned side on across in front of you (muzzle to your
-// left: its right side, the port), the wrist rolled right over (its left side, upside down), its muzzle tipped up to
-// look at its front, then tipped down to look along its top to the sights, held low in the middle of the view
+// on the wrist) shows you only the back of its slide, so it's turned side on across in front of you (muzzle out to
+// your right: its right side, the port), the wrist rolled right over (its left side, upside down), its muzzle tipped up
+// to look at its front, then tipped down to look along its top to the sights, held low in the middle of the view (the
+// revolver's, after its spin; the handgun and the .50 have their own: INSPECT_FP)
 const HAND_KEYS_FP = [
   K(0.5, -0.1, 1.15, 0.12, 0, 0, 0, 0.3, -0.05, 0, 0),         // turned side on: its right side, the port
   K(1.2, -0.14, 1.25, 0.18, -0.02, 0.005, 0, 0.32, -0.07, 0, 0),
@@ -66,9 +67,74 @@ const INSPECT = {
   revolver: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), K(0.3, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(SPIN_T - 0.15, -0.1, 0.08, 0.02, 0.03, 0.035, 0.05, 0.18, 0.02, 0.02, 0.8)]
     .concat(HAND_KEYS.map(k => Object.assign({}, k, { t: k.t + SPIN_T })))
 };
+// every gun looked over its own way, so no two read alike (from above and from your own eyes; a long gun's from your
+// own eyes turned a little side on as well, player/hold.js FP_INSPECT_TURN), each after what you'd check on that one
+const Z = t => K(t, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+Object.assign(INSPECT, {
+  // the pump: rolled onto its side to look into the loading port underneath, then its right side and the ejection port,
+  // muzzle up at the bead, and down along the receiver to the ghost ring
+  pump: [Z(0), K(0.55, -0.05, -0.12, 1.5, 0.02, 0.06, -0.08, 0.32, -0.1, -0.04), K(1.25, -0.1, -0.18, 1.6, 0.02, 0.065, -0.085, 0.34, -0.12, -0.05),
+    K(1.95, 0.02, 0.2, -0.9, 0, 0.05, -0.08, 0.26, 0.12, 0.04), K(2.6, 0, 0.26, -0.84, -0.005, 0.055, -0.085, 0.27, 0.14, 0.05),
+    K(3.25, -0.3, 0.42, -0.2, -0.03, 0.07, -0.06, 0.2, 0.24, 0.1), K(3.9, 0.22, -0.12, 0.1, 0.01, 0.04, -0.07, 0.3, -0.03, -0.02), Z(4.75)],
+  // the double: muzzles tipped right up to look over the rib at both bores, then each side plate in turn, and down the
+  // rib to the bead
+  dbl: [Z(0), K(0.6, -0.45, 0.35, 0.15, -0.02, 0.08, -0.05, 0.14, 0.2, 0.08), K(1.3, -0.5, 0.42, 0.22, -0.025, 0.085, -0.05, 0.12, 0.23, 0.09),
+    K(2.0, -0.02, -0.25, 0.95, 0.02, 0.05, -0.08, 0.27, -0.14, -0.06), K(2.65, -0.05, -0.3, 1.0, 0.025, 0.055, -0.085, 0.28, -0.17, -0.07),
+    K(3.35, 0, 0.22, -0.9, 0, 0.05, -0.08, 0.26, 0.12, 0.04), K(4.05, 0.25, -0.1, 0.05, 0.01, 0.04, -0.07, 0.32, -0.02, -0.01), Z(4.95)],
+  // the auto shotgun: canted onto its left side, rolled on to look at the mag from below, then its right
+  // side, and its muzzle
+  auto12: [Z(0), K(0.5, -0.12, -0.15, 1.2, 0.02, 0.07, -0.08, 0.3, -0.1, -0.05), K(1.15, -0.15, -0.2, 1.3, 0.025, 0.072, -0.082, 0.31, -0.12, -0.05),
+    K(1.85, -0.22, 0.05, 1.55, 0.01, 0.08, -0.07, 0.24, 0, 0), K(2.5, -0.25, 0.08, 1.65, 0.01, 0.082, -0.07, 0.23, 0.02, 0),
+    K(3.15, 0.02, 0.22, -0.85, -0.005, 0.05, -0.08, 0.26, 0.13, 0.05), K(3.8, -0.3, 0.45, -0.25, -0.03, 0.07, -0.06, 0.2, 0.25, 0.1), Z(4.7)],
+  // the hunting rifle: brought up level and sighted along its top first, unhurried, then rolled to its bolt side and
+  // its left, and muzzle up at the crown
+  hunting: [Z(0), K(0.65, 0.14, -0.08, 0.05, 0, 0.06, -0.1, 0.36, -0.05, -0.02), K(1.4, 0.12, -0.05, 0.08, 0, 0.062, -0.102, 0.37, -0.04, -0.02),
+    K(2.1, 0, 0.25, -1.0, -0.005, 0.05, -0.08, 0.26, 0.13, 0.05), K(2.8, -0.03, 0.3, -1.05, -0.01, 0.052, -0.082, 0.27, 0.15, 0.05),
+    K(3.5, -0.05, -0.25, 0.8, 0.02, 0.05, -0.08, 0.27, -0.13, -0.05), K(4.2, -0.28, 0.4, -0.15, -0.03, 0.07, -0.06, 0.2, 0.24, 0.1), Z(5.1)],
+  // the battle rifle: canted forty-five degrees one way and the other, lifted to look up at the mag well, and down
+  // along its top
+  scar: [Z(0), K(0.5, -0.06, -0.15, 0.75, 0.015, 0.05, -0.08, 0.27, -0.1, -0.04), K(1.1, -0.08, -0.18, 0.8, 0.017, 0.052, -0.082, 0.28, -0.12, -0.05),
+    K(1.75, -0.02, 0.15, -0.75, -0.01, 0.05, -0.08, 0.27, 0.1, 0.04), K(2.35, -0.04, 0.18, -0.8, -0.012, 0.052, -0.082, 0.28, 0.12, 0.04),
+    K(3.0, -0.35, 0.1, 0, 0, 0.09, -0.05, 0.1, 0.05, 0.02), K(3.65, 0.2, -0.12, 0.1, 0.01, 0.04, -0.07, 0.31, -0.03, -0.02), Z(4.55)],
+  // the machine pistol: light, so it's flicked about quickly, side to side, up and down
+  smg: [Z(0), K(0.35, -0.08, -0.25, 1.3, 0.03, 0.08, -0.1, 0.3, -0.14, -0.05), K(0.9, -0.1, -0.3, 1.38, 0.032, 0.082, -0.1, 0.31, -0.16, -0.05),
+    K(1.3, -0.04, 0.28, -1.3, -0.01, 0.08, -0.1, 0.3, 0.14, 0.05), K(1.85, -0.06, 0.32, -1.36, -0.012, 0.082, -0.1, 0.31, 0.16, 0.05),
+    K(2.3, -0.4, 0.5, -0.2, -0.03, 0.09, -0.07, 0.2, 0.26, 0.1), K(2.85, 0.3, -0.12, 0.1, 0.01, 0.06, -0.09, 0.33, -0.03, -0.02), Z(3.6)],
+  // the SMG: its left side (the cocking tube), muzzle up into the front sight's hood, its right side, and down along
+  // the drum sight
+  sub: [Z(0), K(0.55, -0.06, -0.2, 0.9, 0.02, 0.055, -0.08, 0.27, -0.13, -0.05), K(1.25, -0.09, -0.25, 0.98, 0.022, 0.057, -0.082, 0.28, -0.15, -0.06),
+    K(1.95, -0.32, 0.35, 0.1, -0.025, 0.075, -0.06, 0.18, 0.2, 0.08), K(2.6, 0, 0.22, -0.95, -0.005, 0.05, -0.08, 0.26, 0.13, 0.05),
+    K(3.25, -0.02, 0.26, -1.0, -0.008, 0.052, -0.082, 0.27, 0.15, 0.05), K(3.9, 0.22, -0.1, 0.06, 0.01, 0.04, -0.07, 0.31, -0.03, -0.02), Z(4.75)],
+  // the AR: its left side, rolled over to the port and the forward assist, then onto its side to look at the mag
+  // well from below, and down along the rail
+  ar: [Z(0), K(0.5, -0.05, -0.2, 0.9, 0.02, 0.05, -0.08, 0.27, -0.12, -0.05), K(1.2, -0.08, -0.25, 0.96, 0.022, 0.052, -0.082, 0.28, -0.14, -0.05),
+    K(1.85, 0.02, 0.22, -1.15, -0.005, 0.05, -0.08, 0.26, 0.13, 0.05), K(2.5, 0, 0.26, -1.1, -0.008, 0.052, -0.082, 0.27, 0.15, 0.05),
+    K(3.15, -0.2, 0.08, 1.6, 0.01, 0.08, -0.07, 0.24, 0.02, 0), K(3.8, 0.22, -0.1, 0.1, 0.01, 0.04, -0.07, 0.31, -0.03, -0.02), Z(4.7)],
+  // the LMG: heavy, so it's only hefted and tipped a little each way, slowly, then down to look over the feed cover
+  lmg: [Z(0), K(0.7, -0.04, -0.12, 0.55, 0.01, 0.03, -0.05, 0.26, -0.08, -0.03), K(1.6, -0.06, -0.15, 0.6, 0.012, 0.032, -0.052, 0.27, -0.1, -0.04),
+    K(2.4, 0, 0.12, -0.55, -0.005, 0.03, -0.05, 0.26, 0.08, 0.03), K(3.2, -0.02, 0.15, -0.6, -0.007, 0.032, -0.052, 0.27, 0.1, 0.04),
+    K(3.95, 0.18, -0.06, 0.05, 0, 0.025, -0.05, 0.33, -0.02, -0.01), K(4.75, -0.15, 0.2, 0, -0.01, 0.04, -0.04, 0.2, 0.1, 0.04), Z(5.6)],
+  // the .50: heavy in the hand, so slower: muzzle up first to look at its front, then each side, then along its top
+  deagle: [Z(0), K(0.6, -0.4, 0.5, 0.1, 0.01, 0.1, -0.1, 0.2, 0.2, 0.06), K(1.3, -0.45, 0.55, 0.14, 0.01, 0.105, -0.1, 0.19, 0.22, 0.07),
+    K(2.05, -0.1, -0.32, 1.3, 0.03, 0.09, -0.12, 0.31, -0.14, -0.06), K(2.8, -0.12, -0.36, 1.36, 0.032, 0.092, -0.122, 0.32, -0.16, -0.06),
+    K(3.55, -0.02, 0.32, -1.25, -0.012, 0.09, -0.12, 0.3, 0.14, 0.05), K(4.3, 0.4, -0.15, 0.2, 0.01, 0.07, -0.11, 0.37, -0.03, -0.02), Z(5.2)]
+});
 // the same from your own eyes (a long gun's are its own: turned only a little side on, player/hold.js FP_INSPECT_TURN)
 const INSPECT_FP = {
   hand: [K(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)].concat(HAND_KEYS_FP),
+  // the handgun, as you'd look one over: brought up in the middle of your view, close, turned side on with its muzzle
+  // tipped up to the left and its top to the right (its left side to you, your thumb along the frame), held there a
+  // moment as the wrist eases round, then rolled right over to its other side, stood muzzle up, and tipped down to look
+  // along the slide. (The turns go on in the order roll, turn, then tip about the shoulder's own across: player/hold.js
+  // posePivot. So pointing off to the side, the muzzle's put up by the tip and the roll together, not the tip alone)
+  pistol: [Z(0), K(0.6, -1.45, -0.95, -1.45, 0.1, -0.01, 0, 0.24, -0.04, 0, 0), K(1.4, -1.38, -0.86, -1.33, 0.1, -0.006, -0.004, 0.26, -0.05, 0, 0),
+    K(2.15, -1.45, -0.95, 1.5, 0.03, 0, 0, 0.3, 0.02, 0, 0), K(2.85, -1.4, -0.9, 1.62, 0.03, 0.004, -0.004, 0.31, 0.03, 0, 0),
+    K(3.5, -0.9, -0.3, 0.2, 0, 0.012, -0.01, 0.22, 0.08, 0, 0), K(4.1, 0.42, -0.12, 0.05, 0, 0, 0, 0.36, 0, 0, 0), Z(4.85)],
+  // the .50 from your own eyes: weighed in the hand side on and low, its long flat top rolled toward you, muzzle swung
+  // right up at its front, rolled over, and down along its top
+  deagle: [Z(0), K(0.65, -0.2, 1.2, 0.05, 0, -0.01, 0, 0.28, -0.05, 0, 0), K(1.45, -0.18, 1.25, 0.38, -0.004, -0.006, -0.01, 0.29, -0.06, 0, 0),
+    K(2.25, -0.9, 0.6, 0.15, 0, 0.012, -0.01, 0.22, 0.08, 0, 0), K(3.05, 0.02, 1.1, 2.8, -0.09, 0.02, -0.03, 0.3, 0.03, 0, 0),
+    K(3.75, 0.05, 1.15, 2.88, -0.094, 0.022, -0.03, 0.31, 0.04, 0, 0), K(4.45, 0.4, 0.1, 0.05, 0, 0, 0, 0.37, 0, 0, 0), Z(5.35)],
   revolver: INSPECT.revolver.slice(0, 3).concat(HAND_KEYS_FP.map(k => Object.assign({}, k, { t: k.t + SPIN_T })))
 };
 // the revolver's spin: flicked forward round the trigger finger (at: seconds in, after a little wind back the other way,
