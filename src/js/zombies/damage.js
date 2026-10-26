@@ -471,13 +471,15 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
     // (zombies/wounds.js), though buckshot from close up or a big round can still take it
     const bullet = !D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed', close = Math.hypot(z.x - P.x, z.z - P.z) < 3;
     const c = !canSever(wId) ? 0 : shells ? (close ? 0.45 : 0.1) : D.melee ? 0.4 + (D.sever || 0) * 0.4 : bullet ? (heavy ? 0.1 : 0) : 0.8;
-    if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; }
+    // (a shotgun that takes it doesn't take it off whole: it blasts it to a red mist and gore, as the sledge's crush does)
+    if (rand() < Math.min(1, c * S.severMul)) { if (shells) crushHead(z, dx, dz); else { sever(z, 'head', dx, dz); run.heads++; } }
     else if (bullet) headShot(z, dx, dz);
   }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
   for (let k = 0; k < extra; k++) {
     const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p] && (p !== 'head' || wId === 'boom' || rand() < 0.3)); if (!opts.length) continue;
-    const p = pick(opts); if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
+    const p = pick(opts); if (p === 'head' && shells) { crushHead(z, dx, dz); continue; }   // (blasted to mist, as above)
+    if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
   }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz);
