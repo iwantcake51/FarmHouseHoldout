@@ -3,6 +3,7 @@
 import { $, smoothWheel } from '../core/dom.js';
 import { keyOn } from '../input/keybinds.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
+import { BOARD, BOARD_VB } from '../ui/board-icons-data.js';
 import { netLink } from '../net/net.js';
 import { STATIONS } from './stations.js';
 import { rackClick, renderRack, updateRackSide } from './armory.js';
@@ -20,6 +21,7 @@ import { equip } from '../weapons/reload.js';
 import { bandMax } from '../player/bandages.js';
 import { CHIP_MARK, chipCls } from '../upgrades/upgrade-info.js';
 import { FEED_ICON, popEl, setT } from '../ui/hud-text.js';
+import { fpOn, wantLock } from '../game/view-cam.js';
 import { updateWeaponStats, wsBench } from '../ui/weapon-stats.js';
 import { updateLoadout } from '../ui/loadout.js';
 import { benchTipUsed } from '../ui/bench-tips.js';
@@ -37,16 +39,19 @@ function stationDist(s) {
 // which you'd use: standing on a station's own spot in front of it (within STATION_SPOT) it's always that one, however
 // near another's edge is (a gun rack tucked in a corner by the bench); otherwise the nearest, and of two about as near
 // the one you're facing (STATION_FACE: how much nearer that makes it count). The strongbox is for co-op only
-const STATION_SPOT = 0.7, STATION_FACE = 0.35;
+// From your own eyes you reach a touch further and where you look counts for much more (STATION_FP), so the one you're
+// looking at is the one you get
+const STATION_SPOT = 0.7, STATION_FACE = 0.35, STATION_FP = { reach: 1.55, face: 0.9 };
 export function nearestStation() {
-  let best = null, bd = STATION_REACH, spot = null, sd = STATION_SPOT;
+  const fp = fpOn(), REACH = fp ? STATION_FP.reach : STATION_REACH, FACE = fp ? STATION_FP.face : STATION_FACE;
+  let best = null, bd = REACH, spot = null, sd = STATION_SPOT;
   const fx = Math.sin(P.aim), fz = Math.cos(P.aim);
   for (const s of STATIONS) {
     if (s.coop && !netLink()) continue;
     const u = Math.hypot(s.x - P.x, s.z - P.z); if (u < sd) { sd = u; spot = s; }
-    const d = stationDist(s); if (d >= STATION_REACH) continue;
+    const d = stationDist(s); if (d >= REACH) continue;
     const cx = s.foot ? s.foot[0] : s.x, cz = s.foot ? s.foot[1] : s.z, l = Math.hypot(cx - P.x, cz - P.z) || 1;
-    const k = d - STATION_FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
+    const k = d - FACE * Math.max(0, ((cx - P.x) * fx + (cz - P.z) * fz) / l);   // (facing it square on: counted that much nearer)
     if (k < bd) { bd = k; best = s; }
   }
   return spot || best;
@@ -64,6 +69,7 @@ export function openStation(s) {
 }
 export function closeStation() {
   if (!openSt) return; openSt = null;
+  wantLock();   // (in first person, the mouse straight back: game/view-cam.js)
   const el = $('station'); clearTimeout(stOpenT); el.classList.remove('opening'); el.classList.add('closing');
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
   updateWeaponStats(); updateLoadout(); updateRackSide();   // the stats and the loadout slide back in behind it as it rolls up
@@ -202,7 +208,7 @@ function quickBar(rows) {
 // ---- the sawhorse's way up to the metalwork bench (barricades/metal-bars.js): one button pinned along the bottom, as
 // the workbench's ammo is, saying what it takes: the boards braced all the way (BRACE.max) and METAL_COST scrap. Grey
 // with what's still missing ticked off as you get it, it eases into colour with a pop once you can, and a click builds it
-const FG_TICK = '<svg viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z"/></svg>', FG_LOCK = '<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H5v12h14V10h-2V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
+const FG_TICK = `<svg viewBox="${GI_VB}">${GI.checkMark}</svg>`, FG_LOCK = `<svg viewBox="${BOARD_VB}"><path d="${BOARD.lock_closed}"/></svg>`;   // (game-icons.net, Kenney's board game pack)
 let fgReady = null;
 function forgeBar() {
   const el = $('stForge'), on = !!openSt && openSt.id === 'saw' && !METAL.on;

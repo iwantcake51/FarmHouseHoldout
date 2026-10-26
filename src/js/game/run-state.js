@@ -22,10 +22,18 @@ export function freshStats() {
   Object.keys(TIERS).forEach(k => s.tier[k] = 0);
   return s;
 }
+// your health's ceiling: your max health less what a Blood price sacrifice took (S.hpCut, a share of it, so it grows
+// with your max health: upgrades/sacrifice.js)
+export const hpCap = () => S.maxHp * (1 - (S.hpCut || 0));
+// your stamina's ceiling, out of 1: all of it, or the share a Broken stride left you (S.stamCap: upgrades/sacrifice.js)
+export const stamMax = () => S.stamCap || 1;
+// how much of any healing reaches you: all of it, or a quarter under Bad blood (S.healMul: upgrades/sacrifice.js; a
+// supply crate's always patches you up in full, stations/supply-drop.js)
+export const healMul = () => S.healMul ?? 1;
 export function freshRun() {
   S = freshStats();
   W8 = { slot: { melee: 'bat', side: 'pistol', long: null, auto: null }, owned: ['bat', 'pistol'], mods: {}, modOff: {}, modLv: {}, fm: {}, gt: {}, own: {}, ownAtt: {}, mag: { pistol: 13 }, reserve: { p9: 65, p10: 0, magnum: 0, shells: 0, rifle: 0 },
-    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relRing: null, shellsIn: 0, shellsNeed: 0, goN: 0, goIn: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
+    cur: 'side', cd: 0, swingDur: 0.4, hitDone: true, rounds: {}, relSave: {}, att: {}, swingSide: 1, reloading: null, reloadT: 0, reloadMax: 1, relTL: null, relU: 0, relSeg: null, relSegK: 0, relRing: null, shellsIn: 0, shellsNeed: 0, goN: 0, goIn: 0, relStop: false, brkOpen: false, shutT: 0, shutMax: 1, shutQ: false, shutFire: 0, swing: 0, burstLeft: 0, burstT: 0, akSide: 1, akMag: {}, akRel: null, akCd: { L: 0, R: 0 }, akBurst: { L: 0, R: 0 }, akBurstT: { L: 0, R: 0 }, akLock: { L: false, R: false }, glCd: 0, pin: {}, spent: {}, hudSpent: {}, cyc: null, open: {}, held: {}, bloodW: {}, tune: {}, spray: 0, sprayT: 0, heavyK: 0, heavyF: 0 };
   run = { wave: 0, kills: 0, shots: 0, hits: 0, boards: 0, time: 0, limbs: 0, heads: 0, taken: [], bought: [], st: {}, dropAt: 0 };   // (st: the end screen's tallies, ui/run-stats.js)
   recomputeEff();
 }
@@ -59,7 +67,7 @@ export function recomputeEff() {
     if (D.akimbo) D.reload *= AK_ONE;
     // the hunting rifle's detachable box: no more feeding it a round at a time, a mag change, and the bolt worked after
     if (id === 'hunting' && mag >= 2) { D.perShell = 0; D.reload = DETACH.reload - DETACH.bolt; D.detach = DETACH.bolt; }
-    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.hipK = (D.hipK || 1) * LASER_HIP[laser];   // a sight steadies the aim down the sights, standing and on the move, a laser the hip (weapons/firing.js: spreadOf)
+    D.aimK = SIGHT_AIM[sight]; D.aimMove = SIGHT_MOVE[sight]; D.settle = LASER_SETTLE[laser];   // a sight steadies the aim down the sights, standing and on the move (weapons/firing.js: spreadOf); a laser settles the recoil sooner
     if (W8.fm && W8.fm[id] === 'semi') { D.spread *= SEMI.spread; D.shake *= SEMI.shake; }   // the AR on semi: a steadier single shot a pull
     // the one kind of round loaded, last, over everything else (weapons/rounds.js)
     const rk = roundOn(id); if (rk !== 'std' && roundFits(id, rk)) ROUNDS[rk].fx(D, id);
@@ -80,25 +88,28 @@ export const MAG_UP = { all: [1, 1.4, 2.0, 2.7], auto12: [1, 2.5], sub: [1, 40 /
 // the hunting rifle's detachable 10-round box (its second mag step): a whole reload takes reload seconds, the mag
 // change and then bolt seconds of working the bolt back and forward to chamber a round (weapons/reload.js, chamberCycle
 // in weapons/casings.js)
-export const DETACH = { reload: 2.2, bolt: 0.75 };
+export const DETACH = { reload: 2.45, bolt: 0.75 };
 // an automatic switched to semi (OWN_MODES, weapons/mod-levels.js): one round a pull, each laid tighter and kicking less
 const SEMI = { spread: 0.7, shake: 0.75 };
 // each attachment does its own job, none of them the same thing twice: a sight (red dot, holo, then the scopes)
 // tightens only the shots you aim down the sights, and takes some of the spread that moving adds to them (a scope
 // zooms in too; on a sniper a sight also raises the headshot multiplier, HEAD_UP, and through a scope every headshot
-// crits, SCOPES), a laser tightens the ones from the hip (and shows where they go), the shoulder stock only steadies
+// crits, SCOPES), a laser shows where they go and brings the gun back on target sooner after the kick (it takes none of
+// the kick itself: LASER_SETTLE), the shoulder stock only steadies
 // the kick (STOCK, weapons/firing.js), a muzzle can quietens and hits harder, a choke squeezes the pellets, a light
 // lights, and the one kind of round loaded does what that round does (weapons/rounds.js). A gun's own mods keep off
 // those jobs too: where one would only have done what a line does (a pump's tube extension, the SMG's double-stack and
 // integral can, the M60's belt box), the line is it, by that name (TIERS' as, upgrades/tier-table.js); and the guns whose
-// rate is their action's (NO_TRIGGER, upgrades/upgrades.js) fire faster by their own mod, not a lighter trigger. SIGHT_AIM and LASER_HIP: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
+// rate is their action's (NO_TRIGGER, upgrades/upgrades.js) fire faster by their own mod, not a lighter trigger. SIGHT_AIM: each tier's spread, against none fitted; SIGHT_MOVE: how much of the spread that
 // moving adds to an aimed shot is left with each sight
 // each step of a gun's ammo line against stock rounds: hollow points, +P loads, match-grade (upgrades/tier-table.js)
 export const AMMO_DMG = [1, 1.25, 1.5, 1.875];
 // and how much harder each step kicks: the gun back into your hands, the view, the crosshair and its spread with every
 // shot (D.powK, weapons/firing.js; D.shake)
 export const POWDER_KICK = [1, 1.18, 1.38, 1.6];
-export const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33], LASER_HIP = [1, 0.8, 0.6];
+export const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33];
+// how much faster the recoil settles back to nothing once you stop firing, with each laser (SETTLE, weapons/firing.js)
+export const LASER_SETTLE = [1, 1.3, 1.6];
 // what match-grade rounds add to any gun's headshot multiplier, and each sight to a sniper's (on top of S.headMul's 2.2×)
 export const HEAD_UP = { ammo: 0.3, sight: [0, 0.15, 0.3, 0.3, 0.3, 0.3] };
 // a workbench tune-up (stations/recipes.js): one go per weapon, a little better at everything it does. Worth about a
@@ -116,9 +127,10 @@ function tuneUp(D) {
 }
 export const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'laser', 'light', 'choke', 'loader']);
 // the guns a real scope (the third sight step and up) goes on, and the last step each takes: the revolver its handgun
-// scope (on the rail it gets with any optic: weapons/gun-models.js), the assault rifle the ACOG, the hunting rifle and
+// scope (on the rail it gets with any optic: weapons/gun-models.js), the hand cannon as far as an ACOG (on the rail
+// along its barrel: weapons/models-pistols.js optRail), the assault rifle the ACOG, the hunting rifle and
 // the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
-export const SCOPE_TOP = { revolver: 3, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
+export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
 // zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
 export const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };
@@ -170,7 +182,12 @@ export function magChange(id, fn) {
   const D0 = id && W(id), cap0 = D0 ? magSize(id) : 0, t0 = gunTier(id, 'mag');
   fn();
   const D = id && W(id); if (!D || !D0) return;
-  if (D.melee || D.perShell || D0.perShell || D.speedload || D.akimbo || D0.akimbo) { delete W8.pin[id]; return; }   // these take it at once (a waiting mag too; a fixed magazine swapped for a box)
+  if (D.melee || D.perShell || D0.perShell || D.speedload || D.akimbo || D0.akimbo) {   // these take it at once (a waiting mag too; a fixed magazine swapped for a box)
+    delete W8.pin[id];
+    // (the second gun taken off with its mag: what was in it goes back with the rest, not into the one left)
+    if (D.ammo && D.ammo === D0.ammo && (W8.mag[id] || 0) > magSize(id)) { W8.reserve[D.ammo] = (W8.reserve[D.ammo] || 0) + W8.mag[id] - magSize(id); W8.mag[id] = magSize(id); delete W8.akMag[id]; }
+    return;
+  }
   if ((magSize(id) !== cap0 || gunTier(id, 'mag') !== t0) && !W8.pin[id]) W8.pin[id] = { cap: cap0, t: t0 };
 }
 // the old mag's out: the new one goes in, model and all

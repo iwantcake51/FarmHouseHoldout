@@ -10,8 +10,8 @@
 [context.production.environment]
   CHEATS = "off"
 
-# index.html asks for game.js and game.css by content hash (?v=...), so a new deploy is picked up straight away;
-# three.js never changes
+# index.html asks for game.js, game.css and three.js by content hash (?v=...), so a new deploy is picked up straight
+# away (three.js too: the build carries only the parts of it the game uses, so it changes when they do)
 [[headers]]
   for = "/*.js"
   [headers.values]

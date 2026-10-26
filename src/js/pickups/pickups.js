@@ -12,6 +12,7 @@ import { buildGuns } from '../weapons/build-weapons.js';
 import { glowTex } from '../effects/textures.js';
 import { dropModel } from './drop-models.js';
 import { xray } from '../effects/outlines.js';
+import { isoOn } from '../game/view-cam.js';
 import { addPlanks, METAL, plankRoom } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
 import { glowGun, state } from '../game/state.js';
@@ -28,8 +29,16 @@ import { gunGone, gunTakeLo, shareFx, updateShareTags } from '../net/teamwork.js
 export const pickups = [];
 // how long a drop lies on the ground before it's gone (the last 10 seconds of that pulsing a warning); supply crates longer
 const DROP_LIFE = 40, CRATE_LIFE = 90;
-// how close you have to come to a drop to pick it up (m), times S.pickMul (the Long reach line: upgrades/tier-table.js)
-const PICK_R = 0.9;
+// how close you have to come to a drop to pick it up (m). The Long reach line (upgrades/tier-table.js) reaches out
+// S.pickMul times as far: an ammo box, a plank or a bandage that close lifts and glides in to you (GLIDE: its top speed,
+// how fast it gets there, m/s, and how much further off than the reach it lets go if you move away), and is picked up
+// once it's reached you
+const PICK_R = 0.9, GLIDE = { from: 1.2, gain: 5, top: 7, slack: 1.5 };
+const glides = p => p.kind === 'planks' || p.kind === 'med' || p.kind === 'ammo';
+// once the cards after a wave are done with (upgrades/upgrade-screen.js), whatever's still lying about glides in to you
+// and is picked up: all of it at once, at up to SWEEP_TOP m/s (one you've no room for stays where it is)
+const SWEEP_TOP = 11;
+export function sweepDrops() { for (const p of pickups) if (glides(p) && !p.ghost) p.sweep = true; }
 // pickups: each sits in a pulsing ground ring with a coloured outline so it reads in the dark
 // (the supply crate off the radio, in teal so it stands apart). An ammo box holds one kind of round, the kind it shows. A weapon lying on the ground, or in
 // its case off the radio, glows in its rarity's colour, the same as its card: grey common, green uncommon, blue rare,
@@ -112,7 +121,8 @@ export function updatePickups(dt) {
     p.wph = (p.wph || 0) + dt * Math.PI * 2 * (0.9 + 9 * warn * warn);
     const beat = 0.5 + 0.5 * Math.cos(p.wph), lit = warn > 0 ? 1 - Math.min(1, warn * 2) * (1 - beat) : 1, gone = clamp(p.t / 0.35, 0, 1);
     p.item.scale.multiplyScalar((1 + 0.14 * warn * beat) * (0.2 + 0.8 * gone)); p.ring.scale.multiplyScalar((1 + 0.12 * warn * beat) * gone);
-    p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; p.ringMat.opacity *= 0.35 + 0.65 * lit;
+    p.om.opacity = 0.2 + 0.75 * lit; p.xr.rim.opacity = 0.15 + (0.4 + 0.35 * pulse) * lit; { const top = isoOn(); p.xr.rim.visible = top; p.glow.material.depthTest = !top; }   // (see-through only from above, as zombies are: from your own eyes your gun and scope would count as the wall, and its rim was drawn over them, a hollow box round each drop down the scope; and its glow, there to be seen through the roof from above, behind walls from your own eyes)
+    p.ringMat.opacity *= 0.35 + 0.65 * lit;
     if (p.grey > 0.004) { const dim = 1 - p.grey * 1.2; p.om.opacity *= dim; p.ringMat.opacity *= dim; p.discMat.opacity = 0.16 * dim; }   // full: its ring and outline dimmed too
     if (p.kind === 'gun') shareFx(p, dt);   // shared with your team: in the sharer's colour, labelled (net/teamwork.js)
     // drops stay on screen outside your view cone (behind you, round a corner), just dimmer
@@ -128,11 +138,15 @@ export function updatePickups(dt) {
     // one you can't take yet (a full bag or stack) stops where it is and waits there, greyed out, never trailing after
     // you, and sets off again the moment you've room for it
     if (p.homing === undefined) p.homing = Math.max(Math.abs(p.x), Math.abs(p.z)) > HALF - 0.5;
-    if (p.homing && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && !away) {   // (in co-op, every drop is only ever on its own player's farm)
+    // (in reach of the Long reach line, it's lured in: and it keeps coming unless you get well away from it)
+    const reach = PICK_R * (S.pickMul || 1);
+    p.lure = glides(p) && !p.ghost && (p.sweep || (reach > PICK_R && (d < reach || (p.lure && d < reach * GLIDE.slack))));
+    if (!p.homing && !p.lure) p.fly = 0;
+    if ((p.homing || p.lure) && p.age > 0.5 && p.kind !== 'supply' && p.kind !== 'gun' && !away) {   // (in co-op, every drop is only ever on its own player's farm)
       const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
       if (full) p.fly = 0;
       else {
-        p.fly = (p.fly || 0) + dt; const sp = Math.min(10, 2 + p.fly * 6);   // (from a standstill again after a wait)
+        p.fly = (p.fly || 0) + dt; const sp = p.homing ? Math.min(10, 2 + p.fly * 6) : Math.min(p.sweep ? SWEEP_TOP : GLIDE.top, GLIDE.from + p.fly * GLIDE.gain);   // (from a standstill again after a wait)
         if (d > 0) { const st = Math.min(d, sp * dt); p.x += (P.x - p.x) / d * st; p.z += (P.z - p.z) / d * st; p.g.position.x = p.x; p.g.position.z = p.z; p.item.position.y += Math.min(0.5, d * 0.08); d = Math.hypot(p.x - P.x, p.z - P.z); }
         p.t = Math.max(p.t, 12);   // and it doesn't run out on its way
       }
@@ -140,7 +154,7 @@ export function updatePickups(dt) {
     // a full bandage bag leaves the bandage where it lies (it never heals you on the spot), and so does a full plank
     // stack: it just stays there, greyed out (greyDrop), with no message
     const full = (p.kind === 'med' && (P.band || 0) >= bandMax()) || (p.kind === 'planks' && !plankRoom());
-    if (d < PICK_R * (S.pickMul || 1) && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
+    if (d < (glides(p) ? PICK_R : reach) && !full && !isTake(p) && !away) {   // (a weapon is taken with E: takeIt, below)
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1), mw = p.cargo && p.cargo.metal ? 'metal' : 'planks'; feed(mw, n, mw); popEl('planks'); ft = '+' + n + (mw === 'metal' ? ' metal' : ''); SFX.pick(); }   // always the one plank (or bar of metal)
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
@@ -177,6 +191,7 @@ export function layGun(copy) {
   copy.traverse(o => { for (let k = o.children.length - 1; k >= 0; k--) if (o.children[k].userData.isFlash || o.children[k].userData.isOutline) o.remove(o.children[k]); });
   copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.scale.set(1, 1, 1); copy.visible = true;
   copy.children.forEach(h => { if (h.userData.side) { h.position.x = h.userData.x0 || 0; h.position.y = h.position.z = 0; h.rotation.set(0, 0, 0); h.visible = true; } });
+  copy.traverse(o => { if (o.userData.flip) { o.position.x = 0; o.scale.x = 1; } });   // (out of a hand, the gun's no longer flipped back: weapons/gun-materials.js, flipIn)
   copy.updateMatrixWorld(true); const c = new THREE.Box3().setFromObject(copy).getCenter(new V3());
   const lay = new THREE.Group(); lay.rotation.set(0, rr(0, Math.PI * 2), Math.PI / 2); copy.position.set(-c.x, -c.y, -c.z); lay.position.y = 0.12; lay.add(copy);
   return lay;

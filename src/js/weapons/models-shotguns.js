@@ -5,14 +5,35 @@ import { roundOn } from './rounds.js';
 import { T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  checker, clipTo, cyl, inset, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX
+  apPart, apPlate, checker, clipTo, cyl, inset, irons, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX, xsec
 } from './gun-parts.js';
 import { SHELL_MAT, shellMat } from './gun-models.js';
+import { clamp } from '../core/math.js';
 
+// a bolt seen through its ejection port (z0 to z1 along the gun, at x, y; w wide, h tall): what the reload and the
+// shots move is the group (its z), and the steel in it is cut, as it's drawn, to the part still inside the port
+function portBolt(g, x, y, z0, z1, w, h) {
+  const b = new THREE.Group(), L = z1 - z0; b.position.set(x, y, (z0 + z1) / 2); g.add(b);
+  const m = box(b, w, h, L, GM.steel, 0, 0, 0), rest = b.position.z;
+  m.onBeforeRender = () => {
+    const sh = clamp(rest - b.position.z, 0, L - 0.0005), l = L - sh;   // (how far it's run back; how much is left in the port)
+    m.scale.z = l / L; m.position.z = (z0 + z0 + l) / 2 - b.position.z; m.updateMatrix(); m.matrixWorld.multiplyMatrices(b.matrixWorld, m.matrix);
+  };
+  return b;
+}
+
+// the pump's ghost ring (a Mossberg 500/590 kit's): the ring's middle (y), where it stands (z) and the front blade's
+// (fz), its hole's radius (r) and the ring's own thickness (t); the ears either side of it (their inner faces ex from the
+// middle, from z0 to z1 along the gun, their tops at top). The picatinny rail on the receiver ahead of it (from z0, or
+// zs with an optic, the rear sight taken off: to z1; its foot at y, its top at top)
+const GHOST = { y: 1.1785, z: 0.566, fz: 1.372, r: 0.0036, t: 0.0016, ex: 0.011, ez0: 0.556, ez1: 0.574, top: 1.1875 };
+// the double barrel's beads (radius, m) and how far over the rib's top your eye looks down it at the breech
+const DBL_SIGHT = { front: 0.0034, mid: 0.0021, eye: 0.0145 };
+const PUMP_RAIL = { z0: 0.58, zs: 0.53, z1: 0.712, y: 1.1615, top: 1.1725 };
 export const SHOTGUN_MODELS = {
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
   // onto the tang (the safety button sits there) and the ejection port on the shooter's right, the bolt showing in it;
-  // the barrel is long and slim with a vent rib and a bead, the magazine tube under it ends in its cap and swivel
+  // the barrel is long and slim with a vent rib, ghost ring sights on a rail, the magazine tube under it ends in its cap and swivel
   // stud; the wood forend (finger groove, checkering) rides the tube on its action bars; the stock has a Mossberg's
   // hooked pistol grip with checkering, and a rubber pad with its diamond grooves
   pump(g, m) {
@@ -37,11 +58,35 @@ export const SHOTGUN_MODELS = {
     // ---- trigger guard (rounded at the back, square at the front) and the trigger
     profile(g, shp([[0.52, 1.104], [0.579, 1.104], [0.579, 1.066], [0.536, 1.066], [0.524, 1.074], [0.519, 1.088]], [shp([[0.527, 1.1], [0.572, 1.1], [0.572, 1.072], [0.538, 1.072], [0.53, 1.078], [0.526, 1.09]])]), 0.012, K, X, 0.0015);
     profile(g, shp([[0.548, 1.102], [0.5467, 1.0985], [0.5457, 1.095], [0.5452, 1.0915], [0.5453, 1.088], [0.5461, 1.0845], [0.5475, 1.081], [0.5495, 1.0775], [0.552, 1.074], [0.5513, 1.0728], [0.5488, 1.074], [0.5459, 1.0775], [0.5434, 1.081], [0.5415, 1.0845], [0.5403, 1.088], [0.5397, 1.0915], [0.5396, 1.095], [0.5401, 1.0985], [0.541, 1.102]]), 0.006, GM.metal2, X, 0.0008);
-    // ---- barrel with its vent rib (a strip on posts) and bead; the collar where it meets the receiver
+    // ---- barrel with its vent rib (a strip on posts); the collar where it meets the receiver
     cyl(g, 0.0125, 0.016, B, X, 1.15, 0.726, 18); cyl(g, 0.0095, 0.66, B, X, 1.15, 1.058, 18);
     box(g, 0.009, 0.0024, 0.655, B, X, 1.1635, 1.058);
     for (let z = 0.75; z < 1.38; z += 0.057) box(g, 0.004, 0.004, 0.026, B, X, 1.1605, z);
-    { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.0035, 8, 6), GM.dot); bd.position.set(X, 1.168, 1.378); g.add(bd); }
+    // ---- the picatinny rail along the receiver's top (its cross slots flush with its top); and with no optic on it, the
+    // ghost ring sights (traced off the kit's photos): at the back a long saddle on the receiver, two tall flat ears with
+    // rounded tops guarding the thick ring on its stem, the windage slide under it and the screw that holds it all; at
+    // the muzzle a ramp, serrated on its back against glare, the blade standing on it with a red fibre along its top. You
+    // look through the ring from close up, so it's out of focus: a soft ring round the sharp blade. With an optic both
+    // come off and the back of the receiver's left smooth, the rail running back to it
+    const sight = T('sight'), RL = PUMP_RAIL, rz0 = sight ? RL.zs : RL.z0;
+    xsec(g, shp([[X - 0.0125, RL.y], [X + 0.0125, RL.y], [X + 0.0168, RL.y + 0.003], [X + 0.0168, RL.y + 0.005], [X + 0.0148, RL.top], [X - 0.0148, RL.top], [X - 0.0168, RL.y + 0.005], [X - 0.0168, RL.y + 0.003]]), rz0, RL.z1, GM.rail, 0.0006);
+    for (let z = rz0 + 0.008; z < RL.z1 - 0.005; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RL.top - 0.0015, z);
+    if (!sight) {
+      const G = GHOST, y = G.y, z = G.z, by = 1.1695;   // (by: the saddle's top)
+      apPart(solid(g, [[0.521, 1.157], [0.582, 1.16], [0.582, by], [0.533, by], [0.524, 1.165]], 0.034, K, X, 0.0015));   // the saddle
+      [-1, 1].forEach(sd => apPart(profile(g, shp([[G.ez0, by - 0.002], [G.ez1, by - 0.002], [G.ez1, G.top - 0.0045], [G.ez1 - 0.0013, G.top - 0.0013], [G.ez1 - 0.0045, G.top], [G.ez0 + 0.0045, G.top], [G.ez0 + 0.0013, G.top - 0.0013], [G.ez0, G.top - 0.0045]]), 0.003, K, X + sd * (G.ex + 0.0015), 0.0005)));   // its ears
+      apPart(box(g, 0.01, 0.003, 0.01, K, X, by + 0.0012, z));                                          // the windage slide
+      apPart(box(g, 0.0035, y - G.r - by - 0.002, 0.003, K, X, (y - G.r + by + 0.002) / 2, z));          // the ring's stem
+      const rg = new THREE.Mesh(new THREE.TorusGeometry(G.r + G.t / 2, G.t / 2, 8, 28), K); rg.position.set(X, y, z); g.add(rg); apPart(rg);   // the ring
+      { const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, 0.0016, 14), GM.metal2); sc.position.set(X, by + 0.0006, 0.536); g.add(sc); apPart(sc);
+        apPart(box(g, 0.0075, 0.0008, 0.001, GM.rubber, X, by + 0.0014, 0.536)); }                        // its screw, slotted
+      const fz = G.fz, rs = (1.17 - 1.1655) / 0.034;   // the ramp's rise along it
+      profile(g, shp([[fz - 0.042, 1.1635], [fz + 0.006, 1.1635], [fz + 0.006, 1.17], [fz - 0.008, 1.17], [fz - 0.042, 1.1655]]), 0.011, B, X, 0.0008);   // the ramp
+      for (let k = 0; k < 7; k++) { const zz = fz - 0.037 + k * 0.0044; box(g, 0.0112, 0.001, 0.0012, B, X, 1.1655 + (zz - fz + 0.042) * rs + 0.0011, zz).rotation.x = -Math.atan(rs); }   // its serrations
+      profile(g, shp([[fz - 0.007, 1.1695], [fz + 0.005, 1.1695], [fz + 0.005, 1.1735], [fz - 0.002, y - 0.0018], [fz - 0.007, y - 0.0018]]), 0.0026, B, X);   // the blade
+      box(g, 0.0032, 0.0022, 0.0064, GM.fiber, X, y - 0.0011, fz - 0.0046);                               // its fibre, its top level with the ring's middle
+      irons(g, { kind: 'ap', yr: y, rz: z, r: G.r, yf: y, fz: fz - 0.0046 });   // (looked through the ring at the blade: game/view-cam.js)
+    }
     // ---- magazine tube and its cap, the barrel's lug that clamps onto it, the swivel stud; with an extension, the tube
     // runs on toward the muzzle and a clamp holds it to the barrel
     const tEnd = [1.146, 1.25, 1.32, 1.385][T('mag')];   // (its magazine line: Tube extension, Long tube, Full-length tube)
@@ -57,13 +102,15 @@ export const SHOTGUN_MODELS = {
     checker(fe, clipTo(inset(FE, 0.0115), [[0.875, 1.0], [0.995, 1.0], [0.985, 1.119], [0.885, 1.119]]), 0.029, 0.0034, 0.52);
     [-1, 1].forEach(sd => box(fe, 0.003, 0.006, 0.12, GM.metal2, X + sd * 0.008, 1.134, 0.758));
     // ---- the bolt in the port, which runs back with the forend
-    const bolt = box(g, 0.004, 0.017, 0.074, GM.steel, X - 0.0176, 1.148, 0.656);
+    // (only what's in the port shows: run back, its front leaves the port open in front of it and the rest of it goes
+    // back inside the receiver, rather than sliding back along the outside of it: portBolt)
+    const bolt = portBolt(g, X - 0.0176, 1.148, 0.619, 0.693, 0.004, 0.017);
     // a side saddle of spare shells on the left of the receiver, longer with each magazine tier
     const sm = shellMat(tierCtx);   // in the colour of the shells loaded
     const n = Math.min(8, 4 + T('mag') * 2);
     box(g, 0.006, 0.05, 0.024 * n + 0.01, GM.poly, X + 0.025, 1.132, 0.51 + n * 0.012);
     for (let k = 0; k < n; k++) { const z = 0.522 + k * 0.024; cyl(g, 0.0105, 0.054, sm, X + 0.039, 1.14, z, 10).rotation.set(0, 0, 0); cyl(g, 0.0112, 0.014, GM.brass, X + 0.039, 1.106, z, 10).rotation.set(0, 0, 0); }   // stood upright in it
-    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: 1.165, sz: 0.6 };
+    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: PUMP_RAIL.top, sz: 0.6 };
   },
   // double barrel: a side-by-side, traced off side-on photos: a hammerless sidelock (the lock plates with their
   // engraved border, the top lever and the safety on the tang, the action bar running forward under the barrels to the
@@ -108,7 +155,13 @@ export const SHOTGUN_MODELS = {
     });
     box(brk, 0.012, 0.011, bl - 0.01, B, ...bx(0, 1.1535, z0 + bl / 2));   // the rib, sunk into the valley between them
     box(brk, 0.008, 0.006, bl - 0.02, B, ...bx(0, 1.124, z0 + bl / 2));
-    { const bd = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 6), GM.dot); bd.position.set(...bx(0, 1.161, z1 - 0.012)); brk.add(bd); }
+    // the sights: an ivory bead on the rib at the muzzle and a smaller one halfway along it, looked at down the rib from
+    // a little above it (DBL_SIGHT.eye over the rib's top at the breech), the way a side-by-side is aimed: the rib a
+    // narrow strip running out to the beads, the action and top lever well down out of the way, the front bead sitting
+    // on the mid bead's shoulders
+    { const D = DBL_SIGHT, top = 1.159, bead = (r, z) => { const bd = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), GM.dot); bd.position.set(...bx(0, top + r * 0.8, z)); brk.add(bd); };
+      bead(D.front, z1 - 0.012); bead(D.mid, z0 + bl * 0.5);
+      irons(g, { kind: 'bead', yr: top + D.eye, rz: z0 + 0.012, yf: top + D.front * 1.8, fz: z1 - 0.012 }); }   // (down the rib to the front bead's top)
     box(brk, 0.022, 0.024, 0.07, B, ...bx(0, 1.114, z0 + 0.04));   // the lumps, down into the bar
     box(brk, 0.012, 0.008, 0.004, GM.steel, ...bx(0, 1.152, z0 + 0.0015));   // extractor
     profile(brk, shp([[0.012, 0.024], [0.06, 0.028], [0.06, 0.006], [0.04, -0.006], [0.016, -0.012], [0.006, -0.006]]), 0.044, GM.engrD, 0, 0.002);   // forend iron
@@ -138,8 +191,16 @@ export const SHOTGUN_MODELS = {
     box(g, 0.004, 0.009, 0.04, St, X + 0.0345, 1.1425, 0.822); cyl(g, 0.004, 0.004, St, X + 0.0365, 1.1425, 0.84, 10).rotation.set(0, 0, Math.PI / 2);   // the latch
     // ---- barrel, its bore; the folding front sight, the tall rear sight
     cyl(g, 0.0163, 0.112, St, X, 1.13, 1.247, 18); cyl(g, 0.0095, 0.002, GM.rubber, X, 1.13, 1.3035, 12);
-    profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
-    profile(g, shp([[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]], [shp([[0.5145, 1.276], [0.527, 1.276], [0.527, 1.29], [0.5145, 1.29]]), shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012);
+    // (with an optic on, both sights are folded down flat, as these fold, so nothing stands up in front of it: the
+    // rear's tall plate laid back along the receiver behind the optic, the front post laid forward along the barrel)
+    if (T('sight')) { box(g, 0.02, 0.007, 0.064, St, X, 1.1955, 0.5015); box(g, 0.012, 0.007, 0.088, St, X, 1.1955, 1.152); }
+    else {
+      profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.0055, St, X, 0.0012);
+      const RS = [[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]];
+      apPart(profile(g, shp(clipTo(RS, [[0.4, 1.15], [0.6, 1.15], [0.6, 1.284], [0.4, 1.284]]), [shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012));
+      apPlate(g, X, 0.01, 1.284, 1.3032, 0.5081, 0.5339, 1.29, 0.0028, St);   // the aperture plate across its top, the hole looked through down the gun
+      irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+    }
     // ---- the charging handle's fin on top: its own group so the reload can pull it back
     const ch = new THREE.Group(); g.add(ch);
     profile(ch, shp([[0.8152, 1.192], [0.8793, 1.192], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);

@@ -19,6 +19,9 @@ export const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: 
   // up to FL_N beams (yours, two for an akimbo pair, and in co-op your teammates'), each one's origin and direction
   // (x, z, dx, dz) and its (reach, half-angle, strength, the angle its shadow rays are centred on); uFlK.w how many
   uFl: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlP: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uFlK: { value: new THREE.Vector4() },
+  // each beam's height and tilt: the lens's height, and the sine and cosine of how far down from level it points; and
+  // the pattern of its light where it lands (a flashlight's hot spot and rings: lighting/lightmap.js sets it)
+  uFlH: { value: Array.from({ length: 6 }, () => new THREE.Vector4(1.1, 0, 1, 0)) }, uFlCookie: { value: null },
   // and their shadows: how far each ray across each beam got before something stopped it (a row a beam: flashShadows)
   uFlSh: { value: null } };
 const VERT_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform float uLmSize;\nuniform float uLmHalf;\n';
@@ -35,9 +38,10 @@ const VERT_BODY = `
   lmN = mat3(instanceMatrix) * lmN;
   #endif
   vWn = normalize(mat3(modelMatrix) * lmN);`;
-// one flashlight beam's light on a point: a soft-rimmed cone, brightest down its middle, falling off with distance (as
-// the baked light map did, but per pixel, so the rim is a smooth curve and it swings round with you every frame). Close
-// to the lens it spills a little all round. It stops where its ray across the beam was stopped (row: the beam's row of
+// one flashlight beam's light on a point: a cone out of the lens (at its height, tilted a little down: uFlH), so it
+// lands on a wall as a round pool, not a band from the floor to the top, brightest in its hot spot and rings
+// (uFlCookie: the reflector's pattern, laid across the cone) and falling off with distance (per pixel, so the rim is a
+// smooth curve and it swings round with you every frame). Close to the lens it spills a little all round. It stops where its ray across the beam was stopped (row: the beam's row of
 // the shadow texture, a0 and h the angle its rays are centred on and how far either side they go), a clean edge past a
 // window frame or a corner. Past the middle line of a window (tw, how far out its ray crossed it) the beam only goes on
 // where it passed between the sill and the head: a beam from gun height through a window only just over the sill
@@ -45,10 +49,14 @@ const VERT_BODY = `
 export const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
 const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
 const FL_FN = `
-float flCone(vec4 f, vec4 k, vec2 p, float row) {
+float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   vec2 d = p - f.xy; float r = length(d), a0 = k.w, h = k.y + 0.3;
-  float a = acos(clamp(dot(d / max(r, 1e-3), f.zw), -1.0, 1.0));
-  float cone = (1.0 - smoothstep(k.y - 0.2, k.y + 0.05, a)) * (1.0 + 0.5 * (1.0 - smoothstep(0.0, k.y * 0.6, a)));
+  vec3 ax = vec3(f.z * fh.z, -fh.y, f.w * fh.z), d3 = vec3(d.x, vWp.y - fh.x, d.y), dn = d3 / max(length(d3), 1e-3);
+  float a = acos(clamp(dot(dn, ax), -1.0, 1.0));
+  vec3 rt = normalize(vec3(f.w, 0.0, -f.z)), up = cross(rt, ax);
+  vec2 cuv = vec2(dot(dn, rt), dot(dn, up)) / (sin(k.y) * 2.1) + 0.5;
+  float ck = texture2D(uFlCookie, cuv).a;
+  float cone = (1.0 - smoothstep(k.y - 0.2, k.y + 0.05, a)) * (0.55 + 1.05 * ck);
   float fall = 1.0 - clamp(r / k.x, 0.0, 1.0);
   float rel = mod(atan(d.x, d.y) - a0 + 9.424778, 6.283185) - 3.141593;
   vec4 sh = texture2D(uFlSh, vec2(clamp((rel + h) / (2.0 * h), 0.0, 1.0), row));
@@ -70,7 +78,7 @@ vec4 lmCubic(vec2 uv) {
   return mix(mix(texture2D(uLightMap, c0), texture2D(uLightMap, vec2(c1.x, c0.y)), s1.x), mix(texture2D(uLightMap, vec2(c0.x, c1.y)), texture2D(uLightMap, c1), s1.x), s1.y);
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uFl[6];\nuniform vec4 uFlP[6];\nuniform vec4 uFlH[6];\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -110,7 +118,7 @@ const FRAG_BODY = `
   vec4 lmS = lmCubic(vLmUv);
   if (uFlK.w > 0.5) {
     float fl = 0.0;
-    for (int i = 0; i < 6; i++) { if (float(i) >= uFlK.w) break; fl += flCone(uFl[i], uFlP[i], vWp.xz, (float(i) + 0.5) / 6.0) * uFlP[i].z; }
+    for (int i = 0; i < 6; i++) { if (float(i) >= uFlK.w) break; fl += flCone(uFl[i], uFlP[i], uFlH[i], vWp.xz, (float(i) + 0.5) / 6.0) * uFlP[i].z; }
     lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(1.0));
   }
   vec3 lmBase = gl_FragColor.rgb, lmC = lmBase * lmS.rgb * 2.0;
@@ -176,7 +184,7 @@ const TREE_BODY = `
 export function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFl: LMU.uFl, uFlP: LMU.uFlP, uFlH: LMU.uFlH, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     // (glow: what it gives off of its own, its emissive, kept out of the light map's shading, so it shows in full colour
     // in the dark instead of going grey with everything else: acid, zombies/spitter.js)

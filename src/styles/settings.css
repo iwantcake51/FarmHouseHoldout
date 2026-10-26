@@ -14,7 +14,7 @@
 .setTop{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid rgba(236,230,216,.07)}
 .setTop h3{margin:0;font:800 30px/1 var(--f-num);text-transform:uppercase;letter-spacing:.01em;color:var(--ink)}
 .setX{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:rgba(236,230,216,.06);color:var(--dim);cursor:pointer;transition:background .2s,color .2s,rotate .3s cubic-bezier(.2,.9,.3,1)}
-.setX svg{width:12px;height:12px;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;fill:none}
+.setX svg{width:12px;height:12px;fill:currentColor}
 .setX:hover{background:rgba(var(--acc),.8);color:#fff;rotate:90deg}
 .setBody{overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding:6px 20px 14px;overscroll-behavior:contain}   /* (never a sideways bar: a key nudged or its tip near an edge would bring one, and the page would jump as it came and went) */
 .setHeadRow{margin:16px 0 4px;font:600 10px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--orange-d)}
@@ -30,7 +30,7 @@
 .sDropBtn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 12px;border:1px solid rgba(236,230,216,.14);border-radius:4px;background:rgba(236,230,216,.04);color:var(--ink);font:500 12px/1 var(--f-ui);cursor:pointer;transition:border-color .2s,background .2s}
 .sDropBtn:hover,.sDrop.open .sDropBtn{border-color:rgba(var(--acc),.7);background:rgba(var(--acc),.08)}
 .sDropBtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.sDropBtn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.7;transition:rotate .3s cubic-bezier(.2,.9,.3,1)}
+.sDropBtn svg{width:12px;height:12px;fill:currentColor;opacity:.7;transition:rotate .3s cubic-bezier(.2,.9,.3,1)}
 .sDrop.open .sDropBtn svg{rotate:180deg}
 .sDropList{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:3;margin:0;padding:4px;list-style:none;border:1px solid rgba(236,230,216,.12);border-radius:5px;
   background:rgba(24,20,17,.98);box-shadow:0 14px 34px rgba(0,0,0,.55);transform-origin:top center;
@@ -91,7 +91,7 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
 .kBind.nope{animation:kNope .4s cubic-bezier(.3,.7,.4,1);color:#e07a6a;border-color:#b5483a}
 @keyframes kNope{20%,60%{translate:-4px 0}40%,80%{translate:4px 0}}
 .kFixed .kBind{cursor:default;color:var(--dim);background:none;border-style:dashed;border-bottom-width:1px}
-.kFixed .kBind svg:not(.kIco){width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.3;opacity:.7}
+.kFixed .kBind svg:not(.kIco){width:11px;height:11px;fill:currentColor;opacity:.7}
 .kFixed .setLab b{color:var(--dim)}
 .setRow.kSet{animation:kSet .9s ease-out}
 @keyframes kSet{from{background:rgba(var(--acc),.16)}}
@@ -107,8 +107,8 @@ button.kBind:active{translate:0 1px;border-bottom-width:2px}
 .kSearch{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:0 -2px 6px;padding:10px 12px;border:1px solid rgba(236,230,216,.12);border-radius:6px;
   background:rgba(22,19,16,.97);box-shadow:0 8px 16px -8px rgba(0,0,0,.8);transition:border-color .25s,box-shadow .25s}
 .kSearch:focus-within{border-color:rgba(var(--acc),.75);box-shadow:0 0 0 3px rgba(var(--acc),.16),0 8px 16px -8px rgba(0,0,0,.8)}
-.kSearch svg{flex:none;width:15px;height:15px;fill:none;stroke:var(--dim);stroke-width:1.6;stroke-linecap:round;transition:stroke .25s,transform .3s cubic-bezier(.3,1.4,.5,1)}
-.kSearch:focus-within svg{stroke:var(--orange);transform:scale(1.1) rotate(-8deg)}
+.kSearch svg{flex:none;width:15px;height:15px;fill:var(--dim);transition:fill .25s,transform .3s cubic-bezier(.3,1.4,.5,1)}
+.kSearch:focus-within svg{fill:var(--orange);transform:scale(1.1) rotate(-8deg)}
 .kSearch input{flex:1;min-width:0;border:0;outline:0;background:none;color:var(--ink);font:500 13px var(--f-ui);letter-spacing:.01em}
 .kSearch input::placeholder{color:rgba(163,158,144,.7)}
 .kSearch input::-webkit-search-cancel-button{display:none}

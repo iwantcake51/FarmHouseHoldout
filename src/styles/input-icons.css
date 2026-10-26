@@ -2,6 +2,7 @@
    other key hint draws round its letter: the icon is the key, in the colour of where it sits (--kh: its height there) */
 kbd.ki{display:inline-flex!important;align-items:center;gap:1px;padding:0!important;margin:0;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;min-width:0!important;height:auto!important;
   vertical-align:middle;line-height:1;font-size:inherit;opacity:1}
+kbd.ki[hidden]{display:none!important}   /* (a hidden key hint stays hidden: the fire mode's B on a gun that can't switch) */
 .kKey{display:inline-flex;align-items:center}
 .kIco{display:block;flex:none;height:var(--kh,1.55em);width:calc(var(--kh,1.55em) * var(--ar,1));fill:currentColor;overflow:visible}
 .kIco .hi{fill:rgb(var(--acc))}

@@ -9,16 +9,16 @@ import { cxw } from '../world/grid.js';
 import { PAINT_FADE, stepPaint } from '../world/house.js';
 import { houseLayout } from '../world/interior.js';
 import { P } from '../player/player.js';
-import { rollLook } from '../player/look.js';
+import { rollLook, spawnLook } from '../player/look.js';
 import { clearBodyBlood } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
-import { curId, freshRun, run, S, W, W8 } from '../game/run-state.js';
+import { curId, freshRun, run, S, stamMax, W, W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { casings, mags } from '../weapons/casings.js';
 import { smokes } from '../effects/smoke.js';
 import { bloodMapClear } from '../effects/blood-map.js';
-import { drops, gibs, parts } from '../effects/particles.js';
+import { clearDrops, gibs, parts } from '../effects/particles.js';
 import { dropCopy, makeDrop } from '../effects/weapon-drop.js';
 import { clearHoles } from '../effects/bullet-holes.js';
 import { pickups } from '../pickups/pickups.js';
@@ -26,6 +26,7 @@ import { ragdolls } from '../zombies/deaths.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { zFree } from '../zombies/zombie-kit.js';
 import { setTimeScale } from '../game/hit-feedback.js';
+import { clearArmorBits } from '../zombies/armor-break.js';
 import { grenades } from '../weapons/explosives.js';
 import { resetBoards, setFlowDirty } from '../barricades/planks.js';
 import { closeStation } from '../stations/station-ui.js';
@@ -43,6 +44,7 @@ import { feedItems, floats } from './hud-text.js';
 import { titleSky } from '../lighting/day-night.js';
 import { resetDrops } from '../stations/supply-drop.js';
 import { clearSpit } from '../zombies/spitter.js';
+import { wantLock } from '../game/view-cam.js';
 import { resetHeart } from './vitals.js';
 import { ragYou, unragYou } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
@@ -82,15 +84,15 @@ export function setState(s) {
 function resetRun(keepLook) {
   houseLayout(NET.on && NET.inGame && NET.houseSeed != null ? NET.houseSeed : (Math.random() * 2147483647) | 0, true);   // a new floor plan (world/interior.js), the host's in co-op
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
-  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou();
+  ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou(); clearArmorBits();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
   grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
-  bloodMapClear(); clearBodyBlood(); drops.forEach(d => { d.life = 0; d.m.visible = false; }); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
-  resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(); buildGuns();   // a new look for every run (player/look.js); the title already dealt one (in co-op you keep the one your teammates have)
+  bloodMapClear(); clearBodyBlood(); clearDrops(); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
+  resetBoards(); clearHoles(); freshRun(); if (!keepLook && !NET.on) rollLook(spawnLook()); buildGuns();   // a new look for every run, or the one you're keeping (player/look.js: spawnLook, made in the title's Character menu); the title already dealt one (in co-op you keep the one your teammates have)
   deathCineEnd(); mistReset();
-  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = 1; P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
+  P.x = cxw(21); P.z = cxw(22); P.hp = S.maxHp; P.blood = 0; P.bleed = 0; P.bloodFeet = 0; ANIM.bandSwitch = null; P.stam = stamMax(); P.exh = false; P.stamT = 9; P.runDebt = 0; P.runT = 9; P.spdF = 1; P.fatigued = false; P.sprint = false; P.sprintLock = false; P.skid = 0; P.pivot = null; P.fireQ = null; P.pushT = 0; P.runUp = 0; P.carveW = 0; ANIM.sprintK = ANIM.ready = ANIM.readyV = ANIM.faceK = ANIM.skidK = ANIM.pivK = ANIM.scrK = ANIM.bobK = ANIM.pivBank = ANIM.bobSlow = ANIM.rgK = ANIM.rgT = ANIM.vrgT = 0; P.band = 0; P.bandT = 0; P.wraps = 0; P.heal = 0; P.conc = 0; P.kbx = P.kbz = 0; P.dead = false; P.deathT = 0; P.hitFrom = undefined; document.body.classList.remove('dying'); if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; } P.aim = Math.PI; P.vault = null; P.slow = P.stun = P.adr = P.eye = 0; P.adrCd = 0; setTod(15);
   P.shove = null; P.shoveCd = 0; P.vaultHeat = 0; ANIM.land = 0; ANIM.shoveHit = 0; INTRO.t = -1; benchTipsStart();
   setZoomT(ZOOM_MAX); setHurtFx(0); setFlowDirty(true); setTimeScale(1); setCamPunch(0);   // the intro glides in all the way to the closest zoom
   $('feed').innerHTML = ''; feedItems.length = 0; clearGear();
@@ -137,7 +139,7 @@ function switchScreens(dark, fn) {
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
 // start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
 // for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
-export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
+export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
 // off the title, cinematically. Start pressed: the menu drifts away line by line, the title camera starts a slow push
 // in on the farm (CINE.push: how far in, as a share of its zoom) as a vignette closes round it and letterbox bars come
 // in, and the picture dims to black (from CINE.dim ms in, over the rest of CINE.out); the music's been fading since
@@ -176,6 +178,7 @@ export function pauseRun() { if (state !== 'play' || P.dead || switching) return
 export function resumeRun() {
   const el = $('paused'); if (state !== 'paused' || switching || el.classList.contains('closing')) return;
   cancelLeave();
+  wantLock();   // (in first person the mouse is taken straight back, without a click: game/view-cam.js)
   el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
 }
 $('startBtn').onclick = enterRun;

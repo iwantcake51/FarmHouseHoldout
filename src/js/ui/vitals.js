@@ -3,6 +3,7 @@
 import { $ } from '../core/dom.js';
 import { clamp, rr } from '../core/math.js';
 import { P } from '../player/player.js';
+import { stamMax } from '../game/run-state.js';
 
 // The heart rate follows your body the way a real one does: about 72 at rest, up when you run, get hit or lose
 // blood (losing blood makes the heart race to keep the pressure up), and highest while a wound is still bleeding.
@@ -32,7 +33,7 @@ export function heartStartle() { hrStartle = Math.min(30, hrStartle + 12); ecgJo
 export function updateHeart(rdt, hpF) {
   const dead = P.hp <= 0, lost = clamp(1 - hpF, 0, 1), bleedK = P.bleed > 0 ? Math.min(1, P.bleed / 6) : 0;
   hrStartle = Math.max(0, hrStartle - rdt * 2.5);
-  let target = 72 + lost * 55 + bleedK * 38 + (P.sprint ? 26 : 0) + (1 - P.stam) * 22 + P.slow * 14 + (P.adr > 0 ? 28 : 0) + hrStartle;
+  let target = 72 + lost * 55 + bleedK * 38 + (P.sprint ? 26 : 0) + (1 - P.stam / stamMax()) * 22 + P.slow * 14 + (P.adr > 0 ? 28 : 0) + hrStartle;
   if (hpF < 0.1) target = target * hpF / 0.1 + 46 * (1 - hpF / 0.1);   // the heart gives out near the end: it slows right down
   target = Math.min(188, target);
   heartRate += (target - heartRate) * (1 - Math.exp(-rdt / (target > heartRate ? 2.2 : 9)));

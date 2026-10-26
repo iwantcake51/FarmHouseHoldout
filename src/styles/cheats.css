@@ -1,79 +1,250 @@
-/* The cheat menu (F9, ui/cheats.js): a panel down the right side, in the same dark glass and orange rule as the weapon
-   stats sheet, with four tabs. Switches are big rows you click anywhere on; steppers are − value +. The game keeps
-   running behind it */
-#cheat{position:fixed;z-index:50;top:calc(16px + env(safe-area-inset-top,0px));right:16px;width:min(400px,calc(100vw - 32px));max-height:calc(100vh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
-  display:flex;flex-direction:column;box-sizing:border-box;background:rgba(12,14,15,.92);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-  border-top:3px solid var(--orange);box-shadow:0 14px 40px rgba(0,0,0,.55);color:var(--ink);font-family:var(--f-ui);font-size:12px;cursor:default;animation:chIn .22s cubic-bezier(.2,.8,.3,1)}
-@keyframes chIn{from{opacity:0;translate:24px 0}}
-@media (prefers-reduced-motion:reduce){#cheat{animation:none}}
-.chTop{display:flex;align-items:baseline;gap:10px;padding:12px 14px 8px}
-.chTop b{font-family:var(--f-num);font-weight:800;font-size:26px;line-height:1;text-transform:uppercase;letter-spacing:.02em}
-.chTop span{flex:1;color:var(--dim);font-size:10.5px}
+/* The cheat menu (F9, ui/cheats.js): a wide panel down the right side in dark glass under an orange rule. Along the top
+   its title, a search through every cheat, and the quick switches as lit chips with the game's speed beside them; down
+   the left its sections, each a mark and a name; the section itself to the right of them, in cards. Switches are big
+   rows you click anywhere on; steppers are − value +; weapons are tiles, the one picked turning in 3D above them. The
+   game keeps running behind it */
+#cheat{--chBg:rgba(13,15,16,.95);--chLine:rgba(236,230,216,.1);--chCard:rgba(236,230,216,.035);
+  position:fixed;z-index:50;top:calc(16px + env(safe-area-inset-top,0px));right:16px;width:min(700px,calc(100vw - 32px));height:min(760px,calc(100vh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+  display:flex;flex-direction:column;box-sizing:border-box;background:linear-gradient(180deg,rgba(24,22,20,.96),var(--chBg) 120px);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  border:1px solid rgba(236,230,216,.08);border-top:3px solid var(--orange);border-radius:4px;box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4);color:var(--ink);font-family:var(--f-ui);font-size:12px;cursor:default;overflow:hidden;
+  animation:chIn .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes chIn{from{opacity:0;translate:28px 0;scale:.985}}
+@media (prefers-reduced-motion:reduce){#cheat,#chBody>*,.chSt u::after{animation:none!important}}
+/* the top: title, search, F9, close */
+.chTop{display:flex;align-items:center;gap:12px;padding:12px 14px 10px}
+.chTop>b{font-family:var(--f-num);font-weight:800;font-size:26px;line-height:1;text-transform:uppercase;letter-spacing:.03em;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+.chSearch{flex:1;display:flex;align-items:center;gap:7px;min-width:0;padding:0 10px;height:30px;border:1px solid rgba(236,230,216,.16);border-radius:15px;background:rgba(0,0,0,.35);transition:border-color .15s,box-shadow .15s}
+.chSearch:focus-within{border-color:var(--orange);box-shadow:0 0 0 3px rgba(var(--acc),.18)}
+.chSearch svg{flex:none;width:15px;height:15px;fill:var(--dim)}
+#chFind{flex:1;min-width:0;border:0;background:none;color:var(--ink);font:12px var(--f-ui);outline:none;user-select:text;-webkit-user-select:text}
+#chFind::placeholder{color:rgba(163,158,144,.7)}
+.chTop>.kKey{color:var(--dim);--kh:22px}
 .chTop kbd,#cheatTag kbd{font:600 10px var(--f-ui);padding:2px 5px;border:1px solid rgba(236,230,216,.3);border-radius:3px;color:var(--dim)}
-#chClose{align-self:center;width:26px;height:26px;padding:0;border:0;background:none;color:var(--dim);font-size:22px;line-height:1;cursor:pointer}
-#chClose:hover{color:var(--ink)}
-.chTabs{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:0 14px;border-bottom:1px solid rgba(236,230,216,.12)}
-.chTabs button{padding:8px 0 7px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;color:var(--dim);font:600 10.5px var(--f-ui);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
-.chTabs button:hover{color:var(--ink)}
-.chTabs button.on{color:var(--ink);border-bottom-color:var(--orange)}
-#chBody{overflow-y:auto;overscroll-behavior:contain;padding:4px 14px 14px}
-.chH{margin:14px 0 6px;color:var(--orange);font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
-/* a switch: the whole row is the button */
-.chTg{display:grid;grid-template-columns:34px 1fr;gap:1px 10px;align-items:center;width:100%;margin:0 0 5px;padding:8px 10px;text-align:left;cursor:pointer;
-  background:rgba(236,230,216,.04);border:1px solid rgba(236,230,216,.1);border-radius:3px;color:var(--ink);font:inherit}
-.chTg:hover{background:rgba(236,230,216,.08)}
-.chTg .sw{grid-row:span 2;position:relative;width:34px;height:18px;border-radius:9px;background:rgba(236,230,216,.16);transition:background .15s}
-.chTg .sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:translate .15s,background .15s}
-.chTg.on{border-color:rgba(var(--acc),.55);background:rgba(var(--acc),.1)}
-.chTg.on .sw{background:var(--orange)}
+#chClose{width:28px;height:28px;padding:0;border:0;border-radius:50%;background:none;color:var(--dim);font-size:22px;line-height:1;cursor:pointer;transition:background .15s,color .15s}
+#chClose:hover{color:var(--ink);background:rgba(236,230,216,.08)}
+/* the quick switches: chips with a light that comes on, and the speed */
+.chQuick{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:0 14px 10px;border-bottom:1px solid var(--chLine)}
+.chQ{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px 0 8px;border:1px solid rgba(236,230,216,.14);border-radius:13px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 11px var(--f-ui);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+/* (each with its icon: ui/game-icons.js or Kenney's board game pack, ui/board-icons-data.js) */
+.chIco{flex:none;width:14px;height:14px;fill:currentColor;vertical-align:-2px}
+.chQ .chIco{fill:rgba(236,230,216,.45);transition:fill .15s,filter .15s}
+.chQ:hover{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.chQ.on{background:rgba(var(--acc),.16);border-color:rgba(var(--acc),.7);color:var(--ink)}
+.chQ.on .chIco{fill:var(--orange);filter:drop-shadow(0 0 4px rgba(var(--acc),.8))}
+.chSpeed{flex:none;display:inline-flex;align-items:center;border:1px solid rgba(236,230,216,.14);border-radius:13px;overflow:hidden;height:26px}
+.chSpeed small{display:inline-flex;align-items:center;gap:5px;padding:0 8px;color:var(--dim);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase}
+.chSpeed button{height:100%;padding:0 8px;border:0;border-left:1px solid rgba(236,230,216,.1);background:none;color:#c9c3b5;font:700 11px var(--f-num);cursor:pointer}
+.chSpeed button:hover{background:rgba(236,230,216,.07)}
+.chSpeed button.on{background:var(--orange);color:#1a120c}
+/* the sections down the side, and the one that's open */
+.chMain{flex:1;min-height:0;display:grid;grid-template-columns:96px 1fr}
+.chRail{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-right:1px solid var(--chLine);background:rgba(0,0,0,.18);overflow-y:auto}
+.chRail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px 8px;border:0;background:none;color:var(--dim);font:600 10px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:color .15s,background .15s}
+.chRail svg{width:22px;height:22px;fill:currentColor;transition:transform .2s cubic-bezier(.2,.9,.3,1.4)}
+.chRail button:hover{color:var(--ink);background:rgba(236,230,216,.04)}
+.chRail button:hover svg{transform:scale(1.1)}
+.chRail button.on{color:var(--ink);background:linear-gradient(90deg,rgba(var(--acc),.18),transparent)}
+.chRail button.on::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 2px 2px 0;background:var(--orange);box-shadow:0 0 8px rgba(var(--acc),.7)}
+.chRail button.on svg{color:var(--orange)}
+.chRail em{position:absolute;top:5px;right:16px;min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:#b3241a;color:#fff;font:700 9.5px/15px var(--f-num);font-style:normal;letter-spacing:0}
+#chBody{overflow-y:auto;overscroll-behavior:contain;padding:2px 16px 18px;scrollbar-width:thin;scrollbar-color:rgba(236,230,216,.2) transparent}
+#chBody.in>*{animation:chFade .22s ease both}   /* (only when the section changes, not every click: ui/cheats.js) */
+@keyframes chFade{from{opacity:0;translate:0 4px}}
+.chH{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:16px 0 7px;color:var(--orange);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.chH .chIco{width:15px;height:15px;margin-right:-2px;align-self:center}
+.chH small{color:var(--dim);font-weight:400;letter-spacing:.02em;text-transform:none;font-size:10.5px}
+/* a group of rows on a faint card */
+.chCard{padding:2px 10px;border:1px solid var(--chLine);border-radius:4px;background:var(--chCard)}
+.chCard .chRow:last-child{border-bottom:0}
+/* a switch: the whole row is the button; two to a line */
+.chTgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.chTg{display:grid;grid-template-columns:34px 1fr;gap:2px 10px;align-items:center;width:100%;margin:0 0 6px;padding:9px 11px;text-align:left;cursor:pointer;
+  background:var(--chCard);border:1px solid var(--chLine);border-radius:4px;color:var(--ink);font:inherit;transition:background .15s,border-color .15s}
+.chTgs .chTg{margin:0}
+.chTg:hover{background:rgba(236,230,216,.07)}
+.chTg .sw{grid-row:span 2;position:relative;width:34px;height:18px;border-radius:9px;background:rgba(236,230,216,.16);transition:background .2s}
+.chTg .sw::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:translate .2s cubic-bezier(.3,1.4,.5,1),background .2s}
+.chTg.on{border-color:rgba(var(--acc),.55);background:linear-gradient(90deg,rgba(var(--acc),.14),rgba(var(--acc),.04))}
+.chTg.on .sw{background:var(--orange);box-shadow:0 0 8px rgba(var(--acc),.5)}
 .chTg.on .sw::after{translate:16px 0;background:#fff}
-.chTg b{font-size:12.5px;font-weight:600}
-.chTg em{font-style:normal;color:var(--dim);font-size:10.5px;line-height:1.3}
+.chTg b{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600}
+.chTg b .chIco{fill:var(--dim);transition:fill .15s}
+.chTg.on b .chIco{fill:var(--orange)}
+.chTg em{font-style:normal;color:var(--dim);font-size:10.5px;line-height:1.35}
 /* a row: name on the left, value, then its buttons */
-.chRow{display:flex;align-items:center;gap:8px;min-height:30px;padding:3px 0;border-bottom:1px solid rgba(236,230,216,.06)}
+.chRow{display:flex;align-items:center;gap:8px;min-height:32px;padding:4px 0;border-bottom:1px solid rgba(236,230,216,.06)}
 .chRow>b{min-width:52px;font-family:var(--f-num);font-weight:800;font-size:17px;line-height:1;font-variant-numeric:tabular-nums;text-align:right}
 .chRow>b.wide{flex:1;min-width:0;text-align:left;font-family:var(--f-ui);font-weight:600;font-size:11.5px}
-.chK{flex:1;min-width:0;color:#c9c3b5;font-size:11.5px}
-.chK small,.chTier small{display:block;margin-top:1px;color:var(--dim);font-size:10px;line-height:1.3}
+.chK{flex:1;min-width:0;color:#d4cebf;font-size:11.5px}
+.chK .chIco.lead{width:15px;height:15px;margin-right:7px;fill:var(--dim);vertical-align:-3px}
+.chBtn .chIco{width:12px;height:12px;margin-right:5px;vertical-align:-2px}
+.chK small,.chTier small{display:block;margin-top:1px;color:var(--dim);font-size:10px;line-height:1.35}
 .chRow.have .chMod{color:#cdeeb2}
-.chTier{flex:1.3;min-width:0;font-size:11.5px}
+.chTier{position:relative;flex:1.3;min-width:0;font-size:11.5px;padding-bottom:5px}
 .chTier i{font-style:normal;color:var(--dim)}
+/* how far up its line a gun's upgrade is */
+.chTier u{position:absolute;left:0;right:12%;bottom:0;height:2px;border-radius:1px;background:rgba(236,230,216,.1);text-decoration:none;overflow:hidden}
+.chTier u::after{content:"";position:absolute;inset:0;transform-origin:left;transform:scaleX(var(--f));background:var(--orange);transition:transform .3s ease}
 .chGrp,.chBtns{display:flex;flex-wrap:wrap;gap:4px}
 .chBtns{margin-top:8px}
-.chBtn{padding:5px 9px;border:1px solid rgba(236,230,216,.2);border-radius:3px;background:rgba(236,230,216,.06);color:var(--ink);font:600 11px var(--f-ui);cursor:pointer;white-space:nowrap}
+.chBtns.top{margin:12px 0 0;justify-content:flex-end}
+.chBtn{padding:5px 10px;border:1px solid rgba(236,230,216,.2);border-radius:3px;background:rgba(236,230,216,.06);color:var(--ink);font:600 11px var(--f-ui);cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s,transform .08s}
 .chBtn:hover:not(:disabled){background:rgba(var(--acc),.22);border-color:rgba(var(--acc),.7)}
-.chBtn:active:not(:disabled){background:rgba(var(--acc),.4)}
+.chBtn:active:not(:disabled){background:rgba(var(--acc),.4);transform:translateY(1px)}
 .chBtn:disabled{opacity:.3;cursor:default}
 .chBtn small{display:block;color:var(--dim);font-weight:400;font-size:9.5px}
 .chBtn.have{background:rgba(120,190,80,.18);border-color:rgba(159,211,122,.65);color:#cdeeb2}
 .chBtn.ghost{background:none;color:var(--dim)}
 .chBtn.warn:hover:not(:disabled){background:rgba(226,113,90,.22);border-color:rgba(226,113,90,.7)}
+.chBtn.big{padding:7px 16px;background:var(--orange);border-color:var(--orange);color:#1a120c;font-weight:700}
+.chBtn.big:hover:not(:disabled){background:#f08a4c;border-color:#f08a4c}
 .chBtn.sq{width:26px;padding:4px 0;font-size:14px;line-height:1}
 .chStep{display:flex;align-items:center;gap:4px;flex:none}
 .chStep span{min-width:30px;text-align:center;font-family:var(--f-num);font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
 .chStep span:empty{display:none}
-/* give a weapon: one line a slot */
-.chSlot{display:grid;grid-template-columns:78px 1fr;gap:8px;align-items:start;padding:4px 0}
-.chSlot .chK{padding-top:6px}
-.chWeaps{display:flex;flex-wrap:wrap;gap:4px}
-.chFindRow{display:flex;gap:6px;margin-top:10px}
-#chFind{flex:1;min-width:0;padding:6px 8px;border:1px solid rgba(236,230,216,.2);border-radius:3px;background:rgba(0,0,0,.3);color:var(--ink);font:12px var(--f-ui);outline:none;user-select:text;-webkit-user-select:text}
-#chFind:focus{border-color:var(--orange)}
-.chNone{color:var(--dim)}
-.chTime{display:flex;align-items:center;gap:12px}
+.chNone{margin-top:24px;color:var(--dim);text-align:center}
+.chNote,.chHint{margin:4px 0 6px;color:var(--dim);font-size:10.5px;line-height:1.35}
+/* weapons: the one picked, turning, with its card; then tiles, a slot to a line */
+/* (it stays in view at the top as you scroll down to the gun's parts, so you see each one go on) */
+.chViewSlot{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:1fr 210px;gap:0;margin:12px 0 2px;border:1px solid var(--chLine);border-radius:4px;overflow:hidden;
+  background:radial-gradient(ellipse 70% 90% at 38% 55%,rgba(255,196,140,.13),transparent 70%),linear-gradient(180deg,rgba(40,34,28,.6),rgba(10,10,10,.6)),#121110;box-shadow:0 8px 14px -6px rgba(0,0,0,.6)}
+.chViewSlot::after{content:"";position:absolute;left:4%;width:56%;bottom:16px;height:16px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.55),transparent 70%);pointer-events:none}
+.chView{display:block;width:100%;height:230px;cursor:grab;touch-action:none;position:relative;z-index:1}
+.chView:active{cursor:grabbing}
+.chWc{display:flex;flex-direction:column;gap:6px;padding:12px 12px 10px;border-left:1px solid var(--chLine);background:rgba(0,0,0,.25)}
+.chWcHead b{display:block;font-family:var(--f-num);font-weight:800;font-size:18px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em}
+.chWcHead small{color:var(--dim);font-size:10.5px}
+/* the calibre it fires, stamped like a cartridge's headstamp */
+.chCal{display:flex;width:fit-content;align-items:center;gap:5px;margin-top:6px;padding:2px 7px 2px 5px;border:1px solid rgba(var(--acc),.45);border-radius:3px;background:rgba(var(--acc),.1);color:#f0c8a0;font:700 10.5px var(--f-num);letter-spacing:.06em}
+.chCal .chIco{width:12px;height:12px;fill:var(--orange)}
+.chWcStats{display:grid;gap:5px;margin-top:2px}
+.chSt{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:7px;font-size:10.5px;color:var(--dim)}
+.chSt u{position:relative;height:4px;border-radius:2px;background:rgba(236,230,216,.1);overflow:hidden;text-decoration:none}
+.chSt u::after{content:"";position:absolute;inset:0;transform-origin:left;transform:scaleX(var(--f));background:linear-gradient(90deg,#b0782c,var(--orange));transition:transform .35s cubic-bezier(.2,.9,.3,1)}
+#chBody.in .chSt u::after,.chWc.new .chSt u::after{animation:chBar .5s cubic-bezier(.2,.9,.3,1) both}
+@keyframes chBar{from{transform:scaleX(0)}}
+.chSt b{min-width:44px;text-align:right;color:var(--ink);font:700 11px var(--f-num);font-variant-numeric:tabular-nums}
+.chWc .chBtns{margin-top:auto}
+.chWc .chHint{margin:0;font-size:9.5px;line-height:1.9}
+.chHint .kKey{vertical-align:middle;margin:0 1px 0 4px;--kh:15px}
+.chHint .kKey:first-child{margin-left:0}
+.chWeaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px}
+.chWt{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-height:44px;padding:7px 9px;border:1px solid var(--chLine);border-radius:4px;background:var(--chCard);color:var(--ink);text-align:left;font:inherit;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.chWt b{font-size:11.5px;font-weight:700;line-height:1.15}
+.chWt small{color:var(--dim);font-size:9.5px}
+.chWt em{position:absolute;top:-7px;right:6px;padding:1px 5px;border-radius:2px;background:#24361c;box-shadow:0 0 0 1px rgba(159,211,122,.5);color:#cdeeb2;font:700 8.5px var(--f-ui);font-style:normal;letter-spacing:.06em;text-transform:uppercase}
+.chWt:hover:not(:disabled){border-color:rgba(var(--acc),.6);background:rgba(var(--acc),.08);transform:translateY(-1px)}
+.chWt.own{border-color:rgba(159,211,122,.35)}
+.chWt.sel{border-color:var(--orange);background:linear-gradient(180deg,rgba(var(--acc),.2),rgba(var(--acc),.06));box-shadow:0 0 0 1px rgba(var(--acc),.4),0 4px 14px rgba(0,0,0,.35)}
+.chWt.ghost{background:none;border-style:dashed}
+.chWt:disabled{opacity:.35;cursor:default}
+/* the character section: you in the studio, its parts down the right (pick one and the camera glides to it), and what
+   that part can be under it: rows of choices, swatches (and any colour at all), switches and sliders */
+.chViewSlot.fig{grid-template-columns:1fr 116px}
+.chViewSlot.fig .chView{height:300px}
+.chViewSlot.fig::after{left:6%;width:66%}
+.chFigNav{display:flex;flex-direction:column;gap:2px;padding:8px 6px;border-left:1px solid var(--chLine);background:rgba(0,0,0,.25);overflow-y:auto}
+.chFigNav button{padding:6px 9px;border:0;border-radius:3px;background:none;color:var(--dim);font:600 11px var(--f-ui);text-align:left;cursor:pointer;transition:background .15s,color .15s}
+.chFigNav button:hover{color:var(--ink);background:rgba(236,230,216,.06)}
+.chFigNav button.on{color:#1a120c;background:var(--orange)}
+/* on the view: the upgrade gear switch, and how to move it */
+.chFigTools{position:absolute;left:10px;right:126px;bottom:9px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}
+.chFigTools>*{pointer-events:auto}
+.chFigTools .chLkT{background:rgba(12,12,12,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.chFigTools span{color:rgba(236,230,216,.45);font-size:10px;pointer-events:none}
+/* the part's name with its re-roll beside it, then its groups, each on a card of its own */
+.chLkHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chLkHead .chBtn{flex:none;margin-top:8px}
+.chLook{display:grid;gap:8px}
+.chLkG{padding:3px 12px 5px;border:1px solid var(--chLine);border-radius:5px;background:linear-gradient(180deg,rgba(236,230,216,.05),rgba(236,230,216,.02))}
+.chLkG h5{margin:8px 0 3px;color:#e6d9c4;font:700 9.5px var(--f-ui);letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.chLkG .chNote{margin:2px 0 6px}
+.chLk{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(236,230,216,.06)}
+.chLk:last-child{border-bottom:0}
+.chLkL{color:#d4cebf;font-size:11px}
+.chLkO{display:flex;flex-wrap:wrap;gap:3px}
+.chLkO button{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid rgba(236,230,216,.14);border-radius:4px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer;transition:background .12s,border-color .12s,color .12s,box-shadow .12s}
+.chLkO button:hover{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.chLkO button.on{background:rgba(var(--acc),.22);border-color:var(--orange);color:var(--ink);box-shadow:0 0 0 1px rgba(var(--acc),.35)}
+.chLkO button.re .chIco{width:12px;height:12px;vertical-align:-2px}
+/* swatches: round chips of colour, the picked one ringed; the last opens any colour at all */
+.chLkO.sw{gap:5px}
+.chLkO.sw button,.chLkO.sw .any{position:relative;width:22px;height:22px;padding:0;border-radius:50%;border:2px solid rgba(0,0,0,.55);background:var(--c,#888);box-shadow:0 0 0 1px rgba(236,230,216,.18);cursor:pointer}
+.chLkO.sw button:hover,.chLkO.sw .any:hover{transform:scale(1.12)}
+.chLkO.sw button,.chLkO.sw .any{transition:transform .12s,box-shadow .12s}
+.chLkO.sw button.on,.chLkO.sw .any.on{box-shadow:0 0 0 2px var(--orange),0 0 8px rgba(var(--acc),.6)}
+.chLkO.sw button.txt{width:auto;height:22px;padding:0 9px;border-radius:11px;background:rgba(236,230,216,.06);color:#c9c3b5;font:600 10px var(--f-ui)}
+.chLkO.sw button.none{display:grid;place-items:center;background:rgba(236,230,216,.06)}
+.chLkO.sw button.none .chIco{width:10px;height:10px;fill:var(--dim)}
+.chLkO.sw .any{background:conic-gradient(#e2412c,#e8b84a,#6fd07a,#5f9ee8,#a585f4,#e2412c);overflow:hidden}
+.chLkO.sw .any.on{background:var(--c)}
+.chLkO.sw .any input{position:absolute;inset:-6px;opacity:0;cursor:pointer}
+.chLk input[type=range]{width:100%;accent-color:var(--orange);cursor:pointer}
+.chLkR{display:grid;grid-template-columns:1fr 38px;gap:8px;align-items:center}
+.chLkR output{text-align:right;color:var(--ink);font:700 11px var(--f-num);font-variant-numeric:tabular-nums}
+/* little dots of colour: a part's colours on the whole of you, a glove's colourway */
+.dots{display:inline-flex}
+.dots i{width:12px;height:12px;margin-right:-3px;border-radius:50%;background:var(--c);box-shadow:0 0 0 1.5px rgba(14,14,14,.9),0 0 0 2.5px rgba(236,230,216,.14)}
+.dots i:last-child{margin-right:0}
+/* the whole of you: a tile a part, its colours and what it is; click one to change it */
+.chLkSum{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px}
+.chLkSum button{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;padding:9px 11px;border:1px solid var(--chLine);border-radius:5px;background:var(--chCard);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.chLkSum button:hover{border-color:rgba(var(--acc),.6);background:rgba(var(--acc),.08);transform:translateY(-1px)}
+.chLkSum b{font-size:12px;font-weight:700}
+.chLkSum em{grid-column:1/-1;color:var(--dim);font-size:10.5px;font-style:normal;line-height:1.3}
+.chLkTs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0}
+.chLkT{display:inline-flex;align-items:center;gap:6px;padding:4px 9px 4px 5px;border:1px solid rgba(236,230,216,.14);border-radius:12px;background:rgba(236,230,216,.04);color:#c9c3b5;font:600 10.5px var(--f-ui);cursor:pointer}
+.chLkT .sw{position:relative;width:22px;height:12px;border-radius:6px;background:rgba(236,230,216,.16);transition:background .15s}
+.chLkT .sw::after{content:"";position:absolute;left:2px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--dim);transition:translate .15s,background .15s}
+.chLkT.on{border-color:rgba(var(--acc),.6);color:var(--ink)}
+.chLkT.on .sw{background:var(--orange)}
+.chLkT.on .sw::after{translate:10px 0;background:#fff}
+/* the zombies' minds: sliders with their number beside them */
+.chSl{display:grid;grid-template-columns:150px 1fr 48px;gap:10px;align-items:center;padding:6px 0;border-top:1px solid rgba(236,230,216,.06)}
+.chSl input{width:100%;accent-color:var(--orange);cursor:pointer}
+.chSl b{text-align:right;font:800 14px var(--f-num);font-variant-numeric:tabular-nums}
+/* curses: their mark, what they cost, and taking or lifting them */
+.chCurse{display:flex;align-items:center;gap:10px;margin-bottom:5px;padding:8px 10px;border:1px solid var(--chLine);border-left:3px solid rgba(232,80,58,.35);border-radius:4px;background:var(--chCard);transition:background .15s,border-color .15s}
+.chCurse .chCi{flex:none;width:26px;height:26px;padding:4px;border-radius:50%;background:rgba(232,80,58,.1);fill:#c9705e}
+.chCurse b{font-weight:700;font-size:12px}
+.chCurse small i{font-style:normal;color:#e8a04a}
+.chCurse.on{border-color:rgba(232,80,58,.5);border-left:3px solid transparent;border-image:repeating-linear-gradient(-45deg,#e8503a 0 4px,#3a0c08 4px 8px) 1;background:linear-gradient(90deg,rgba(150,30,20,.28),rgba(60,12,8,.12))}
+.chCurse.on .chCi{background:rgba(232,80,58,.25);fill:#ff8a70;filter:drop-shadow(0 0 4px rgba(232,80,58,.7))}
+.chCurse.clash{opacity:.62}
+/* zombies: pick a kind, an outfit and where, then send */
+.chSpawn{padding:10px}
+.chSeg{display:flex;flex-wrap:wrap;margin-bottom:6px;border:1px solid rgba(236,230,216,.14);border-radius:4px;overflow:hidden}
+.chSeg button{flex:1;padding:6px 8px;border:0;border-left:1px solid rgba(236,230,216,.1);background:none;color:#c9c3b5;font:600 11px var(--f-ui);cursor:pointer;white-space:nowrap;transition:background .12s,color .12s}
+.chSeg button:first-child{border-left:0}
+.chSeg button svg{width:13px;height:13px;margin-right:6px;vertical-align:-2px;fill:currentColor}
+.chSeg button:hover{background:rgba(236,230,216,.06)}
+.chSeg button.on{background:rgba(var(--acc),.22);color:var(--ink);box-shadow:inset 0 -2px 0 var(--orange)}
+.chTime{display:flex;align-items:center;gap:12px;padding:8px 0 2px}
 .chClock{font-family:var(--f-num);font-weight:800;font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
 #chTime{flex:1;accent-color:var(--orange);cursor:pointer}
-.chTime+.chBtns{display:grid;grid-template-columns:repeat(3,1fr)}
+.chTime+.chBtns{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:8px}
 .chTime+.chBtns .chBtn{text-align:center}
 /* health: the number and a slider to set it; status effects with a dot that lights while the icon is showing */
-.chHp{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.chHp{display:flex;align-items:center;gap:12px;padding:8px 0 4px}
 .chHp .chClock{min-width:96px}
 #chHp{flex:1;accent-color:#e2715a;cursor:pointer}
-.chNote{margin:0 0 6px;color:var(--dim);font-size:10.5px;line-height:1.35}
 .chDot{flex:none;width:8px;height:8px;border-radius:50%;background:rgba(236,230,216,.14);transition:background .15s,box-shadow .15s}
 .chDot.on{background:#9fd37a;box-shadow:0 0 6px rgba(159,211,122,.8)}
 .chFx .chGrp{flex:none}
+/* narrow screens: the sections along the top instead */
+@media (max-width:640px){
+  .chMain{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .chRail{flex-direction:row;padding:0 6px;border-right:0;border-bottom:1px solid var(--chLine);overflow-x:auto}
+  .chRail button{flex:1;padding:7px 6px}
+  .chRail button.on::before{left:6px;right:6px;top:auto;bottom:0;width:auto;height:3px;border-radius:2px 2px 0 0}
+  .chViewSlot,.chViewSlot.fig{grid-template-columns:1fr}
+  .chFigNav{flex-direction:row;flex-wrap:wrap;border-left:0;border-top:1px solid var(--chLine)}
+  .chLk{grid-template-columns:1fr}
+  .chFigTools{right:10px;bottom:auto;top:262px}
+  .chSl{grid-template-columns:1fr 48px}.chSl input{grid-column:1/-1;grid-row:2}
+  .chWc{border-left:0;border-top:1px solid var(--chLine)}
+}
 /* the reminder on the HUD while a switch is on */
 #cheatTag{top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);padding:3px 10px;border:1px solid rgba(var(--acc),.45);border-radius:3px;background:rgba(12,14,15,.6);
   color:var(--orange);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
-@media (prefers-reduced-transparency:reduce){#cheat{background:rgba(12,14,15,.97);-webkit-backdrop-filter:none;backdrop-filter:none}}
+@media (prefers-reduced-transparency:reduce){#cheat{background:rgba(12,14,15,.98);-webkit-backdrop-filter:none;backdrop-filter:none}}

@@ -166,7 +166,7 @@ export function makeRagdoll(z, dx, dz, part, force, wId, rig) {
   // only so many bodies are worked out at once: past that the oldest still moving is left as it lies
   if (!rig) { const live = ragdolls.filter(o => !o.sleep); if (live.length >= RAG.live) live[0].sleep = true; }
   const r = { g: m.g, mats: z.fade || m.mats, dm: z.dm, blob: z.blob, m, limbs: z.limbs, s, p, q, tone: drop ? HEAD_DROP.tone : RAG.tone, toneT: drop ? HEAD_DROP.toneT : fall.toneT, legK, upK: fall.up, o: new Float32Array(p), v: new Float32Array(p), on, im, loc, sticks, ghost, acc: 0, st: 0, still: 0, sleep: false, gy: 0,
-    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeT: 0, upY, noFore: !!(rig && rig.noFore), keep: !!rig };
+    x: z.x, z: z.z, t: 0, pooled: false, stain: z.stain, vis: z.vis, burn: z.burn > 0 ? Math.max(z.burn, 4) : 0, flash: z.flash || 0, eyes: z.limbs.head ? m.eyes : null, eyeH: z.eyeH, eyeGlow: z.limbs.head ? 1 : 0, eyeTint: m.eyeGlow || null, eyeLive: m.eyeCol ? new THREE.Color(m.eyeCol) : null, eyeT: 0, upY, noFore: !!(rig && rig.noFore), keep: !!rig };
   m.g.scale.setScalar(s);
   ragPose(r, p);
   (rig ? rig.list : ragdolls).push(r);

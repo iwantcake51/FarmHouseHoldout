@@ -1,7 +1,7 @@
 // Tiered upgrade lines (per-gun attachment tiers and character tiers).
 
 import { P } from '../player/player.js';
-import { DETACH, hasShotgun, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
+import { DETACH, hasShotgun, healMul, hpCap, MAGWELL, S, SIGHT_AIM, SIGHT_MOVE } from '../game/run-state.js';
 import { METAL } from '../barricades/planks.js';
 import { SLOW_STEP, slowLess } from './upgrades.js';
 
@@ -51,8 +51,8 @@ export const TIERS = {
     { r: 'e', name: 'ACOG', text: D => 'Zooms in further. ' + sightText(4, D) + (D && D.sniper ? ' Headshot crits do 2.25×.' : ''), vis: 'A 4× ACOG, its fibre optic glowing red on top', ap: () => {} },
     { r: 'l', name: 'High-power scope', text: D => 'Zooms in furthest. ' + sightText(5, D) + ' Headshot crits do 2.5×.', vis: 'A big scope', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Laser pointer', text: 'A beam shows where your shots land, and shots from the hip spread less.', ap: () => {} },
-    { r: 'r', name: 'Laser sight', text: 'A brighter beam, and less hip spread again.', ap: () => {} }] },
+    { r: 'u', name: 'Laser pointer', text: 'A beam shows where your shots land, and your aim settles back sooner after the recoil.', ap: () => {} },
+    { r: 'r', name: 'Laser sight', text: 'A brighter beam, and the recoil settles sooner again.', ap: () => {} }] },
   light: { tag: 'Attachment', t: [
     { r: 'u', name: 'Taped flashlight', text: 'At night it lights the ground ahead and outlines zombies caught in the beam.', ap: () => {} },
     { r: 'r', name: 'Weapon light', text: 'A brighter, wider beam that reaches further.', ap: () => {} }] },
@@ -68,9 +68,9 @@ export const TIERS = {
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },
   // armour, footwear and the hammer are skills (TIER_KIND, upgrades/upgrades.js), so none starts below uncommon
   armor: { tag: 'Body', t: [
-    { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = Math.min(S.maxHp, P.hp + 25); } },
+    { r: 'u', name: 'Canvas jacket', text: 'Raises your max health, and heals you by as much.', ap: () => { S.maxHp += 25; P.hp = Math.min(hpCap(), P.hp + 25 * healMul()); } },
     { r: 'r', name: 'Kevlar vest', text: 'Every hit on you does less damage.', ap: () => S.dmgTaken *= 0.8 },
-    { r: 'e', name: 'Plate carrier', text: 'Hits do less again, and your max health goes up.', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp += 25; } }] },
+    { r: 'e', name: 'Plate carrier', text: 'Hits do less again, and your max health goes up.', ap: () => { S.dmgTaken *= 0.75; S.maxHp += 25; P.hp = Math.min(hpCap(), P.hp + 25 * healMul()); } }] },
   // footwear: each step a little faster (BOOTS: about +17% in all), green, blue, then epic
   boots: { tag: 'Body', t: [
     { r: 'u', name: 'Good boots', text: 'Faster walking and sprinting.', ap: () => S.speedMul *= BOOTS[0] },
@@ -120,12 +120,12 @@ export const TIERS = {
     { r: 'r', name: 'Iron stomach', text: 'Some kills heal you a little, headshot kills more often, up to a limit each wave.', ap: () => { S.healOnKill = 1; S.headHeal = true; } },
     { r: 'e', name: 'Bloodthirst', text: 'Each feed heals more, and the limit goes up.', ap: () => { S.healOnKill = 2; S.headHeal = true; } },
     { r: 'l', name: 'Vampire', text: 'Kills feed you more often (every headshot kill), for more.', ap: () => { S.healOnKill = 3; S.vampire = S.headHeal = true; } }] },
-  // how far off you pick drops up (S.pickMul, pickups/pickups.js: PICK_R), and at the top step how much longer they lie
-  // there before they're gone (S.dropLife, s)
+  // how far off drops come to you (S.pickMul, pickups/pickups.js: PICK_R): anything in that reach glides in to you; and
+  // at the top step how much longer they lie there before they're gone (S.dropLife, s)
   magnet: { tag: 'Luck', t: [
-    { r: 'r', name: 'Long reach', text: 'You pick drops up from 15% further away.', ap: () => { S.pickMul = 1.15; } },
-    { r: 'e', name: 'Sticky fingers', text: 'You pick drops up from 25% further away.', ap: () => { S.pickMul = 1.25; } },
-    { r: 'l', name: 'Magnetic', text: 'You pick drops up from 40% further away, and they lie there 20 seconds longer before they\'re gone.', ap: () => { S.pickMul = 1.4; S.dropLife = 20; } }] }
+    { r: 'r', name: 'Long reach', text: 'Drops glide in to you from twice as far away.', ap: () => { S.pickMul = 2; } },
+    { r: 'e', name: 'Sticky fingers', text: 'Drops glide in to you from 175% further away.', ap: () => { S.pickMul = 2.75; } },
+    { r: 'l', name: 'Magnetic', text: 'Drops glide in to you from four times as far away, and they lie there 20 seconds longer before they\'re gone.', ap: () => { S.pickMul = 4; S.dropLife = 20; } }] }
 };
 // what tier n of line k is called on gun id
 export const tierName = (k, n, id) => { const st = TIERS[k].t[n]; return (st.as && st.as[id]) || st.name; };

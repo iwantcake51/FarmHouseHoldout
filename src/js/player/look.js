@@ -6,7 +6,7 @@
 import { pick, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { basic, lam } from '../core/shaders.js';
-import { box, finePieces, mergeInto, trimShadows, unfight } from '../core/geometry.js';
+import { box, finePieces, mergeInto, roundRectAt, roundRectLen, roundRing, trimShadows, unfight } from '../core/geometry.js';
 import { KNEE_Y, PACK, PM, pOutline } from './player.js';
 import { xrayAttach } from '../effects/outlines.js';
 
@@ -15,7 +15,7 @@ export const LOOK = { g: {}, cur: null, mirrorY: 0.214, xrayReady: false };
 const LOOK_ON = { head: PM.head, hat: PM.head, torso: PM.torso, armL: PM.armL, armR: PM.armR, legL: PM.legL, legR: PM.legR, shinL: PM.shinL, shinR: PM.shinR, shoeL: PM.shinL, shoeR: PM.shinR };
 for (const k in LOOK_ON) { const g = new THREE.Group(); LOOK_ON[k].add(g); LOOK.g[k] = g; if (LOOK_ON[k] === PM.shinL || LOOK_ON[k] === PM.shinR) g.position.y = -KNEE_Y; }   // (laid out in the whole leg's space, from the hip)
 export const PBOOT = [LOOK.g.shoeL, LOOK.g.shoeR];   // hidden by gear.js when you've upgraded your footwear
-const LOOKS = {
+export const LOOKS = {
   skin: [0xf2cfae, 0xe3b48f, 0xd2a07c, 0xbd8761, 0x9c6a46, 0x7a4e32, 0x5a3824],
   hair: [0x1e1814, 0x3a2a1e, 0x5e4026, 0x8a4a26, 0xc8a060, 0x9a948a],
   hairStyle: ['short', 'short', 'long', 'buzz', 'bald'],
@@ -41,8 +41,8 @@ const LOOKS = {
     // the suit, rare (SUIT_ODDS): charcoal, navy, black, grey, brown or taupe, with its trousers to match
     suit: [0x2a2c30, 0x2a2c30, 0x1e2434, 0x18181a, 0x4a4a4e, 0x4a3a2a, 0x5a5448]
   },
-  // under a flannel's rolled sleeves, a work shirt's or a tee's: a thermal down to the wrists (white most often, cream,
-  // oatmeal, heather grey, charcoal, or the red of long johns), showing at the open collar too
+  // under a flannel, a work shirt, a tee or a polo: a thermal (white most often, cream, oatmeal, heather grey, charcoal,
+  // or the red of long johns), its long sleeves out from under the shirt's and showing at the neck (buildLook)
   under: [0xe6e2d8, 0xe6e2d8, 0xe6e2d8, 0xd8cfb8, 0xc8bca0, 0x8a8a86, 0x3a3a3c, 0x7a2a24],
   underOdds: { flannel: 0.5, work: 0.35, tee: 0.22, polo: 0.08 },
   // what a suit comes with: a dress shirt (white, pale blue, pale pink, grey), a tie (red, navy, black, maroon, gold,
@@ -100,13 +100,13 @@ export function dealLook(opt) {
     // and the rest that makes a face someone's: freckles, a mole, a cleft chin, big ears, the grime of the last few days,
     // or (rarely) a patch over one eye
     freckles: rand() < 0.14, mole: rand() < 0.16 ? [rr(-0.12, 0.12), rr(-0.11, 0.0)] : null, cleft: rand() < 0.15, ears: rand() < 0.2 ? 1.35 : rr(0.9, 1.1), grime: rand() < 0.3, patch: rand() < 0.04 };
-  L.beardCol = L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9);
+  L.beardCol = o.beardCol ?? (L.hair === 0x9a948a ? 0xa8a49c : shade(L.hair, 0.9));   // (set on its own in the cheat menu's character section: ui/cheats.js)
   L.hat = o.hat ?? pick(LOOKS.hat); L.hatCol = o.hatCol ?? (L.hat === 'none' ? 0 : pick(LOOKS.hatCol[L.hat]));
   L.top = o.top ?? (rand() < SUIT_ODDS ? 'suit' : pick(LOOKS.top)); L.topCol = o.topCol ?? rollTopCol(L.top); L.print = o.print ?? (rand() < 0.5 ? pick([0xd8d2c4, 0xc8a040, 0xa83a2a, 0x2e2e30]) : 0);
   // a thermal under it now and then, never one that would vanish into the shirt over it
   L.under = o.under ?? (rand() < (LOOKS.underOdds[L.top] || 0) ? pick(LOOKS.under) : 0);
   for (let k = 0; k < 6 && o.under === undefined && L.under && near(L.under, L.topCol); k++) L.under = pick(LOOKS.under);
-  if (L.under && near(L.under, L.topCol)) L.under = 0;
+  if (o.under === undefined && L.under && near(L.under, L.topCol)) L.under = 0;
   const suit = L.top === 'suit';
   L.pants = o.pants ?? (suit ? L.topCol : pick(LOOKS.pants)); L.shoes = o.shoes ?? (suit ? 'dress' : pick(LOOKS.shoes));
   if (suit) { L.dress = o.dress ?? pick(LOOKS.dress); L.tie = o.tie ?? pick(LOOKS.tie); L.square = o.square ?? (rand() < 0.4 ? pick([0xeceae4, 0x8a1e1e, 0xb08a2a, 0x1e2a4a]) : 0); }
@@ -121,16 +121,17 @@ export function dealLook(opt) {
   L.holster = o.holster ?? pick(LOOKS.holster);
   L.glove = o.glove ?? pick(Object.keys(GLOVE_COLS));
   L.wrist = o.wrist ?? dealWrists();
+  if (o.own) L.own = o.own;   // (what's been set by hand in the cheat menu's character section, to keep: ui/cheats.js)
   return L;
 }
 // ---- on the wrists, now and then: a watch, a chain, beads, a rubber band or two, a leather cuff, a paracord band or
 // braided strings. Each wrist gets something WRIST_ODDS of the time, never the same kind as the other wrist, in colours
 // of its own; a watch is now and then gold (WATCH_GOLD) or, rarer still, iced out with diamonds round the bezel
 // (WATCH_ICE). Built by buildWrists
-const WRIST_KINDS = ['watch', 'watch', 'chain', 'beads', 'band', 'cuff', 'paracord', 'string'], WRIST_ODDS = 0.3, WATCH_GOLD = 0.08, WATCH_ICE = 0.03;
+export const WRIST_KINDS = ['watch', 'watch', 'chain', 'beads', 'band', 'cuff', 'paracord', 'string'], WRIST_ODDS = 0.3, WATCH_GOLD = 0.08, WATCH_ICE = 0.03;
 const METALS = { steel: 0xb8bcc0, gold: 0xd4a83a, rose: 0xc88a6a, gun: 0x4a4c50, black: 0x202124, platinum: 0xe2e4e8 };
 const LEATHERS = [0x4a2e1c, 0x2a1c14, 0x6a4226, 0x1a1a1c, 0x7a5a3a];
-function dealWrist(kind) {
+export function dealWrist(kind) {
   const muted = () => hsl(rand(), rr(0.15, 0.5), rr(0.15, 0.4)), bright = () => hsl(rand(), rr(0.55, 0.9), rr(0.4, 0.6));
   switch (kind) {
     case 'watch': {
@@ -158,11 +159,27 @@ function dealWrists() {
   }
   return w;
 }
+// the thermal under the top (0: none): only the tops that are worn over one (LOOKS.underOdds) show it, so one set under a
+// tee stays dealt when you try a hoodie on, and comes back with the tee
+export const thermalOf = L => L.under && LOOKS.underOdds[L.top] !== undefined ? L.under : 0;
 // the shirt colours, unless body armour's canvas jacket is covering it (build-weapons.js calls this too)
 export function shirtColours(jacket) {
   const c = jacket ? 0x7a6a4a : (LOOK.cur ? LOOK.cur.topCol : 0x4e5a3c);
   PM.mats.shirt.color.setHex(c); PM.mats.shirtDk.color.setHex(jacket ? 0x5e5036 : shade(c, 0.76));
 }
+// ---- your own look, kept: made in the title's Character menu (ui/look-menu.js) or the cheat menu, and when it's to be
+// kept (LOOK_SAVE.on) it's who you are on the title, at the start of every run and every time you're back on your feet
+// in co-op; otherwise every run deals someone new. Kept in this browser (localStorage, LOOK_KEY)
+const LOOK_KEY = 'fhh-look';
+export const LOOK_SAVE = { on: false, look: null };
+try { const k = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null'); if (k && k.look) Object.assign(LOOK_SAVE, { on: !!k.on, look: k.look }); } catch (e) {}
+function storeLook() { try { localStorage.setItem(LOOK_KEY, JSON.stringify({ on: LOOK_SAVE.on, look: LOOK_SAVE.look })); } catch (e) {} }
+// the look to spawn in (a copy, so the run's changes never reach what's kept), or undefined for someone new
+export const spawnLook = () => LOOK_SAVE.on && LOOK_SAVE.look ? JSON.parse(JSON.stringify(LOOK_SAVE.look)) : undefined;
+// keep the look you have now (on), or go back to a new one each run (off: what was kept stays, for switching back on)
+export function keepLook(on) { LOOK_SAVE.on = !!on; if (on && LOOK.cur) LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); }
+// your look's just been changed by hand: kept, if you're keeping it
+export function lookChanged() { if (LOOK_SAVE.on && LOOK.cur) { LOOK_SAVE.look = JSON.parse(JSON.stringify(LOOK.cur)); storeLook(); } }
 // clear the old look and build a new one; attach is false only for the first build, before the x-ray rim exists
 export function rollLook(opt) {
   const L = LOOK.cur = dealLook(opt);
@@ -174,7 +191,7 @@ export function rollLook(opt) {
   // pull flush faces apart, then fold each group's small pieces into a few meshes
   const pieces = new Set(); Object.values(LOOK.g).forEach(g => g.traverse(o => { if (o.isMesh) pieces.add(o); }));
   unfight(PM.g, { only: pieces, fixed: new Set([PM.torso, PM.head, PM.armL, PM.armR, PM.legL, PM.legR, PM.shinL, PM.shinR]) });
-  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skinDk, PM.mats.pants]) };
+  const live = { live: new Set([PM.mats.shirt, PM.mats.shirtDk, PM.mats.skin, PM.mats.skinDk, PM.mats.pants]) };
   const faceParts = new Set(faceGroups(LOOK.g.head));   // (kept whole, so they can move: faceMood)
   Object.values(LOOK.g).forEach(g => mergeInto(g, finePieces(g, faceParts), live));
   // the hat's big pieces keep the faint rim and the see-through silhouette like the rest of you
@@ -201,30 +218,60 @@ const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mou
 const WORRY = { browLift: 0.02, browTilt: 0.38, widen: 0.75, mouthW: 0.5, mouthH: 4.5, jaw: 0.009 };
 const HURT_FX = { browDrop: 0.01, browTilt: 0.32, squeeze: 0.8, mouthW: 1.4, mouthH: 0.55 };
 const AIM_FX = { shut: 0.92, squint: 0.4 };
-export function faceMood(H, a, w = 0, h = 0, k = 0) {
-  const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k)) return; f.a = a; f.w = w; f.h = h; f.k = k;
+// bl: how far through a blink (blinkStep) both open eyes are. A patched eye has nothing to blink or narrow; and with
+// the patch over the eye you'd aim with (f.aim), it's the other one that squints along the gun, nothing left to shut
+export function faceMood(H, a, w = 0, h = 0, k = 0, bl = 0) {
+  const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k && f.bl === bl)) return; f.a = a; f.w = w; f.h = h; f.k = k; f.bl = bl;
   const o = w * w;
   f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w - HURT_FX.browDrop * h; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w - HURT_FX.browTilt * h); });
-  f.eyes.forEach(g => { g.scale.y = Math.max(0.07, 1 - ANGER.squint * a + WORRY.widen * w - HURT_FX.squeeze * h - (g.userData.s < 0 ? AIM_FX.shut : AIM_FX.squint) * k); });
+  f.eyes.forEach(g => { g.scale.y = Math.max(0.07, (1 - ANGER.squint * a + WORRY.widen * w - HURT_FX.squeeze * h - (g.userData.s !== (f.aim || 1) ? AIM_FX.shut : AIM_FX.squint) * k) * (1 - bl)); });
   const m = f.mouth; if (!m) return;
   if (m.userData.y0 === undefined) m.userData.y0 = m.position.y;
   m.position.y = m.userData.y0 - WORRY.jaw * o;
   m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o) * (1 + (HURT_FX.mouthW - 1) * h), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o) * (1 + (HURT_FX.mouthH - 1) * h), 1);
+}
+// blinking: every few seconds (BLINK.gap), now and then twice in a row (BLINK.twice), each a quick close and a slower
+// open (BLINK.dur, BLINK.shut of it closing). b holds one face's own timing; how shut its eyes are this moment, 0 to 1
+const BLINK = { gap: [2.2, 6], dur: 0.17, shut: 0.35, twice: 0.18 };
+export function blinkStep(b, dt) {
+  if (b.at === undefined) { b.t = 0; b.at = rr(0.3, BLINK.gap[1]); }
+  b.t += dt; if (b.t < b.at) return 0;
+  const u = (b.t - b.at) / BLINK.dur;
+  if (u >= 1) { b.dbl = !b.dbl && rand() < BLINK.twice; b.at = b.t + (b.dbl ? 0.09 : rr(BLINK.gap[0], BLINK.gap[1])); return 0; }
+  const e = x => x * x * (3 - 2 * x);
+  return u < BLINK.shut ? e(u / BLINK.shut) : 1 - e((u - BLINK.shut) / (1 - BLINK.shut));
+}
+// which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
+export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
+// how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
+// jaw, a goatee), the line and its corners hw either side of x and as far as h below it (the grim chin's crease)
+const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
+function mouthOver(hair, x, y, hw, h) {
+  let z = MOUTH_Z.face;
+  for (const c of hair) {
+    if (!c.geometry.boundingBox) c.geometry.computeBoundingBox();
+    c.updateMatrix(); _mb.copy(c.geometry.boundingBox).applyMatrix4(c.matrix);
+    if (_mb.max.x > x - hw && _mb.min.x < x + hw && _mb.max.y > y - h && _mb.min.y < y + 0.012) z = Math.max(z, _mb.max.z + MOUTH_Z.over);
+  }
+  return z;
 }
 export function buildLook(L) {
   const H = LOOK.g.head, HT = LOOK.g.hat, TO = LOOK.g.torso, sils = [], sil = m => { m.userData.sil = true; sils.push(m); return m; };
   const hair = lm(L.hair), beard = lm(L.beardCol), skinDk = PM.mats.skinDk, shirt = PM.mats.shirt, shirtDk = PM.mats.shirtDk;
   // ---- face: eyes, brows, nose, mouth and ears, each dealt one of a few shapes (L.face), set a little unevenly
   const F = L.face, brow = L.hairStyle === 'bald' ? beard : hair, dark = lm(0x141010), white = lm(0xe2dccf), scarM = lm(shade(L.skin, 1.16)), circ = lm(shade(L.skin, 0.68));
-  const face = H.userData.face = { eyes: [], brows: [], mouth: null };
+  const face = H.userData.face = { eyes: [], brows: [], mouth: null, aim: aimEye(L) };
   [-1, 1].forEach(s => {
     const x = s * F.gap, y = F.eyeY + (s > 0 ? F.lop : 0), eyeM = lm(s > 0 ? L.eyes2 || L.eyes : L.eyes), n0 = H.children.length;
     if (F.patch && s === F.side) {   // a patch over this eye, its strap round the head
-      box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = -s * 0.22;
-      [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * s * 0.036, 0));
+      // (the strap round the sides carries on from the front's ends at their own height, rather than from the other end)
+      const tl = -s * 0.22, ex = 0.166;
+      box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = tl;
+      [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * ex * Math.tan(tl), 0));
     }
-    else if (F.eye === 'beady') { box(H, 0.026, 0.03, 0.012, eyeM, x, y, 0.162); box(H, 0.012, 0.016, 0.012, dark, x - s * 0.003, y, 0.165); }   // small dark eyes, no whites
-    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.022, 0.016, 0.012, dark, x - s * 0.004, y, 0.165); }   // a squint
+    // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
+    else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }
+    else if (F.eye === 'narrow' || (F.eye === 'oneSquint' && s === F.side)) { box(H, 0.05, 0.016, 0.012, white, x, y, 0.162); box(H, 0.026, 0.016, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.012, 0.012, dark, x - s * 0.004, y, 0.167); }
     else if (F.eye === 'droopy') {   // the outer corners lower, the lids heavy
       const e = box(H, 0.05, 0.026, 0.012, white, x, y, 0.162); e.rotation.z = s * -0.22; box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, 0.013, 0.012, dark, x - s * 0.004, y, 0.167);
       box(H, 0.058, 0.012, 0.014, PM.mats.skinDk, x, y + 0.012, 0.169).rotation.z = s * -0.22;
@@ -234,7 +281,7 @@ export function buildLook(L) {
     }
     else {
       const h = F.eye === 'wide' ? 0.036 : 0.03;
-      box(H, 0.05, h, 0.012, white, x, y, 0.162); box(H, 0.024, h - 0.002, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.012, h * 0.5, 0.012, dark, x - s * 0.004, y, 0.167);
+      box(H, 0.05, h, 0.012, white, x, y, 0.162); box(H, 0.026, h - 0.002, 0.012, eyeM, x - s * 0.004, y, 0.164); box(H, 0.011, h * 0.45, 0.012, dark, x - s * 0.004, y, 0.167);
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) box(H, 0.046, 0.007, 0.012, PM.mats.skinDk, x, y - 0.026, 0.163);
@@ -297,7 +344,7 @@ export function buildLook(L) {
     }
   }
   // ---- facial hair, then the mouth over it. Stubble is shadow, the skin and the hair mixed, not a solid block of hair
-  const stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
+  const nb = H.children.length, stub = k => lm(new THREE.Color(L.skin).lerp(new THREE.Color(L.beardCol), k).getHex());
   const bd = L.beard, jaw = (m, h) => { box(H, 0.3, h, 0.024, m, 0, -0.16 + h / 2, 0.166); [-1, 1].forEach(s => box(H, 0.014, 0.13, 0.12, m, s * 0.166, -0.08, 0.06)); };
   const tache = (w, y) => box(H, w, 0.026, 0.026, beard, 0, y ?? -0.072, 0.174);
   const chin = (w, h, y) => box(H, w, h, 0.032, beard, 0, y, 0.168);
@@ -317,8 +364,9 @@ export function buildLook(L) {
   else if (bd === 'sideburns') [-1, 1].forEach(s => box(H, 0.014, 0.1, 0.06, beard, s * 0.166, -0.02, 0.07));
   // the mouth: no lips, just the line of it, dark and all but flush with the face (in front of a full beard): plain,
   // thin, turned down, a smirk up at one corner, or set grim with the chin creased under it
-  const mY = -0.098, mZ = bd === 'full' || bd === 'longBeard' ? 0.187 : 0.1615, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
+  const mY = -0.098, mouthM = lm(new THREE.Color(L.skin).multiplyScalar(0.48).lerp(new THREE.Color(0x4a1e18), 0.3).getHex());
   const mw = F.mouth === 'thin' ? 0.046 : 0.058, mh = F.mouth === 'thin' ? 0.005 : 0.008, mx = F.mouth === 'smirk' ? -F.side * 0.005 : 0, n2 = H.children.length;
+  const mZ = mouthOver(H.children.slice(nb, n2), mx, mY, mw / 2 + 0.02, 0.03);
   box(H, mw, mh, 0.004, mouthM, mx, mY, mZ);
   if (F.mouth === 'frown') [-1, 1].forEach(s => box(H, 0.012, 0.006, 0.004, mouthM, s * (mw / 2 + 0.003), mY - 0.005, mZ).rotation.z = s * 0.6);
   else if (F.mouth === 'smirk') box(H, 0.016, 0.006, 0.004, mouthM, mx + F.side * (mw / 2 + 0.005), mY + 0.004, mZ).rotation.z = F.side * 0.55;
@@ -356,18 +404,19 @@ export function buildLook(L) {
     box(a, 0.156, 0.156, len, shirt, 0, 0, -0.03 + len / 2);
     if (cuff) box(a, cuff[0], cuff[0], cuff[1], shirtDk, 0, 0, -0.03 + len - cuff[1] / 2 + cuff[2]);
   });
-  // a thermal under it: its sleeves run on to the wrist (WRIST) under the shirt's, with a ribbed cuff and a few rows of
-  // the waffle knit, and it shows at the open collar, a henley's two buttons in it
-  const WRIST = 0.43;
-  if (L.under) {
-    const th = lm(L.under), thDk = lm(shade(L.under, 0.86));
+  // a thermal under it: its own long sleeves on to the wrist (WRIST) out from under the shirt's, in its own colour, with a
+  // ribbed cuff and a few rows of the knit; and it shows at the neck: at the open collar of a work shirt or a flannel
+  // (a henley's two buttons in it), or as a band above a tee's crew neck or a polo's collar
+  const WRIST = 0.43, under = thermalOf(L);
+  if (under) {
+    const th = lm(under), thDk = lm(shade(under, 0.84));
     [LOOK.g.armL, LOOK.g.armR].forEach(a => {
       box(a, 0.15, 0.15, WRIST + 0.024, th, 0, 0, -0.024 + (WRIST + 0.024) / 2);   // (its back end tucked a hair inside the shirt's, so it never shows through at the back of the arm)
       box(a, 0.153, 0.153, 0.035, thDk, 0, 0, WRIST - 0.018);
       [0.24, 0.3, 0.36].forEach(z => box(a, 0.152, 0.152, 0.006, thDk, 0, 0, z));
     });
     if (L.top === 'work' || L.top === 'flannel') { box(TO, 0.1, 0.06, 0.008, th, 0, 0.27, 0.152); [0.282, 0.258].forEach(y => box(TO, 0.012, 0.012, 0.006, thDk, 0, y, 0.158)); }
-    else box(TO, 0.2, 0.014, 0.05, th, 0, 0.306, 0.13);   // a band of it above a crew neck or a polo's collar
+    else box(TO, 0.21, 0.018, 0.058, th, 0, 0.312, 0.128);   // (up out of the collar, its top just over the shoulders)
   }
   if (L.top === 'work' || L.top === 'flannel') {
     [-1, 1].forEach(s => box(TO, 0.12, 0.04, 0.08, shirtDk, s * 0.07, 0.295, 0.125).rotation.y = s * 0.35);
@@ -453,56 +502,96 @@ export function buildLook(L) {
   buildWrists(L);
   return sils;
 }
-// what's on the wrists (L.wrist, dealWrists): just back from the hand (WRIST_Z), on the bare wrist or over a long
-// sleeve's cuff, its face or clasp on top
-const WRIST_Z = 0.405;
+// what's on the wrists (L.wrist, dealWrists): just back from the hand (WRIST_Z), snug on the bare wrist or over a long
+// sleeve's cuff, its face or clasp on top. Each is built at its true size and round where the real thing is round (a
+// watch's case, a bead, a chain's links): the arm's thinned (ARM_THIN, player/hold.js), so it's all set in a group that
+// undoes that (WR_TRUE) rather than squashed with it; its bands are rounded off over the wrist's corners (roundRing)
+const WRIST_Z = 0.405, WR_TRUE = 1 / 0.84, WR_ARM = 0.07 * 0.84, WR_R = 0.016;
 let iceMat = null;
+const wrSph = new THREE.SphereGeometry(1, 10, 8), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 6, 12), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
+const _wrq = [0, 0, 0, 0], _wrq2 = [0, 0, 0, 0];
 function buildWrists(L) {
   const w = L.wrist; if (!w) return;
-  const long = !!L.under || ['hoodie', 'poloLong', 'suit'].includes(L.top), W0 = long ? 0.176 : 0.15, top = W0 / 2, z = WRIST_Z;
+  const long = !!thermalOf(L) || ['hoodie', 'poloLong', 'suit'].includes(L.top), h0 = (long ? 0.176 * 0.84 / 2 : WR_ARM) + 0.002, z = WRIST_Z;
   for (const s of ['L', 'R']) {
-    const it = w[s], a = LOOK.g['arm' + s], out = s === 'L' ? -1 : 1; if (!it) continue;
-    const band = (wd, len, c, dz) => box(a, wd, wd, len, lm(c), 0, 0, z + (dz || 0));
+    const it = w[s], out = s === 'L' ? -1 : 1; if (!it) continue;
+    const G = new THREE.Group(); G.scale.set(WR_TRUE, WR_TRUE, 1); G.position.z = z; LOOK.g['arm' + s].add(G);
+    const mesh = (geo, c, x, y, zz) => { const m = new THREE.Mesh(geo, typeof c === 'number' ? lm(c) : c); m.position.set(x || 0, y || 0, zz || 0); m.castShadow = false; G.add(m); return m; };
+    const ring = (h, len, thick, c, dz) => mesh(roundRing(h, h, WR_R + (h - h0), len, thick), c, 0, 0, dz || 0);
+    const cyl = (r, ht, c, x, y, zz, axis) => { const m = mesh(wrCyl, c, x, y, zz); m.scale.set(r, ht, r); if (axis === 'x') m.rotation.z = Math.PI / 2; else if (axis === 'z') m.rotation.x = Math.PI / 2; return m; };
+    // things strung round the wrist (beads, links, a weave's knots), n of them evenly round it at h out, each put by at(k, point, outward, along)
+    const round = (h, n, at) => { const r = WR_R + (h - h0); for (let k = 0; k < n; k++) { roundRectAt(k / n, h, h, r, _wrq); roundRectAt(k / n + 0.002, h, h, r, _wrq2); at(k, _wrq[0], _wrq[1], _wrq[2], _wrq[3], _wrq2[0] - _wrq[0], _wrq2[1] - _wrq[1]); } };
+    const perim = h => roundRectLen(h, h, WR_R + (h - h0)), top = h0;
     if (it.kind === 'watch') {
-      const st = it.style, m = it.metal, dig = st === 'digital', cw = dig ? 0.052 : 0.046, dark = new THREE.Color(it.face).getHSL({}).l < 0.4;
-      // the strap, or a bracelet of links (steel, gold, platinum) with its links picked out
-      if (st === 'gold' || st === 'ice' || st === 'steel') { band(W0, 0.022, m); [-0.006, 0.006].forEach(dz => band(W0 + 0.002, 0.003, shade(m, 0.72), dz)); }
-      else { band(W0, 0.018, it.strap); if (st === 'leather') band(W0 + 0.002, 0.004, shade(it.strap, 0.7), 0); }
-      box(a, cw, 0.014, cw, lm(m), 0, top + 0.007, z);                                           // the case
-      box(a, 0.008, 0.008, 0.007, lm(shade(m, 0.85)), out * (cw / 2 + 0.003), top + 0.007, z);   // the crown, on the outside
-      box(a, cw - 0.012, 0.003, cw - 0.012, lm(it.face), 0, top + 0.0155, z);                     // the face
-      if (dig) { box(a, 0.026, 0.0014, 0.012, lm(0x2a2e26), 0, top + 0.0172, z); [-1, 1].forEach(k => box(a, 0.006, 0.006, 0.006, lm(0x5a5a5e), k * 0.017, top + 0.016, z - cw / 2 - 0.001)); }   // the digits; the buttons
-      else {
-        const hc = lm(dark ? 0xeceae4 : 0x1a1a1c), mk = (len, turn) => { const o = len / 2 - 0.002; box(a, 0.003, 0.0014, len, hc, Math.sin(turn) * o, top + 0.0175, z + Math.cos(turn) * o).rotation.y = turn; };
-        mk(0.011, it.turn); mk(0.016, it.turn2);   // the hands, at their own time
-        [0, 1, 2, 3].forEach(k => { const an = k * Math.PI / 2; box(a, 0.004, 0.0012, 0.004, hc, Math.sin(an) * 0.014, top + 0.0172, z + Math.cos(an) * 0.014); });   // twelve, three, six, nine
+      const st = it.style, m = it.metal, dig = st === 'digital', dark = new THREE.Color(it.face).getHSL({}).l < 0.4, R = dig ? 0.019 : 0.0175;
+      // the strap or bracelet round the wrist, on lugs either side of the case
+      if (st === 'gold' || st === 'ice' || st === 'steel') {
+        ring(h0, 0.02, 0.0034, m); const n = Math.round(perim(h0 + 0.0034) / 0.0068);
+        round(h0 + 0.0034, n, (k, x, y, nx, ny, tx, ty) => { if (y > top - 0.004 && Math.abs(x) < R) return; [-0.0068, 0, 0.0068].forEach(dz => { const b = mesh(bgeoW(0.0058, 0.0012, dz ? 0.0058 : 0.0064), dz ? shade(m, 0.8) : shade(m, 1.12), x + nx * 0.0004, y + ny * 0.0004, dz); b.rotation.z = Math.atan2(ty, tx); }); });   // its links, the middle row brighter
+      } else {
+        ring(h0, 0.019, 0.0026, it.strap);
+        if (st === 'leather') [-1, 1].forEach(e => ring(h0 + 0.0026, 0.0012, 0.0004, shade(it.strap, 0.62), e * 0.0075));   // its stitching
+        // the buckle and its keeper underneath
+        const bk = st === 'sport' || st === 'digital' ? 0x2a2a2c : m; mesh(bgeoW(0.018, 0.0022, 0.022), bk, 0, -top - 0.003, 0); mesh(bgeoW(0.012, 0.0024, 0.014), it.strap, 0, -top - 0.0036, 0);
+      }
+      const cy = top + 0.0062;
+      [-1, 1].forEach(e => [-1, 1].forEach(f => mesh(bgeoW(0.0035, 0.004, 0.006), m, f * R * 0.62, top + 0.0035, e * (R + 0.002))));   // the lugs
+      if (dig) {
+        // a digital: a squared-off case, its screen with the time on it, buttons down the sides
+        mesh(bgeoW(R * 2, 0.011, R * 2), m, 0, cy, 0); mesh(bgeoW(R * 2 - 0.008, 0.0016, R * 2 - 0.009), it.face, 0, cy + 0.0056, 0);
+        const dg = lm(0x23271f); [-0.0085, -0.0035, 0.0035, 0.0085].forEach(x => mesh(bgeoW(0.0036, 0.0006, 0.0062), dg, x, cy + 0.0066, 0.0006)); [-1, 1].forEach(e => mesh(bgeoW(0.0009, 0.0006, 0.0009), dg, 0, cy + 0.0066, 0.0006 + e * 0.0016));
+        [-1, 1].forEach(e => [-0.006, 0.006].forEach(dz => cyl(0.0016, 0.004, 0x5a5a5e, e * (R + 0.0014), cy, dz, 'x')));
+      } else {
+        // a round case, its bezel (a sport watch's turning one marked off), the dial with its markers and hands, the crown out on the side
+        cyl(R, 0.009, m, 0, cy - 0.0008, 0); const bz = mesh(wrBezel, st === 'sport' ? 0x18181a : shade(m, 0.9), 0, cy + 0.0042, 0); bz.rotation.x = Math.PI / 2; bz.scale.set(R - 0.0016, R - 0.0016, 0.0048);   // (the bezel a ring round the dial, not a disc over it)
+        cyl(R - 0.0026, 0.001, it.face, 0, cy + 0.0042, 0);
+        const hc = dark ? 0xeceae4 : 0x1a1a1c;
+        for (let k = 0; k < 12; k++) { const an = k * Math.PI / 6, big = k % 3 === 0, rr2 = R - 0.0058; const b = mesh(bgeoW(big ? 0.0014 : 0.0009, 0.0006, big ? 0.0034 : 0.002), hc, Math.sin(an) * rr2, cy + 0.005, Math.cos(an) * rr2); b.rotation.y = an; }
+        if (st === 'sport') for (let k = 0; k < 12; k++) { const an = k * Math.PI / 6; mesh(bgeoW(0.0012, 0.0005, 0.0012), k ? 0xd8d8d8 : 0xd8402a, Math.sin(an) * (R - 0.0016), cy + 0.0066, Math.cos(an) * (R - 0.0016)); }
+        const hand = (len, wd, c, turn) => { const o = len / 2 - 0.0015, b = mesh(bgeoW(wd, 0.0005, len), c, Math.sin(turn) * o, cy + 0.0053, Math.cos(turn) * o); b.rotation.y = turn; };
+        hand(0.0085, 0.0016, hc, it.turn); hand(0.0125, 0.0011, hc, it.turn2); hand(0.013, 0.0005, 0xc8302a, it.turn2 * 7.3);   // hour, minute and the red seconds
+        cyl(0.0012, 0.0012, hc, 0, cy + 0.0055, 0);
+        cyl(0.0019, 0.004, shade(m, 0.85), out * (R + 0.002), cy - 0.0005, 0, 'x');   // the crown
       }
       if (st === 'ice') {
-        // diamonds set all the way round the bezel, catching the light (lit by nothing, so they always shine)
+        // diamonds set all the way round the bezel and down the bracelet, catching the light (lit by nothing, so they always shine)
         iceMat = iceMat || basic(0xf2faff);
-        for (let k = 0; k < 16; k++) { const an = k * Math.PI / 8, rr2 = cw / 2 - 0.003, c = Math.max(Math.abs(Math.cos(an)), Math.abs(Math.sin(an))); box(a, 0.005, 0.004, 0.005, iceMat, Math.sin(an) / c * rr2, top + 0.0155, z + Math.cos(an) / c * rr2); }
-        [-0.006, 0.006].forEach(dz => [-1, 1].forEach(k => box(a, 0.004, 0.003, 0.004, iceMat, k * 0.03, top + 0.0012, z + dz)));   // and down the bracelet
+        for (let k = 0; k < 20; k++) { const an = k * Math.PI / 10, g = mesh(wrGem, iceMat, Math.sin(an) * (R - 0.0016), cy + 0.0064, Math.cos(an) * (R - 0.0016)); g.scale.setScalar(0.0016); }
+        round(h0 + 0.0036, 26, (k, x, y, nx, ny) => { if (y > top - 0.004) return; const g = mesh(wrGem, iceMat, x + nx * 0.0012, y + ny * 0.0012, 0); g.scale.setScalar(0.0014); });
       }
     } else if (it.kind === 'chain') {
-      band(W0, 0.009, it.metal); band(W0 + 0.003, 0.004, shade(it.metal, 0.7), 0.0025); band(W0 + 0.003, 0.004, shade(it.metal, 1.15), -0.0025);   // links, light and dark
-      box(a, 0.012, 0.006, 0.01, lm(it.metal), 0, top + 0.003, z);                                // the clasp
+      // a curb chain: oval links each turned across the last, and its clasp underneath
+      const n = 2 * Math.round(perim(h0 + 0.0025) / 0.0144);
+      round(h0 + 0.0025, n, (k, x, y, nx, ny, tx, ty) => { const l = mesh(wrLink, k % 2 ? shade(it.metal, 0.84) : it.metal, x, y, 0); l.scale.set(0.0052, 0.0034, 0.0034); l.rotation.set(k % 2 ? Math.PI / 2 : 0, 0, Math.atan2(ty, tx), 'ZYX'); });   // (each turned about its own length: lying flat, then standing up through the last)
+      const c = mesh(wrSph, it.metal, 0, -top - 0.004, 0.002); c.scale.set(0.0035, 0.0028, 0.006);
     } else if (it.kind === 'beads') {
-      // beads strung tight round the wrist, a few to a side (as many as it has colours for)
-      const h = top + 0.006, per = it.cols.length / 4, sp = 2 * h / per, sz = sp * 0.9;
-      it.cols.forEach((c, k) => { const side = Math.floor(k / per), t = -h + sp * (k % per + 0.5), x = side === 0 ? t : side === 2 ? -t : side === 1 ? h : -h, y = side === 0 ? h : side === 2 ? -h : side === 1 ? -t : t; box(a, sz, sz, sz, lm(c), x, y, z); });
+      // round beads strung tight round the wrist, the colours in the order they were strung
+      const br = 0.0052, n = Math.round(perim(h0 + br) / (br * 2.02));
+      round(h0 + br * 0.85, n, (k, x, y) => { const b = mesh(wrSph, it.cols[k % it.cols.length], x, y, 0); b.scale.setScalar(br); });
     } else if (it.kind === 'band') {
-      band(W0, 0.014, it.col); if (it.col2) band(W0 - 0.002, 0.012, it.col2, -0.018);   // a rubber band, and now and then another behind it
+      // a rubber band or a hair tie, and now and then another behind it
+      ring(h0, 0.005, 0.0024, it.col); if (it.col2) ring(h0, 0.0045, 0.0022, it.col2, -0.012);
     } else if (it.kind === 'cuff') {
-      band(W0 + 0.002, 0.042, it.col); band(W0 + 0.004, 0.004, shade(it.col, 0.7), 0.017); band(W0 + 0.004, 0.004, shade(it.col, 0.7), -0.017);   // a leather cuff, its edges stitched
-      box(a, 0.012, 0.006, 0.012, lm(it.metal), 0, top + 0.004, z);                               // the snap
+      // a leather cuff: a wide band, its edges stitched, closed with two press studs on top
+      ring(h0, 0.04, 0.0036, it.col); const sc = lm(shade(it.col, 1.45));
+      [-1, 1].forEach(e => round(h0 + 0.0036, Math.round(perim(h0 + 0.0036) / 0.0045), (k, x, y, nx, ny, tx, ty) => { if (k % 2) return; const b = mesh(bgeoW(0.0025, 0.0005, 0.0009), sc, x + nx * 0.0002, y + ny * 0.0002, e * 0.0155); b.rotation.z = Math.atan2(ty, tx); }));
+      [-0.008, 0.008].forEach(dz => { cyl(0.0042, 0.0016, it.metal, 0, top + 0.0044, dz); cyl(0.0022, 0.0008, shade(it.metal, 0.7), 0, top + 0.0055, dz); });
     } else if (it.kind === 'paracord') {
-      band(W0, 0.022, it.col); const c2 = lm(it.col2 || shade(it.col, 0.62));
-      for (let k = 0; k < 5; k++) { const b = box(a, 0.007, 0.004, 0.02, c2, -0.024 + k * 0.012, top + 0.001, z); b.rotation.y = 0.5; }   // the weave
-      box(a, 0.024, 0.008, 0.018, lm(0x1c1c1e), out * (top + 0.002), 0, z);                        // the buckle, on the outside
+      // a cobra weave: knots crossing over each other the length of it, two colours if it has them, and its side-release buckle on the outside
+      ring(h0, 0.021, 0.0025, shade(it.col, 0.75)); const c2 = it.col2 || shade(it.col, 0.82);
+      round(h0 + 0.0025, Math.round(perim(h0 + 0.0025) / 0.0052), (k, x, y, nx, ny, tx, ty) => { if (nx * out > 0.7) return; [-1, 1].forEach(e => { const b = mesh(wrSph, (k % 2) ? it.col : c2, x + nx * 0.0014, y + ny * 0.0014, e * 0.0052); b.scale.set(0.0034, 0.0022, 0.0062); b.rotation.set(0, e * (k % 2 ? 0.55 : -0.55), Math.atan2(ty, tx), 'ZYX'); }); });
+      const bx = out * (top + 0.0035); mesh(bgeoW(0.006, 0.019, 0.024), 0x1c1c1e, bx, 0, 0); [-1, 1].forEach(e => mesh(bgeoW(0.0066, 0.004, 0.003), 0x0e0e10, bx, e * 0.005, 0));
     } else {
-      // braided strings, three together
-      it.cols.forEach((c, k) => band(W0 + 0.001 * k, 0.004, c, (k - 1) * 0.005));
+      // braided strings, three twisted together round the wrist, knotted underneath with their ends hanging
+      it.cols.forEach((c, k) => {
+        const pts = []; for (let j = 0; j <= 48; j++) { const u = j / 48; roundRectAt(u, h0 + 0.0016, h0 + 0.0016, WR_R + 0.0016, _wrq); const ph = u * Math.PI * 2 * 14 + k * Math.PI * 2 / 3; pts.push(new THREE.Vector3(_wrq[0] + _wrq[2] * 0.0009 * Math.cos(ph), _wrq[1] + _wrq[3] * 0.0009 * Math.cos(ph), 0.0016 * Math.sin(ph))); }
+        mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, 0.0011, 5, true), c);
+        const e = mesh(bgeoW(0.0016, 0.012, 0.0016), c, (k - 1) * 0.0022, -top - 0.007, 0.002 * (k - 1)); e.rotation.z = (k - 1) * 0.2;
+      });
+      const kn = mesh(wrSph, it.cols[0], 0, -top - 0.0022, 0); kn.scale.setScalar(0.0032);
     }
   }
 }
-rollLook();
+// (boxes of their own here, not the shared cache: these are folded into the arm's merged mesh, sizes too fine to share)
+const bgeoW = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+rollLook(spawnLook());

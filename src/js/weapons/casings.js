@@ -1,6 +1,7 @@
 // Spent casings and dropped magazines, plus pump/bolt cycling.
 
-import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
+import { fpOn } from '../game/view-cam.js';
 import { clamp, rand, rr, smooth } from '../core/math.js';
 import { netSend } from '../net/net.js';
 import { lam } from '../core/shaders.js';
@@ -9,7 +10,7 @@ import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
 import { roundOn } from './rounds.js';
 import { curId, S, T, W, W8 } from '../game/run-state.js';
-import { BRK, CRANE, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
+import { BRK, CRANE, flipOf, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, X } from './gun-materials.js';
 import { REV_CYL } from './gun-models.js';
 import { partTex } from '../effects/textures.js';
 import { smoke } from '../effects/smoke.js';
@@ -150,8 +151,8 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
   const K = CASE_KIND[ammo === 'shells' ? 'shells' + (SHELL_HULL[roundOn(id)] || '') : (ammo === 'magnum' && id === 'revolver' ? 'rimmed' : ammo) + (CASE_TINT[roundOn(id)] || '')] || CASE_KIND.p9, D = W(id), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R';
   const right = mode === 'fire' || mode === 'pump' || mode === 'bolt';
   PM.g.updateMatrixWorld(true);
-  const h = holdOf(W8.cur, side);
-  // the gun's own axes in the world: the shooter's right is the gun's -x (the hand holding it is the rig's left)
+  const h = flipOf(holdOf(W8.cur, side)) || holdOf(W8.cur, side);   // (the gun's own frame: weapons/gun-materials.js, flipIn)
+  // the gun's own axes in the world: the shooter's right is the gun's -x
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
   // the revolver's chambers, wherever the cylinder has swung out to on its crane; the double barrel's, on its barrels
   const cyl = mode === 'dump' && (CRANE[W8.cur] || []).find(c => c.parent === h), chambers = [];
@@ -170,6 +171,9 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
     let side, up, back;
     if (mode === 'fire') { side = rr(1.8, 2.8); up = rr(1.6, 2.5); back = rr(0.2, 0.8); }
     else if (mode === 'pump' || mode === 'bolt') { side = rr(2.3, 3.3); up = rr(2.2, 3.2); back = rr(0.2, 0.8); }   // racked out hard
+    // (from your own eyes, just behind and above the port, out to the right and a touch forward as a rifle throws them,
+    // not up and back into your face: FP_EJECT)
+    if (right && fpOn()) { back = -rr(FP_EJECT.fwd[0], FP_EJECT.fwd[1]); up *= FP_EJECT.up; }
     else if (mode === 'breach') { side = rr(-0.4, 0.6); up = rr(2.4, 3.4); back = rr(1.2, 2.0); }
     else {   // dump: the whole cylinder's worth slides out of the chambers together, each case falling its own way
       side = rr(-0.3, 1.1); up = rr(-0.2, 1.1); back = rr(-0.4, 0.8);
@@ -188,11 +192,14 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
 // motion on screen) and a thread of smoke for its first moments in the air
 // (made on first use: the sprites are loaded in effects/textures.js, which loads after this file)
 let caseGlows = null, cgIdx = 0;
+// first person: how fast (m/s) a fired or racked case goes forward instead of back, how much of its rise it keeps, and
+// how near your eye a case can be and still be drawn
+const FP_EJECT = { fwd: [0.3, 0.9], up: 0.6, near: 0.4 };
 const _cg = new V3(), _cg2 = new V3();
 function stepCaseTrails(dt) {
   if (!caseGlows) { caseGlows = []; const mat = new THREE.SpriteMaterial({ map: partTex('trace2'), color: 0xff9a48, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); for (let k = 0; k < 110; k++) { const s = new THREE.Sprite(mat.clone()); s.visible = false; scene.add(s); caseGlows.push({ s, t: 0, max: 0.2 }); } }
   for (const c of casings) {
-    if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag') continue;
+    if (c.life <= 0 || c.age === undefined || c.age > 0.45 || c.kind === 'mag' || !c.g.visible) continue;   // (nor its streak, by your eye: hideNearEye)
     c.age += dt; if (c.bounces >= 1 || dt <= 0) continue;
     const g = caseGlows[cgIdx = (cgIdx + 1) % caseGlows.length], p = c.g.position, heat = c.hot * (1 - c.age / 0.45);
     g.s.position.copy(p); g.s.visible = true; g.t = g.max = 0.1 + 0.08 * heat; g.a = 0.95 * heat;
@@ -221,7 +228,7 @@ for (let k = 0; k < 60; k++) {
 let lIdx = 0;
 export function ejectLinks(n, z) {
   PM.g.updateMatrixWorld(true);
-  const h = holdOf(W8.cur, 'R');
+  const h = flipOf(holdOf(W8.cur, 'R')) || holdOf(W8.cur, 'R');
   _cR.set(-1, 0, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
   _cv.set(X - 0.036, GUN_Y + 0.025, z); h.localToWorld(_cv);
   for (let k = 0; k < n; k++) {
@@ -231,7 +238,13 @@ export function ejectLinks(n, z) {
     c.spin = rr(10, 18) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-7, 7); c.bounces = 0; c.life = rr(7, 10);
   }
 }
-export function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); stepCaseTrails(dt); }
+export function stepCasings(dt) { tickHeldEject(dt); stepDebris(casings, dt); stepDebris(mags, dt); stepDebris(SL_DROPS, dt); stepDebris(links, dt); hideNearEye(); stepCaseTrails(dt); }
+// from your own eyes, a case is never drawn right in front of your eye (FP_EJECT.near, m): one that would pass that
+// close to the camera is left out for those frames, rather than filling the screen with brass
+function hideNearEye() {
+  const fp = fpOn(), e = FP_CAM.position, r2 = FP_EJECT.near * FP_EJECT.near;
+  for (const c of casings) if (c.life > 0) c.g.visible = !fp || c.g.position.distanceToSquared(e) > r2;
+}
 export const mags = [];
 // each is a body (a box mag, or a drum) and, on a drum, the stick that runs up out of it into the magwell (neck), both in
 // a pivot that turns a drum onto its flat face when it settles, the neck lying out to the side
@@ -402,35 +415,42 @@ export const RACKS = {
       lean: { off: { p: -0.09, r: 0.03, y: 0.05, z: -0.035, h: 0.02, w: -0.03 } },
       kick: { back: { gun: [-0.9, 0.3, -0.6], cam: [0.1, -0.6, -0.15] }, home: { gun: [-1.2, -0.3, 1.0], cam: [-0.16, 1.0, 0.36] } } }
   ],
+  // (rolled and turned toward your left, the handle's side up: the rifle's worked right-handed, player/player.js)
   bolt: [
     // deliberate: up, back, a beat, forward, down, the rifle staying on the shoulder with a little roll
     { beat: { reach: 0.12, lift: 0.23, back: 0.43, fwd: 0.51, home: 0.69, lock: 0.77 }, dur: 0.9, delay: 0.15, ex: [1.3, 1.5], hand: [-0.012, -0.004],
-      lean: { grab: { r: -0.13, y: 0.03, h: -0.012 }, lift: { r: -0.05 }, off: { p: 0.04, z: -0.018, w: 0.04 } },
-      kick: { up: { gun: [0, -0.35, 0], cam: [0.05, 0, 0] }, back: { gun: [0.8, 0.2, -0.4], cam: [0.11, -0.5, -0.1] },
-        home: { gun: [-0.3, 0, 0.3], cam: [-0.05, 0.35, 0.08] }, lock: { gun: [-1.0, 0.7, 0.1], cam: [-0.14, 0.2, 0.16] } } },
+      lean: { grab: { r: 0.13, y: -0.03, h: -0.012 }, lift: { r: 0.05 }, off: { p: 0.04, z: -0.018, w: 0.04 } },
+      kick: { up: { gun: [0, 0.35, 0], cam: [0.05, 0, 0] }, back: { gun: [0.8, -0.2, -0.4], cam: [0.11, -0.5, -0.1] },
+        home: { gun: [-0.3, 0, 0.3], cam: [-0.05, 0.35, 0.08] }, lock: { gun: [-1.0, -0.7, 0.1], cam: [-0.14, 0.2, 0.16] } } },
     // one fast sweep: the handle flicked up and torn back in a single motion, then driven home and slapped down with
     // the heel of the hand coming over the top of the knob
     { beat: { reach: 0.1, lift: 0.17, back: 0.36, fwd: 0.4, home: 0.56, lock: 0.62 }, dur: 0.78, delay: 0.12, ex: [1.1, 1.7], hand: [-0.004, 0.016], sweep: 0.05,
-      lean: { grab: { r: -0.08, y: -0.03, h: -0.006 }, lift: { r: -0.03 }, off: { p: 0, z: -0.026, w: 0.09 } },   // the muzzle stays on target
-      kick: { back: { gun: [0.6, 0.3, -0.6], cam: [0.13, -0.6, -0.12] }, home: { gun: [-0.2, 0, 0.35], cam: [-0.04, 0.3, 0.06] },
-        lock: { gun: [-1.3, 1.1, 0.15], cam: [-0.2, 0.25, 0.2] } } },
+      lean: { grab: { r: 0.08, y: 0.03, h: -0.006 }, lift: { r: 0.03 }, off: { p: 0, z: -0.026, w: 0.09 } },   // the muzzle stays on target
+      kick: { back: { gun: [0.6, -0.3, -0.6], cam: [0.13, -0.6, -0.12] }, home: { gun: [-0.2, 0, 0.35], cam: [-0.04, 0.3, 0.06] },
+        lock: { gun: [-1.3, -1.1, 0.15], cam: [-0.2, 0.25, 0.2] } } },
     // the rifle brought down off the shoulder and in toward the chest, rolled over hard, handle side up, to watch the
     // case fly, then put back up level to fire
     { beat: { reach: 0.14, lift: 0.25, back: 0.44, fwd: 0.5, home: 0.66, lock: 0.74 }, dur: 0.95, delay: 0.15, ex: [1.4, 1.4], hand: [-0.014, -0.008],
-      lean: { grab: { r: -0.42, y: 0.16, h: -0.06, p: 0.05, z: -0.04 }, lift: { r: -0.04 }, off: { p: 0.03, z: -0.015, w: 0.03 } },
-      kick: { up: { gun: [0, -0.5, 0], cam: [0.07, 0, 0] }, back: { gun: [0.7, -0.6, -0.35], cam: [0.18, -0.4, -0.08] },
-        home: { gun: [-0.3, 0.2, 0.3], cam: [-0.05, 0.3, 0.06] }, lock: { gun: [-0.9, 1.4, 0.1], cam: [-0.22, 0.2, 0.14] } } }
+      lean: { grab: { r: 0.42, y: -0.16, h: -0.06, p: 0.05, z: -0.04 }, lift: { r: 0.04 }, off: { p: 0.03, z: -0.015, w: 0.03 } },
+      kick: { up: { gun: [0, 0.5, 0], cam: [0.07, 0, 0] }, back: { gun: [0.7, 0.6, -0.35], cam: [0.18, -0.4, -0.08] },
+        home: { gun: [-0.3, -0.2, 0.3], cam: [-0.05, 0.3, 0.06] }, lock: { gun: [-0.9, -1.4, 0.1], cam: [-0.22, 0.2, 0.14] } } }
   ]
 };
 // where the action is at q through the cycle: off how far back (0 home, 1 at the stop), lift how far the bolt handle
 // is turned up, and grab how much the firing hand is on the bolt. A chambering cycle (chamberCycle) starts part way
-// through with the bolt already open
+// through with the bolt already open. ant is the wind-up before the stroke (0..1..0): the hand settling its grip, the
+// gun easing the other way from where the stroke will throw it (player/hold.js leans it by CYC_ANT of the stroke's
+// own lean, the other way), so the yank comes out of a beat of stillness rather than from nowhere; it takes the
+// first CYC_ANT.pump of a pump's pull (the pull itself the quicker for it) and a bolt's reach
+export const CYC_ANT = { pump: 0.3, lean: 0.4 };
 export function cyclePose(c, q) {
-  const o = { off: 0, lift: 0, grab: 0 }, B = c.v.beat, ex = c.v.ex;
+  const o = { off: 0, lift: 0, grab: 0, ant: 0 }, B = c.v.beat, ex = c.v.ex;
   const run = (q0, q1, f) => f(clamp((q - q0) / (q1 - q0), 0, 1));
   if (!c.bolt) {
     if (c.q0 && q < B.fwd) { o.off = 1; return o; }                                                     // already back
-    if (q < B.back) o.off = run(0, B.back, v => Math.pow(v, ex[0]));                                   // yanked back, quickest as it hits the stop
+    const a = B.back * CYC_ANT.pump;
+    if (q < a) o.ant = Math.sin(Math.PI * q / a);                                                       // the grip set, the gun easing the other way
+    else if (q < B.back) o.off = run(a, B.back, v => Math.pow(v, ex[0]));                              // yanked back, quickest as it hits the stop
     else if (q < B.fwd) o.off = run(B.back, B.fwd, v => 1 - 0.08 * Math.sin(v * Math.PI) * (1 - v));   // a little bounce off it
     else if (q < B.home) o.off = run(B.fwd, B.home, v => 1 - Math.pow(v, ex[1]));                      // shoved forward, slamming home
     else o.off = run(B.home, 1, v => 0.05 * Math.sin(Math.min(1, v * 2.5) * Math.PI) * (1 - v));      // and a bounce off the front
@@ -440,7 +460,7 @@ export function cyclePose(c, q) {
   o.grab = smooth(clamp((q - q0) / B.reach, 0, 1)) * (1 - smooth(clamp((q - B.lock - 0.02) / (1 - B.lock - 0.02), 0, 1)));
   if (c.stop) o.grab *= 1 - smooth(clamp((q - B.back) / (c.stop - B.back), 0, 1));                     // pulled back to load: let go of it there
   if (c.q0 && q < B.fwd) { o.lift = o.off = 1; return o; }                                              // already open
-  if (q < B.reach) o.lift = 0;
+  if (q < B.reach) { o.lift = 0; o.ant = Math.sin(Math.PI * clamp((q - q0) / (B.reach - q0), 0, 1)); }   // the hand on its way up to the knob
   else if (q < B.lift) o.lift = run(B.reach, B.lift, v => 1 - (1 - v) * (1 - v));                     // snapped up
   else if (q < B.home) o.lift = 1;
   else if (q < B.lock) o.lift = run(B.home, B.lock, v => 1 - Math.pow(v, 1.5));                        // slapped down
@@ -502,6 +522,8 @@ export function chamberT(id) {
   }, 0) / list.length;
 }
 export function tickCycle(dt) {
+  // (a pump's hand still coming onto the forend after a reload: it's worked once it's got hold, weapons/reload.js PUMP_GRAB)
+  if (W8.grabT > 0) { if (curId() !== W8.grabId || W8.reloading) W8.grabT = 0; else { W8.grabT -= dt; if (W8.grabT > 0) return; W8.grabT = 0; if (W8.grabHeld && W8.held[W8.grabId] && (W8.mag[W8.grabId] || 0) > 0) { chamberCycle(W8.grabId); delete W8.held[W8.grabId]; } } }
   { const id = curId(); if (!W8.cyc && needsRack(id) && (W8.mag[id] || 0) > 0 && !W8.reloading && !swapSt && !(P.bandT > 0) && !P.vault && (!W8.held[id] || ((mouseDown || P.fireQ || (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.4)) && !openSt))) { chamberCycle(id); delete W8.held[id]; } }   // (held open: only once you go to fire)
   const c = W8.cyc; if (!c) return;
   if (curId() !== c.id) { if (!c.done) ejectCasing(W(c.id).ammo, 1, EJECT[c.id]); W8.cyc = null; return; }

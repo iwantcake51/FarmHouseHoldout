@@ -9,28 +9,31 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, smooth } from '../core/math.js';
 import { P, PM } from './player.js';
 import { curId, magSize, W8 } from '../game/run-state.js';
-import { BELT, BRK, CHARGE, CRANE, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, SLIDES, X } from '../weapons/gun-materials.js';
+import {
+  BELT, BRK, CHARGE, CRANE, flipOf, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, SLIDES, X
+} from '../weapons/gun-materials.js';
 import { BOLT_KNOB, shellMat } from '../weapons/gun-models.js';
-import { cyclePose, EJECT } from '../weapons/casings.js';
+import { CYC_ANT, cyclePose, EJECT } from '../weapons/casings.js';
 import { vaultGun } from './vaulting.js';
 import { SFX } from '../audio/sfx.js';
 import { state } from '../game/state.js';
 import {
-  BRK_GRAB, brkShutP, CH_BACK, CH_BOUNCE, CH_DRAW, CH_MAG, CH_PULL, CH_REACH, CH_SLAM, MAG_SEAT, magDropT, PS_MAG,
+  BRK_GRAB, brkShutP, CH_BACK, CYL_GRAB, CYL_LATCH, cylShut, CH_BOUNCE, CH_DRAW, CH_MAG, CH_PULL, CH_REACH, CH_SLAM, MAG_SEAT, magDropT, PS_MAG,
   PS_REL, PS_TUG, relHeld, reserveOf, rowLoad, SHELL_IN, SL_DROP, SL_IN, SL_SHUT, SLIDE_PISTOLS
 } from '../weapons/reload.js';
 import { AK_SLIDE, akBusy, akChargeState, akHasCharge, akSlideBack, akU } from '../weapons/akimbo.js';
 import { BARREL, barrelFree } from '../weapons/firing.js';
-import { meleeBashHand, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
-import { gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
+import { meleeBashHand, meleeInspectEnd, meleeOffHand, meleePose, MS } from '../melee/melee-anim.js';
+import { frontHeavy, gunUnsteady, SHAKY_TREM, shakyTremor } from './shaky-hands.js';
+import { fpInspectPose, fpOn, fpRecoil, fpReloadPose, fpSightAlign, fpSprintClear, fpViewSway } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { ANIM, vk } from './animation.js';
 import {
-  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, kickPitch, RACK, relKnock, REV_FLICK,
+  _actT, _rackT, ACT, ACT_AX, ACT_D, ACT_K, BOLT_TURN, BR, BR_LEAN, bump, feel, kickPitch, RACK, relKnock, REV_FLICK, stepKnock,
   REV_OPEN, REV_OUT, REV_SWING, RK, SR, stepKick, stepRack, stepRock
 } from './hold-kick.js';
 import {
-  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH
+  AKM_LUG, AKM_PULL, AKM_ROCK, MAG_CARRY, MAG_SLIDE, MAG_TAKE, magInHand, magShape, magToFist, POUCH, POUCH_R
 } from './hold-mags.js';
 import { beltJiggle, BJ, swayBipods } from './hold-sway.js';
 import {
@@ -41,27 +44,32 @@ import { bandagePose, bandPhases } from './hold-bandage.js';
 import { foreDrop } from './grip.js';
 import { STOW } from './stow.js';
 import { fistOf, rigPair, SWAP_REST_L } from './swap.js';
+import { inspectOut, inspectPose, inspectW } from './inspect.js';
+import { aimEye, LOOK } from './look.js';
 
 // shoulders roll a little forward and in when you shoulder a gun; the fist grips about its front third
-export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-0.33, 1.08, 0], R: [0.33, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
+// where your arms hang from: thinned (ARM_THIN), each is drawn in to sit flush against the side of the chest
+// (characters/rig.js's 0.33 is for its full-width arms; yours left a slit of light between arm and chest)
+export const ARM_X = 0.25 + 0.07 * 0.84 - 0.003;
+export const SHOULDER = { L: [-0.31, 1.08, 0.05], R: [0.31, 1.08, 0.05] }, SHOULDER_REST = { L: [-ARM_X, 1.08, 0], R: [ARM_X, 1.08, 0] }, FIST = 0.5, Y_AX = new V3(0, 1, 0);
 // gun-local points (the model's own coordinates): grip is the firing hand, fore the support hand (on long guns the back of
 // the handguard, where you'd really hold it). blade turns the torso side-on (the gun stays on the aim) and pull brings the
 // gun back into the shoulder; both are solved so the arms reach without stretching much
 export const HOLD = {
-  pistol: { grip: [X, 1.04, 0.565], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand', slideAt: [X, 1.172, 0.565], stopAt: [X + 0.03, 1.13, 0.662], hand: [0.04, 0.055] },
-  deagle: { grip: [X, 1.04, 0.56], fore: [X - 0.05, 0.985, 0.6], blade: 0.12, pull: 0.09, kind: 'hand', slideAt: [X, 1.2, 0.585], stopAt: [X + 0.032, 1.122, 0.628], hand: [0.04, 0.055] },
-  revolver: { grip: [X, 1.03, 0.5], fore: [X - 0.045, 0.985, 0.54], blade: 0.12, pull: 0.04, kind: 'hand', hand: [0.04, 0.05] },
+  pistol: { grip: [X, 1.04, 0.565], fore: [X + 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand', slideAt: [X, 1.172, 0.565], stopAt: [X + 0.03, 1.13, 0.662], hand: [0.04, 0.055] },
+  deagle: { grip: [X, 1.04, 0.56], fore: [X + 0.05, 0.985, 0.6], blade: 0.12, pull: 0.09, kind: 'hand', slideAt: [X, 1.2, 0.585], stopAt: [X + 0.032, 1.122, 0.628], hand: [0.04, 0.055] },
+  revolver: { grip: [X, 1.03, 0.5], fore: [X + 0.045, 0.985, 0.54], blade: 0.12, pull: 0.04, kind: 'hand', hand: [0.04, 0.05] },
   smg: { grip: [X, 1.0, 0.628], fore: [X, 0.99, 0.836], blade: 0.5, pull: 0.25, kind: 'long', post: true, hand: [0.06, 0] },   // (post: the hand's on a vertical foregrip, player/grip.js)
   pump: { grip: [X, 1.082, 0.445], fore: [X, 1.104, 0.915], blade: 0.58, pull: 0.16, kind: 'long', foreOnSlide: true, port: [X, 1.095, 0.66], hand: [0.022, 0.05] },
   dbl: { grip: [X, 1.07, 0.5], fore: [X, 1.094, 0.84], blade: 0.48, pull: 0.12, kind: 'long', port: [X, 1.14, 0.612], hand: [0.015, 0.05] },
   auto12: { grip: [X, 0.975, 0.5], fore: [X, 1.075, 0.98], blade: 0.58, pull: 0.21, kind: 'long', hand: [0.09, 0.1] },
   hunting: { grip: [X, 1.055, 0.49], fore: [X, 1.085, 0.82], blade: 0.46, pull: 0.15, kind: 'long', port: [X, 1.165, 0.7], hand: [0.022, 0.045] },
-  sub: { grip: [X, 0.975, 0.548], fore: [X, 1.095, 0.92], blade: 0.58, pull: 0.21, kind: 'long', hand: [0.08, 0.05] },
-  scar: { grip: [X, 0.99, 0.5], fore: [X, 1.097, 1.023], blade: 0.58, pull: 0.2, kind: 'long', post: true, hand: [0.09, 0.05] },
+  sub: { grip: [X, 0.975, 0.548], fore: [X, 1.079, 0.905], blade: 0.58, pull: 0.21, kind: 'long', hand: [0.08, 0.05] },   // (fore: under the slim handguard, its underside there about 1.087, so the hand cups it from below)
+  scar: { grip: [X, 0.99, 0.5], fore: [X, 1.097, 0.992], blade: 0.58, pull: 0.2, kind: 'long', post: true, hand: [0.09, 0.05] },   // (fore: a hair behind the foregrip's middle, so the fist, reaching on past its aim point, closes on the post rather than in front of it)
   ar: { grip: [X, 0.965, 0.47], fore: [X, 1.072, 0.95], blade: 0.58, pull: 0.2, kind: 'long', hand: [0.09, 0.05] },
   lmg: { grip: [X, 0.99, 0.48], fore: [X, 1.055, 0.9], blade: 0.58, pull: 0.17, kind: 'long', hand: [0.07, 0.05] }
 };
-export const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X - 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
+export const HOLD_DEF = { grip: [X, 1.04, 0.56], fore: [X + 0.045, 0.99, 0.6], blade: 0.12, pull: 0.1, kind: 'hand' };
 // the arms are thick blocks aimed at those points, so a fist centred on the gun hides it from the camera above: the
 // hands are aimed this far below them (metres, down the gun), the fist's top against the gun's underside, and the
 // trigger hand out to its own side (out), so it takes the grip from the side and below rather than lying over the
@@ -104,7 +112,7 @@ const AK_DRAW = 0.55, AK_GRAB = 0.4, AK_DRAW_AT = { side: { p: 1.3, y: -0.42, z:
 // free aim: the arms don't turn in lockstep with the body. As you turn, the arms and the gun lag behind (a heavy gun
 // more), swinging round from the shoulders, then swing on past and settle; looking up or down the same. A loose spring
 // per axis; FREE_SWING is how far out from the shoulders the swing reaches, so the hands carry with it
-const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26;
+const FREE_AIM = { yaw: 0, vy: 0, pitch: 0, vp: 0, last: null, lastP: 0 }, FREE_SWING = 0.26, FP_SWING = 0;
 function freeAim(rdt, heavy, ads) {
   const F = FREE_AIM; if (!(rdt > 0)) return F;
   const yw = ANIM.chestYaw ?? ANIM.yaw;   // the chest's turning (player/animation.js), not the hips'
@@ -124,6 +132,17 @@ const _q = new THREE.Quaternion(), _qy = new THREE.Quaternion(), _e = new THREE.
 export const SUPPORT_REACH = 1.27, SUPPORT_KNEE = 0.03, _sup = new V3(), _hL = new V3(), _hR = new V3(), _fL = new V3(), _fR = new V3(), _p1 = new V3(), _p2 = new V3(), _p3 = new V3(), _p4 = new V3(), _p5 = new V3(), _p6 = new V3();
 
 // pose a group: rotate by (rx, ry, rz) about the point p (in its own coordinates), shift by o, then turn the lot by yaw0
+// how far the gun's pointed down with the look this frame (p, about its pivot, X 1.08 0.1, then moved by o and turned by
+// b with the blade: posePivot). From your own eyes it isn't: the arms and gun are held level and the view carries them
+// up and down with it (game/view-cam.js: fpCarry), so they never move in the view; your teammates still see them
+// pointed where you look, turned by this onto your pose as it's sent (net/avatars.js: poseSnap, lookTurn)
+export const FP_PIV = { p: 0, b: 0, o: [0, 0, 0], at: [X, 1.08, 0.1] };
+const _lkM = new THREE.Matrix4(), _lkY = new THREE.Matrix4();
+export function lookTurn(out) {
+  const a = FP_PIV.at, o = FP_PIV.o;
+  _lkY.makeRotationY(FP_PIV.b); out.copy(_lkY).multiply(_lkM.makeTranslation(o[0] + a[0], o[1] + a[1], o[2] + a[2])).multiply(_lkM.makeRotationX(FP_PIV.p)).multiply(_lkM.makeTranslation(-o[0] - a[0], -o[1] - a[1], -o[2] - a[2]));
+  return out.multiply(_lkY.invert());
+}
 function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   _e.set(rx, ry, rz); _q.setFromEuler(_e); _v.set(px, py, pz).applyQuaternion(_q);
   g.position.set(px - _v.x + ox, py - _v.y + oy, pz - _v.z + oz); g.quaternion.copy(_q);
@@ -131,14 +150,21 @@ function posePivot(g, rx, ry, rz, px, py, pz, ox, oy, oz, yaw0) {
   g.updateMatrix();
 }
 // the gun pushed back off whatever's in front of you (barrelFree in weapons/firing.js), the way Tarkov or Insurgency:
-// Sandstorm do it: slid straight back along its barrel toward you, hands and all, up to GUN_BACK. A wall closer still tips the
-// muzzle up about the grip till it clears (up to GUN_TIP); a zombie doesn't, it's shot point blank. It comes in fast and
-// eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
+// Sandstorm do it: slid straight back along its barrel toward you, hands and all, but only a little (GUN_BACK: further
+// and the stock goes back past your shoulder, the elbows fold up and the gun ends up by your face). A wall closer still
+// brings it down to a low ready (up to GUN_TIP): the muzzle dips about your shoulder (GUN_TIP_AT, upper-body space) till
+// it clears, the stock staying in the shoulder and the hands on it; a zombie doesn't, it's shot point blank. It comes in
+// fast and eases back out, and the gun still fires, from where its muzzle's been pushed back to (ANIM.barrel: muzzle in
 // weapons/firing.js). rd (a sprint's low ready) takes it away. A pair are two guns: each is pushed back and tipped
 // on its own (GP[side], put on its hold in poseGun), so one up against a wall leaves the other out, and each fires
 // from its own muzzle (ANIM.barrelS). A shove driving the gun out at what's there (shv) isn't pushed back off it: it's
 // measured from where the gun would be without the shove, so the blow lands and eases back to the hold on its own
-const GUN_BACK = { long: 0.4, hand: 0.2 }, GUN_TIP = 1.2;
+const GUN_BACK = { long: 0.12, hand: 0.08 }, GUN_TIP = 1.2, GUN_TIP_AT = [X, 1.08, 0.1];
+// the tip's worked out about the shoulder from how far the muzzle has to come back; GUN_TIP_ARM: the shortest lever that's
+// taken for it (a gun drawn in close for a reload would otherwise turn a small push into a great dip), and it's eased
+// onto the angle (GUN_TIP_EASE: down, back up), so it never jumps however the push changes
+const GUN_TIP_ARM = 0.25, GUN_TIP_EASE = { up: 14, down: 8 };
+const easeTip = (o, key, t, rdt) => { const c = o[key] || 0; return (o[key] = c + (t - c) * (1 - Math.exp(-rdt * (t > c ? GUN_TIP_EASE.up : GUN_TIP_EASE.down)))); };
 const _gbM = new V3(), _gbF = new V3(), _gbG = new V3(), _gbQ = new THREE.Quaternion();
 const GP = { R: { back: 0, tip: 0, a: 0 }, L: { back: 0, tip: 0, a: 0 } };
 function gunPush(gg, s, H, ak, rd, rdt, shv) {
@@ -151,13 +177,13 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
   ANIM.barrelS = ANIM.barrelS || { R: Infinity, L: Infinity };
   for (const side of ak ? ['R', 'L'] : ['R']) {
     at(_gbM, side, X, GUN_Y + 0.03, (MUZ[s] || 0.9) + 0.02);
-    const fwd = fwdOf(_gbM), fs = fwd - (shv || 0), f = barrelFree(_gbM.x * fz - _gbM.z * fx, fs + BARREL.clear + 0.05), nW = fs + BARREL.clear - f.wall, nZ = fs + BARREL.clear - f.zom;
+    const fwd = fwdOf(_gbM), fs = fwd - (shv || 0), f = barrelFree(_gbM.z * fx - _gbM.x * fz, fs + BARREL.clear + 0.05), nW = fs + BARREL.clear - f.wall, nZ = fs + BARREL.clear - f.zom;
     ANIM.barrelS[side] = Math.min(f.wall, f.zom);
-    if (ak) {   // this gun on its own: back along its barrel, then tipped about its grip
+    if (ak) {   // this gun on its own: back along its barrel, then dipped about its grip
       const p = GP[side], tW = Math.max(0, nW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, nZ) * k));
       ease(p, 'back', tB); ease(p, 'tip', Math.max(0, tW - GUN_BACK[lg]));
       at(_gbG, side, H.grip[0], H.grip[1], H.grip[2]);
-      p.a = p.tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - p.tip / Math.max(0.05, fwd - fwdOf(_gbG)), -1, 1))) : 0;
+      easeTip(p, 'a', p.tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - p.tip / Math.max(GUN_TIP_ARM, fwd - fwdOf(_gbG)), -1, 1))) : 0, rdt);
       continue;
     }
     free = Math.min(free, f.wall, f.zom); reach = Math.max(reach, fwd);
@@ -165,15 +191,16 @@ function gunPush(gg, s, H, ak, rd, rdt, shv) {
   }
   if (ak) { ANIM.barrel = Math.min(ANIM.barrelS.R, ANIM.barrelS.L); return; }
   GP.R.back = GP.L.back = GP.R.tip = GP.L.tip = GP.R.a = GP.L.a = 0;
+  const tipTo = (t) => easeTip(ANIM, 'gtipA', t, rdt);
   ANIM.barrel = free;
   const tW = Math.max(0, needW) * k, tB = Math.min(GUN_BACK[lg], Math.max(tW, Math.max(0, needZ) * k));
   const back = ease(ANIM, 'gpush', tB), tip = ease(ANIM, 'gtip', Math.max(0, tW - GUN_BACK[lg]));
-  if (back < 0.001 && tip < 0.001) return;
+  if (back < 0.001 && tip < 0.001 && !((ANIM.gtipA || 0) > 0.001)) { ANIM.gtipA = 0; return; }
   _gbM.set(0, 0, -back).applyQuaternion(gg.quaternion); gg.position.add(_gbM); gg.updateMatrix();
-  if (tip > 0.001) {
-    gunPt(_gbG, s, 'R', H.grip[0], H.grip[1], H.grip[2]);
-    const a = Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(0.05, reach - back - fwdOf(_gbG)), -1, 1)));
-    _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, -a);   // (about its own right axis, muzzle up)
+  _gbG.set(GUN_TIP_AT[0], GUN_TIP_AT[1], GUN_TIP_AT[2]);
+  const a = tipTo(tip > 0.001 ? Math.min(GUN_TIP, Math.acos(clamp(1 - tip / Math.max(GUN_TIP_ARM, reach - back - fwdOf(_gbG)), -1, 1))) : 0);
+  if (a > 0.001) {
+    _gbF.set(1, 0, 0).applyQuaternion(gg.quaternion); _gbQ.setFromAxisAngle(_gbF, a);   // (about its own right axis, muzzle down)
     gg.position.sub(_gbG).applyQuaternion(_gbQ).add(_gbG); gg.quaternion.premultiply(_gbQ); gg.updateMatrix();
   }
 }
@@ -203,25 +230,37 @@ function rigDraw(h, w) {
 }
 // the arm angles that put the fist on t (upper-body space); arms are straight blocks, so they stretch a touch or shorten
 // (a gun pushed in, a hand down at the pouch) to put the fist on it
-const ARM_SHORT = 0.55, ARM_LONG = 1.3;   // how far an arm shortens or stretches from FIST
-function armAim(side, t, rest) {
+const ARM_SHORT = 0.55, ARM_LONG = 1.3, ARM_LONG_FP = 1.6;   // how far an arm shortens or stretches from FIST (further from your own eyes, where the gun's held out ahead of the view and the hand must still close on the handguard)
+const armLong = () => fpOn() ? ARM_LONG_FP : ARM_LONG;
+// a hand holding on to the gun is held to its place on it the way a Blender bone's held by a Child Of constraint: the
+// hand's spot on the gun comes first and the arm reaches it however the gun's held (looking right up, a long handguard
+// far out), stretching as far as ARM_LOCK if it must, rather than the hand stopping short and floating under the gun.
+// lock is the constraint's influence: 1 - the hand's HAND.w, so a hand taken off the gun (to fetch a mag, work an
+// action) is let go of it as it blends off, and taken hold of again as smoothly as it blends back on
+const ARM_LOCK = 2.6;
+function armAim(side, t, rest, lock = 0) {
   const s = (rest ? SHOULDER_REST : SHOULDER)[side], dx = t.x - s[0], dy = t.y - s[1], dz = t.z - s[2], len = Math.hypot(dx, dy, dz) || 1;
-  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, ARM_LONG)];
+  return [Math.atan2(-dy / len, dz / len), Math.asin(clamp(dx / len, -1, 1)), clamp(len / FIST, ARM_SHORT, armLong() + Math.max(0, ARM_LOCK - armLong()) * clamp(lock, 0, 1)), len / FIST];
 }
 // where an arm's fist really gets to, sent to v (in upper-body space): as far along toward it as the arm will go
 const _arV = new V3();
 export function armReach(side, v) {
-  const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, ARM_LONG * FIST);
+  const s = SHOULDER[side], l = _arV.set(v.x - s[0], v.y - s[1], v.z - s[2]).length() || 1, c = clamp(l, ARM_SHORT * FIST, armLong() * FIST);
   return c === l ? v : v.set(s[0], s[1], s[2]).addScaledVector(_arV, c / l);
 }
-export function reach(arm, side, t, roll, rest) {
-  const [rx, ry, sc] = armAim(side, t, rest), s = (rest ? SHOULDER_REST : SHOULDER)[side];
+export function reach(arm, side, t, roll, rest, lock = 0) {
+  const [rx, ry, sc, want] = armAim(side, t, rest, lock), s = (rest ? SHOULDER_REST : SHOULDER)[side];
   arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, roll || 0); arm.scale.set(ARM_THIN, ARM_THIN, sc);
+  if (HAND[side]) HAND[side].err = Math.abs(want - sc) * FIST;   // (how far the fist is off where it was sent, metres)
 }
 export function armRest(arm, side, rx, ry) { const s = SHOULDER_REST[side]; arm.position.set(s[0], s[1], s[2]); arm.rotation.set(rx, ry, 0); arm.scale.set(ARM_THIN, ARM_THIN, 1); }
 // a point on the gun (hold-local) in upper-body space
 export const holdOf = (s, side) => (HOLDS[s] && (HOLDS[s][side] || HOLDS[s].R)) || gunMeshes[s];
-function gunPt(out, s, side, x, y, z) { return out.set(x, y, z).applyMatrix4(holdOf(s, side).matrix).applyMatrix4(gunMeshes[s].matrix); }
+// (a point on the gun is in the gun's own frame, which is the right way round: through its flipped group first, flipIn in
+// weapons/gun-materials.js, so a hand on the gun's left is on your left)
+function gunPt(out, s, side, x, y, z) { const h = holdOf(s, side), f = flipOf(h); out.set(x, y, z); if (f) out.applyMatrix4(f.matrix); return out.applyMatrix4(h.matrix).applyMatrix4(gunMeshes[s].matrix); }
+// a point on one of the gun's parts (in the part's own frame) in upper-body space
+const partPt = (out, s, part) => gunPt(out.applyMatrix4(part.matrix), s, 'R', out.x, out.y, out.z);
 // a walk along [time, point] keys that flows through them: it passes each key at its time, but keeps moving through
 // the ones on the way (a curve through its neighbours, so the hand swings round instead of stopping at every point)
 // and only comes to rest where it's meant to wait (a key repeated) or at the ends
@@ -239,20 +278,30 @@ export function walkPath(out, keys, p) {
   const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
   return out.copy(a[1]).multiplyScalar(h00).addScaledVector(_wpA, h10 * dt).addScaledVector(b[1], h01).addScaledVector(_wpB, h11 * dt);
 }
+// a hand going off the gun or back onto it: the spring it moves on (k, d) and how quickly what it chases eases to where
+// it's to be (lead, a second)
+const HAND_W = { lead: 30, k: 420, d: 41 };
+// the reload pose's spring (ANIM.relEnv): how quickly (rad/s, critically damped) the gun goes into it, and comes back
+// out to the hold once the reload's done: unhurried, so the way back eases off and settles rather than snapping
+const REL_ENV = { in: 11, out: 6.5 };
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
   const h = HAND[side], kf = stiff ? 1300 : 480, df = stiff ? 62 : 30;   // (stiff: carrying a fresh mag up to the gun)
-  // the free hand follows its path on a loose spring: a beat behind it, settling with a little give when it stops
-  if (free) {
-    if (!h.fv || h.w < 0.01) { h.fv = h.fv || new V3(); h.free.copy(free); h.fv.set(0, 0, 0); }
-    else if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) {
-      h.fv.x += (kf * (free.x - h.free.x) - df * h.fv.x) * dt; h.fv.y += (kf * (free.y - h.free.y) - df * h.fv.y) * dt; h.fv.z += (kf * (free.z - h.free.z) - df * h.fv.z) * dt;
-      h.free.addScaledVector(h.fv, dt);
-    }
+  // the free hand follows its path on a loose spring: a beat behind it, settling with a little give when it stops; and
+  // once its path ends (the reload's done) the same spring carries it on to its place on the gun as it's handed back,
+  // with the way it was going, rather than stopping it dead where the path left off
+  const to = free || (h.fv && h.w > 0.001 ? onGun : null);
+  if (free && (!h.fv || h.w < 0.01)) { h.fv = h.fv || new V3(); h.free.copy(free); h.fv.set(0, 0, 0); }
+  else if (to && rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, dd = free ? df : 2 * Math.sqrt(kf), i = 0; i < n; i++) {   // (homing on the gun, damped just enough not to overshoot its grip)
+    h.fv.x += (kf * (to.x - h.free.x) - dd * h.fv.x) * dt; h.fv.y += (kf * (to.y - h.free.y) - dd * h.fv.y) * dt; h.fv.z += (kf * (to.z - h.free.z) - dd * h.fv.z) * dt;
+    h.free.addScaledVector(h.fv, dt);
   }
-  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) { h.vw = (h.vw || 0) + (-420 * (h.w - wt) - 41 * (h.vw || 0)) * dt; h.w = clamp(h.w + h.vw * dt, 0, 1); }
-  if (Math.abs(wt - h.w) < 0.002 && Math.abs(h.vw || 0) < 0.02) { h.w = wt; h.vw = 0; }
+  // how far it's off the gun, on its spring: the spring chases an eased copy of where it's to be (HAND_W.lead), so a
+  // hand leaving the gun or coming back to it gathers speed rather than starting off at full speed in a single frame
+  h.wf = h.wf ?? h.w;
+  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) { h.wf += (wt - h.wf) * (1 - Math.exp(-dt * HAND_W.lead)); h.vw = (h.vw || 0) + (-HAND_W.k * (h.w - h.wf) - HAND_W.d * (h.vw || 0)) * dt; h.w = clamp(h.w + h.vw * dt, 0, 1); }
+  if (Math.abs(wt - h.w) < 0.002 && Math.abs(h.vw || 0) < 0.02) { h.w = h.wf = wt; h.vw = 0; }
   return out.copy(onGun).lerp(h.free, h.w);
 }
 
@@ -286,12 +335,13 @@ export function poseHands(D, up, ph, runF, rdt, now) {
   bandPhases(rdt);
   ANIM.slideT.R += rdt; ANIM.slideT.L += rdt;
   ANIM.shoveHit = Math.max(0, (ANIM.shoveHit || 0) - rdt * 5);
-  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = 0; ANIM.relEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
+  if (ANIM.handFor !== curId()) { ANIM.handFor = curId(); HAND.L.w = HAND.R.w = HAND.L.vw = HAND.R.vw = HAND.L.wf = HAND.R.wf = 0; ANIM.relEnv = ANIM.vrelEnv = 0; ACT_AX.forEach(a => { ACT[a] = ACT['v' + a] = 0; }); }   // a fresh weapon starts with both hands on it
   const sh = shovePose();
   if (sh && !D.melee) {
     up.x += sh.lean; up.y += sh.tw;
-    pm.legL.rotation.x -= 0.12 * Math.max(0, sh.lean) / 0.07; pm.shinR.rotation.x += 0.1 * Math.max(0, sh.lean) / 0.07;   // just the weight onto the front foot
+    pm.legR.rotation.x -= 0.12 * Math.max(0, sh.lean) / 0.07; pm.shinL.rotation.x += 0.1 * Math.max(0, sh.lean) / 0.07;   // just the weight onto the front foot (your left: the rig's legs aren't mirrored as the upper body is, player/player.js, and its legR is your left)
   }
+  FP_PIV.p = 0;   // (a melee weapon isn't pointed with the look)
   if (D.melee) poseMelee(D, up, ph, runF, rdt, now, sh);
   else poseGun(D, up, ph, runF, rdt, now, sh);
   bandagePose(pm, up, now, sh);
@@ -299,25 +349,33 @@ export function poseHands(D, up, ph, runF, rdt, now) {
 }
 
 // how far forward the body goes as the weight comes onto the front foot in a swing (m, at full step)
-const MLUNGE = 0.55;
+const MLUNGE = 0.55, FP_MLUNGE = 0.08;
+// where a two-handed weapon's left fist closes on it, up its handle from the right one (metres; the katana's below it,
+// at the end of its handle, the right hand under the tsuba: melee/melee-models.js KATANA_GRIP)
+const MELEE_LH = { katana: -0.12 };
 // a melee weapon in your hands: the pose (the guard, a swing, the flourish once it's drawn, or a bash) comes from
 // melee/melee-anim.js as the fist's place and the weapon's direction, already through its springs; here it goes onto
 // the rig. The body twists, leans and bends with it, the hips turn under it, the weight goes onto the front foot and
 // the knees give (dip); the head stays on what you're hitting
 function poseMelee(D, up, ph, runF, rdt, now, sh) {
+  inspectPose(rdt, D, curId(), false, fpOn(), meleeInspectEnd(curId()));   // (looking it over keeps its time: player/inspect.js; its moves are melee/melee-anim.js's)
   const pm = PM, mh = gunMeshes.melee, a = meleePose(curId(), D, rdt, now, sh), b = MS.b;
   const rd = smooth(clamp(ANIM.ready || 0, 0, 1)), swing = W8.swing > 0 || !!sh;
   const walk = Math.sin(ph) * (0.18 * Math.min(1, runF) * (1 - rd) + 0.5 * rd) * (swing ? 0 : 1);   // the free arm swings as you walk and pumps at a sprint
   up.y += b.uy; up.x += b.ux; up.z += b.uz;
-  pm.lower.rotation.y += b.hy;
+  // (the hips and legs aren't mirrored as the upper body is, player/player.js: the hips turn the other way for it, and
+  // the front foot is your left, the rig's legR)
+  pm.lower.rotation.y -= b.hy;
   const st = b.step, dp = Math.max(0, b.dip);
-  pm.legL.rotation.x -= 0.3 * st + 0.42 * dp; pm.legR.rotation.x += 0.2 * st - 0.2 * dp;
-  pm.shinL.rotation.x += 0.75 * dp + 0.06 * Math.abs(st); pm.shinR.rotation.x += 0.55 * dp + 0.18 * Math.max(0, st);
+  pm.legR.rotation.x -= 0.3 * st + 0.42 * dp; pm.legL.rotation.x += 0.2 * st - 0.2 * dp;
+  pm.shinR.rotation.x += 0.75 * dp + 0.06 * Math.abs(st); pm.shinL.rotation.x += 0.55 * dp + 0.18 * Math.max(0, st);
   pm.g.position.y -= 0.085 * dp;
   // stepping in to it: the body goes forward with the weight (MLUNGE, further for a longer weapon), so a swing reaches
   // out as far as it hits
-  { const lg = Math.max(0, st) * MLUNGE * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
-  pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2; pm.head.rotation.x -= b.ux * 0.45;
+  // (from your own eyes only a hint of it, FP_MLUNGE: your eye's carried with the body, so the whole view lurched
+  // forward half a metre each swing)
+  { const lg = Math.max(0, st) * MLUNGE * (fpOn() ? FP_MLUNGE : 1) * clamp((D.range || 1.8) / 1.8, 0.85, 1.2); pm.g.position.x += Math.sin(ANIM.yaw) * lg; pm.g.position.z += Math.cos(ANIM.yaw) * lg; }
+  pm.head.rotation.y -= b.uy * 0.62 + b.hy * 0.2 - MS.ihy; pm.head.rotation.x -= b.ux * 0.45 - MS.ihp;   // (looking down at it while it's looked over: MS.ihp, ihy)
   // the weapon in the right fist (shaking at low health: player/shaky-hands.js)
   const q = shakyTremor();
   armRest(pm.armR, 'R', a.rx + q.p * SHAKY_TREM.p, a.ry + q.y * SHAKY_TREM.y);
@@ -330,7 +388,7 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
   // like a bar); one-handed, the free arm swings out against the turn for balance
   if (D.two) {
     pm.armR.updateMatrix(); mh.updateMatrix();
-    _fL.set(0, 0.15 + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
+    _fL.set(0, (MELEE_LH[curId()] ?? 0.15) + 0.27 * meleeBashHand(), 0).applyMatrix4(mh.matrix).applyMatrix4(pm.armR.matrix);
     if (MS.lOn < 1) _fL.lerpVectors(SWAP_REST_L, _fL, MS.lOn);   // (not on it yet through the draw flourish)
     reach(pm.armL, 'L', _fL, 0, true);
   } else {
@@ -344,8 +402,88 @@ function poseMelee(D, up, ph, runF, rdt, now, sh) {
 const _mlR = new V3(), _mtS = new V3();
 
 // the arms easing onto the aim's height: how stiff and how damped (critically: no overshoot, no bounce)
-const ARM_AIM = { k: 38, d: 12.3 };
-const IDLE_UNSTEADY = 0.8;
+const ARM_AIM = { k: 38, d: 12.3 }, ARM_AIM_FP = { k: 900, d: 60 };   // (from your own eyes it's the view's own pitch, followed closely: game/view-cam.js, fpGunPitch)
+// first person: how much of the hands' own kick (RK) and the body's rock under a shot (SR, BR) is kept, the rest of
+// the kick being the view's (game/view-cam.js: FP_RECOIL), worked out from your own eyes
+const FP_HAND_KICK = 0.3, FP_BODY_KICK = 0.45;
+// from your own eyes a gun being reloaded is held up close in front of them, short of any wall: the push back off one
+// (gunPush) fades out this much as the reload comes in, so its tipping and easing never jostles the gun in your hands
+const FP_REL_PUSH = 0.9;
+// a pair, one in each hand, from your own eyes: the view takes none of their kick, so each gun keeps all of its own and
+// more, flipping up on its own wrist (flip: how much more of its muzzle's rise, back: of its shove back) on its own
+// shot while the other stays steady; and at a sprint each hand pumps forward and back with the stride,
+// opposite the other (swing, metres; lift up on each step), the muzzles tipped down (tip, more on the hand that's back:
+// tipSw) and canted out (cant), as you run with a gun in each hand, rather than the pair carried rigid in front of you
+const FP_AK = { flip: 14, back: 2, run: { swing: 0.075, lift: 0.028, tip: 0.3, tipSw: 0.16, cant: 0.42, out: 0.035 } };
+// and looking it over from your own eyes, it's turned this far side on to you (radians) for its turns to show it, rather
+// than seen end on down its back
+const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
+// sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
+// h up), angled a little across you (y), canted over (r) and its muzzle tipped well down (p: a long gun about 27
+// degrees, a handgun about 29), raised to stay in the bottom of the view as it tips
+const FP_SPRINT = { long: { p: 0.48, y: 0.1, r: 0.45, x: 0.03, h: 0.2, z: -0.18 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
+// where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right.
+// Then the round's laid in the port on top of the ones in the well (lay, metres up off the port's bottom, over the
+// reload's stretch at[0] to at[1]), pressed down into it by the thumb (press, metres, at[1] to at[2]), held there a
+// beat and let go, the magazine's spring pushing it back up under the feed lips (rise, at[3] to at[4]); the hand goes
+// with it, its thumb on the round (thumb: how far above the round it presses)
+const BOLT_FEED = { up: 0.045, back: 0.05, out: 0.03, lay: 0.014, press: 0.03, rise: 0.008, thumb: 0.012, at: [0.6, 0.72, 0.82, 0.86, 0.92] };
+// the charging hand's wind-up before it rises off the grip: over the first CH_ANT of its reach, CH_ANT_D down
+const CH_ANT = 0.3, CH_ANT_D = 0.014;
+const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
+// where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
+// from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
+const _cyB = new THREE.Box3(), _cyB2 = new THREE.Box3(), _cyM = new THREE.Matrix4(), _cyM2 = new THREE.Matrix4(), _cyC = new V3(), _cyOut = new V3(0, -1, 0);
+function cylSide(out, s, c) {
+  if (!c.userData.cc) {
+    c.updateMatrixWorld(true); _cyM.copy(c.matrixWorld).invert(); _cyB.makeEmpty();
+    c.traverse(o => { if (o.isMesh && o.geometry) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _cyB.union(_cyB2.copy(o.geometry.boundingBox).applyMatrix4(_cyM2.multiplyMatrices(_cyM, o.matrixWorld))); } });
+    c.userData.cc = _cyB.isEmpty() ? new V3() : _cyB.getCenter(new V3());
+  }
+  const cc = c.userData.cc, p0 = c.userData.p0 || c.position;
+  partPt(out.copy(cc), s, c);
+  gunPt(_cyC, s, 'R', p0.x + cc.x, p0.y + cc.y, p0.z + cc.z);   // (where its middle is when it's shut)
+  _cyC.subVectors(out, _cyC); if (_cyC.lengthSq() > 1e-4) _cyOut.copy(_cyC).normalize();   // (the way out from the frame, kept as it comes home)
+  return out.addScaledVector(_cyOut, 0.04);
+}
+// how far a fist's turned from the gun's grip about the forearm, as its arm points at t with no turn of its own (radians):
+// the gun's up, seen down the forearm, against the fist's. Kept as it is in the hold (GRIP_REST) and, while the gun's
+// looked over, the fist's turned by however far that's moved, so the hand keeps hold of it as it was
+const _twq = new THREE.Quaternion(), _twe = new THREE.Euler(), _twu = new V3(), _twa = new V3(), _twf = new V3(), _twc = new V3(), _twM = new THREE.Matrix4(), GRIP_REST = { R: 0, L: 0 };
+function gripTwist(side, t, s) {
+  const [rx, ry] = armAim(side, t); _twq.setFromEuler(_twe.set(rx, ry, 0));
+  _twa.set(0, 0, 1).applyQuaternion(_twq); _twf.set(0, 1, 0).applyQuaternion(_twq);
+  const h = holdOf(s, side), f = flipOf(h); _twM.multiplyMatrices(gunMeshes[s].matrix, h.matrix); if (f) _twM.multiply(f.matrix);
+  _twu.set(0, 1, 0).transformDirection(_twM); _twu.addScaledVector(_twa, -_twu.dot(_twa));
+  if (_twu.lengthSq() < 1e-6) return GRIP_REST[side];   // (the gun's up straight along the forearm: no telling, keep the hold)
+  _twu.normalize();
+  return Math.atan2(_twc.crossVectors(_twf, _twu).dot(_twa), _twf.dot(_twu));
+}
+function gripFollow(side, t, s, off) {
+  const w = inspectW(); if (!gunMeshes[s] || off > 0.5) return 0;
+  const a = gripTwist(side, t, s); if (w < 0.002) { GRIP_REST[side] = a; return 0; }
+  return angDiff(a, GRIP_REST[side]) * (1 - off);
+}
+// looking the gun over, it's kept where the hands on it can hold it comfortably (INSPECT_REACH: from the shoulder, of
+// the arm's own length FIST): drawn in or eased out along the line from the shoulder, the gripping hand first, then the
+// one on a long gun's handguard, so it's never held out at the full stretch of an arm, or crushed in against the chest
+const INSPECT_REACH = [0.72, 1.15], _irP = new V3();
+function inspectReach(gg, s, H, ak) {
+  const w = inspectW(); if (w < 0.002 || ak) return;
+  for (let it = 0; it < 2; it++) for (const side of H.kind === 'long' && H.fore && HAND.L.w < 0.5 ? ['R', 'L'] : ['R']) {
+    const g = side === 'R' ? H.grip : H.fore, sh = SHOULDER[side];
+    gunPt(_irP, s, 'R', g[0], g[1], g[2]); _irP.x -= sh[0]; _irP.y -= sh[1]; _irP.z -= sh[2];
+    const d = _irP.length() || 1, c = clamp(d, INSPECT_REACH[0] * FIST, INSPECT_REACH[1] * FIST); if (c === d) continue;
+    gg.position.addScaledVector(_irP, (c / d - 1) * w); gg.updateMatrix();
+  }
+}
+// a gun spun a about the trigger finger (just above and in front of where it's gripped, SPIN_AT), round its own
+// across axis, in upper-body space
+const SPIN_AT = [0.03, 0.035], _spP = new V3(), _spA = new V3(), _spQ = new THREE.Quaternion();
+function spinGun(gg, s, g, a) {
+  gunPt(_spP, s, 'R', g[0], g[1] + SPIN_AT[0], g[2] + SPIN_AT[1]); gunPt(_spA, s, 'R', g[0] + 1, g[1] + SPIN_AT[0], g[2] + SPIN_AT[1]).sub(_spP).normalize();
+  _spQ.setFromAxisAngle(_spA, a); gg.position.sub(_spP).applyQuaternion(_spQ).add(_spP); gg.quaternion.premultiply(_spQ); gg.updateMatrix();
+}
 function poseGun(D, up, ph, runF, rdt, now, sh) {
   const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
@@ -353,18 +491,22 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // how far down you're pointing (weapons/combat-update.js): eased onto on a spring (ARM_AIM), so the arms settle onto
   // whatever the aim finds rather than snapping to it; never down at a sprint, with the gun at the low ready
   { const pT = state === 'play' ? (ANIM.pitchT || 0) * (1 - smooth(clamp(ANIM.sprintK || 0, 0, 1))) : 0; if (ANIM.vPitch === undefined) ANIM.vPitch = 0;
-    for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, ARM_AIM.k, ARM_AIM.d, h); }
+    const A = fpOn() ? ARM_AIM_FP : ARM_AIM; for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, A.k, A.d, h); }
   // (a gun that's harder to hold still, a heavy one, a pair, a pistol with nothing to brace it, drifts more at rest: its
   // unsteadiness, player/shaky-hands.js, IDLE_UNSTEADY of it)
-  const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
+  const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) * frontHeavy(id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
-  const rel = W8.reloading, rp = rel ? 1 - W8.reloadT / W8.reloadMax : 0;
+  // (rp goes by the reload's base, weapons/reload.js: relStep, which stands still through a beat slipped into it: a fumble,
+  // a missed magwell)
+  const rel = W8.reloading, rp = rel ? (W8.relTL ? W8.relU : 1 - W8.reloadT / W8.reloadMax) : 0;
   // the double barrel being closed after its reload (weapons/reload.js: tickShut): shP how far through (-1: it isn't),
   // shK how far the barrels have swung up, quickening as they go so they swing home hard
   const shP = !rel && !D.akimbo && D.breakOpen ? brkShutP() : -1, shK = shP >= 0 ? Math.pow(clamp((shP - BRK_GRAB) / (1 - BRK_GRAB), 0, 1), 2) : 0;
+  // the revolver's cylinder being pushed shut by hand after a round-at-a-time reload (the same: weapons/reload.js, CYL_SHUT)
+  const cyP = !rel && cylShut(D) ? brkShutP() : -1;
   // a rifle with a charging handle fits its mag change into the first part of the reload, then charges it (rpm is how
   // far through the mag change, cg the charge's own envelope and pull how far back the handle is)
-  const CH = rel === 'mag' && CHARGE[s] && !D.akimbo;   // (a pair charges its own way: weapons/akimbo.js, akChargeState)
+  const CH = rel === 'mag' && CHARGE[s] && !D.akimbo && W8.relDry !== false;   // (only run dry, weapons/reload.js; a pair charges its own way: weapons/akimbo.js, akChargeState)
   // an empty pistol's reload: the mag change in the first PS_MAG of it, then the support hand drops the slide (rr is how
   // far through that, relU when it lets go)
   const PS = rel === 'mag' && W8.relEmpty && !CH && !D.akimbo, rpm = CH ? Math.min(1, rp / CH_MAG) : PS ? Math.min(1, rp / PS_MAG) : rp;
@@ -376,19 +518,30 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // stop (pull, CH_BOUNCE); the hand flicks up and out off it (flick), then comes back down to the grip
   const ease5 = t => t * t * t * (t * (t * 6 - 15) + 10), easeIO = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
   const cg = CH ? ease5(clamp((rp - CH_REACH[0]) / (CH_REACH[1] - CH_REACH[0]), 0, 1)) * (1 - ease5(clamp((rp - CH_BACK[0]) / (CH_BACK[1] - CH_BACK[0]), 0, 1))) : 0;
-  const hook = CH ? 1 - ease5(clamp((rp - CH_REACH[1] + 0.02) / 0.025, 0, 1)) : 0;
+  const hook = CH ? 1 - ease5(clamp((rp - CH_REACH[1] + 0.025) / 0.04, 0, 1)) : 0;
+  // (and before it goes, a small wind-up: the hand eases down and back off the grip a moment, then rises on its arc)
+  const chU = CH ? clamp((rp - CH_REACH[0]) / (CH_REACH[1] - CH_REACH[0]), 0, 1) : 0, chAnt = chU > 0 && chU < CH_ANT ? Math.sin(Math.PI * chU / CH_ANT) : 0;
   const drawn = CH ? easeIO(clamp((rp - CH_DRAW) / (CH_PULL - CH_DRAW), 0, 1)) : 0, home = CH ? clamp((rp - CH_SLAM) / 0.012, 0, 1) : 0;
   const bounce = CH ? CH_BOUNCE * Math.sin(clamp((rp - CH_SLAM - 0.012) / 0.03, 0, 1) * Math.PI) : 0, pull = drawn * (1 - home * home) + bounce;
   const flick = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;
   const slamK = CH ? Math.sin(clamp((rp - CH_SLAM) / 0.06, 0, 1) * Math.PI) : 0;   // the jolt of it slamming home
+  { const t = CH ? smooth(clamp((rp - CH_REACH[0] + 0.03) / (CH_REACH[1] - CH_REACH[0] + 0.03), 0, 1)) * (1 - smooth(clamp((rp - CH_SLAM) / (1 - CH_SLAM), 0, 1))) : 0; ANIM.chW = (ANIM.chW || 0) + (t - (ANIM.chW || 0)) * Math.min(1, rdt * 14); }   // (the gun let out and turned over for it from your own eyes, game/view-cam.js FP_CHARGE; eased off if the reload's cut short)
   if (rel) ANIM.relKind = rel;
-  ANIM.relEnv += ((rel === 'mag' ? ((PS ? rp < 0.95 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : 0) - ANIM.relEnv) * Math.min(1, rdt * 9);   // (closing the double barrel: the stock comes up to meet the barrels)
+  const FL = feel(id);   // (this gun's own handling: player/hold-kick.js, FEEL)
+  // how far into the reload pose the gun is: in for the reload, out once it's done. On a critically damped spring
+  // (REL_ENV), not eased straight at it, so it sets off from rest and settles in: eased, the way back to the hold left at
+  // full speed the instant the reload's last beat went, a jump just as the mag was slapped home
+  { const tg = rel === 'mag' ? ((PS ? rp < 0.95 : CH ? rp < CH_SLAM + 0.015 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0;   // (closing the double barrel: the stock comes up to meet the barrels)
+    const w = (tg < ANIM.relEnv ? REL_ENV.out : REL_ENV.in) * FL.env;
+    if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'relEnv', 'vrelEnv', tg, w * w, 2 * w, dt);
+    ANIM.relEnv = clamp(ANIM.relEnv, 0, 1); }
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
   const cy = W8.cyc && W8.cyc.id === id ? W8.cyc : null, cq = cy ? clamp((cy.t - cy.delay) / cy.dur, 0, 1) : 0, cp = cy ? cyclePose(cy, cq) : null;
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6), rd = smooth(clamp(ANIM.ready || 0, 0, 1));   // (rd: down at a low ready, sprinting)
-  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  FP_PIV.p = fpOn() ? ANIM.pitch * (1 - rd) : 0;   // (from your own eyes the look's left off the hold: FP_PIV)
+  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) - FP_PIV.p + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
   // gun never quite still in the hands while they work on it
   const J = W8.relJit || REL_JIT0, AT = _actT;
@@ -407,11 +560,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // well to meet the new one (meet); shells rock the port over to the hand as each comes in (show). The beats knock it
   const prevRp = ANIM.relRp || 0, beat = b => !!rel && prevRp < b && rp >= b; ANIM.relRp = rel ? rp : 0;
   if (!ak && rel === 'mag' && !D.speedload) {
-    const m = rpm, k = J.k, dump = bump(m, 0.03, 0.22), fetch = bump(m, 0.16, 0.62), meet = bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : 1;
-    AT.r += (-0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
+    // (and before the dump, a beat the other way, the wrist winding up for it: ant)
+    const m = rpm, k = J.k, ant = bump(m, 0, 0.07), dump = bump(m, 0.03, 0.22), fetch = bump(m, 0.16, 0.62), meet = bump(m, 0.5, 0.94), mf = CH ? CH_MAG : PS ? PS_MAG : 1;
+    AT.r += (0.07 * ant - 0.16 * dump + 0.14 * fetch - 0.17 * meet) * k; AT.p += (-0.035 * ant + 0.06 * dump - 0.08 * meet) * k; AT.y += 0.06 * meet * k; AT.h -= 0.014 * fetch; AT.z -= 0.022 * meet;
     AT.hp += 0.06 * fetch; AT.hy -= 0.26 * fetch; AT.tw -= 0.07 * fetch;
     if (beat(0.1 * mf)) relKnock(1.6, -2.6, -0.2, 0);                    // the old mag shaken free
-    if (beat(MAG_SEAT * mf)) relKnock(-3.2, 1.6, 0.7, 0.25);             // the new one slapped home: the gun bounces up
+    if (beat(MAG_SEAT * mf)) relKnock(-2.4, 1.2, 0.5, 0.2);              // the new one slapped home: the gun bounces up
   } else if (!ak && rel === 'mag' && D.speedload) {
     AT.hy -= 0.2 * bump(rp, 0.08, 0.42);
     if (beat(SL_IN)) relKnock(-1.4, 0.6, 0.2, 0.6);                      // the loader pushed in
@@ -434,6 +588,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // loose spring, and the stops knock it; the torso twists and rocks with it
     const t = _rackT; t.p = t.r = t.y = t.z = t.h = t.w = 0;
     if (cp) for (const src in cy.v.lean) { const L = cy.v.lean[src], k = cp[src]; for (const a in L) t[a] += L[a] * k; }   // this way of working it (RACKS)
+    if (cp && cp.ant) { const L = cy.v.lean[cy.bolt ? 'grab' : 'off']; for (const a in L) t[a] -= L[a] * CYC_ANT.lean * cp.ant; }   // and before it, a beat the other way (CYC_ANT)
     stepRack(rdt, t);
     pitch += RACK.p; roll += RACK.r; yaw += RACK.y; oz += RACK.z; oy += RACK.h;
     up.y += RACK.w; up.x += 0.3 * RACK.p;
@@ -450,27 +605,40 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (over a few frames, not in one: flkT is the flick, flk the wrist catching up with it)
   if (id === 'dbl') { const shut = Math.max(0, (ANIM.brkPrev ?? 0) - (ANIM.brk || 0)); ANIM.brkPrev = ANIM.brk || 0; ANIM.flkT = Math.min(1, Math.max((ANIM.flkT || 0) * Math.exp(-rdt * 7), shut * 3)); ANIM.flk = (ANIM.flk || 0) + (ANIM.flkT - (ANIM.flk || 0)) * Math.min(1, rdt * 32); pitch -= 0.26 * ANIM.flk; oy += 0.02 * ANIM.flk; }
   if (cg) { AT.r += 0.26 * cg; AT.p -= 0.07 * cg; AT.h += 0.02 * cg; AT.z -= 0.03 * cg; pitch -= 0.05 * slamK; oz -= 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
-  // the reload's motion, sprung (ACT)
-  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) springTo(ACT, a, 'v' + a, AT[a], a === 'hp' || a === 'hy' || a === 'tw' ? ACT_K * 0.5 : ACT_K, a === 'hp' || a === 'hy' || a === 'tw' ? ACT_D * 0.75 : ACT_D, dt);
-  pitch += ACT.p; roll += ACT.r; yaw += ACT.y; oy += ACT.h; oz += ACT.z; up.y += ACT.tw;
-  oy += 0.05 * ads; pitch -= 0.03 * ads; roll *= 1 - ads * 0.6;                            // aiming: up to the eye, steadier
+  // the reload's motion, sprung (ACT), and its knocks on their own (KNOCK)
+  if (rdt > 0) stepKnock(rdt);
+  if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) { const hd = a === 'hp' || a === 'hy' || a === 'tw'; springTo(ACT, a, 'v' + a, AT[a], hd ? ACT_K * 0.5 : ACT_K * FL.kK, hd ? ACT_D * 0.75 : ACT_D * FL.dK, dt); }   // (the head and chest your own; the gun's by its weight)
+  // (from your own eyes much less of its roll and turn: what shows the well or the port to someone watching only wrenches
+  // the gun about in front of you, FP_REL_TURN)
+  { const t = fpOn() ? FP_REL_TURN : 1; pitch += ACT.p * (0.5 + 0.5 * t); roll += ACT.r * t; yaw += ACT.y * t; oy += ACT.h; oz += ACT.z; up.y += ACT.tw; }
+  // looking it over (player/inspect.js): turned, brought up and in, the chest and head going with it
+  const IN = inspectPose(rdt, D, id, H.kind === 'hand', fpOn()); pitch += IN.p; yaw += IN.y + (fpOn() ? FP_INSPECT_TURN[H.kind === 'hand' ? 'hand' : 'long'] * IN.fs : 0); roll += IN.r; up.y += IN.tw;
+  if (!fpOn()) { ox += IN.x; oy += IN.h; oz += IN.z; }   // (from your own eyes it's placed in front of them instead: game/view-cam.js, fpInspectPose)
+  { const a = ANIM.adsP ?? ads; oy += 0.05 * a; pitch -= 0.03 * a; } roll *= 1 - ads * 0.6;   // aiming: up to the eye (a hair past and back as it comes: game/camera.js, ADS_ISO), steadier
   // sprinting (player/sprint.js): the gun comes down to a low ready, muzzle down and across the body, both hands still
   // on it, and it bounces with each stride; a handgun's drawn in closer to the chest. It's carried high, muzzle only
   // part way down (a long gun about 18 degrees, a handgun about 27). Run and gun keeps it up
   if (rd > 0.001) {
-    const lg = H.kind === 'long', b2 = Math.sin(ph * 2), b1 = Math.sin(ph);
-    pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
-    ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+    const lg = H.kind === 'long', fk = fpOn() ? FP_SPRINT_BOUNCE : 1, b2 = Math.sin(ph * 2) * fk, b1 = Math.sin(ph) * fk;   // (from your own eyes the gun bounces less: FP_SPRINT_BOUNCE)
+    // (from your own eyes it's drawn in tight against your chest, angled across you and muzzle down, still in the
+    // bottom of the view: FP_SPRINT, rather than out and down where it drops from sight)
+    const S = fpOn() ? (ak ? FP_SPRINT.ak : FP_SPRINT[lg ? 'long' : 'hand']) : null;
+    if (S) { pitch += rd * (S.p + 0.05 * b2); yaw += rd * (S.y + 0.05 * b1); roll += rd * S.r; ox -= rd * S.x; oy += rd * (S.h - 0.012 * b2); oz -= rd * S.z; }
+    else {
+      pitch += rd * ((lg ? 0.31 : 0.48) + 0.06 * b2); yaw += rd * ((lg ? 0.42 : 0.24) + 0.07 * b1); roll += rd * (lg ? 0.24 : 0.1);
+      ox -= rd * (lg ? 0.03 : 0.05); oy -= rd * ((lg ? 0.035 : 0.05) + 0.014 * b2); oz -= rd * (lg ? 0.05 : 0.12);
+    }
   }
   oz -= ak ? AK_PULL : H.pull;
   if (H.kind === 'long') oy += LONG_RAISE;
   { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
-  { const fa = freeAim(rdt, heavy, ads); yaw += fa.yaw; pitch += fa.pitch; ox += Math.sin(fa.yaw) * FREE_SWING; oy -= Math.sin(fa.pitch) * FREE_SWING; }   // the arms trail a turn and swing on after it
-  pitch += SR.x * 0.8;   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
+  { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (not from your own eyes, where the gun stays with the crosshair as you turn: FP_SWING)
+  pitch += SR.x * 0.8 * (fpOn() ? FP_BODY_KICK : 1);   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
   if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
+  FP_PIV.b = -blade; FP_PIV.o[0] = ox; FP_PIV.o[1] = oy; FP_PIV.o[2] = oz;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
-  gunPush(gg, s, H, ak, rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you
+  gunPush(gg, s, H, ak, fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
   // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away
@@ -488,14 +656,17 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   for (const side of sides) {
     const h = HOLDS[s] && HOLDS[s][side]; if (!h) continue;
     const k = RK[side], g = H.grip, sg = side === 'R' ? 1 : -1;
-    let hx = kickPitch(k.p), hy = k.y, hz = k.r, hox = h.userData.x0 || 0, hoy = k.h, hoz = k.z;
-    if (ak) { hoz -= GP[side].back; hx -= GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
+    const fpk = fpOn(), kf = fpk ? (ak ? 1 : FP_HAND_KICK) : 1, kp = fpk && ak ? FP_AK.flip : kf, kz = fpk && ak ? FP_AK.back : kf;   // (from your own eyes the kick's mostly the view's own: game/view-cam.js, FP_RECOIL; a pair's is each gun's own, FP_AK)
+    let hx = kickPitch(k.p) * kp, hy = k.y * kp, hz = k.r * kf, hox = h.userData.x0 || 0, hoy = k.h * kz, hoz = k.z * kz;
+    if (ak) { hoz -= GP[side].back; hx += GP[side].a; }   // this one of the pair pushed back off what's in front of it (gunPush)
     const u = ak ? akU(side) : 0;
     if (ak) {
       // this hand's own way of holding it (AK_HAND), eased off while it's down being reloaded, and its own drift
       const a = AK_HAND[side], on = u > 0 ? 1 - Math.sin(Math.PI * clamp(u, 0, 1)) : 1, dr = now * a.f;
       hz += sg * a.cant * on; hy -= sg * a.toe * on; hx += a.p + Math.sin(dr) * 0.012;
       hox -= sg * a.in; hoy += a.up + Math.sin(dr * 1.3 + 0.5) * 0.004; hoz += a.fwd; hy += Math.sin(dr * 0.7 + 1.3) * 0.01;
+      // running with the pair from your own eyes: each hand pumping with the stride, opposite the other (FP_AK.run)
+      if (fpOn() && rd > 0.001) { const R = FP_AK.run, sw = Math.sin(ph) * sg, w = rd * on; hoz += w * R.swing * sw; hoy += w * R.lift * Math.abs(Math.cos(ph)); hx += w * (R.tip - R.tipSw * sw); hz += sg * w * R.cant; hox += sg * w * R.out; }
       if (side === 'L') {
         // put away for a vault, then drawn: the hand goes down to where it is, and comes back up with it
         h.visible = !ANIM.akHolstered;
@@ -530,8 +701,18 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const over = x <= 0 ? 0 : x >= 2 * kn ? x - kn : x * x / (4 * kn);   // (a soft limit: the gun eases into it and out of it, rather than stopping on it)
     if (over > 0) { const k = over / d * (1 - HAND.L.w); gg.position.x -= dx * k; gg.position.y -= dy * k; gg.position.z -= dz * k; gg.updateMatrix(); }
   }
-  up.x -= SR.x + BR.z * BR_LEAN; up.y += SR.y;   // the shot's rock back and twist through the shoulders (gunKick)
-  pm.upper.position.z = -BR.z;   // and the upper body shoved back under it (BR)
+  // (the body's world matrices brought up to this frame first: they're still where the body was last frame, and these
+  // place the gun against the view in the world, so it'd be put a frame behind wherever you've walked or turned to;
+  // the chest's turn too, which player/animation.js only puts on once the hands are done (mirrored as it puts it: up.u0),
+  // or the gun's placed against last frame's chest and jolts each time a turn starts or stops, the chest's twist on the
+  // hips jumping, and shakes walking)
+  if (fpOn()) { if (up.u0y !== undefined) pm.upper.rotation.set(up.x, 2 * up.u0y - up.y, 2 * up.u0z - up.z); PM.g.updateMatrixWorld(true); }
+  if (!ak) { fpSightAlign(gg); fpRecoil(gg, H.grip); fpViewSway(gg, H.grip); fpReloadPose(gg, smooth(clamp(re, 0, 1))); }   // in first person down the sights: brought onto your aim and up to your eye; each shot's turn of it; up into view to reload (game/view-cam.js)
+  { const IO = inspectOut(); fpInspectPose(gg, inspectW(), IO.x, IO.h, IO.z); }   // looking it over, from your own eyes: held up in front of them (game/view-cam.js)
+  inspectReach(gg, s, H, ak);   // and never further out or nearer in than the hands on it can hold it
+  if (!ak) fpSprintClear(gg, rd);   // (sprinting from your own eyes: out of your face, last, so nothing after brings it back up: game/view-cam.js)
+  { const bk = fpOn() ? FP_BODY_KICK : 1; up.x -= (SR.x + BR.z * BR_LEAN) * bk; up.y += SR.y * bk;   // the shot's rock back and twist through the shoulders (gunKick)
+    pm.upper.position.z = -BR.z * bk; }   // and the upper body shoved back under it (BR)
   // ---- moving parts: slides and bolts snap back on their own gun's shot, lock open when empty, ride the pump or bolt cycle
   const sl = SLIDES[s];
   if (sl && sl.length) {
@@ -556,7 +737,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       }
       else if (q.lock && rel === 'mag' && SLIDE_PISTOLS[id]) { off = 0; held = true; }   // rounds still in it: the slide stays put
       else if (q.lock && rel === 'mag' && CH) { off = rp < CH_SLAM ? 1 : 0; held = true; if (!off) q.off = 0; }   // back with the handle, then slammed home
-      else if (q.lock && rel === 'mag') { off = W8.reloadT / W8.reloadMax > 0.12 ? 1 : 0; held = true; }
+      else if (q.lock && rel === 'mag') { off = rp < 0.88 ? 1 : 0; held = true; }
       // a slide locking back or dropping home after a reload eases there (fast going back, a softer run forward), never snaps
       if (held) { if (q.off === undefined) q.off = off; q.off += (off - q.off) * Math.min(1, rdt * (fast ? 60 : off > q.off ? 30 : 12)); off = q.off; } else q.off = off;
       const zc = q.z0 - q.travel * off, cl = q.m.userData.clip;
@@ -620,15 +801,18 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // on its crane, well clear of the frame (REV_SWING, and carried out and down a touch, REV_OUT), and bounces off its
   // stop; when it's done it's snapped shut. On a spring, so it swings rather than slides
   if (cr.length) {
-    const open = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT);
+    // (after a round at a time it's pushed shut by hand instead, from CYL_GRAB: no flick, the hand drives it, below)
+    const byHand = cyP >= CYL_GRAB, open = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) || (cyP >= 0 && !byHand);
     ANIM.craneT = open ? (ANIM.craneT || 0) + rdt : 0; ANIM.crane = ANIM.crane || 0; ANIM.vcrane = ANIM.vcrane || 0;
     const want = open && ANIM.craneT >= REV_OPEN ? 1 : 0;
+    if (want) ANIM.latched = false;
+    if (byHand) { ANIM.craneWant = 0; ANIM.flick = -1; }
     // it's to close and it's out: the flick (REV_FLICK). The wrist winds the gun a touch further open, then snaps it
     // hard the other way, and the cylinder, left behind for a moment, swings home on the snap
     if (!want && ANIM.craneWant && ANIM.crane > 0.3) { ANIM.flick = 0; ANIM.latched = false; ACT.vr += REV_FLICK.windKick; ACT.vp -= 0.8; }
     ANIM.craneWant = want;
-    let hold = false;
-    if (ANIM.flick >= 0) {
+    let hold = byHand;
+    if (!byHand && ANIM.flick >= 0) {
       const f0 = ANIM.flick; ANIM.flick += rdt;
       if (f0 < REV_FLICK.wind && ANIM.flick >= REV_FLICK.wind) { ACT.vr -= REV_FLICK.snap; ACT.vy += REV_FLICK.snapYaw; ACT.vp += REV_FLICK.snapPitch; ANIM.vcrane = -REV_FLICK.swing; }
       hold = ANIM.flick < REV_FLICK.wind;
@@ -645,13 +829,21 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       }
       if (ANIM.crane > 1.12) { ANIM.crane = 1.12; ANIM.vcrane = -Math.abs(ANIM.vcrane) * 0.3; }   // and out against its stop
     }
+    // pushed round by the hand: slowly as the fingers take it, quicker as it swings home, latching at CYL_LATCH with a
+    // click that rocks the gun
+    if (byHand) {
+      if (ANIM.cyC0 == null) ANIM.cyC0 = ANIM.crane;
+      const u = clamp((cyP - CYL_GRAB) / (CYL_LATCH - CYL_GRAB), 0, 1), e = u * u * (2.4 - 1.4 * u);
+      ANIM.crane = ANIM.cyC0 * (1 - e); ANIM.vcrane = 0;
+      if (u >= 1 && !ANIM.latched) { ANIM.latched = true; SFX.cylShut(); relKnock(0.6, -1.2, 0.15, 0.1); }
+    } else ANIM.cyC0 = null;
     cr.forEach(c => { const p0 = c.userData.p0 || (c.userData.p0 = c.position.clone()), o = ANIM.crane; c.rotation.z = -o * REV_SWING; c.position.set(p0.x + REV_OUT[0] * o, p0.y - REV_OUT[1] * o, p0.z); c.updateMatrix(); });
     cylHeads(cr, id);
   }
   // ---- hands: start from their places on the gun
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand, hh = H.hand || HAND_0, fh = H.kind === 'hand' ? hh : HAND_0;   // a handgun's support hand cups the trigger hand, so it moves with it
-  gunPt(_hR, s, 'R', H.grip[0] + hd.out, H.grip[1] + hh[0] - hd.grip, H.grip[2] + hh[1]);
-  if (ak) gunPt(_hL, s, 'L', H.grip[0] - hd.out, H.grip[1] + hh[0] - hd.grip, H.grip[2] + hh[1]);
+  gunPt(_hR, s, 'R', H.grip[0] - hd.out, H.grip[1] + hh[0] - hd.grip, H.grip[2] + hh[1]);
+  if (ak) gunPt(_hL, s, 'L', H.grip[0] + hd.out, H.grip[1] + hh[0] - hd.grip, H.grip[2] + hh[1]);
   else {
     let fz = H.fore[2] + fh[1];
     if (H.foreOnSlide && sl) { const q = sl.find(e => e.cyc); if (q) fz += q.m.position.z - q.z0; }   // the support hand rides the pump
@@ -659,31 +851,52 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   }
   // the firing hand: works the bolt by its knob on a bolt gun's cycle (both points are on the gun, so it never lags
   // behind it), coming up over the wrist on the way there and back
-  if (cp && cy.bolt && sl) {
-    const q = sl.find(e => e.cyc);
-    if (q) { const hd = cy.v.hand; _p1.set(BOLT_KNOB[0] + hd[0], BOLT_KNOB[1] + hd[1], BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, cp.grab); _hR.y += Math.sin(Math.PI * cp.grab) * 0.02 * (cq < 0.5 ? 1 : 0.6); }
-  }
+  // (a cycle that ends with the hand still on the knob, the bolt left open to load, lets go of it and eases back to the
+  // grip rather than the hand jumping there: BOLT_LET)
+  { const q = sl && EJECT[id] === 'bolt' ? sl.find(e => e.cyc) : null, on = !!(cp && cy.bolt);
+    if (on) { ANIM.boltG = cp.grab; ANIM.boltHd = cy.v.hand; } else if (ANIM.boltG) { ANIM.boltG *= Math.exp(-rdt * BOLT_LET); if (ANIM.boltG < 0.002 || !q) ANIM.boltG = 0; }
+    const g = ANIM.boltG || 0;
+    if (q && g > 0) { const hd = ANIM.boltHd || HAND_0; _p1.set(BOLT_KNOB[0] + hd[0], BOLT_KNOB[1] + hd[1], BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, g); _hR.y += Math.sin(Math.PI * g) * 0.02 * (on && cq >= 0.5 ? 0.6 : 1); } }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
   // comes back
   if (cg > 0.001) {
     // on its handle (coming onto it from a little above and in front: hook), back with it, and once it's let go, still
     // where it let go but flicked up and out off it; on an arc up over the receiver on the way there and back
     const at = CHARGE[s].at, hp = rp < CH_SLAM ? pull : drawn, arc = Math.sin(Math.PI * cg);
-    gunPt(_p1, s, 'R', at[0] - 0.012 * arc - 0.018 * flick, at[1] + 0.012 + 0.02 * hook + 0.022 * flick, at[2] - CHARGE[s].tr * hp + 0.025 * hook - 0.012 * flick);
-    _hR.lerp(_p1, cg); _hR.y += arc * 0.04 * (1 - hook * 0.5);
+    gunPt(_p1, s, 'R', at[0] + 0.012 * arc + 0.018 * flick, at[1] + 0.012 + 0.02 * hook + 0.022 * flick, at[2] - CHARGE[s].tr * hp + 0.025 * hook - 0.012 * flick);
+    _hR.lerp(_p1, cg); _hR.y += arc * (fpOn() ? 0.015 : 0.04) * (1 - hook * 0.5) - CH_ANT_D * chAnt;   // (from your own eyes hardly lifted: it'd bring the arm up across them)
   }
   // the other hand of a pair charging a machine pistol: over to the empty one's handle, drawing it back with it
   let akFree = null;
   if (akC && akC.reach > 0.001) { const hc = HOLDS[s][akC.side] && HOLDS[s][akC.side].userData.charge; if (hc) akFree = gunPt(_akH, s, akC.side, hc.at[0], hc.at[1] + 0.012, hc.at[2] - hc.tr * akC.pull); }
   const akOff = sd => akFree && akC.other === sd ? akC.reach : 0;
-  handTarget(_fR, 'R', _hR, akOff('R') ? akFree : null, akOff('R'), rdt);
+  // a bolt gun's rounds go in by the firing hand, the support hand keeping the rifle up by its fore-end: off the grip
+  // (once the bolt's been drawn back) to the cartridges on your right hip for one, up under the open port, pressed down
+  // into the well and forward under the bolt by the thumb, and back for the next; after the last it goes back to the
+  // bolt and pushes it home (weapons/casings.js: chamberCycle)
+  const boltFeed = rel === 'shell' && EJECT[id] === 'bolt' && !ak;
+  let freeR = null, wR = akOff('R');
+  if (boltFeed) {
+    const pt = H.port || H.grip; gunPt(_p1, s, 'R', pt[0], pt[1], pt[2]);
+    _feedAt.copy(_p1); _feedQ.copy(gg.quaternion).multiply(holdOf(s, 'R').quaternion);
+    _feedAx.set(0, 0, 1).applyQuaternion(_feedQ); _feedUp.set(0, 1, 0).applyQuaternion(_feedQ);
+    _p2.copy(_p1).addScaledVector(_feedUp, BOLT_FEED.up).addScaledVector(_feedAx, -BOLT_FEED.back); _p2.x += BOLT_FEED.out;   // the round lined up over and behind the port
+    const nGo = W8.goN || 1, last = W8.relStop || (W8.mag[id] || 0) + nGo >= magSize(id) || reserveOf(id) <= nGo, END = last ? _hR : POUCH_R;
+    _p3.copy(POUCH_R).lerp(_p2, 0.5); _p3.y += 0.04;   // up and over on the way, not straight through the stock
+    // (down onto the round laid in the port and pressing it in, its thumb on it: BOLT_FEED)
+    const B = BOLT_FEED, A = B.at; _p4.copy(_p1).addScaledVector(_feedUp, B.lay + B.thumb); _p5.copy(_p1).addScaledVector(_feedUp, B.lay + B.thumb - B.press);
+    freeR = walkPath(_p6, [[0, POUCH_R], [0.3, _p3], [0.5, _p2], [A[1], _p4], [A[2], _p5], [A[3], _p5], [1, END]], rp);
+    if (END === _hR && rp > A[3]) { const u = clamp((rp - A[3]) / (1 - A[3]), 0, 1), e = u * u * (3 - 2 * u); freeR = _p6.copy(_p5).lerp(_hR, e); freeR.y += 0.02 * Math.sin(Math.PI * u); }
+    wR = W8.relWait > 0 ? 0 : 1;   // (on the bolt while it's drawn back)
+  }
+  handTarget(_fR, 'R', _hR, freeR || (akOff('R') ? akFree : null), wR, rdt);
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;
     if (rel === 'mag' && D.speedload && cr.length) {
       // the back of the open cylinder and the gun's forward axis, in upper-body space
       const hq = holdOf(s, 'R');
-      _p1.set(0.035, 0.045, -0.06).applyMatrix4(cr[0].matrix).applyMatrix4(hq.matrix).applyMatrix4(gg.matrix);
+      partPt(_p1.set(0.035, 0.045, -0.06), s, cr[0]);
       _slQ.copy(gg.quaternion).multiply(hq.quaternion); _slAx.set(0, 0, 1).applyQuaternion(_slQ);
       _p2.copy(_p1).addScaledVector(_slAx, -0.1);                              // the fist, loader pushed home
       _p3.copy(_p1).addScaledVector(_slAx, -0.24); _p3.y -= 0.07;              // lining it up behind the cylinder
@@ -724,12 +937,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
           free = walkPath(_p4, [[0, _hL], [0.24, _p1], [0.36, _p2], [relU, _p2], [relU + 0.09, _p3], [1, _hL]], rr);
         } else { free = null; wt = 0; }   // the slide release: the shooting hand's thumb does it (the gun's roll, above), the support hand back on the grip
       }
-    } else if (rel === 'shell') {
-      if (id === 'revolver' && cr.length) _p1.set(0.035, 0.045, -0.07).applyMatrix4(cr[0].matrix).applyMatrix4(holdOf(s, 'R').matrix).applyMatrix4(gg.matrix);   // the back of the open cylinder
+    } else if (rel === 'shell' && !boltFeed) {
+      if (id === 'revolver' && cr.length) partPt(_p1.set(0.035, 0.045, -0.07), s, cr[0]);   // the back of the open cylinder
       else if (brkG && brkG.rims.length) {
         // the next empty chamber of the open barrels, and the line back along its bore the shell comes in on
         const r = brkG.rims[Math.min(brkG.rims.length - 1, W8.mag[id] || 0)], hq = holdOf(s, 'R');
-        _p1.copy(r.position).applyMatrix4(brkG.g.matrix).applyMatrix4(hq.matrix).applyMatrix4(gg.matrix);
+        partPt(_p1.copy(r.position), s, brkG.g);
         _bq.copy(gg.quaternion).multiply(hq.quaternion).multiply(brkG.g.quaternion); _slAx.set(0, 0, 1).applyQuaternion(_bq);
         _p1.addScaledVector(_slAx, -0.03);
       }
@@ -741,15 +954,36 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       else { _p2.copy(_p1); _p2.y -= 0.1; _p2.x -= 0.05; }
       const st = W8.relStyle || 0;
       const row = !brkG && rowLoad(id, D) ? Math.min(3, W8.goN || 1) : 1;
+      // the last of them in, the hand goes straight back onto the gun (to rack it, or hold it) rather than down to the
+      // pouch for one that isn't coming and then up again
+      // (the revolver's last round in, the hand stays at the cylinder to push it shut: cyP, below)
+      const nGo = W8.goN || 1, last = W8.relStop || (W8.mag[id] || 0) + nGo >= magSize(id) || reserveOf(id) <= nGo, END = last ? (id === 'revolver' && cr.length ? _p1 : _hL) : POUCH;
       if (row > 1) {
         // a row in the palm: up to the port quickly, held there while the thumb pushes each shell in, a nudge in with each
-        free = walkPath(_p4, [[0, POUCH], [0.17, _p2], [HSH_FEED[0], _p1], [HSH_FEED[1], _p1], [1, POUCH]], rp);
+        free = walkPath(_p4, [[0, POUCH], [0.17, _p2], [HSH_FEED[0], _p1], [HSH_FEED[1], _p1], [1, END]], rp);
         if (rp > HSH_FEED[0] && rp < HSH_FEED[1]) { const { u } = rowAt(rp, row), j = Math.sin(Math.PI * smooth(u)); free.addScaledVector(_feedAx, 0.016 * j).addScaledVector(_feedUp, 0.006 * j); }
       }
-      else if (st === 1) { _p2.add(_rv.set(-0.03, -0.04, 0)); _p3.copy(_p1).lerp(_p2, -0.12); free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.76, _p3], [0.86, _p1], [1, POUCH]], rp); }   // in low from the left, a firm thumb push
-      else if (st === 2) { _p3.copy(POUCH).lerp(_p2, 0.5); _p3.y += 0.05; free = walkPath(_p4, [[0, POUCH], [0.28, _p3], [0.5, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp); }   // up and over, then in
-      else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.86, _p1], [1, POUCH]], rp);
+      else if (st === 1) { _p2.add(_rv.set(-0.03, -0.04, 0)); _p3.copy(_p1).lerp(_p2, -0.12); free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.76, _p3], [0.82, _p1], [1, END]], rp); }   // in low from the left, a firm thumb push
+      else if (st === 2) { _p3.copy(POUCH).lerp(_p2, 0.5); _p3.y += 0.05; free = walkPath(_p4, [[0, POUCH], [0.28, _p3], [0.5, _p2], [0.7, _p1], [0.82, _p1], [1, END]], rp); }   // up and over, then in
+      else free = walkPath(_p4, [[0, POUCH], [0.45, _p2], [0.7, _p1], [0.82, _p1], [1, END]], rp);
+      // the last of them in, the hand comes back off the port onto the forend, eased and dipping under the gun, rather
+      // than straight across (a pump then takes hold of it before it's worked: PUMP_GRAB, below)
+      if (END === _hL && row <= 1 && rp > 0.82) { const u = clamp((rp - 0.82) / 0.18, 0, 1), e = u * u * (3 - 2 * u); free = _p4.copy(_p1).lerp(_hL, e); free.y -= 0.035 * Math.sin(Math.PI * u); }
       wt = W8.relWait > 0 ? 0 : 1;   // (on the gun while the action's pulled back: a pump's forend is pulled with it)
+    } else if (!rel && W8.grabT > 0 && W8.grabId === id && !cy) {
+      // a pump after its reload: the hand settles onto the forend, sliding the last bit along it and closing on it,
+      // before it's worked (weapons/reload.js, PUMP_GRAB)
+      const g = 1 - W8.grabT / (W8.grabMax || 1), e = 1 - (1 - g) * (1 - g);
+      _rv.set(0, 0, 1).applyQuaternion(gg.quaternion); free = _p4.copy(_hL).addScaledVector(_rv, -0.03 * (1 - e)); free.y -= 0.012 * (1 - e); wt = 1;
+    } else if (cyP >= 0 && cr.length) {
+      // the revolver's cylinder pushed shut: the hand from where it was to the open cylinder's outside, riding it round
+      // into the frame, and back onto the grip once it's latched
+      if (!ANIM.cyFrom) ANIM.cyFrom = new V3().copy(_fL);
+      cylSide(_p1, s, cr[0]);
+      if (cyP < CYL_GRAB) { const k = smooth(cyP / CYL_GRAB); _p2.copy(ANIM.cyFrom).lerp(_p1, 0.6); _p2.y -= 0.03; free = walkPath(_p4, [[0, ANIM.cyFrom], [0.6, _p2], [1, _p1]], k); }
+      else if (cyP < CYL_LATCH + 0.05) free = _p4.copy(_p1);
+      else { const k = smooth((cyP - CYL_LATCH - 0.05) / (1 - CYL_LATCH - 0.05)); free = _p4.copy(_p1).lerp(_hL, k); }
+      wt = 1;
     } else if (shP >= 0 && brkG) {
       // closing the double barrel: back from wherever the hand was (the pouch, or the chamber if it was stopped) to the
       // forend where it hangs on the swung-down barrels, under and up onto it, then riding it as it lifts them shut
@@ -761,6 +995,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       wt = 1;
     }
     if (shP < 0) ANIM.shFrom = null;
+    if (cyP < 0) ANIM.cyFrom = null;
+    // looking a handgun over, it's turned in the one hand: the other lets go of it and hangs by your side till it's done
+    // (player/inspect.js)
+    if (!free && H.kind === 'hand' && inspectW() > 0.002) { free = _p4.copy(SWAP_REST_L); wt = smooth(clamp(inspectW() * 1.3, 0, 1)); }
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
     magToFist(_fL, free);   // the fresh mag, where the fist actually got to
@@ -778,20 +1016,24 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       const ra = brkG ? null : rowAt(rp, n), fed = ra ? ra.k : 0;
       HSH_R.visible = rifle; HSH_R.scale.z = D.ammo === 'magnum' ? 0.6 : 1;   // (a .357's case is short)
       const sm = shellMat(id); HSH_S.forEach(g => { g.children[0].material = sm; });   // in the colour of the kind loaded (weapons/gun-models.js)
-      HSH.quaternion.copy(_feedQ); HSH.position.copy(_fL).addScaledVector(_feedAx, 0.04);
+      HSH.quaternion.copy(_feedQ); HSH.position.copy(boltFeed ? _fR : _fL).addScaledVector(_feedAx, 0.04);
       // a row: the top one lifted to the port and pushed up into the tube in its own push, the rest riding up a place
       // after it's in (the last counted in as its push ends: weapons/reload.js)
       const u = ra && n > 1 ? ra.u : 0, ride = smooth(clamp((u - 0.55) / 0.45, 0, 1)), lift = smooth(clamp(u / 0.4, 0, 1));
       const push = smooth(clamp((u - 0.3) / 0.6, 0, 1));
       HSH_S.forEach((g, k) => { g.visible = !rifle && k < n && k >= fed; if (brkG) g.position.set(k * HSH_GAP, 0, 0); else if (k === fed && u > 0) g.position.set(0, 0.016 * lift, 0.06 * push); else g.position.set(0, (fed - k + (u > 0 ? ride : 0)) * HSH_GAP, 0); });
-      if (n === 1 && rp > FEED_IN[0]) {
+      if (n === 1 && rp > (D.ammo === 'rifle' && boltFeed ? BOLT_FEED.at[0] : FEED_IN[0])) {
         // lined up on the port as the hand gets there, then pushed in: how far, and which way, by the gun
         const k = smooth(clamp((rp - FEED_IN[1]) / (FEED_IN[2] - FEED_IN[1]), 0, 1)), a = Math.min(1, k * 2), b = Math.max(0, k * 2 - 1);
         _feedV.copy(_feedAt);
-        if (D.ammo === 'rifle') _feedV.addScaledVector(_feedUp, -0.02 * a).addScaledVector(_feedAx, 0.035 * b);
+        if (D.ammo === 'rifle' && boltFeed) { const B = BOLT_FEED, A = B.at, ss = (x, y) => smooth(clamp((rp - x) / (y - x), 0, 1));
+          _feedV.addScaledVector(_feedUp, B.lay - B.press * ss(A[1], A[2]) + B.rise * ss(A[3], A[4])); }
+        else if (D.ammo === 'rifle') _feedV.addScaledVector(_feedUp, -0.02 * a).addScaledVector(_feedAx, 0.035 * b);
         else if (EJECT[id] === 'pump') _feedV.addScaledVector(_feedUp, 0.016 * a).addScaledVector(_feedAx, 0.075 * b);
         else _feedV.addScaledVector(_feedAx, (D.ammo === 'magnum' ? 0.034 : 0.066) * k);
-        HSH.position.lerp(_feedV, smooth(clamp((rp - FEED_IN[0]) / (FEED_IN[1] - FEED_IN[0]), 0, 1)));
+        // (a bolt gun's round goes with the fingers right down onto the port, not on ahead of them: BOLT_FEED)
+        const fi = D.ammo === 'rifle' && boltFeed ? [BOLT_FEED.at[0], BOLT_FEED.at[1]] : FEED_IN;
+        HSH.position.lerp(_feedV, smooth(clamp((rp - fi[0]) / (fi[1] - fi[0]), 0, 1)));
       }
     }
     // the loader rides in front of the left fist from the pouch until it's let go, rounds pointing into the cylinder,
@@ -808,8 +1050,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   } else handTarget(_fL, 'L', _hL, akOff('L') ? akFree : null, akOff('L'), rdt);
   // ---- arms: each one points at its own fist target, so only the hand that is busy moves
   const hr = HAND_ROLL[H.kind] || HAND_ROLL.hand;
-  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w)); reach(pm.armL, 'L', _fL, ak ? -hr.R * (1 - HAND.L.w) : hr.L * (1 - HAND.L.w));   // (turned back straight while a hand's off the gun)
-  pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp; pm.head.rotation.y += ACT.hy;
-  pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
+  // (looking it over, a hand on the gun turns with it however it's turned, so it stays gripped as it was rather than
+  // turning in the hand: gripTwist, player/inspect.js)
+  const twR = gripFollow('R', _fR, s, HAND.R.w), twL = ak ? 0 : gripFollow('L', _fL, s, HAND.L.w);
+  reach(pm.armR, 'R', _fR, hr.R * (1 - HAND.R.w) + twR, false, 1 - HAND.R.w); reach(pm.armL, 'L', _fL, (ak ? -hr.R : hr.L) * (1 - HAND.L.w) + twL, false, 1 - HAND.L.w);   // (turned back straight while a hand's off the gun; held on to it as it's on it: ARM_LOCK)
+  // the revolver twirled round the trigger finger (player/inspect.js), after the hands are on it, so they stay put
+  if (IN.spin) spinGun(gg, s, H.grip, IN.spin);
+  pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp + IN.hp; pm.head.rotation.y += ACT.hy + IN.hy;
+  pm.head.rotation.z -= ads * 0.13 * aimEye(LOOK.cur);   // and the head tips over onto the stock to look down the sights (the other way, aiming with the left eye under a patch over the right: player/look.js)
   up.x += ANIM.pitch * 0.26 + ads * 0.05;
 }

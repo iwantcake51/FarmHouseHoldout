@@ -5,7 +5,7 @@ import { GUN_MODS } from '../weapons/gun-mods.js';
 // Melee mods: same shape as gun mods, one weapon each.
 const MELEE_MODS = {
   nails: { w: 'bat', r: 'c', name: 'Nails in the bat', text: 'Hits harder and takes limbs off more often.', vis: 'Nails through the end', stat: D => { D.dmg *= 1.4; D.sever += 0.4; } },
-  wire: { w: 'bat', r: 'u', name: 'Barbed wire', text: 'Longer reach and wider swings that catch one more zombie.', vis: 'Wire wrapped round it', need: 'nails', stat: D => { D.range += 0.35; D.arc += 0.35; D.cleave += 1; } },
+  wire: { w: 'bat', r: 'u', name: 'Barbed wire', text: 'Longer reach and wider swings that catch one more zombie.', vis: 'Wire wrapped round it', stat: D => { D.range += 0.35; D.arc += 0.35; D.cleave += 1; } },
   serrated: { w: 'machete', r: 'u', name: 'Serrated edge', text: 'Hits make zombies bleed.', vis: 'A saw-toothed spine', stat: D => { D.bleed = true; } },
   longblade: { w: 'machete', r: 'c', name: 'Long blade', text: 'Reaches far enough to catch two zombies a swing.', vis: 'A longer blade', stat: D => { D.range += 0.4; } },
   tape: { w: 'crowbar', r: 'c', name: 'Taped grip', text: 'Quicker swings.', vis: 'Grip tape on the handle', stat: D => { D.rate *= 0.7; } },

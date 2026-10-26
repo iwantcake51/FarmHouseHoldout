@@ -8,6 +8,7 @@ import { curId, SCOPE_GUNS, T, W } from '../game/run-state.js';
 import { nz } from '../audio/audio.js';
 import { state } from '../game/state.js';
 import { usingTouch } from '../input/touch.js';
+import { freeOn, freeWheel, isoOn } from '../game/view-cam.js';
 
 // ---- scope: hold right click with a scoped gun (the rifles, the revolver) ----
 export let scoped = false, zoomBeforeScope = 1;
@@ -26,7 +27,8 @@ export function moveScope(dx, dy) {
   const vx = scopePt.x - P.x, vz = scopePt.z - P.z, d = Math.hypot(vx, vz), max = 24;
   if (d > max) { scopePt.x = P.x + vx / d * max; scopePt.z = P.z + vz / d * max; }
 }
-cv.addEventListener('wheel', e => { e.preventDefault(); setZoomT(clamp(zoomT * Math.exp(-e.deltaY * 0.0012), ZOOM_MIN, ZOOM_MAX)); }, { passive: false });
+cv.addEventListener('wheel', e => { e.preventDefault(); if (!isoOn()) { if (freeOn()) freeWheel(e.deltaY); return; }   // (no zoom out of your own eyes; the free camera's speed: game/view-cam.js)
+  setZoomT(clamp(zoomT * Math.exp(-e.deltaY * 0.0012), ZOOM_MIN, ZOOM_MAX)); }, { passive: false });
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setAiming(v) { return (aiming = v); }

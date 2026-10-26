@@ -8,10 +8,11 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
-import { cam, hemi, R, scene, sun } from '../core/renderer.js';
+import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
-import { MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
+import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
+import { heatBloom, heatGlowing } from './supp-heat.js';
 import { batchSprites } from './sprite-batch.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { curDark } from '../lighting/day-night.js';
@@ -39,11 +40,13 @@ const lerpD = a => a[0] + (a[1] - a[0]) * clamp(curDark, 0, 1);
 // quality change never pops it on or off the whole screen at once
 export const POST = { ok: true, q: 2, w: 0, h: 0, aoK: 1, aoT: 0 };
 const PS_VERT = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
-// linear depth from the depth buffer: an orthographic camera's is straight from near to far
+// linear depth from the depth buffer: an orthographic camera's is straight from near to far; one with perspective (first
+// person, the free camera: game/view-cam.js, uNF.z 1) bunches up toward the far end
 const PS_DEPTH = `
-uniform sampler2D tDepth; uniform vec2 uNF;
-float viewD(vec2 uv) { return uNF.x + texture2D(tDepth, uv).r * (uNF.y - uNF.x); }`;
+uniform sampler2D tDepth; uniform vec3 uNF;
+float viewD(vec2 uv) { float z = texture2D(tDepth, uv).r; return uNF.z > 0.5 ? uNF.x * uNF.y / (uNF.y - z * (uNF.y - uNF.x)) : uNF.x + z * (uNF.y - uNF.x); }`;
 const psMat = (frag, uniforms, defines) => new THREE.ShaderMaterial({ uniforms, defines: defines || {}, vertexShader: PS_VERT, fragmentShader: frag, depthTest: false, depthWrite: false });
+const AO_NEAR = [0.55, 1.1];
 // the hemisphere it samples, more of them near the middle
 const AO_KERNEL = (() => {
   const n = AO.n[AO.n.length - 1], ks = [];
@@ -57,7 +60,7 @@ const aoMat = psMat(`
 ${PS_DEPTH}
 uniform vec2 uSize, uCenter, uPx; uniform float uR, uBias, uN; uniform vec3 uK[${AO_KERNEL.length}]; uniform mat4 uInvView;
 varying vec2 vUv;
-vec3 viewPos(vec2 uv, float d) { return vec3(uCenter + (uv - 0.5) * uSize, -d); }
+vec3 viewPos(vec2 uv, float d) { return vec3(uCenter + (uv - 0.5) * uSize * (uNF.z > 0.5 ? d : 1.0), -d); }
 void main() {
   float d = viewD(vUv);
   if (d > uNF.y * 0.995) { gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0); return; }
@@ -68,23 +71,30 @@ void main() {
   vec3 dx = abs(pr.z - P.z) < abs(P.z - pl.z) ? pr - P : P - pl, dy = abs(pu.z - P.z) < abs(P.z - pd.z) ? pu - P : P - pd;
   vec3 N = normalize(cross(dx, dy));
   // turned a different way every couple of centimetres, so its few samples blur into a smooth shade; the pattern's
-  // fixed to the world, not the screen, so it moves with what it's on as the camera moves instead of crawling over it
-  vec3 wq = floor((uInvView * vec4(P, 1.0)).xyz * 40.0);
-  float rn = fract(sin(dot(wq, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;
+  // fixed to the world, not the screen, so it moves with what it's on as the camera moves instead of crawling over it.
+  // From your own eyes it's turned pixel by pixel instead (interleaved gradient noise, which the blur takes out
+  // entirely): there the arms and the gun are a few tens of centimetres off, where a couple of centimetres is a big
+  // patch of screen, each its own shade, a blotchy pattern the blur couldn't smooth
+  float rn;
+  if (uNF.z > 0.5) rn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
+  else { vec3 wq = floor((uInvView * vec4(P, 1.0)).xyz * 40.0); rn = fract(sin(dot(wq, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853; }
   vec3 rv = vec3(cos(rn), sin(rn), 0.0), T = normalize(rv - N * dot(rv, N)), B = cross(N, T);
   mat3 tbn = mat3(T, B, N);
   float occ = 0.0;
   for (int i = 0; i < ${AO_KERNEL.length}; i++) {
     if (float(i) >= uN) break;
     vec3 s = P + tbn * uK[i] * uR;
-    vec2 su = (s.xy - uCenter) / uSize + 0.5;
+    vec2 su = (s.xy / (uNF.z > 0.5 ? -s.z : 1.0) - uCenter) / uSize + 0.5;
     float sd = viewD(su), sz = -sd;
     float range = smoothstep(0.0, 1.0, uR / max(abs(P.z - sz), 1e-4));
     occ += step(s.z + uBias, sz) * range;
   }
   float ao = 1.0 - occ / max(uN, 1.0);
+  // (and none on what's in your own hands: from your eyes, fading out within arm's reach, AO_NEAR, as a shooter keeps
+  // it off its viewmodel)
+  if (uNF.z > 0.5) ao = mix(1.0, ao, smoothstep(${AO_NEAR[0].toFixed(2)}, ${AO_NEAR[1].toFixed(2)}, d));
   gl_FragColor = vec4(ao, d / uNF.y, 0.0, 1.0);
-}`, { tDepth: { value: null }, uNF: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uR: { value: AO.r }, uBias: { value: AO.bias }, uN: { value: 8 }, uK: { value: AO_KERNEL }, uInvView: { value: new THREE.Matrix4() } });
+}`, { tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uR: { value: AO.r }, uBias: { value: AO.bias }, uN: { value: 8 }, uK: { value: AO_KERNEL }, uInvView: { value: new THREE.Matrix4() } });
 // a wide, soft blur one way: a tap counts less the further its depth is from the middle's, but gently (a smooth
 // falloff, not a cut), so the shade grades off round an edge instead of stopping at it in steps
 const aoBlurMat = psMat(`
@@ -106,15 +116,15 @@ void main() {
 // (AO.keep of the old). It's held to the range of this frame's own round it (so a zombie walking off leaves no smear of
 // its shade behind), and thrown out where the depth there isn't what the point's was (it was hidden, or something's moved)
 const aoTemporalMat = psMat(`
-uniform sampler2D tCur, tHist; uniform mat4 uInvView, uPrevView; uniform vec2 uSize, uCenter, uPrevSize, uPrevCenter, uPx; uniform float uFar, uKeep, uValid;
+uniform sampler2D tCur, tHist; uniform mat4 uInvView, uPrevView; uniform vec2 uSize, uCenter, uPrevSize, uPrevCenter, uPx; uniform float uFar, uKeep, uValid, uPs;
 varying vec2 vUv;
 void main() {
   vec4 c = texture2D(tCur, vUv);
   if (uValid < 0.5 || c.g > 0.994) { gl_FragColor = c; return; }
   float d = c.g * uFar;
-  vec4 Wp = uInvView * vec4(uCenter + (vUv - 0.5) * uSize, -d, 1.0);
+  vec4 Wp = uInvView * vec4(uCenter + (vUv - 0.5) * uSize * (uPs > 0.5 ? d : 1.0), -d, 1.0);
   vec3 Vp = (uPrevView * Wp).xyz;
-  vec2 pu = (Vp.xy - uPrevCenter) / uPrevSize + 0.5;
+  vec2 pu = (Vp.xy / (uPs > 0.5 ? -Vp.z : 1.0) - uPrevCenter) / uPrevSize + 0.5;
   if (pu.x < 0.0 || pu.y < 0.0 || pu.x > 1.0 || pu.y > 1.0) { gl_FragColor = c; return; }
   vec4 h = texture2D(tHist, pu);
   float mn = c.r, mx = c.r;
@@ -122,20 +132,22 @@ void main() {
   float hv = clamp(h.r, mn - 0.04, mx + 0.04);
   float ok = 1.0 - smoothstep(0.08, 0.25 + d * 0.004, abs(h.g * uFar + Vp.z));
   gl_FragColor = vec4(mix(c.r, hv, uKeep * ok), c.g, 0.0, 1.0);
-}`, { tCur: { value: null }, tHist: { value: null }, uInvView: { value: new THREE.Matrix4() }, uPrevView: { value: new THREE.Matrix4() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPrevSize: { value: new THREE.Vector2() }, uPrevCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uFar: { value: 1 }, uKeep: { value: 0.88 }, uValid: { value: 0 } });
+}`, { tCur: { value: null }, tHist: { value: null }, uInvView: { value: new THREE.Matrix4() }, uPrevView: { value: new THREE.Matrix4() }, uSize: { value: new THREE.Vector2() }, uCenter: { value: new THREE.Vector2() }, uPrevSize: { value: new THREE.Vector2() }, uPrevCenter: { value: new THREE.Vector2() }, uPx: { value: new THREE.Vector2() }, uFar: { value: 1 }, uKeep: { value: 0.88 }, uValid: { value: 0 }, uPs: { value: 0 } });
 // the bright parts, softly cut off, boxed down four pixels to one
 const brightMat = psMat(`
-uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow;
+uniform sampler2D tCol, tGlow, tGlowD, tSceneD; uniform vec2 uPx; uniform float uTh, uKnee, uGlow, uFlashD;
 varying vec2 vUv;
 void main() {
   vec3 c = (texture2D(tCol, vUv + uPx * vec2(-1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, -1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(-1.0, 1.0)).rgb + texture2D(tCol, vUv + uPx * vec2(1.0, 1.0)).rgb) * 0.25;
   float l = max(c.r, max(c.g, c.b));
   vec3 o = c * smoothstep(uTh, uTh + uKnee, l);
   // and the glowing things, where they're not behind something
-  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see)
-  if (uGlow > 0.0) { float gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? 1.0 : step(gd, texture2D(tSceneD, vUv).r + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
+  // (a halo or a trail writes no depth of its own: it's taken as seen, as it only shows on a zombie you can see; nor
+  // does the muzzle flash, which is seen only where nothing's nearer than the muzzle (uFlashD: its depth, 0 for none),
+  // so the gun in front of it, down the sights, hides it)
+  if (uGlow > 0.0) { float sd = texture2D(tSceneD, vUv).r, gd = texture2D(tGlowD, vUv).r, seen = gd > 0.9999 ? step(uFlashD, sd + 0.00002) : step(gd, sd + 0.0015); o += texture2D(tGlow, vUv).rgb * seen * uGlow; }
   gl_FragColor = vec4(o, 1.0);
-}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 } });
+}`, { tCol: { value: null }, tGlow: { value: null }, tGlowD: { value: null }, tSceneD: { value: null }, uPx: { value: new THREE.Vector2() }, uTh: { value: 0.8 }, uKnee: { value: 0.2 }, uGlow: { value: 0 }, uFlashD: { value: 0 } });
 const blurMat = psMat(`
 uniform sampler2D tSrc; uniform vec2 uDir;
 varying vec2 vUv;
@@ -168,13 +180,16 @@ void main() {
   if (uMist.w > 0.0) { vec4 m = mistOf(vUv, viewD(vUv)); c = mix(c, m.rgb, m.a) + mGlow * (1.0 - m.a); }
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
-}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector2() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+  gl_FragDepth = texture2D(tDepth, vUv).r;   // (the scene's depth, for what's drawn over the fog to be hidden behind it)
+}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+// (the composite writes the scene's depth with its colour, whatever's there: depth tested, as only then is it written)
+Object.assign(compMat, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
 const psScene = new THREE.Scene(); psScene.add(psQuad);
 const psCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 export const PS_RT = { sc: null, ao: null, ao2: null, hA: null, hB: null, b1: null, b1b: null, b2: null, b2b: null, gl: null };
 // last frame's view of the occlusion (its history, PS_RT.hA) and the camera it was seen from
-const PS_PREV = { view: new THREE.Matrix4(), size: new THREE.Vector2(), center: new THREE.Vector2(), ok: false };
+const PS_PREV = { view: new THREE.Matrix4(), size: new THREE.Vector2(), center: new THREE.Vector2(), ok: false, cam: null }, _psR = new THREE.Vector4();
 const psTarget = (w, h, o) => { const t = new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), Object.assign({ minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false }, o || {})); t.texture.generateMipmaps = false; return t; };
 const _psSz = new THREE.Vector2();
 // (re)made at the drawing buffer's size whenever it changes
@@ -203,28 +218,41 @@ function psBlur(src, tmp, w, h) {
 // the glowing things alone (GLOW_LAYER), when any are out: the camera seeing only them, nothing else drawn (no
 // shadows, no sky). How strongly they're to glow back, or 0 for none this frame
 function glowPass() {
-  if (!(flash.visible || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
+  if (!(flash.visible || heatGlowing() || zombies.some(z => z.vis > 0.05 && !z.dead))) return 0;
   const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate, cc = R.getClearAlpha(); R.getClearColor(_glCC);
   cam.layers.set(GLOW_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.setClearColor(0x000000, 1);
-  R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); R.render(scene, cam);
+  R.setRenderTarget(PS_RT.gl); R.clear(true, true, false); heatBloom(true); R.render(scene, cam); heatBloom(false);
   cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh; R.setClearColor(_glCC, cc);
   return GLOW.k;
 }
 const _glCC = new THREE.Color();
+// the muzzle flash's depth on the screen (as the depth buffer has it), just ahead of the muzzle: 0 with none showing
+const _fdV = new THREE.Vector3();
+function flashDepth() {
+  if (!flash.visible || !flash.parent) return 0;
+  flash.updateMatrixWorld(true); _fdV.setFromMatrixPosition(flash.matrixWorld).project(cam);
+  return _fdV.z < -1 || _fdV.z > 1 ? 0 : _fdV.z * 0.5 + 0.5;
+}
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 export function renderFrame() {
   batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;
+  // in a fog round the particles and a sight's reticle are left out of the scene and drawn over the fog afterwards
+  // (OVER_LAYER), hidden behind what's nearer by the scene's own depth, so the fog behind them isn't laid over them
+  const over = MIST.k > 0.001 && cam.layers.isEnabled(OVER_LAYER);
+  if (over) cam.layers.disable(OVER_LAYER);
   R.setRenderTarget(PS_RT.sc); R.render(scene, cam);
+  if (over) cam.layers.enable(OVER_LAYER);
   R.autoClear = true;
   { const now = performance.now(), dt = POST.aoT ? Math.min(0.1, (now - POST.aoT) / 1000) : 0; POST.aoT = now; const want = AO.n[POST.q] && SET.ao === 'on' ? 1 : 0; POST.aoK += clamp(want - POST.aoK, -dt * AO.fade, dt * AO.fade); }
-  const nf = [cam.near, cam.far], sc = PS_RT.sc, aoN = POST.aoK > 0.001 ? AO.n[POST.q] || AO.n[1] : 0;
+  const ps = cam.isPerspectiveCamera ? 1 : 0, nf = [cam.near, cam.far, ps], sc = PS_RT.sc, aoN = POST.aoK > 0.001 ? AO.n[POST.q] || AO.n[1] : 0;
   if (aoN) {
-    const U = aoMat.uniforms, z = cam.zoom;
+    const U = aoMat.uniforms;
     U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf);
-    U.uSize.value.set((cam.right - cam.left) / z, (cam.top - cam.bottom) / z); U.uCenter.value.set((cam.right + cam.left) / 2, (cam.top + cam.bottom) / 2);
+    viewRect(cam, _psR); U.uSize.value.set(_psR.x, _psR.y); U.uCenter.value.set(_psR.z, _psR.w);
+    if (PS_PREV.cam !== cam) { PS_PREV.cam = cam; PS_PREV.ok = false; }   // (a different camera: last frame's shade is of another view)
     U.uPx.value.set(1 / W, 1 / H); U.uN.value = aoN; U.uInvView.value.copy(cam.matrixWorld);
     psPass(aoMat, PS_RT.ao);
     const B = aoBlurMat.uniforms, w2 = PS_RT.ao.width, h2 = PS_RT.ao.height; B.uFar.value = cam.far;
@@ -234,7 +262,7 @@ export function renderFrame() {
     const T = aoTemporalMat.uniforms;
     T.tCur.value = PS_RT.ao.texture; T.tHist.value = PS_RT.hA.texture; T.uInvView.value.copy(cam.matrixWorld); T.uPrevView.value.copy(PS_PREV.view);
     T.uSize.value.copy(U.uSize.value); T.uCenter.value.copy(U.uCenter.value); T.uPrevSize.value.copy(PS_PREV.size); T.uPrevCenter.value.copy(PS_PREV.center);
-    T.uPx.value.set(1 / w2, 1 / h2); T.uFar.value = cam.far; T.uKeep.value = AO.keep; T.uValid.value = PS_PREV.ok ? 1 : 0;
+    T.uPx.value.set(1 / w2, 1 / h2); T.uPs.value = ps; T.uFar.value = cam.far; T.uKeep.value = AO.keep; T.uValid.value = PS_PREV.ok ? 1 : 0;
     psPass(aoTemporalMat, PS_RT.hB);
     const t = PS_RT.hA; PS_RT.hA = PS_RT.hB; PS_RT.hB = t;
     PS_PREV.view.copy(cam.matrixWorldInverse); PS_PREV.size.copy(U.uSize.value); PS_PREV.center.copy(U.uCenter.value); PS_PREV.ok = true;
@@ -243,7 +271,7 @@ export function renderFrame() {
   // it off in the settings, ui/settings.js)
   const bk = POST.noBloom ? 0 : BLOOM_K[SET.bloom] ?? 1;
   const gk = bk > 0 ? glowPass() : 0;
-  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
+  if (bk > 0) { const U = brightMat.uniforms; U.tGlow.value = PS_RT.gl.texture; U.tGlowD.value = PS_RT.gl.depthTexture; U.tSceneD.value = sc.depthTexture; U.uGlow.value = gk; U.uFlashD.value = flashDepth(); U.uTh.value = lerpD(BLOOM.th); U.uKnee.value = lerpD(BLOOM.knee); U.tCol.value = sc.texture; U.uPx.value.set(1 / W, 1 / H); psPass(brightMat, PS_RT.b1);
     psBlur(PS_RT.b1, PS_RT.b1b, PS_RT.b1.width, PS_RT.b1.height);
     copyMat.uniforms.tSrc.value = PS_RT.b1.texture; psPass(copyMat, PS_RT.b2);
     psBlur(PS_RT.b2, PS_RT.b2b, PS_RT.b2.width, PS_RT.b2.height); }
@@ -255,5 +283,11 @@ export function renderFrame() {
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)
   if (scene.fog) { U.uFogN.value = scene.fog.near; U.uFogF.value = scene.fog.far; }
   psPass(compMat, prev);
+  if (over) {
+    const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate;
+    cam.layers.set(OVER_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.autoClear = false;
+    R.setRenderTarget(prev); R.render(scene, cam);
+    cam.layers.mask = lm; scene.background = bg; R.shadowMap.autoUpdate = sh;
+  }
   R.autoClear = ac;
 }

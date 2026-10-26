@@ -4,11 +4,12 @@
 import { V3 } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { W, W8 } from '../game/run-state.js';
-import { gunMeshes } from '../weapons/gun-materials.js';
-import { MAG_SEAT } from '../weapons/reload.js';
+import { flipOf, gunMeshes } from '../weapons/gun-materials.js';
+import { MAG_SEAT, MISS_HIT } from '../weapons/reload.js';
 import { armReach, HAND, holdOf, walkPath } from './hold.js';
 
 export const POUCH = new V3(-0.21, 0.8, 0.16);   // the left hip pouch, in upper-body space: mags and shells come from here
+export const POUCH_R = new V3(0.2, 0.84, 0.17);   // and on the right hip, the rifle's cartridges (the firing hand loads a bolt gun: player/hold.js)
 // the fresh mag in the support hand: taken from the pouch at MAG_TAKE of the mag change, it rides in the fist (wrapped
 // round it low on its left side, MAG_GRIP of the way down) along a swing of keys to the gun: drawn up out of the pouch,
 // carried out and round, lined up under the well along the mag's own length, its edge hooked in, then rocked straight and
@@ -36,7 +37,13 @@ const AKM_WAY = [[0.16, null, [0.8, 0.5]], [0.44, [-0.12, -0.2, 0.16], [-0.3, 0.
 // and the old one out: thumb on the paddle, the mag rocked forward about its front lug (AKM_ROCK, radians, its foot
 // swinging forward) and pulled down out of the well (AKM_PULL) as it comes free; where that lug is in the gun (AKM_LUG)
 export const AKM_ROCK = 0.5, AKM_PULL = 0.05, AKM_LUG = [1.094, 0.738];
+// and in: handed over from its way to the rock over blend (of the carry), its lug hooked in by rock (coming up from
+// hook: metres down and forward of the lug), tipped a0 (radians, foot forward) and rocked straight by the seat
+const AKM_IN = { blend: [0.5, 0.62], rock: 0.66, a0: -0.42, hook: [-0.014, 0.01] }, _akP = new V3(), _akQ = new THREE.Quaternion(), _akQ2 = new THREE.Quaternion();
 const MAG_POUCH_TIP = [0.85, 0.5];   // how it's tipped in the pouch, in the gun's frame
+// the ways above are laid out for a support hand on the gun's right: yours is on its left (the left hand: player/player.js),
+// so they're mirrored across the gun as they're used (MIR on x and on the roll)
+const MIR = -1;
 const _mInv = new THREE.Matrix4(), _mM = new THREE.Matrix4(), _mE = new THREE.Euler(), _mQ = new V3(), _mG = new V3(), _mBox = new THREE.Box3(), _mV = new V3();
 const _mK = [], _mTk = [], _mX = new V3(1, 0, 0);   // the way's keys: where the top is, its tip
 // the mag's extent in the hold's frame as it sits in the gun: the middle of its top (where it goes into the well), how
@@ -68,37 +75,107 @@ export function magInHand(out, s, H, mg, rpm) {
   const sh = magShape(mg); if (!sh) return null;
   const hq = holdOf(s, 'R'), lg = H.kind === 'long', way = W(W8.slot[s]) && W(W8.slot[s]).akKit ? AKM_WAY : MAG_WAY[W8.relStyle || 0] || MAG_WAY[0], k = lg ? 1 : 0.5, kp = lg ? 1 : 0.7;   // a handgun's tipped less, swung a little closer in
   const u = clamp((rpm - MAG_TAKE) / (MAG_SEAT - MAG_TAKE), 0, 1), P0 = sh.top, n = way.length + 2;
-  _mM.multiplyMatrices(gunMeshes[s].matrix, hq.matrix); _mInv.copy(_mM).invert();
+  _mM.multiplyMatrices(gunMeshes[s].matrix, hq.matrix); { const f = flipOf(hq); if (f) _mM.multiply(f.matrix); } _mInv.copy(_mM).invert();   // (the gun's own frame, flipped back: weapons/gun-materials.js)
   while (_mK.length < n) { _mK.push([0, new V3()]); _mTk.push([0, new V3()]); }
   // the grip (from the mag's top: low on its left side, down its lean) under a tip, and where the top is with that grip on p
-  const grip = (o, ex, ez) => o.set(-sh.w / 2 - 0.01, -sh.len * MAG_GRIP, 0).applyAxisAngle(_mX, sh.lean).applyEuler(_mE.set(ex, 0, ez));
+  const grip = (o, ex, ez) => o.set(MIR * (-sh.w / 2 - 0.01), -sh.len * MAG_GRIP, 0).applyAxisAngle(_mX, sh.lean).applyEuler(_mE.set(ex, 0, ez));
   const topAt = (o, p, ex, ez) => o.copy(p).applyMatrix4(_mInv).sub(grip(_mG, ex, ez));
   // the keys: the pouch, drawn up out of it, the style's way (along the mag's lean, a handgun's closer in), home
-  _mK[0][0] = 0; topAt(_mK[0][1], POUCH, MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k); _mTk[0][0] = 0; _mTk[0][1].set(MAG_POUCH_TIP[0] * k, MAG_POUCH_TIP[1] * k, 0);
+  _mK[0][0] = 0; topAt(_mK[0][1], POUCH, MAG_POUCH_TIP[0] * k, MIR * MAG_POUCH_TIP[1] * k); _mTk[0][0] = 0; _mTk[0][1].set(MAG_POUCH_TIP[0] * k, MIR * MAG_POUCH_TIP[1] * k, 0);
   for (let i = 0; i < way.length; i++) {
     const [t, at, tip] = way[i], K = _mK[i + 1], TK = _mTk[i + 1];
-    K[0] = TK[0] = t; TK[1].set(tip[0] * k, tip[1] * k, 0);
+    K[0] = TK[0] = t; TK[1].set(tip[0] * k, MIR * tip[1] * k, 0);
     if (!at) topAt(K[1], _mV.copy(POUCH).add(MAG_DRAW), TK[1].x, TK[1].y);
-    else { K[1].set(at[0] * kp, at[1] * (lg ? 1 : 0.75), at[2] * kp).applyAxisAngle(_mX, sh.lean).add(P0); }
+    else { K[1].set(MIR * at[0] * kp, at[1] * (lg ? 1 : 0.75), at[2] * kp).applyAxisAngle(_mX, sh.lean).add(P0); }
   }
   _mK[n - 1][0] = _mTk[n - 1][0] = 1; _mK[n - 1][1].copy(P0); _mTk[n - 1][1].set(0, 0, 0);
   _mK.length = _mTk.length = n;
   walkPath(_mQ, _mK, u); walkPath(_mV, _mTk, u);
-  const ex = _mV.x, ez = _mV.y; grip(_mG, ex, ez);   // (leaves _mE at this tip)
+  // (in the well it goes straight up it: MAG_FUNNEL; an AK mag rocks in instead, AKM_IN)
+  const ak = way === AKM_WAY, kf = ak ? 1 : funnel(_mQ, P0, sh, lg);
+  let ex = _mV.x * kf, ez = _mV.y * kf;
+  // (a missed magwell: off the line and up into the lip, and back: magMiss)
+  const g = W8.relSeg, miss = g && g.kind === 'miss' ? g : null;
+  if (miss) { const t = magMiss(_mQ, P0, sh, lg, miss, W8.relSegK); ex += t * MAG_MISS_TIP[0] * miss.fwd; ez += t * MAG_MISS_TIP[1] * miss.side * MIR; }
+  grip(_mG, ex, ez);   // (leaves _mE at this tip)
   // the group's own transform, so its contents (laid out in the hold's frame, seated) land at that top and tip
   mg.visible = true; mg.rotation.copy(_mE); mg.position.copy(P0).applyEuler(_mE).negate().add(_mQ);
-  MAG_CARRY.u = u; MAG_CARRY.mg = mg; MAG_CARRY.p0 = P0;
+  // an AK mag goes in the way its own comes out (player/hold.js, AKM_ROCK): handed over (AKM_IN.blend) to its front lug
+  // rising up into the front of the well (hook) with its foot swung forward (a0), then rocked back about that lug, the
+  // whole mag turning about it, quickening into the click as it seats; the hand stays where it holds it
+  if (ak) {
+    const A = AKM_IN, kb = smooth(clamp((u - A.blend[0]) / (A.blend[1] - A.blend[0]), 0, 1));
+    if (kb > 0) {
+      const ur = clamp((u - A.rock) / (1 - A.rock), 0, 1), a = A.a0 * (1 - ur * ur), hk = 1 - smooth(clamp((u - A.blend[0]) / (A.rock - A.blend[0]), 0, 1));
+      const c = Math.cos(a), sn = Math.sin(a), [ly, lz] = AKM_LUG;
+      _akP.set(0, ly - (ly * c - lz * sn) + A.hook[0] * hk, lz - (ly * sn + lz * c) + A.hook[1] * hk);
+      _akQ.setFromEuler(mg.rotation); _akQ2.setFromEuler(_mE.set(a, 0, 0)); _akQ.slerp(_akQ2, kb);
+      mg.position.lerp(_akP, kb); mg.quaternion.copy(_akQ);
+      _mE.setFromQuaternion(_akQ); grip(_mG, _mE.x, _mE.z);   // (the grip under that turn)
+      _mQ.copy(P0).applyQuaternion(_akQ).add(mg.position);   // (and the top where the mag now is)
+    }
+  }
+  MAG_CARRY.u = u; MAG_CARRY.mg = mg; MAG_CARRY.p0 = P0; MAG_CARRY.sh = sh; MAG_CARRY.lg = lg; MAG_CARRY.miss = !!miss; MAG_CARRY.missK = miss ? W8.relSegK : 0; MAG_CARRY.ak = ak; MAG_CARRY.q.copy(mg.quaternion);
   return out.copy(_mQ).add(_mG).applyMatrix4(_mM);
 }
 // then the mag goes where the fist really got to (a beat behind where it was sent, on its spring), so it's never out of
 // it; over the last of the way (MAG_GUIDE on) the fist is drawn onto its mark instead, so the mag it carries seats exactly
-export const MAG_CARRY = { u: -1, mg: null, p0: null }, MAG_GUIDE = 0.62, _mF = new V3();
+export const MAG_CARRY = { u: -1, mg: null, p0: null, sh: null, lg: false, miss: false, missK: 0, ak: false, q: new THREE.Quaternion() }, MAG_GUIDE = 0.62, _mF = new V3();
+// the well's mouth: how far below the seated mag's top it opens (a rifle's well, a handgun's whole grip: a share of the
+// mag), and over how much more the mag's brought onto the well's line before it gets there (in). Once its top's into
+// the well it's on that line exactly, nothing across and no tip, so it goes up the well and never through its sides
+const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13 };
+// missing the well (weapons/reload.js: MAG_MISS): wherever the mag was when it went wrong, it's drawn back down out of
+// the well to just under its mouth (pre: how far under), brought off the well's line (off: metres across and fore and
+// aft, as each miss has it, side and fwd) and tipped a little with it (MAG_MISS_TIP, radians), pushed up into the
+// mouth's lip (lip: how far short of the mouth it stops), gathering speed into the knock (MISS_HIT of the way through),
+// knocked a little back down off it (bounce), then lined up again under the mouth and put back where it was. It's only
+// ever off the line below the mouth, so it never goes through the side of the well
+const MAG_MISS_OFF = [0.012, 0.009], MAG_MISS_TIP = [0.1, 0.07], MAG_MISS_V = { pre: 0.03, lip: 0.003, bounce: 0.008, clear: 0.002 };
+const _mmL = new V3();
+function magMiss(q, P0, sh, lg, m, k) {
+  _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean);
+  const d0 = -_fD.subVectors(q, P0).dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, V = MAG_MISS_V, H = MISS_HIT;
+  const pre = mouth + V.pre, hit = mouth + V.lip, back = 0.52, line = 0.8;
+  let d, off;
+  if (k < 0.25) { const u = smooth(k / 0.25); d = d0 + (pre - d0) * u; off = u; }   // down and off the line
+  else if (k < H) { const u = (k - 0.25) / (H - 0.25); d = pre + (hit - pre) * u * u; off = 1; }   // up into the lip, quickening
+  else if (k < back) { const u = (k - H) / (back - H); d = hit + V.bounce * Math.sin(Math.PI / 2 * u); off = 1; }   // knocked back off it
+  else if (k < line) { const u = smooth((k - back) / (line - back)); d = hit + V.bounce + (pre - hit - V.bounce) * u; off = 1 - u; }   // lined up again
+  else { const u = smooth((k - line) / (1 - line)); d = pre + (d0 - pre) * u; off = 0; }   // and on as it was
+  off *= clamp((d - mouth) / V.clear, 0, 1);
+  _mmL.set(MIR * m.side * MAG_MISS_OFF[0], 0, m.fwd * MAG_MISS_OFF[1]); _mmL.addScaledVector(_fA, -_mmL.dot(_fA));   // (across the well's line)
+  q.addScaledVector(_fA, d0 - d).addScaledVector(_mmL, off);
+  return off;
+}
+const _fA = new V3(), _fD = new V3();
+// the mag's top (q, in the hold's frame) brought onto the well's line as it nears the mouth; how much of its own way
+// across and its tip it keeps (1 below the funnel, 0 in the well)
+function funnel(q, P0, sh, lg, zone = MAG_FUNNEL.in) {
+  _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean); _fD.subVectors(q, P0);
+  const along = _fD.dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, k = smooth(clamp((-along - mouth) / zone, 0, 1));
+  if (k >= 1) return 1;
+  _fD.addScaledVector(_fA, -along).multiplyScalar(k);   // (what's across the line, kept only as much as k)
+  q.copy(P0).addScaledVector(_fA, along).add(_fD);
+  return k;
+}
 export function magToFist(fist, want) {
   const c = MAG_CARRY; if (c.u < 0 || !c.mg) return;
-  const g = smooth(clamp((c.u - MAG_GUIDE) / (1 - MAG_GUIDE), 0, 1));
+  // (through a missed well the fist's put on its mark exactly, eased on and off it, so the miss is the one it's sent
+  // through, a hand's breadth off the well and no more)
+  const mk = c.miss ? smooth(clamp(c.missK / 0.15, 0, 1)) * smooth(clamp((1 - c.missK) / 0.15, 0, 1)) : 0;
+  const g = Math.max(mk, smooth(clamp((c.u - MAG_GUIDE) / (1 - MAG_GUIDE), 0, 1)));
   if (want && g > 0) { fist.lerp(want, g); HAND.L.free.lerp(want, g); }   // (its spring too, so it lets go of the mag where it is)
   armReach('L', fist);   // (and only as far as the arm goes)
   _mF.copy(fist).applyMatrix4(_mInv).sub(_mG);   // where its top is with the grip in the fist (in the hold's frame)
+  // (and wherever the fist's got to, once it's up in the well it's on the well's line: the fist goes with it)
+  // (and never further up the well than seated: a fist carried on past it on its spring would take the mag up through
+  // the gun before it snapped back to its seat)
+  // (an AK mag rocking in about its lug, AKM_IN, keeps the turn it was given, whole, rather than being stood on the well's line)
+  if (c.ak) { c.mg.quaternion.copy(c.q); c.mg.position.copy(c.p0).applyQuaternion(c.q).negate().add(_mF); c.u = -1; return; }
+  { const k = funnel(_mF, c.p0, c.sh, c.lg, c.miss ? 1e-4 : MAG_FUNNEL.in); _fA.set(0, 1, 0).applyAxisAngle(_mX, c.sh.lean); const up = _fD.subVectors(_mF, c.p0).dot(_fA);
+    if (up > 0) _mF.addScaledVector(_fA, -up);
+    if (k < 1 || up > 0) fist.copy(_mF).add(_mG).applyMatrix4(_mM); }   // (missing the well: only in the well itself, so the miss keeps its way off the line under it)
   c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mF);
   c.u = -1;
 }

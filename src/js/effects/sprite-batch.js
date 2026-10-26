@@ -11,9 +11,10 @@
 //
 // The particle textures (effects/textures.js) are all 128 x 128, so they're copied as they load into the layers of one
 // array texture (SB.size: the layer size; the odd smaller one is scaled up), each the first time it's used.
-import { scene } from '../core/renderer.js';
+import { OVER_LAYER, scene } from '../core/renderer.js';
+import { MIST, mistSee } from '../world/mist.js';
 
-const SB = { size: 128, layers: 48, cap: 640 };
+const SB = { size: 128, layers: 48, cap: 1024 };   // (cap: as many as are ever showing at once, so none is dropped from the batch and blinks out)
 const sbAll = [];
 // a particle's sprite-like record: what the particle systems set, and what the batch reads
 export function sbSprite(map) {
@@ -58,7 +59,7 @@ const sbAttr = (n, k) => { const a = new THREE.InstancedBufferAttribute(new Floa
 const iPos = sbAttr(3, 'iPos'), iSize = sbAttr(2, 'iSize'), iCol = sbAttr(4, 'iCol'), iMisc = sbAttr(3, 'iMisc');
 sbGeo.instanceCount = 0;
 const sbMat = new THREE.ShaderMaterial({
-  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tMap: { value: null } }]),
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tMap: { value: null }, uAim: { value: new THREE.Vector4(0.5, 0.5, 0.2, 0) }, uRes: { value: new THREE.Vector2(1, 1) } }]),
   vertexShader: `
 attribute vec3 iPos; attribute vec2 iSize; attribute vec4 iCol; attribute vec3 iMisc;
 varying vec2 vUv; varying vec4 vCol; varying float vLayer, vAdd;
@@ -73,11 +74,14 @@ void main() {
 }`,
   fragmentShader: `
 precision highp sampler2DArray;
-uniform sampler2DArray tMap;
+uniform sampler2DArray tMap; uniform vec4 uAim; uniform vec2 uRes;
 varying vec2 vUv; varying vec4 vCol; varying float vLayer, vAdd;
 #include <fog_pars_fragment>
 void main() {
   vec4 c = vCol * texture(tMap, vec3(vUv, vLayer));
+  // down the sights, thinned toward the aim (uAim: its middle as a share of the view, how far out it reaches as a share
+  // of the view's height, how much), so smoke and dust in front of the sights never quite hides what you're aiming at
+  if (uAim.w > 0.001) { vec2 d = (gl_FragCoord.xy / uRes - uAim.xy) * vec2(uRes.x / uRes.y, 1.0); c.a *= mix(1.0, 0.2 + 0.8 * smoothstep(0.0, uAim.z, length(d)), uAim.w); }
   gl_FragColor = c;
   #include <fog_fragment>
   gl_FragColor = vec4(gl_FragColor.rgb * c.a, vAdd > 0.5 ? 0.0 : c.a);
@@ -86,8 +90,12 @@ void main() {
   blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor
 });
 sbMat.uniforms.tMap.value = sbTex;
+// where the sprites thin toward your aim down the sights (set each frame: game/view-cam.js, and for a scope's own view:
+// effects/scope-view.js), and the size of what they're drawn into
+export const SPRITE_AIM = sbMat.uniforms.uAim.value, SPRITE_RES = sbMat.uniforms.uRes.value;
 const sbMesh = new THREE.Mesh(sbGeo, sbMat);
 sbMesh.frustumCulled = false; sbMesh.renderOrder = 2; sbMesh.userData.isSprites = true;   // (never outlined: effects/screen-outlines.js)
+sbMesh.layers.set(OVER_LAYER);   // (drawn over a fog round's fog, each as deep in it as it is: effects/post.js)
 scene.add(sbMesh);
 
 // every frame, before it's drawn (effects/post.js: renderFrame): the sprites that show, far ones first. (Not as the
@@ -106,12 +114,13 @@ export function batchSprites(camera) {
     sbDepth[n] = (s.position.x - cx) * _sbF.x + (s.position.y - cy) * _sbF.y + (s.position.z - cz) * _sbF.z; sbOrder[n] = n; n++;
   }
   const ord = sbOrder.subarray(0, n).sort((a, b) => sbDepth[b] - sbDepth[a]);
+  const fog = MIST.k > 0.001;   // (in a fog round's fog, as much of each shows as of a zombie standing there: world/mist.js)
   const P = iPos.array, Z = iSize.array, C = iCol.array, M = iMisc.array;
   for (let k = 0; k < n; k++) {
     const s = sbList[ord[k]], m = s.material, c = m.color;
     P[k * 3] = s.position.x; P[k * 3 + 1] = s.position.y; P[k * 3 + 2] = s.position.z;
     Z[k * 2] = s.scale.x; Z[k * 2 + 1] = s.scale.y;
-    C[k * 4] = c.r; C[k * 4 + 1] = c.g; C[k * 4 + 2] = c.b; C[k * 4 + 3] = m.opacity;
+    C[k * 4] = c.r; C[k * 4 + 1] = c.g; C[k * 4 + 2] = c.b; C[k * 4 + 3] = m.opacity * (fog ? mistSee(s.position.x, s.position.z) : 1);
     M[k * 3] = m.rotation; M[k * 3 + 1] = s._l; M[k * 3 + 2] = m.blending === THREE.AdditiveBlending ? 1 : 0;
   }
   for (const a of [iPos, iSize, iCol, iMisc]) { a.clearUpdateRanges(); a.addUpdateRange(0, n * a.itemSize); a.needsUpdate = true; }

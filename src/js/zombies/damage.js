@@ -1,16 +1,17 @@
 // Localized damage, dismemberment, crawlers and kills.
 
 import { scene, V3 } from '../core/renderer.js';
-import { clamp, pick, rand, rr } from '../core/math.js';
+import { clamp, pick, rand, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { netLink } from '../net/net.js';
 import { lam, relit } from '../core/shaders.js';
 import { box } from '../core/geometry.js';
 import { P } from '../player/player.js';
 import { addBlood, bloodZombie, stainMat } from '../effects/body-blood.js';
+import { WEAP } from '../weapons/gun-stats.js';
 import { roundOn } from '../weapons/rounds.js';
 import { FEED } from '../upgrades/tier-table.js';
-import { EFF, hasMod, run, S, W, waveScrap } from '../game/run-state.js';
+import { EFF, hasMod, healMul, hpCap, run, S, W, waveScrap } from '../game/run-state.js';
 import { splatLater, spray } from '../effects/blood-map.js';
 import { bloodSpurt, burst, gibs } from '../effects/particles.js';
 import { fx, hitMist } from '../effects/puffs.js';
@@ -21,6 +22,7 @@ import { zAnimHit } from './zombie-anim.js';
 import { zFree } from './zombie-kit.js';
 import { rimMat } from '../effects/outlines.js';
 import { timeScale } from '../game/hit-feedback.js';
+import { breakArmor, crackArmor } from './armor-break.js';
 import { _wB, addWound, headShot, severLower, shotWound, WOUND_ZONE } from './wounds.js';
 import { METAL } from '../barricades/planks.js';
 import { METAL_DROP } from '../barricades/metal-bars.js';
@@ -32,6 +34,7 @@ import { ammoTypes } from '../upgrades/upgrades.js';
 import { runKill } from '../ui/run-stats.js';
 import { feed, floats, floatText, popEl } from '../ui/hud-text.js';
 import { spitterDies } from './spitter.js';
+import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
 import { teamAssist } from '../net/teamwork.js';
 
@@ -46,26 +49,58 @@ function canSever(wId) {
 }
 export const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 // a brute's arms are thick with muscle: one takes BRUTE_ARM of its health to come off (an ordinary zombie's 0.3), so a
-// shotgun blast or a heavy round no longer takes one off in a shot (zombies/spawn.js). And it soaks up any one hit: no
-// shot or blow (a blast or fire aside) takes more than BRUTE_HIT of its full health off, so even the hardest-hitting
-// gun needs three to put one down
-export const BRUTE_ARM = 0.8, BRUTE_HIT = 0.34;
-// armour, on the zombies that turned wearing it (their outfits: zombies/zombie-looks.js, from wave ARMOR_FROM): the share
-// of a hit it soaks up where it's worn. A soldier's helmet and vest; a SWAT officer's helmet, plate carrier and the pads
-// and holster on the legs; a riot officer's the same with the face shield down, so a headshot does far less. Heavier
-// rounds go through more of it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND), a melee
-// blow jars through it (ARMOR_MELEE takes that much of it off), and a brute wears it thinner on its bulk (ARMOR_BRUTE).
-// A blast, fire and bleeding go round it. Every hit it blunts shows its number in steel, with a shield (dmgNumber)
+// shotgun blast or a heavy round no longer takes one off in a shot (zombies/spawn.js). And its bulk soaks up BRUTE_HIDE
+// of every hit, whatever it's from, shown in steel with a shield like armour (dmgNumber): a hard enough hit (a bolt
+// gun's round to the head) can still drop one in a shot
+export const BRUTE_ARM = 0.8;
+const BRUTE_HIDE = 0.4;
+// armour, on the zombies that turned wearing it (their outfits: zombies/zombie-looks.js; soldiers, SWAT and riot police,
+// ARMED_JOBS, only from wave ARMOR_FROM): each piece (ARMOR_KIT) soaks up a share of a hit where it's worn (a) and takes
+// so much before it breaks (hp, a share of the zombie's own health). A soldier's helmet and vest; a SWAT officer's
+// helmet, plate carrier and the pads and holster on the legs; a riot officer's the same with the face shield down, so
+// a headshot does far less; a builder's hard hat, which stops little and splits soon. Heavier rounds go through more of
+// it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND), a melee blow jars through it
+// (ARMOR_MELEE takes that much of it off), and a brute wears it thinner on its bulk (ARMOR_BRUTE). A blast, fire and
+// bleeding go round it. Every hit it blunts shows its number in steel, with a shield (dmgNumber)
 export const ARMOR_FROM = 4;
-export const ARMOR = { soldier: { head: 0.3, torso: 0.35 }, swat: { head: 0.3, torso: 0.4, legs: 0.2 }, riot: { head: 0.5, torso: 0.4, legs: 0.2 } };
+export const ARMED_JOBS = { soldier: 1, swat: 1, riot: 1 };
+export const ARMOR_KIT = {
+  helmet: { a: 0.3, hp: 0.6, metal: true }, swat: { a: 0.34, hp: 0.75, metal: true }, riot: { a: 0.5, hp: 0.9, metal: true }, hardhat: { a: 0.15, hp: 0.22 },
+  vest: { a: 0.35, hp: 1.1 }, carrier: { a: 0.4, hp: 1.4, metal: true }, pads: { a: 0.2, hp: 0.45 }
+};
+// what each armed job wears below the hat (the hat's own piece is the hat: zHat)
+const JOB_ARMOR = { soldier: { torso: 'vest' }, swat: { torso: 'carrier', legs: 'pads' }, riot: { torso: 'carrier', legs: 'pads' } };
 const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3 };
 const ARMOR_MELEE = 0.6, ARMOR_BRUTE = 0.6;
-// how much of a hit on part the armour there takes (0 where there's none)
+// the guns that punch through it on their own: the .50 hand cannon, and the battle rifle's full-power 7.62 (not once
+// it's been converted to take AK mags: weapons/gun-mods.js)
+const ARMOR_GUN = { deagle: 0.55, scar: 0.6 };
+const armorGun = wId => ARMOR_GUN[wId] === undefined || (W(wId) || {}).akKit ? 1 : ARMOR_GUN[wId];
+// how armour keeps up: thin and easy to punch through early, thicker later (k from its first wave to its last, eased),
+// and stiffer the harder your gun hits against its stock damage (pow of what your upgrades added, up to powMax more), so
+// it never stops mattering; never more than max of a hit. What wears a piece down: what it stopped, and wear of what
+// still got through. At crack of its health left it cracks (zombies/armor-break.js: it darkens and chips), at none it
+// breaks off
+const ARMOR_SCALE = { wave: [2, 18], k: [0.55, 1.25], pow: 0.5, powMax: 0.35, max: 0.85, wear: 0.3, crack: 0.5 };
+export function armorFor(look, hp) {
+  const o = {}, put = (slot, k) => { if (k && ARMOR_KIT[k]) o[slot] = { kind: k, hp: ARMOR_KIT[k].hp * hp, max: ARMOR_KIT[k].hp * hp }; };
+  put('head', look.hat); const J = JOB_ARMOR[look.job] || {}; put('torso', J.torso); put('legs', J.legs);
+  return Object.keys(o).length ? o : null;
+}
+const armorWaveK = () => { const [a, b] = ARMOR_SCALE.wave, [k0, k1] = ARMOR_SCALE.k; return k0 + (k1 - k0) * smooth(clamp((run.wave - a) / (b - a), 0, 1)); };
+const armorPowK = wId => { const B = WEAP[wId], E = EFF[wId]; return B && E && B.dmg ? 1 + Math.min(ARMOR_SCALE.powMax, ARMOR_SCALE.pow * Math.max(0, E.dmg / B.dmg - 1)) : 1; };
+// the piece guarding part and how much of a hit on it it takes ({ slot, P, a }), or null where there's none
 function armorOf(z, part, D, wId) {
-  const A = z.armor; if (!A || wId === 'boom' || wId === 'fire' || wId === 'bleed') return 0;
-  const a = A[part === 'legL' || part === 'legR' ? 'legs' : part] || 0; if (!a) return 0;
-  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1);
-  return clamp(a * k * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, 0.8);
+  const A = z.armor; if (!A || wId === 'boom' || wId === 'fire' || wId === 'bleed') return null;
+  const slot = part === 'legL' || part === 'legR' ? 'legs' : part, P = A[slot]; if (!P || P.broken) return null;
+  const k = D.melee ? ARMOR_MELEE : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1) * armorGun(wId);
+  return { slot, P, a: clamp(ARMOR_KIT[P.kind].a * k * armorWaveK() * armorPowK(wId) * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, ARMOR_SCALE.max) };
+}
+// a hit worn into a piece: it cracks, then comes off (zombies/armor-break.js)
+function wearArmor(z, ar, w, dx, dz) {
+  const P = ar.P; P.hp -= w;
+  if (P.hp < P.max * ARMOR_SCALE.crack) crackArmor(z, ar.slot);
+  if (P.hp <= 0) breakArmor(z, ar.slot, dx, dz);
 }
 export function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
@@ -303,7 +338,7 @@ let critNext = false, headNext = 1;   // the next hit's crit, and how much of it
 export const BURN_TICK = 0.5, BURN_DMG = 7;
 export function burnHurt(z) {
   if (z.dead) return true;
-  const dmg = BURN_DMG * (S.lastStand && P.hp < S.maxHp * 0.3 ? 1.6 : 1);
+  const dmg = BURN_DMG * (S.lastStand && P.hp < hpCap() * 0.3 ? 1.6 : 1);
   z.hp -= dmg; z.flash = Math.max(z.flash, 0.05);
   dmgNumber(z, dmg, false, 1.2 * z.T.scale * (z.crawl ? 0.4 : 1), false, 'burn');
   if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'fire', 'torso', 0); return true; }
@@ -327,18 +362,19 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   const D = W(wId) || EFF[wId] || {};
   part = part || 'torso';
   if (part !== 'torso' && !z.limbs[part]) part = 'torso';
-  if (S.lastStand && P.hp < S.maxHp * 0.3) dmg *= 1.6;
+  if (S.lastStand && P.hp < hpCap() * 0.3) dmg *= 1.6;
   if (S.momentum && run.time - S.momT < MOM_T) dmg *= 1 + 0.05 * S.momK;   // Momentum: +5% for each quick kill, up to 5
   if (z.crawl) dmg *= 1.75;   // a crawler is already half dead
   if (z.type === 'brute' && D.bruteX) dmg *= D.bruteX;   // the SCAR's heavy rounds (weapons/gun-stats.js)
   // a melee weapon hits for what it says every time: where it lands only decides what comes off (sever, below), never
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   let dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
-  const arm = armorOf(z, part, D, wId); dealt *= 1 - arm;   // (what it was wearing there: ARMOR)
-  if (z.type === 'brute' && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed') dealt = Math.min(dealt, z.maxHp * BRUTE_HIT);
+  const ar = armorOf(z, part, D, wId), arm = ar ? ar.a : 0, through = dealt * (1 - arm); if (ar) wearArmor(z, ar, dealt * arm + through * ARMOR_SCALE.wear, dx, dz); dealt = through;   // (what it was wearing there: ARMOR_KIT)
+  if (z.type === 'brute') dealt *= 1 - BRUTE_HIDE;   // (its bulk: BRUTE_HIDE)
+  if (cheatIs('onehit') && wId !== 'bleed' && wId !== 'fire') dealt = Math.max(dealt, z.hp + 1);   // (the cheat menu's one-hit kills: ui/cheats.js)
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
-  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 ? 'armor' : '');
+  dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 || z.type === 'brute' ? 'armor' : '');
   if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
@@ -415,7 +451,7 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   run.kills++; popEl('kills'); runKill(z, wId, part);
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
-  if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < S.maxHp) { const h = Math.min(f.h, f.cap - (S.feedUsed || 0), S.maxHp - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
+  if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < hpCap()) { const h = Math.min(f.h * healMul(), f.cap - (S.feedUsed || 0), hpCap() - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
   if (S.adrenaline && !(P.adrCd > 0)) { P.adr = 1.2; P.adrCd = 4; }
   if (S.momentum) { S.momK = run.time - S.momT < MOM_T ? Math.min(5, S.momK + 1) : 1; S.momT = run.time; }   // a short burst, and not again for a few seconds
   // Bullet time: now and then a kill slows the world (you too) to BT.to for a moment, and not again for BT.cd seconds;
@@ -435,13 +471,15 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
     // (zombies/wounds.js), though buckshot from close up or a big round can still take it
     const bullet = !D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed', close = Math.hypot(z.x - P.x, z.z - P.z) < 3;
     const c = !canSever(wId) ? 0 : shells ? (close ? 0.45 : 0.1) : D.melee ? 0.4 + (D.sever || 0) * 0.4 : bullet ? (heavy ? 0.1 : 0) : 0.8;
-    if (rand() < Math.min(1, c * S.severMul)) { sever(z, 'head', dx, dz); run.heads++; }
+    // (a shotgun that takes it doesn't take it off whole: it blasts it to a red mist and gore, as the sledge's crush does)
+    if (rand() < Math.min(1, c * S.severMul)) { if (shells) crushHead(z, dx, dz); else { sever(z, 'head', dx, dz); run.heads++; } }
     else if (bullet) headShot(z, dx, dz);
   }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
   for (let k = 0; k < extra; k++) {
     const opts = ['armL', 'armR', 'legL', 'legR', 'head'].filter(p => z.limbs[p] && (p !== 'head' || wId === 'boom' || rand() < 0.3)); if (!opts.length) continue;
-    const p = pick(opts); if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
+    const p = pick(opts); if (p === 'head' && shells) { crushHead(z, dx, dz); continue; }   // (blasted to mist, as above)
+    if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
   }
   const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
   if (z.gib && wId === 'boom') blowApart(z, dx, dz);
@@ -470,6 +508,7 @@ export function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmm
 // and rolled into the counter
 function killScrap(z, n, hoard) {
   n = waveScrap(n);   // (more each wave: game/run-state.js)
+  if (S.scrapCut || S.scrapX) n = Math.max(1, Math.round(n * (1 - (S.scrapCut || 0)) * (S.scrapX || 1)));   // (Empty pockets halves it, Bad blood doubles it: upgrades/sacrifice.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
   floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
 }

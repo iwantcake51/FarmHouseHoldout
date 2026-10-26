@@ -15,6 +15,10 @@ import { state } from '../game/state.js';
 
 const OL = { w: [0.6, 55, 1, 3], w0: 2.2, glow: 3.5, glowA: 0.3, eps: 0.0015, occ: 0.0015, slots: 64, margin: 10 };   // (occ: how far behind what's drawn there a model can be and still be lined: its own surface, give or take)
 const olRoots = [];
+// a scope's eyepiece on the screen this frame (x, y and r, in the drawing buffer's pixels; r 0: none), set before the
+// frame by effects/scope-view.js: no line is drawn over it, its picture being of the world magnified, where every
+// outline would be in the wrong place
+export const OL_HOLE = { x: 0, y: 0, r: 0 };
 // a layer the frame never draws but the outlines' mask does: a pane that's only there to have a line drawn round it
 // (an opening's, world/house.js), so it costs nothing in the frame itself
 export const OL_LAYER = 1;
@@ -57,13 +61,14 @@ const olPalData = new Uint8Array(OL.slots * 2 * 4), olPal = new THREE.DataTextur
 olPal.magFilter = olPal.minFilter = THREE.NearestFilter;
 const olComp = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: { tMask: { value: null }, tPal: { value: olPal }, uTex: { value: new THREE.Vector2() }, uScale: { value: 1 }, uGlow: { value: OL.glow }, uGlowA: { value: OL.glowA }, uEps: { value: OL.eps }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) },
-    tScene: { value: null }, uOcc: { value: 0 }, uOccEps: { value: OL.occ } },
+    tScene: { value: null }, uOcc: { value: 0 }, uOccEps: { value: OL.occ }, uHole: { value: new THREE.Vector3() } },
   transparent: true, depthTest: false, depthWrite: false,
   vertexShader: `uniform vec4 uRect; varying vec2 vUv;
 void main() { vUv = uRect.xy + (position.xy * 0.5 + 0.5) * uRect.zw; gl_Position = vec4(vUv * 2.0 - 1.0, 0.0, 1.0); }`,
-  fragmentShader: `uniform sampler2D tMask, tPal, tScene; uniform vec2 uTex; uniform float uScale, uGlow, uGlowA, uEps, uOcc, uOccEps; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tMask, tPal, tScene; uniform vec2 uTex; uniform float uScale, uGlow, uGlowA, uEps, uOcc, uOccEps; uniform vec3 uHole; varying vec2 vUv;
 vec4 pal(float s, float row) { return texture2D(tPal, vec2((s + 0.5) / ${OL.slots.toFixed(1)}, (row + 0.5) / 2.0)); }
 void main() {
+  if (uHole.z > 0.0 && distance(gl_FragCoord.xy, uHole.xy) < uHole.z) discard;   // (a scope's eyepiece: OL_HOLE)
   vec4 m0 = texture2D(tMask, vUv); float s0 = m0.a > 0.5 ? floor(m0.r * 255.0 + 0.5) : -1.0, d0 = m0.g + m0.b / 255.0;
   float line = 0.0, glow = 0.0; vec3 lc = vec3(0.0), gc = vec3(0.0);
   for (int i = 0; i < 6; i++) {
@@ -158,7 +163,7 @@ export function outlinePass(camera) {
   // only what's in view gets a line: a model's parts behind a wall (or anything else) are left out by the frame's own
   // depth (effects/post.js), when there is one
   U.uOcc.value = POST.ok && PS_RT.sc && PS_RT.sc.depthTexture ? 1 : 0; U.tScene.value = U.uOcc.value ? PS_RT.sc.depthTexture : null;
-  U.uRect.value.set(x0 / W, y0 / H, (x1 - x0) / W, (y1 - y0) / H);
+  U.uRect.value.set(x0 / W, y0 / H, (x1 - x0) / W, (y1 - y0) / H); U.uHole.value.set(OL_HOLE.x, OL_HOLE.y, OL_HOLE.r);
   R.render(olCompScene, olCompCam);
   R.autoClear = ac; R.shadowMap.autoUpdate = sh; R.setClearColor(_olCC, ca);
 }

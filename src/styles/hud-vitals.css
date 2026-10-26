@@ -1,7 +1,7 @@
 /* Bottom-left health: number, ECG, health bar, stamina bar, healing, resources. */
 #vitals{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:20px;display:grid;gap:8px;width:min(260px,44vw)}
 .hpRow{display:flex;align-items:flex-end;gap:12px}
-#hpTxt{font-size:46px;min-width:3ch;text-align:right;font-variant-numeric:tabular-nums;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
+#hpTxt{font-size:46px;text-align:left;font-variant-numeric:tabular-nums;filter:drop-shadow(0 2px 0 rgba(0,0,0,.5))}
 #hpMax{font-family:var(--f-num);font-weight:600;font-variant-numeric:tabular-nums;font-size:20px;color:var(--dim);margin:0 0 3px -8px;white-space:nowrap}
 #ecg{flex:1;height:34px;min-width:0}
 /* the heart trace (ui/vitals.js) */
@@ -20,6 +20,12 @@
 #stamBar b.back{opacity:.32;transition:opacity 1.1s ease}
 #stamBar.tired i{--sc1:#b0782c;--sc2:#e8b84a}
 #stamBar.exh i{--sc1:#8a2a1e;--sc2:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
+/* what a Broken stride took (upgrades/sacrifice.js): the rest of the bar past your quarter, struck out in dark hazard
+   stripes with a bright notch where it starts, slowly crawling */
+#stamCut{position:absolute;top:0;bottom:0;right:0;width:var(--cut,0%);text-decoration:none;display:none;border-left:1px solid rgba(240,110,80,.9);
+  background:repeating-linear-gradient(-45deg,rgba(150,40,28,.85) 0 3px,rgba(24,10,8,.9) 3px 6px) 0 0/8.5px 100%;animation:cutCrawl 2.4s linear infinite}
+#stamCut.on{display:block}
+@keyframes cutCrawl{to{background-position:8.5px 0}}
 @keyframes stPulse{50%{opacity:.5}}
 #xh .stBg{fill:none;stroke:rgba(0,0,0,.5);stroke-width:3.4;stroke-linecap:round}
 #xh .st{fill:none;stroke:#a8dcb4;stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9));transition:stroke .5s ease}
@@ -29,6 +35,7 @@
 #xh .stRun{fill:none;stroke:#f0cc84;stroke-width:3;stroke-linecap:round;opacity:0;transition:opacity .7s ease;filter:drop-shadow(0 0 2px rgba(240,190,100,.6))}
 #xh .stRun.on{opacity:.9}
 #xh .stRun.back{opacity:.3;transition:opacity 1.1s ease}
+#xh .stCut{fill:none;stroke:rgba(210,64,42,.8);stroke-width:2.6;filter:drop-shadow(0 0 1px rgba(0,0,0,.9))}
 #xh .st.tired{stroke:#e8b84a}#xh .st.exh{stroke:#e2412c;animation:stPulse 1s cubic-bezier(.45,0,.55,1) infinite}
 .bar i{position:absolute;inset:0;background:linear-gradient(180deg,#fbf7ee,#d9d1c0) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#d4e6f6,#86acd2);box-shadow:0 0 6px rgba(236,230,216,.3);clip-path:inset(-8px calc(100% - var(--hp,100%)) -8px -8px);transition:clip-path .12s}
 /* (the first layer is health up to the base 100; past it, bonus health from armour and the like is steel blue. The fill
@@ -36,6 +43,27 @@
    only the cut does, and --b is just where the base 100 ends on the bar) */
 #hpHeal{position:absolute;top:0;bottom:0;left:0;width:0;background:rgba(92,160,255,.5);box-shadow:inset 0 0 6px rgba(150,200,255,.55);text-decoration:none;animation:healGlow 1.2s ease-in-out infinite}
 @keyframes healGlow{50%{background:rgba(120,180,255,.36)}}
+/* the health a Blood price took (upgrades/sacrifice.js), for good: the end of the bar in red with hazard stripes, its
+   width a share of your max health (--cut) */
+#hpCut{position:absolute;top:0;bottom:0;right:0;width:var(--cut,0%);text-decoration:none;display:none;
+  background:repeating-linear-gradient(-45deg,#b3241a 0 5px,#3a0c08 5px 10px);box-shadow:inset 0 0 0 1px rgba(255,90,70,.55),0 0 8px rgba(200,40,30,.45)}
+#hpCut.on{display:block}
+/* Bad blood (upgrades/sacrifice.js): the health fill runs dark and veined, its glow sickly, and any healing on its way
+   shows thin and struck through, a quarter of what it would be */
+#vitals.badBlood .bar i{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='8' viewBox='0 0 46 8'%3E%3Cg fill='none' stroke='%23300806' stroke-width='.9' stroke-linecap='round'%3E%3Cpath d='M0 3c4-1 7 1.5 11 .6s6-2.4 10-1.2 5 3 9 2.2 7-2.2 10-1.4 4 .8 6 .6'/%3E%3Cpath d='M11 3.6c1 1.6 2.6 2.4 3.6 4M30 4.6c-.6-1.6-1.8-2.6-2.4-4.4M21 2.2c.8-.8 1.2-1.6 1.6-2.2' stroke-width='.6'/%3E%3C/g%3E%3C/svg%3E") 0 50%/46px 100% repeat-x,linear-gradient(180deg,#c9b8a8,#8f6f62) 0 0/var(--b,100%) 100% no-repeat,linear-gradient(180deg,#a9b4c4,#5e6f88);box-shadow:0 0 6px rgba(150,40,30,.45);animation:badPulse 2.6s ease-in-out infinite}
+#vitals.badBlood.low .bar i{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='8' viewBox='0 0 46 8'%3E%3Cg fill='none' stroke='%23300806' stroke-width='.9' stroke-linecap='round'%3E%3Cpath d='M0 3c4-1 7 1.5 11 .6s6-2.4 10-1.2 5 3 9 2.2 7-2.2 10-1.4 4 .8 6 .6'/%3E%3Cpath d='M11 3.6c1 1.6 2.6 2.4 3.6 4M30 4.6c-.6-1.6-1.8-2.6-2.4-4.4M21 2.2c.8-.8 1.2-1.6 1.6-2.2' stroke-width='.6'/%3E%3C/g%3E%3C/svg%3E") 0 50%/46px 100% repeat-x,var(--blood)}
+@keyframes badPulse{50%{box-shadow:0 0 9px rgba(170,30,20,.7)}}
+#vitals.badBlood #hpHeal{background:repeating-linear-gradient(-45deg,rgba(92,160,255,.42) 0 2px,rgba(30,10,10,.55) 2px 4.5px);box-shadow:inset 0 0 4px rgba(200,40,30,.5);animation:none}
+/* the curses on you, small chips under the bars: the mark, its name, and what it costs you in a word */
+#curseRow{display:flex;flex-wrap:wrap;gap:5px;margin-top:-2px}
+#curseRow[hidden]{display:none}
+#curseRow .curse{display:inline-flex;align-items:center;gap:5px;padding:2px 7px 2px 4px;border-radius:3px;background:linear-gradient(180deg,rgba(58,14,10,.85),rgba(30,8,6,.85));
+  box-shadow:inset 0 0 0 1px rgba(232,80,58,.45),0 1px 0 rgba(0,0,0,.5);border-left:3px solid transparent;border-image:repeating-linear-gradient(-45deg,#e8503a 0 3px,#3a0c08 3px 6px) 1;
+  font-family:var(--f-ui);font-size:10px;letter-spacing:.06em;line-height:1.3;white-space:nowrap;animation:curseIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+#curseRow .curse svg{width:13px;height:13px;fill:#e8705a;filter:drop-shadow(0 0 3px rgba(232,80,58,.5));flex:none}
+#curseRow .curse b{font-weight:700;color:#f0c8b8;text-transform:uppercase}
+#curseRow .curse em{font-style:normal;color:#c98a7a;opacity:.85}
+@keyframes curseIn{0%{opacity:0;transform:translateY(4px) scale(.9)}}
 #healVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 55%,rgba(60,130,230,.32) 100%)}
 .bar b{position:absolute;inset:0 auto 0 0;width:100%;background:rgba(224,64,44,.55);transition:width .6s ease .25s}
 .bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(5% - 1px),rgba(8,8,8,.9) calc(5% - 1px) 5%)}

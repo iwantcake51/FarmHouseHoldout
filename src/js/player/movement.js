@@ -1,17 +1,19 @@
 // Player movement, statuses and aiming each frame.
 
 import { cam, FWD, GUN_Y, RIGHT, V3 } from '../core/renderer.js';
-import { clamp, smooth } from '../core/math.js';
+import { angDiff, clamp, smooth } from '../core/math.js';
 import { moveCircle } from '../world/collision.js';
 import { P } from './player.js';
-import { carryMul, curId, S, W, W8 } from '../game/run-state.js';
+import { carryMul, curId, healMul, hpCap, S, W, W8 } from '../game/run-state.js';
 import { bloodyStep } from '../effects/blood-map.js';
 import { VAULT_COOL, vaultGun, vaultLand, vaultTakeoff } from './vaulting.js';
 import { vaultAt } from './vault-plan.js';
 import { openSt } from '../stations/station-ui.js';
 import { footstep } from '../audio/footsteps.js';
 import { state } from '../game/state.js';
-import { _pv, aimPlane, aimPt, hasMouse, keys, mouseX, mouseY, ndc, ray } from '../input/keyboard-mouse.js';
+import {
+  _pv, aimPlane, aimPt, centerMouse, hasMouse, keys, mouseX, mouseY, ndc, ray
+} from '../input/keyboard-mouse.js';
 import { aimHeld, aiming, exitScope, hasScope, scopeAim, scoped, scopePt, startAim } from './aiming.js';
 import { tStick } from '../input/touch.js';
 import { reloadSlow } from '../weapons/reload.js';
@@ -22,7 +24,8 @@ import {
   pivotSlow, RUN_RELOAD, runReloading, SPRINT, sprintCarve, sprintPace, sprintStart, sprintVault, updateSprint,
   WALK_SPEED
 } from './sprint.js';
-import { aimSX, aimSY, updateShaky } from './shaky-hands.js';
+import { aimSX, aimSY, updateShaky, xhStep } from './shaky-hands.js';
+import { fpAim, fpAimPx, fpOn, freeOn, moveBasis, VCAM } from '../game/view-cam.js';
 import { ANIM } from './animation.js';
 import { drawMul, startSwap, swapFire, swapSt } from './swap.js';
 
@@ -35,24 +38,29 @@ const BAND_SLOW = 0.55;
 const HURT_SLOW = { from: 0.35, min: 0.85, floor: 0.72 };
 
 // status effects, walking, vaulting and aiming
+// in first person your aim's where you look, at once; but over a vault it stays on the way you went over, and any gap
+// that's opened up (looking aside the whole way over) closes after at k, smoothly (lag: how far behind it still is)
+const FP_TURN = { k: 9, lag: 0 };
 export function updatePlayer(dt) {
   P.slow = Math.max(0, P.slow - dt * 0.45); P.stun = Math.max(0, P.stun - dt); P.adr = Math.max(0, P.adr - dt); P.eye = Math.max(0, (P.eye || 0) - dt); P.adrCd = Math.max(0, (P.adrCd || 0) - dt);
   W8.glCd = Math.max(0, W8.glCd - dt); P.shoveCd = Math.max(0, (P.shoveCd || 0) - dt); tickShove(dt);
   if (!P.vault) P.vaultHeat = Math.max(0, (P.vaultHeat || 0) - dt / VAULT_COOL);   // chained vaults cool off once you're down
   // Painkillers: only once you've gone REGEN_WAIT seconds without losing any health (a bleed's included)
   if (P.hp < (P.hpWas ?? P.hp) - 1e-4) P.calmT = REGEN_WAIT; P.calmT = Math.max(0, (P.calmT || 0) - dt);
-  if (S.regen && P.hp < S.maxHp && P.calmT <= 0) P.hp = Math.min(S.maxHp, P.hp + S.regen * dt);
+  if (S.regen && P.hp < hpCap() && P.calmT <= 0) P.hp = Math.min(hpCap(), P.hp + S.regen * healMul() * dt);
   P.hpWas = P.hp;
   let mx = 0, my = 0;
   if (keys.has('w') || keys.has('arrowup')) my -= 1;
   if (keys.has('s') || keys.has('arrowdown')) my += 1;
   if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
   if (keys.has('d') || keys.has('arrowright')) mx += 1;
-  if (P.dead) mx = my = 0;   // the death clock runs in tickDeath (ui/screens.js), on real time
+  if (P.dead || freeOn()) mx = my = 0;   // (flying the free camera, you stand where you are: game/view-cam.js) the death clock runs in tickDeath (ui/screens.js), on real time
   else if (tStick.L && Math.hypot(tStick.L.x, tStick.L.y) > 0.3) { const oct = Math.round(Math.atan2(tStick.L.y, tStick.L.x) / (Math.PI / 4)) * (Math.PI / 4); mx = Math.round(Math.cos(oct)); my = Math.round(Math.sin(oct)); }
   const D0 = W(curId());
-  // the way you're pushing, on the ground
-  const ml = Math.hypot(mx, my) || 1, wx = (RIGHT.x * mx - FWD.x * my) / ml, wz = (RIGHT.z * mx - FWD.z * my) / ml, go = sprintStart(!!(mx || my));
+  // the way you're pushing, on the ground: up and right on the screen, or in first person forward and right of where
+  // you face (game/view-cam.js)
+  const [MF, MR] = moveBasis(FWD, RIGHT);
+  const ml = Math.hypot(mx, my) || 1, wx = (MR.x * mx - MF.x * my) / ml, wz = (MR.z * mx - MF.z * my) / ml, go = sprintStart(!!(mx || my));
   if ((P.sprint || go) && !P.vault && state === 'play') sprintVault(wx, wz, go);   // sprinting at a window or a fence takes you over it (player/sprint.js)
   if (P.vault) {
     const v = P.vault;
@@ -79,7 +87,7 @@ export function updatePlayer(dt) {
     updateSprint(dt, !!(mx || my), wx, wz);   // (player/sprint.js)
     let tvx = 0, tvz = 0;
     if ((mx || my) && P.stun <= 0 && !(P.skid > 0) && !P.pivot) {   // (skidding to a stop, or planting for a hard turn, you go where your momentum takes you)
-      const hpF = P.hp / S.maxHp, hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
+      const hpF = P.hp / hpCap(), hurt = hpF < HURT_SLOW.from ? HURT_SLOW.min + (1 - HURT_SLOW.min) * hpF / HURT_SLOW.from : 1;   // badly hurt, you limp
       const worn = Math.max(HURT_SLOW.floor, hurt * (P.spdF || 1));   // (and blown on top of it: never slower than the floor)
       const sp = WALK_SPEED * (P.sprint ? 1 + (SPRINT.mul - 1) * sprintPace() : 1) * S.speedMul * (1 - 0.72 * P.slow) * worn * (P.adr > 0 ? 1.15 : 1) * (D0.slow || 1) * carryMul(curId()) * (runReloading() ? RUN_RELOAD.run : 1) * (scoped || scopeAim() ? 0.45 : aiming ? 0.58 : 1) * swingSlow() * (P.bandT > 0 ? 1 - BAND_SLOW * (1 - S.bandLess) : 1) * reloadSlow() * heavyFireSlow();
       // walking where you look is full speed; sideways about 87%, straight backwards about 76%
@@ -102,12 +110,18 @@ export function updatePlayer(dt) {
     const ph0 = P.phase; P.phase += dt * (5 + spd * 1.6 * (1 - 0.25 * (ANIM.sprintK || 0)));   // a sprint lengthens the stride more than it quickens it
     // a footstep each time a foot comes down (twice a stride), a run's when you're sprinting, harder the faster you go
     // (audio/footsteps.js picks the ground's own)
-    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25)); bloodyStep(); }   // and a bloody print if your boots are (effects/blood-map.js)
+    if (P.moving && Math.floor(P.phase / Math.PI) !== Math.floor(ph0 / Math.PI)) { footstep(P.sprint ? 'run' : 'walk', clamp(spd / WALK_SPEED, 0.45, 1.25)); bloodyStep(); xhStep(clamp(spd / WALK_SPEED, 0.45, 1.3) * (P.sprint ? 1.4 : 1)); }   // and a bloody print if your boots are (effects/blood-map.js)
   }
   P.still = P.moving ? 0 : P.still + dt;
 
   updateShaky(dt);   // low health: the aim wanders and the arms tremble (player/shaky-hands.js)
-  if (P.dead) { /* no more aiming */ }
+  if (P.dead || freeOn()) { /* no more aiming (flying the free camera, you stand as you were, facing where you were: turning it doesn't turn you) */ }
+  else if (fpOn() && state === 'play') {
+    // (where you look; but the gap a vault leaves, as you looked aside over it, is closed smoothly, never snapped)
+    centerMouse(...fpAimPx());
+    if (P.vault) FP_TURN.lag = angDiff(VCAM.yaw, P.aim); else { FP_TURN.lag *= Math.exp(-dt * FP_TURN.k); if (Math.abs(FP_TURN.lag) < 1e-4) FP_TURN.lag = 0; P.aim = VCAM.yaw - FP_TURN.lag; }
+    fpAim(aimPt);
+  }   // first person: you aim where you look (game/view-cam.js)
   else if (tStick.R && Math.hypot(tStick.R.x, tStick.R.y) > 0.25) {
     const sx = tStick.R.x, sy = tStick.R.y; P.aim = Math.atan2(RIGHT.x * sx - FWD.x * sy, RIGHT.z * sx - FWD.z * sy);
     aimPt.set(P.x + Math.sin(P.aim) * 6, GUN_Y, P.z + Math.cos(P.aim) * 6);

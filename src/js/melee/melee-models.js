@@ -26,6 +26,9 @@ function vcyl(g, rTop, rBot, len, mat, y, seg, x, z) { const m = new THREE.Mesh(
 const lvAt = (m, k, t) => t[Math.min(t.length - 1, m[k] === true ? 1 : m[k] || 0)];
 // the machete's blade length by long-blade level (also what its swing trail stretches by, melee/swing-trail.js)
 export const MACHETE_S = [1, 1.12, 1.2, 1.28], KATANA_L = [0.78, 0.92, 1.0, 1.08];
+// the katana's blade: its curve over its length (radians), its width at the habaki and at the tip, how far its kissaki
+// runs on past that, and how many points along it its outline's drawn through
+const KATANA_BLADE = { curve: 0.21, w0: 0.044, w1: 0.032, tip: 0.075, n: 24 }, KATANA_GRIP = 0.085;
 // grip tape: a sleeve with raised ridges, from y0 to y1
 function gripWrap(g, r, y0, y1, n) { vcyl(g, r, r, y1 - y0, MM.tapeBlk, (y0 + y1) / 2, 10); for (let k = 0; k <= n; k++) vcyl(g, r + 0.003, r + 0.003, 0.008, MM.tapeRib, y0 + (y1 - y0) * k / n, 10); }
 // a flat outline (in x, y) pushed out to depth d along z and centred on z0, with an optional soft bevel round its edges
@@ -34,38 +37,67 @@ function slab(g, shape, d, mat, z0, bev) {
   geo.translate(0, 0, (z0 || 0) - d / 2); const m = new THREE.Mesh(geo, mat); m.castShadow = true; g.add(m); return m;
 }
 const DISC_M = new THREE.CylinderGeometry(1, 1, 1, 16);
+// the crowbar's bar: the line it's bent along (the pry foot at the bottom, up the shaft, over the gooseneck and down
+// toward the claw), its hex section's radius, and where its paint stops at each end
+const CROW_PATH = [[-0.128, -0.043], [-0.112, -0.016], [-0.085, 0], [0, 0], [0.52, 0], [0.575, 0.005], [0.616, 0.024], [0.64, 0.056], [0.64, 0.092], [0.622, 0.118], [0.594, 0.13]];
+const CROW_R = 0.0165, CROW_STEEL = [0.06, 0.84], CROW_RED = new THREE.Color(0xa8291c), CROW_SHINE = new THREE.Color(0x868c90);
+let crowGeo = null, CROW_M = null;
+function CROW_GEO() {
+  if (crowGeo) return crowGeo;
+  const T = 120, R = 6, g = crowGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(CROW_PATH.map(([y, z]) => new THREE.Vector3(0, y, z)), false, 'centripetal'), T, CROW_R, R, false);
+  const n = g.attributes.position.count, col = new Float32Array(n * 3), c = new THREE.Color();
+  for (let i = 0; i < n; i++) { const u = Math.floor(i / (R + 1)) / T, k = Math.min(1, Math.max(0, Math.min((u - CROW_STEEL[0]) / 0.02, (CROW_STEEL[1] - u) / 0.02))); c.copy(CROW_SHINE).lerp(CROW_RED, k); col.set([c.r, c.g, c.b], i * 3); }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+}
+// the bat's turned outline, [radius, height] from the knob up to the end, run through a smooth curve and turned all the
+// way round (one piece, so no seams or bands up it); and its radius at any height, for what's put on it
+const BAT_PROFILE = [[0, -0.122], [0.036, -0.121], [0.046, -0.112], [0.047, -0.1], [0.04, -0.091], [0.027, -0.084], [0.0235, -0.07], [0.0232, 0.05], [0.024, 0.18],
+  [0.028, 0.27], [0.036, 0.36], [0.047, 0.45], [0.058, 0.54], [0.065, 0.62], [0.068, 0.72], [0.068, 0.83], [0.066, 0.858], [0.06, 0.88], [0.048, 0.896], [0.03, 0.905], [0, 0.908]];
+let batGeo = null;
+const BAT_GEO = () => batGeo || (batGeo = new THREE.LatheGeometry(new THREE.SplineCurve(BAT_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(90), 32));
+function batR(y) { for (let k = 1; k < BAT_PROFILE.length; k++) { const [r1, y1] = BAT_PROFILE[k], [r0, y0] = BAT_PROFILE[k - 1]; if (y <= y1) return r0 + (r1 - r0) * (y - y0) / Math.max(1e-6, y1 - y0); } return 0; }
+// a nail: a thin round shank (stretched to length along y), its flat round head and a sharp point
+const NAIL_SHANK = new THREE.CylinderGeometry(0.0034, 0.0034, 1, 8), NAIL_HEAD = new THREE.CylinderGeometry(0.0095, 0.0095, 0.0022, 14), NAIL_TIP = new THREE.ConeGeometry(0.0034, 0.012, 8);
 // a knurled nut's outline: a ring of fine ribs (radius 0.025), to be extruded along the nut's axis
 const NUT_KNURL = (() => { const s = new THREE.Shape(), n = 30; for (let i = 0; i <= n * 2; i++) { const a = i / (n * 2) * Math.PI * 2, r = i % 2 ? 0.0236 : 0.0256; i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r); } return s; })();
 const MELEE_MODELS = {
-  // ash baseball bat: a taped handle and knob, a long taper into a fat barrel with a rounded end and a burnt-in band
+  // ash baseball bat: one smooth turned piece (BAT_PROFILE: the knob, the handle, the long taper, the barrel and its
+  // domed end), a taped handle; nails driven right through the barrel, round heads on the wood and their points out the
+  // far side; barbed wire wound up it, two strands twisted, barbs every few centimetres
   bat(g, m) {
-    vcyl(g, 0.046, 0.04, 0.03, MM.ashDark, -0.105, 12);                      // knob
-    vcyl(g, 0.024, 0.023, 0.34, MM.ash, 0.08, 10);                           // handle
+    const body = new THREE.Mesh(BAT_GEO(), MM.ash); body.castShadow = true; g.add(body);
     gripWrap(g, 0.027, -0.085, 0.12, 6);
-    vcyl(g, 0.058, 0.026, 0.32, MM.ash, 0.41, 12);                           // the taper up into the barrel
-    const barrel = vcyl(g, 0.068, 0.059, 0.3, MM.ash, 0.72, 14);
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.068, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), MM.ash); cap.scale.y = 0.45; cap.position.y = 0.87; cap.castShadow = true; g.add(cap);
-    vcyl(g, 0.0645, 0.0635, 0.025, MM.grain, 0.66, 14); vcyl(g, 0.0665, 0.0655, 0.01, MM.grain, 0.79, 14);   // burnt-in maker's band
-    for (let k = 0, n = lvAt(m, 'nails', [0, 14, 20, 26]); k < n; k++) {   // nails driven through the barrel, heads and points out; more with each level
-      const a = k * 2.39, y = 0.6 + (k % 5) * 0.055, nl = new THREE.Group(); nl.position.set(0, y - 0.72, 0); nl.rotation.y = -a; barrel.add(nl);
-      box(nl, 0.12, 0.008, 0.008, GM.nail, 0.075, 0, 0); box(nl, 0.012, 0.018, 0.018, MM.iron, 0.02, 0, 0);
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.005, 0.025, 4), GM.nail); tip.rotation.z = -Math.PI / 2; tip.position.x = 0.145; nl.add(tip);
+    for (let k = 0, n = lvAt(m, 'nails', [0, 14, 20, 26]); k < n; k++) {
+      const a = k * 2.39, y = 0.6 + (k % 5) * 0.055 + (k % 2) * 0.012, r = batR(y), nl = new THREE.Group(); nl.position.y = y; nl.rotation.y = -a; g.add(nl);
+      const L = 2 * r + 0.05, sh = new THREE.Mesh(NAIL_SHANK, GM.nail); sh.scale.set(1, L, 1); sh.rotation.z = -Math.PI / 2; sh.position.x = -r + L / 2; nl.add(sh);
+      const hd = new THREE.Mesh(NAIL_HEAD, GM.nail); hd.rotation.z = Math.PI / 2; hd.position.x = -r - 0.0008; nl.add(hd);
+      const tp = new THREE.Mesh(NAIL_TIP, GM.nail); tp.rotation.z = -Math.PI / 2; tp.position.x = -r + L + 0.006; nl.add(tp);
     }
-    for (let k = 0, n = lvAt(m, 'wire', [0, 4, 5, 6]), sp = 0.3 / Math.max(1, n); k < n; k++) {     // barbed wire coiled round the barrel, barbs sticking out; more coils with each level
-      const t = new THREE.Mesh(new THREE.TorusGeometry(0.071, 0.006, 4, 18), GM.wire); t.rotation.set(Math.PI / 2 + 0.18 * (k % 2 ? 1 : -1), 0, 0); t.position.y = 0.6 + k * sp; g.add(t);
-      for (let b = 0; b < 4; b++) { const a = b * Math.PI / 2 + k; box(g, 0.03, 0.006, 0.006, GM.wire, Math.cos(a) * 0.074, 0.6 + k * sp, Math.sin(a) * 0.074).rotation.set(0.6, -a, 0.6); }
+    const turns = lvAt(m, 'wire', [0, 4, 5, 6]);
+    if (turns) {
+      const y0 = 0.58, y1 = 0.86, at = (u, ph, out) => { const y = y0 + (y1 - y0) * u, an = u * turns * Math.PI * 2, rr = batR(y) + 0.0045 + out, tw = u * turns * 26 + ph;
+        return new THREE.Vector3(Math.cos(an) * rr + Math.cos(an) * 0.0016 * Math.cos(tw), y + 0.0016 * Math.sin(tw), Math.sin(an) * rr + Math.sin(an) * 0.0016 * Math.cos(tw)); };
+      [0, Math.PI].forEach(ph => { const pts = []; for (let k = 0; k <= turns * 40; k++) pts.push(at(k / (turns * 40), ph, 0)); const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), turns * 90, 0.0016, 5), GM.wire); t.castShadow = true; g.add(t); });
+      for (let b = 0, nb = turns * 7; b < nb; b++) {   // a barb: two short wires wrapped round the strands, their ends cut sharp and sticking out
+        const u = (b + 0.5) / nb, p = at(u, 0, 0), an = u * turns * Math.PI * 2;
+        [0.7, -0.7].forEach(tl => { const w = new THREE.Mesh(NAIL_SHANK, GM.wire); w.scale.set(0.45, 0.026, 0.45); w.position.copy(p); w.rotation.set(0, -an, Math.PI / 2 + tl, 'YZX'); g.add(w); });
+      }
     }
   },
   // crowbar: red-painted hex bar, a gooseneck claw over the top and a flattened pry end below the fist, steel worn bright at both ends
   crowbar(g, m) {
-    vcyl(g, 0.017, 0.017, 0.74, MM.redPaint, 0.25, 6);
-    const pry = new THREE.Group(); pry.position.y = -0.12; pry.rotation.x = 0.28; g.add(pry);
-    box(pry, 0.032, 0.07, 0.012, MM.wornSteel, 0, -0.03, 0); box(pry, 0.012, 0.03, 0.012, MM.wornSteel, -0.01, -0.07, 0); box(pry, 0.012, 0.03, 0.012, MM.wornSteel, 0.01, -0.07, 0);   // split pry tips
-    const neck = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.017, 6, 14, Math.PI * 1.05), MM.redPaint); neck.rotation.y = Math.PI / 2; neck.position.set(0, 0.62, 0.065); neck.castShadow = true; g.add(neck);
-    const claw = new THREE.Group(); claw.position.set(0, 0.6, 0.135); claw.rotation.x = 0.35; g.add(claw);
-    box(claw, 0.034, 0.05, 0.014, MM.wornSteel, 0, -0.02, 0); box(claw, 0.012, 0.04, 0.014, MM.wornSteel, -0.011, -0.06, 0); box(claw, 0.012, 0.04, 0.014, MM.wornSteel, 0.011, -0.06, 0);
-    box(g, 0.036, 0.04, 0.036, MM.redDark, 0, 0.56, 0);                      // forged shoulder below the bend
-    if (m.tape) { const lv = lvAt(m, 'tape', [0, 1, 2, 3]); gripWrap(g, 0.021 + 0.002 * lv, -0.08, 0.08 + 0.07 * lv, 5 + 2 * lv); }   // longer and thicker with each level
+    // one hex bar bent along CROW_PATH: the pry end's short foot, the long shaft, the gooseneck over the top; red paint
+    // over the middle, bare steel worn bright at both working ends (CROW_STEEL: how far along the bar)
+    const body = new THREE.Mesh(CROW_GEO(), CROW_M || (CROW_M = lam(0xffffff, { vertexColors: true }))); body.castShadow = true; g.add(body);
+    // the claw: the bar's end flattened out wide and split down the middle into two prongs, carrying on round the curl
+    const cl = new THREE.Group(); cl.position.set(0, 0.565, 0.13); cl.rotation.x = -0.12; g.add(cl);
+    box(cl, 0.03, 0.03, 0.011, MM.wornSteel, 0, 0.0, 0);
+    [-1, 1].forEach(e => { const pr = box(cl, 0.011, 0.04, 0.008, MM.wornSteel, e * 0.0085, -0.032, -0.001); pr.rotation.z = e * 0.06; const tp = box(cl, 0.009, 0.012, 0.0045, MM.edge, e * 0.0098, -0.056, -0.002); tp.rotation.z = e * 0.06; });
+    // the pry end: the foot flattened to a chisel edge with a nail slot in it
+    const pr = new THREE.Group(); pr.position.set(0, -0.128, -0.043); pr.rotation.x = 1.05; g.add(pr);
+    [-1, 1].forEach(e => box(pr, 0.011, 0.024, 0.006, MM.wornSteel, e * 0.0075, -0.006, 0)); box(pr, 0.008, 0.018, 0.003, MM.edge, 0, -0.018, 0.0012).visible = false;
+    if (m.tape) { const lv = lvAt(m, 'tape', [0, 1, 2, 3]); gripWrap(g, 0.021 + 0.002 * lv, -0.06, 0.08 + 0.07 * lv, 5 + 2 * lv); }   // longer and thicker with each level
   },
   // pipe wrench, after a heavy-duty cast one: a red I-beam handle (raised rims round a recessed web, a solid end with a
   // hanging slot), the housing it flares into with a hump over the nut pocket, a steel heel jaw riveted on top, the
@@ -124,8 +156,8 @@ const MELEE_MODELS = {
     for (const [yy, h] of [[0.02, 0.0145], [0.0385, 0.0145]]) { const n = slab(hd, NUT_KNURL, h, MM.nut, 0); n.rotation.x = -Math.PI / 2; n.position.set(-0.045, yy + h / 2, 0); }
     vcyl(hd, 0.0215, 0.0215, 0.0045, MM.iron, 0.0368, 16, -0.045, 0);
   },
-  // katana: a wrapped handle with diamond ito and a gold menuki, a round tsuba and brass habaki, then a curved blade
-  // built from short segments, each with a dark spine, a bright hamon and an edge, ending in a sharp kissaki
+  // katana: a wrapped handle with diamond ito and a gold menuki, a round tsuba and brass habaki, then a curved blade in
+  // one piece with a dark spine, a bright hamon and an edge along it, ending in a sharp kissaki
   katana(g, m) {
     box(g, 0.03, 0.29, 0.038, MM.samegawa, 0, 0.005, 0);                     // ray-skin under the wrap
     for (let k = 0; k < 6; k++) [-1, 1].forEach(sd => { const d = box(g, 0.032, 0.03, 0.03, MM.ito, 0, -0.115 + k * 0.046, 0); d.rotation.y = Math.PI / 4 * sd; d.scale.set(1, 1, 0.6); });   // diamond wrap
@@ -133,17 +165,34 @@ const MELEE_MODELS = {
     box(g, 0.012, 0.03, 0.012, MM.gold, 0, 0.03, 0.021);                     // menuki
     const tsuba = vcyl(g, 0.052, 0.052, 0.012, MM.iron, 0.162, 14); vcyl(tsuba, 0.046, 0.046, 0.014, GM.brass, 0, 14).scale.set(1, 0.3, 1);
     box(g, 0.016, 0.03, 0.05, GM.brass, 0, 0.185, 0.004);                    // habaki
-    const L = lvAt(m, 'folded', KATANA_L), n = 6, seg = L / n, steel = m.folded ? MM.hamon : GM.blade;
-    let p = new THREE.Group(); p.position.set(0, 0.2, 0.004); g.add(p);
-    for (let k = 0; k < n; k++) {
-      const w = 0.044 - k * 0.002;
-      box(p, 0.01, seg, w, steel, 0, seg / 2, 0);
-      box(p, 0.012, seg, 0.008, GM.metal2, 0, seg / 2, -w / 2 + 0.002);      // spine
-      box(p, 0.0105, seg, 0.012, MM.hamon, 0, seg / 2, w / 2 - 0.009);      // hamon line
-      box(p, 0.006, seg, 0.006, MM.edge, 0, seg / 2, w / 2 - 0.001);        // edge
-      const next = new THREE.Group(); next.position.y = seg; next.rotation.x = -0.035; p.add(next); p = next;   // the gentle curve, back toward the spine
-    }
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.023, 0.08, 4), steel); tip.scale.set(0.24, 1, 1); tip.rotation.y = Math.PI / 4; tip.position.set(0, 0.035, -0.004); tip.castShadow = true; p.add(tip);
+    const L = lvAt(m, 'folded', KATANA_L), steel = m.folded ? MM.hamon : GM.blade;
+    // the blade in one piece: its curve, its taper and its tip all smooth (KATANA_BLADE), the dark spine, the bright
+    // hamon and the edge each one strip along the whole of it rather than short segments with gaps at their joints
+    // (its centre line bends back toward the spine, -z, by K.curve radians over its length; a: across it, -1 the spine
+    // to 1 the edge)
+    const K = KATANA_BLADE, ps = s => K.curve * s / L;
+    const pt = (s, a) => { const p = ps(s), w = K.w0 + (K.w1 - K.w0) * s / L; return [0.004 - K.curve * s * s / (2 * L) + Math.cos(p) * a * w / 2, 0.2 + s + Math.sin(p) * a * w / 2]; };
+    const strip = (a0, a1, t, mat, tip) => {   // a band from a0 to a1 across it, t thick
+      const sh = new THREE.Shape(), n = K.n;
+      for (let i = 0; i <= n; i++) { const [x, y] = pt(L * i / n, a0); i ? sh.lineTo(x, y) : sh.moveTo(x, y); }
+      if (tip) {   // the kissaki: the spine runs on nearly straight, the edge sweeps up to meet it in a point near the spine
+        const p = ps(L), tx = -Math.sin(p), ty = Math.cos(p), nx = Math.cos(p), ny = Math.sin(p), [sx, sy] = pt(L, -1), [ex, ey] = pt(L, 1), w = K.w1;
+        const qx = sx + tx * K.tip + nx * w * 0.18, qy = sy + ty * K.tip + ny * w * 0.18;
+        sh.lineTo(qx, qy); sh.quadraticCurveTo(ex + tx * K.tip * 0.8, ey + ty * K.tip * 0.8, ex, ey);
+      } else { const [x, y] = pt(L, a1); sh.lineTo(x, y); }
+      for (let i = tip ? n - 1 : n; i >= 0; i--) { const [x, y] = pt(L * i / n, a1); sh.lineTo(x, y); }
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 10 }); geo.rotateY(-Math.PI / 2); geo.translate(t / 2, 0, 0);
+      const mh = new THREE.Mesh(geo, mat); mh.castShadow = true; g.add(mh); return mh;
+    };
+    // (the blade itself stops just inside the spine and the edge, which are each their own strip: laid on the same
+    // outline, their sides and the blade's were the same faces and flickered through each other along the back)
+    strip(-0.96, 0.95, 0.01, steel, true);              // the blade
+    strip(-1, -0.64, 0.012, GM.metal2, false);          // its spine
+    strip(0.42, 0.86, 0.0106, MM.hamon, false);         // the hamon line
+    strip(0.86, 1, 0.0062, MM.edge, false);             // the edge
+    // (held in the fist KATANA_GRIP lower than it's drawn: the right hand just under the tsuba, the left at the end of
+    // the handle by the kashira, player/hold.js MELEE_LH, both on the wrap and neither on the guard or the blade)
+    g.children.forEach(c => { c.position.y -= KATANA_GRIP; });
   },
   // sledgehammer: a hickory handle with a ribbed rubber grip and an overstrike sleeve, a heavy dark head with bright worn faces
   sledge(g, m) {

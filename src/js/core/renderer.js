@@ -35,7 +35,14 @@ R.shadowMap.type = THREE.PCFShadowMap;
 export const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1e1716);
 scene.fog = new THREE.Fog(0x1e1716, 42, 78);
-export const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+// the camera the farm's drawn with: the isometric one, or in first person or the free camera (game/view-cam.js) one
+// with perspective
+export const ISO_CAM = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200), FP_CAM = new THREE.PerspectiveCamera(75, 1, 0.04, 200);
+export let cam = ISO_CAM;
+// what's drawn over a fog round's fog rather than under it (the particles, a sight's reticle: effects/post.js), seen
+// by every camera that draws the farm
+export const OVER_LAYER = 5;
+[ISO_CAM, FP_CAM].forEach(c => c.layers.enable(OVER_LAYER));
 export const VIEW = 9, YAW = Math.PI / 4, EL = 0.66, CAM_D = 40;
 export const CAM_OFF = new V3(Math.sin(YAW) * Math.cos(EL) * CAM_D, Math.sin(EL) * CAM_D, Math.cos(YAW) * Math.cos(EL) * CAM_D);
 // how far you can zoom out and in (cam.zoom, so bigger is closer)
@@ -47,7 +54,8 @@ export const GUN_Y = 1.1;
 export function resize() {
   const w = innerWidth, h = innerHeight, a = w / h;
   R.setSize(w, h, false);
-  cam.left = -VIEW * a; cam.right = VIEW * a; cam.top = VIEW; cam.bottom = -VIEW; cam.updateProjectionMatrix();
+  ISO_CAM.left = -VIEW * a; ISO_CAM.right = VIEW * a; ISO_CAM.top = VIEW; ISO_CAM.bottom = -VIEW; ISO_CAM.updateProjectionMatrix();
+  FP_CAM.aspect = a; FP_CAM.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
 resize();
@@ -72,3 +80,10 @@ scene.add(sun, sun.target);
 export function setRenderScale(v) { return (renderScale = v); }
 export function setZoom(v) { return (zoom = v); }
 export function setZoomT(v) { return (zoomT = v); }
+export function setCam(v) { return (cam = v); }
+// the view's size and middle a metre in front of the camera (with perspective, it scales with the distance) or anywhere
+// (orthographic), for the passes that rebuild where a pixel is from its depth (effects/post.js, world/mist.js)
+export function viewRect(c, o) {
+  if (c.isPerspectiveCamera) { const h = 2 * Math.tan(c.fov * Math.PI / 360) / c.zoom; return o.set(h * c.aspect, h, 0, 0); }
+  const z = c.zoom; return o.set((c.right - c.left) / z, (c.top - c.bottom) / z, (c.right + c.left) / 2, (c.top + c.bottom) / 2);
+}

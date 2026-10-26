@@ -4,12 +4,13 @@ import { cam, renderScale, YAW, zoom } from '../core/renderer.js';
 import { clamp, smooth } from '../core/math.js';
 import { LMU, TREE_CUT } from '../core/shaders.js';
 import { ci, idx, inb } from './grid.js';
-import { HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
+import { ceilG, HOUSE, HOUSE_FP, inHouseRect, porchRoof, roof, stepPaint, walls } from './house.js';
 import { IW_LINES, updateDoors } from './interior.js';
 import { TREES } from './trees.js';
 import { state } from '../game/state.js';
 import { INTRO, introCamOn } from '../game/intro.js';
 import { _c2, amb } from '../lighting/day-night.js';
+import { isoOn } from '../game/view-cam.js';
 import { projV } from '../ui/crosshair.js';
 import { camFocus } from '../net/spectate.js';
 
@@ -18,7 +19,7 @@ const SQ = Math.SQRT1_2;
 // a wall face (f: which way it looks, N S W E; at: the line of the wall cells it's on) fades only if the line from you (F:
 // or the teammate you're watching) toward the camera actually passes through it
 function faceCut(F, f, at) {
-  if (state === 'title') return false;
+  if (state === 'title' || !isoOn()) return false;   // (first person or the free camera: nothing's in the way of a camera overhead)
   const d = SQ, m = 0.7, maxT = 7.5;
   if (f === 'E' || f === 'W') { const t = (at - F.x) / d; if (t < 0.05 || t > maxT) return false; const z = F.z + d * t; return z > HOUSE.z0 - m && z < HOUSE.z1 + m; }
   const t = (at - F.z) / d; if (t < 0.05 || t > maxT) return false; const x = F.x + d * t; return x > HOUSE.x0 - m && x < HOUSE.x1 + m;
@@ -51,7 +52,7 @@ export function updateCutaway(rdt) {
   // roof: off when you're indoors or tucked behind the house (any part of it, the wing of a notched one too), back on
   // outside
   {
-    const want = state === 'title' ? 1 : inside || fN || fW || behindHouse(F) ? 0 : 1;
+    const want = state === 'title' || !isoOn() ? 1 : inside || fN || fW || behindHouse(F) ? 0 : 1;   // (a roof over you in first person)
     // as a run starts, the roof lifts away with the camera's glide (ROOF_INTRO: from and to, in seconds of it) on an
     // ease in and out, rather than most of the way in the first few frames
     if (want === 0 && introCamOn()) roof.op = Math.min(roof.op, 1 - smooth(clamp((INTRO.t - ROOF_INTRO[0]) / (ROOF_INTRO[1] - ROOF_INTRO[0]), 0, 1)));
@@ -62,10 +63,11 @@ export function updateCutaway(rdt) {
     const lv = Math.max(amb[0], amb[1], amb[2]);
     roof.mats.forEach(m => { m.opacity = roof.op; m.depthWrite = roof.op > 0.02; m.colorWrite = roof.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
   }
+  ceilG.visible = state !== 'title' && !isoOn();   // (the ceiling, from your own eyes only: world/house.js)
   // porch roof: off while you stand on the porch or anywhere indoors (with the main roof gone it would sit there over
   // nothing, in the way of the front rooms), back as you step off it outside
   {
-    const pr = porchRoof, near = state !== 'title' && (inside || (Math.abs(F.x - pr.x) < 2.8 && F.z > pr.z - 3.6 && F.z < pr.z + 2.2));
+    const pr = porchRoof, near = state !== 'title' && isoOn() && (inside || (Math.abs(F.x - pr.x) < 2.8 && F.z > pr.z - 3.6 && F.z < pr.z + 2.2));
     const want = near ? 0 : 1; pr.op += (want - pr.op) * Math.min(1, rdt * 7); if (Math.abs(want - pr.op) < 0.004) pr.op = want;
     const lv = Math.max(amb[0], amb[1], amb[2]);
     pr.mats.forEach(m => { m.opacity = pr.op; m.depthWrite = pr.op > 0.98; m.colorWrite = pr.op > 0.01; m.color.copy(m.userData.base).multiply(_c2.setRGB(amb[0] / lv * (0.35 + 0.65 * lv), amb[1] / lv * (0.35 + 0.65 * lv), amb[2] / lv * (0.35 + 0.65 * lv))); });
@@ -73,7 +75,7 @@ export function updateCutaway(rdt) {
   // the inside walls: a line of them fades (dithered away round you, as the outer walls do) while it stands between you
   // and the camera: the line from you toward the camera crosses it, or passes within IW_CUT.end of its ends; and the
   // doors between the rooms swing (world/interior.js)
-  for (const ln of IW_LINES) { const t = state !== 'title' && inside && lineCut(ln, F) ? 1 : 0; ln.cut.value += (t - ln.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - ln.cut.value) < 0.003) ln.cut.value = t; }
+  for (const ln of IW_LINES) { const t = state !== 'title' && isoOn() && inside && lineCut(ln, F) ? 1 : 0; ln.cut.value += (t - ln.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - ln.cut.value) < 0.003) ln.cut.value = t; }
   updateDoors(rdt);
   for (const w of walls) { const t = w.fl.some(([f, at]) => faceCut(F, f, at)) ? 1 : 0; w.cut.value += (t - w.cut.value) * Math.min(1, rdt * 6); if (Math.abs(t - w.cut.value) < 0.003) w.cut.value = t; }
   projV.set(F.x, 1.0, F.z).project(cam);
@@ -82,7 +84,7 @@ export function updateCutaway(rdt) {
   // trees: fade in the cut while any pine stands between you and the camera
   {
     let want = 0;
-    if (state !== 'title') for (const t of TREES) {
+    if (state !== 'title' && isoOn()) for (const t of TREES) {
       const vx = t.x - F.x, vz = t.z - F.z, along = vx * TOWARD_CAM.x + vz * TOWARD_CAM.z;
       if (along < -0.4 || along > 5.2 * t.s) continue;
       if (Math.abs(vx * TOWARD_CAM.z - vz * TOWARD_CAM.x) < 1.25 * t.s) { want = 1; break; }
@@ -96,6 +98,14 @@ export function updateCutaway(rdt) {
 // fade with it (player/animation.js, zombies/zombie-visuals.js) rather than staying lit over a roof you can't see. Under
 // it means behind the house as the camera sees it too, where the eaves and the roof's slope stand in front of you
 // outside the walls, so the outline eases out with the roof rather than vanishing the moment it stops writing depth
+// how much of a roof is drawn over (x, z) right now: the house's or the porch's while it's showing, nothing out in the
+// open (an eye's glow blooms through anything over it otherwise: effects/eye-glow.js)
+export function roofCover(x, z) {
+  if (!isoOn()) return 0;   // (in first person, or flying, the roof's over your head, not between you and them)
+  if (inHouseRect(x, z, 0.4)) return roof.op;
+  if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;
+  return 0;
+}
 export function roofOver(x, z) {
   if (inHouseRect(x, z, 0.4) || (roof.op < 1 && behindHouse({ x, z }))) return roof.op;
   if (Math.abs(x - porchRoof.x) < 1.9 && z > porchRoof.z - 0.7 && z < porchRoof.z + 0.95) return porchRoof.op;

@@ -6,7 +6,8 @@ import { roundOn } from './rounds.js';
 import { T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  clipTo, cyl, inset, lathe, portFill, profile, pullInside, ring, rrect, shp, solid, stipple, xsec, zAt
+  clipTo, cyl, glockRear, inset, irons, lathe, notchRear, portFill, profile, pullInside, ring, rrect, shp, solid, stipple, xsec,
+  zAt
 } from './gun-parts.js';
 import { REV_CYL, REV_RAIL } from './gun-models.js';
 
@@ -43,8 +44,13 @@ export const PISTOL_MODELS = {
     portFill(sl, 0.687, 1.133, 0.757, 1.155, 0.028, 0.0025, S2);
     box(sl, 0.006, 0.014, 0.066, GM.metal2, X - 0.009, 1.146, 0.72);   // the barrel's hood in the port
     [-1, 1].forEach(sd => { for (let k = 0; k < 7; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.549 + k * 0.0075); for (let k = 0; k < 5; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.788 + k * 0.0075); });
-    box(sl, 0.004, 0.008, 0.008, GM.rubber, X, 1.165, 0.829); box(sl, 0.003, 0.003, 0.002, GM.dot, X, 1.167, 0.825);
-    box(sl, 0.016, 0.008, 0.01, GM.rubber, X, 1.165, 0.555); [-0.005, 0.005].forEach(o => box(sl, 0.0026, 0.0026, 0.002, GM.dot, X + o, 1.167, 0.561));
+    // the Glock's own sights: a slim front post, its back face upright and its front sloped, a round white dot on its
+    // back; the rear a block narrower at its top than its base, its square notch outlined by a white U, the dot sitting
+    // in the U as you line them up
+    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]]), 0.003, GM.rubber, X);
+    cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248, 12);
+    glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
+    irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 });
     cyl(sl, 0.0065, 0.002, GM.rubber, X, 1.142, 0.8455, 12);
     // ---- the magazine, lying back at the grip's rake (it drops out along it): the body up inside the grip, then the
     // tier's base under the mag well: flush, a +5 base pad, a 33-round stick, a 50-round drum on its neck
@@ -84,7 +90,7 @@ export const PISTOL_MODELS = {
     profile(g, shp([[0.53, 1.118], [0.514, 1.134], [0.515, 1.158], [0.54, 1.155], [0.552, 1.165], [0.562, 1.174], [0.672, 1.174], [0.672, 1.125], [0.666, 1.115], [0.664, 1.088], [0.64, 1.087], [0.636, 1.081], [0.632, 1.062], [0.622, 1.048], [0.606, 1.042], [0.583, 1.04], [0.571, 1.043], [0.566, 1.061], [0.552, 1.061], [0.545, 1.064]],
       [rrect(0.577, 1.114, 0.662, 1.167, 0.004), shp([[0.628, 1.078], [0.624, 1.062], [0.614, 1.052], [0.598, 1.048], [0.584, 1.049], [0.577, 1.056], [0.577, 1.08]])]), 0.03, S2, X, 0.0025);
     box(g, 0.024, 0.05, 0.08, GM.rubber, X, 1.141, 0.62);   // the frame's inner wall behind the cylinder, so the window isn't see-through
-    if (!optic) { box(g, 0.016, 0.009, 0.012, GM.rubber, X, 1.178, 0.558); box(g, 0.004, 0.004, 0.003, GM.dot, X, 1.181, 0.552); }   // rear sight
+    if (!optic) notchRear(g, X, 1.182, 0.558, 0.016, 0.009, 0.012, 0.0048, 0.0042, GM.rubber);   // the rear sight, a plain black notch
     [[0.548, 1.1], [0.556, 1.075]].forEach(([z, yy]) => cyl(g, 0.0035, 0.033, D, X, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // side plate screws
     box(g, 0.004, 0.008, 0.016, D, X + 0.016, 1.15, 0.566);   // the cylinder release, on the left
     profile(g, shp([[0.535, 1.135], [0.548, 1.162], [0.54, 1.168], [0.522, 1.166], [0.512, 1.162], [0.52, 1.156], [0.532, 1.152]]), 0.009, m.fan ? GM.brass : GM.steelDk, X, 0.001);   // hammer
@@ -119,7 +125,8 @@ export const PISTOL_MODELS = {
     cyl(g, 0.0172, bl, S2, X, 1.152, 0.672 + bl / 2, 24);
     box(g, 0.012, 0.005, bl, S2, X, 1.1705, 0.672 + bl / 2);
     profile(g, shp([[0.672, 1.14], [z1 - 0.004, 1.14], [z1, 1.135], [z1 - 0.003, 1.126], [0.672, 1.125]]), 0.024, S2, X, 0.002);
-    profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.004, S2, X, 0.0005); box(g, 0.0046, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
+    profile(g, shp([[z1 - 0.034, 1.173], [z1 - 0.012, 1.182], [z1 - 0.006, 1.182], [z1 - 0.004, 1.173]]), 0.003, S2, X, 0.0004); box(g, 0.0034, 0.004, 0.004, GM.dotR, X, 1.179, z1 - 0.012);
+    if (!optic) irons(g, { kind: 'notch', yr: 1.182, rz: 0.558, yf: 1.182, fz: z1 - 0.009 });
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.152, z1 + 0.0005, 14);
     // ---- the rail, with an optic: flat on the top strap, then on a base saddled over the barrel's top (the rib under it),
     // the picatinny section on that with its cross slots, the base's screw showing each side; it stops short of the front
@@ -147,7 +154,7 @@ export const PISTOL_MODELS = {
     xsec(g, shp([[X - 0.0105, 1.181], [X + 0.0105, 1.181], [X + 0.0085, 1.1875], [X - 0.0085, 1.1875]]), 0.674, 0.908, S2, 0.0006);
     for (let k = 0; k < 9; k++) box(g, 0.022, 0.003, 0.005, D, X, 1.1865, 0.745 + k * 0.0165);
     [-1, 1].forEach(sd => { box(g, 0.0022, 0.011, 0.194, D, X + sd * 0.0156, 1.161, 0.776); box(g, 0.0016, 0.003, 0.226, D, X + sd * 0.0152, 1.177, 0.792); });
-    box(g, 0.004, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
+    box(g, 0.003, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.16, 0.9165, 14);
     // ---- frame: the lip under the barrel, takedown buttons, slide stop, the guard and trigger, the hammer
     box(g, 0.03, 0.008, 0.22, S2, X, 1.122, 0.782);
@@ -182,11 +189,15 @@ export const PISTOL_MODELS = {
     profile(sl, shp([[0.536, 1.122], [0.672, 1.122], [0.672, 1.188], [0.6, 1.188], [0.564, 1.185], [0.553, 1.175], [0.548, 1.17], [0.536, 1.17]]), 0.03, S2, X, 0.003);
     for (let k = 0; k < 9; k++) [-1, 1].forEach(sd => { const sr = box(sl, 0.002, 0.044, 0.0035, D, X + sd * 0.0181, 1.152, 0.6 + k * 0.0072); sr.rotation.x = 0.26; });
     [-1, 1].forEach(sd => { cyl(sl, 0.0078, 0.003, D, X + sd * 0.0188, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); cyl(sl, 0.0062, 0.004, GM.steel, X + sd * 0.0198, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); const lv = box(sl, 0.003, 0.006, 0.026, GM.steel, X + sd * 0.0198, 1.167, 0.578); lv.rotation.x = 0.22; box(sl, 0.0032, 0.0028, 0.0028, GM.red, X + sd * 0.0198, 1.164, 0.561); });
-    box(sl, 0.024, 0.006, 0.02, S2, X, 1.19, 0.58); [-0.0075, 0.0075].forEach(o => box(sl, 0.006, 0.008, 0.012, GM.rubber, X + o, 1.196, 0.576));
+    box(sl, 0.024, 0.006, 0.02, S2, X, 1.19, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber);   // the rear sight on its base, its notch level with the front post
+    irons(g, { kind: 'notch', yr: 1.1975, rz: 0.576, yf: 1.1975, fz: 0.901 });
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
     let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.183], [0.916, 1.185]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.006, 0.012, GM.rubber, X, 1.188, 0.935 + k * 0.025); front = 0.916 + L; }   // longer, with another port, each level
     if (roundOn(tierCtx) === 'boom') box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive tips: the mag's base plate painted with a red band
-    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true };   // the laser under the frame's lip
+    // (a scope or an ACOG goes on the barrel's rail, optRail: the top of it, the middle of its slots, and the eye relief
+    // to hold it at, out at arm's length; the handgun scope a short one, scopeK, slimmer, scopeR, low on its rings, scopeH)
+    return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true,   // the laser under the frame's lip
+      optRail: { top: 1.1875, z: 0.79, relief: 0.24 }, scopeH: 0.038, scopeK: 0.74, scopeR: 0.8 };
   },
 };

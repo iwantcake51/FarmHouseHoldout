@@ -84,6 +84,9 @@
 #filmVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 85% 80% at center,transparent 58%,rgba(24,12,8,.3) 100%)}
 /* a soft warm grade over the whole picture: honey in the middle, a little ember at the edges */
 #warmGrade{position:fixed;inset:0;z-index:1;pointer-events:none;mix-blend-mode:soft-light;background:radial-gradient(ellipse 90% 85% at 50% 45%,rgba(255,176,96,.32),rgba(255,140,70,.18) 55%,rgba(120,50,30,.32) 100%)}
+/* first person, the free camera: the mouse is let go (a menu closed, or Esc), and a click takes it back (game/view-cam.js) */
+/* flying the free camera, the stations' first-run tips stay out of the view */
+body.freeView .benchTip{display:none}
 #adsVig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse 78% 72% at center,transparent 62%,rgba(6,7,8,.1) 80%,rgba(6,7,8,.26) 100%);opacity:0}
 #conc{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,250,235,.55),rgba(255,240,215,.2) 50%,rgba(40,30,25,.55) 100%);opacity:0}
 #conc.on{animation:concFx 2.8s ease-out}

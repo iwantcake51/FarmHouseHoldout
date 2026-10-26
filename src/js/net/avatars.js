@@ -11,7 +11,7 @@ import { NET, NET_COL, NET_ON, netLink, netSend, netTo } from './net.js';
 import { lam } from '../core/shaders.js';
 import { blobShadow, mergeInto } from '../core/geometry.js';
 import { bandPouch2, bandRolls, KNEE_Y, P, PACK, PM, PM_BASE, PM_BASE_SRC } from '../player/player.js';
-import { buildLook, dealLook, faceGroups, faceMood, LOOK, shade } from '../player/look.js';
+import { blinkStep, buildLook, dealLook, faceGroups, faceMood, LOOK, shade } from '../player/look.js';
 import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { curId, magCap, run, S, T, W, W8 } from '../game/run-state.js';
@@ -20,9 +20,14 @@ import { FLASH_COL, flashRGB } from '../effects/muzzle-flash.js';
 import { smoke } from '../effects/smoke.js';
 import { tracer } from '../effects/tracers.js';
 import { dropCopy, makeDrop, stepDrop } from '../effects/weapon-drop.js';
-import { fx } from '../effects/puffs.js';
+import { fx, impactFx } from '../effects/puffs.js';
+import { bulletHole } from '../effects/bullet-holes.js';
+import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
+import { fpOn, isoOn } from '../game/view-cam.js';
+import { FP_PIV, lookTurn } from '../player/hold.js';
+import { gunMeshes } from '../weapons/gun-materials.js';
 import { flashes } from '../weapons/explosives.js';
 import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
@@ -50,14 +55,32 @@ const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100
 // be drawn a moment ahead on their screens instead of a moment behind
 const POSE_HZ = 15;
 let poseDr = 0, poseT = 0, poseX = 0, poseZ = 0, poseAt = 0, poseWid = '', poseWnAt = 0;
+// your pose as your body has it, taken each frame before the first-person view takes your arms and chest over to hold
+// them on the view (game/view-cam.js): what your teammates see is you as you stand, looking up or down where you look,
+// not your upper body stood straight for your own eyes (game/visuals.js calls it)
+// From your own eyes your arms and gun are held level and the view carries them (player/hold.js: FP_PIV): here they're
+// turned to point where you look (lookTurn) as the hold would have them, and the gun in your hands with them (SNAP_GUN,
+// what net/arsenal.js sends of it, in your body's frame)
+const poseSnapJ = [];
+export const SNAP_GUN = { on: false, s: null, m: new THREE.Matrix4() };
+const _psL = new THREE.Matrix4(), _psM = new THREE.Matrix4(), _psP = new V3(), _psQ = new THREE.Quaternion(), _psS = new V3(), _psE = new THREE.Euler();
+export function poseSnap() {
+  if (!netLink()) return;
+  const j = poseSnapJ, look = fpOn() && Math.abs(FP_PIV.p) > 1e-4; j.length = 0;
+  if (look) lookTurn(_psL);
+  const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
+  const putT = o => { _psM.compose(o.position, o.quaternion, o.scale).premultiply(_psL).decompose(_psP, _psQ, _psS); _psE.setFromQuaternion(_psQ, o.rotation.order);
+    j.push(r2(_psP.x), r2(_psP.y), r2(_psP.z), r2(_psE.x), r2(_psE.y), r2(_psE.z)); };
+  POSE_K.forEach((k, n) => (look && (k === 'armL' || k === 'armR') ? putT : put)(PM[k], n === 0));
+  j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
+  const g = gunMeshes[W8.cur]; SNAP_GUN.on = look && !!g; SNAP_GUN.s = W8.cur;
+  if (SNAP_GUN.on) { const u = PM.upper; g.updateMatrix(); SNAP_GUN.m.compose(u.position, u.quaternion, u.scale).multiply(_psL).multiply(g.matrix); }
+}
 export function poseOut(rdt) {
   if (!netLink()) return;
   poseT -= rdt; if (poseT > 0) return; poseT = 1 / POSE_HZ;
-  const j = [];
-  const put = (o, fine) => { const r = fine ? r3 : r2; j.push(r(o.position.x), r2(o.position.y), r(o.position.z), r2(o.rotation.x), r2(o.rotation.y), r2(o.rotation.z)); };
-  POSE_K.forEach((k, n) => put(PM[k], n === 0));
+  const j = poseSnapJ.length ? poseSnapJ.slice() : (poseSnap(), poseSnapJ.slice());
   j[0] = r3(P.x); j[2] = r3(P.z);   // (where you are this frame: the rig only catches up when it's drawn, after this)
-  j.push(r2(PM.armL.scale.x), r2(PM.armL.scale.z), r2(PM.armR.scale.x), r2(PM.armR.scale.z));
   const now = performance.now(), dt = Math.max(0.03, (now - poseAt) / 1000);
   const vx = clamp((P.x - poseX) / dt, -12, 12), vz = clamp((P.z - poseZ) / dt, -12, 12); poseX = P.x; poseZ = P.z; poseAt = now;
   const msg = { x: r3(P.x), z: r3(P.z), vx: r2(vx), vz: r2(vz), hp: Math.round(Math.max(0, P.hp)), mh: S.maxHp, dead: P.dead ? 1 : 0, v: P.vault ? 1 : 0, pk: (state === 'upgrade' && pickWait === null) || (state === 'leaving' && !bonusHand && bonusDue()) ? 1 : 0, cw: run.cardHand | 0, j,
@@ -173,7 +196,7 @@ export function updateAvatars(rdt) {
     const a = p.av || buildAvatar(p), t = p.tgt;
     if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
-    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.xr.rim.visible = !p.dead; if (a.xr.sil) a.xr.sil.visible = !p.dead; }   // (down, no outline round them or through walls)
+    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { const xo = !p.dead && isoOn(); a.xr.rim.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; and through walls only from above, as zombies are)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -193,7 +216,7 @@ export function updateAvatars(rdt) {
     else POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
     { const f = p.fc || [0, 0, 0, 0], e = (key, i) => { a[key] = (a[key] || 0) + ((f[i] || 0) - (a[key] || 0)) * k; return a[key] < 0.002 ? 0 : a[key]; };
-      faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3)); }   // their face, angry, startled, wincing or aiming as they are
+      faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3), p.dead ? 0 : blinkStep(a.blink || (a.blink = {}), rdt)); }   // their face, angry, startled, wincing or aiming as they are
     if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }
@@ -204,8 +227,8 @@ export function updateAvatars(rdt) {
     // the dot over their head (and their name); when they're off the screen, it waits at its edge on the line toward
     // them, pointing their way
     a.head.getWorldPosition(_tagV); _tagV.y += 0.42; _tagV.project(cam);
-    const W_ = innerWidth, H_ = innerHeight, M = 30, sx = (_tagV.x * 0.5 + 0.5) * W_, sy = (-_tagV.y * 0.5 + 0.5) * H_;
-    const inView = sx > M && sx < W_ - M && sy > M + 20 && sy < H_ - M;
+    const W_ = innerWidth, H_ = innerHeight, M = 30, bh = _tagV.z > 1, sx = (bh ? -1 : 1) * (_tagV.x * 0.5) * W_ + W_ / 2, sy = (bh ? 1 : -1) * (_tagV.y * 0.5) * H_ + H_ / 2;   // (behind you in first person it comes out mirrored: turned back round, and to the edge)
+    const inView = !bh && sx > M && sx < W_ - M && sy > M + 20 && sy < H_ - M;
     let tx = sx, ty = sy;
     if (!inView) {
       const cx = W_ / 2, cy = H_ / 2, dx = sx - cx, dy = sy - cy, t = Math.min((cx - M) / Math.max(1e-3, Math.abs(dx)), (cy - M) / Math.max(1e-3, Math.abs(dy)));
@@ -225,11 +248,17 @@ export function updateAvatars(rdt) {
 // ---- their shots: what your own would show, from where they stand
 export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
-  netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2])]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
+  netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2]), e[3] | 0, r3(e[4] || 0)]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
 NET_ON.shot = m => {
   if (state === 'title') return;
-  for (const e of m.e) tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st);
+  for (const e of m.e) {
+    tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);
+    // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground
+    const L = Math.hypot(e[0] - m.x, e[2] - m.z), dx = (e[0] - m.x) / (L || 1), dz = (e[2] - m.z) / (L || 1);
+    if (e[3] === 1 && L > 0.1) { impactFx(e[0] - dx * 0.05, e[1], e[2] - dz * 0.05, -dx, -dz); bulletHole(m.x, m.z, dx, dz, L, e[1], e[4] || 0.08); }
+    else if (e[3] === 2) groundHit(e[0], e[1], e[2], dx, dz);
+  }
   if (!m.q) {   // their flash, in the colour of what they fired, and the light it throws
     const col = flashRGB(m.dr ? FLASH_COL.dragon : m.sh ? FLASH_COL.shells : FLASH_COL.p9);
     flashes.push({ x: m.x, y: m.y, z: m.z, r: m.sh ? 7 : 5.5, int: 1.5, col, t: 0.07, max: 0.07 }); setLmT(0);

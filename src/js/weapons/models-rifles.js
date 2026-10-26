@@ -1,12 +1,13 @@
 // The rifles' models: the hunting rifle, the SCAR 17S (traced off photos, with its AK conversion kit), the assault
 // rifle and the LMG (gun-models.js puts every family together).
 
+import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { box } from '../core/geometry.js';
 import { T } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
-  boxes, checker, clipTo, cyl, inset, lathe, portFill, profile, pullInside, pw, ribTube, ring, rrect, shp, solid,
-  stipple, taper, taperX, tapeWrap, xsec, zAt
+  apPart, apPlate, boxes, checker, clipTo, cyl, inset, irons, lathe, notchRear, portFill, profile, pullInside, pw,
+  ribTube, ring, rrect, shp, solid, stipple, taper, taperX, tapeWrap, xsec, zAt
 } from './gun-parts.js';
 import { BOLT_KNOB } from './gun-models.js';
 
@@ -16,6 +17,9 @@ import { BOLT_KNOB } from './gun-models.js';
 // its hole), the stock and its ribbed butt pad, the hinge, the grip and the vertical foregrip, the 10-round box, the
 // two flip-up sights; the barrel and the brake turned ([r, z]) about the bore. The mag is the 17S's 20-round box; the
 // 10-round one is the same box shorter, measured off the photos of the 20S with its short mag (gun-models: scar)
+// a front sight's post, as thin as the real ones (a couple of millimetres: a wide one blotted out what it was put on), and
+// the AR's rear aperture: the hole's radius and the thin ring's round it
+const POST_W = 0.0024, AP_RING = [0.0042, 0.0056];
 const SCAR = {
   y0: 1.1307, top: 1.1863, rt: 1.1933,
   up: [[0.4477, 1.1132], [0.4475, 1.1863], [1.1505, 1.1863], [1.1525, 1.1813], [1.1545, 1.1769], [1.1577, 1.1672], [1.1631, 1.1541], [1.1632, 1.112], [1.1559, 1.099], [1.1541, 1.0982], [0.9139, 1.0981], [0.7752, 1.0974], [0.7748, 1.1132]],
@@ -54,6 +58,9 @@ const AKM_KIT = {
   seam: [0.7478, 0.8839, 0.8228, 0.9238]
 };
 
+// where the hunting rifle's scope rings clamp onto its rail (z: the plain scope's and the big one's): both on the
+// receiver ahead of the ejection port and the bolt in it, between the scope's eyepiece and its objective bell
+const SCOPE_RINGS = { std: [0.742, 0.855], big: [0.738, 0.885] };
 export const RIFLE_MODELS = {
   // hunting rifle: a Winchester Model 70, traced off a side-on photo. A one-piece walnut stock (a straight comb, a
   // pistol grip and a long slim forend, checkered at the grip and forend, swivels under the butt and forend, a black
@@ -109,8 +116,11 @@ export const RIFLE_MODELS = {
     if (sight < 3) {   // iron sights till a scope goes on
       profile(g, shp([[1.42, 1.15], [1.452, 1.15], [1.452, 1.153], [1.42, 1.153]]), 0.024, B, X, 0);
       { const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.036, 16, 1, true, -Math.PI / 2, Math.PI), B); hood.rotation.x = Math.PI / 2; hood.position.set(X, 1.155, 1.44); g.add(hood); hood.material.side = THREE.DoubleSide; }
-      box(g, 0.003, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
-      [-0.0065, 0.0065].forEach(o => box(g, 0.005, 0.012, 0.008, B, X + o, 1.158, 0.9)); box(g, 0.02, 0.006, 0.02, B, X, 1.152, 0.9);
+      box(g, POST_W, 0.012, 0.004, GM.steel, X, 1.157, 1.436);
+      // the notch rear sight on the barrel, its blade level with the post's tip (taken off for the rail once a red dot
+      // or a holo goes on: that's what you aim with then)
+      // (your eye where your cheek is on the comb, well back from the notch out on the barrel: relief)
+      if (!sight) { notchRear(g, X, 1.163, 0.9, 0.02, 0.012, 0.008, 0.0042, 0.004, B); irons(g, { kind: 'notch', yr: 1.163, rz: 0.9, yf: 1.163, fz: 1.436, relief: 0.46 }); }
     }
     // ---- the bolt: a polished body in the receiver, the shroud and its safety out the back, the handle out to the
     // right and down to its knob (at BOLT_KNOB). It turns about the bore and runs back and forward (player/hold.js)
@@ -120,11 +130,13 @@ export const RIFLE_MODELS = {
     box(bh, 0.005, 0.01, 0.016, GM.steel, 0, 0.015, -0.032);
     { const arm = box(bh, 0.009, 0.06, 0.012, m.bolt ? GM.steel : GM.metal2, -0.03, -0.025, -0.004); arm.rotation.z = -0.87; }
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0115, 10, 8), m.bolt ? GM.steel : GM.metal2); knob.scale.set(1, 0.95, 1.25); knob.position.set(BOLT_KNOB[0], BOLT_KNOB[1], BOLT_KNOB[2]); knob.castShadow = true; bh.add(knob);
-    // ---- scopes off the bench: the plain one, or the big high-power one, in rings on two bases; the ACOG on a one-piece
-    // picatinny base along the receiver, stepped down over its lower rear bridge (weapons/attachments.js puts it on)
+    // ---- any optic off the bench goes on a one-piece picatinny base along the receiver, stepped down over its lower
+    // rear bridge, as on the other guns: the plain scope or the big high-power one in picatinny rings clamped to it, the
+    // red dot, the holo and the ACOG straight on it (weapons/attachments.js puts those on). The rings sit on the
+    // receiver's front, ahead of the port, never over the bolt (SCOPE_RINGS)
     const big = sight >= 5, scope = sight === 3 || big;
     let top = 1.152;
-    if (sight === 4) {
+    if (sight) {
       const z0 = 0.63, z1 = 0.915, b0 = 1.156, RT = b0 + 0.0105;
       profile(g, shp([[z0, 1.1405], [0.762, 1.1405], [0.768, 1.1478], [z1, 1.1478], [z1, b0 + 0.001], [z0, b0 + 0.001]]), 0.022, B, X, 0.0008);
       xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), z0, z1, GM.rail, 0.0006);
@@ -135,11 +147,22 @@ export const RIFLE_MODELS = {
       const sr = big ? 0.0215 : 0.019, sy = big ? 1.212 : 1.198, ob = big ? 0.036 : 0.03, oc = big ? 0.026 : 0.024, z0 = big ? 0.6 : 0.63, z1 = big ? 0.97 : 0.93;
       cyl(g, sr, z1 - z0 - 0.12, GM.metal, X, sy, (z0 + z1) / 2, 20);
       lathe(g, [[sr, z1 - 0.062], [sr * 1.15, z1 - 0.045], [ob, z1 - 0.012], [ob, z1], [ob * 0.86, z1 + 0.002]], GM.metal, X, sy, 24);   // objective bell
-      lathe(g, [[oc * 0.8, z0 - 0.004], [oc, z0], [oc, z0 + 0.03], [sr * 1.1, z0 + 0.058], [sr, z0 + 0.062]], GM.metal, X, sy, 24);   // eyepiece
-      cyl(g, ob * 0.86, 0.003, GM.glass, X, sy, z1 + 0.002, 20); cyl(g, oc * 0.82, 0.003, GM.glass, X, sy, z0 - 0.0035, 20);
+      lathe(g, [[oc * 0.94, z0 - 0.004], [oc, z0 - 0.001], [oc, z0 + 0.03], [sr * 1.1, z0 + 0.058], [sr, z0 + 0.062]], GM.metal, X, sy, 24);   // eyepiece
+      cyl(g, ob * 0.86, 0.003, GM.glass, X, sy, z1 + 0.002, 20); cyl(g, oc * 0.94, 0.003, GM.glass, X, sy, z0 - 0.0035, 20);
       { const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); tt.position.set(X, sy + sr + 0.007, (z0 + z1) / 2); g.add(tt);
         const st = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 12), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(X + sr + 0.007, sy, (z0 + z1) / 2); g.add(st); }
-      [0.69, 0.885].forEach(z => { box(g, 0.02, sy - 1.152, 0.018, B, X, (sy + 1.152) / 2, z); ring(g, sr + 0.004, 0.018, B, X, sy, z); });
+      // each ring: its clamp on the rail (the cross-bolt through it, its nut out on the right), a short neck up to the
+      // ring round the tube, and the cap's screws either side
+      (big ? SCOPE_RINGS.big : SCOPE_RINGS.std).forEach(z => {
+        box(g, 0.0345, 0.007, 0.016, B, X, top + 0.0035, z);
+        cyl(g, 0.0032, 0.04, GM.metal2, X, top + 0.0015, z, 10).rotation.set(0, 0, Math.PI / 2);
+        box(g, 0.006, 0.008, 0.008, GM.metal2, X - 0.021, top + 0.0015, z);
+        box(g, 0.02, sy - sr - top - 0.005, 0.014, B, X, (sy - sr + top + 0.007) / 2, z);
+        ring(g, sr + 0.0045, 0.016, B, X, sy, z);
+        [-1, 1].forEach(sd => box(g, 0.006, 0.006, 0.012, B, X + sd * (sr + 0.006), sy, z));
+      });
+      g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.082 };   // (looked down in first person: game/view-cam.js; your eye a little closer in than another gun's scope, its picture fuller)
+      lensOn(g, X, sy, z0 - 0.0052, oc * 0.94);   // (the eyepiece's glass you look into: effects/scope-view.js)
     }
     return { front: 1.48, y: 1.14, noSight: scope, top, sz: 0.76, slide: bh, travel: 0.13, cyc: true, ...(mt >= 2 ? { magZ: 0.641, magY: 1.07, ownMags: true } : {}) };
   },
@@ -238,10 +261,15 @@ export const RIFLE_MODELS = {
     }
     // ---- the flip-up sights: standing, or with an optic on the rail folded down flat on their bases
     [[SCAR.rear, 1.2035], [SCAR.front, 1.1985]].forEach(([S, cut]) => {
-      if (!sight) { solid(g, S, 0.022, K, X, 0.0012); return; }
+      if (!sight && S !== SCAR.rear) { solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2031], [0, 1.2031]]), 0.016, K, X, 0.0012); solid(g, clipTo(S, [[0, 1.2031], [2, 1.2031], [2, 1.3], [0, 1.3]]), POST_W + 0.001, K, X, 0.0004); return; }   // (its base, and the post up off it as thin as a post is)
+      if (!sight) {   // the rear: its post, and on top the aperture plate with its hole, looked through down the gun
+        apPart(solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2345], [0, 1.2345]]), 0.022, K, X, 0.0012));
+        apPlate(g, X, 0.011, 1.2345, 1.2475, 0.4791, 0.4913, 1.2414, 0.0026, K); return;
+      }
       const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
     });
+    if (!sight) irons(g, { kind: 'ap', yr: 1.2414, rz: 0.4875, r: 0.0026, yf: 1.2414, fz: 1.131 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
     const big = sight >= 5;
     return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.69 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
       laser: { y: 1.0982, z: 1.112 }, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
@@ -314,13 +342,19 @@ export const RIFLE_MODELS = {
     profile(ch, shp([[0.4545, 1.1585], [0.4705, 1.1585], [0.4705, 1.177], [0.4585, 1.177], [0.4548, 1.172]]), 0.058, GM.metal2, X, 0.0015);
     box(ch, 0.006, 0.006, 0.012, GM.metal2, X + 0.031, 1.1715, 0.468);                                       // its latch
     // ---- without an optic: the carry handle clamped on the rail, the A2 rear sight in its back end (the aperture between
-    // its ears, the windage knob, the elevation drum), the clamp's screws
+    // its ears, the windage knob, the elevation drum), the clamp's screws; the handle's top ahead of the sight kept down below
+    // the line through the hole, so looking through it you see the front post over it, not the handle's back
     if (!sight) {
-      profile(g, shp(inset([[0.4798, 1.1795], [0.4914, 1.2045], [0.5464, 1.2045], [0.5464, 1.2378], [0.5875, 1.2359], [0.7197, 1.224], [0.7272, 1.2221], [0.7443, 1.2194], [0.7494, 1.2148], [0.7518, 1.2099], [0.7521, 1.1795]], 0.0025),
+      profile(g, shp(inset([[0.4798, 1.1795], [0.4914, 1.2045], [0.5464, 1.2045], [0.5464, 1.2275], [0.5875, 1.2272], [0.7197, 1.224], [0.7272, 1.2221], [0.7443, 1.2194], [0.7494, 1.2148], [0.7518, 1.2099], [0.7521, 1.1795]], 0.0025),
         [shp(inset([[0.5756, 1.1873], [0.7156, 1.1869], [0.7233, 1.1944], [0.7356, 1.196], [0.7356, 1.2063], [0.7301, 1.2126], [0.7216, 1.2141], [0.5755, 1.2141], [0.5685, 1.2109], [0.5661, 1.2077], [0.565, 1.2027], [0.5655, 1.1953]], -0.0025))]), 0.025, A, X, 0.0025, 2);
       solid(g, [[0.479, 1.1765], [0.7525, 1.1765], [0.7525, 1.1885], [0.479, 1.1885]], 0.04, A, X, 0.002);    // its base round the rail
-      [-1, 1].forEach(sd => profile(g, shp([[0.4983, 1.2045], [0.546, 1.2045], [0.5464, 1.2378], [0.5396, 1.2404], [0.5125, 1.2418], [0.5054, 1.2382], [0.4983, 1.2312]]), 0.005, A, X + sd * 0.0105, 0.001));   // the ears
-      box(g, 0.015, 0.03, 0.006, A, X, 1.2195, 0.52); box(g, 0.004, 0.004, 0.0065, GM.rubber, X, 1.227, 0.52);   // the aperture plate and its hole
+      [-1, 1].forEach(sd => apPart(profile(g, shp([[0.4983, 1.2045], [0.546, 1.2045], [0.5464, 1.2418], [0.5396, 1.2444], [0.5125, 1.2458], [0.5054, 1.2422], [0.4983, 1.2352]]), 0.004, A, X + sd * 0.0125, 0.001)));   // the ears, wide apart
+      // the aperture up between them: a thin ring round a big hole on a slim stem, open all round it to the ears, so
+      // looking through it the ring frames the front post with the world round it (AP_RING: the hole's radius, the
+      // ring's), in line with the front post's tip (looked through in first person: game/view-cam.js)
+      { const [hr, or] = AP_RING, ring = new THREE.Shape(), hole = new THREE.Path(); ring.absarc(X, 1.2393, or, 0, Math.PI * 2, false); hole.absarc(X, 1.2393, hr, 0, Math.PI * 2, true); ring.holes.push(hole);
+        apPart(xsec(g, ring, 0.518, 0.522, A)); apPart(xsec(g, shp([[X - 0.002, 1.2045], [X + 0.002, 1.2045], [X + 0.002, 1.2393 - or + 0.0008], [X - 0.002, 1.2393 - or + 0.0008]]), 0.518, 0.522, A)); }
+      irons(g, { kind: 'ap', yr: 1.2393, rz: 0.52, r: AP_RING[0], yf: 1.2305, fz: 1.0967 });
       cyl(g, 0.0108, 0.008, GM.metal2, X - 0.0165, 1.2255, 0.517, 18).rotation.set(0, 0, Math.PI / 2);        // windage knob
       ribTube(g, 0.0085, 0.033, GM.metal2, X, 1.1985, 0.5235, 12, 0.0012).rotation.set(0, Math.PI / 2, 0);    // the elevation drum
       [0.533, 0.735].forEach(z => { cyl(g, 0.0068, 0.042, GM.metal2, X, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.009, 0.007, GM.metal2, X + 0.0235, 1.1835, z, 14).rotation.set(0, 0, Math.PI / 2); });   // the clamp's screws and thumb nuts
@@ -338,22 +372,24 @@ export const RIFLE_MODELS = {
       for (let k = 0; k < 11; k++) { const zc = 0.8105 + k * 0.0197; pts.push([base(zc - 0.0028), zc - 0.0028], [base(zc) + 0.0014, zc - 0.0016], [base(zc) + 0.0014, zc + 0.0016], [base(zc + 0.0028), zc + 0.0028]); }
       pts.push([base(1.02), 1.02], [0.0462, 1.0265], [0.04, 1.0295], [0.0335, 1.0305], [0.0335, 1.0365], [0.03, 1.0365], [0.03, 0.7865]);
       [0, 1].forEach(h => {
-        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.02, Math.PI - 0.04); geo.rotateX(Math.PI / 2);
+        const geo = new THREE.LatheGeometry(pts.map(([r, z]) => new THREE.Vector2(r, z)), 26, Math.PI / 2 + h * Math.PI + 0.004, Math.PI - 0.008); geo.rotateX(Math.PI / 2);   // (a hairline split, not a gap you see through)
         const hm = new THREE.Mesh(geo, H); hm.position.set(X, y0, 0); hm.scale.x = 0.95; hm.castShadow = true; g.add(hm);
       });
-      cyl(g, 0.0435, 0.236, GM.rubber, X, y0, 0.906, 24).scale.x = 0.95;
+      cyl(g, 0.0435, 0.244, GM.rubber, X, y0, 0.9115, 24).scale.x = 0.95;   // (the heat shield, the whole length inside it, so nothing shows through the split; its ends just inside the handguard's, not on them)
     }
     // ---- barrel, turned: through the front sight, the groove cut for a launcher's clamp, then on to the muzzle (thicker
     // with each heavy-barrel level)
     const br = [0.0119, 0.0135, 0.0152, 0.017][m.heavy || 0];
     lathe(g, [[0.0001, 0.75], [br, 0.75], [br, 1.164], [br - 0.0018, 1.1695], [br - 0.0018, 1.2011], [br, 1.2052], [br, 1.3445], [0.0001, 1.3445]], GM.blued, X, y0, 24);
     // ---- the A-frame front sight: its base clamped round the barrel with the bayonet lug under it, the tower and its
-    // window, the ears round the post, the sling swivel hanging under it
+    // window, the ears round the post (all left off under an optic), the sling swivel hanging under it
     solid(g, [[1.0365, 1.1162], [1.0901, 1.1162], [1.0945, 1.111], [1.095, 1.0959], [1.0987, 1.0937], [1.1075, 1.0936], [1.1092, 1.0981], [1.1202, 1.0986], [1.1239, 1.1026], [1.1237, 1.1107], [1.1185, 1.1139], [1.1185, 1.1175], [1.1115, 1.1175], [1.1115, 1.161], [1.0365, 1.161]], 0.032, A, X, 0.004);
-    solid(g, [[1.0371, 1.158], [1.0379, 1.1677], [1.0706, 1.2115], [1.1112, 1.2115], [1.1115, 1.158]], 0.022, A, X, 0.002,
-      [shp(inset([[1.0553, 1.163], [1.1006, 1.163], [1.1016, 1.1695], [1.1016, 1.207], [1.0843, 1.207], [1.0806, 1.2068], [1.0774, 1.2045], [1.0517, 1.1691], [1.0522, 1.1656]], -0.002))]);
-    [-1, 1].forEach(sd => profile(g, shp([[1.0812, 1.205], [1.1112, 1.205], [1.1109, 1.2244], [1.1078, 1.2311], [1.1019, 1.2345], [1.0956, 1.2336], [1.0917, 1.2346], [1.0841, 1.229]]), 0.005, A, X + sd * 0.0085, 0.001));
-    profile(g, shp([[1.0918, 1.185], [1.1016, 1.185], [1.1016, 1.2305], [1.0918, 1.2305]]), 0.0045, GM.metal2, X, 0.0006);   // the post
+    if (!sight) {   // (with an optic the tower's off, a low gas block left: nothing standing up in its picture)
+      solid(g, [[1.0371, 1.158], [1.0379, 1.1677], [1.0706, 1.2115], [1.1112, 1.2115], [1.1115, 1.158]], 0.022, A, X, 0.002,
+        [shp(inset([[1.0553, 1.163], [1.1006, 1.163], [1.1016, 1.1695], [1.1016, 1.207], [1.0843, 1.207], [1.0806, 1.2068], [1.0774, 1.2045], [1.0517, 1.1691], [1.0522, 1.1656]], -0.002))]);
+      [-1, 1].forEach(sd => profile(g, shp([[1.0812, 1.205], [1.1112, 1.205], [1.1109, 1.2244], [1.1078, 1.2311], [1.1019, 1.2345], [1.0956, 1.2336], [1.0917, 1.2346], [1.0841, 1.229]]), 0.004, A, X + sd * 0.0095, 0.001));
+      profile(g, shp([[1.0918, 1.185], [1.1016, 1.185], [1.1016, 1.2305], [1.0918, 1.2305]]), POST_W, GM.metal2, X, 0.0004);   // the post
+    }
     box(g, 0.012, 0.024, 0.012, A, X, 1.104, 1.0525);
     { const t = new THREE.Mesh(new THREE.TorusGeometry(0.0098, 0.0022, 6, 14), GM.metal2); t.rotation.set(-0.35, Math.PI / 2, 0); t.position.set(X, 1.0805, 1.0525); g.add(t); }
     // ---- the A2 birdcage, turned: its lock washer, two rings, five slots round the top and sides (closed underneath, the
@@ -407,11 +443,14 @@ export const RIFLE_MODELS = {
       const sy = top + 0.038;
       profile(g, shp([[sz - 0.03, top], [sz + 0.03, top], [sz + 0.024, top + 0.017], [sz - 0.024, top + 0.017]]), 0.032, A, X, 0.001);
       box(g, 0.012, 0.011, 0.02, A, X + 0.019, top + 0.006, sz); cyl(g, 0.0055, 0.01, GM.metal2, X + 0.026, top + 0.006, sz, 12).rotation.set(0, 0, Math.PI / 2);
-      [-0.03, 0.03].forEach(o => { box(g, 0.011, 0.015, 0.015, A, X, top + 0.016, sz + o); ring(g, 0.025, 0.013, A, X, sy, sz + o); });
-      cyl(g, 0.021, 0.115, A, X, sy, sz, 20);
-      taper(g, 0.021, 0.025, 0.025, A, X, sy, sz + 0.068); ring(g, 0.0252, 0.011, GM.metal2, X, sy, sz + 0.085);
-      cyl(g, 0.022, 0.004, GM.glass, X, sy, sz + 0.091, 20); ring(g, 0.023, 0.011, GM.metal2, X, sy, sz - 0.062); cyl(g, 0.019, 0.003, GM.glass, X, sy, sz - 0.069, 20);
-      box(g, 0.004, 0.004, 0.002, GM.red, X, sy, sz - 0.0715);
+      // (the tube hollow, its rings round it: you look through it, down its length to the front lens)
+      const hol = (r0, r1, z0, z1, m) => lathe(g, [[r0, z0], [r1, z0], [r1, z1], [r0, z1], [r0, z0]], m, X, sy, 24);
+      [-0.03, 0.03].forEach(o => { box(g, 0.011, 0.015, 0.015, A, X, top + 0.016, sz + o); hol(0.0205, 0.025, sz + o - 0.0065, sz + o + 0.0065, A); });
+      hol(0.0185, 0.021, sz - 0.0575, sz + 0.0575, A);
+      lathe(g, [[0.0185, sz + 0.0555], [0.021, sz + 0.0555], [0.025, sz + 0.0805], [0.0215, sz + 0.0805], [0.0185, sz + 0.0555]], A, X, sy, 24); hol(0.0215, 0.0252, sz + 0.0795, sz + 0.0905, GM.metal2);
+      cyl(g, 0.022, 0.004, GM.glass, X, sy, sz + 0.091, 20); hol(0.0185, 0.023, sz - 0.0675, sz - 0.0565, GM.metal2); cyl(g, 0.019, 0.003, GM.glass, X, sy, sz - 0.069, 20);
+      // (its dot out at infinity, seen through the front lens; looked down in first person like any red dot: game/view-cam.js)
+      reticleOn(g, 'dot', X, sy, sz + 0.087, 0.021); g.userData.optic = { kind: 'dot', x: X, y: sy, zr: sz - 0.069, zf: sz + 0.091, r: 0.019 };
       cyl(g, 0.0085, 0.013, GM.metal2, X, sy + 0.026, sz + 0.008, 14).rotation.set(0, 0, 0); cyl(g, 0.0085, 0.013, GM.metal2, X - 0.026, sy, sz + 0.008, 14).rotation.set(0, 0, Math.PI / 2);
     }
     // ---- laser, taped to the left of the handguard with olive tape: a pointer, then a proper module
@@ -470,7 +509,11 @@ export const RIFLE_MODELS = {
     const bolt = box(g, 0.003, 0.021, 0.06, GM.steel, X - 0.0333, 1.1165, 0.545); bolt.userData.clip = 0.47;
     // the rear sight: the ladder standing up in front of the feed cover (lying flat under an optic)
     const RS = [[0.6539, 1.158], [0.6577, 1.169], [0.658, 1.1789], [0.6552, 1.1851], [0.6625, 1.1993], [0.657, 1.2022], [0.6601, 1.2081], [0.6565, 1.2248], [0.6605, 1.2338], [0.6606, 1.2575], [0.6651, 1.2585], [0.6672, 1.2307], [0.6712, 1.2197], [0.6684, 1.208], [0.6731, 1.2035], [0.6684, 1.2002], [0.6684, 1.1939], [0.6744, 1.184], [0.6764, 1.1589]];
-    if (!sight) { profile(g, shp(RS), 0.012, K, X, 0.0012); cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14).rotation.set(0, 0, Math.PI / 2); }
+    if (!sight) {   // (the ladder up to the aperture plate at its top, the hole through it looked through down the gun)
+      apPart(profile(g, shp(clipTo(RS, [[0.6, 1.15], [0.7, 1.15], [0.7, 1.2305], [0.6, 1.2305]])), 0.012, K, X, 0.0012)); apPart(cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14)).rotation.set(0, 0, Math.PI / 2);
+      apPlate(g, X, 0.0065, 1.2305, 1.2585, 0.66, 0.6712, 1.236, 0.0026, K);
+      irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755, relief: 0.13 });   // (your cheek on the stock, the aperture a hand's breadth out, not right at your eye)
+    }
     else box(g, 0.014, 0.006, 0.06, K, X, 1.1615, 0.69);
     // ---- the pistol grip, raked back, with its grooves; the big round guard and the trigger in it
     const GR = [[0.4329, 1.064], [0.4331, 1.0447], [0.4353, 1.0384], [0.4381, 1.0364], [0.455, 1.034], [0.4604, 1.0281], [0.4627, 1.0207], [0.4636, 1.0099], [0.4615, 0.9988], [0.4366, 0.9632], [0.4334, 0.9553], [0.435, 0.9418], [0.4443, 0.9356], [0.464, 0.9306], [0.494, 0.9306], [0.4961, 0.9338], [0.4952, 0.9453], [0.4981, 0.9586], [0.5144, 0.9875], [0.5226, 0.9976], [0.535, 1.012], [0.535, 1.064]];
@@ -491,7 +534,7 @@ export const RIFLE_MODELS = {
     lathe(g, [[0.0001, 0.67], [0.0117, 0.67], [0.0117, 1.155], [0.0172, 1.1575], [0.0178, 1.165], [0.0172, 1.178], [0.0117, 1.1805], [0.0117, 1.2215], [0.0172, 1.224], [0.0178, 1.236], [0.0172, 1.246], [0.0117, 1.2485], [0.0117, 1.3405], [0.0178, 1.3425], [0.0178, 1.3915], [0.0165, 1.393], [0.0165, 1.43], [0.0001, 1.43]], GM.blued, X, y0, 28);
     // the A-frame front sight, a thin blade with its window, standing on the band
     profile(g, shp([[1.3423, 1.1415], [1.3924, 1.1415], [1.3924, 1.1446], [1.3903, 1.1466], [1.384, 1.2081], [1.3843, 1.2279], [1.3819, 1.2325], [1.3748, 1.236], [1.3738, 1.2316], [1.3697, 1.2311], [1.3681, 1.2289], [1.3471, 1.1643]],
-      [shp(inset([[1.3524, 1.1521], [1.3763, 1.1468], [1.38, 1.148], [1.3804, 1.1532], [1.3773, 1.2042], [1.3735, 1.2066], [1.3681, 1.2045]], -0.001))]), 0.006, K, X, 0.001);
+      [shp(inset([[1.3524, 1.1521], [1.3763, 1.1468], [1.38, 1.148], [1.3804, 1.1532], [1.3773, 1.2042], [1.3735, 1.2066], [1.3681, 1.2045]], -0.001))]), 0.004, K, X, 0.0008);
     // the flash hider, turned, with four long slots round it (the dark bore seen through them)
     lathe(g, [[0.0001, 1.43], [0.0165, 1.43], [0.0165, 1.449], [0.0105, 1.449]], K, X, y0, 28);
     lathe(g, [[0.0105, 1.514], [0.0165, 1.514], [0.0165, 1.522], [0.0128, 1.535], [0.0098, 1.535], [0.0098, 1.514], [0.0105, 1.514]], K, X, y0, 28);

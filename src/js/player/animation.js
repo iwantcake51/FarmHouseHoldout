@@ -4,10 +4,10 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
 import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
-import { faceMood, LOOK } from './look.js';
+import { blinkStep, faceMood, LOOK } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
-import { curId, S, W, W8 } from '../game/run-state.js';
+import { curId, hpCap, W, W8 } from '../game/run-state.js';
 import { GLOW_SET, gunMeshes } from '../weapons/gun-materials.js';
 import {
   flash, flashCore, flashLen, flashLife, flashSize, flashStar, flashT, flashWide, setFlashT, tongueA, tongueB,
@@ -22,16 +22,18 @@ import { vaultAt, VB } from './vault-plan.js';
 import { gunGlow, gunGlowId, setGunGlow, setGunGlowId, state, worldK } from '../game/state.js';
 import { INTRO, introKneel, introLook, introPose, titleBlend } from '../game/intro.js';
 import { PIVOT, sprintAnim, WALK_SPEED } from './sprint.js';
+import { fpOn } from '../game/view-cam.js';
 import { springTo } from '../game/camera.js';
 import { roofOver } from '../world/cutaway.js';
 import { PRAG } from './player-ragdoll.js';
-import { ARM_THIN, armRest, poseHands, reach } from './hold.js';
+import { inspectCut } from './inspect.js';
+import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 
 // ---- player animation: eased facing, hips that follow your feet, bob, sway, limp, recoil, reloads, swings ----
 // slideT is per hand (R, L) so akimbo guns cycle on their own shots (their kick springs are RK in player/hold.js)
-export const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0 };
+export const ANIM = { pitch: 0, pitchT: 0, aimY: GUN_Y, slideT: { R: 1, L: 1 }, yaw: Math.PI, standY: 0, tw: 0, vtw: 0, bank: 0, vbank: 0, legYaw: 0, legDir: 1, lx: 0, lz: 0, flinch: 0, flinchSide: 1, sw: 0, relEnv: 0, vrelEnv: 0 };
 // how far the hips turn from the torso toward the way you're walking (radians); the rest is a side step
 const HIP_TWIST = 0.38, LEG_FLIP = 0.07;   // (LEG_FLIP: how far past straight across, in half-turns, before the stride plays the other way)
 // how far the boot soles reach below the model's feet; on a floor they're lifted that much to stand on top of it
@@ -82,7 +84,7 @@ function animateDeath(dt) {
   pm.lower.rotation.y = 0; pm.lower.position.y = 0; pm.upper.position.y = 0;
   pm.legL.rotation.x = 0.55 * kn * (1 - fall * 0.6); pm.legR.rotation.x = 0.25 * kn * (1 - fall * 0.4);
   const flail = Math.sin(t * 9) * 0.1 * (1 - fall);
-  pm.armL.position.set(-0.33, 1.08, 0); pm.armR.position.set(0.33, 1.08, 0); pm.armL.scale.set(ARM_THIN, ARM_THIN, 1); pm.armR.scale.set(ARM_THIN, ARM_THIN, 1);
+  pm.armL.position.set(-ARM_X, 1.08, 0); pm.armR.position.set(ARM_X, 1.08, 0); pm.armL.scale.set(ARM_THIN, ARM_THIN, 1); pm.armR.scale.set(ARM_THIN, ARM_THIN, 1);
   pm.armL.rotation.set(sg > 0 ? -1.2 * kn - 0.9 * fall + flail : -0.4 * kn - 2.2 * fall + flail, 0.5 * fall, -0.5 * fall);
   pm.armR.rotation.set(sg > 0 ? -1.0 * kn - 1.0 * fall - flail : -0.6 * kn - 2.0 * fall - flail, -0.6 * fall, 0.4 * fall);
   pm.upper.rotation.set(sg * 0.15 * kn, 0.08 * fall * Math.sign(ANIM.deathTwist || 1), 0);
@@ -146,9 +148,11 @@ function vaultHands(pm, v) {
   const w1 = air ? 1 - vk(t, win ? 0.4 : 0.42, win ? 0.58 : 0.66) : vk(c, 0.3, 1), w2 = 0;
   if (w1 <= 0.001 && w2 <= 0.001) return;
   pm.g.updateMatrixWorld(true);
-  const lat = [v.L[0], v.L[1]];   // to your left
-  [['L', pm.armL, 1], ['R', pm.armR, -1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
-    const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;   // the left hand is already set 0.16 to the left
+  const lat = [v.L[0], v.L[1]];   // (the jump's L: across it, toward your right arm's side as the body's built)
+  // each hand on its own side of the line you cross, never crossed over: the left (sd -1) away along L, the right
+  // toward it (the plant is set 0.16 along L off the line: player/vaulting.js)
+  [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
+    const spread = v.scramble ? 0.2 : 0.16, dL = sd * spread - 0.16;
     _vw.copy(v.plant); _vw.x += lat[0] * dL; _vw.z += lat[1] * dL; _vw.y += 0.03; vaultReach(pm, arm, s, _vw, w1);
     _vw.copy(v.ground); _vw.x += lat[0] * (sd * spread - 0.14); _vw.z += lat[1] * (sd * spread - 0.14); vaultReach(pm, arm, s, _vw, w2);
   });
@@ -167,7 +171,7 @@ function angerStep(rdt) {
   ANIM.anger = a + (want - a) * (1 - Math.exp(-rdt * (want > a ? ANGER_T.rise : ANGER_T.fall)));
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
   worryStep(rdt); hurtStep(rdt);
-  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0);
+  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0, P.dead ? 0 : blinkStep(ANIM.blink || (ANIM.blink = {}), rdt));
 }
 // a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
 // then eases off
@@ -190,8 +194,12 @@ function worryStep(rdt) {
   if (ANIM.worry < 0.002 && !want) ANIM.worry = 0;
 }
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
+// first person: how much of the stride's rise, fall and sway (stride), of the lean into moving (lean) and of the chest
+// leading round and banking into a turn (turn: what swings the arms and the gun about as you look round) the chest keeps
+const FP_BODY = { stride: 0.25, lean: 0.35, turn: 0.15 };
 function animatePlayer(dt, rdt) {
   const pm = PM, D = W(curId()) || W('pistol'), now = performance.now() / 1000;
+  if (P.dead) inspectCut();   // (player/inspect.js)
   if (P.dead) { if (PRAG.me) { stepRagdoll(PRAG.me, (P.deathDt || 0) * PRAG.step); dropFall(P.deathDt || 0); } else animateDeath(P.deathDt || 0); return; }   // (gone down as a ragdoll: player/player-ragdoll.js)
   if (P.vault) ANIM.postVault = 0.45; else ANIM.postVault = Math.max(0, (ANIM.postVault || 0) - rdt);
   sprintAnim(rdt);   // (player/sprint.js)
@@ -219,7 +227,8 @@ function animatePlayer(dt, rdt) {
   // Run and gun at a sprint (RG_TWIST): the chest twists round off the running hips to the aim, and back as it lets go
   if (ANIM.rgT === undefined) ANIM.rgT = ANIM.vrgT = 0;
   if (rdt > 0) springTo(ANIM, 'rgT', 'vrgT', clamp(angDiff(P.aim, ANIM.yaw), -RG_TWIST.max, RG_TWIST.max) * smooth(clamp(ANIM.rgK || 0, 0, 1)), RG_TWIST.k, RG_TWIST.damp, Math.min(rdt, 0.04));
-  const rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * ANIM.rg + ANIM.rgT * (1 - ANIM.rg); ANIM.chestYaw = ANIM.yaw + rgTw;
+  // (in first person the chest's always on the aim, the gun with it, the hips and legs coming round under it: game/view-cam.js)
+  const rgK = fpOn() ? 1 : ANIM.rg, rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * rgK + ANIM.rgT * (1 - rgK); ANIM.chestYaw = ANIM.yaw + rgTw;
   // how fast the chest is turning (not the hips swinging round to a sill or back from one)
   const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12); ANIM.prevYaw = ANIM.chestYaw;
   // you stand on whatever's underfoot (surfaceY in world/house.js): up onto the porch, its step and the door's
@@ -227,7 +236,7 @@ function animatePlayer(dt, rdt) {
   { const s = surfaceY(P.x, P.z), t = s > 0 ? s + SOLE_LIFT : 0; ANIM.standY += (t - ANIM.standY) * Math.min(1, rdt * 16); }
   pm.g.position.set(P.x, ANIM.standY, P.z); pm.g.rotation.set(0, ANIM.yaw, 0); pBlob.position.set(P.x, ANIM.standY + 0.02, P.z); pBlob.scale.setScalar(1.15);
   const spd = Math.hypot(P.vx, P.vz), runF = clamp(spd / WALK_SPEED, 0, 1.3), sk = smooth(clamp(ANIM.sprintK || 0, 0, 1)), skid = smooth(clamp(ANIM.skidK || 0, 0, 1));
-  const hpF = P.hp / S.maxHp;
+  const hpF = P.hp / hpCap();
   ANIM.limpK = (ANIM.limpK || 0) + ((P.dead ? 0 : smooth(clamp((LIMP.from - hpF) / (LIMP.from - LIMP.to), 0, 1))) - (ANIM.limpK || 0)) * Math.min(1, rdt * 1.5);
   const limp = ANIM.limpK;
   // a wince now and then while you're badly hurt (LIMP.wince), quicker the worse it is
@@ -385,8 +394,16 @@ function animatePlayer(dt, rdt) {
   const shift = P.vault ? 0 : -ANIM.legDirS * Math.cos(ph) * 0.022 * run1 * (1 - 0.4 * clamp(runF - 0.7, 0, 1)) + Math.sin(now * 0.55) * 0.007 * still;
   // the chest rides the hips' bob on a spring: it lags them a little and settles just past each footfall
   if (ANIM.uy === undefined || P.vault) { ANIM.uy = bob; ANIM.vuy = 0; } else if (dt > 0) springTo(ANIM, 'uy', 'vuy', bob, 240, 17, Math.min(dt, 0.04));
-  pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy + breathe;
-  pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads);
+  // (from your own eyes the chest rides the stride far less, and leans less into how you move: what sways a body nicely
+  // seen from above swims the gun about in front of your eyes, which are held steady over it: game/view-cam.js. FP_BODY)
+  const fpB = fpOn(), fS = fpB ? FP_BODY.stride : 1, fL = fpB ? FP_BODY.lean : 1, fT = fpB ? FP_BODY.turn : 1;
+  pm.lower.position.y = bob * 0.4; pm.upper.position.y = ANIM.uy * fS + breathe;
+  pm.lower.position.x = shift; pm.upper.position.x = shift * (0.75 - 0.5 * ads) * fS;
+  // (and back over the hips: from your own eyes the view puts the chest under your eye each frame, game/view-cam.js:
+  // vmLock, and with the hips leant into a sprint some of that lands forward; a gun's hold sets it again after this,
+  // player/hold.js, but with a melee weapon nothing did, and it built up frame on frame, the chest running off ahead of
+  // the legs)
+  pm.upper.position.z = 0;
   // the hips swing with the legs and the shoulders twist back against them (held tighter down the sights)
   if (!P.vault) pm.lower.rotation.y += s * 0.07 * run1;
   // lean into movement relative to where you face, sway with the stride, rock back when hit
@@ -398,7 +415,7 @@ function animatePlayer(dt, rdt) {
   else if (dt > 0) { const k = Math.min(1, dt * 7); ANIM.ax += (clamp((P.vx - ANIM.pvx) / dt, -30, 30) - ANIM.ax) * k; ANIM.az += (clamp((P.vz - ANIM.pvz) / dt, -30, 30) - ANIM.az) * k; ANIM.pvx = P.vx; ANIM.pvz = P.vz; }
   const sy = Math.sin(ANIM.yaw), cy = Math.cos(ANIM.yaw), aF = ANIM.ax * sy + ANIM.az * cy, aS = ANIM.ax * cy - ANIM.az * sy;
   const alx = clamp(aF * 0.0042, -0.09, 0.1) * (1 - 0.6 * ads), alz = clamp(-aS * 0.003, -0.07, 0.07) * (1 - 0.6 * ads);
-  const sway = s * 0.04 * run1 * (1 - 0.8 * ads) + Math.sin(now * 0.55 + 0.6) * 0.012 * still, limpLean = -LIMP.lean * limp * smooth(bs) * run1;   // (limping, the trunk leant over the bad leg as it takes the weight)
+  const sway = s * 0.04 * run1 * (1 - 0.8 * ads) * fS + Math.sin(now * 0.55 + 0.6) * 0.012 * still, limpLean = -LIMP.lean * limp * smooth(bs) * run1;   // (limping, the trunk leant over the bad leg as it takes the weight)
   // the chest into a turn (TURN_TWIST): leading round ahead of the hips and leaning in, less down the sights
   if (rdt > 0) { const h = Math.min(rdt, 0.04), k = 1 - 0.6 * ads; springTo(ANIM, 'tw', 'vtw', clamp(om * TURN_TWIST, -TURN_MAX, TURN_MAX) * k, 170, 16, h); springTo(ANIM, 'bank', 'vbank', clamp(-om * TURN_BANK, -0.1, 0.1) * k, 170, 16, h); }
   // sprinting, you look where the cursor is (SPRINT_LOOK): ahead of you the chest turns a little toward it and the head
@@ -407,7 +424,7 @@ function animatePlayer(dt, rdt) {
   // Right behind you, you keep to the shoulder you were looking over
   if (rdt > 0) {
     if (ANIM.lookC === undefined) ANIM.lookC = ANIM.vlookC = ANIM.lookH = ANIM.vlookH = 0;
-    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (1 - smooth(clamp(ANIM.rgK || 0, 0, 1))) * (P.vault ? 0 : 1);
+    const L = SPRINT_LOOK, h = Math.min(rdt, 0.04), fk = smooth(clamp(ANIM.faceK || 0, 0, 1)) * (1 - (ANIM.rg || 0)) * (1 - smooth(clamp(ANIM.rgK || 0, 0, 1))) * (P.vault || fpOn() ? 0 : 1);   // (not in first person, whose chest is already on the aim: turned again on top of it, your arms and gun swung across the view as you ran round a bend)
     const rel = angDiff(P.aim, ANIM.yaw), ar = Math.abs(rel); let sd = Math.sign(rel) || 1;
     if (ar > L.behind && ANIM.lookSide) sd = ANIM.lookSide; ANIM.lookSide = sd;
     const back = smooth(clamp((ar - L.ahead) / L.blend, 0, 1)), chest = (Math.sign(rel) * Math.min(ar, L.chest) * (1 - back) + sd * L.backChest * back) * fk;
@@ -417,7 +434,7 @@ function animatePlayer(dt, rdt) {
   // breathing lifts the chest a touch
   // (the chest jolts forward on each of a scramble's choppy steps)
   const bpx = -BACKPEDAL.chest * ANIM.backK * (1 - 0.5 * ads);   // backpedalling, the chest back a touch further (BACKPEDAL)
-  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + ANIM.lx + alx - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) + ANIM.tw + rgTw + (ANIM.lookC || 0), urz = ANIM.lz + alz + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
+  let urx = LOOK_DOWN.chest * smooth(clamp(ANIM.lookDn || 0, 0, 1)) + bpx + (ANIM.lx + alx) * fL - ANIM.flinch * 0.32 + stq * 0.25 - breathe * 0.8 + 0.07 * sk + 0.12 * skid + 0.05 * Math.abs(Math.sin(ANIM.scrPh || 0)) * smooth(clamp(ANIM.scrK || 0, 0, 1)), ury = -s * 0.03 * run1 * (1 - ads * 0.7) * fS + ANIM.tw * fT + rgTw + (ANIM.lookC || 0), urz = (ANIM.lz + alz) * fL + sway + ANIM.flinch * 0.12 * ANIM.flinchSide + ANIM.bank * fT + ANIM.rgT * RG_TWIST.roll * (1 - ANIM.rg);
   // hurt: upright, standing leant a touch off the bad leg, and walking leant over it as it takes the weight (LIMP); a
   // wince only catches you a little
   urx += 0.04 * wince; urz += limpLean - 0.035 * limp * still;
@@ -428,9 +445,15 @@ function animatePlayer(dt, rdt) {
   const up = { x: urx, y: ury, z: urz };
   if (INTRO.t >= 0) introPose(pm, up, introKneel(spd));   // getting up off one knee at the start of a run (game/intro.js)
   else if (state === 'title') introPose(pm, up, 1);         // and on the title you wait down on that knee
+  // the hands and the weapon (their turn of the chest and the head is the hands' own, made in the mirrored upper body:
+  // player/player.js) on top of what the body's doing in the world (the turn, the lean, the look), which is kept apart
+  // and turned the other way for the head, which is drawn mirrored with the upper body
+  const u0y = up.y, u0z = up.z, wz = pm.head.rotation.z; pm.head.rotation.z = 0; up.u0y = u0y; up.u0z = u0z;   // (u0: for player/hold.js, which puts the chest's turn on early)
   poseHands(D, up, ph, runF, rdt, now);
-  pm.head.rotation.y += ANIM.tw * 0.6; pm.head.rotation.z -= ANIM.bank * 0.5;   // the head leads the turn further and stays level
-  pm.head.rotation.y += ANIM.lookH || 0; pm.head.rotation.z -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
+  up.y = 2 * u0y - up.y; up.z = 2 * u0z - up.z;   // (the chest isn't mirrored itself, only what's on it)
+  const hY = pm.head.rotation.y, hZ = pm.head.rotation.z; let wy = 0;   // (the hands' turn of the head; the world's, wy and wz)
+  wy += ANIM.tw * 0.6; let hz = wz - ANIM.bank * 0.5;   // the head leads the turn further and stays level
+  wy += ANIM.lookH || 0; hz -= (ANIM.lookSide || 1) * 0.1 * (ANIM.lookBack || 0); pm.head.rotation.x -= 0.06 * (ANIM.lookBack || 0);   // looking about at a sprint (above), tipped a little toward the shoulder it looks back over
   if (P.vault) vaultUpper(P.vault, up);
   // looking about at a station (MENU_LOOK): the head turns on the shoulders to the cursor, whatever the chest is doing
   if (rdt > 0) {
@@ -443,14 +466,15 @@ function animatePlayer(dt, rdt) {
     }
     springTo(ANIM, 'menuH', 'vmenuH', tgt, 130, 17, Math.min(rdt, 0.04));
   }
-  pm.head.rotation.y += ANIM.menuH;
+  wy += ANIM.menuH;
   // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run,
   // looking about or twisted round with Run and gun
   const nk = Math.max(ANIM.lookK || 0, smooth(clamp(ANIM.rgK || 0, 0, 1)) * (1 - (ANIM.rg || 0)));
   if (nk > 0) {
-    const L = SPRINT_LOOK, hy = pm.head.rotation.y, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;
-    pm.head.rotation.y = hy + (clamp(lim, -L.neck, L.neck) - hy) * nk;
+    const L = SPRINT_LOOK, hy = wy - hY, lim = clamp(clamp(hy, -L.neck, L.neck) + up.y, -L.max, L.max) - up.y;   // (all of its turn on the shoulders, the hands' too)
+    wy += (clamp(lim, -L.neck, L.neck) - hy) * nk;
   }
+  pm.head.rotation.y = hY - wy; pm.head.rotation.z = hZ - hz;
   pm.upper.rotation.set(up.x, up.y, up.z);
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
@@ -460,7 +484,7 @@ export function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
-  { const t = 1 - titleBlend(), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js)
+  { const t = (1 - titleBlend()) * (fpOn() ? 0 : 1), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js; and none of it in first person: game/view-cam.js)
   SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
