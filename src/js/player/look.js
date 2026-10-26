@@ -218,16 +218,31 @@ const ANGER = { browDrop: 0.012, browTilt: 0.34, squint: 0.42, mouthW: 0.82, mou
 const WORRY = { browLift: 0.02, browTilt: 0.38, widen: 0.75, mouthW: 0.5, mouthH: 4.5, jaw: 0.009 };
 const HURT_FX = { browDrop: 0.01, browTilt: 0.32, squeeze: 0.8, mouthW: 1.4, mouthH: 0.55 };
 const AIM_FX = { shut: 0.92, squint: 0.4 };
-export function faceMood(H, a, w = 0, h = 0, k = 0) {
-  const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k)) return; f.a = a; f.w = w; f.h = h; f.k = k;
+// bl: how far through a blink (blinkStep) both open eyes are. A patched eye has nothing to blink or narrow; and with
+// the patch over the eye you'd aim with (f.aim), it's the other one that squints along the gun, nothing left to shut
+export function faceMood(H, a, w = 0, h = 0, k = 0, bl = 0) {
+  const f = H.userData.face; if (!f || (f.a === a && f.w === w && f.h === h && f.k === k && f.bl === bl)) return; f.a = a; f.w = w; f.h = h; f.k = k; f.bl = bl;
   const o = w * w;
   f.brows.forEach(g => { if (g.userData.y0 === undefined) g.userData.y0 = g.position.y; g.position.y = g.userData.y0 - ANGER.browDrop * a + WORRY.browLift * w - HURT_FX.browDrop * h; g.rotation.z = g.userData.s * (ANGER.browTilt * a - WORRY.browTilt * w - HURT_FX.browTilt * h); });
-  f.eyes.forEach(g => { g.scale.y = Math.max(0.07, 1 - ANGER.squint * a + WORRY.widen * w - HURT_FX.squeeze * h - (g.userData.s < 0 ? AIM_FX.shut : AIM_FX.squint) * k); });
+  f.eyes.forEach(g => { g.scale.y = Math.max(0.07, (1 - ANGER.squint * a + WORRY.widen * w - HURT_FX.squeeze * h - (g.userData.s !== (f.aim || 1) ? AIM_FX.shut : AIM_FX.squint) * k) * (1 - bl)); });
   const m = f.mouth; if (!m) return;
   if (m.userData.y0 === undefined) m.userData.y0 = m.position.y;
   m.position.y = m.userData.y0 - WORRY.jaw * o;
   m.scale.set((1 - (1 - ANGER.mouthW) * a) * (1 - (1 - WORRY.mouthW) * o) * (1 + (HURT_FX.mouthW - 1) * h), (1 + (ANGER.mouthH - 1) * a) * (1 + (WORRY.mouthH - 1) * o) * (1 + (HURT_FX.mouthH - 1) * h), 1);
 }
+// blinking: every few seconds (BLINK.gap), now and then twice in a row (BLINK.twice), each a quick close and a slower
+// open (BLINK.dur, BLINK.shut of it closing). b holds one face's own timing; how shut its eyes are this moment, 0 to 1
+const BLINK = { gap: [2.2, 6], dur: 0.17, shut: 0.35, twice: 0.18 };
+export function blinkStep(b, dt) {
+  if (b.at === undefined) { b.t = 0; b.at = rr(0.3, BLINK.gap[1]); }
+  b.t += dt; if (b.t < b.at) return 0;
+  const u = (b.t - b.at) / BLINK.dur;
+  if (u >= 1) { b.dbl = !b.dbl && rand() < BLINK.twice; b.at = b.t + (b.dbl ? 0.09 : rr(BLINK.gap[0], BLINK.gap[1])); return 0; }
+  const e = x => x * x * (3 - 2 * x);
+  return u < BLINK.shut ? e(u / BLINK.shut) : 1 - e((u - BLINK.shut) / (1 - BLINK.shut));
+}
+// which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
+export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
 // how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
 // jaw, a goatee), the line and its corners hw either side of x and as far as h below it (the grim chin's crease)
 const MOUTH_Z = { face: 0.1615, over: 0.0015 }, _mb = new THREE.Box3();
@@ -245,12 +260,14 @@ export function buildLook(L) {
   const hair = lm(L.hair), beard = lm(L.beardCol), skinDk = PM.mats.skinDk, shirt = PM.mats.shirt, shirtDk = PM.mats.shirtDk;
   // ---- face: eyes, brows, nose, mouth and ears, each dealt one of a few shapes (L.face), set a little unevenly
   const F = L.face, brow = L.hairStyle === 'bald' ? beard : hair, dark = lm(0x141010), white = lm(0xe2dccf), scarM = lm(shade(L.skin, 1.16)), circ = lm(shade(L.skin, 0.68));
-  const face = H.userData.face = { eyes: [], brows: [], mouth: null };
+  const face = H.userData.face = { eyes: [], brows: [], mouth: null, aim: aimEye(L) };
   [-1, 1].forEach(s => {
     const x = s * F.gap, y = F.eyeY + (s > 0 ? F.lop : 0), eyeM = lm(s > 0 ? L.eyes2 || L.eyes : L.eyes), n0 = H.children.length;
     if (F.patch && s === F.side) {   // a patch over this eye, its strap round the head
-      box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = -s * 0.22;
-      [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * s * 0.036, 0));
+      // (the strap round the sides carries on from the front's ends at their own height, rather than from the other end)
+      const tl = -s * 0.22, ex = 0.166;
+      box(H, 0.064, 0.056, 0.014, dark, x, y, 0.164); box(H, 0.34, 0.012, 0.008, dark, 0, y + 0.04, 0.163).rotation.z = tl;
+      [-1, 1].forEach(q => box(H, 0.006, 0.012, 0.32, dark, q * 0.163, y + 0.04 + q * ex * Math.tan(tl), 0));
     }
     // every shape has its white, the iris in the eye's colour, and the pupil: small and nearly all iris, a squint, ...
     else if (F.eye === 'beady') { box(H, 0.032, 0.026, 0.012, white, x, y, 0.162); box(H, 0.022, 0.024, 0.012, eyeM, x - s * 0.002, y, 0.164); box(H, 0.01, 0.012, 0.012, dark, x - s * 0.002, y, 0.167); }

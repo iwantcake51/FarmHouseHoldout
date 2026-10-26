@@ -24,7 +24,10 @@ out), a curb chain, beads, a rubber band, a stitched leather cuff with press stu
 braided strings, set for each wrist or the same on **Both**; the hands view shows both wrists. Each is built true to
 size and round where the real thing is: a watch's round case with its bezel, markers, hour, minute and seconds hands,
 lugs and crown; a chain's links each turned through the last; round beads. Your arms sit flush against your chest
-(no gap at the shoulder), and the studio stands you with both arms the same length, however your hands were posed.
+(no gap at the shoulder), and the studio stands you with both arms the same length, however your hands were posed. You
+blink now and then, in a run and in the studio, sometimes twice. An eye patch's strap runs round the side of your head
+from where it leaves your brow; the eye under it never blinks or squints, and with it over your aiming eye you aim with
+the other one, that eye squinting along the gun and your head tipped over the stock the other way.
 
 ## How a run goes
 

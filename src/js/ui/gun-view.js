@@ -15,6 +15,7 @@ import { modLv } from '../weapons/mod-levels.js';
 import { setTierCtx, W, W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildWeapon, weaponRec } from '../weapons/build-weapons.js';
+import { blinkStep, LOOK } from '../player/look.js';
 
 // how it turns (radians a second) and how far it tips, how close the camera comes and how far it'll zoom either way,
 // how long it waits after you let go before it turns on its own again (s), and how much the wheel zooms (per unit it rolls)
@@ -116,6 +117,7 @@ function copyPlain(o) {
 }
 // what each view of you looks at (on: the part, at: a point on it in its own space; no part: from your feet), how far
 // back (m), from which way round (0: straight in front of you) and how far above (radians)
+const gvBlink = {};
 const FOCUS = {
   body: { at: [0, 0.82, 0], dist: 3.4, yaw: 0.55, pitch: 0.1 },
   face: { on: 'head', at: [0, 0.0, 0.1], dist: 0.95, yaw: 0.12, pitch: 0.04 },
@@ -181,6 +183,7 @@ function gvTick(t) {
     gvCam.aspect = w / h;
     const d = camDist(), look = fig ? _gvL.copy(fig.at).add(gvAim) : gvAim;
     gvCam.position.set(Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.cos(yaw) * Math.cos(pitch) * d).add(look); gvCam.lookAt(look); gvCam.updateProjectionMatrix(); gvCam.updateMatrixWorld();
+    if (fig) { const H = LOOK.g.head.userData.face, b = blinkStep(gvBlink, real); if (H) H.eyes.forEach(e => { const c = figPart.get(e); if (c) c.scale.y = Math.max(0.07, 1 - b); }); }   // (you blink in here too)
     gvR.render(gvScene, gvCam);
   }
   gvRaf = requestAnimationFrame(gvTick);

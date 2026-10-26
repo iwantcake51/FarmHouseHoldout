@@ -45,6 +45,7 @@ import { foreDrop } from './grip.js';
 import { STOW } from './stow.js';
 import { fistOf, rigPair, SWAP_REST_L } from './swap.js';
 import { inspectOut, inspectPose, inspectW } from './inspect.js';
+import { aimEye, LOOK } from './look.js';
 
 // shoulders roll a little forward and in when you shoulder a gun; the fist grips about its front third
 // where your arms hang from: thinned (ARM_THIN), each is drawn in to sit flush against the side of the chest
@@ -1031,6 +1032,6 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // the revolver twirled round the trigger finger (player/inspect.js), after the hands are on it, so they stay put
   if (IN.spin) spinGun(gg, s, H.grip, IN.spin);
   pm.head.rotation.x += ANIM.pitch * 0.6 + ads * 0.1 + ACT.hp + IN.hp; pm.head.rotation.y += ACT.hy + IN.hy;
-  pm.head.rotation.z -= ads * 0.13;   // and the head tips over onto the stock to look down the sights
+  pm.head.rotation.z -= ads * 0.13 * aimEye(LOOK.cur);   // and the head tips over onto the stock to look down the sights (the other way, aiming with the left eye under a patch over the right: player/look.js)
   up.x += ANIM.pitch * 0.26 + ads * 0.05;
 }

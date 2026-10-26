@@ -4,7 +4,7 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
 import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
-import { faceMood, LOOK } from './look.js';
+import { blinkStep, faceMood, LOOK } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, hpCap, W, W8 } from '../game/run-state.js';
@@ -171,7 +171,7 @@ function angerStep(rdt) {
   ANIM.anger = a + (want - a) * (1 - Math.exp(-rdt * (want > a ? ANGER_T.rise : ANGER_T.fall)));
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
   worryStep(rdt); hurtStep(rdt);
-  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0);
+  faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0, P.dead ? 0 : blinkStep(ANIM.blink || (ANIM.blink = {}), rdt));
 }
 // a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
 // then eases off
