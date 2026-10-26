@@ -218,7 +218,9 @@ muzzle; down the sights it leaves from the middle of the screen, on your line of
 pattern really goes, not at the very edge one pellet in hundreds might reach (the pellets bunch toward the middle), so
 it's about a third smaller than it was; and the pattern's round, spread all round the middle, each pellet thrown up or
 down as far as sideways and never outside that ring (one that would land past it is pulled back in to its edge), rather
-than all of them flying out level in one flat line. The holes in a wall show it: a round cluster in the ring.
+than all of them flying out level in one flat line. The holes in a wall show it: a round cluster in the ring. A lone
+round's spread is round too: it lands anywhere inside the circle, up and down as much as sideways, so a held LMG burst
+scatters all round the crosshair rather than along a flat line.
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
@@ -355,7 +357,8 @@ round it. The strip comes off the roll onto the arm turn by turn, just where the
 fist thinning as it goes: one turn straight round to anchor it, then a spiral up the forearm with each turn over half
 the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. In first
 person the arm's held across in front of you, so you can look down and watch it go on. Each bandage stays on your arm
-till the run ends, up to three of them up the forearm, sized to sit over whatever sleeve or glove is there, with a
+till the run ends, up to three of them up the forearm, wound snug over whatever sleeve or glove is there (round the
+sleeve itself, flat over a snap, seam or patch on it, each turn only a hair over the last), with a
 spot of blood slowly seeping through each. The blood you pick up killing zombies up close stains your clothes and
 skin, never a fresh bandage: those stay clean but for their own seep.
 

@@ -322,10 +322,14 @@ export function gunFire(id, D, side) {
     // (a lone round spreads like any other, even with the crosshair on a body: it still hits the part you aimed at if
     // it lands near enough to it at that range, AIM_KEEP, so up close it goes where you put it, and further off it's off
     // the mark by as much as its spread throws it, and so is anything on past it)
-    const one = pellets === 1, dev = one ? (rand() - 0.5) * 2 * sp : 0, aimed = p === 0 && tgt && (!one || Math.abs(Math.sin(dev)) * tgtT < AIM_KEEP);
+    // (from your own eyes a lone round's thrown anywhere inside the round spread, up and down as much as sideways, evenly
+    // over it: from above only sideways shows, so it's only sideways there)
+    const one = pellets === 1, fpd = one && fpOn(), dr = fpd ? sp * Math.sqrt(rand()) : 0, da = rand() * Math.PI * 2;
+    const dev = one ? (fpd ? dr * Math.cos(da) : (rand() - 0.5) * 2 * sp) : 0, dv = fpd ? dr * Math.sin(da) : 0;
+    const aimed = p === 0 && tgt && (!one || Math.hypot(Math.sin(dev), Math.sin(dv)) * tgtT < AIM_KEEP);
     // (from your own eyes the pattern's round and inside the ring, SG_FP: each pellet thrown up or down as far as sideways,
     // and one that would land outside the ring pulled back in to its edge)
-    let po = pellets > 1 && !aimed ? pelletOff(sp) : 0, pv = 0;
+    let po = pellets > 1 && !aimed ? pelletOff(sp) : 0, pv = one && !aimed ? dv : 0;
     if (fpOn() && pellets > 1 && !aimed) { const R = SG_FP.ring * sp; pv = pelletOff(sp) * SG_FP.v; const r = Math.hypot(po, pv); if (r > R) { const k = R * rr(0.85, 1) / r; po *= k; pv *= k; } }
     const a = p === 0 && tgt && one ? tgtA + dev : aimed ? tgtA : (pellets > 1 && tgt ? tgtA : base) + (pellets > 1 ? po : dev), dx = Math.sin(a), dz = Math.cos(a);
     // how high the round is along its way: from the muzzle to the part under the crosshair it was aimed at (or the
@@ -336,7 +340,7 @@ export function gunFire(id, D, side) {
     // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
     const fp = fpOn(), y0 = mw.y;
     let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
-    if (pv) slope += Math.tan(pv);   // (up or down: SG_FP)
+    if (pv) slope += Math.tan(pv);   // (up or down: SG_FP, or a lone round's own spread)
     let wallT = 26, gndT = 99;
     for (let t = 0.1; t < 26; t += 0.1) {
       if (fp ? bulletBlockedAt(ox + dx * t, oz + dz * t, y0 + slope * t) || underRoof(ox + dx * t, oz + dz * t, y0 + slope * t) : bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }

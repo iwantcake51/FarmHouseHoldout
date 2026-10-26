@@ -45,10 +45,10 @@ export function bandPhases(rdt) {
 // where the hand's gone round; the ones already on stay, blood slowly seeping through each, until the run ends (P.wraps
 // of them). WRAP_AT: where each one goes, up the forearm from the wrist; WRAP: the strip (w: how wide, lap: how much of
 // each turn the next covers, thick: how much each turn stands out over the one under it, r: how round the arm's
-// corners are taken, fin: how far through the bandage the last turn's on, the rest of it the end pressed down and
-// taped, seep: seconds for the blood to come through)
+// corners are taken, gap: how far off what it's wound over, round: what's wound round rather than over (armFit), fin: how far through the bandage the last turn's on, the rest of it the
+// end pressed down and taped, seep: seconds for the blood to come through)
 const WRAP_AT = [[0.34, 0.48], [0.19, 0.33], [0.05, 0.18]];
-const WRAP = { w: 0.044, lap: 0.5, thick: 0.0021, r: 0.016, gap: 0.004, fin: 0.86, seep: 7, seg: [3, 4] };
+const WRAP = { w: 0.044, lap: 0.5, thick: 0.0012, r: 0.016, gap: 0.0015, round: 0.6, fin: 0.86, seep: 7, seg: [3, 4] };
 const WRAP_M = lam(0xffffff, { vertexColors: true }), WRAP_TAPE = lam(0xd8d0bf);
 const WRAP_GAUZE = new THREE.Color(0xfbf9f3), WRAP_SEEP_C = new THREE.Color(0x6e140d), WRAP_SEEP_E = new THREE.Color(0xa0402e);
 // where round its section each sample of a turn falls (the sides split in WRAP.seg[0], each rounded corner in [1]), so
@@ -129,16 +129,45 @@ const wrapTail = box(PM.upper, WRAP.w, 0.0022, 1, lam(0xece6da), 0, 0, 0); wrapT
 // each wrap goes on over whatever's on the arm there (a sleeve and its cuff, the canvas jacket, gloves, an armband), so
 // it's sized to sit just outside the widest of them across its length rather than sinking into a sleeve or having a
 // cuff poke through it; refit every few frames while any is showing (gear and clothes change with upgrades and runs)
-const _wb = new THREE.Box3(), _wm = new THREE.Matrix4();
+const _wm = new THREE.Matrix4();
 let wrapFitT = 0;
+// how far out round the arm each piece of a part on it stands (in the arm's own frame: x across, y up, z along), counting
+// only its points that go round it, near a corner as far up as across (WRAP.round): a sleeve's, a cuff's, a watch's; not
+// a snap or a patch standing off one side, or a seam along the top, which the bandage is wound over and pressed flat.
+// Pieces, as a jacket's sleeve, seam, cuff and snap are one mesh, and its bounds held every bandage out at the cuff and
+// the snap: each joined-up run of its triangles on its own (meshPieces). Kept while the part sits on the arm the same
+// way (ARM_FIT)
+const ARM_FIT = new WeakMap(), PIECES = new WeakMap(), _wfm = new THREE.Matrix4(), _wfv = new V3();
+function meshPieces(g) {
+  let pc = PIECES.get(g); if (pc) return pc;
+  const n = g.attributes.position.count, up = new Int32Array(n), ix = g.index;
+  for (let i = 0; i < n; i++) up[i] = i;
+  const root = i => { while (up[i] !== i) i = up[i] = up[up[i]]; return i; };
+  if (ix) for (let t = 0; t < ix.count; t += 3) { const a = root(ix.getX(t)), b = root(ix.getX(t + 1)), c = root(ix.getX(t + 2)); up[b] = a; up[c] = a; }
+  else for (let t = 0; t < n; t += 3) { const a = root(t); up[root(t + 1)] = a; up[root(t + 2)] = a; }
+  pc = new Int32Array(n); for (let i = 0; i < n; i++) pc[i] = root(i);
+  PIECES.set(g, pc); return pc;
+}
+function armFit(o) {
+  _wfm.multiplyMatrices(_wm, o.matrixWorld); const key = o.geometry.uuid + _wfm.elements.map(v => v.toFixed(4)).join();
+  const c = ARM_FIT.get(o); if (c && c.key === key) return c.pcs;
+  const p = o.geometry.attributes.position, pc = meshPieces(o.geometry), by = new Map();
+  for (let i = 0; i < p.count; i++) {
+    _wfv.fromBufferAttribute(p, i).applyMatrix4(_wfm); const ax = Math.abs(_wfv.x), ay = Math.abs(_wfv.y);
+    let f = by.get(pc[i]); if (!f) by.set(pc[i], f = { hx: 0, hy: 0, z0: Infinity, z1: -Infinity });
+    if (ay >= WRAP.round * ax) f.hx = Math.max(f.hx, ax); if (ax >= WRAP.round * ay) f.hy = Math.max(f.hy, ay);
+    f.z0 = Math.min(f.z0, _wfv.z); f.z1 = Math.max(f.z1, _wfv.z);
+  }
+  const pcs = [...by.values()]; ARM_FIT.set(o, { key, pcs }); return pcs;
+}
 function fitWraps() {
   const arm = PM.armL; arm.updateMatrixWorld(true); _wm.copy(arm.matrixWorld).invert();
   const mine = new Set(); wraps.forEach(w => w.g.traverse(o => mine.add(o)));
   // clothes and gear (lit materials), not the outline shells round the arm
-  const parts = []; arm.traverse(o => { if (o === arm || !o.isMesh || mine.has(o) || !o.visible || !(o.material && o.material.isMeshLambertMaterial)) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _wb.copy(o.geometry.boundingBox).applyMatrix4(_wm.clone().multiply(o.matrixWorld)); parts.push(_wb.clone()); });
+  const parts = []; arm.traverse(o => { if (o === arm || !o.isMesh || mine.has(o) || !o.visible || !(o.material && o.material.isMeshLambertMaterial)) return; parts.push(...armFit(o)); });
   wraps.forEach(w => {
     let hx = 0.07, hy = 0.07;   // the bare arm
-    for (const b of parts) if (b.max.z > w.z0 && b.min.z < w.z1) { hx = Math.max(hx, -b.min.x, b.max.x); hy = Math.max(hy, -b.min.y, b.max.y); }
+    for (const b of parts) if (b.z1 > w.z0 && b.z0 < w.z1) { hx = Math.max(hx, b.hx); hy = Math.max(hy, b.hy); }
     hx += WRAP.gap; hy += WRAP.gap;
     if (Math.abs(hx - w.hx) > 0.001 || Math.abs(hy - w.hy) > 0.001) { w.hx = hx; w.hy = hy; if (w.geo) { const s = w.seep; wrapBuild(w, w.turns); w.seep = s; w.seepShown = -1; wrapSeep(w); } }
   });
