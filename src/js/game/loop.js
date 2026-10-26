@@ -18,6 +18,7 @@ import {
 import { tickDeath } from '../ui/screens.js';
 import { update } from './update.js';
 import { scopePass, scopePrep } from '../effects/scope-view.js';
+import { fpLookStep } from './view-cam.js';
 import { cheatSpeed } from '../ui/cheats.js';
 import { visuals } from './visuals.js';
 import { netTick } from '../net/sync.js';
@@ -72,6 +73,7 @@ function frame(now) {
   if (document.visibilityState === 'visible') adaptResolution(rdt);
   tickFps(rdt);   // (the settings' frame-rate counter: ui/settings.js)
   musicTick();   // (the menus' piano: audio/music.js)
+  fpLookStep(rdt);   // (the mouse's smoothed look, before the body's posed from it: game/view-cam.js)
   let simDt = 0;
   const coop = netLink() && state === 'paused';   // (co-op: the farm doesn't stop while you're paused)
   if (state === 'play' || (state === 'dead' && P.dead) || coop) {

@@ -55,11 +55,13 @@ export function locoPose(o, ph, stride, kn, give, bad, stiff, limp) {
 }
 
 // ---- the state machine's hand-overs (inertialization): the joints it carries (the body's own: the arms are put on
-// whatever's in your hands every frame, player/hold.js, and the hips' place over the ground goes with you)
+// whatever's in your hands every frame, player/hold.js, and the hips' place over the ground goes with you; nor the upper
+// body's turn, which is your aim: a flick of the mouse is meant to snap it round, and caught as a jump it was eased,
+// the arms and the gun left behind and swung out of view)
 const AG_J = [
   ['g', 'position', 'y'], ['g', 'rotation', 'x'], ['g', 'rotation', 'z'],
   ['lower', 'position', 'x'], ['lower', 'position', 'y'], ['lower', 'rotation', 'x'], ['lower', 'rotation', 'y'], ['lower', 'rotation', 'z'],
-  ['upper', 'position', 'x'], ['upper', 'position', 'y'], ['upper', 'rotation', 'x'], ['upper', 'rotation', 'y'], ['upper', 'rotation', 'z'],
+  ['upper', 'position', 'x'], ['upper', 'position', 'y'], ['upper', 'rotation', 'x'], ['upper', 'rotation', 'z'],
   ['legL', 'rotation', 'x'], ['legL', 'rotation', 'z'], ['legR', 'rotation', 'x'], ['legR', 'rotation', 'z'], ['shinL', 'rotation', 'x'], ['shinR', 'rotation', 'x'],
   ['head', 'rotation', 'x'], ['head', 'rotation', 'y'], ['head', 'rotation', 'z']
 ];

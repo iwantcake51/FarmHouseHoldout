@@ -31,6 +31,7 @@ import { BACK_LAYER } from '../player/stow.js';
 import { vaultGun } from '../player/vaulting.js';
 import { cheatOn } from '../ui/cheats.js';
 import { SET, setOpen } from '../ui/settings.js';
+import { DC } from '../ui/screens.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y };
@@ -211,7 +212,10 @@ const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3();
 
 // the view in use: what's picked, but the isometric one on the menus, as you go down and once you're down
 // (picking cards between waves too, and as they go: upgrades/upgrade-screen.js)
-const wantOn = () => (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving') && !P.dead ? VCAM.mode : 'iso';
+// (going down from your own eyes, the view's kept and drawn back out of them over your body (fpDeathCam) rather than cut
+// to the one from above: until you're watching a teammate, in co-op)
+const wantOn = () => (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving') && !P.dead ? VCAM.mode
+  : P.dead && VCAM.mode === 'fp' && (state === 'play' || state === 'paused' || state === 'dead') && !DC.spec ? 'fp' : 'iso';
 export function setViewMode(m) {
   m = m === 'fp' || m === 'free' ? m : 'iso';
   if (m === VCAM.mode) return;
@@ -234,7 +238,7 @@ export function syncView() {
     document.body.classList.toggle('fpView', on === 'fp'); document.body.classList.toggle('freeView', on === 'free');
     if (on === 'iso') unlock();
   }
-  PM.head.visible = on !== 'fp';   // (out of your own eyes: your head, its hair and hat, would be all round the lens)
+  PM.head.visible = on !== 'fp';   // (down, it's shown again once the view's drawn back out of it: fpDeathCam)   // (out of your own eyes: your head, its hair and hat, would be all round the lens)
 }
 
 // ---- the mouse: locked to the game while you look about, and let go for a menu
@@ -264,7 +268,10 @@ export function viewLook(dx, dy) {
   lookBy(dx * s, dy * s);
 }
 // the mouse's movement taken up by the view, eased: what's still to come goes in a share each frame
-function fpLookStep(rdt) {
+// (taken up at the start of the frame, before the body's posed from the aim (game/loop.js): taken up with the view, after
+// it, the arms were posed to the aim before this frame's turn and trailed the view by it, the faster you turned the further)
+export function fpLookStep(rdt) {
+  if (!fpOn()) return;
   const k = 1 - Math.exp(-rdt * FPV.look), ax = V.mdx * k, ay = V.mdy * k; V.mdx -= ax; V.mdy -= ay;
   if (Math.abs(ax) + Math.abs(ay) > 1e-7) lookBy(ax, ay);
 }
@@ -687,12 +694,17 @@ function aimDir(out) {
 const SIGHT_RAISE = 0.12;
 const _pa = new V3(), _pb = new V3(), _ad = new V3(), _sd = new V3(), _vcH = new V3(), _qa = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _mw = new THREE.Matrix4(), _vcM = new THREE.Matrix4();
 const ADS_KNOCK = 0.4, _knR = new V3(), _knU = new V3(0, 1, 0);
+const _saX = new V3(1, 0, 0);
 export function fpSightAlign(gg, raise = true) {
   const w = adsW(), D = W(curId()); if (!fpOn() || w < 0.001 || !D || D.melee || D.akimbo) return;
   const L = sightLine(); if (!L || !gg.parent) return;
   PM.g.updateMatrixWorld(true);
   _pa.copy(L.a).applyMatrix4(L.obj.matrixWorld); _pb.copy(L.b).applyMatrix4(L.obj.matrixWorld);
   aimDir(_ad); _sd.subVectors(_pb, _pa).normalize();
+  // (in the hold, before the view carries the upper body round with its look up or down (fpCarry), onto the aim as it is
+  // before that: aimed along the whole view here, the carry turned the gun by the look again on top, and it tipped away
+  // from the arms holding it, further the further you looked down)
+  if (raise) { const k = V.vlk ?? 1; _fcQ.setFromEuler(_fcR.set(0, VCAM.yaw, 0)); _ad.applyQuaternion(_fcQ.invert()).applyAxisAngle(_saX, VCAM.pitch * k).applyQuaternion(_fcQ.invert()); }
   _qa.setFromUnitVectors(_sd, _ad); _qi.identity().slerp(_qa, w);
   // turned about the line's back end, then raised: the line's offset from your eye, as far as SIGHT_RAISE
   rigEye(_vcH); _vcH.sub(_pa); _vcH.addScaledVector(_ad, -_vcH.dot(_ad)); const off = _vcH.length(); if (off > SIGHT_RAISE) _vcH.multiplyScalar(SIGHT_RAISE / off); _vcH.multiplyScalar(raise ? w : 0);
@@ -752,9 +764,31 @@ const GLASS_SEE = { on: false };
 const drawnUp = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
 function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glass.transparent = see; GM.glass.opacity = see ? 0.12 : 1; GM.glass.depthWrite = !see; GM.glass.needsUpdate = true; GM.holoGlass.opacity = see ? 0.1 : 0.35; } }
 
+// going down from your own eyes: the view's drawn back out of them, up and away over your body as it falls, turning
+// to keep it in the middle, until it looks down on it from behind and above (DEATH_FP: how long it takes, seconds; how
+// far back, up and to the side it ends, metres; and the field of view it eases out to). From where your eyes were when
+// you went down (DFP), on a smooth ease, so it starts gently, then sweeps out, then settles
+const DEATH_FP = { t: 2.4, back: 2.6, up: 2.3, side: 0.9, fov: 60 };
+const DFP = { on: false, t: 0, p: new V3(), q: new THREE.Quaternion(), fov: 75, yaw: 0 }, _dfT = new V3(), _dfP = new V3(), _dfM = new THREE.Matrix4(), _dfQ = new THREE.Quaternion();
+function fpDeathCam(rdt, c) {
+  if (!DFP.on) { DFP.on = true; DFP.t = 0; DFP.p.copy(c.position); DFP.q.copy(c.quaternion); DFP.fov = c.fov; DFP.yaw = VCAM.yaw; }
+  DFP.t += rdt; const k = smooth(clamp(DFP.t / DEATH_FP.t, 0, 1)), y = DFP.yaw;
+  PM.torso.getWorldPosition(_dfT);
+  // (behind and above where you were facing, a little off to one side)
+  _dfP.set(_dfT.x - Math.sin(y) * DEATH_FP.back + Math.cos(y) * DEATH_FP.side, _dfT.y + DEATH_FP.up, _dfT.z - Math.cos(y) * DEATH_FP.back - Math.sin(y) * DEATH_FP.side);
+  c.position.lerpVectors(DFP.p, _dfP, k);
+  // (an arc rather than a straight pull: it rises a little ahead of drawing back)
+  c.position.y += Math.sin(Math.PI * k) * 0.35;
+  PM.head.visible = c.position.distanceTo(DFP.p) > 0.3;   // (your head, once the view's out of it)
+  _dfM.lookAt(c.position, _dfT, _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM);
+  c.quaternion.copy(DFP.q).slerp(_dfQ, smooth(clamp(DFP.t / (DEATH_FP.t * 0.6), 0, 1)));
+  const fov = DFP.fov + (DEATH_FP.fov - DFP.fov) * k; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
+}
+const _dfV = new V3();
 // each frame, from game/camera.js: the view in use, then the camera placed. roll: the springs' tip (a shot, a hit, a
 // vault), sh: the shake
 export function viewFrame(rdt, roll, sh, jolt) {
+  if (!P.dead) DFP.on = false;
   syncView();
   if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
@@ -767,10 +801,11 @@ export function viewFrame(rdt, roll, sh, jolt) {
     V.vky += (-FPV.kickK * V.ky - FPV.kickD * V.vky) * dt; V.ky += V.vky * dt;
     V.vff = (V.vff || 0) + (-FIRE_FOV.k * (V.ff || 0) - FIRE_FOV.d * (V.vff || 0)) * dt; V.ff = clamp((V.ff || 0) + V.vff * dt, -FIRE_FOV.max, FIRE_FOV.max);
   }
+  if (fpOn() && P.dead) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
     // step, a lean, a vault) is eased, the bob more than the rest
-    fpLookStep(rdt); fpFreeAim(rdt);
+    fpFreeAim(rdt);   // (the smoothed look's already taken up for the frame: fpLookStep)
     const w0 = adsW(), now = performance.now() / 1000;
     // the springs' tip (a shot, a hit, a vault, a reload's beats), eased; the third-person camera's pushes and zooms as
     // dips, turns and a drawing in; a reload's own sway; the shake as a wobble

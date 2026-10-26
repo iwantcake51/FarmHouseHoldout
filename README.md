@@ -177,7 +177,11 @@ walk or look up and down; the body's stride and lean are toned right down from y
 you do see are first-person ones, on springs of their own. Looking up or down, your arms and the gun go with the view
 as one, turned about your eye, so they sit in the same place on screen however far you look, and your chest and
 shoulders stay out of sight below it: looking straight down you see the gun and your feet, not a wall of shoulders
-(your teammates still see your arms and gun pointed where you look). Looking round, they trail the view a little on
+(your teammates still see your arms and gun pointed where you look). Down the sights too: the gun stays in your hands at
+the same angle to your arms however far up or down you aim. However hard you flick the mouse, your chest and arms come
+round with the view that same frame, so they never fling off the side of the screen, and with mouse smoothing on the
+arms turn with the eased view rather than a frame behind it. Going down from your own eyes, the view's drawn back
+out of your head, up and away over your body as it falls, until it looks down on you from behind. Looking round, they trail the view a little on
 their springs: left behind across the screen and turned back against the turn, dropped or left above it as you look
 up or down (a diagonal flick sways them diagonally), and rolled the other way to a turn, settling with a hint of
 overshoot; much less of it down the sights. The view widens a touch at a sprint and draws in a touch with each shot.
