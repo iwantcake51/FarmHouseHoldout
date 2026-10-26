@@ -662,7 +662,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   { const q = shakyTremor(), T_ = SHAKY_TREM; pitch += q.p * T_.p; yaw += q.y * T_.y; roll += q.r * T_.r; ox += q.x * T_.m; oy += q.h * T_.m; }   // shaking at low health (player/shaky-hands.js)
   { const fa = freeAim(rdt, heavy, ads), k = fpOn() ? FP_SWING : 1; yaw -= fa.yaw * k; pitch += fa.pitch * k; ox -= Math.sin(fa.yaw) * FREE_SWING * k; oy -= Math.sin(fa.pitch) * FREE_SWING * k; }   // the arms trail a turn and swing on after it (not from your own eyes, where the gun stays with the crosshair as you turn: FP_SWING)
   pitch += SR.x * 0.8 * (fpOn() ? FP_BODY_KICK : 1);   // the shoulders rock back with a shot, the wrists keeping most of it off the muzzle
-  if (ANIM.rg > 0) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing
+  if (ANIM.rg > 0 && !fpOn()) pitch -= PM.g.rotation.x * ANIM.rg;   // Vault fire: the gun stays level while the body tips over the sill and dips into the landing (from your own eyes the view holds it level already: game/view-cam.js vmLock)
   FP_PIV.b = -blade; FP_PIV.o[0] = ox; FP_PIV.o[1] = oy; FP_PIV.o[2] = oz;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)

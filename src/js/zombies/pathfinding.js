@@ -4,7 +4,7 @@
 import { clamp, mix, N, rand } from '../core/math.js';
 import { netLink } from '../net/net.js';
 import { cell, ci, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from '../world/grid.js';
-import { doorBetween, wallBetween } from '../world/thin-walls.js';
+import { doorBetween, wallBetween, wX, wZ } from '../world/thin-walls.js';
 import { HOUSE_FP, openings } from '../world/house.js';
 import { DOOR } from '../world/interior.js';
 import { hardBlocked } from '../world/collision.js';
@@ -16,25 +16,46 @@ import { netTargets } from '../net/sync.js';
 // brutes get their own: too big to climb, they go round by the gaps in the fence and in through the door. A boarded
 // window's on their way too (they smash the boards off it, zombies/ai.js), but once it's bare it's shut to them again
 export const dist = new Float32Array(N * N), distB = new Float32Array(N * N);
-const hp_ = [], hd_ = [];
-function hpush(c, d) { hp_.push(c); hd_.push(d); let k = hp_.length - 1; while (k) { const p = (k - 1) >> 1; if (hd_[p] <= hd_[k]) break; [hp_[p], hp_[k]] = [hp_[k], hp_[p]]; [hd_[p], hd_[k]] = [hd_[k], hd_[p]]; k = p; } }
-function hpop() { const c = hp_[0], d = hd_[0], lc = hp_.pop(), ld = hd_.pop(); if (hp_.length) { hp_[0] = lc; hd_[0] = ld; let k = 0; for (;;) { const a = 2 * k + 1, b = a + 1; let m = k; if (a < hp_.length && hd_[a] < hd_[m]) m = a; if (b < hp_.length && hd_[b] < hd_[m]) m = b; if (m === k) break; [hp_[m], hp_[k]] = [hp_[k], hp_[m]]; [hd_[m], hd_[k]] = [hd_[k], hd_[m]]; k = m; } } return [c, d]; }
+// the searches' heap, in typed arrays so a search makes no garbage (cells, and their distances as queued); popD: the
+// distance of the cell last taken off it
+const HQ = new Int32Array(N * N * 8), HD = new Float32Array(N * N * 8);
+let hn = 0, popD = 0;
+function hpush(c, d) { let k = hn++; while (k) { const p = (k - 1) >> 1; if (HD[p] <= d) break; HQ[k] = HQ[p]; HD[k] = HD[p]; k = p; } HQ[k] = c; HD[k] = d; }
+function hpop() {
+  const c = HQ[0]; popD = HD[0]; hn--;
+  if (hn) { const lc = HQ[hn], ld = HD[hn]; let k = 0; for (;;) { const a = 2 * k + 1; if (a >= hn) break; const m = a + 1 < hn && HD[a + 1] < HD[a] ? a + 1 : a; if (HD[m] >= ld) break; HQ[k] = HQ[m]; HD[k] = HD[m]; k = m; } HQ[k] = lc; HD[k] = ld; }
+  return c;
+}
 // what each board in its way costs a brute's route, against 5 for anyone else's: they make short work of boards
 const BRUTE_BOARD_COST = 2.5;
 export const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 function enterCost(i, j, big) { const t = cell[idx(i, j)]; if (t === FENCE) return big ? Infinity : 3.5; if (big && t === OPEN && openAt[idx(i, j)].kind === 'window' && !openAt[idx(i, j)].boards.length) return Infinity; if (t === WALL || t === OBST) return Infinity; if (t === OPEN) { const o = openAt[idx(i, j)], b = barN(o); return b ? 1 + b * (big ? BRUTE_BOARD_COST : 5) : o.kind === 'window' ? 2.2 : 1; } return 1; }
 export function diagOk(i, j, di, dj) { return !hardBlocked(i + di, j) && !hardBlocked(i, j + dj); }
-export function computeFlow() { flowInto(dist, false); flowInto(distB, true); }
+// worked out a few times a second (waves/waves.js), but only searched again when something it depends on has changed:
+// where the survivors stand (by cell), what it costs to go into each cell (fences, boards going up and coming off),
+// or the walls and doors inside (a door beaten through); force when the farm's changed some other way (a fence put up,
+// the house laid out). Mostly nothing has, and it's the same search over again, a dozen thousand steps each time
+const FLOW = { tk: '', ec: new Float32Array(N * N * 2), wall: -1 };
+const wallSig = () => { let h = 0; for (let k = 0; k < wX.length; k++) h = (h * 31 + wX[k]) | 0; for (let k = 0; k < wZ.length; k++) h = (h * 31 + wZ[k]) | 0; return h; };
+export function computeFlow(force = true) {
+  let tk = ''; for (const q of netTargets()) if (!(q.dead && !(q.me && !netLink()))) tk += idx(clamp(ci(q.x), 0, N - 1), clamp(ci(q.z), 0, N - 1)) + ',';
+  let same = !force && tk === FLOW.tk;
+  const ec = FLOW.ec, NN = N * N;
+  for (let c = 0; c < NN; c++) { const i = c % N, j = (c / N) | 0, a = enterCost(i, j, false), b = enterCost(i, j, true); if (ec[c] !== a || ec[NN + c] !== b) { ec[c] = a; ec[NN + c] = b; same = false; } }
+  const w = wallSig(); if (w !== FLOW.wall) { FLOW.wall = w; same = false; }
+  FLOW.tk = tk; if (same) return;
+  flowInto(dist, false); flowInto(distB, true);
+}
 function flowInto(dist, big) {
-  dist.fill(1e9); hp_.length = 0; hd_.length = 0;
+  dist.fill(1e9); hn = 0; const ec = FLOW.ec, off = big ? N * N : 0;
   // from every survivor still standing at once (in co-op there can be four), so each zombie heads for whoever's nearest
   for (const q of netTargets()) { if (q.dead && !(q.me && !netLink())) continue; const s = idx(clamp(ci(q.x), 0, N - 1), clamp(ci(q.z), 0, N - 1)); if (dist[s]) { dist[s] = 0; hpush(s, 0); } }
-  while (hp_.length) {
-    const [c, d] = hpop(); if (d > dist[c]) continue;
+  while (hn) {
+    const c = hpop(), d = popD; if (d > dist[c]) continue;
     const i = c % N, j = (c / N) | 0;
     for (const [di, dj] of DIRS) {
       const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;
-      const cost = enterCost(ni, nj, big); if (cost === Infinity) continue;
+      const cost = ec[off + idx(ni, nj)]; if (cost === Infinity) continue;
       const diag = di && dj; if ((diag && !diagOk(i, j, di, dj)) || wallBetween(i, j, ni, nj)) continue;
       const dr = doorBetween(i, j, ni, nj); if (dr && diag) continue;
       const nd = d + cost * (diag ? 1.414 : 1) + (dr ? DOOR.cost : 0), n = idx(ni, nj);
@@ -55,9 +76,9 @@ const houseCell = (i, j) => inb(i, j) && HOUSE_FP[idx(i, j)] > 0;   // (this run
 function viaField(o) {
   let f = viaF.get(o); if (f) return f;
   f = new Float32Array(N * N).fill(1e9); viaF.set(o, f);
-  const s = idx(o.i, o.j); f[s] = 0; hp_.length = 0; hd_.length = 0; hpush(s, 0);
-  while (hp_.length) {
-    const [c, d] = hpop(); if (d > f[c]) continue;
+  const s = idx(o.i, o.j); f[s] = 0; hn = 0; hpush(s, 0);
+  while (hn) {
+    const c = hpop(), d = popD; if (d > f[c]) continue;
     const i = c % N, j = (c / N) | 0;
     for (const [di, dj] of DIRS) {
       const ni = i + di, nj = j + dj; if (!inb(ni, nj)) continue;

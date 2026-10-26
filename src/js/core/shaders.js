@@ -60,6 +60,10 @@ const VERT_BODY = `
 // lights what stands up outside, not the ground just under it or the top of the wall over it
 export const FL_MAX = 22;   // how far a flashlight's shadow rays go (metres): the longest beam's reach and a little over
 const FL_WIN = [1.02, 1.87];   // a window's opening, sill to head (world/house.js)
+// a beam's pool brightening as what it falls on comes close (as a real torch's does: the same light on a smaller spot),
+// k more at the lens itself, half that at d metres, hardly any across a room; and the most it can light a surface
+// (FL_CAP, of the light map's full), a little over a lamp's, so a wall right in front of you is lit hot and pale
+const FL_NEAR = { k: 1.6, d: 1.2 }, FL_CAP = 1.25;
 const FL_FN = `
 float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   vec2 d = p - f.xy; float r = length(d), a0 = k.w, h = k.y + 0.3;
@@ -77,7 +81,8 @@ float flCone(vec4 f, vec4 k, vec4 fh, vec2 p, float row) {
   float hw = ${GUN_Y.toFixed(2)} + (vWp.y - ${GUN_Y.toFixed(2)}) * tw / max(r, 1e-3);   // how high its line from the lens crossed the window
   float gap = smoothstep(${FL_WIN[0].toFixed(2)} - 0.03, ${FL_WIN[0].toFixed(2)} + 0.03, hw) * (1.0 - smoothstep(${FL_WIN[1].toFixed(2)} - 0.03, ${FL_WIN[1].toFixed(2)} + 0.03, hw));
   lit *= mix(1.0, gap, smoothstep(tw - 0.02, tw + 0.1, r));
-  return mix(0.3, cone, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
+  float dd = length(d3), near = 1.0 + ${FL_NEAR.k.toFixed(2)} / (1.0 + dd * dd / ${(FL_NEAR.d * FL_NEAR.d).toFixed(3)});   // (the closer what it falls on, the brighter its pool: FL_NEAR)
+  return mix(0.3, cone * near, smoothstep(0.15, 0.9, r)) * fall * fall * lit;
 }
 `;
 // the light map read smoothly: a cubic B-spline over its texels (four bilinear reads), so a lamp's light falls off in
@@ -135,7 +140,7 @@ const FRAG_BODY = `
       float u = (float(i) + 0.5) / 6.0; vec4 fP = texture2D(uFlTex, vec2(u, 0.5));
       fl += flCone(texture2D(uFlTex, vec2(u, 0.5 / 3.0)), fP, texture2D(uFlTex, vec2(u, 2.5 / 3.0)), vWp.xz, u) * fP.z;
     }
-    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(1.0));
+    lmS.rgb = min(lmS.rgb + vec3(1.0, 0.95, 0.85) * fl * 0.5, vec3(max(${FL_CAP.toFixed(2)}, max(lmS.r, max(lmS.g, lmS.b)))));
   }
   vec3 lmBase = gl_FragColor.rgb, lmC = lmBase * lmS.rgb * 2.0;
   float lmL = smoothstep(0.16, 0.5, dot(lmS.rgb, vec3(0.299, 0.587, 0.114)) * 2.0);

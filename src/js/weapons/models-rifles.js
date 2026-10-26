@@ -163,7 +163,9 @@ export const RIFLE_MODELS = {
       });
       // a rubber eyecup on the eyepiece: from your eye, a dark shell round the scope's picture (as an ACOG's body is),
       // with your eye far enough back to see it (relief), not a picture floating with nothing round it
-      lathe(g, [[oc * 0.94, z0 - 0.016], [oc * 1.32, z0 - 0.016], [oc * 1.38, z0 - 0.012], [oc * 1.3, z0 + 0.004], [oc, z0 + 0.01]], GM.rubber, X, sy, 24);
+      // (a solid ring, its inside wall back down to the eyepiece: an open shell showed only its far side from behind, a
+      // loose ring standing off the tube with a gap round it)
+      lathe(g, [[oc * 0.94, z0 - 0.016], [oc * 1.32, z0 - 0.016], [oc * 1.38, z0 - 0.012], [oc * 1.3, z0 + 0.004], [oc, z0 + 0.01], [oc * 0.94, z0 + 0.01], [oc * 0.94, z0 - 0.016]], GM.rubber, X, sy, 24);
       g.userData.optic = { kind: 'scope', x: X, y: sy, zr: z0 - 0.004, zf: z1 + 0.002, r: oc * 0.94, relief: 0.11 };   // (looked down in first person: game/view-cam.js)
       lensOn(g, X, sy, z0 - 0.0052, oc * 0.94);   // (the eyepiece's glass you look into: effects/scope-view.js)
     }
@@ -340,19 +342,10 @@ export const RIFLE_MODELS = {
     profile(g, shp(DC), 0.003, GM.blued, X - 0.0265, 0.0006);
     profile(g, shp(DC, [shp(inset(DC, 0.004))]), 0.0016, GM.blued, X - 0.0292, 0.0004);                      // its rim
     box(g, 0.003, 0.009, 0.016, GM.metal2, X - 0.0294, 1.0865, 0.673);
-    // the charging handle at the back of the upper, a T seen from above (its own group: the reload draws it back,
-    // weapons/reload.js): the shaft running forward into the upper, the thick middle where the wings join it, the two
-    // wings swept a little forward out to their tips, each tip a finger hook curled back toward you, and the latch on the
-    // left wing (shaped from the side as before: a sloped back edge)
+    // the charging handle's T at the back of the upper, kept plain (its own group: the reload draws it back, weapons/reload.js)
     const ch = new THREE.Group(); g.add(ch);
-    profile(ch, shp([[0.4575, 1.1595], [0.4925, 1.1595], [0.4925, 1.1735], [0.4575, 1.1735]]), 0.014, GM.metal2, X, 0.001);                // the shaft
-    profile(ch, shp([[0.4545, 1.1585], [0.4705, 1.1585], [0.4705, 1.177], [0.4585, 1.177], [0.4548, 1.172]]), 0.02, GM.metal2, X, 0.0015);   // the middle
-    [-1, 1].forEach(sd => {
-      const w = box(ch, 0.02, 0.0125, 0.0085, GM.metal2, X + sd * 0.0185, 1.1665, 0.4615); w.rotation.y = sd * 0.12;   // a wing
-      box(ch, 0.007, 0.0135, 0.0105, GM.metal2, X + sd * 0.0265, 1.1665, 0.4575);                                          // its hook
-      for (let k = 0; k < 3; k++) box(ch, 0.0012, 0.0128, 0.0015, GM.rubber, X + sd * (0.013 + k * 0.004), 1.1665, 0.4567 + k * 0.0003);   // grip grooves on its back
-    });
-    box(ch, 0.009, 0.006, 0.01, GM.metal2, X + 0.0265, 1.1745, 0.462);                                        // its latch
+    profile(ch, shp([[0.4545, 1.1585], [0.4705, 1.1585], [0.4705, 1.177], [0.4585, 1.177], [0.4548, 1.172]]), 0.058, GM.metal2, X, 0.0015);
+    box(ch, 0.006, 0.006, 0.012, GM.metal2, X + 0.031, 1.1715, 0.468);                                       // its latch
     // ---- without an optic: the carry handle clamped on the rail, the A2 rear sight in its back end (the aperture between
     // its ears, the windage knob, the elevation drum), the clamp's screws; the handle's top ahead of the sight kept down below
     // the line through the hole, so looking through it you see the front post over it, not the handle's back

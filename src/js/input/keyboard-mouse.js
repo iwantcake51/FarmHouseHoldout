@@ -24,7 +24,7 @@ import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/s
 import { fpAimPx, freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
 import { fireModeSwitched } from '../ui/hud.js';
 import { toggleWeaponStats } from '../ui/weapon-stats.js';
-import { cheatOn, toggleCheats } from '../ui/cheats.js';
+import { cheatOn, cheatShutAt, toggleCheats } from '../ui/cheats.js';
 import { skipBreak } from '../net/sync.js';
 import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
@@ -43,7 +43,7 @@ addEventListener('keydown', e => {
   if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); menuEscAt = performance.now(); return; }   // (the browser lets go of the mouse on that Esc too: lockLost)
-  if (k === 'escape' && performance.now() - lockLostAt < 400) return;   // (the Esc that let go of the mouse in first person has already paused)
+  if (k === 'escape' && performance.now() - Math.max(lockLostAt, cheatShutAt) < 400) return;   // (nor the Esc a moment after the cheat menu was put away)   // (the Esc that let go of the mouse in first person has already paused)
   keyAct(k, e);
 });
 // what a key does: its binding (input/keybinds.js), from the keyboard or a mouse button it's been put on
@@ -126,9 +126,10 @@ export const centerMouse = (ox = 0, oy = 0) => { mouseX = innerWidth / 2 + ox; m
 ['click', 'keydown'].forEach(t => addEventListener(t, () => { if (!isoOn() && state === 'play' && !P.dead && !lookMenu()) wantLock(); }));
 let lockLostAt = -1e9;
 // the mouse let go in first person: the pause menu, unless it was let go by the Esc that just closed a menu (the cheat
-// menu, a station's) or one's still open
+// menu, a station's), one's still open, or the cheat menu was put away a moment ago however it was (its key, its Esc
+// from a box in it, its close button: the mouse being taken back and let go again as it closes isn't you leaving)
 let menuEscAt = -1e9;
-export function lockLost() { if (state === 'play' && !P.dead && !lookMenu() && !cheatOn && !openSt && performance.now() - menuEscAt > 500) { lockLostAt = performance.now(); pauseRun(); } }
+export function lockLost() { if (state === 'play' && !P.dead && !lookMenu() && !cheatOn && !openSt && performance.now() - Math.max(menuEscAt, cheatShutAt) > 500) { lockLostAt = performance.now(); pauseRun(); } }
 
 // setters for the variables above that other files change (an imported variable can only be read)
 export function setMouseDown(v) { return (mouseDown = v); }

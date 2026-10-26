@@ -60,7 +60,7 @@ varying vec2 vP; varying vec4 vClip; varying vec3 vW, vN, vT, vB;
 // and sharp for one far off, with a soft bloom of it in the coating round it
 vec3 mirror(vec2 p) {
   vec3 v = normalize(cameraPosition - vW), n = normalize(vN); if (dot(n, v) < 0.0) n = -n;
-  n = normalize(n - (p.x * normalize(vT) + p.y * normalize(vB)) * 0.32);   // (the glass bulges out toward you)
+  n = normalize(n + (p.x * normalize(vT) + p.y * normalize(vB)) * 0.32);   // (the glass bulges out toward you: each point's normal leaning out from the middle, a convex mirror, the world the right way up in it; leaning in it was a concave one, which turns the world over)
   vec3 r = reflect(-v, n); float f = 0.035 + 0.965 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);
   vec3 env = uEnvOn > 0.5 ? textureCube(tEnv, r).rgb : vec3(0.0);
   vec3 g = uSunC * (pow(max(dot(r, uSunD), 0.0), 900.0) * 6.0 + pow(max(dot(r, uSunD), 0.0), 40.0) * 0.12);

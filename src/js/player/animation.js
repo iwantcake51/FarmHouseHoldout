@@ -307,9 +307,10 @@ function animatePlayer(dt, rdt) {
     // each foot stepping out further than it comes back in so the legs never cross. Down the sights the stance widens
     // a little and the steps shorten
     // (the blend space: player/anim-graph.js. The knees bend as each leg swings through, most just after it leaves the
-    // ground so the heel lifts clear, and at a sprint they kick right up behind; a little give in the standing knee too)
-    const bad = 1 - limp * LIMP.short, splay = 0.045 * ads, kn = (0.55 + 1.15 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.08 * sk;
-    const LP = locoPose(_lp, ph, stride, kn, give, bad, 1 - limp * LIMP.stiff, limp);
+    // ground so the heel lifts clear, and at a sprint they kick right up under the seat; a little give in the standing
+    // knee too, and at a run more, loading under you mid-stance)
+    const bad = 1 - limp * LIMP.short, splay = 0.045 * ads, kn = (0.55 + 1.45 * sk) * ANIM.strideK * (1 - 0.3 * ads), give = 0.06 * Math.min(1, runF) + 0.05 * sk;
+    const LP = locoPose(_lp, ph, stride, kn, give, bad, 1 - limp * LIMP.stiff, limp, smooth(clamp((runF - 0.6) / 0.5, 0, 1)) * ANIM.strideK * (1 - ads), sk * ANIM.strideK);
     pm.legL.rotation.x = LP.lx; pm.legR.rotation.x = LP.rx;   // (the bad leg's step shorter)
     // turning on the spot: a loose pivot with a little give in the legs and a weight shift, never a full step
     pm.legL.rotation.z = LP.lz - splay; pm.legR.rotation.z = LP.rz + splay; pm.lower.rotation.z = (spd <= 0.3 ? ANIM.legYaw * 0.035 : 0) + LP.hz * Math.min(1, runF);

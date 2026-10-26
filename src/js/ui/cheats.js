@@ -70,7 +70,7 @@ const CHEAT_TOGGLES = {
 // the switches along the top, always in reach, and the speeds the game can run at
 const CH_QUICK = ['god', 'scrap', 'ammo', 'mag', 'onehit', 'noWaves'];
 const SPEEDS = [0.25, 0.5, 1, 2];
-export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0;
+export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0, cheatShutAt = -1e9;   // (cheatShutAt: when it was last put away, input/keyboard-mouse.js lockLost)
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 
 // never in co-op: the menu won't open (and shuts if it was), and the switches do nothing there, though they're kept
@@ -123,7 +123,7 @@ export function toggleCheats(on) {
   if (cheatsOff() && on !== false) { if (!cheatOn) toast('No cheats in co-op', { kind: 'bad', sub: 'The cheat menu only works in a game on your own' }); return; }
   cheatOn = on === undefined ? !cheatOn : on;
   chEl.hidden = !cheatOn;
-  if (!cheatOn) wantLock();   // (in first person, the mouse straight back: game/view-cam.js)
+  if (!cheatOn) { cheatShutAt = performance.now(); wantLock(); }   // (in first person, the mouse straight back: game/view-cam.js)
   clearInterval(cheatLive);
   if (cheatOn) { renderCheats(); cheatLive = setInterval(cheatLiveTick, 200); }
   else { hideGun(); if (document.activeElement && chEl.contains(document.activeElement)) { document.activeElement.blur(); cv.focus({ preventScroll: true }); } }

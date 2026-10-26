@@ -154,7 +154,11 @@ export const PISTOL_MODELS = {
     xsec(g, shp([[X - 0.0105, 1.181], [X + 0.0105, 1.181], [X + 0.0085, 1.1875], [X - 0.0085, 1.1875]]), 0.674, 0.908, S2, 0.0006);
     for (let k = 0; k < 9; k++) box(g, 0.022, 0.003, 0.005, D, X, 1.1865, 0.745 + k * 0.0165);
     [-1, 1].forEach(sd => { box(g, 0.0022, 0.011, 0.194, D, X + sd * 0.0156, 1.161, 0.776); box(g, 0.0016, 0.003, 0.226, D, X + sd * 0.0152, 1.177, 0.792); });
-    box(g, 0.003, 0.011, 0.012, GM.rubber, X, 1.192, 0.901);
+    // the front sight, as the Mark XIX's: a slim black ramped blade (its back face upright, its front sloped down to the
+    // muzzle) on a dovetail block across the end of the rail, a round white dot on its back to line up between the rear's
+    box(g, 0.012, 0.003, 0.013, S2, X, 1.189, 0.9005);
+    profile(g, shp([[0.895, 1.1885], [0.906, 1.1885], [0.906, 1.1905], [0.8985, 1.1975], [0.895, 1.1975]]), 0.0034, GM.rubber, X);
+    cyl(g, 0.0013, 0.0008, GM.dot, X, 1.1945, 0.8946, 12);
     cyl(g, 0.0062, 0.004, GM.rubber, X, 1.16, 0.9165, 14);
     // ---- frame: the lip under the barrel, takedown buttons, slide stop, the guard and trigger, the hammer
     box(g, 0.03, 0.008, 0.22, S2, X, 1.122, 0.782);
@@ -189,7 +193,7 @@ export const PISTOL_MODELS = {
     profile(sl, shp([[0.536, 1.122], [0.672, 1.122], [0.672, 1.188], [0.6, 1.188], [0.564, 1.185], [0.553, 1.175], [0.548, 1.17], [0.536, 1.17]]), 0.03, S2, X, 0.003);
     for (let k = 0; k < 9; k++) [-1, 1].forEach(sd => { const sr = box(sl, 0.002, 0.044, 0.0035, D, X + sd * 0.0181, 1.152, 0.6 + k * 0.0072); sr.rotation.x = 0.26; });
     [-1, 1].forEach(sd => { cyl(sl, 0.0078, 0.003, D, X + sd * 0.0188, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); cyl(sl, 0.0062, 0.004, GM.steel, X + sd * 0.0198, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); const lv = box(sl, 0.003, 0.006, 0.026, GM.steel, X + sd * 0.0198, 1.167, 0.578); lv.rotation.x = 0.22; box(sl, 0.0032, 0.0028, 0.0028, GM.red, X + sd * 0.0198, 1.164, 0.561); });
-    box(sl, 0.0185, 0.0035, 0.018, S2, X, 1.1877, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber);   // the rear sight on its base, its notch level with the front post (the base no wider than the sight and wholly under the blades: it stood up into the notch, a pale band right across the view down the sights)
+    box(sl, 0.0185, 0.0035, 0.018, S2, X, 1.1877, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber); [-1, 1].forEach(sd => cyl(sl, 0.0013, 0.0008, GM.dot, X + sd * 0.006, 1.1948, 0.5696, 12));   // the rear sight on its base, a combat blade with a square notch and a white dot either side of it (the front's dot sits between them, 3-dot), its notch level with the front post (the base no wider than the sight and wholly under the blades: it stood up into the notch, a pale band right across the view down the sights)
     irons(g, { kind: 'notch', yr: 1.1975, rz: 0.576, yf: 1.1975, fz: 0.901 });
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);

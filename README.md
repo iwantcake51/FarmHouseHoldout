@@ -125,7 +125,10 @@ body together with your legs, and a swing doesn't carry you forward. From your o
 can see it: the wind-up stays at the top of the view rather than behind your head, your arm never sweeps through your
 face, and the blow crosses the view. The weapon is swung round by your arm and held in the fist as it is in the guard,
 so it never spins about its handle or flips over in your hand, and the forearm's roll and the weapon's tilt ease in
-and out of every turn instead of starting and stopping dead.
+and out of every turn instead of starting and stopping dead. Through a swing the edge (the axe's bit, a blade's edge)
+faces round the way the swing turns: leading the blow, trailing as it's drawn back, still leading as it carries on
+past and comes back round, so the axe's head stays upright through an overhead chop all the way down, from your own
+eyes and from above, never turned flat on its side at the bottom or flipped over about the handle.
 
 **Fog rounds.** Once in a while (never within three waves of the last) a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
@@ -240,7 +243,7 @@ away from them, rather than drifting round with it, and the view eases back onto
 follows you smoothly up and over a vault, bobs and sways with each stride (barely up and down; the gun in your hands swings side to side, nods onto each footfall and rolls with the step a beat behind it, a loose figure of eight rather than a bounce), banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently; reloading down the sights,
 the gun and your hands on it still jolt a little as the old mag's shaken out and the new one slapped home. Down the sights the gun isn't nailed to the middle of the view either: it sways a little side to side and dips with each step as you walk, trails a quick turn or look and settles back, and rises and falls with your breath standing still; the view stays where you look, and your shots go where the sights point. Sprinting, a rifle or SMG is carried across your body, muzzle down to your left, seen from its side (it used to point straight ahead and down so all you saw was its back end). Swinging a melee weapon tips the view the way its head travels across you, and a blow that lands knocks the view back with a nod. Pausing eases whatever your hands were in the middle of (a reload, working the action, the low ready) back to the plain hold, facing straight ahead, and back into it when you resume (in co-op, where the farm keeps going, it doesn't). Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
-is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. The kick is kept small and settles quickly, so the view doesn't jump about. No shot kicks straight up: each goes up and a little to one side or the other, slightly more often to the right (as a right-handed shooter's gun goes), the view and the gun the same way. Down the sights the gun still kicks in your hands, but the front sight post stays in the middle of the screen, still pointed where you aim: the rest of the gun (the rear sight, the receiver, your arms on it) tips up and aside about the post, so for a moment mid-kick the rear sight isn't lined up behind it, then it comes back. Your eye only goes with the gun's shove back into your shoulder, its rattle and a held trigger's climb. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
+is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. The kick is kept small and settles quickly, so the view doesn't jump about. No shot kicks straight up: each goes up and a little to one side or the other, slightly more often to the right (as a right-handed shooter's gun goes), the view and the gun the same way. Down the sights the gun still kicks in your hands, but the front sight post stays in the middle of the screen, still pointed where you aim: the rest of the gun (the rear sight, the receiver, your arms on it) tips up and aside about the post, so for a moment mid-kick the rear sight isn't lined up behind it, then it comes back. Your eye only goes with part of the gun's shove back into your shoulder, so the gun visibly comes back toward you a little with each shot (straight back along your line of sight, the post still in the middle), with its rattle and a held trigger's climb. At the hip the gun's muzzle follows the crosshair's own kick, up and aside, so the two always move together. Each shot is a quick shove and flip that comes back smoothly, only a hair past home; a shotgun flips hardest of all, its shove back only a little more than a rifle's so it's never shoved into your face, and a full auto's buzz drifts rather than flickering frame to frame. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
 and again on the way down, quicker with a handgun;
@@ -253,14 +256,17 @@ shotgun's front post sits in the middle of the hole through the rear aperture (t
 A1-style aperture: a thin ring round a big hole on a slim stem, wide apart from its ears, so the world shows all round
 it; every gun's front post is a thin blade a couple of millimetres across, not a block that hides what it's on), the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
-fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring (your eye held back from it as a ghost ring is used, clear of the tang safety, which used to sit a couple of centimetres from your eye and get sliced off at the edge of the view), the double barrel is
+fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring (your eye held back from it as a ghost ring is used, back over the comb where the stock drops away, clear of the tang safety and the receiver's back, which used to come up right against your eye and be cut through by the view), the double barrel is
 aimed the way a side-by-side is, the eye a little above the rib and back on the comb behind your hand so it's a narrow strip running out to a single ivory front
 bead, the action, top lever and your sleeve well down out of the way, the LMG's
 aperture held a hand's breadth out from your eye with your cheek on the stock, and the hunting rifle's notch and post with your cheek on the stock, the
-notch well out ahead of your eye rather than right up against it. Your eye's focused on the front sight, so the parts of the gun nearer
+notch well out ahead of your eye rather than right up against it, and the .50's three-dot irons as a Desert Eagle
+Mark XIX's: a slim black ramped front blade (its back upright, its front sloped to the muzzle) on a dovetail block at
+the end of the rail with a white dot on its back, lined up between the two white dots either side of the square notch
+in the rear combat blade on the slide. Your eye's focused on the front sight, so the parts of the gun nearer
 your eye are as out of focus as they would really be, by distance and the size of your pupil: the rear aperture, a
 hand's breadth from your eye, goes soft and its hole opens up a little for the blur, while a handgun's rear notch is
-only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. The AR's charging handle is a real T: a shaft into the upper, swept wings with a finger hook at each tip, grip grooves and the latch on the left wing. The battle rifle's charging handle rides on its bolt carrier: it runs back and forward with every shot and stays locked back with the bolt on an empty mag, until the reload sends it home. A
+only a touch soft. The AR's carry handle sits low enough ahead of its rear sight that you see the front post over it. The AR's charging handle is a plain T at the back of the upper with its latch. The battle rifle's charging handle rides on its bolt carrier: it runs back and forward with every shot and stays locked back with the bolt on an empty mag, until the reload sends it home. A
 shot's muzzle flash and its glow are hidden by the gun in front of them down the sights, and its light isn't smeared
 out over the out-of-focus rear sight. An optic on the MP5 sits on a claw mount, clear over its drum sight, and looking through the drum itself your eye's a little further back off it, so the drum doesn't fill the view. A handgun's irons are held a little further from your eye, so the slide slamming back with each shot (the rear sight rides on it) no longer swamps the view; the hand cannon's rear sight sits on a base no wider than itself, wholly under its notch, and its ported compensator's top and ports sit well under the sights. An ACOG on the hand cannon sits further back on its barrel rail and closer to your eye, its picture bigger. Every rifle scope has a rubber eyecup: from your own eyes a dark shell round the scope's picture, as an ACOG's body is, with your eye far enough back to see it. The pump has a picatinny rail along its receiver: an optic goes on it, and with one fitted both ghost ring sights come off, the back of the receiver left smooth with the rail running back to it. Each round
 flies the line you looked down: up into the sky (a round that meets nothing streaks on out of sight rather than stopping in mid-air, and from your own eyes it clears whatever it passes over: a wall below the eaves, the house's roof, the narrowing crown of a pine), or down into the ground where it kicks up dirt, its streak of light
@@ -297,8 +303,8 @@ RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big r
 MOA), a Holosun 507C (a squared shroud, solar panel on top, battery tray in the right side and buttons in the left, 2
 MOA) or a Leupold DeltaPoint Pro (the widest, tallest window and a rear-sight notch across its back, 2.5 MOA), each its
 true size, the glass at the front and the emitter on the base behind the window, the slide's own rear sight showing
-low in the window below the dot. The handgun's holo step is the same sight with a circle-dot instead: a 32 MOA ring
-round a 2 MOA dot. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
+low in the window below the dot. The handgun's holo step puts the holographic sight itself on, the same EOTech as the long guns'. The machine
+pistol's red dot is a Trijicon RMR, like a handgun's. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
 with the scope at your eye its own magnified view is seen through that glass:
@@ -326,7 +332,7 @@ front of it still hide it), so none pops in out of nowhere as it comes round a c
 glow no longer shows through the back of a zombie's head: the halo and streak are hidden by the head in the glow too,
 not just in the picture. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
-hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too). There's no
+hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too, and nor does putting the cheat menu away any other way: its key, its close button, Esc from its search box). There's no
 click to look about: the mouse is taken with the click on Start (or the host's Start in co-op), and any click or key
 takes it back once no menu's open. In co-op your teammates see you as you stand, looking up and down where you look,
 not with your chest held straight for your own eyes. And the
@@ -338,14 +344,17 @@ all round as far as the screen goes) it opens the view itself 10% wider (14% wit
 down the sights), and anything close by off the edges of the screen (within 4 m, then 6 m) shows as a soft pale arc
 round the middle of the screen on its side, stronger the closer it is. The cards say which you get. You go back to the view from above whenever you're down.
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
-tucked under your chin; the LMG carried further right and lower on its sling, its belt and box down out of the
-middle of the view), and each shot turns it in your hands as well as kicking the view; through a scope the
+tucked under your chin; the LMG carried a little further right and lower on its sling, its belt and box down out of
+the middle of the view but not so far it lies slanted across it), and each shot turns it in your hands as well as kicking the view; through a scope the
 picture rocks a little with it. Fired cases fly out to the right and a touch forward, as a rifle throws them, never up
 and back into your face, and one that would pass right by your eye isn't drawn until it's out past arm's length.
 Reloads are the same ones you see from above, only calmer from your own eyes: the gun
 comes up a touch and turns a little toward you, not over on its side, and it stays out to the right where you hold it at
-the hip rather than coming back to the middle for the reload. The flashlight points down the gun's barrel,
-easing after it, and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
+the hip rather than coming back to the middle for the reload. Down the sights a break-open gun (the double, the
+revolver) comes down off your eye while it's open and being loaded, so its barrels or cylinder aren't swung up into
+your face, and goes back up to it once it's shut if you're still holding aim. The flashlight points down the gun's barrel,
+easing after it, its pool brighter and paler the closer what it falls on (a wall right in front of you is lit hot, as a
+real torch's is, while across a room it's as before), and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
 at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
 Walking bobs the view softly, the way your head really rides on a stride: a small, rounded rise and fall with each
 step, a slight sway and roll toward the foot you're on, all eased in and out with no jolts, and the gun and your arms move on their own soft springs: tilted
@@ -367,7 +376,7 @@ only their own small sway and bob move them.
 **Vaults and landings from your own eyes.** Crouching for a vault you glance down at the sill or the rail, your hands
 planted on it in view, each on its own side; the view pitches with your lean as you go over, rolls with the way you're
 crossing and widens a touch at the top of the arc, then you land with a dip, a nod and a little rock that settle on a
-spring (a tired scramble lands harder). With Vault fire most of it's held off, so you stay on the aim. Your gun never leaves your hand for a vault: the right hand keeps hold of it (the left takes the sill), lowered out of the way unless you have Vault fire, and it comes back up on its own as you land, so it's never whipped off your back and back into your hands (a melee weapon is still put away and drawn after). Your eye keeps up with your body all the way over (it used to trail a hand's breadth behind it late in the jump). With Vault fire and your aim further round than your chest can twist, your head turns the rest on your neck, smoothly, and doesn't swing on past the aim as your hips come back under you. What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
+spring (a tired scramble lands harder). With Vault fire most of it's held off, so you stay on the aim, and your gun's kept steady in the view the whole way over, carried by your eyes as it is on your feet (it used to go over with the vaulting body, swung up and round and trailing a moment behind where you looked). Your gun never leaves your hand for a vault: the right hand keeps hold of it (the left takes the sill), lowered out of the way unless you have Vault fire, and it comes back up on its own as you land, so it's never whipped off your back and back into your hands (a melee weapon is still put away and drawn after). Your eye keeps up with your body all the way over (it used to trail a hand's breadth behind it late in the jump). With Vault fire and your aim further round than your chest can twist, your head turns the rest on your neck, smoothly, and doesn't swing on past the aim as your hips come back under you. What rides on your back isn't drawn from your own eyes, so aiming high never fills the view with sleeves or a bat over your shoulder. The
 station you get is the one you're looking at (a ray out from your eyes against each station's box, within about two
 metres; nothing is picked up if you're not looking at one), outlined while you look at it, an open one staying open
 while you're still in reach of it, and a click out on the game puts an open station away and takes the mouse
@@ -380,7 +389,9 @@ glow sits over it all through the day and night.
 **How the body moves.** Your survivor's animation runs through an animation graph, the way a game engine's does. Getting
 about is a blend space: a forward stride, a backpedal and a side step each way are separate gaits, mixed by which way
 you're going relative to where your hips face, so a diagonal is part stride and part side step, and the mix slides
-round as you change direction. Walking backwards is its own walk: shorter steps, each foot lifted early and reached
+round as you change direction. Running, each thigh's driven further up in front than it goes back behind, and the
+standing knee gives under you mid-stance and straightens to push off; at a sprint the knees come right up through the
+swing and the heels kick up under the seat, while the foot you stand on stays down under your hips. Walking backwards is its own walk: shorter steps, each foot lifted early and reached
 back, landing toe first on bent knees. Strafing is a real side step: the leading foot steps out, the other closes in
 after it, the hips riding over each foot and rocking as the other lifts, and the feet never cross. Over that, a state
 machine knows whether you're getting about, landing, vaulting or getting up at the start of a run. Changing state
@@ -486,21 +497,23 @@ up and in, rolled over to show one side and then the other, swung round to see d
 along its back and top, your head following it. Each move starts gently, swings through and settles into its pose
 with a little give, the hands never quite still. The hand on the grip keeps hold of it as it was however the gun's
 turned (the wrist turns with it), and the gun's never held further out or nearer in than your arms comfortably reach,
-so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side;
-the revolver's twirled round your trigger finger first, two quick turns of a cowboy's spin that slow as you catch it,
-before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
-away while you look (from above they stay). The handgun's brought up close in the middle of your view and turned
-on its side in the hand, its muzzle tipped up to the left and its top to the right, your thumb along the frame, then
-rolled right over to its other side, stood muzzle up and tipped down to look along the slide. Every gun has its own
-way of being looked over, after what you'd check on that one: the .50 is heavy in the hand, so it's slower, muzzle up
-at its front first; the revolver gets its spin; the pump's rolled onto its side to look into the loading port, then
+so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side.
+From your own eyes the gun's held up in front of you and the HUD and the crosshair are put away while you look (from
+above they stay). Every sidearm but the revolver (the handgun and the .50 alike) is looked over the same way: brought
+up close in the middle of your view and turned on its side in the hand, its muzzle tipped up to the left and its top
+to the right, your thumb along the frame, then rolled right over to its other side, stood muzzle up and tipped down to
+look along the slide. The revolver's only twirled: held out to the side on a loose wrist, a little wind back, then
+flicked forward round your trigger finger for three turns, quick off the hand and slowing all the way into the palm
+(never at a steady rate), caught with a small rock past the grip, held a beat, flicked one turn back the other way into
+the hand and brought back onto the aim. Every long gun has its own way of being looked over, after what you'd check
+on that one: the pump's rolled onto its side to look into the loading port, then
 its ejection port, the bead and the ghost ring; the double's muzzles are tipped right up to look over the rib at both
 bores before each side plate; the auto shotgun shows its left side and its mag from below; the hunting rifle is
 sighted along its top first, unhurried, then rolled to its bolt; the battle rifle's canted forty-five degrees each
 way and lifted to look at its mag well; the machine pistol's light, so it's flicked about quickly; the SMG shows its
 cocking tube, the front sight's hood and the drum sight; the AR its left side, the port and forward assist, and its
 mag well; the LMG's heavy, so it's only hefted and tipped a little each way before a look over the feed cover. At the
-end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short: it slows to a stop where it is under the menu and carries on once the menu's gone. A melee weapon's looked over its own way: a one-hander (the
+end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short: it slows to a stop where it is under the menu and carries on once the menu's gone, dead still while it's stopped (the hands' small shake stops with it). Paused from your own eyes, it eases off with the rest of the hold to the plain grip facing ahead, and eases back into the look-over from where it stopped as you resume. A melee weapon's looked over its own way: a one-hander (the
 crowbar, the wrench, the machete) is brought up in front of your face, turned to show one flat and then the other,
 laid across to look along its edge and twirled once in the fingers before it drops back to the guard; the katana's
 held across in both hands at the chest and turned, then stood up to look up its edge; the axe, the sledge and the bat

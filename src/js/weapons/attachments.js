@@ -112,10 +112,11 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.0285 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends, the eyepiece's filling its bell
       p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: rl ? rl.relief : 0.125 };   // (relief: back far enough that the eyecup shows as a dark shell round the picture, as an ACOG's body does)
       lensOn(p, sx, sy, cz - 0.186 * lk - 0.0027, 0.0285 * rk);   // (the eyepiece's glass you look into: effects/scope-view.js)
-      { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye
+      { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01], [0.0285 * rk, e + 0.01], [0.0285 * rk, e - 0.014]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye, a solid ring down onto the eyepiece (never a loose one standing off it)
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
-    } else if (side && sight <= 2) pistolDot(p, sx, by, bz, sight === 2 ? 'cdot' : 'dot');
+    } else if (side && sight === 1) pistolDot(p, sx, by, bz, 'dot');
+    else if (tierCtx === 'smg' && sight === 1) pistolDot(p, sx, by, bz, 'dot', 'rmr');   // (the machine pistol's: a Trijicon RMR, as a pistol's)
     else if (sight >= 2) {
       // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
       // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
@@ -153,7 +154,7 @@ export function fitAttachments(g, D, front, y, info) {
   }
   return front;
 }
-// a handgun's red dot (its first sight step; the second shows a circle-dot in it instead), cut into the slide, after
+// a handgun's red dot (its first sight step; its second puts the holographic sight on instead), cut into the slide, after
 // the four you see most, each its true size: a Trijicon RMR, its hood a shield, the sides raked in to a flat top; an SRO,
 // the RMR's base under a big round window with the battery cap on top; a Holosun 507C, a squared shroud with flat sides,
 // the solar panel on top at the back, the battery tray in the right side and the buttons in the left; a Leupold
@@ -171,8 +172,8 @@ const PDOT = {
 };
 const PDOT_KINDS = Object.keys(PDOT);
 const pdotOf = id => { const r = W8.rds || (W8.rds = {}); if (!PDOT[r[id]]) r[id] = PDOT_KINDS[Math.floor(Math.random() * PDOT_KINDS.length)]; return r[id]; };
-function pistolDot(p, sx, by, bz, ret) {
-  const k = pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
+function pistolDot(p, sx, by, bz, ret, kind) {
+  const k = kind || pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
   box(p, Q.W, low - by, Q.L, GM.metal, sx, (by + low) / 2, bz);   // the base, down in the slide's cut, up to the window's foot
   // the hood round the window, its front a little rounded off
   let hood;

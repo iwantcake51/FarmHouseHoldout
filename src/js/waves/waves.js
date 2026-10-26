@@ -107,7 +107,7 @@ export function waveCleared() { netCleared(); setPhase('cleared'); setClearT(2.6
 // zombie path field, break timer, spawning and wave clear. Returns true when the upgrade screen opens
 export function updateWaves(dt) {
   if (netClient()) return clientWaves(dt);   // co-op, someone else hosting: their game runs the waves (net/sync.js)
-  setFlowT(flowT - dt); if (flowT <= 0 || flowDirty) { computeFlow(); setFlowT(0.25); setFlowDirty(false); }
+  setFlowT(flowT - dt); if (flowT <= 0 || flowDirty) { computeFlow(flowDirty); setFlowT(0.25); setFlowDirty(false); }
 
   if (phase === 'break' && cheatIs('noWaves')) {   // the cheat menu switched the waves off (ui/cheats.js): the break never runs out
     setH('wSub', `Waves off · <kbd class="ki">${keyIcon('f9')}</kbd> cheat menu`);

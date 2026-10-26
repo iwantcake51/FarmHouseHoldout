@@ -26,7 +26,7 @@ function portBolt(g, x, y, z0, z1, w, h) {
 // (fz), its hole's radius (r) and the ring's own thickness (t); the ears either side of it (their inner faces ex from the
 // middle, from z0 to z1 along the gun, their tops at top). The picatinny rail on the receiver ahead of it (from z0, or
 // zs with an optic, the rear sight taken off: to z1; its foot at y, its top at top)
-const GHOST = { y: 1.1785, z: 0.566, fz: 1.372, r: 0.0036, t: 0.0016, ex: 0.011, ez0: 0.556, ez1: 0.574, top: 1.1875, relief: 0.11 };   // (relief: your eye that far behind the ring, as a ghost ring's used, clear of the tang and its safety, which a peep's distance had a couple of centimetres from your eye, big and cut off at the edge of the view)
+const GHOST = { y: 1.1785, z: 0.566, fz: 1.372, r: 0.0036, t: 0.0016, ex: 0.011, ez0: 0.556, ez1: 0.574, top: 1.1875, relief: 0.15 };   // (relief: your eye that far behind the ring, as a ghost ring's used, back over the comb where the stock's dropped away under it (nearer, the comb and the tang came up into the camera's near cut and showed hollow), clear of the tang and its safety, which a peep's distance had a couple of centimetres from your eye, big and cut off at the edge of the view)
 // the double barrel's bead (radius, m) and how far over the rib's top your eye looks down it at the breech
 const DBL_SIGHT = { front: 0.0034, eye: 0.02, relief: 0.34 };   // (relief: your eye that far behind the breech, back on the comb behind your hand on the wrist, not over it with your sleeve in your eye)
 const PUMP_RAIL = { z0: 0.58, zs: 0.53, z1: 0.712, y: 1.1615, top: 1.1725 };
