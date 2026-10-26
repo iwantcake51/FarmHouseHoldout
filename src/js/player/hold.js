@@ -14,9 +14,10 @@ import {
 } from '../weapons/gun-materials.js';
 import { BOLT_KNOB, shellMat } from '../weapons/gun-models.js';
 import { CYC_ANT, cyclePose, EJECT } from '../weapons/casings.js';
-import { vaultGun } from './vaulting.js';
+import { vaultHold } from './vaulting.js';
 import { SFX } from '../audio/sfx.js';
 import { state } from '../game/state.js';
+import { netLink } from '../net/net.js';
 import {
   BRK_GRAB, brkShutP, CH_BACK, CYL_GRAB, CYL_LATCH, cylShut, CH_BOUNCE, CH_DRAW, CH_MAG, CH_PULL, CH_REACH, CH_SLAM, MAG_SEAT, magDropT, PS_MAG,
   PS_REL, PS_TUG, relHeld, reserveOf, rowLoad, SHELL_IN, SL_DROP, SL_IN, SL_SHUT, SLIDE_PISTOLS
@@ -311,19 +312,23 @@ function handTarget(out, side, onGun, free, wt, rdt, stiff) {
 // with the muzzle tipped up and the shoulder turned in (SHOVE_WIND), then driven out hard, the muzzle chopping down
 // onto whatever's there (SHOVE_STRIKE), and eased back to the aim. The body only leans into it a little; there's no
 // step. (A melee weapon bashes instead: MBASH, melee/melee-anim.js.) Each pose is [push, lean, twist, pitch, roll]
-const SHOVE_WIND = [-0.07, -0.02, -0.12, -0.32, 0.14], SHOVE_STRIKE = [0.25, 0.07, 0.08, 0.2, -0.06];
+// Its phases (SHOVE_PH, of the shove's time): the wind-up ends at wind, the blow's out at strike. Every join is met at
+// rest or moving on at the same speed: the blow sets off from the wind-up gathering speed (quickest a third of the way
+// out, SHOVE_STRIKE_E) rather than at full speed in one frame, which read as a jolt
+const SHOVE_WIND = [-0.07, -0.02, -0.12, -0.32, 0.14], SHOVE_STRIKE = [0.25, 0.07, 0.08, 0.2, -0.06], SHOVE_PH = { wind: 0.22, strike: 0.42 };
+const SHOVE_STRIKE_E = x => 1 - (1 - x) ** 3 * (1 + 3 * x);
 function shovePose() {
   const sv = P.shove;
   if (!sv) return null;
-  const p = clamp(sv.t / sv.dur, 0, 1);
+  const p = clamp(sv.t / sv.dur, 0, 1), F = SHOVE_PH;
   let pose, q;
-  if (p < 0.2) { const w = smooth(p / 0.2); pose = SHOVE_WIND.map(v => v * w); q = w; }
-  else if (p < 0.34) { const e = 1 - Math.pow(1 - (p - 0.2) / 0.14, 3); pose = SHOVE_WIND.map((v, i) => v + (SHOVE_STRIKE[i] - v) * e); q = 1; }
+  if (p < F.wind) { const w = smooth(p / F.wind); pose = SHOVE_WIND.map(v => v * w); q = w; }
+  else if (p < F.strike) { const e = SHOVE_STRIKE_E((p - F.wind) / (F.strike - F.wind)); pose = SHOVE_WIND.map((v, i) => v + (SHOVE_STRIKE[i] - v) * e); q = 1; }
   else {
     // back to the hold on one long ease, slow off the blow, quickest halfway and settling in gently, the push and the
     // muzzle drawn back a little further than the rest so it eases down onto the aim (nothing in it stops or starts
     // at a corner, so it runs into the hold without a jolt when the shove ends)
-    const u = (p - 0.34) / 0.66, r = 1 - u * u * u * (u * (6 * u - 15) + 10), o = 0.1 * u * Math.pow(Math.sin(Math.PI * u), 2);
+    const u = (p - F.strike) / (1 - F.strike), r = 1 - u * u * u * (u * (6 * u - 15) + 10), o = 0.1 * u * Math.pow(Math.sin(Math.PI * u), 2);
     pose = SHOVE_STRIKE.map((v, i) => v * r - (i === 0 || i === 3 ? v * o : 0)); q = r;
   }
   return { q, push: pose[0], lean: pose[1], tw: pose[2], pit: pose[3], roll: pose[4] };
@@ -420,9 +425,11 @@ const FP_AK = { flip: 14, back: 2, run: { swing: 0.075, lift: 0.028, tip: 0.3, t
 // than seen end on down its back
 const FP_INSPECT_TURN = { hand: 0, long: 0.35 };
 // sprinting from your own eyes: the gun drawn in against your chest (z, metres back; x across toward your middle;
-// h up), angled a little across you (y), canted over (r) and its muzzle tipped well down (p: a long gun about 27
-// degrees, a handgun about 29), raised to stay in the bottom of the view as it tips
-const FP_SPRINT = { long: { p: 0.48, y: 0.1, r: 0.45, x: 0.03, h: 0.2, z: -0.18 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
+// h up), a long gun angled well across you (y) and canted over (r) so it's carried across the body and seen from its
+// side, muzzle down to your left, rather than pointed straight ahead and down where all you saw was its back end coming
+// at you; a handgun only a little across; muzzle tipped well down (p: a long gun about 24 degrees, a handgun about 29),
+// raised to stay in the bottom of the view as it tips
+const FP_SPRINT = { long: { p: 0.42, y: -0.55, r: 0.5, x: -0.07, h: 0.22, z: -0.14 }, hand: { p: 0.5, y: 0.12, r: 0.2, x: 0.02, h: 0.26, z: -0.18 }, ak: { p: 0.3, y: 0, r: 0, x: 0, h: 0.08, z: -0.12 } };   // (a pair: each hand's own run, FP_AK)
 // where the firing hand lines a round up before thumbing it into a bolt gun: over the port, behind it, out to the right.
 // Then the round's laid in the port on top of the ones in the well (lay, metres up off the port's bottom, over the
 // reload's stretch at[0] to at[1]), pressed down into it by the thumb (press, metres, at[1] to at[2]), held there a
@@ -485,8 +492,18 @@ function spinGun(gg, s, g, a) {
   gunPt(_spP, s, 'R', g[0], g[1] + SPIN_AT[0], g[2] + SPIN_AT[1]); gunPt(_spA, s, 'R', g[0] + 1, g[1] + SPIN_AT[0], g[2] + SPIN_AT[1]).sub(_spP).normalize();
   _spQ.setFromAxisAngle(_spA, a); gg.position.sub(_spP).applyQuaternion(_spQ).add(_spP); gg.quaternion.premultiply(_spQ); gg.updateMatrix();
 }
+// paused from your own eyes (alone: in co-op the farm keeps going), whatever the hands were in the middle of (a reload,
+// working the action, the low ready) eases off to the plain hold, facing straight ahead, and eases back into it as you
+// resume, carrying on from where it stopped; ANIM.pzK how far (PAUSE_IDLE: how quickly, into it and out of it)
+const PAUSE_IDLE = { in: 4, out: 6 };
+const FP_HOLD_BOB = 0.3;
+function pauseIdle(rdt) {
+  const on = fpOn() && state === 'paused' && !netLink() ? 1 : 0, k = ANIM.pzK || 0;
+  ANIM.pzK = k + (on - k) * Math.min(1, rdt * (on ? PAUSE_IDLE.in : PAUSE_IDLE.out)); if (ANIM.pzK < 1e-3 && !on) ANIM.pzK = 0;
+  return smooth(ANIM.pzK);
+}
 function poseGun(D, up, ph, runF, rdt, now, sh) {
-  const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s];
+  const pm = PM, s = W8.cur, id = curId(), H = HOLD[id] || HOLD_DEF, ak = !!D.akimbo, gg = gunMeshes[s], pz = pauseIdle(rdt);
   const heavy = D.ammo === 'shells' || D.ammo === 'rifle' || (D.dmg || 0) > 60;
   const sw = smooth(ANIM.sw), ads = ANIM.ads || 0;
   // how far down you're pointing (weapons/combat-update.js): eased onto on a spring (ARM_AIM), so the arms settle onto
@@ -495,7 +512,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     const A = fpOn() ? ARM_AIM_FP : ARM_AIM; for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'pitch', 'vPitch', pT, A.k, A.d, h); }
   // (a gun that's harder to hold still, a heavy one, a pair, a pistol with nothing to brace it, drifts more at rest: its
   // unsteadiness, player/shaky-hands.js, IDLE_UNSTEADY of it)
-  const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) * frontHeavy(id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
+  // (from your own eyes the stride's lift and roll of the gun is mostly left to the view's own bob, which turns it with
+  // each step rather than bouncing it: FP_HOLD_BOB of it, game/view-cam.js VM_BOB_ROT)
+  const fb = fpOn() ? FP_HOLD_BOB : 1;
+  const idle = Math.sin(now * 1.6) * 0.015 * (1 + (gunUnsteady(D, id) * frontHeavy(id) - 1) * IDLE_UNSTEADY) + Math.sin(ph) * 0.03 * fb * Math.min(1, runF) * (1 - 0.65 * ads);   // the walk hardly reaches the gun down the sights
   // reloads: rel is what kind, rp how far through this mag or this shell, re eases the gun into and out of its reload pose
   // (rp goes by the reload's base, weapons/reload.js: relStep, which stands still through a beat slipped into it: a fumble,
   // a missed magwell)
@@ -533,8 +553,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (REL_ENV), not eased straight at it, so it sets off from rest and settles in: eased, the way back to the hold left at
   // full speed the instant the reload's last beat went, a jump just as the mag was slapped home
   { const tg = rel === 'mag' ? ((PS ? rp < 0.95 : CH ? rp < CH_SLAM + 0.015 : rpm < 0.86) ? 1 : 0) : rel ? 1 : shP >= 0 ? 1 - 0.55 * shK : cyP >= 0 ? 1 - 0.7 * smooth(clamp((cyP - CYL_LATCH) / (1 - CYL_LATCH), 0, 1)) : 0;   // (closing the double barrel: the stock comes up to meet the barrels)
-    const w = (tg < ANIM.relEnv ? REL_ENV.out : REL_ENV.in) * FL.env;
-    if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'relEnv', 'vrelEnv', tg, w * w, 2 * w, dt);
+    const w = (tg * (1 - pz) < ANIM.relEnv ? REL_ENV.out : REL_ENV.in) * FL.env;
+    if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'relEnv', 'vrelEnv', tg * (1 - pz), w * w, 2 * w, dt);
     ANIM.relEnv = clamp(ANIM.relEnv, 0, 1); }
   const re = ANIM.relEnv, rk = ANIM.relKind;
   // working the pump or the bolt (weapons/casings.js has the beats): cp says where the action is and how hard it's jolting
@@ -542,7 +562,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // ---- the gun: lowered for switching, bandaging and crawlers, canted and brought in for reloads, pushed out by a shove
   const blade = ak ? 0 : H.blade * (1 - sw * 0.6), rd = smooth(clamp(ANIM.ready || 0, 0, 1));   // (rd: down at a low ready, sprinting)
   FP_PIV.p = fpOn() ? ANIM.pitch * (1 - rd) : 0;   // (from your own eyes the look's left off the hold: FP_PIV)
-  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) - FP_PIV.p + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
+  let pitch = 0.9 * sw + ANIM.pitch * (1 - rd) - FP_PIV.p + (sh ? sh.pit : 0), yaw = 0, roll = idle * 0.5 + (sh ? sh.roll : 0), ox = 0, oy = Math.sin(ph * 2) * 0.012 * fb * Math.min(1, runF) * (1 - 0.6 * ads), oz = sh ? sh.push : 0;
   // no two reloads alike (W8.relJit, set as each one starts: weapons/reload.js): the pose a touch more or less, and the
   // gun never quite still in the hands while they work on it
   const J = W8.relJit || REL_JIT0, AT = _actT;
@@ -608,6 +628,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   if (cg) { AT.r += 0.26 * cg; AT.p -= 0.07 * cg; AT.h += 0.02 * cg; AT.z -= 0.03 * cg; pitch -= 0.05 * slamK; oz -= 0.018 * pull - 0.012 * slamK; }   // canted over to reach the charging handle, tugged back with it, jolted as it slams home
   // the reload's motion, sprung (ACT), and its knocks on their own (KNOCK)
   if (rdt > 0) stepKnock(rdt);
+  if (pz > 0) for (const a of ACT_AX) AT[a] *= 1 - pz;
   if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) for (const a of ACT_AX) { const hd = a === 'hp' || a === 'hy' || a === 'tw'; springTo(ACT, a, 'v' + a, AT[a], hd ? ACT_K * 0.5 : ACT_K * FL.kK, hd ? ACT_D * 0.75 : ACT_D * FL.dK, dt); }   // (the head and chest your own; the gun's by its weight)
   // (from your own eyes much less of its roll and turn: what shows the well or the port to someone watching only wrenches
   // the gun about in front of you, FP_REL_TURN)
@@ -642,8 +663,8 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   gunPush(gg, s, H, ak, fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
-  // the left gun put away for a Vault fire vault and drawn again after (AK_DRAW); akHolstered while it's away
-  if (ak && vaultGun()) { ANIM.akIn = true; ANIM.akDraw = 0; }
+  // the left gun put away for a vault (the left hand takes the sill) and drawn again after (AK_DRAW); akHolstered while it's away
+  if (ak && vaultHold()) { ANIM.akIn = true; ANIM.akDraw = 0; }
   else if (!ak) ANIM.akIn = false;
   else if (ANIM.akIn) { ANIM.akDraw += rdt / AK_DRAW; if (ANIM.akDraw >= 1) ANIM.akIn = false; }
   ANIM.akHolstered = !!ANIM.akIn && (!!P.vault || ANIM.akDraw < AK_GRAB);

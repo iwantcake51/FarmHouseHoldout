@@ -29,7 +29,7 @@ import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { P } from './player.js';
 import { curId, S, stamMax, W, W8 } from '../game/run-state.js';
 import { burst } from '../effects/particles.js';
-import { fenceTarget, nearestOpening, tryVault, vaultTarget } from './vaulting.js';
+import { fenceTarget, nearestOpening, tryVault, vaultGun, vaultHold, vaultTarget } from './vaulting.js';
 import { openSt } from '../stations/station-ui.js';
 import { SFX } from '../audio/sfx.js';
 import { footstep } from '../audio/footsteps.js';
@@ -196,7 +196,7 @@ export function sprintCarve(dt, tvx, tvz) {
 // jolt), then the turn round (pivK, its steps on pivPh, kept in time with the body coming round so each foot is set
 // down a little further round), all with the gun still down (unless you've pulled the trigger)
 export function sprintAnim(rdt) {
-  const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ);
+  const rg = runGunning(), pv = P.pivot, on = (P.sprint && !rg) || (!!pv && !P.fireQ) || (vaultHold() && !vaultGun());   // (and over a vault, one-handed, unless you can shoot on the way)
   if (pv) {
     // the body starts round as the feet dig in and eases round to the new way
     const u0 = PIVOT.brake * 0.4, u = smooth(clamp((pv.t - u0) / (pv.dur - u0), 0, 1));
@@ -208,7 +208,7 @@ export function sprintAnim(rdt) {
   // down and back up on a spring (READY_W: how quick, down and up), so the gun starts lowering gently, swings down
   // through the middle and settles muzzle down rather than dropping at once; back up a touch quicker (a heavy gun
   // comes up slower: D.heavy.ready)
-  { const w = on ? READY_W.down : READY_W.up * (((W(curId()) || {}).heavy || {}).ready || 1), to = on ? 1 : 0, h = Math.min(rdt, 0.05);
+  { const w = on ? READY_W.down : READY_W.up * (((W(curId()) || {}).heavy || {}).ready || 1), to = on ? 1 - (ANIM.pzK || 0) : 0, h = Math.min(rdt, 0.05);   // (eased back up while paused: pauseIdle, player/hold.js)
     ANIM.readyV = (ANIM.readyV || 0) + (w * w * (to - (ANIM.ready || 0)) - 2 * w * (ANIM.readyV || 0)) * h; ANIM.ready = clamp((ANIM.ready || 0) + ANIM.readyV * h, 0, 1.02); }
   ease('faceK', on || P.sprint ? 1 : 0, 6, 5);
   ease('rgK', rg ? 1 : 0, 7, 5);   // the twist goes in a touch slower than the gun comes up, and unwinds as it goes down

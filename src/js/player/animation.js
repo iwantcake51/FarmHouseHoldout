@@ -17,7 +17,7 @@ import { stepDrop } from '../effects/weapon-drop.js';
 import { barrelFire } from '../effects/puffs.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { pXray } from '../effects/outlines.js';
-import { vaultGun } from './vaulting.js';
+import { vaultGun, vaultHold } from './vaulting.js';
 import { vaultAt, VB } from './vault-plan.js';
 import { gunGlow, gunGlowId, setGunGlow, setGunGlowId, state, worldK } from '../game/state.js';
 import { INTRO, introKneel, introLook, introPose, titleBlend } from '../game/intro.js';
@@ -139,7 +139,7 @@ function vaultHands(pm, v) {
   // once the hands let go they swing out loose for balance (the weapon's put away), and stay loose through the landing:
   // the weapon is drawn from there as you touch down (player/swap.js), so the hands don't first come up empty to where
   // it would be
-  const one = vaultGun();   // Vault fire: the right hand stays on the gun, the left does the vault alone, and takes its time coming back to it
+  const one = vaultHold();   // a gun: the right hand stays on it, the left does the vault alone, and takes its time coming back to it
   const wb = air ? vk(t, 0.35, 0.55) * (one ? 1 - vk(t, 0.66, 1) : 1) : 0;
   if (wb > 0.001) [['L', pm.armL, -1], ['R', pm.armR, 1]].filter(a => !(one && a[0] === 'R')).forEach(([s, arm, sd]) => {
     _vr.copy(arm.rotation); _vp.copy(arm.position); const sc0 = arm.scale.z;
@@ -196,6 +196,7 @@ function worryStep(rdt) {
   if (ANIM.worry < 0.002 && !want) ANIM.worry = 0;
 }
 const BODY_YAW = { k: 420, z: 0.72, max: 20 };
+const VAULT_LOOK = { max: 0.9, k: 140, d: 22 };
 // first person: how much of the stride's rise, fall and sway (stride), of the lean into moving (lean) and of the chest
 // leading round and banking into a turn (turn: what swings the arms and the gun about as you look round) the chest keeps
 const FP_BODY = { stride: 0.25, lean: 0.35, turn: 0.15 };
@@ -233,7 +234,9 @@ function animatePlayer(dt, rdt) {
   // (in first person the chest's always on the aim, the gun with it, the hips and legs coming round under it: game/view-cam.js)
   const fp = fpOn(), rgK = fp ? 1 : ANIM.rg, rgTw = (fp ? angDiff(P.aim, ANIM.yaw) : clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * rgK) + ANIM.rgT * (1 - rgK); ANIM.chestYaw = ANIM.yaw + rgTw;   // (from your own eyes never held back off the aim, however hard you flick: the arms were left behind and flung out of view)
   // how fast the chest is turning (not the hips swinging round to a sill or back from one)
-  const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12); ANIM.prevYaw = ANIM.chestYaw;
+  // (nor the chest coming round onto your aim as the hips catch up after a Vault fire vault: it was held short of it,
+  // the head turned the rest, VAULT_LOOK, and counting it as a turn of yours sent the head swinging on past the aim)
+  const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12) * (P.vault || ANIM.postVault > 0 ? 1 - (ANIM.rg || 0) : 1); ANIM.prevYaw = ANIM.chestYaw;
   // you stand on whatever's underfoot (surfaceY in world/house.js): up onto the porch, its step and the door's
   // threshold, and the floorboards and rugs indoors, the soles just on top; stepping up and down takes a moment
   { const s = surfaceY(P.x, P.z), t = s > 0 ? s + SOLE_LIFT : 0; ANIM.standY += (t - ANIM.standY) * Math.min(1, rdt * 16); }
@@ -468,6 +471,15 @@ function animatePlayer(dt, rdt) {
     springTo(ANIM, 'menuH', 'vmenuH', tgt, 130, 17, Math.min(rdt, 0.04));
   }
   wy += ANIM.menuH;
+  // Vault fire with your aim further round than the chest can twist off the hips (rgTw's 1.2): the head turns the rest
+  // on the neck (VAULT_LOOK max), and lets go as the hips swing back under you. The spring's on where the head faces in
+  // the world (vlW), not on its turn off the chest, so the chest swinging round under it doesn't swing the head on past
+  if (rdt > 0) {
+    const ch = ANIM.chestYaw, rg = fpOn() ? 0 : ANIM.rg || 0;
+    if (ANIM.vlW === undefined || rg <= 0) { ANIM.vlW = ch; ANIM.vvlW = 0; }
+    else { const tgt = ch + clamp(angDiff(P.aim, ch), -VAULT_LOOK.max, VAULT_LOOK.max) * rg; ANIM.vlW = ch + angDiff(ANIM.vlW, ch); springTo(ANIM, 'vlW', 'vvlW', ANIM.vlW + angDiff(tgt, ANIM.vlW), VAULT_LOOK.k, VAULT_LOOK.d, Math.min(rdt, 0.04)); }
+  }
+  wy += clamp(angDiff(ANIM.vlW ?? ANIM.chestYaw, ANIM.chestYaw), -VAULT_LOOK.max, VAULT_LOOK.max);
   // at a sprint the head stops where a neck does (SPRINT_LOOK neck, max), on the shoulders and from the way you run,
   // looking about or twisted round with Run and gun
   const nk = Math.max(ANIM.lookK || 0, smooth(clamp(ANIM.rgK || 0, 0, 1)) * (1 - (ANIM.rg || 0)));
@@ -488,7 +500,7 @@ export function updatePlayerVisuals(dt, rdt) {
   animatePlayer(dt, rdt);
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   { const t = (1 - titleBlend()) * (fpOn() ? 0 : 1), k = t * smooth(clamp(roofOver(P.x, P.z), 0, 1)); if (pXray.rim.opacity !== 0.75 * k || pOutline.opacity !== 0.1 * t) { pXray.rim.opacity = 0.75 * k; pXray.sil.opacity = 0.2 * k; pOutline.opacity = 0.1 * t; pXray.rim.visible = pXray.sil.visible = pXray.fill.visible = k > 0.003; } }   // (gone, it's left out of the frame rather than drawn invisibly: three draws a piece of you)   // (the see-through outline fades with a roof going from over you: roofOver, world/cutaway.js; and none of it in first person: game/view-cam.js)
-  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultGun()) && !(ANIM.bandP >= 1); });   // put away while you vault (it rides on your body, player/stow.js), unless you can shoot on the way over, and while you bandage
+  SLOTS.forEach(s => { gunMeshes[s].visible = W8.cur === s && !P.dead && (!P.vault || vaultHold()) && !(ANIM.bandP >= 1); });   // a melee weapon's put away while you vault (it rides on your body, player/stow.js), a gun stays in hand; and while you bandage
   updatePack(dt); updateStow(rdt);
   updateSwap(dt, rdt);   // a weapon swap in progress moves the weapons and arms on from there (player/swap.js)
   updateBandStow();      // and so does putting it away for a bandage, or drawing it again after

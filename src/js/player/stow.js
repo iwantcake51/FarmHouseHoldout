@@ -16,7 +16,7 @@ import { gunMeshes, HOLDS, MUZ, setStowDirty, stowDirty, X } from '../weapons/gu
 import { cyl, solid } from '../weapons/gun-parts.js';
 import { EJECT } from '../weapons/casings.js';
 import { METAL, plankTint } from '../barricades/planks.js';
-import { vaultGun } from './vaulting.js';
+import { vaultHold } from './vaulting.js';
 import { akMags } from '../weapons/akimbo.js';
 import { WALK_SPEED } from './sprint.js';
 import { ANIM } from './animation.js';
@@ -383,7 +383,7 @@ export function updateStow(rdt) {
   }
   for (const s in STOW) {
     // the weapon in your hands goes back on you while you vault
-    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultGun()) || ANIM.bandP >= 1; showStowed(s, stowed, stowed || (s === held && !!ANIM.akHolstered));
+    const o = STOW[s], stowed = s !== held || (!!P.vault && !vaultHold()) || ANIM.bandP >= 1; showStowed(s, stowed, stowed || (s === held && !!ANIM.akHolstered));
     if (!o.visible) continue;
     const t = o.userData.twin;
     if (s === 'side') {

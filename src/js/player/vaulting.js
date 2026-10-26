@@ -122,3 +122,6 @@ export function vaultLand(v) {
 // Vault fire: the gun stays in your right hand through a vault, on the aim, and you can fire it (the left hand takes the
 // sill on its own; a melee weapon is still put away)
 export const vaultGun = () => !!(P.vault && S.vaultFire && !W(curId()).melee);
+// a gun's never put away for a vault: it stays in the right hand the whole way over (the left takes the sill), low and
+// out of the way without Vault fire, so it's never whipped off your back and back into your hands; a melee weapon still is
+export const vaultHold = () => !!(P.vault && !W(curId()).melee);
