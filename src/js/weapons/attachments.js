@@ -110,8 +110,9 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(p, 0.025 * rk, 0.3 * lk, GM.metal, sx, sy, cz + 0.01 * lk, 18);
       taper(p, 0.025 * rk, 0.04 * rk, 0.08 * lk, GM.metal, sx, sy, cz + 0.2 * lk); taper(p, 0.03 * rk, 0.025 * rk, 0.05 * lk, GM.metal, sx, sy, cz - 0.16 * lk);
       cyl(p, 0.037 * rk, 0.005, GM.glass, sx, sy, cz + 0.242 * lk, 24); cyl(p, 0.0285 * rk, 0.005, GM.glass, sx, sy, cz - 0.186 * lk, 20);   // round lenses at both ends, the eyepiece's filling its bell
-      p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: rl ? rl.relief : 0.105 };
+      p.userData.optic = { kind: 'scope', x: sx, y: sy, zr: cz - 0.186 * lk, zf: cz + 0.242 * lk, r: 0.0285 * rk, relief: rl ? rl.relief : 0.125 };   // (relief: back far enough that the eyecup shows as a dark shell round the picture, as an ACOG's body does)
       lensOn(p, sx, sy, cz - 0.186 * lk - 0.0027, 0.0285 * rk);   // (the eyepiece's glass you look into: effects/scope-view.js)
+      { const e = cz - 0.186 * lk; lathe(p, [[0.0285 * rk, e - 0.014], [0.035 * rk, e - 0.014], [0.0365 * rk, e - 0.01], [0.0345 * rk, e + 0.004], [0.03 * rk, e + 0.01]], GM.rubber, sx, sy, 24); }   // a rubber eyecup: the dark shell round the picture from your eye
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (sight >= 2) {

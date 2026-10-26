@@ -111,7 +111,7 @@ const MP5_AP = 0.0029, MP5_HOLE = 0.0158;   // (and how far up the drum it is)
 // one smooth slope, not a staircase, close up to your eye; and your eye's this far behind the hole looking through it,
 // clear of the sight's housing and clamp (the housing runs back a good way behind the drum, and nearer than this it
 // pushes into the view's near edge)
-const MP5_SLICES = 64, MP5_RELIEF = 0.105;
+const MP5_SLICES = 64, MP5_RELIEF = 0.16;
 function mp5Rear(g) {
   const K = GM.metal, M2 = GM.metal2, R = MP5.rw, yc = MP5.top - R, D = MP5_DRUM;
   { const sh = new THREE.Shape(), w = 0.0159, rb = R - 0.0003, a0 = Math.atan2(Math.sqrt(rb * rb - w * w), w);

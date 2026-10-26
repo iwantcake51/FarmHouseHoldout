@@ -189,15 +189,15 @@ export const PISTOL_MODELS = {
     profile(sl, shp([[0.536, 1.122], [0.672, 1.122], [0.672, 1.188], [0.6, 1.188], [0.564, 1.185], [0.553, 1.175], [0.548, 1.17], [0.536, 1.17]]), 0.03, S2, X, 0.003);
     for (let k = 0; k < 9; k++) [-1, 1].forEach(sd => { const sr = box(sl, 0.002, 0.044, 0.0035, D, X + sd * 0.0181, 1.152, 0.6 + k * 0.0072); sr.rotation.x = 0.26; });
     [-1, 1].forEach(sd => { cyl(sl, 0.0078, 0.003, D, X + sd * 0.0188, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); cyl(sl, 0.0062, 0.004, GM.steel, X + sd * 0.0198, 1.171, 0.566, 18).rotation.set(0, 0, Math.PI / 2); const lv = box(sl, 0.003, 0.006, 0.026, GM.steel, X + sd * 0.0198, 1.167, 0.578); lv.rotation.x = 0.22; box(sl, 0.0032, 0.0028, 0.0028, GM.red, X + sd * 0.0198, 1.164, 0.561); });
-    box(sl, 0.024, 0.006, 0.02, S2, X, 1.19, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber);   // the rear sight on its base, its notch level with the front post
+    box(sl, 0.0185, 0.0035, 0.018, S2, X, 1.1877, 0.58); notchRear(sl, X, 1.1975, 0.576, 0.0185, 0.008, 0.012, 0.0055, 0.0045, GM.rubber);   // the rear sight on its base, its notch level with the front post (the base no wider than the sight and wholly under the blades: it stood up into the notch, a pale band right across the view down the sights)
     irons(g, { kind: 'notch', yr: 1.1975, rz: 0.576, yf: 1.1975, fz: 0.901 });
     // the bolt in the slide's mouth, seen when it runs back
     cyl(g, 0.012, 0.075, GM.steel, X, 1.16, 0.64, 14); box(g, 0.024, 0.03, 0.08, GM.rubber, X, 1.15, 0.636);
-    let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.183], [0.916, 1.185]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.006, 0.012, GM.rubber, X, 1.188, 0.935 + k * 0.025); front = 0.916 + L; }   // longer, with another port, each level
+    let front = 0.916; if (m.comp) { const L = 0.1 + 0.03 * (m.comp - 1); profile(g, shp([[0.916, 1.128], [0.916 + L, 1.132], [0.916 + L, 1.166], [0.916, 1.168]]), 0.03, S2, X, 0.003); for (let k = 0; k < 2 + m.comp; k++) box(g, 0.026, 0.004, 0.012, GM.rubber, X, 1.1685, 0.935 + k * 0.025); front = 0.916 + L; }   // (its top and ports kept well under the sights, which used to look straight into them down the sights)   // longer, with another port, each level
     if (roundOn(tierCtx) === 'boom') box(g.userData.magG || g, 0.0366, 0.0035, 0.07, GM.red, X, 0.9595, 0.589);   // explosive tips: the mag's base plate painted with a red band
-    // (a scope or an ACOG goes on the barrel's rail, optRail: the top of it, the middle of its slots, and the eye relief
-    // to hold it at, out at arm's length; the handgun scope a short one, scopeK, slimmer, scopeR, low on its rings, scopeH)
+    // (a scope or an ACOG goes on the barrel's rail, optRail: the top of it, where on its slots (well back, toward you),
+    // and the eye relief to hold it at, out in front of you but not at full stretch, so its picture fills more of the view; the handgun scope a short one, scopeK, slimmer, scopeR, low on its rings, scopeH)
     return { front, y: 1.16, magZ: 0.588, magY: 1.07, slide: sl, travel: 0.07, lock: true, top: 1.188, sz: 0.61, laser: { y: 1.118, z: 0.81 }, stickMags: true,   // the laser under the frame's lip
-      optRail: { top: 1.1875, z: 0.79, relief: 0.24 }, scopeH: 0.038, scopeK: 0.74, scopeR: 0.8 };
+      optRail: { top: 1.1875, z: 0.745, relief: 0.14 }, scopeH: 0.038, scopeK: 0.74, scopeR: 0.8 };
   },
 };
