@@ -231,7 +231,7 @@ function animatePlayer(dt, rdt) {
   if (ANIM.rgT === undefined) ANIM.rgT = ANIM.vrgT = 0;
   if (rdt > 0) springTo(ANIM, 'rgT', 'vrgT', clamp(angDiff(P.aim, ANIM.yaw), -RG_TWIST.max, RG_TWIST.max) * smooth(clamp(ANIM.rgK || 0, 0, 1)), RG_TWIST.k, RG_TWIST.damp, Math.min(rdt, 0.04));
   // (in first person the chest's always on the aim, the gun with it, the hips and legs coming round under it: game/view-cam.js)
-  const rgK = fpOn() ? 1 : ANIM.rg, rgTw = clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * rgK + ANIM.rgT * (1 - rgK); ANIM.chestYaw = ANIM.yaw + rgTw;
+  const fp = fpOn(), rgK = fp ? 1 : ANIM.rg, rgTw = (fp ? angDiff(P.aim, ANIM.yaw) : clamp(angDiff(P.aim, ANIM.yaw), -1.2, 1.2) * rgK) + ANIM.rgT * (1 - rgK); ANIM.chestYaw = ANIM.yaw + rgTw;   // (from your own eyes never held back off the aim, however hard you flick: the arms were left behind and flung out of view)
   // how fast the chest is turning (not the hips swinging round to a sill or back from one)
   const om = (P.vault && !vaultGun()) || !(rdt > 0) ? 0 : clamp(angDiff(ANIM.chestYaw, ANIM.prevYaw ?? ANIM.chestYaw) / rdt, -12, 12); ANIM.prevYaw = ANIM.chestYaw;
   // you stand on whatever's underfoot (surfaceY in world/house.js): up onto the porch, its step and the door's
