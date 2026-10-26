@@ -174,8 +174,12 @@ function fitWraps() {
 }
 const _wc = new V3(), _wa = new V3(), _wu = new V3(), _wv = new V3(), _we = new V3(), _wh = new V3(), _wq = new THREE.Matrix4(), _wx = new V3();
 let wrapLast = 0;
-// where the left hand's held while it's wrapped, in front of your chest (the wrap's on the forearm just behind it)
-const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.24, 1.1, 0.4];
+// where the left hand's held while it's wrapped, in front of your chest (the wrap's on the forearm just behind it).
+// From your own eyes the shoulders are behind the view, so the arms are lifted forward and up off them (BAND_FP_LIFT,
+// as a game's arms are) and the forearm's laid across in front of you, the wrap going on in the bottom of the view,
+// where you can watch it; it turns slowly in the hand as the bandage goes round (BAND_TURN: how far, how fast)
+const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.12, 1.14, 0.22], BAND_FP_LIFT = [0.05, 0.1, 0.24], BAND_TURN = [0.22, 1.7];
+const _wd = new V3();
 export function bandagePose(pm, up, now, sh) {
   const k = ANIM.bandK || 0, n = Math.min(WRAP_AT.length, P.wraps || 0), band = P.bandT > 0, dt = clamp(now - wrapLast, 0, 0.1); wrapLast = now;
   // the wrap going on (the next free one), wound as far as the bandage has gone; any finished ones as they are
@@ -205,8 +209,10 @@ export function bandagePose(pm, up, now, sh) {
   // with the roll, working up the arm as it winds on, the head bent to watch
   const a = pm.armL, rx = a.rotation.x, ry = a.rotation.y, rz = a.rotation.z, px = a.position.x, py = a.position.y, pz = a.position.z, sz = a.scale.z;
   // (from your own eyes it's held higher and further out, where you can watch it go on: BAND_ARM_FP)
-  const B = fpOn() ? BAND_ARM_FP : BAND_ARM;
-  reach(a, 'L', _fL.set(B[0], B[1] + Math.sin(now * 2.1) * 0.01, B[2]), 0.4, true);
+  const fp = fpOn(), B = fp ? BAND_ARM_FP : BAND_ARM;
+  if (fp) _wd.set(BAND_FP_LIFT[0], BAND_FP_LIFT[1], BAND_FP_LIFT[2]); else _wd.set(0, 0, 0);
+  reach(a, 'L', _fL.set(B[0] + Math.sin(now * 1.3) * 0.006, B[1] + Math.sin(now * 2.1) * 0.01, B[2]), 0.4 + BAND_TURN[0] * Math.sin(now * BAND_TURN[1]) * (band ? 1 : 0), true);
+  a.position.add(_wd);
   a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz + (a.rotation.z - rz) * w);
   a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
   a.updateMatrix();
@@ -220,7 +226,7 @@ export function bandagePose(pm, up, now, sh) {
     _wh.applyMatrix4(a.matrix); _we.addScaledVector(_wn, 0.002).applyMatrix4(a.matrix); _fR.copy(_wh);
   } else _fR.set(0, 0, 0.4 * a.scale.z).applyMatrix4(a.matrix).add(_wu.set(0, 1, 0).applyQuaternion(a.quaternion).multiplyScalar(0.12));
   const r = pm.armR, qx = r.rotation.x, qy = r.rotation.y, qz = r.rotation.z, qpx = r.position.x, qpy = r.position.y, qpz = r.position.z, qs = r.scale.z;
-  reach(r, 'R', _fR, 0, true);
+  reach(r, 'R', _fR.sub(_wd), 0, true); r.position.add(_wd);
   r.rotation.set(qx + (r.rotation.x - qx) * w, qy + (r.rotation.y - qy) * w, qz + (r.rotation.z - qz) * w);
   r.position.set(qpx + (r.position.x - qpx) * w, qpy + (r.position.y - qpy) * w, qpz + (r.position.z - qpz) * w); r.scale.z = qs + (r.scale.z - qs) * w;
   // the roll in the fist, along the arm it's going round, and the strip from it to where it's going on
