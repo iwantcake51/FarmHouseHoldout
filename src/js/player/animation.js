@@ -4,7 +4,7 @@ import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
 import { bandRolls, P, pBlob, PM, pOutline } from './player.js';
-import { blinkStep, faceMood, LOOK, wristSway } from './look.js';
+import { blinkStep, faceGaze, faceMood, gazeStep, LOOK, wristSway } from './look.js';
 import { updateCharBlood, updateWeaponBlood, WSTAIN } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, hpCap, W, W8 } from '../game/run-state.js';
@@ -174,6 +174,9 @@ function angerStep(rdt) {
   if (ANIM.anger < 0.002 && !want) ANIM.anger = 0;
   worryStep(rdt); hurtStep(rdt);
   faceMood(LOOK.g.head, ANIM.anger, ANIM.worry, ANIM.hurt, P.dead ? 0 : ANIM.ads || 0, P.dead ? 0 : blinkStep(ANIM.blink || (ANIM.blink = {}), rdt));
+  // and the eyes looking about, free to while you're not aiming, firing or hurt, a little less on the move (player/look.js)
+  const free = P.dead ? 0 : (1 - (ANIM.ads || 0)) * (1 - Math.min(1, (ANIM.anger || 0) * 1.5)) * (1 - Math.min(1, ANIM.hurt || 0)) * (P.moving ? 0.7 : 1);
+  const gz = gazeStep(ANIM.gaze || (ANIM.gaze = {}), rdt, free, ANIM.blink); faceGaze(LOOK.g.head, gz[0], gz[1]);
 }
 // a hit makes you wince (faceMood's h): it's on you at once and held a moment (HURT_FACE.hold, longer for a harder hit),
 // then eases off

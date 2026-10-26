@@ -11,7 +11,7 @@ import { NET, NET_COL, NET_ON, netLink, netSend, netTo } from './net.js';
 import { lam } from '../core/shaders.js';
 import { blobShadow, mergeInto } from '../core/geometry.js';
 import { bandPouch2, bandRolls, KNEE_Y, P, PACK, PM, PM_BASE, PM_BASE_SRC } from '../player/player.js';
-import { blinkStep, buildLook, dealLook, faceGroups, faceMood, LOOK, shade } from '../player/look.js';
+import { blinkStep, buildLook, dealLook, faceGaze, faceGroups, faceMood, gazeStep, LOOK, shade } from '../player/look.js';
 import { SLOTS } from '../weapons/slots.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { curId, magCap, run, S, T, W, W8 } from '../game/run-state.js';
@@ -223,7 +223,8 @@ export function updateAvatars(rdt) {
     else POSE_K.forEach((key, n) => set(a[key], n));
     arsenalFrame(p, a, rdt);   // their weapons (net/arsenal.js)
     { const f = p.fc || [0, 0, 0, 0], e = (key, i) => { a[key] = (a[key] || 0) + ((f[i] || 0) - (a[key] || 0)) * k; return a[key] < 0.002 ? 0 : a[key]; };
-      faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3), p.dead ? 0 : blinkStep(a.blink || (a.blink = {}), rdt)); }   // their face, angry, startled, wincing or aiming as they are
+      faceMood(a.faceH, e('fa', 0), e('fw', 1), e('fh', 2), e('fk', 3), p.dead ? 0 : blinkStep(a.blink || (a.blink = {}), rdt));   // their face, angry, startled, wincing or aiming as they are
+      const gz = gazeStep(a.gaze || (a.gaze = {}), rdt, p.dead ? 0 : (1 - (a.fk || 0)) * (1 - Math.min(1, (a.fa || 0) * 1.5)) * (1 - Math.min(1, a.fh || 0)), a.blink); faceGaze(a.faceH, gz[0], gz[1]); }   // (their eyes wandering on their own: player/look.js)
     if (a.rolls) { const nb = (p.am && p.am[4]) | 0; a.rolls.forEach((m, k) => { m.visible = k < nb; }); }
     const sb = POSE_N * 6; a.armL.scale.set(c[sb], c[sb], c[sb + 1]); a.armR.scale.set(c[sb + 2], c[sb + 2], c[sb + 3]);
     if (a.blob) { a.blob.position.set(a.g.position.x, 0.02, a.g.position.z); }

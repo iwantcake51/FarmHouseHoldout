@@ -3,7 +3,7 @@
 // cleared and rebuilt; colours something else changes later (the shirt under a jacket, skin) stay shared materials,
 // the rest is baked into a few merged meshes per body part.
 
-import { pick, rand, rr } from '../core/math.js';
+import { clamp, pick, rand, rr } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { basic, lam } from '../core/shaders.js';
 import { box, finePieces, mergeInto, roundRectAt, roundRectLen, roundRing, trimShadows, unfight } from '../core/geometry.js';
@@ -243,6 +243,53 @@ export function blinkStep(b, dt) {
   const e = x => x * x * (3 - 2 * x);
   return u < BLINK.shut ? e(u / BLINK.shut) : 1 - e((u - BLINK.shut) / (1 - BLINK.shut));
 }
+// the eyes looking about when you're not busy (the way anyone's do): they rest on a spot a moment (GAZE.hold), then
+// jump to the next in a quick flick (a saccade: GAZE.sac, a little longer the further it goes, quickest at its start)
+// that lands a touch past it (over) and settles back on (settle); every other look or so off to one side or the other
+// and a little up or down (far, up), then back near the middle, now and then a small hop nearby (near). A big look
+// often brings a blink with it (blink). w (0 to 1) is how free they are to wander: they ease back to straight ahead
+// as it drops (aiming, firing, a hit). z holds one face's own; what comes back is [across, up], each -1 to 1
+const GAZE = { hold: [0.7, 2.8], glance: [0.35, 1.3], far: [0.45, 1], up: 0.55, near: 0.25, sac: [0.03, 0.035], over: 0.08, settle: 30, free: 5, blink: 0.35 };
+export function gazeStep(z, dt, w = 1, b) {
+  if (z.hold === undefined) Object.assign(z, { x: 0, y: 0, fx: 0, fy: 0, tx: 0, ty: 0, ex: 0, ey: 0, u: 1, dur: 0.04, hold: rr(0.3, GAZE.hold[1]), w, out: [0, 0] });
+  if (z.u < 1) {   // mid-flick: out fast, slowing onto (just past) the spot
+    z.u = Math.min(1, z.u + dt / z.dur); const e = 1 - Math.pow(1 - z.u, 3);
+    z.x = z.fx + (z.ex - z.fx) * e; z.y = z.fy + (z.ey - z.fy) * e;
+  } else {
+    const k = 1 - Math.exp(-dt * GAZE.settle); z.x += (z.tx - z.x) * k; z.y += (z.ty - z.y) * k;
+    if ((z.hold -= dt) <= 0) {
+      const out = Math.abs(z.tx) > 0.35, r = rand();
+      if (!out && r < 0.55) { z.tx = (rand() < 0.5 ? -1 : 1) * rr(GAZE.far[0], GAZE.far[1]); z.ty = rr(-1, 1) * GAZE.up; z.hold = rr(GAZE.glance[0], GAZE.glance[1]); }
+      else if (!out && r < 0.75) { z.tx = clamp(z.tx + rr(-1, 1) * GAZE.near, -1, 1); z.ty = clamp(z.ty + rr(-1, 1) * GAZE.near * 0.6, -1, 1); z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      else { z.tx = rr(-1, 1) * GAZE.near; z.ty = rr(-1, 1) * GAZE.near * 0.5; z.hold = rr(GAZE.hold[0], GAZE.hold[1]); }
+      const dx = z.tx - z.x, dy = z.ty - z.y, d = Math.hypot(dx, dy);
+      z.fx = z.x; z.fy = z.y; z.ex = z.tx + dx * GAZE.over; z.ey = z.ty + dy * GAZE.over; z.u = 0; z.dur = GAZE.sac[0] + GAZE.sac[1] * d;
+      if (b && d > 0.8 && rand() < GAZE.blink && b.at !== undefined && b.t < b.at - 0.15) b.at = b.t + 0.02;   // (blinking with it, blinkStep)
+    }
+  }
+  z.w += (w - z.w) * (1 - Math.exp(-dt * GAZE.free));
+  z.out[0] = z.x * z.w; z.out[1] = z.y * z.w; return z.out;
+}
+// the eyes put where they're looking (gazeStep): each iris (with its pupil) slid across its white, never past a hair
+// inside its edge (GAZE_FIT.edge), and the pupil up or down inside the iris; get finds the piece to move (a copy of
+// you, the studio's: ui/gun-view.js). Measured on first use, once the look's faces have been pulled apart (rollLook)
+const GAZE_FIT = { edge: 0.0006, ry: 0.7 };
+const _gzS = o => { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; return [(b.max.x - b.min.x) * Math.abs(o.scale.x), (b.max.y - b.min.y) * Math.abs(o.scale.y)]; };
+export function faceGaze(H, gx, gy, get) {
+  const f = H.userData.face; if (!f) return;
+  for (const g of f.eyes) {
+    const z = g.userData.gaze; if (!z || !z.iris || !z.white) continue;
+    if (z.ix === undefined) {
+      const [ww] = _gzS(z.white), [iw, ih] = _gzS(z.iris), ph = z.pupil ? _gzS(z.pupil)[1] : ih, tilt = Math.abs(Math.tan(z.white.rotation.z)) * ih;
+      const half = Math.max(0, (ww - tilt) / 2 - iw / 2 - GAZE_FIT.edge);
+      z.ix = z.iris.position.x; z.lo = z.white.position.x - half; z.hi = z.white.position.x + half; z.rx = half;
+      if (z.pupil) { z.px = z.pupil.position.x; z.py = z.pupil.position.y; } z.ry = Math.max(0, (ih - ph) / 2 - GAZE_FIT.edge) * GAZE_FIT.ry;
+    }
+    const dx = clamp(z.ix + gx * z.rx, z.lo, z.hi) - z.ix, iris = get ? get(z.iris) : z.iris, pupil = z.pupil && (get ? get(z.pupil) : z.pupil);
+    if (iris) iris.position.x = z.ix + dx;
+    if (pupil) { pupil.position.x = z.px + dx; pupil.position.y = z.py + gy * z.ry; }
+  }
+}
 // which eye you aim with (1, or -1 with a patch over that one: faceMood, player/hold.js tips the head to it)
 export const aimEye = L => L && L.face && L.face.patch && L.face.side === 1 ? -1 : 1;
 // how far out the mouth goes: on the face, or just in front of whatever facial hair covers where it is (the stubble's
@@ -301,7 +348,10 @@ export function buildLook(L) {
       if (F.eye === 'tired') { box(H, 0.056, 0.014, 0.014, PM.mats.skinDk, x, y + h / 2 - 0.004, 0.169); box(H, 0.05, 0.012, 0.01, circ, x, y - h / 2 - 0.008, 0.162); }   // heavy lids, dark circles under
     }
     if (F.bags) mark(0.046, 0.008, circ, x, y - 0.026);
-    if (!(F.patch && s === F.side)) face.eyes.push(facePart(H, n0, x, y, 0.165, s));   // (a patch doesn't narrow)
+    if (!(F.patch && s === F.side)) {   // (a patch doesn't narrow, or look about)
+      const g = facePart(H, n0, x, y, 0.165, s), of = m => g.children.find(c => c.material === m);
+      g.userData.gaze = { white: of(white), iris: of(eyeM), pupil: of(dark) }; face.eyes.push(g);
+    }
     const n1 = H.children.length;
     // brows: flat, raised at the middle, drawn down in a frown, heavy or thin; sometimes one with a slit shaved in it
     const by = y + (F.eye === 'tired' || F.eye === 'deepset' ? 0.04 : 0.046) + (F.brow === 'skeptic' && s === F.side ? 0.014 : 0);

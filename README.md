@@ -52,7 +52,10 @@ braided strings, set for each wrist or the same on **Both**; the hands view show
 size and round where the real thing is: a watch's round case with its bezel, markers, hour, minute and seconds hands,
 lugs and crown; a chain's links each turned through the last; round beads. Your arms sit flush against your chest
 (no gap at the shoulder), and the studio stands you with both arms the same length, however your hands were posed. You
-blink now and then, in a run and in the studio, sometimes twice. An eye patch's strap runs round the side of your head
+blink now and then, in a run and in the studio, sometimes twice. When you're not busy your eyes look about: they rest
+on a spot for a moment, then flick to the next (a quick dart that lands a hair past it and settles), off to one side
+and back, a little up or down, often with a blink on a big look. They ease back to straight ahead while you aim, fire
+or take a hit, wander a little less on the move, and do the same in the studio and on teammates. An eye patch's strap runs round the side of your head
 from where it leaves your brow; the eye under it never blinks or squints, and with it over your aiming eye you aim with
 the other one, that eye squinting along the gun and your head tipped over the stock the other way.
 
