@@ -39,7 +39,7 @@ the other one, that eye squinting along the gun and your head tipped over the st
    in to you once the cards are done.
    - Now and then a hand comes with a **sacrifice**. Give up three quarters of your scrap and three more cards are
      dealt (the rarer ones likelier), and you take two of the six.
-   - Rarer, a **curse**: a quarter of your stamina, healing at a quarter strength with worse bleeding (Bad blood:
+   - Rarer, a **curse**: half your stamina, healing at a quarter strength with worse bleeding (Bad blood:
      double scrap), a quarter of your health gone for good (shown in hazard stripes on your bar), slower reloads, hits
      that hurt half again as much (Fragile), or half the scrap from kills, for the rest of the run. Some never come
      together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at

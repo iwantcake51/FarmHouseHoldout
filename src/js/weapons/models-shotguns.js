@@ -8,6 +8,19 @@ import {
   apPart, apPlate, checker, clipTo, cyl, inset, irons, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX, xsec
 } from './gun-parts.js';
 import { SHELL_MAT, shellMat } from './gun-models.js';
+import { clamp } from '../core/math.js';
+
+// a bolt seen through its ejection port (z0 to z1 along the gun, at x, y; w wide, h tall): what the reload and the
+// shots move is the group (its z), and the steel in it is cut, as it's drawn, to the part still inside the port
+function portBolt(g, x, y, z0, z1, w, h) {
+  const b = new THREE.Group(), L = z1 - z0; b.position.set(x, y, (z0 + z1) / 2); g.add(b);
+  const m = box(b, w, h, L, GM.steel, 0, 0, 0), rest = b.position.z;
+  m.onBeforeRender = () => {
+    const sh = clamp(rest - b.position.z, 0, L - 0.0005), l = L - sh;   // (how far it's run back; how much is left in the port)
+    m.scale.z = l / L; m.position.z = (z0 + z0 + l) / 2 - b.position.z; m.updateMatrix(); m.matrixWorld.multiplyMatrices(b.matrixWorld, m.matrix);
+  };
+  return b;
+}
 
 // the pump's ghost ring (a Mossberg 500/590 kit's): the ring's middle (y), where it stands (z) and the front blade's
 // (fz), its hole's radius (r) and the ring's own thickness (t); the ears either side of it (their inner faces ex from the
@@ -89,7 +102,9 @@ export const SHOTGUN_MODELS = {
     checker(fe, clipTo(inset(FE, 0.0115), [[0.875, 1.0], [0.995, 1.0], [0.985, 1.119], [0.885, 1.119]]), 0.029, 0.0034, 0.52);
     [-1, 1].forEach(sd => box(fe, 0.003, 0.006, 0.12, GM.metal2, X + sd * 0.008, 1.134, 0.758));
     // ---- the bolt in the port, which runs back with the forend
-    const bolt = box(g, 0.004, 0.017, 0.074, GM.steel, X - 0.0176, 1.148, 0.656);
+    // (only what's in the port shows: run back, its front leaves the port open in front of it and the rest of it goes
+    // back inside the receiver, rather than sliding back along the outside of it: portBolt)
+    const bolt = portBolt(g, X - 0.0176, 1.148, 0.619, 0.693, 0.004, 0.017);
     // a side saddle of spare shells on the left of the receiver, longer with each magazine tier
     const sm = shellMat(tierCtx);   // in the colour of the shells loaded
     const n = Math.min(8, 4 + T('mag') * 2);

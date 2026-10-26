@@ -60,7 +60,7 @@ export function updateCombat(dt) {
   // stamina comes back after a short breather (Iron lungs makes it shorter and the recovery quicker), and not until a
   // second after you've climbed through or over something. What you ran off (P.runDebt) comes back last, and slowly:
   // only once you've been off a sprint for RUN_REST.wait, at RUN_REST.rate (player/sprint.js)
-  // (all of it out of your stamina's ceiling, stamMax: a Broken stride's quarter, game/run-state.js)
+  // (all of it out of your stamina's ceiling, stamMax: a Broken stride's half, game/run-state.js)
   const sm = stamMax(); if (P.stam > sm) P.stam = sm;
   P.runT = (P.runT || 0) + dt; P.runDebt = clamp(P.runDebt || 0, 0, sm - P.stam);
   if (P.vault) P.stamWait = VAULT_BREATH; else if (P.stamWait > 0) P.stamWait -= dt;

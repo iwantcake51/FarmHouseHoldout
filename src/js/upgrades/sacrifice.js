@@ -2,7 +2,7 @@
 //
 // Give up most of your scrap (SAC.scrap of it) and three more cards are dealt from behind the three, the rarer ones a
 // little likelier (SAC.boost), and you take two of the six. Or, rarer, take on a curse for the rest of the run
-// (CURSES: a quarter of your stamina, healing that barely helps, a share of your health gone for good...; some never
+// (CURSES: half your stamina, healing that barely helps, a share of your health gone for good...; some never
 // together, CLASH) and the hand turns to the best there is: three more cards, legendary perks and tiered skills fully
 // upgraded, every step at once (curseRewards), beside the three already dealt; you take two. Never on a wave with a
 // bonus hand (every BONUS_EVERY), and each curse only once.
@@ -21,8 +21,8 @@ export const SAC = { force: null, chance: 0.28, curse: 0.4, scrap: 0.75, minScra
 // and what it does to you there and then; off: taken back, by the cheat menu, ui/cheats.js), and whether it's still
 // there to take
 export const CURSES = [
-  { id: 'stride', name: 'Broken stride', short: 'Stamina ¼', text: 'Your stamina is cut to a quarter of its max, however much you gain.', can: () => !S.stamCap,
-    st: () => { S.stamCap = 0.25; }, ap: () => { P.stam = Math.min(P.stam, 0.25); P.runDebt = 0; }, off: () => { S.stamCap = 0; } },
+  { id: 'stride', name: 'Broken stride', short: 'Stamina ½', text: 'Your stamina is cut to half of its max, however much you gain.', can: () => !S.stamCap,
+    st: () => { S.stamCap = 0.5; }, ap: () => { P.stam = Math.min(P.stam, 0.5); P.runDebt = 0; }, off: () => { S.stamCap = 0; } },
   { id: 'blood', name: 'Bad blood', short: 'Healing ¼', text: 'All healing is 75% weaker (supply crates aside), bleeding hurts 50% more and lasts 25% longer, and Second wind is gone for good. Kills pay double scrap.', can: () => !S.badBlood,
     st: () => { S.badBlood = true; S.healMul = 0.25; S.bleedX = 1.5; S.bleedLong = 1.25; S.secondWind = false; S.scrapX = 2; }, ap: () => { P.heal = (P.heal || 0) * 0.25; },
     off: () => { S.badBlood = false; delete S.healMul; delete S.bleedX; delete S.bleedLong; delete S.scrapX; } },
