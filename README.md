@@ -105,7 +105,7 @@ buried under the fog beyond them: each shows as much as it would standing where 
 you, gone deep out in the fog), and a sight's reticle always shows through it.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
-charge through fences and plough through the crowd. Shots land where they hit: a leg shot slows them, a severed leg
+charge through fences and plough through the crowd. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
 forearms), and a headshot drops them. Their hitboxes are simple shapes, not the model itself: a round meets a
 zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the

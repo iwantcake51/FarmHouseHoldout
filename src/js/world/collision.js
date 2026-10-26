@@ -1,7 +1,7 @@
 // Blocking rules for zombies, the player and bullets, and circle-vs-grid movement.
 
 import { N } from '../core/math.js';
-import { cell, ci, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from './grid.js';
+import { cell, ci, cxw, FENCE, idx, inb, OBST, OPEN, openAt, WALL } from './grid.js';
 import { thinPush } from './thin-walls.js';
 import { lowObst, obstTop } from './props.js';
 
@@ -28,8 +28,20 @@ export const bulletBlockedAt = (x, z, y) => {
 };
 // zombies caught on a corner by one shoulder (the other side is clear) slip sideways toward the clear side as they push,
 // so they line up with a doorway or a gap instead of grinding on its frame
+// you against the fence: not its whole cell (you were stopped half a metre short of it, on thin air) but the line it
+// really stands on, its posts at the cells' middles and its rails running between them, FENCE_HALF either side; a
+// point on the far side of a rail from where you stand has gone through it, so a long step at a low frame rate can't
+// carry you across
+const FENCE_HALF = 0.07;
+function fenceHit(i, j, x, z, ex, ez) {
+  const cx = cxw(i), cz = cxw(j), dx = x - cx, dz = z - cz, f = (a, b) => inb(a, b) && cell[idx(a, b)] === FENCE;
+  if (Math.abs(dx) < FENCE_HALF && Math.abs(dz) < FENCE_HALF) return true;   // the post
+  if ((dx >= 0 ? f(i + 1, j) : f(i - 1, j)) && (Math.abs(dz) < FENCE_HALF || dz * (ez - cz) < 0)) return true;   // a rail along x
+  if ((dz >= 0 ? f(i, j + 1) : f(i, j - 1)) && (Math.abs(dx) < FENCE_HALF || dx * (ex - cx) < 0)) return true;   // a rail along z
+  return false;
+}
 export function moveCircle(e, dx, dz, r, isPlayer) {
-  const px = e.x, pz = e.z, B = isPlayer ? (x, z) => playerBlocked(ci(x), ci(z)) : (x, z) => hardBlocked(ci(x), ci(z));
+  const px = e.x, pz = e.z, B = isPlayer ? (x, z) => { const i = ci(x), j = ci(z); return inb(i, j) && cell[idx(i, j)] === FENCE ? fenceHit(i, j, x, z, e.x, e.z) : playerBlocked(i, j); } : (x, z) => hardBlocked(ci(x), ci(z));
   if (dx) {
     const nx = e.x + dx, sx = nx + Math.sign(dx) * r, a = B(sx, e.z - r * .75), b = B(sx, e.z + r * .75);
     if (!a && !b) e.x = nx;
