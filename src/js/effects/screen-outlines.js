@@ -103,6 +103,16 @@ function olPlace(r, camera, W, H) {
   r.sx = (_olV.x * 0.5 + 0.5) * W; r.sy = (_olV.y * 0.5 + 0.5) * H; r.sr = r.rad * ppm;
   return true;
 }
+// a piece too small to change a model's silhouette and too small to cast a shadow (an eye, a brow, a pin on a gun:
+// trimShadows, core/geometry.js) is left out of the mask: it lies inside the line anyway, and each was a draw of its own
+// (kept by geometry and the scale it's drawn at, off the meshes themselves: their userData is copied with them)
+const OL_TINY = 0.03, olTinyR = new WeakMap();
+function olTiny(o) {
+  if (o.castShadow) return false;
+  const g = o.geometry; let r = olTinyR.get(g);
+  if (r === undefined) { if (!g.boundingSphere) g.computeBoundingSphere(); olTinyR.set(g, r = g.boundingSphere.radius); }
+  return r * Math.max(Math.abs(o.scale.x), Math.abs(o.scale.y), Math.abs(o.scale.z)) < OL_TINY;
+}
 export function outlinePass(camera) {
   if (state === 'title') return;   // (none on the menus: the farm behind them is scenery, and nothing there is yours to use)
   camera = camera || cam;
@@ -150,6 +160,7 @@ export function outlinePass(camera) {
       if (o.userData.isOutline || o.userData.isFlash || o.userData.isSprites || o.isSprite || o.isPoints || o.isLine || o.isInstancedMesh) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       if (!o.isMesh) return;
       const m = o.material; if (!m || (!Array.isArray(m) && (m.visible === false || m.colorWrite === false || m.blending === THREE.AdditiveBlending))) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
+      if (olTiny(o)) { if (o.visible) { o.visible = false; _olHid.push(o); } return; }
       _olSw.push(o, m); o.material = r.mat;
     });
     R.render(r.g, camera);

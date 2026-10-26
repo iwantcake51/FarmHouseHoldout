@@ -3,7 +3,7 @@
 import { cam, DPR, R, renderScale, resize, scene, setRenderScale } from '../core/renderer.js';
 import { clamp, last, setLast } from '../core/math.js';
 import { olWarm, outlinePass } from '../effects/screen-outlines.js';
-import { POST, postTargets, PS_RT, renderFrame } from '../effects/post.js';
+import { POST, postTargets, postWarm, PS_RT, renderFrame } from '../effects/post.js';
 import { netLink } from '../net/net.js';
 import { flushModels } from '../core/geometry.js';
 import { computeFlow } from '../zombies/pathfinding.js';
@@ -54,6 +54,7 @@ function warmShaders() {
   try {
     if (POST.ok) { postTargets(); R.setRenderTarget(PS_RT.sc); } else R.setRenderTarget(null);
     R.compile(scene, cam);
+    if (POST.ok) postWarm();   // (the fog's: effects/post.js)
     R.setRenderTarget(bmTarget); R.compile(bmScene, bmCam); R.compile(bmAgeScene, bmCam);   // (effects/blood-map.js)
     olWarm();   // (effects/screen-outlines.js)
   } catch (e) { console.warn('shader warm-up:', e); }

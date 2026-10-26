@@ -103,7 +103,9 @@ sun. It stays out of the house, parts round you in a ring that opens a little wi
 can't be seen, outlined or picked out by your crosshair until it's nearly on you. Lamps and the fire glow in it, and
 your flashlight's beam lights it up and cuts a clear path through it. Smoke, sparks and the like near you aren't
 buried under the fog beyond them: each shows as much as it would standing where it is (clear in the open ring round
-you, gone deep out in the fog), and a sight's reticle always shows through it.
+you, gone deep out in the fog), and a sight's reticle always shows through it. The fog is worked out at half the
+screen's resolution (a quarter of the pixels, its dearest part by far) and brought up to full size by depth, so the
+edge of anything standing in front of it stays clean.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
 charge through fences and plough through the crowd. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
@@ -430,6 +432,11 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 | Mouse smoothing | Off (the view turns the moment the mouse does), on (eased over a few frames) (first person) |
 | Master volume, music | 0–100% |
 | Screen shake | 50–100% |
+
+Frames are kept cheap where it doesn't show: the weapon lights' data reaches every lit surface through one small
+texture rather than per-material lists that were sent again for each object drawn (over a thousand calls a frame), and
+details too small to change a figure's outline or cast a shadow (an eye, a pin on a gun) are left out of the outline
+pass.
 
 All settings are saved in your browser.
 
