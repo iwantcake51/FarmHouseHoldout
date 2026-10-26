@@ -169,11 +169,16 @@ export const SHOTGUN_MODELS = {
     box(g, 0.004, 0.009, 0.04, St, X + 0.0345, 1.1425, 0.822); cyl(g, 0.004, 0.004, St, X + 0.0365, 1.1425, 0.84, 10).rotation.set(0, 0, Math.PI / 2);   // the latch
     // ---- barrel, its bore; the folding front sight, the tall rear sight
     cyl(g, 0.0163, 0.112, St, X, 1.13, 1.247, 18); cyl(g, 0.0095, 0.002, GM.rubber, X, 1.13, 1.3035, 12);
-    profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
-    { const RS = [[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]];
+    // (with an optic on, both sights are folded down flat, as these fold, so nothing stands up in front of it: the
+    // rear's tall plate laid back along the receiver behind the optic, the front post laid forward along the barrel)
+    if (T('sight')) { box(g, 0.02, 0.007, 0.064, St, X, 1.1955, 0.5015); box(g, 0.012, 0.007, 0.088, St, X, 1.1955, 1.152); }
+    else {
+      profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.012, St, X, 0.0012);
+      const RS = [[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]];
       apPart(profile(g, shp(clipTo(RS, [[0.4, 1.15], [0.6, 1.15], [0.6, 1.284], [0.4, 1.284]]), [shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012));
-      apPlate(g, X, 0.01, 1.284, 1.3032, 0.5081, 0.5339, 1.29, 0.0028, St); }   // the aperture plate across its top, the hole looked through down the gun
-    irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+      apPlate(g, X, 0.01, 1.284, 1.3032, 0.5081, 0.5339, 1.29, 0.0028, St);   // the aperture plate across its top, the hole looked through down the gun
+      irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+    }
     // ---- the charging handle's fin on top: its own group so the reload can pull it back
     const ch = new THREE.Group(); g.add(ch);
     profile(ch, shp([[0.8152, 1.192], [0.8793, 1.192], [0.8793, 1.2026], [0.8709, 1.2034], [0.8628, 1.2072], [0.8584, 1.2114], [0.8565, 1.2156], [0.8553, 1.2222], [0.8591, 1.2344], [0.8574, 1.2379], [0.8555, 1.2382], [0.8452, 1.232], [0.8364, 1.2234], [0.8304, 1.2091], [0.8265, 1.2074], [0.8184, 1.2073], [0.8152, 1.2046]]), 0.008, St, X, 0.0012);

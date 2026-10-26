@@ -48,7 +48,9 @@ receiver, like the other guns: the red dot, the holo and the ACOG straight on it
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
 rear notch comes off for the rail). The hand cannon takes sights up to the ACOG: the red dot and the holo on its slide,
 and a handgun scope or the ACOG on the rail along its barrel (which stays put while the slide works), held out at arm's
-length with a handgun's long eye relief rather than up against your eye. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
+length with a handgun's long eye relief rather than up against your eye. With an optic on the auto shotgun its tall
+folding sights are laid down flat, the rear back along the receiver and the front post along the barrel, so nothing
+stands in front of the optic as you look through it. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
@@ -292,6 +294,9 @@ reload and its slide, a 9mm machine pistol is quick and crisp, the AR is balance
 shotgun swing a little slower and carry on further, and the LMG lumbers into its reload and rocks back after. The
 same slap home moves a light gun more than a heavy one. A mag change opens with a small wind-up of the wrist the other
 way before the gun's rolled over to dump the old mag.
+
+**Low health.** Your hands tremble and the crosshair wanders, a heartbeat knocking it now and then: a slow, smoothed
+tremble, small from your own eyes and kept calm from above too, never a jitter.
 
 **Reloads that go wrong.** Hurt hands reload slower and shakier. They can fumble: the hands lose their rhythm,
 slowing through the move and then catching it back up, all in one smooth motion rather than a frozen pause, the gun

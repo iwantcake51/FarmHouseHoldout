@@ -31,6 +31,9 @@ const SHAKY_SWAY = 30, SHAKY_BEAT = 26, SHAKY_ADS = 0.5;
 // from your own eyes, where the gun's right in front of them, much calmer: the tremble a slow, small sway (trem: of it,
 // smoothed at ease a second) and the wander and the heartbeat's kick of the aim a share of theirs (wander)
 const FP_SHAKY = { trem: 0.22, ease: 5, wander: 0.33 };
+// and from above calmer than it was too: the same smoothed tremble at half its old strength, and the wander and the
+// heartbeat's kick a share of theirs
+const TP_SHAKY = { trem: 0.5, wander: 0.6 };
 // the arms' tremble at its worst: radians of pitch, yaw and roll on the weapon, metres it's moved
 export const SHAKY_TREM = { p: 0.06, y: 0.05, r: 0.07, m: 0.01 }, SHAKY_AIM_EASE = 7;
 // how the tremble moves: each axis is a loose spring (TREM_K stiff, TREM_D damped, about 3 shakes a second) chasing
@@ -203,7 +206,7 @@ export function updateShaky(dt) {
   const t = sk.t, ph = sk.ph, k = sk.k;
   // each heartbeat (the R spike, ui/vitals.js): a little kick in a random direction, and a push through the arms
   const from = beatT < sk.lb ? -1 : sk.lb;
-  const fw = fpOn() ? FP_SHAKY.wander : 1;
+  const fw = fpOn() ? FP_SHAKY.wander : TP_SHAKY.wander;
   if (k > 0.01 && from < ECG_R && beatT >= ECG_R) { const a = rand() * 6.283; sk.vbx += Math.cos(a) * SHAKY_BEAT * k * fw; sk.vby += Math.sin(a) * SHAKY_BEAT * k * fw; TREM.vp -= TREM_BEAT; TREM.vh += TREM_BEAT * 0.7; }
   sk.lb = beatT;
   // the tremble's springs; each time its hold runs out it picks a new spot to shake toward on every axis
@@ -216,7 +219,7 @@ export function updateShaky(dt) {
   const wx = Math.sin(t * 0.83 + ph[0]) * 0.55 + Math.sin(t * 1.37 + ph[1]) * 0.3 + Math.sin(t * 2.11 + ph[2]) * 0.15;
   const wy = Math.sin(t * 0.71 + ph[3]) * 0.55 + Math.sin(t * 1.53 + ph[4]) * 0.3 + Math.sin(t * 2.39 + ph[5]) * 0.15;
   const amp = SHAKY_SWAY * innerHeight / 1080 * k * mix(1, SHAKY_ADS, sk.ak) * fw;
-  { const e = 1 - Math.exp(-dt * FP_SHAKY.ease); TREM_AX.forEach(a => { TREM['s' + a] = (TREM['s' + a] || 0) + (TREM[a] - (TREM['s' + a] || 0)) * e; }); }   // (the tremble, smoothed, for first person)
+  { const e = 1 - Math.exp(-dt * FP_SHAKY.ease); TREM_AX.forEach(a => { TREM['s' + a] = (TREM['s' + a] || 0) + (TREM[a] - (TREM['s' + a] || 0)) * e; }); }   // (the tremble, smoothed, for either view)
   sk.x = clamp(wx * amp + sk.bx, -mouseX, innerWidth - mouseX);
   sk.y = clamp(wy * amp + sk.by, -mouseY, innerHeight - mouseY);
 }
@@ -225,6 +228,6 @@ export function updateShaky(dt) {
 const _trem = { p: 0, y: 0, r: 0, x: 0, h: 0 };
 export function shakyTremor() {
   const q = SHAKY.k < 0.002 ? 0 : SHAKY.k * (1 - 0.4 * SHAKY.ak), fp = fpOn();
-  TREM_AX.forEach(a => { _trem[a] = fp ? (TREM['s' + a] || 0) * q * FP_SHAKY.trem : TREM[a] * q; });
+  TREM_AX.forEach(a => { _trem[a] = (TREM['s' + a] || 0) * q * (fp ? FP_SHAKY.trem : TP_SHAKY.trem); });
   return _trem;
 }
