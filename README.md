@@ -473,9 +473,18 @@ turned (the wrist turns with it), and the gun's never held further out or nearer
 so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side;
 the revolver's twirled round your trigger finger first, two quick turns of a cowboy's spin that slow as you catch it,
 before it's looked over. From your own eyes the gun's held up in front of you and the HUD and the crosshair are put
-away while you look (from above they stay); a handgun's turned side on across in front of you to show its port side,
-the wrist rolled right over for the other side, its muzzle tipped up to see its front and then down to look along its
-top. At the end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short: it slows to a stop where it is under the menu and carries on once the menu's gone. A melee weapon's looked over its own way: a one-hander (the
+away while you look (from above they stay). The handgun's brought up close in the middle of your view and turned
+on its side in the hand, its muzzle tipped up to the left and its top to the right, your thumb along the frame, then
+rolled right over to its other side, stood muzzle up and tipped down to look along the slide. Every gun has its own
+way of being looked over, after what you'd check on that one: the .50 is heavy in the hand, so it's slower, muzzle up
+at its front first; the revolver gets its spin; the pump's rolled onto its side to look into the loading port, then
+its ejection port, the bead and the ghost ring; the double's muzzles are tipped right up to look over the rib at both
+bores before each side plate; the auto shotgun shows its left side and its mag from below; the hunting rifle is
+sighted along its top first, unhurried, then rolled to its bolt; the battle rifle's canted forty-five degrees each
+way and lifted to look at its mag well; the machine pistol's light, so it's flicked about quickly; the SMG shows its
+cocking tube, the front sight's hood and the drum sight; the AR its left side, the port and forward assist, and its
+mag well; the LMG's heavy, so it's only hefted and tipped a little each way before a look over the feed cover. At the
+end it's carried back onto the aim as smoothly as it was turned. Pausing or picking cards between waves doesn't cut it short: it slows to a stop where it is under the menu and carries on once the menu's gone. A melee weapon's looked over its own way: a one-hander (the
 crowbar, the wrench, the machete) is brought up in front of your face, turned to show one flat and then the other,
 laid across to look along its edge and twirled once in the fingers before it drops back to the guard; the katana's
 held across in both hands at the chest and turned, then stood up to look up its edge; the axe, the sledge and the bat
