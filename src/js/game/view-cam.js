@@ -33,6 +33,7 @@ import { vaultGun } from '../player/vaulting.js';
 import { cheatOn } from '../ui/cheats.js';
 import { SET, setOpen } from '../ui/settings.js';
 import { DC } from '../ui/screens.js';
+import { camFocus, spectating } from '../net/spectate.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y };
@@ -250,7 +251,11 @@ const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3();
 // (picking cards between waves too, and as they go: upgrades/upgrade-screen.js)
 // (going down from your own eyes, the view's kept and drawn back out of them over your body (fpDeathCam) rather than cut
 // to the one from above: until you're watching a teammate, in co-op)
+// (watching a teammate with the first-person view picked, it's from their eyes while they're looking from them, and
+// from above while they're looking from above: what they see, either way (specFpOn; net/avatars.js: specFp))
+export const specFpOn = () => P.dead && VCAM.mode === 'fp' && !!DC.spec && (state === 'play' || state === 'paused') && spectating() && !!camFocus().fv;
 const wantOn = () => (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving') && !P.dead ? VCAM.mode
+  : specFpOn() ? 'fp'
   : P.dead && VCAM.mode === 'fp' && (state === 'play' || state === 'paused' || state === 'dead') && !DC.spec ? 'fp' : 'iso';
 export function setViewMode(m) {
   m = m === 'fp' || m === 'free' ? m : 'iso';
@@ -274,7 +279,7 @@ export function syncView() {
     document.body.classList.toggle('fpView', on === 'fp'); document.body.classList.toggle('freeView', on === 'free');
     if (on === 'iso') unlock();
   }
-  PM.head.visible = on !== 'fp';   // (down, it's shown again once the view's drawn back out of it: fpDeathCam)   // (out of your own eyes: your head, its hair and hat, would be all round the lens)
+  PM.head.visible = on !== 'fp' || specFpOn();   // (down, it's shown again once the view's drawn back out of it: fpDeathCam)   // (out of your own eyes: your head, its hair and hat, would be all round the lens)
 }
 
 // ---- the mouse: locked to the game while you look about, and let go for a menu
@@ -921,6 +926,8 @@ export function viewFrame(rdt, roll, sh, jolt) {
     V.vky += (-FPV.kickK * V.ky - FPV.kickD * V.vky) * dt; V.ky += V.vky * dt;
     V.vff = (V.vff || 0) + (-FIRE_FOV.k * (V.ff || 0) - FIRE_FOV.d * (V.vff || 0)) * dt; V.ff = clamp((V.ff || 0) + V.vff * dt, -FIRE_FOV.max, FIRE_FOV.max);
   }
+  // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp)
+  if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   if (fpOn() && P.dead) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each

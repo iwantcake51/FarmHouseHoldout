@@ -7,11 +7,13 @@ import { $ } from '../core/dom.js';
 import { cam, GUN_Y, scene, V3 } from '../core/renderer.js';
 import { NET, NET_COL, netLink } from './net.js';
 import { P } from '../player/player.js';
-import { S, T } from '../game/run-state.js';
+import { S, T, W } from '../game/run-state.js';
 import { dropPickup, pickups } from '../pickups/pickups.js';
 import { state } from '../game/state.js';
 import { DC } from '../ui/screens.js';
 import { paintBar } from './lobby.js';
+import { meleeArt } from '../ui/melee-art.js';
+import { specFpOn } from '../game/view-cam.js';
 
 export const SPEC = { id: '', key: '' };
 // who the camera's on: you, or once you've fallen, the teammate you picked if they're still standing, else the first
@@ -47,7 +49,7 @@ export function renderSpec() {
   if (!on) return;
   const am = f.am || [], hp = Math.max(0, Math.round(f.hp ?? 100)), mx = f.maxHp || 100, st = f.stats || [];
   let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) up++;
-  const key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, JSON.stringify(am), st.join(), up].join('|');
+  const key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
   const q = s => el.querySelector(s);
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
@@ -64,6 +66,11 @@ export function renderSpec() {
   q('.spWName').textContent = f.wn || '';
   const ammo = q('.spAmmo'), n = Array.isArray(have) ? Math.min(...have) : have;   // (a pair: the emptier of the two)
   ammo.textContent = melee ? '—' : Array.isArray(have) ? have.join(' · ') : have;
+  // a melee weapon: its white silhouette where the count would be, as your own HUD shows it (ui/melee-art.js), not a
+  // dash (the dash only while their weapon's not known yet)
+  { const D = melee && f.wid ? W(f.wid) : null, img = q('.spMelee'), art = D && D.melee ? meleeArt(f.wid, []) : null;
+    img.hidden = !art; ammo.hidden = !!art;
+    if (art && img.dataset.w !== f.wid) { img.dataset.w = f.wid; img.src = art.url; img.style.width = art.w.toFixed(0) + 'px'; } }
   ammo.classList.toggle('out', !melee && n === 0); ammo.classList.toggle('low', !melee && n > 0 && n <= Math.max(1, Math.floor((cap || 1) * 0.25)));
   q('.spRes').textContent = melee ? '' : '/ ' + res;
   q('.spRel').textContent = rel === 2 ? 'Loading shells' : rel === 1 ? 'Reloading' : '';
@@ -79,6 +86,7 @@ export function updateSpecXh(rdt) {
   if (el.classList.contains('on') !== on) el.classList.toggle('on', on);
   if (!on) { SPEC.xh = null; return; }
   _sxV.set(f.ap[0], GUN_Y, f.ap[1]).project(cam);   // (on the plane aims are taken on, input/keyboard-mouse.js)
+  if (specFpOn()) _sxV.set(0, 0, 0);   // (from their eyes, the middle of the view: where they look)
   const tx = (_sxV.x * 0.5 + 0.5) * innerWidth, ty = (-_sxV.y * 0.5 + 0.5) * innerHeight;
   const c = SPEC.xh && SPEC.xh.id === f.id ? SPEC.xh : (SPEC.xh = { id: f.id, x: tx, y: ty }), k = 1 - Math.exp(-rdt * SPEC_XH.ease);
   c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;

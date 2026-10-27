@@ -183,7 +183,13 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
 then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
 you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
-survivor with a full mag in each gun and three spares. Clear a wave with nobody down and everyone gets a little
+survivor with a full mag in each gun and three spares. While you watch, the picture is drained of colour and grainy,
+like an old camera feed, with faint scan lines and a brighter band rolling slowly down it, so it's plain you're out
+(with reduced motion turned on in your system, the grain holds still). The panel for the teammate you watch shows
+their weapon as your own HUD does: a melee weapon shows its white silhouette where a gun's round count would be. In a
+first-person game you watch from their own eyes: the camera is where theirs is, looking where they look, as wide as they
+see, with their arms and weapon posed as they see them (their head hidden out of the lens's way, their name tag gone,
+and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
 scrap. You can add friends by their friend code to see when they're online and join their lobby in one click. Rest
 the pointer on someone's seat in the lobby, or on a friend in your friends list, and their survivor, as they've made
 them, stands on a little card beside it, turning slowly under the studio lights (your own seat shows yours). The
@@ -342,7 +348,7 @@ and a station or a menu lets go of it for you, closing it taking the mouse back.
 from above it widens your view cone and the circle you see round you, and out of your own eyes (where you already see
 all round as far as the screen goes) it opens the view itself 10% wider (14% with Eyes in the back of your head, not
 down the sights), and anything close by off the edges of the screen (within 4 m, then 6 m) shows as a soft pale arc
-round the middle of the screen on its side, stronger the closer it is. The cards say which you get. You go back to the view from above whenever you're down.
+round the middle of the screen on its side, stronger the closer it is. The cards say which you get. Going down, the view is drawn back out of your eyes over your body; in co-op you then watch a teammate through their own eyes (see Co-op).
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried a little further right and lower on its sling, its belt and box down out of
 the middle of the view but not so far it lies slanted across it), and each shot turns it in your hands as well as kicking the view; through a scope the

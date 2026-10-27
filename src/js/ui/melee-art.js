@@ -10,7 +10,7 @@ import { GUNS } from '../melee/melee-models.js';
 const meleeArtCache = {}, MELEE_ART_MAT = new THREE.MeshBasicMaterial({ color: 0xffffff });
 const MELEE_ART_PPU = 190;   // CSS pixels per metre, the same for every weapon, so a katana draws longer than a wrench
 // render the model once per weapon and set of mods into an offscreen target, and keep the picture
-function meleeArt(id, mods) {
+export function meleeArt(id, mods) {
   const key = id + ':' + mods.map(k => k + modLv(k)).join(',');   // a mod improved at the bench grows the model, so it's a new picture
   if (meleeArtCache[key]) return meleeArtCache[key];
   const sc = new THREE.Scene(), g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = modLv(k); });
