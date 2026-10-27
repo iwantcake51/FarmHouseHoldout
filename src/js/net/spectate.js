@@ -49,7 +49,7 @@ export function renderSpec() {
   if (!on) return;
   const am = f.am || [], hp = Math.max(0, Math.round(f.hp ?? 100)), mx = f.maxHp || 100, st = f.stats || [];
   let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) up++;
-  const key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, JSON.stringify(am), st.join(), up].join('|');
+  const lg = f.lo && f.lo.guns && f.lo.guns[f.wid], key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, lg ? JSON.stringify([lg.mods, lg.lv]) : '', JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
   const q = s => el.querySelector(s);
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
@@ -66,11 +66,13 @@ export function renderSpec() {
   q('.spWName').textContent = f.wn || '';
   const ammo = q('.spAmmo'), n = Array.isArray(have) ? Math.min(...have) : have;   // (a pair: the emptier of the two)
   ammo.textContent = melee ? '—' : Array.isArray(have) ? have.join(' · ') : have;
-  // a melee weapon: its white silhouette where the count would be, as your own HUD shows it (ui/melee-art.js), not a
-  // dash (the dash only while their weapon's not known yet)
-  { const D = melee && f.wid ? W(f.wid) : null, img = q('.spMelee'), art = D && D.melee ? meleeArt(f.wid, []) : null;
+  // a melee weapon: its white silhouette where the count would be, as your own HUD shows it (ui/melee-art.js), with
+  // the mods they've put on it at their levels (from their loadout, net/arsenal.js), not a dash (the dash only while
+  // their weapon's not known yet)
+  { const D = melee && f.wid ? W(f.wid) : null, img = q('.spMelee'), g = (f.lo && f.lo.guns && f.lo.guns[f.wid]) || {}, mods = g.mods || [], lv = g.lv || {};
+    const art = D && D.melee ? meleeArt(f.wid, mods, m => lv[m] || 1) : null, ak = f.wid + ':' + mods.map(m => m + (lv[m] || 1)).join(',');
     img.hidden = !art; ammo.hidden = !!art;
-    if (art && img.dataset.w !== f.wid) { img.dataset.w = f.wid; img.src = art.url; img.style.width = art.w.toFixed(0) + 'px'; } }
+    if (art && img.dataset.w !== ak) { img.dataset.w = ak; img.src = art.url; img.style.width = art.w.toFixed(0) + 'px'; } }
   ammo.classList.toggle('out', !melee && n === 0); ammo.classList.toggle('low', !melee && n > 0 && n <= Math.max(1, Math.floor((cap || 1) * 0.25)));
   q('.spRes').textContent = melee ? '' : '/ ' + res;
   q('.spRel').textContent = rel === 2 ? 'Loading shells' : rel === 1 ? 'Reloading' : '';

@@ -186,7 +186,7 @@ you go down, a low drone drifts in while you watch a teammate until the wave is 
 survivor with a full mag in each gun and three spares. While you watch, the picture is drained of colour and grainy,
 like an old camera feed, with faint scan lines and a brighter band rolling slowly down it, so it's plain you're out
 (with reduced motion turned on in your system, the grain holds still). The panel for the teammate you watch shows
-their weapon as your own HUD does: a melee weapon shows its white silhouette where a gun's round count would be. In a
+their weapon as your own HUD does: a melee weapon shows its white silhouette where a gun's round count would be, with the upgrades they've put on it (nails in the bat, and so on, at their levels). In a
 first-person game you watch from their own eyes: the camera is where theirs is, looking where they look, as wide as they
 see, with their arms and weapon posed as they see them (their head hidden out of the lens's way, their name tag gone,
 and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
