@@ -193,6 +193,13 @@ out of sight behind a menu or a station's panel instead of showing through it, a
 shown at all if you've already started the first wave. The co-op lobby scrolls itself into view when it opens in a
 short window, and its Copy buttons only say "Copied" once the browser has actually taken the code.
 
+**The menus.** The title, pause and end screens list what you can do one under another in the big worn type, and
+the one a key starts (or the one under the pointer or the keyboard's focus) has a strip of blaze-orange surveyor's
+flagging tape behind it, torn off the roll at its end; the tape is the theme colour, so it changes with it. The
+controls on the title are a sheet of paper taped up beside the story, like the cards you pick after a wave, each key a
+dark inked cap on it. The menus' and the settings' own text is set in Archivo, in sentence case, with the typed lines
+in Special Elite; the view picker under the story is the two views as words, the one picked underlined with the tape.
+
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
 then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
 you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
@@ -718,4 +725,10 @@ CC0). Built with [three.js](https://threejs.org) and [PeerJS](https://peerjs.com
 
 Every icon comes from those packs, with one exception: the rarity stars on upgrades (at the stations and on the cards)
 are drawn in code, because neither set has a plain five-pointed star (and their liquid fill is built on that shape).
-The stripes and textures drawn in CSS (the hazard stripes, Bad blood's veins) are patterns, not icons.
+The stripes and textures drawn in CSS (the hazard stripes, Bad blood's veins) are patterns, not icons. The weapon silhouettes in the HUD's slot
+row are drawn from the game's own 3D models at run time, as the melee weapon's picture always has been, so they're
+renders, not generated icons.
+
+Type from [Google Fonts](https://fonts.google.com) (SIL Open Font License): Saira Extra Condensed for the big words
+and numbers, Special Elite for anything typed, Archivo for the menus' and the weapon panel's text, and IBM Plex Mono
+for the rest of the HUD.
