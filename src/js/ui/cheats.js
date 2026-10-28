@@ -70,6 +70,8 @@ const CHEAT_TOGGLES = {
 // the switches along the top, always in reach, and the speeds the game can run at
 const CH_QUICK = ['god', 'scrap', 'ammo', 'mag', 'onehit', 'noWaves'];
 const SPEEDS = [0.25, 0.5, 1, 2];
+// (there's a cheat menu in this build: the stub that stands in for this file says not, tools/build.mjs)
+export const cheatsBuilt = true;
 export let cheatOn = false, cheatTab = 'player', cheatFind = '', cheatLive = 0, cheatShutAt = -1e9;   // (cheatShutAt: when it was last put away, input/keyboard-mouse.js lockLost)
 try { cheatTab = localStorage.getItem(CHEAT_KEY + '-tab') || 'player'; } catch (e) {}
 

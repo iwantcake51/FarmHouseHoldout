@@ -254,17 +254,19 @@ function forgeBar() {
 }
 $('stForge').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || !openSt || openSt.id !== 'saw' || METAL.on) return;
-  if (braceLv() < BRACE.max || S.scrap < METAL_COST) { SFX.click(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
+  if (braceLv() < BRACE.max || S.scrap < METAL_COST) { SFX.deny(); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); return; }
   S.scrap -= METAL_COST; popEl('scrap'); forgeMetal(); SFX.craft(); renderStation();
 });
-$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && ST_QUICK[openSt.id]) { craft(+b.dataset.i); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); } });
+$('stQuick').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b && openSt && ST_QUICK[openSt.id]) { const ok = craft(+b.dataset.i), c = ok ? 'bump' : 'shake'; b.classList.remove('bump', 'shake'); void b.offsetWidth; b.classList.add(c); } });   // (made: it bounces; can't be: it shakes)
 $('stRows').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; if (openSt && openSt.id === 'box') giftClick(b); else if (openSt && openSt.id === 'rack') rackClick(b); else craft(+b.dataset.i); });
+// (true if it was made)
 function craft(i) {
-  if (!openSt) return;
-  const r = RECIPES[openSt.id][i]; if (!r) return;
-  if (r.why() || S.scrap < r.cost) { SFX.click(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return; }
+  if (!openSt) return false;
+  const r = RECIPES[openSt.id][i]; if (!r) return false;
+  if (r.why() || S.scrap < r.cost) { SFX.deny(); const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } return false; }
   S.scrap -= r.cost; popEl('scrap'); r.make(); SFX.craft(); renderStation();
   const b = $('stRows').querySelector(`button[data-i="${i}"]`); if (b) { b.classList.add('made'); setTimeout(() => b.classList.remove('made'), 260); }
+  return true;
 }
 // the wheel eases the cards along instead of jumping a notch at a time (core/dom.js)
 smoothWheel($('stRows'));

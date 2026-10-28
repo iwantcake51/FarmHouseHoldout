@@ -65,7 +65,10 @@ the other one, that eye squinting along the gun and your head tipped over the st
    position. Press **T** when you're ready, or wait out the timer.
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
 3. **Cards.** When the last zombie falls (time slows for a moment, the edges of the view cooling, with no black bars over it), pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
-   wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. Whatever's still lying about glides
+   wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. You have 20 seconds to choose
+   before one is taken for you; playing alone, that clock stands still while the game's tab is hidden or its window
+   isn't in front, so stepping away doesn't choose for you (in co-op it runs on). The cards fit side by side in a small
+   window too, everything tightened up on a short one. Whatever's still lying about glides
    in to you once the cards are done. Each kind of drop is modelled once, its overlapping faces pulled apart so nothing on it
    flickers, and copied for every one that falls, so a crowd dropping loot never stutters. Every drop lights the ground
    and the walls round it in its own colour (a crate's and a weapon's a little wider), more so after dark, dimming as it
@@ -76,7 +79,7 @@ the other one, that eye squinting along the gun and your head tipped over the st
      double scrap), a quarter of your health gone for good (shown in hazard stripes on your bar), slower reloads, hits
      that hurt half again as much (Fragile), or half the scrap from kills, for the rest of the run. Some never come
      together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
-     once), and you take two.
+     once), and you take two. Taking a curse sounds like one: a low, sour slide down, not the reward chime.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
 
 When the run ends, **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
@@ -180,6 +183,13 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 | Gun rack | New guns for your slots |
 | Strongbox (co-op) | Gives scrap to a teammate |
 
+Buying something you can't afford (or can't have yet) answers with a short dull two-note "no" and the button shaking,
+the quick ammo and bandage buttons included, rather than the click a station makes when it opens. In a short window
+the station's panel comes down over the HUD to give its list room. The big banners ("Night 1", a wave starting) wait
+out of sight behind a menu or a station's panel instead of showing through it, and the run's opening banner isn't
+shown at all if you've already started the first wave. The co-op lobby scrolls itself into view when it opens in a
+short window, and its Copy buttons only say "Copied" once the browser has actually taken the code.
+
 **Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
 then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
 you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
@@ -200,6 +210,10 @@ pick but can't change it, and their own choice from the title screen comes back 
 
 These are the defaults. Every key except walking can be changed in **Settings → Controls**, either to another key or
 to a middle or side mouse button. The keys shown in the game always match your choices.
+Everywhere a key is named (the workbench's cards and notes, the gun and mod descriptions, the cards' feature lines)
+it's the one you've set. Resetting the controls to their defaults asks first (a second click within a few seconds),
+and resetting the other settings leaves the view you picked on the title alone. On the menus, Tab and Space work as on
+any page (moving round the buttons and pressing them) and the arrows scroll; only while you play are they the game's.
 
 | Movement | | Combat | | Survival | |
 | --- | --- | --- | --- | --- | --- |
@@ -207,7 +221,7 @@ to a middle or side mouse button. The keys shown in the game always match your c
 | Shift | Sprint | Right click | Aim down the sights | Hold C | Tear a board down |
 | Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
 | Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
-| N | Back out of the free camera | V | Shove | T | Start the next wave early |
+| N | Back out of the free camera (cheat menu only; not listed in Settings without it) | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
 | | | X | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | | |
@@ -301,6 +315,9 @@ action (racking a handgun's slide or thumbing it off the stop, a rifle's chargin
 shot) the gun is let out further and lower for it, so the arm works below and to the side of the view instead of
 sweeping up across it. Before, a handgun's slide rack had the support arm covering nearly half the screen, and a bolt
 or charging handle brought the firing arm up beside your face; now the arms cover about a quarter of it at most.
+Taking the fresh mag from the pouch, the support hand goes straight on from where it was: on the SMG it used to jump
+some 45 cm to where the mag thought it should be (its curved mag leans back, so the pouch counted as already under
+the well), and on the rifles a few centimetres; the mag is only lined up with the well once it's actually under it.
 The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
 ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
 reticle is light collimated inside the sight's window, so it's only seen looking through that glass from behind, along
@@ -542,6 +559,8 @@ back on the aim for it; aiming, sprinting, vaulting, switching weapons or pressi
 | Resolution | Auto (lowers itself if the frame rate drops), 100%, 75%, 50% |
 | Frame rate counter | On, off |
 | HUD style | Normal, or Minimalist (the essentials only: no heart trace, rounds or ammo bar, just the count, no clock face and no picture of the melee weapon you're holding) |
+| Theme colour | Ember, Crimson, Amber, Moss, Teal, Steel blue, Violet, Bone (the highlight on the menus, the HUD and the crosshair) |
+| Colour blind mode | Off, protanopia (red), deuteranopia (green), tritanopia (blue): shifts the colours of the whole screen apart |
 | Field of view | 60–100° (first person) |
 | Mouse sensitivity | 25–200% (first person) |
 | Mouse smoothing | Off (the view turns the moment the mouse does), on (eased over a few frames) (first person) |

@@ -68,11 +68,11 @@ function attachmentCards() {
     const own = false, nm = roundName(id, k), txt = roundText(id, k);
     out.push({ ic: 'ammo', group, for: () => forYour(id), fx: () => k === roundOn(id) ? [] : roundFx(id, k), cost: own ? 0 : hitsHarder(id, ROUNDS[k].fx) ? dmgCost(id, ROUNDS[k].cost) : ROUNDS[k].cost,
       title: () => (k === on ? 'Loaded: ' : own ? 'Load ' : '') + nm, desc: () => txt + (own || k === 'std' ? '' : ' · One kind loaded at a time'), why: () => k === roundOn(id) ? 'Loaded' : '',
-      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); glowGun(id); feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; X swaps between the kinds you own.', fx: fx0 }); } });
+      make: () => { const fx0 = roundFx(id, k); loadRound(id, k, true); glowGun(id); feed('ammo', 0, nm); if (!own) gotGear({ ic: 'ammo', kind: 'Rounds', name: nm, gun: id, text: txt + ' Loaded now; ' + keyOn('ammo') + ' swaps between the kinds you own.', fx: fx0 }); } });
   }
   // the bayonet and the stock go on this gun alone (gunAtt, game/run-state.js)
   const fitAtt = k => { setAtt(id, k, true); buildGuns(id); glowGun(id); };
-  if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Your shove (V) with this gun stabs instead', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (V) with this gun in your hands stabs for 45 damage.' }); } });
+  if (D.slot === 'long' && !ownAtt(id, 'bayonet')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'Shove stabs for 45', good: true }], cost: 14, title: () => 'Bayonet', desc: () => 'Your shove (' + keyOn('shove') + ') with this gun stabs instead', why: () => '', make: () => { fitAtt('bayonet'); feed('gear', 0, 'Bayonet'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Bayonet', gun: id, text: 'Shove (' + keyOn('shove') + ') with this gun in your hands stabs for 45 damage.' }); } });
   if (D.slot === 'side' && !ownAtt(id, 'stock')) out.push({ ic: 'att', group, for: () => forYour(id), fx: () => [{ t: 'KICK −45%', good: true }, { t: 'RECOIL BUILD-UP −40%', good: true }], cost: 12, title: () => 'Shoulder stock', desc: () => 'Braced on your shoulder, it kicks less and fast shots stay tighter', why: () => '', make: () => { fitAtt('stock'); feed('gear', 0, 'Shoulder stock'); gotGear({ ic: 'gear', kind: 'Attachment', name: 'Shoulder stock', gun: id, text: '45% less kick, and quick shots open up 40% slower.' }); } });
   return out;
 }

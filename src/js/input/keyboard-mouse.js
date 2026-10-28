@@ -38,7 +38,10 @@ export const _pv = new V3(), ray = new THREE.Raycaster(), ndc = new THREE.Vector
 addEventListener('keydown', e => {
   const k = keyOf(e);
   const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');   // (typing in a box: the settings' search)
-  if (!typing && (k === ' ' || k.startsWith('arrow') || k === 'tab' || k === 'alt')) e.preventDefault();   // (Alt: no browser menu bar from free look)
+  // (while you play they're the game's: no page scroll, no focus wandering off round the hidden buttons; on the menus
+  // they work as they do on any page, so Tab and Space get you round them and the arrows scroll a long list)
+  const playing = state === 'play' && !openSt && !cheatOn;
+  if (!typing && (k === 'alt' || (playing && (k === ' ' || k.startsWith('arrow') || k === 'tab')))) e.preventDefault();   // (Alt: no browser menu bar from free look)
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)

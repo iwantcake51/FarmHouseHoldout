@@ -44,7 +44,6 @@ export const SFX = {
   },
   dry() { if (!playS('dry_' + (gunKind() === 'shotgun' ? 'rifle' : gunKind()))) SFX.click(); },   // the trigger on an empty gun
   supp(big) { nz(big ? 0.2 : 0.08, 'bandpass', 1800, 700, big ? 0.5 : 0.3, 1.2); tn(0.05, 'sine', 120, 60, 0.2); },
-  swing() { nz(0.2, 'bandpass', 500, 2600, 0.3, 2); },
   tick() { if (playS(['flesh_1', 'flesh_2'], { gap: 0.035, jit: GORE_JIT })) return; tn(0.035, 'square', 2300, 1900, 0.07); nz(0.05, 'lowpass', 900, 200, 0.26); tn(0.06, 'sine', 160, 70, 0.2); },
   headHit() { if (playS('head_hit', { gap: 0.05, rate: 1.1, jit: GORE_JIT })) return; tn(0.05, 'triangle', 1700, 1100, 0.09); nz(0.04, 'bandpass', 2600, 1400, 0.14, 3); },
   shove(stab) { if (playS(['swing_light_1', 'swing_light_2'], { rate: 1.1 })) return; nz(0.16, 'bandpass', 380, 1700, 0.42, 1.2); tn(0.08, 'sine', 140, 70, 0.18); if (stab) nz(0.09, 'highpass', 3200, 2400, 0.16); },
@@ -66,6 +65,8 @@ export const SFX = {
     playS('brute_wall', { jit: 0.02, vol: C.crack * v * (1 - k), hp: C.hp, lp: C.crackLp * Math.pow(0.4, k), dur: C.crackDur, pan, gap: 0 });
   },
   thud() { tn(0.12, 'sine', 110, 45, 0.45); nz(0.07, 'lowpass', 900, 200, 0.3); },
+  // can't have it (not enough scrap, not ready yet): a short dull two-note "nuh-uh", down, not the click of opening
+  deny() { tn(0.07, 'triangle', 240, 210, 0.16); setTimeout(() => tn(0.11, 'triangle', 180, 150, 0.16), 85); nz(0.04, 'lowpass', 700, 300, 0.08); },
   board() { if (playS(['wood_hit_1', 'wood_hit_2'], { jit: 0.06 })) return; tn(0.05, 'square', 230, 140, 0.16); nz(0.05, 'highpass', 2400, 1800, 0.2); },
   crack() { if (playS('wood_break', { gap: 0.1 })) return; nz(0.32, 'bandpass', 1100, 260, 0.55, 1.4); tn(0.08, 'triangle', 300, 90, 0.2); },
   // a board torn off hitting the ground: a hollow wooden clack
@@ -129,6 +130,8 @@ export const SFX = {
   hurt() { tn(0.28, 'sawtooth', 190, 70, 0.22); nz(0.1, 'lowpass', 600, 150, 0.3); },
   pick() { if (playS('pickup')) return; tn(0.06, 'sine', 700, 700, 0.14); setTimeout(() => tn(0.1, 'sine', 1050, 1050, 0.12), 60); },
   scrap() { tn(0.04, 'square', 1800, 1600, 0.05); setTimeout(() => tn(0.04, 'square', 2200, 2000, 0.05), 50); },
+  // a curse taken: no reward chime but a low, sour slide down (a tritone, sliding apart) over a dull rumble
+  curse() { tn(0.7, 'sawtooth', 196, 92, 0.05); tn(0.7, 'sawtooth', 277, 125, 0.04); nz(0.6, 'lowpass', 380, 90, 0.18); setTimeout(() => tn(0.5, 'sine', 70, 48, 0.22), 120); },
   upgrade() { if (playS('upgrade')) return; tn(0.12, 'square', 300, 300, 0.06); setTimeout(() => tn(0.12, 'square', 450, 450, 0.06), 90); nz(0.2, 'highpass', 3000, 5000, 0.08); },
   launch() { if (!playS('shot_gl', { jit: 0.05, tone: 3, verb: indoors() ? 0.6 : 0 })) SFX.thump(); },   // the underbarrel grenade launcher
   thump() { tn(0.12, 'sine', 180, 60, 0.5); nz(0.1, 'lowpass', 800, 200, 0.3); },
@@ -142,7 +145,6 @@ export const SFX = {
   },
   cylOpen() { if (!playS('safety_2', { rate: 0.8 })) SFX.click(); },   // a revolver's cylinder swung out
   gunDrop() { if (!playS('gun_drop')) SFX.thud(); },                     // your weapon falling from your hands
-  pickGun() { if (!playS('equip')) SFX.pick(); },                        // a weapon picked up off the ground
   crate() { if (!playS('crate_open')) SFX.upgrade(); },                  // a supply crate prised open
   craft() { if (!playS('craft')) SFX.board(); },                         // something made at a station
   // the bass under a brute's footfall (audio/footsteps.js): a deep sine dropping away under a low rumble of the ground

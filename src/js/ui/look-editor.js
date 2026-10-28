@@ -64,7 +64,7 @@ function lookSummary(L) {
   const shoeCols = L.shoes === 'sneakers' ? L.sneak : L.shoes === 'dress' ? [L.dressShoe] : [{ boots: 0x3e2e22, blackboots: 0x1e1e20, tanboots: 0x7a5a3a }[L.shoes]];
   const wr = ['L', 'R'].map(s => (L.wrist || {})[s]).filter(Boolean).map(w => nice(w.kind).toLowerCase());
   const rows = {
-    face: [[L.skin, L.eyes, L.eyes2 !== L.eyes ? L.eyes2 : null], `${nice(F.eye)} eyes, ${nice(F.brow).toLowerCase()} brows, ${nice(F.nose).toLowerCase()} nose`],
+    face: [[L.skin, L.eyes, L.eyes2 !== L.eyes ? L.eyes2 : null], `${F.eye === 'oneSquint' ? 'One eye squinting' : nice(F.eye) + ' eyes'}, ${nice(F.brow).toLowerCase()} brows, ${nice(F.nose).toLowerCase()} nose`],
     hair: [[L.hair, L.beard !== 'none' ? L.beardCol : null], `${nice(L.hairStyle)}${L.beard !== 'none' ? ', ' + nice(L.beard).toLowerCase() : ''}`],
     hat: [[L.hat !== 'none' ? L.hatCol : null], L.hat === 'none' ? 'No hat' : nice(L.hat)],
     top: [[L.topCol, thermalOf(L) || null, L.top === 'suit' ? L.dress : null], nice(L.top) + (thermalOf(L) ? ' over a thermal' : '')],

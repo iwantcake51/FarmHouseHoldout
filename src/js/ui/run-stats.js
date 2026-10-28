@@ -54,6 +54,7 @@ function runStatsHtml() {
       ['Favourite weapon', fav ? `${rsEsc(WEAP[fav[0]].name)} <small>${fav[1]} kills</small>` : '—'], ['Reloads', rsN(n('reloads'))],
       ['Shoves', rsN(n('shoves'))], ['Grenades', rsN(n('grenades'))]]],
     ['The dead', Object.keys(ZNAME).filter(t => n('k_' + t)).map(t => [ZNAME[t], rsN(n('k_' + t))])],
+    ['By weapon', Object.entries(st.wk || {}).filter(([id, k]) => k > 0 && WEAP[id]).sort((a, b) => b[1] - a[1]).map(([id, k]) => [rsEsc(WEAP[id].name), rsN(k) + (k === 1 ? ' kill' : ' kills')])],
     ['Holding the house', [
       ['Boards nailed up', rsN(n('planks'))], ['Grates put up', rsN(n('grates'))], ['Repairs', rsN(n('repairs'))], ['Boards torn down', rsN(n('tears'))],
       ['Windows climbed', rsN(n('vaults'))], ['Fences hopped', rsN(n('hops'))], ['Ground covered', Math.round(n('walked')) + ' m']]],

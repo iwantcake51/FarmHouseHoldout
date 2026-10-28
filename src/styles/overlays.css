@@ -49,6 +49,8 @@
 /* wave card: eyebrow, a headline with a warm metallic fill, a rule that draws out from a diamond, and a subtitle ribbon */
 #announce{--ac:var(--orange);left:0;right:0;top:calc(19% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:6px;text-align:center;transition:opacity .7s ease,transform .7s ease;transform:translateY(-10px)}
 #announce.show{transform:none}
+/* (not over a menu or a station's panel: it waits behind them, out of sight) */
+body.menu #announce,body:has(#station:not([hidden])) #announce{opacity:0!important}
 #announce.gold{--ac:var(--gold)}#announce.red{--ac:#e2412c}
 #annEye{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.5em;padding:3px 0 2px .5em;text-transform:uppercase;color:var(--ac);text-shadow:0 1px 2px #000,0 0 10px rgba(0,0,0,.95),0 0 18px rgba(0,0,0,.8)}
 #annEye::before,#annEye::after{content:"";width:26px;height:1px;background:var(--ac);opacity:.7}

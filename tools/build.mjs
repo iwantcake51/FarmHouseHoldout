@@ -28,7 +28,7 @@ const PEER_CDN = `https://cdn.jsdelivr.net/npm/peerjs@${PEER_VER}/dist/peerjs.mi
 // local builds keep it
 const cheats = process.env.CHEATS ? process.env.CHEATS !== 'off' : process.env.CONTEXT !== 'production';
 // what stands in for ui/cheats.js without it: every switch off, and nothing for F9 to open
-const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false }, cheatOn = false;
+const CHEATS_STUB = `const CHEAT = { god: false, scrap: false, ammo: false, noWaves: false, clock: false }, cheatOn = false, cheatsBuilt = false;
 function cheatTick() {}
 function cheatSaves() { return false; }
 function cheatIs() { return false; }

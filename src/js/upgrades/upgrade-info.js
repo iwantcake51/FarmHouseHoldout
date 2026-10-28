@@ -20,6 +20,7 @@ import { PAIN_REGEN, SLOW_STEP, slowAfter } from './upgrades.js';
 import { FRONT, FRONT_MOD, frontSwayPct } from '../player/shaky-hands.js';
 import { REGEN_WAIT } from '../player/movement.js';
 import { fpOn } from '../game/view-cam.js';
+import { keyOn } from '../input/keybinds.js';
 
 // short effect chips for upgrades that don't change a gun's numbers
 export const UPG_FX = {
@@ -105,7 +106,7 @@ export function compareFx(a, b) {
     ...spreadChips(a, b), chip('HEADSHOT', a.head, b.head, true, v => '×' + Math.round(v * 100) / 100)].filter(Boolean);
 }
 // mods that add a feature rather than a number
-export const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', gl: 'Grenade on G, every 6 s', burst: 'Burst fire (B to switch)', fullAuto: 'Full auto (B cycles modes)', both: 'Both barrels at once', quiet: 'Silent shots',
+export const MOD_FEATURE = { akimbo: 'A gun in each hand: left and right click', get gl() { return `Grenade on ${keyOn('grenade')}, every 6 s`; }, get burst() { return `Burst fire (${keyOn('fireMode')} to switch)`; }, get fullAuto() { return `Full auto (${keyOn('fireMode')} cycles modes)`; }, both: 'Both barrels at once', quiet: 'Silent shots',
   ignite: 'Sets zombies alight', explode: 'Exploding rounds', bipod: 'Bipod: steady when you stand still', alwaysSever: 'Always takes the limb off', bleed: 'Makes zombies bleed out', stagger: 'Staggers zombies', pierce: 'Goes through zombies' };
 // try a gun's next tier for real, read its numbers, then put it back
 export function tierFx(id, k) {

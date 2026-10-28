@@ -9,6 +9,7 @@ import { SFX } from '../audio/sfx.js';
 import { lobbyRender } from './lobby.js';
 import { LOOK } from '../player/look.js';
 import { lookCardOn } from '../ui/look-card.js';
+import { copyBtn } from './lobby.js';
 
 const FR_PREFIX = 'fhh-pal-', FR_QUIET = 16, FR_RETRY = 20;   // (seconds before a silent friend shows as away; between tries at reaching one)
 export const PALS = { me: '', list: [], st: new Map(), up: false, peer: null, bc: null, t: 0, said: '', msg: '', open: false };
@@ -128,7 +129,7 @@ export function frRender() {
     ul.appendChild(li);
   }
 }
-$('frCopy').onclick = () => { try { navigator.clipboard.writeText(PALS.me); $('frCopy').textContent = 'Copied'; setTimeout(() => { $('frCopy').textContent = 'Copy'; }, 1400); } catch (e) {} };
+$('frCopy').onclick = () => copyBtn($('frCopy'), PALS.me);   // (net/lobby.js)
 $('frAddBtn').onclick = () => { if (frAdd($('frCode').value)) $('frCode').value = ''; };
 $('frCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && frAdd($('frCode').value)) $('frCode').value = ''; });
 // with friends already on the list, you're reachable as soon as the game's open, so they see you're around

@@ -54,7 +54,7 @@ export function toggleCoop(open) {
   const el = $('coop'), shown = !el.hidden && !el.classList.contains('closing'), show = open ?? !shown;
   $('coopBtn').setAttribute('aria-expanded', String(show));
   clearTimeout(coopShut); el.classList.remove('closing');
-  if (show) { el.hidden = false; $('coopName').value = NET.name; friendsUp(); lobbyRender(); }
+  if (show) { el.hidden = false; $('coopName').value = NET.name; friendsUp(); lobbyRender(); requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); }   // (in a short window it opens below the fold: brought up into view)
   else if (!el.hidden) { el.classList.add('closing'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); }, 200); }
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
@@ -71,7 +71,12 @@ $('coopName').addEventListener('keydown', e => e.stopPropagation());   // typing
 $('coopGo').onclick = () => { wantLock(true); netStart(); };   // (in first person the mouse is taken with this click: game/view-cam.js)
 $('coopLeave').onclick = () => netLeave();
 $('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetView(b.dataset.v); };
-$('coopCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('coopCopy').textContent = 'Copied'; setTimeout(() => { $('coopCopy').textContent = 'Copy'; }, 1400); } catch (e) {} };
+// a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
+export function copyBtn(el, text) {
+  const say = t => { el.textContent = t; clearTimeout(el._cp); el._cp = setTimeout(() => { el.textContent = 'Copy'; }, 1400); };
+  try { navigator.clipboard.writeText(text).then(() => say('Copied'), () => say('Can\'t copy')); } catch (e) { say('Can\'t copy'); }
+}
+$('coopCopy').onclick = () => copyBtn($('coopCopy'), NET.code);
 // a link with ?join=CODE opens the lobby and joins straight away
 { const m = /[?&]join=([A-Za-z0-9]{4})/.exec(location.search); if (m) setTimeout(() => { toggleCoop(true); $('coopCode').value = m[1].toUpperCase(); netJoin(m[1]); }, 300); }
 

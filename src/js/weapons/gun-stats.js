@@ -1,6 +1,7 @@
 // Gun stats, and the combined weapon table WEAP.
 
 import { MELEE_WEAPONS } from '../melee/melee-stats.js';
+import { keyOn } from '../input/keybinds.js';
 
 // Guns: damage, fire rate, magazine, reload, spread, recoil, starting ammo, rarity in the upgrade pool. Each one does
 // something better than the rest, so there's a reason to pick it (its card says what):
@@ -47,7 +48,7 @@ const GUN_WEAPONS = {
   scar: { slot: 'long', ammo: 'rifle', name: 'Battle rifle', short: 'Battle', cal: '7.62×51mm', dmg: 95, rate: 0.22, mag: 10, reload: 1.6, spread: 0.01, kick: 3.6, shake: 0.22, pierce: 1, stagger: 0.4, bruteStagger: 0.3, bruteX: 1.4, sniper: true, sprayK: 1.2, mobile: 1.2, slow: 0.94, heavy: { fire: 0.2, draw: 1.35, ready: 0.65, run: 1.35 }, start: 30, rar: 'l', desc: 'Stopping power. Every 7.62 round staggers what it hits, so steady fire keeps a zombie from ever reaching you, and it\'s the one gun that staggers brutes too, breaking off a charge, and hits them 40% harder. Takes every scope. Heavy: slower to walk, draw and bring up after a sprint.' },
   smg: { slot: 'auto', ammo: 'p9', name: 'Machine pistol', short: 'Auto', cal: '9×19mm', dmg: 22, rate: 0.075, mag: 30, reload: 1.3, spread: 0.05, kick: 0.7, shake: 0.06, mobile: 0.3, sprayK: 0.7, start: 100, rar: 'u', desc: 'The fastest-firing gun, and the one that holds its aim best on the move. Quick to reload.' },
   sub: { slot: 'auto', ammo: 'p9', name: 'Submachine gun', short: 'SMG', cal: '9×19mm', intSupp: true, dmg: 28, rate: 0.072, mag: 30, reload: 1.5, spread: 0.035, kick: 0.9, shake: 0.06, sprayK: 0.45, start: 120, rar: 'r', desc: 'The steadiest automatic: it stays tight through long bursts, and reaches further than any 9mm.' },
-  ar: { slot: 'auto', ammo: 'rifle', name: 'Assault rifle', short: 'AR', cal: '5.56×45mm', dmg: 38, rate: 0.095, mag: 30, reload: 2.0, spread: 0.035, kick: 1.4, shake: 0.08, pierce: 1, start: 90, rar: 'e', desc: 'Rifle rounds that go through a zombie and reach a long way. Full auto, or semi for steadier shots (B).' },
+  ar: { slot: 'auto', ammo: 'rifle', name: 'Assault rifle', short: 'AR', cal: '5.56×45mm', dmg: 38, rate: 0.095, mag: 30, reload: 2.0, spread: 0.035, kick: 1.4, shake: 0.08, pierce: 1, start: 90, rar: 'e', get desc() { return `Rifle rounds that go through a zombie and reach a long way. Full auto, or semi for steadier shots (${keyOn('fireMode')}).`; } },
   lmg: { slot: 'auto', ammo: 'rifle', name: 'Light machine gun', short: 'LMG', cal: '5.56×45mm', dmg: 38, rate: 0.07, mag: 100, reload: 4.2, spread: 0.085, hipK: 1.35, hipKick: 1.9, sideK: 0.23, kick: 1.6, shake: 0.1, pierce: 1, start: 200, slow: 0.9, sprayK: 0.8, mobile: 1.4, heavy: { fire: 0.45, draw: 1.8, ready: 0.45, run: 1.6 }, rar: 'l', desc: 'A hundred-round belt: the most fire you can keep up. You walk slower carrying it, and slower again while you fire it. Slow to draw and to bring up after a sprint, and loose on the move.' }
 };
 // every weapon in the game, melee first, keyed by id

@@ -11,6 +11,7 @@ import { BIND_GROUPS, BIND_LOCK, KB, keyLabel, keyOn } from '../input/keybinds.j
 import { GI, GI_VB } from './game-icons.js';
 import { clamp } from '../core/math.js';
 import { binding, finishBinding, LOCK_SVG } from './settings.js';
+import { cheatsBuilt } from './cheats.js';
 
 // each group's colour, on the keyboard and down the side of its lines
 const KGROUP_COL = { Movement: '#86b4d0', Combat: '#e08a5a', Survival: '#a3c47e' };
@@ -27,7 +28,7 @@ function keyActs() {
   const m = new Map(), add = (k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
   ['w', 'a', 's', 'd'].forEach(k => add(k, { name: 'Walk', group: 'Movement', fixed: true }));
   add('mouse1', { name: 'Fire', group: 'Combat', fixed: true }); add('mouse2', { name: 'Aim down the sights', group: 'Combat', fixed: true });
-  for (const g of BIND_GROUPS) for (const [a, name, hold] of g.rows) add(KB[a], { a, name, group: g.name, hold });
+  for (const g of BIND_GROUPS) for (const [a, name, hold] of g.rows) if (bindShown(a)) add(KB[a], { a, name, group: g.name, hold });
   return m;
 }
 // the keys the list's fixed lines are on, drawn as they are on the keyboard
@@ -43,13 +44,15 @@ function mapKey(k, l) {
   return `<svg class="kFace" aria-hidden="true"><rect class="kf" width="100%" height="100%" rx="5"/><svg width="100%" height="100%" viewBox="${B[0]} ${B[1]} ${B[2]} ${B[3]}"><rect class="kl" x="${B[0] + 1}" y="${B[1] + 1}" width="${B[2] - 2}" height="${B[3] - 2}" rx="10"/>${I[4].map(d => `<path class="kf" d="${d}"/>`).join('')}</svg></svg>`;
 }
 const kEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+// (the free camera's key only where there's a free camera: the cheat menu's, left out of the public game's build)
+const bindShown = a => a !== 'view' || cheatsBuilt;
 // ---- the tab's markup
 export function controlsHtml() {
   const lock = LOCK_SVG;
   const list = BIND_GROUPS.map(g => {
     const col = KGROUP_COL[g.name];
     const fixed = g.fixed.map(([k, t]) => `<div class="kItem" data-q="${kEsc((t + ' ' + k + ' ' + g.name).toLowerCase())}"><div class="kIn"><div class="setRow kRow kFixed"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b></div><span class="kBind" aria-disabled="true">${lock}${(K_FIXED[k] || []).map(keyIcon).join('') || `<span>${k}</span>`}</span></div></div></div>`).join('');
-    const rows = g.rows.map(([a, t, hold]) => `<div class="kItem" data-row="${a}" data-q="${kEsc((t + ' ' + keyOn(a) + ' ' + g.name + (hold ? ' hold' : '')).toLowerCase())}"><div class="kIn"><div class="setRow kRow"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b>${hold ? '<i class="kHold">Hold</i>' : ''}</div><button type="button" class="kBind" data-act="${a}" aria-label="${kEsc(t)}: ${keyOn(a)}. Change it">${keyIcon(KB[a])}</button></div></div></div>`).join('');
+    const rows = g.rows.filter(([a]) => bindShown(a)).map(([a, t, hold]) => `<div class="kItem" data-row="${a}" data-q="${kEsc((t + ' ' + keyOn(a) + ' ' + g.name + (hold ? ' hold' : '')).toLowerCase())}"><div class="kIn"><div class="setRow kRow"><div class="setLab"><b data-t="${kEsc(t)}">${kEsc(t)}</b>${hold ? '<i class="kHold">Hold</i>' : ''}</div><button type="button" class="kBind" data-act="${a}" aria-label="${kEsc(t)}: ${keyOn(a)}. Change it">${keyIcon(KB[a])}</button></div></div></div>`).join('');
     return `<section class="kGroup" style="--gc:${col}"><h4 class="kGroupHd"><i></i>${g.name}<small>${g.rows.length + g.fixed.length}</small></h4>${fixed}${rows}</section>`;
   }).join('');
   const keys = KB_ROWS.map(r => `<div class="kbRow">${r.map(([k, l, w]) => `<button type="button" class="kk" data-k="${kEsc(k)}" style="--w:${w || 1}" tabindex="-1" aria-label="${kEsc(keyLabel(k))}">${mapKey(k, l)}</button>`).join('')}</div>`).join('');

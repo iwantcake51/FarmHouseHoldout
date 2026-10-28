@@ -215,6 +215,16 @@ $('setBody').addEventListener('keydown', e => {
 $('settings').addEventListener('pointerdown', e => { if (!e.target.closest('.sDrop')) closeDrops(); if (e.target.classList.contains('setBack')) closeSettings(); });
 $('setDone').onclick = closeSettings;
 $('setX').onclick = closeSettings;
-$('setReset').onclick = () => { if (setTab === 'controls') { stopBinding(); resetBinds(); buildSettings(); return; } Object.assign(SET, SET_DEF); buildSettings(); applySettings(); saveSettings(); };
+// (the view's left as it is: it's picked on the title, not in here; and every key put back at once asks first, a second
+// click within a few seconds)
+let resetAsk = 0;
+$('setReset').onclick = () => {
+  const b = $('setReset');
+  if (setTab === 'controls') {
+    if (performance.now() - resetAsk > 3000) { resetAsk = performance.now(); b.dataset.txt = b.dataset.txt || b.textContent; b.textContent = 'Reset every key? Click again'; b.classList.add('ask'); setTimeout(() => { if (performance.now() - resetAsk >= 2900) { b.textContent = b.dataset.txt; b.classList.remove('ask'); } }, 3000); return; }
+    resetAsk = 0; b.textContent = b.dataset.txt || b.textContent; b.classList.remove('ask'); stopBinding(); resetBinds(); buildSettings(); return;
+  }
+  const view = SET.view; Object.assign(SET, SET_DEF, { view }); buildSettings(); applySettings(); saveSettings();
+};
 ['setBtnTitle', 'setBtnPause'].forEach(id => { $(id).onclick = openSettings; });
 applySettings();

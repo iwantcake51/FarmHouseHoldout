@@ -6,7 +6,7 @@ import { clamp } from '../core/math.js';
 import { P } from '../player/player.js';
 import { groundDust } from '../effects/puffs.js';
 import { footstep } from '../audio/footsteps.js';
-import { state } from './state.js';
+import { phase, state } from './state.js';
 import { announce } from '../ui/hud-text.js';
 import { camTarget, TITLE_ZOOM } from './camera.js';
 import { ANIM } from '../player/animation.js';
@@ -26,7 +26,7 @@ export function startIntro(soft) {
 export function tickIntro(rdt) {
   if (INTRO.t < 0) return;
   INTRO.t += rdt;
-  if (!INTRO.told && INTRO.t > 0.95) { INTRO.told = true; announce('Night 1', 'Board up the windows', { eye: 'Kessler Farm' }); }
+  if (!INTRO.told && INTRO.t > 0.95) { INTRO.told = true; if (phase === 'break') announce('Night 1', 'Board up the windows', { eye: 'Kessler Farm' }); }   // (not over the wave's own banner, if it's been started straight away)
   if (INTRO.t > INTRO.look[1]) INTRO.t = -1;
 }
 export const introCamOn = () => INTRO.t >= 0 && INTRO.t < INTRO.cam;
