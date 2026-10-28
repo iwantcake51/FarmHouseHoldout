@@ -111,8 +111,9 @@ const FP_RELOAD = { at: [-0.005, -0.16, -0.52], side: [-0.01, -0.15, -0.48], rol
 // and while a hand works the action from your own eyes, the gun's let out a little further from them, lower and turned
 // (across, up, out from your eye; roll) so the hand works low and to the side of it rather than the arm coming up
 // across your eyes: charging a rifle at the end of its reload (turned over onto its left side), racking a handgun's
-// slide or dropping it off the stop (slide), and a bolt gun's bolt drawn back and run home (bolt; each shot's too)
-const FP_CHARGE = { x: -0.03, y: -0.12, z: -0.2, roll: 0.3 }, FP_SLIDE = { x: 0.01, y: -0.09, z: -0.08, roll: 0 }, FP_BOLT = { x: -0.02, y: -0.08, z: -0.1, roll: 0 };
+// slide or dropping it off the stop (slide), a bolt gun's bolt drawn back and run home (bolt; each shot's too) and its
+// rounds thumbed in by the firing hand (feed)
+const FP_CHARGE = { x: -0.03, y: -0.12, z: -0.2, roll: 0.3 }, FP_SLIDE = { x: 0.01, y: -0.09, z: -0.08, roll: 0 }, FP_BOLT = { x: -0.02, y: -0.08, z: -0.1, roll: 0 }, FP_FEED = { x: -0.01, y: -0.07, z: -0.08, roll: 0 };
 // held at the hip in first person, the gun's pushed out a little from your eye (the shorter it is the more, from short
 // to long: so a machine pistol isn't tucked in under your chin), along the view
 const FP_REACH = { short: 0.13, long: 0.07, len: [0.8, 1.3] };
@@ -490,9 +491,9 @@ export function fpReloadPose(gg, k) {
     _rM.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
   }
   // (a hand at the action: the charging handle, the slide, the bolt; ANIM.chW, psW and boltG, player/hold.js)
-  const cw = (ANIM.chW || 0) * (1 - w), sw = (ANIM.psW || 0) * (1 - w), bw = (ANIM.boltG || 0) * (1 - w);
-  if (cw + sw + bw < 0.002) return;
-  const ax = FP_CHARGE.x * cw + FP_SLIDE.x * sw + FP_BOLT.x * bw, ay = FP_CHARGE.y * cw + FP_SLIDE.y * sw + FP_BOLT.y * bw, az = FP_CHARGE.z * cw + FP_SLIDE.z * sw + FP_BOLT.z * bw, ar = FP_CHARGE.roll * cw + FP_SLIDE.roll * sw + FP_BOLT.roll * bw;
+  const cw = (ANIM.chW || 0) * (1 - w), sw = (ANIM.psW || 0) * (1 - w), bw = (ANIM.boltG || 0) * (1 - w), fw = (ANIM.fdW || 0) * (1 - w) * (1 - (ANIM.boltG || 0));
+  if (cw + sw + bw + fw < 0.002) return;
+  const ax = FP_CHARGE.x * cw + FP_SLIDE.x * sw + FP_BOLT.x * bw + FP_FEED.x * fw, ay = FP_CHARGE.y * cw + FP_SLIDE.y * sw + FP_BOLT.y * bw + FP_FEED.y * fw, az = FP_CHARGE.z * cw + FP_SLIDE.z * sw + FP_BOLT.z * bw + FP_FEED.z * fw, ar = FP_CHARGE.roll * cw + FP_SLIDE.roll * sw + FP_BOLT.roll * bw + FP_FEED.roll * fw;
   _rlC.set(X, GUN_Y, (MUZ[W8.cur] || 0.9) * FP_RELOAD.mid).applyMatrix4(h.matrixWorld);
   _rlD.set(ax, ay, az).applyQuaternion(_rlQ);
   _rq2.copy(_rlQ).multiply(_vcQ.setFromEuler(_rE.set(0, 0, ar, 'YXZ'))).multiply(_vcQ.copy(_rlQ).invert());

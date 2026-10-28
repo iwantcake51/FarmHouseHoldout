@@ -888,7 +888,13 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // (a cycle that ends with the hand still on the knob, the bolt left open to load, lets go of it and eases back to the
   // grip rather than the hand jumping there: BOLT_LET)
   { const q = sl && EJECT[id] === 'bolt' ? sl.find(e => e.cyc) : null, on = !!(cp && cy.bolt);
-    if (on) { ANIM.boltG = cp.grab; ANIM.boltHd = cy.v.hand; } else if (ANIM.boltG) { ANIM.boltG *= Math.exp(-rdt * BOLT_LET); if (ANIM.boltG < 0.002 || !q) ANIM.boltG = 0; }
+    // (onto the bolt it follows the cycle; off it, eased away on a critically damped spring, BOLT_LET, so the hand sets
+    // off from the knob gently: a cycle stopped open to load drops its hold on the bolt in a frame or two, which threw
+    // the hand 8 cm)
+    { const tg = on ? cp.grab : 0; if (on) ANIM.boltHd = cy.v.hand;
+      if (tg >= (ANIM.boltG || 0)) { ANIM.boltG = tg; ANIM.vboltG = 0; }
+      else if (rdt > 0) for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / n, i = 0; i < n; i++) springTo(ANIM, 'boltG', 'vboltG', tg, BOLT_LET * BOLT_LET, 2 * BOLT_LET, dt);
+      if (!on && (ANIM.boltG < 0.002 || !q)) { ANIM.boltG = 0; ANIM.vboltG = 0; } }
     const g = ANIM.boltG || 0;
     if (q && g > 0) { const hd = ANIM.boltHd || HAND_0; _p1.set(BOLT_KNOB[0] + hd[0], BOLT_KNOB[1] + hd[1], BOLT_KNOB[2]).applyMatrix4(q.m.matrix); gunPt(_p1, s, 'R', _p1.x, _p1.y, _p1.z); _hR.lerp(_p1, g); _hR.y += Math.sin(Math.PI * g) * 0.02 * (on && cq >= 0.5 ? 0.6 : 1); } }
   // and the charging handle at the end of a rifle's reload: the right hand leaves the grip for it, pulls, lets go and
@@ -924,6 +930,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     wR = W8.relWait > 0 ? 0 : 1;   // (on the bolt while it's drawn back)
   }
   handTarget(_fR, 'R', _hR, freeR || (akOff('R') ? akFree : null), wR, rdt);
+  // (the firing hand off the grip feeding rounds: from your own eyes the gun's let out for it, game/view-cam.js FP_FEED;
+  // once the last's in, following the hand back onto the gun rather than dropping away at once)
+  ANIM.fdW = boltFeed ? HAND.R.w : (ANIM.fdW || 0) > 0.002 ? Math.min(ANIM.fdW, HAND.R.w) : 0;
   // the support hand: off the gun to fetch a mag or feed shells, or wrapping a bandage; on the gun the rest of the time
   if (!ak) {
     let free = null, wt = 0;

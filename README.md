@@ -690,7 +690,7 @@ Melee weapons work the same way, in `melee/melee-stats.js` and `melee/melee-mode
 
 ## Credits
 
-Icons from [game-icons.net](https://game-icons.net), by Lorc, Delapouite, sbed, Zeromancer and the site's other
+Icons from [game-icons.net](https://game-icons.net) (the browser tab's zombie too), by Lorc, Delapouite, sbed, Zeromancer and the site's other
 artists, under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) (the newer ones taken as they are from the
 set's [Iconify package](https://www.npmjs.com/package/@iconify-json/game-icons)). Keyboard and mouse prompts from
 Kenney's [Input Prompts](https://kenney.nl/assets/input-prompts), and the shield, skull, hourglass, locks and the

@@ -62,3 +62,6 @@ export const GI = {
 // broken bone for Fragile, two coins for Empty pockets
 export const CURSE_ICON = { stride: GI.lungs, blood: GI.bleedingHeart, price: GI.brokenHeart, fingers: GI.dropWeapon, fragile: GI.brokenBone, pockets: GI.twoCoins };
 document.querySelectorAll('svg[data-gi]').forEach(s => { s.setAttribute('viewBox', GI_VB); s.innerHTML = GI[s.dataset.gi] || ''; });
+// the tab's icon: game-icons.net's zombie (Delapouite, as above) in the game's orange (index.html holds an empty one
+// till then, so the browser doesn't go asking for a favicon.ico that isn't there)
+{ const f = document.getElementById('favicon'); if (f) f.href = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${GI_VB}"><g fill="#e07a2e">${GI.zombie}</g></svg>`); }
