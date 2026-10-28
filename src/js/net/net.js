@@ -20,7 +20,7 @@ import { setViewMode, VCAM } from '../game/view-cam.js';
 import { chatClear, chatSys } from './chat.js';
 import { frMet } from './friends.js';
 
-export const NET_V = 1, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
+export const NET_V = 2, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 2 since the lobby got ready-up, chat and removing someone, which a game before it doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
   view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
