@@ -138,7 +138,7 @@ const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, frag
 const RET_MIN = 1.3, RET_U = { uT: { value: 0 } }, RET_KIND = { holo: 0, dot: 1, cdot: 2 };
 const RET_VERT = 'varying vec3 vV, vAx, vUp; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; vAx = normalize((modelViewMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz); vUp = normalize((modelViewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); gl_Position = projectionMatrix * mv; }';
 const RET_FRAG = `
-uniform float uKind, uMoa, uT; varying vec3 vV, vAx, vUp;
+uniform float uKind, uMoa, uT, uGlow; varying vec3 vV, vAx, vUp;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float ln(float d, float w, float px) { return 1.0 - smoothstep(w - px, w + px, d); }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
@@ -157,20 +157,22 @@ void main() {
   } else {
     // (with the ring round it, the dot and the ring kept fine so the dark gap between them still shows when the whole
     // circle's only a dozen pixels across)
-    float cd = step(1.5, uKind), r = max(uMoa * 0.5, px * mix(${RET_MIN.toFixed(2)}, 0.9, cd));
-    core = ln(e, r, px); halo = mix(0.4, 0.22, cd) * exp(-e * e / (r * r * mix(5.0, 2.5, cd))) + mix(0.08, 0.0, cd) * exp(-e / (r * 4.0));
+    float cd = step(1.5, uKind), r = max(uMoa * 0.5, px * mix(${RET_MIN.toFixed(2)}, 0.9, cd) * (0.6 + 0.4 * uGlow));
+    core = ln(e, r, px); halo = uGlow * (mix(0.4, 0.22, cd) * exp(-e * e / (r * r * mix(5.0, 2.5, cd) * uGlow)) + mix(0.08, 0.0, cd) * exp(-e / (r * 4.0 * uGlow)));
     if (cd > 0.5) { float w = max(0.5, px * 0.75); core = max(core, ln(abs(e - 16.0), w, px)); halo += 0.06 * exp(-pow(abs(e - 16.0) / (w * 2.0), 2.0)); }
   }
   float a = clamp(core + halo, 0.0, 1.0); if (a < 0.004) discard;
   gl_FragColor = vec4(1.0, 0.07 + 0.06 * (1.0 - clamp(core, 0.0, 1.0)), 0.04, a);   // (deep red at its heart, a touch warmer in its bloom)
 }`;
-const retMat = (kind, moa) => new THREE.ShaderMaterial({ vertexShader: RET_VERT, fragmentShader: RET_FRAG, uniforms: { uKind: { value: RET_KIND[kind] ?? 1 }, uMoa: { value: moa }, uT: RET_U.uT }, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+const retMat = (kind, moa, glow) => new THREE.ShaderMaterial({ vertexShader: RET_VERT, fragmentShader: RET_FRAG, uniforms: { uKind: { value: RET_KIND[kind] ?? 1 }, uMoa: { value: moa }, uGlow: { value: glow }, uT: RET_U.uT }, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const RET_MATS = {};
 // a sight's reticle pane (weapons/attachments.js): w by h (a window with corners) or, with no h, a disc w across (a
-// round one), at (x, y, z) on p, square to the sight's axis; moa: a dot's size
-export function reticleOn(p, kind, x, y, z, w, h, moa = 2) {
-  const geo = h ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32), k = kind + ':' + moa;
-  const m = new THREE.Mesh(geo, RET_MATS[k] || (RET_MATS[k] = retMat(kind, moa))); m.position.set(x, y, z); m.renderOrder = 6;
+// round one), at (x, y, z) on p, square to the sight's axis; moa: a dot's size; glow: how much bloom round a dot (and,
+// under 1, how much the smallest it's drawn shrinks with it): a pistol's dot, close to the eye in a small window, is kept
+// tight (weapons/attachments.js)
+export function reticleOn(p, kind, x, y, z, w, h, moa = 2, glow = 1) {
+  const geo = h ? new THREE.PlaneGeometry(w, h) : new THREE.CircleGeometry(w, 32), k = kind + ':' + moa + ':' + glow;
+  const m = new THREE.Mesh(geo, RET_MATS[k] || (RET_MATS[k] = retMat(kind, moa, glow))); m.position.set(x, y, z); m.renderOrder = 6;
   m.userData.reticlePane = true; m.castShadow = m.receiveShadow = false; m.layers.set(OVER_LAYER); p.add(m); return m;   // (over a fog round's fog: effects/post.js)
 }
 function stepReticles() { RET_U.uT.value = performance.now() / 1000; }

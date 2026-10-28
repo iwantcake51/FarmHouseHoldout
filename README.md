@@ -365,13 +365,17 @@ the sight's line. It sits out at infinity, the same size and on the same aim poi
 window, sliding with the sight rather than with your eye, and it turns with the gun as it cants. From the hip, from the
 side or from in front there's nothing to see in the glass, and it never shows through your body, your hands or anything
 else in front of the window. The dot is drawn over what's behind it rather than added to it, so it stays red against
-a bright sky as well as in the dark, with only a faint bloom round it. On a handgun the red dot is a pistol sight cut
+a bright sky as well as in the dark, with only a faint bloom round it. A handgun's dot is kept tighter still, a small sharp
+point with very little bloom, since its window is small and close to your eye. On a handgun the red dot is a pistol sight cut
 into the slide, one of four dealt to each handgun once a run (and the same one on your teammates' screens): a Trijicon
 RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window, its battery cap on top, 2.5
 MOA), a Holosun 507C (a squared shroud, solar panel on top, battery tray in the right side and buttons in the left, 2
 MOA) or a Leupold DeltaPoint Pro (the widest, tallest window and a rear-sight notch across its back, 2.5 MOA), each its
 true size, the glass at the front and the emitter on the base behind the window, the slide's own rear sight showing
-low in the window below the dot. The handgun's holo step puts the holographic sight itself on, the same EOTech as the long guns'. The machine
+low in the window below the dot. The handgun's match barrel makes it a long-slide, the way a Glock 17L or G40 is: the
+barrel and the slide over it grow 4 cm at level I and more at each level after, the frame stays as it was, and the
+slide's nose runs on past the dust cover, down to the frame's depth, with its front sight out at the new muzzle and no
+serrations at the front. The handgun's holo step puts the holographic sight itself on, the same EOTech as the long guns'. The machine
 pistol's red dot is a Trijicon RMR, like a handgun's. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and

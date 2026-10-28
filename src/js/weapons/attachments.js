@@ -171,6 +171,7 @@ const PDOT = {
     out: [[-0.015, 0.004], [0.015, 0.004], [0.0148, 0.0235], [0.0128, 0.0285], [0.008, 0.03], [-0.008, 0.03], [-0.0128, 0.0285], [-0.0148, 0.0235]] }
 };
 const PDOT_KINDS = Object.keys(PDOT);
+const PDOT_GLOW = 0.35;   // (a pistol's dot, a hand's length from your eye in a small window, drawn tight with little bloom: reticleOn)
 const pdotOf = id => { const r = W8.rds || (W8.rds = {}); if (!PDOT[r[id]]) r[id] = PDOT_KINDS[Math.floor(Math.random() * PDOT_KINDS.length)]; return r[id]; };
 function pistolDot(p, sx, by, bz, ret, kind) {
   const k = kind || pdotOf(tierCtx), Q = PDOT[k], zr = bz - Q.L / 2, zf = bz + Q.L / 2, wy = by + Q.wy, low = by + Q.wy - Q.wh;
@@ -187,7 +188,7 @@ function pistolDot(p, sx, by, bz, ret, kind) {
   xsec(p, hood, zf - Q.hood, zf, GM.metal, 0.0005);
   // the glass at the front, tinted, and the dot (or circle-dot) seen through it out at infinity (effects/scope-view.js)
   if (Q.round) cyl(p, Q.ww, 0.0012, GM.holoGlass, sx, wy, zf - 0.003, 24); else box(p, Q.ww * 2, Q.wh * 2, 0.0012, GM.holoGlass, sx, wy, zf - 0.003);
-  reticleOn(p, ret, sx, wy, zf - 0.0065, Q.round ? Q.ww : Q.ww * 2, Q.round ? 0 : Q.wh * 2, Q.moa);
+  reticleOn(p, ret, sx, wy, zf - 0.0065, Q.round ? Q.ww : Q.ww * 2, Q.round ? 0 : Q.wh * 2, Q.moa, PDOT_GLOW);
   // the emitter on the base at the back, its LED looking forward at the glass
   box(p, 0.0042, 0.0026, 0.0032, GM.rubber, sx, low + 0.0013, zr + 0.0065); box(p, 0.0016, 0.001, 0.0004, GM.dotR, sx, low + 0.0014, zr + 0.0083);
   const btn = (x, z) => box(p, 0.0014, 0.0042, 0.0062, GM.rubber, x, by + 0.006, z);
