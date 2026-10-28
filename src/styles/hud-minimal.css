@@ -17,9 +17,10 @@ body.hudMin #fireMode .fmT{font-size:12px;color:var(--dim)}
 body.hudMin #fireMode.sw .fmT b{color:var(--ink)}
 /* the weapon slots: the silhouettes a size smaller, no numbers, no rule over them; the one in your hands underlined */
 body.hudMin .slots{border-top:0;padding-top:2px}
-body.hudMin .slots span{width:62px;height:20px}
-body.hudMin .slots span i{left:2px}
-body.hudMin .slots span.on::after{width:calc(100% - 4px)}
+body.hudMin .slots{gap:10px}
+body.hudMin .slots span{height:24px;padding-bottom:4px}
+body.hudMin .slots span i{width:calc(var(--aw) * .75);height:19.5px}
+body.hudMin .slots span.on::after{width:calc(var(--aw) * .75)}
 body.hudMin .slots span em{display:none}
 body.hudMin .slots span.lock{display:none}
 body.hudMin #bandBox{background:none;border-color:transparent;padding-right:2px}

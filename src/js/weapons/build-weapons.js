@@ -11,7 +11,7 @@ import { modLv } from './mod-levels.js';
 import { tierName } from '../upgrades/tier-table.js';
 import { gunAtt, gunTier, magTierIn, recomputeEff, run, S, setTierCtx, T, W, W8 } from '../game/run-state.js';
 import {
-  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
+  AKX, BELT, BIPOD, BRK, CHARGE, CRANE, fitted, flipIn, GM, gunMeshes, HOLDS, MAGG, MAGPOS, MUZ, setStowDirty, SLIDES, X
 } from './gun-materials.js';
 import { hi } from './gun-parts.js';
 import { GUNS } from '../melee/melee-models.js';
@@ -44,7 +44,8 @@ export function buildWeapon(hold, id, D, mods, rec) {
   // (a gun in a hand is built inside its flipped group, its notes kept on the hold: flipIn, weapons/gun-materials.js)
   const parent = hold.userData.side && !D.melee ? flipIn(hold) : hold;
   // magazines go in their own group so the reload can drop them out of the model and bring a fresh one in
-  const mg = new THREE.Group(); mg.userData.isMag = true; parent.add(mg); parent.userData.magG = hold.userData.magG = mg; rec.magg.push(mg);   // (the models put their mags in it: parent's)
+  // (a bigger mag is marked as fitted, drawn in gold in the slot row as the attachments are: fitted)
+  const mg = new THREE.Group(); mg.userData.isMag = true; mg.userData.att = magT > 0; parent.add(mg); parent.userData.magG = hold.userData.magG = mg; rec.magg.push(mg);   // (the models put their mags in it: parent's)
   const info = GUNS[id](parent, mods);
   if (info && info.crane) rec.crane.push(info.crane);
   if (info && info.charge && !rec.charge) rec.charge = { m: info.charge, at: info.chargeAt, tr: info.chargeTravel || 0.065 };   // how far its handle draws back
@@ -55,7 +56,7 @@ export function buildWeapon(hold, id, D, mods, rec) {
   if (info.baseMag && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else { const h = info.baseMag + magT * 0.1; magBox(mg, 0.056, h, 0.08, X, info.magY - h / 2, info.magZ); } }
   else if (info.magZ && !info.ownMags && info.stickMags) { if (magT) { const h = magT >= 2 ? 0.17 : 0.07; magBox(mg, 0.04, h, 0.066, X, 0.962 - h / 2 + 0.004, info.magZ); } }   // the hand cannon: a base plate, then a longer mag below its own
   else if (info.magZ && !info.ownMags) { if (magT >= 2) drum(mg, info, magT >= 3); else if (magT && !info.drumOnly) { const h = 0.06 + magT * 0.07; magBox(mg, 0.058, h, 0.07, X, info.magY - h / 2, info.magZ); } }
-  const nb = parent.children.length, muz = fitAttachments(parent, D, front, y, info) + 0.02;
+  const nb = parent.children.length, muz = fitted(parent, () => fitAttachments(parent, D, front, y, info)) + 0.02;
   // a break-action's barrels carry whatever was fitted on them (a choke, a laser, a light, the shell clip on a
   // sawn-off's forend), so it all swings down with them when it's broken open
   if (info.brk) parent.children.slice(nb).forEach(o => { if (o.position.z > info.brk.position.z + 0.02) { o.position.sub(info.brk.position); info.brk.add(o); } });

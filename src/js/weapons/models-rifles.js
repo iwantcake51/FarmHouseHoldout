@@ -4,7 +4,7 @@
 import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { box } from '../core/geometry.js';
 import { T } from '../game/run-state.js';
-import { GM, X } from './gun-materials.js';
+import { fitted, GM, X } from './gun-materials.js';
 import {
   apPart, apPlate, boxes, checker, clipTo, cyl, inset, irons, lathe, notchRear, portFill, profile, pullInside, pw,
   ribTube, ring, rrect, shp, solid, stipple, taper, taperX, tapeWrap, xsec, zAt
@@ -136,13 +136,13 @@ export const RIFLE_MODELS = {
     // receiver's front, ahead of the port, never over the bolt (SCOPE_RINGS)
     const big = sight >= 5, scope = sight === 3 || big;
     let top = 1.152;
-    if (sight) {
+    if (sight) fitted(g, () => {
       const z0 = 0.63, z1 = 0.915, b0 = 1.156, RT = b0 + 0.0105;
       profile(g, shp([[z0, 1.1405], [0.762, 1.1405], [0.768, 1.1478], [z1, 1.1478], [z1, b0 + 0.001], [z0, b0 + 0.001]]), 0.022, B, X, 0.0008);
       xsec(g, shp([[X - 0.0125, b0], [X + 0.0125, b0], [X + 0.0168, b0 + 0.003], [X + 0.0168, b0 + 0.005], [X + 0.0148, RT], [X - 0.0148, RT], [X - 0.0168, b0 + 0.005], [X - 0.0168, b0 + 0.003]]), z0, z1, GM.rail, 0.0006);
       for (let z = z0 + 0.012; z < z1 - 0.008; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, RT - 0.0015, z);   // its cross slots
       top = RT;
-    }
+    });
     if (scope) {
       const sr = big ? 0.0215 : 0.019, sy = big ? 1.212 : 1.198, ob = big ? 0.036 : 0.03, oc = big ? 0.026 : 0.024, z0 = big ? 0.6 : 0.63, z1 = big ? 0.97 : 0.93;
       cyl(g, sr, z1 - z0 - 0.12, GM.metal, X, sy, (z0 + z1) / 2, 20);
@@ -444,7 +444,7 @@ export const RIFLE_MODELS = {
     // ---- optics sit straight on the rail (weapons/attachments.js builds the holo and the scope; the red dot is an
     // Aimpoint-style tube on a low mount, built here)
     const top = RT, sz = 0.6;
-    if (sight === 1) {
+    if (sight === 1) fitted(g, () => {
       const sy = top + 0.038;
       profile(g, shp([[sz - 0.03, top], [sz + 0.03, top], [sz + 0.024, top + 0.017], [sz - 0.024, top + 0.017]]), 0.032, A, X, 0.001);
       box(g, 0.012, 0.011, 0.02, A, X + 0.019, top + 0.006, sz); cyl(g, 0.0055, 0.01, GM.metal2, X + 0.026, top + 0.006, sz, 12).rotation.set(0, 0, Math.PI / 2);
@@ -457,17 +457,17 @@ export const RIFLE_MODELS = {
       // (its dot out at infinity, seen through the front lens; looked down in first person like any red dot: game/view-cam.js)
       reticleOn(g, 'dot', X, sy, sz + 0.087, 0.021); g.userData.optic = { kind: 'dot', x: X, y: sy, zr: sz - 0.069, zf: sz + 0.091, r: 0.019 };
       cyl(g, 0.0085, 0.013, GM.metal2, X, sy + 0.026, sz + 0.008, 14).rotation.set(0, 0, 0); cyl(g, 0.0085, 0.013, GM.metal2, X - 0.026, sy, sz + 0.008, 14).rotation.set(0, 0, Math.PI / 2);
-    }
+    });
     // ---- laser, taped to the left of the handguard with olive tape: a pointer, then a proper module
-    if (T('laser')) {
+    if (T('laser')) fitted(g, () => {
       const lx = X + HR * 0.95 + 0.013, ly = y0, lz = 0.96, em = new THREE.Object3D();
       if (T('laser') === 1) { cyl(g, 0.011, 0.11, GM.metal2, lx, ly, lz); ring(g, 0.0125, 0.012, A, lx, ly, lz + 0.05); box(g, 0.008, 0.008, 0.004, GM.red, lx, ly, lz + 0.057); em.position.set(lx, ly, lz + 0.06); }
       else { box(g, 0.03, 0.036, 0.11, GM.tan, lx + 0.004, ly, lz); box(g, 0.01, 0.01, 0.004, GM.laserG, lx + 0.004, ly + 0.008, lz + 0.056); box(g, 0.01, 0.01, 0.004, GM.glass, lx + 0.004, ly - 0.008, lz + 0.056); box(g, 0.012, 0.006, 0.02, GM.metal2, lx + 0.004, ly + 0.02, lz - 0.02); em.position.set(lx + 0.004, ly + 0.008, lz + 0.059); }
       [lz - 0.032, lz + 0.03].forEach(z => tapeWrap(g, X, y0, z, HR + 0.002, lx + (T('laser') === 1 ? 0.012 : 0.02), ly, 0.95));
       em.userData.isLaser = true; g.add(em); g.userData.laserEm = em;   // (isLaser: found again on the copy you carry, weapons/laser.js)
-    }
+    });
     // ---- light, on the barrel ahead of the front sight, low on the left: taped on, then a weapon light in a barrel ring
-    if (T('light')) {
+    if (T('light')) fitted(g, () => {
       const lx = X + 0.024, ly = y0 - 0.029, lz = 1.25;
       if (T('light') === 1) {
         cyl(g, 0.016, 0.13, GM.metal2, lx, ly, lz); ring(g, 0.02, 0.03, A, lx, ly, lz + 0.075); cyl(g, 0.017, 0.004, GM.lens, lx, ly, lz + 0.091);
@@ -477,7 +477,7 @@ export const RIFLE_MODELS = {
         cyl(g, 0.018, 0.13, A, lx, ly, lz); ring(g, 0.024, 0.034, GM.metal2, lx, ly, lz + 0.08); cyl(g, 0.021, 0.004, GM.lens, lx, ly, lz + 0.098);
         ring(g, 0.015, 0.014, GM.rubber, lx, ly, lz - 0.072); box(g, 0.006, 0.013, 0.028, GM.rubber, lx + 0.019, ly, lz - 0.038);
       }
-    }
+    });
     if (m.gl) {   // an M203 under the handguard
       box(g, 0.028, 0.026, 0.22, A, X, y0 - HR - 0.011, 0.92); cyl(g, 0.034, 0.23, A, X, y0 - HR - 0.058, 0.92); ring(g, 0.036, 0.012, GM.metal2, X, y0 - HR - 0.058, 1.035);
       box(g, 0.046, 0.046, 0.07, A, X, y0 - HR - 0.04, 0.78); box(g, 0.011, 0.028, 0.011, GM.metal2, X, y0 - HR - 0.072, 0.78);

@@ -66,7 +66,7 @@ export function renderSpec() {
   q('.spWName').textContent = f.wn || '';
   const ammo = q('.spAmmo'), n = Array.isArray(have) ? Math.min(...have) : have;   // (a pair: the emptier of the two)
   ammo.textContent = melee ? '—' : Array.isArray(have) ? have.join(' · ') : have;
-  // a melee weapon: its white silhouette where the count would be, as your own HUD shows it (ui/melee-art.js), with
+  // a melee weapon: its picture where the count would be, as your own HUD shows it (ui/melee-art.js), with
   // the mods they've put on it at their levels (from their loadout, net/arsenal.js), not a dash (the dash only while
   // their weapon's not known yet)
   { const D = melee && f.wid ? W(f.wid) : null, img = q('.spMelee'), g = (f.lo && f.lo.guns && f.lo.guns[f.wid]) || {}, mods = g.mods || [], lv = g.lv || {};

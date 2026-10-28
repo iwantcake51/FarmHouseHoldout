@@ -230,7 +230,7 @@ you go down, a low drone drifts in while you watch a teammate until the wave is 
 survivor with a full mag in each gun and three spares. While you watch, the picture is drained of colour and grainy,
 like an old camera feed, with faint scan lines and a brighter band rolling slowly down it, so it's plain you're out
 (with reduced motion turned on in your system, the grain holds still). The panel for the teammate you watch shows
-their weapon as your own HUD does: a melee weapon shows its white silhouette where a gun's round count would be, with the upgrades they've put on it (nails in the bat, and so on, at their levels). In a
+their weapon as your own HUD does: a melee weapon shows its picture where a gun's round count would be, with the upgrades they've put on it (nails in the bat, and so on, at their levels). In a
 first-person game you watch from their own eyes: the camera is where theirs is, looking where they look, as wide as they
 see, with their arms and weapon posed as they see them (their head hidden out of the lens's way, their name tag gone,
 and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
@@ -261,10 +261,14 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
 with a mod that adds a setting).
 
-Under the ammo count, past a thin rule, the slot row shows what you carry: each weapon as its own white silhouette,
-drawn from the gun's own model with whatever you've fitted to it (a scope, a light, a drum, the nails in the bat), by
-the number that picks it. The one in your hands is lit with a short mark under it, the others faded back, and an
-empty slot is just its number. These are pictures of the game's own models, not icons. The fire mode sits beside the
+Under the ammo count, past a thin rule, the slot row shows what you carry: each weapon as a picture of its own model in
+the HUD's off-white, lit from the upper left with a thin inked line where one part stands in front of another, by the
+number that picks it. Everything you've fitted to a gun (a sight, a light, a laser, a can or choke, a bigger mag, a
+bayonet or stock) is drawn in gold with a hairline gap round it, so you can see at a glance what's been upgraded. A
+pair of guns shows as two: the second behind the first, up and to the right, half see-through. Each slot is as wide
+as its picture, so the gaps between them are even. The one in your hands is lit with a short mark under it the width
+of its picture, the others faded back, and an empty slot is just its number. These are pictures of the game's own
+models, not icons. The fire mode sits beside the
 count with no box round it, and the bandage count is just the red cross, the number and its key.
 
 Touch screens get twin sticks and on-screen buttons.
@@ -745,7 +749,7 @@ CC0). Built with [three.js](https://threejs.org) and [PeerJS](https://peerjs.com
 
 Every icon comes from those packs, with one exception: the rarity stars on upgrades (at the stations and on the cards)
 are drawn in code, because neither set has a plain five-pointed star (and their liquid fill is built on that shape).
-The stripes and textures drawn in CSS (the hazard stripes, Bad blood's veins) are patterns, not icons. The weapon silhouettes in the HUD's slot
+The stripes and textures drawn in CSS (the hazard stripes, Bad blood's veins) are patterns, not icons. The weapon pictures in the HUD's slot
 row are drawn from the game's own 3D models at run time, as the melee weapon's picture always has been, so they're
 renders, not generated icons.
 

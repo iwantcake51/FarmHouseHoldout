@@ -74,15 +74,19 @@ export function announce(a, b, opt) {
   el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
   el.style.opacity = 1; annT = 2.8;
 }
-// the slot row under the ammo count: each weapon you carry as its own silhouette (ui/melee-art.js: gunArt), with
-// whatever's fitted to it, by the number that picks it; the one in your hands lit, an empty slot just its number. The
-// pictures are kept, so a slot's only drawn again when what's in it changes
+// the slot row under the ammo count: each weapon you carry as a picture of its own model (ui/melee-art.js: gunArt), with
+// whatever's fitted to it, by the number that picks it; the one in your hands lit, an empty slot just its number. Each
+// picture is shown SLOT_ART.h tall, as wide as that makes it (between min and max), so every slot is only as wide as
+// what's in it and the gaps between them come out even. The pictures are kept, so a slot's only drawn again when what's
+// in it changes
+const SLOT_ART = { h: 26, min: 28, max: 76 };
 export function renderSlots() {
   const k = SLOTS.map(s => (W8.slot[s] ? gunArtKey(W8.slot[s]) : '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
   $('slots').innerHTML = SLOTS.map((s, i) => {
     const id = W8.slot[s], a = id && gunArt(id), nm = id ? WEAP[id].name : 'Empty';
-    return `<span class="${W8.cur === s ? 'on' : ''}${id ? '' : ' lock'}" aria-label="${i + 1}: ${nm}"><em>${i + 1}</em>${a ? `<i style="--art:url(${a.url})"></i>` : ''}</span>`;
+    const aw = a ? `--aw:${clamp(SLOT_ART.h * a.w / a.h, SLOT_ART.min, SLOT_ART.max).toFixed(0)}px` : '';
+    return `<span class="${W8.cur === s ? 'on' : ''}${id ? '' : ' lock'}" style="${aw}" aria-label="${i + 1}: ${nm}"><em>${i + 1}</em>${a ? `<i style="--art:url(${a.url})"></i>` : ''}</span>`;
   }).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts

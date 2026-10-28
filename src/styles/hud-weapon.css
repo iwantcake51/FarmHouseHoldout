@@ -100,19 +100,19 @@
 #bandBox.empty{opacity:.45}#bandBox.empty svg{background:#4a3a36;box-shadow:none}
 #reloadTag{font-family:var(--f-num);font-weight:700;font-size:15px;letter-spacing:.05em;color:var(--orange)}
 #reloadTag:empty{display:none}
-/* the slot row: what you carry, each weapon its own silhouette drawn from its model (ui/melee-art.js: gunArt), muzzle
-   to the left as the melee ones lie, by the number that picks it. Under a hairline that closes the panel off; the one
-   in your hands in full ink with a short orange mark under it, the others faded back, an empty slot only its number */
-.slots{display:flex;gap:4px;justify-content:flex-end;align-items:flex-end;margin-top:3px;padding-top:7px;border-top:1px solid rgba(236,230,216,.18);filter:drop-shadow(0 1px 1px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.35))}
-.slots span{position:relative;display:block;width:80px;height:26px;transition:opacity .15s}
-.slots span em{position:absolute;left:0;top:-1px;font:700 13px/1 var(--f-num);font-style:normal;color:rgba(236,230,216,.6)}
-.slots span i{position:absolute;left:14px;right:2px;top:2px;bottom:6px;background:rgba(236,230,216,.5);
-  -webkit-mask:var(--art) left center/contain no-repeat;mask:var(--art) left center/contain no-repeat;transition:background-color .15s}
-.slots span::after{content:"";position:absolute;right:2px;bottom:0;width:0;height:2px;background:var(--orange);transition:width .2s cubic-bezier(.2,.8,.3,1)}
+/* the slot row: what you carry, each weapon a picture of its own model in the HUD's ink, what's been fitted to it in
+   gold (ui/melee-art.js: gunArt), muzzle to the left as the melee ones lie, by the number that picks it, each only as
+   wide as its picture so the gaps come out even. Under a hairline that closes the panel off; the one in your hands in
+   full with a short orange mark under it, the others faded back, an empty slot only its number */
+.slots{display:flex;gap:14px;justify-content:flex-end;align-items:flex-end;margin-top:3px;padding-top:7px;border-top:1px solid rgba(236,230,216,.18);filter:drop-shadow(0 1px 1px rgba(0,0,0,.85)) drop-shadow(0 0 6px rgba(0,0,0,.35))}
+.slots span{position:relative;display:flex;align-items:flex-end;gap:6px;height:34px;padding-bottom:6px;transition:opacity .15s}
+.slots span em{align-self:flex-start;font:700 13px/1 var(--f-num);font-style:normal;color:rgba(236,230,216,.6)}
+.slots span i{display:block;width:var(--aw,48px);height:26px;background:var(--art) center/contain no-repeat;opacity:.5;transition:opacity .15s}
+/* (the orange mark runs the width of the picture above it) */
+.slots span::after{content:"";position:absolute;right:0;bottom:0;width:0;height:2px;background:var(--orange);transition:width .2s cubic-bezier(.2,.8,.3,1)}
 .slots span.on em{color:var(--ink)}
-.slots span.on i{background:var(--ink)}
-.slots span.on::after{width:calc(100% - 16px)}
-.slots span.lock{width:26px}
+.slots span.on i{opacity:1}
+.slots span.on::after{width:var(--aw)}
 .slots span.lock em{color:rgba(236,230,216,.3)}
 /* fire mode, left of the ammo count: the rounds a pull of the trigger sends (one; a burst's; a stream that fades off for
    full auto; one for a pump, bolt or break action) over its name, with the B keycap when the gun can switch. A switch
