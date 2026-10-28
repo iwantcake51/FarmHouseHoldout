@@ -371,8 +371,8 @@ into the slide, one of four dealt to each handgun once a run (and the same one o
 RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window, its battery cap on top, 2.5
 MOA), a Holosun 507C (a squared shroud, solar panel on top, battery tray in the right side and buttons in the left, 2
 MOA) or a Leupold DeltaPoint Pro (the widest, tallest window and a rear-sight notch across its back, 2.5 MOA), each its
-true size, the glass at the front and the emitter on the base behind the window, the slide's own rear sight showing
-low in the window below the dot. The handgun's match barrel makes it a long-slide, the way a Glock 17L or G40 is: the
+true size, the glass at the front and the emitter on the base behind the window. It sits at the back of the slide where
+the rear sight was, and with any optic on the handgun its iron sights (the rear sight and the front post) come off. The handgun's match barrel makes it a long-slide, the way a Glock 17L or G40 is: the
 barrel and the slide over it grow 4 cm at level I and more at each level after, the frame stays as it was, and the
 slide's nose runs on past the dust cover, down to the frame's depth, with its front sight out at the new muzzle and no
 serrations at the front. The handgun's holo step puts the holographic sight itself on, the same EOTech as the long guns'. The machine

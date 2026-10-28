@@ -13,6 +13,9 @@ import { REV_CYL, REV_RAIL } from './gun-models.js';
 
 // how much longer the match barrel makes the slide at each level (m): a G17L's at the first, longer after
 const MATCH_SLIDE = [0.04, 0.055, 0.07];
+// where an optic's middle sits along the slide (the red dot, then the holo): back against the slide's rear, where the
+// rear sight was, the way a cut slide carries one
+const PISTOL_OPTIC_Z = [0.573, 0.594];
 export const PISTOL_MODELS = {
   // 9mm pistol: a Glock 17 Gen 5, traced off a side-on photo. The slide (serrations front and back, the sights, the
   // ejection port on the right with the barrel's hood in it) rides on a polymer frame: the dust cover with its rail
@@ -55,11 +58,15 @@ export const PISTOL_MODELS = {
     [-1, 1].forEach(sd => { for (let k = 0; k < 7; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.549 + k * 0.0075); if (!ext) for (let k = 0; k < 5; k++) box(sl, 0.002, 0.026, 0.003, GM.rubber, X + sd * 0.0166, 1.142, 0.788 + k * 0.0075); });
     // the Glock's own sights: a slim front post, its back face upright and its front sloped, a round white dot on its
     // back; the rear a block narrower at its top than its base, its square notch outlined by a white U, the dot sitting
-    // in the U as you line them up
-    profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]].map(([z, y]) => [z + ext, y])), 0.003, GM.rubber, X);
-    cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248 + ext, 12);
-    glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
-    irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 + ext });
+    // in the U as you line them up. With an optic on, both come off, the optic sitting at the back of the slide where
+    // the rear one was (PISTOL_OPTIC_Z)
+    const sight = T('sight');
+    if (!sight) {
+      profile(sl, shp([[0.825, 1.1605], [0.834, 1.1605], [0.834, 1.162], [0.8295, 1.169], [0.825, 1.169]].map(([z, y]) => [z + ext, y])), 0.003, GM.rubber, X);
+      cyl(sl, 0.00125, 0.0008, GM.dot, X, 1.1665, 0.8248 + ext, 12);
+      glockRear(sl, X, 1.169, 0.555, 0.019, 0.0145, 0.0075, 0.009, 0.0042, 0.0034, GM.rubber, GM.dot);
+      irons(g, { kind: 'notch', yr: 1.169, rz: 0.555, yf: 1.169, fz: 0.829 + ext });
+    }
     cyl(sl, 0.0065, 0.002, GM.rubber, X, 1.142, nose + 0.0005, 12);
     // ---- the magazine, lying back at the grip's rake (it drops out along it): the body up inside the grip, then the
     // tier's base under the mag well: flush, a +5 base pad, a 33-round stick, a 50-round drum on its neck
@@ -83,7 +90,7 @@ export const PISTOL_MODELS = {
     const front = nose;
     if (m.auto) box(sl, 0.006, 0.012, 0.04, GM.orange, X + 0.017, 1.135, 0.56);   // the auto sear's selector
     if (m.burst) { box(sl, 0.03, 0.03, 0.016, GM.metal2, X, 1.142, 0.536); box(sl, 0.01, 0.016, 0.02, GM.orange, X + 0.016, 1.15, 0.53).rotation.y = 0.35; }
-    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, sz: 0.6, ownMags: true, laser: { y: 1.1, z: 0.786 } };   // the laser on the dust cover's rail
+    return { front, y: 1.142, magZ: 0.567, magY: 1.05, slide: sl, travel: 0.07, lock: true, top: 1.161, ownMags: true, laser: { y: 1.1, z: 0.786 }, sz: sight ? PISTOL_OPTIC_Z[Math.min(sight, 2) - 1] : 0.6 };   // the laser on the dust cover's rail
   },
   // .357 revolver: a stainless Smith & Wesson, measured off side-on photos (a 6" 617 for the frame, a snub-nosed 986
   // for the grips). The frame has a real window for the cylinder (so it's empty when the cylinder swings out), a thin
