@@ -126,11 +126,12 @@ export function magInHand(out, s, H, mg, rpm) {
 }
 // then the mag goes where the fist really got to (a beat behind where it was sent, on its spring), so it's never out of
 // it; over the last of the way (MAG_GUIDE on) the fist is drawn onto its mark instead, so the mag it carries seats exactly
+const MAG_FIST_IN = 0.2, _mFw = new V3();   // (magToFist)
 export const MAG_CARRY = { u: -1, mg: null, p0: null, sh: null, lg: false, miss: false, missK: 0, ak: false, q: new THREE.Quaternion() }, MAG_GUIDE = 0.62, _mF = new V3();
 // the well's mouth: how far below the seated mag's top it opens (a rifle's well, a handgun's whole grip: a share of the
 // mag), and over how much more the mag's brought onto the well's line before it gets there (in). Once its top's into
 // the well it's on that line exactly, nothing across and no tip, so it goes up the well and never through its sides
-const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13 };
+const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13, side: [0.22, 0.16] };
 // missing the well (weapons/reload.js: MAG_MISS): wherever the mag was when it went wrong, it's drawn back down out of
 // the well to just under its mouth (pre: how far under), brought off the well's line (off: metres across and fore and
 // aft, as each miss has it, side and fwd) and tipped a little with it (MAG_MISS_TIP, radians), pushed up into the
@@ -154,12 +155,16 @@ function magMiss(q, P0, sh, lg, m, k) {
   q.addScaledVector(_fA, d0 - d).addScaledVector(_mmL, off);
   return off * a;
 }
-const _fA = new V3(), _fD = new V3();
+const _fA = new V3(), _fD = new V3(), _fC = new V3();
 // the mag's top (q, in the hold's frame) brought onto the well's line as it nears the mouth; how much of its own way
-// across and its tip it keeps (1 below the funnel, 0 in the well)
+// across and its tip it keeps (1 below the funnel, 0 in the well). Only once it's under the well (MAG_FUNNEL.side: how
+// far across the line it can be and still be coming into it, and over how much further it's let go of): a mag still
+// out beside the gun is nowhere near the well however high it is (a curved mag leaning back put the pouch at the
+// well's mouth, along its line, and the mag taken from it was snapped across onto the line, the hand with it)
 function funnel(q, P0, sh, lg, zone = MAG_FUNNEL.in) {
   _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean); _fD.subVectors(q, P0);
-  const along = _fD.dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, k = smooth(clamp((-along - mouth) / zone, 0, 1));
+  const along = _fD.dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, across = _fC.copy(_fD).addScaledVector(_fA, -along).length();
+  const k = Math.max(smooth(clamp((-along - mouth) / zone, 0, 1)), smooth(clamp((across - MAG_FUNNEL.side[0]) / MAG_FUNNEL.side[1], 0, 1)));
   if (k >= 1) return 1;
   _fD.addScaledVector(_fA, -along).multiplyScalar(k);   // (what's across the line, kept only as much as k)
   q.copy(P0).addScaledVector(_fA, along).add(_fD);
@@ -181,7 +186,9 @@ export function magToFist(fist, want) {
   if (c.ak) { c.mg.quaternion.copy(c.q); c.mg.position.copy(c.p0).applyQuaternion(c.q).negate().add(_mF); c.u = -1; return; }
   { const k = funnel(_mF, c.p0, c.sh, c.lg, c.miss ? 1e-4 : MAG_FUNNEL.in); _fA.set(0, 1, 0).applyAxisAngle(_mX, c.sh.lean); const up = _fD.subVectors(_mF, c.p0).dot(_fA);
     if (up > 0) _mF.addScaledVector(_fA, -up);
-    if (k < 1 || up > 0) fist.copy(_mF).add(_mG).applyMatrix4(_mM); }   // (missing the well: only in the well itself, so the miss keeps its way off the line under it)
+    // (eased in over the start of the carry, MAG_FIST_IN: taken from the pouch, the fist isn't snapped across onto
+    // the line in a frame; and the mag kept on the fist meanwhile)
+    if (k < 1 || up > 0) { const w = Math.max(up > 0 ? 1 : 0, smooth(clamp(c.u / MAG_FIST_IN, 0, 1))); _mFw.copy(_mF).add(_mG).applyMatrix4(_mM); fist.lerp(_mFw, w); if (w < 1) _mF.copy(fist).applyMatrix4(_mInv).sub(_mG); } }   // (missing the well: only in the well itself, so the miss keeps its way off the line under it)
   c.mg.position.copy(c.p0).applyEuler(_mE).negate().add(_mF);
   c.u = -1;
 }

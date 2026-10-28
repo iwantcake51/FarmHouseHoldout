@@ -286,10 +286,14 @@ const HAND_W = { lead: 30, k: 420, d: 41 };
 // the reload pose's spring (ANIM.relEnv): how quickly (rad/s, critically damped) the gun goes into it, and comes back
 // out to the hold once the reload's done: unhurried, so the way back eases off and settles rather than snapping
 const REL_ENV = { in: 11, out: 6.5 };
+// how much of the mag change (rpm) the hand takes to go from its path at the pouch onto the fresh mag's carry (magInHand)
+const MAG_TAKE_BLEND = 0.09, _mtk = new V3();
+// and how much of the carry (MAG_CARRY.u) the hand's spring takes to stiffen up for it
+const MAG_STIFF_IN = 0.25;
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
 // (on a critically damped spring, so it eases off the gun and back onto it instead of leaving at full speed)
 function handTarget(out, side, onGun, free, wt, rdt, stiff) {
-  const h = HAND[side], kf = stiff ? 1300 : 480, df = stiff ? 62 : 30;   // (stiff: carrying a fresh mag up to the gun)
+  const h = HAND[side], st = +stiff || 0, kf = 480 + 820 * st, df = 30 + 32 * st;   // (stiff: carrying a fresh mag up to the gun; eased in, 0 to 1, so the hand isn't yanked onto it the moment it's taken)
   // the free hand follows its path on a loose spring: a beat behind it, settling with a little give when it stops; and
   // once its path ends (the reload's done) the same spring carries it on to its place on the gun as it's handed back,
   // with the way it was going, rather than stopping it dead where the path left off
@@ -955,7 +959,9 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
       // once it's home the hand gives it a push and goes back to the gun
       const mg = (MAGG[s] || [])[0];
       if (mg && rpm >= MAG_TAKE && rpm < 1 && magShape(mg)) {
-        if (rpm < MAG_SEAT) free = magInHand(_p4, s, H, mg, rpm);
+        // (taken from the pouch it's eased from where the hand's path had it onto where the mag puts it, MAG_TAKE_BLEND,
+        // so the two needn't meet exactly: a mag pulled toward the well's line at the pouch moved the hand a few cm in a frame)
+        if (rpm < MAG_SEAT) { _mtk.copy(free || _hL); const r = magInHand(_p4, s, H, mg, rpm); if (r) { free = r; const b = smooth(clamp((rpm - MAG_TAKE) / MAG_TAKE_BLEND, 0, 1)); if (b < 1) free.lerp(_mtk, 1 - b); } }
         else { magInHand(_p2, s, H, mg, MAG_SEAT); MAG_CARRY.u = -1; _p3.copy(_p2); _p3.y += 0.014; free = walkPath(_p4, [[MAG_SEAT, _p2], [MAG_SEAT + 0.04, _p3], [MAG_SEAT + 0.09, _p2], [1, _hL]], rpm); mg.position.set(0, 0, 0); mg.rotation.set(0, 0, 0); }
       }
       if (PS && rr > 0) {
@@ -1037,7 +1043,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // (player/inspect.js)
     if (!free && H.kind === 'hand' && inspectW() > 0.002) { free = _p4.copy(SWAP_REST_L); wt = smooth(clamp(inspectW() * 1.3, 0, 1)); }
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
-    handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0);
+    handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0 ? smooth(clamp(MAG_CARRY.u / MAG_STIFF_IN, 0, 1)) : 0);
     magToFist(_fL, free);   // the fresh mag, where the fist actually got to
     // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges, the
     // revolver's rounds). One on its own leaves the fingers at the port and is thumbed in: up into a pump's tube and on
