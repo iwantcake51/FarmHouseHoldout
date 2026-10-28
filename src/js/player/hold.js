@@ -539,6 +539,7 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   const PS = rel === 'mag' && W8.relEmpty && !CH && !D.akimbo, rpm = CH ? Math.min(1, rp / CH_MAG) : PS ? Math.min(1, rp / PS_MAG) : rp;
   const rr = PS ? clamp((rp - PS_MAG) / (1 - PS_MAG), 0, 1) : 0, relU = PS ? (PS_REL[W8.relVar] - PS_MAG) / (1 - PS_MAG) : 0;
   const psW = PS ? smooth(clamp(rr / 0.3, 0, 1)) * (1 - smooth(clamp((rr - relU - 0.06) / (1 - relU - 0.06), 0, 1))) : 0;   // the hand's on the slide
+  ANIM.psW = psW;   // (from your own eyes the gun's let out low for it: game/view-cam.js FP_SLIDE)
   // the hand comes up off the grip and over the receiver on an arc (cg rises, eased in and out), hooks the handle from
   // just in front of it (hook: it settles onto it), draws it back, gathering speed and then slowing as the spring
   // tightens (drawn), holds it a beat and lets go at CH_SLAM: the handle snaps home in a blink and bounces a hair off its

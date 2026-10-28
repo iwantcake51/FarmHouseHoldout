@@ -296,6 +296,11 @@ muzzle dipping about your shoulder with the stock still in it and both hands on 
 jumping (it used to slide back as much as 40 cm and flip its muzzle up beside your face, the elbows folded up; indoors
 that looked like a broken hold), and
 mid-reload from your own eyes the gun stays up in front of you, steady in your hands even walking along a wall.
+Reloading from your own eyes, the gun is worked well out in front of you and low, and whenever a hand goes to the
+action (racking a handgun's slide or thumbing it off the stop, a rifle's charging handle, a bolt gun's bolt on each
+shot) the gun is let out further and lower for it, so the arm works below and to the side of the view instead of
+sweeping up across it. Before, a handgun's slide rack had the support arm covering nearly half the screen, and a bolt
+or charging handle brought the firing arm up beside your face; now the arms cover about a quarter of it at most.
 The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
 ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
 reticle is light collimated inside the sight's window, so it's only seen looking through that glass from behind, along
