@@ -4,7 +4,7 @@ import { $, smoothWheel } from '../core/dom.js';
 import { cv, scene, setZoom, setZoomT, ZOOM_MAX, zoomT } from '../core/renderer.js';
 import { angDiff, cache, clamp, rr, setLast, smooth } from '../core/math.js';
 import { mistReset } from '../world/mist.js';
-import { NET, netLeave, netLink, netSend, netStart } from '../net/net.js';
+import { NET, netAllReady, netLeave, netLink, netReady, netSend, netStart } from '../net/net.js';
 import { cxw } from '../world/grid.js';
 import { PAINT_FADE, stepPaint } from '../world/house.js';
 import { houseLayout } from '../world/interior.js';
@@ -139,7 +139,7 @@ function switchScreens(dark, fn) {
 const saveBest = () => { if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} showBest(); } };
 // start a run: off the title it's a cut through black (cineRun), so the new house and yard are never seen swapping in
 // for the title's; after a death it dips to black. In a co-op lobby only the host starts it, for everyone (net/net.js)
-export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) netStart(); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
+export function enterRun() { if (NET.on && !NET.inGame) { if (NET.host) { if (netAllReady()) wantLock(true); netStart(); } else netReady(!NET.ready); return; } audioInit(); wantLock(true); if (state === 'title') cineRun(); else switchScreens(true, () => newRun(false)); }
 // off the title, cinematically. Start pressed: the menu drifts away line by line, the title camera starts a slow push
 // in on the farm (CINE.push: how far in, as a share of its zoom) as a vignette closes round it and letterbox bars come
 // in, and the picture dims to black (from CINE.dim ms in, over the rest of CINE.out); the music's been fading since

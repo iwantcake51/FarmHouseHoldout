@@ -49,10 +49,27 @@ function lcHide() {
 }
 // beside the sheet the row's on, level with the row (on its other side if there's no room), never off the screen
 function lcPlace(li) {
-  const r = li.getBoundingClientRect(), sheet = (li.closest('.coop') || li).getBoundingClientRect(), w = lcEl.offsetWidth, h = lcEl.offsetHeight;
+  const r = li.getBoundingClientRect(), sheet = (li.closest('.frList, .coopSeats') || li).getBoundingClientRect(), w = lcEl.offsetWidth, h = lcEl.offsetHeight;
   const x = sheet.right + LCARD.gap + w <= innerWidth - 8 ? sheet.right + LCARD.gap : Math.max(8, sheet.left - LCARD.gap - w);
   const y = Math.min(Math.max(8, r.top + r.height / 2 - h / 2), innerHeight - h - 8);
   lcEl.style.left = Math.round(x) + 'px'; lcEl.style.top = Math.round(y) + 'px';
+}
+// a still of a survivor, for their seat in the co-op lobby (net/lobby.js): the card's studio and figure, turned a
+// little off straight on, drawn once and kept as a picture by its look
+const LTHUMB = { yaw: 0.42, keep: 16 }, thumbs = new Map();
+export function lookThumb(look) {
+  const k = JSON.stringify(look); if (thumbs.has(k)) return thumbs.get(k);
+  let url = '';
+  try {
+    if (!lcR) lcSetup();
+    const f = lcFigure(look); if (!f) return '';
+    const shown = lcFig, y0 = f.rotation.y;
+    if (shown && shown !== f) lcScene.remove(shown); lcScene.add(f); f.rotation.y = LTHUMB.yaw;
+    lcR.render(lcScene, lcCam); url = lcR.domElement.toDataURL('image/png');   // (read straight after it's drawn, before the page shows it)
+    f.rotation.y = y0; if (shown !== f) { lcScene.remove(f); if (shown) lcScene.add(shown); }
+  } catch (e) { console.warn('look thumb', e); return ''; }
+  thumbs.set(k, url); if (thumbs.size > LTHUMB.keep) thumbs.delete(thumbs.keys().next().value);
+  return url;
 }
 function lcSetup() {
   const cv = lcEl.querySelector('canvas');

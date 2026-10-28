@@ -11,16 +11,20 @@ import { setFlowDirty } from '../barricades/planks.js';
 import { state } from '../game/state.js';
 import { enterRun, leaveToMenu } from '../ui/screens.js';
 import { announce, feed } from '../ui/hud-text.js';
+import { SFX } from '../audio/sfx.js';
 import { netDropAvatar } from './avatars.js';
-import { lobbyRender } from './lobby.js';
+import { lobbyRender, toggleCoop } from './lobby.js';
 import { PALS } from './friends.js';
 import { SET } from '../ui/settings.js';
 import { setViewMode, VCAM } from '../game/view-cam.js';
+import { chatClear, chatSys } from './chat.js';
+import { frMet } from './friends.js';
 
 export const NET_V = 1, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
   view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
+  ready: false,   // a joiner's own word that they're set to go (the host's Start waits for everyone's: netAllReady)
   peer: null, conns: new Map(), conn: null, bc: null, beatT: 0 };
 export const NET_ON = {};   // what to do with each kind of message: NET_ON.hit = m => ...
 // each player's colour, by their place in the game (the host first): their name, their marker and their nameplate
@@ -70,8 +74,8 @@ function netReset() {
   try { if (NET.peer) NET.peer.destroy(); } catch (e) {}
   try { if (NET.bc) NET.bc.close(); } catch (e) {}
   for (const p of NET.peers.values()) netDropAvatar(p);
-  Object.assign(NET, { on: false, host: false, id: '', hostId: '', code: '', inGame: false, idx: 0, peer: null, conn: null, bc: null });
-  NET.conns.clear(); NET.peers.clear();
+  Object.assign(NET, { on: false, host: false, id: '', hostId: '', code: '', inGame: false, idx: 0, ready: false, peer: null, conn: null, bc: null });
+  NET.conns.clear(); NET.peers.clear(); chatClear();
   if (VCAM.mode !== 'free') setViewMode(SET.view);   // (out of the game: your own view again, the one in the settings)
 }
 export async function netHost() {
@@ -94,7 +98,7 @@ export async function netHost() {
         });
       });
     }
-    NET.idx = 0; NET.view = SET.view; NET.status = ''; lobbyRender();   // (the host's own view to start with: they can change it in the lobby)
+    NET.idx = 0; NET.view = SET.view; NET.status = ''; chatSys('Lobby open. Send your friends the code ' + code + '.'); lobbyRender();   // (the host's own view to start with: they can change it in the lobby)
   } catch (e) { netReset(); NET.status = 'Could not open a game: ' + (e.message || e.type || e); lobbyRender(); }
 }
 export async function netJoin(code) {
@@ -135,11 +139,23 @@ function netLost(why) {
 function netGone(id, why) {
   const p = NET.peers.get(id); if (!p) return;
   NET.peers.delete(id); NET.conns.delete(id); netDropAvatar(p);
-  if (NET.host) { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null); setFlowDirty(true); }
-  if (state !== 'title') feed('gear', 0, p.name + (why === 'left' ? ' left' : ' lost connection'));
+  if (NET.host) { rosterOut(); setFlowDirty(true); }
+  const what = why === 'left' ? ' left' : why === 'kicked' ? ' was removed from the lobby' : ' lost connection';
+  if (state !== 'title') feed('gear', 0, p.name + what); chatSys(p.name + what);
   lobbyRender();
 }
-export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid })));
+// the host's: send someone out of the lobby (before the run: in it they'd take their survivor with them as if they'd left)
+export function netKick(id) {
+  if (!NET.host || NET.inGame || !NET.peers.has(id)) return;
+  netRaw(id, { t: 'kick', f: NET.id });
+  const c = NET.conns.get(id); setTimeout(() => { try { c && c.close(); } catch (e) {} }, 300);
+  netGone(id, 'kicked');
+}
+NET_ON.kick = m => { if (!NET.host && m.f === NET.hostId) netLost('The host removed you from the lobby'); };
+export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready })));
+// everyone in the lobby set to go (the host always is): the run starts only then
+export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
+const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null); frMet(netRoster()); };
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -149,41 +165,50 @@ NET_ON.hello = m => {
   if (NET.inGame) return turn('That game has already started');
   if (NET.peers.size >= NET_MAX - 1) return turn('That game is full');
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
-  NET.peers.set(m.f, { id: m.f, name: String(m.name || 'Survivor').slice(0, 16), look: m.look, idx, fid: m.fid, heard: performance.now() });
-  netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null);
+  const name = String(m.name || 'Survivor').slice(0, 16);
+  NET.peers.set(m.f, { id: m.f, name, look: m.look, idx, fid: m.fid, ready: false, heard: performance.now() });
+  rosterOut(); chatSys(name + ' joined'); SFX.pick();
   lobbyRender();
 };
 NET_ON.nope = m => netLost(m.why);
 NET_ON.roster = m => {
   if (NET.host) return;
-  const keep = new Set();
+  const keep = new Set(), first = NET.peers.size === 0;
   for (const r of m.list) {
-    if (r.id === NET.id) { NET.idx = r.idx; continue; }
+    if (r.id === NET.id) { NET.idx = r.idx; NET.ready = !!r.ready; continue; }
     keep.add(r.id);
     const p = NET.peers.get(r.id);
-    if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid }); else NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, heard: performance.now() });
+    if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid, ready: !!r.ready }, r.look ? { look: r.look } : {});
+    else { NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, ready: !!r.ready, heard: performance.now() }); if (!first) chatSys(r.name + ' joined'); else if (r.id === NET.hostId) chatSys('You joined ' + r.name + '’s lobby'); }
   }
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
   if (m.view) NET.view = m.view;
-  NET.status = ''; lobbyRender();
+  NET.status = ''; frMet(m.list); lobbyRender();
 };
+// a joiner set to go, or not after all: the host keeps everyone's word and passes it round
+export function netReady(r) { if (!NET.on || NET.host || NET.inGame) return; NET.ready = !!r; netSend('ready', { r: NET.ready }); lobbyRender(); }
+NET_ON.ready = m => { if (!NET.host) return; const p = NET.peers.get(m.f); if (!p || NET.inGame) return; p.ready = !!m.r; if (netAllReady()) NET.status = ''; rosterOut(); if (p.ready) SFX.click(); lobbyRender(); };
 // the host's pick of the view everyone plays in: isometric or first person, from the lobby
 export function netSetView(v) {
   if (!NET.host || NET.inGame || (v !== 'iso' && v !== 'fp')) return;
-  NET.view = v; netSend('view', { view: v }); lobbyRender();
+  NET.view = v; netSend('view', { view: v }); chatSys('View set to ' + (v === 'fp' ? 'first person' : 'isometric')); lobbyRender();
 }
-NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; NET.view = m.view; lobbyRender(); };
+NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; if (NET.view !== m.view) chatSys('The host set the view to ' + (m.view === 'fp' ? 'first person' : 'isometric')); NET.view = m.view; lobbyRender(); };
 NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host closed the game'); else netGone(m.f, 'left'); };
-NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = m.name; lobbyRender(); } };
+NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = String(m.name || 'Survivor').slice(0, 16); lobbyRender(); } };
+// a joiner who's changed how they look in the Character menu while waiting: their seat's picture with it
+NET_ON.look = m => { const p = NET.peers.get(m.f); if (p && m.look && typeof m.look === 'object') { p.look = m.look; lobbyRender(); } };
 NET_ON.beat = () => {};
 // the host starts the run for everyone
 export function netStart() {
-  if (!NET.host || NET.inGame) return;
+  if (!NET.host || NET.inGame) return false;
+  if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
   netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view }); netBegin();
+  return true;
 }
 NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; if (m.view) NET.view = m.view; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
-function netBegin() { NET.inGame = true; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); enterRun(); }   // (everyone in the host's view: ui/settings.js keeps it for the run)
+function netBegin() { NET.inGame = true; NET.status = ''; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); toggleCoop(false); enterRun(); }   // (the co-op screen put away as the run comes up)   // (everyone in the host's view: ui/settings.js keeps it for the run)
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 export function netBeat(rdt) {
   if (!NET.on) return;

@@ -186,6 +186,7 @@
   "net/spectate.js",
   "net/teamwork.js",
   "net/friends.js",
+  "net/chat.js",
   "ui/keyboard-map.js",
   "ui/settings.js",
   "game/loop.js"

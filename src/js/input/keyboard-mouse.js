@@ -23,6 +23,9 @@ import { cancelBandage, startBandage, switchSlot } from '../player/bandages.js';
 import { cancelLeave, enterRun, leaveToMenu, pauseRun, resumeRun } from '../ui/screens.js';
 import { fpAimPx, freeOn, isoOn, locked, viewLook, wantLock } from '../game/view-cam.js';
 import { fireModeSwitched } from '../ui/hud.js';
+import { coopOpen, toggleCoop } from '../net/lobby.js';
+import { netLink } from '../net/net.js';
+import { chatStart } from '../net/chat.js';
 import { toggleWeaponStats } from '../ui/weapon-stats.js';
 import { cheatOn, cheatShutAt, toggleCheats } from '../ui/cheats.js';
 import { skipBreak } from '../net/sync.js';
@@ -44,6 +47,8 @@ addEventListener('keydown', e => {
   if (!typing && (k === 'alt' || (playing && (k === ' ' || k.startsWith('arrow') || k === 'tab')))) e.preventDefault();   // (Alt: no browser menu bar from free look)
   if (setOpen()) { if (k === 'escape') closeSettings(); return; }   // the settings panel's open: Esc closes it, and nothing else reaches the game (ui/settings.js)
   if (lookMenuOpen()) { if (k === 'escape') closeLookMenu(); return; }   // and the same for the title's Character menu (ui/look-menu.js)
+  if (k === 'escape' && coopOpen()) { toggleCoop(false); return; }   // the co-op screen: Esc goes back to the title (net/lobby.js)
+  if (k === 'enter' && !typing && state === 'play' && netLink() && !openSt && !cheatOn) { e.preventDefault(); chatStart(); return; }   // in a co-op run, Enter opens the chat box (net/chat.js)
   if (k === 'f9') { e.preventDefault(); if (!e.repeat) toggleCheats(); return; }   // the cheat menu (ui/cheats.js)
   if (k === 'escape' && cheatOn) { toggleCheats(false); menuEscAt = performance.now(); return; }   // (the browser lets go of the mouse on that Esc too: lockLost)
   if (k === 'escape' && performance.now() - Math.max(lockLostAt, cheatShutAt) < 400) return;   // (nor the Esc a moment after the cheat menu was put away)   // (the Esc that let go of the mouse in first person has already paused)

@@ -61,6 +61,7 @@ import { renderTeam } from './lobby.js';
 import { renderSpec, SPEC } from './spectate.js';
 import { teamBonus } from './teamwork.js';
 import { frTick } from './friends.js';
+import { chatTick } from './chat.js';
 
 export let NREC = null, NREP = null;   // a hit of yours being written down to send; a teammate's being played out
 export const NZ = new Map();           // zombies by the id the host gave them
@@ -397,7 +398,7 @@ NET_ON.over = () => { if (state === 'play' || state === 'paused') die(); };
 
 // ---- every frame, playing or not
 export function netTick(rdt) {
-  netBeat(rdt); frTick(rdt);
+  netBeat(rdt); frTick(rdt); chatTick();
   if (!NET.on) return;
   if (NET.inGame && state !== 'title') {
     poseOut(rdt);

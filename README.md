@@ -200,8 +200,32 @@ controls on the title are a sheet of paper taped up beside the story, like the c
 dark inked cap on it. The menus' and the settings' own text is set in Archivo, in sentence case, with the typed lines
 in Special Elite; the view picker under the story is the two views as words, the one picked underlined with the tape.
 
-**Co-op.** Up to four players. On the title screen press **Co-op**, enter your name and **Host a game**. Your friends
-then enter the four-letter code and press **Join**. Each player keeps their own weapons, scrap, drops and cards. If
+**Co-op.** Up to four players. On the title screen press **Co-op**: its own screen opens over the title, with your
+name at the top, your game on the left and your friends down the right (Esc or **Back** goes back to the title).
+Press **Open a lobby** to host, or type the host's four-letter code under **Join a game** (pasted in lower case or
+with a space, it's tidied up for you); friends of yours who are hosting with room are listed beside them, a click from
+joining. In a lobby:
+
+- **The seats** are four cards pinned in a row, each with that survivor's picture as they've made them, their number
+  and name, Host and You. Rest the pointer on one and the survivor turns on a card beside it.
+- **Ready.** A joiner presses **Ready** (or T) when they're set, and a green Ready stamp lands on their card. They can
+  take it back with **Cancel ready**. The host's **Start together** (or T) waits until everyone is ready and says who
+  it's waiting for; a host on their own can start straight away.
+- **The host** picks the view everyone plays in, **Isometric** or **First person** (the others see the pick but can't
+  change it, and their own choice from the title comes back once they leave the game). The host can send someone out
+  of the lobby with the cross on their card, and **Close the lobby** ends it for everyone.
+- **Inviting.** **Copy code** copies the four letters, and **Copy invite link** copies a link that opens the game
+  straight into the co-op screen and joins.
+- **Chat.** The lobby has a chat: type under the log and press Enter. The lobby's own goings-on (who joined, who
+  left, the view changing) show among the lines in grey. In the run, press Enter to say something to your team: the
+  last few lines show under the wave box and fade a few seconds after they're said, and Esc puts the box away.
+- **Friends.** Add a friend by their six-character friend code (they're added back). The list shows who's around and
+  what they're doing: on the title, in a lobby, hosting and how full, or in a run and on which wave. You can join a
+  friend's lobby or invite a friend into yours. An invite shows at the top right of their title screen with **Join**
+  and **Not now**, whether or not they have co-op open. Everyone you've been in a lobby with is kept under
+  **Played with recently**, a click from becoming a friend. Removing a friend asks once more before it happens.
+
+Each player keeps their own weapons, scrap, drops and cards. If
 you go down, a low drone drifts in while you watch a teammate until the wave is cleared, then come back as a new
 survivor with a full mag in each gun and three spares. While you watch, the picture is drained of colour and grainy,
 like an old camera feed, with faint scan lines and a brighter band rolling slowly down it, so it's plain you're out
@@ -210,11 +234,7 @@ their weapon as your own HUD does: a melee weapon shows its white silhouette whe
 first-person game you watch from their own eyes: the camera is where theirs is, looking where they look, as wide as they
 see, with their arms and weapon posed as they see them (their head hidden out of the lens's way, their name tag gone,
 and their crosshair in the middle of your screen). If they're playing from above, you watch from above too. Clear a wave with nobody down and everyone gets a little
-scrap. You can add friends by their friend code to see when they're online and join their lobby in one click. Rest
-the pointer on someone's seat in the lobby, or on a friend in your friends list, and their survivor, as they've made
-them, stands on a little card beside it, turning slowly under the studio lights (your own seat shows yours). The
-host also picks the view everyone plays in, **Isometric** or **First person**, under the seats; the others see the
-pick but can't change it, and their own choice from the title screen comes back once they leave the game.
+scrap. When a co-op run ends you're back in its lobby, with the title's Co-op marked by a green dot while you're in one.
 
 ## Controls
 
@@ -234,7 +254,7 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | N | Back out of the free camera (cheat menu only; not listed in Settings without it) | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
 | | | X | Load the next kind of round | Esc, P | Pause |
-| | | G | Underbarrel grenade | | |
+| | | G | Underbarrel grenade | Enter | Chat to your team (co-op) |
 | | | I | Weapon stats | | |
 | | | Y | Inspect your weapon | | |
 

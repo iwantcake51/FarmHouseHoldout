@@ -155,6 +155,9 @@
 <!-- where the teammate you're watching is aiming (updateSpecXh, net/spectate.js) -->
 <div id="specXh" aria-hidden="true"><svg width="80" height="80" viewBox="-40 -40 80 80"><circle class="halo" r="17"></circle><g class="in"><circle class="ring" r="15"></circle><g class="tk"><path d="M0 -25V-19"></path><path d="M0 25V19"></path><path d="M-25 0H-19"></path><path d="M25 0H19"></path></g></g><circle class="dot" r="2.6"></circle></svg></div>
 <div class="hud" id="feed"></div>
+<!-- co-op chat in the run (net/chat.js): the last few lines said, and the box Enter opens -->
+<ol class="hud" id="chatLog" aria-live="polite"></ol>
+<div id="chatBox" hidden><span>Say</span><input id="chatIn" maxlength="120" autocomplete="off" spellcheck="false" aria-label="Say something to your team"><small>Enter to send, Esc to close</small></div>
 <div class="hud" id="wStats" hidden></div>
 <div class="hud" id="wLoad" hidden></div>
 <div id="wlTip" role="tooltip"></div>
@@ -205,29 +208,6 @@
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
     <div class="coopView titleView" id="titleView"><span>View <small>From above the farm, or out of your own eyes</small></span><div class="coopSeg" role="radiogroup" aria-label="Your view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
     <div class="btns mlist"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="lookBtnTitle" type="button">Character</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
-    <div class="coop" id="coop" hidden>
-      <div class="coopHead">Co-op <span>Up to four survivors, online</span></div>
-      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
-      <div class="coopPick" id="coopPick">
-        <button class="btn ghost sm" id="coopHost" type="button">Host a game</button>
-        <span class="or">or join one</span>
-        <input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code">
-        <button class="btn ghost sm" id="coopJoin" type="button">Join</button>
-      </div>
-      <div class="coopRoom" id="coopRoom" hidden>
-        <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy</button></div>
-        <ol class="coopList" id="coopList"></ol>
-        <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
-        <div class="btns"><button class="btn sm" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn ghost sm" id="coopLeave" type="button">Leave</button></div>
-      </div>
-      <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
-      <div class="coopFriends">
-        <div class="frHead">Friends <span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
-        <ul class="frList" id="frList"></ul>
-        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
-        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
-      </div>
-    </div>
    </div>
     <div class="ctrls">
       <div class="ctrlHead">Controls</div>
@@ -254,11 +234,66 @@
         <p><kbd data-bind="stats">I</kbd><span>Weapon stats</span></p>
         <p><kbd data-key="mouse3">Wheel</kbd><span>Zoom</span></p>
         <p><kbd data-key="escape">Esc</kbd><span>Pause</span></p>
+        <p><kbd data-key="enter">Enter</kbd><span>Chat to your team (co-op)</span></p>
         <p class="ctrlSet"><span>Change any of these in Settings, under Controls</span></p>
       </details>
     </div>
   </div>
 </div>
+
+<!-- co-op (net/lobby.js, net/friends.js, net/chat.js): your name, a game to host or join, its lobby, and your friends -->
+<div id="coop" class="coopScr" hidden role="dialog" aria-modal="true" aria-labelledby="coopTitle">
+  <div class="coopFrame">
+    <header class="coopTop">
+      <h2 id="coopTitle">Co-op</h2>
+      <p>Up to four survivors on one farm, online</p>
+      <label class="coopName">Your name <input id="coopName" maxlength="16" placeholder="Survivor" autocomplete="off" spellcheck="false"></label>
+      <button type="button" class="coopClose" id="coopClose">Back <kbd>Esc</kbd></button>
+    </header>
+    <div class="coopBody">
+      <section class="coopMain" aria-label="Your game">
+        <div class="coopPick" id="coopPick">
+          <div class="cpWay cpHost">
+            <h3>Host a game</h3>
+            <p>Your game runs the farm. Up to three friends join with your code.</p>
+            <div class="btns mlist"><button class="btn" id="coopHost" type="button">Open a lobby</button></div>
+          </div>
+          <div class="cpWay cpJoin">
+            <h3>Join a game</h3>
+            <p>Type the four letters and numbers on the host's lobby.</p>
+            <div class="cpCodeRow"><input id="coopCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="The host's game code"><button class="btn ghost sm" id="coopJoin" type="button">Join</button></div>
+          </div>
+          <div class="cpWay cpOpen" id="coopOpenWrap" hidden>
+            <h3>Friends hosting now</h3>
+            <ul class="cpOpenList" id="coopOpen"></ul>
+          </div>
+        </div>
+        <div class="coopRoom" id="coopRoom" hidden>
+          <div class="coopCode"><span>Game code</span><b id="coopShow"></b><button class="coopCopy" id="coopCopy" type="button">Copy code</button><button class="coopCopy" id="coopLink" type="button">Copy invite link</button></div>
+          <ol class="coopSeats" id="coopList"></ol>
+          <div class="coopMid">
+            <div class="coopChat"><ol id="coopChat" aria-live="polite" aria-label="Lobby chat"></ol><input id="coopSay" maxlength="120" placeholder="Say something to the lobby, Enter to send" autocomplete="off" spellcheck="false" aria-label="Say something to the lobby"></div>
+            <div class="coopSide">
+              <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
+              <div class="btns mlist coopActs"><button class="btn" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn" id="coopReady" type="button">Ready <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopLeave" type="button">Leave</button></div>
+              <p class="coopWait" id="coopWait" role="status"></p>
+            </div>
+          </div>
+        </div>
+        <div class="coopMsg" id="coopMsg" role="status" aria-live="polite"></div>
+      </section>
+      <aside class="coopFriends" aria-label="Friends">
+        <div class="frHead"><h3>Friends</h3><span>Your friend code <b id="frMe"></b><button class="coopCopy" id="frCopy" type="button">Copy</button></span></div>
+        <div class="frAdd"><input id="frCode" maxlength="6" placeholder="FRIEND CODE" autocomplete="off" spellcheck="false" aria-label="A friend's code"><button class="coopCopy" id="frAddBtn" type="button">Add friend</button></div>
+        <div class="coopMsg" id="frMsg" role="status" aria-live="polite"></div>
+        <ul class="frList" id="frList"></ul>
+        <div class="frRecentWrap" id="frRecentWrap" hidden><h4>Played with recently</h4><ul class="frList" id="frRecent"></ul></div>
+      </aside>
+    </div>
+  </div>
+</div>
+<!-- a friend's invite, on the title whether co-op's open or not (net/friends.js: invRender) -->
+<div id="invToast" hidden role="alert"><span class="invTx"><b></b> invited you to their game</span><button class="coopCopy go" id="invJoin" type="button">Join</button><button class="coopCopy" id="invNo" type="button">Not now</button></div>
 
 <div class="screen" id="upgrade" hidden>
   <div class="wrap">
