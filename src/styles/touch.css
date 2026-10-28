@@ -4,5 +4,5 @@
 .stick i{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(236,230,216,.22)}
 .tbtns{position:fixed;right:16px;top:calc(16px + env(safe-area-inset-top,0px));display:flex;gap:8px;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end;max-width:60vw}
 .tbtns button{font-family:var(--f-ui);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);background:rgba(0,0,0,.45);border:1px solid rgba(236,230,216,.3);padding:10px 12px}
-@media (max-width:640px){#wNum{font-size:48px}#ammo{font-size:54px}.screen .inner{margin-left:0}.slots span{min-width:44px}}
+@media (max-width:640px){#wNum{font-size:48px}#ammo{font-size:54px}.screen .inner{margin-left:0}.slots span{width:64px}}
 @media (prefers-reduced-motion:reduce){.card,#upgrade,#upgrade h3{transition-duration:.01s!important;transition-delay:0s!important}}

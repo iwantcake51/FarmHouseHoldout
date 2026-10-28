@@ -10,6 +10,7 @@ import { WEAP } from '../weapons/gun-stats.js';
 import { W8 } from '../game/run-state.js';
 import { onScreen } from '../game/view-cam.js';
 import { projV } from './crosshair.js';
+import { gunArt, gunArtKey } from './melee-art.js';
 
 export const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
 export const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
@@ -73,10 +74,16 @@ export function announce(a, b, opt) {
   el.className = 'hud' + (o.kind ? ' ' + o.kind : ''); void el.offsetWidth; el.classList.add('show');
   el.style.opacity = 1; annT = 2.8;
 }
+// the slot row under the ammo count: each weapon you carry as its own silhouette (ui/melee-art.js: gunArt), with
+// whatever's fitted to it, by the number that picks it; the one in your hands lit, an empty slot just its number. The
+// pictures are kept, so a slot's only drawn again when what's in it changes
 export function renderSlots() {
-  const k = SLOTS.map(s => (W8.slot[s] || '-') + (W8.cur === s ? 'c' : '')).join();
+  const k = SLOTS.map(s => (W8.slot[s] ? gunArtKey(W8.slot[s]) : '-') + (W8.cur === s ? 'c' : '')).join();
   if (cache.slots === k) return; cache.slots = k;
-  $('slots').innerHTML = SLOTS.map((s, i) => `<span class="${W8.cur === s ? 'on' : ''} ${W8.slot[s] ? '' : 'lock'}"><em>${i + 1}</em>${W8.slot[s] ? WEAP[W8.slot[s]].short : '—'}</span>`).join('');
+  $('slots').innerHTML = SLOTS.map((s, i) => {
+    const id = W8.slot[s], a = id && gunArt(id), nm = id ? WEAP[id].name : 'Empty';
+    return `<span class="${W8.cur === s ? 'on' : ''}${id ? '' : ' lock'}" aria-label="${i + 1}: ${nm}"><em>${i + 1}</em>${a ? `<i style="--art:url(${a.url})"></i>` : ''}</span>`;
+  }).join('');
 }
 // pickup feed: entries slide in, matching ones stack their amounts
 export const FEED_ICON = { scrap: GI.scrap, planks: GI.planks, metal: GI.metal, ammo: GI.ammo, med: GI.med, supply: GI.supply, gear: GI.gear };   // (ui/game-icons.js)

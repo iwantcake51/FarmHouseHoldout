@@ -81,11 +81,12 @@ const gearBuilt = { sig: null, look: null, run: null };
 // an attachment bought) it's done in a quiet moment just after (any frame or two it shows first, nobody sees the
 // faces fight), not in the frame you clicked; the copies on your body are made again after it
 const ufSoon = []; let ufSoonT = 0;
+const inHold = (o, h) => { for (; o; o = o.parent) if (o === h) return true; return false; };
 function unfightSoon(g) {
   ufSoon.push(g); if (ufSoonT) return;
   const run = () => {
     ufSoonT = 0; const list = ufSoon.splice(0), slots = new Set();
-    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).includes(q)); if (s) slots.add(s); });
+    list.forEach(q => { let o = q; while (o.parent) o = o.parent; if (o !== scene) return; unfight(q); const s = SLOTS.find(k => HOLDS[k] && Object.values(HOLDS[k]).some(h => inHold(q, h))); if (s) slots.add(s); });   // (a gun's built in the flipped group inside its hold, flipIn: found by the hold it's in)
     slots.forEach(s => { const id = W8.slot[s]; if (id && gunMeshes[s].userData.bloodId === id) { foldGun(s); stainWeapon(id, Object.values(HOLDS[s]), false); } });   // (folded now its faces are settled, and stained again)
     setStowDirty(true);
   };

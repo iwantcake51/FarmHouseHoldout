@@ -29,7 +29,7 @@ import { explode, flashes } from './explosives.js';
 import { boardsCrossed, shootBoard } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
 import { bloom, setBloom, setLmT, worldT } from '../game/state.js';
-import { aimPt, hasMouse } from '../input/keyboard-mouse.js';
+import { aimPt, hasMouse, mouseX, mouseY } from '../input/keyboard-mouse.js';
 import { aiming, scopeAim, scoped, scopePt } from '../player/aiming.js';
 import { tStick } from '../input/touch.js';
 import { inspectCut } from '../player/inspect.js';
@@ -42,8 +42,8 @@ import { feed } from '../ui/hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { swapSt } from '../player/swap.js';
 import { RG_SPREAD } from '../player/sprint.js';
-import { aimSX, aimSY, XHIT, xhKick, XR } from '../player/shaky-hands.js';
-import { fpOn } from '../game/view-cam.js';
+import { XHIT, xhKick, XR } from '../player/shaky-hands.js';
+import { fpOn, xhAt } from '../game/view-cam.js';
 import { fireCam } from '../game/camera.js';
 import { angerShot, ANIM, worryShot } from '../player/animation.js';
 import { HOLD, HOLD_DEF, holdOf } from '../player/hold.js';
@@ -197,7 +197,7 @@ export function muzzle(sideSign) {
 // rest of the frame (it's asked for more than once)
 const HITBOX = { refit: 0.5, sphere: 1.25, PARTS: ['head', 'torso', 'armL', 'armR', 'legL', 'legR'] };
 const partRay = new THREE.Raycaster(), _pn = new THREE.Vector2(), _hbR = new THREE.Ray(), _hbM = new THREE.Matrix4(), _hbM2 = new THREE.Matrix4(), _hbP = new V3(), _hbC = new V3(), _hbB = new THREE.Box3();
-let ctKey = '', ctHit = null;
+let ctKey = '', ctHit = null; const _ctP = [0, 0];
 // a part's box in its own frame: round every visible mesh under it
 function partBox(o) {
   const u = o.userData; if (u.hb && worldT - u.hbT < HITBOX.refit && worldT >= u.hbT) return u.hb;
@@ -208,8 +208,8 @@ function partBox(o) {
 }
 export function cursorTarget() {
   if (!hasMouse || tStick.R || scoped) return null;
-  const key = worldT + ':' + aimSX() + ':' + aimSY(); if (key === ctKey) return ctHit;
-  _pn.set(aimSX() / innerWidth * 2 - 1, -(aimSY() / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);   // under the crosshair, which wanders at low health
+  xhAt(_ctP); const key = worldT + ':' + _ctP[0] + ':' + _ctP[1]; if (key === ctKey) return ctHit;
+  _pn.set(_ctP[0] / innerWidth * 2 - 1, -(_ctP[1] / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);   // under the crosshair, which wanders at low health (and from your own eyes kicks with the gun: xhAt)
   const R0 = partRay.ray; let best = null, bd = Infinity;
   for (const z of zombies) {
     if (z.dead || z.vis < 0.15) continue;
@@ -268,6 +268,26 @@ export function fire() {
   }
   gunFire(id, D);
 }
+// from your own eyes, how far the crosshair as it's drawn (with its sway, wander and kick, and at the hip the gun's own
+// kick on top: game/view-cam.js, xhAt) has the line of fire turned off the line the shot's worked out along, the one
+// your eye looks down to what it meets (aimPt): up (p) and round the way P.aim turns (y). The barrel's turned just that
+// far with it, so a round turned the same goes out along the barrel and its tracer climbs with the gun
+const _soR = new THREE.Raycaster(), _soN = new THREE.Vector2(), _soP = [0, 0], SHOT_OFF = { p: 0, y: 0 };
+const rayAngs = (x, y) => { _soN.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); _soR.setFromCamera(_soN, FP_CAM); const d = _soR.ray.direction; return [Math.atan2(d.y, Math.hypot(d.x, d.z)), Math.atan2(d.x, d.z)]; };
+// (at the hip: down the sights the gun's on your eye and the round goes down them, so it fades out as they come up)
+function shotOff() {
+  xhAt(_soP); const [ap, ay] = rayAngs(_soP[0], _soP[1]), [bp, by] = rayAngs(mouseX, mouseY), k = 1 - clamp(ANIM.ads || 0, 0, 1);
+  SHOT_OFF.p = (ap - bp) * k; SHOT_OFF.y = angDiff(ay, by) * k; return SHOT_OFF;
+}
+// the point your line of sight's on (aimPt, at the height you're aiming: ANIM.aimY) turned about your eye by o, as far off
+const _spE = new V3(), _spT = new V3();
+function shotPt(o) {
+  FP_CAM.getWorldPosition(_spE);
+  const vx = aimPt.x - _spE.x, vy = (ANIM.aimY ?? GUN_Y) - _spE.y, vz = aimPt.z - _spE.z, h = Math.hypot(vx, vz), L = Math.hypot(h, vy);
+  if (L < 0.05) return null;
+  const p = clamp(Math.atan2(vy, h) + o.p, -1.4, 1.4), y = Math.atan2(vx, vz) + o.y;
+  return _spT.set(_spE.x + L * Math.cos(p) * Math.sin(y), _spE.y + L * Math.sin(p), _spE.z + L * Math.cos(p) * Math.cos(y));
+}
 // side: which of an akimbo pair fires (weapons/akimbo.js), each from its own mag
 // a round into the ground: a spurt of dirt kicked up and back toward where it came from, and its flash (and from a
 // teammate's shot the same: net/avatars.js)
@@ -291,7 +311,11 @@ export function gunFire(id, D, side) {
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held
   else if (!W8.inBurst && (semiAuto(id) || D.breakOpen)) W8.trigLock = true;   // one shot a pull (the double barrel too: as fast as you can pull, with no wait between, D.rate)
   }
-  const { ox, oz, a: base } = muzzle();
+  // from your own eyes the point the shot's sent to is turned about your eye with the crosshair (shotOff), and the round
+  // goes to it from the muzzle: so it leaves along the barrel as the kick has it, closing on the crosshair just as it
+  // does at rest, however far the kick has lifted the muzzle as well as turned it
+  const fpo = fpOn() && !D.akimbo && hasMouse ? shotOff() : null, fpT = fpo ? shotPt(fpo) : null;
+  const { ox, oz, a: base0 } = muzzle(), base = fpT && Math.hypot(fpT.x - ox, fpT.z - oz) > 0.05 ? Math.atan2(fpT.x - ox, fpT.z - oz) : base0;
   const mw = muzzleWorld().clone();
   // where its tracer starts: the muzzle from the hip; down the sights from your own eyes, your line of sight just out
   // past the front sight, so the round leaves from the middle of the screen, where you're aiming (TR_ADS)
@@ -339,7 +363,7 @@ export function gunFire(id, D, side) {
     // (in first person every zombie on its way is met at its height: a round over one's head goes over it, game/view-cam.js;
     // and the round flies the line you looked down, up into the sky or down into the ground, where it stops: gndT)
     const fp = fpOn(), y0 = mw.y;
-    let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
+    let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : fpT ? (fpT.y - y0) / Math.max(0.05, Math.hypot(fpT.x - ox, fpT.z - oz)) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
     if (pv) slope += Math.tan(pv);   // (up or down: SG_FP, or a lone round's own spread)
     let wallT = 26, gndT = 99;
     for (let t = 0.1; t < 26; t += 0.1) {

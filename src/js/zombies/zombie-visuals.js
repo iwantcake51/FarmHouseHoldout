@@ -1,6 +1,6 @@
 // Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
-import { FP_CAM, scene, V3 } from '../core/renderer.js';
+import { CAM_OFF, FP_CAM, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { MIST, mistSee } from '../world/mist.js';
 import { outline } from '../effects/screen-outlines.js';
@@ -22,6 +22,9 @@ import { curDark } from '../lighting/day-night.js';
 import { peekOf, sightTo, visAt, visOn } from '../lighting/vision.js';
 import { fpOn, freeOn, isoOn } from '../game/view-cam.js';
 import { roofOver } from '../world/cutaway.js';
+import { cell, ci, FENCE, idx, inb, OBST, OPEN, WALL } from '../world/grid.js';
+import { obstTop } from '../world/props.js';
+import { inHouseRect } from '../world/house.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { camFocus, viewer } from '../net/spectate.js';
 
@@ -36,6 +39,31 @@ const REACH_COL = 0x62e070, REACH_A = 0.6, BURN_COL = 0xff8a1e;
 // the circle round you inside which a zombie behind something shows its outline: full strength up to RED_NEAR metres,
 // then fading out the further it is, to nothing at RED_FAR
 const RED_NEAR = 4, RED_FAR = 12;
+// whether anything could stand between the camera overhead and a zombie at x, z: going from it toward the camera, the
+// line to its feet climbs (_xc.t a metre out); a wall or a window's frame, the house's roof, a fence, a tree's crown or a
+// prop it hasn't climbed over yet by then could hide some of it. Only then are its see-through layers drawn (their
+// depth test shows them only where something's in front anyway): out in the open they're some thirty draws for nothing.
+// It leans the safe way: past the edge of the farm (the woods) anything counts, and a prop of no known height is tall
+const XR_COVER = { step: 0.3, foot: 0.15, wall: 2.7, roof: 4.8, fence: 1.3, prop: 2.4, tall: 9 };
+const _xc = (() => { const h = Math.hypot(CAM_OFF.x, CAM_OFF.z); return { x: CAM_OFF.x / h, z: CAM_OFF.z / h, t: CAM_OFF.y / h }; })();
+function coverFromCam(x, z) {
+  for (let d = XR_COVER.step; ; d += XR_COVER.step) {
+    const y = XR_COVER.foot + d * _xc.t; if (y > XR_COVER.tall) return false;   // (the line's above anything that stands)
+    const px = x + _xc.x * d, pz = z + _xc.z * d, i = ci(px), j = ci(pz);
+    if (!inb(i, j)) return true;
+    const c = cell[idx(i, j)];
+    if ((c === WALL || c === OPEN) && y < XR_COVER.wall) return true;
+    if (c === FENCE && y < XR_COVER.fence) return true;
+    if (y < XR_COVER.roof && inHouseRect(px, pz, 0.3) && roofOver(px, pz) > 0.3) return true;
+    // props and trees: a tree's crown spreads past its own cell, so the cells round this one too
+    for (let b = j - 1; b <= j + 1; b++) for (let a = i - 1; a <= i + 1; a++) {
+      if (!inb(a, b) || cell[idx(a, b)] !== OBST) continue;
+      const o = obstTop.get(idx(a, b));
+      if (o === undefined || typeof o === 'number') { if (a === i && b === j && y < (o ?? XR_COVER.prop)) return true; }
+      else if (y < o.top && Math.hypot(px - o.x, pz - o.z) < o.r * (o.top - y) / o.top + 0.1) return true;
+    }
+  }
+}
 // the flashlight's outline: how far (r) and how wide (half the cone, radians) each tier's beam picks zombies out
 export const LIGHT_OL = [null, { r: 13, half: 0.42 }, { r: 18, half: 0.62 }], LIGHT_COL = 0xfff1c4;
 // how solid (z.vis) a zombie has to be before the rim starts to show, and by when it's full
@@ -145,7 +173,8 @@ export function updateZombieVisuals(dt, rdt) {
     // (sightTo's peek), stands behind that wall from up here, so its see-through outline would show through the wall
     if (z.xr) { const d = !visOn || z.vis < 0.004 || Math.hypot(z.x - V.x, z.z - V.z) <= 0.7 || los(V.x, V.z, z.x, z.z) ? 1 : 0; z.seeK = z.seeK === undefined ? d : z.seeK + (d - z.seeK) * Math.min(1, rdt * 8); }
     if (z.xr) { const lk = z.redOl || z.lodR < ZLOD.xray ? 1 : 0; z.xrK = z.xrK === undefined ? lk : z.xrK + (lk - z.xrK) * Math.min(1, rdt * 6); if (z.xrK < 0.01) z.xrK = 0; }   // (fading out as it drops out of the nearest few)
-    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK * (isoOn() ? 1 : 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
+    if (z.xr) { const cv = isoOn() && z.xrK > 0 && z.vis > 0.02 && coverFromCam(z.x, z.z) ? 1 : 0; z.cvK = z.cvK === undefined ? cv : cv ? 1 : Math.max(0, z.cvK - rdt * 4); }   // (on at once, off after a moment: coverFromCam)
+    if (z.xr) { const a = z.vis * Math.max(z.redOl ? 1 : near, rA) * smooth(clamp(roofOver(z.x, z.z), 0, 1)) * z.seeK * z.xrK * (z.cvK > 0 ? 1 : 0) * (isoOn() ? 1 : 0); if (z.xr.rim.opacity !== a) { z.xr.rim.opacity = a; if (z.xr.sil) z.xr.sil.opacity = a * 0.6; } const on = a > 0.004; if (z.xr.rim.visible !== on) { z.xr.rim.visible = z.xr.fill.visible = on; if (z.xr.sil) z.xr.sil.visible = on; } }   // (out past the circle its three see-through layers aren't drawn at all)
     if (z.redOl) z.redOl.opacity = (0.55 + Math.sin(worldT * 6.25) * 0.3) * (1 - 0.7 * rA);
     // caught in your flashlight's beam after dark: a pale rim, full in the middle of the beam and soft at its edges and its
     // far end (the weapon light reaches further and wider than the taped one, LIGHT_OL)

@@ -21,8 +21,7 @@ import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
 import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, SG_FP, spreadOf } from '../weapons/firing.js';
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
-import { aimSX, aimSY } from '../player/shaky-hands.js';
-import { fpOn, fpSighted, freeOn, onScreen } from '../game/view-cam.js';
+import { fpOn, fpSighted, freeOn, onScreen, xhAt } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
@@ -129,7 +128,7 @@ function blockedShot() {
   return false;
 }
 const xhX = $('xhX');
-const XH_SPRINT = 0.45;   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
+const XH_SPRINT = 0.45, _xhP = [0, 0];   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
 export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
@@ -137,7 +136,7 @@ export function updateCrosshair(rdt, D) {
   if (!showXh && !xh.hidden) { Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
   xh.hidden = !showXh;
   if (showXh) {
-    xh.style.transform = `translate(${aimSX().toFixed(1)}px,${aimSY().toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js)
+    xhAt(_xhP); xh.style.transform = `translate(${_xhP[0].toFixed(1)}px,${_xhP[1].toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
     // from your own eyes it fades out as the gun comes down for a sprint (it can't fire there), and back as it comes up
     { const f = fpOn() ? (1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling

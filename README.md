@@ -234,6 +234,12 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
 with a mod that adds a setting).
 
+Under the ammo count, past a thin rule, the slot row shows what you carry: each weapon as its own white silhouette,
+drawn from the gun's own model with whatever you've fitted to it (a scope, a light, a drum, the nails in the bat), by
+the number that picks it. The one in your hands is lit with a short mark under it, the others faded back, and an
+empty slot is just its number. These are pictures of the game's own models, not icons. The fire mode sits beside the
+count with no box round it, and the bandage count is just the red cross, the number and its key.
+
 Touch screens get twin sticks and on-screen buttons.
 
 **First person.** Pick it for **View** on the title screen, just above **Start the run** (in co-op the host picks it
@@ -298,7 +304,7 @@ with it). From your own eyes the streak isn't a flat strip seen edge on: it's a 
 its length, as wide as a streak of light would look at each distance, so it tapers away into the distance as a fine
 bright line with a glowing point at its head, rather than a flat smear by the muzzle that's gone a few metres out. The round itself leaves the gun's muzzle, not the side of you, and in first
 person it's fired from the muzzle straight at what's under the crosshair, so the hole lands where the crosshair is (only
-with the muzzle right up against something does it start from your shoulder instead). From the hip the streak leaves the gun's barrel, bright right from the
+with the muzzle right up against something does it start from your shoulder instead). At the hip the round goes out along the barrel as the gun's pointing that moment: as a burst kicks the gun up and climbs, the crosshair is kicked up with it, every round goes through it and the tracers climb with the barrel, rather than staying down where the gun pointed before you started firing. From the hip the streak leaves the gun's barrel, bright right from the
 muzzle; down the sights it leaves from the middle of the screen, on your line of sight where you're aiming; a wall it hits takes its hole at the height it really struck. A shotgun's ring in first person is drawn where its
 pattern really goes, not at the very edge one pellet in hundreds might reach (the pellets bunch toward the middle), so
 it's about a third smaller than it was; and the pattern's round, spread all round the middle, each pellet thrown up or
@@ -591,6 +597,16 @@ npm run fix-imports # rewrites every file's imports and exports to match what it
 
 Every build also writes `dist/standalone.html`, the whole game in one file. Every push runs CI: all three builds and a
 browser smoke test (`tools/smoke.mjs`) that starts a run, moves, shoots, reloads and pauses.
+
+**Keeping a crowd cheap to draw.** A zombie you can see is about a dozen draws for its body and the same again for its
+shadow, plus three more per body piece for the see-through outline that shows it behind cover from above. Those
+see-through layers are only drawn when something could actually stand between the camera and the zombie: a march from
+the zombie toward the camera across the farm's grid (walls, window frames, fences, props up to their height, trees'
+crowns, the roof over the house, the woods past the edge) decides it, leaning the safe way. Its eyes, too small to
+change its shape, get none. A gun rebuilt mid-run (an attachment, mod or upgrade bought at the bench) is merged back
+into a mesh per material once its pieces settle, like one built at the start of a run, rather than staying a hundred
+separate draws. With twelve zombies out in the yard at night that's about 930 draws a frame instead of about 1,290,
+and with a weapon light and laser on the gun about 900 instead of about 1,470.
 
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,

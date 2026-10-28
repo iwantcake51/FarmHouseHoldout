@@ -532,6 +532,22 @@ function selfClip(on, c) {
   const d = SELF_CLIP.near + SELF_CLIP.up * smooth(clamp((VCAM.pitch - 0.1) / 0.6, 0, 1));
   pl.setFromNormalAndCoplanarPoint(_scD, _scP.copy(c.position).addScaledVector(_scD, d));
 }
+// at the hip from your own eyes, how far the gun's own kick has it turned off the crosshair, in pixels across and down
+// the screen (out): its flip, the climb of a full auto and its rattle, the turn fpRecoil puts on it over the crosshair's
+// own kick. The crosshair's drawn that much further over (ui/crosshair.js) and each round goes out through it
+// (weapons/firing.js), so the barrel, the crosshair and the tracers all climb together instead of the gun going up while
+// the rounds stay down where it pointed before the shooting began
+function fpKickPx(out) {
+  out[0] = out[1] = 0; if (!fpOn() || P.dead) return out;
+  const k = 1 - adsW(); if (k < 0.01) return out;
+  const C = V.rc, rn = rattleAt(), p = (C.p + C.cp + rn[3]) * k, y = (C.y + C.cy + rn[4]) * k;
+  const f = innerHeight / 2 / Math.tan(FP_CAM.fov * Math.PI / 360);
+  out[0] = -Math.tan(y) * f; out[1] = -Math.tan(p) / Math.cos(y) * f; return out;
+}
+// where the crosshair's drawn and the rounds go through (screen pixels): the aim (the cursor with its sway, wander and
+// kick: player/shaky-hands.js), and from your own eyes at the hip the gun's own kick on top (fpKickPx)
+const _xk = [0, 0];
+export function xhAt(out) { fpKickPx(_xk); out[0] = clamp(aimSX() + _xk[0], 0, innerWidth); out[1] = clamp(aimSY() + _xk[1], 0, innerHeight); return out; }
 // the gun's own sway from your own eyes (VM): where its springs are headed this frame, and stepped on to it
 function vmStep(rdt, w0, now) {
   if (!(rdt > 0)) return;
