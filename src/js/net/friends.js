@@ -10,7 +10,6 @@ import { NET, NET_MAX, NET_V, netCode, netJoin, netLib, netName, PEER_OPTS } fro
 import { SFX } from '../audio/sfx.js';
 import { lobbyRender } from './lobby.js';
 import { LOOK } from '../player/look.js';
-import { lookCardOn } from '../ui/look-card.js';
 import { copyBtn, toggleCoop } from './lobby.js';
 import { run } from '../game/run-state.js';
 import { state } from '../game/state.js';
@@ -154,7 +153,6 @@ export function frRender() {
       // removing someone asks first: the cross turns into Remove? for a few seconds
       if (r.del) frBtn(btns, 'Remove?', 'coopCopy warn', () => frRemove(r.f.c));
       else frBtn(btns, '×', 'frDel', () => { PALS.del = r.f.c; clearTimeout(PALS.delT); PALS.delT = setTimeout(() => { PALS.del = ''; frRender(); }, 3000); frRender(); }, 'Remove ' + r.name);
-      lookCardOn(li, 'f:' + r.f.c, () => { const s = PALS.st.get(r.f.c); return s && s.look && { look: s.look, name: r.name, col: r.on ? '#6fd07a' : '#5c5850', sub: r.what }; });   // (their survivor, as they last said: ui/look-card.js)
       ul.appendChild(li);
     }
   }

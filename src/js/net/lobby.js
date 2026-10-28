@@ -18,7 +18,7 @@ import { state } from '../game/state.js';
 import { BASE_HP } from '../ui/hud.js';
 import { frAdd, frAnnounce, friendsUp, frOf, frRender, invRender, PALS } from './friends.js';
 import { LOOK } from '../player/look.js';
-import { lookCardOn, lookThumb } from '../ui/look-card.js';
+import { lookThumb } from '../ui/look-card.js';
 import { chatRender } from './chat.js';
 
 const lobbySeen = new Set();   // who's been shown in the seats already (someone just in slides into their seat)
@@ -70,8 +70,6 @@ function renderSeats() {
     // someone you're playing with who isn't on your friends list yet: one click to add them (net/friends.js)
     if (!me && p.fid && p.fid !== PALS.me && !frOf(p.fid)) { const b = document.createElement('button'); b.type = 'button'; b.className = 'coopCopy sAdd'; b.textContent = 'Add friend'; b.onclick = () => frAdd(p.fid, p.name); li.appendChild(b); }
     if (NET.host && !me && !NET.inGame) { const b = document.createElement('button'); b.type = 'button'; b.className = 'sKick'; b.textContent = '\u00d7'; b.setAttribute('aria-label', 'Remove ' + (p.name || 'Survivor') + ' from the lobby'); b.onclick = () => netKick(p.id); li.appendChild(b); }
-    // the pointer on a seat shows whoever's in it turning on a card (ui/look-card.js)
-    lookCardOn(li, 'p:' + p.id, () => ({ look, name: p.name || 'Survivor', col: NET_COL[p.idx], sub: li.querySelector('.sTag').textContent }));
     ol.appendChild(li);
   }
   for (let k = list.length; k < NET_MAX; k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }

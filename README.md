@@ -207,7 +207,7 @@ with a space, it's tidied up for you); friends of yours who are hosting with roo
 joining. In a lobby:
 
 - **The seats** are four cards pinned in a row, each with that survivor's picture as they've made them, their number
-  and name, Host and You. Rest the pointer on one and the survivor turns on a card beside it.
+  and name, Host and You.
 - **Ready.** A joiner presses **Ready** (or T) when they're set, and a green Ready stamp lands on their card. They can
   take it back with **Cancel ready**. The host's **Start together** (or T) waits until everyone is ready and says who
   it's waiting for; a host on their own can start straight away.
