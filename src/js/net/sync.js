@@ -312,11 +312,13 @@ function castSkip(id) {
 NET_ON.skip = m => { if (NET.host) castSkip(m.f); };
 NET_ON.sv = m => { if (NET.host) return; skipVotes.clear(); m.v.forEach(v => skipVotes.add(v)); };
 // the break's line under the wave number: the countdown, and how to start it early (in co-op, the vote so far)
+// (each part kept whole on its line, so a narrow column breaks between them, not off the end of one)
+const subLine = (...parts) => parts.map((p, i) => `<span class="nw">${p}${i < parts.length - 1 ? ' ·' : ''}</span>`).join(' ');
 export function breakSub() {
   const t = `Next wave in ${Math.ceil(Math.max(0, breakT))}s`;
-  if (!netLink()) return t + ` · ${kbd('wave')} to start now`;
+  if (!netLink()) return subLine(t, `${kbd('wave')} to start now`);
   const n = skipVotes.size, need = skipNeed();
-  return t + (skipVotes.has(NET.id) ? ` · Voted to start ${n}/${need} · ${kbd('wave')} takes it back` : ` · ${kbd('wave')} vote to start ${n}/${need}`);
+  return skipVotes.has(NET.id) ? subLine(t, `Voted to start ${n}/${need}`, `${kbd('wave')} takes it back`) : subLine(t, `${kbd('wave')} vote to start ${n}/${need}`);
 }
 // wave cleared: the host tells the rest; anyone down is back a moment later, once the slow motion's played out
 let clearAt = 0;

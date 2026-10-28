@@ -37,14 +37,16 @@ function buildFloor() {
     if (HOUSE_FP[idx(i - 1, j)] === 1 && HOUSE_FP[idx(i - 1, e)] === 1) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.03, L), M.wood); l.rotation.x = -Math.PI / 2; l.position.set(cxw(i) - 0.5, 0.02, z); floorG.add(l); }
     j = e + 1;
   }
-  // (drawn as one mesh for the boards and one for the lines between them; the lines take no shadow, as they never have)
-  mergeInto(floorG, [...floorG.children], { noBake: true }).forEach(m => { if (m.material === M.wood) m.receiveShadow = false; });
+  // (drawn as one mesh for the boards and one for the lines between them; the lines take the roof's shadow too, or the
+  // sun lit them through it and they glowed orange across a dark floor)
+  mergeInto(floorG, [...floorG.children], { noBake: true });
 }
 // the ceiling, seen only from your own eyes (the view from above lifts the roof off and looks straight down into the
 // rooms: world/cutaway.js): a plaster ceiling over the whole footprint (an L-shaped house's notch cut out of it) at
 // the height the rooms' walls stand to (CEIL.y, the inside walls' own: world/interior.js, IW.h), and stained timber
 // joists across it, the short way over the house, CEIL.gap apart (each w wide and d deep), resting on the walls; it
-// takes no shadow and casts none (the roof over it does), and none of the floor's light map either (it would lay the
+// casts no shadow (the roof over it does) and the plaster takes none, but the joists do, so the roof keeps the sun off
+// their sides (unshadowed, it lit them through the roof); and none of the floor's light map either (it would lay the
 // walls' dark lines across it), just the room's own light
 const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
 export const ceilG = new THREE.Group(); ceilG.visible = false; scene.add(ceilG);
@@ -71,7 +73,7 @@ function buildCeiling() {
     const L = b1 - b0, m = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? CEIL.w : L, CEIL.d, alongZ ? L : CEIL.w), CEIL_M.joist);
     m.position.set(alongZ ? a : (b0 + b1) / 2, CEIL.y - CEIL.d / 2 + 0.002, alongZ ? (b0 + b1) / 2 : a); ceilG.add(m);
   }
-  ceilG.children.forEach(m => { m.castShadow = m.receiveShadow = false; });
+  ceilG.children.forEach(m => { m.castShadow = false; m.receiveShadow = m.material === CEIL_M.joist; });
 }
 {
   // a doormat inside the front door

@@ -82,7 +82,7 @@ the other one, that eye squinting along the gun and your head tipped over the st
      once), and you take two. Taking a curse sounds like one: a low, sour slide down, not the reward chime.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
 
-When the run ends, **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
+When the run ends the HUD clears away and the end screen comes up over the farm on its own; **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
 your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call, scrap earned,
 spent and sent to teammates, and every skill and perk you took.
 
@@ -92,7 +92,10 @@ spent and sent to teammates, and every skill and perk you took.
 furniture stands, plus a new yard of cars, crates, hay bales and fences. The old rusted cars
 have their hoods and trunks low below the windows: you see and shoot over those, and only the cabin is cover. The roof and walls fade away around you so
 you can always see inside; from your own eyes the rooms have a proper ceiling over them instead, warm plaster with
-stained timber joists running across the house, the lamps hanging from it on their cords. The clock runs from afternoon into night, and the dark is where the lamps, your
+stained timber joists running across the house, the lamps hanging from it on their cords. Indoors the roof keeps the
+sun off everything under it, the floorboards' seams, the joists and everyone in the room (you, your own forearms from
+your own eyes, and the dead) alike, so the rooms are lit by their lamps and the daylight through the windows, and out
+in the yard you all go into the shade of the house and the trees. The clock runs from afternoon into night, and the dark is where the lamps, your
 flashlight and the muzzle flashes matter.
 
 **Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a

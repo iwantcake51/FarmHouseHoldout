@@ -259,6 +259,7 @@ export function tickDeath(rdt) {
 }
 export function die() {
   $('cineBars').classList.remove('on');   // (the end screen comes up over the farm as it lies, still close in on you)
+  document.body.classList.add('dying');   // (the HUD gone from under it, however the run ended: styles/hud-feed.css)
   if (run.wave > best) { best = run.wave; try { localStorage.setItem('kessler-best', best); } catch (e) {} }
   showBest();
   $('deadTitle').textContent = (netLink() ? 'Overrun on wave ' : 'Dead on wave ') + Math.max(1, run.wave);
