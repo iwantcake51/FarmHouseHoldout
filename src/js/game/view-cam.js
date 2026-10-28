@@ -186,6 +186,9 @@ const VS = { x: 0, y: 0, z: 0, p: 0, w: 0, r: 0, vx: 0, vy: 0, vz: 0, vp: 0, vw:
 // (a handgun's irons, hand: the eye a little further back off the slide, which carries the rear sight and slams back
 // 7 cm at it with each shot, filling the view at iron's distance; much further and your own forearms rise into view)
 const EYE_MIN = { optic: 0.15, iron: 0.25, hand: 0.32 };
+// down a handgun's red dot or holo: the eye brought in to relief behind the back of it rather than left at arm's length
+// (where its little window was a sliver of the view), and the view drawn in by zoom more than down other sights
+const HAND_OPTIC = { relief: 0.13, zoom: 0.15 };
 // down the sights, particles thinned toward the aim: out to r of the view's height, by k at most
 const AIM_THIN = { r: 0.16, k: 1 }, _vcS = new THREE.Vector2();
 // the third-person camera's jolts as first person feels them (game/camera.js): a push along the aim dips the view
@@ -1019,6 +1022,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // down the sights: the gun brought onto this frame's aim (the kick's moved on since it was held), and the eye onto
     // its sight line: at the head's own distance behind it, or a scope's eye relief behind its eyepiece
     const w = adsW(), D = W(curId()), LH = D && !D.melee && !D.akimbo ? sightLine() : null, L = w > 0.001 ? LH : null, gg = gunMeshes[W8.cur];
+    const handOptic = !!LH && D.slot === 'side' && (LH.kind === 'dot' || LH.kind === 'holo');
     _vcE.set(V.x, V.y, V.z);
     // (the whole upper body turned onto it, not just the gun: straightening the chest for vmLock turned the gun off the
     // aim it was given, and turning only the gun back would pull it out of the hands, which went with the chest)
@@ -1026,6 +1030,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     if (LH) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
     if (L && gg) {
       if (L.relief !== null) _vcD.copy(_pa).addScaledVector(_sd, -L.relief);
+      else if (handOptic) _vcD.copy(_pa).addScaledVector(_sd, -HAND_OPTIC.relief);
       else _vcD.copy(_pa).addScaledVector(_sd, clamp(_vcH.subVectors(_vcE, _pa).dot(_sd), -0.8, -(L.kind === 'holo' || L.kind === 'dot' ? EYE_MIN.optic : D.slot === 'side' ? EYE_MIN.hand : EYE_MIN.iron)));
       // (never further from your head than ADS_EYE_MAX: with the gun not yet up, coming back off a vault or being drawn,
       // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
@@ -1065,7 +1070,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // in first person every sight's glass is clear to look through (GM.glass, shared, back as it was after)
     glassSee(true);
     // drawn in a little down the sights (a scope's magnified in its own view instead)
-    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0)) * (1 + (WIDE_FOV[T('eyes') || 0] || 0) * (1 - (ANIM.ads || 0)));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV; wider with Wide eyes, but not down the sights: WIDE_FOV)
+    const fov = (SET.fov || 75) * (1 + V.vfov) * (1 - FPV.ads * (ANIM.ads || 0)) * (1 - (handOptic ? HAND_OPTIC.zoom : 0) * (ANIM.ads || 0)) * (1 - 0.04 * smooth(clamp(ANIM.healFx || 0, 0, 1))) * (1 - clamp(V.jz, -0.2, 0.2)) * (1 + FPV.sprint * smooth(clamp(ANIM.sprintK || 0, 0, 1))) * (1 - (V.ff || 0)) * (1 + (WIDE_FOV[T('eyes') || 0] || 0) * (1 - (ANIM.ads || 0)));   // (a touch wider at a sprint, a touch narrower with each shot: FIRE_FOV; wider with Wide eyes, but not down the sights: WIDE_FOV)
     if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); }
   } else {
     SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0;
