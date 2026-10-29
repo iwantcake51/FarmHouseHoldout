@@ -1,6 +1,7 @@
 // A suppressor heating up as you fire through it, purely for the look: each round through it warms it a little (more
 // for a heavier round), so it takes a good few mags of sustained fire to get it really hot, and it bleeds the heat off
-// slowly on its own, quicker the hotter it is. Warm, the barrel starts to smoke, thin wisps curling up off the muzzle
+// slowly on its own, quicker the hotter it is: a full mag barely warms it, and only long sustained fire, mag after mag,
+// gets it glowing. Warm, the barrel starts to smoke, thin wisps curling up off the muzzle
 // (HEAT_SMOKE), more of them and thicker the hotter it gets, with a puff off it at each shot; overheating, the smoke
 // pours off it slow and heavy and hangs in the air, so moving or swinging the gun leaves a trail of it behind. Hotter
 // still it starts to glow, a dull red at first, then orange, then a deep yellow as it gets really hot (never washing out to white), and blooms; left alone it
@@ -17,7 +18,7 @@ import { smoke } from './smoke.js';
 
 // shot: heat a round puts in (times 0.6 + its power, effects/tracers.js tracerPower); max: as hot as it gets; cool:
 // what it sheds a second, plus coolHot of its heat (a hotter can cools faster); show: how hot before it starts to glow
-const SUPP_HEAT = { shot: 0.011, max: 1.3, cool: 0.018, coolHot: 0.05, show: 0.36 };
+const SUPP_HEAT = { shot: 0.0038, max: 1.3, cool: 0.012, coolHot: 0.035, show: 0.36 };   // (about three times as many rounds to heat it as before)
 // the barrel's smoke: from how hot it starts (from) and from how hot it's overheating (trail); wisps a second, from just
 // smoking to as hot as it gets (rate), and more again overheating (trailRate); how thick (a), how long each lasts
 // (life, a second or two more overheating: the trail it leaves hanging); the puff at each shot (shot: how thick)

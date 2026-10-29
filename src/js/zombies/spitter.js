@@ -51,11 +51,11 @@ export const SPIT = {
   speed: 6.5, g: 7, arc: 0.45, arcPer: 0.09, through: 1.45,   // the glob's speed across the ground (m/s) at most, its fall, how high it's lobbed over the line to where it lands (arc, and arcPer more each metre), the height it takes through a window
   flat: 11, dip: 0.12,   // spat in through a window: flung straight at your feet (flat m/s across the ground), dipping as it goes rather than lobbed up and over, at least dip (m)
   dmg: 10, splash: 1.0,   // a glob that catches you (half that at the splash's edge) and how far the splash reaches
-  // the splat it leaves: how far it burns, how long it lasts, the burn a second (rising to max times that after ramp
+  // the splat it leaves: how far it burns, how long it lasts, the burn every tick seconds (hit, rising to max after ramp
   // seconds stood in it, and easing off again once you're out), the drag at your feet; it spreads over grow seconds and
   // dries up over its last dry
-  pool: { r: 0.95, t: 6.5, dps: 2.5, max: 1.6, ramp: 4, slow: 0.2, grow: 0.35, dry: 2.2 },
-  burst: { r: 0.7, t: 4 },   // a spitter's own sac bursting as it dies
+  pool: { r: 1.9, t: 14, tick: 0.5, hit: 2, max: 6, ramp: 4, slow: 0.2, grow: 0.5, dry: 3 },
+  burst: { r: 1.4, t: 9 },   // a spitter's own sac bursting as it dies
   xray: 0x9fe03c
 };
 const globs = [], acidPools = [], spitters = new Set();
@@ -108,6 +108,41 @@ function acidSplatTex() {
   const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
 }
 const POOL_G = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
+// the acid's surface, alive over a splat (ACID_SURF, a layer over it in its own shape): bubbles welling up all over it,
+// each swelling for a moment and popping in a bright ring, thickest where the acid lies thickest; a slow oily swirl
+// across it; and glints of wet light catching on it. Lit in step with the ground by day, glowing on its own at night
+// (uLit). Its life (uOp) fades it with the splat, and the bubbling dies down as it cools (uBoil)
+const ACID_SURF = { cells: 14, speed: 0.6 };
+const acidSurfMat = map => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+  uniforms: { uMap: { value: map }, uT: { value: 0 }, uOp: { value: 0 }, uBoil: { value: 1 }, uLit: { value: 1 }, uSeed: { value: rand() * 100 } },
+  vertexShader: 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D uMap; uniform float uT, uOp, uBoil, uLit, uSeed; varying vec2 vUv;
+float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7)) + uSeed) * 43758.5453); }
+void main() {
+  float m = texture2D(uMap, vUv).a; if (m < 0.05) discard;
+  float thick = smoothstep(0.3, 0.9, m);
+  // a slow swirl of oily sheen across it
+  vec2 q = vUv * 3.0; float sw = sin(q.x * 2.1 + sin(q.y * 1.7 + uT * 0.4) * 1.6 + uT * 0.3) * 0.5 + 0.5;
+  // bubbles: one to a cell, each on its own clock, swelling then popping
+  vec2 g = vUv * ${ACID_SURF.cells.toFixed(1)}, id = floor(g), f = fract(g) - 0.5; float bub = 0.0, rim = 0.0, pop = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = id + vec2(float(i), float(j)), o = vec2(h1(c), h1(c + 7.3)) - 0.5;
+    float ph = fract(uT * ${ACID_SURF.speed.toFixed(2)} * (0.6 + h1(c + 3.1) * 0.9) + h1(c + 1.7)), live = step(0.25, h1(c + 9.1)) * uBoil;
+    vec2 d = f - vec2(float(i), float(j)) - o * 0.7; float r = mix(0.03, 0.2 + 0.14 * h1(c + 5.5), smoothstep(0.0, 0.85, ph)), L = length(d);
+    float grow = step(ph, 0.85) * live, burst = smoothstep(0.85, 0.88, ph) * (1.0 - smoothstep(0.88, 1.0, ph)) * live;
+    bub = max(bub, grow * smoothstep(r, r * 0.8, L));
+    rim = max(rim, grow * smoothstep(r * 0.62, r * 0.82, L) * smoothstep(r, r * 0.86, L));
+    pop = max(pop, burst * smoothstep(0.06, 0.0, abs(L - r * 1.25)));
+  }
+  bub *= thick; rim *= thick;
+  vec3 col = mix(vec3(0.36, 0.5, 0.08), vec3(0.62, 0.82, 0.18), sw * 0.6 + bub * 0.4);
+  col += vec3(0.75, 0.95, 0.45) * rim * 0.9 + vec3(0.9, 1.0, 0.65) * pop;
+  float a = m * (0.35 + 0.35 * sw * thick) + rim * 0.6 + pop * 0.8 + bub * 0.15;
+  // glints of wet light
+  float gl = pow(max(0.0, sin(vUv.x * 41.0 + uT * 0.7) * sin(vUv.y * 37.0 - uT * 0.5)), 24.0) * thick;
+  col += vec3(1.0) * gl; a += gl * 0.5;
+  gl_FragColor = vec4(col * uLit, clamp(a, 0.0, 1.0) * uOp);
+}` });
 // a splat's bloom: a soft green glow lying over it, strongest in the dark, there as long as the splat is and fading
 // with it (POOL_BLOOM: how bright, how far past the splat it spreads)
 const POOL_BLOOM = { a: 0.5, r: 1.9 };
@@ -394,6 +429,7 @@ export function updateSpit(dt) {
     // it spreads out fast as it lands, then lies there; drying up, it shrinks back a little, darkens and goes
     const grow = 1 - Math.pow(1 - clamp(q.t / SPIT.pool.grow, 0, 1), 3), dry = clamp((q.life - q.t) / SPIT.pool.dry, 0, 1);
     q.m.scale.setScalar(q.r * 1.25 * (0.3 + 0.7 * grow) * (0.88 + 0.12 * dry)); q.m.material.opacity = 0.92 * dry;
+    if (q.surf) { const u = q.surf.material.uniforms; q.surf.scale.copy(q.m.scale); u.uT.value += dt; u.uOp.value = dry * (0.3 + 0.7 * grow); u.uBoil.value = 0.25 + 0.75 * clamp(1 - q.t / (q.life * 0.8), 0, 1); u.uLit.value = 0.55 + 0.45 * (1 - curDark) + 0.25 * curDark; }
     // lit like the ground it's on, and glowing in its own green over that the whole time it's there (in the dark it's
     // as green as by day), dimming only as it dries and goes
     const glow = (q.tiny ? 0.6 : 1) * (1 - 0.35 * q.t / q.life) * dry; q.glow = glow;
@@ -418,9 +454,13 @@ export function updateSpit(dt) {
   // drags at your feet
   P.acidT = inAcid ? (P.acidT || 0) + dt : Math.max(0, (P.acidT || 0) - dt * 2);
   if (!inAcid) return;
-  const q = inAcid, ramp = 1 + (SPIT.pool.max - 1) * smooth(clamp(P.acidT / SPIT.pool.ramp, 0, 1));
-  P.hp -= SPIT.pool.dps * ramp * dt * S.dmgTaken * waveDmg(); P.slow = Math.max(P.slow || 0, SPIT.pool.slow * (1 - S.slowRes));
-  if ((P.acidTick = (P.acidTick || 0) - dt) <= 0) { P.acidTick = 0.5; hitFromAt(q.x, q.z, 0.12 * ramp); soundAt(P.x, P.z, () => nz(0.35, 'highpass', 3400, 1600, 0.035 * ramp)); fx('acidMist', P.x, 0.12, P.z, 0, 0.5, 0, 0.15, 0.6, 0.7, 0.4); }
+  const q = inAcid, k = smooth(clamp(P.acidT / SPIT.pool.ramp, 0, 1)), ramp = 1 + 2 * k;
+  P.slow = Math.max(P.slow || 0, SPIT.pool.slow * (1 - S.slowRes));
+  // a burn every tick: SPIT.pool.hit stepping in, up to SPIT.pool.max the longer you stand there
+  if ((P.acidTick = (P.acidTick || 0) - dt) <= 0) {
+    P.acidTick = SPIT.pool.tick; P.hp -= Math.round(SPIT.pool.hit + (SPIT.pool.max - SPIT.pool.hit) * k) * S.dmgTaken;
+    hitFromAt(q.x, q.z, 0.12 * ramp); soundAt(P.x, P.z, () => nz(0.35, 'highpass', 3400, 1600, 0.035 * ramp)); fx('acidMist', P.x, 0.12, P.z, 0, 0.5, 0, 0.15, 0.6, 0.7, 0.4);
+  }
   playerChecks();
 }
 // the glob bursting as a liquid does: a crown of fine drops thrown out low all round it, most of them on the way it
@@ -459,9 +499,12 @@ function acidPool(x, z, r, life, ang, tiny) {
   const m = new THREE.Mesh(POOL_G, mt); m.position.set(x, y, z); m.rotation.y = ang || 0; m.renderOrder = 1; m.scale.setScalar(0.01); scene.add(m);
   let bloom = null;
   if (!tiny) { bloom = new THREE.Mesh(POOL_G, new THREE.MeshBasicMaterial({ map: TEX_GLOWS[0], color: 0x8fdc34, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); bloom.position.set(x, y + 0.01, z); bloom.renderOrder = 2; bloom.scale.setScalar(r * POOL_BLOOM.r); scene.add(bloom); }
-  acidPools.push({ m, bloom, x, y, z, r, life, t: 0, tiny: !!tiny });
+  // (a big one bubbles: ACID_SURF)
+  let surf = null;
+  if (!tiny) { surf = new THREE.Mesh(POOL_G, acidSurfMat(tx)); surf.position.set(x, y + 0.004, z); surf.rotation.y = m.rotation.y; surf.renderOrder = 1; surf.scale.setScalar(0.01); scene.add(surf); }
+  acidPools.push({ m, bloom, surf, x, y, z, r, life, t: 0, tiny: !!tiny });
 }
-function dropPool(q) { scene.remove(q.m); q.m.material.dispose(); if (q.bloom) { scene.remove(q.bloom); q.bloom.material.dispose(); } }
+function dropPool(q) { scene.remove(q.m); q.m.material.dispose(); if (q.bloom) { scene.remove(q.bloom); q.bloom.material.dispose(); } if (q.surf) { scene.remove(q.surf); q.surf.material.dispose(); } }
 // a spitter going down: its sac bursts
 export function spitterDies(z) {
   if (z.type !== 'spitter') return;

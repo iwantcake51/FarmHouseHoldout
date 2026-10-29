@@ -93,7 +93,8 @@ the other one, that eye squinting along the gun and your head tipped over the st
      the wave's number, to everyone.
 
 When the run ends the HUD clears away and the end screen comes up over the farm on its own; **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
-your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call, scrap earned,
+your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call (the lowest your health got that you lived through: a low only counts once you've
+come through it and are still standing three seconds later, so the blow that finished you never does), scrap earned,
 spent and sent to teammates, and every skill and perk you took.
 
 ## What's in it
@@ -121,7 +122,8 @@ and a handgun scope or the ACOG on the rail along its barrel (which stays put wh
 length with a handgun's long eye relief rather than up against your eye. With an optic on the auto shotgun its tall
 folding sights are laid down flat, the rear back along the receiver and the front post along the barrel, so nothing
 stands in front of the optic as you look through it. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
-good few mags of sustained fire to get it hot, and it cools off slowly once you stop (just for the look). Warm, the
+good many mags of sustained fire to get it hot (a full mag barely warms it), and it cools off slowly once you stop
+(just for the look). Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
 yellow bloom round it; and overheating, the smoke pours
@@ -179,13 +181,22 @@ you, gone deep out in the fog), and a sight's reticle always shows through it. T
 screen's resolution (a quarter of the pixels, its dearest part by far) and brought up to full size by depth, so the
 edge of anything standing in front of it stays clean.
 
-**Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still, and brutes that
+**Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still (the splat it leaves is
+nearly four metres across and lasts fourteen seconds: a bubbling green pool, bubbles swelling all over it and popping
+in bright rings under an oily swirl, glowing on its own at night; standing in it burns for 2 every half second, rising
+to 6 after four seconds in it, and drags at your feet), and brutes that
 charge through fences and plough through the crowd. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
 forearms), and a headshot drops them. A shotgun blast that takes a head doesn't knock it off whole: it bursts into a red
 mist, flinging chips of skull, scalp and gore. Blood thrown from a hit flies as teardrops, round head first with a tail
 drawn out behind (longer the faster it goes), each flattened its own way, and leaves its mark where it lands; only the
-drops in the air cost anything to draw, so a shotgun on a crowd stays smooth. Their hitboxes are simple shapes, not the model itself: a round meets a
+drops in the air cost anything to draw, so a shotgun on a crowd stays smooth. Blood thrown at a wall lands on the face it
+struck, never the far side: thrown at it head-on it's a burst, a heavy blot with droplets flung out all round it;
+slantwise, a spatter streaking the way the blood was going, each drop drawn out into a teardrop with a tail. Runs creep
+down the wall from the heaviest of it over a few seconds, slowing as they go, a bead swelling at the foot of each. It's
+a wet red fresh and dries to a dull brown, and soaks away on the ground's clock (faster once the wave's over); a kill
+throws more of it, and a blast paints the walls all round. Each splash is a single lit quad on the wall (at most 48 of
+them and 64 runs at once), and fades with its wall when the wall's cut away for you to see in. Their hitboxes are simple shapes, not the model itself: a round meets a
 zombie as an upright cylinder and hits the part at the height it passes (head, body or arm, legs), and from above the
 part under your crosshair (the one your first round goes to) is found against one box per limb, fitted round the limb
 and everything it wears and turning with it, only for zombies near the line of your aim and once a frame. From wave 4 some turned wearing armour: soldiers in helmets and vests,

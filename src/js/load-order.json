@@ -69,6 +69,7 @@
   "effects/tracers.js",
   "effects/supp-heat.js",
   "effects/blood-map.js",
+  "effects/wall-blood.js",
   "effects/particles.js",
   "effects/weapon-drop.js",
   "effects/puffs.js",

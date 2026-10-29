@@ -1,7 +1,8 @@
 // Where the support fist sits on a long gun: up against the underside of the fore-end (halfway up the post, on a gun
 // with a vertical foregrip), so the gun lies in the hand rather than floating over it. The fore-end's underside is
 // found once per gun model by casting a ray up at it from below the hold point (gripShape); foreDrop is how far
-// under the hold point player/hold.js aims the fist.
+// under the hold point player/hold.js aims the fist. A gun's low (player/hold.js HOLD) takes it further down: the pump's
+// fist wraps under its slim forend, rather than its forearm riding up the side of the gun.
 import { V3 } from '../core/renderer.js';
 import { HAND_DROP, holdOf } from './hold.js';
 
@@ -22,5 +23,5 @@ function gripShape(s, H) {
 export function foreDrop(s, H) {
   const hd = HAND_DROP[H.kind] || HAND_DROP.hand;
   if (H.kind !== 'long') return hd.fore;
-  const g = gripShape(s, H); return g.drop ?? hd.fore;
+  const g = gripShape(s, H); return (g.drop ?? hd.fore) + (H.low || 0);
 }

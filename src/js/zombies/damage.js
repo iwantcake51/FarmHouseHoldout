@@ -13,6 +13,7 @@ import { roundOn } from '../weapons/rounds.js';
 import { FEED } from '../upgrades/tier-table.js';
 import { EFF, hasMod, healMul, hpCap, run, S, W, waveScrap } from '../game/run-state.js';
 import { splatLater, spray } from '../effects/blood-map.js';
+import { wallSpray } from '../effects/wall-blood.js';
 import { bloodSpurt, burst, gibs } from '../effects/particles.js';
 import { fx, hitMist } from '../effects/puffs.js';
 import { dropPickup } from '../pickups/pickups.js';
@@ -427,6 +428,7 @@ export function hitFx(z, dealt, dx, dz, kb, wId, part, D) {
   else if (D.bruteStagger) z.stagger = Math.max(z.stagger, D.bruteStagger);   // (only the SCAR's rounds stop a brute, and break off its charge: zombies/brute-dash.js)
   const y = PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1);
   burst(z.x, y, z.z, part === 'head' ? 9 : 6, 'blood', dx, dz, 3.2); hitMist(z.x, y, z.z, dx, dz, part === 'head', dealt);
+  if (wId !== 'fire' && wId !== 'bleed') wallSpray(z.x, y, z.z, dx, dz, clamp(0.35 + dealt / 70, 0.35, 1.1) * (D.ammo === 'shells' ? 1.2 : 1));   // up the wall behind it (effects/wall-blood.js)
   bloodSpurt(z.x, y, z.z, dx, dz, Math.round(clamp(5 + dealt / 6, 5, 16) * (part === 'head' ? 1.3 : 1)), 0.85 + Math.min(0.5, dealt / 120));   // gushing out of it (effects/particles.js)
   if (rand() < 0.7) spray(z.x, z.z, dx, dz, rr(0.6, 1.1));
 }
@@ -443,6 +445,7 @@ export function blowApart(z, dx, dz) {
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28; burst(x, y, zz, 5, 'blood', Math.sin(a), Math.cos(a), rr(4, 7)); }
   for (let k = 0; k < 7; k++) { const a = rand() * 6.28, sp = rr(0.8, 2.2); fx('mist', x + Math.sin(a) * 0.2, y + rr(-0.3, 0.3), zz + Math.cos(a) * 0.2, Math.sin(a) * sp, rr(0.2, 1.2), Math.cos(a) * sp, rr(0.3, 0.5), rr(1.2, 1.9), rr(0.7, 1.1), 0.75); }
   for (let k = 0; k < 6; k++) { const a = rand() * 6.28; spray(x, zz, Math.sin(a), Math.cos(a), rr(1.4, 2.6)); }
+  for (let k = 0; k < 8; k++) { const a = k * 0.785 + rr(-0.3, 0.3); wallSpray(x, rr(0.5, 1.4), zz, Math.sin(a), Math.cos(a), 1.6); }   // painting the walls round it (effects/wall-blood.js)
   for (let k = 0; k < 10; k++) { const a = rand() * 6.28, d = rr(0.4, 2.4); splatLater(0.15 + d * rr(0.12, 0.2), x + Math.sin(a) * d, zz + Math.cos(a) * d, 'drop', rr(0.3, 0.6)); }   // the further out, the longer in the air
   scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob);
   soundAt(x, zz, () => SFX.sever()); setNREC(rec);
@@ -543,6 +546,7 @@ function killBegin(z, dx, dz, k) {
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);
   spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
+  wallSpray(z.x, 0.95 * z.T.scale, z.z, dx, dz, 1.25);   // and up the wall behind it (effects/wall-blood.js)
   setShake(Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : k));
 }
 // a kill of yours shakes the view by how hard it landed (KILL_SHAKE): a light round's a nudge, a heavy round, a shotgun
