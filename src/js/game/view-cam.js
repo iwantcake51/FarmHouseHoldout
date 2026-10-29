@@ -47,7 +47,13 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.022, kickK: 150, kickD: 19, ads: 0.24, sprint: 0.085 };
+const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.022, kickK: 150, kickD: 15, ads: 0.24, sprint: 0.085 };
+// and the view's kick isn't the same each shot (KICK_FEEL): how much harder or softer one goes (vary), the first shot of
+// a string harder (first), a roll to one side (roll, radians for a shot of power 1, on its own springier spring: rollK,
+// rollD), and a short hard shudder through the view, its tremble dying away fast (shake: radians, its pitch, yaw and
+// roll each at its own rate between hz, over t seconds)
+const KICK_FEEL = { vary: [0.7, 1.3], first: 1.35, roll: 0.018, rollK: 260, rollD: 14, shake: 0.006, hz: [15, 26], t: 0.16 };
+const SHUD = [];
 // each shot draws the view in a touch (punch: how hard a shot of power 1 starts it in, about 2.5% at its deepest; a full
 // auto's less, auto; never past max all told), on a soft spring (k, d) that lets it back out
 const FIRE_FOV = { punch: 0.055, auto: 0.5, max: 0.05, k: 110, d: 15 };
@@ -349,7 +355,7 @@ function lookBy(dx, dy) {
 }
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
-const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p, viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y, viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r;
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0);
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
 const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
@@ -682,7 +688,12 @@ export function viewKick(pw, auto) {
   const DR = FP_RECOIL.dir, th = clamp(DR.bias + DR.spread * adsW() * (rand() + rand() + rand() - 1.5) * 1.4, -DR.max, DR.max), ku = Math.cos(th), ks = Math.sin(th);
   // (a gun can kick up less and swing aside more than most: its climbK and fpSideK, weapons/gun-stats.js: the LMG)
   const D = W(curId()), upK = ((D && D.climbK) || 1) * ((D && D.kickUp) || 1), sdK = ((D && D.fpSideK) || 1) * ((D && D.kickSide) || 1);   // (and its tiers': game/run-state.js)
-  const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
+  const KF = KICK_FEEL, first = (V.rc.t - (V.rc.last ?? -9)) > 0.3 ? KF.first : 1, vary = rr(KF.vary[0], KF.vary[1]) * first;
+  const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw * vary; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
+  // (the roll to a side, and the shudder: KICK_FEEL)
+  V.vkr = (V.vkr || 0) + pw * KF.roll * 22 * aw * vary * (rand() < 0.5 ? -1 : 1) * (auto ? 0.7 : 1);
+  if (SHUD.length > 6) SHUD.shift();
+  SHUD.push({ a: pw * KF.shake * aw * vary * (auto ? 0.6 : 1), t: 0, f: [rr(KF.hz[0], KF.hz[1]), rr(KF.hz[0], KF.hz[1]), rr(KF.hz[0], KF.hz[1])], ph: [rand() * 6.28, rand() * 6.28, rand() * 6.28] });
   if ((V.ff || 0) < FIRE_FOV.max) V.vff = (V.vff || 0) + pw * FIRE_FOV.punch * (auto ? FIRE_FOV.auto : 1) * 10;
   const C = V.rc, hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
   const act = EJECT[curId()], a = (act === 'pump' || act === 'bolt' ? FP_RECOIL.act : 1) * (D && D.ammo === 'shells' ? FP_RECOIL.shells : 1) * (auto ? AU.k : 1), q = Math.min(pw, 1.25);
@@ -971,6 +982,7 @@ function adsKickTilt(at, w) {
 // putting a weapon away and drawing the next (player/swap.js), the view goes a little with your hand: a glance and a lean
 // toward where the one going away rides as it's put there, then toward where the next one rides as it's drawn, each a
 // smooth swell and back (SWAP_CAM, radians: p up, y round, r rolled), only the camera's own turn: your aim stays put
+const BAND_LOOK = 0.16;
 const SWAP_CAM = { side: { p: -0.05, y: -0.035, r: 0.03 }, long: { p: 0.018, y: 0.03, r: -0.035 }, auto: { p: 0.015, y: 0.025, r: -0.03 }, melee: { p: 0.01, y: 0.02, r: -0.025 }, ease: 9 };
 function swapCam(rdt) {
   let tp = 0, ty = 0, tr = 0; const s = swapSt;
@@ -980,6 +992,8 @@ function swapCam(rdt) {
     if (a) { tp += a.p * ka; ty += a.y * ka; tr += a.r * ka; }
     if (b) { tp += b.p * kb; ty += b.y * kb; tr += b.r * kb; }
   }
+  // (and bandaging, the view tips down a little onto the arm it's going on, BAND_LOOK radians, and back up after)
+  if (!P.dead) tp -= BAND_LOOK * (ANIM.bandK || 0);
   const k = Math.min(1, rdt * SWAP_CAM.ease);   // (eased onto, so a swap cut short settles rather than snapping back)
   V.hsp = (V.hsp || 0) + (tp - (V.hsp || 0)) * k; V.hsy = (V.hsy || 0) + (ty - (V.hsy || 0)) * k; V.hsr = (V.hsr || 0) + (tr - (V.hsr || 0)) * k;
 }
@@ -996,7 +1010,15 @@ export function viewFrame(rdt, roll, sh, jolt) {
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {
     V.vk += (-FPV.kickK * V.kick - FPV.kickD * V.vk) * dt; V.kick += V.vk * dt;
     V.vky += (-FPV.kickK * V.ky - FPV.kickD * V.vky) * dt; V.ky += V.vky * dt;
+    V.vkr = (V.vkr || 0) + (-KICK_FEEL.rollK * (V.kr || 0) - KICK_FEEL.rollD * V.vkr) * dt; V.kr = (V.kr || 0) + V.vkr * dt;
     V.vff = (V.vff || 0) + (-FIRE_FOV.k * (V.ff || 0) - FIRE_FOV.d * (V.vff || 0)) * dt; V.ff = clamp((V.ff || 0) + V.vff * dt, -FIRE_FOV.max, FIRE_FOV.max);
+  }
+  // (each shot's shudder through the view, dying away: KICK_FEEL)
+  V.shp = V.shy = V.shr = 0;
+  for (let i = SHUD.length - 1; i >= 0; i--) {
+    const h = SHUD[i]; h.t += rdt; const u = h.t / KICK_FEEL.t; if (u >= 1) { SHUD.splice(i, 1); continue; }
+    const e = h.a * (1 - u) * (1 - u), tt = h.t * Math.PI * 2;
+    V.shp += Math.sin(tt * h.f[0] + h.ph[0]) * e; V.shy += Math.sin(tt * h.f[1] + h.ph[1]) * e * 0.8; V.shr += Math.sin(tt * h.f[2] + h.ph[2]) * e * 1.4;
   }
   // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp)
   if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }

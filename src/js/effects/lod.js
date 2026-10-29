@@ -20,11 +20,16 @@ const LOD = { px: 1.2, shadow: 4, layer: 30, far: 140, tall: 1.8, band: 0.12, sh
 // (shadowR: and a piece smaller than that, metres out from its middle, casts none however close the camera is: the sun's
 // shadows are softened over more than it is across, SHADOW_SOFT in core/renderer.js, so its shadow's never seen)
 const LOD_BIT = 1 << LOD.layer, _lv = new THREE.Vector3(), _ls = new THREE.Vector3();
-// a piece's size in the world (its bounding sphere's radius as scaled), measured once; kept on the piece itself rather
-// than in its userData, which a copy would carry over and which marks a piece as not to be folded (core/geometry.js)
+// a piece's size in the world (its bounding sphere's radius as scaled), measured once for each shape it's given; kept on
+// the piece itself rather than in its userData, which a copy would carry over and which marks a piece as not to be
+// folded (core/geometry.js). One with nothing in it yet (a bandage's wrap before it's wound: player/hold-bandage.js)
+// isn't taken for small: it's measured again once it has its shape
 function lodR(o) {
-  if (o.__lodR === undefined) { const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); o.getWorldScale(_ls); o.__lodR = g.boundingSphere.radius * Math.max(_ls.x, _ls.y, _ls.z); }
-  return o.__lodR;
+  const g = o.geometry; if (o.__lodR !== undefined && o.__lodG === g) return o.__lodR;
+  if (!g.attributes.position || !g.attributes.position.count) return Infinity;
+  if (!g.boundingSphere) g.computeBoundingSphere(); o.getWorldScale(_ls);
+  const r = g.boundingSphere.radius * Math.max(_ls.x, _ls.y, _ls.z); if (!(r > 0)) return Infinity;
+  o.__lodG = g; return (o.__lodR = r);
 }
 // (k: for a perspective camera, pixels to the metre one metre away; for the overhead orthographic one, pixels to the
 // metre anywhere)

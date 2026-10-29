@@ -144,7 +144,7 @@ function blockedShot() {
 }
 const xhX = $('xhX');
 const XH_SPRINT = 0.45, _xhP = [0, 0];   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
-// from your own eyes the crosshair's out in the world, on whatever your line of sight meets (VCAM.aimD): drawn as big as
+// from your own eyes a gun's crosshair is out in the world, on whatever your line of sight meets (VCAM.aimD): drawn as big as
 // it would be at ref metres off, so it grows as you come right up to a wall or a zombie and eases back down further
 // off (between min and max of its size, eased at ease a second); and when the gun's blocked nearer than that (its muzzle
 // up against a wall, a corner between it and what you're looking at), it slides to where the round would really hit,
@@ -172,7 +172,7 @@ export function updateCrosshair(rdt, D) {
   if (showXh) {
     xhAt(_xhP);   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
     // (from your own eyes, out in the world: XH_WORLD)
-    { const fp = fpOn(), W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && cache.xhX && shotStop(_xwS);
+    { const fp = fpOn() && !D.melee, W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && cache.xhX && shotStop(_xwS);   // (not a melee weapon's: it stays its size, in the middle)
       XHW.s += (ts - XHW.s) * Math.min(1, rdt * W_.ease);
       if (stop) { if (XHW.k < 0.01) { XHW.x = _xwS[0]; XHW.y = _xwS[1]; } else { const k = Math.min(1, rdt * W_.slide); XHW.x += (_xwS[0] - XHW.x) * k; XHW.y += (_xwS[1] - XHW.y) * k; } }
       XHW.k += ((stop ? 1 : 0) - XHW.k) * Math.min(1, rdt * W_.slide);

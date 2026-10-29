@@ -20,12 +20,26 @@ export function meleeArt(id, mods, lv = modLv) {
   if (meleeArtCache[key]) return meleeArtCache[key];
   const g = new THREE.Group(), flags = {}; mods.forEach(k => { flags[k] = lv(k); });
   GUNS[id](g, flags);
+  if (mods.length) markMods(g, id);   // (what its mods put on it, or changed, drawn in the upgrade gold as a gun's attachments are)
   // lay it on its side: tip to the left, edge down, the flat of the blade facing you
   // (the wrench is turned the other way up, so its jaw opens on top)
   g.setRotationFromMatrix(id === 'wrench' ? new THREE.Matrix4().makeBasis(new V3(0, 0, -1), new V3(-1, 0, 0), new V3(0, 1, 0))
     : new THREE.Matrix4().makeBasis(new V3(0, 0, 1), new V3(-1, 0, 0), new V3(0, -1, 0)));
-  const a = snapArt(g, MELEE_ART_PPU);
+  const a = snapArt(g, MELEE_ART_PPU, { cut: true });
   return (meleeArtCache[key] = a);
+}
+// a melee weapon's mods are built into it (melee/melee-models.js), not hung on it as parts: so it's built again without
+// any, and each piece of it that isn't in that plain one (by its material, its size and where it sits) is something a
+// mod put on or changed (nails, wire, spikes, tape, a serrated edge), marked to be drawn in gold (snapArt: opt.cut)
+const _mmB = new THREE.Box3(), _mmS = new V3();
+function mmSig(o) {
+  const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); _mmB.copy(g.boundingBox).getSize(_mmS);
+  return (o.material && o.material.uuid) + '|' + _mmS.toArray().map(v => v.toFixed(4)) + '|' + o.matrixWorld.elements.map(v => v.toFixed(3)).join();
+}
+function markMods(g, id) {
+  const plain = new THREE.Group(); GUNS[id](plain, {}); plain.updateMatrixWorld(true); g.updateMatrixWorld(true);
+  const have = new Map(); plain.traverse(o => { if (o.isMesh) { const k = mmSig(o); have.set(k, (have.get(k) || 0) + 1); } });
+  g.traverse(o => { if (!o.isMesh) return; const k = mmSig(o), n = have.get(k) || 0; if (n > 0) have.set(k, n - 1); else o.userData.att = true; });
 }
 // a model, already turned as it should lie, drawn into a picture of its own (ppu: CSS pixels to the metre) in the HUD's
 // ink, lit from the upper left so its rounds and bevels show (artMat), over clear: framed to what of it shows (its visible

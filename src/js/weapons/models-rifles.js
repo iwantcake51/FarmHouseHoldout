@@ -493,7 +493,11 @@ export const RIFLE_MODELS = {
   // (down on its legs with the bipod mod); the ammo box hanging on the left, its lid propped open and the belt rising
   // out of it into the feed tray
   lmg(g, m) {
-    const LMG_BELT = { under: 0.0115, edge: 0.013, pitch: 0.0165, dark: 0.03 };   // (the belt in its box: how far under the rim the folded layer lies, how far in from the box's sides, the links' pitch; how deep the dark inside is)
+    // (the belt into its box: it leaves the feed tray flat (out: how far out across it goes before it turns down, sag: how
+    // far it dips there), and drops straight down into the box near its inner side (into: how far in from the box's
+    // inner wall), the rest of it folded away inside, down to floor over the box's bottom; the links' pitch; how deep
+    // the dark inside is)
+    const LMG_BELT = { out: 0.1, sag: 0.008, into: 0.05, floor: 0.02, pitch: 0.0165, dark: 0.03 };
     const LMG_AP = { hw: 0.0078, r: 0.0042, y: 1.236 };   // (the rear aperture: half its plate's width, the hole's radius and height, level with the post's tip)
     const K = GM.metal, P = GM.furn, y0 = 1.13, mg = g.userData.magG || g, sight = T('sight');
     // ---- the stock: ribs down both sides, the steel butt plate with the shoulder rest folded on top
@@ -583,18 +587,19 @@ export const RIFLE_MODELS = {
       const lid = new THREE.Group(); lid.position.set(bx1 - 0.002, bt + 0.003, 0); lid.rotation.z = -1.95; mg.add(lid);   // flipped back past upright
       solid(lid, [[bz0 + 0.004, -0.0015], [bz1 - 0.004, -0.0015], [bz1 - 0.004, 0.0015], [bz0 + 0.004, 0.0015]], bx1 - bx0 - 0.004, GM.olive, -(bx1 - bx0 - 0.004) / 2, 0.0012);
     }
-    // the belt: rounds pointing forward, each held in its link, looping up out of the box and over into the feed tray,
-    // and the rest of it lying folded flat in the box, a layer of rounds side by side just under its rim (LMG_BELT: how
-    // far under, the links' pitch), the loop coming up out of the end of that layer. It shows what's left: the folded
-    // rounds go first, then the loop from the box end, and an empty gun shows none (player/hold.js); only the loop
-    // swings (player/hold-sway.js: beltJiggle), the folded rounds lie still in the box (inBox)
+    // the belt: rounds pointing forward, each held in its link, as a real one hangs off the gun into its box: out of the
+    // feed tray flat, on out over the box and turning down in a short S, and straight down into the box near its inner
+    // side, the rest of it folded away inside (LMG_BELT). It shows what's left: the rounds in the box go first, from
+    // the bottom up, then the hanging loop from the box end, and an empty gun shows none (player/hold.js); only the
+    // loop swings (player/hold-sway.js: beltJiggle), the rounds in the box stay put (inBox)
     const belt = [];
     {
-      const B = LMG_BELT, ly = bt - B.under, P0 = [X + 0.03, 1.146], P1 = [X + 0.15, 1.23], P2 = [bx1 - B.edge, ly], bez = t => [0, 1].map(c => (1 - t) * (1 - t) * P0[c] + 2 * (1 - t) * t * P1[c] + t * t * P2[c]);
+      const B = LMG_BELT, mx = bx0 + B.into, P0 = [X + 0.03, 1.146], C1 = [X + 0.03 + B.out, 1.146 + B.sag * 0.3], C2 = [mx, 1.146 - B.sag], P3 = [mx, bt - 0.004];
+      const bez = t => [0, 1].map(c => (1 - t) ** 3 * P0[c] + 3 * (1 - t) ** 2 * t * C1[c] + 3 * (1 - t) * t * t * C2[c] + t ** 3 * P3[c]);
       let prev = bez(0), run = 0; const pts = [prev];
       for (let i = 1; i <= 600; i++) { const q = bez(i / 600); run += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; if (run >= B.pitch) { pts.push(q); run = 0; } }
       const loop = pts.length;
-      for (let x = P2[0] - B.pitch; x >= bx0 + B.edge - 1e-4; x -= B.pitch) pts.push([x, ly]);   // (on across the box, lying flat)
+      for (let y = P3[1] - B.pitch; y >= bt - bh + B.floor; y -= B.pitch) pts.push([mx, y]);   // (on down into the box)
       pts.forEach(([x, yy], k) => {
         const rd = new THREE.Group(); mg.add(rd);
         cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);

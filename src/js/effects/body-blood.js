@@ -37,6 +37,10 @@ export function addBlood(char, wId, wAmt) {
   if (wId && wAmt) splashOn(W8.bloodW[wId] || (W8.bloodW[wId] = []), wAmt);   // W8 starts afresh each run
 }
 export function clearBodyBlood() { youSplash.length = 0; P.blood = 0; }
+// a wave cleared and done with: you're cleaned up for the next, the blood off you and your weapons (fading off as the
+// stains ease down, effects/body-blood.js: updateWeaponBlood) and the bandages off your arm, cards or no cards
+// (waves/waves.js: clearedDone)
+export function cleanUpAfterWave() { clearBodyBlood(); for (const id in W8.bloodW) W8.bloodW[id].length = 0; P.wraps = 0; }
 
 const BLOOD_NOISE = `
 vec3 bmod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }

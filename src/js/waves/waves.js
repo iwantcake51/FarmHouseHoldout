@@ -7,6 +7,7 @@ import { mistRoll, mistSet } from '../world/mist.js';
 import { netClient, netLink, netSend } from '../net/net.js';
 import { computeFlow } from '../zombies/pathfinding.js';
 import { run, S } from '../game/run-state.js';
+import { cleanUpAfterWave } from '../effects/body-blood.js';
 import { bloodAge } from '../effects/blood-map.js';
 import { zombies } from '../zombies/zombie-types.js';
 import { timeScale } from '../game/hit-feedback.js';
@@ -115,6 +116,7 @@ const pickRhythm = () => { const r = rand(); return r < 0.5 ? 'surges' : r < 0.7
 // the clear played out: the cards (game/upgrade-screen.js), or in no-perk mode straight on to the break, whatever's
 // still lying about gliding in to you as it would after the cards. True when the cards open
 export function clearedDone() {
+  cleanUpAfterWave();   // (the blood and the bandages off you: effects/body-blood.js)
   if (!run.noPerks) { openUpgrade(); return true; }
   beginBreak(BREAK_AFTER); sweepDrops(); return false;
 }

@@ -90,11 +90,24 @@ const SPREAD_MAX = 0.7;
 const SG_RUN = 0.35, SG_SPRAY = 0.4, SG_MAX = 0.35;
 // your pace while a heavy gun's firing (D.heavy, weapons/gun-stats.js): it eases back once you let go (weapons/combat-update.js)
 export function heavyFireSlow() { return 1 - (W8.heavyF || 0) * (W8.heavyK || 0); }
+// down the sights the first shots of a string go where the sights are (ADS_FIRST): the first n of them dead on standing
+// still, and the cone opens back up to all it would be over the next ramp shots; on the move even the first ones
+// spread, but only move of what they would (shots more than gap seconds apart each start a string of their own). A
+// gun with adsBloom (the LMG) goes on opening the longer a burst runs, by as much again as that at most, over bloomN
+// shots. Not a shotgun: its pellets always spread
+const ADS_FIRST = { n: 2, ramp: 3, move: 0.35, gap: 0.45, bloomN: 10 };
+// (how many shots of this string have gone already)
+const burstN = () => (W8.sprayT ?? 9) < ADS_FIRST.gap ? W8.burst || 0 : 0;
 export function spreadOf(id) {
-  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+50% while aiming,
+  // hip fire is a bit loose (aiming down the sights is far tighter), walking more than doubles it (+30% while aiming,
   // less with a sight: D.aimMove), holding the trigger opens it further
   const mv = P.mvS ?? clamp(Math.hypot(P.vx || 0, P.vz || 0) / 3, 0, 1);
-  const D = W(id), pel = (D.pellets || 1) > 1; let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.5 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1) * (pel ? SG_RUN : 1))) * (1 + (W8.spray || 0) * 1.3 * (pel ? SG_SPRAY : 1));
+  const D = W(id), pel = (D.pellets || 1) > 1; let s = D.spread * S.spreadMul * (1 + (P.conc || 0) * 1.6) * (aiming ? 0.5 * (D.aimK || 1) : 1.3 * (D.hipK || 1)) * (1 + mv * (aiming ? 0.3 * (D.aimMove ?? 1) : RUN_SPREAD * (D.mobile || 1) * (pel ? SG_RUN : 1))) * (1 + (W8.spray || 0) * 1.3 * (pel ? SG_SPRAY : 1));
+  if (aiming && !pel && D.ammo !== 'shells') {
+    const A = ADS_FIRST, b = burstN(), open = b < A.n ? 0 : Math.min(1, (b - A.n + 1) / A.ramp);
+    s *= Math.max(open, mv * A.move);
+    if (D.adsBloom) s *= 1 + D.adsBloom * clamp((b - A.n) / A.bloomN, 0, 1);
+  }
   // a choke squeezes the pellets together, and steadies a slug even more
   if (D.ammo === 'shells' && T('choke')) s *= (D.pellets || 1) > 1 ? (T('choke') === 2 ? 0.49 : 0.7) : (T('choke') === 2 ? 0.3 : 0.55);
   if (D.bipod && P.still > 0.3) s *= 0.12;
@@ -451,6 +464,7 @@ export function gunFire(id, D, side) {
   for (let k = 0; k < puffs; k++) { const sp2 = rr(0.6, 2.4) * (quiet ? 0.4 : 1); smoke(mw.x + fx * 0.05, mw.y, mw.z + fz * 0.05, fx * sp2 + P.vx * 0.5 + rr(-0.3, 0.3), rr(0.05, 0.35), fz * sp2 + P.vz * 0.5 + rr(-0.3, 0.3), 0.08 * big, (quiet ? 0.35 : rr(0.55, 0.95)) * big, rr(0.8, 1.5), quiet ? 0.22 : rr(0.3, 0.45)); }
   W8.heat = Math.min(3, (W8.heat || 0) + (D.ammo === 'shells' || D.dmg > 60 ? 0.6 : D.rate < 0.12 ? 0.18 : 0.3));
   // sustained fire: every shot widens the spread a little more, up to 2.3 times, until you ease off the trigger
+  W8.burst = burstN() + 1;   // (this string's count: ADS_FIRST)
   W8.spray = Math.min(1, (W8.spray || 0) + clamp(0.04 + D.shake * 0.6, 0.06, 0.3) * (D.sprayK || 1) * (stocked(id) ? STOCK.spray : 1) * (unshouldered(D, id) ? HANDGUN.spray : 1)); W8.sprayT = 0;   // a steadier gun opens up slower (D.sprayK)
   if (D.heavy) { W8.heavyF = D.heavy.fire; W8.heavyK = Math.min(1, (W8.heavyK || 0) + HEAVY_FIRE.build); }   // a heavy gun bogs you down as you fire it
   { const sd = fireSide(D); ANIM.slideT[sd] = 0; const kind = (HOLD[id] || HOLD_DEF).kind, auto = fireRate(D) < 0.16; gunKick(sd, pw, kind, auto, EJECT[id], recoilFeel(D, kind, auto)); xhKick(D, id, pw, auto); }   // (the crosshair kicks too: player/shaky-hands.js)

@@ -285,7 +285,7 @@ let wrapLast = 0;
 // where you can watch it; it turns slowly in the hand as the bandage goes round (BAND_TURN: how far, how fast). The
 // right arm's shoulder goes out to the side and a little lower instead (BAND_FP_LIFT_R), so it reaches round the
 // forearm from beside it rather than across your eyes (a thick sleeve, the canvas jacket's, would hide the wrap)
-const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.12, 1.14, 0.22], BAND_FP_LIFT = [0.05, 0.1, 0.24], BAND_FP_LIFT_R = [0.2, -0.04, 0.16], BAND_TURN = [0.22, 1.7];
+const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.02, 1.12, 0.4], BAND_FP_LIFT = [0.08, 0.06, 0.3], BAND_FP_LIFT_R = [-0.3, 0.05, 0.22], BAND_TURN = [0.22, 1.7];
 const _wd = new V3(), _wdR = new V3();
 export function bandagePose(pm, up, now, sh) {
   const k = ANIM.bandK || 0, n = Math.min(WRAP_AT.length, P.wraps || 0), band = P.bandT > 0, dt = clamp(now - wrapLast, 0, 0.1); wrapLast = now;
