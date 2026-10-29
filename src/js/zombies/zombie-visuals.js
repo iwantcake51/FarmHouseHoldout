@@ -168,7 +168,7 @@ export function updateZombieVisuals(dt, rdt) {
     }
     // on fire: an orange rim that flickers with the flames, and the see-through outline goes orange too (tintXray)
     if (z.burn > 0 || z.burnA > 0) {
-      z.burnA = (z.burnA || 0) + ((z.burn > 0 ? 1 : 0) - (z.burnA || 0)) * Math.min(1, rdt * (z.burn > 0 ? 8 : 2)); if (!(z.burn > 0) && z.burnA < 0.01) z.burnA = 0;
+      z.burnA = (z.burnA || 0) + ((z.burn > 0 ? 0.35 + 0.65 * (z.burnK ?? 1) : 0) - (z.burnA || 0)) * Math.min(1, rdt * (z.burn > 0 ? 8 : 2)); if (!(z.burn > 0) && z.burnA < 0.01) z.burnA = 0;   // (its rim glowing up as the fire spreads over it: zombies/ai.js)
       if (!z.burnOl) z.burnOl = outline(z.m.g, 0, 0, 0.034, rimMat(BURN_COL));
       z.burnOl.opacity = z.burnA * z.vis * (0.5 + 0.22 * Math.sin(worldT * 17) * Math.sin(worldT * 7.3 + 1)) * (1 - 0.6 * (z.reachA || 0)); z.burnOl.visible = z.burnA > 0;
       tintXray(z);

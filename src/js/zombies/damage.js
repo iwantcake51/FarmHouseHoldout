@@ -121,6 +121,12 @@ function wearArmor(z, ar, w, dx, dz) {
   if (P.hp < P.max * ARMOR_SCALE.crack) crackArmor(z, ar.slot);
   if (P.hp <= 0) breakArmor(z, ar.slot, dx, dz);
 }
+// a zombie that's lost a limb bleeds out from the stump, slowly (health a second: a whole arm or leg, a forearm or a shin,
+// the most however many it's lost): the same few a second whatever it started with, so one on a later night, with more
+// health, takes longer to go down from it, and it's shown by its blood dripping, not by damage numbers
+// (zombies/ai.js)
+export const BLEED_OUT = { limb: 2.5, lower: 1.5, max: 7.5 };
+export const bleedOut = (z, r) => { z.bleedOut = Math.min(BLEED_OUT.max, (z.bleedOut || 0) + r); };
 export function sever(z, part, dx, dz, blast) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
@@ -128,7 +134,7 @@ export function sever(z, part, dx, dz, blast) {
   const stub = part === 'armL' || part === 'armR' ? armStump(z, part) : null;   // (made before the arm goes: it's cut from it)
   flingPart(z, z.m[part], dx, dz, 1);
   z.spurts.push(stub ? { part, t: STUMP_PUMP.t, o: stub, p: stub.userData.spurt, d: stub.userData.dir, pump: true } : { part, t: 1.4 });
-  if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); }   // losing an arm or a leg staggers it, slowed to a quarter pace
+  if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); bleedOut(z, BLEED_OUT.limb); }   // losing an arm or a leg staggers it, slowed to a quarter pace, and it bleeds from the stump
   if (!blast) soundAt(z.x, z.z, () => SFX.sever());   // a blast plays one sound for the lot
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
 }

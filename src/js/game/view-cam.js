@@ -26,7 +26,7 @@ import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
 import { openSt } from '../stations/station-ui.js';
 import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
-import { aimSX, aimSY } from '../player/shaky-hands.js';
+import { aimSX, aimSY, XR } from '../player/shaky-hands.js';
 import { ANIM } from '../player/animation.js';
 import { REL_KNOCK } from '../player/hold-kick.js';
 import { BACK_LAYER } from '../player/stow.js';
@@ -174,8 +174,13 @@ const VM_LOOK = { x: 0.0032, yaw: 0.0085, y: 0.0026, pitch: 0.007, max: 6 };
 // down the sights the gun isn't nailed to the middle of the view either: it sways a little off it (ADS_SWAY, radians),
 // side to side and dipping with each step (bob: yaw, pitch), trailing a turn or a look up or down (look, of the turn's
 // speed, as far as max) and rising and falling with your breath when you stand still (breathe), on a spring (k, d). The
-// view stays where you look; the sights drift about it and come back, and the shots go where they point
-const ADS_SWAY = { bob: [0.011, 0.008], look: 0.005, max: 0.025, breathe: 0.0015, k: 60, d: 11 };
+// view stays where you look; the sights drift about it and come back, and the shots go where they point. On top, the
+// gun's held sway (player/shaky-hands.js: XR.hx, hy): idle radians across and up for each share of a long gun's held
+// still, so a heavy gun, weight out front, being winded or hurt has the sights and the scope's picture wander more
+const ADS_SWAY = { bob: [0.011, 0.008], look: 0.005, max: 0.03, breathe: 0.0015, idle: [0.0016, 0.0013], k: 60, d: 11 };
+// and at the hip the gun wanders with it too, in its own frame: hold, yaw and pitch (radians) and across and up
+// (metres) for each share
+const VM_HOLD = { yaw: 0.0028, pitch: 0.0022, x: 0.0005, y: 0.0004 };
 // (bob: the arms' and gun's own sway with each stride, across, up and down and rolled; bobRot: and turned with it, a yaw
 // swung side to side with the step and a nod down onto each footfall, each a beat behind the step (lag, radians of the
 // stride) as the arms carry it, so the gun rides the walk in a loose figure of eight rather than bouncing up and down)
@@ -562,13 +567,14 @@ function vmStep(rdt, w0, now) {
   // (turning at a sprint the arms and gun aren't nailed to the view: they trail it a little on the springs, swung out
   // to the side and leant into the turn, and settle back with a hint of overshoot as it ends: VM_RUN)
   const rk = 1 + (VM_RUN.k - 1) * clamp(ANIM.sprintK || 0, 0, 1);
-  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1) + lt * VM_LOOK.x) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6) - lp * VM_LOOK.y) * m, z: Math.max(0, fwd) * VM.fwd * m,
-    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6) - lp * VM_LOOK.pitch - VM_BOB_ROT.pitch * k * (0.5 - 0.5 * Math.cos(2 * (ph - VM_BOB_ROT.lag)))) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1) - lt * VM_LOOK.yaw + VM_BOB_ROT.yaw * k * Math.sin(ph - VM_BOB_ROT.lag), -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
+  const hx = XR.hx || 0, hy = XR.hy || 0, H = VM_HOLD;
+  const T = { x: (-right * VM.lag + B[0] * k * Math.sin(ph) - turn * VM_RUN.side * (rk - 1) + lt * VM_LOOK.x + H.x * hx) * m, y: (-B[1] * k * (0.5 - 0.5 * Math.cos(2 * ph)) + VM.breathe[0] * still * Math.sin(now * 1.6) - lp * VM_LOOK.y + H.y * hy) * m, z: Math.max(0, fwd) * VM.fwd * m,
+    p: (-Math.max(0, fwd) * VM.fwd * 2 + VM.breathe[1] * still * Math.sin(now * 1.6 + 0.6) - lp * VM_LOOK.pitch - VM_BOB_ROT.pitch * k * (0.5 - 0.5 * Math.cos(2 * (ph - VM_BOB_ROT.lag))) + H.pitch * hy) * m, w: clamp(-turn * VM_RUN.yaw * (rk - 1) - lt * VM_LOOK.yaw + VM_BOB_ROT.yaw * k * Math.sin(ph - VM_BOB_ROT.lag) - H.yaw * hx, -VM_RUN.max, VM_RUN.max) * m, r: (-right * VM.roll - turn * VM.turn * rk + B[2] * k * Math.sin(ph)) * m };
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const a of ['x', 'y', 'z', 'p', 'w', 'r']) { const va = 'v' + a; VS[va] += (VM.k * (T[a] - VS[a]) - VM.d * VS[va]) * h; VS[a] += VS[va] * h; }
   // and down the sights (ADS_SWAY: V.asY, V.asP, put on in fpSightAlign)
   // (its own share of the stride: the view's bob, bobK, is mostly taken off down the sights)
   V.abK = (V.abK || 0) + (clamp(Math.hypot(P.vx, P.vz) / BOB.speed, 0, BOB.max) * (P.moving ? 1 : 0) - (V.abK || 0)) * (1 - Math.exp(-rdt * BOB.ease));
-  const A = ADS_SWAY, lag = VM_BOB_ROT.lag, ka = V.abK, ay = clamp(A.bob[0] * ka * Math.sin(ph - lag) - lt * A.look, -A.max, A.max), ap = clamp(-A.bob[1] * ka * (0.5 - 0.5 * Math.cos(2 * (ph - lag))) - lp * A.look + A.breathe * still * Math.sin(now * 1.6 + 0.6), -A.max, A.max);
+  const A = ADS_SWAY, lag = VM_BOB_ROT.lag, ka = V.abK, ay = clamp(A.bob[0] * ka * Math.sin(ph - lag) - lt * A.look - A.idle[0] * hx, -A.max, A.max), ap = clamp(-A.bob[1] * ka * (0.5 - 0.5 * Math.cos(2 * (ph - lag))) - lp * A.look + A.breathe * still * Math.sin(now * 1.6 + 0.6) + A.idle[1] * hy, -A.max, A.max);
   if (V.asY === undefined) V.asY = V.asP = V.vasY = V.vasP = 0;
   for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) { V.vasY += (A.k * (ay - V.asY) - A.d * V.vasY) * h; V.asY += V.vasY * h; V.vasP += (A.k * (ap - V.asP) - A.d * V.vasP) * h; V.asP += V.vasP * h; }
 }
@@ -860,7 +866,7 @@ export const SCOPE_V = { on: false, kind: '', eye: new V3(), obj: new V3(), dir:
 // the eye's place off the scope's axis, on a spring: low as it comes up, kicked by a shot, trailing a quick turn
 const BOX = { x: 0, y: 0, vx: 0, vy: 0, k: 70, d: 10 };
 // how far (metres) your eye can be off a scope's axis and still see all of its picture
-const EYEBOX = 0.007;
+const EYEBOX = 0.0095;
 // down the sights of anything but a scope, there's no crosshair: you aim with the sights themselves (ui/crosshair.js)
 export const fpSighted = () => fpOn() && V.sw > 0.55;
 const GLASS_SEE = { on: false };
@@ -1044,7 +1050,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // down the sights: the gun brought onto this frame's aim (the kick's moved on since it was held), and the eye onto
     // its sight line: at the head's own distance behind it, or a scope's eye relief behind its eyepiece
     const w = adsW(), D = W(curId()), LH = D && !D.melee && !D.akimbo ? sightLine() : null, L = w > 0.001 ? LH : null, gg = gunMeshes[W8.cur];
-    const handOptic = !!LH && D.slot === 'side' && (LH.kind === 'dot' || LH.kind === 'holo');
+    const handOptic = !!LH && (D.slot === 'side' || curId() === 'smg') && (LH.kind === 'dot' || LH.kind === 'holo');   // (a handgun's optic, and the machine pistol's on its riser: your eye brought in close behind it, HAND_OPTIC)
     _vcE.set(V.x, V.y, V.z);
     // (the whole upper body turned onto it, not just the gun: straightening the chest for vmLock turned the gun off the
     // aim it was given, and turning only the gun back would pull it out of the hands, which went with the chest)
@@ -1072,7 +1078,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis
     const scope = !!LH && (LH.kind === 'scope' || LH.kind === 'acog');
     { const yr = (VCAM.yaw - (V.lyaw ?? VCAM.yaw)) / Math.max(rdt, 1e-3), pr = (VCAM.pitch - (V.lpitch ?? VCAM.pitch)) / Math.max(rdt, 1e-3); V.lyaw = VCAM.yaw; V.lpitch = VCAM.pitch;
-      const tx = clamp(yr * 0.18, -0.7, 0.7), ty = clamp(-pr * 0.18, -0.7, 0.7) + V.kick * 9;
+      const tx = clamp(yr * 0.13, -0.55, 0.55), ty = clamp(-pr * 0.13, -0.55, 0.55) + V.kick * 7;
       for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) { BOX.vx += (-BOX.k * (BOX.x - tx) - BOX.d * BOX.vx) * dt; BOX.x += BOX.vx * dt; BOX.vy += (-BOX.k * (BOX.y - ty) - BOX.d * BOX.vy) * dt; BOX.y += BOX.vy * dt; } }
     // and a holographic sight's reticle, a red dot's dot, an aperture's ghost ring, each where your eye sees it, and the
     // gun a little out of focus down any of them

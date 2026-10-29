@@ -71,6 +71,17 @@ const WIN_AT_ONCE = 3, WIN_GAP = 0.12;
 // tear the boards down faster (tear), come over the sill quicker (climb, zombies/climb.js) and closer behind each
 // other (gap, in place of WIN_GAP)
 export const INSIDE = { from: 6, full: 14, load: 24, tear: 1.8, climb: 1.35, gap: 0.05 };
+// dragon's breath catching on a limb: how long the fire takes to spread from it over the whole of the zombie (seconds),
+// and how fierce it is there first (times the flames a whole burning body has, BURN: effects/puffs.js burnFx)
+const BURN_SPREAD = { t: 1.6, at: 0.75 }, _baV = new V3();
+// where a zombie caught fire, in the world: the limb it was hit on (down its middle: a leg's halfway down, an arm's
+// along it), or its middle if that's gone
+function burnAt(z) {
+  const p = z.burnFrom, o = p && z.limbs[p] !== false && z.m[p]; if (!o) return null;
+  o.getWorldPosition(_baV);
+  if (p === 'legL' || p === 'legR') _baV.y *= 0.55; else if (p === 'armL' || p === 'armR') _baV.y -= 0.16 * z.T.scale;
+  return _baV;
+}
 export const insideK = () => smooth(clamp(((run.wave || 1) - INSIDE.from) / (INSIDE.full - INSIDE.from), 0, 1));
 function winFree(o, z) {
   const c = o.climbers || (o.climbers = []);
@@ -167,14 +178,27 @@ export function updateZombies(dt) {
     const dxp = t.x - z.x, dzp = t.z - z.z, dp = Math.hypot(dxp, dzp), relP = angDiff(Math.atan2(dxp, dzp), z.face);
     const dme = t.me ? dp : Math.hypot(P.x - z.x, P.z - z.z);
     if (dme < nearest) { nearest = dme; nearZ = z; }
-    if (z.burn > 0 && z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17);   // charring as it burns: black all over in about six seconds
-    // on fire (dragon's breath): flames on it while you can see it, and the fire hurts in ticks, every
-    // half second, each shown as an orange damage number like any other hit (the host's game burns it in co-op)
+    // on fire (dragon's breath): it catches where the pellets hit (z.burnFrom: that limb), and the flames spread out from
+    // there over the rest of it (BURN_SPREAD.t seconds to take all of it: z.burnK), charring it as they go (black all
+    // over in about six seconds once it's all alight); flames on it while you can see it, and the fire hurts in ticks,
+    // every half second, each shown as an orange damage number like any other hit (the host's game burns it in co-op)
     if (z.burn > 0) {
-      z.burn -= dt; z.burnT = (z.burnT || 0) + dt;
-      if (z.vis > 0.3) { const s = z.T.scale; burnFx(z.x, z.z, (z.crawl ? 0.1 : 0.45) * s, (z.crawl ? 0.5 : 1.5) * s, 0.2 * s, dt); }
+      z.burn -= dt; z.burnT = (z.burnT || 0) + dt; z.burnAge = (z.burnAge || 0) + dt;
+      const k = z.burnK = z.burnFrom ? smooth(clamp(z.burnAge / BURN_SPREAD.t, 0, 1)) : 1;
+      if (z.stain) z.stain.char = Math.min(1, z.stain.char + dt * 0.17 * (0.25 + 0.75 * k));
+      if (z.vis > 0.3) {
+        const s = z.T.scale;
+        if (k > 0.01) burnFx(z.x, z.z, (z.crawl ? 0.1 : 0.45) * s, (z.crawl ? 0.5 : 1.5) * s, 0.2 * s * (0.4 + 0.6 * k), dt * k);   // (the whole of it, as the fire takes it)
+        if (k < 0.99) { const L = burnAt(z); if (L) burnFx(L.x, L.z, L.y - 0.08 * s, L.y + 0.22 * s, 0.07 * s, dt * (1 - k) * BURN_SPREAD.at); }   // (and where it caught, fierce there first)
+      }
       if (z.burnT >= BURN_TICK) { z.burnT -= BURN_TICK; if (!pup && burnHurt(z)) continue; }
-    } else z.burnT = 0;
+    } else { z.burnT = 0; z.burnAge = 0; z.burnFrom = null; z.burnK = 0; }
+    // bleeding out from a lost limb's stump (zombies/damage.js: BLEED_OUT), a few a second, dripping as it goes, no numbers
+    if (z.bleedOut > 0 && !pup && !z.dead) {
+      z.hp -= z.bleedOut * dt;
+      if (rand() < dt * (1.2 + z.bleedOut * 0.35)) splat(z.x + rr(-0.15, 0.15), z.z + rr(-0.15, 0.15), 'drop', rr(0.1, 0.22));
+      if (z.hp <= 0) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; }
+    }
     if (z.bleed > 0) { z.bleed -= dt; if (!pup) z.hp -= (z.bleedR || BLEED_R) * dt; if (z.bleed <= 0) z.bleedR = 0; if (rand() < dt * (2 + (z.bleedR || BLEED_R) * 0.15)) splat(z.x, z.z, 'drop', rr(0.12, 0.25)); if (z.hp <= 0 && !pup) { killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'bleed', 'torso', 0); continue; } }
     for (let q = z.spurts.length - 1; q >= 0; q--) {
       const sp = z.spurts[q]; sp.t -= dt; if (sp.t <= 0) { z.spurts.splice(q, 1); continue; }

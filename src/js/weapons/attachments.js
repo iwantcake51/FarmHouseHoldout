@@ -116,7 +116,7 @@ export function fitAttachments(g, D, front, y, info) {
       const tt = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); tt.position.set(sx, sy + 0.036 * rk, cz + 0.01 * lk); p.add(tt);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.013 * rk, 0.013 * rk, 0.032 * rk, 8), GM.metal2); st.rotation.z = Math.PI / 2; st.position.set(sx + 0.036 * rk, sy, cz + 0.01 * lk); p.add(st);
     } else if (side && sight === 1) pistolDot(p, sx, by, bz, 'dot');
-    else if (tierCtx === 'smg' && sight === 1) pistolDot(p, sx, by, bz, 'dot', 'rmr');   // (the machine pistol's: a Trijicon RMR, as a pistol's)
+    else if (tierCtx === 'smg' && sight === 1) pistolDot(p, sx, unityRiser(p, sx, by, bz), bz, 'dot', 'rmr');   // (the machine pistol's: a Trijicon RMR, as a pistol's, up on a riser)
     else if (sight >= 2) {
       // holographic sight, after an EOTech 512: a slim body low on the rail (the batteries along it, their cap at the
       // front), the window's frame at the back with rounded corners and the glass in it, a thin hood looping up over it,
@@ -391,4 +391,17 @@ function undersideAt(g, x, z, yAxis) {
   let low = yAxis;
   for (let moved = true, n = 0; moved && n < 12; n++) { moved = false; for (const [a, b] of boxes) if (b >= low - 0.006 && a < low - 0.0005) { low = a; moved = true; } }
   return low === yAxis ? yAxis - 0.03 : low;
+}
+// a riser after the Unity Tactical FAST, under the machine pistol's red dot so you see over the front sight and a can:
+// its slim body clamped to the rail (a plate down its left side, two bolts through it), standing RISER.h tall at the
+// back, its top rail running on past the front of the base and the underside sloping back down to it there, the rail's
+// cross slots along the top. The optic goes on its top (what it gives back: the height of its rail)
+const RISER = { h: 0.026, len: 0.072, w: 0.021, over: 0.022, slots: 7 };
+function unityRiser(p, x, by, bz) {
+  const R = RISER, z0 = bz - R.len / 2, z1 = bz + R.len / 2, top = by + R.h, zb = z1 - R.over;
+  profile(p, shp([[z0, by], [zb, by], [z1 - 0.002, top - 0.007], [z1, top - 0.006], [z1, top], [z0 + 0.003, top], [z0, top - 0.003]]), R.w, GM.metal, x, 0.0008);   // the body, sloped under the front
+  for (let k = 0; k < R.slots; k++) box(p, R.w + 0.001, 0.0032, 0.0045, GM.metal2, x, top - 0.0012, z0 + 0.008 + k * (R.len - 0.016) / (R.slots - 1));   // the rail's ribs (its slots between)
+  box(p, 0.0026, 0.011, zb - z0 - 0.006, GM.metal2, x + R.w / 2 + 0.0012, by + 0.0055, (z0 + zb) / 2);   // the clamp plate down its left side
+  [-1, 1].forEach(o => { const c = cyl(p, 0.0032, 0.003, GM.steel, x + R.w / 2 + 0.003, by + 0.0055, (z0 + zb) / 2 + o * (zb - z0) * 0.3, 10); c.rotation.set(0, 0, Math.PI / 2); });   // its two bolts
+  return top - 0.002;   // (the dot's mount sits 2 mm down into its rail, as on any)
 }

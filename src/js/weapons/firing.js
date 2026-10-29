@@ -389,7 +389,7 @@ export function gunFire(id, D, side) {
       hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)
-      if (D.ignite && !z.dead) z.burn = 3;   // dragon's breath
+      if (D.ignite && !z.dead) { if (!(z.burn > 0)) { z.burnFrom = part; z.burnAge = 0; } z.burn = 3; }   // dragon's breath: it catches where it's hit, and spreads from there (zombies/ai.js)
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); setCritNext(crit); setHeadNext(headFade(id, hits[k].t));

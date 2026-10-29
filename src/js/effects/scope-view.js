@@ -48,6 +48,12 @@ const overlay = (frag, uniforms, blending) => new THREE.ShaderMaterial({ uniform
 // sun or moon's is cut down under the roof (GLINT.roof); whether a wall's in the way is looked at every GLINT.losEvery
 // frames
 const GLINT = { n: 6, r: 30, k: 1.6, roof: 0.12, ease: 10, losEvery: 4 };
+// how forgiving the scope is of your eye off its axis: the tube's shadow moves shift of the eye's offset across the
+// eyepiece, starting in from its middle and black past out (shares of its radius), the faint fringe along its edge
+const EYE_RELIEF = { shift: 0.34, in: 0.8, out: 1.2, fringe: 1 };
+// the glass down a scope: pincushion toward the rim, the colour fringes there, how soft its edge goes, the light it lets
+// through and the veiling glare lifting the blacks, the fall-off to its rim
+const LENS_LOOK = { pin: 0.05, ca: 0.012, soft: 0.0035, trans: 0.95, veil: 0.012, rim: 0.34 };
 const LENS_FRAG = `
 #define GLINT_N ${GLINT.n}
 uniform sampler2D tS; uniform samplerCube tEnv; uniform vec2 uOff, uAx, uRot, uRes; uniform float uR, uRI, uKind, uDark, uEnvOn;
@@ -89,10 +95,16 @@ void main() {
     // the picture: the world as it lies along the scope's axis (uAx, where that points on the screen), magnified, seen
     // through the eyepiece wherever that is: an eye off the axis sees the picture and the reticle together slide
     // against the eyepiece's ring (parallax); colour fringes toward the rim
-    vec2 a = (fc - uAx) / uRI, uv = a * 0.5 + 0.5;
-    float ca = 0.008 * d * d; vec3 gl = col;
+    // (a touch of pincushion toward the rim, the colour fringes growing out there, and the edge a little soft, as real
+    // glass is: LENS_LOOK)
+    vec2 a = (fc - uAx) / uRI; a *= 1.0 + ${LENS_LOOK.pin.toFixed(3)} * d * d; vec2 uv = a * 0.5 + 0.5;
+    float ca = ${LENS_LOOK.ca.toFixed(4)} * d * d, sf = ${LENS_LOOK.soft.toFixed(4)} * d * d * d; vec3 gl = col;
     col = vec3(texture2D(tS, (uv - 0.5) * (1.0 + ca) + 0.5).r, texture2D(tS, uv).g, texture2D(tS, (uv - 0.5) * (1.0 - ca) + 0.5).b);
-    col *= vec3(0.98, 1.0, 1.02);   // the coatings' faint cast
+    if (sf > 0.0005) col = col * 0.4 + 0.15 * (texture2D(tS, uv + vec2(sf, 0.0)).rgb + texture2D(tS, uv - vec2(sf, 0.0)).rgb + texture2D(tS, uv + vec2(0.0, sf)).rgb + texture2D(tS, uv - vec2(0.0, sf)).rgb);
+    // what the glass takes: a little light (transmission), a little contrast (the veiling glare off the tube's inside,
+    // lifting the blacks), the coatings' faint cast
+    col = col * ${LENS_LOOK.trans.toFixed(3)} + ${LENS_LOOK.veil.toFixed(3)} * vec3(0.9, 0.95, 1.0);
+    col *= vec3(0.98, 1.0, 1.02);
     // the reticle, in the scope: on its axis with the picture, turned as the gun's canted
     vec2 r0 = (fc - uAx) / uR, q = vec2(uRot.x * r0.x + uRot.y * r0.y, -uRot.y * r0.x + uRot.x * r0.y);
     if (uKind < 0.5) {
@@ -111,8 +123,13 @@ void main() {
     }
     // the tube's shadow, closing in from where your eye's off its axis, and the glass darkening to its rim; where the
     // picture's shut off, the glass itself is what you see
-    col *= 1.0 - 0.3 * smoothstep(0.7, 1.0, d);
-    col = mix(gl, col + mr * 0.12, 1.0 - smoothstep(0.7, 1.05, length(p + uOff * 0.55)));   // (your eye right up to it, faintly still)
+    // (the glass falls off gently toward its rim, cos^4 like a real lens, not a hard ring)
+    col *= 1.0 - ${LENS_LOOK.rim.toFixed(3)} * d * d * d * d;
+    // (the edge of the tube's shadow a broad soft fall, a faint blue and amber fringe along it as the exit pupil's edge
+    // has: EYE_RELIEF)
+    float sd = length(p + uOff * ${EYE_RELIEF.shift.toFixed(3)}), sk = 1.0 - smoothstep(${EYE_RELIEF.in.toFixed(3)}, ${EYE_RELIEF.out.toFixed(3)}, sd);
+    col += vec3(-0.01, 0.006, 0.03) * sk * (1.0 - sk) * 4.0 * ${EYE_RELIEF.fringe.toFixed(3)};
+    col = mix(gl, col + mr * 0.12, sk);   // (your eye right up to it, faintly still)
   }
   gl_FragColor = vec4(col, 1.0);
 }`;
@@ -280,7 +297,7 @@ function scopeLens(S, lens, W, H, f) {
   SC.cx = cx; SC.cy = cy; SC.r = r;
   // what's down it: the world over as much of your view as the eyepiece covers, S.mag times bigger (not drawn while your
   // eye's so far off its axis that it's black)
-  const dark = S.off.length() * 0.55 > 2.1;
+  const dark = S.off.length() * EYE_RELIEF.shift > EYE_RELIEF.out + 1;
   // where the scope's axis points on the screen (the picture's middle and the reticle's), and how far round it the
   // picture has to reach to fill the eyepiece; which way the gun's canted on the screen
   toPx(_st.copy(c.position).addScaledVector(S.dir, 100), W, H, _ax);
