@@ -213,6 +213,9 @@ export function zDashPose(z, a, T, K) {
     zMix(T, { y: -0.1, rx: 0.25 + Math.sin(w * 0.7) * 0.06, ux: 0.3, uz: Math.sin(w * 0.5) * 0.12, hx: 0.45 + Math.sin(w) * 0.15, hz: Math.cos(w * 0.9) * 0.3, alx: 0.15, arx: 0.1, alz: 0.12, arz: -0.12, elL: -0.25, elR: -0.3, klx: 0.35, krx: 0.25 }, daze);
   }
 }
-// zombie hits harden as the waves go on: ZDMG_WAVE more a wave past the first (wave 10 about +27%, wave 20 +57%)
-const ZDMG_WAVE = 0.03;
-export const waveDmg = () => 1 + ZDMG_WAVE * Math.max(0, (run.wave || 1) - 1);
+// zombie hits harden as the waves go on: ZDMG_WAVE more a wave past the first (wave 10 about +27%, wave 20 +57%); and
+// the first waves hit softer still, EARLY_DMG.k of that on the first, coming up to all of it by the wave after
+// EARLY_DMG.waves (so on a fresh 100 health a walker's swing on wave 1 is about 16, six or seven to put you down, not
+// three or four)
+const ZDMG_WAVE = 0.03, EARLY_DMG = { k: 0.55, waves: 7 };
+export const waveDmg = () => { const w = Math.max(0, (run.wave || 1) - 1); return (EARLY_DMG.k + (1 - EARLY_DMG.k) * clamp(w / EARLY_DMG.waves, 0, 1)) * (1 + ZDMG_WAVE * w); };

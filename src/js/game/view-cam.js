@@ -793,6 +793,19 @@ function sightLine() {
   SL.obj = h; SL.kind = 'iron'; SL.a.set(X, hr, rz); SL.b.set(X, y, tz); SL.relief = long ? clamp(rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null; SL.r = SL.hw = SL.hh = 0;
   return SL;
 }
+// a sight on a handgun's slide (its red dot or holo, or its iron sights) rides back with the slide as it cycles and when
+// it locks open on an empty mag: how far (out, in the world) the slide it's on is back from where it rests, so the eye
+// can be kept where it'd be with the slide home rather than drawn back with it; false if it's not on a slide or the
+// slide's home
+const _slB = new V3(), _slM = new THREE.Matrix3();
+function slideBack(obj, out) {
+  for (let p = obj; p; p = p.parent) {
+    const r = p.userData && p.userData.slideRest; if (!r) continue;
+    const dz = p.position.z - r.z0; if (Math.abs(dz) < 1e-6 || !p.parent) return false;
+    out.set(0, 0, dz).applyMatrix3(_slM.setFromMatrix4(p.parent.matrixWorld)); return true;
+  }
+  return false;
+}
 // what's hidden while you look down the sights (an aperture's own parts, a sight's lit dot), shown again after
 const SL_HID = [];
 function sightHide(list) {
@@ -965,9 +978,13 @@ export function fpMeleeHit(heavy, hard) {
 // as one and settles back, never one sight swung across the other (turned about the front sight, the rear swung up
 // over it on a heavy kick, the LMG's, and you couldn't see through it). Its shove back your eye does ride: shoulderShake
 const _ktQ = new THREE.Quaternion(), _ktE = new THREE.Euler(), _ktP = new V3(), _ktT = new V3(), _ktM = new THREE.Matrix4(), _ktM2 = new THREE.Matrix4();
-function adsKickTilt(at, w) {
+// (the shove's held off softly short of room: your eye never closer to the back of the sights than ADS_CLEAR, metres,
+// clear of the view's near plane, so a hard kick down an aperture held close never pushes the rear sight into your eye)
+const ADS_CLEAR = 0.06;
+function adsKickTilt(at, w, room = Infinity) {
   const C = V.rc, A = FP_RECOIL.ads;
-  const p = C.p * A[0] * w, y = C.y * A[1] * w, r = C.r * A[2] * w, push = C.z * FP_RECOIL.adsPush * w;
+  let push = C.z * FP_RECOIL.adsPush * w; const lim = Math.max(0, room - ADS_CLEAR); if (push > 0) push = lim > 1e-4 ? lim * Math.tanh(push / lim) : 0;
+  const p = C.p * A[0] * w, y = C.y * A[1] * w, r = C.r * A[2] * w;
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(push) < 1e-6) return false;
   const U = PM.upper; U.updateMatrixWorld(true);
   _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
@@ -1093,7 +1110,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // (the whole upper body turned onto it, not just the gun: straightening the chest for vmLock turned the gun off the
     // aim it was given, and turning only the gun back would pull it out of the hands, which went with the chest)
     if (L && gg) fpSightAlign(PM.upper, false);
-    if (LH) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
+    if (LH) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); if (slideBack(LH.obj, _slB)) { _pa.sub(_slB); _pb.sub(_slB); } _sd.subVectors(_pb, _pa).normalize(); }
     if (L && gg) {
       if (L.relief !== null) _vcD.copy(_pa).addScaledVector(_sd, -L.relief);
       else if (handOptic) _vcD.copy(_pa).addScaledVector(_sd, -HAND_OPTIC.relief);
@@ -1104,7 +1121,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
       _vcE.lerp(_vcD, w);
       // (then the shot's kick tips the gun about your eye, its sights kept lined up on it; the sight line's measured
       // again, so the shots go where the sights now point, the post or the dot)
-      if (adsKickTilt(_vcE, w)) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
+      if (adsKickTilt(_vcE, w, _vcH.subVectors(_pa, _vcE).dot(_sd))) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); if (slideBack(LH.obj, _slB)) { _pa.sub(_slB); _pb.sub(_slB); } _sd.subVectors(_pb, _pa).normalize(); }
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)

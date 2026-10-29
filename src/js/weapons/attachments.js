@@ -10,7 +10,7 @@ import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } f
 
 // the handgun's heavy-duty can (an Osprey, eccentric: its bore near the top): across, tall, its top over the bore (under
 // the slide's own top, 1.9 cm over it), long, how round its corners are (metres)
-const OSPREY = { w: 0.032, h: 0.04, over: 0.017, L: 0.2, r: 0.007 };
+const OSPREY = { w: 0.032, h: 0.056, over: 0.017, L: 0.2, r: 0.007 };
 export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;
   // muzzle devices: a choked shotgun has no room for a can

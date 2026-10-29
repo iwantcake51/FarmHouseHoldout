@@ -22,7 +22,7 @@ import { partTex } from '../effects/textures.js';
 import { smoke } from '../effects/smoke.js';
 import { dustBurst, fx, groundDust, sparkBurst } from '../effects/puffs.js';
 import { dmCase, dmSupply } from '../pickups/drop-models.js';
-import { dropPickup, pickups } from '../pickups/pickups.js';
+import { dropPickup, noGroundBlood, pickups } from '../pickups/pickups.js';
 import { flashes } from '../weapons/explosives.js';
 import { addPlanks } from '../barricades/planks.js';
 import { matKind, matWord } from '../barricades/metal-bars.js';
@@ -142,7 +142,7 @@ export function updateSupplyDrop(dt) {
     if (!sp.heard && supplyT <= HELI_IN) { sp.heard = true; heliSound(Math.max(0.5, supplyT), HELI_OUT); }
     if (supplyT <= 0) {
       // let go right overhead: the crate falls turning slowly, the spot lit red as it comes down
-      const m = new THREE.Group(); crateModel(m, supplyCargo); m.position.set(sp.x, 18, sp.z); scene.add(m);
+      const m = new THREE.Group(); crateModel(m, supplyCargo); noGroundBlood(m); m.position.set(sp.x, 18, sp.z); scene.add(m);
       setSupplyFall({ m, x: sp.x, z: sp.z, cargo: supplyCargo }); flashes.push({ x: sp.x, z: sp.z, r: 5, int: 1.1, col: [1, 0.25, 0.2], t: 3, max: 3 }); setLmT(0);
       supplyCargo = null;
     }

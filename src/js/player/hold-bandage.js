@@ -17,7 +17,7 @@ import { fpOn } from '../game/view-cam.js';
 // hands come up and the right one winds the bandage round the left forearm (bandW, eased into bandK); after, the hands
 // come down and the weapon is drawn again, the way it's drawn any time (equip). healFx is how far the blue edge and the camera's lean-in have come: they
 // build slowly as the bandage goes on, ease off as it ends, and drop away fast if a hit cuts it short (healCut)
-const BAND_PUT = 0.2, BAND_WRAP = 0.16;
+const BAND_PUT = 0.2, BAND_WRAP = 0.24, BAND_UP = 1.1;
 export function bandPhases(rdt) {
   const band = P.bandT > 0;
   // another weapon picked during the bandage (switchSlot): the hands come down, the one in hand finishes going away,
@@ -34,7 +34,8 @@ export function bandPhases(rdt) {
     // the wait before it can fire); one only part put away when the bandage was cut short just comes back to the hand
     if (ANIM.bandW <= 0) { if (ANIM.bandP >= 0.5) { ANIM.bandP = 0; if (W8.slot[W8.cur]) equip(W8.cur, true); } else ANIM.bandP = Math.max(0, (ANIM.bandP || 0) - rdt / BAND_PUT); }
   }
-  ANIM.bandK = smooth(ANIM.bandW || 0);
+  // (the arms come up with a little give at the top, BAND_UP, rather than sliding straight there, and go down smoothly)
+  { const x = ANIM.bandW || 0; ANIM.bandK = band ? 1 + (BAND_UP + 1) * (x - 1) ** 3 + BAND_UP * (x - 1) ** 2 : smooth(x); }
   if (band) ANIM.healCut = false;
   const prog = band ? 1 - P.bandT / (P.bandMax || 1) : 0, fx = band ? 0.2 + 0.8 * smooth(prog) : 0;
   ANIM.healFx = (ANIM.healFx || 0) + (fx - (ANIM.healFx || 0)) * Math.min(1, rdt * (band ? 2.4 : ANIM.healCut ? 11 : 2.6));
@@ -285,8 +286,14 @@ let wrapLast = 0;
 // where you can watch it; it turns slowly in the hand as the bandage goes round (BAND_TURN: how far, how fast). The
 // right arm's shoulder goes out to the side and a little lower instead (BAND_FP_LIFT_R), so it reaches round the
 // forearm from beside it rather than across your eyes (a thick sleeve, the canvas jacket's, would hide the wrap)
-const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.02, 1.12, 0.4], BAND_FP_LIFT = [0.08, 0.06, 0.3], BAND_FP_LIFT_R = [-0.3, 0.05, 0.22], BAND_TURN = [0.22, 1.7];
+const BAND_ARM = [0.05, 0.98, 0.36], BAND_ARM_FP = [0.14, 1.12, 0.3], BAND_FP_LIFT = [0, 0.04, 0.2], BAND_FP_LIFT_R = [-0.1, 0.08, 0.3], BAND_TURN = [0.22, 1.7];
 const _wd = new V3(), _wdR = new V3();
+// how far round it's been wound t turns' worth of the time in: each turn a hand's pull, quicker over the top and slower
+// as it comes round under the arm (WIND_EASE of a turn either way), not round at one steady speed
+const WIND_EASE = 0.11, bandWindAt = t => { const n = Math.floor(t), f = t - n; return n + f - WIND_EASE * Math.sin(2 * Math.PI * f); };
+// the held forearm's own drift while it's wound, slow and uneven (BAND_DRIFT: [across, up, along] metres, each the sum of
+// two slow waves), and its slow turn in the hand
+const BAND_DRIFT = [0.009, 0.012, 0.007];
 export function bandagePose(pm, up, now, sh) {
   const k = ANIM.bandK || 0, n = Math.min(WRAP_AT.length, P.wraps || 0), band = P.bandT > 0, dt = clamp(now - wrapLast, 0, 0.1); wrapLast = now;
   // the wrap going on (the next free one), wound as far as the bandage has gone; any finished ones as they are
@@ -300,7 +307,7 @@ export function bandagePose(pm, up, now, sh) {
     if (i === cur && w.key !== P.bandMax) { w.key = P.bandMax; w.seep = 0; wrapBuild(w, clamp((P.bandMax || 1) * WRAP.fin / wrapTurn() + 0.6, 2.2, 6)); }
     else if (on && !w.geo) { w.seep = 1; wrapBuild(w, 4); }
     w.g.visible = on; if (!on) return;
-    const t = i === cur ? Math.max(0.05, w.turns * wind) : w.turns, per = w.segs / w.turns;
+    const t = i === cur ? Math.max(0.05, bandWindAt(w.turns * wind)) : w.turns, per = w.segs / w.turns;
     w.geo.setDrawRange(0, Math.ceil(t * per) * (w.nr - 1) * 6);
     // the end, taped down once it's been pressed on
     const tp = i < n || (i === cur && taped);
@@ -318,7 +325,9 @@ export function bandagePose(pm, up, now, sh) {
   // (from your own eyes it's held higher and further out, where you can watch it go on: BAND_ARM_FP)
   const fp = fpOn(), B = fp ? BAND_ARM_FP : BAND_ARM;
   if (fp) _wd.set(BAND_FP_LIFT[0], BAND_FP_LIFT[1], BAND_FP_LIFT[2]); else _wd.set(0, 0, 0);
-  reach(a, 'L', _fL.set(B[0] + Math.sin(now * 1.3) * 0.006, B[1] + Math.sin(now * 2.1) * 0.01, B[2]), 0.4 + BAND_TURN[0] * Math.sin(now * BAND_TURN[1]) * (band ? 1 : 0), true);
+  const DR = BAND_DRIFT;
+  reach(a, 'L', _fL.set(B[0] + (Math.sin(now * 0.9) * 0.6 + Math.sin(now * 2.3 + 1) * 0.4) * DR[0], B[1] + (Math.sin(now * 1.15 + 2) * 0.6 + Math.sin(now * 2.7) * 0.4) * DR[1], B[2] + Math.sin(now * 0.7 + 0.5) * DR[2]),
+    0.4 + BAND_TURN[0] * (Math.sin(now * BAND_TURN[1]) * 0.7 + Math.sin(now * BAND_TURN[1] * 0.43 + 1.2) * 0.3) * (band ? 1 : 0), true);
   a.position.add(_wd);
   a.rotation.set(rx + (a.rotation.x - rx) * w, ry + (a.rotation.y - ry) * w, rz + (a.rotation.z - rz) * w);
   a.position.set(px + (a.position.x - px) * w, py + (a.position.y - py) * w, pz + (a.position.z - pz) * w); a.scale.z = sz + (a.scale.z - sz) * w;
@@ -328,7 +337,7 @@ export function bandagePose(pm, up, now, sh) {
   if (cur >= 0 && W0.geo) {
     // the hand just past where the strip's reached, a little out from the arm (the strip running off the roll to it);
     // at the end it comes in and presses the end down
-    const t = Math.max(0.05, W0.turns * wind); wrapAt(W0, t);
+    const t = Math.max(0.05, bandWindAt(W0.turns * wind)); wrapAt(W0, t);
     _we.copy(_wp); _wh.copy(_wp).addScaledVector(_wn, 0.062 * (1 - press) + 0.03 * press).addScaledVector(_wt, 0.035 * (1 - press));
     _wh.applyMatrix4(a.matrix); _we.addScaledVector(_wn, 0.002).applyMatrix4(a.matrix); _fR.copy(_wh);
   } else _fR.set(0, 0, 0.4 * a.scale.z).applyMatrix4(a.matrix).add(_wu.set(0, 1, 0).applyQuaternion(a.quaternion).multiplyScalar(0.12));

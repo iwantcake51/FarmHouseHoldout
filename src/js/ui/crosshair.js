@@ -47,8 +47,16 @@ const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL
 // the flash as it finishes). The right arc runs up from its bottom end (42° below the right), the left one up from
 // its bottom end too (138°)
 const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42, dir: -1, on: false, u: 0 }, L: { ring: xhRingL, track: $('xhRTrackL'), head: $('xhRHeadL'), a0: 138, dir: 1, on: false, u: 0 } };
-function reloadDraw(side, on, u) {
+// (the fill doesn't jump to where the reload's got to: it glides there (RL_EASE: how quickly a second, up and back), and
+// when a fumble sets it back (by more than knock) it's knocked back with a jolt, the arc and its bead flaring red and
+// shaking, styles/crosshair.css: .knock)
+const RL_EASE = { up: 22, back: 12, knock: 0.015 };
+function reloadDraw(side, on, u, rdt = 1 / 60) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
+  if (on && r.on && r.disp !== undefined) {
+    if (u < r.disp - RL_EASE.knock && performance.now() - (r.knockAt || 0) > 350) { r.knockAt = performance.now(); [r.ring, r.head, r.track].forEach(el => { el.classList.remove('knock'); void el.getBBox(); el.classList.add('knock'); }); }
+    r.disp += (u - r.disp) * (1 - Math.exp(-rdt * (u < r.disp ? RL_EASE.back : RL_EASE.up))); u = r.disp;
+  } else r.disp = u;
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
   if (!on && r.on) { [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick')); $('xhRPing').classList.remove('tick'); }
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
@@ -294,7 +302,7 @@ export function updateCrosshair(rdt, D) {
     // a shell at a time: by time, through to the gun closed or racked after (weapons/reload.js: relRingP)
     const sp = relRingP(), on = W8.reloading === 'mag' || sp >= 0;
     if (W8.reloading === 'mag') { const kn = W8.reloadMax - relUnseen(); rp = clamp((W8.reloadMax - W8.reloadT) / Math.max(kn, 1e-3), 0, 1); } else if (sp >= 0) rp = sp;   // (a fumble's time only once it's happened: relUnseen)
-    reloadDraw('R', on, rp); reloadDraw('L', false, 0);
+    reloadDraw('R', on, rp, rdt); reloadDraw('L', false, 0, rdt);
     xhAmmo.style.opacity = on ? 0.25 : 1;
     }
     const glArc = 2 * Math.PI * (aR + 6) * (84 / 360);
