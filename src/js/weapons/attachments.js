@@ -8,6 +8,9 @@ import { lensOn, reticleOn } from '../effects/scope-view.js';
 import { GM, X } from './gun-materials.js';
 import { cyl, lathe, profile, ring, rrect, shp, solid, taper, tapeWrap, xsec } from './gun-parts.js';
 
+// the handgun's heavy-duty can (an Osprey, eccentric: its bore near the top): across, tall, its top over the bore (under
+// the slide's own top, 1.9 cm over it), long, how round its corners are (metres)
+const OSPREY = { w: 0.032, h: 0.04, over: 0.017, L: 0.2, r: 0.007 };
 export function fitAttachments(g, D, front, y, info) {
   const isShell = D.ammo === 'shells', side = D.slot === 'side', k = side ? 0.8 : 1, muzzle = front;
   // muzzle devices: a choked shotgun has no room for a can
@@ -25,6 +28,18 @@ export function fitAttachments(g, D, front, y, info) {
       cyl(g, r * 0.9, 0.008, GM.filterB, X, y, front + 0.03 + L + 0.004, 24);                     // domed end
       cyl(g, r * 1.006, 0.05, GM.label, X, y, c, 24); cyl(g, r * 1.01, 0.008, GM.filterD, X, y, c + 0.012, 24);   // label band and its stripe
       ring(g, 0.024 * k, 0.012, GM.steel, X, y, front + 0.02); front += L + 0.04;
+    } else if (s === 3 && tierCtx === 'pistol') {
+      // the handgun's heavy-duty can is an Osprey: a long flat-sided box of a can with its bore up near its top and its
+      // body hung under it (OSPREY: across, tall, its top this far over the bore, long, its corners' round), so its top
+      // stays under the slide's and it never comes up into the sights or across the view; a dark cap on its front end
+      // and the three slanted grooves cut in its sides at the back
+      const O = OSPREY, yt = y + O.over, yb = yt - O.h, x0 = X - O.w / 2, x1 = X + O.w / 2, z0 = front + 0.012, z1 = z0 + O.L;
+      cyl(g, 0.0085, 0.018, GM.metal2, X, y, front + 0.004, 14);   // its mount, threaded onto the barrel
+      xsec(g, new THREE.Shape(rrect(x0, yb, x1, yt, O.r).getPoints(3)), z0, z1 - 0.012, GM.metal, 0.0015);   // the body
+      xsec(g, new THREE.Shape(rrect(x0 + 0.0008, yb + 0.0008, x1 - 0.0008, yt - 0.0008, O.r).getPoints(3)), z1 - 0.012, z1, GM.poly, 0.0015);   // its front cap
+      cyl(g, 0.0045, 0.003, GM.poly, X, y, z1 + 0.001, 12);   // and the hole the round leaves by
+      [-1, 1].forEach(sd => { for (let i = 0; i < 3; i++) { const b = box(g, 0.0012, O.h * 0.62, 0.004, GM.metal2, X + sd * (O.w / 2 + 0.0004), (yt + yb) / 2, z0 + 0.03 + i * 0.011); b.rotation.x = -0.55; } });
+      front = z1;
     } else {
       const r = (s === 3 ? 0.05 : 0.04) * k, L = (s === 3 ? 0.42 : 0.32) * k;
       cyl(g, r, L + 0.012, GM.metal, X, y, front + L / 2 - 0.006, 20);   // threaded on over the muzzle
