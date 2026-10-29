@@ -1,7 +1,7 @@
 // Zombies and corpses fading with your vision, and the green rim on zombies in melee reach.
 
 import { CAM_OFF, FP_CAM, scene, V3 } from '../core/renderer.js';
-import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
+import { angDiff, clamp, HALF, rand, rr, smooth } from '../core/math.js';
 import { MIST, mistSee } from '../world/mist.js';
 import { outline } from '../effects/screen-outlines.js';
 import { P } from '../player/player.js';
@@ -110,6 +110,15 @@ function zombieLOD() {
 // FP_SEE.near m always is: so none of them pops in or out at an edge. A grate's no wall to them (its slit and bars are
 // there to see through)
 const FP_SEE = { eye: 0.22, side: 0.5, lead: 0.4, hold: 0.6, near: 1.8 };
+// the line only as far as the edge of the farm: past it there's no grid (the woods and the haze out there, drawn as they
+// are, hide what's behind them themselves), so one still out in the fog is seen walking out of it rather than nothing
+// of it showing till it steps onto the farm (zombies/spawn.js: FP_OUT)
+function losIn(ex, ez, tx, tz) {
+  const m = HALF - 0.5, dx = tx - ex, dz = tz - ez; let t = 1;
+  if (Math.abs(tx) > m && dx) t = Math.min(t, ((dx > 0 ? m : -m) - ex) / dx);
+  if (Math.abs(tz) > m && dz) t = Math.min(t, ((dz > 0 ? m : -m) - ez) / dz);
+  return los(ex, ez, ex + dx * Math.max(0, t), ez + dz * Math.max(0, t), true);
+}
 function eyeSees(z, rdt) {
   const e = FP_CAM.position, dx = z.x - e.x, dz = z.z - e.z, L = Math.hypot(dx, dz) || 1, ux = -dz / L, uz = dx / L;
   // (how fast it's going, from where it was last frame, smoothed: its own vx/vz are only knockback)
@@ -121,7 +130,7 @@ function eyeSees(z, rdt) {
     see: for (const eo of [0, FP_SEE.eye, -FP_SEE.eye]) {
       const ex = e.x + ux * eo, ez = e.z + uz * eo;
       for (const [tx, tz] of [[z.x, z.z], [z.x + ux * FP_SEE.side, z.z + uz * FP_SEE.side], [z.x - ux * FP_SEE.side, z.z - uz * FP_SEE.side], [lx, lz]])
-        if (los(ex, ez, tx, tz, true)) { see = true; break see; }
+        if (losIn(ex, ez, tx, tz)) { see = true; break see; }
     }
   }
   z.fpHold = see ? FP_SEE.hold : Math.max(0, (z.fpHold || 0) - rdt);

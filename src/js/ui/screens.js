@@ -14,6 +14,7 @@ import { rollLook, spawnLook } from '../player/look.js';
 import { clearBodyBlood } from '../effects/body-blood.js';
 import { SLOTS } from '../weapons/slots.js';
 import { curId, freshRun, run, S, stamMax, W, W8 } from '../game/run-state.js';
+import { SET } from './settings.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { casings, mags } from '../weapons/casings.js';
@@ -105,6 +106,7 @@ function resetRun(keepLook) {
 // new house's paint is on already
 function newRun(soft, dark) {
   audioInit(); resetRun(soft);
+  run.noPerks = SET.mode === 'noperks';   // (no-perk mode, ui/settings.js: no cards between waves, waves/waves.js; a co-op joiner takes the host's)
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   // (game/loop.js: warmShaders, on the next frame's targets)
   setWarmQ(true);

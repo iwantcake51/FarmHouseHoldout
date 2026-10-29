@@ -23,7 +23,7 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
 // colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off' };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off', mode: 'normal' };
 export const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
@@ -34,6 +34,8 @@ const SHADOW_SZ = { high: R.capabilities.maxTextureSize >= 8192 ? 4096 : 2048, m
 const RES_K = { auto: 1, full: 1, r75: 0.75, r50: 0.5 };
 // what's on the panel: a heading, then its rows, each a dropdown (opts), a switch (bool) or a slider (min, max, unit)
 const SET_ROWS = [
+  { head: 'Game' },
+  { k: 'mode', name: 'Run mode', note: 'No perks: no cards and no aid between waves, no slow motion as a wave clears, and the next break starts a second after the last zombie falls. From your next run (in co-op, the host\'s)', opts: [['normal', 'Normal'], ['noperks', 'No perks']] },
   { head: 'Graphics' },
   { k: 'ao', name: 'Ambient occlusion', note: 'Soft shading in corners and under things', opts: [['on', 'On'], ['off', 'Off']] },
   { k: 'bloom', name: 'Glow', note: 'Bright lights and muzzle flashes bleed light', opts: [['off', 'Off'], ['soft', 'Soft'], ['normal', 'Normal'], ['strong', 'Strong']] },

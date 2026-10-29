@@ -44,8 +44,8 @@ import {
   breakT, clearT, phase, setBreakT, setClearT, setShake, setSpawnQ, setTod, shake, spawnQ, state, tod
 } from '../game/state.js';
 import { shoveZombie } from '../player/shove.js';
-import { breakMax, setBreakMax, surge, waveBar, waveBegins, waveCleared, waveSub } from '../waves/waves.js';
-import { handNo, openUpgrade } from '../upgrades/upgrade-screen.js';
+import { breakMax, clearedDone, setBreakMax, surge, waveBar, waveBegins, waveCleared, waveSub } from '../waves/waves.js';
+import { handNo } from '../upgrades/upgrade-screen.js';
 import { deathCineEnd, die } from '../ui/screens.js';
 import { feed, setH } from '../ui/hud-text.js';
 import { visAt } from '../lighting/vision.js';
@@ -295,7 +295,7 @@ export function netBoardTear(o, at) { netSend('bt', { o: openings.indexOf(o), x:
 NET_ON.bt = m => { const o = openings[m.o]; if (!NET.host || !o || !o.boards.length) return; tearAll(o, { x: m.x, z: m.z }); };
 
 // ---- the waves: the host's start them, clear them and runs the breaks
-NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog, m.tw || null); setSpawnQ(new Array(m.tot).fill('walker')); };
+NET_ON.wave = m => { if (NET.host || !netLink() || state === 'title') return; waveBegins(m.n, m.tot, !!m.fog, m.tw || null, m.np); setSpawnQ(new Array(m.tot).fill('walker')); };
 NET_ON.clear = () => { if (NET.host || !netLink() || state === 'title' || phase === 'cleared') return; waveCleared(); };
 // starting the next wave early: alone, T does it; in co-op it's a vote, and the wave starts once SKIP_VOTE of everyone
 // in the game (rounded up, the downed too) has pressed T. Pressing it again takes your vote back. The host counts them
@@ -339,7 +339,7 @@ export function clientWaves(dt) {
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();
     setClearT(clearT - (dt / Math.max(timeScale, 0.3)));
-    if (clearT <= 0) { openUpgrade(); return true; }
+    if (clearT <= 0) return clearedDone();
   }
   return false;
 }

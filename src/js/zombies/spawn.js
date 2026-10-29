@@ -21,15 +21,22 @@ import { BRUTE_FROM, LATE, lateN } from '../waves/waves.js';
 import { SPIT, spitterGait, spitterLook } from './spitter.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { cheatAI } from '../ui/cheats.js';
+import { fpOn } from '../game/view-cam.js';
 
 // zombies come out of the fog: each starts 6.5 to 9 m out past the edge of the farm, on the cleared trail in front of
 // one of the gaps in the trees, and walks in along it (z.out, zombies/ai.js). Out there it only shows as it comes clear
 // of the fog: fogSee is how much of it does, none of it FOG_IN metres out and all of it at the edge
 const FOG_IN = 7;
+// from your own eyes the haze lies further out (world/atmosphere.js FAR_EDGE: it starts some 9 m past the edge and
+// nothing shows through it by 44 m), so there they start deep in it (FP_OUT, m past the edge) and walk out of it, solid
+// all the way, the haze alone hiding them till they come clear of it; they cover the hidden stretch quicker
+// (zombies/ai.js: FP_OUT.fast past FP_OUT.deep, FP_OUT.mid between that and FP_OUT.near), so they reach the farm about
+// as soon as they would from overhead
+export const FP_OUT = { far: [38, 44], deep: 18, near: 9, fast: 4, mid: 1.6 };
 export const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
 export function spawnZombie(type, job) {
   const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
-  const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = rr(6.5, 9), lat = rr(-0.6, 0.6);
+  const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = fpOn() ? rr(FP_OUT.far[0], FP_OUT.far[1]) : rr(6.5, 9), lat = rr(-0.6, 0.6);
   const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);
   // (the run's first brute comes in plain clothes, with nothing on it to soak up your shots: BRUTE_RAMP, waves/waves.js)
   if (type === 'brute' && run.wave > 0) { if (!run.bruteSeen && !job) job = 'casual'; run.bruteSeen = true; }

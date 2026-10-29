@@ -671,7 +671,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   FP_PIV.b = -blade; FP_PIV.o[0] = ox; FP_PIV.o[1] = oy; FP_PIV.o[2] = oz;
   posePivot(gg, pitch, yaw, roll, X, 1.08, 0.1, ox, oy, oz, -blade);
   { const sh = H.hand; if (sh) { _v.set(0, -sh[0], -sh[1]).applyQuaternion(gg.quaternion); gg.position.add(_v); gg.updateMatrix(); } }   // down and back in the gun's own frame (HOLD's hand)
-  gunPush(gg, s, H, ak, fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)
+  // (looking it over, it's brought up close in to you and turned every way: there's nothing to push back off a wall, and
+  // its barrel turned sideways or back at you would read the wall all wrong, so the push eases out as it comes up and
+  // back in as it goes down: player/inspect.js)
+  gunPush(gg, s, H, ak, Math.max(fpOn() ? Math.max(rd, smooth(clamp(re, 0, 1)) * FP_REL_PUSH) : rd, smooth(clamp(inspectW() * 1.5, 0, 1))), rdt, sh ? sh.push : 0);   // pushed back off a wall or a zombie in front of you (from your own eyes hardly at all mid-reload, FP_REL_PUSH)
   up.y += blade; pm.head.rotation.y = -blade * 0.9;
   // ---- one hold per hand: each gun kicks on its own shot; akimbo pistols run their own reload
   // the left gun put away for a vault (the left hand takes the sill) and drawn again after (AK_DRAW); akHolstered while it's away

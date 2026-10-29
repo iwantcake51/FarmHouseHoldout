@@ -17,6 +17,7 @@ import {
   setSpawnT, spawnQ, spawnT
 } from '../game/state.js';
 import { openUpgrade } from '../upgrades/upgrade-screen.js';
+import { sweepDrops } from '../pickups/pickups.js';
 import { announce, setH } from '../ui/hud-text.js';
 import { SPIT } from '../zombies/spitter.js';
 import { cheatIs } from '../ui/cheats.js';
@@ -105,14 +106,21 @@ function startWave() {
   const fog = mistRoll(run.wave + 1), tw = rollTwist(run.wave + 1, fog);   // (now and then a fog round: world/mist.js; or a twist: TWISTS)
   setSpawnQ(buildWave(run.wave + 1, tw));
   waveBegins(run.wave + 1, spawnQ.length, fog, tw);
-  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0, tw });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0, tw, np: run.noPerks ? 1 : 0 });   // (co-op: everyone's wave starts with the host's, net/sync.js)
   spawnTurned();   // (and whoever went down last wave comes back out of the fog as one of them)
   surge.S = Object.assign({}, SURGE, SURGE_KIND[tw ? TWISTS[tw].surge : pickRhythm()]); surge.lull = 0; nextSurge();
 }
 // an ordinary wave's rhythm: the usual surges most often
 const pickRhythm = () => { const r = rand(); return r < 0.5 ? 'surges' : r < 0.75 ? 'trickle' : 'rushes'; };
+// the clear played out: the cards (game/upgrade-screen.js), or in no-perk mode straight on to the break, whatever's
+// still lying about gliding in to you as it would after the cards. True when the cards open
+export function clearedDone() {
+  if (!run.noPerks) { openUpgrade(); return true; }
+  beginBreak(BREAK_AFTER); sweepDrops(); return false;
+}
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does
-export function waveBegins(n, total, fog, tw) {
+export function waveBegins(n, total, fog, tw, np) {
+  if (np !== undefined) run.noPerks = !!np;   // (a co-op joiner: the host's mode)
   run.wave = n; setPhase('wave'); skipVotes.clear(); mistSet(fog);   // (the vote to start it early, net/sync.js)
   const T = TWISTS[tw]; run.twist = T ? tw : null; run.waveHp = T ? T.hp : 1; if (T) { run.twistLast = n; run.twistKind = tw; }
   setSpawnT(1.2); S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
@@ -136,8 +144,13 @@ export function waveBar(frac, mode) {
   if (cache.wBar === k) return; cache.wBar = k;
   $('wBarFill').style.transform = `scaleX(${clamp(frac, 0, 1).toFixed(3)})`; $('waveBox').dataset.ph = mode;
 }
+// no-perk mode (ui/settings.js: a run's mode, run.noPerks): no slow motion as the wave clears, no cards and no aid after
+// it, just the break, from NO_PERKS.wait seconds after the last zombie falls
+const NO_PERKS = { wait: 1 };
+export const BREAK_AFTER = 25;   // (the break after a wave, the cards or not: upgrades/upgrade-screen.js)
 export function waveCleared() {
-  netCleared(); setPhase('cleared'); setClearT(2.6); setSlowTo(0.25); setSlowIn(0.3); setSlowHold(0.75);
+  netCleared(); setPhase('cleared');
+  if (run.noPerks) setClearT(NO_PERKS.wait); else { setClearT(2.6); setSlowTo(0.25); setSlowIn(0.3); setSlowHold(0.75); }
   // a twist's bounty, into everyone's scrap
   const T = TWISTS[run.twist], pay = T ? TWIST.pay + run.wave : 0; if (pay) S.scrap += pay;
   announce('Wave ' + run.wave, T ? T.eye + ' survived · +' + pay + ' scrap' : 'Cleared · Prepare for the next wave', { eye: 'Survived', kind: 'gold' }); SFX.cleared(run.wave, !!T);
@@ -174,7 +187,7 @@ export function updateWaves(dt) {
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();   // (co-op: anyone down is back, net/sync.js)
     setClearT(clearT - (dt / Math.max(timeScale, 0.3)));
-    if (clearT <= 0) { openUpgrade(); return true; }
+    if (clearT <= 0) return clearedDone();
   }
 
   return false;

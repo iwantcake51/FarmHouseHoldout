@@ -16,7 +16,7 @@ import { closeStation, starFillSvg, starRow, tierRars } from '../stations/statio
 import { SFX } from '../audio/sfx.js';
 import { glowGun, setStateRaw, state } from '../game/state.js';
 import { setMouseDown, setMouseDownR } from '../input/keyboard-mouse.js';
-import { beginBreak } from '../waves/waves.js';
+import { beginBreak, BREAK_AFTER } from '../waves/waves.js';
 import { AID_CHANCE, AID_TWO, aidNeed, findKind, kindTag, RAR, UPG } from './upgrades.js';
 import { CHIP_MARK, chipCls, STACKS, stackTotal, UPG_FX, upgradeInfo } from './upgrade-info.js';
 import { curseRewards, rollSac, SAC, takeCurse } from './sacrifice.js';
@@ -333,7 +333,7 @@ function leaveUpgrade(burn) {
   setStateRaw('leaving');
   setTimeout(() => { el.classList.remove('show'); }, 1400);   // (after the taken card's star has filled)
   // on a bonus wave the second hand comes straight after the first (bonusDue); otherwise back to the farm
-  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(25); sweepDrops(); }, 1800);
+  setTimeout(() => { el.classList.remove('picking'); if (!bonusHand && bonusDue()) { openUpgrade(true); return; } setState('play'); beginBreak(BREAK_AFTER); sweepDrops(); }, 1800);
 }
 // (a press has to start once the cards are live, like a card's, so a click held over from the wave doesn't take it)
 $('upSkip').addEventListener('pointerdown', () => { if (cardsArmed) $('upSkip').dataset.down = '1'; });

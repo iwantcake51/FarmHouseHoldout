@@ -64,6 +64,9 @@ the other one, that eye squinting along the gun and your head tipped over the st
 1. **Break.** The clock is stopped. Board up the windows and doors, spend scrap at the stations and get into
    position. Press **T** when you're ready, or wait out the timer.
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
+   From your own eyes they come from further off: deep in the haze out past the fields, solid all the way, a pale shape
+   in the fog that picks up detail as it comes clear rather than appearing at the fence. They cover the hidden stretch
+   quicker, so they reach the farm about as soon as they would seen from above.
 3. **Cards.** When the last zombie falls (time slows for a moment, the edges of the view cooling, with no black bars over it), pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
    wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. You have 20 seconds to choose
    before one is taken for you; playing alone, that clock stands still while the game's tab is hidden or its window
@@ -80,6 +83,9 @@ the other one, that eye squinting along the gun and your head tipped over the st
      that hurt half again as much (Fragile), or half the scrap from kills, for the rest of the run. Some never come
      together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
      once), and you take two. Taking a curse sounds like one: a low, sour slide down, not the reward chime.
+   - **No-perk mode** (Settings, Game, Run mode) takes all of that away, from your next run: no cards, no aid, no
+     sacrifices or curses, and no slow motion as a wave clears; a second after the last zombie falls the next break
+     starts. In co-op the host's mode is everyone's.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
    No two waves come at quite the same pace: each keeps to a rhythm of its own, the usual surges with a few seconds'
    lull between them, a trickle of small ones close together, or a few big rushes with long quiet between. The banner's
@@ -223,7 +229,7 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 | Workbench | Gun upgrades, attachments, ammo |
 | Sawhorse / metalwork bench | Planks and metal, and bracing the boards |
 | Medicine cabinet | Bandages and health |
-| Ham radio | Calls in a supply crate (ammo, health, bandages, planks) that grows with the wave, as does its price, once every 5 waves |
+| Ham radio | Calls in a supply crate once every 5 waves, growing with the wave as its price does: ammo, health, bandages and planks, and one military find no station sells you outright. Most often (60%) a field kit, the next attachment step for one of the guns you carry fitted free (a sight, a laser, a light, a can or choke, a speed loader); or (32%) a box of special rounds for one of them, a kind you haven't got, loaded; otherwise, or when there's nothing left to give, a cache of scrap |
 | Gun rack | New guns for your slots |
 | Strongbox (co-op) | Gives scrap to a teammate |
 
@@ -613,7 +619,9 @@ up and in, rolled over to show one side and then the other, swung round to see d
 along its back and top, your head following it. Each move starts gently, swings through and settles into its pose
 with a little give, the hands never quite still. The hand on the grip keeps hold of it as it was however the gun's
 turned (the wrist turns with it), and the gun's never held further out or nearer in than your arms comfortably reach,
-so it never floats off the hand or turns in it. A handgun's turned in the one hand, the other hanging at your side.
+so it never floats off the hand or turns in it. Standing close to a wall doesn't spoil it: the gun's no longer pushed
+back and dipped away from the wall while you look it over (it's brought in close anyway), easing back into the wall's
+push as you finish. A handgun's turned in the one hand, the other hanging at your side.
 From your own eyes the gun's held up in front of you and the HUD and the crosshair are put away while you look (from
 above they stay). Every sidearm but the revolver (the handgun and the .50 alike) is looked over the same way: brought
 up close in the middle of your view and turned on its side in the hand, its muzzle tipped up to the left and its top

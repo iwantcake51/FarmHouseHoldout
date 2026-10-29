@@ -4,7 +4,7 @@
 
 import { $ } from '../core/dom.js';
 import { RIGHT, V3 } from '../core/renderer.js';
-import { angDiff, clamp, mix, N, rand, rr, smooth } from '../core/math.js';
+import { angDiff, clamp, HALF, mix, N, rand, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { netClient } from '../net/net.js';
 import { cell, ci, cxw, EMPTY, FENCE, idx, inb, OPEN, openAt, WALL } from '../world/grid.js';
@@ -22,7 +22,8 @@ import { burnFx } from '../effects/puffs.js';
 import { STUMP, zombies, ZT } from './zombie-types.js';
 import { animateZombie } from './zombie-anim.js';
 import { stepClimb } from './climb.js';
-import { bruteSmashK } from './spawn.js';
+import { bruteSmashK, FP_OUT } from './spawn.js';
+import { fpOn } from '../game/view-cam.js';
 import { rimMat } from '../effects/outlines.js';
 import { BLEED_R, BURN_TICK, burnHurt, killZombie, legSlow, STUMP_PUMP } from './damage.js';
 import { boardJolt, breakBoard } from '../barricades/planks.js';
@@ -201,7 +202,9 @@ export function updateZombies(dt) {
       const ax = z.gx - z.x, az = z.gz - z.z, al = Math.hypot(ax, az);
       if (al < 0.2) z.out = false;
       else {
-        const sp = Math.min(al, z.speed * ai.speed * dt * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)));
+        // (from your own eyes, quicker while still deep in the haze: zombies/spawn.js FP_OUT)
+        const deep = Math.max(Math.abs(z.x), Math.abs(z.z)) - HALF, hz = fpOn() ? (deep > FP_OUT.deep ? FP_OUT.fast : deep > FP_OUT.near ? FP_OUT.mid : 1) : 1;
+        const sp = Math.min(al, z.speed * ai.speed * dt * hz * (z.stagger > 0 ? 0.25 : 1) * (z.crawl ? 0.32 : legSlow(z)));
         z.x += ax / al * sp; z.z += az / al * sp;
         z.face += angDiff(Math.atan2(ax, az), z.face) * Math.min(1, dt * 8);
       }

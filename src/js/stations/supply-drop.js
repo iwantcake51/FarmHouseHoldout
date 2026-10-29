@@ -13,7 +13,10 @@ import { hardBlocked } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { AMMO_BATCH, AMMO_NAME } from '../weapons/ammo.js';
-import { hpCap, run, S, W8 } from '../game/run-state.js';
+import { fitTier, hpCap, magChange, ownTier, recomputeEff, run, S, W8 } from '../game/run-state.js';
+import { TIERS, tierName } from '../upgrades/tier-table.js';
+import { loadRound, roundName, roundText, roundTypes } from '../weapons/rounds.js';
+import { SLOTS } from '../weapons/slots.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { partTex } from '../effects/textures.js';
 import { smoke } from '../effects/smoke.js';
@@ -28,7 +31,7 @@ import { AC, master, noiseBuf, nz } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
 import { glowGun, setLmT, setShake, shake, state, worldT } from '../game/state.js';
 import { bandMax } from '../player/bandages.js';
-import { ammoTypes, giveWeapon } from '../upgrades/upgrades.js';
+import { ammoTypes, giveWeapon, tierFits } from '../upgrades/upgrades.js';
 import { runStat } from '../ui/run-stats.js';
 import { feed, popEl } from '../ui/hud-text.js';
 import { curDark } from '../lighting/day-night.js';
@@ -199,14 +202,43 @@ export function supplyOpen() {
     P.bleed = 0; feed('med', 0, 'Patched up'); }
   const nb = Math.min(Math.round(supplyAt('band')), Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); }
   const np = addPlanks(Math.round(supplyAt('planks'))); if (np) { feed(matKind(), np, matWord()); popEl('planks'); }
+  crateFind();
   feed('supply', 0, 'Supply crate opened');
+}
+// and what makes a crate more than the stations' stock in bulk: one military find (FIND), something no station sells
+// you outright. Most often a field kit, the next step of an attachment for one of the guns you carry, fitted for
+// nothing (a sight, a laser, a light, a can or a choke, a speed loader: whatever it can take next); or a box of special
+// rounds for one of them, a kind you haven't got, loaded; failing either (nothing left to give), a cache of scrap
+// (FIND.cache, more each wave). Shown as gear you've been given, as the bench's are (ui/gear-popup.js)
+const FIND = { kit: 0.6, rounds: 0.32, cache: [14, 2] };   // (the rest of the time, a cache)
+const FIND_LINES = ['sight', 'laser', 'light', 'supp', 'choke', 'loader'];
+function crateFind() {
+  const guns = SLOTS.map(s => W8.slot[s]).filter(id => id && WEAP[id] && !WEAP[id].melee);
+  const kits = [], rnds = [];
+  guns.forEach(id => {
+    FIND_LINES.forEach(k => { if (tierFits(k, id) && !(k === 'choke' && WEAP[id].ammo !== 'shells')) kits.push([id, k]); });
+    const r = W8.rounds[id]; roundTypes(id).forEach(k => { if (k !== 'std' && !(r && r.own.includes(k))) rnds.push([id, k]); });
+  });
+  const roll = rand(), pickOne = a => a[Math.floor(rand() * a.length)];
+  if (kits.length && (roll < FIND.kit || !rnds.length)) {
+    const [id, k] = pickOne(kits), n = ownTier(id, k), st = TIERS[k].t[n], nm = tierName(k, n, id), txt = typeof st.text === 'function' ? st.text(WEAP[id], id) : st.text;
+    magChange(id, () => { fitTier(id, k, n + 1); recomputeEff(); }); buildGuns(id); glowGun(id);
+    feed('gear', 0, nm); gotGear({ ic: 'supply', kind: 'Field kit, in the crate', name: nm, gun: id, text: txt });
+  } else if (rnds.length && roll < FIND.kit + FIND.rounds + (kits.length ? 0 : FIND.kit)) {
+    const [id, k] = pickOne(rnds), nm = roundName(id, k);
+    loadRound(id, k, true); buildGuns(id); glowGun(id);
+    feed('gear', 0, nm); gotGear({ ic: 'supply', kind: 'Rounds, in the crate', name: nm, gun: id, text: roundText(id, k) });
+  } else {
+    const n = FIND.cache[0] + FIND.cache[1] * Math.max(1, run.wave); S.scrap += n; popEl('scrap'); feed('scrap', n, 'scrap');
+    gotGear({ ic: 'supply', kind: 'A cache, in the crate', name: n + ' scrap', text: 'Someone\'s stash, taped under the lid.' });
+  }
 }
 // the radio's card's text: what's in the crate, and how long till the radio's free again (one pip a wave)
 export function supplyDesc() {
   if (supplyT > 0) return `Inbound: lands in the yard in <b>${Math.ceil(supplyT)}s</b>`;
   if (supplyFall) return 'Coming down now';
   const hp = supplyHp(), nb = Math.round(supplyAt('band')), ammo = ammoTypes().map(a => `+${supplyAmmo(a)} ${AMMO_NAME[a]}`);
-  const gets = [...(ammo.length ? ammo : ['Ammo for your guns']), hp >= hpCap() ? 'Health to full' : `+${hp} health`, `+${nb} bandage${nb > 1 ? 's' : ''}`, `+${Math.round(supplyAt('planks'))} ${matWord()}`];
+  const gets = ['<b>A military find: an attachment or rounds for a gun of yours</b>', ...(ammo.length ? ammo : ['Ammo for your guns']), hp >= hpCap() ? 'Health to full' : `+${hp} health`, `+${nb} bandage${nb > 1 ? 's' : ''}`, `+${Math.round(supplyAt('planks'))} ${matWord()}`];
   const left = dropWait() ? run.dropAt + SUPPLY.every - run.wave : 0;
   const pips = Array.from({ length: SUPPLY.every }, (_, k) => `<i${k < SUPPLY.every - left ? ' class="on"' : ''}></i>`).join('');
   return `<span class="dropGets">${gets.map(g => `<i>${g}</i>`).join('')}</span><span class="dropPips${left ? '' : ' ready'}">${pips}<small>${left ? `Radio free again in ${left} wave${left > 1 ? 's' : ''}` : `One drop every ${SUPPLY.every} waves`}</small></span>`;
