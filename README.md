@@ -612,7 +612,12 @@ slip), and the old mag falling, the new one going home and their sounds all land
 **A gun in each hand.** With the second pistol or second machine pistol fitted, left click fires the gun on your left and
 right click the one on your right, and each gun kicks on its own shot from
 your own eyes, flipping up on its wrist while the other stays steady, and running with them each hand pumps forward
-and back with your stride, opposite the other, the guns canted out.
+and back with your stride, opposite the other, the guns canted out. Inspecting a pair (**Y**) has its own moves: each
+gun is turned on its own wrist rather than the two swung about as one, the left a beat behind the right and mirroring
+it. Both come up and in, roll onto their sides to show their outsides, roll right over to show their insides, stand
+muzzles up and toed in so you see both muzzles side by side, then tip down so you look along the slides, and go back
+onto the aim. From your own eyes they're brought up into view, held out where the fists don't hide them. A shot from
+either gun (left or right click) ends it at once.
 
 **Inspecting.** Press **Y** (it can be rebound) to look your gun over, from your own eyes or from above: it's brought
 up and in, rolled over to show one side and then the other, swung round to see down its front, and tipped to look
