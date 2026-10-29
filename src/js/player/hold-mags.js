@@ -132,25 +132,24 @@ export const MAG_CARRY = { u: -1, mg: null, p0: null, sh: null, lg: false, miss:
 // mag), and over how much more the mag's brought onto the well's line before it gets there (in). Once its top's into
 // the well it's on that line exactly, nothing across and no tip, so it goes up the well and never through its sides
 const MAG_FUNNEL = { long: 0.075, hand: 0.85, in: 0.13, side: [0.22, 0.16] };
-// missing the well (weapons/reload.js: MAG_MISS): wherever the mag was when it went wrong, it's drawn back down out of
-// the well to just under its mouth (pre: how far under), brought off the well's line (off: metres across and fore and
-// aft, as each miss has it, side and fwd) and tipped a little with it (MAG_MISS_TIP, radians), pushed up into the
-// mouth's lip (lip: how far short of the mouth it stops), gathering speed into the knock (MISS_HIT of the way through),
-// knocked a little back down off it (bounce), then lined up again under the mouth and put back where it was. It's only
-// ever off the line below the mouth, so it never goes through the side of the well
-const MAG_MISS_OFF = [0.01, 0.008], MAG_MISS_TIP = [0.075, 0.05], MAG_MISS_V = { pre: 0.026, lip: 0.003, bounce: 0.007, clear: 0.002 };   // (each miss scales them by its own amt, pre and bounce: weapons/reload.js, so no two look alike)
+// missing the well (weapons/reload.js: MAG_MISS), all one motion: from wherever the mag was, it drifts off the well's
+// line as it comes on up (off: metres across and fore and aft, as each miss has it, side and fwd; tipped a little with
+// it, MAG_MISS_TIP, radians), its top meeting the mouth's lip (lip: how far short of the mouth) at MISS_HIT of the way
+// through, still moving, and knocked back off it (bounce, dying away), then eased back onto the line and on as it was.
+// Never a stop, a jerk the other way or two moves at once, only the one knock; and only ever off the line below the
+// mouth (clear), so it never goes through the side of the well
+const MAG_MISS_OFF = [0.01, 0.008], MAG_MISS_TIP = [0.075, 0.05], MAG_MISS_V = { lip: 0.003, bounce: 0.008, clear: 0.006, ring: 2.2, die: 5 };   // (each miss scales them by its own amt and bounce: weapons/reload.js, so no two look alike)
 const _mmL = new V3();
 function magMiss(q, P0, sh, lg, m, k) {
   _fA.set(0, 1, 0).applyAxisAngle(_mX, sh.lean);
   const d0 = -_fD.subVectors(q, P0).dot(_fA), mouth = lg ? MAG_FUNNEL.long : sh.len * MAG_FUNNEL.hand, V = MAG_MISS_V, H = MISS_HIT;
-  const a = m.amt ?? 1, bo = V.bounce * (m.bounce ?? 1) * a, pre = mouth + V.pre * (m.pre ?? 1), hit = mouth + V.lip, back = 0.52, line = 0.8;
-  let d, off;
-  if (k < 0.25) { const u = smooth(k / 0.25); d = d0 + (pre - d0) * u; off = u; }   // down and off the line
-  else if (k < H) { const u = (k - 0.25) / (H - 0.25); d = pre + (hit - pre) * u * u; off = 1; }   // up into the lip, quickening
-  else if (k < back) { const u = (k - H) / (back - H); d = hit + bo * Math.sin(Math.PI / 2 * u); off = 1; }   // knocked back off it
-  else if (k < line) { const u = smooth((k - back) / (line - back)); d = hit + bo + (pre - hit - bo) * u; off = 1 - u; }   // lined up again
-  else { const u = smooth((k - line) / (1 - line)); d = pre + (d0 - pre) * u; off = 0; }   // and on as it was
-  off *= clamp((d - mouth) / V.clear, 0, 1);
+  const a = m.amt ?? 1, bo = V.bounce * (m.bounce ?? 1) * a, hit = Math.min(d0, mouth + V.lip);
+  // (up into the lip, picking up a little speed; then back off it on a dying bounce and eased home to where it was)
+  let d;
+  if (k < H) { const u = k / H; d = d0 + (hit - d0) * (u * u * (3 - u) / 2); }
+  else { const u = (k - H) / (1 - H), ring = Math.sin(Math.PI * Math.min(1, u * V.ring)) * Math.exp(-V.die * u); d = hit + (d0 - hit) * smooth(u) + bo * ring; }
+  // (off the line: drifting off on the way up, back on after the knock)
+  const off = smooth(clamp(k / H, 0, 1)) * (1 - smooth(clamp((k - H) / (0.92 - H), 0, 1))) * smooth(clamp((d - mouth) / V.clear, 0, 1));
   _mmL.set(MIR * m.side * MAG_MISS_OFF[0] * a, 0, m.fwd * MAG_MISS_OFF[1] * a); _mmL.addScaledVector(_fA, -_mmL.dot(_fA));   // (across the well's line)
   q.addScaledVector(_fA, d0 - d).addScaledVector(_mmL, off);
   return off * a;

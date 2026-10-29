@@ -198,11 +198,17 @@ export function grateStep(o, dt) {
 }
 // pieces of grate on the ground: steel that clangs where it lands (weapons/casings.js's debris), a while, then gone
 export const looseMetal = [];
+// (it's thrown clear of the wall: started out past the wall's face on the side it's going (METAL_OFF.clear, metres from the
+// opening's middle), going out from it at least METAL_OFF.out a second, and only a little along the wall, so it lands in
+// the room or outside, never down in the wall's thickness)
+const METAL_OFF = { clear: 0.6, out: 0.7, along: 0.25 };
 function metalOff(m, o, kind, r, lay, f) {
   m.updateMatrixWorld(true); const wp = new V3(), wq = new THREE.Quaternion(); m.getWorldPosition(wp); m.getWorldQuaternion(wq);
   if (m.parent) m.parent.remove(m); m.rotation.order = 'YXZ'; m.position.copy(wp); m.quaternion.copy(wq); scene.add(m);
   const sd = -(o.grate ? o.grate.push : 1), ox = o.nx * sd, oz = o.nz * sd, k = f || 1;
-  looseMetal.push({ g: m, life: 30, vx: ox * rr(0.4, 1.4) * k + rr(-0.4, 0.4), vy: rr(0.2, 1.2) * k, vz: oz * rr(0.4, 1.4) * k + rr(-0.4, 0.4), spin: rr(-4, 4) * k, roll: rr(-4, 4) * k, r, bounces: 0, kind, restY: r, rest: lay });
+  const off = (wp.x - o.x) * ox + (wp.z - o.z) * oz; if (off < METAL_OFF.clear) { m.position.x += ox * (METAL_OFF.clear - off); m.position.z += oz * (METAL_OFF.clear - off); }
+  const out = Math.max(METAL_OFF.out, rr(0.4, 1.4) * k), al = rr(-METAL_OFF.along, METAL_OFF.along);
+  looseMetal.push({ g: m, life: 30, vx: ox * out - oz * al, vy: rr(0.2, 1.2) * k, vz: oz * out + ox * al, spin: rr(-4, 4) * k, roll: rr(-4, 4) * k, r, bounces: 0, kind, restY: r, rest: lay });
   while (looseMetal.length > 60) { const q = looseMetal.shift(); scene.remove(q.g); }
 }
 const layFlat = q => q.rotation.set(Math.PI / 2, rr(0, 6.3), 0), layBar = q => q.rotation.set(0, rr(0, 6.3), Math.PI / 2);

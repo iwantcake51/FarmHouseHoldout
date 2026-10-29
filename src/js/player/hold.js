@@ -448,6 +448,7 @@ const CH_ANT = 0.3, CH_ANT_D = 0.014;
 // guns whose charging handle is on the bolt carrier (the battle rifle's, out on its side): it runs back and forward with
 // every shot and stays locked back with the bolt on an empty mag, till the reload's charge lets it fly home
 const CH_ON_BOLT = new Set(['scar']);
+const FUMBLE_HAND = { dip: 0.03, side: 0.014, fwd: 0.012, n: 1.5 };
 const IDLE_UNSTEADY = 0.8, FP_REL_TURN = 0.4, BOLT_LET = 11, FP_SPRINT_BOUNCE = 0.35;
 // where the fingers push the revolver's open cylinder shut: on its outside, away from the frame (the way it swung out,
 // from where it sits shut), in upper-body space. Its middle's found once from its own parts (userData.cc)
@@ -1059,6 +1060,12 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
     // (player/inspect.js)
     if (!free && H.kind === 'hand' && inspectW() > 0.002) { free = _p4.copy(SWAP_REST_L); wt = smooth(clamp(inspectW() * 1.3, 0, 1)); }
     if (free && re > 0.001) { const b = Math.sin(Math.PI * clamp(rp, 0, 1)); free.x += J.dx * b; free.y += J.dy * b; }
+    // fumbling it (weapons/reload.js: a fumble with hurt hands): the hand with the mag bobbles it, a dip and a catch
+    // and a wobble across, coming and going smoothly with the fumble (FUMBLE_HAND: metres, and how many wobbles)
+    if (free && W8.relSeg && W8.relSeg.kind === 'fumble') {
+      const k = W8.relSegK, e = Math.sin(Math.PI * k), F = FUMBLE_HAND;
+      free.y -= F.dip * e * e; free.x += F.side * Math.sin(2 * Math.PI * F.n * k) * e; free.z += F.fwd * Math.sin(Math.PI * 2 * k) * e;
+    }
     handTarget(_fL, 'L', _hL, free, wt, rdt, MAG_CARRY.u >= 0 ? smooth(clamp(MAG_CARRY.u / MAG_STIFF_IN, 0, 1)) : 0);
     magToFist(_fL, free);   // the fresh mag, where the fist actually got to
     // the round in the hand from the pouch till it's pushed in (pump and double barrel shells, rifle cartridges, the

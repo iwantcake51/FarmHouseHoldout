@@ -73,7 +73,7 @@ export const RK = { R: kickState(), L: kickState() };
 // gun (act) thumps hardest: more flip, a harder shove back into the shoulder, the hands lifted further and the
 // shoulders rocked much further (KICK_ACT). The bolt-action rifle comes back from its kick slower than the rest
 // (KICK_BOLT_RET of the speed, the same height), a heavy gun settling back onto the shoulder
-export const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 0.9, back: 1.6, lift: 0.9, rock: 1.0 }, KICK_BOLT_RET = 0.55;
+export const SR = { x: 0, vx: 0, y: 0, vy: 0, ret: 1 }, SR_MAX = 0.14, KICK_ACT = { flip: 0.9, back: 1.6, lift: 0.9, rock: 1.0 }, KICK_BOLT_RET = 0.38;
 // how much a shot turns the gun (its flip up, roll, yaw and the shoulder's rock), on every gun, and less again on a full
 // automatic, whose kicks come too fast to settle between
 const KICK_ROT = 0.42, KICK_ROT_AUTO = 0.6;
@@ -108,7 +108,9 @@ export function gunKick(side, pw, kind, auto, act, feel) {
   SR.vx += rock * rr(0.85, 1.15); SR.vy += (side === 'L' ? -1 : 1) * rock * 1.1 * rr(0.8, 1.2);
   BR.vz += (hand ? 0.35 * hp : 0.6 * pw) * F.body * (A ? 1.3 : 1) * (1 - 0.5 * (ANIM.ads || 0)) * (1 - 0.7 * clamp(BR.z / BR_MAX, 0, 1)) * rr(0.85, 1.15);
   k.vr += (rand() < 0.5 ? -1 : 1) * (hand ? 2.4 * hp : pw * 1.6) * rr(0.7, 1.2) * rot; k.vy += rr(-1, 1) * (hand ? 1.3 * hp : pw * 0.8) * rot * F.jit;
-  if (big > 0.05 && !auto) { const d = big * rr(0.8, 1.05) * bolt; k.dropT = rr(0.07, 0.1) / (F.ret * bolt); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
+  // (a bolt gun's isn't hauled back down: it settles on its slow spring straight into working the bolt, which takes it
+  // up again; hauled down first, it dipped and rose back up as the bolt came, a snap between the kick and the cycle)
+  if (big > 0.05 && !auto && act !== 'bolt') { const d = big * rr(0.8, 1.05) * bolt; k.dropT = rr(0.07, 0.1) / (F.ret * bolt); k.dP = flip * d; k.dH = -pw * 0.9 * d; k.dZ = pw * 0.8 * d; }
   if (bolt !== 1) { k.vp = v0[0] + (k.vp - v0[0]) * bolt; k.vz = v0[1] + (k.vz - v0[1]) * bolt; k.vh = v0[2] + (k.vh - v0[2]) * bolt; k.vr = v0[3] + (k.vr - v0[3]) * bolt; k.vy = v0[4] + (k.vy - v0[4]) * bolt; SR.vx = v0[5] + (SR.vx - v0[5]) * bolt; SR.vy = v0[6] + (SR.vy - v0[6]) * bolt; }
 }
 export function stepKick(k, dt) {

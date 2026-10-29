@@ -19,6 +19,8 @@ import { fitAttachments } from './attachments.js';
 import { buildGear } from '../player/gear.js';
 import { state } from '../game/state.js';
 import { movingOf } from '../net/arsenal.js';
+import { measureGrip } from '../player/grip.js';
+import { HOLD } from '../player/hold.js';
 
 function drum(parent, info, big) {
   const r = big ? 0.15 : 0.115, w = big ? 0.12 : 0.1, cy = info.magY - r - 0.02;
@@ -130,6 +132,7 @@ export function buildGuns(only) {
     else { const a = hold(0, 'R'); MUZ[s] = build(a); HOLDS[s] = { R: a }; }
     g.traverse(o => { if (o.isMesh && o.material && !Array.isArray(o.material)) o.material.userData.mobile = true; });   // weapons carry their own blood
     MAGPOS[s] = rec.magpos; CHARGE[s] = rec.charge; BRK[s] = rec.brk; BELT[s] = rec.belt; BIPOD[s] = rec.legs;
+    if (!D.melee && rec.soon) measureGrip(HOLDS[s].R, HOLD[id]);   // (where the support hand takes it, measured now off its fresh pieces, before they're folded a moment later: player/grip.js)
     if (!D.melee && !rec.soon) foldGun(s);   // (one built in play folds once its faces are settled: unfightSoon)
     trimShadows(g); stainWeapon(id, D.melee ? [g] : Object.values(HOLDS[s]), !!D.melee); g.userData.bloodId = id;   // and here it is (effects/body-blood.js)
     setTierCtx(null);

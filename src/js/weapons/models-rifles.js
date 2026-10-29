@@ -493,6 +493,7 @@ export const RIFLE_MODELS = {
   // (down on its legs with the bipod mod); the ammo box hanging on the left, its lid propped open and the belt rising
   // out of it into the feed tray
   lmg(g, m) {
+    const LMG_AP = { hw: 0.0078, r: 0.0042, y: 1.236 };   // (the rear aperture: half its plate's width, the hole's radius and height, level with the post's tip)
     const K = GM.metal, P = GM.furn, y0 = 1.13, mg = g.userData.magG || g, sight = T('sight');
     // ---- the stock: ribs down both sides, the steel butt plate with the shoulder rest folded on top
     const ST = [[0.0605, 0.9989], [0.0632, 1.0294], [0.0634, 1.0782], [0.0598, 1.1458], [0.0558, 1.1806], [0.0573, 1.1859], [0.0647, 1.1899], [0.0638, 1.1962], [0.0724, 1.1979], [0.0742, 1.2005], [0.0883, 1.1992], [0.1095, 1.1864], [0.1182, 1.1849], [0.1237, 1.1872], [0.1304, 1.1862], [0.1357, 1.1801], [0.1735, 1.17], [0.179, 1.1655], [0.1848, 1.1654], [0.1875, 1.1688], [0.1928, 1.1701], [0.258, 1.1695], [0.258, 1.0495], [0.2384, 1.0492], [0.2281, 1.0458], [0.141, 0.9888], [0.1257, 0.9821], [0.0981, 0.9767], [0.0837, 0.9773], [0.0674, 0.9835]];
@@ -516,8 +517,10 @@ export const RIFLE_MODELS = {
     const RS = [[0.6539, 1.158], [0.6577, 1.169], [0.658, 1.1789], [0.6552, 1.1851], [0.6625, 1.1993], [0.657, 1.2022], [0.6601, 1.2081], [0.6565, 1.2248], [0.6605, 1.2338], [0.6606, 1.2575], [0.6651, 1.2585], [0.6672, 1.2307], [0.6712, 1.2197], [0.6684, 1.208], [0.6731, 1.2035], [0.6684, 1.2002], [0.6684, 1.1939], [0.6744, 1.184], [0.6764, 1.1589]];
     if (!sight) {   // (the ladder up to the aperture plate at its top, the hole through it looked through down the gun)
       apPart(profile(g, shp(clipTo(RS, [[0.6, 1.15], [0.7, 1.15], [0.7, 1.2305], [0.6, 1.2305]])), 0.012, K, X, 0.0012)); apPart(cyl(g, 0.0065, 0.03, GM.metal2, X, 1.195, 0.665, 14)).rotation.set(0, 0, Math.PI / 2);
-      apPlate(g, X, 0.0065, 1.2305, 1.2585, 0.66, 0.6712, 1.236, 0.0026, K);
-      irons(g, { kind: 'ap', yr: 1.236, rz: 0.66, r: 0.0026, yf: 1.236, fz: 1.3755, relief: 0.13 });   // (your cheek on the stock, the aperture a hand's breadth out, not right at your eye)
+      // (its aperture opened up to a ghost ring, LMG_AP: the 2.6 mm peep it was, seen from a hand's breadth, left a window
+      // a burst's shake lost entirely)
+      apPlate(g, X, LMG_AP.hw, 1.2305, 1.2585, 0.66, 0.6712, LMG_AP.y, LMG_AP.r, K);
+      irons(g, { kind: 'ap', yr: LMG_AP.y, rz: 0.66, r: LMG_AP.r, yf: LMG_AP.y, fz: 1.3755, relief: 0.13 });   // (your cheek on the stock, the aperture a hand's breadth out, not right at your eye)
     }
     else box(g, 0.014, 0.006, 0.06, K, X, 1.1615, 0.69);
     // ---- the pistol grip, raked back, with its grooves; the big round guard and the trigger in it

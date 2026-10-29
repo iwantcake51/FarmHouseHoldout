@@ -94,7 +94,7 @@ const SHOULDER_IN = { at: 0.72, p: 0.07, y: 0.05, r: 0.2, z: 0.09, k: 320, d: 10
 const FP_RECOIL = {
   hand: { flip: 0.07, flipPw: 0.13, back: 0.024, backPw: 0.04, up: 0.006, roll: 0.03, yaw: 0.006, side: 0.001, w: 30, z: 0.66, pivot: [0, -0.07, 0.09] },
   long: { flip: 0.03, flipPw: 0.05, back: 0.026, backPw: 0.03, up: 0.004, roll: 0.022, yaw: 0.004, side: 0.0008, w: 24, z: 0.7, pivot: [0, -0.05, 0.36] },
-  act: 1.25, shells: 1.55, shellsBack: 1.05, ads: [0.5, 0.35, 0.4], adsMove: 0.55, adsPush: 0.45, adsRattle: 0.4, adsClimb: 0.6, dir: { bias: -0.05, spread: 0.2, max: 0.35 },
+  act: 1.25, boltRet: 0.5, shells: 1.55, shellsBack: 1.05, ads: [0.5, 0.35, 0.4], adsMove: 0.55, adsPush: 0.45, adsRattle: 0.4, adsClimb: 0.6, dir: { bias: -0.05, spread: 0.2, max: 0.35 },
   auto: { k: 0.55, climb: 0.007, max: 0.055, wander: 0.25, w: 9, back: 5 },
   rattle: { pos: 0.0008, rot: 0.003, f: [9, 12, 15], decay: 12, auto: 0.5, semi: 0.22, view: 0.04 }
 };
@@ -669,9 +669,12 @@ export function viewKick(pw, auto) {
   if ((V.ff || 0) < FIRE_FOV.max) V.vff = (V.vff || 0) + pw * FIRE_FOV.punch * (auto ? FIRE_FOV.auto : 1) * 10;
   const C = V.rc, hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
   const act = EJECT[curId()], a = (act === 'pump' || act === 'bolt' ? FP_RECOIL.act : 1) * (D && D.ammo === 'shells' ? FP_RECOIL.shells : 1) * (auto ? AU.k : 1), q = Math.min(pw, 1.25);
-  C.kind = hand ? 'hand' : 'long'; C.w = F.w; C.d = 2 * F.z * F.w;
+  // (a bolt gun comes back off its kick slower, boltRet of the spring's speed, settling into working the bolt rather
+  // than snapping back flat before it; the impulse is for the same height on the slower spring)
+  const w = F.w * (act === 'bolt' ? FP_RECOIL.boltRet : 1);
+  C.kind = hand ? 'hand' : 'long'; C.w = w; C.d = 2 * F.z * w;
   // (an impulse for the size it's to reach at its most, on this spring)
-  const v = 1 / (Math.exp(-F.z / Math.sqrt(1 - F.z * F.z) * Math.atan(Math.sqrt(1 - F.z * F.z) / F.z)) / F.w);
+  const v = 1 / (Math.exp(-F.z / Math.sqrt(1 - F.z * F.z) * Math.atan(Math.sqrt(1 - F.z * F.z) / F.z)) / w);
   const room = 1 - 0.5 * clamp(C.p / (F.flip + F.flipPw), 0, 1);   // (less room to flip it up the higher it already is)
   const fl = (F.flip + F.flipPw * q) * a * room * rr(0.85, 1.15) * v; C.vp += fl * ku * upK; C.vy += fl * ks * rr(0.6, 1) * sdK;
   C.vz += (F.back + F.backPw * q) * a * (D && D.ammo === 'shells' ? FP_RECOIL.shellsBack / FP_RECOIL.shells : 1) * rr(0.85, 1.15) * v; C.vh += F.up * (0.5 + q) * a * rr(0.7, 1.2) * v;
@@ -924,17 +927,18 @@ export function fpMeleeHit(heavy, hard) {
   V.vmk = (V.vmk || 0) + C.hitP * k; V.vmz = (V.vmz || 0) + C.hitZ * k * 0.1;
 }
 // down the sights, once your eye's been placed on them: each shot's turn of the gun (FP_RECOIL.ads) put on the whole of
-// what you hold up (your arms and the gun with them), about the front sight (front: where it is in the world), so the
-// post stays put in the middle of the view, still pointed where you aim, while the rest of the gun (the rear sight, the
-// receiver, your hands) tips up and aside about it and settles back (its shove back your eye does ride: shoulderShake)
+// what you hold up (your arms and the gun with them), about your eye (at: where it is in the world), so the rear sight
+// and the front (or the optic's window and its dot) stay lined up on your eye and the sight picture tips up and aside
+// as one and settles back, never one sight swung across the other (turned about the front sight, the rear swung up
+// over it on a heavy kick, the LMG's, and you couldn't see through it). Its shove back your eye does ride: shoulderShake
 const _ktQ = new THREE.Quaternion(), _ktE = new THREE.Euler(), _ktP = new V3(), _ktT = new V3(), _ktM = new THREE.Matrix4(), _ktM2 = new THREE.Matrix4();
-function adsKickTilt(front, w) {
+function adsKickTilt(at, w) {
   const C = V.rc, A = FP_RECOIL.ads;
   const p = C.p * A[0] * w, y = C.y * A[1] * w, r = C.r * A[2] * w, push = C.z * FP_RECOIL.adsPush * w;
   if (Math.abs(p) + Math.abs(y) + Math.abs(r) + Math.abs(push) < 1e-6) return false;
   const U = PM.upper; U.updateMatrixWorld(true);
   _rq.setFromEuler(_rE.set(armsP(), armsY() + Math.PI, viewR(), 'YXZ'));
-  _ktP.copy(front);
+  _ktP.copy(at);
   _ktT.set(0, 0, push).applyQuaternion(_rq);   // (and shoved back toward your eye along the view: adsPush)
   _ktQ.copy(_rq).multiply(_vcQ.setFromEuler(_ktE.set(p, y, r, 'YXZ'))).multiply(_vcQ.copy(_rq).invert());
   _ktM.makeTranslation(-_ktP.x, -_ktP.y, -_ktP.z).premultiply(_ktM2.makeRotationFromQuaternion(_ktQ)).premultiply(_ktM2.makeTranslation(_ktP.x + _ktT.x, _ktP.y + _ktT.y, _ktP.z + _ktT.z));
@@ -1038,9 +1042,9 @@ export function viewFrame(rdt, roll, sh, jolt) {
       // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
       _vcH.subVectors(_vcD, _vcE); const dl = _vcH.length(); if (dl > ADS_EYE_MAX) _vcD.copy(_vcE).addScaledVector(_vcH, ADS_EYE_MAX / dl);
       _vcE.lerp(_vcD, w);
-      // (then the shot's kick tips the gun about its front sight, your eye left where it is: iron sights' shots still go
-      // where the post is, in the middle; an optic's line is measured again, as its dot or picture shows where it points)
-      if (adsKickTilt(_pb, w) && L.kind !== 'iron' && L.kind !== 'ap') { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
+      // (then the shot's kick tips the gun about your eye, its sights kept lined up on it; the sight line's measured
+      // again, so the shots go where the sights now point, the post or the dot)
+      if (adsKickTilt(_vcE, w)) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); _sd.subVectors(_pb, _pa).normalize(); }
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)

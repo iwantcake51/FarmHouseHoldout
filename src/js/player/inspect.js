@@ -147,8 +147,8 @@ const INSP_SPRING = { w: 10, z: 0.72, wIn: 6, wOut: 2.5 };
 const CH = ['p', 'y', 'r', 'x', 'h', 'z', 'hp', 'hy', 'tw', 'fs', 'up'];
 // what's put on the gun this frame (o; spin: the revolver's twirl, radians), and the springs chasing the keyframes (s,
 // and their speeds v)
-const INSP = { t: -1, id: null, w: 0, o: { spin: 0 }, s: {}, v: {}, spin: 0, rate: 1, clk: 0, pk: 1, oL: {}, sL: {}, vL: {} };   // (oL, sL, vL: the left gun of a pair's own)
-const INSP_MENU = { stop: 3.2, go: 4, ease: 5 };   // (how quickly it slows to a stop under a menu, and picks up again after: a second's worth; ease: how quickly it's let go of and taken back up round a pause)
+const INSP = { t: -1, id: null, w: 0, o: { spin: 0 }, s: {}, v: {}, spin: 0, rate: 1, clk: 0, oL: {}, sL: {}, vL: {} };   // (oL, sL, vL: the left gun of a pair's own)
+const INSP_MENU = { stop: 12, go: 6 };   // (how quickly it comes to a stop under a menu, and picks up again after)
 CH.forEach(c => { INSP.o[c] = INSP.s[c] = INSP.v[c] = 0; });
 CH_HAND.forEach(c => { INSP.oL[c] = INSP.sL[c] = INSP.vL[c] = 0; });
 // whatever's stopping you: your hands are needed, or you're not in a state to stand and look
@@ -213,14 +213,12 @@ export function inspectPose(rdt, D, id, hand, fp, endT) {
   // (the left gun of a pair: the same moves a beat behind; let go of with the pair or anything else, it's eased back too)
   for (let n = Math.ceil(rdt / (1 / 240)), h = rdt / Math.max(1, n), j = 0; j < n; j++)
     for (const c of CH_HAND) { const tg = on && pair ? curve(L, Math.max(0, I.t - lag), c) : 0; I.vL[c] += (k * (tg - I.sL[c]) - d * I.vL[c]) * h; I.sL[c] += I.vL[c] * h; }
-  // (paused from your own eyes, the hands ease off to the plain hold, player/hold.js pauseIdle: so does this, held where
-  // it stopped and eased back into as you resume, never left half on a gun the hands have let go of)
-  I.pk += (1 - smooth(clamp(ANIM.pzK || 0, 0, 1)) - I.pk) * Math.min(1, rdt * INSP_MENU.ease); const pk = smooth(clamp(I.pk, 0, 1));
-  for (const c of CH) I.o[c] = I.s[c] * I.w * pk;
-  for (const c of CH_HAND) I.oL[c] = I.sL[c] * I.w * pk;
+  // (paused, it's held just where it is, frozen mid-move, and carries on from there as you resume: I.rate)
+  for (const c of CH) I.o[c] = I.s[c] * I.w;
+  for (const c of CH_HAND) I.oL[c] = I.sL[c] * I.w;
   // the hands never quite still while it's held up (on its own clock, which stops with it under a menu: dead still there)
   I.clk += rdt * I.rate;
-  { const q = INSP_SHAKE, f = q.f, ts = I.clk, k = I.w * pk;
+  { const q = INSP_SHAKE, f = q.f, ts = I.clk, k = I.w;
     I.o.p += q.p * k * Math.sin(ts * f[0] * 6.28); I.o.y += q.y * k * Math.sin(ts * f[1] * 6.28 + 1.1); I.o.r += q.r * k * Math.sin(ts * f[2] * 6.28 + 2.3);
     I.oL.p += q.p * k * Math.sin(ts * f[1] * 6.28 + 0.6); I.oL.y += q.y * k * Math.sin(ts * f[2] * 6.28 + 2.0); I.oL.r += q.r * k * Math.sin(ts * f[0] * 6.28 + 0.4); }
   // the spin: as it goes, or (cut short) finished off to the nearest whole turn, quickly, and let go of
