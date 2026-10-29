@@ -324,8 +324,10 @@ The fire mode by your ammo count only shows its B hint on a gun that can actuall
 with a mod that adds a setting).
 
 Under the ammo count, past a thin rule, the slot row shows what you carry: each weapon as a picture of its own model in
-the HUD's off-white, lit from the upper left with a thin inked line where one part stands in front of another, by the
-number that picks it. Everything you've fitted to a gun (a sight, a light, a laser, a can or choke, a bigger mag, a
+the HUD's off-white, by the number that picks it. Each is shaded like a drawing: lit from the upper left with a glint
+where a face turns the light to you, the parts further back a shade darker than the nearest, the crevices and the parts
+under an overhang darker still, a little lighter at the top than the bottom, and a thin inked line where one part stands
+in front of another. Everything you've fitted to a gun (a sight, a light, a laser, a can or choke, a bigger mag, a
 bayonet or stock) is drawn in gold with a hairline gap round it, so you can see at a glance what's been upgraded. A
 pair of guns shows as two: the second behind the first, up and to the right, half see-through. Each slot is as wide
 as its picture, so the gaps between them are even. The one in your hands is lit with a short mark under it the width
@@ -750,6 +752,16 @@ of a broadleaf's crown), and a tree whose whole outline is behind them is left o
 boughs, so a tree you'd see through a gap is always drawn. Same-frame renders with and without it come out identical.
 From your own eyes that takes the woods from 2,475 trees to about 300–650 drawn, depending on where you look. A tree
 left out of the frame still casts its shadow, from a copy drawn only into the shadow map.
+Everything else that stands still is culled the same way. From your own eyes (and the free camera) the house's outer
+walls go into that depth picture first, as the faces of each run of wall cells. Window and door cells are left out, so
+whatever you'd see through an opening is always drawn. So the woods behind the house are left out too. Then every
+piece of the house, the furniture and the yard's props that's wholly behind a wall or a tree crown is left out of the
+frame. From any view, a piece under about half a pixel across on screen (a hinge, a nail, a screw far off) is also left
+out. Its size on screen comes from the camera's own field of view, so with a wide one small things far off go sooner,
+as they look smaller. Pieces behind you or off to the side were already left out, against the same camera. Only the
+frame is culled, never the shadow map (the sun sees what you can't) or a scope's view. Same-frame renders with and
+without it came out identical. Facing the house from outside, a frame went from about 224,000 triangles and 600 draws to
+137,000 and 390; from the side, 218,000 and 600 to 173,000 and 430; inside, about 15% fewer triangles.
 The trees outside the fence now cast shadows too. Those within reach of the sun's shadows cast real ones, and the far
 woods (past about 32 m from the middle, beyond the shadow map) lay a soft shadow on the ground away from the sun,
 as long as the tree's height over the sun's angle, turned with the sun through the day and fading with it. Every tree
@@ -768,8 +780,10 @@ there:
   pixels across they look the same.
 - **Trees:** the trunk's hidden ends (one in the ground, one up inside the boughs) are gone. Every flat end is fanned
   from a corner, so an 8-sided cone's base is 6 triangles, not 8. The grass tufts' bases are fanned the same way. A
-  tree under 64 pixels tall from your own eyes is drawn with 6-sided tiers on a 5-sided trunk; same-frame renders with
-  and without it differ in about one pixel in a thousand. The trees' shadows are cast from that lighter version too,
+  tree gets lighter the less of it you can see. From your own eyes, one under 64 pixels tall, or with over 40% of it
+  behind nearer trees, is drawn with 6-sided tiers on a 5-sided trunk. One under 26 pixels, or over 75% hidden, gets
+  5-sided tiers on a 4-sided trunk. One wholly hidden isn't drawn at all. Same-frame renders with and without the
+  lighter trees differ in about one pixel in a thousand. The trees' shadows are cast from that lighter version too,
   as the sun's shadows are softened over more than the two ever differ by.
 - **The bat's** turned outline keeps only the points its curves need (a tenth of a millimetre), not 90 evenly spread.
 - **Wrist pieces:** the beads, knots and chain links are only a few millimetres across, so they're rounded with fewer

@@ -51,15 +51,15 @@ const _tgb = new THREE.Color(), _tgt = new THREE.Color();
 // lowest boughs) are left open, and each tier's flat underside is fanned from a corner (core/geometry.js: tightCyl).
 // And a far one the same (its lo), the very same tiers on a trunk of fewer sides with fewer sides of their own
 // (PINE_LO), for when it's small on screen (world/tree-cull.js)
-const PINE_LO = { cone: 6, trunk: 5 };
+const PINE_LO = { cone: 6, trunk: 5 }, PINE_LO2 = { cone: 5, trunk: 4 };   // (and its lightest, lo2, for smaller still or mostly hidden)
 function pineGeo(tiers, w, h0, greens, tr = 0.9) {
   const tk = tr + 0.6, rb = 0.18 * (tr > 1.2 ? 1.15 : 1), trunk = n => fpiece(tightCyl(0.11, rb, tk, n, [false, false]), BARK, 0.08, fm4(0, tk / 2, 0));
-  const P = [trunk(7)], L = [trunk(PINE_LO.trunk)], cones = [];
+  const P = [trunk(7)], L = [trunk(PINE_LO.trunk)], L2 = [trunk(PINE_LO2.trunk)], cones = [];
   let y = tr, top = tr; const solid = [];
   for (let k = 0; k < tiers; k++) {
     const t = k / Math.max(1, tiers - 1), r = w * (1 - 0.7 * t) * rr(0.94, 1.06), hh = h0 * (1 - 0.4 * t);
     const m4 = fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05));
-    cones.push([fpiece(tightCyl(0, r, hh, 8), greens[0], 0, m4), P], [fpiece(tightCyl(0, r, hh, PINE_LO.cone), greens[0], 0, m4), L]);
+    cones.push([fpiece(tightCyl(0, r, hh, 8), greens[0], 0, m4), P], [fpiece(tightCyl(0, r, hh, PINE_LO.cone), greens[0], 0, m4), L], [fpiece(tightCyl(0, r, hh, PINE_LO2.cone), greens[0], 0, m4), L2]);
     solid.push(...coneSolid(y, r, hh));
     top = y + hh; y += hh * (tiers > 3 ? 0.42 : 0.48);
   }
@@ -69,7 +69,7 @@ function pineGeo(tiers, w, h0, greens, tr = 0.9) {
     for (let v = 0; v < pos.count; v++) { _tfc.copy(_tgb).lerp(_tgt, clamp((pos.getY(v) - tr) / (top - tr), 0, 1)); col.setXYZ(v, _tfc.r, _tfc.g, _tfc.b); }
     into.push(g);
   });
-  const g = fjoin(P); g.userData.solid = solid; g.userData.lo = fjoin(L); return g;
+  const g = fjoin(P); g.userData.solid = solid; g.userData.lo = fjoin(L); g.userData.lo2 = fjoin(L2); return g;
 }
 // what of a cone (from base y, radius r, hh tall) is solid seen from any side, as boxes standing inside it [y0, y1, half
 // its width]: a staircase up it, each step as wide as the cone at its top, less a margin for the tier's lean and its

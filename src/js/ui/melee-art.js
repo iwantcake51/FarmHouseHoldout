@@ -39,7 +39,12 @@ export function meleeArt(id, mods, lv = modLv) {
 // hairline round the front one
 // Where one part stands out in front of another by more than ART.step (a receiver over its barrel, a grip over its
 // frame), the edge of the one behind gets a line inked in, ART.line of its colour, so the parts read inside the outline
-const ART = { ss: 2, cut: 2, pairX: 0.3, pairY: 0.26, pairA: 0.45, ink: 0xece6d8, gold: 0xf0bf4c, lo: 0.52, step: 0.005, line: 0.55 };   // (cut: in drawn pixels, twice CSS ones; lo: the shade facing away from the light; step: metres)
+const ART = { ss: 2, cut: 2, pairX: 0.3, pairY: 0.26, pairA: 0.45, ink: 0xece6d8, gold: 0xf0bf4c, lo: 0.4, step: 0.005, line: 0.55 };   // (cut: in drawn pixels, twice CSS ones; lo: the shade facing away from the light; step: metres)
+// and shaded like a drawing: a glint where a face turns the light to you (spec: how bright, how tight), the parts further
+// back a shade darker than the nearest (deep), the crevices and the parts under an overhang darker still (ao: how much
+// for each neighbour nearer by aoStep, as far as most, looked for r drawn pixels round), and a little lighter at the top than the
+// bottom (fall), as if lit from above
+const ART_SHADE = { spec: [0.3, 26], deep: 0.3, ao: 0.035, aoMost: 0.22, r: [4, 8], aoStep: 0.004, fall: 0.16 };   // (aoStep: how much nearer a neighbour must be to count, metres)
 const ART_INK = artMat(ART.ink), ART_GOLD = artMat(ART.gold), ART_DEPTH = new THREE.MeshBasicMaterial({ colorWrite: false });
 // how near each pixel is, as its red (0 at the camera's near plane, 255 at its far one: set to the model's own depth)
 const ART_Z = new THREE.ShaderMaterial({ side: THREE.DoubleSide, vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'void main() { gl_FragColor = vec4(gl_FragCoord.z, 0.0, 0.0, 1.0); }' });
@@ -49,7 +54,9 @@ function artMat(hex) {
   return new THREE.ShaderMaterial({
     uniforms: { col: { value: new THREE.Color(hex) }, lo: { value: ART.lo } }, side: THREE.DoubleSide,
     vertexShader: 'varying vec3 vN; void main() { vN = normalMatrix * normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform vec3 col; uniform float lo; varying vec3 vN; void main() { vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0); float d = dot(n, normalize(vec3(-0.35, 0.8, 0.5))); gl_FragColor = vec4(col * mix(lo, 1.0, smoothstep(-0.7, 0.85, d)), 1.0); }',
+    fragmentShader: `uniform vec3 col; uniform float lo; varying vec3 vN; void main() { vec3 n = normalize(vN) * (gl_FrontFacing ? 1.0 : -1.0), L = normalize(vec3(-0.5, 0.75, 0.45)); float d = dot(n, L);
+      float sp = pow(max(dot(n, normalize(L + vec3(0.0, 0.0, 1.0))), 0.0), ${ART_SHADE.spec[1].toFixed(1)}) * ${ART_SHADE.spec[0].toFixed(2)};
+      gl_FragColor = vec4(min(vec3(1.0), col * mix(lo, 1.0, smoothstep(-0.6, 0.9, d)) + sp), 1.0); }`,
   });
 }
 function snapArt(g, ppu, opt = {}) {
@@ -72,7 +79,7 @@ function snapArt(g, ppu, opt = {}) {
   meshes.forEach(o => o.geometry.dispose());
   const one = parts ? canvas(pw, ph) : whole;
   if (parts) { const x = one.getContext('2d'); x.drawImage(whole, 0, 0); hairline(x, parts, 0, 0); x.drawImage(parts, 0, 0); }
-  inkSteps(one, depth, ART.step / (far - near) * 255);
+  shadeArt(one, depth, ART_SHADE.aoStep / (far - near) * 255); inkSteps(one, depth, ART.step / (far - near) * 255);
   if (!opt.pair) return { url: one.toDataURL(), w: w * ppu, h: h * ppu };
   const ox = Math.round(pw * ART.pairX), oy = Math.round(ph * ART.pairY), c = canvas(pw + ox, ph + oy), x = c.getContext('2d');
   x.globalAlpha = ART.pairA; x.drawImage(one, ox, 0); x.globalAlpha = 1;
@@ -88,6 +95,20 @@ function inkSteps(c, depth, step) {
     const k = (j * pw + i) * 4; if (!d[k + 3] || !depth[k + 3]) continue;
     const z = depth[k] - step;
     for (let r = 1; r <= ART.ss; r++) if (near(i + r, j) < z || near(i - r, j) < z || near(i, j + r) < z || near(i, j - r) < z) { d[k] *= ART.line; d[k + 1] *= ART.line; d[k + 2] *= ART.line; break; }
+  }
+  x.putImageData(im, 0, 0);
+}
+// the drawing's shading (ART_SHADE) over what's drawn, from how near each pixel is (depth, as for the lines)
+function shadeArt(c, depth, step) {
+  const pw = c.width, ph = c.height, x = c.getContext('2d'), im = x.getImageData(0, 0, pw, ph), d = im.data, S = ART_SHADE;
+  let zn = 255, zf = 0; for (let k = 0; k < depth.length; k += 4) if (depth[k + 3]) { zn = Math.min(zn, depth[k]); zf = Math.max(zf, depth[k]); }
+  const span = Math.max(1, zf - zn), dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]];
+  for (let j = 0; j < ph; j++) for (let i = 0; i < pw; i++) {
+    const k = (j * pw + i) * 4; if (!d[k + 3] || !depth[k + 3]) continue;
+    const z = depth[k]; let n = 0;
+    for (const r of S.r) for (const [u, v] of dirs) { const a = i + Math.round(u * r * ART.ss), b = j + Math.round(v * r * ART.ss); if (a >= 0 && b >= 0 && a < pw && b < ph) { const q = (b * pw + a) * 4; if (depth[q + 3] && depth[q] < z - step) n++; } }
+    const f = (1 - S.deep * (z - zn) / span) * (1 - Math.min(S.aoMost, n * S.ao)) * (1 + S.fall / 2 - S.fall * j / ph);
+    d[k] = Math.min(255, d[k] * f); d[k + 1] = Math.min(255, d[k + 1] * f); d[k + 2] = Math.min(255, d[k + 2] * f);
   }
   x.putImageData(im, 0, 0);
 }

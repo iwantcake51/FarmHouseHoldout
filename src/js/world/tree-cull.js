@@ -16,13 +16,13 @@ const FORESTS = [];
 // a mesh drawn only into the shadow map: left out of the frame (three.js asks it whether it's in view: it says no) and
 // put in again for the shadow map's own look round the scene. SH_PASS.on is set by the first thing the shadow map draws
 // (a mesh with nothing in it, the scene's first child) and cleared as each frame's drawing starts
-const SH_PASS = { on: false };
+export const SH_PASS = { on: false, cam: null };
 {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
   const flag = new THREE.Mesh(g, new THREE.MeshBasicMaterial()); flag.castShadow = true; flag.frustumCulled = false;
   flag.onBeforeShadow = () => { SH_PASS.on = true; };
   scene.add(flag); scene.children.unshift(scene.children.pop());   // (first, so it's drawn before anything it's for)
-  scene.onBeforeRender = () => { SH_PASS.on = false; };
+  scene.onBeforeRender = (r, sc, cam) => { SH_PASS.on = false; SH_PASS.cam = cam; };   // (and which camera's drawing: world/view-cull.js)
 }
 function shadowOnly(m) { m.intersectsFrustum = f => SH_PASS.on && f.intersectsObject(m); return m; }
 // the depth picture: cells across (its height by the view's shape); a crown's solid heart, as parts of how far its boughs
@@ -31,6 +31,8 @@ function shadowOnly(m) { m.intersectsFrustum = f => SH_PASS.on && f.intersectsOb
 // (each tree's solid heart is its model's own: userData.solid, boxes standing inside its crown, world/trees.js)
 const OCC = { w: 192, near: 2.5 };
 let occD = null, occW = 0, occH = 0;
+// what else goes into the picture and is tested against it (world/view-cull.js sets them)
+export const OCC_HOOK = { paint: null, test: null };
 // a forest: trees [x, z, scale, variant, turn], one instanced mesh per variant into into, in mat; shadows: whether they
 // cast in the shadow map (from their copy that only it draws). Each tree's lean and colour from tint (tilt(), col(c)),
 // dealt in the order the woods were always dealt in
@@ -50,37 +52,47 @@ export function plantForest(list, shadows, into, mat, tint) {
       const im = new THREE.InstancedMesh(cast ? v.g.userData.lo || v.g : v.g, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3);
       im.castShadow = cast; im.receiveShadow = true; im.computeBoundingSphere(); into.add(im); return im;
     };
-    const vis = mk(false), F = { v, n, mats, cols, at, vis, top, r: v.r, solid: v.g.userData.solid || [], shown: new Int32Array(n), nShown: n, into };
-    for (let k = 0; k < n; k++) F.shown[k] = k;
-    // (and those small on screen drawn from its far version, if it has one: TREE_LOD)
-    const lo = v.g.userData.lo;
-    if (lo) { const im = new THREE.InstancedMesh(lo, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3); im.receiveShadow = true; im.computeBoundingSphere(); im.count = 0; into.add(im); F.far = im; F.shownF = new Int32Array(n); F.nShownF = 0; }
+    const vis = mk(false), F = { v, n, mats, cols, at, top, r: v.r, solid: v.g.userData.solid || [], into }, shown = new Int32Array(n);
+    for (let k = 0; k < n; k++) shown[k] = k;
+    // (and those small on screen, or mostly behind nearer trees, drawn from its lighter versions, if it has them:
+    // TREE_LOD; each its own mesh, lv[1] and lv[2], lv[0] the full one)
+    F.lv = [{ im: vis, shown, nShown: n }];
+    for (const lo of [v.g.userData.lo, v.g.userData.lo2]) {
+      if (!lo) break;
+      const im = new THREE.InstancedMesh(lo, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3); im.receiveShadow = true; im.computeBoundingSphere(); im.count = 0; into.add(im);
+      F.lv.push({ im, shown: new Int32Array(n), nShown: 0 });
+    }
+    F.lv.forEach(L => { L.next = new Int32Array(n); L.n = 0; });
     if (shadows) F.sh = shadowOnly(mk(true));
     FORESTS.push(F);
   });
 }
 // ---- each frame: which trees show
-// a tree under px tall on screen is drawn from its far version (world/trees.js: a pine's lo), the same tiers with fewer
-// sides: as small as that, the two look the same
-const TREE_LOD = { px: 64 };
+// a tree under px[0] tall on screen is drawn from its far version (world/trees.js: a pine's lo), the same tiers with
+// fewer sides, and under px[1] from its lightest (lo2): as small as that, they look the same. And from your own eyes a
+// tree mostly behind nearer ones goes down a step for it, more of it hidden, the lighter: past hid[0] of its outline
+// covered, the far version, past hid[1], the lightest (wholly covered, it isn't drawn at all)
+const TREE_LOD = { px: [64, 26], hid: [0.4, 0.75] };
 const _tcFr = new THREE.Frustum(), _tcPM = new THREE.Matrix4(), _tcSp = new THREE.Sphere(), _tcCP = new V3(), _tcList = [];
 export function cullForests(c) {
   c.updateMatrixWorld(); _tcPM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); _tcFr.setFromProjectionMatrix(_tcPM);
   c.getWorldPosition(_tcCP);
   const occ = c.isPerspectiveCamera; if (occ) occStart(c);
   // (how far off a metre tall tree is TREE_LOD.px tall on screen: from your own eyes; from above, never far)
-  const lodD = occ && TREE_LOD.px > 0 ? innerHeight / 2 / Math.tan(c.getEffectiveFOV() * Math.PI / 360) / TREE_LOD.px : Infinity;
+  const ppm = occ ? innerHeight / 2 / Math.tan(c.getEffectiveFOV() * Math.PI / 360) : 0;   // (pixels tall a metre tall tree is at a metre off)
+  // (what else stands in the way goes into the picture first, the house's walls: world/view-cull.js)
+  if (occ && OCC_HOOK.paint) OCC_HOOK.paint(_tcCP);
   // every tree in view, from every forest that's drawn (the far woods only from your own eyes)
   _tcList.length = 0;
   for (const F of FORESTS) {
-    F.next = F.next || new Int32Array(F.n); F.nn = 0; if (F.far) { F.nextF = F.nextF || new Int32Array(F.n); F.nf = 0; }
+    for (const L of F.lv) L.n = 0;
     if (!tcShown(F.into)) continue;
     const h = F.top;
     for (let k = 0; k < F.n; k++) {
       const x = F.at[k * 3], z = F.at[k * 3 + 1], s = F.at[k * 3 + 2];
       _tcSp.center.set(x, h * 0.5 * s, z); _tcSp.radius = Math.hypot(F.r * s, h * 0.5 * s);
       if (!_tcFr.intersectsSphere(_tcSp)) continue;
-      if (!occ) { F.next[F.nn++] = k; continue; }
+      if (!occ) { const L = F.lv[0]; L.next[L.n++] = k; continue; }
       _tcList.push(F, k, Math.hypot(x - _tcCP.x, z - _tcCP.z), 0);
     }
   }
@@ -90,16 +102,19 @@ export function cullForests(c) {
     for (const i of ord) {
       const F = _tcList[i * 4], k = _tcList[i * 4 + 1], d = _tcList[i * 4 + 2];
       const x = F.at[k * 3], z = F.at[k * 3 + 1], s = F.at[k * 3 + 2];
-      if (d > OCC.near * F.r * s && occHidden(x, z, s, F, d)) continue;
-      if (F.far && d > lodD * F.top * s) F.nextF[F.nf++] = k; else F.next[F.nn++] = k;
+      const hid = d > OCC.near * F.r * s ? occHidden(x, z, s, F, d) : 0; if (hid >= 1) continue;
+      const px = ppm * F.top * s / d, H = TREE_LOD;
+      const lv = Math.min(F.lv.length - 1, px < H.px[1] || hid > H.hid[1] ? 2 : px < H.px[0] || hid > H.hid[0] ? 1 : 0), L = F.lv[lv];
+      L.next[L.n++] = k;
       if (d > OCC.near * F.r * s) occPaint(x, z, s, F, d);
     }
   }
+  // (and everything that stands still tested against it all: world/view-cull.js)
+  if (OCC_HOOK.test) OCC_HOOK.test(c, occ, _tcFr, _tcCP);
   // what's drawn: only rewritten when it's changed
   for (const F of FORESTS) {
     if (!tcShown(F.into)) continue;
-    F.nShown = tcFill(F, F.vis, F.next, F.nn, F.shown, F.nShown);
-    if (F.far) F.nShownF = tcFill(F, F.far, F.nextF, F.nf, F.shownF, F.nShownF);
+    for (const L of F.lv) L.nShown = tcFill(F, L.im, L.next, L.n, L.shown, L.nShown);
   }
 }
 // the trees in next (n of them) into the instanced mesh im, unless they're the ones it already has (shown, was of them)
@@ -126,18 +141,44 @@ function tcProj(x, y, z, out) {
 }
 const _tcA = { x: 0, y: 0 }, _tcB = { x: 0, y: 0 }, _tcC = { x: 0, y: 0 }, _tcD = { x: 0, y: 0 };
 // a tree's whole outline on the picture (its upright box across the view, its full reach either side, ground to top),
-// grown out to whole cells; hidden if every cell of it has something nearer in it than the tree's nearest point
+// grown out to whole cells: how much of it has something nearer in it than the tree's nearest point (1: hidden, every
+// cell of it)
 function occHidden(x, z, s, F, d) {
   const R = F.r * s * 1.05, top = F.top * s * 1.02, sx = -(z - _tcCP.z) / d, sz = (x - _tcCP.x) / d;   // (across the view at the tree)
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const [u, y] of [[-1, 0], [1, 0], [-1, top], [1, top]]) for (const f of [-1, 1]) {
     const px = x + sx * R * u + (x - _tcCP.x) / d * R * f, pz = z + sz * R * u + (z - _tcCP.z) / d * R * f;
-    if (!tcProj(px, y, pz, _tcA)) return false;
+    if (!tcProj(px, y, pz, _tcA)) return 0;
     x0 = Math.min(x0, _tcA.x); x1 = Math.max(x1, _tcA.x); y0 = Math.min(y0, _tcA.y); y1 = Math.max(y1, _tcA.y);
   }
   const i0 = Math.max(0, Math.floor(x0)), i1 = Math.min(occW - 1, Math.floor(x1)), j0 = Math.max(0, Math.floor(y0)), j1 = Math.min(occH - 1, Math.floor(y1));
-  if (i0 > i1 || j0 > j1) return false;
+  if (i0 > i1 || j0 > j1) return 0;
   const near = d - R;
+  let hid = 0; for (let j = j0; j <= j1; j++) { const row = j * occW; for (let i = i0; i <= i1; i++) if (occD[row + i] < near) hid++; }
+  return hid / ((i1 - i0 + 1) * (j1 - j0 + 1));
+}
+// a wall's face painted in (world/view-cull.js): upright between (ax, az) and (bx, bz) on the ground, from y0 up to y1,
+// at far (the further end of it from the camera, across the ground): only the cells it covers whole
+const _tcE = { x: 0, y: 0 }, _tcF = { x: 0, y: 0 }, _tcG = { x: 0, y: 0 }, _tcH = { x: 0, y: 0 };
+export function occFace(ax, az, bx, bz, y0, y1, far) {
+  if (!occD || !tcProj(ax, y0, az, _tcE) || !tcProj(bx, y0, bz, _tcF) || !tcProj(ax, y1, az, _tcG) || !tcProj(bx, y1, bz, _tcH)) return;
+  const lf = _tcE.x < _tcF.x, L0 = lf ? _tcE : _tcF, R0 = lf ? _tcF : _tcE, L1 = lf ? _tcG : _tcH, R1 = lf ? _tcH : _tcG;
+  const xl = Math.max(L0.x, L1.x), xr = Math.min(R0.x, R1.x), yt = Math.max(L1.y, R1.y), yd = Math.min(L0.y, R0.y);
+  const i0 = Math.max(0, Math.ceil(xl)), i1 = Math.min(occW - 1, Math.floor(xr) - 1), j0 = Math.max(0, Math.ceil(yt)), j1 = Math.min(occH - 1, Math.floor(yd) - 1);
+  for (let j = j0; j <= j1; j++) { const row = j * occW; for (let i = i0; i <= i1; i++) if (occD[row + i] > far) occD[row + i] = far; }
+}
+// whether a box (world, axis-aligned) is wholly behind what's painted: every cell its outline covers has something in
+// it nearer than the box's nearest point across the ground (near); not if any corner's behind the camera
+const _tcI = { x: 0, y: 0 };
+export function occBoxHidden(b, near) {
+  if (!occD) return false;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let q = 0; q < 8; q++) {
+    if (!tcProj(q & 1 ? b.max.x : b.min.x, q & 2 ? b.max.y : b.min.y, q & 4 ? b.max.z : b.min.z, _tcI)) return false;
+    x0 = Math.min(x0, _tcI.x); x1 = Math.max(x1, _tcI.x); y0 = Math.min(y0, _tcI.y); y1 = Math.max(y1, _tcI.y);
+  }
+  const i0 = Math.max(0, Math.floor(x0)), i1 = Math.min(occW - 1, Math.floor(x1)), j0 = Math.max(0, Math.floor(y0)), j1 = Math.min(occH - 1, Math.floor(y1));
+  if (i0 > i1 || j0 > j1) return false;
   for (let j = j0; j <= j1; j++) { const row = j * occW; for (let i = i0; i <= i1; i++) if (!(occD[row + i] < near)) return false; }
   return true;
 }
