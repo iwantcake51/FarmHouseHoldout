@@ -21,14 +21,18 @@ import { AK_ON, akBusy, akMags, akPer, akU } from '../weapons/akimbo.js';
 import { aimRay, muzzle, scopeDist, scopeSpread, scopeUse, SG_FP, spreadOf } from '../weapons/firing.js';
 import { rollText } from './hud-text.js';
 import { los } from '../lighting/lightmap.js';
-import { fpOn, fpSighted, freeOn, onScreen, xhAt } from '../game/view-cam.js';
+import { fpOn, fpSighted, freeOn, onScreen, VCAM, xhAt } from '../game/view-cam.js';
+import { muzzleWorld } from '../effects/muzzle-flash.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
 // a hit's marker on the crosshair (zombies/damage.js): kind 'hit', 'head' (a hit through the head) or 'kill', with head
-// for a kill through the head; flashed afresh each time, so a burst's hits each show
+// for a kill through the head; flashed afresh each time, so a burst's hits each show. Not while the crosshair's put away
+// (down the sights in first person, where the sights are what you aim with): a hit there never marks it, so nothing's
+// left over to show as you come off the sights, however long after
 const xhMark = $('xhHit');
 export function hitMark(kind, head) {
+  if (xh.hidden || fpSighted()) return;
   xhMark.classList.remove('hit', 'head', 'kill'); void xhMark.getBoundingClientRect();
   xhMark.classList.add(kind === 'kill' ? 'kill' : 'hit'); if (head || kind === 'head') xhMark.classList.add('head');
 }
@@ -140,14 +144,40 @@ function blockedShot() {
 }
 const xhX = $('xhX');
 const XH_SPRINT = 0.45, _xhP = [0, 0];   // how far down the gun's come (ANIM.ready) when the crosshair's quite gone
+// from your own eyes the crosshair's out in the world, on whatever your line of sight meets (VCAM.aimD): drawn as big as
+// it would be at ref metres off, so it grows as you come right up to a wall or a zombie and eases back down further
+// off (between min and max of its size, eased at ease a second); and when the gun's blocked nearer than that (its muzzle
+// up against a wall, a corner between it and what you're looking at), it slides to where the round would really hit,
+// the point it'd stop at, eased at slide
+const XH_WORLD = { ref: 2.4, min: 1, max: 1.75, ease: 12, slide: 16 };
+const XHW = { s: 1, k: 0, x: 0, y: 0 }, _xwA = new V3(), _xwB = new V3();
+// where a round from the muzzle toward what you're looking at would stop, on the screen (out: [x, y] pixels), or false
+function shotStop(out) {
+  const m = muzzleWorld(); if (!Number.isFinite(m.x)) return false;
+  _xwA.copy(m); _xwB.set(aimPt.x, VCAM.aimY, aimPt.z).sub(_xwA);
+  const L = Math.hypot(_xwB.x, _xwB.z); if (L < 0.05) return false;
+  const ux = _xwB.x / L, uz = _xwB.z / L; let t = bulletBlocked(m.x, m.z) ? 0 : L;
+  if (t) { t = thinRay(m.x, m.z, ux, uz, L); for (let q = 0.05; q < t; q += 0.05) if (bulletBlocked(m.x + ux * q, m.z + uz * q)) { t = q; break; } }
+  _xwA.addScaledVector(_xwB, t / L).project(FP_CAM);   // (as far along it in the air as across the ground) if (_xwA.z > 1) return false;
+  out[0] = (_xwA.x + 1) / 2 * innerWidth; out[1] = (1 - _xwA.y) / 2 * innerHeight; return true;
+}
+const _xwS = [0, 0];
 export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
   // you come off the sights)
   if (!showXh && !xh.hidden) { hitMarkOff(); Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
+  if (showXh && xh.hidden) hitMarkOff();   // (and anything marked as it was put away cleared as it comes back)
   xh.hidden = !showXh;
   if (showXh) {
-    xhAt(_xhP); xh.style.transform = `translate(${_xhP[0].toFixed(1)}px,${_xhP[1].toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
+    xhAt(_xhP);   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
+    // (from your own eyes, out in the world: XH_WORLD)
+    { const fp = fpOn(), W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && cache.xhX && shotStop(_xwS);
+      XHW.s += (ts - XHW.s) * Math.min(1, rdt * W_.ease);
+      if (stop) { if (XHW.k < 0.01) { XHW.x = _xwS[0]; XHW.y = _xwS[1]; } else { const k = Math.min(1, rdt * W_.slide); XHW.x += (_xwS[0] - XHW.x) * k; XHW.y += (_xwS[1] - XHW.y) * k; } }
+      XHW.k += ((stop ? 1 : 0) - XHW.k) * Math.min(1, rdt * W_.slide);
+      const x = _xhP[0] + (XHW.x - _xhP[0]) * XHW.k, y = _xhP[1] + (XHW.y - _xhP[1]) * XHW.k;
+      xh.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)` + (Math.abs(XHW.s - 1) > 0.005 ? ` scale(${XHW.s.toFixed(3)})` : ''); }
     // from your own eyes it fades out as the gun comes down for a sprint (it can't fire there), and back as it comes up
     { const f = fpOn() ? (1 - smooth(clamp((ANIM.ready || 0) / XH_SPRINT, 0, 1))).toFixed(2) : '1'; if (cache.xhRun !== f) { cache.xhRun = f; xh.style.opacity = f; } }
     xh.classList.toggle('healing', P.bandT > 0 || ANIM.bandDone > 0);   // both hands are on the bandage: no reticle, just the ring filling

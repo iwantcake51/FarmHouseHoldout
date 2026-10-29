@@ -65,8 +65,9 @@ export const flashRGB = h => { _fcol.setHex(h); const m = Math.max(_fcol.r, _fco
 // where the visible muzzle is right now, following the gun through recoil and aim-down
 const _mz = new V3();
 export function muzzleWorld(sideSign) {
-  const D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R'; PM.g.updateMatrixWorld(true);
-  _mz.set(X, GUN_Y + 0.03, (MUZ[W8.cur] || 0.9) + 0.02); holdOf(W8.cur, side).localToWorld(_mz); return _mz;
+  const D = W(curId()), side = D && D.akimbo && (sideSign || W8.akSide) < 0 ? 'L' : 'R', h = holdOf(W8.cur, side);
+  h.updateWorldMatrix(true, false);   // (the hold and what it hangs from, not the whole of you: this is asked for several times a frame)
+  _mz.set(X, GUN_Y + 0.03, (MUZ[W8.cur] || 0.9) + 0.02); h.localToWorld(_mz); return _mz;
 }
 export let flashT = 0;
 

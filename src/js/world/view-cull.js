@@ -68,8 +68,9 @@ function vcPaint(cp) {
 }
 // every piece tested: too small to see from here, or (from your own eyes) wholly behind what's painted
 function vcTest(c, occ, fr, cp) {
-  if (++VC.f >= VIEW_CULL.scan) { VC.f = 0; vcGather(); }
   VC.frame++; VC.cam = c; VC.culled = 0;
+  if (!occ) return;   // (from above, everything's a fair size on the screen and nothing stands between: nothing to leave out)
+  if (++VC.f >= VIEW_CULL.scan) { VC.f = 0; vcGather(); }
   const ppm = c.isPerspectiveCamera ? innerHeight / 2 / Math.tan(c.getEffectiveFOV() * Math.PI / 360) : innerHeight * c.zoom / (c.top - c.bottom);
   for (const e of VC.list) {
     const m = e.o.matrixWorld.elements; if (m[12] !== e.m[3] || m[13] !== e.m[4] || m[14] !== e.m[5] || m[0] !== e.m[0] || m[5] !== e.m[1] || m[10] !== e.m[2]) vcMeasure(e);

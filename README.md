@@ -160,7 +160,8 @@ past and comes back round, so the axe's head stays upright through an overhead c
 eyes and from above, never turned flat on its side at the bottom or flipped over about the handle.
 
 **Every kill lands.** A round or a blow of yours that hits flashes a marker on your crosshair: four short strokes on
-the diagonals, white, gold through the head, and a bigger red one for a kill. A kill also ticks, a short bright note
+the diagonals, white, gold through the head, and a bigger red one for a kill. A hit down the sights in first person
+(where the crosshair's put away) marks nothing, so no marker turns up when you come off the sights, however soon. A kill also ticks, a short bright note
 that climbs a semitone with each kill in a chain, and shakes the view by how hard it landed: a light round a nudge, a
 heavy round, a shotgun or a heavy blow much more, through the head or with a big overkill more again. Playing alone, a
 kill that lands hard (through the head with anything but a fast automatic, a heavy round, a shotgun, a heavy blow)
@@ -361,7 +362,11 @@ The view turns exactly as the mouse moves, by the mouse's raw movement where the
 gives it (no pointer acceleration), and stops the moment it stops; a stray jump the browser sometimes reports under
 pointer lock is ignored. Turning, your eye stays put over your hips rather than swinging round with your shoulders,
 and the gun and your arms are already turned with you when the view's placed, so a turn starting or stopping never
-makes them jump or stutter. The crosshair is wherever the gun points. Hold **Alt** to
+makes them jump or stutter. The crosshair is wherever the gun points, and it sits out in the world on whatever your
+line of sight meets: it's its usual size at range, grows as you come right up to a wall or a zombie (up to about
+1.75 times its size), and eases back as you step away. When the gun's blocked closer than what you're looking at (its
+muzzle up against a wall, a corner between the barrel and the target), the crosshair slides to where the round would
+really stop and goes red, so you can see the shot's blocked and where it'll land. Hold **Alt** to
 look round freely while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride (barely up and down; the gun in your hands swings side to side, nods onto each footfall and rolls with the step a beat behind it, a loose figure of eight rather than a bounce), banks a
@@ -490,7 +495,7 @@ and a station or a menu lets go of it for you, closing it taking the mouse back.
 from above it widens your view cone and the circle you see round you, and out of your own eyes (where you already see
 all round as far as the screen goes) it opens the view itself 10% wider (14% with Eyes in the back of your head, not
 down the sights), and anything close by off the edges of the screen (within 4 m, then 6 m) shows as a soft pale arc
-round the middle of the screen on its side, stronger the closer it is. The cards say which you get. Going down, the view is drawn back out of your eyes over your body; in co-op you then watch a teammate through their own eyes (see Co-op).
+round the middle of the screen on its side, stronger the closer it is. The cards say which you get. Going down, the view is drawn back out of your eyes over your body (abandoning a run from the pause menu does the same: the view rises out of your head and draws back over you, rather than cutting to the view from above); in co-op you then watch a teammate through their own eyes (see Co-op).
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried a little further right and lower on its sling, its belt and box down out of
 the middle of the view but not so far it lies slanted across it), and each shot turns it in your hands as well as kicking the view; through a scope the
@@ -529,7 +534,7 @@ station you get is the one you're looking at (a ray out from your eyes against e
 metres; nothing is picked up if you're not looking at one), outlined while you look at it, an open one staying open
 while you're still in reach of it, and a click out on the game puts an open station away and takes the mouse
 back, and coming off the sights doesn't replay the crosshair's last reload flash. From your own eyes the farm isn't an island in the haze: the woods go on past the road and past the trees
-round the farm out to the horizon, with broadleaf trees and taller pines among them, a power line runs along the far
+round the farm out to the horizon, thinner than the ring round the farm (about 790 trees out there), with broadleaf trees and taller pines among them, a power line runs along the far
 side of the road (its wires swaying slowly in the wind, more as it blows harder and as a gust runs along them) and a
 mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
 glow sits over it all through the day and night.
@@ -762,6 +767,12 @@ as they look smaller. Pieces behind you or off to the side were already left out
 frame is culled, never the shadow map (the sun sees what you can't) or a scope's view. Same-frame renders with and
 without it came out identical. Facing the house from outside, a frame went from about 224,000 triangles and 600 draws to
 137,000 and 390; from the side, 218,000 and 600 to 173,000 and 430; inside, about 15% fewer triangles.
+The frame's own work was trimmed too. A profile of a wave in first person showed the game's code is a small share of
+the frame and the drawing nearly all of it, so draws were what to cut. Past the culling above, the glow and the fog's
+overlay passes no longer work out every object's place in the world over again, just after the frame itself did. Reading
+where the muzzle or your eye is (asked for several times a frame) updates only the chain of parts it hangs from, not your
+whole body; checked the same to the last digit. A piece of you or a teammate under 4 cm across casts no shadow, as the
+sun's shadows are softened over more than that. That's 70 shadow draws of you a frame down to 62.
 The trees outside the fence now cast shadows too. Those within reach of the sun's shadows cast real ones, and the far
 woods (past about 32 m from the middle, beyond the shadow map) lay a soft shadow on the ground away from the sun,
 as long as the tree's height over the sun's angle, turned with the sun through the day and fading with it. Every tree

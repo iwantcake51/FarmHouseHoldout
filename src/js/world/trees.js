@@ -148,7 +148,7 @@ const TREE_GAP = 0.6, _tgrid = new Map(), TG_CELL = 1.5;
 // the woods out toward the horizon (seen from your own eyes): how far out (r, metres from the middle), the grid they're
 // dealt on, how likely a spot gets one where they meet the ring round the farm and further out (p), how far past the
 // road's far shoulder they start, how much bigger the furthest grow
-const FAR_WOODS = { r: 74, step: 1.6, p: [0.22, 0.62], road: 1.5, grow: 0.6, broad: 0.22, tall: 0.12 };   // (broad: how many are broadleaf; tall: how many stand well over the rest)
+const FAR_WOODS = { r: 74, step: 1.6, p: [0.09, 0.27], road: 1.5, grow: 0.6, broad: 0.22, tall: 0.12 };   // (broad: how many are broadleaf; tall: how many stand well over the rest)
 const _tgk = (a, b) => a * 4096 + b;
 function roomForTree(x, z, r) {
   const a = Math.floor(x / TG_CELL), b = Math.floor(z / TG_CELL);

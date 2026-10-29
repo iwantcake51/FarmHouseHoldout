@@ -46,7 +46,7 @@ import { feedItems, floats } from './hud-text.js';
 import { titleSky } from '../lighting/day-night.js';
 import { resetDrops } from '../stations/supply-drop.js';
 import { clearSpit } from '../zombies/spitter.js';
-import { wantLock } from '../game/view-cam.js';
+import { quitPull, wantLock } from '../game/view-cam.js';
 import { resetHeart } from './vitals.js';
 import { ragYou, unragYou } from '../player/player-ragdoll.js';
 import { ANIM } from '../player/animation.js';
@@ -191,7 +191,7 @@ $('menuBtn').onclick = leaveToMenu;
 // that puts them back
 const P_SURE = {
   menu: { q: 'Leave for the main menu? This run will be lost.', yes: 'Leave run', go: () => { saveBest(); if (netLink()) netLeave(); leaveToMenu(); } },
-  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => die() }
+  quit: { q: 'Abandon this run? It ends here, as if you fell.', yes: 'Abandon', go: () => { quitPull(); die(); } }   // (from your own eyes, the view drawn back out over you: game/view-cam.js)
 };
 let pSure = null;
 function askLeave(k) { pSure = k; $('pSureQ').textContent = P_SURE[k].q; $('pSureYes').textContent = P_SURE[k].yes; $('pBtns').hidden = true; $('pSure').hidden = false; $('pSureNo').focus({ preventScroll: true }); }

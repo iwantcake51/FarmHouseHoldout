@@ -27,6 +27,7 @@ import { openSt } from '../stations/station-ui.js';
 import { state } from './state.js';
 import { keys, lockLost } from '../input/keyboard-mouse.js';
 import { aimSX, aimSY, XR } from '../player/shaky-hands.js';
+import { zombies } from '../zombies/zombie-types.js';
 import { ANIM } from '../player/animation.js';
 import { REL_KNOCK } from '../player/hold-kick.js';
 import { BACK_LAYER } from '../player/stow.js';
@@ -37,7 +38,7 @@ import { DC } from '../ui/screens.js';
 import { camFocus, spectating } from '../net/spectate.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
-export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y };
+export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
 export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', isoOn = () => VCAM.on === 'iso';
 // how it looks and moves: the eye's place on the head (from its middle: up, forward), the furthest up and down you can
 // look, a shot's kick and how it comes home, how far aiming down the sights draws the view in, and the free camera's
@@ -267,8 +268,13 @@ const _vcE = new V3(), _vcD = new V3(), _vcZ = new V3();
 // (watching a teammate with the first-person view picked, it's from their eyes while they're looking from them, and
 // from above while they're looking from above: what they see, either way (specFpOn; net/avatars.js: specFp))
 export const specFpOn = () => P.dead && VCAM.mode === 'fp' && !!DC.spec && (state === 'play' || state === 'paused') && spectating() && !!camFocus().fv;
+// (and a run abandoned from your own eyes, the same: the view's drawn back out of them over you as the run ends,
+// QUIT_CAM, rather than cut to the one from above)
+const QUIT_CAM = { on: false };
+export function quitPull() { QUIT_CAM.on = VCAM.mode === 'fp'; }
 const wantOn = () => (state === 'play' || state === 'paused' || state === 'upgrade' || state === 'leaving') && !P.dead ? VCAM.mode
   : specFpOn() ? 'fp'
+  : QUIT_CAM.on && VCAM.mode === 'fp' && state === 'dead' ? 'fp'
   : P.dead && VCAM.mode === 'fp' && (state === 'play' || state === 'paused' || state === 'dead') && !DC.spec ? 'fp' : 'iso';
 export function setViewMode(m) {
   m = m === 'fp' || m === 'free' ? m : 'iso';
@@ -660,6 +666,10 @@ export function fpAim(out) {
   for (let t = 0.3; t < D; t += 0.1) if (bulletBlocked(ex + dx * t, ez + dz * t)) { D = t; break; }
   D = Math.max(0.6, thinRay(ex, ez, dx, dz, D));
   out.set(ex + dx * D, GUN_Y, ez + dz * D);
+  // (how far that is along the line itself, from your eye, nearer if it's a zombie in the way: the crosshair sits out on
+  // whatever's there, ui/crosshair.js)
+  { let dz2 = D; for (const z of zombies) { if (z.dead) continue; const rx = z.x - ex, rz = z.z - ez, t = rx * dx + rz * dz; if (t > 0.2 && t < dz2 && Math.abs(rx * dz - rz * dx) < 0.32 * (z.T.scale || 1)) dz2 = t; }
+    VCAM.aimD = Math.min(dz2 / Math.max(0.05, cp), 60); }
   VCAM.aimY = clamp(ey + sp / Math.max(0.05, cp) * D, 0, 40);   // (up into the sky as far as you look: a round flies the line you look down)
   return out;
 }
@@ -825,7 +835,7 @@ export function fpSightAlign(gg, raise = true) {
 }
 // your eye where your head sits on your chest (a little out toward the gun arm: FPV.side), as the body's posed: on the
 // head's own place on the upper body, not the head itself, so its nods and turns don't move the view
-function chestEye(out) { const D = W(curId()), h = PM.head; h.parent.updateMatrixWorld(true); return out.set(D && D.akimbo ? 0 : FPV.side, FPV.eye[0], FPV.eye[1]).add(h.position).applyMatrix4(h.parent.matrixWorld); }
+function chestEye(out) { const D = W(curId()), h = PM.head; h.parent.updateWorldMatrix(true, false); return out.set(D && D.akimbo ? 0 : FPV.side, FPV.eye[0], FPV.eye[1]).add(h.position).applyMatrix4(h.parent.matrixWorld); }
 // and where it is for the view: where you stand, its place over your shoulders (eased: EYE_R) turned with the view
 function rigEye(out) {
   if (!EYE_R.on) { chestEye(EYE_R.ref); rigOf(EYE_R.ref, EYE_R.o); EYE_R.t0.copy(EYE_R.o); EYE_R.v.set(0, 0, 0); EYE_R.on = true; }
@@ -879,6 +889,8 @@ function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glas
 // far back, up and to the side it ends, metres; and the field of view it eases out to). From where your eyes were when
 // you went down (DFP), on a smooth ease, so it starts gently, then sweeps out, then settles
 const DEATH_FP = { t: 2.4, back: 2.6, up: 2.3, side: 0.9, fov: 60 };
+// (abandoning: the rise's share of the pull it takes, up, and how much of the pull goes by before it starts back, wait)
+const QUIT_RISE = { up: 0.45, wait: 0.2 };
 const DFP = { on: false, t: 0, p: new V3(), q: new THREE.Quaternion(), fov: 75, yaw: 0 }, _dfT = new V3(), _dfP = new V3(), _dfM = new THREE.Matrix4(), _dfQ = new THREE.Quaternion();
 function fpDeathCam(rdt, c) {
   if (!DFP.on) { DFP.on = true; DFP.t = 0; DFP.p.copy(c.position); DFP.q.copy(c.quaternion); DFP.fov = c.fov; DFP.yaw = VCAM.yaw; }
@@ -887,8 +899,11 @@ function fpDeathCam(rdt, c) {
   // (behind and above where you were facing, a little off to one side)
   _dfP.set(_dfT.x - Math.sin(y) * DEATH_FP.back + Math.cos(y) * DEATH_FP.side, _dfT.y + DEATH_FP.up, _dfT.z - Math.cos(y) * DEATH_FP.back - Math.sin(y) * DEATH_FP.side);
   c.position.lerpVectors(DFP.p, _dfP, k);
-  // (an arc rather than a straight pull: it rises a little ahead of drawing back)
-  c.position.y += Math.sin(Math.PI * k) * 0.35;
+  // (an arc rather than a straight pull: it rises a little ahead of drawing back; still on your feet, a run abandoned,
+  // it rises well clear of your head and your pack first, QUIT_RISE, and only then draws back over them)
+  if (QUIT_CAM.on && !P.dead) { const kb = smooth(clamp((DFP.t / DEATH_FP.t - QUIT_RISE.wait) / (1 - QUIT_RISE.wait), 0, 1)), ku = smooth(clamp(DFP.t / (DEATH_FP.t * QUIT_RISE.up), 0, 1));
+    c.position.set(DFP.p.x + (_dfP.x - DFP.p.x) * kb, DFP.p.y + (_dfP.y - DFP.p.y) * ku, DFP.p.z + (_dfP.z - DFP.p.z) * kb); }
+  else c.position.y += Math.sin(Math.PI * k) * 0.35;
   PM.head.visible = c.position.distanceTo(DFP.p) > 0.3;   // (your head, once the view's out of it)
   _dfM.lookAt(c.position, _dfT, _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM);
   c.quaternion.copy(DFP.q).slerp(_dfQ, smooth(clamp(DFP.t / (DEATH_FP.t * 0.6), 0, 1)));
@@ -969,7 +984,8 @@ function swapCam(rdt) {
   V.hsp = (V.hsp || 0) + (tp - (V.hsp || 0)) * k; V.hsy = (V.hsy || 0) + (ty - (V.hsy || 0)) * k; V.hsr = (V.hsr || 0) + (tr - (V.hsr || 0)) * k;
 }
 export function viewFrame(rdt, roll, sh, jolt) {
-  if (!P.dead) DFP.on = false;
+  if (state === 'play' || state === 'title') QUIT_CAM.on = false;
+  if (!P.dead && !QUIT_CAM.on) DFP.on = false;
   syncView();
   if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
   // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
@@ -984,7 +1000,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
   }
   // (from a teammate's eyes, the camera's already where theirs is: net/avatars.js, specFp)
   if (specFpOn()) { SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
-  if (fpOn() && P.dead) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
+  if (fpOn() && (P.dead || QUIT_CAM.on)) { fpDeathCam(rdt, c); SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); c.updateMatrixWorld(true); return; }
   if (fpOn()) {
     // the eyes: on the head, the way it faces. Your own movement's taken as it comes; the head's sway about you (each
     // step, a lean, a vault) is eased, the bob more than the rest

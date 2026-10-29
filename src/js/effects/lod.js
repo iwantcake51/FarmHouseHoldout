@@ -16,7 +16,9 @@ import { zombies } from '../zombies/zombie-types.js';
 import { PM } from '../player/player.js';
 import { NET } from '../net/net.js';
 
-const LOD = { px: 1.2, shadow: 4, layer: 30, far: 140, tall: 1.8, band: 0.12 };
+const LOD = { px: 1.2, shadow: 4, layer: 30, far: 140, tall: 1.8, band: 0.12, shadowR: 0.04 };
+// (shadowR: and a piece smaller than that, metres out from its middle, casts none however close the camera is: the sun's
+// shadows are softened over more than it is across, SHADOW_SOFT in core/renderer.js, so its shadow's never seen)
 const LOD_BIT = 1 << LOD.layer, _lv = new THREE.Vector3(), _ls = new THREE.Vector3();
 // a piece's size in the world (its bounding sphere's radius as scaled), measured once; kept on the piece itself rather
 // than in its userData, which a copy would carry over and which marks a piece as not to be folded (core/geometry.js)
@@ -39,7 +41,7 @@ function lodFigure(root, c, k, shade) {
     const px = lodR(o) * ppm, tiny = px < LOD.px;
     // (its shadow: off while it's small, on again as it grows, if it cast one: the game's own choice, castShadow,
     // is kept in __lodCast while it's off)
-    if (shade && px < LOD.shadow) { if (o.castShadow) { o.castShadow = false; o.__lodCast = true; } }
+    if (shade && (px < LOD.shadow || lodR(o) < LOD.shadowR)) { if (o.castShadow) { o.castShadow = false; o.__lodCast = true; } }
     else if (shade && o.__lodCast) { o.castShadow = true; o.__lodCast = false; }
     if (tiny && o.__lodMask === undefined) { if (o.layers.mask === LOD_BIT) return; o.__lodMask = o.layers.mask; o.layers.mask = LOD_BIT; }
     else if (!tiny && o.layers.mask === LOD_BIT) { o.layers.mask = o.__lodMask ?? 1; o.__lodMask = undefined; }
