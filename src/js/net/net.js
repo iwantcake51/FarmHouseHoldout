@@ -22,6 +22,7 @@ import { frMet } from './friends.js';
 
 export const NET_V = 2, NET_MAX = 4, NET_PREFIX = 'fhh-coop-', NET_QUIET = 15;   // (NET_V: 2 since the lobby got ready-up, chat and removing someone, which a game before it doesn't know; NET_QUIET: seconds without a word before a player counts as gone; a slow machine can stall that long building its shaders)
 export const NET = { on: false, host: false, mode: /[?&]net=local/.test(location.search) ? 'local' : 'peer', id: '', hostId: '', code: '', name: '', inGame: false, status: '', idx: 0,
+  runMode: 'normal',   // everyone's run mode, the host's pick in the lobby (normal or no perks: netSetMode)
   view: 'iso',   // everyone's view in the run, the host's pick in the lobby (isometric or first person: netSetView)
   peers: new Map(),   // everyone else in the game, by id: { id, name, look, idx, heard, ... } (net/avatars.js adds their avatar)
   ready: false,   // a joiner's own word that they're set to go (the host's Start waits for everyone's: netAllReady)
@@ -98,7 +99,7 @@ export async function netHost() {
         });
       });
     }
-    NET.idx = 0; NET.view = SET.view; NET.status = ''; chatSys('Lobby open. Send your friends the code ' + code + '.'); lobbyRender();   // (the host's own view to start with: they can change it in the lobby)
+    NET.idx = 0; NET.view = SET.view; NET.runMode = SET.mode; NET.status = ''; chatSys('Lobby open. Send your friends the code ' + code + '.'); lobbyRender();   // (the host's own view to start with: they can change it in the lobby)
   } catch (e) { netReset(); NET.status = 'Could not open a game: ' + (e.message || e.type || e); lobbyRender(); }
 }
 export async function netJoin(code) {
@@ -155,7 +156,7 @@ NET_ON.kick = m => { if (!NET.host && m.f === NET.hostId) netLost('The host remo
 export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready })));
 // everyone in the lobby set to go (the host always is): the run starts only then
 export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
-const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view }, null); frMet(netRoster()); };
+const rosterOut = () => { netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode }, null); frMet(netRoster()); };
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -183,6 +184,7 @@ NET_ON.roster = m => {
   }
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
   if (m.view) NET.view = m.view;
+  if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm;
   NET.status = ''; frMet(m.list); lobbyRender();
 };
 // a joiner set to go, or not after all: the host keeps everyone's word and passes it round
@@ -193,6 +195,13 @@ export function netSetView(v) {
   if (!NET.host || NET.inGame || (v !== 'iso' && v !== 'fp')) return;
   NET.view = v; netSend('view', { view: v }); chatSys('View set to ' + (v === 'fp' ? 'first person' : 'isometric')); lobbyRender();
 }
+// and the run's mode everyone plays (normal or no perks: ui/settings.js), the same way
+const RUN_MODES = ['normal', 'noperks'], modeName = v => v === 'noperks' ? 'no perks' : 'normal';
+export function netSetMode(v) {
+  if (!NET.host || NET.inGame || !RUN_MODES.includes(v)) return;
+  NET.runMode = v; netSend('rmode', { rm: v }); chatSys('Mode set to ' + modeName(v)); lobbyRender();
+}
+NET_ON.rmode = m => { if (NET.host || !RUN_MODES.includes(m.rm)) return; if (NET.runMode !== m.rm) chatSys('The host set the mode to ' + modeName(m.rm)); NET.runMode = m.rm; lobbyRender(); };
 NET_ON.view = m => { if (NET.host || (m.view !== 'iso' && m.view !== 'fp')) return; if (NET.view !== m.view) chatSys('The host set the view to ' + (m.view === 'fp' ? 'first person' : 'isometric')); NET.view = m.view; lobbyRender(); };
 NET_ON.bye = m => { if (m.f === NET.hostId && !NET.host) netLost('The host closed the game'); else netGone(m.f, 'left'); };
 NET_ON.name = m => { const p = NET.peers.get(m.f); if (p) { p.name = String(m.name || 'Survivor').slice(0, 16); lobbyRender(); } };
@@ -204,10 +213,10 @@ export function netStart() {
   if (!NET.host || NET.inGame) return false;
   if (!netAllReady()) { const w = [...NET.peers.values()].filter(p => !p.ready).map(p => p.name); NET.status = 'Waiting for ' + w.join(' and ') + ' to get ready'; SFX.deny(); lobbyRender(); return false; }
   NET.houseSeed = (Math.random() * 2147483647) | 0;   // everyone's farmhouse laid out alike (world/interior.js)
-  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view }); netBegin();
+  netSend('start', { roster: netRoster(), house: NET.houseSeed, view: NET.view, rm: NET.runMode }); netBegin();
   return true;
 }
-NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; if (m.view) NET.view = m.view; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
+NET_ON.start = m => { if (NET.host) return; NET.houseSeed = m.house; if (m.view) NET.view = m.view; if (RUN_MODES.includes(m.rm)) NET.runMode = m.rm; for (const r of m.roster) { const p = NET.peers.get(r.id); if (p) p.look = r.look; } netBegin(); };
 function netBegin() { NET.inGame = true; NET.status = ''; if (VCAM.mode !== 'free') setViewMode(NET.view); lobbyRender(); toggleCoop(false); enterRun(); }   // (the co-op screen put away as the run comes up)   // (everyone in the host's view: ui/settings.js keeps it for the run)
 // every so often a word to say you're still there; anyone not heard from in NET_QUIET seconds is gone
 export function netBeat(rdt) {

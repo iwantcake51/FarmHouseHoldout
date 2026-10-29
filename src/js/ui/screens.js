@@ -106,7 +106,7 @@ function resetRun(keepLook) {
 // new house's paint is on already
 function newRun(soft, dark) {
   audioInit(); resetRun(soft);
-  run.noPerks = SET.mode === 'noperks';   // (no-perk mode, ui/settings.js: no cards between waves, waves/waves.js; a co-op joiner takes the host's)
+  run.noPerks = (netLink() ? NET.runMode : SET.mode) === 'noperks';   // (no-perk mode, picked on the title or in the co-op lobby, the host's: no cards between waves, waves/waves.js)
   // build every shader now, behind the intro's dark veil, so the first blood, ragdoll or spark never stalls a frame
   // (game/loop.js: warmShaders, on the next frame's targets)
   setWarmQ(true);

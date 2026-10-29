@@ -83,9 +83,9 @@ the other one, that eye squinting along the gun and your head tipped over the st
      that hurt half again as much (Fragile), or half the scrap from kills, for the rest of the run. Some never come
      together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
      once), and you take two. Taking a curse sounds like one: a low, sour slide down, not the reward chime.
-   - **No-perk mode** (Settings, Game, Run mode) takes all of that away, from your next run: no cards, no aid, no
-     sacrifices or curses, and no slow motion as a wave clears; a second after the last zombie falls the next break
-     starts. In co-op the host's mode is everyone's.
+   - **No-perk mode** (Mode, on the title screen under View) takes all of that away: no cards, no aid, no sacrifices or
+     curses, and no slow motion as a wave clears; a second after the last zombie falls the next break starts. In co-op
+     it's picked in the lobby beside the view, by the host, for everyone.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
    No two waves come at quite the same pace: each keeps to a rhythm of its own, the usual surges with a few seconds'
    lull between them, a trickle of small ones close together, or a few big rushes with long quiet between. The banner's

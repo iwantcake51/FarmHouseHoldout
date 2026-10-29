@@ -34,8 +34,6 @@ const SHADOW_SZ = { high: R.capabilities.maxTextureSize >= 8192 ? 4096 : 2048, m
 const RES_K = { auto: 1, full: 1, r75: 0.75, r50: 0.5 };
 // what's on the panel: a heading, then its rows, each a dropdown (opts), a switch (bool) or a slider (min, max, unit)
 const SET_ROWS = [
-  { head: 'Game' },
-  { k: 'mode', name: 'Run mode', note: 'No perks: no cards and no aid between waves, no slow motion as a wave clears, and the next break starts a second after the last zombie falls. From your next run (in co-op, the host\'s)', opts: [['normal', 'Normal'], ['noperks', 'No perks']] },
   { head: 'Graphics' },
   { k: 'ao', name: 'Ambient occlusion', note: 'Soft shading in corners and under things', opts: [['on', 'On'], ['off', 'Off']] },
   { k: 'bloom', name: 'Glow', note: 'Bright lights and muzzle flashes bleed light', opts: [['off', 'Off'], ['soft', 'Soft'], ['normal', 'Normal'], ['strong', 'Strong']] },
@@ -101,6 +99,12 @@ export function pickView(v) {
 function titleViewRender() { for (const b of $('titleView').querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.v === SET.view)); }
 $('titleView').onclick = e => { const b = e.target.closest('button'); if (b && state === 'title' && !netLink()) pickView(b.dataset.v); };
 titleViewRender();
+// and the run's mode beside it, the same way: normal, or no perks (no cards and no aid between waves, no slow motion as a
+// wave clears, the next break a second after the last zombie falls: waves/waves.js). A co-op game has its own in the
+// lobby, the host's (net/lobby.js)
+function titleModeRender() { for (const b of $('titleMode').querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.m === SET.mode)); }
+$('titleMode').onclick = e => { const b = e.target.closest('button'); if (b && state === 'title' && !netLink()) { SET.mode = b.dataset.m; saveSettings(); titleModeRender(); } };
+titleModeRender();
 // the frame-rate counter: frames counted over half a second
 const FPS = { n: 0, t: 0 };
 export function tickFps(rdt) { if (!SET.fps) return; FPS.n++; FPS.t += rdt; if (FPS.t >= 0.5) { $('fps').textContent = Math.round(FPS.n / FPS.t) + ' fps'; FPS.n = 0; FPS.t = 0; } }

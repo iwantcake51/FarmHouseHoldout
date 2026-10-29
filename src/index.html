@@ -211,6 +211,7 @@
     </div>
     <p class="brief">Zombies drop scrap; the workbench turns it into ammo and upgrades for your weapons. Survive a wave and you take one find: a skill, a perk, some aid, or a better gun. When you die, the farm is theirs.</p>
     <div class="coopView titleView" id="titleView"><span>View <small>From above the farm, or out of your own eyes</small></span><div class="coopSeg" role="radiogroup" aria-label="Your view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
+    <div class="coopView titleView" id="titleMode"><span>Mode <small>No perks: no cards or aid between waves</small></span><div class="coopSeg" role="radiogroup" aria-label="Your run's mode"><button type="button" role="radio" data-m="normal" aria-checked="true">Normal</button><button type="button" role="radio" data-m="noperks" aria-checked="false">No perks</button></div></div>
     <div class="btns mlist"><button class="btn" id="startBtn" type="button">Start the run <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopBtn" type="button" aria-expanded="false" aria-controls="coop">Co-op</button><button class="btn ghost" id="lookBtnTitle" type="button">Character</button><button class="btn ghost" id="setBtnTitle" type="button">Settings</button><span class="note" id="best"></span></div>
    </div>
     <div class="ctrls">
@@ -279,6 +280,7 @@
             <div class="coopChat"><ol id="coopChat" aria-live="polite" aria-label="Lobby chat"></ol><input id="coopSay" maxlength="120" placeholder="Say something to the lobby, Enter to send" autocomplete="off" spellcheck="false" aria-label="Say something to the lobby"></div>
             <div class="coopSide">
               <div class="coopView" id="coopView"><span>View <small id="coopViewNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's view in the run"><button type="button" role="radio" data-v="iso" aria-checked="true">Isometric</button><button type="button" role="radio" data-v="fp" aria-checked="false">First person</button></div></div>
+              <div class="coopView" id="coopMode"><span>Mode <small id="coopModeNote">Everyone plays in it</small></span><div class="coopSeg" role="radiogroup" aria-label="Everyone's run mode"><button type="button" role="radio" data-m="normal" aria-checked="true">Normal</button><button type="button" role="radio" data-m="noperks" aria-checked="false">No perks</button></div></div>
               <div class="btns mlist coopActs"><button class="btn" id="coopGo" type="button">Start together <kbd data-bind="wave">T</kbd></button><button class="btn" id="coopReady" type="button">Ready <kbd data-bind="wave">T</kbd></button><button class="btn ghost" id="coopLeave" type="button">Leave</button></div>
               <p class="coopWait" id="coopWait" role="status"></p>
             </div>

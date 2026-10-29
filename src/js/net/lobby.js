@@ -8,7 +8,7 @@ import { $ } from '../core/dom.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cache, clamp } from '../core/math.js';
 import {
-  NET, NET_COL, NET_MAX, netAllReady, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetView, netStart
+  NET, NET_COL, NET_MAX, netAllReady, netHost, netJoin, netKick, netLeave, netLink, netName, netReady, netRoster, netSend, netSetMode, netSetView, netStart
 } from './net.js';
 import { METAL } from '../barricades/planks.js';
 import { audioInit } from '../audio/audio.js';
@@ -28,7 +28,7 @@ export function lobbyRender() {
   $('coopPick').hidden = on;
   $('coopRoom').hidden = !room;
   $('coopShow').textContent = NET.code;
-  $('startBtn').hidden = on; $('titleView').hidden = on;   // (your own view's for a run on your own: in co-op it's the lobby's)
+  $('startBtn').hidden = on; $('titleView').hidden = on; $('titleMode').hidden = on;   // (your own view's for a run on your own: in co-op it's the lobby's)
   $('coopBtn').classList.toggle('inLobby', room);   // (the title's Co-op shows you're in one: styles/coop.css)
   $('coopMsg').textContent = NET.status || '';
   // your look, if it's changed since the others were told (the Character menu, between visits to the lobby)
@@ -36,6 +36,9 @@ export function lobbyRender() {
   // the view everyone plays in: the host's to pick (net/net.js), shown to the rest
   for (const b of $('coopView').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.v === NET.view)); b.disabled = !host || NET.inGame; }
   $('coopViewNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
+  // and the run's mode, the same: normal or no perks
+  for (const b of $('coopMode').querySelectorAll('button')) { b.setAttribute('aria-checked', String(b.dataset.m === NET.runMode)); b.disabled = !host || NET.inGame; }
+  $('coopModeNote').textContent = host ? 'Everyone plays in it' : 'The host picks it';
   // what you can do: the host starts once everyone's ready; a joiner says they're ready (or not after all)
   const others = [...NET.peers.values()], waiting = others.filter(p => !p.ready).map(p => p.name);
   $('coopGo').hidden = !host; $('coopGo').classList.toggle('held', host && !netAllReady()); $('coopGo').disabled = NET.inGame;
@@ -102,6 +105,7 @@ $('coopGo').onclick = () => { if (netAllReady()) wantLock(true); netStart(); }; 
 $('coopReady').onclick = () => { netReady(!NET.ready); SFX.click(); };
 $('coopLeave').onclick = () => netLeave();
 $('coopView').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetView(b.dataset.v); };
+$('coopMode').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) netSetMode(b.dataset.m); };
 // a Copy button: says so only once the clipboard's really taken it (a browser that won't let the page at it says that)
 export function copyBtn(el, text) {
   const was = el.dataset.label || (el.dataset.label = el.textContent);

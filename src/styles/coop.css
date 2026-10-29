@@ -115,7 +115,9 @@ body.coopOn #title .inner{visibility:hidden}
 .coopSeg button:disabled{cursor:default}
 .coopSeg button:disabled:not([aria-checked=true]){opacity:.5}
 .coopSeg button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
-.titleView{justify-content:flex-start;gap:16px;max-width:520px}   /* the view for a run on your own, on the title under the story (ui/settings.js: titleViewRender) */
+.titleView{justify-content:flex-start;gap:16px;max-width:520px}
+.titleView>span{flex:0 0 240px}   /* (the view and the mode rows' pickers lined up under each other) */
+#titleMode{margin-top:-6px}   /* the view for a run on your own, on the title under the story (ui/settings.js: titleViewRender) */
 /* the title's Co-op, while you're in a lobby: a dot in green after it */
 #coopBtn.inLobby::after{content:"";display:block;position:static;width:9px;height:9px;margin-left:10px;border-radius:50%;background:#6fd07a;box-shadow:0 0 8px rgba(111,208,122,.7);clip-path:none;z-index:auto;inset:auto}
 
