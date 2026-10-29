@@ -464,7 +464,9 @@ serrations at the front. The handgun's holo step puts the holographic sight itse
 pistol's red dot is a Trijicon RMR, like a handgun's, up on a riser after the Unity FAST (a slim body clamped to the rail, its top rail overhanging the front with the underside sloping back down to the base, the rail's slots along the top, a clamp plate and two bolts down its left), 2.6 cm higher so its window clears the front sight and a can; and your eye comes in close behind it, as with a handgun's dot, so the window fills a good part of the view. The handgun's heavy-duty suppressor is an Osprey: a long, flat-sided can
 with its bore up near its top and its body hung below it (3.2 cm across, 4 cm tall, 20 cm long, a dark cap on its
 front and three slanted grooves cut in its sides at the back), so its top stays just under the slide's and it never
-comes up into the iron sights, the red dot's window or the view; every other gun keeps its round can. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
+comes up into the iron sights, the red dot's window or the view; every other gun keeps its round can. A handgun's
+irons always keep your eye back off the slide where a handgun's should be (about 32 cm behind the rear sight), however
+long a can makes the gun; it used to be taken for a long gun and pull your eye in right onto the rear sight. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
 with the scope at your eye its own magnified view (2.5× for the first scope, 3× for the second and the ACOG, 3.5× for the high-power one, all a little under what they were so you keep your bearings) is seen through that glass:

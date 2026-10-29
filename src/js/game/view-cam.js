@@ -766,7 +766,7 @@ function sightLine() {
   const meshes = [], b = new THREE.Box3().makeEmpty(); h.traverseVisible(o => { if (o.isMesh && o.geometry) meshes.push(o); });
   for (const o of meshes) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); b.union(_sb.copy(o.geometry.boundingBox).applyMatrix4(_sm2.multiplyMatrices(_sm, o.matrixWorld))); }
   if (b.isEmpty()) return null;
-  const len = b.max.z - b.min.z, long = len > IRON.long;
+  const len = b.max.z - b.min.z, long = len > IRON.long && (W(curId()) || {}).slot !== 'side';   // (a handgun's never held like a long gun, however long a can makes it: its eye stays back off the slide, EYE_MIN.hand)
   if (ir && ir.userData.irons.yf !== undefined) {
     const I = ir.userData.irons; ir.updateMatrixWorld(true);
     SL.obj = ir; SL.kind = I.kind; SL.r = I.r || 0; SL.hw = SL.hh = 0;
