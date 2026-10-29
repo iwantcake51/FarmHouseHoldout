@@ -26,6 +26,7 @@
   "world/furniture.js",
   "world/interior.js",
   "world/fence.js",
+  "world/tree-cull.js",
   "world/trees.js",
   "world/collision.js",
   "world/wind.js",

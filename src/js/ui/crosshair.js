@@ -32,6 +32,10 @@ export function hitMark(kind, head) {
   xhMark.classList.remove('hit', 'head', 'kill'); void xhMark.getBoundingClientRect();
   xhMark.classList.add(kind === 'kill' ? 'kill' : 'hit'); if (head || kind === 'head') xhMark.classList.add('head');
 }
+// and taken off once it's played: left on, it played again every time the crosshair was shown (coming back off the
+// sights), a kill's red marker with nothing hit
+const hitMarkOff = () => xhMark.classList.remove('hit', 'head', 'kill');
+xhMark.addEventListener('animationend', hitMarkOff);
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
 const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');
@@ -140,7 +144,7 @@ export function updateCrosshair(rdt, D) {
   const showXh = state === 'play' && hasMouse && !usingTouch && !scoped && !freeOn() && !fpSighted();   // (none flying the free camera, nor down the sights in first person, where the sights are what you aim with: game/view-cam.js)
   // (hidden, a finished reload's flash is put out: shown again, the browser would play it over again, a pop each time
   // you come off the sights)
-  if (!showXh && !xh.hidden) { Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
+  if (!showXh && !xh.hidden) { hitMarkOff(); Object.values(RL).forEach(r => [r.ring, r.head, r.track].forEach(el => el.classList.remove('done', 'tick'))); $('xhRPing').classList.remove('tick'); }   // (the ping at the arc's end too: its pop would play again as it's shown)
   xh.hidden = !showXh;
   if (showXh) {
     xhAt(_xhP); xh.style.transform = `translate(${_xhP[0].toFixed(1)}px,${_xhP[1].toFixed(1)}px)`;   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)

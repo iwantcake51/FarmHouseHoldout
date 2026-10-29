@@ -129,7 +129,8 @@ length with a handgun's long eye relief rather than up against your eye. With an
 folding sights are laid down flat, the rear back along the receiver and the front post along the barrel, so nothing
 stands in front of the optic as you look through it. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good many mags of sustained fire to get it hot (a full mag barely warms it), and it cools off slowly once you stop
-(just for the look). Warm, the
+(just for the look). A hotter powder warms it a little quicker: hand-loads about 8% more a round, +P loads 16%,
+match-grade 24%. Warm, the
 barrel smokes, thin wisps curling up off the muzzle with a puff at each shot; hotter, the whole can, its bands and
 clamp too, glows a dull red, then orange, then a deep yellow at its hottest (it never washes out to white), with a slight
 yellow bloom round it; and overheating, the smoke pours
@@ -389,7 +390,9 @@ it's about a third smaller than it was; and the pattern's round, spread all roun
 down as far as sideways and never outside that ring (one that would land past it is pulled back in to its edge), rather
 than all of them flying out level in one flat line. The holes in a wall show it: a round cluster in the ring. A lone
 round's spread is round too: it lands anywhere inside the circle, up and down as much as sideways, so a held LMG burst
-scatters all round the crosshair rather than along a flat line.
+scatters all round the crosshair rather than along a flat line. The LMG's recoil climbs less than other guns' (about
+60% of the rise, at the hip and down the sights alike) and walks side to side more instead, so a long burst swings
+across the target rather than rising off it.
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
@@ -718,6 +721,17 @@ faces you can see are kept (a dot's or a line's top, not its sides), so the grip
 rifle goes from about 115,000 triangles to about 9,400, the double barrel from 51,000 to 5,400, the revolver from
 25,000 to 7,100. A spitter's acid sacs are rounded with fewer faces once the spitter's under about 140 pixels tall.
 In the house with the gun rack in view, that's about 211,000 triangles a frame instead of about 398,000.
+The woods only draw the trees you can see. Each frame, trees out of view are left out of the frame, and from your
+own eyes so are trees hidden behind nearer ones. That's checked against a small depth picture of the view: nearest
+first, each tree that shows paints in boxes that sit inside its crown (a staircase up each tier of a pine, the middle
+of a broadleaf's crown), and a tree whose whole outline is behind them is left out. The boxes never reach past the
+boughs, so a tree you'd see through a gap is always drawn. Same-frame renders with and without it come out identical.
+From your own eyes that takes the woods from 2,475 trees to about 300–650 drawn, depending on where you look. A tree
+left out of the frame still casts its shadow, from a copy drawn only into the shadow map.
+The trees outside the fence now cast shadows too. Those within reach of the sun's shadows cast real ones, and the far
+woods (past about 32 m from the middle, beyond the shadow map) lay a soft shadow on the ground away from the sun,
+as long as the tree's height over the sun's angle, turned with the sun through the day and fading with it. Every tree
+outside the farm also has a soft pool of shade under it, as the farm's own do.
 
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,

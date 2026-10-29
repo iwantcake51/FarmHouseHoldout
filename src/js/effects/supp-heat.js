@@ -17,8 +17,10 @@ import { muzzleWorld } from './muzzle-flash.js';
 import { smoke } from './smoke.js';
 
 // shot: heat a round puts in (times 0.6 + its power, effects/tracers.js tracerPower); max: as hot as it gets; cool:
-// what it sheds a second, plus coolHot of its heat (a hotter can cools faster); show: how hot before it starts to glow
-const SUPP_HEAT = { shot: 0.0038, max: 1.3, cool: 0.012, coolHot: 0.035, show: 0.36 };   // (about three times as many rounds to heat it as before)
+// what it sheds a second, plus coolHot of its heat (a hotter can cools faster); show: how hot before it starts to glow;
+// powder: times that again for the gun's powder (its 'ammo' line, upgrades/tier-table.js: stock, hand-loads, +P, match),
+// a hotter charge's gas warming the can a little quicker
+const SUPP_HEAT = { shot: 0.0038, max: 1.3, cool: 0.012, coolHot: 0.035, show: 0.36, powder: [1, 1.08, 1.16, 1.24] };   // (about three times as many rounds to heat it as before)
 // the barrel's smoke: from how hot it starts (from) and from how hot it's overheating (trail); wisps a second, from just
 // smoking to as hot as it gets (rate), and more again overheating (trailRate); how thick (a), how long each lasts
 // (life, a second or two more overheating: the trail it leaves hanging); the puff at each shot (shot: how thick)
@@ -38,9 +40,9 @@ export function heatAll(list, id) {
     m.add(sh);
   }
 }
-// a round fired through gun id's can (pw: its power); already hot, a puff of smoke off it
-export function suppHeat(id, pw) {
-  HEAT[id] = Math.min(SUPP_HEAT.max, (HEAT[id] || 0) + SUPP_HEAT.shot * (0.6 + (pw || 0.35)));
+// a round fired through gun id's can (pw: its power; powder: the gun's powder tier); already hot, a puff of smoke off it
+export function suppHeat(id, pw, powder) {
+  HEAT[id] = Math.min(SUPP_HEAT.max, (HEAT[id] || 0) + SUPP_HEAT.shot * (0.6 + (pw || 0.35)) * (SUPP_HEAT.powder[powder | 0] || 1));
   const k = smokeK(HEAT[id]); if (k > 0) { const m = muzzleWorld(); smoke(m.x, m.y + 0.01, m.z, rr(-0.08, 0.08), rr(0.3, 0.6), rr(-0.08, 0.08), 0.03, 0.22 + 0.2 * k, rr(0.8, 1.2), HEAT_SMOKE.shot * k, HEAT_SMOKE.tint); }
 }
 // how far into smoking a can this hot is (0 cool enough not to, 1 as hot as it gets), and into overheating

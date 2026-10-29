@@ -663,20 +663,22 @@ export function viewKick(pw, auto) {
   // (which way this one goes: up and off to a side, FP_RECOIL.dir)
   // (at the hip the gun follows the crosshair's own kick aside, fpRecoil, so only down the sights does it pick its own way)
   const DR = FP_RECOIL.dir, th = clamp(DR.bias + DR.spread * adsW() * (rand() + rand() + rand() - 1.5) * 1.4, -DR.max, DR.max), ku = Math.cos(th), ks = Math.sin(th);
-  const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vk += kv * ku; V.vky += kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw;   // (less down the sights: adsKick)
+  // (a gun can kick up less and swing aside more than most: its climbK and fpSideK, weapons/gun-stats.js: the LMG)
+  const D = W(curId()), upK = (D && D.climbK) || 1, sdK = (D && D.fpSideK) || 1;
+  const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
   if ((V.ff || 0) < FIRE_FOV.max) V.vff = (V.vff || 0) + pw * FIRE_FOV.punch * (auto ? FIRE_FOV.auto : 1) * 10;
-  const C = V.rc, D = W(curId()), hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
+  const C = V.rc, hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
   const act = EJECT[curId()], a = (act === 'pump' || act === 'bolt' ? FP_RECOIL.act : 1) * (D && D.ammo === 'shells' ? FP_RECOIL.shells : 1) * (auto ? AU.k : 1), q = Math.min(pw, 1.25);
   C.kind = hand ? 'hand' : 'long'; C.w = F.w; C.d = 2 * F.z * F.w;
   // (an impulse for the size it's to reach at its most, on this spring)
   const v = 1 / (Math.exp(-F.z / Math.sqrt(1 - F.z * F.z) * Math.atan(Math.sqrt(1 - F.z * F.z) / F.z)) / F.w);
   const room = 1 - 0.5 * clamp(C.p / (F.flip + F.flipPw), 0, 1);   // (less room to flip it up the higher it already is)
-  const fl = (F.flip + F.flipPw * q) * a * room * rr(0.85, 1.15) * v; C.vp += fl * ku; C.vy += fl * ks * rr(0.6, 1);
+  const fl = (F.flip + F.flipPw * q) * a * room * rr(0.85, 1.15) * v; C.vp += fl * ku * upK; C.vy += fl * ks * rr(0.6, 1) * sdK;
   C.vz += (F.back + F.backPw * q) * a * (D && D.ammo === 'shells' ? FP_RECOIL.shellsBack / FP_RECOIL.shells : 1) * rr(0.85, 1.15) * v; C.vh += F.up * (0.5 + q) * a * rr(0.7, 1.2) * v;
-  C.vr += F.roll * (0.4 + q) * a * rr(0.5, 1) * (rand() < 0.5 ? -1 : 1) * v; C.vy += F.yaw * (0.4 + q) * a * rr(-1, 1) * v; C.vx += F.side * (0.5 + q) * a * rr(-1, 1) * v;
+  C.vr += F.roll * (0.4 + q) * a * rr(0.5, 1) * (rand() < 0.5 ? -1 : 1) * v; C.vy += F.yaw * (0.4 + q) * a * rr(-1, 1) * v * sdK; C.vx += F.side * (0.5 + q) * a * rr(-1, 1) * v * sdK;
   // held on the trigger: the climb, wandering as it goes (a shot more than a beat after the last starts it afresh)
   const now = C.t;   // (the kick's own clock: recoilStep)
-  if (auto) { if (now - C.last > 0.3) { C.tp = 0; C.ty = 0; } C.tp = Math.min(AU.max, C.tp + AU.climb * (0.6 + q) * rr(0.7, 1.3)); C.ty = clamp(C.ty + AU.climb * AU.wander * rr(-1, 1) * (0.6 + q), -AU.max * 0.5, AU.max * 0.5); }
+  if (auto) { if (now - C.last > 0.3) { C.tp = 0; C.ty = 0; } C.tp = Math.min(AU.max * upK, C.tp + AU.climb * (0.6 + q) * rr(0.7, 1.3) * upK); C.ty = clamp(C.ty + AU.climb * AU.wander * rr(-1, 1) * (0.6 + q) * sdK, -AU.max * 0.5 * sdK, AU.max * 0.5 * sdK); }
   C.last = now;
   C.e = Math.min(1.6, C.e + (auto ? R.auto : R.semi) * (0.5 + q));   // (the rattle: harder the heavier the gun)
 }

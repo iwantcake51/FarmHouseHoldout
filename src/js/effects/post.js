@@ -9,6 +9,7 @@
 // that's what makes the occlusion cheap and exact here.
 
 import { lodFigures } from './lod.js';
+import { cullForests, stepSunShadows } from '../world/tree-cull.js';
 import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
@@ -279,6 +280,7 @@ function flashDepth() {
 export function renderFrame() {
   batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
   lodFigures(cam);     // (the figures' pieces too small to see left out: effects/lod.js)
+  cullForests(cam); stepSunShadows();   // (only the trees in sight drawn, and the far ones' shadows turned with the sun: world/tree-cull.js)
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;

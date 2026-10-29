@@ -60,8 +60,8 @@ const XREC = { px: 20, side: 0.45, autoSide: 0.6, adsSemi: 0.5, adsAuto: 0.18, k
 // it climbs nearly straight out along the aim (climb a round, up to climbMax rounds' worth), then it starts swaying
 // side to side, a slow swing one way and back (sway: how far, in the round's own kick; swing: how far round it goes
 // each round, so a few rounds a swing, one way first, picked as the spray starts), never just pulling one way. A
-// smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js: the
-// LMG climbs rather than swings). Let go and it all comes back to the cursor smoothly, on a spring (back: how quickly). The walk is
+// smaller round kicks less all through (cal); a gun can keep its sideways down (its sideK, weapons/gun-stats.js) and its
+// climb (climbK: the LMG's kept low, so a long burst walks side to side more than it climbs). Let go and it all comes back to the cursor smoothly, on a spring (back: how quickly). The walk is
 // eased to (ease), so it glides rather than stepping with each round
 const XAUTO = { from: 0.3, build: 14, sideFrom: 7, sway: 1.1, swing: 0.38, climb: 0.12, climbMax: 10, jit: 0.35, ease: 10, back: 4.5, cal: { p9: 0.55, p10: 0.75, magnum: 0.8, rifle: 1, shells: 1.1 } };
 const XDRIFT = { max: 120, adsMax: 0.35 };   // (the furthest a spray walks the aim, px at 1080 high; down the sights adsMax of that)
@@ -129,13 +129,13 @@ export function xhKick(D, id, pw, auto) {
   }
   const A = XAUTO;
   if (!(XR.autoT > 0)) { XR.n = 0; XR.dir = rand() < 0.5 ? -1 : 1; XR.swp = 0; }
-  const n = ++XR.n, k = amt * mix(A.from, 1, smooth(Math.min(1, (n - 1) / A.build))) * (A.cal[D.ammo] ?? 1), sideK = D.sideK ?? 1;
-  const side = rr(-1, 1) * XREC.autoSide * A.jit * sideK, out = rr(0.5, 1), v = k * 18;
+  const n = ++XR.n, k = amt * mix(A.from, 1, smooth(Math.min(1, (n - 1) / A.build))) * (A.cal[D.ammo] ?? 1), sideK = D.sideK ?? 1, upK = D.climbK ?? 1;
+  const side = rr(-1, 1) * XREC.autoSide * A.jit * sideK, out = rr(0.5, 1) * upK, v = k * 18;
   XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; XR.autoT = 0.3;
   // where the spray's taken the aim so far: the climb, and past sideFrom rounds the swing side to side
   const swayOn = smooth(clamp((n - A.sideFrom) / 5, 0, 1));
   if (n > A.sideFrom) XR.swp += A.swing * rr(0.75, 1.25);
-  const sw = XR.dir * Math.sin(XR.swp) * A.sway * k * swayOn * sideK, cl = Math.min(n, A.climbMax) * A.climb * k;
+  const sw = XR.dir * Math.sin(XR.swp) * A.sway * k * swayOn * sideK, cl = Math.min(n, A.climbMax) * A.climb * k * upK;
   let tx = -dy * sw + dx * cl, ty = dx * sw + dy * cl;
   const L2 = Math.hypot(tx, ty), cap = XDRIFT.max * innerHeight / 1080 * mix(1, XDRIFT.adsMax, SHAKY.ak); if (L2 > cap) { tx *= cap / L2; ty *= cap / L2; }
   XR.tx = tx; XR.ty = ty;

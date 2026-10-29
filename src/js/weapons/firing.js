@@ -337,7 +337,7 @@ export function gunFire(id, D, side) {
   // tracers by how hard the round hits (effects/tracers.js); a suppressed round's is a little dimmer
   // a suppressed round's streak is a dim grey one, not a glowing one, and it leaves smoke instead (effects/tracers.js)
   const quietR = suppressed(D), trPw = tracerPower(D), trSt = D.ignite ? 'dragon' : quietR ? 'supp' : T('ammo') >= 2 ? 'hot' : 'std';
-  if (quietR) suppHeat(id, trPw);   // (the can warms with each round through it: effects/supp-heat.js)
+  if (quietR) suppHeat(id, trPw, T('ammo'));   // (the can warms with each round through it, quicker behind a hotter powder: effects/supp-heat.js)
   const ends = [];   // where the tracers end, for your teammates' screens (net/avatars.js)
   const shotB = new Map();   // the boards the shot goes through, and how hard (barricades/planks.js)
   for (let p = 0; p < pellets; p++) {
