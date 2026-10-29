@@ -117,7 +117,11 @@ flashlight and the muzzle flashes matter.
 
 **Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
-reload: mags in and out, shells one at a time, speed loaders and belts. At the workbench you can add sights, lasers,
+reload: mags in and out, shells one at a time, speed loaders and belts. The LMG's belt loops up out of its box into
+the feed tray, and the rest of it lies folded flat in the open box, a layer of rounds side by side just under the rim,
+the loop coming up out of the end of it. The loop swings softly as the gun moves and nudges with each shot, eased off
+toward the ends of its travel rather than snapping against them, while what's folded in the box lies still; the
+folded rounds go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
 battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
@@ -161,8 +165,10 @@ that climbs a semitone with each kill in a chain, and shakes the view by how har
 heavy round, a shotgun or a heavy blow much more, through the head or with a big overkill more again. Playing alone, a
 kill that lands hard (through the head with anything but a fast automatic, a heavy round, a shotgun, a heavy blow)
 holds the world still for a few hundredths of a second, never closer together than a third of a second, so a run of
-kills doesn't stutter. Kills in a chain (each within 1.2 seconds of the last) are called out under the banner, Double
-kill to Unstoppable, bigger and hotter the longer the chain runs, and each kill past the third is worth a scrap more.
+kills doesn't stutter. Kills in a chain (each within 1.6 seconds of the last) are called out on a small card above the
+middle, Double kill to Unstoppable: a pip for each kill in the chain, the scrap it's paid, and a thin bar draining over
+the time left to keep it going. Each kill pops it in again with its newest pip bursting in, its glow hotter the longer
+the chain runs, and it fades as soon as the chain can't go on. Each kill past the third is worth a scrap more.
 A kill sounds like what made it: through the head the skull bursting (two recordings), through the body it giving
 way with a deep thud as it drops (four), heavier for a blade or a club, a hiss for a burning one; most of the time
 with the zombie's last breath going out of it. Bullets into flesh have four recordings rather than two. The new
@@ -395,7 +401,10 @@ than all of them flying out level in one flat line. The holes in a wall show it:
 round's spread is round too: it lands anywhere inside the circle, up and down as much as sideways, so a held LMG burst
 scatters all round the crosshair rather than along a flat line. The LMG's recoil climbs less than other guns' (about
 60% of the rise, at the hip and down the sights alike) and walks side to side more instead, so a long burst swings
-across the target rather than rising off it.
+across the target rather than rising off it. A gun's upgrades change which way it kicks: a hotter powder puts its
+extra kick into the climb (+18%, +38% and +60% up by tier, about a third of that sideways too, and a slightly harder
+punch all round), and each lighter trigger step swings the gun aside 15% more and climbs 5% more, the shots coming
+quicker than your wrists settle. The workbench shows it on each card (KICK UP, KICK ASIDE).
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
@@ -435,7 +444,7 @@ serrations at the front. The handgun's holo step puts the holographic sight itse
 pistol's red dot is a Trijicon RMR, like a handgun's. The AR's built-in dot sight is a hollow tube you look down, its dot seen through the far lens. A scope (the hunting scopes, the ACOG) sits a
 proper eye relief out from your eye (the hunting rifle's scope a little closer than its iron sights), and its eyepiece is a real disc of glass in the scope, not a picture laid over the
 screen: from any angle it's the shape the lens really is (an oval seen from the side, nothing at all from in front), and
-with the scope at your eye its own magnified view is seen through that glass:
+with the scope at your eye its own magnified view (2.5× for the first scope, 3× for the second and the ACOG, 3.5× for the high-power one, all a little under what they were so you keep your bearings) is seen through that glass:
 the picture and the reticle (a duplex, or the ACOG's lit chevron and drop marks, turning with the gun) both sit on
 where the scope's axis points, so with your eye off the axis they slide together against the eyepiece's ring (real
 parallax), with colour fringing and darkening toward the rim and the tube's shadow closing in from the side your eye's
@@ -543,7 +552,10 @@ stop dead in the hold either: it carries on a hair up as it gets there and seats
 more. A draw is paced by how far the whole gun travels, its muzzle and butt as well as the grip, and it slows into its
 sharp turns (a long gun's muzzle dipping into the low ready before it comes up to the shoulder), so nothing pops or
 bounces on the way out of the holster or off the sling; from your own eyes a long gun's stock seats into your
-shoulder as it arrives, a short jolt up and back that settles out smoothly over a fifth of a second. From above, aiming down the sights brings the gun up on a spring just under critical, a few percent past and
+shoulder as it arrives, a short jolt up and back that settles out smoothly over a fifth of a second. From your own
+eyes the view goes a little with your hand as you swap: a glance down and a lean toward the hip as a sidearm's put
+away, toward your back as a long gun goes over your shoulder, then the same way to wherever the next one's drawn from,
+each a smooth swell of a degree or two and back. It's only the camera that moves; your aim stays where it was. From above, aiming down the sights brings the gun up on a spring just under critical, a few percent past and
 settled in about a quarter second, and it drops back the same way when you let go. Loading the revolver a
 round at a time, the cylinder's pushed shut by hand after the last one (or when you stop to shoot): the left hand goes
 to the open cylinder, pushes it round into the frame till it clicks home, and goes back to the grip, the shot going

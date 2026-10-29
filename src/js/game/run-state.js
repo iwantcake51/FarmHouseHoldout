@@ -46,6 +46,11 @@ export function recomputeEff() {
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
     D.dmg *= AMMO_DMG[ammo]; D.powK = POWDER_KICK[ammo]; D.shake *= POWDER_KICK[ammo];   // a hotter charge kicks harder too
+    // which way the kick grows with the gun's tiers (KICK_TIER): a hotter powder mostly up (its POWDER_KICK all into the
+    // climb, side of it aside), a lighter trigger mostly aside, the shots coming quicker than the wrists settle (side
+    // a step, up a little). On top of the gun's own climbK and sideK (weapons/gun-stats.js: the LMG's)
+    D.kickUp = (1 + (D.powK - 1) * KICK_TIER.powder.up) * (1 + trig * KICK_TIER.trigger.up);
+    D.kickSide = (1 + (D.powK - 1) * KICK_TIER.powder.side) * (1 + trig * KICK_TIER.trigger.side);
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
@@ -107,6 +112,8 @@ export const AMMO_DMG = [1, 1.25, 1.5, 1.875];
 // and how much harder each step kicks: the gun back into your hands, the view, the crosshair and its spread with every
 // shot (D.powK, weapons/firing.js; D.shake)
 export const POWDER_KICK = [1, 1.18, 1.38, 1.6];
+// (a powder's kick split: up of it into the climb, side of it aside; a trigger step's: up and side a step)
+const KICK_TIER = { powder: { up: 1, side: 0.3 }, trigger: { up: 0.05, side: 0.15 } };
 export const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33];
 // how much faster the recoil settles back to nothing once you stop firing, with each laser (SETTLE, weapons/firing.js)
 export const LASER_SETTLE = [1, 1.3, 1.6];
@@ -132,8 +139,9 @@ export const GUN_TIERS = new Set(['ammo', 'trigger', 'mag', 'supp', 'sight', 'la
 // the SCAR the high-power scope (the SCAR every sight there is, on its long top rail)
 export const SCOPE_TOP = { revolver: 3, deagle: 4, ar: 4, hunting: 5, scar: 5 }, SCOPE_GUNS = new Set(Object.keys(SCOPE_TOP));
 // each scope, by its sight step: how much it pulls the view in and out toward the aim while you aim (game/camera.js;
-// zoom is the old hold-to-scope view's, player/aiming.js), and how hard a sniper's headshots crit through it
-export const SCOPES = { 3: { view: 1, zoom: 2.4, crit: 2 }, 4: { view: 1.17, zoom: 2.75, crit: 2.25 }, 5: { view: 1.35, zoom: 3.1, crit: 2.5 } };
+// zoom is the old hold-to-scope view's, player/aiming.js), its power from your own eyes (mag: times; the ACOG's own,
+// SCOPE_ACOG), and how hard a sniper's headshots crit through it. Kept low enough to keep your bearings through them
+export const SCOPES = { 3: { view: 0.85, zoom: 2.4, mag: 2.5, crit: 2 }, 4: { view: 1, zoom: 2.75, mag: 3, crit: 2.25 }, 5: { view: 1.15, zoom: 3.1, mag: 3.5, crit: 2.5 } }, SCOPE_ACOG = 3;
 // the pump's shells a go with Quick hands II (PAIR_LOAD) and III (TRIPLE, Triple Load), each go that much of the time
 // one shell takes; and the revolver's reload with its speed loader (seconds; a round at a time it's D.perShell each, after REV_OPEN_T to
 // swing the cylinder out, and Quick hands takes no more than REV_QUICK off either: relMul, weapons/reload.js); and Triple Load, the pump's loader step: three shells a go,

@@ -209,12 +209,23 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 
 /* a chain of kills called out (ui/hud-text.js streakShow): its name in the banner's type, hotter and bigger the longer it
    runs (--lv, 1 to 5), popping in with each kill and gone a moment after the last; the scrap it's paid under it */
-#streak{left:0;right:0;top:calc(31% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:2px;text-align:center;opacity:0;transition:opacity .35s ease}
-#streak.on{opacity:1;transition-duration:.06s}
-#streak b{font-family:var(--f-num);font-weight:800;font-size:calc(26px + var(--lv,1) * 5px);letter-spacing:.04em;text-transform:uppercase;line-height:1;
-  color:color-mix(in srgb,var(--orange) calc(var(--lv,1) * 18%),var(--ink));filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
-#streak small{font:600 12px/1 "Archivo","Helvetica Neue",Arial,sans-serif;color:var(--gold)}
-#streak.pop b{animation:streakPop .32s cubic-bezier(.2,1.4,.4,1)}
-@keyframes streakPop{0%{transform:scale(1.45)}100%{transform:none}}
+/* the kill streak: a small card under the middle, its name, a pip a kill, the scrap it paid, and the chain's time left
+   draining under it; popped in again with each kill, its glow hotter the longer the chain (--lv 1..5) */
+#streak{left:0;right:0;top:calc(30% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:4px;text-align:center;opacity:0;transform:translateY(-4px);transition:opacity .4s ease,transform .4s ease;pointer-events:none}
+#streak.on{opacity:1;transform:none;transition-duration:.08s}
+#streak b{font-family:var(--f-num);font-weight:800;font-size:calc(17px + var(--lv,1) * 2px);letter-spacing:.09em;text-transform:uppercase;line-height:1;
+  color:color-mix(in srgb,var(--orange) calc(var(--lv,1) * 18%),var(--ink));
+  text-shadow:0 0 calc(var(--lv,1) * 3px) color-mix(in srgb,var(--orange) calc(var(--lv,1) * 14%),transparent),0 2px 0 rgba(0,0,0,.65)}
+#streak .pips{display:flex;gap:3px;align-items:center;height:6px}
+#streak .pips i{width:5px;height:5px;border-radius:50%;background:var(--orange);box-shadow:0 0 4px color-mix(in srgb,var(--orange) 60%,transparent),0 1px 0 rgba(0,0,0,.6)}
+#streak .pips i:last-of-type{animation:stkPip .3s cubic-bezier(.2,1.6,.4,1)}
+#streak .pips em{font:700 10px/1 var(--f-num);color:var(--orange);font-style:normal;margin-left:2px}
+#streak small{font:600 11px/1 "Archivo","Helvetica Neue",Arial,sans-serif;color:var(--gold);letter-spacing:.02em}
+#streak u{display:block;width:64px;height:2px;border-radius:1px;background:linear-gradient(90deg,var(--gold),var(--orange));transform-origin:left;opacity:.85}
+#streak.pop u{animation:stkDrain var(--t,1.6s) linear forwards}
+#streak.pop b{animation:streakPop .34s cubic-bezier(.2,1.5,.4,1)}
+@keyframes streakPop{0%{transform:scale(1.35) rotate(-2deg);filter:brightness(1.6)}60%{filter:brightness(1.1)}100%{transform:none;filter:none}}
+@keyframes stkPip{0%{transform:scale(2.4)}100%{transform:none}}
+@keyframes stkDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
-@media (prefers-reduced-motion:reduce){#streak.pop b{animation:none}}
+@media (prefers-reduced-motion:reduce){#streak.pop b,#streak .pips i:last-of-type{animation:none}#streak.pop u{animation-timing-function:steps(4)}}

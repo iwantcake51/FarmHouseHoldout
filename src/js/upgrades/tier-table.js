@@ -22,13 +22,13 @@ export const TIERS = {
   // the powder behind every round, whichever kind is loaded (weapons/rounds.js): this line is the gun's damage, the
   // round is what it does (the line's key is still 'ammo')
   ammo: { tag: 'Powder', t: [
-    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but +18% recoil and spread every shot.', ap: () => S.dmgMul *= 1.25 },
-    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but recoil and spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
-    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: recoil and spread per shot up to +60%.', ap: () => S.dmgMul *= 1.25 }] },
+    { r: 'c', name: 'Hand-loads', text: 'A hotter charge behind every round, whichever kind is loaded. +25% damage, but each shot kicks up 18% harder (a little more aside too) and spreads more.', ap: () => S.dmgMul *= 1.25 },
+    { r: 'u', name: '+P loads', text: 'Hotter again, with orange tracers. +20% damage, but the kick up and the spread per shot up to +38%.', ap: () => S.dmgMul *= 1.2 },
+    { r: 'e', name: 'Match-grade loads', text: 'Every charge weighed out the same: +25% damage, and headshots count for more. The hardest kick: up to +60% kick up and spread per shot, and a little more aside.', ap: () => S.dmgMul *= 1.25 }] },
   trigger: { tag: 'Gun', t: [
-    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker.', ap: () => S.rateMul *= TRIG_UP[0] },
-    { r: 'u', name: 'Match trigger', text: 'Lighter again.', ap: () => S.rateMul *= TRIG_UP[1] },
-    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets.', ap: () => S.rateMul *= TRIG_UP[2] }] },
+    { r: 'c', name: 'Light trigger', text: 'A lighter pull, so shots come quicker, and the gun swings aside more as they do.', ap: () => S.rateMul *= TRIG_UP[0] },
+    { r: 'u', name: 'Match trigger', text: 'Lighter again: quicker, and a little more swing aside.', ap: () => S.rateMul *= TRIG_UP[1] },
+    { r: 'r', name: 'Hair trigger', text: 'As light as a pull gets: quicker still, swinging aside more again.', ap: () => S.rateMul *= TRIG_UP[2] }] },
   // the pistol's own names for them, after what it's given (weapons/gun-models.js): a +5 base plate, a long stick, a drum
   mag: { tag: 'Gun', t: [
     // the auto shotgun's one step is its drum (MAG_UP, game/run-state.js), priced as a rare one (rAs)

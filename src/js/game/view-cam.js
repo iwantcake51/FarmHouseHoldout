@@ -18,7 +18,8 @@ import { EJECT } from '../weapons/casings.js';
 import { thinRay } from '../world/thin-walls.js';
 import { bulletBlocked } from '../world/collision.js';
 import { P, PM } from '../player/player.js';
-import { curId, SCOPES, T, W, W8 } from './run-state.js';
+import { swapSt, SWAP_T } from '../player/swap.js';
+import { curId, SCOPE_ACOG, SCOPES, T, W, W8 } from './run-state.js';
 import { MS } from '../melee/melee-anim.js';
 import { GM, gunMeshes, HOLDS, MUZ, X } from '../weapons/gun-materials.js';
 import { SPRITE_AIM, SPRITE_RES } from '../effects/sprite-batch.js';
@@ -664,7 +665,7 @@ export function viewKick(pw, auto) {
   // (at the hip the gun follows the crosshair's own kick aside, fpRecoil, so only down the sights does it pick its own way)
   const DR = FP_RECOIL.dir, th = clamp(DR.bias + DR.spread * adsW() * (rand() + rand() + rand() - 1.5) * 1.4, -DR.max, DR.max), ku = Math.cos(th), ks = Math.sin(th);
   // (a gun can kick up less and swing aside more than most: its climbK and fpSideK, weapons/gun-stats.js: the LMG)
-  const D = W(curId()), upK = (D && D.climbK) || 1, sdK = (D && D.fpSideK) || 1;
+  const D = W(curId()), upK = ((D && D.climbK) || 1) * ((D && D.kickUp) || 1), sdK = ((D && D.fpSideK) || 1) * ((D && D.kickSide) || 1);   // (and its tiers': game/run-state.js)
   const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
   if ((V.ff || 0) < FIRE_FOV.max) V.vff = (V.vff || 0) + pw * FIRE_FOV.punch * (auto ? FIRE_FOV.auto : 1) * 10;
   const C = V.rc, hand = !!D && D.slot === 'side', F = hand ? FP_RECOIL.hand : FP_RECOIL.long, AU = FP_RECOIL.auto, R = FP_RECOIL.rattle;
@@ -946,6 +947,21 @@ function adsKickTilt(at, w) {
   _ktM.decompose(U.position, U.quaternion, U.scale); U.updateMatrix(); U.updateMatrixWorld(true);
   return true;
 }
+// putting a weapon away and drawing the next (player/swap.js), the view goes a little with your hand: a glance and a lean
+// toward where the one going away rides as it's put there, then toward where the next one rides as it's drawn, each a
+// smooth swell and back (SWAP_CAM, radians: p up, y round, r rolled), only the camera's own turn: your aim stays put
+const SWAP_CAM = { side: { p: -0.05, y: -0.035, r: 0.03 }, long: { p: 0.018, y: 0.03, r: -0.035 }, auto: { p: 0.015, y: 0.025, r: -0.03 }, melee: { p: 0.01, y: 0.02, r: -0.025 }, ease: 9 };
+function swapCam(rdt) {
+  let tp = 0, ty = 0, tr = 0; const s = swapSt;
+  if (s && !P.dead) {
+    const bell = (a, b) => { const u = clamp((s.t - a) / Math.max(1e-3, b - a), 0, 1), e = Math.sin(Math.PI * u); return e * e; };
+    const a = SWAP_CAM[s.from] || null, b = SWAP_CAM[s.to] || null, ka = a ? bell(0, SWAP_T.put + 0.05) : 0, kb = b ? bell(SWAP_T.cross - 0.05, s.end) : 0;
+    if (a) { tp += a.p * ka; ty += a.y * ka; tr += a.r * ka; }
+    if (b) { tp += b.p * kb; ty += b.y * kb; tr += b.r * kb; }
+  }
+  const k = Math.min(1, rdt * SWAP_CAM.ease);   // (eased onto, so a swap cut short settles rather than snapping back)
+  V.hsp = (V.hsp || 0) + (tp - (V.hsp || 0)) * k; V.hsy = (V.hsy || 0) + (ty - (V.hsy || 0)) * k; V.hsr = (V.hsr || 0) + (tr - (V.hsr || 0)) * k;
+}
 export function viewFrame(rdt, roll, sh, jolt) {
   if (!P.dead) DFP.on = false;
   syncView();
@@ -1049,7 +1065,8 @@ export function viewFrame(rdt, roll, sh, jolt) {
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx - Math.sin(V.cy) * ((V.mz || 0) + FL.z), _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx - Math.cos(V.cy) * ((V.mz || 0) + FL.z));   // (and jolted back off a blow: V.mz, MELEE_CAM)
-    c.rotation.set(viewP(), viewY() + Math.PI, viewR(), 'YXZ'); c.updateMatrixWorld(true);
+    swapCam(rdt);
+    c.rotation.set(viewP() + V.hsp, viewY() + V.hsy + Math.PI, viewR() + V.hsr, 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis
@@ -1064,7 +1081,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     if (S.on) {
       S.kind = LH.kind; S.src = LH.obj; S.eye.copy(_pa); S.obj.copy(_pb); S.dir.copy(_sd); S.r = LH.r; S.hw = LH.hw; S.hh = LH.hh;
       LH.obj.matrixWorld.extractBasis(S.ux, S.uy, _vcH); S.ux.normalize(); S.uy.normalize();
-      S.mag = LH.kind === 'acog' ? 4 : 1.5 * ((SCOPES[T('sight')] || SCOPES[3]).zoom);
+      S.mag = LH.kind === 'acog' ? SCOPE_ACOG : (SCOPES[T('sight')] || SCOPES[3]).mag;
       // where your eye is off its axis, across the view and up it, as a share of how far it can be and still see all of it
       _vcH.subVectors(c.position, _pa); _vcH.addScaledVector(_sd, -_vcH.dot(_sd)); c.matrixWorld.extractBasis(_vcD, _faV, _vcZ);
       S.off.set(_vcH.dot(_vcD) / EYEBOX + BOX.x, _vcH.dot(_faV) / EYEBOX + BOX.y);

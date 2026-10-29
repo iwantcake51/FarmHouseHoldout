@@ -124,12 +124,12 @@ export function xhKick(D, id, pw, auto) {
   if (L < 1 || fpOn()) { dx = 0; dy = -1; } else { dx /= L; dy /= L; }   // (from your own eyes your aim's straight ahead: a shot climbs it up the screen; you're behind the view, so placing you on it would point it down)
   XR.c = Math.pow(settleK(D), 0.7);   // (how quickly it comes home: slower for a heavier round, SETTLE)
   if (!auto) {   // (a shot at a time: kicked out along the aim and a little aside, and eased home; harder as a sidearm's spray builds, HANDGUN)
-    const side = rr(-1, 1) * XREC.side, out = rr(0.85, 1.1), v = amt * 22 * (unshouldered(D, id) ? 1 + HANDGUN.kick * (W8.spray || 0) : 1);
+    const side = rr(-1, 1) * XREC.side * (D.kickSide || 1), out = rr(0.85, 1.1) * (D.kickUp || 1), v = amt * 22 * (unshouldered(D, id) ? 1 + HANDGUN.kick * (W8.spray || 0) : 1);
     XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; return;
   }
   const A = XAUTO;
   if (!(XR.autoT > 0)) { XR.n = 0; XR.dir = rand() < 0.5 ? -1 : 1; XR.swp = 0; }
-  const n = ++XR.n, k = amt * mix(A.from, 1, smooth(Math.min(1, (n - 1) / A.build))) * (A.cal[D.ammo] ?? 1), sideK = D.sideK ?? 1, upK = D.climbK ?? 1;
+  const n = ++XR.n, k = amt * mix(A.from, 1, smooth(Math.min(1, (n - 1) / A.build))) * (A.cal[D.ammo] ?? 1), sideK = (D.sideK ?? 1) * (D.kickSide || 1), upK = (D.climbK ?? 1) * (D.kickUp || 1);   // (the gun's own, and its tiers': game/run-state.js)
   const side = rr(-1, 1) * XREC.autoSide * A.jit * sideK, out = rr(0.5, 1) * upK, v = k * 18;
   XR.vx += (dx * out - dy * side) * v; XR.vy += (dy * out + dx * side) * v; XR.autoT = 0.3;
   // where the spray's taken the aim so far: the climb, and past sideFrom rounds the swing side to side

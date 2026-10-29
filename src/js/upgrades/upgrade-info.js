@@ -80,7 +80,7 @@ export function gunStats(id, D) {
   const mag = D.melee ? 0 : Math.max(1, Math.round(D.mag * S.magMul));
   // a reload from empty: shell by shell (two a go with Sleight of Hand, or two or three on the pump with Quick hands II or III), or one mag change
   const reload = D.melee ? 0 : D.perShell ? Math.ceil(mag / (D.loadN || 1)) * shellGo(id, D) + firstShell(id) : (D.reload || 0) * relMul(id);
-  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), aimMv: (D.spread || 0) * 0.5 * (D.aimK || 1) * (1 + 0.5 * (D.aimMove ?? 1)), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0 };
+  return { dmg: D.dmg, pel: D.pellets || 1, rate: 1 / D.rate, mag, reload, spread: (D.spread || 0) * 1.3 * (D.hipK || 1), aim: (D.spread || 0) * 0.5 * (D.aimK || 1), aimMv: (D.spread || 0) * 0.5 * (D.aimK || 1) * (1 + 0.5 * (D.aimMove ?? 1)), head: headMulFor(D), range: D.range || 0, hits: D.melee ? D.cleave || 1 : 0, stam: D.melee ? stamCost(D) : 0, kickSide: D.kickSide || 1 };
 }
 // a "LABEL before → after" chip, green when it's better, red when it's worse; nothing when it doesn't change. (A chip
 // whose good is null is a plain stat, shown grey: chipCls)
@@ -122,7 +122,9 @@ export function tierFx(id, k) {
   if (k === 'choke') { const m = [1, 0.7, 0.49]; a.spread *= m[f]; b.spread *= m[n + 1]; a.aim *= m[f]; b.aim *= m[n + 1]; }
   const fx = compareFx(a, b);
   // a hotter powder kicks harder every shot (POWDER_KICK: the recoil and the spread each shot adds), shown against the one fitted
-  if (k === 'ammo' && !D0.melee) fx.push({ t: `KICK +${Math.round((POWDER_KICK[n + 1] / POWDER_KICK[f] - 1) * 100)}%`, good: false });
+  if (k === 'ammo' && !D0.melee) fx.push({ t: `KICK UP +${Math.round((POWDER_KICK[n + 1] / POWDER_KICK[f] - 1) * 100)}%`, good: false });
+  // a lighter trigger swings the gun aside more (game/run-state.js: kickSide), shown as the gun's own changes
+  if (k === 'trigger' && !D0.melee && b.kickSide > a.kickSide) fx.push({ t: `KICK ASIDE +${Math.round((b.kickSide / a.kickSide - 1) * 100)}%`, good: false });
   if (k === 'supp') fx.push({ t: n ? 'Even quieter' : 'Quiet shots', good: true });
   if (k === 'light') fx.push({ t: n ? 'Brighter, wider beam' : 'Night beam ahead of you', good: true });
   // weight out front: the sway it adds (FRONT, player/shaky-hands.js)

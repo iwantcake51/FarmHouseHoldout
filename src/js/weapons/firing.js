@@ -73,6 +73,7 @@ export const stocked = id => gunAtt(id, 'stock');
 // shot after shot: its spread opens HANDGUN.spray times as fast, and each kick of the crosshair grows with the spray so far
 // (HANDGUN.kick more at its widest: player/shaky-hands.js)
 export const HANDGUN = { spray: 1.6, kick: 0.9 };
+const POW_PUNCH = 0.5;
 export const unshouldered = (D, id) => D.slot === 'side' && !stocked(id);
 // how a gun settles once you stop firing (weapons/combat-update.js, player/shaky-hands.js): after a beat (hold, s) it
 // eases in (over ramp) and dies smoothly away (rate), never at a steady pace; a heavier round takes longer to settle
@@ -430,7 +431,7 @@ export function gunFire(id, D, side) {
   SFX.fire(id, quiet, D.ammo === 'shells');
   shotOut(id, D, mw, ends, trSt, D.dragon ? trPw * 0.45 : trPw, quiet);
   const st = stocked(id) ? STOCK.kick : 1;
-  const pw = gunPower(D, shots) * st * (D.powK || 1);   // (a hotter powder kicks harder each shot: POWDER_KICK)
+  const pw = gunPower(D, shots) * st * (1 + ((D.powK || 1) - 1) * POW_PUNCH);   // (a hotter powder kicks harder each shot: POWDER_KICK, half of it as a harder punch all round, its climb and swing aside by the gun's kickUp and kickSide, game/run-state.js)
   fireCam(pw, P.aim, fireRate(D) < 0.16); angerShot(fireRate(D)); setBloom(Math.min(18, bloom + D.shake * 34 * st));
   const fx = Math.sin(base), fz = Math.cos(base), big = D.ammo === 'shells' ? 1.5 : D.ammo === 'rifle' ? 1.15 : D.dmg > 60 ? 1.1 : 0.8;
   if (!quiet) {

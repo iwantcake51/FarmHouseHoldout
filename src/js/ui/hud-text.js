@@ -11,6 +11,7 @@ import { W8 } from '../game/run-state.js';
 import { onScreen } from '../game/view-cam.js';
 import { projV } from './crosshair.js';
 import { gunArt, gunArtKey } from './melee-art.js';
+import { RUN_CHAIN } from './run-stats.js';
 
 export const setT = (id, v) => { if (cache[id] !== v) { cache[id] = v; $(id).textContent = v; } };
 export const setH = (id, v) => { if (cache['h' + id] !== v) { cache['h' + id] = v; $(id).innerHTML = v; } };
@@ -67,16 +68,19 @@ export function toast(t, opt) {
   el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
 }
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
-// a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: its name (STREAK),
-// bigger and hotter the longer it runs, and what it's paid past the third (zombies/damage.js); gone STREAK_HOLD seconds
-// after the last kill
-const STREAK = [[10, 'Unstoppable'], [7, 'Massacre'], [5, 'Rampage'], [4, 'Quad kill'], [3, 'Triple kill'], [2, 'Double kill']], STREAK_HOLD = 1.4;
+// a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: a small card under
+// the middle with its name (STREAK), a pip for each kill in it, what it's paid past the third (zombies/damage.js), and a
+// thin bar draining over the time left to keep it going. Each kill pops it in again, its glow hotter the longer it runs;
+// it's there as long as the chain can still go on, and fades once it can't
+const STREAK = [[10, 'Unstoppable'], [7, 'Massacre'], [5, 'Rampage'], [4, 'Quad kill'], [3, 'Triple kill'], [2, 'Double kill']], STREAK_PIPS = 10;
 let streakT = 0;
 export function streakShow(n, paid) {
   const s = STREAK.find(([k]) => n >= k), el = $('streak'); if (!s) return;
-  el.innerHTML = `<b>${s[1]}${n > 4 ? ' ×' + n : ''}</b>` + (paid ? `<small>+${paid} scrap</small>` : '');
-  el.style.setProperty('--lv', Math.min(5, n - 1)); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop', 'on');
-  clearTimeout(streakT); streakT = setTimeout(() => el.classList.remove('on'), STREAK_HOLD * 1000);
+  const pips = '<i></i>'.repeat(Math.min(n, STREAK_PIPS)) + (n > STREAK_PIPS ? `<em>+${n - STREAK_PIPS}</em>` : '');
+  el.innerHTML = `<b>${s[1]}</b><span class="pips">${pips}</span>` + (paid ? `<small>+${paid} scrap</small>` : '') + `<u></u>`;
+  el.style.setProperty('--lv', Math.min(5, n - 1)); el.style.setProperty('--t', RUN_CHAIN + 's');
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop', 'on');
+  clearTimeout(streakT); streakT = setTimeout(() => el.classList.remove('on'), RUN_CHAIN * 1000);
 }
 // kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
 export function announce(a, b, opt) {

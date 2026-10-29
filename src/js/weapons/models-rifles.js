@@ -493,6 +493,7 @@ export const RIFLE_MODELS = {
   // (down on its legs with the bipod mod); the ammo box hanging on the left, its lid propped open and the belt rising
   // out of it into the feed tray
   lmg(g, m) {
+    const LMG_BELT = { under: 0.0115, edge: 0.013, pitch: 0.0165, dark: 0.03 };   // (the belt in its box: how far under the rim the folded layer lies, how far in from the box's sides, the links' pitch; how deep the dark inside is)
     const LMG_AP = { hw: 0.0078, r: 0.0042, y: 1.236 };   // (the rear aperture: half its plate's width, the hole's radius and height, level with the post's tip)
     const K = GM.metal, P = GM.furn, y0 = 1.13, mg = g.userData.magG || g, sight = T('sight');
     // ---- the stock: ribs down both sides, the steel butt plate with the shoulder rest folded on top
@@ -576,24 +577,29 @@ export const RIFLE_MODELS = {
       const geo = new THREE.ExtrudeGeometry(sh, { depth: bh - 0.006, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.0015, bevelSegments: 2, curveSegments: 6 });
       geo.rotateX(Math.PI / 2); geo.translate(0, bt - 0.003, 0);
       const bm = new THREE.Mesh(geo, GM.olive); bm.castShadow = true; mg.add(bm);
-      box(mg, bx1 - bx0 - 0.008, 0.002, bz1 - bz0 - 0.01, GM.rubber, bxm, bt + 0.0006, bzm);                   // the open top, dark inside
+      box(mg, bx1 - bx0 - 0.008, 0.002, bz1 - bz0 - 0.01, GM.rubber, bxm, bt - LMG_BELT.dark, bzm);                   // the open top, dark inside (under the belt lying folded in it)
       [[bz0 + 0.013, bt - 0.013], [bz1 - 0.013, bt - 0.013], [bz0 + 0.013, bt - bh + 0.013], [bz1 - 0.013, bt - bh + 0.013]].forEach(([z, yy]) => cyl(mg, 0.0028, 0.003, GM.oliveD, bx1 + 0.0008, yy, z, 10).rotation.set(0, 0, Math.PI / 2));   // screws
       cyl(mg, 0.0032, bz1 - bz0 - 0.008, GM.oliveD, bx1 - 0.002, bt + 0.003, bzm, 10);                          // the lid's hinge
       const lid = new THREE.Group(); lid.position.set(bx1 - 0.002, bt + 0.003, 0); lid.rotation.z = -1.95; mg.add(lid);   // flipped back past upright
       solid(lid, [[bz0 + 0.004, -0.0015], [bz1 - 0.004, -0.0015], [bz1 - 0.004, 0.0015], [bz0 + 0.004, 0.0015]], bx1 - bx0 - 0.004, GM.olive, -(bx1 - bx0 - 0.004) / 2, 0.0012);
     }
-    // the belt: rounds pointing forward, each held in its link, looping up out of the box and over into the feed tray.
-    // It shows what's left: under ten rounds they go from the box end first, and an empty gun shows none (player/hold.js)
+    // the belt: rounds pointing forward, each held in its link, looping up out of the box and over into the feed tray,
+    // and the rest of it lying folded flat in the box, a layer of rounds side by side just under its rim (LMG_BELT: how
+    // far under, the links' pitch), the loop coming up out of the end of that layer. It shows what's left: the folded
+    // rounds go first, then the loop from the box end, and an empty gun shows none (player/hold.js); only the loop
+    // swings (player/hold-sway.js: beltJiggle), the folded rounds lie still in the box (inBox)
     const belt = [];
     {
-      const P0 = [X + 0.03, 1.146], P1 = [X + 0.15, 1.23], P2 = [bxm, 1.09], bez = t => [0, 1].map(c => (1 - t) * (1 - t) * P0[c] + 2 * (1 - t) * t * P1[c] + t * t * P2[c]);
+      const B = LMG_BELT, ly = bt - B.under, P0 = [X + 0.03, 1.146], P1 = [X + 0.15, 1.23], P2 = [bx1 - B.edge, ly], bez = t => [0, 1].map(c => (1 - t) * (1 - t) * P0[c] + 2 * (1 - t) * t * P1[c] + t * t * P2[c]);
       let prev = bez(0), run = 0; const pts = [prev];
-      for (let i = 1; i <= 600 && pts.length < 10; i++) { const q = bez(i / 600); run += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; if (run >= 0.0165) { pts.push(q); run = 0; } }
-      pts.forEach(([x, yy]) => {
+      for (let i = 1; i <= 600; i++) { const q = bez(i / 600); run += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; if (run >= B.pitch) { pts.push(q); run = 0; } }
+      const loop = pts.length;
+      for (let x = P2[0] - B.pitch; x >= bx0 + B.edge - 1e-4; x -= B.pitch) pts.push([x, ly]);   // (on across the box, lying flat)
+      pts.forEach(([x, yy], k) => {
         const rd = new THREE.Group(); mg.add(rd);
         cyl(rd, 0.0072, 0.072, GM.brass, x, yy, 0.535, 14); taper(rd, 0.0062, 0.0018, 0.026, GM.copper, x, yy, 0.584);
         [-0.021, 0.021].forEach(o => ring(rd, 0.0099, 0.007, GM.metal2, x, yy, 0.535 + o));   // its link's loops, hooked into the next
-        rd.userData.beltK = belt.length; belt.push(rd);
+        rd.userData.beltK = belt.length; if (k >= loop) rd.userData.inBox = true; belt.push(rd);
       });
     }
     // ---- optics sit on the feed cover

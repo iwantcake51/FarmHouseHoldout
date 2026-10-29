@@ -12,7 +12,7 @@ import { state } from '../game/state.js';
 
 export function runStat(k, n) { if (run && run.st) run.st[k] = (run.st[k] || 0) + (n === undefined ? 1 : n); }
 // a kill of yours: what it was, what did it, from how far, and whether it came in a chain (kills RUN_CHAIN s apart)
-const RUN_CHAIN = 1.2;
+export const RUN_CHAIN = 1.6;   // (a touch longer than it was, 1.2: room to line up the next one)
 export function runKill(z, wId, part) {
   const st = run.st; if (!st) return;
   runStat('k_' + (z.crawl ? 'crawler' : z.type));
