@@ -118,7 +118,7 @@ export function dashMaybe(z, dt, t, dp) {
 }
 export function dashStart(z, dx, dz, L) {
   z.dash = { ph: 'wind', t: 0, dx, dz, L, gone: 0, hit: new Set() }; z.face = Math.atan2(dx, dz);
-  dashMark(z, z.dash, z.x, z.z); soundAt(z.x, z.z, () => SFX.groan(1), true);
+  dashMark(z, z.dash, z.x, z.z); soundAt(z.x, z.z, () => SFX.groan(1, z.voice || 1, 'brute'), true);   // (its roar as it goes)
 }
 // the dash under way; true while it's taking the brute over (its pathing and swings wait). A joiner's copy (pup) only
 // plays the pose and the timing: where it goes comes with the host's snapshots

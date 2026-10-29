@@ -8,6 +8,7 @@
 // The camera's orthographic, so a point's place in view comes straight from where it is on screen and its depth:
 // that's what makes the occlusion cheap and exact here.
 
+import { lodFigures } from './lod.js';
 import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
 import { clamp } from '../core/math.js';
 import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
@@ -277,6 +278,7 @@ function flashDepth() {
 // the frame: the farm drawn, then laid on the screen with its occlusion and glow (game/loop.js)
 export function renderFrame() {
   batchSprites(cam);   // (the particles, all in one: effects/sprite-batch.js)
+  lodFigures(cam);     // (the figures' pieces too small to see left out: effects/lod.js)
   if (!POST.ok) { R.render(scene, cam); return; }
   postTargets();
   const W = POST.w, H = POST.h, prev = R.getRenderTarget(), ac = R.autoClear;

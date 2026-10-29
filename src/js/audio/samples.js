@@ -31,7 +31,8 @@ const SAMPLES = {
   hit_blunt_1: { vol: 0.6 }, hit_blunt_2: { vol: 0.6 }, hit_blunt_big_1: { vol: 0.75 }, hit_blunt_big_2: { vol: 0.75 },
   hit_blade_1: { vol: 0.55 }, hit_blade_2: { vol: 0.55 }, hit_chop_1: { vol: 0.7 }, hit_chop_2: { vol: 0.7 },
   flesh_1: { vol: 0.32 }, flesh_2: { vol: 0.32 }, head_hit: { vol: 0.28 },
-  sever: { vol: 0.48 }, head_pop: { vol: 0.58 },
+  sever: { vol: 0.48 }, head_pop: { vol: 0.58 }, head_pop_2: { vol: 0.6 },
+  kill_1: { vol: 0.5 }, kill_2: { vol: 0.5 }, kill_3: { vol: 0.55 }, kill_4: { vol: 0.55 }, flesh_3: { vol: 0.26 }, flesh_4: { vol: 0.3 },
   wood_hit_1: { vol: 0.45 }, wood_hit_2: { vol: 0.45 }, wood_break: { vol: 0.55 },
   craft: { vol: 0.5 }, pickup: { vol: 0.5 }, equip: { vol: 0.42 }, upgrade: { vol: 0.45 }, crate_open: { vol: 0.55 }, medkit: { vol: 0.45 }
 };

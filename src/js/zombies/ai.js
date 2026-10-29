@@ -147,6 +147,9 @@ function zFlash(z, dt) {
 // zombie AI: the way to you, climbing and breaking in, attacks; then the body's animated (zombies/zombie-anim.js). In
 // co-op each goes for whichever survivor still standing is nearest, and on a joiner's screen they're the host's: each
 // eased to where the host's game has it (net/sync.js), only the body and the blood played out here
+// the zombies' voices (updateZombies): from among the nearest few, within far (m), every gap seconds, up to crowd times as
+// often with a crowd close by
+const VOICES = { near: 3, far: 30, gap: [1.4, 3.6], crowd: 2.2 };
 export function updateZombies(dt) {
   const pup = netClient(), tg = netTargets(), allDown = tg.every(q => q.dead);
   // the cheat menu's zombie switches (ui/cheats.js: cheatAI): their minds off (they stand where they are), passive (they
@@ -298,7 +301,18 @@ export function updateZombies(dt) {
   stepDashMarks(dt);
   if (zHitMe) zStruckFx();
   playerChecks();
-  setGroanT(groanT - dt); if (groanT <= 0 && nearest < 30) { soundAt(nearZ.x, nearZ.z, () => SFX.groan(clamp(1 - nearest / 16, 0.1, 1)), true); setGroanT(rr(1.5, 4)); }
+  // their voices: now one, now another of the few nearest you (VOICES.near of them, within VOICES.far), each in its own
+  // voice (SFX.groan: zombies/spawn.js), quieter the further off; more often the more of them there are close by, so a
+  // crowd round the house moans over itself where one alone groans now and then
+  setGroanT(groanT - dt);
+  if (groanT <= 0 && nearest < VOICES.far) {
+    const near = zombies.filter(o => !o.dead && !o.out).map(o => [o, Math.hypot(o.x - P.x, o.z - P.z)]).filter(a => a[1] < VOICES.far).sort((a, b) => a[1] - b[1]);
+    if (near.length) {
+      const [z, d] = near[Math.floor(rand() * Math.min(VOICES.near, near.length))];
+      soundAt(z.x, z.z, () => SFX.groan(clamp(1 - d / 16, 0.1, 1), z.voice || 1, z.type === 'brute' || z.type === 'spitter' ? z.type : 'walker'), true);
+    }
+    setGroanT(rr(VOICES.gap[0], VOICES.gap[1]) / clamp(Math.sqrt(near.length / 3), 1, VOICES.crowd));
+  }
 }
 // a zombie's swing landing on you: the damage, the tilt toward it, and what it does by kind: a brute's knocks you back
 // concussed, a crawler's trips you, the rest can open a bleed. In co-op a swing at you from the host's zombie comes here

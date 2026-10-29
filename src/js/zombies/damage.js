@@ -21,7 +21,7 @@ import { headMulFor, PART_Y, partMult, zombies } from './zombie-types.js';
 import { zAnimHit } from './zombie-anim.js';
 import { zFree } from './zombie-kit.js';
 import { rimMat } from '../effects/outlines.js';
-import { timeScale } from '../game/hit-feedback.js';
+import { hitStop, timeScale } from '../game/hit-feedback.js';
 import { breakArmor, crackArmor } from './armor-break.js';
 import { _wB, addWound, headShot, severLower, shotWound, WOUND_ZONE } from './wounds.js';
 import { METAL } from '../barricades/planks.js';
@@ -32,8 +32,9 @@ import { soundAt } from '../audio/spatial.js';
 import { camKick, camPunch, setCamPunch, setShake, setSlowHold, setSlowIn, setSlowTo, shake } from '../game/state.js';
 import { ammoTypes } from '../upgrades/upgrades.js';
 import { runKill } from '../ui/run-stats.js';
-import { feed, floats, floatText, popEl } from '../ui/hud-text.js';
+import { feed, floats, floatText, popEl, streakShow } from '../ui/hud-text.js';
 import { spitterDies } from './spitter.js';
+import { hitMark } from '../ui/crosshair.js';
 import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
 import { teamAssist } from '../net/teamwork.js';
@@ -411,6 +412,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
     else if (dd < 2.6) addBlood(D.ammo === 'shells' ? 0.03 : 0.015, wId, 0.035); }
   if (z.hp <= 0) { killZombie(z, dx, dz, wId, part, -z.hp); return true; }
   soundAt(z.x, z.z, () => { SFX.tick(); if (part === 'head') SFX.headHit(); });
+  if (wId !== 'fire' && wId !== 'bleed') hitMark(part === 'head' ? 'head' : 'hit');   // (on your crosshair: ui/crosshair.js)
   return false;
 }
 // what a hit does to the body, whoever's it was: the health off it, the flash, the hole, the jolt, the blood, and the
@@ -455,7 +457,7 @@ const BT_EYE = { t: 3, fade: 0.6 };
 export const eyeK = () => clamp((P.eye || 0) / BT_EYE.fade, 0, 1);
 // Momentum keeps building while each kill comes within MOM_T seconds of the last
 const MOM_T = 2.5;
-// how loud a kill is: every one sounds the skull bursting (SFX.headPop), from the zombie (killEnd)
+// how loud a kill is, from the zombie (killEnd: SFX.kill)
 const KILL_VOL = 0.5;
 // (a kill that's not part of a hit, a burn or a bleed running out, is sent on its own in co-op)
 export function killZombie(z, dx, dz, wId, part, overkill) { return netAct(z, dx, dz, () => killZombie0(z, dx, dz, wId, part, overkill)); }
@@ -463,9 +465,13 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   z.knock = null;   // (killed lying down or getting up: it goes down from the pose it's in)
   if (z.dead) return;
   netRec('k', wId, part);
-  killBegin(z, dx, dz);
+  const D0 = W(wId) || EFF[wId] || {};
+  // what it'll sound like going down (killEnd), mine or a teammate's
+  z.killKind = wId === 'fire' ? 'burn' : wId === 'bleed' ? 'bleed' : wId === 'boom' ? 'blast' : part === 'head' ? 'head' : D0.melee ? 'melee' : 'body';
+  killBegin(z, dx, dz, NREP ? 0 : killShake(D0, wId, part, overkill));
   if (NREP) { teamAssist(z); return; }   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js); yours an assist if you'd hurt it (net/teamwork.js)
   run.kills++; popEl('kills'); runKill(z, wId, part);
+  killFeel(z, D0, wId, part);
   const D = W(wId) || EFF[wId] || {};
   // feeding (Iron stomach and on): only some kills, and only up to the wave's cap (FEED in upgrades/tier-table.js)
   if (S.healOnKill) { const f = FEED[S.healOnKill]; if ((S.feedUsed || 0) < f.cap && rand() < (part === 'head' ? f.ph : f.p) && P.hp < hpCap()) { const h = Math.min(f.h * healMul(), f.cap - (S.feedUsed || 0), hpCap() - P.hp); P.hp += h; S.feedUsed = (S.feedUsed || 0) + h; floatText(P.x, P.z, '+' + Math.round(h) + ' health', '#ef6a52', 'med'); } }
@@ -531,18 +537,48 @@ function killScrap(z, n, hoard) {
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
-function killBegin(z, dx, dz) {
+function killBegin(z, dx, dz, k) {
   spitterDies(z);   // (a spitter's sac bursts: zombies/spitter.js)
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);
   spray(z.x, z.z, dx, dz, rr(0.6, 0.9) * z.T.scale);   // what the shot throws out
-  setShake(Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : 0.16));
+  setShake(Math.max(shake, NREP ? 0.16 * clamp(1 - Math.hypot(z.x - P.x, z.z - P.z) / 14, 0, 1) : k));
+}
+// a kill of yours shakes the view by how hard it landed (KILL_SHAKE): a light round's a nudge, a heavy round, a shotgun
+// at close range, a heavy blade or club much more, through the head a little more again, and a big overkill more still;
+// a burn or a bleed running out barely at all
+const KILL_SHAKE = { base: 0.08, dmg: 0.1, head: 0.04, over: 0.05, heavy: 0.08, dot: 0.04, max: 0.34 };
+function killShake(D, wId, part, overkill) {
+  if (wId === 'fire' || wId === 'bleed') return KILL_SHAKE.dot;
+  const dmg = D.dmg || 30, heavy = dmg >= 80 || wId === 'boom' || (D.ammo === 'shells' && !D.dart) || (D.melee && (D.kb || 0) >= 3);
+  return Math.min(KILL_SHAKE.max, KILL_SHAKE.base + KILL_SHAKE.dmg * clamp(dmg / 100, 0, 1) + (part === 'head' ? KILL_SHAKE.head : 0) + KILL_SHAKE.over * clamp((overkill || 0) / 60, 0, 1) + (heavy ? KILL_SHAKE.heavy : 0));
+}
+// and how it feels in the hands: the red mark on your crosshair and its tick (climbing through a chain of kills: ui/run-stats.js),
+// and, playing alone, a hit-stop (game/hit-feedback.js) when it lands hard: through the head with anything but a fast
+// automatic, a heavy round, a shotgun, a heavy blow (HIT_STOP: how long, in seconds of real time; never closer together
+// than HIT_STOP.gap, so a run of kills doesn't stutter)
+const CHAIN_SCRAP = 1;
+const HIT_STOP = { head: 0.045, heavy: 0.065, melee: 0.055, gap: 0.3, fast: 0.12 };   // (fast: a gun firing quicker than this, s a shot, gets none for a headshot)
+let hsLast = 0;
+function killFeel(z, D, wId, part) {
+  if (wId === 'fire' || wId === 'bleed') return;
+  hitMark('kill', part === 'head');
+  const chain = (run.st && run.st.chain) || 1;
+  SFX.killTick(part === 'head', chain);
+  // a chain of kills called out (ui/hud-text.js), each past the third worth CHAIN_SCRAP scrap more
+  const paid = chain >= 3 ? CHAIN_SCRAP : 0; if (paid) { S.scrap += paid; popEl('scrap'); }
+  streakShow(chain, paid);
+  if (netLink() || timeScale < 0.8) return;
+  const heavy = (D.dmg || 0) >= 80 || wId === 'boom' || (D.ammo === 'shells' && !D.dart);
+  const t = heavy ? HIT_STOP.heavy : D.melee && ((D.kb || 0) >= 3 || part === 'head') ? HIT_STOP.melee : part === 'head' && (D.rate || 1) >= HIT_STOP.fast ? HIT_STOP.head : 0;
+  const now = performance.now(); if (!t || now - hsLast < HIT_STOP.gap * 1000) return;
+  hsLast = now; hitStop(t);
 }
 export function killEnd(z) {
   const i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1);
   if (z.id) NZ.delete(z.id);
-  soundAt(z.x, z.z, () => SFX.headPop(KILL_VOL));   // every kill sounds the same: the skull bursting, from the zombie itself
+  soundAt(z.x, z.z, () => SFX.kill(z.killKind || 'body', KILL_VOL, z.voice || 1));   // by what made it, from the zombie itself (audio/sfx.js: kill)
 }
 // a damage number pops off the zombie (bursting off it on an arc: ui/hud-text.js, stepFloats), bigger the harder the
 // hit (dmgSize: a 10 a touch smaller than plain, a 100 a quarter bigger, never past DMG_SIZE[1]); hits landing close

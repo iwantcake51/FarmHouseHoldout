@@ -81,6 +81,16 @@ the other one, that eye squinting along the gun and your head tipped over the st
      together. In return, three legendary cards join the hand (legendary perks, or tiered skills with every tier at
      once), and you take two. Taking a curse sounds like one: a low, sour slide down, not the reward chime.
 4. **Repeat.** Each wave is bigger and meaner than the last, and pays a little more scrap. The run ends when you go down.
+   No two waves come at quite the same pace: each keeps to a rhythm of its own, the usual surges with a few seconds'
+   lull between them, a trickle of small ones close together, or a few big rushes with long quiet between. The banner's
+   line under the wave number changes from wave to wave too, and its sting climbs a semitone every three waves with a
+   drum beat more every four, so the night gets tenser as it goes; a hard wave (a twist, the brutes, a fog round) has
+   a harsher one.
+   - From wave 4, about one wave in three comes with a **twist**, never two running and never on a fog round or a
+     brute wave, its name over the banner in red: a **Stampede** (a quarter more of the wave sprinting, a touch weaker,
+     in big rushes), a **Swarm** (half as many again, weaker, in one long stream that never lets up) or a **Siege**
+     (fewer, but over half as tough again, in a trickle that doesn't stop). Clearing one pays a bounty: six scrap plus
+     the wave's number, to everyone.
 
 When the run ends the HUD clears away and the end screen comes up over the farm on its own; **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
 your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call, scrap earned,
@@ -135,6 +145,26 @@ and out of every turn instead of starting and stopping dead. Through a swing the
 faces round the way the swing turns: leading the blow, trailing as it's drawn back, still leading as it carries on
 past and comes back round, so the axe's head stays upright through an overhead chop all the way down, from your own
 eyes and from above, never turned flat on its side at the bottom or flipped over about the handle.
+
+**Every kill lands.** A round or a blow of yours that hits flashes a marker on your crosshair: four short strokes on
+the diagonals, white, gold through the head, and a bigger red one for a kill. A kill also ticks, a short bright note
+that climbs a semitone with each kill in a chain, and shakes the view by how hard it landed: a light round a nudge, a
+heavy round, a shotgun or a heavy blow much more, through the head or with a big overkill more again. Playing alone, a
+kill that lands hard (through the head with anything but a fast automatic, a heavy round, a shotgun, a heavy blow)
+holds the world still for a few hundredths of a second, never closer together than a third of a second, so a run of
+kills doesn't stutter. Kills in a chain (each within 1.2 seconds of the last) are called out under the banner, Double
+kill to Unstoppable, bigger and hotter the longer the chain runs, and each kill past the third is worth a scrap more.
+A kill sounds like what made it: through the head the skull bursting (two recordings), through the body it giving
+way with a deep thud as it drops (four), heavier for a blade or a club, a hiss for a burning one; most of the time
+with the zombie's last breath going out of it. Bullets into flesh have four recordings rather than two. The new
+recordings are from the pack already in use (`assets/sounds/Guns and stuffs.zip`, cut by `tools/make-sounds.mjs`).
+
+**Their voices.** Every zombie has a voice of its own, pitched for it when it turns up: a walker anywhere from a low
+moan to a reedy one, a sprinter's a ragged shriek that climbs (and it lets one out as it comes out of the treeline,
+most of the time), a brute's a deep, rasping roar (as it charges, too), a spitter's a wet gurgle. They're heard from
+where they are, quieter and off to the side with distance and muffled through the walls, and it's now one, now
+another of the few nearest you, more often the more of them are close by, so a crowd round the house moans over
+itself.
 
 **Fog rounds.** Once in a while (never within three waves of the last) a wave comes in under a thick ground fog that rolls in off the fields. It's a real bank
 of fog with height: densest low down and thinning up to a billowing top that rises and falls across the yard, with
@@ -645,6 +675,14 @@ change its shape, get none. A gun rebuilt mid-run (an attachment, mod or upgrade
 into a mesh per material once its pieces settle, like one built at the start of a run, rather than staying a hundred
 separate draws. With twelve zombies out in the yard at night that's about 930 draws a frame instead of about 1,290,
 and with a weapon light and laser on the gun about 900 instead of about 1,470.
+Every figure (you, the zombies, your teammates) also leaves out its pieces too small to see from where the camera is:
+a piece under about a pixel across on screen (an eyelid, a buckle, a zip, a stowed gun's pin) is moved onto a layer
+nothing draws, out of the frame, its shadow and its outline, and put back as the camera comes close enough for it to
+show (first person, down the sights). Your pieces and your teammates' a little bigger than that, under four pixels,
+stay in the frame but stop casting a shadow nobody could make out. Your own see-through outline (a fill, a silhouette
+and a rim for each piece of you, some hundred and seventy draws) and your teammates' are only drawn when something
+could stand between the camera and you, the same test as the zombies'. With 24 zombies round the house that's about
+1,010 draws a frame instead of about 1,190, and in the yard about 1,060 instead of about 1,270.
 
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,

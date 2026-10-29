@@ -51,6 +51,9 @@
       <g id="tk2"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
       <g id="tk3"><path class="tk" d="M-2.2 -10 L2.2 -10 L0.7 0 L-0.7 0 Z"></path></g>
     </g>
+    <!-- a hit's marker: four short strokes on the diagonals, flashed as a round or blow of yours lands (white), through the
+         head (gold), and on a kill (red, bigger): ui/crosshair.js hitMark -->
+    <g id="xhHit" class="hm"><path d="M4.5 4.5 L10 10 M-4.5 4.5 L-10 10 M4.5 -4.5 L10 -10 M-4.5 -4.5 L-10 -10"></path></g>
     <!-- shotguns, by the shell loaded (slugs take the four ticks): buckshot four arcs of a ring as wide as the pellet spread,
          on the diagonals; flechettes eight thin needles pointing in from it; dragon's breath three arcs, one on top and two
          below like a flame's tips -->
@@ -180,6 +183,7 @@
 </div>
 <div class="hud" id="prompt"><div id="pRows"></div><div id="promptBar"><i></i></div></div>
 <div class="hud" id="toast"><span class="tIc"><svg viewBox="0 0 512 512" id="toastIc"></svg></span><span class="tTx"><b id="toastT"></b><em id="toastS"></em></span><i class="tBar"></i></div>
+<div class="hud" id="streak" aria-live="polite"></div>
 <div class="hud" id="announce" style="opacity:0"><div id="annEye"></div><div id="annBig"></div><div class="annRule"><i></i></div><div id="annSmall"></div></div>
 
 <div id="touch" hidden>

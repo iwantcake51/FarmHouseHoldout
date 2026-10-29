@@ -43,10 +43,11 @@ const RED_NEAR = 4, RED_FAR = 12;
 // line to its feet climbs (_xc.t a metre out); a wall or a window's frame, the house's roof, a fence, a tree's crown or a
 // prop it hasn't climbed over yet by then could hide some of it. Only then are its see-through layers drawn (their
 // depth test shows them only where something's in front anyway): out in the open they're some thirty draws for nothing.
+// (Yours too, and your teammates': player/animation.js, net/avatars.js)
 // It leans the safe way: past the edge of the farm (the woods) anything counts, and a prop of no known height is tall
 const XR_COVER = { step: 0.3, foot: 0.15, wall: 2.7, roof: 4.8, fence: 1.3, prop: 2.4, tall: 9 };
 const _xc = (() => { const h = Math.hypot(CAM_OFF.x, CAM_OFF.z); return { x: CAM_OFF.x / h, z: CAM_OFF.z / h, t: CAM_OFF.y / h }; })();
-function coverFromCam(x, z) {
+export function coverFromCam(x, z) {
   for (let d = XR_COVER.step; ; d += XR_COVER.step) {
     const y = XR_COVER.foot + d * _xc.t; if (y > XR_COVER.tall) return false;   // (the line's above anything that stands)
     const px = x + _xc.x * d, pz = z + _xc.z * d, i = ci(px), j = ci(pz);

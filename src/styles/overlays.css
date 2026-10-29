@@ -206,3 +206,15 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 @keyframes stCard{from{opacity:0;transform:translate(-50%,5px) scale(.9)}}
 /* going down (ui/screens.js: the death camera): the edges sink into the dark as the view closes in */
 #deathVig{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;background:radial-gradient(ellipse 80% 75% at center,transparent 34%,rgba(4,2,2,.45) 64%,rgba(0,0,0,.92) 100%)}
+
+/* a chain of kills called out (ui/hud-text.js streakShow): its name in the banner's type, hotter and bigger the longer it
+   runs (--lv, 1 to 5), popping in with each kill and gone a moment after the last; the scrap it's paid under it */
+#streak{left:0;right:0;top:calc(31% + env(safe-area-inset-top,0px));display:grid;justify-items:center;gap:2px;text-align:center;opacity:0;transition:opacity .35s ease}
+#streak.on{opacity:1;transition-duration:.06s}
+#streak b{font-family:var(--f-num);font-weight:800;font-size:calc(26px + var(--lv,1) * 5px);letter-spacing:.04em;text-transform:uppercase;line-height:1;
+  color:color-mix(in srgb,var(--orange) calc(var(--lv,1) * 18%),var(--ink));filter:drop-shadow(0 2px 0 rgba(0,0,0,.6))}
+#streak small{font:600 12px/1 "Archivo","Helvetica Neue",Arial,sans-serif;color:var(--gold)}
+#streak.pop b{animation:streakPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes streakPop{0%{transform:scale(1.45)}100%{transform:none}}
+body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
+@media (prefers-reduced-motion:reduce){#streak.pop b{animation:none}}

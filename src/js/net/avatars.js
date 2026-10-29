@@ -44,6 +44,7 @@ import { turnedDown } from './sync.js';
 import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
 import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
+import { coverFromCam } from '../zombies/zombie-visuals.js';
 
 // the joints a pose carries, in order: where each is and how it's turned (and the arms how they're stretched)
 const POSE_K = ['g', 'upper', 'lower', 'torso', 'head', 'armL', 'armR', 'legL', 'legR', 'shinL', 'shinR'];
@@ -246,7 +247,7 @@ export function updateAvatars(rdt) {
     const a = p.av || buildAvatar(p), t = p.tgt;
     if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
-    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { const xo = !p.dead && isoOn(); a.xr.rim.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; and through walls only from above, as zombies are)
+    if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && a.cvK > 0; a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;

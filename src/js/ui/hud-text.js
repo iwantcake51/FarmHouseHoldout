@@ -67,6 +67,17 @@ export function toast(t, opt) {
   el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
 }
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
+// a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: its name (STREAK),
+// bigger and hotter the longer it runs, and what it's paid past the third (zombies/damage.js); gone STREAK_HOLD seconds
+// after the last kill
+const STREAK = [[10, 'Unstoppable'], [7, 'Massacre'], [5, 'Rampage'], [4, 'Quad kill'], [3, 'Triple kill'], [2, 'Double kill']], STREAK_HOLD = 1.4;
+let streakT = 0;
+export function streakShow(n, paid) {
+  const s = STREAK.find(([k]) => n >= k), el = $('streak'); if (!s) return;
+  el.innerHTML = `<b>${s[1]}${n > 4 ? ' ×' + n : ''}</b>` + (paid ? `<small>+${paid} scrap</small>` : '');
+  el.style.setProperty('--lv', Math.min(5, n - 1)); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop', 'on');
+  clearTimeout(streakT); streakT = setTimeout(() => el.classList.remove('on'), STREAK_HOLD * 1000);
+}
 // kind '' is orange, 'gold' for a cleared wave, 'red' for brute nights
 export function announce(a, b, opt) {
   const o = opt || {}, el = $('announce');

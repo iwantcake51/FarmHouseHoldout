@@ -25,6 +25,13 @@ import { fpOn, fpSighted, freeOn, onScreen, xhAt } from '../game/view-cam.js';
 import { ANIM } from '../player/animation.js';
 
 export const projV = new V3();
+// a hit's marker on the crosshair (zombies/damage.js): kind 'hit', 'head' (a hit through the head) or 'kill', with head
+// for a kill through the head; flashed afresh each time, so a burst's hits each show
+const xhMark = $('xhHit');
+export function hitMark(kind, head) {
+  xhMark.classList.remove('hit', 'head', 'kill'); void xhMark.getBoundingClientRect();
+  xhMark.classList.add(kind === 'kill' ? 'kill' : 'hit'); if (head || kind === 'head') xhMark.classList.add('head');
+}
 const xh = $('xh'), xhRing = $('xhReload'), xhAmmo = $('xhAmmo'), xhAmmoBg = $('xhAmmoBg'), xhGl = $('xhGl'), xhSpread = $('xhSpread');
 // an akimbo pair's left gun: its own arc and reload ring, mirrored on the left
 const xhAmmoL = $('xhAmmoL'), xhAmmoBgL = $('xhAmmoBgL'), xhRingL = $('xhReloadL');

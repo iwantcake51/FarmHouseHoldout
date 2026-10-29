@@ -165,6 +165,7 @@
   "player/swap.js",
   "player/inspect.js",
   "effects/eye-glow.js",
+  "effects/lod.js",
   "zombies/zombie-visuals.js",
   "ui/sense.js",
   "ui/hud.js",
