@@ -588,7 +588,9 @@ export function buildLook(L) {
 // undoes that (WR_TRUE) rather than squashed with it; its bands are rounded off over the wrist's corners (roundRing)
 const WRIST_Z = 0.405, WR_TRUE = 1 / 0.84, WR_R = 0.016;
 let iceMat = null;
-const wrSph = new THREE.SphereGeometry(1, 10, 8), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 6, 12), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
+// (the beads, knots and links are only a few millimetres across, under a dozen pixels on screen even up close: they're
+// round with fewer sides than a bigger part, never faceted at that size)
+const wrSph = new THREE.SphereGeometry(1, 8, 6), wrCyl = new THREE.CylinderGeometry(1, 1, 1, 28), wrLink = new THREE.TorusGeometry(1, 0.3, 4, 10), wrGem = new THREE.OctahedronGeometry(1, 0), wrBezel = new THREE.TorusGeometry(1, 0.3, 6, 36);
 const _wrq = [0, 0, 0, 0], _wrq2 = [0, 0, 0, 0];
 // what it sits on: how far out from the middle of the arm the outside of whatever's at the wrist is (the bare arm, a
 // sleeve, a cuff: the widest piece across WRIST_Z), so it's snug on it rather than floating off it; it's built

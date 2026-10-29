@@ -4,7 +4,7 @@
 import { R, scene } from '../core/renderer.js';
 import { HALF, N, pick, rand, rr } from '../core/math.js';
 import { lam, WIND, WIND_GUST, WIND_V, windy } from '../core/shaders.js';
-import { flat } from '../core/geometry.js';
+import { flat, tightCyl } from '../core/geometry.js';
 import { cxw } from './grid.js';
 import { M } from './materials.js';
 import { GROUND_ART } from './ground-art.js';
@@ -149,8 +149,8 @@ rockMat(M.rock);
 {
   const g = new THREE.Mesh(new THREE.PlaneGeometry(N, N), GROUND_M); g.rotation.x = -Math.PI / 2; g.receiveShadow = true; scene.add(g);
   const far = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), M.groundFar); far.rotation.x = -Math.PI / 2; far.position.y = -0.02; scene.add(far);
-  const tufts = new THREE.InstancedMesh(flat(new THREE.ConeGeometry(0.09, 0.34, 4)), windy(lam(0x6b6c47), 0.32, 1), 1300), dm = new THREE.Object3D();   // (parting round you as you walk through: PUSHERS)
-  const tufts2 = new THREE.InstancedMesh(flat(new THREE.ConeGeometry(0.07, 0.42, 3)), windy(lam(0x7d7a4c), 0.32, 1), 500);
+  const tufts = new THREE.InstancedMesh(flat(tightCyl(0, 0.09, 0.34, 4)), windy(lam(0x6b6c47), 0.32, 1), 1300), dm = new THREE.Object3D();   // (parting round you as you walk through: PUSHERS)
+  const tufts2 = new THREE.InstancedMesh(flat(tightCyl(0, 0.07, 0.42, 3)), windy(lam(0x7d7a4c), 0.32, 1), 500);
   let k2 = 0;
   for (let k = 0; k < 1300; k++) {
     let x, z; do { x = rr(-HALF, HALF); z = rr(-HALF, HALF); } while ((x > cxw(HX0) - 0.8 && x < cxw(HX1) + 0.8 && z > cxw(HZ0) - 0.8 && z < cxw(HZ1) + 1.9) || onRoad(x, z, -0.3));

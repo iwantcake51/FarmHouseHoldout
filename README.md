@@ -739,11 +739,9 @@ detailed one once the whole gun is under about 150 pixels long on screen: the gu
 your and your teammates' hands from above, a teammate's across the yard in first person. Each switches by its own size
 on screen, for whichever camera is drawing it, with a little give either side so it doesn't flicker at the edge. The
 gun in your hands in first person, or one you walk right up to, stays fully detailed. The far version keeps every
-part's outline. Stocks are bent along the gun in 4 cm slices instead of 8 mm ones. Barrels, rings and lathe-turned
-parts get half the sides, and curved outlines are drawn with fewer points. Of the stippling and checkering, only the
-faces you can see are kept (a dot's or a line's top, not its sides), so the grip texture still shows. The hunting
-rifle goes from about 115,000 triangles to about 9,400, the double barrel from 51,000 to 5,400, the revolver from
-25,000 to 7,100. A spitter's acid sacs are rounded with fewer faces once the spitter's under about 140 pixels tall.
+part's outline. Stocks are bent along the gun to within 0.8 mm instead of 0.1 mm. Barrels, rings and lathe-turned
+parts get half the sides, and outlines keep only the points needed to stay within half a millimetre. Of the stippling and checkering, only the
+faces you can see are kept (a dot's or a line's top, not its sides), so the grip texture still shows. A spitter's acid sacs are rounded with fewer faces once the spitter's under about 140 pixels tall.
 In the house with the gun rack in view, that's about 211,000 triangles a frame instead of about 398,000.
 The woods only draw the trees you can see. Each frame, trees out of view are left out of the frame, and from your
 own eyes so are trees hidden behind nearer ones. That's checked against a small depth picture of the view: nearest
@@ -756,6 +754,43 @@ The trees outside the fence now cast shadows too. Those within reach of the sun'
 woods (past about 32 m from the middle, beyond the shadow map) lay a soft shadow on the ground away from the sun,
 as long as the tree's height over the sun's angle, turned with the sun through the day and fading with it. Every tree
 outside the farm also has a soft pool of shade under it, as the farm's own do.
+Every model was also put through a triangle pass that keeps every detail and only cuts triangles that don't need to be
+there:
+- **Stocks** (the hunting rifle's, the pump's, the double barrel's, the MP5's) are slimmed along the gun by cutting
+  them into pieces. They used to be cut every 8 mm all over, so their big flat sides were tens of thousands of slivers.
+  Now an edge is only cut where the slimming really bends it, until it's within a tenth of a millimetre of the curve.
+  Flat stretches stay a few big triangles, and the wrist's curve gets as many as it needs.
+- **Outlines:** every traced part drops the points it can do without (on a straight run, or more than a curve needs to
+  stay within 0.04 mm), so its sides and faces have fewer triangles and an identical shape.
+- **Stippling and checkering:** each dot keeps its flat top, with each side a single triangle down to the grip, and
+  never its hidden face against the grip (6 triangles instead of 12). Each checkering line keeps its top and two
+  sides, but not its hidden underside or its two ends, a millimetre square each (6 instead of 12). At a couple of
+  pixels across they look the same.
+- **Trees:** the trunk's hidden ends (one in the ground, one up inside the boughs) are gone. Every flat end is fanned
+  from a corner, so an 8-sided cone's base is 6 triangles, not 8. The grass tufts' bases are fanned the same way. A
+  tree under 64 pixels tall from your own eyes is drawn with 6-sided tiers on a 5-sided trunk; same-frame renders with
+  and without it differ in about one pixel in a thousand. The trees' shadows are cast from that lighter version too,
+  as the sun's shadows are softened over more than the two ever differ by.
+- **The bat's** turned outline keeps only the points its curves need (a tenth of a millimetre), not 90 evenly spread.
+- **Wrist pieces:** the beads, knots and chain links are only a few millimetres across, so they're rounded with fewer
+  sides (a paracord band was about 23,000 triangles).
+- **Tiny parts' shadows:** the house's, the furniture's and the props' shadows leave out parts under 3 cm, whose
+  shadows the soft shadow edge would hide anyway.
+
+  | | Before | After |
+  |---|---|---|
+  | All 12 guns, fully detailed | ~409,000 | ~131,000 |
+  | Hunting rifle | 115,500 | 6,200 |
+  | Double barrel | 50,700 | 8,500 |
+  | Auto shotgun | 46,500 | 17,500 |
+  | MP5 | 35,900 | 14,800 |
+  | Pump | 34,200 | 6,400 |
+  | Revolver | 25,300 | 11,100 |
+  | The whole scene at the start of a run | ~703,000 | ~440,000 |
+  | Drawn per frame | | 15–30% fewer, depending on the view |
+
+  The frame doesn't halve because the rest of it (the house, the furniture, the zombies and the figures) is made of
+  plain boxes with no triangles to spare.
 
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,

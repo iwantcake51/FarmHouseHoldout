@@ -2,7 +2,7 @@
 
 import { clamp, mix, smooth } from '../core/math.js';
 import { lam } from '../core/shaders.js';
-import { box } from '../core/geometry.js';
+import { box, simplifyLine } from '../core/geometry.js';
 import { GM } from '../weapons/gun-materials.js';
 import { GUN_MODELS } from '../weapons/gun-models.js';
 import { AXE_PIVOT, AXE_TRACE, SOG_TRACE, SOG_Y0 } from './melee-traced.js';
@@ -55,7 +55,10 @@ function CROW_GEO() {
 const BAT_PROFILE = [[0, -0.122], [0.036, -0.121], [0.046, -0.112], [0.047, -0.1], [0.04, -0.091], [0.027, -0.084], [0.0235, -0.07], [0.0232, 0.05], [0.024, 0.18],
   [0.028, 0.27], [0.036, 0.36], [0.047, 0.45], [0.058, 0.54], [0.065, 0.62], [0.068, 0.72], [0.068, 0.83], [0.066, 0.858], [0.06, 0.88], [0.048, 0.896], [0.03, 0.905], [0, 0.908]];
 let batGeo = null;
-const BAT_GEO = () => batGeo || (batGeo = new THREE.LatheGeometry(new THREE.SplineCurve(BAT_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(90), 32));
+// (the curve's points taken finely, then only those its bends need kept, BAT_TOL metres: the barrel and the handle are
+// near enough straight that a few do, the knob and the end take the most)
+const BAT_TOL = 0.00012;
+const BAT_GEO = () => batGeo || (batGeo = new THREE.LatheGeometry(simplifyLine(new THREE.SplineCurve(BAT_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(240), BAT_TOL), 32));
 function batR(y) { for (let k = 1; k < BAT_PROFILE.length; k++) { const [r1, y1] = BAT_PROFILE[k], [r0, y0] = BAT_PROFILE[k - 1]; if (y <= y1) return r0 + (r1 - r0) * (y - y0) / Math.max(1e-6, y1 - y0); } return 0; }
 // a nail: a thin round shank (stretched to length along y), its flat round head and a sharp point
 const NAIL_SHANK = new THREE.CylinderGeometry(0.0034, 0.0034, 1, 8), NAIL_HEAD = new THREE.CylinderGeometry(0.0095, 0.0095, 0.0022, 14), NAIL_TIP = new THREE.ConeGeometry(0.0034, 0.012, 8);

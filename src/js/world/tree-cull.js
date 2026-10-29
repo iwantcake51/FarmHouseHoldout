@@ -44,26 +44,36 @@ export function plantForest(list, shadows, into, mat, tint) {
       _tcFo.position.set(x, 0, z); _tcFo.rotation.set(tint.tilt(), r, tint.tilt()); _tcFo.scale.setScalar(s); _tcFo.updateMatrix(); _tcFo.matrix.toArray(mats, k * 16);
       tint.col(_tcFc).toArray(cols, k * 3); at[k * 3] = x; at[k * 3 + 1] = z; at[k * 3 + 2] = s;
     });
+    // (the copy only the shadow map draws is the far version, if it has one: the sun's shadows are softened over more than
+    // the two differ by anywhere, SHADOW_SOFT in core/renderer.js, so the shadow on the ground is the same)
     const mk = cast => {
-      const im = new THREE.InstancedMesh(v.g, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3);
+      const im = new THREE.InstancedMesh(cast ? v.g.userData.lo || v.g : v.g, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3);
       im.castShadow = cast; im.receiveShadow = true; im.computeBoundingSphere(); into.add(im); return im;
     };
     const vis = mk(false), F = { v, n, mats, cols, at, vis, top, r: v.r, solid: v.g.userData.solid || [], shown: new Int32Array(n), nShown: n, into };
     for (let k = 0; k < n; k++) F.shown[k] = k;
+    // (and those small on screen drawn from its far version, if it has one: TREE_LOD)
+    const lo = v.g.userData.lo;
+    if (lo) { const im = new THREE.InstancedMesh(lo, mat, n); im.instanceMatrix.array.set(mats); im.instanceColor = new THREE.InstancedBufferAttribute(cols.slice(), 3); im.receiveShadow = true; im.computeBoundingSphere(); im.count = 0; into.add(im); F.far = im; F.shownF = new Int32Array(n); F.nShownF = 0; }
     if (shadows) F.sh = shadowOnly(mk(true));
     FORESTS.push(F);
   });
 }
 // ---- each frame: which trees show
+// a tree under px tall on screen is drawn from its far version (world/trees.js: a pine's lo), the same tiers with fewer
+// sides: as small as that, the two look the same
+const TREE_LOD = { px: 64 };
 const _tcFr = new THREE.Frustum(), _tcPM = new THREE.Matrix4(), _tcSp = new THREE.Sphere(), _tcCP = new V3(), _tcList = [];
 export function cullForests(c) {
   c.updateMatrixWorld(); _tcPM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); _tcFr.setFromProjectionMatrix(_tcPM);
   c.getWorldPosition(_tcCP);
   const occ = c.isPerspectiveCamera; if (occ) occStart(c);
+  // (how far off a metre tall tree is TREE_LOD.px tall on screen: from your own eyes; from above, never far)
+  const lodD = occ && TREE_LOD.px > 0 ? innerHeight / 2 / Math.tan(c.getEffectiveFOV() * Math.PI / 360) / TREE_LOD.px : Infinity;
   // every tree in view, from every forest that's drawn (the far woods only from your own eyes)
   _tcList.length = 0;
   for (const F of FORESTS) {
-    F.next = F.next || new Int32Array(F.n); F.nn = 0;
+    F.next = F.next || new Int32Array(F.n); F.nn = 0; if (F.far) { F.nextF = F.nextF || new Int32Array(F.n); F.nf = 0; }
     if (!tcShown(F.into)) continue;
     const h = F.top;
     for (let k = 0; k < F.n; k++) {
@@ -81,19 +91,25 @@ export function cullForests(c) {
       const F = _tcList[i * 4], k = _tcList[i * 4 + 1], d = _tcList[i * 4 + 2];
       const x = F.at[k * 3], z = F.at[k * 3 + 1], s = F.at[k * 3 + 2];
       if (d > OCC.near * F.r * s && occHidden(x, z, s, F, d)) continue;
-      F.next[F.nn++] = k;
+      if (F.far && d > lodD * F.top * s) F.nextF[F.nf++] = k; else F.next[F.nn++] = k;
       if (d > OCC.near * F.r * s) occPaint(x, z, s, F, d);
     }
   }
   // what's drawn: only rewritten when it's changed
   for (const F of FORESTS) {
     if (!tcShown(F.into)) continue;
-    let same = F.nn === F.nShown; if (same) for (let i = 0; i < F.nn; i++) if (F.next[i] !== F.shown[i]) { same = false; break; }
-    if (same) continue;
-    const M = F.vis.instanceMatrix.array, C = F.vis.instanceColor.array;
-    for (let i = 0; i < F.nn; i++) { const k = F.next[i]; F.shown[i] = k; M.set(F.mats.subarray(k * 16, k * 16 + 16), i * 16); C.set(F.cols.subarray(k * 3, k * 3 + 3), i * 3); }
-    F.nShown = F.nn; F.vis.count = F.nn; F.vis.instanceMatrix.needsUpdate = true; F.vis.instanceColor.needsUpdate = true;
+    F.nShown = tcFill(F, F.vis, F.next, F.nn, F.shown, F.nShown);
+    if (F.far) F.nShownF = tcFill(F, F.far, F.nextF, F.nf, F.shownF, F.nShownF);
   }
+}
+// the trees in next (n of them) into the instanced mesh im, unless they're the ones it already has (shown, was of them)
+function tcFill(F, im, next, n, shown, was) {
+  let same = n === was; if (same) for (let i = 0; i < n; i++) if (next[i] !== shown[i]) { same = false; break; }
+  if (same) return was;
+  const M = im.instanceMatrix.array, C = im.instanceColor.array;
+  for (let i = 0; i < n; i++) { const k = next[i]; shown[i] = k; M.set(F.mats.subarray(k * 16, k * 16 + 16), i * 16); C.set(F.cols.subarray(k * 3, k * 3 + 3), i * 3); }
+  im.count = n; im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true;
+  return n;
 }
 const tcShown = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
 // ---- the depth picture, in cells: how far (from the camera, metres) the nearest solid crown in each one is

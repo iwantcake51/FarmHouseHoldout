@@ -45,7 +45,34 @@ export function box(parent, w, h, d, mat, x, y, z) {
   if (sw !== w || sh !== h || sd !== d) m.scale.set(w ? sw / w : 1, h ? sh / h : 1, d ? sd / d : 1);   // (as a scale: bgeo's boxes are shared to the millimetre)
   parent.add(m); return m;
 }
-export const flat = g => { const n = g.toNonIndexed(); n.computeVertexNormals(); return n; };
+export const flat = g => { const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals(); return n; };
+// a line of points (Vector2s) with every point left out that it can do without: kept only where leaving it out would
+// move the line more than tol (Douglas-Peucker), so a curve keeps all the points its bend needs and a straight run is two
+export function simplifyLine(P, tol) {
+  const keep = new Uint8Array(P.length); keep[0] = keep[P.length - 1] = 1;
+  const run = (a, b) => {
+    const A = P[a], B = P[b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1e-12; let at = -1, far = tol;
+    for (let i = a + 1; i < b; i++) { const d = Math.abs((P[i].x - A.x) * dy - (P[i].y - A.y) * dx) / L; if (d > far) { far = d; at = i; } }
+    if (at >= 0) { keep[at] = 1; run(a, at); run(at, b); }
+  };
+  run(0, P.length - 1); return P.filter((_, i) => keep[i]);
+}
+// a cylinder or a cone (rt, rb: its radius at the top and the bottom, h tall, n sides) with no more triangles than it
+// needs: three.js fans each flat end from a point in its middle, a triangle a side, where a flat n-sided end needs only
+// n - 2 fanned from one corner (the same face to see); and an end that can never be seen (under the ground, inside a
+// crown of boughs) is left off altogether (caps: [top, bottom], whether each is closed). Non-indexed, only its points
+export function tightCyl(rt, rb, h, n, caps = [true, true]) {
+  const pos = [], ring = (r, y) => Array.from({ length: n }, (_, i) => { const a = i / n * Math.PI * 2; return [r * Math.sin(a), y, r * Math.cos(a)]; });
+  const T = ring(rt, h / 2), B = ring(rb, -h / 2), tri = (a, b, c) => pos.push(...a, ...b, ...c);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    if (rt > 0) tri(T[i], B[i], T[j]);
+    if (rb > 0) tri(B[i], B[j], T[j]);
+  }
+  if (caps[0] && rt > 0) for (let i = 1; i < n - 1; i++) tri(T[0], T[i], T[i + 1]);
+  if (caps[1] && rb > 0) for (let i = 1; i < n - 1; i++) tri(B[0], B[i + 1], B[i]);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3)); return g;
+}
 export const BLOB_TEX = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const BLOB_G = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
 export function blobShadow(size, op) { const m = new THREE.Mesh(BLOB_G, new THREE.MeshBasicMaterial({ map: BLOB_TEX, color: 0x000000, transparent: true, opacity: op, depthWrite: false })); m.scale.setScalar(size); m.renderOrder = 1; m.position.y = 0.02; scene.add(m); return m; }
@@ -68,7 +95,7 @@ const LO_GEO = new WeakMap();
 export const setLo = (g, lo) => { LO_GEO.set(g, lo); return g; };
 // the far shape given to g, if one was (a figure's, swapped in as it gets small: effects/lod.js)
 export const farOf = g => LO_GEO.get(g);
-const LO_SEG = { k: 0.5, min: 8, tube: 4, curve: 3, fit: 1e-4 };
+const LO_SEG = { k: 0.5, min: 8, tube: 4, curve: 3, fit: 1e-4, line: 0.0005 };   // (line: how far a profile's far outline may stray from its own, metres)
 function loGeo(g) {
   if (LO_GEO.has(g)) return LO_GEO.get(g);
   const p = g.parameters, T = g.type, half = n => Math.max(LO_SEG.min, Math.round(n * LO_SEG.k)); let lo = g;
@@ -77,7 +104,12 @@ function loGeo(g) {
     else if (T === 'LatheGeometry' && p.segments > LO_SEG.min) lo = new THREE.LatheGeometry(p.points, half(p.segments), p.phiStart, p.phiLength);
     else if (T === 'SphereGeometry' && p.widthSegments > LO_SEG.min) lo = new THREE.SphereGeometry(p.radius, half(p.widthSegments), Math.max(6, Math.round(p.heightSegments * LO_SEG.k)), p.phiStart, p.phiLength, p.thetaStart, p.thetaLength);
     else if (T === 'TorusGeometry' && (p.tubularSegments > 12 || p.radialSegments > LO_SEG.tube)) lo = new THREE.TorusGeometry(p.radius, p.tube, Math.min(p.radialSegments, LO_SEG.tube), Math.max(8, Math.round(p.tubularSegments * LO_SEG.k)), p.arc);
-    else if (T === 'ExtrudeGeometry' && (p.options.curveSegments ?? 12) > LO_SEG.curve) lo = new THREE.ExtrudeGeometry(p.shapes, Object.assign({}, p.options, { curveSegments: LO_SEG.curve, bevelSegments: Math.min(p.options.bevelSegments ?? 3, 1) }));
+    else if (T === 'ExtrudeGeometry') {
+      // (its outline and holes with only the points a curve needs at this size, LO_SEG.line, and its bevel one step round)
+      const thin = P => { if (P.length < 6) return P; let k = 1, far = -1; P.forEach((q, i) => { const d = q.distanceToSquared(P[0]); if (d > far) { far = d; k = i; } }); const L = [...simplifyLine(P.slice(0, k + 1), LO_SEG.line), ...simplifyLine([...P.slice(k), P[0]], LO_SEG.line).slice(1, -1)]; return L.length >= 3 ? L : P; };
+      const shapes = (Array.isArray(p.shapes) ? p.shapes : [p.shapes]).map(sh => { const e = sh.extractPoints(LO_SEG.curve), o = new THREE.Shape(thin(e.shape)); e.holes.forEach(h => o.holes.push(new THREE.Path(thin(h)))); return o; });
+      lo = new THREE.ExtrudeGeometry(shapes, Object.assign({}, p.options, { curveSegments: LO_SEG.curve, bevelSegments: Math.min(p.options.bevelSegments ?? 3, 1) }));
+    }
   } catch (e) { lo = g; }
   if (lo !== g) { const f = loFit(lo, g); if (f !== lo) lo.dispose(); lo = f || g; }
   LO_GEO.set(g, lo); return lo;

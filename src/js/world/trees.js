@@ -2,6 +2,7 @@
 // of low-poly shapes drawn instanced; and what parts the grass and bushes as you walk through.
 
 import { scene, SUN_R, V3, YAW } from '../core/renderer.js';
+import { tightCyl } from '../core/geometry.js';
 import { plantForest, shadePools, sunShadows } from './tree-cull.js';
 import { _rng, clamp, HALF, N, pick, rand, rr, seeded, setRng, smooth } from '../core/math.js';
 import { PUSHERS } from '../core/shaders.js';
@@ -46,23 +47,29 @@ function fjoin(parts) {
 const BARK = 0x4a3626, PINE = [0x26361f, 0x51683a], PINE2 = [0x22332a, 0x48603f];
 const _tgb = new THREE.Color(), _tgt = new THREE.Color();
 // a pine: tiers of cones over a trunk (tr: how much of it shows below the lowest boughs), each tier a little off true
-// and turned
+// and turned. Nothing's built that can't be seen: the trunk's ends (one under the ground, the other up inside the
+// lowest boughs) are left open, and each tier's flat underside is fanned from a corner (core/geometry.js: tightCyl).
+// And a far one the same (its lo), the very same tiers on a trunk of fewer sides with fewer sides of their own
+// (PINE_LO), for when it's small on screen (world/tree-cull.js)
+const PINE_LO = { cone: 6, trunk: 5 };
 function pineGeo(tiers, w, h0, greens, tr = 0.9) {
-  const tk = tr + 0.6, P = [fpiece(new THREE.CylinderGeometry(0.11, 0.18 * (tr > 1.2 ? 1.15 : 1), tk, 7), BARK, 0.08, fm4(0, tk / 2, 0))], cones = [];
+  const tk = tr + 0.6, rb = 0.18 * (tr > 1.2 ? 1.15 : 1), trunk = n => fpiece(tightCyl(0.11, rb, tk, n, [false, false]), BARK, 0.08, fm4(0, tk / 2, 0));
+  const P = [trunk(7)], L = [trunk(PINE_LO.trunk)], cones = [];
   let y = tr, top = tr; const solid = [];
   for (let k = 0; k < tiers; k++) {
     const t = k / Math.max(1, tiers - 1), r = w * (1 - 0.7 * t) * rr(0.94, 1.06), hh = h0 * (1 - 0.4 * t);
-    cones.push(fpiece(new THREE.ConeGeometry(r, hh, 8), greens[0], 0, fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05))));
+    const m4 = fm4(rr(-0.05, 0.05), y + hh / 2, rr(-0.05, 0.05), rr(-0.05, 0.05), rand() * 6, rr(-0.05, 0.05));
+    cones.push([fpiece(tightCyl(0, r, hh, 8), greens[0], 0, m4), P], [fpiece(tightCyl(0, r, hh, PINE_LO.cone), greens[0], 0, m4), L]);
     solid.push(...coneSolid(y, r, hh));
     top = y + hh; y += hh * (tiers > 3 ? 0.42 : 0.48);
   }
   _tgb.setHex(greens[0]); _tgt.setHex(greens[1]);
-  cones.forEach(g => {
+  cones.forEach(([g, into]) => {
     const pos = g.attributes.position, col = g.attributes.color;
     for (let v = 0; v < pos.count; v++) { _tfc.copy(_tgb).lerp(_tgt, clamp((pos.getY(v) - tr) / (top - tr), 0, 1)); col.setXYZ(v, _tfc.r, _tfc.g, _tfc.b); }
-    P.push(g);
+    into.push(g);
   });
-  const g = fjoin(P); g.userData.solid = solid; return g;
+  const g = fjoin(P); g.userData.solid = solid; g.userData.lo = fjoin(L); return g;
 }
 // what of a cone (from base y, radius r, hh tall) is solid seen from any side, as boxes standing inside it [y0, y1, half
 // its width]: a staircase up it, each step as wide as the cone at its top, less a margin for the tier's lean and its
@@ -78,7 +85,7 @@ const BUSHG = [0x3d4d30, 0x4a5a35, 0x34442b, 0x52603a];
 function bushGeo(kind) {
   const P = [];
   if (kind === 'grass') {
-    for (let k = 0; k < 13; k++) { const a = rand() * 6.28, t = rr(0.12, 0.5), h = rr(0.45, 0.85); P.push(fpiece(new THREE.ConeGeometry(rr(0.03, 0.05), h, 3), pick([0x6b6c47, 0x7d7a4c, 0x5f6640]), 0.1, fm4(Math.sin(a) * 0.06 + Math.sin(a) * Math.sin(t) * h / 2, Math.cos(t) * h / 2, Math.cos(a) * 0.06 + Math.cos(a) * Math.sin(t) * h / 2, Math.cos(a) * t, 0, -Math.sin(a) * t))); }
+    for (let k = 0; k < 13; k++) { const a = rand() * 6.28, t = rr(0.12, 0.5), h = rr(0.45, 0.85); P.push(fpiece(tightCyl(0, rr(0.03, 0.05), h, 3), pick([0x6b6c47, 0x7d7a4c, 0x5f6640]), 0.1, fm4(Math.sin(a) * 0.06 + Math.sin(a) * Math.sin(t) * h / 2, Math.cos(t) * h / 2, Math.cos(a) * 0.06 + Math.cos(a) * Math.sin(t) * h / 2, Math.cos(a) * t, 0, -Math.sin(a) * t))); }
     return fjoin(P);
   }
   const low = kind === 'low', n = low ? 6 : 5;
@@ -124,7 +131,7 @@ const TREE_VAR = [
 // row of cones: a trunk and a few lumpy blobs of leaves, mostly green, one turning
 const BROADG = [[0x4a5a2c, 0x56662f, 0x3f5028], [0x52602e, 0x5f6a32, 0x46562a], [0x6e6a2c, 0x7a6230, 0x5e5a2a]];
 function broadGeo(greens, h) {
-  const P = [fpiece(new THREE.CylinderGeometry(0.09, 0.16, h, 6), BARK, 0.08, fm4(0, h / 2, 0))];
+  const P = [fpiece(tightCyl(0.09, 0.16, h, 6, [false, false]), BARK, 0.08, fm4(0, h / 2, 0))];   // (its ends unseen: in the ground and up in the leaves)
   const solid = [];
   [[0, 0.35, 0, 1.0], [0.55, 0.05, 0.2, 0.75], [-0.5, 0.1, -0.15, 0.8], [0.1, 0.85, -0.1, 0.7], [-0.2, -0.05, 0.5, 0.65]].forEach(([x, y, z, r], k) => {
     const rs = r * rr(0.9, 1.1); P.push(fpiece(new THREE.IcosahedronGeometry(rs, 0), pick(greens), 0.12, fm4(x, h + y, z, rand() * 3, rand() * 3, rand() * 3, 1, rr(0.8, 0.95), 1)));
