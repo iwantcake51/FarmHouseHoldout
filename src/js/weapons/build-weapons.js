@@ -1,7 +1,7 @@
 // Builds the held weapons from stats, mods and tiers; magazines and drums.
 
 import { scene } from '../core/renderer.js';
-import { binModel, box, foldPieces, trimShadows, unfight } from '../core/geometry.js';
+import { binModel, box, foldPieces, spanOf, trimShadows, unfight } from '../core/geometry.js';
 import { LOOK, shirtColours } from '../player/look.js';
 import { stainWeapon } from '../effects/body-blood.js';
 import { SLOTS } from './slots.js';
@@ -104,7 +104,8 @@ function foldGun(s) {
   const stop = new Set(movingOf(HOLDS[s], { magg: MAGG[s] || [], slides: SLIDES[s] || [], crane: CRANE[s] || [], brk: BRK[s], belt: BELT[s] })), lg = BIPOD[s];
   if (lg) (Array.isArray(lg) ? lg : [lg]).forEach(o => { const n = o && (o.isObject3D ? o : o.g); if (n && n.isObject3D) stop.add(n); });
   hs.forEach(h => h.traverse(o => { if (o.isMesh && o.material && o.material.userData && o.material.userData.bloodOf) o.material = o.material.userData.bloodOf; }));
-  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop); });
+  const span = spanOf(hs[0]);   // (with a far version for when the whole gun's small on screen: core/geometry.js)
+  stop.forEach(n => { if (n.isObject3D) foldPieces(n, stop, { lod: true, span }); });
 }
 export function buildGuns(only) {
   recomputeEff();

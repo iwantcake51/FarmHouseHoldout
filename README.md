@@ -707,6 +707,17 @@ stay in the frame but stop casting a shadow nobody could make out. Your own see-
 and a rim for each piece of you, some hundred and seventy draws) and your teammates' are only drawn when something
 could stand between the camera and you, the same test as the zombies'. With 24 zombies round the house that's about
 1,010 draws a frame instead of about 1,190, and in the yard about 1,060 instead of about 1,270.
+Every gun also has a far version that looks the same but is made of far fewer triangles, drawn instead of the
+detailed one once the whole gun is under about 150 pixels long on screen: the guns in the rack, on your back, in
+your and your teammates' hands from above, a teammate's across the yard in first person. Each switches by its own size
+on screen, for whichever camera is drawing it, with a little give either side so it doesn't flicker at the edge. The
+gun in your hands in first person, or one you walk right up to, stays fully detailed. The far version keeps every
+part's outline. Stocks are bent along the gun in 4 cm slices instead of 8 mm ones. Barrels, rings and lathe-turned
+parts get half the sides, and curved outlines are drawn with fewer points. Of the stippling and checkering, only the
+faces you can see are kept (a dot's or a line's top, not its sides), so the grip texture still shows. The hunting
+rifle goes from about 115,000 triangles to about 9,400, the double barrel from 51,000 to 5,400, the revolver from
+25,000 to 7,100. A spitter's acid sacs are rounded with fewer faces once the spitter's under about 140 pixels tall.
+In the house with the gun rack in view, that's about 211,000 triangles a frame instead of about 398,000.
 
 **F9** opens the cheat menu, for testing on your own (never in co-op). Its search box looks through every cheat at
 once, and the switches you reach for most sit along the top: god mode, endless scrap and ammo, a bottomless magazine,

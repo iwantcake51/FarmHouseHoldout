@@ -17,6 +17,7 @@
 // splat ('spw' as it rears back, 'spt' as it lets go: net/sync.js), each burning only its own survivor.
 
 import { scene, V3 } from '../core/renderer.js';
+import { setLo } from '../core/geometry.js';
 import { angDiff, clamp, mix, pick, rand, rr, smooth } from '../core/math.js';
 import { netClient, netLink, netSend } from '../net/net.js';
 import { basic, lam } from '../core/shaders.js';
@@ -61,7 +62,7 @@ export const SPIT = {
 const globs = [], acidPools = [], spitters = new Set();
 // the acid: a sick yellow-green, translucent and wet-looking, faintly lit from within
 const ACID_GLOW = 0x142408, POOL_SELF = 0.6;   // (how much of a splat's own colour it gives off: emissiveMap, acidPool)
-const GLOB_G = new THREE.IcosahedronGeometry(1, 2);
+const GLOB_G = setLo(new THREE.IcosahedronGeometry(1, 2), new THREE.IcosahedronGeometry(1, 1));   // (the same round with fewer faces once it's small on screen: effects/lod.js)
 // the glob glows in its own colour in the dark, unlit (it's never darker than its green), with a halo round it, and
 // the trail it draws out behind it the same
 const GLOB_M = new THREE.MeshBasicMaterial({ color: 0xa8e83c, transparent: true, opacity: 0.94 });

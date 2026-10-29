@@ -1,7 +1,7 @@
 // Part builders for the gun models: cylinders and rings along the bore, profiles extruded from traced outlines,
 // lathes, tapers, stippling and checkering, and the caches that keep shared shapes built once.
 
-import { box, cylZ, sharedGeo, zfPush, zfSpan } from '../core/geometry.js';
+import { box, cylZ, setLo, sharedGeo, zfPush, zfSpan } from '../core/geometry.js';
 import { GM, X } from './gun-materials.js';
 
 // small builders for gun parts: cylinders along the bore, rings, and a light strip that fakes a top-edge highlight. Any
@@ -123,17 +123,24 @@ function stippleDots(poly, xo, gap) {
     [-1, 1].forEach(sd => { const gg = bx.clone(); gg.translate(X + sd * (xo + 0.0006), jy, jz); pos.push(gg.attributes.position.array); });
   }
   if (!pos.length) return null;
+  return setLo(flatGeo(pos), flatGeo(pos.map((a, i) => outFace(a, i % 2 ? 1 : -1))));   // (far off, each dot's face alone: core/geometry.js)
+}
+// many boxes' triangles (each non-indexed, its points' array) as one flat-shaded geometry
+function flatGeo(pos) {
   const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
   return geo;
 }
+// a box's face that looks out of the gun's side sd (+-1 across it, x), alone: from far off it's all that shows of a dot or
+// a line standing a millimetre proud (a box's points, non-indexed, run its +x face's two triangles, then its -x face's)
+const outFace = (a, sd) => sd > 0 ? a.slice(0, 18) : a.slice(18, 36);
 // checkering on both sides of a stock: a dark panel (poly, points in z, y) lying on the faces at X +- xo, and two
 // crossing sets of fine raised lines over it (gap apart, at +-ang to the gun), each cut off at the panel's edge so none
 // of them run past it (walnut unless the panel and line materials are given)
 export function checker(g, poly, xo, gap, ang, pm, lm) {
   if (poly.length < 3) return;
   [-1, 1].forEach(sd => profile(g, shp(poly), 0.0012, pm || GM.walnutD, X + sd * (xo - 0.0002), 0.0003));   // its face 0.7 mm proud
-  const pos = [], bx = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const pos = [], far = [], bx = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(), mx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   [ang, -ang].forEach(an => {
     const dz = Math.cos(an), dy = Math.sin(an), nz = -dy, ny = dz, ds = poly.map(p => p[0] * nz + p[1] * ny);
     for (let d = Math.min(...ds) + gap / 2; d < Math.max(...ds); d += gap) {
@@ -148,15 +155,13 @@ export function checker(g, poly, xo, gap, ang, pm, lm) {
         const sm = (s0 + s1) / 2; if (!inPoly(poly, sm * dz + d * nz, sm * dy + d * ny)) continue;   // keep only the stretches inside
         [-1, 1].forEach(sd => {
           mx.compose(new THREE.Vector3(X + sd * (xo + 0.0011), sm * dy + d * ny, sm * dz + d * nz), q.setFromEuler(e.set(Math.atan2(-dy, dz), 0, 0)), new THREE.Vector3(0.0012, 0.0010, s1 - s0));
-          const gg = bx.clone(); gg.applyMatrix4(mx); pos.push(gg.attributes.position.array);
+          const gg = bx.clone(); gg.applyMatrix4(mx); pos.push(gg.attributes.position.array); far.push(outFace(gg.attributes.position.array, sd));
         });
       }
     }
   });
   if (!pos.length) return;
-  const P = new Float32Array(pos.reduce((n, a) => n + a.length, 0)); let at = 0; pos.forEach(a => { P.set(a, at); at += a.length; });
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo, lm || GM.walnut2));   // all the lines are one mesh
+  g.add(new THREE.Mesh(setLo(flatGeo(pos), flatGeo(far)), lm || GM.walnut2));   // all the lines are one mesh (far off, their tops alone: core/geometry.js)
 }
 // many small boxes as one mesh: the grooves, ribs and slots set flush into a face ([w, h, d, x, y, z, rx] each), one
 // draw call however many there are
@@ -173,11 +178,13 @@ export function boxes(g, B, mat) {
 // the piece as it went in, and the squeeze's own key): splitting and bending them is most of what a pump, a double
 // barrel or a hunting rifle takes to build
 const TAPERED = new Map();
+// how finely it's sliced down the gun to bend (metres): near, and for its far version, small on screen
+const TAPER_DZ = { near: 0.008, far: 0.04 };
 export function taperX(grp, wf) {
   grp.children.forEach(o => {
     if (!o.isMesh) return; o.updateMatrix(); const g0 = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); g0.applyMatrix4(o.matrix);
-    const squeeze = () => {
-      const geo = tessZ(g0, 0.008);   // fine enough down the gun that every surface bends with the squeeze, together
+    const squeeze = (dz = TAPER_DZ.near) => {
+      const geo = tessZ(g0, dz);   // fine enough down the gun that every surface bends with the squeeze, together
       const p = geo.attributes.position, nm = geo.attributes.normal;
       for (let i = 0; i < p.count; i++) {
         // squeeze the point, and carry its normal through the squeeze (so a flat face that now bends gently stays smooth
@@ -186,6 +193,7 @@ export function taperX(grp, wf) {
         if (nm) { const nx = nm.getX(i) / f, ny = nm.getY(i), nz = nm.getZ(i) - dx * df / f * nm.getX(i), l = Math.hypot(nx, ny, nz) || 1; nm.setXYZ(i, nx / l, ny / l, nz / l); }
         p.setX(i, X + dx * f);
       }
+      if (dz === TAPER_DZ.near) setLo(geo, squeeze(TAPER_DZ.far));   // (and bent in coarser slices for far off: core/geometry.js)
       return geo;
     };
     o.geometry = wf.key ? kept(TAPERED, 300, wf.key + geoKey(g0), squeeze) : squeeze();

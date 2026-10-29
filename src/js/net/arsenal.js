@@ -9,7 +9,7 @@
 import { V3 } from '../core/renderer.js';
 import { NET, NET_ON, netSend, netTo } from './net.js';
 import { lam } from '../core/shaders.js';
-import { binModel, box, mergeInto } from '../core/geometry.js';
+import { binModel, box, mergeInto, spanOf } from '../core/geometry.js';
 import { P, packBody, PM } from '../player/player.js';
 import { LOOK, shade } from '../player/look.js';
 import { SLOTS } from '../weapons/slots.js';
@@ -130,10 +130,10 @@ export function teamWeapon(lo, id) {
 // what never moves folded into a mesh or two, under each part that does (and under the holder): a teammate's rifle is
 // a handful of draws, not a hundred
 export function foldStatic(root, moving) {
-  const stop = new Set(moving);
+  const stop = new Set(moving), span = spanOf(root);   // (the whole gun's reach: its far version goes over as one, core/geometry.js)
   for (const node of [root, ...moving]) {
     const parts = []; (function walk(o) { o.children.forEach(c => { if (stop.has(c)) return; if (c.isMesh && c.visible && !c.userData.isFlash) { c.castShadow = true; parts.push(c); } walk(c); }); })(node);
-    if (parts.length > 1) mergeInto(node, parts);
+    if (parts.length > 1) mergeInto(node, parts, { lod: true, span });
   }
 }
 // a part of your rig to its part of theirs (their survivor is a copy of yours: PM_BASE, player/player.js)

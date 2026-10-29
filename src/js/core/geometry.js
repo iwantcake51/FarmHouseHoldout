@@ -57,8 +57,81 @@ export const cylZ = (r, len, mat, seg) => { const m = new THREE.Mesh(new THREE.C
 // (outlines and x-ray rims skip them, since their scaled-hull trick only works on single boxes).
 const _mergeM = new THREE.Matrix4();
 let BAKED_M = null;
+// ---- a far version of a detailed model (a gun: opt.lod), that looks the same but is made of far fewer triangles,
+// drawn instead once it's too small on screen for the difference to show. Each piece's own far shape (loGeo): a round
+// part (a barrel, a knob, a ring, a lathe-turned grip) with fewer sides, a curved outline drawn with fewer points, a
+// stock bent along the gun in coarser slices (weapons/gun-parts.js taperX), and the stippling's dots and the checkering's
+// lines (weapons/gun-parts.js) left off, the panel under them still there. A far shape that doesn't come out the same
+// size as the near one (the near one moved or bent once it was made) isn't used: the piece goes as it is
+const LO_GEO = new WeakMap();
+// the far shape of g: another geometry, or null to leave the piece off (weapons/gun-parts.js gives its own)
+export const setLo = (g, lo) => { LO_GEO.set(g, lo); return g; };
+// the far shape given to g, if one was (a figure's, swapped in as it gets small: effects/lod.js)
+export const farOf = g => LO_GEO.get(g);
+const LO_SEG = { k: 0.5, min: 8, tube: 4, curve: 3, fit: 1e-4 };
+function loGeo(g) {
+  if (LO_GEO.has(g)) return LO_GEO.get(g);
+  const p = g.parameters, T = g.type, half = n => Math.max(LO_SEG.min, Math.round(n * LO_SEG.k)); let lo = g;
+  try {
+    if (T === 'CylinderGeometry' && p.radialSegments > LO_SEG.min) lo = new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, half(p.radialSegments), p.heightSegments, p.openEnded, p.thetaStart, p.thetaLength);
+    else if (T === 'LatheGeometry' && p.segments > LO_SEG.min) lo = new THREE.LatheGeometry(p.points, half(p.segments), p.phiStart, p.phiLength);
+    else if (T === 'SphereGeometry' && p.widthSegments > LO_SEG.min) lo = new THREE.SphereGeometry(p.radius, half(p.widthSegments), Math.max(6, Math.round(p.heightSegments * LO_SEG.k)), p.phiStart, p.phiLength, p.thetaStart, p.thetaLength);
+    else if (T === 'TorusGeometry' && (p.tubularSegments > 12 || p.radialSegments > LO_SEG.tube)) lo = new THREE.TorusGeometry(p.radius, p.tube, Math.min(p.radialSegments, LO_SEG.tube), Math.max(8, Math.round(p.tubularSegments * LO_SEG.k)), p.arc);
+    else if (T === 'ExtrudeGeometry' && (p.options.curveSegments ?? 12) > LO_SEG.curve) lo = new THREE.ExtrudeGeometry(p.shapes, Object.assign({}, p.options, { curveSegments: LO_SEG.curve, bevelSegments: Math.min(p.options.bevelSegments ?? 3, 1) }));
+  } catch (e) { lo = g; }
+  if (lo !== g) { const f = loFit(lo, g); if (f !== lo) lo.dispose(); lo = f || g; }
+  LO_GEO.set(g, lo); return lo;
+}
+// a far shape made again from g's own make (its parameters) put where g is, if it's g with fewer sides; else null. g may
+// have been moved since it was made, and turned a quarter (a lathe-turned part laid along the gun): each way round is
+// tried, by its box's size, and then its points checked against g's (a sample of them, each within a few percent of
+// the part's size of one of g's: fewer sides only drops points round a curve, or moves them along it a little), which
+// tells apart the ways round a box alone can't. Bent or turned any other way, it isn't used
+const LO_FIT = { size: 0.02, near: 0.03, n: 40 }, _loS = new THREE.Vector3(), _loS2 = new THREE.Vector3(), _loM = new THREE.Matrix4();
+const LO_TURNS = [[0, 0, 0], [Math.PI / 2, 0, 0], [-Math.PI / 2, 0, 0], [0, 0, Math.PI / 2], [0, 0, -Math.PI / 2], [0, Math.PI / 2, 0], [0, -Math.PI / 2, 0], [Math.PI, 0, 0]];
+function loFit(lo, g) {
+  const tri = q => (q.index ? q.index.count : q.attributes.position.count); if (tri(lo) >= tri(g)) return null;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const b = g.boundingBox, diag = b.getSize(_loS).length(), tol = LO_FIT.size * diag + LO_SEG.fit, B = g.attributes.position.array, lim = (LO_FIT.near * diag + LO_SEG.fit) ** 2;
+  for (const [rx, ry, rz] of LO_TURNS) {
+    const q = rx || ry || rz ? lo.clone().applyMatrix4(_loM.makeRotationFromEuler(new THREE.Euler(rx, ry, rz))) : lo;
+    q.computeBoundingBox(); q.boundingBox.getSize(_loS2);
+    if (Math.abs(_loS.x - _loS2.x) > tol || Math.abs(_loS.y - _loS2.y) > tol || Math.abs(_loS.z - _loS2.z) > tol) { if (q !== lo) q.dispose(); continue; }
+    q.translate(b.min.x - q.boundingBox.min.x, b.min.y - q.boundingBox.min.y, b.min.z - q.boundingBox.min.z);
+    const A = q.attributes.position.array, step = Math.max(1, Math.floor(A.length / 3 / LO_FIT.n)); let ok = true;
+    for (let i = 0; i < A.length / 3 && ok; i += step) {
+      let best = Infinity; const x = A[i * 3], y = A[i * 3 + 1], z = A[i * 3 + 2];
+      for (let j = 0; j < B.length && best > 1e-12; j += 3) { const dx = B[j] - x, dy = B[j + 1] - y, dz = B[j + 2] - z, d = dx * dx + dy * dy + dz * dz; if (d < best) best = d; }
+      ok = best <= lim;
+    }
+    if (ok) return q;
+    if (q !== lo) q.dispose();
+  }
+  return null;
+}
+// a near and a far version of one folded mesh, whichever suits how big it is on screen, for whichever camera is
+// drawing it (the overhead view's, your own eyes', a scope's): the far one once the whole model it's part of (its span,
+// userData.lodSpan, metres: a gun's every piece goes over together) is under LOD_GUN.px across (with a little give
+// either side, band, so it doesn't flick between them right at the edge). Copied whole (a stowed gun is a copy of the
+// one in your hands): its two levels come with it
+const LOD_GUN = { px: 150, band: 0.12, save: 0.85 }, _lgV = new THREE.Vector3(), _lgB = new THREE.Box3(), _lgB2 = new THREE.Box3(), _lgM = new THREE.Matrix4(), _lgI = new THREE.Matrix4();
+// how far a model reaches across (its box's diagonal, metres, in its own frame)
+export function spanOf(root) {
+  root.updateWorldMatrix(true, true); _lgI.copy(root.matrixWorld).invert(); _lgB.makeEmpty();
+  root.traverse(o => { if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return; const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); _lgB.union(_lgB2.copy(g.boundingBox).applyMatrix4(_lgM.multiplyMatrices(_lgI, o.matrixWorld))); });
+  return _lgB.isEmpty() ? 0 : _lgB.getSize(_lgV).length();
+}
+class FarLOD extends THREE.LOD {
+  update(c) {
+    const L = this.levels; if (L.length < 2) return;
+    this.getWorldPosition(_lgV); const span = this.userData.lodSpan * this.matrixWorld.getMaxScaleOnAxis();
+    const ppm = c.isPerspectiveCamera ? (innerHeight / 2) / Math.tan(c.getEffectiveFOV() * Math.PI / 360) / Math.max(0.05, _lgV.distanceTo(c.position)) : innerHeight * c.zoom / (c.top - c.bottom);
+    const px = span * ppm, far = this._currentLevel === 1 ? px < LOD_GUN.px * (1 + LOD_GUN.band) : px < LOD_GUN.px * (1 - LOD_GUN.band);
+    this._currentLevel = far ? 1 : 0; L[0].object.visible = !far; L[1].object.visible = far;
+  }
+}
 export function mergeInto(parent, list, opt) {
-  const live = (opt && opt.live) || null, noBake = !!(opt && opt.noBake);
+  const live = (opt && opt.live) || null, noBake = !!(opt && opt.noBake), lod = !!(opt && opt.lod), span = (opt && opt.span) || (lod ? spanOf(parent) : 0);
   parent.updateWorldMatrix(true, true);
   const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert(), groups = new Map(), out = [];
   const bakeable = m => !noBake && m.isMeshLambertMaterial && !m.transparent && !m.map && m.side === THREE.FrontSide && !m.vertexColors && m.customProgramCacheKey && m.customProgramCacheKey() === 'lit' && !(live && live.has(m));
@@ -67,10 +140,12 @@ export function mergeInto(parent, list, opt) {
     if (!groups.has(k)) groups.set(k, { mat: o.material, bake, cast: o.castShadow, parts: [] });
     groups.get(k).parts.push(o);
   });
-  groups.forEach(({ mat, bake, cast, parts }) => {
+  // the pieces of a group as one geometry (far: each piece's far shape, loGeo, those with none left off)
+  const merged = (parts, bake, far) => {
     const pos = [], nor = [], col = []; let n = 0;
     parts.forEach(o => {
-      const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+      const src = far ? loGeo(o.geometry) : o.geometry; if (!src) return;
+      const g = src.index ? src.toNonIndexed() : src.clone();
       g.applyMatrix4(_mergeM.multiplyMatrices(inv, o.matrixWorld));
       const a = g.attributes.position.array; pos.push(a); nor.push(g.attributes.normal.array); n += a.length;
       if (bake) { const c = o.material.color, cs = new Float32Array(a.length); for (let i = 0; i < a.length; i += 3) { cs[i] = c.r; cs[i + 1] = c.g; cs[i + 2] = c.b; } col.push(cs); }
@@ -80,8 +155,16 @@ export function mergeInto(parent, list, opt) {
     pos.forEach((a, k) => { P.set(a, at); N.set(nor[k], at); if (C) C.set(col[k], at); at += a.length; });
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
     if (C) geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
-    const m = new THREE.Mesh(geo, bake ? (BAKED_M || (BAKED_M = lam(0xffffff, { vertexColors: true }))) : mat);
-    m.castShadow = cast; m.receiveShadow = true; m.userData.fine = true; parent.add(m); out.push(m);
+    return geo;
+  };
+  groups.forEach(({ mat, bake, cast, parts }) => {
+    const mk = geo => { const m = new THREE.Mesh(geo, bake ? (BAKED_M || (BAKED_M = lam(0xffffff, { vertexColors: true }))) : mat); m.castShadow = cast; m.receiveShadow = true; m.userData.fine = true; return m; };
+    const m = mk(merged(parts, bake, false));
+    // (a far version only where it saves a fair part of the near one's triangles: LOD_GUN.save)
+    const lo = lod && parts.some(o => loGeo(o.geometry) !== o.geometry) ? merged(parts, bake, true) : null;
+    if (lo && lo.attributes.position.count < LOD_GUN.save * m.geometry.attributes.position.count) { const L = new FarLOD(); L.userData.lodSpan = span; L.addLevel(m, 0); L.addLevel(mk(lo), 1); parent.add(L); }
+    else { if (lo) lo.dispose(); parent.add(m); }
+    out.push(m);
   });
   list.forEach(o => { if (o.parent) o.parent.remove(o); });
   return out;
@@ -114,7 +197,7 @@ export function foldPieces(root, stop, opt) {
   (function walk(o) { o.children.forEach(c => { if ((stop && stop.has(c)) || !c.visible || Object.keys(c.userData).length) return; if (foldable(c, see)) parts.push(c); walk(c); }); })(root);
   // (a piece with children of its own keeps its place, for them: only childless ones fold)
   const list = parts.filter(c => !c.children.length);
-  return list.length > 1 ? mergeInto(root, list, { noBake: true }) : [];
+  return list.length > 1 ? mergeInto(root, list, { noBake: true, lod: !!(opt && opt.lod), span: opt && opt.span }) : [];
 }
 // every mesh under g except the ones flagged userData.sil (kept whole for outlines) and anything under a stop node
 export function finePieces(g, stop) {
