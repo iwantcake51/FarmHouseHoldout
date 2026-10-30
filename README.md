@@ -66,7 +66,8 @@ the other one, that eye squinting along the gun and your head tipped over the st
 2. **Wave.** The zombies come out of the trees, break your boards down and climb in. Keep them out, and keep moving.
    From your own eyes they come from further off: deep in the haze out past the fields, solid all the way, a pale shape
    in the fog that picks up detail as it comes clear rather than appearing at the fence. They cover the hidden stretch
-   quicker, so they reach the farm about as soon as they would seen from above.
+   quicker, so they reach the farm about as soon as they would seen from above. Your rounds reach out that far too (75 m
+   from your own eyes, against 26 from above), so anything you can see out there you can shoot.
 3. **Cards.** When the last zombie falls (time slows for a moment, the edges of the view cooling, with no black bars over it), pick one of three cards: a new gun, a skill, a perk or supplies. Every fifth
    wave brings a bonus hand. Or take a little scrap instead, a bit more each wave. You have 20 seconds to choose
    before one is taken for you; playing alone, that clock stands still while the game's tab is hidden or its window

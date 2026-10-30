@@ -148,6 +148,10 @@ const FLY = { far: 180, smoke: 60 };
 // from your own eyes a round fired up over the house meets its ceiling or its roof: anywhere over the house between its
 // eaves and about its ridge (ROOF_ZONE, metres up); over that it's clear
 const ROOF_ZONE = [2.5, 4.5];
+// how far a round can reach anything: from above, a little past the edge of the view (top); from your own eyes, out past
+// the edge of the farm to the zombies coming in out of the fog beyond it, as far as you can see them (fp); its way checked
+// every 10 cm out to the top's reach, and in bigger steps (step) past it, where there's nothing but the ground
+const SHOT_REACH = { top: 26, fp: 75, step: 0.25 };
 const underRoof = (x, z, y) => { if (y < ROOF_ZONE[0] || y > ROOF_ZONE[1]) return false; const i = ci(x), j = ci(z); return inb(i, j) && HOUSE_FP[idx(i, j)] === 1; };
 // each zombie a round goes through takes a quarter off what it does to the next
 export const PIERCE_KEEP = 0.75;
@@ -379,13 +383,14 @@ export function gunFire(id, D, side) {
     const fp = fpOn(), y0 = mw.y;
     let slope = tgt ? (tgt.y - y0) / Math.max(0.5, tgtT) : fpT ? (fpT.y - y0) / Math.max(0.05, Math.hypot(fpT.x - ox, fpT.z - oz)) : ((ANIM.aimY ?? GUN_Y) - y0) / Math.max(fp ? 0.05 : 1, Math.hypot(aimPt.x - ox, aimPt.z - oz));   // (from your own eyes through the very point the crosshair's on, however near)
     if (pv) slope += Math.tan(pv);   // (up or down: SG_FP, or a lone round's own spread)
-    let wallT = 26, gndT = 99;
-    for (let t = 0.1; t < 26; t += 0.1) {
+    const reach = fp ? SHOT_REACH.fp : SHOT_REACH.top;
+    let wallT = reach, gndT = 99;
+    for (let t = 0.1; t < reach; t += t < SHOT_REACH.top ? 0.1 : SHOT_REACH.step) {
       if (fp ? bulletBlockedAt(ox + dx * t, oz + dz * t, y0 + slope * t) || underRoof(ox + dx * t, oz + dz * t, y0 + slope * t) : bulletBlocked(ox + dx * t, oz + dz * t)) { wallT = t; break; }
       if (fp && slope < -1e-4 && y0 + slope * t <= surfaceY(ox + dx * t, oz + dz * t)) { gndT = t; break; }
     }
     wallT = thinRay(ox, oz, dx, dz, wallT);   // (an inside wall: world/thin-walls.js)
-    const endR = Math.min(wallT, gndT, D.maxRange || 26);   // how far it can do anything: a wall, the ground, or where a dragon's breath pellet burns out
+    const endR = Math.min(wallT, gndT, D.maxRange || reach);   // how far it can do anything: a wall, the ground, or where a dragon's breath pellet burns out
     const hits = [];
     for (const z of zombies) { const h = zRay(z, ox, oz, dx, dz, back); if (h && h.t <= endR) hits.push({ z, t: h.t, off: h.off, r: h.r, part: aimed && z === tgt.z ? tgt.part : null }); }
     if (aimed && !hits.some(h => h.z === tgt.z) && tgtT <= endR) hits.push({ z: tgt.z, t: tgtT, off: 0, r: 1, part: tgt.part });
@@ -420,17 +425,17 @@ export function gunFire(id, D, side) {
     const hole = pellets > 2 ? 0.045 : D.ammo === 'p9' ? 0.07 : D.ammo === 'p10' ? 0.08 : 0.09;
     // what it ended in, for your teammates' screens to show the same (net/avatars.js): 1 a wall (the hole's size with
     // it), 2 the ground, 0 anything else
-    const endK = n ? 0 : wallT < 26 && wallT <= endR ? 1 : gndT <= endR ? 2 : 0;
+    const endK = n ? 0 : wallT < reach && wallT <= endR ? 1 : gndT <= endR ? 2 : 0;
     // a round that meets nothing at all flies on out of sight: its streak runs on to the edge of the view (FLY.far, or
     // down to where its line meets the ground out there) rather than stopping dead in mid-air at its range, and it's
     // marked for your teammates' screens the same way (3: into the distance)
-    const free = !n && wallT >= 26 && gndT > endR && endR >= 26, flyT = free ? (fp && slope < -1e-4 ? Math.min(FLY.far, Math.max(endT, y0 / -slope)) : FLY.far) : endT;
+    const free = !n && wallT >= reach && gndT > endR && endR >= reach, flyT = free ? (fp && slope < -1e-4 ? Math.min(FLY.far, Math.max(endT, y0 / -slope)) : FLY.far) : endT;
     const fy = free && fp ? y0 + slope * flyT : ey, sky = free && flyT >= FLY.far, fK = free ? (sky ? 3 : 2) : endK;
     // (dragon's breath: its own burning pellets show the shot, so just a couple of faint tracers through them)
     if (D.dragon ? p < 2 : p < 4 || rand() < 0.5) { tracer(trO.x, trO.y, trO.z, ox + dx * flyT, fy, oz + dz * flyT, D.dragon ? trPw * 0.45 : trPw, trSt, sky); if (ends.length < 5) ends.push([ox + dx * flyT, fy, oz + dz * flyT, fK, hole]); }
     if (p === 0) { const sT = Math.min(flyT, FLY.smoke); smokeTrail(trO.x, trO.y, trO.z, ox + dx * sT, free && fp ? y0 + slope * sT : ey, oz + dz * sT, smokeOf(D, id, quietR, pellets === shots)); }   // big calibres leave smoke in the air, and every suppressed round a thicker, longer-lasting trail of it
-    if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
-    else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
+    if (D.explode && (n || wallT < reach)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
+    else if (!n && wallT < reach && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
       if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, 'wood');   // a flash, splinters, a puff off the surface (effects/puffs.js)
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
