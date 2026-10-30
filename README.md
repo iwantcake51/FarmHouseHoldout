@@ -729,7 +729,7 @@ fist thinning as it goes: one turn straight round to anchor it, then a spiral up
 the last, a last turn straight round, and the end pressed down and taped. A short bandage gets fewer turns. The
 forearm turns slowly in the hand as the gauze goes round, and the hand holding it drifts a little with your breathing,
 never on a straight line: the arm comes up quickly and settles with a touch of overshoot, each turn of the roll
-slows where it pulls the strip tight and quickens round the back, and the arm sways on a couple of slow, uneven waves.
+slows where it pulls the strip tight and quickens round the back, and the arm sways on a couple of slow, uneven waves. From your own eyes the view goes with the work rather than staring fixed: it tips down onto the arm and turns a touch toward it, tilted over to it, nods each time the strip's pulled tight over the top of a turn, sways after the hand as it goes round, rises and falls with a slow breath, and follows the wrap up the forearm as it goes on; all of it eased onto softly as the arms come up and settling back more slowly once the bandage is done.
 In first person the forearm is held close in front of you, slanting across the middle of the view, and the view tips down a little
 onto it, so the wrap goes on where you can watch it, and the right hand comes in round it with the roll (its shoulder
 placed so the hand stays at the arm, the strip off the roll only a few centimetres long); it all stays where it is in the view as you look up or down, as the weapons do. Your teammates see your arms,

@@ -308,6 +308,7 @@ export function bandagePose(pm, up, now, sh) {
     else if (on && !w.geo) { w.seep = 1; wrapBuild(w, 4); }
     w.g.visible = on; if (!on) return;
     const t = i === cur ? Math.max(0.05, bandWindAt(w.turns * wind)) : w.turns, per = w.segs / w.turns;
+    if (i === cur) { ANIM.bandTurn = t; ANIM.bandProg = prog; }   // (how far round it's gone and on, for the view to go with it: game/view-cam.js, BAND_CAM)
     w.geo.setDrawRange(0, Math.ceil(t * per) * (w.nr - 1) * 6);
     // the end, taped down once it's been pressed on
     const tp = i < n || (i === cur && taped);

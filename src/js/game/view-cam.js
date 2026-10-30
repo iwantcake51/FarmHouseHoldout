@@ -1059,6 +1059,12 @@ function adsKickTilt(at, w, room = Infinity) {
 // toward where the one going away rides as it's put there, then toward where the next one rides as it's drawn, each a
 // smooth swell and back (SWAP_CAM, radians: p up, y round, r rolled), only the camera's own turn: your aim stays put
 const BAND_LOOK = 0.16;
+// and the view goes with the work as the bandage goes on, never held still (BAND_CAM, radians): turned a touch toward the
+// arm (yaw) and tipped over to it (roll); a nod each time the strip's pulled tight over the top of a turn (tug, over the
+// first tugAt of each turn); a sway after the hand as it goes round (follow, rollT); a slow breath (breath, at
+// breathF a second); and the gaze working up the forearm as the wrap goes up it (along). It's all eased (ease: how
+// quickly), softer than a weapon swap's, onto it as the arms come up and off it as they go down
+const BAND_CAM = { yaw: 0.05, roll: 0.035, tug: 0.024, tugAt: 0.35, follow: 0.012, rollT: 0.014, breath: 0.008, breathF: 1.6, along: 0.03, ease: 4.5, easeOut: 2.6 };
 const SWAP_CAM = { side: { p: -0.05, y: -0.035, r: 0.03 }, long: { p: 0.018, y: 0.03, r: -0.035 }, auto: { p: 0.015, y: 0.025, r: -0.03 }, melee: { p: 0.01, y: 0.02, r: -0.025 }, ease: 9 };
 function swapCam(rdt) {
   let tp = 0, ty = 0, tr = 0; const s = swapSt;
@@ -1068,10 +1074,18 @@ function swapCam(rdt) {
     if (a) { tp += a.p * ka; ty += a.y * ka; tr += a.r * ka; }
     if (b) { tp += b.p * kb; ty += b.y * kb; tr += b.r * kb; }
   }
-  // (and bandaging, the view tips down a little onto the arm it's going on, BAND_LOOK radians, and back up after)
-  if (!P.dead) tp -= BAND_LOOK * (ANIM.bandK || 0);
   const k = Math.min(1, rdt * SWAP_CAM.ease);   // (eased onto, so a swap cut short settles rather than snapping back)
   V.hsp = (V.hsp || 0) + (tp - (V.hsp || 0)) * k; V.hsy = (V.hsy || 0) + (ty - (V.hsy || 0)) * k; V.hsr = (V.hsr || 0) + (tr - (V.hsr || 0)) * k;
+  // (and bandaging, the view tips down onto the arm it's going on, BAND_LOOK radians, and goes with the work: BAND_CAM)
+  const C = BAND_CAM, bk = P.dead ? 0 : ANIM.bandK || 0; V.bct = (V.bct || 0) + rdt;
+  let bp = -BAND_LOOK * bk, by = 0, br = 0;
+  if (bk > 0.005) {
+    const f = (((ANIM.bandTurn || 0) % 1) + 1) % 1, tug = Math.sin(Math.PI * clamp(f / C.tugAt, 0, 1)) ** 2, wv = Math.sin(2 * Math.PI * f), pr = P.bandT > 0 ? ANIM.bandProg || 0 : 1;
+    bp += (-C.tug * tug + C.breath * Math.sin(V.bct * C.breathF * 2 * Math.PI)) * bk;
+    by += (C.yaw + C.follow * wv + C.along * (pr - 0.5)) * bk; br += (C.roll + C.rollT * Math.sin(2 * Math.PI * f + 0.6)) * bk;
+  }
+  const kb = Math.min(1, rdt * (bk > 0.05 ? C.ease : C.easeOut));   // (and slower off it than onto it: the view settles back)
+  V.bcp = (V.bcp || 0) + (bp - (V.bcp || 0)) * kb; V.bcy = (V.bcy || 0) + (by - (V.bcy || 0)) * kb; V.bcr = (V.bcr || 0) + (br - (V.bcr || 0)) * kb;
 }
 export function viewFrame(rdt, roll, sh, jolt) {
   if (state === 'play' || state === 'title') QUIT_CAM.on = false;
@@ -1189,7 +1203,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx - Math.sin(V.cy) * ((V.mz || 0) + FL.z), _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx - Math.cos(V.cy) * ((V.mz || 0) + FL.z));   // (and jolted back off a blow: V.mz, MELEE_CAM)
     swapCam(rdt);
-    c.rotation.set(viewP() + V.hsp, viewY() + V.hsy + Math.PI, viewR() + V.hsr, 'YXZ'); c.updateMatrixWorld(true);
+    c.rotation.set(viewP() + V.hsp + (V.bcp || 0), viewY() + V.hsy + (V.bcy || 0) + Math.PI, viewR() + V.hsr + (V.bcr || 0), 'YXZ'); c.updateMatrixWorld(true);
     selfClip(fpOn(), c);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis
