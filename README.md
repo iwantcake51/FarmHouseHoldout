@@ -106,8 +106,10 @@ the other one, that eye squinting along the gun and your head tipped over the st
      - **Hulking** (violet): five times the health, bigger, and its hits land 1.8 times as hard; a little slower.
      - **Frenzied** (red): half again as fast, clawing 1.8 times as often, with three times the health.
      - **Volatile** (green, from wave 5: swollen, glowing sores all over it): three times the health, and a beat after
-       it dies it bursts, its bile hurting every zombie within 3.2 m (140 at its middle, a third of that at the edge)
-       and you within 2.5 m (up to 35), and leaving a pool of acid; a volatile brute's burst is a third bigger.
+       it dies it bursts into a cloud of red mist that hangs and drifts for a few seconds, blood thrown all round it.
+       Within 2.6 m it hurts you (up to 35, less at the edge) and leaves you reeling (the screen swimming, your aim
+       going wide, slowed); the zombies within 3.2 m aren't hurt, only thrown back and staggered (up to 1.6 s at its
+       middle, a brute barely moved). A volatile brute's burst is a third bigger.
 
      A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. As one comes in
      its own card slams in from the left (no more than one every 8 seconds): a slanted slab in its colour, its icon in a

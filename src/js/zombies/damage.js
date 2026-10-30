@@ -562,7 +562,7 @@ const RAG_OVER = { k: 0.7, per: 90 }, ELITE_DOWN = { stop: 0.09, punch: 0.06 };
 const KILL_FLASH = 0.24;
 function killBegin(z, dx, dz, k) {
   spitterDies(z);   // (a spitter's sac bursts: zombies/spitter.js)
-  eliteDies(z, !NREP);   // (a volatile one bursts: zombies/elites.js)
+  eliteDies(z);   // (a volatile one bursts: zombies/elites.js)
   z.flash = Math.max(z.flash || 0, KILL_FLASH);
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill

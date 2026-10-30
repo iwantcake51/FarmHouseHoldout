@@ -507,11 +507,6 @@ function acidPool(x, z, r, life, ang, tiny) {
 }
 function dropPool(q) { scene.remove(q.m); q.m.material.dispose(); if (q.bloom) { scene.remove(q.bloom); q.bloom.material.dispose(); } if (q.surf) { scene.remove(q.surf); q.surf.material.dispose(); } }
 // a spitter going down: its sac bursts
-// a volatile elite bursting (zombies/elites.js): bile flung out every way, and a pool of its acid where it stood
-export function bileBurst(x, z) {
-  for (let i = 0; i < 4; i++) { const a = rand() * Math.PI * 2; acidSplash(x, rr(0.8, 1.2), z, Math.sin(a), Math.cos(a), false, false); }
-  acidPool(x, z, SPIT.burst.r * 0.8, SPIT.burst.t * 0.5, rand() * 6.283);
-}
 export function spitterDies(z) {
   if (z.type !== 'spitter') return;
   spitters.delete(z);
