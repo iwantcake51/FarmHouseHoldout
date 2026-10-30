@@ -375,7 +375,9 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | | | Y | Inspect your weapon | | |
 
 The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
-with a mod that adds a setting).
+with a mod that adds a setting). Its little rounds are the gun's own cartridge: a 9mm's round nose, the 10mm's and a magnum's flat
+nose, a rifle round's bottleneck and point, and a shotgun's red-hulled shell on its brass head. The double barrel
+reads Single firing one barrel at a time, and Twin on its twin trigger's both-barrels setting.
 
 Under the ammo count, past a thin rule, the slot row shows what you carry: each weapon as a picture of its own model in
 the HUD's off-white, by the number that picks it. Each is shaded like a drawing: lit from the upper left with a glint

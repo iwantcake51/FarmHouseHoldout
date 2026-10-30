@@ -131,7 +131,7 @@ function renderFireMode(id) {
   const sameGun = cache.fmId === id && !!cache.fm; cache.fm = key; cache.fmId = id;
   el.hidden = !m; if (!m) return;
   const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : m.k === 'both' ? 2 : 1;
-  g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // pointed rifle and magnum rounds
+  g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10', shells: ' sh' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // the gun's own cartridge: pointed rifle rounds, flat-nosed magnums and 10mm, shotgun shells
   el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = !sw;
   if (sameGun) replay(el, 'sw');
 }
