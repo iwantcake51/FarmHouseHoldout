@@ -16,7 +16,7 @@ import { fogSee } from './spawn.js';
 import { rimMat } from '../effects/outlines.js';
 import { openSt } from '../stations/station-ui.js';
 import { state, worldT } from '../game/state.js';
-import { eliteTick, updateBursts } from './elites.js';
+import { updateBursts } from './elites.js';
 import { meleeTargets } from '../melee/melee.js';
 import { flDir, flOn, los, teamBeam } from '../lighting/lightmap.js';
 import { curDark } from '../lighting/day-night.js';
@@ -142,7 +142,6 @@ export function updateZombieVisuals(dt, rdt) {
   updateBursts(dt);   // (volatile elites going off: zombies/elites.js)
   const V = viewer(), pk = visOn && peekOf(V);   // (who's looking, and the window they're at: lighting/vision.js)
   for (const z of zombies) {
-    eliteTick(z, worldT);
     if (z.stain) z.stain.burn = z.burn;
     updateZombieStain(z.stain, rdt, dt);
     // (and in co-op, picked out by a teammate's light even where you can't see: teamBeam, lighting/lightmap.js)

@@ -208,6 +208,15 @@ export const SFX = {
     for (let b = 0; b < beats; b++) setTimeout(() => { tn(0.3, 'sine', 70, 34, 0.42); nz(0.18, 'lowpass', 420, 90, 0.3, 0.9); }, b * WAVE_STING.beat);
     if (hard) nz(1.3, 'bandpass', 600, 2400, 0.07, 2);
   },
+  // an elite coming in (zombies/elites.js): a deep hit dropping away under a dissonant swell and a hiss of breath, pitched
+  // by its kind (low: hulking, sharp: frenzied, sour: volatile); and one put down, a bright chime over a thump
+  eliteIn(kind) {
+    const f = kind === 'hulk' ? 55 : kind === 'frenzy' ? 98 : 73;
+    tn(0.55, 'sine', f * 2, f, 0.32); nz(0.25, 'lowpass', 300, 80, 0.32, 0.9);
+    tn(1.1, 'sawtooth', f * 4, f * 4.24, 0.035); tn(1.1, 'sawtooth', f * 5.66, f * 5.4, 0.025);
+    nz(0.9, 'bandpass', kind === 'frenzy' ? 2600 : 900, kind === 'frenzy' ? 4200 : 1500, 0.05, 3);
+  },
+  eliteDown() { tn(0.25, 'sine', 90, 40, 0.3); setTimeout(() => { tn(0.5, 'triangle', 988, 980, 0.06); tn(0.6, 'sine', 1480, 1470, 0.04); }, 60); },
   // a wave cleared: two notes rising, a third over them every fifth wave or after a twist
   cleared(n = 1, big = false) {
     tn(0.9, 'sine', 196, 196, 0.12); setTimeout(() => tn(1.2, 'sine', 294, 294, 0.1), 180);

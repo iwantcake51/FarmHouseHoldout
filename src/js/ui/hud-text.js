@@ -67,6 +67,19 @@ export function toast(t, opt) {
   $('toastT').textContent = t; $('toastS').textContent = o.sub || ''; $('toastIc').innerHTML = FEED_ICON[o.icon] || FEED_ICON.gear;
   el.className = 'hud ' + (o.kind || 'info'); void el.offsetWidth; el.classList.add('show'); toastT = 2.6;
 }
+// an elite's call (zombies/elites.js): its own card, not a notification, slammed in from the left in its colour (col)
+// with its icon (one of GI's) in a soft glow, an eyebrow (eye), its name big, a line and a tip; it holds for t
+// seconds as a bar runs out under it, then slides off. down: one put down, with the skull (styles/overlays.css: #eliteCall)
+let ecT1 = 0, ecT2 = 0;
+export function eliteCall(o) {
+  const el = $('eliteCall'), t = o.t || 3.4;
+  clearTimeout(ecT1); clearTimeout(ecT2);
+  el.style.setProperty('--ec', o.col); el.style.setProperty('--ecT', t + 's');
+  $('ecIc').innerHTML = GI[o.icon] || GI.zombie; $('ecEye').textContent = o.eye || ''; $('ecName').textContent = o.name || '';
+  $('ecLine').textContent = o.line || ''; $('ecTip').textContent = o.tip || '';
+  el.className = 'hud'; void el.offsetWidth; el.className = 'hud show' + (o.down ? ' down' : '');
+  ecT1 = setTimeout(() => { el.className = 'hud out' + (o.down ? ' down' : ''); ecT2 = setTimeout(() => { el.className = 'hud'; }, 450); }, t * 1000);
+}
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
 // a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: a small card under
 // the middle with its name (STREAK), a pip for each kill in it, what it's paid past the third (zombies/damage.js), and a

@@ -1,13 +1,12 @@
 // The shotguns' models: the pump, the double barrel and the auto shotgun (gun-models.js puts every family together).
 
 import { box } from '../core/geometry.js';
-import { roundOn } from './rounds.js';
 import { T, tierCtx } from '../game/run-state.js';
 import { GM, X } from './gun-materials.js';
 import {
   apPart, apPlate, checker, clipTo, cyl, inset, irons, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX, xsec
 } from './gun-parts.js';
-import { SHELL_MAT, shellMat } from './gun-models.js';
+import { shellMat } from './gun-models.js';
 import { clamp } from '../core/math.js';
 
 // a bolt seen through its ejection port (z0 to z1 along the gun, at x, y; w wide, h tall): what the reload and the
@@ -110,7 +109,8 @@ export const SHOTGUN_MODELS = {
     const n = Math.min(8, 4 + T('mag') * 2);
     box(g, 0.006, 0.05, 0.024 * n + 0.01, GM.poly, X + 0.025, 1.132, 0.51 + n * 0.012);
     for (let k = 0; k < n; k++) { const z = 0.522 + k * 0.024; cyl(g, 0.0105, 0.054, sm, X + 0.039, 1.14, z, 10).rotation.set(0, 0, 0); cyl(g, 0.0112, 0.014, GM.brass, X + 0.039, 1.106, z, 10).rotation.set(0, 0, 0); }   // stood upright in it
-    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: PUMP_RAIL.top, sz: 0.6 };
+    // (mount: where a laser or a light clamps on, round the barrel and the tube just ahead of the forend's travel, fitAttachments)
+    return { front: 1.39, y: 1.15, slide: fe, bolts: [bolt], travel: 0.15, cyc: true, top: PUMP_RAIL.top, sz: 0.6, mount: { z: 1.2 } };
   },
   // double barrel: a side-by-side, traced off side-on photos: a hammerless sidelock (the lock plates with their
   // engraved border, the top lever and the safety on the tang, the action bar running forward under the barrels to the
@@ -217,17 +217,15 @@ export const SHOTGUN_MODELS = {
     profile(g, shp([[0.605, 1.04], [0.601, 1.03], [0.603, 1.016], [0.596, 1.022], [0.593, 1.035], [0.598, 1.047], [0.607, 1.047]]), 0.007, St, X, 0.0008);   // the trigger
     // ---- the magazine (in the mag group, so the reload can drop it): its own 8-shell box, raked a little forward with
     // ribs down its sides and a base plate; or, with its one magazine upgrade, the drum: face forward, a hub in the
-    // middle, the chrome band round its back edge (a stripe on either in the colour of the shells loaded, if they aren't buckshot)
+    // middle, the chrome band round its back edge (no stripe for the shells loaded: the gun's the same whatever's in it)
     const dy = 0.956, dz = 0.735, dr = 0.114;
     if (T('mag')) {
       cyl(mg, dr, 0.078, K, X, dy, dz, 40); cyl(mg, dr + 0.0015, 0.008, St, X, dy, dz - 0.035, 40);
       cyl(mg, 0.02, 0.004, GM.rubber, X, dy, dz + 0.0405, 20); cyl(mg, 0.006, 0.004, GM.metal2, X, dy - dr + 0.016, dz + 0.0405, 10);
-      if (SHELL_MAT[roundOn(tierCtx)]) cyl(mg, dr + 0.002, 0.012, SHELL_MAT[roundOn(tierCtx)], X, dy, dz + 0.016, 40);
     } else {
       const bm = new THREE.Group(); bm.position.set(X, 1.075, dz); bm.rotation.x = -0.08; mg.add(bm);
       box(bm, 0.05, 0.215, 0.095, K, 0, -0.1075, 0); box(bm, 0.056, 0.016, 0.103, GM.poly, 0, -0.218, 0.002);
       [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
-      if (SHELL_MAT[roundOn(tierCtx)]) box(bm, 0.052, 0.014, 0.097, SHELL_MAT[roundOn(tierCtx)], 0, -0.17, 0);
     }
     return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },

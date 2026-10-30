@@ -1,7 +1,6 @@
 // Attachment models: muzzle devices, suppressors, lasers, lights, sights, bayonet, brace.
 
 import { box } from '../core/geometry.js';
-import { roundOn } from './rounds.js';
 import { gunAtt, SCOPE_GUNS, suppressed, T, tierCtx, W8 } from '../game/run-state.js';
 import { heatAll } from '../effects/supp-heat.js';
 import { lensOn, reticleOn } from '../effects/scope-view.js';
@@ -69,7 +68,7 @@ export function fitAttachments(g, D, front, y, info) {
     let lg = g, lx = X, u, lz;
     if (L && L.side) { lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); lx = 0; u = 0; lz = L.z; }   // its top against the side rail
     else if (L) { u = L.y; lz = L.z; }
-    else { lz = front - 0.22; u = undersideAt(g, X, lz, y); }
+    else { lz = info.mount ? info.mount.z : muzzle - 0.22; u = undersideAt(g, X, lz, y); }   // (off the gun's own muzzle, or the mount it says: never out on a can or a choke)
     if (T('laser') === 1 && rail) {   // a compact pointer clamped straight onto the rail
       box(lg, 0.034, 0.012, 0.064, GM.metal, lx, u - 0.006, lz - 0.004);
       cyl(lg, 0.013, 0.09, GM.metal2, lx, u - 0.022, lz); ring(lg, 0.0145, 0.012, GM.metal, lx, u - 0.022, lz + 0.04);
@@ -94,12 +93,12 @@ export function fitAttachments(g, D, front, y, info) {
     if (L && L.side) { const lg = new THREE.Group(); lg.position.set(L.x, L.y, 0); lg.rotation.z = L.side * Math.PI / 2; g.add(lg); weaponLight(lg, { y: 0, z: L.z }, muzzle, lt, tier, 0, g); }   // its top against the side rail
     else if (L) weaponLight(g, L, muzzle, lt, tier);
     else {   // no rail: on a mount clamped up under the barrel
-      const lz = muzzle - 0.24, u = undersideAt(g, X, lz, y);
+      const lz = info.mount ? info.mount.z : muzzle - 0.24, u = undersideAt(g, X, lz, y);
       box(g, 0.03, 0.016, 0.05, GM.metal, X, u - 0.002, lz); weaponLight(g, { y: u - 0.01, z: lz }, muzzle, lt, tier);
     }
   }
   else if (T('light') && !info.noLight) {
-    const mz = muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can
+    const mz = info.mount ? info.mount.z + 0.25 : muzzle, br = info.barrelR || 0.014;   // on the barrel, behind any can (or at its mount)
     if (T('light') === 1) { cyl(g, 0.022, 0.14, GM.metal2, X + 0.06, y - 0.02, mz - 0.25); ring(g, 0.026, 0.02, GM.metal, X + 0.06, y - 0.02, mz - 0.175); cyl(g, 0.02, 0.004, GM.lens, X + 0.06, y - 0.02, mz - 0.163); lightEm(g, X + 0.06, y - 0.02, mz - 0.158); [-0.28, -0.22].forEach(o => tapeWrap(g, X, y, mz + o, br + 0.002, X + 0.06 + 0.02, y - 0.02)); }   // taped to the barrel
     else if (D.slot === 'auto' && (D.ammo === 'p9' || D.ammo === 'p10')) {   // a submachine gun's: a bigger flashlight, zip-tied on alongside
       const lx = X + 0.066, ly = y - 0.02, lz = mz - 0.27;
@@ -163,7 +162,6 @@ export function fitAttachments(g, D, front, y, info) {
       p.userData.optic = { kind: 'dot', x: sx, y: by + 0.032, zr: bz - 0.0285, zf: bz + 0.0335, r: 0.016 };
     }
   }
-  if (roundOn(tierCtx) === 'fire') { ring(g, 0.03, 0.03, GM.ember, X, y, Math.min(front - 0.05, (info.sz || 0.62) + 0.28)); box(g, 0.012, 0.02, 0.05, GM.ember, X + 0.04, y - 0.04, (info.sz || 0.62) - 0.05); }
   if (gunAtt(tierCtx, 'stock') && side) {   // a folding brace off the back of the grip
     [-0.02, 0.02].forEach(o => box(g, 0.01, 0.01, 0.24, GM.metal2, X + o, y - 0.05, 0.4)); box(g, 0.05, 0.13, 0.03, GM.poly, X, y - 0.07, 0.27); box(g, 0.054, 0.14, 0.012, GM.rubber, X, y - 0.07, 0.252);
   }

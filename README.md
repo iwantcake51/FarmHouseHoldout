@@ -99,14 +99,21 @@ the other one, that eye squinting along the gun and your head tipped over the st
      night comes on the moonlight, the sky, the haze and the dark all go red, and elites come four times as often).
      Clearing one pays a bounty: six scrap plus the wave's number, to everyone.
    - **Elites.** From wave 3, now and then one of the horde is something more (about 1 in 28 at first, climbing to 1
-     in 11; on a blood moon up to 3 in 10), called out as it comes in, its eyes burning its own colour and a ring of it
-     pulsing on the ground under it, seen through cover in that colour too. A **Hulking** one (violet: a walker or a
-     brute) is bigger and over twice as tough and hits harder; a **Frenzied** one (red: a walker or a sprinter) is
-     much faster and claws again sooner; a **Volatile** one (green, from wave 5: a swollen walker covered in glowing
-     sores) bursts a beat after it dies, its bile hurting every zombie within about 3 m (killing walkers outright up
-     close, a third of that at the edge) and you if you're within about 2 m, and leaving a pool of acid: shoot it in
-     the crowd, not at the window. Each one put down stops time for a moment and pays out: scrap (4 to 6, more each
-     wave), an ammo box for sure, and often bandages or planks. In co-op an elite is the same one on every screen.
+     in 11; on a blood moon up to 3 in 10): a walker, a sprinter or a brute (never a spitter), its eyes burning its own
+     colour and seen through cover in that colour. Every elite has a brute's hide (it takes 40% less damage; an elite
+     brute 55% less), and each kind is far more than the zombie under it:
+     - **Hulking** (violet): five times the health, bigger, and its hits land 1.8 times as hard; a little slower.
+     - **Frenzied** (red): half again as fast, clawing 1.8 times as often, with three times the health.
+     - **Volatile** (green, from wave 5: swollen, glowing sores all over it): three times the health, and a beat after
+       it dies it bursts, its bile hurting every zombie within 3.2 m (140 at its middle, a third of that at the edge)
+       and you within 2.5 m (up to 35), and leaving a pool of acid; a volatile brute's burst is a third bigger.
+
+     A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. As one comes in
+     its own card slams in from the left (no more than one every 8 seconds): a slanted slab in its colour, its icon in a
+     soft glow, its name, what it does and its numbers, a light sweeping across it and a sting under it; one put down
+     gets a card of its own with the skull and what it paid, and a moment's hit-stop. Each pays out double what it used
+     to: scrap (9 to 12, more each wave), an ammo box for sure, and most often bandages or planks too. In co-op an elite
+     is the same one on every screen.
    - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper going over drops
      a crate in the yard for you, mid-wave, with its flare and marker: half a radio crate's ammo, a bandage and a
      military find, if you can get out to it and back. In co-op each player gets their own.
@@ -266,12 +273,17 @@ windows and hop fences to escape, and shove zombies off you when they get close.
 
 | Station | What it's for |
 | --- | --- |
-| Workbench | Gun upgrades, attachments, ammo |
+| Workbench | Gun upgrades, attachments, ammo. Every card for something with more than one step shows its stars (filled for the steps you have), a mod with levels to it included, from before you've bought it |
 | Sawhorse / metalwork bench | Planks and metal, and bracing the boards |
 | Medicine cabinet | Bandages and health |
 | Ham radio | Calls in a supply crate once every 5 waves, growing with the wave as its price does: ammo, health, bandages and planks, and one military find no station sells you outright. Most often (60%) a field kit, the next attachment step for one of the guns you carry fitted free (a sight, a laser, a light, a can or choke, a speed loader); or (32%) a box of special rounds for one of them, a kind you haven't got, loaded; otherwise, or when there's nothing left to give, a cache of scrap |
 | Gun rack | New guns for your slots |
 | Strongbox (co-op) | Gives scrap to a teammate |
+
+A laser or a light on a gun without a rail for one goes on a clamp on the barrel, back from the gun's own muzzle (on the
+pump, round the barrel and the tube just ahead of the forend's travel), never out on a suppressor or a choke. What's
+loaded in a shotgun shows only in the shells themselves (the side saddle, the ones in your hand): nothing's added to the
+gun for dragon's breath, and no stripe on the auto shotgun's mag.
 
 Buying something you can't afford (or can't have yet) answers with a short dull two-note "no" and the button shaking,
 the quick ammo and bandage buttons included, rather than the click a station makes when it opens. In a short window

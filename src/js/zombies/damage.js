@@ -33,9 +33,9 @@ import { soundAt } from '../audio/spatial.js';
 import { camKick, camPunch, setCamPunch, setShake, setSlowHold, setSlowIn, setSlowTo, shake } from '../game/state.js';
 import { ammoTypes } from '../upgrades/upgrades.js';
 import { runKill, runStat } from '../ui/run-stats.js';
-import { feed, floats, floatText, popEl, streakShow, toast } from '../ui/hud-text.js';
+import { feed, floats, floatText, popEl, streakShow } from '../ui/hud-text.js';
 import { spitterDies } from './spitter.js';
-import { ELITE_KIND, eliteDies } from './elites.js';
+import { ELITE_KIND, eliteDies, eliteDown } from './elites.js';
 import { hitMark } from '../ui/crosshair.js';
 import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
@@ -56,7 +56,7 @@ export const LIMB_STAGGER = 0.5;   // seconds a zombie reels after losing a limb
 // of every hit, whatever it's from, shown in steel with a shield like armour (dmgNumber): a hard enough hit (a bolt
 // gun's round to the head) can still drop one in a shot
 export const BRUTE_ARM = 0.8;
-const BRUTE_HIDE = 0.4;
+const BRUTE_HIDE = 0.4, ELITE_HIDE = { brute: 0.55 };
 // armour, on the zombies that turned wearing it (their outfits: zombies/zombie-looks.js; soldiers, SWAT and riot police,
 // ARMED_JOBS, only from wave ARMOR_FROM): each piece (ARMOR_KIT) soaks up a share of a hit where it's worn (a) and takes
 // so much before it breaks (hp, a share of the zombie's own health). A soldier's helmet and vest; a SWAT officer's
@@ -396,7 +396,7 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   // the damage, so there are no random weak arm hits or headshot spikes. Bullets still count where they hit
   let dealt = dmg * (D.melee ? 1 : part === 'head' ? 1 + (headMulFor(D) - 1) * headK : partMult(part));
   const ar = armorOf(z, part, D, wId), arm = ar ? ar.a : 0, through = dealt * (1 - arm); if (ar) wearArmor(z, ar, dealt * arm + through * ARMOR_SCALE.wear, dx, dz); dealt = through;   // (what it was wearing there: ARMOR_KIT)
-  if (z.type === 'brute') dealt *= 1 - BRUTE_HIDE;   // (its bulk: BRUTE_HIDE)
+  if (z.type === 'brute' || z.elite) dealt *= 1 - (z.type === 'brute' && z.elite ? ELITE_HIDE.brute : BRUTE_HIDE);   // (its bulk: BRUTE_HIDE; an elite's as thick, an elite brute's thicker: ELITE_HIDE)
   if (cheatIs('onehit') && wId !== 'bleed' && wId !== 'fire') dealt = Math.max(dealt, z.hp + 1);   // (the cheat menu's one-hit kills: ui/cheats.js)
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
@@ -539,8 +539,8 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   if (z.elite) {
     const K = ELITE_KIND[z.elite.kind]; killScrap(z, K.scrap); ammoDrop(z.x, z.z, 1);
     if (rand() < K.more) dropPickup(z.x + rr(-0.4, 0.4), z.z + rr(-0.4, 0.4), rand() < 0.6 ? 'med' : 'planks', 1);
-    hitStop(ELITE_DOWN.stop); setCamPunch(Math.max(camPunch, ELITE_DOWN.punch)); SFX.killTick(true, 9);   // (a beat on it, and a high tick: zombies/elites.js)
-    runStat('elites'); toast(K.name + ' one down', { kind: 'good', icon: 'scrap', sub: '+' + waveScrap(K.scrap) + ' scrap, and its drop' });
+    hitStop(ELITE_DOWN.stop); setCamPunch(Math.max(camPunch, ELITE_DOWN.punch));   // (a beat on it, and its card: zombies/elites.js)
+    runStat('elites'); eliteDown(z, waveScrap(K.scrap));
   }
 }
 // an ammo box for your guns: most often for the one in your hands
