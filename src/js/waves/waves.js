@@ -22,7 +22,7 @@ import { sweepDrops } from '../pickups/pickups.js';
 import { announce, setH } from '../ui/hud-text.js';
 import { SPIT } from '../zombies/spitter.js';
 import { cheatIs } from '../ui/cheats.js';
-import { strayRoll } from '../stations/supply-drop.js';
+import { rushLeft, strayRoll } from '../stations/supply-drop.js';
 import { eliteWave, planElites } from '../zombies/elites.js';
 import {
   breakSub, clientWaves, netAllDown, netCleared, netSpawn, netTeam, netWaiting, respawnCheck, skipNeed, skipVotes,
@@ -189,10 +189,10 @@ export function updateWaves(dt) {
       netSpawn(spawnQ.shift()); setSpawnT(Math.max(0.3, 1.35 - run.wave * 0.08) * rr(.6, 1.4) / Math.sqrt(netTeam()) * surgeGap());
       if (++surge.done >= surge.n && spawnQ.length) { surge.lull = rr(surge.S.lull[0], surge.S.lull[1]); if (surge.lull <= 0) nextSurge(); }
     }
-    const left = spawnQ.length + zombies.length;
+    const left = spawnQ.length + zombies.length + rushLeft();   // (a stray crate's sprinters still to come count too)
     waveSub(left);
     waveBar(left / Math.max(1, run.waveTotal || left), 'wave');
-    if (!spawnQ.length && !zombies.length && !netAllDown()) waveCleared();
+    if (!left && !netAllDown()) waveCleared();
   } else if (phase === 'cleared') {
     setH('wSub', 'Wave cleared'); waveBar(1, 'clear'); respawnCheck();   // (co-op: anyone down is back, net/sync.js)
     setClearT(clearT - (dt / Math.max(timeScale, 0.3)));

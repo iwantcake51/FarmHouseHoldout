@@ -287,10 +287,6 @@ body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
 #dropCall .dcTx small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--dk)}
 #dropCall .dcTx>b{font-family:var(--f-num);font-weight:700;font-size:22px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
 #dropCall em{font-style:normal;font-size:12.5px;color:var(--dim);white-space:normal}
-#dropCall .dcRush{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:var(--dim);white-space:normal}
-#dropCall .dcRush svg{width:15px;height:15px;flex:none;fill:#e2412c}
-#dropCall .dcRush u{text-decoration:none}
-#dropCall .dcRush b{font-family:var(--f-num);font-size:14px;color:#e2412c}
 #dropCall .dcSide{display:none}
 #dropCall .dcSec{position:relative;display:grid;justify-items:center;padding-left:12px;border-left:1px solid rgba(236,230,216,.1);min-width:46px}
 #dropCall .dcSec b{font-family:var(--f-num);font-weight:700;font-size:30px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -300,7 +296,7 @@ body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
 #dropCall.mini .dcSlab{min-width:0;padding:5px 10px 5px 6px;gap:9px}
 #dropCall.mini .dcRing{width:32px;height:32px}
 #dropCall.mini .dcIc{width:15px;height:15px}
-#dropCall.mini em,#dropCall.mini .dcRush,#dropCall.mini .dcTx small{display:none}
+#dropCall.mini em,#dropCall.mini .dcTx small{display:none}
 #dropCall.mini .dcTx{flex:none;display:flex;align-items:baseline;gap:7px}
 #dropCall.mini .dcTx>b{font-size:15px}
 #dropCall.mini .dcSide{display:inline;font-style:normal;font-family:var(--f-num);font-weight:700;font-size:12px;letter-spacing:.14em;color:var(--dk)}

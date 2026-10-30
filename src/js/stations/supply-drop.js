@@ -197,12 +197,15 @@ function strayAt() {
 // near), sent in by whoever runs the zombies (in co-op, the host's, net/sync.js: netSpawn). A crate off the radio, that
 // you called yourself, brings none
 let strayRush = null;
+// how many of the rush are still to come: part of the wave's count, so the wave isn't over till they've come and gone
+// (waves/waves.js; a joiner gets it with the host's queue, net/sync.js)
+export const rushLeft = () => strayRush ? strayRush.n : 0;
 export function updateSupplyDrop(dt) {
   if (run.stray && phase === 'wave' && !dropBusy() && (run.stray.t -= dt) <= 0) {
     run.stray = null; callDrop({ kind: 'supply', stray: true }, STRAY.lead);
     const n = STRAY.extra[0] + Math.floor(run.wave / STRAY.extra[1]), sp0 = supplySpot;
     if (!netClient()) { strayRush = { n, t: 0.6, near: [nr(sp0.x), nr(sp0.z)] }; run.waveTotal += n; }
-    dropCallShow(sp0, n);
+    dropCallShow(sp0);   // (the sprinters aren't on it: they just come)
   }
   if (strayRush && phase === 'wave') {
     if ((strayRush.t -= dt) <= 0) { netSpawn('runner', undefined, strayRush.near); strayRush.t = rr(STRAY.gap[0], STRAY.gap[1]); if (--strayRush.n <= 0) strayRush = null; }
@@ -256,7 +259,7 @@ export function updateSupplyDrop(dt) {
 }
 // The stray crate's card (dropCall): as it's called, a panel drops in under the top of the screen: a ring round the
 // crate's icon running down the seconds till it lands, the time in big figures beside it, which side of the farm it's
-// coming down on, and how many sprinters are coming in from there. After DROP_CALL.big seconds it folds down to a slim
+// coming down on. After DROP_CALL.big seconds it folds down to a slim
 // strip (the ring, the side, the seconds) that stays till it lands; then it reads "Crate down" for DROP_CALL.down
 // seconds, or till it's opened. The farm's sides by the compass: north is -z, east is +x
 const DROP_CALL = { big: 4.5, down: 5 }, COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
@@ -264,17 +267,16 @@ const sideOf = (x, z) => COMPASS[(Math.round(Math.atan2(x - (cxw(FX0) + cxw(FX1)
 const dropCall = (() => {
   const el = document.createElement('div'); el.id = 'dropCall'; el.className = 'hud'; el.setAttribute('aria-live', 'polite');
   el.innerHTML = `<div class="dcSlab"><span class="dcRing"><svg class="dcArc" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19"></circle><circle cx="22" cy="22" r="19" pathLength="100"></circle></svg><svg class="dcIc" viewBox="${GI_VB}">${GI.supply}</svg></span>`
-    + `<span class="dcTx"><small>Stray supply drop</small><b>Crate inbound</b><i class="dcSide"></i><em></em><span class="dcRush"><svg viewBox="${GI_VB}">${GI.zombie}</svg><u></u></span></span><span class="dcSec"><b></b><small>sec</small></span></div>`;
+    + `<span class="dcTx"><small>Stray supply drop</small><b>Crate inbound</b><i class="dcSide"></i><em></em></span><span class="dcSec"><b></b><small>sec</small></span></div>`;
   document.body.appendChild(el); return el;
 })();
 let dCall = null;
-function dropCallShow(sp, n) {
+function dropCallShow(sp) {
   const side = sideOf(sp.x, sp.z), el = dropCall;
   dCall = { t: 0, lead: supplyT, side, landed: -1, k: '' };
   el.querySelector('.dcTx b').textContent = 'Crate inbound';
   el.querySelector('em').textContent = `Coming down outside the fence to the ${side}`;
   el.querySelector('.dcSide').textContent = side.split('-').map(w => w[0]).join('').toUpperCase();   // (on the folded strip: N, NE...)
-  el.querySelector('.dcRush u').innerHTML = `<b>+${n}</b> sprinters coming in from the ${side}`;
   el.className = 'hud'; replay(el, 'show');
 }
 function stepDropCall(dt) {

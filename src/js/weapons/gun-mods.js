@@ -11,11 +11,11 @@ import { keyOn } from '../input/keybinds.js';
 // two guns are fired one-handed from the hip: a little looser than one held in both hands
 const AK_SPREAD = 1.15;
 export const AUTO_SEAR = { rate: 0.31, trig: 2 };
-// a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
-export const SLUG_FALL = [14, 30, 0.85];
-// out of the double barrel a slug drops off hard, as its buckshot does (dbl: full to 6 m, down to a third by 15 m; the
-// sawn-off's: full to 3 m, a fifth by 8 m)
-export const DBL_SLUG_FALL = { dbl: [6, 15, 0.33], sawn: [3, 8, 0.2] };
+// a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js):
+// it holds far further than shot but still tails off, never below the floor (60%)
+export const SLUG_FALL = [10, 26, 0.6];
+// out of the sawn-off a slug drops off hard, as its buckshot does: full to 3 m, a fifth of it by 8 m
+export const SAWN_SLUG_FALL = [3, 8, 0.2];
 // the sawn-off: each pellet hits harder up close (dmg), and its short barrels drop it off far sooner and further (fall:
 // full out to 2.5 m, down to a fifth of it by 7 m; the double's own holds to 4 m and keeps half past 11)
 const SAWN = { dmg: 1.3, fall: [2.5, 7, 0.2] };

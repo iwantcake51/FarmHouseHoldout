@@ -125,12 +125,14 @@ the other one, that eye squinting along the gun and your head tipped over the st
    - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper drops a crate
      outside the fence. Its card drops in under the top of the screen in the supply orange: a ring round the crate's
      icon running down the 15 seconds till it lands, the seconds big beside it, the side of the farm it's coming down on
-     (north, north-east...) and how many sprinters it brings. After a few seconds it folds down to a slim strip (the
+     (north, north-east...). It doesn't say what's coming for it. After a few seconds it folds down to a slim strip (the
      ring, "Crate inbound", the side as N/NE..., the seconds, ticking over the last three) that stays till it lands, then
      turns green as "Crate down" for a few seconds or till you open it. The drop marker still counts down with how far
      off it is. While it's inbound, sprinters come for it (4, and one more every 3 waves, a second or two apart, sent by
      whoever runs the zombies in co-op), in through the fence's gaps on the side it's coming down on (one of the two
-     gaps nearest it). A crate you call on the radio yourself brings none. It comes down out in the yard between the fence and the
+     gaps nearest it). They're part of the wave from the moment it's called: the zombies-left count and the wave bar
+     take them in at once, and the wave isn't over till they've all come and been killed. A crate you call on the radio
+     yourself brings none. It comes down out in the yard between the fence and the
      tree line, clear of every tree's crown, the bushes and rocks, and anything else stood there (the cars, the hay
      bales): a radio crate's ammo, 2 bandages, 4 planks, a cache of scrap (8, and 2 more a wave) and a military find.
      In co-op each player gets their own. The helicopter itself flies over, along its shadow's line at the height the
@@ -171,7 +173,7 @@ its inner side, the rest of it folded away inside. The loop swings softly as the
 eased off toward the ends of its travel rather than snapping against them, while what's in the box stays put; the
 rounds in the box go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
-battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Slugs out of the double drop off hard as well, unlike out of the pump or the auto shotgun (where they hold full damage to 14 m): full damage to 6 m and down to a third by 15 m, and from the sawn-off full to 3 m and a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
+battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Every slug, out of any shotgun, holds its damage far further than shot but still tails off: full damage to 10 m, easing down to 60% by 26 m and never below that. Out of the sawn-off a slug drops off hard instead, as its buckshot does: full damage to 3 m and down to a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's

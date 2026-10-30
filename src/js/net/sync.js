@@ -45,6 +45,7 @@ import {
 } from '../game/state.js';
 import { shoveZombie } from '../player/shove.js';
 import { breakMax, clearedDone, setBreakMax, surge, waveBar, waveBegins, waveCleared, waveSub } from '../waves/waves.js';
+import { rushLeft } from '../stations/supply-drop.js';
 import { handNo } from '../upgrades/upgrade-screen.js';
 import { deathCineEnd, die } from '../ui/screens.js';
 import { feed, setH } from '../ui/hud-text.js';
@@ -116,7 +117,7 @@ function snapOut(rdt) {
   snapT -= rdt; if (snapT > 0) return; snapT = 1 / 12;
   const zs = [];
   for (const z of zombies) if (z.id && !z.dead) zs.push(z.id, nr(z.x), nr(z.z), nr(z.face), Math.round(z.hp), z.out ? 1 : 0, z.atkBoard ? openings.indexOf(z.atkBoard) + 1 : z.atkDoor ? -1 - HOUSE_DOORS.list.indexOf(z.atkDoor) : 0);   // (a door it's beating on: below 0)
-  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length, lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
+  netSend('w', { td: nr(tod), bt: nr(breakT), bm: breakMax, sq: spawnQ.length + rushLeft(), lu: surge.lull > 0 ? 1 : 0, z: zs, b: openings.map(o => o.boards.map(h => Math.round(h))), g: openings.map(o => o.grate ? Math.round(o.grate.hp0) * o.grate.face : 0), mt: METAL.on ? METAL.tier + 1 : 0, dh: HOUSE_DOORS.list.map(d => Math.round(d.hp)) });
 }
 NET_ON.w = m => {
   if (NET.host || !netLink()) return;
