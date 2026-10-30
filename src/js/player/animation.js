@@ -1,5 +1,6 @@
 // Player animation: walk, turn, limp, swings, recoil, reloads, death; and the per-frame player visuals.
 
+import { markMobile, MOBILE_SWEEP } from '../core/shaders.js';
 import { GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { surfaceY } from '../world/house.js';
@@ -500,9 +501,11 @@ function animatePlayer(dt, rdt) {
   agState(P.vault ? 'vault' : ANIM.land > 0 ? 'land' : INTRO.t >= 0 || state === 'title' ? 'intro' : 'loco', rdt);
 }
 // your character pose, blood on you and your weapon, muzzle flash, upgrade glow, the burn barrel
+let mobT = 0;
 export function updatePlayerVisuals(dt, rdt) {
   const pm = PM;
   animatePlayer(dt, rdt);
+  if ((mobT -= rdt) <= 0) { mobT = MOBILE_SWEEP; markMobile(pm.g); }   // (nothing of you takes the floor's blood: core/shaders.js)
   // on the title there's no see-through ghost or pale rim on you; they fade in as the camera comes down into the run
   // (and only while something could stand between the camera and you: out in the open there's nothing for it to show
   // through, and it's some hundred and seventy draws, a fill, a silhouette and a rim for each piece of you. On at once,

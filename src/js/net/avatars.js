@@ -8,7 +8,7 @@ import { cam, FP_CAM, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { NET, NET_COL, NET_ON, netLink, netSend, netTo } from './net.js';
-import { lam } from '../core/shaders.js';
+import { lam, markMobile, MOBILE_SWEEP } from '../core/shaders.js';
 import { blobShadow, mergeInto } from '../core/geometry.js';
 import { bandPouch2, bandRolls, KNEE_Y, P, PACK, PM, PM_BASE, PM_BASE_SRC } from '../player/player.js';
 import { blinkStep, buildLook, dealLook, faceGaze, faceGroups, faceMood, gazeStep, LOOK, shade } from '../player/look.js';
@@ -247,6 +247,7 @@ export function updateAvatars(rdt) {
     const a = p.av || buildAvatar(p), t = p.tgt;
     if (p.drop) { if (p.dead) stepDrop(p.drop, rdt); else dropGone(p); }   // (the weapon they let fall going down, till they're up: below)
     a.g.visible = true; if (a.blob) a.blob.visible = !p.dead;
+    if ((a.mobT = (a.mobT || 0) - rdt) <= 0) { a.mobT = MOBILE_SWEEP; markMobile(a.g); }   // (nor anything of them: core/shaders.js)
     if (a.ol) a.ol.visible = !p.dead; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && isoOn() && a.cvK > 0; a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();

@@ -236,6 +236,14 @@ export function lit(mat, cut) {
   mat.customProgramCacheKey = function () { return ((this || mat).userData.mobile ? 'mob-' : '') + ((this || mat).userData.glow ? 'glow-' : '') + (cut === 'tree' ? 'lit-tree' : cut ? 'lit-cut' : 'lit'); };
   return mat;
 }
+// everything that moves with a figure (you, a teammate: the pieces put on them as the run goes, the gear, a hat, the
+// wraps of a bandage) kept off the ground's blood: looked over now and then (markMobile, every MOBILE_SWEEP seconds),
+// any of its lit materials not yet marked is marked, and built again without the blood map. Otherwise a pool on the
+// floor stained whatever of you was over it, as it stains the ground
+export const MOBILE_SWEEP = 0.5;
+export function markMobile(root) {
+  root.traverse(o => { if (!o.isMesh) return; for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m && m.customProgramCacheKey && !m.userData.mobile && m.onBeforeCompile) { m.userData.mobile = true; m.needsUpdate = true; } });
+}
 export const lam = (c, extra) => lit(new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {})));
 export const WIND = { value: 0 };
 // the wind as the shaders see it (set by stepWind, world/wind.js): [x, z] the way it blows (a unit vector), its strength

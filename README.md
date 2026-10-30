@@ -237,13 +237,13 @@ nearly four metres across and lasts fourteen seconds: a bubbling green pool, bub
 in bright rings under an oily swirl, glowing on its own at night; standing in it burns for 2 every half second, rising
 to 6 after four seconds in it, and drags at your feet), and brutes that
 charge through fences and plough through the crowd: from 4 to 11 m off with a clear line to you, a brute crouches and
-charges more often than not within a second or two (and again 6 to 10 s after), a red lane on the ground showing where. Their hits are gentle on the first nights: on wave 1 a zombie hits
+charges more often than not within a second or two (and again 6 to 10 s after), a red lane on the ground showing where. Every zombie it ploughs into is knocked off its feet (one square in its path as the brute reaches it, one it clips thrown off to the side it was on); only a crawler is just shoved along the ground. Their hits are gentle on the first nights: on wave 1 a zombie hits
 for 55% of its full damage (a walker for about 16 out of your 100 health, not 29), rising evenly to full by wave 8,
 and from there each wave hits 3% harder as before. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
 forearms), and a headshot drops them. A zombie that's lost a limb bleeds out from the stump, slowly: 2.5 health a
 second for a whole arm or leg, 1.5 for a forearm or shin, up to 7.5 however many it's lost, dripping blood as it goes
-and with no damage numbers. A shotgun's load (buckshot, a slug or flechettes; not
+and with no damage numbers. Blood on the ground stains the ground and what stands fixed on it, never you or a teammate standing in it. A shotgun's load (buckshot, a slug or flechettes; not
 dragon's breath) blows a limb to red mist when enough of one blast lands on it: three pellets on an arm or a leg (four
 flechettes, or a single slug), however much of it was left, gone where it was in a cloud of red with scraps of it
 tumbling away. A kill through the head with any of them blows the head to mist every time from up close, and further
@@ -289,7 +289,7 @@ every piece of it (and every board and flake) comes to rest lying on the floor a
 into it. Vault through
 windows and hop fences to escape (only with the fence right in front of you, within about a metre of it and where
 there's fence to go over, not past the end of a run or beside a gap; and a window only from within about 65 cm of its
-middle along the wall), and shove zombies off you when they get close. A shove with a gun is a short wind-up and a blow with the gun itself, gathering speed into the blow rather than snapping out, and easing back to the aim.
+middle along the wall), and shove zombies off you when they get close. A shove with a gun is a short wind-up and a blow with the gun itself, gathering speed into the blow rather than snapping out, and easing back to the aim. Shove after shove wears your arms out: the first four in a row come as quick as ever, then each one more waits 30% longer (up to 2.2 times as long) and is itself a touch slower; stop shoving for two seconds and it comes back, two shoves' worth a second. An elite isn't so easily moved: a shove throws it back less than half as far, and it reels for half as long.
 
 **Stations.**
 

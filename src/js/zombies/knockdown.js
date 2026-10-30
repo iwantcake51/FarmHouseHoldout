@@ -103,10 +103,11 @@ export function dashPlow(z, d) {
     if (dist > reach + PLOW.clip || ox * d.dx + oz * d.dz < -0.1) continue;   // (only what's in front of it)
     const done = d.plowed || (d.plowed = new Set()); if (done.has(o)) continue;   // (each once a charge)
     const lat = ox * d.dz - oz * d.dx, inLane = Math.abs(lat) < reach * PLOW.lane;
-    // one square in its path waits till the brute's on it, and goes down; one off to the side is shoved as it passes.
-    // A crawler can't be knocked off its feet, only shoved along the ground
-    const down = inLane && !o.crawl;
-    if (down && dist > reach + PLOW.hit) continue;
+    // everything it catches goes down: one square in its path waits till the brute's on it, one off to the side is
+    // knocked over as it's clipped, thrown off the side it was on. A crawler can't be knocked off its feet, only shoved
+    // along the ground
+    const down = !o.crawl;
+    if (down && inLane && dist > reach + PLOW.hit) continue;
     done.add(o);
     const side = Math.sign(lat) || (rand() < 0.5 ? -1 : 1), seed = (rand() * 1e9) | 0;
     const s = down ? rr(...KNOCK.side) : 1 / BUMP.fwd, kx = d.dx + d.dz * side * s, kz = d.dz - d.dx * side * s, L = Math.hypot(kx, kz);
