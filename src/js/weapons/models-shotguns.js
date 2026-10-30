@@ -27,7 +27,10 @@ function portBolt(g, x, y, z0, z1, w, h) {
 // zs with an optic, the rear sight taken off: to z1; its foot at y, its top at top)
 const GHOST = { y: 1.1785, z: 0.566, fz: 1.372, r: 0.0036, t: 0.0016, ex: 0.011, ez0: 0.556, ez1: 0.574, top: 1.1875, relief: 0.15 };   // (relief: your eye that far behind the ring, as a ghost ring's used, back over the comb where the stock's dropped away under it (nearer, the comb and the tang came up into the camera's near cut and showed hollow), clear of the tang and its safety, which a peep's distance had a couple of centimetres from your eye, big and cut off at the edge of the view)
 // the double barrel's bead (radius, m) and how far over the rib's top your eye looks down it at the breech
-const DBL_SIGHT = { front: 0.0034, eye: 0.02, relief: 0.34 };   // (relief: your eye that far behind the breech, back on the comb behind your hand on the wrist, not over it with your sleeve in your eye)
+const DBL_SIGHT = { front: 0.0034, eye: 0.028, relief: 0.34 };
+// the double barrel's top, as you look down it: the top strap's width (and its tang's, on back along the wrist), the walnut cheeks beside it (how thick, how far out
+// their middles stand) and the fences' radius
+const DBL_TOP = { strap: 0.02, tang: 0.012, cheek: 0.014, cheekX: 0.0185, fence: 0.0175 };   // (relief: your eye that far behind the breech, back on the comb behind your hand on the wrist, not over it with your sleeve in your eye)
 const PUMP_RAIL = { z0: 0.58, zs: 0.53, z1: 0.712, y: 1.1615, top: 1.1725 };
 export const SHOTGUN_MODELS = {
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
@@ -122,7 +125,18 @@ export const SHOTGUN_MODELS = {
   dbl(g, m) {
     const B = GM.blued, E = GM.engr, W = GM.walnut, bl = m.sawn ? 0.343 : 0.788, z0 = 0.612, z1 = z0 + bl;
     // ---- the action: lock plates and standing breech, the bar and knuckle, top lever and safety, guard and triggers
-    profile(g, shp([[0.542, 1.133], [0.552, 1.136], [0.57, 1.137], [0.582, 1.141], [0.585, 1.152], [z0, 1.152], [z0, 1.12], [0.7, 1.12], [0.712, 1.112], [0.716, 1.1], [0.711, 1.088], [0.7, 1.082], [0.637, 1.08], [0.6, 1.08], [0.542, 1.082]]), 0.05, E, X, 0.004);
+    profile(g, shp([[0.542, 1.133], [0.552, 1.136], [0.57, 1.137], [0.582, 1.141], [0.585, 1.152], [z0, 1.152], [z0, 1.12], [0.7, 1.12], [0.712, 1.112], [0.716, 1.1], [0.711, 1.088], [0.7, 1.082], [0.637, 1.08], [0.6, 1.08], [0.542, 1.082]]), 0.05, B, X, 0.004);
+    // from above, as you look down it (DBL_TOP): the engraved top strap, narrow and tapering back along the wrist from the
+    // top lever; the walnut of the stock's head standing up either side of it; and at the standing breech the two
+    // rounded fences, one behind each barrel, with the top lever between them
+    { const T = DBL_TOP;
+      profile(g, shp([[0.536, 1.1365], [0.552, 1.1395], [0.572, 1.141], [0.584, 1.149], [0.588, 1.1535], [z0, 1.1535], [z0, 1.146], [0.536, 1.13]]), T.strap, B, X, 0.0015);   // the top strap
+      if (!m.sawn) profile(g, shp([[0.47, 1.1205], [0.4835, 1.119], [0.5318, 1.1312], [0.545, 1.1372], [0.545, 1.128], [0.5318, 1.123], [0.4835, 1.112], [0.47, 1.114]]), T.tang, B, X, 0.001);   // and its tang on back along the wrist, narrowing
+      [[0.596, 0.007, 0.5], [0.581, 0.006, -0.6], [0.566, 0.005, 0.45], [0.52, 0.004, -0.5]].forEach(([z, l, a]) => { const e = box(g, 0.0015, 0.0008, l, E, X + a * 0.008, z > 0.585 ? 1.1542 : 1.1415, z); e.rotation.y = a; });   // its engraved scrolls
+      [-1, 1].forEach(sd => {
+        solid(g, [[0.53, 1.128], [0.552, 1.134], [0.575, 1.138], [0.594, 1.146], [0.594, 1.1], [0.53, 1.1]], T.cheek, W, X + sd * T.cheekX, 0.003);   // walnut beside it
+        const f = new THREE.Mesh(new THREE.SphereGeometry(T.fence, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), B); f.scale.set(1, 0.9, 0.7); f.position.set(X + sd * 0.0155, 1.1405, z0 - 0.002); f.rotation.x = -Math.PI / 2; f.castShadow = true; g.add(f);   // a fence, its round back to you
+      }); }
     [-1, 1].forEach(sd => { profile(g, shp([[0.548, 1.088], [0.606, 1.088], [0.606, 1.13], [0.578, 1.13], [0.548, 1.124]], [shp([[0.552, 1.092], [0.602, 1.092], [0.602, 1.126], [0.579, 1.126], [0.552, 1.121]])]), 0.002, GM.engrD, X + sd * 0.0285, 0.0005);
       cyl(g, 0.0055, 0.004, GM.engrD, X + sd * 0.029, 1.096, 0.705, 14).rotation.set(0, 0, Math.PI / 2); cyl(g, 0.003, 0.004, GM.steelDk, X + sd * 0.029, 1.11, 0.565, 10).rotation.set(0, 0, Math.PI / 2); });
     { const tg = new THREE.Group(); tg.position.set(X, 0, z0 - 0.006); g.add(tg); profile(tg, shp([[0.572 - z0 + 0.006, 1.151], [0.006, 1.151], [0.006, 1.159], [0.58 - z0 + 0.006, 1.161]]), 0.012, GM.steel, -0.004, 0.001); tg.rotation.y = -0.25; }   // top lever on its spindle, swung to the right

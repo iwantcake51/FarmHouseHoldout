@@ -12,7 +12,7 @@
 
 import { clamp, smooth } from '../core/math.js';
 import { P } from './player.js';
-import { curId, W, W8 } from '../game/run-state.js';
+import { curId, hasMod, W, W8 } from '../game/run-state.js';
 import { state } from '../game/state.js';
 import { swapSt } from './swap.js';
 import { aiming } from './aiming.js';
@@ -70,6 +70,13 @@ Object.assign(INSPECT, {
   dbl: [Z(0), K(0.6, -0.45, 0.35, 0.15, -0.02, 0.08, -0.05, 0.14, 0.2, 0.08), K(1.3, -0.5, 0.42, 0.22, -0.025, 0.085, -0.05, 0.12, 0.23, 0.09),
     K(2.0, -0.02, -0.25, 0.95, 0.02, 0.05, -0.08, 0.27, -0.14, -0.06), K(2.65, -0.05, -0.3, 1.0, 0.025, 0.055, -0.085, 0.28, -0.17, -0.07),
     K(3.35, 0, 0.22, -0.9, 0, 0.05, -0.08, 0.26, 0.12, 0.04), K(4.05, 0.25, -0.1, 0.05, 0.01, 0.04, -0.07, 0.32, -0.02, -0.01), Z(4.95)],
+  // the sawn-off (the double cut down: weapons/gun-mods.js): short and light, so it's handled on the wrist more than the
+  // shoulder: tipped muzzles up close to the eye to look straight down both bores, rolled right over to its left side
+  // plate and then its right, quicker than the full-length gun, and tipped down to look along its stub of a rib
+  dblSawn: [Z(0), K(0.45, -0.75, 0.45, 0.2, -0.02, 0.1, -0.03, 0.12, 0.22, 0.08), K(1.05, -0.8, 0.5, 0.28, -0.025, 0.105, -0.03, 0.1, 0.25, 0.09),
+    K(1.65, -0.05, -0.4, 1.3, 0.03, 0.085, -0.1, 0.3, -0.16, -0.06), K(2.2, -0.08, -0.46, 1.4, 0.035, 0.09, -0.1, 0.31, -0.18, -0.06),
+    K(2.8, -0.02, 0.36, -1.35, 0, 0.085, -0.1, 0.3, 0.15, 0.05), K(3.3, -0.04, 0.42, -1.42, -0.005, 0.09, -0.1, 0.31, 0.17, 0.05),
+    K(3.85, 0.38, -0.08, 0.05, 0.01, 0.06, -0.08, 0.35, -0.02, -0.01), Z(4.55)],
   // the auto shotgun: canted onto its left side, rolled on to look at the mag from below, then its right
   // side, and its muzzle
   auto12: [Z(0), K(0.5, -0.12, -0.15, 1.2, 0.02, 0.07, -0.08, 0.3, -0.1, -0.05), K(1.15, -0.15, -0.2, 1.3, 0.025, 0.072, -0.082, 0.31, -0.12, -0.05),
@@ -206,7 +213,8 @@ export function inspectPose(rdt, D, id, hand, fp, endT) {
   if (I.t >= 0 && (((mouseDown || (pair && mouseDownR)) && !inMenu()) || W8.reloading || id !== I.id)) inspectCut();   // (a click on a menu over it isn't a shot; with a pair, either button fires)   // (firing, reloading or another gun: back at once)
   if (I.t >= 0 && (!D || busy())) I.t = -1;   // (anything else: eased back onto the aim)
   const stk = !endT && !!INSPECT_SPIN[id] && stocked(id);   // (a revolver with a shoulder stock on it isn't twirled: REV_SPIN)
-  const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : pair ? INSPECT_PAIR[fp ? 'fp' : 'iso'] : stk ? SET.hand : SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long);
+  const key = id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id;   // (the sawn-off has its own: INSPECT.dblSawn)
+  const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : pair ? INSPECT_PAIR[fp ? 'fp' : 'iso'] : stk ? SET.hand : SET[key] || INSPECT[key] || (hand ? SET.hand : INSPECT.long);
   const lag = pair ? INSPECT_PAIR.lag : 0, end = L[L.length - 1].t + lag, S = pair || stk ? null : INSPECT_SPIN[id];
   { const menu = inMenu(); I.rate += ((menu ? 0 : 1) - I.rate) * Math.min(1, rdt * (menu ? INSP_MENU.stop : INSP_MENU.go)); }
   if (I.t >= 0) { I.t += rdt * I.rate; if (I.t >= end) I.t = -1; }

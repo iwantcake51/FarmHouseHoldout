@@ -14,7 +14,7 @@ export const AUTO_SEAR = { rate: 0.31, trig: 2 };
 // a slug's drop-off: [full damage out to, reaches the floor at, floor] against buckshot's [5, 13, 0.6] (weapons/ammo.js)
 export const SLUG_FALL = [14, 30, 0.85];
 // the sawn-off: each pellet hits harder up close (dmg), and its short barrels drop it off far sooner and further (fall:
-// full out to 2.5 m, down to a fifth of it by 7 m; the double's own holds to 5 m and keeps 60% past 13)
+// full out to 2.5 m, down to a fifth of it by 7 m; the double's own holds to 4 m and keeps half past 11)
 const SAWN = { dmg: 1.3, fall: [2.5, 7, 0.2] };
 // dragon's breath: full damage to 2 m, down to 20% by 7 m, and nothing at all past 8 m
 export const DRAGON_FALL = [2, 7, 0.2], DRAGON_MAX = 8;

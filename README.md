@@ -158,7 +158,7 @@ its inner side, the rest of it folded away inside. The loop swings softly as the
 eased off toward the ends of its travel rather than snapping against them, while what's in the box stays put; the
 rounds in the box go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
-battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 5 m and keeps 60% past 13). You can also load special rounds (hollow points, slugs, flechettes and more) and
+battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
@@ -460,8 +460,8 @@ A1-style aperture: a thin ring round a big hole on a slim stem, wide apart from 
 it; every gun's front post is a thin blade a couple of millimetres across, not a block that hides what it's on), the pump's Mossberg-style ghost ring
 (a low saddle on the back of the receiver, two short flat ears either side of a thick ring, and a blade with a red
 fibre on a serrated ramp at the muzzle) puts the fibre in the middle of the soft, blurred ring (your eye held back from it as a ghost ring is used, back over the comb where the stock drops away, clear of the tang safety and the receiver's back, which used to come up right against your eye and be cut through by the view), the double barrel is
-aimed the way a side-by-side is, the eye a little above the rib and back on the comb behind your hand so it's a narrow strip running out to a single ivory front
-bead, the action, top lever and your sleeve well down out of the way, the LMG's
+aimed the way a side-by-side is, the eye a little above the rib (2.8 cm) and back on the comb behind your hand so it's a narrow strip running out to a single ivory front
+bead, looking down over the top of the gun as you would a real one: the dark top strap and its tang running back along the walnut of the wrist, a few engraved scrolls on it, the stock's walnut standing up either side of it, and the two rounded fences at the standing breech with the top lever between them, the action, top lever and your sleeve well down out of the way, the LMG's
 aperture held a hand's breadth out from your eye with your cheek on the stock, and the hunting rifle's notch and post with your cheek on the stock, the
 notch well out ahead of your eye rather than right up against it, and the .50's three-dot irons as a Desert Eagle
 Mark XIX's: a slim black ramped front blade (its back upright, its front sloped to the muzzle) on a dovetail block at
@@ -783,7 +783,7 @@ flicked forward round your trigger finger for three turns, quick off the hand an
 shoulder stock on it there's no twirling it: it's only looked over. Every long gun has its own way of being looked over, after what you'd check
 on that one: the pump's rolled onto its side to look into the loading port, then
 its ejection port, the bead and the ghost ring; the double's muzzles are tipped right up to look over the rib at both
-bores before each side plate; the auto shotgun shows its left side and its mag from below; the hunting rifle is
+bores before each side plate (the sawn-off, short and light, is handled on the wrist instead: tipped muzzles up close to the eye to look down both bores, rolled right over to each side plate, quicker, and tipped down along its stub of a rib); the auto shotgun shows its left side and its mag from below; the hunting rifle is
 sighted along its top first, unhurried, then rolled to its bolt; the battle rifle's canted forty-five degrees each
 way and lifted to look at its mag well; the machine pistol's light, so it's flicked about quickly; the SMG shows its
 cocking tube, the front sight's hood and the drum sight; the AR its left side, the port and forward assist, and its
