@@ -625,7 +625,10 @@ back, and coming off the sights doesn't replay the crosshair's last reload flash
 round the farm out to the horizon, thinner than the ring round the farm (about 790 trees out there), with broadleaf trees and taller pines among them, a power line runs along the far
 side of the road (its wires swaying slowly in the wind, more as it blows harder and as a gust runs along them) and a
 mailbox stands at the end of the drive, and a sky with drifting clouds and the sun's or moon's
-glow sits over it all through the day and night.
+glow sits over it all through the day and night. Looking toward the sun (or, far fainter, the moon) there's a lens flare off it: a soft glare
+with a faint six-pointed star, and a few dim, faintly tinted ghosts of it strung across the view through its middle,
+as a real lens throws them. It's only there while the sun or moon itself is in sight (no wall, roof or tree in front of
+it), fades as it nears the edge of the view or the horizon, and thins in a fog round's fog.
 
 **How the body moves.** Your survivor's animation runs through an animation graph, the way a game engine's does. Getting
 about is a blend space: a forward stride, a backpedal and a side step each way are separate gaits, mixed by which way

@@ -11,7 +11,7 @@
 import { lodFigures } from './lod.js';
 import { cullForests, stepSunShadows } from '../world/tree-cull.js';
 import { cam, hemi, OVER_LAYER, R, scene, sun, viewRect } from '../core/renderer.js';
-import { clamp } from '../core/math.js';
+import { clamp, smooth } from '../core/math.js';
 import { MIST, MIST_GLSL, MIST_U, mistTick, mistUniforms } from '../world/mist.js';
 import { flash } from './muzzle-flash.js';
 import { heatBloom, heatGlowing } from './supp-heat.js';
@@ -201,6 +201,42 @@ void main() {
   vec4 m = mistOf(vUv, mistD(vUv));
   gl_FragColor = vec4(m.rgb * m.a + mGlow * (1.0 - m.a), m.a);
 }`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 } });
+// a lens flare off the sun or the moon, from your own eyes (and the free camera): a soft glare round it with a faint
+// six-pointed star, and a few dim ghosts of it strung along the line from it through the middle of the screen, each
+// faintly tinted as a lens's coatings tint them (FLARE: t, where along that line, past the middle on the far side for a
+// minus; r, how big; w, how bright; tint). Kept faint, never in the way: it's only there while the sun or the moon itself
+// is in sight (the sky where it is, no wall or tree or roof in front: read off the scene's depth round it), it fades as
+// it nears the edge of the view or goes down to the horizon, and the moon's is far weaker (moon); fog thins it (FLARE_K)
+const FLARE = [{ t: -0.28, r: 0.028, w: 0.11, tint: [1.0, 0.85, 0.6] }, { t: -0.6, r: 0.055, w: 0.065, tint: [0.6, 1.0, 0.75] }, { t: -0.95, r: 0.1, w: 0.05, tint: [0.55, 0.7, 1.0], ring: 1 },
+  { t: 0.42, r: 0.018, w: 0.09, tint: [1.0, 0.7, 0.85] }, { t: -1.35, r: 0.15, w: 0.026, tint: [0.8, 0.9, 1.0] }];
+const FLARE_K = { glare: 0.11, wide: 0.045, star: 0.05, moon: 0.3, edge: [0.95, 1.25], low: [-0.01, 0.07], fog: 0.85 };
+const flareMat = psMat(`
+uniform sampler2D tDepth; uniform vec2 uPos, uAsp; uniform vec3 uCol; uniform float uK;
+varying vec2 vUv;
+float ghost(vec2 p, vec2 c, float r, float ring) { float d = length((p - c) * uAsp); return ring > 0.5 ? exp(-pow((d - r) / (r * 0.08), 2.0)) * 0.6 + (1.0 - smoothstep(r * 0.2, r, d)) * 0.25 : 1.0 - smoothstep(r * 0.35, r, d); }
+void main() {
+  // how much of it's in sight: the sky's (nothing drawn nearer) over a small patch round it
+  float vis = 0.0;
+  for (int i = 0; i < 9; i++) { vec2 o = vec2(float(i - (i / 3) * 3) - 1.0, float(i / 3) - 1.0) * 0.006 / uAsp; vis += step(0.99999, texture2D(tDepth, clamp(uPos + o, 0.001, 0.999)).r); }
+  float k = uK * vis / 9.0; if (k < 0.002) discard;
+  vec2 q = (vUv - uPos) * uAsp, L = uPos - 0.5; float d = length(q), a = atan(q.y, q.x);
+  vec3 col = uCol * (${FLARE_K.glare.toFixed(3)} * exp(-d * 10.0) + ${FLARE_K.wide.toFixed(3)} * exp(-d * 3.2) + ${FLARE_K.star.toFixed(3)} * pow(abs(cos(a * 3.0)), 80.0) * exp(-d * 5.0));
+${FLARE.map(g => `  col += uCol * vec3(${g.tint.map(v => v.toFixed(2)).join(', ')}) * ${g.w.toFixed(3)} * ghost(vUv, 0.5 + L * ${g.t.toFixed(2)}, ${g.r.toFixed(3)}, ${(g.ring || 0).toFixed(1)});`).join('\n')}
+  gl_FragColor = vec4(col * k, 1.0);
+}`, { tDepth: { value: null }, uPos: { value: new THREE.Vector2() }, uAsp: { value: new THREE.Vector2(1, 1) }, uCol: { value: new THREE.Color() }, uK: { value: 0 } });
+Object.assign(flareMat, { transparent: true, blending: THREE.AdditiveBlending });
+const _flP = new THREE.Vector3();
+function lensFlare(target, W, H) {
+  if (!cam.isPerspectiveCamera || POST.noFlare) return;
+  const d = _flP.copy(sun.position).normalize(), up = d.y;
+  _flP.multiplyScalar(100).add(cam.position).project(cam); if (_flP.z > 1) return;
+  const e = Math.max(Math.abs(_flP.x), Math.abs(_flP.y)), lum = sun.color.r * 0.3 + sun.color.g * 0.59 + sun.color.b * 0.11;
+  const ss = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
+  const k = clamp(lum * 1.2, 0, 1) * (1 - clamp(curDark, 0, 1) * (1 - FLARE_K.moon)) * (1 - ss(FLARE_K.edge[0], FLARE_K.edge[1], e)) * ss(FLARE_K.low[0], FLARE_K.low[1], up) * (1 - FLARE_K.fog * MIST.k);
+  if (k < 0.002) return;
+  const U = flareMat.uniforms; U.tDepth.value = PS_RT.sc.depthTexture; U.uPos.value.set(_flP.x * 0.5 + 0.5, _flP.y * 0.5 + 0.5); U.uAsp.value.set(W / H, 1); U.uCol.value.copy(sun.color); U.uK.value = k;
+  psPass(flareMat, target);
+}
 // all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
 // its texels), the fog over it, and the glow added over that
 const compMat = psMat(`
@@ -363,6 +399,7 @@ export function renderFrame() {
   // (the occlusion thins out into the fog as the scene does: from where the fog starts, measured from the camera)
   if (scene.fog) { U.uFogN.value = scene.fog.near; U.uFogF.value = scene.fog.far; }
   psPass(compMat, prev);
+  { const ac2 = R.autoClear; R.autoClear = false; lensFlare(prev, W, H); R.autoClear = ac2; }   // (the sun's or the moon's flare over it all)
   if (over) {
     const lm = cam.layers.mask, bg = scene.background, sh = R.shadowMap.autoUpdate;
     cam.layers.set(OVER_LAYER); scene.background = null; R.shadowMap.autoUpdate = false; R.autoClear = false; scene.matrixWorldAutoUpdate = false;
