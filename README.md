@@ -158,7 +158,7 @@ its inner side, the rest of it folded away inside. The loop swings softly as the
 eased off toward the ends of its travel rather than snapping against them, while what's in the box stays put; the
 rounds in the box go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
-battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. You can also load special rounds (hollow points, slugs, flechettes and more) and
+battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 5 m and keeps 60% past 13). You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
@@ -243,7 +243,14 @@ and from there each wave hits 3% harder as before. You walk right up to the fenc
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
 forearms), and a headshot drops them. A zombie that's lost a limb bleeds out from the stump, slowly: 2.5 health a
 second for a whole arm or leg, 1.5 for a forearm or shin, up to 7.5 however many it's lost, dripping blood as it goes
-and with no damage numbers. It's the same few a second on any night, so on later nights, with more health, they take
+and with no damage numbers. A shotgun's load (buckshot, a slug or flechettes; not
+dragon's breath) blows a limb to red mist when enough of one blast lands on it: three pellets on an arm or a leg (four
+flechettes, or a single slug), however much of it was left, gone where it was in a cloud of red with scraps of it
+tumbling away. A kill through the head with any of them blows the head to mist every time from up close, and further
+off when two or more pellets went into it. Close by (within about 3 m), a limb or a head coming off or blown apart,
+your doing or a teammate's, spatters your view with blood: a spray of fine drops round a few big ones, soft and out of
+focus as if on your face, thrown from the side it happened on; the big ones run down a little, and it all fades in a
+couple of seconds. It's the same few a second on any night, so on later nights, with more health, they take
 longer to bleed out. Dragon's breath sets a zombie alight where its pellets hit: the flames start on that arm, leg or
 the head and spread out over the rest of it in about a second and a half, its orange rim glowing up and the charring
 spreading with them. A shotgun blast that takes a head doesn't knock it off whole: it bursts into a red

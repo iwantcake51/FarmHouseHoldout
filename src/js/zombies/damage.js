@@ -1,6 +1,7 @@
 // Localized damage, dismemberment, crawlers and kills.
 
 import { replay } from '../core/dom.js';
+import { goreNear } from '../ui/screen-blood.js';
 import { scene, V3 } from '../core/renderer.js';
 import { clamp, pick, rand, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
@@ -129,15 +130,17 @@ function wearArmor(z, ar, w, dx, dz) {
 // (zombies/ai.js)
 export const BLEED_OUT = { limb: 2.5, lower: 1.5, max: 7.5 };
 export const bleedOut = (z, r) => { z.bleedOut = Math.min(BLEED_OUT.max, (z.bleedOut || 0) + r); };
-export function sever(z, part, dx, dz, blast) {
+// (mist: blown to a red mist where it was rather than torn off whole: a shotgun's pellets, mistPart)
+export function sever(z, part, dx, dz, blast, mist) {
   if (part !== 'torso' && !z.limbs[part]) return;
   if (z.type === 'brute' && !blast && (part === 'legL' || part === 'legR')) return;   // a brute's legs are too thick to take off: it never ends up crawling
   z.limbs[part] = false; netRec('s', part, blast ? 1 : 0);   // (in co-op, what came off goes to the others: net/sync.js)
   const stub = part === 'armL' || part === 'armR' ? armStump(z, part) : null;   // (made before the arm goes: it's cut from it)
-  flingPart(z, z.m[part], dx, dz, 1);
+  if (mist) mistPart(z, z.m[part], dx, dz); else flingPart(z, z.m[part], dx, dz, 1);
   z.spurts.push(stub ? { part, t: STUMP_PUMP.t, o: stub, p: stub.userData.spurt, d: stub.userData.dir, pump: true } : { part, t: 1.4 });
   if (part !== 'torso') { if (!NREP) run.limbs++; z.stagger = Math.max(z.stagger || 0, LIMB_STAGGER); bleedOut(z, BLEED_OUT.limb); }   // losing an arm or a leg staggers it, slowed to a quarter pace, and it bleeds from the stump
-  if (!blast) soundAt(z.x, z.z, () => SFX.sever());   // a blast plays one sound for the lot
+  if (!blast) soundAt(z.x, z.z, () => { SFX.sever(); if (mist) SFX.crush(); });   // a blast plays one sound for the lot
+  goreNear(z, mist ? 1 : 0.7);   // (close by, it spatters your view: ui/screen-blood.js)
   if ((part === 'legL' || part === 'legR') && !z.crawl && !z.dead) goCrawl(z);
 }
 // an arm taken off whole leaves nothing of it at the shoulder but the bone: the raw socket flat on the side of the
@@ -186,6 +189,22 @@ export function flingPart(z, mesh, dx, dz, v) {
   mesh.position.copy(wp); mesh.quaternion.copy(wq); mesh.scale.copy(ws);
   gibs.push({ m: mesh, vx: (dx * rr(2, 4.5) + rr(-1.2, 1.2)) * v, vy: rr(2.5, 4.5) * (0.6 + 0.4 * v), vz: (dz * rr(2, 4.5) + rr(-1.2, 1.2)) * v, spin: rr(6, 14), life: 9, landed: false });
   burst(wp.x, wp.y, wp.z, 10, 'blood', dx, dz, 3); spray(wp.x, wp.z, dx, dz, rr(0.8, 1.3));
+}
+// a limb blown to red mist by a shotgun's pellets (sever, mist): it's simply gone, a cloud of red where it was (LIMB_MIST:
+// how many puffs, how big they start and swell to, how long they hang), driven on along the shot, blood thrown out
+// round it and rained on the ground, a few scraps of it tumbling away
+const LIMB_MIST = { n: 10, s0: [0.16, 0.28], s1: [0.6, 1.0], life: [1.1, 1.8] };
+function mistPart(z, mesh, dx, dz) {
+  if (!mesh || !mesh.parent) return;
+  mesh.getWorldPosition(_wB); const x = _wB.x, y = _wB.y, hz = _wB.z;
+  mesh.parent.remove(mesh); zFree(mesh); bloodZombie(z, 0.25);
+  burst(x, y, hz, 16, 'blood', dx, dz, 3);
+  for (let k = 0; k < LIMB_MIST.n; k++) { const a = rand() * 6.28, sp = rr(0.2, 1), u = rand(); fx('redMist', x + Math.sin(a) * 0.08 * u, y + rr(-0.15, 0.15), hz + Math.cos(a) * 0.08 * u, Math.sin(a) * sp + dx * rr(0.4, 1.3), rr(-0.2, 0.6), Math.cos(a) * sp + dz * rr(0.4, 1.3), rr(...LIMB_MIST.s0), rr(...LIMB_MIST.s1), rr(...LIMB_MIST.life), rr(0.65, 0.85)); }
+  for (let k = 0; k < 5; k++) { const c = new THREE.Mesh(CRUSH_G, CRUSH_M[1 + (k % 3)]), a = rand() * 6.28, sp = rr(1, 2.6);
+    c.position.set(x, y, hz); c.rotation.set(rr(0, 6), rr(0, 6), rr(0, 6)); c.scale.setScalar(rr(0.5, 1.1)); c.castShadow = true; scene.add(c);
+    gibs.push({ m: c, vx: Math.sin(a) * sp + dx * rr(0.5, 1.5), vy: rr(0.8, 2.6), vz: Math.cos(a) * sp + dz * rr(0.5, 1.5), spin: rr(8, 16), life: 6, landed: false }); }
+  spray(x, hz, dx, dz, rr(0.9, 1.4), 1.2);
+  for (let k = 0; k < 6; k++) { const a = rand() * 6.28, d = rr(0.2, 1.2); splatLater(0.2 + d * 0.15, x + Math.sin(a) * d, hz + Math.cos(a) * d, 'drop', rr(0.25, 0.45)); }
 }
 // a leg (or its shin) goes and they buckle and fall forward onto their hands
 export function goCrawl(z) {
@@ -302,6 +321,7 @@ export function splitHead(z, dx, dz, kind = 'v') {
   // view driven on along the blow, and your weapon and you spattered
   soundAt(z.x, z.z, () => { SFX.sever(); SFX.hitBlade(true); SFX.split(); });
   if (!NREP) { setShake(Math.max(shake, 0.6)); setCamPunch(Math.max(camPunch, 0.05)); camKick.x += dx * 0.15; camKick.z += dz * 0.15; addBlood(0.05, 'axe', 0.15); run.heads++; run.limbs++; }
+  goreNear(z, 1);
   return true;
 }
 // the sledgehammer coming down on a skull crushes it: the head caves in and bursts, gone in a spray of blood thrown
@@ -336,6 +356,7 @@ export function crushHead(z, dx, dz) {
   for (let k = 0; k < 5; k++) { const a = Math.atan2(dx, dz) + (k - 2) * 1.1 + rr(-0.3, 0.3); spray(x, hz, Math.sin(a), Math.cos(a), rr(0.9, 1.5) * (k === 2 ? 1.3 : 1), 1.6); }
   for (let k = 0; k < 12; k++) { const a = rand() * 6.28, d = rr(0.3, 1.8); splatLater(0.25 + d * rr(0.1, 0.18), z.x + Math.sin(a) * d, z.z + Math.cos(a) * d, 'drop', rr(0.25, 0.5)); }
   soundAt(z.x, z.z, () => SFX.crush()); if (!NREP) { setShake(Math.max(shake, 0.5)); run.heads++; }
+  goreNear(z, 1);
   return true;
 }
 export function pickPart(z, rel, side, D) {
@@ -402,7 +423,13 @@ function hurtZombie0(z, dmg, dx, dz, kb, wId, part) {
   hitFx(z, dealt, dx, dz, kb, wId, part, D);
   z.myDmg = (z.myDmg || 0) + dealt; z.myAt = run.time;   // (your share of it, for an assist in co-op: net/teamwork.js)
   dmgNumber(z, dealt, part === 'head' && !D.melee, PART_Y[part] * z.T.scale * (z.crawl ? 0.4 : 1), crit, arm > 0 || z.type === 'brute' ? 'armor' : '');
-  if (part !== 'torso' && part !== 'head') {
+  // a shotgun's load (buckshot, a slug or flechettes; not dragon's breath) counted by the part it lands on in one shot
+  // (z.pel, kept by the time it was fired): enough of it on an arm or a leg (PEL_MIST: n, a dart counting dart of a
+  // pellet, a slug all of it at once) and the limb's gone, blown to red mist, however much of it was left
+  const pelOn = D.ammo === 'shells' && !D.dragon && !D.melee;
+  if (pelOn) { if (z.pelT !== run.time) { z.pelT = run.time; z.pel = {}; } z.pel[part] = (z.pel[part] || 0) + ((D.pellets || 1) > 1 ? (D.dart ? PEL_MIST.dart : 1) : PEL_MIST.n); }
+  if (pelOn && part !== 'torso' && part !== 'head' && z.limbs[part] && z.pel[part] >= PEL_MIST.n && canSever(wId)) sever(z, part, dx, dz, false, true);
+  else if (part !== 'torso' && part !== 'head') {
     const mul = (D.ammo === 'shells' && !D.dart ? 2.6 : D.melee ? 1 + (D.sever || 0) * 2 : 1) * S.severMul * (D.severX || 1);   // (hollow points: weapons/rounds.js)
     z.lhp[part] -= dmg * mul;
     // shot through below the elbow or knee, it's mostly just that much that goes first (zombies/wounds.js), and what's
@@ -504,9 +531,11 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
     // a blade or a blast takes the head off; a bullet mostly goes in one side and out the other and leaves it on
     // (zombies/wounds.js), though buckshot from close up or a big round can still take it
     const bullet = !D.melee && wId !== 'boom' && wId !== 'fire' && wId !== 'bleed', close = Math.hypot(z.x - P.x, z.z - P.z) < 3;
-    const c = !canSever(wId) ? 0 : shells ? (close ? 0.45 : 0.1) : D.melee ? 0.4 + (D.sever || 0) * 0.4 : bullet ? (heavy ? 0.1 : 0) : 0.8;
+    // (a shotgun's load always blows it to mist up close, and further off when enough of it went into the head: PEL_MIST)
+    const pel = D.ammo === 'shells' && !D.dragon && !D.melee, pelHead = pel && z.pelT === run.time && z.pel && (z.pel.head || 0) >= PEL_MIST.head;
+    const c = !canSever(wId) ? 0 : pel && (close || pelHead) ? 1 : shells ? 0.1 : D.melee ? 0.4 + (D.sever || 0) * 0.4 : bullet ? (heavy ? 0.1 : 0) : 0.8;
     // (a shotgun that takes it doesn't take it off whole: it blasts it to a red mist and gore, as the sledge's crush does)
-    if (rand() < Math.min(1, c * S.severMul)) { if (shells) crushHead(z, dx, dz); else { sever(z, 'head', dx, dz); run.heads++; } }
+    if (rand() < (c >= 1 ? 1 : Math.min(1, c * S.severMul))) { if (shells || pel) crushHead(z, dx, dz); else { sever(z, 'head', dx, dz); run.heads++; } }
     else if (bullet) headShot(z, dx, dz);
   }
   const extra = !canSever(wId) ? 0 : wId === 'boom' ? 3 : shells ? (rand() < 0.65 ? 1 + (rand() < 0.4 ? 1 : 0) : 0) : heavy && rand() < 0.35 ? 1 : 0;
@@ -557,6 +586,7 @@ function killScrap(z, n, hoard) {
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
+const PEL_MIST = { n: 3, dart: 0.75, head: 2 };
 const RAG_OVER = { k: 0.7, per: 90 }, ELITE_DOWN = { stop: 0.09, punch: 0.06 };
 // (and a kill flashes it brighter than a hit does: KILL_FLASH, carried on by its ragdoll)
 const KILL_FLASH = 0.24;

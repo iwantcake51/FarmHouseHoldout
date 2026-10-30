@@ -149,6 +149,8 @@ const FLY = { far: 180, smoke: 60 };
 // from your own eyes a round fired up over the house meets its ceiling or its roof: anywhere over the house between its
 // eaves and about its ridge (ROOF_ZONE, metres up); over that it's clear
 const ROOF_ZONE = [2.5, 4.5];
+// the most a round's ever steered off the line it's fired along onto the body under the crosshair (radians)
+const TGT_OFF = 0.6;
 // how far a round can reach anything: from above, a little past the edge of the view (top); from your own eyes, out past
 // the edge of the farm to the zombies coming in out of the fog beyond it, as far as you can see them (fp); its way checked
 // every 10 cm out to the top's reach, and in bigger steps (step) past it, where there's nothing but the ground
@@ -227,7 +229,10 @@ function partBox(o) {
 }
 export function cursorTarget() {
   if (!hasMouse || tStick.R || scoped) return null;
-  xhAt(_ctP); const key = worldT + ':' + _ctP[0] + ':' + _ctP[1]; if (key === ctKey) return ctHit;
+  // (kept for the frame: by the world's clock, where the crosshair is and where the camera looks. The clock alone stands
+  // still through a hit-stop, and from your own eyes the crosshair's always in the middle, so turning onto another
+  // zombie inside one kept the old one under it, and a shotgun's pattern, centred on it, went off sideways into it)
+  xhAt(_ctP); const q = cam.quaternion, key = worldT + ':' + _ctP[0] + ':' + _ctP[1] + ':' + q.x.toFixed(5) + q.y.toFixed(5) + q.z.toFixed(5) + ':' + cam.position.x.toFixed(3) + cam.position.z.toFixed(3); if (key === ctKey) return ctHit;
   _pn.set(_ctP[0] / innerWidth * 2 - 1, -(_ctP[1] / innerHeight) * 2 + 1); partRay.setFromCamera(_pn, cam);   // under the crosshair, which wanders at low health (and from your own eyes kicks with the gun: xhAt)
   const R0 = partRay.ray; let best = null, bd = Infinity;
   for (const z of zombies) {
@@ -346,7 +351,8 @@ export function gunFire(id, D, side) {
   // from the hip: RUN_MISS; a shotgun's pattern always centres on it, as its spread already opens on the move)
   let tgt = cursorTarget(), tgtA = 0, tgtT = 0;
   if (tgt && !aiming && !scoped && !(P.eye > 0) && (D.pellets || 1) === 1 && rand() < RUN_MISS * (D.mobile || 1) * (P.mvS || 0)) tgt = null;   // (a machine pistol keeps its aim on the move: D.mobile)
-  if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } if (tgt && thinRay(ox, oz, Math.sin(tgtA), Math.cos(tgtA), tgtT) < tgtT) tgt = null; }
+  if (tgt) { tgtA = Math.atan2(tgt.x - ox, tgt.zz - oz); tgtT = Math.hypot(tgt.x - ox, tgt.zz - oz); if (Math.abs(angDiff(tgtA, base)) > TGT_OFF && tgtT > 1) tgt = null; }   // (never one well off the line the shot's going along: TGT_OFF)
+  if (tgt) { for (let t = 0.1; t < tgtT; t += 0.1) if (bulletBlocked(ox + Math.sin(tgtA) * t, oz + Math.cos(tgtA) * t)) { tgt = null; break; } if (tgt && thinRay(ox, oz, Math.sin(tgtA), Math.cos(tgtA), tgtT) < tgtT) tgt = null; }
   let anyHit = false;
   // looking through a scope: the spread depends on the range (and a sniper's headshots crit)
   const scopeOn = scopeUse(), sp = P.eye > 0 && (D.pellets || 1) === 1 ? 0 : scopeOn ? scopeSpread(id, scopeDist()) : spreadOf(id), critC = (D.critT || 0) + (aiming && D.aimCrit ? D.aimCrit : 0), critX = Math.max(D.critM || 0, 2) + (D.critUp || 0);

@@ -127,6 +127,7 @@
   "ui/run-stats.js",
   "ui/screens.js",
   "game/intro.js",
+  "ui/screen-blood.js",
   "ui/hud-text.js",
   "game/new-run.js",
   "ui/clock.js",
