@@ -1091,10 +1091,12 @@ export function viewFrame(rdt, roll, sh, jolt) {
   if (state === 'play' || state === 'title') QUIT_CAM.on = false;
   if (!P.dead && !QUIT_CAM.on) DFP.on = false;
   syncView();
-  if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
-  // a menu up (a station's, the cheats', the settings, the pause), the mouse is let go for it; and while it's free in
-  // play, a word that a click takes it back
+  // a menu up (a station's, the cheats', the settings, the pause, the cards): the mouse's own pointer shows over the game
+  // round it as well, not only over the menu (body.menuUp, styles/base.css), in either view
   const menu = (state !== 'play' && state !== 'leaving') || P.dead || !!openSt || cheatOn || setOpen();
+  if (V.menuUp !== menu) { V.menuUp = menu; document.body.classList.toggle('menuUp', menu); }
+  if (isoOn()) { EYE_R.on = false; SCOPE_V.on = false; V.sw = 0; sightHide([]); glassSee(false); SPRITE_AIM.w = 0; selfClip(false); return; }
+  // (and from your own eyes the mouse is let go for it; while it's free in play, a word that a click takes it back)
   if (menu && locked() && performance.now() - (V.lockAt || 0) > 200) unlock();
   const c = FP_CAM;
   for (let n = Math.ceil(rdt / (1 / 120)), dt = rdt / Math.max(1, n), i = 0; i < n; i++) {

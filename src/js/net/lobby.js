@@ -89,6 +89,7 @@ export function toggleCoop(open) {
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
 $('coopClose').onclick = () => toggleCoop(false);
+$('coopX').onclick = () => toggleCoop(false);   // (and the cross by its title)
 $('coopName').addEventListener('input', e => {
   NET.name = e.target.value.trim().slice(0, 16);
   try { localStorage.setItem('fhh-name', NET.name); } catch (er) {}

@@ -33,8 +33,9 @@ import { glowGun, phase, setLmT, setShake, shake, state, worldT } from '../game/
 import { bandMax } from '../player/bandages.js';
 import { ammoTypes, giveWeapon, tierFits } from '../upgrades/upgrades.js';
 import { runStat } from '../ui/run-stats.js';
-import { eliteCall, feed, popEl } from '../ui/hud-text.js';
-import { netSpawn } from '../net/sync.js';
+import { feed, popEl } from '../ui/hud-text.js';
+import { replay } from '../core/dom.js';
+import { netSpawn, nr } from '../net/sync.js';
 import { netClient } from '../net/net.js';
 import { GROUND_PROPS, TREES } from '../world/trees.js';
 import { curDark } from '../lighting/day-night.js';
@@ -191,18 +192,22 @@ function strayAt() {
   }
   return null;
 }
-// what comes in with it: while it's on its way, STRAY.extra more of them (one more every extra[1] waves), a few seconds
-// apart, sent in by whoever runs the zombies (in co-op, the host's, net/sync.js: netSpawn)
+// what comes in with it: while it's on its way, STRAY.extra more of them (one more every extra[1] waves), sprinters all,
+// a second or so apart, coming in through the fence's gaps on the side it's coming down (zombies/spawn.js: spawnZombie's
+// near), sent in by whoever runs the zombies (in co-op, the host's, net/sync.js: netSpawn). A crate off the radio, that
+// you called yourself, brings none
 let strayRush = null;
 export function updateSupplyDrop(dt) {
   if (run.stray && phase === 'wave' && !dropBusy() && (run.stray.t -= dt) <= 0) {
     run.stray = null; callDrop({ kind: 'supply', stray: true }, STRAY.lead);
-    eliteCall({ col: '#d8692c', icon: 'supply', eye: 'Supply drop', name: 'Crate inbound', line: 'A chopper\'s dropping a crate outside the fence', tip: 'Lands in ' + STRAY.lead + ' s · more of them come in till it does', t: 3.6 });
-    if (!netClient()) { const n = STRAY.extra[0] + Math.floor(run.wave / STRAY.extra[1]); strayRush = { n, t: 0.6 }; run.waveTotal += n; }
+    const n = STRAY.extra[0] + Math.floor(run.wave / STRAY.extra[1]), sp0 = supplySpot;
+    if (!netClient()) { strayRush = { n, t: 0.6, near: [nr(sp0.x), nr(sp0.z)] }; run.waveTotal += n; }
+    dropCallShow(sp0, n);
   }
   if (strayRush && phase === 'wave') {
-    if ((strayRush.t -= dt) <= 0) { netSpawn(run.wave >= 3 && rand() < 0.3 ? 'runner' : 'walker'); strayRush.t = rr(STRAY.gap[0], STRAY.gap[1]); if (--strayRush.n <= 0) strayRush = null; }
+    if ((strayRush.t -= dt) <= 0) { netSpawn('runner', undefined, strayRush.near); strayRush.t = rr(STRAY.gap[0], STRAY.gap[1]); if (--strayRush.n <= 0) strayRush = null; }
   } else strayRush = null;
+  stepDropCall(dt);
   const sp = supplySpot;
   if (supplyT > 0 && sp) {
     setSupplyT(supplyT - dt); sp.t = -supplyT;
@@ -249,8 +254,46 @@ export function updateSupplyDrop(dt) {
   }
   stepFlare(dt);
 }
+// The stray crate's card (dropCall): as it's called, a panel drops in under the top of the screen: a ring round the
+// crate's icon running down the seconds till it lands, the time in big figures beside it, which side of the farm it's
+// coming down on, and how many sprinters are coming in from there. After DROP_CALL.big seconds it folds down to a slim
+// strip (the ring, the side, the seconds) that stays till it lands; then it reads "Crate down" for DROP_CALL.down
+// seconds, or till it's opened. The farm's sides by the compass: north is -z, east is +x
+const DROP_CALL = { big: 4.5, down: 5 }, COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const sideOf = (x, z) => COMPASS[(Math.round(Math.atan2(x - (cxw(FX0) + cxw(FX1)) / 2, (cxw(FZ0) + cxw(FZ1)) / 2 - z) / (Math.PI / 4)) + 8) % 8];
+const dropCall = (() => {
+  const el = document.createElement('div'); el.id = 'dropCall'; el.className = 'hud'; el.setAttribute('aria-live', 'polite');
+  el.innerHTML = `<div class="dcSlab"><span class="dcRing"><svg class="dcArc" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19"></circle><circle cx="22" cy="22" r="19" pathLength="100"></circle></svg><svg class="dcIc" viewBox="${GI_VB}">${GI.supply}</svg></span>`
+    + `<span class="dcTx"><small>Stray supply drop</small><b>Crate inbound</b><i class="dcSide"></i><em></em><span class="dcRush"><svg viewBox="${GI_VB}">${GI.zombie}</svg><u></u></span></span><span class="dcSec"><b></b><small>sec</small></span></div>`;
+  document.body.appendChild(el); return el;
+})();
+let dCall = null;
+function dropCallShow(sp, n) {
+  const side = sideOf(sp.x, sp.z), el = dropCall;
+  dCall = { t: 0, lead: supplyT, side, landed: -1, k: '' };
+  el.querySelector('.dcTx b').textContent = 'Crate inbound';
+  el.querySelector('em').textContent = `Coming down outside the fence to the ${side}`;
+  el.querySelector('.dcSide').textContent = side.split('-').map(w => w[0]).join('').toUpperCase();   // (on the folded strip: N, NE...)
+  el.querySelector('.dcRush u').innerHTML = `<b>+${n}</b> sprinters coming in from the ${side}`;
+  el.className = 'hud'; replay(el, 'show');
+}
+function stepDropCall(dt) {
+  const c = dCall, el = dropCall; if (!c) return;
+  c.t += dt;
+  const crate = pickups.find(p => p.kind === 'supply'), falling = supplyT > 0 || !!supplyFall;
+  if (!falling && c.landed < 0) {
+    if (!crate) { dropCallEnd(); return; }
+    c.landed = c.t; el.querySelector('.dcTx b').textContent = 'Crate down'; el.querySelector('em').textContent = `Out past the fence to the ${c.side}`; el.classList.add('landed'); replay(el, 'land');
+  }
+  if (c.landed >= 0 && (!crate || c.t - c.landed > DROP_CALL.down)) { dropCallEnd(); return; }
+  if (c.t > DROP_CALL.big && !el.classList.contains('mini')) el.classList.add('mini');
+  const sec = Math.max(0, Math.ceil(supplyT)), k = sec + ':' + (c.landed >= 0);
+  el.style.setProperty('--dc', (c.landed >= 0 ? 0 : clamp(supplyT / c.lead, 0, 1)).toFixed(3));
+  if (c.k !== k) { c.k = k; el.querySelector('.dcSec b').textContent = c.landed >= 0 ? '0' : sec; if (sec <= 3 && c.landed < 0) replay(el.querySelector('.dcSec'), 'tick'); }
+}
+function dropCallEnd() { dCall = null; dropCall.classList.add('out'); setTimeout(() => { if (!dCall) dropCall.className = 'hud'; }, 400); }
 // a new run: nothing on its way, no flare, no shadow
-export function resetDrops() { strayRush = null; heli.visible = false; HELI_PUSH.w = 0; setSupplyT(0); supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); setSupplyFall(null); } }
+export function resetDrops() { strayRush = null; dCall = null; dropCall.className = 'hud'; heli.visible = false; HELI_PUSH.w = 0; setSupplyT(0); supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); setSupplyFall(null); } }
 export const dropBusy = () => supplyT > 0 || !!supplyFall;
 // The supply crate: what the radio sells, once every SUPPLY.every waves (from the wave it was last called on: run.dropAt),
 // for its cost in scrap. What's in it grows with the wave, from a modest top-up on the first wave to a real resupply by

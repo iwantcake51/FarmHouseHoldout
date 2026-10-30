@@ -42,6 +42,7 @@ import { spitStep } from './spitter.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from '../ui/hud.js';
 import { cheatAI } from '../ui/cheats.js';
+import { volatileFuse } from './elites.js';
 import {
   netBoardBroke, netDoorBroke, netFenceBroke, netLunge, netTargets, puppetBoard, puppetMove, startClimb
 } from '../net/sync.js';
@@ -193,6 +194,7 @@ export function updateZombies(dt) {
       }
       if (z.burnT >= BURN_TICK) { z.burnT -= BURN_TICK; if (!pup && burnHurt(z)) continue; }
     } else { z.burnT = 0; z.burnAge = 0; z.burnFrom = null; z.burnK = 0; }
+    if (!pup && volatileFuse(z, dp, dt)) continue;   // (a volatile come up close goes off: zombies/elites.js)
     // bleeding out from a lost limb's stump (zombies/damage.js: BLEED_OUT), a few a second, dripping as it goes, no numbers
     if (z.bleedOut > 0 && !pup && !z.dead) {
       z.hp -= z.bleedOut * dt;

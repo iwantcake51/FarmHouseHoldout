@@ -8,7 +8,7 @@
 // is applied last in recomputeEff (game/run-state.js), over everything else on the gun
 import { P } from '../player/player.js';
 import { WEAP } from './gun-stats.js';
-import { DART_BLEED, DRAGON_FALL, DRAGON_MAX, SLUG_FALL } from './gun-mods.js';
+import { DART_BLEED, DBL_SLUG_FALL, DRAGON_FALL, DRAGON_MAX, SLUG_FALL } from './gun-mods.js';
 import { curId, magSize, recomputeEff, W, W8 } from '../game/run-state.js';
 import { buildGuns } from './build-weapons.js';
 import { exitScope } from '../player/aiming.js';
@@ -21,10 +21,11 @@ import { roundSwitched } from '../ui/hud.js';
 export const ROUNDS = {
   std: { name: 'Standard rounds', as: { shells: 'Buckshot' }, r: 'c', cost: 0, text: D => D.ammo === 'shells' ? 'Plain buckshot.' : 'Plain full-metal-jacket rounds.' },
   slug: { name: 'Slugs', r: 'u', cost: 12, fits: D => D.ammo === 'shells', vis: 'Blue slug shells',
-    text: 'One heavy slug instead of shot: huge damage, slams zombies back and staggers them, goes through 3, and barely loses damage at range.',
+    text: (D, id) => `One heavy slug instead of shot: huge damage, slams zombies back and staggers them, goes through 3, and ${id === 'dbl' ? `loses most of its damage past ${DBL_SLUG_FALL.dbl[0]} m out of the double's short barrels` : 'barely loses damage at range'}.`,
     // a slug hits like a rifle, slams the zombie back and staggers it, keeps most of its punch through each body, and
-    // holds its damage far further out than any other load (its own drop-off, D.fall: SLUG_FALL, weapons/gun-mods.js)
-    fx: (D, id) => { const W0 = WEAP[id]; D.dmg = SLUG_DMG * D.dmg / W0.dmg; D.spread = SLUG_SPREAD * D.spread / W0.spread; D.pellets = 1; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.85; D.kick = 14; D.stagger = 0.6; D.fall = SLUG_FALL; } },
+    // holds its damage far further out than any other load (its own drop-off, D.fall: SLUG_FALL, weapons/gun-mods.js),
+    // but for the double barrel's, which drops off hard (DBL_SLUG_FALL; the sawn-off's set its own D.fall already)
+    fx: (D, id) => { const W0 = WEAP[id]; D.dmg = SLUG_DMG * D.dmg / W0.dmg; D.spread = SLUG_SPREAD * D.spread / W0.spread; D.pellets = 1; D.pierce = (D.pierce || 0) + 2; D.pierceKeep = 0.85; D.kick = 14; D.stagger = 0.6; D.fall = id !== 'dbl' ? SLUG_FALL : D.fall ? DBL_SLUG_FALL.sawn : DBL_SLUG_FALL.dbl; } },
   flech: { name: 'Flechettes', r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'White flechette shells',
     text: 'A tight cloud of thin darts: each hits lighter, but they go through 2 more zombies, barely push them back, and every dart makes them bleed more.',
     // the opposite of a slug: thin steel darts, each one weak, that zip through 2 more zombies with hardly any loss and
@@ -35,7 +36,7 @@ export const ROUNDS = {
     text: D => D.sniper ? '+30% damage, and every limb they hit comes off. They stop in the first zombie.' : '+30% damage, and limbs come off twice as easily. They stop in the first zombie.',
     fx: D => { D.dmg *= 1.3; D.pierce = 0; D.severX = 2; if (D.sniper) D.alwaysSever = true; } },
   fire: { name: "Dragon's breath", r: 'r', cost: 14, fits: D => D.ammo === 'shells', vis: 'Orange dragon\'s breath shells',
-    text: () => `Shells spit fire and set zombies alight for 3 s, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing.`,
+    text: () => `Shells spit fire and set zombies alight for 3 s, but only up close: damage falls off fast, and past ${DRAGON_MAX} m the pellets burn out and do nothing. Armour stops most of it, and a zombie hit only on its armour doesn't catch.`,
     fx: D => { D.ignite = true; D.dragon = true; D.dmg *= 0.8; D.fall = DRAGON_FALL; D.maxRange = DRAGON_MAX; } },
   pierce: { name: 'Piercing rounds', r: 'u', cost: 12, fits: (D, id) => id === 'revolver', vis: 'Black-tipped rounds',
     text: 'Go through 1 more zombie, at full power through each. −10% damage.',

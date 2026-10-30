@@ -6,7 +6,7 @@ import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
 import { thinNear, thinRay } from '../world/thin-walls.js';
 import { HOUSE_FP, surfaceY } from '../world/house.js';
-import { blockArr, bulletBlocked, bulletBlockedAt } from '../world/collision.js';
+import { blockArr, bulletBlocked, bulletBlockedAt, inCellBox } from '../world/collision.js';
 import { P } from '../player/player.js';
 import { HEAVY_FIRE } from './gun-stats.js';
 import { falloff, headFade } from './ammo.js';
@@ -24,7 +24,7 @@ import { suppHeat } from '../effects/supp-heat.js';
 import { dragonBreath, impactFx } from '../effects/puffs.js';
 import { bulletHole } from '../effects/bullet-holes.js';
 import { zombies } from '../zombies/zombie-types.js';
-import { hurtZombie, partAt, pickPart, setCritNext, setHeadNext, setHitY } from '../zombies/damage.js';
+import { armoredAt, hurtZombie, partAt, pickPart, setCritNext, setHeadNext, setHitY } from '../zombies/damage.js';
 import { explode, flashes } from './explosives.js';
 import { boardsCrossed, shootBoard } from '../barricades/planks.js';
 import { SFX } from '../audio/sfx.js';
@@ -167,7 +167,7 @@ export const scopeDist = () => scoped ? Math.hypot(scopePt.x - P.x, scopePt.z - 
 export const BARREL = { from: 0.2, step: 0.025, clear: 0.04, zr: 0.16, jamb: 0.4 }, _bf = { wall: 0, zom: 0 };
 function barrelHits(x, z) {
   const i = ci(x), j = ci(z); if (!inb(i, j)) return false;
-  const k = idx(i, j); if (blockArr[k] || thinNear(x, z, 0.07)) return true;
+  const k = idx(i, j); if ((blockArr[k] && inCellBox(k, x, z)) || thinNear(x, z, 0.07)) return true;
   const o = cell[k] === OPEN && openAt[k]; if (!o) return false;
   return o.boards.length > 0 || Math.abs(o.axis === 'x' ? x - o.x : z - o.z) > BARREL.jamb;   // boarded up, or past the jambs
 }
@@ -414,7 +414,7 @@ export function gunFire(id, D, side) {
       hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)
-      if (D.ignite && !z.dead) { if (!(z.burn > 0)) { z.burnFrom = part; z.burnAge = 0; } z.burn = 3; }   // dragon's breath: it catches where it's hit, and spreads from there (zombies/ai.js)
+      if (D.ignite && !z.dead && !armoredAt(z, part)) { if (!(z.burn > 0)) { z.burnFrom = part; z.burnAge = 0; } z.burn = 3; }   // dragon's breath: it catches where it's hit, and spreads from there (zombies/ai.js); not on armour
       // a crit: every headshot a sniper lands through a scope (D.headCrit), a tuned gun's own (D.critT), the
       // revolver's aimed Dead-eye (D.aimCrit), or a Sure shot
       const crit = sure || (scopeOn && D.headCrit && part === 'head') || (critC > 0 && rand() < critC); setCritNext(crit); setHeadNext(headFade(id, hits[k].t));

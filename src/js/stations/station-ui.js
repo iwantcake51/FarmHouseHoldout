@@ -97,6 +97,7 @@ export function closeStation() {
   clearTimeout(stCloseT); stCloseT = setTimeout(() => { el.classList.remove('closing'); if (!openSt) el.hidden = true; }, 210);
   updateWeaponStats(); updateLoadout(); updateRackSide();   // the stats and the loadout slide back in behind it as it rolls up
 }
+$('stX').onclick = () => { if (openSt) closeStation(); };   // (the cross on its panel)
 // the workbench's lower half is set apart from the ammo and the tune-up at the top: attachments (a can, a sight, a
 // laser, a light...) teal, the gun's upgrades and mods blue
 const ST_ICON_COL = { ammo: '#d4b25c', gear: '#f0bf4c', att: '#5ec2c4', upg: '#8aa6ea', planks: '#c08a52', metal: '#a9bccb', med: '#d0432c', supply: '#d8692c' };

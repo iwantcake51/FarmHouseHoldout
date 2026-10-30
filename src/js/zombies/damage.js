@@ -64,7 +64,7 @@ const BRUTE_HIDE = 0.4, ELITE_HIDE = { brute: 0.55 };
 // so much before it breaks (hp, a share of the zombie's own health). A soldier's helmet and vest; a SWAT officer's
 // helmet, plate carrier and the pads and holster on the legs; a riot officer's the same with the face shield down, so
 // a headshot does far less; a builder's hard hat, which stops little and splits soon. Heavier rounds go through more of
-// it (ARMOR_CAL), slugs and piercing rounds most, hollow points least (ARMOR_ROUND); a melee blow by what it hits with
+// it (ARMOR_CAL), slugs and piercing rounds most, hollow points and dragon's breath least (ARMOR_ROUND); a melee blow by what it hits with
 // (ARMOR_MELEE: how much of the armour still counts): a blunt one jars straight through it, a spiked one (nails, railroad
 // spikes) catches on it and an edge (a blade, an axe) glances off; and a brute wears it thinner on its bulk
 // (ARMOR_BRUTE). Every helmet is armour, a fireman's or a builder's hard hat only a little; one without a face shield
@@ -78,7 +78,7 @@ export const ARMOR_KIT = {
 };
 // what each armed job wears below the hat (the hat's own piece is the hat: zHat)
 const JOB_ARMOR = { soldier: { torso: 'vest' }, swat: { torso: 'carrier', legs: 'pads' }, riot: { torso: 'carrier', legs: 'pads' } };
-const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3 };
+const ARMOR_CAL = { p9: 1, p10: 0.9, magnum: 0.8, rifle: 0.72, shells: 1.05 }, ARMOR_ROUND = { slug: 0.6, pierce: 0.5, flech: 0.85, hollow: 1.3, fire: 1.6 };
 const ARMOR_MELEE = { blunt: 0.35, spiked: 0.8, edge: 0.9 }, ARMOR_BRUTE = 0.6;
 // where a helmet's brim is on the head (metres up the head from its pivot): a round that lands below it is in the face
 const HELM_BROW = 0.075;
@@ -118,6 +118,9 @@ function armorOf(z, part, D, wId) {
   const k = D.melee ? ARMOR_MELEE[D.spiked ? 'spiked' : D.blunt ? 'blunt' : 'edge'] : (ARMOR_CAL[D.ammo] ?? 1) * (ARMOR_ROUND[roundOn(wId)] ?? 1) * armorGun(wId);
   return { slot, P, a: clamp(ARMOR_KIT[P.kind].a * k * armorWaveK() * armorPowK(wId) * (z.type === 'brute' ? ARMOR_BRUTE : 1), 0, ARMOR_SCALE.max) };
 }
+// whether a hit on a part lands on armour that's still on (a helmet only with its face shield down: anything else in
+// the head finds the face): dragon's breath there doesn't catch (weapons/firing.js)
+export const armoredAt = (z, part) => { const P = z.armor && z.armor[part === 'legL' || part === 'legR' ? 'legs' : part]; return !!P && !P.broken && (part !== 'head' || !!ARMOR_KIT[P.kind].face); };
 // a hit worn into a piece: it cracks, then comes off (zombies/armor-break.js)
 function wearArmor(z, ar, w, dx, dz) {
   const P = ar.P; P.hp -= w;

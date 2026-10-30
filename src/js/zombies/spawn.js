@@ -35,10 +35,12 @@ const FOG_IN = 7;
 // as soon as they would from overhead
 export const FP_OUT = { far: [38, 44], deep: 18, near: 9, fast: 4, mid: 1.6 };
 export const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
-export function spawnZombie(type, job) {
+// near: [x, z] to come in through one of the two gaps nearest it (a stray crate's rush: stations/supply-drop.js)
+const gapNear = (x, z) => GAPS.slice().sort((a, b) => Math.hypot(cxw(a[0]) - x, cxw(a[1]) - z) - Math.hypot(cxw(b[0]) - x, cxw(b[1]) - z))[rand() < 0.7 ? 0 : 1];
+export function spawnZombie(type, job, near) {
   // (an elite comes marked on its entry in the wave's queue, 'walker:hulk': planned with the wave, planElites, zombies/elites.js)
   let ek = null; if (type.indexOf(':') > 0) [type, ek] = type.split(':');
-  const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
+  const T_ = ZT[type], [gi, gj] = near ? gapNear(near[0], near[1]) : GAPS[(rand() * GAPS.length) | 0];
   const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = fpOn() ? rr(FP_OUT.far[0], FP_OUT.far[1]) : rr(6.5, 9), lat = rr(-0.6, 0.6);
   const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);
   // (the run's first brute comes in plain clothes, with nothing on it to soak up your shots: BRUTE_RAMP, waves/waves.js)

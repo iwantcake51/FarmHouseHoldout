@@ -173,6 +173,7 @@ export function closeSettings() {
   if (state === 'play') wantLock();   // (back to the game in first person: the mouse straight back, game/view-cam.js)
   setCloseT = setTimeout(() => { el.hidden = true; }, 340);   // (once it's popped back down: styles/settings.css)
 }
+$('setX').onclick = () => closeSettings();   // (the cross on the panel, as Done)
 // a dropdown: opens with its list unrolling under it, closes on a pick, a click anywhere else, or Esc
 function closeDrops(except) { document.querySelectorAll('.sDrop.open').forEach(d => { if (d === except) return; d.classList.remove('open'); const row = d.closest('.setRow'); if (row) row.classList.remove('dropOn'); d.querySelector('.sDropBtn').setAttribute('aria-expanded', 'false'); }); }
 function toggleDrop(d, on) {

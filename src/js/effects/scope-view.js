@@ -162,8 +162,11 @@ const lensMat = live => new THREE.ShaderMaterial({ vertexShader: LENS_VERT, frag
 // (your hand, your body) hides it. Sizes in MOA, as the real ones are: the EOTech's 68 MOA ring with its ticks and 1
 // MOA dot ('holo'); a red dot's dot, its size the sight's own (moa: an RMR's 3.25, a 507C's 2...: 'dot'); a pistol
 // sight's circle-dot, a 32 MOA ring round a 2 MOA dot ('cdot'). Never thinner than a pixel and a bit (RET_MIN), the
-// hologram's light grainy as a hologram's is. The light's drawn over what's behind it, not added to it, so the dot's
+// hologram's light faintly grainy, as a hologram's is. The light's drawn over what's behind it, not added to it, so the dot's
 // red whatever it's against (a bright sky would wash an added red out to pink and white), with a faint bloom round it
+// the holo's lines: how thick they are (MOA: w; the dot's: dot), never under px pixels, how grainy its light is
+// (grain: how far a speck dims, 0 smooth), and how much bloom round the ring and the dot (halo)
+const HOLO = { w: 0.5, dot: 0.5, px: 0.8, grain: 0.12, halo: [0.06, 0.24] };
 const RET_MIN = 1.3, RET_U = { uT: { value: 0 }, uBlur: { value: 0 } }, RET_KIND = { holo: 0, dot: 1, cdot: 2 };
 const RET_VERT = 'varying vec3 vV, vAx, vUp; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = mv.xyz; vAx = normalize((modelViewMatrix * vec4(0.0, 0.0, 1.0, 0.0)).xyz); vUp = normalize((modelViewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz); gl_Position = projectionMatrix * mv; }';
 const RET_FRAG = `
@@ -177,12 +180,12 @@ void main() {
   vec2 m = vec2(dot(v, rt), dot(v, up)) / c / 0.000290888;   // (how far off the sight's line this look is, in MOA)
   float px = max(length(fwidth(m)), 0.0001), pb = px * (1.0 + ${RET_BLUR.px.toFixed(1)} * uBlur), e = length(m), core, halo;   // (pb: its edges' softness)
   if (uKind < 0.5) {
-    float w = max(1.1, px * ${RET_MIN.toFixed(2)});
+    float w = max(${HOLO.w.toFixed(2)}, px * ${HOLO.px.toFixed(2)});
     core = ln(abs(e - 34.0), w, pb);
     core = max(core, ln(min(min(seg(m, vec2(32.0, 0.0), vec2(45.0, 0.0)), seg(m, vec2(-32.0, 0.0), vec2(-45.0, 0.0))), min(seg(m, vec2(0.0, 32.0), vec2(0.0, 45.0)), seg(m, vec2(0.0, -32.0), vec2(0.0, -45.0)))), w, pb));
-    core = max(core, ln(e, max(0.6, px * ${RET_MIN.toFixed(2)}), pb));
-    core *= 0.6 + 0.5 * hash(floor(gl_FragCoord.xy / 1.3) + floor(uT * 9.0));
-    halo = 0.14 * exp(-pow(abs(e - 34.0) / (w * 3.0), 2.0)) + 0.4 * exp(-e * e / (w * w * 3.0));
+    core = max(core, ln(e, max(${HOLO.dot.toFixed(2)}, px * ${HOLO.px.toFixed(2)}), pb));
+    core *= 1.0 - ${HOLO.grain.toFixed(2)} + ${HOLO.grain.toFixed(2)} * hash(floor(gl_FragCoord.xy / 1.3) + floor(uT * 4.0));
+    halo = ${HOLO.halo[0].toFixed(2)} * exp(-pow(abs(e - 34.0) / (w * 2.5), 2.0)) + ${HOLO.halo[1].toFixed(2)} * exp(-e * e / (w * w * 3.0));
   } else {
     // (with the ring round it, the dot and the ring kept fine so the dark gap between them still shows when the whole
     // circle's only a dozen pixels across)

@@ -107,9 +107,11 @@ the other one, that eye squinting along the gun and your head tipped over the st
      - **Frenzied** (red): half again as fast, clawing 1.8 times as often, with three times the health.
      - **Volatile** (green, from wave 5: swollen, glowing sores all over it): three times the health, and a beat after
        it dies it bursts into a cloud of red mist that hangs and drifts for a few seconds, blood thrown all round it.
-       Within 2.6 m it hurts you (up to 35, less at the edge) and leaves you reeling (the screen swimming, your aim
-       going wide, slowed); the zombies within 3.2 m aren't hurt, only thrown back and staggered (up to 1.6 s at its
-       middle, a brute barely moved). A volatile brute's burst is a third bigger.
+       It doesn't wait to be killed, either: one that gets within 1.7 m of whoever it's after swells and shudders with
+       a shriek for 0.65 s and goes off on its own (in co-op the host's game decides it). Within 3.8 m it hurts you (up
+       to 35, less at the edge), leaves you reeling (the screen swimming, your aim going wide, slowed) and throws its
+       blood over your view and over you and your gun; the zombies within 4.4 m aren't hurt, only thrown back and
+       staggered (up to 1.6 s at its middle, a brute barely moved). A volatile brute's burst is a third bigger.
 
      A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. A wave's elites
      are settled as it starts, so a moment after the wave's own call (3.4 s in) one card says how many it's bringing,
@@ -121,9 +123,14 @@ the other one, that eye squinting along the gun and your head tipped over the st
      much of it as a share of the half (a quarter of the damage, half the scrap), in whole scrap. Whoever killed it also
      gets an ammo box for sure, and most often bandages or planks too. In co-op an elite is the same one on every screen.
    - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper drops a crate
-     outside the fence. Its card comes in (in the supply orange), and the drop marker counts down the 15 seconds till it
-     lands with how far off it is; while it's inbound, more of them come in (4, and one more every 3 waves, a couple of
-     seconds apart, sent by whoever runs the zombies in co-op). It comes down out in the yard between the fence and the
+     outside the fence. Its card drops in under the top of the screen in the supply orange: a ring round the crate's
+     icon running down the 15 seconds till it lands, the seconds big beside it, the side of the farm it's coming down on
+     (north, north-east...) and how many sprinters it brings. After a few seconds it folds down to a slim strip (the
+     ring, "Crate inbound", the side as N/NE..., the seconds, ticking over the last three) that stays till it lands, then
+     turns green as "Crate down" for a few seconds or till you open it. The drop marker still counts down with how far
+     off it is. While it's inbound, sprinters come for it (4, and one more every 3 waves, a second or two apart, sent by
+     whoever runs the zombies in co-op), in through the fence's gaps on the side it's coming down on (one of the two
+     gaps nearest it). A crate you call on the radio yourself brings none. It comes down out in the yard between the fence and the
      tree line, clear of every tree's crown, the bushes and rocks, and anything else stood there (the cars, the hay
      bales): a radio crate's ammo, 2 bandages, 4 planks, a cache of scrap (8, and 2 more a wave) and a military find.
      In co-op each player gets their own. The helicopter itself flies over, along its shadow's line at the height the
@@ -145,7 +152,10 @@ you can always see inside; from your own eyes the rooms have a proper ceiling ov
 stained timber joists running across the house, the lamps hanging from it on their cords. Indoors the roof keeps the
 sun off everything under it, the floorboards' seams, the joists and everyone in the room (you, your own forearms from
 your own eyes, and the dead) alike, so the rooms are lit by their lamps and the daylight through the windows, and out
-in the yard you all go into the shade of the house and the trees. The clock runs from afternoon into night, an hour every 30 seconds of a wave (so the sun and the moon drift across the sky rather than racing), and the dark is where the lamps, your
+in the yard you all go into the shade of the house and the trees. Furniture blocks sight, light and shots only where it really stands: a piece that
+fills a little of its cell (the gun rack against the wall, a cabinet, a dresser) is measured to its own box, so the
+part of the cell in front of it is open to see, light and shoot through, and the shadow it casts in the lighting is its
+own shape, not the whole cell's. Only a piece filling most of its cell (85% or more each way) blocks the whole of it. The clock runs from afternoon into night, an hour every 30 seconds of a wave (so the sun and the moon drift across the sky rather than racing), and the dark is where the lamps, your
 flashlight and the muzzle flashes matter. What the lamps don't reach isn't grey: the dark takes the cool of the sky,
 a blue-violet moonlight by night and a cool blue-grey in the shade by day, and the shadows are graded cooler against the
 warm of the light (with the lit colour a little fuller), so the honey daylight, the amber dusk and the lamplight have
@@ -161,7 +171,7 @@ its inner side, the rest of it folded away inside. The loop swings softly as the
 eased off toward the ends of its travel rather than snapping against them, while what's in the box stays put; the
 rounds in the box go first as the belt runs down, then the loop from the box end. At the workbench you can add sights, lasers,
 suppressors, stocks, grips and underbarrel grenades (a laser's beam is a fine line of light from its lens to its dot, the same width on screen however you look along it, never a flat strip), and change calibres with conversion kits such as AK mags for the
-battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
+battle rifle (rocked in front lug first, the AK way) or 10mm for the SMG. The double barrel's sawn-off kit cuts it to a coach gun: more pellets in a wider spread, each hitting 30% harder up close, but its short barrels drop it off hard (full damage only to 2.5 m, down to a fifth of it by 7 m, where the full-length gun holds to 4 m and keeps half past 11). Down the sights it's quicker on its feet than the full-length gun too (76% of your pace against 66%). Slugs out of the double drop off hard as well, unlike out of the pump or the auto shotgun (where they hold full damage to 14 m): full damage to 6 m and down to a third by 15 m, and from the sawn-off full to 3 m and a fifth by 8 m. The double barrel itself was too strong early on: it's now eight pellets of 16 a barrel (from nine of 19: 256 for both barrels, from 342), its second barrel follows a touch slower (0.12 s) and each shell takes 0.5 s to load (from 0.42); still the biggest burst up close, not by so much. You can also load special rounds (hollow points, slugs, flechettes and more) and
 tune damage, fire rate, recoil and magazine size. On the hunting rifle every optic goes on a picatinny rail along the
 receiver, like the other guns: the red dot, the holo and the ACOG straight on it, the scopes in picatinny rings clamped
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
@@ -251,10 +261,15 @@ dragon's breath) blows a limb to red mist when enough of one blast lands on it: 
 flechettes, or a single slug), however much of it was left, gone where it was in a cloud of red with scraps of it
 tumbling away. A kill through the head with any of them blows the head to mist every time from up close, and further
 off when two or more pellets went into it. Close by (within about 3 m), a limb or a head coming off or blown apart,
-your doing or a teammate's, spatters your view with blood: a spray of fine drops round a few big ones, soft and out of
-focus as if on your face, thrown from the side it happened on; the big ones run down a little, and it all fades in a
-couple of seconds. It's the same few a second on any night, so on later nights, with more health, they take
-longer to bleed out. Dragon's breath sets a zombie alight where its pellets hit: the flames start on that arm, leg or
+your doing or a teammate's, spatters your view with blood, as if on your face, thrown from the side it happened on: a
+faint red haze from that edge, a spray of fine specks, wobbly-edged drops (deep red, darker where it pools at the rim,
+thinner in the middle, a soft sheen and a small glint) and, from a close one, a splat or two with spikes and beads flung
+out of them, all soft and out of focus. The bigger drops run down leaving a thin trail, and it fades in a couple of
+seconds. It gets on you and what's in your hands as well (the same stain as from fighting): a limb blown to mist
+throws about twice what a clean cut does, and a volatile going off near you more than either. It's the same few a second on any night, so on later nights, with more health, they take
+longer to bleed out. Dragon's breath sets a zombie alight where its pellets hit (not where they hit armour: a helmet with its face shield
+down, a vest, a plate carrier or leg pads stop them catching there, and armour stops more of dragon's breath than of
+plain buckshot, about 60% more): the flames start on that arm, leg or
 the head and spread out over the rest of it in about a second and a half, its orange rim glowing up and the charring
 spreading with them. A shotgun blast that takes a head doesn't knock it off whole: it bursts into a red
 mist, flinging chips of skull, scalp and gore. Blood thrown from a hit flies as teardrops, round head first with a tail
@@ -526,7 +541,8 @@ a frame or two whenever it came close enough). Across all the guns and the three
 double back up to 28 cm sideways and 18 cm up and down on its way to the well; now it's 6 cm at most (8 on the
 LMG), and on the SMG the hand no longer leaps 35 cm in two frames as the mag came close to its forward-leaning well.
 The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
-ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
+ticks and centre dot, its lines fine (half a minute of angle each side of the line, never under about a pixel) with a faint
+grain to its light and only a light bloom, slim body with its thin hood loop over the window) work like the real things: the
 reticle is light collimated inside the sight's window, so it's only seen looking through that glass from behind, along
 the sight's line. It sits out at infinity, the same size and on the same aim point however far your eye is from the
 window, sliding with the sight rather than with your eye, and it turns with the gun as it cants. From the hip, from the
@@ -589,7 +605,11 @@ front of it still hide it), so none pops in out of nowhere as it comes round a c
 glow no longer shows through the back of a zombie's head: the halo and streak are hidden by the head in the glow too,
 not just in the picture. Everything works from first person: picking cards between waves
 (the mouse is freed for them and taken back with your pick), and the stations, the settings and the cheat menu all
-hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too, and nor does putting the cheat menu away any other way: its key, its close button, Esc from its search box). There's no
+hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too, and nor does putting the cheat menu away any other way: its key, its close button, Esc from its search box). While any menu's up the pointer shows over the game as well, not just over the menu (in first person it used to
+vanish over the view behind it). Every menu has the same X in its top right corner to close it, in first person or from
+above: a station (the workbench, the sawhorse, the cabinet, the radio, the gun rack, the strongbox), the settings, the
+pause menu (it resumes), the co-op screen, the cheat menu and the look menu. A bench outlines when you look at it from
+your own eyes, as from above. There's no
 click to look about: the mouse is taken with the click on Start (or the host's Start in co-op), and any click or key
 takes it back once no menu's open. In co-op your teammates see you as you stand, looking up and down where you look,
 not with your chest held straight for your own eyes. And the

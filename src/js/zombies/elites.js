@@ -24,7 +24,9 @@ import { setLmT, setShake, shake } from '../game/state.js';
 import { burst } from '../effects/particles.js';
 import { zombies } from './zombie-types.js';
 import { zAnimHit } from './zombie-anim.js';
+import { killZombie } from './damage.js';
 import { smoke } from '../effects/smoke.js';
+import { goreAt } from '../ui/screen-blood.js';
 import { splat } from '../effects/blood-map.js';
 
 const ELITE = { from: 3, p: 0.035, per: 0.005, max: 0.09 };
@@ -44,14 +46,14 @@ export const ELITE_KIND = {
   frenzy: { name: 'Frenzied', w: 1, types: ELITE_TYPES, hp: 3, scale: 1.03, speed: 1.5, dmg: 1.4, atk: 1.8, col: 0xff2a24, scrap: 9, more: 0.8,
     icon: 'enrage', does: 'Runs you down far faster than the rest and claws without letting up', stats: '×1.5 speed · ×1.8 attack speed · ×3 health · 40% damage reduction', down: 'The screaming\'s stopped' },
   volatile: { name: 'Volatile', w: 0.8, from: 5, types: ELITE_TYPES, hp: 3, scale: 1.06, speed: 0.95, dmg: 1.3, atk: 1, col: 0x4dff5a, scrap: 10, more: 0.85,
-    icon: 'gooBurst', does: 'Bursts into a cloud of red mist when it dies: it hurts and dazes you up close, and staggers the zombies round it', stats: '2.6 m burst · ×3 health · 40% damage reduction', down: 'Popped' }
+    icon: 'gooBurst', does: 'Bursts into a cloud of red mist when it dies or gets close to you: it hurts and dazes you, and staggers the zombies round it', stats: '3.8 m burst · goes off when it reaches you · ×3 health · 40% damage reduction', down: 'Popped' }
 };
 // the burst (VOLATILE: how far it reaches the zombies round it, how long it staggers one at its middle (s, and at its
 // edge s0) and how hard it throws them (kb, a brute only stag of it); you within you.r of it: how much it hurts at its
 // middle and how long it leaves you reeling (daze: the screen swimming, your aim going wide, slowed); and its cloud:
 // mist puffs of red, how far they spread, how big they grow and how long they hang in the air)
-const VOLATILE = { r: 3.2, s: 1.6, s0: 0.5, kb: 6, brute: 0.35, you: { r: 2.6, dmg: 35, daze: 1, slow: 0.45 },
-  mist: { n: 16, r: 1.4, s0: [0.6, 1.1], s1: [2.4, 3.6], life: [2.6, 4.2], a: 0.6, col: [0x8e1010, 0x6a0808, 0xa82018] } };
+const VOLATILE = { r: 4.4, s: 1.6, s0: 0.5, kb: 6, brute: 0.35, you: { r: 3.8, dmg: 35, daze: 1, slow: 0.45 },
+  mist: { n: 22, r: 2, s0: [0.6, 1.1], s1: [2.4, 3.6], life: [2.6, 4.2], a: 0.6, col: [0x8e1010, 0x6a0808, 0xa82018] } };
 
 // the roll for a zombie coming in on wave n (tw: its twist), and the kind if it comes up
 function rollElite(type, n, tw) {
@@ -116,6 +118,23 @@ export function eliteDown(z) {
 // rather than all inside the first) into a cloud of red mist that hangs and drifts, blood thrown everywhere, everything
 // near it thrown back. It bursts on everyone's screen, and each player's own game takes what it does to them
 const BURSTS = [], BURST_DELAY = 0.14;
+// one that gets within VOL_FUSE.r of whoever it's after doesn't wait to be killed: it swells and shudders for
+// VOL_FUSE.t seconds, shrieking, and goes off (killed by its own blast, so its burst follows: eliteDies). The host's
+// game decides it in co-op (zombies/ai.js: updateZombies); true once it's gone off
+const VOL_FUSE = { r: 1.7, t: 0.65, swell: 0.16 };
+export function volatileFuse(z, dp, dt) {
+  if (!z.elite || z.elite.kind !== 'volatile' || z.dead) return false;
+  if (!(z.fuse > 0)) {
+    if (dp > VOL_FUSE.r) return false;
+    z.fuse = VOL_FUSE.t; z.fuseS = z.m.g.scale.x;
+    soundAt(z.x, z.z, () => SFX.groan(1, 1.35, 'runner'), true);
+  }
+  z.fuse -= dt; const u = 1 - Math.max(0, z.fuse) / VOL_FUSE.t;
+  z.m.g.scale.setScalar(z.fuseS * (1 + VOL_FUSE.swell * u * u + 0.03 * Math.sin(u * 60)));   // (swelling, faster and faster, shaking)
+  if (z.fuse > 0) return false;
+  killZombie(z, -Math.sin(z.face), -Math.cos(z.face), 'boom', 'torso', 0);
+  return true;
+}
 export function eliteDies(z) { if (z.elite && z.elite.kind === 'volatile') BURSTS.push({ x: z.x, z: z.z, t: BURST_DELAY, k: z.type === 'brute' ? ELITE_BRUTE.burst : 1 }); }
 export function clearBursts() { BURSTS.length = 0; }
 export function updateBursts(dt) {
@@ -132,6 +151,7 @@ export function updateBursts(dt) {
     if (!P.dead && dp < V.you.r * K) { const f = 1 - dp / (V.you.r * K);
       P.hp -= V.you.dmg * K * (0.4 + 0.6 * f) * S.dmgTaken; hitFromAt(b.x, b.z, 1.4); interruptBandage();
       P.conc = Math.max(P.conc || 0, V.you.daze * (0.5 + 0.5 * f)); P.slow = Math.min(1, (P.slow || 0) + V.you.slow * f); }
+    goreAt(b.x, b.z, 1.0, 1.4 * K, V.you.r * K);   // (its blood all over your view, you and what's in your hands: ui/screen-blood.js)
     // the zombies round it aren't hurt: thrown back off it and staggered, the nearer the longer (a brute barely moved)
     for (const o of zombies) {
       if (o.dead) continue; const dx = o.x - b.x, dz = o.z - b.z, d = Math.hypot(dx, dz); if (d > V.r * K) continue;

@@ -17,6 +17,7 @@ html,body{height:100%}
 body{margin:0;background:var(--night);color:var(--ink);overflow:hidden;font-family:var(--f-ui);font-size:12px;touch-action:none;user-select:none;-webkit-user-select:none}
 #c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
 body.playing #c{cursor:none}
+body.playing.menuUp #c{cursor:default}   /* (a menu up: the pointer shows over the game round it too, game/view-cam.js) */
 .hud{position:fixed;z-index:2;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 18px rgba(0,0,0,.5)}
 .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 .big{font-family:var(--f-num);font-weight:800;line-height:.85;font-variant-numeric:tabular-nums}
@@ -33,3 +34,11 @@ body.playing #c{cursor:none}
 @supports selector(::-webkit-scrollbar){*{scrollbar-width:auto;scrollbar-color:auto}}
 /* a <details> list opens and closes by growing to its height rather than snapping (where the browser can) */
 :root{interpolate-size:allow-keywords}
+
+/* the cross that closes a menu (a station's panel, the cheats, the settings, the pause, co-op): the same everywhere,
+   a quiet square with the cross in it, lit on hover */
+.mClose{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0;margin-left:auto;border:1px solid rgba(236,230,216,.14);background:rgba(14,15,16,.55);color:var(--dim);cursor:pointer;transition:color .15s,border-color .15s,background .15s}
+.mClose svg{width:16px;height:16px;fill:currentColor}
+.mClose:hover,.mClose:focus-visible{color:var(--ink);border-color:var(--orange);background:rgba(236,230,216,.08)}
+#paused .inner{position:relative}
+#paused .inner>.mClose{position:absolute;top:0;right:0}

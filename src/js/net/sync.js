@@ -90,16 +90,16 @@ function turnedOf(id) {
 export function spawnTurned() { if (netLink() && NET.host) for (const id of TURN_Q) if (turnedOf(id)) netSpawn('walker', id); TURN_Q.clear(); }
 
 // ---- zombies coming in: the host's seed, so the same one comes in everywhere (tu: the teammate it was, if it was one)
-export function netSpawn(type, tu) {
-  if (!netLink()) return spawnZombie(type);
+export function netSpawn(type, tu, near) {
+  if (!netLink()) return spawnZombie(type, undefined, near);
   const s = (Math.random() * 4294967296) >>> 0, id = ++zSeq;
-  withSeed(s, () => spawnZombie(type, tu ? turnedOf(tu) : undefined)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
-  netSend('zs', { id, ty: type, s, wv: run.wave, tu: tu || undefined });
+  withSeed(s, () => spawnZombie(type, tu ? turnedOf(tu) : undefined, near)); const z = zombies[zombies.length - 1]; z.id = id; NZ.set(id, z);
+  netSend('zs', { id, ty: type, s, wv: run.wave, tu: tu || undefined, nr: near || undefined });
 }
 NET_ON.zs = m => {
   if (NET.host || !netLink()) return;
   const wv = run.wave; run.wave = m.wv;
-  withSeed(m.s, () => spawnZombie(m.ty, m.tu ? turnedOf(m.tu) : undefined)); run.wave = wv;
+  withSeed(m.s, () => spawnZombie(m.ty, m.tu ? turnedOf(m.tu) : undefined, m.nr)); run.wave = wv;
   const z = zombies[zombies.length - 1]; z.id = m.id; NZ.set(m.id, z); z.nx = z.x; z.nz = z.z; z.nf = z.face;
 };
 // a climb over a fence or in at a window starts on the host: the same climb (its seed) plays out here

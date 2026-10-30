@@ -186,6 +186,7 @@ export function resumeRun() {
   wantLock();   // (in first person the mouse is taken straight back, without a click: game/view-cam.js)
   el.classList.add('closing'); setTimeout(() => { el.classList.remove('closing'); if (state === 'paused') setState('play'); }, 180);
 }
+$('pauseX').onclick = () => resumeRun();   // (the cross on the pause screen: as Resume)
 $('startBtn').onclick = enterRun;
 $('againBtn').onclick = enterRun;
 $('menuBtn').onclick = leaveToMenu;
