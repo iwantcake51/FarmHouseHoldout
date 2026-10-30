@@ -36,7 +36,7 @@ import { netFenceBroke, netTargets, nr } from '../net/sync.js';
 // wave: the first wave it can happen (the brutes' first: waves/waves.js); min, max: how far off you must be (metres); rate: the chance a second of starting
 // one while it can; cd: the wait after one (seconds); wind: the crouch; speed, over: how fast it goes, and how far past
 // where you stood; rec: the stumble to a halt after; w: the stripe's width; dmg, stun, kb: what it does to you
-const BDASH = { wave: BRUTE_FROM, min: 4.5, max: 8, rate: 0.09, cd: [9, 15], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
+const BDASH = { wave: BRUTE_FROM, min: 4, max: 11, rate: 0.45, cd: [6, 10], wind: 0.95, speed: 11, over: 2.5, rec: 0.8, w: 1.15, dmg: 42, stun: 1.1, kb: 10 };
 // running into a wall: stunned for stun seconds (reeling, its head lolling), a cloud of dust and smoke thrown up off the
 // wall, and the view shaken by up to shake, in full within near metres and trailing off to nothing at far
 const BDASH_WALL = { stun: 2.4, shake: 0.95, near: 5, far: 16 };
@@ -109,7 +109,7 @@ const dashCan = () => run.wave >= BDASH.wave;
 // a brute that might start one (the host's game, or alone): far enough off, a clear line to you, not busy
 export function dashMaybe(z, dt, t, dp) {
   if (z.type !== 'brute' || !dashCan() || z.dash || z.crawl || z.out || z.vault || z.atkBoard || z.atkDoor || t.dead || z.stagger > 0 || !z.limbs.legL || !z.limbs.legR) return false;
-  if (z.dashCd === undefined) z.dashCd = rr(3, 7);
+  if (z.dashCd === undefined) z.dashCd = rr(1.5, 4);
   z.dashCd -= dt; if (z.dashCd > 0 || dp < BDASH.min || dp > BDASH.max || rand() > BDASH.rate * dt) return false;
   const dx = (t.x - z.x) / dp, dz = (t.z - z.z) / dp, room = dashRoom(z.x, z.z, dx, dz, dp + BDASH.over);
   if (room < dp) return false;   // something in the way: it can't see you, or it'd hit it first

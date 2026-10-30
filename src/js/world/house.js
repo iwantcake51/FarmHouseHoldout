@@ -48,7 +48,7 @@ function buildFloor() {
 // casts no shadow (the roof over it does) and the plaster takes none, but the joists do, so the roof keeps the sun off
 // their sides (unshadowed, it lit them through the roof); and none of the floor's light map either (it would lay the
 // walls' dark lines across it), just the room's own light
-const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
+export const CEIL = { y: 2.42, gap: 1.2, w: 0.13, d: 0.14 };
 export const ceilG = new THREE.Group(); ceilG.visible = false; scene.add(ceilG);
 const CEIL_M = { plaster: new THREE.MeshLambertMaterial({ color: 0xf6efe0, emissive: 0x3c3428, side: THREE.DoubleSide }), joist: new THREE.MeshLambertMaterial({ color: 0x5a4130, emissive: 0x140e09 }) };   // (emissive: the light the rooms bounce up onto it)
 function buildCeiling() {

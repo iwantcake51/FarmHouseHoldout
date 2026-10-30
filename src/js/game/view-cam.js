@@ -36,6 +36,7 @@ import { cheatOn } from '../ui/cheats.js';
 import { SET, setOpen } from '../ui/settings.js';
 import { DC } from '../ui/screens.js';
 import { camFocus, spectating } from '../net/spectate.js';
+import { CEIL, inHouseRect } from '../world/house.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -958,6 +959,8 @@ function glassSee(see) { if (see !== GLASS_SEE.on) { GLASS_SEE.on = see; GM.glas
 const DEATH_FP = { t: 2.4, back: 2.6, up: 2.3, side: 0.9, fov: 60 };
 // (abandoning: the rise's share of the pull it takes, up, and how much of the pull goes by before it starts back, wait)
 const QUIT_RISE = { up: 0.45, wait: 0.2 };
+// (indoors: how far under the ceiling it stops, how far short of a wall, and the least it draws back)
+const DEATH_IN = { ceil: 0.3, wall: 0.3, min: 0.4 };
 const DFP = { on: false, t: 0, p: new V3(), q: new THREE.Quaternion(), fov: 75, yaw: 0 }, _dfT = new V3(), _dfP = new V3(), _dfM = new THREE.Matrix4(), _dfQ = new THREE.Quaternion();
 function fpDeathCam(rdt, c) {
   if (!DFP.on) { DFP.on = true; DFP.t = 0; DFP.p.copy(c.position); DFP.q.copy(c.quaternion); DFP.fov = c.fov; DFP.yaw = VCAM.yaw; }
@@ -965,12 +968,21 @@ function fpDeathCam(rdt, c) {
   PM.torso.getWorldPosition(_dfT);
   // (behind and above where you were facing, a little off to one side)
   _dfP.set(_dfT.x - Math.sin(y) * DEATH_FP.back + Math.cos(y) * DEATH_FP.side, _dfT.y + DEATH_FP.up, _dfT.z - Math.cos(y) * DEATH_FP.back - Math.sin(y) * DEATH_FP.side);
+  // (indoors, under the ceiling and short of the walls: it'd rise through the roof and back through a wall, DEATH_IN)
+  const inside = inHouseRect(_dfT.x, _dfT.z, 0);
+  if (inside) {
+    _dfP.y = Math.min(_dfP.y, CEIL.y - DEATH_IN.ceil);
+    const ox = _dfP.x - _dfT.x, oz = _dfP.z - _dfT.z, L = Math.hypot(ox, oz), dx = ox / (L || 1), dz = oz / (L || 1);
+    let free = thinRay(_dfT.x, _dfT.z, dx, dz, L); for (let t = 0.2; t < free; t += 0.1) if (bulletBlocked(_dfT.x + dx * t, _dfT.z + dz * t)) { free = t; break; }
+    const r = Math.max(DEATH_IN.min, free - DEATH_IN.wall); _dfP.x = _dfT.x + dx * Math.min(L, r); _dfP.z = _dfT.z + dz * Math.min(L, r);
+  }
   c.position.lerpVectors(DFP.p, _dfP, k);
   // (an arc rather than a straight pull: it rises a little ahead of drawing back; still on your feet, a run abandoned,
   // it rises well clear of your head and your pack first, QUIT_RISE, and only then draws back over them)
   if (QUIT_CAM.on && !P.dead) { const kb = smooth(clamp((DFP.t / DEATH_FP.t - QUIT_RISE.wait) / (1 - QUIT_RISE.wait), 0, 1)), ku = smooth(clamp(DFP.t / (DEATH_FP.t * QUIT_RISE.up), 0, 1));
     c.position.set(DFP.p.x + (_dfP.x - DFP.p.x) * kb, DFP.p.y + (_dfP.y - DFP.p.y) * ku, DFP.p.z + (_dfP.z - DFP.p.z) * kb); }
   else c.position.y += Math.sin(Math.PI * k) * 0.35;
+  if (inside) c.position.y = Math.min(c.position.y, CEIL.y - DEATH_IN.ceil);
   PM.head.visible = c.position.distanceTo(DFP.p) > 0.3;   // (your head, once the view's out of it)
   _dfM.lookAt(c.position, _dfT, _dfV.set(0, 1, 0)); _dfQ.setFromRotationMatrix(_dfM);
   c.quaternion.copy(DFP.q).slerp(_dfQ, smooth(clamp(DFP.t / (DEATH_FP.t * 0.6), 0, 1)));

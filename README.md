@@ -231,7 +231,8 @@ edge of anything standing in front of it stays clean.
 nearly four metres across and lasts fourteen seconds: a bubbling green pool, bubbles swelling all over it and popping
 in bright rings under an oily swirl, glowing on its own at night; standing in it burns for 2 every half second, rising
 to 6 after four seconds in it, and drags at your feet), and brutes that
-charge through fences and plough through the crowd. Their hits are gentle on the first nights: on wave 1 a zombie hits
+charge through fences and plough through the crowd: from 4 to 11 m off with a clear line to you, a brute crouches and
+charges more often than not within a second or two (and again 6 to 10 s after), a red lane on the ground showing where. Their hits are gentle on the first nights: on wave 1 a zombie hits
 for 55% of its full damage (a walker for about 16 out of your 100 health, not 29), rising evenly to full by wave 8,
 and from there each wave hits 3% harder as before. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
@@ -274,7 +275,9 @@ along it and shoot through it (zombies outside show through it too). A grate tha
 clear of the wall, into the room or outside depending on which way it's pulled, never down into the wall itself, and
 every piece of it (and every board and flake) comes to rest lying on the floor at its own thickness rather than sunk
 into it. Vault through
-windows and hop fences to escape, and shove zombies off you when they get close. A shove with a gun is a short wind-up and a blow with the gun itself, gathering speed into the blow rather than snapping out, and easing back to the aim.
+windows and hop fences to escape (only with the fence right in front of you, within about a metre of it and where
+there's fence to go over, not past the end of a run or beside a gap; and a window only from within about 65 cm of its
+middle along the wall), and shove zombies off you when they get close. A shove with a gun is a short wind-up and a blow with the gun itself, gathering speed into the blow rather than snapping out, and easing back to the aim.
 
 **Stations.**
 
@@ -573,7 +576,7 @@ and a station or a menu lets go of it for you, closing it taking the mouse back.
 from above it widens your view cone and the circle you see round you, and out of your own eyes (where you already see
 all round as far as the screen goes) it opens the view itself 10% wider (14% with Eyes in the back of your head, not
 down the sights), and anything close by off the edges of the screen (within 4 m, then 6 m) shows as a soft pale arc
-round the middle of the screen on its side, stronger the closer it is. The cards say which you get. Going down, the view is drawn back out of your eyes over your body (abandoning a run from the pause menu does the same: the view rises out of your head and draws back over you, rather than cutting to the view from above); in co-op you then watch a teammate through their own eyes (see Co-op).
+round the middle of the screen on its side, stronger the closer it is. The cards say which you get. Going down, the view is drawn back out of your eyes over your body (abandoning a run from the pause menu does the same: the view rises out of your head and draws back over you, rather than cutting to the view from above; indoors it stays under the ceiling and short of the walls); in co-op you then watch a teammate through their own eyes (see Co-op).
 At the hip the gun sits out in front of you, a little right of the middle (a short gun further out, so it's never
 tucked under your chin; the LMG carried a little further right and lower on its sling, its belt and box down out of
 the middle of the view but not so far it lies slanted across it), and each shot turns it in your hands as well as kicking the view; through a scope the
