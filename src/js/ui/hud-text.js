@@ -83,6 +83,8 @@ export function eliteCall(o) {
   el.style.setProperty('--ec', o.col); el.style.setProperty('--ecT', t + 's');
   $('ecIc').innerHTML = GI[o.icon] || GI.zombie; $('ecEye').textContent = o.eye || ''; $('ecName').textContent = o.name || '';
   $('ecLine').textContent = o.line || ''; $('ecTip').textContent = o.tip || '';
+  // (a wave's elites: a row for each kind, its icon in its colour, how many and what it does)
+  $('ecList').innerHTML = (o.list || []).map(r => `<span class="ecRow" style="--rc:${r.col}"><svg viewBox="${GI_VB}">${GI[r.icon] || ''}</svg><b>${r.n}×</b><span><u>${r.name}</u> ${r.does}</span></span>`).join('');
   el.className = 'hud'; replay(el, ...(o.down ? ['show', 'down'] : ['show']));
   ecT1 = setTimeout(() => { el.className = 'hud out' + (o.down ? ' down' : ''); ecT2 = setTimeout(() => { el.className = 'hud'; }, 450); }, t * 1000);
 }

@@ -11,7 +11,6 @@
 
 import { rand, rr } from '../core/math.js';
 import { basic } from '../core/shaders.js';
-import { run } from '../game/run-state.js';
 import { eliteCall } from '../ui/hud-text.js';
 import { GLOW_LAYER } from '../effects/post.js';
 import { SFX } from '../audio/sfx.js';
@@ -47,8 +46,6 @@ export const ELITE_KIND = {
   volatile: { name: 'Volatile', w: 0.8, from: 5, types: ELITE_TYPES, hp: 3, scale: 1.06, speed: 0.95, dmg: 1.3, atk: 1, col: 0x4dff5a, scrap: 10, more: 0.85,
     icon: 'gooBurst', does: 'Bursts into a cloud of red mist when it dies: it hurts and dazes you up close, and staggers the zombies round it', stats: '2.6 m burst · ×3 health · 40% damage reduction', down: 'Popped' }
 };
-// (called out no more than once in ELITE_CALL seconds: a blood moon's are many)
-const ELITE_CALL = 8;
 // the burst (VOLATILE: how far it reaches the zombies round it, how long it staggers one at its middle (s, and at its
 // edge s0) and how hard it throws them (kb, a brute only stag of it); you within you.r of it: how much it hurts at its
 // middle and how long it leaves you reeling (daze: the screen swimming, your aim going wide, slowed); and its cloud:
@@ -56,15 +53,23 @@ const ELITE_CALL = 8;
 const VOLATILE = { r: 3.2, s: 1.6, s0: 0.5, kb: 6, brute: 0.35, you: { r: 2.6, dmg: 35, daze: 1, slow: 0.45 },
   mist: { n: 16, r: 1.4, s0: [0.6, 1.1], s1: [2.4, 3.6], life: [2.6, 4.2], a: 0.6, col: [0x8e1010, 0x6a0808, 0xa82018] } };
 
-// the roll for a zombie coming in (inside its spawn: its seeded rand), and the kind if it comes up
-export function rollElite(type) {
-  const bm = run.twist === 'bloodmoon', p = (ELITE.p + ELITE.per * (run.wave - ELITE.from)) * (bm ? BLOOD_ELITE.k : 1);
-  if (run.wave < ELITE.from || rand() > Math.min(bm ? BLOOD_ELITE.max : ELITE.max, p)) return null;
-  const ok = Object.keys(ELITE_KIND).filter(k => ELITE_KIND[k].types.includes(type) && run.wave >= (ELITE_KIND[k].from || 0));
+// the roll for a zombie coming in on wave n (tw: its twist), and the kind if it comes up
+function rollElite(type, n, tw) {
+  const bm = tw === 'bloodmoon', p = (ELITE.p + ELITE.per * (n - ELITE.from)) * (bm ? BLOOD_ELITE.k : 1);
+  if (n < ELITE.from || rand() > Math.min(bm ? BLOOD_ELITE.max : ELITE.max, p)) return null;
+  const ok = Object.keys(ELITE_KIND).filter(k => ELITE_KIND[k].types.includes(type) && n >= (ELITE_KIND[k].from || 0));
   if (!ok.length) return null;
   let t = rand() * ok.reduce((a, k) => a + ELITE_KIND[k].w, 0);
   for (const k of ok) { t -= ELITE_KIND[k].w; if (t <= 0) return k; }
   return ok[ok.length - 1];
+}
+// a wave's elites settled as it starts (waves/waves.js: startWave, the host's): each zombie queued for it rolled, and an
+// elite marked on its entry ('walker:hulk'), so the wave knows from the start how many it's bringing, and every screen
+// spawns the same ones (net/sync.js: netSpawn sends the entry as it is). How many of each kind, for the call (eliteWave)
+export function planElites(q, n, tw) {
+  const c = {};
+  for (let i = 0; i < q.length; i++) { if (typeof q[i] !== 'string' || q[i].indexOf(':') > 0) continue; const k = rollElite(q[i], n, tw); if (k) { q[i] += ':' + k; c[k] = (c[k] || 0) + 1; } }
+  return c;
 }
 // its look, before its eyes are made (they take m.eyeCol): the colour, and a volatile's swollen, sore body
 export function eliteLook(m, kind) {
@@ -80,23 +85,32 @@ export function eliteLook(m, kind) {
   }
 }
 const hex = c => '#' + c.toString(16).padStart(6, '0');
-// a zombie made one (zombies/spawn.js): what it does differently, and the call that one's coming, saying what it does.
-// (No rolls in here: the call can be skipped on one screen and not another, and a roll there would leave the rest of a
-// co-op spawn's seeded rolls out of step)
+// a zombie made one (zombies/spawn.js): what it does differently, and its roar as it comes in. (No rolls in here: a
+// co-op spawn's seeded rolls have to stay in step on every screen)
 export function makeElite(z, kind) {
   const K = ELITE_KIND[kind];
   z.elite = { kind };
   z.speed *= K.speed; z.T.dmg *= K.dmg; z.T.bdps *= K.dmg; z.atkK = K.atk;
   soundAt(z.x, z.z, () => SFX.groan(1.1, z.voice * 0.8, z.type), true);
-  if (run.time - (run.eliteCall ?? -1e9) < ELITE_CALL) return; run.eliteCall = run.time;
-  SFX.eliteIn(kind);
-  eliteCall({ col: hex(K.col), icon: K.icon, eye: 'Elite incoming', name: K.name, line: K.does, tip: K.stats });
 }
-// one put down (zombies/damage.js): its card, in gold, with what it paid
-export function eliteDown(z, paid) {
+// the call as a wave with elites in it starts (waves/waves.js: waveBegins, on every screen): how many are coming, and a
+// row for each kind, how many of it and what it does, once the wave's own call (2.8 s, ui/hud-text.js: announce) has gone (ELITE_CALL_AT, s) so the two don't
+// land on each other
+const ELITE_CALL_AT = 3.4, TYPE_NAME = { walker: 'walker', runner: 'sprinter', brute: 'brute' };
+export function eliteWave(c) {
+  const ks = Object.keys(ELITE_KIND).filter(k => c && c[k] > 0); if (!ks.length) return;
+  const n = ks.reduce((a, k) => a + c[k], 0), K0 = ELITE_KIND[ks[0]];
+  setTimeout(() => {
+    SFX.eliteIn(ks[0]);
+    eliteCall({ col: hex(K0.col), icon: ks.length === 1 ? K0.icon : 'enrage', eye: 'Elites this wave', name: n === 1 ? '1 elite incoming' : n + ' elites incoming', t: 4.4,
+      list: ks.map(k => ({ col: hex(ELITE_KIND[k].col), icon: ELITE_KIND[k].icon, n: c[k], name: ELITE_KIND[k].name, does: ELITE_KIND[k].does })) });
+  }, ELITE_CALL_AT * 1000);
+}
+// one put down (zombies/damage.js), on every screen: its card, in gold (what it paid you goes in the pickups on the left)
+export function eliteDown(z) {
   const K = ELITE_KIND[z.elite.kind];
   SFX.eliteDown();
-  eliteCall({ col: hex(K.col), icon: 'deathSkull', eye: K.name + ' · down', name: K.down, line: '+' + paid + ' scrap · and its drop', down: true, t: 2.4 });
+  eliteCall({ col: hex(K.col), icon: 'deathSkull', eye: 'Elite down', name: K.down, line: K.name + ' ' + (TYPE_NAME[z.type] || z.type), down: true, t: 2.4 });
 }
 // a volatile one down: it bursts a beat after it falls (not inside the kill, so a chain of them goes off one after another
 // rather than all inside the first) into a cloud of red mist that hangs and drifts, blood thrown everywhere, everything

@@ -507,7 +507,7 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   // what it'll sound like going down (killEnd), mine or a teammate's
   z.killKind = wId === 'fire' ? 'burn' : wId === 'bleed' ? 'bleed' : wId === 'boom' ? 'blast' : part === 'head' ? 'head' : D0.melee ? 'melee' : 'body';
   killBegin(z, dx, dz, NREP ? 0 : killShake(D0, wId, part, overkill));
-  if (NREP) { teamAssist(z); return; }   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js); yours an assist if you'd hurt it (net/teamwork.js)
+  if (NREP) { teamAssist(z); if (z.elite) { eliteShare(z); eliteDown(z); } return; }   // (an elite's card and your share of it on every screen)   // a teammate's kill: what it took off and how it fell come next in their message (net/sync.js); yours an assist if you'd hurt it (net/teamwork.js)
   run.kills++; popEl('kills'); runKill(z, wId, part);
   killFeel(z, D0, wId, part);
   const D = W(wId) || EFF[wId] || {};
@@ -567,10 +567,10 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
   }
   // an elite pays out (zombies/elites.js): its scrap, an ammo box for sure, and maybe something more
   if (z.elite) {
-    const K = ELITE_KIND[z.elite.kind]; killScrap(z, K.scrap); ammoDrop(z.x, z.z, 1);
+    const K = ELITE_KIND[z.elite.kind]; eliteShare(z); ammoDrop(z.x, z.z, 1);
     if (rand() < K.more) dropPickup(z.x + rr(-0.4, 0.4), z.z + rr(-0.4, 0.4), rand() < 0.6 ? 'med' : 'planks', 1);
     hitStop(ELITE_DOWN.stop); setCamPunch(Math.max(camPunch, ELITE_DOWN.punch));   // (a beat on it, and its card: zombies/elites.js)
-    runStat('elites'); eliteDown(z, waveScrap(K.scrap));
+    runStat('elites'); eliteDown(z);
   }
 }
 // an ammo box for your guns: most often for the one in your hands
@@ -578,11 +578,20 @@ export function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmm
 // a kill's scrap, into yours there and then (only ever the killer's: a teammate's kill is played back without it,
 // net/sync.js), shown rising off the body (the whole amount, marked (x2) and a brighter gold when Hoarder doubled it)
 // and rolled into the counter
-function killScrap(z, n, hoard) {
+function killScrap(z, n, hoard, quiet) {
   n = waveScrap(n);   // (more each wave: game/run-state.js)
   if (S.scrapCut || S.scrapX) n = Math.max(1, Math.round(n * (1 - (S.scrapCut || 0)) * (S.scrapX || 1)));   // (Empty pockets halves it, Bad blood doubles it: upgrades/sacrifice.js)
   S.scrap += n; feed('scrap', n, 'scrap'); popEl('scrap'); SFX.scrap();
-  floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
+  if (!quiet) floatText(z.x, z.z, '+' + n + ' scrap' + (hoard ? ' (x2)' : ''), hoard ? '#ffd76a' : '#d4b25c', 'scrap');
+}
+// an elite's scrap, to everyone who hurt it, by how much of it they did (z.myDmg against its health): half of it or more
+// and it's the whole of it (ELITE_SHARE), less and that much of it as a share of the half (a quarter of the damage, half
+// the scrap), in whole scrap, nothing if it rounds to none. It goes in the pickups on the left, not over the body
+const ELITE_SHARE = 0.5;
+function eliteShare(z) {
+  const K = ELITE_KIND[z.elite.kind], f = clamp((z.myDmg || 0) / (z.maxHp || 1), 0, 1);
+  const n = f >= ELITE_SHARE ? K.scrap : Math.round(K.scrap * f / ELITE_SHARE);
+  if (n > 0) killScrap(z, n, false, true);
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list

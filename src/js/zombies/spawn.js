@@ -22,7 +22,7 @@ import { SPIT, spitterGait, spitterLook } from './spitter.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { cheatAI } from '../ui/cheats.js';
 import { fpOn } from '../game/view-cam.js';
-import { ELITE_BRUTE, ELITE_KIND, eliteLook, makeElite, rollElite } from './elites.js';
+import { ELITE_BRUTE, ELITE_KIND, eliteLook, makeElite } from './elites.js';
 
 // zombies come out of the fog: each starts 6.5 to 9 m out past the edge of the farm, on the cleared trail in front of
 // one of the gaps in the trees, and walks in along it (z.out, zombies/ai.js). Out there it only shows as it comes clear
@@ -36,6 +36,8 @@ const FOG_IN = 7;
 export const FP_OUT = { far: [38, 44], deep: 18, near: 9, fast: 4, mid: 1.6 };
 export const fogSee = (x, z) => 1 - smooth(clamp((Math.max(Math.abs(x), Math.abs(z)) - HALF) / FOG_IN, 0, 1));
 export function spawnZombie(type, job) {
+  // (an elite comes marked on its entry in the wave's queue, 'walker:hulk': planned with the wave, planElites, zombies/elites.js)
+  let ek = null; if (type.indexOf(':') > 0) [type, ek] = type.split(':');
   const T_ = ZT[type], [gi, gj] = GAPS[(rand() * GAPS.length) | 0];
   const ox = gi === 0 ? -1 : gi === N - 1 ? 1 : 0, oz = gj === 0 ? -1 : gj === N - 1 ? 1 : 0, far = fpOn() ? rr(FP_OUT.far[0], FP_OUT.far[1]) : rr(6.5, 9), lat = rr(-0.6, 0.6);
   const gx = cxw(gi) + rr(-.3, .3), gz = cxw(gj) + rr(-.3, .3);
@@ -46,7 +48,7 @@ export function spawnZombie(type, job) {
   dressZombie(m, type, job);   // its body and what it was wearing when it turned (zombies/zombie-looks.js)
   if (type === 'spitter') spitterLook(m);   // its sac and glowing mouth (zombies/spitter.js)
   // now and then one's something more: its colour and body (zombies/elites.js), before its eyes are made in that colour
-  const ek = rollElite(type), EK = ek && ELITE_KIND[ek]; if (ek) eliteLook(m, ek);
+  const EK = ek && ELITE_KIND[ek]; if (ek) eliteLook(m, ek);
   const sc = T_.scale * rr(0.94, 1.06) * (EK ? EK.scale : 1);
   m.g.scale.setScalar(sc);
   // the pupils glow, deep in their sockets; effects/eye-glow.js gives them a halo and a light trail

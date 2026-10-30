@@ -111,12 +111,15 @@ the other one, that eye squinting along the gun and your head tipped over the st
        going wide, slowed); the zombies within 3.2 m aren't hurt, only thrown back and staggered (up to 1.6 s at its
        middle, a brute barely moved). A volatile brute's burst is a third bigger.
 
-     A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. As one comes in
-     its own card slams in from the left (no more than one every 8 seconds): a slanted slab in its colour, its icon in a
-     soft glow, its name, what it does and its numbers, a light sweeping across it and a sting under it; one put down
-     gets a card of its own with the skull and what it paid, and a moment's hit-stop. Each pays out double what it used
-     to: scrap (9 to 12, more each wave), an ammo box for sure, and most often bandages or planks too. In co-op an elite
-     is the same one on every screen.
+     A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. A wave's elites
+     are settled as it starts, so a moment after the wave's own call (3.4 s in) one card says how many it's bringing,
+     with a row for each kind: its icon in its colour, how many and what it does. The cards are in the game's own
+     notification style: a dark panel with the elite's colour down its edge, its icon in a tinted tile, a soft sweep of
+     light as it slides in and a thin bar running out under it. One put down gets a card of its own on every player's
+     screen (the skull, its line and what it was) and a moment's hit-stop. Each pays scrap (9 to 12, more each wave), in
+     the pickups on the left: the whole of it to anyone who did half its damage or more, and to anyone who did less, that
+     much of it as a share of the half (a quarter of the damage, half the scrap), in whole scrap. Whoever killed it also
+     gets an ammo box for sure, and most often bandages or planks too. In co-op an elite is the same one on every screen.
    - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper drops a crate
      outside the fence. Its card comes in (in the supply orange), and the drop marker counts down the 15 seconds till it
      lands with how far off it is; while it's inbound, more of them come in (4, and one more every 3 waves, a couple of

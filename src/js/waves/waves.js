@@ -23,6 +23,7 @@ import { announce, setH } from '../ui/hud-text.js';
 import { SPIT } from '../zombies/spitter.js';
 import { cheatIs } from '../ui/cheats.js';
 import { strayRoll } from '../stations/supply-drop.js';
+import { eliteWave, planElites } from '../zombies/elites.js';
 import {
   breakSub, clientWaves, netAllDown, netCleared, netSpawn, netTeam, netWaiting, respawnCheck, skipNeed, skipVotes,
   spawnTurned
@@ -109,9 +110,9 @@ function rollTwist(n, fog) {
 const WAVE_LINES = [n => n + ' closing in', n => n + ' on the way', n => n + ' coming out of the trees', n => 'They\'ve got your scent · ' + n + ' coming', n => n + ' shambling in', n => 'Hold the house · ' + n + ' incoming'];
 function startWave() {
   const fog = mistRoll(run.wave + 1), tw = rollTwist(run.wave + 1, fog);   // (now and then a fog round: world/mist.js; or a twist: TWISTS)
-  setSpawnQ(buildWave(run.wave + 1, tw));
-  waveBegins(run.wave + 1, spawnQ.length, fog, tw);
-  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0, tw, np: run.noPerks ? 1 : 0 });   // (co-op: everyone's wave starts with the host's, net/sync.js)
+  setSpawnQ(buildWave(run.wave + 1, tw)); const el = planElites(spawnQ, run.wave + 1, tw);   // (its elites settled now: zombies/elites.js)
+  waveBegins(run.wave + 1, spawnQ.length, fog, tw, undefined, el);
+  netSend('wave', { n: run.wave, tot: run.waveTotal, fog: fog ? 1 : 0, tw, np: run.noPerks ? 1 : 0, el });   // (co-op: everyone's wave starts with the host's, net/sync.js)
   spawnTurned();   // (and whoever went down last wave comes back out of the fog as one of them)
   surge.S = Object.assign({}, SURGE, SURGE_KIND[tw ? TWISTS[tw].surge : pickRhythm()]); surge.lull = 0; nextSurge();
 }
@@ -125,13 +126,14 @@ export function clearedDone() {
   beginBreak(BREAK_AFTER); sweepDrops(); return false;
 }
 // a wave begins: on its own, or on a co-op joiner's screen when the host's does
-export function waveBegins(n, total, fog, tw, np) {
+export function waveBegins(n, total, fog, tw, np, el) {
   if (np !== undefined) run.noPerks = !!np;   // (a co-op joiner: the host's mode)
   run.wave = n; setPhase('wave'); skipVotes.clear(); mistSet(fog);   // (the vote to start it early, net/sync.js)
   const T = TWISTS[tw]; run.twist = T ? tw : null; run.waveHp = T ? T.hp : 1; if (T) { run.twistLast = n; run.twistKind = tw; }
   setSpawnT(1.2); S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
   strayRoll(n);   // (and now and then a crate dropped mid-wave: stations/supply-drop.js)
+  eliteWave(el);   // (how many elites it's bringing: zombies/elites.js)
   const firsts = { 3: 'Sprinters are coming', [BRUTE_FROM]: 'Something big is coming' };
   firsts[SPIT.from] = (firsts[SPIT.from] ? firsts[SPIT.from] + ' · and spitters' : 'Spitters are coming') + ', keep moving';   // (zombies/spitter.js)
   run.waveTotal = total;

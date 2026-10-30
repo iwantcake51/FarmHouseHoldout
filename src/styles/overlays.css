@@ -231,37 +231,37 @@ body.intro #xh{animation:introFade .6s 1.6s ease-out both}
 @keyframes stkDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
 @media (prefers-reduced-motion:reduce){#streak.pop b,#streak .pips i:last-of-type{animation:none}#streak.pop u{animation-timing-function:steps(4)}}
-/* an elite's call (ui/hud-text.js: eliteCall): a slanted slab in its colour (--ec) slammed in from the left, its icon in a
-   glow popping in, its name big, a light sweeping across it, a thin bar running out under it; it slides off
-   to the right. .down: one put down, in its colour still, with the skull and its pay */
-#eliteCall{--ec:#e2412c;left:50%;top:calc(20% + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;opacity:0;visibility:hidden;text-shadow:none}
-#eliteCall.show{visibility:visible;animation:ecIn .62s cubic-bezier(.16,1.2,.3,1) both}
-#eliteCall.out{visibility:visible;animation:ecOut .42s cubic-bezier(.6,0,.8,.3) both}
-#eliteCall .ecSlab{position:relative;display:flex;align-items:center;gap:16px;padding:10px 30px 12px 14px;min-width:320px;overflow:hidden;transform:skewX(-12deg);
-  background:linear-gradient(100deg,color-mix(in srgb,var(--ec) 34%,#0c0c0d) 0%,rgba(12,12,13,.95) 38%,rgba(12,12,13,.9) 100%);
-  border:1px solid color-mix(in srgb,var(--ec) 55%,transparent);border-left:6px solid var(--ec);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6),0 14px 34px -12px rgba(0,0,0,.95),0 0 36px -8px color-mix(in srgb,var(--ec) 70%,transparent)}
-#eliteCall .ecSlab>*{transform:skewX(12deg)}
-/* the sweep of light across it as it lands, and the bar running out under it */
-#eliteCall .ecSlab::before{content:'';position:absolute;inset:-20% auto -20% -40%;width:34%;transform:skewX(-18deg) translateX(-120%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ec) 45%,#fff) 50%,transparent);opacity:.55;mix-blend-mode:screen}
-#eliteCall.show .ecSlab::before{animation:ecSweep .7s .18s ease-out both}
-#eliteCall .ecSlab::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ec);transform-origin:left;transform:scaleX(0)}
+/* an elite's call (ui/hud-text.js: eliteCall): in the game's own card style, as a notification is (#toast): a dark panel
+   with a hairline border and the elite's colour down its left edge, its icon in a tile tinted with it, the eyebrow in
+   that colour over the headline, what it does under it (or a row for each kind a wave's bringing), and a thin bar
+   running out along its foot. It slides in and settles, a soft sweep of light across it as it lands */
+#eliteCall{--ec:#e2412c;left:50%;top:calc(19% + env(safe-area-inset-top,0px));transform:translateX(-50%);pointer-events:none;opacity:0;visibility:hidden;text-shadow:none}
+#eliteCall.show{visibility:visible;animation:ecIn .42s cubic-bezier(.2,.9,.3,1.12) both}
+#eliteCall.out{visibility:visible;animation:ecOut .32s ease-in both}
+#eliteCall .ecSlab{position:relative;display:flex;align-items:flex-start;gap:12px;padding:9px 18px 11px 9px;min-width:300px;max-width:min(560px,92vw);overflow:hidden;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--ec) 12%,rgba(14,15,16,.95)),rgba(14,15,16,.9) 45%);border:1px solid rgba(236,230,216,.12);border-left:3px solid var(--ec);box-shadow:0 10px 28px -12px rgba(0,0,0,.9)}
+#eliteCall .ecSlab::before{content:'';position:absolute;inset:0 auto 0 -30%;width:30%;transform:translateX(-100%) skewX(-16deg);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--ec) 30%,#fff) 50%,transparent);opacity:.18}
+#eliteCall.show .ecSlab::before{animation:ecSweep .8s .12s ease-out both}
+#eliteCall .ecSlab::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ec);opacity:.8;transform-origin:left;transform:scaleX(0)}
 #eliteCall.show .ecSlab::after{animation:ecBar var(--ecT,3.4s) linear both}
-#eliteCall .ecIc{position:relative;display:grid;place-items:center;width:52px;height:52px;flex:none}
-#eliteCall .ecIc::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--ec) 62%,transparent) 0%,color-mix(in srgb,var(--ec) 30%,transparent) 45%,color-mix(in srgb,var(--ec) 10%,transparent) 72%,transparent 100%)}   /* (a glow that fades out to nothing at its edges, no hard tile) */
-#eliteCall .ecIc svg{position:relative;width:30px;height:30px;fill:#fff;filter:drop-shadow(0 0 6px var(--ec))}
-#eliteCall.show .ecIc{animation:ecIcon .55s .08s cubic-bezier(.2,1.6,.4,1) both}
-#eliteCall .ecTx{display:grid;gap:1px}
-#eliteCall small{font-family:var(--f-num);font-weight:800;font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--ec)}
-#eliteCall b{font-family:var(--f-num);font-weight:800;font-size:34px;line-height:.95;letter-spacing:.06em;text-transform:uppercase;color:#fff;text-shadow:0 0 14px color-mix(in srgb,var(--ec) 80%,transparent),0 2px 0 rgba(0,0,0,.6)}
-#eliteCall.show b{animation:ecName .5s .12s cubic-bezier(.2,1.2,.3,1) both}
-#eliteCall em{font-style:normal;font-size:13px;letter-spacing:.02em;color:var(--ink);margin-top:2px}
+#eliteCall .ecIc{display:grid;place-items:center;width:40px;height:40px;flex:none;background:color-mix(in srgb,var(--ec) 18%,transparent);border:1px solid var(--ec)}
+#eliteCall .ecIc svg{width:24px;height:24px;fill:var(--ec)}
+#eliteCall.show .ecIc{animation:ecIcon .4s .06s cubic-bezier(.2,1.4,.4,1) both}
+#eliteCall .ecTx{display:grid;gap:2px;min-width:0}
+#eliteCall small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ec)}
+#eliteCall b{font-family:var(--f-num);font-weight:700;font-size:22px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+#eliteCall em{font-style:normal;font-size:12.5px;letter-spacing:.01em;color:var(--dim);white-space:normal}
 #eliteCall #ecTip{font-style:normal;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
-#eliteCall.down b{font-size:26px}
-@keyframes ecIn{0%{opacity:0;transform:translateX(calc(-50% - 120px)) scaleX(1.25)}55%{opacity:1;transform:translateX(calc(-50% + 10px)) scaleX(.97)}75%{transform:translateX(calc(-50% - 4px))}100%{opacity:1;transform:translateX(-50%)}}
-@keyframes ecOut{0%{opacity:1;transform:translateX(-50%)}100%{opacity:0;transform:translateX(calc(-50% + 90px))}}
-@keyframes ecSweep{0%{transform:skewX(-18deg) translateX(-120%)}100%{transform:skewX(-18deg) translateX(520%)}}
+#eliteCall #ecList{display:grid;gap:5px;margin-top:5px}
+#eliteCall #ecList:empty{display:none}
+#eliteCall .ecRow{display:flex;align-items:center;gap:7px;font-size:12px;line-height:1.25;color:var(--dim);white-space:normal}
+#eliteCall .ecRow svg{width:16px;height:16px;flex:none;fill:var(--rc)}
+#eliteCall .ecRow b{font-size:14px;color:var(--rc);min-width:22px}
+#eliteCall .ecRow u{text-decoration:none;font-weight:700;color:var(--ink)}
+#eliteCall.down b{font-size:20px}
+@keyframes ecIn{0%{opacity:0;transform:translate(-50%,-10px)}100%{opacity:1;transform:translate(-50%,0)}}
+@keyframes ecOut{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-8px)}}
+@keyframes ecSweep{0%{transform:translateX(-100%) skewX(-16deg)}100%{transform:translateX(560%) skewX(-16deg)}}
 @keyframes ecBar{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
-@keyframes ecIcon{0%{transform:scale(2.2) rotate(-20deg);opacity:0}60%{opacity:1}100%{transform:none}}
-@keyframes ecName{0%{letter-spacing:.5em;opacity:0;filter:blur(4px)}100%{letter-spacing:.06em;opacity:1;filter:none}}
+@keyframes ecIcon{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){#eliteCall.show,#eliteCall.out,#eliteCall.show *,#eliteCall.show .ecSlab::before,#eliteCall.show .ecSlab::after{animation-duration:.01s!important;animation-delay:0s!important}}
