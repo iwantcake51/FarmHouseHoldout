@@ -164,35 +164,22 @@ void main() {
 const copyMat = psMat(`
 uniform sampler2D tSrc; varying vec2 vUv;
 void main() { gl_FragColor = vec4(texture2D(tSrc, vUv).rgb, 1.0); }`, { tSrc: { value: null } });
-// a fog round's fog (world/mist.js), marched at half the resolution into its own target (PS_RT.mist): what it lays
-// over each pixel, its colour with the light of a beam in the air under it (rgb: premultiplied, so the composite's
-// just c * (1 - a) + rgb) and how much it hides (a). It's soft enough not to need every pixel's own march, and a
-// quarter of the pixels is a quarter of its cost, its dearest part by far. Each of its pixels is marched to the scene's
-// depth at one point of the four it covers (mistD, read a quarter of a pixel off their shared corner, so it's always
-// the same one), and the composite brings it up to full size reading the four nearest by how near their depth is to
-// its own pixel's (MIST_UP), so a zombie in the clear in front of thick fog keeps a clean edge instead of a fringe of
-// the fog behind it
-const MIST_UP = { near: 0.05, abs: 0.12 };
+// a fog round's fog (world/mist.js), marched at a third of the resolution (MIST_RES) into its own target (PS_RT.mist):
+// what it lays over each pixel, its colour with the light of a beam in the air under it (rgb: premultiplied, so the
+// composite's just c * (1 - a) + rgb) and how much it hides (a). It's soft enough not to need every pixel's own march,
+// and a ninth of the pixels is a ninth of its cost, its dearest part by far. Each of its pixels is marched to the
+// scene's depth at one point of the ones it covers (mistD: the middle one, or with an even block, a quarter of a pixel
+// off the shared corner of the middle four, uMistOff, so it's always the same one), and the composite brings it up to
+// full size reading the four nearest by how near their depth is to its own pixel's (MIST_UP), so a zombie in the clear
+// in front of thick fog keeps a clean edge instead of a fringe of the fog behind it
+const MIST_UP = { near: 0.05, abs: 0.12 }, MIST_RES = 3;
 const MIST_D = `
-uniform vec2 uFullPx;
-float mistD(vec2 uv) { return viewD(uv - uFullPx * 0.25); }`;
-const mistMat = psMat(`
-${PS_DEPTH}
-${MIST_D}
-varying vec2 vUv;
-${MIST_GLSL}
-void main() {
-  vec4 m = mistOf(vUv, mistD(vUv));
-  gl_FragColor = vec4(m.rgb * m.a + mGlow * (1.0 - m.a), m.a);
-}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uFullPx: { value: new THREE.Vector2() } });
-// all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
-// its texels), the fog over it, and the glow added over that
-const compMat = psMat(`
-${PS_DEPTH}
-${MIST_D}
-uniform sampler2D tCol, tAO, tB1, tB2, tMist; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn; uniform vec2 uMistPx;
-varying vec2 vUv;
-// the fog's half-size picture at uv, whose scene is d out: its four nearest pixels, each by how near it is and how
+uniform vec2 uFullPx; uniform float uMistOff;
+float mistD(vec2 uv) { return viewD(uv - uFullPx * uMistOff); }`;
+// (the fog's picture brought up to full size, by depth: the composite's, and a scope's, mistOver)
+const MIST_UPS = `
+uniform sampler2D tMist; uniform vec2 uMistPx;
+// the fog's small picture at uv, whose scene is d out: its four nearest pixels, each by how near it is and how
 // near its depth is to d (and if none of them is anywhere near, the nearest in depth)
 vec4 mistUp(vec2 uv, float d) {
   vec2 p = uv / uMistPx - 0.5, f = fract(p), b = (floor(p) + 0.5) * uMistPx;
@@ -204,7 +191,24 @@ vec4 mistUp(vec2 uv, float d) {
     s += m * w; ws += w; if (dd < bd) { bd = dd; best = m; }
   }
   return ws > 1e-3 ? s / ws : best;
-}
+}`;
+const mistMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+varying vec2 vUv;
+${MIST_GLSL}
+void main() {
+  vec4 m = mistOf(vUv, mistD(vUv));
+  gl_FragColor = vec4(m.rgb * m.a + mGlow * (1.0 - m.a), m.a);
+}`, { ...MIST_U, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 } });
+// all of it on the screen: the scene, darkened by its occlusion (brought up from half size smoothly, read between
+// its texels), the fog over it, and the glow added over that
+const compMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+${MIST_UPS}
+uniform sampler2D tCol, tAO, tB1, tB2; uniform float uAoK, uAoPow, uB1, uB2, uFogN, uFogF, uDbg, uMistOn;
+varying vec2 vUv;
 void main() {
   vec3 c = texture2D(tCol, vUv).rgb;
   if (uAoK > 0.0) {
@@ -219,7 +223,7 @@ void main() {
   c += texture2D(tB1, vUv).rgb * uB1 + texture2D(tB2, vUv).rgb * uB2;
   gl_FragColor = vec4(c, 1.0);
   gl_FragDepth = texture2D(tDepth, vUv).r;   // (the scene's depth, for what's drawn over the fog to be hidden behind it)
-}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
+}`, { tMist: { value: null }, uMistOn: { value: 0 }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() }, tCol: { value: null }, tAO: { value: null }, tB1: { value: null }, tB2: { value: null }, uAoK: { value: AO.k }, uAoPow: { value: AO.pow }, uB1: { value: 0 }, uB2: { value: 0 }, uFogN: { value: 40 }, uFogF: { value: 70 }, uDbg: { value: 0 } });
 // (the composite writes the scene's depth with its colour, whatever's there: depth tested, as only then is it written)
 Object.assign(compMat, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });
 const psQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMat); psQuad.frustumCulled = false;
@@ -246,13 +250,38 @@ export function postTargets() {
   PS_RT.ao = psTarget(...h2); PS_RT.ao2 = psTarget(...h2); PS_RT.hA = psTarget(...h2); PS_RT.hB = psTarget(...h2); PS_PREV.ok = false;
   PS_RT.b1 = psTarget(...h4); PS_RT.b1b = psTarget(...h4); PS_RT.b2 = psTarget(...h8); PS_RT.b2b = psTarget(...h8);
   // (the fog's in half floats where they can be drawn to: a lamp's glow in it goes past white)
-  PS_RT.mist = psTarget(...h2, R.extensions.has('EXT_color_buffer_float') ? { type: THREE.HalfFloatType } : null);
+  PS_RT.mist = psTarget(Math.ceil(W / MIST_RES), Math.ceil(H / MIST_RES), MIST_HF());
   PS_RT.gl = psTarget(...h2, { depthBuffer: true }); PS_RT.gl.depthTexture = new THREE.DepthTexture(...h2, THREE.UnsignedIntType); PS_RT.gl.depthTexture.minFilter = PS_RT.gl.depthTexture.magFilter = THREE.NearestFilter;
 }
 // the fog's shader built ahead with the farm's (game/loop.js: warmShaders), so the first fog round doesn't stall
 // building it as the fog rolls in
 export function postWarm() { psQuad.material = mistMat; R.compile(psScene, psCam); psQuad.material = copyMat; }
 function psPass(mat, target) { psQuad.material = mat; R.setRenderTarget(target); R.render(psScene, psCam); }
+// (the fog's in half floats where they can be drawn to: a lamp's glow in it goes past white)
+const MIST_HF = () => R.extensions.has('EXT_color_buffer_float') ? { type: THREE.HalfFloatType } : null;
+// a fog round's fog laid over a picture drawn from another camera (a scope's, effects/scope-view.js: its target, with
+// the depth it was drawn with), so what's down the scope is as hidden by it as it is round it: marched at half the
+// picture's size and brought up to it by depth as the frame's is
+const mistOverMat = psMat(`
+${PS_DEPTH}
+${MIST_D}
+${MIST_UPS}
+varying vec2 vUv;
+void main() { vec4 m = mistUp(vUv, viewD(vUv)); if (m.a < 0.002 && dot(m.rgb, vec3(1.0)) < 0.002) discard; gl_FragColor = m; }`, { tMist: { value: null }, uMistPx: { value: new THREE.Vector2() }, uFullPx: { value: new THREE.Vector2() }, uMistOff: { value: 0.25 }, tDepth: { value: null }, uNF: { value: new THREE.Vector3() } });
+Object.assign(mistOverMat, { transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor });
+let mistOverRT = null;
+export function mistOver(target, camera) {
+  if (!POST.ok || !(MIST.k > 0.001) || !target.depthTexture) return;
+  const w = Math.ceil(target.width / 2), h = Math.ceil(target.height / 2), prev = R.getRenderTarget(), ac = R.autoClear;
+  if (!mistOverRT || mistOverRT.width !== w || mistOverRT.height !== h) { if (mistOverRT) mistOverRT.dispose(); mistOverRT = psTarget(w, h, MIST_HF()); }
+  mistUniforms(camera); if (!(MIST_U.uMist.value.w > 0)) return;
+  const M = mistMat.uniforms, nf = [camera.near, camera.far, camera.isPerspectiveCamera ? 1 : 0];
+  M.tDepth.value = target.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / target.width, 1 / target.height); M.uMistOff.value = 0.25;
+  R.autoClear = true; psPass(mistMat, mistOverRT);
+  const O = mistOverMat.uniforms; O.tMist.value = mistOverRT.texture; O.uMistPx.value.set(1 / w, 1 / h); O.uFullPx.value.set(1 / target.width, 1 / target.height); O.tDepth.value = target.depthTexture; O.uNF.value.set(...nf);
+  R.autoClear = false; psPass(mistOverMat, target);
+  mistUniforms(); R.autoClear = ac; R.setRenderTarget(prev);
+}
 function psBlur(src, tmp, w, h) {
   const U = blurMat.uniforms;
   U.tSrc.value = src.texture; U.uDir.value.set(1 / w, 0); psPass(blurMat, tmp);
@@ -325,7 +354,7 @@ export function renderFrame() {
   const U = compMat.uniforms, mistOn = MIST_U.uMist.value.w > 0;
   U.uMistOn.value = mistOn ? 1 : 0; U.uFullPx.value.set(1 / W, 1 / H);
   if (mistOn) {
-    const M = mistMat.uniforms; M.tDepth.value = sc.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / W, 1 / H);
+    const M = mistMat.uniforms; M.tDepth.value = sc.depthTexture; M.uNF.value.set(...nf); M.uFullPx.value.set(1 / W, 1 / H); M.uMistOff.value = U.uMistOff.value = MIST_RES % 2 ? 0 : 0.25;
     psPass(mistMat, PS_RT.mist); U.tMist.value = PS_RT.mist.texture; U.uMistPx.value.set(1 / PS_RT.mist.width, 1 / PS_RT.mist.height);
   }
   U.tDepth.value = sc.depthTexture; U.uNF.value.set(...nf); U.tCol.value = sc.texture; U.tAO.value = PS_RT.hA.texture;

@@ -224,9 +224,11 @@ sun. It stays out of the house, parts round you in a ring that opens a little wi
 can't be seen, outlined or picked out by your crosshair until it's nearly on you. Lamps and the fire glow in it, and
 your flashlight's beam lights it up and cuts a clear path through it. Smoke, sparks and the like near you aren't
 buried under the fog beyond them: each shows as much as it would standing where it is (clear in the open ring round
-you, gone deep out in the fog), and a sight's reticle always shows through it. The fog is worked out at half the
-screen's resolution (a quarter of the pixels, its dearest part by far) and brought up to full size by depth, so the
-edge of anything standing in front of it stays clean.
+you, gone deep out in the fog), and a sight's reticle always shows through it. The fog is worked out at a third of the
+screen's resolution (a ninth of the pixels, its dearest part by far; from above, where a look crosses only its shallow
+layer, with fewer steps through it too) and brought up to full size by depth, so the edge of anything standing in front
+of it stays clean. Down a scope it's there just as it is round it, worked out for the scope's own view. A zombie only
+faintly there doesn't hide the fog behind it, so one all but lost in the fog never shows as a clear patch in its shape.
 
 **Zombies.** Shambling walkers, fast runners, spitters that lob acid at anyone who stands still (the splat it leaves is
 nearly four metres across and lasts fourteen seconds: a bubbling green pool, bubbles swelling all over it and popping

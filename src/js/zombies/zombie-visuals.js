@@ -89,6 +89,10 @@ function markReach() {
 // rest keep just the soft blob under them) and the see-through outline for the nearest ZLOD.xray. One already in the
 // set keeps its place until another is ZLOD.keep metres nearer, so nothing flickers between two at the same distance
 const ZLOD = { shadow: 8, xray: 8, keep: 1.5 }, _lod = [];
+// one only faintly there (fading in, or all but hidden in a fog round's fog) doesn't hide what's behind it in the depth: the
+// fog's marched to the depth (effects/post.js), so it would stop at its outline, and the clear ground behind it would
+// show through in its shape
+const ZVIS_DEPTH = 0.4;
 function zombieLOD() {
   const f = camFocus(); _lod.length = 0;
   for (const z of zombies) if (z.vis > 0.02 || z.redOl) { z.lodD = Math.hypot(z.x - f.x, z.z - f.z) - (z.shOn ? ZLOD.keep : 0); _lod.push(z); } else z.lodR = 1e9;
@@ -159,7 +163,7 @@ export function updateZombieVisuals(dt, rdt) {
     // one you can't see draws nothing (no colour, its shadow dithered away, its rims faded), so it's left out of the
     // frame altogether rather than drawn invisibly: some sixty draws a zombie saved for every one out of sight
     z.m.g.visible = z.vis > 0.02 || !!z.redOl;
-    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > 0.05; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) { z.blob.material.opacity = 0.36 * z.vis; z.blob.visible = z.vis > 0.01; } if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
+    if (z.lastVis === undefined || Math.abs(z.lastVis - z.vis) > 0.008) { z.lastVis = z.vis; const shown = z.vis > 0.02 || !!z.redOl; (z.fade || Object.values(z.m.mats)).forEach(mt => { mt.opacity = z.vis; mt.depthWrite = z.vis > ZVIS_DEPTH; mt.colorWrite = shown; }); if (z.om) z.om.opacity = z.vis * 0.5; if (z.blob) { z.blob.material.opacity = 0.36 * z.vis; z.blob.visible = z.vis > 0.01; } if (z.dm) z.dm.userData.u.value = z.vis < 0.03 ? 0 : z.vis; }
     if (z.inReach || z.reachA > 0) {
       const on = !!z.inReach; z.inReach = false;
       z.reachA = (z.reachA || 0) + ((on ? 1 : 0) - (z.reachA || 0)) * Math.min(1, rdt * (on ? 9 : 5)); if (!on && z.reachA < 0.01) z.reachA = 0;

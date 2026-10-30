@@ -22,7 +22,7 @@ import { STATIC_LIGHTS } from '../lighting/static-lights.js';
 import { worldT } from '../game/state.js';
 import { inHouseRect } from '../world/house.js';
 import { BURN_BARREL } from '../world/props.js';
-import { POST, PS_RT } from './post.js';
+import { mistOver, POST, PS_RT } from './post.js';
 import { PM } from '../player/player.js';
 import { SPRITE_AIM, SPRITE_RES } from './sprite-batch.js';
 import { SCOPE_V } from '../game/view-cam.js';
@@ -307,13 +307,15 @@ function scopeLens(S, lens, W, H, f) {
     const half = Math.atan(ri / f); scopeCam.fov = 2 * Math.atan(Math.tan(half) / S.mag) * 180 / Math.PI; scopeCam.updateProjectionMatrix();
     scopeCam.position.copy(S.obj); scopeCam.up.set(0, 1, 0).applyQuaternion(c.quaternion); scopeCam.lookAt(_st.copy(S.obj).add(S.dir)); scopeCam.updateMatrixWorld(true);
     const size = Math.min(SCOPE_DIM.max, Math.max(128, Math.round(ri * 2 / 64) * 64));
-    if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, stencilBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size; }   // (stencil: the see-through rims round drops and teammates mark their own models in it to stay off them, effects/outlines.js: xray; without it, every rim was drawn whole down the scope, a hollow box round each drop)
+    if (!SC.rt || SC.size !== size) { if (SC.rt) SC.rt.dispose(); SC.rt = new THREE.WebGLRenderTarget(size, size, { depthBuffer: true, stencilBuffer: true, samples: Math.min(4, R.capabilities.maxSamples || 4) }); SC.size = size;
+      SC.rt.depthTexture = new THREE.DepthTexture(size, size, THREE.UnsignedInt248Type, undefined, undefined, undefined, undefined, undefined, undefined, THREE.DepthStencilFormat); SC.rt.depthTexture.minFilter = SC.rt.depthTexture.magFilter = THREE.NearestFilter; }   // (its depth: a fog round's fog over it, mistOver)   // (stencil: the see-through rims round drops and teammates mark their own models in it to stay off them, effects/outlines.js: xray; without it, every rim was drawn whole down the scope, a hollow box round each drop)
     // (you're left out of it: the gun's own front sight, or your arm, a hand's breadth from its front lens; the lens too)
     const pv = PM.g.visible, sh = R.shadowMap.autoUpdate; PM.g.visible = false;
     // (the particles thinned toward the middle of the scope's own view too, then back as they were for the main view)
     const am = [SPRITE_AIM.x, SPRITE_AIM.y, SPRITE_AIM.z, SPRITE_AIM.w], ar = [SPRITE_RES.x, SPRITE_RES.y];
     SPRITE_AIM.set(0.5, 0.5, 0.3, am[3]); SPRITE_RES.set(size, size);
     R.shadowMap.autoUpdate = false; R.autoClear = true; R.setRenderTarget(SC.rt); R.render(scene, scopeCam); R.autoClear = false; R.shadowMap.autoUpdate = sh; PM.g.visible = pv;
+    mistOver(SC.rt, scopeCam);   // (a fog round's fog down it as well: effects/post.js)
     SPRITE_AIM.set(...am); SPRITE_RES.set(...ar);
   }
   // the lens down it, showing it
