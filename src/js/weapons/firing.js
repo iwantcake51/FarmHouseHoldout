@@ -306,7 +306,7 @@ function shotPt(o) {
 // a round into the ground: a spurt of dirt kicked up and back toward where it came from, and its flash (and from a
 // teammate's shot the same: net/avatars.js)
 export function groundHit(x, y, z, dx, dz, p = 0) {
-  if (p < 4 || rand() < 0.4) impactFx(x, y + 0.02, z, -dx * 0.4, -dz * 0.4);
+  if (p < 4 || rand() < 0.4) impactFx(x, y + 0.02, z, -dx * 0.4, -dz * 0.4, 'dirt');
   if (p < 2) smoke(x, y + 0.03, z, -dx * 0.3, 0.55, -dz * 0.3, 0.1, 0.45, 0.8, 0.32, 0x8a7458);
 }
 export function gunFire(id, D, side) {
@@ -432,7 +432,7 @@ export function gunFire(id, D, side) {
     if (D.explode && (n || wallT < 26)) explode(ox + dx * endT, oz + dz * endT, D.explode, 45, true, false, true);
     else if (!n && wallT < 26 && wallT <= endR) {   // sparks and a little dust puff where it hits the wall
       const ix = ox + dx * (wallT - 0.05), iz = oz + dz * (wallT - 0.05);
-      if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz);   // a flash, sparks, a puff off the surface and some chips
+      if (p < 4 || rand() < 0.4) impactFx(ix, ey, iz, -dx, -dz, 'wood');   // a flash, splinters, a puff off the surface (effects/puffs.js)
       bulletHole(ox, oz, dx, dz, wallT, ey, hole);   // and a hole in it (effects/bullet-holes.js)
       if (p < 2) smoke(ix, ey, iz, -dx * 0.6, 0.2, -dz * 0.6, 0.12, 0.55, 0.7, 0.3, 0x9a8a72);
     } else if (!n && gndT <= endR) groundHit(ox + dx * endT, ey, oz + dz * endT, dx, dz, p);   // into the ground, from your own eyes

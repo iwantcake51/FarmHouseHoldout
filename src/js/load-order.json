@@ -86,6 +86,7 @@
   "zombies/zombie-wear.js",
   "zombies/zombie-looks.js",
   "zombies/climb.js",
+  "zombies/elites.js",
   "zombies/spawn.js",
   "effects/outlines.js",
   "game/hit-feedback.js",

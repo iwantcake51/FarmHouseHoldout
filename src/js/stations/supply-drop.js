@@ -29,11 +29,11 @@ import { matKind, matWord } from '../barricades/metal-bars.js';
 import { setSupplyFall, setSupplyT, supplyFall, supplyT } from './station-ui.js';
 import { AC, master, noiseBuf, nz } from '../audio/audio.js';
 import { SFX } from '../audio/sfx.js';
-import { glowGun, setLmT, setShake, shake, state, worldT } from '../game/state.js';
+import { glowGun, phase, setLmT, setShake, shake, state, worldT } from '../game/state.js';
 import { bandMax } from '../player/bandages.js';
 import { ammoTypes, giveWeapon, tierFits } from '../upgrades/upgrades.js';
 import { runStat } from '../ui/run-stats.js';
-import { feed, popEl } from '../ui/hud-text.js';
+import { feed, popEl, toast } from '../ui/hud-text.js';
 import { curDark } from '../lighting/day-night.js';
 import { gotGear, gunCall } from '../ui/gear-popup.js';
 
@@ -135,7 +135,18 @@ export function deliverWeapon(id, from) {
   giveWeapon(id); buildGuns(); glowGun(id); SFX.upgrade && SFX.upgrade();
   gotGear({ ic: 'supply', kind: from === 'card' ? 'Your pick' : 'Off the radio', name: D.name, on: old ? 'In place of your ' + gunCall(old) : 'Your new ' + SLOT_WORD[D.slot], text: D.desc || '' });
 }
+// a stray crate (STRAY): now and then, from wave STRAY.from, one in STRAY.chance waves, somewhere between STRAY.at seconds
+// into it, a chopper going over drops a crate in the yard for you, mid-wave, and you have to go out and get it with
+// them coming in. Lighter than one off the radio (STRAY.ammo of its ammo, STRAY.band bandages, no health or planks) but
+// with its military find. Rolled as each wave begins (waves/waves.js: waveBegins), each player their own: drops are
+// each player's own in co-op
+const STRAY = { from: 2, chance: 0.22, at: [25, 50], ammo: 0.5, band: 1 };
+export function strayRoll(n) { run.stray = n >= STRAY.from && rand() < STRAY.chance ? { t: rr(STRAY.at[0], STRAY.at[1]) } : null; }
 export function updateSupplyDrop(dt) {
+  if (run.stray && phase === 'wave' && !dropBusy() && (run.stray.t -= dt) <= 0) {
+    run.stray = null; callDrop({ kind: 'supply', stray: true });
+    toast('A chopper\'s dropping a crate', { kind: 'info', icon: 'supply', sub: 'In the yard, mid-wave: get to it if you can' });
+  }
   const sp = supplySpot;
   if (supplyT > 0 && sp) {
     setSupplyT(supplyT - dt); sp.t = -supplyT;
@@ -196,7 +207,12 @@ const supplyAmmo = a => Math.round(AMMO_BATCH[a] * supplyAt('batches'));
 // health back: a share of your full health that grows to all of it (SUPPLY.hp: [hp on wave 1, share by the end])
 const supplyHp = () => { const f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return Math.round(SUPPLY.hp[0] + (S.maxHp * SUPPLY.hp[1] - SUPPLY.hp[0]) * f); };
 // the crate opened (pickups/pickups.js): everything in it, each noted in the feed
-export function supplyOpen() {
+export function supplyOpen(cargo) {
+  if (cargo && cargo.stray) {   // (a stray crate: lighter, but with its find, STRAY)
+    ammoTypes().forEach(a => { const n = Math.max(1, Math.round(supplyAmmo(a) * STRAY.ammo)); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
+    const nb = Math.min(STRAY.band, Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, 'bandage'); popEl('bands'); }
+    crateFind(); feed('supply', 0, 'Stray crate opened'); return;
+  }
   ammoTypes().forEach(a => { const n = supplyAmmo(a); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
   if (P.hp < hpCap() || P.bleed) { P.hp = Math.min(hpCap(), P.hp + supplyHp());   // (in full, even under Bad blood: upgrades/sacrifice.js)
     P.bleed = 0; feed('med', 0, 'Patched up'); }

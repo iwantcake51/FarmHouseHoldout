@@ -22,6 +22,7 @@ import { sweepDrops } from '../pickups/pickups.js';
 import { announce, setH } from '../ui/hud-text.js';
 import { SPIT } from '../zombies/spitter.js';
 import { cheatIs } from '../ui/cheats.js';
+import { strayRoll } from '../stations/supply-drop.js';
 import {
   breakSub, clientWaves, netAllDown, netCleared, netSpawn, netTeam, netWaiting, respawnCheck, skipNeed, skipVotes,
   spawnTurned
@@ -89,12 +90,15 @@ const surgeGap = () => surge.S.build + (surge.S.peak - surge.S.build) * smooth(c
 // it, changes who comes (count: times as many; runner: that much more of the wave sprinting, up to runnerMax), how tough
 // they are (hp: times their health, zombies/spawn.js) and how they come (surge: SURGE_KIND), and pays a bounty when
 // it's cleared (TWIST.pay + the wave's number, in scrap). A stampede: sprinters, a lot of them, in rushes; a swarm:
-// half as many again, weaker, in one long stream; a siege: fewer, much tougher, in a trickle that doesn't stop
+// half as many again, weaker, in one long stream; a siege: fewer, much tougher, in a trickle that doesn't stop; a blood
+// moon: a red night, thick with elites
 const TWIST = { from: 4, chance: 0.3, pay: 6 };
 const TWISTS = {
   stampede: { from: 4, eye: 'Stampede', line: n => 'They\'re running · ' + n + ' incoming', runner: 0.25, runnerMax: 0.6, hp: 0.9, surge: 'rushes' },
   swarm: { from: 5, eye: 'Swarm', line: n => 'The whole county · ' + n + ' incoming', count: 1.45, hp: 0.7, surge: 'stream' },
-  siege: { from: 6, eye: 'Siege', line: n => 'Fewer, and harder to put down · ' + n + ' incoming', count: 0.7, hp: 1.55, surge: 'trickle' }
+  siege: { from: 6, eye: 'Siege', line: n => 'Fewer, and harder to put down · ' + n + ' incoming', count: 0.7, hp: 1.55, surge: 'trickle' },
+  // a blood moon: the night goes red (lighting/day-night.js: BLOOD_MOON) and the elites come four times as often (zombies/elites.js)
+  bloodmoon: { from: 6, eye: 'Blood moon', line: n => 'The marked ones are out · ' + n + ' incoming', count: 0.9, hp: 1, surge: 'surges' }
 };
 function rollTwist(n, fog) {
   if (n < TWIST.from || fog || run.twistLast === n - 1 || n === BRUTE_FROM || (n > BRUTE_FROM && n % 5 === 0) || rand() > TWIST.chance) return null;
@@ -127,6 +131,7 @@ export function waveBegins(n, total, fog, tw, np) {
   const T = TWISTS[tw]; run.twist = T ? tw : null; run.waveHp = T ? T.hp : 1; if (T) { run.twistLast = n; run.twistKind = tw; }
   setSpawnT(1.2); S.windUsed = false; S.feedUsed = 0;   // an open station menu stays open
   bloodAge();   // the blood from a few waves back starts to soak away (effects/blood-map.js)
+  strayRoll(n);   // (and now and then a crate dropped mid-wave: stations/supply-drop.js)
   const firsts = { 3: 'Sprinters are coming', [BRUTE_FROM]: 'Something big is coming' };
   firsts[SPIT.from] = (firsts[SPIT.from] ? firsts[SPIT.from] + ' · and spitters' : 'Spitters are coming') + ', keep moving';   // (zombies/spitter.js)
   run.waveTotal = total;

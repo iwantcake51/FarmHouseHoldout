@@ -96,7 +96,22 @@ export function sparkBurst(x, y, z, n, dx, dz, force) {
 }
 // a bullet hitting a wall or a board: a bright burst and a bloom of light, a spray of sparks, grit and a puff of dust
 // thrown off the surface, and a few chips
-export function impactFx(x, y, z, nx, nz) {
+// by what it hit (surf): the ground kicks up a fountain of dirt clods and a puff that rises, no sparks; wood throws
+// splinters off the face and only a spark or two; anything else (a metal grate, stone) the sparks and chips as ever
+export function impactFx(x, y, z, nx, nz, surf) {
+  if (surf === 'dirt') {
+    fx('flash', x, y + 0.02, z, 0, 0, 0, rr(0.18, 0.26), 0.1, 0.05, 0.6);
+    cubeBurst(x, y + 0.03, z, 4 + (rand() * 3 | 0), 'dust', nx * 0.6, nz * 0.6, 1.4, 0.8);
+    for (let k = 0; k < 3; k++) fx('dust', x + rr(-0.04, 0.04), y + 0.04, z + rr(-0.04, 0.04), nx * rr(0.3, 0.8) + rr(-0.25, 0.25), rr(0.6, 1.3), nz * rr(0.3, 0.8) + rr(-0.25, 0.25), 0.1, rr(0.55, 0.85), rr(0.8, 1.2), 0.35);
+    return;
+  }
+  if (surf === 'wood') {
+    fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.24, 0.32), 0.12, 0.06, 0.8);
+    if (rand() < 0.5) sparkBurst(x, y, z, 1 + (rand() * 2 | 0), nx, nz, 3);
+    cubeBurst(x + nx * 0.03, y, z + nz * 0.03, 3 + (rand() * 3 | 0), 'wood', nx, nz, 3.2, 0.45);
+    for (let k = 0; k < 2; k++) fx('dust', x + nx * 0.05, y, z + nz * 0.05, nx * rr(0.6, 1.4) + rr(-0.3, 0.3), rr(0.1, 0.5), nz * rr(0.6, 1.4) + rr(-0.3, 0.3), 0.08, rr(0.4, 0.6), rr(0.6, 0.9), 0.28);
+    return;
+  }
   fx('flash', x + nx * 0.03, y, z + nz * 0.03, 0, 0, 0, rr(0.32, 0.42), 0.16, 0.07, 1);
   fx('glow', x + nx * 0.05, y, z + nz * 0.05, 0, 0, 0, 0.5, 0.3, 0.09, 0.5);
   sparkBurst(x, y, z, 5 + (rand() * 3 | 0), nx, nz, 3.5);

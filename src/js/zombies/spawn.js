@@ -22,6 +22,7 @@ import { SPIT, spitterGait, spitterLook } from './spitter.js';
 import { EYE_COL } from '../effects/eye-glow.js';
 import { cheatAI } from '../ui/cheats.js';
 import { fpOn } from '../game/view-cam.js';
+import { ELITE_KIND, eliteLook, makeElite, rollElite } from './elites.js';
 
 // zombies come out of the fog: each starts 6.5 to 9 m out past the edge of the farm, on the cleared trail in front of
 // one of the gaps in the trees, and walks in along it (z.out, zombies/ai.js). Out there it only shows as it comes clear
@@ -44,7 +45,9 @@ export function spawnZombie(type, job) {
   zombieRig(m);   // knees, elbows and a waist (zombies/zombie-anim.js)
   dressZombie(m, type, job);   // its body and what it was wearing when it turned (zombies/zombie-looks.js)
   if (type === 'spitter') spitterLook(m);   // its sac and glowing mouth (zombies/spitter.js)
-  const sc = T_.scale * rr(0.94, 1.06);
+  // now and then one's something more: its colour, ring and body (zombies/elites.js), before its eyes are made in that colour
+  const ek = rollElite(type), ering = ek ? eliteLook(m, ek) : null, EK = ek && ELITE_KIND[ek];
+  const sc = T_.scale * rr(0.94, 1.06) * (EK ? EK.scale : 1);
   m.g.scale.setScalar(sc);
   // the pupils glow, deep in their sockets; effects/eye-glow.js gives them a halo and a light trail
   m.eyes = m.look.eyeAt.map(([x, y, w, h, z]) => box(m.head, w, h, 0.008, basic(m.eyeCol || EYE_COL), x, y, m.look.hat === 'riot' ? 0.2 : z + 0.0011));   // (glowing through a riot helmet's face shield)
@@ -54,15 +57,16 @@ export function spawnZombie(type, job) {
   const fm = new Set(); m.g.traverse(o => { if (o.isMesh && !o.userData.isOutline) { o.material.userData.mobile = true; fm.add(o.material); } }); fm.forEach(mt => { mt.transparent = true; });
   ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => { m[p].userData.part = p; });
   const dm = fadeDepthMat(); m.g.traverse(o => { if (o.isMesh) o.customDepthMaterial = dm; });
-  const xr = xray(m.g, type === 'spitter' ? SPIT.xray : 0xff3322, false, true, o => o.castShadow, 0, 5);   // seen through cover in halftone dots, like you (effects/outlines.js); not the pieces too small to change its shape (its eyes: trimShadows), three draws each saved
+  const xr = xray(m.g, type === 'spitter' ? SPIT.xray : EK ? EK.col : 0xff3322, false, true, o => o.castShadow, 0, 5);   // seen through cover in halftone dots, like you (effects/outlines.js); not the pieces too small to change its shape (its eyes: trimShadows), three draws each saved
   scene.add(m.g);
-  const hpMul = 1 + (run.wave - 1) * 0.11 + LATE.hp * lateN(run.wave) ** 2, hp = T_.hp * hpMul * (run.waveHp || 1) * cheatAI().hp;   // (faster past LATE.from: waves/waves.js; and the cheat menu's zombie health: ui/cheats.js)
+  const hpMul = 1 + (run.wave - 1) * 0.11 + LATE.hp * lateN(run.wave) ** 2, hp = T_.hp * hpMul * (run.waveHp || 1) * cheatAI().hp * (EK ? EK.hp : 1);   // (faster past LATE.from: waves/waves.js; and the cheat menu's zombie health: ui/cheats.js)
   const z = { type, T: Object.assign({}, T_, { scale: sc }), m, x: gx + ox * far + (ox ? 0 : lat), z: gz + oz * far + (oz ? 0 : lat), out: true, gx, gz, hp, maxHp: hp, vx: 0, vz: 0, face: Math.atan2(-ox, -oz), phase: rand() * 6, atk: 0, lunge: 0, flash: 0, squash: 0, stagger: 0, drip: 0, burn: 0, bleed: 0, vis: 0,
     fade: [...fm], xr, dm, blob: blobShadow(1.1 * sc * (type === 'brute' ? 1.25 : 1), 0), armor: armorFor(m.look, hp), limbs: { head: true, armL: true, armR: true, legL: true, legR: true }, lhp: { armL: hp * (type === 'brute' ? BRUTE_ARM : 0.3), armR: hp * (type === 'brute' ? BRUTE_ARM : 0.3), legL: hp * 0.4, legR: hp * 0.4 }, crawl: false, spurts: [], stain, speed: T_.speed * rr(.9, 1.1) * (type === 'runner' ? runnerPace() : type === 'walker' ? walkerPace() : type === 'brute' ? brutePace() : 1) };
   // its voice, its own (SFX.groan): a walker's anywhere from a low moan to a reedy one, a sprinter's higher, a brute's
   // far lower; and a sprinter lets out a shriek as it comes out of the treeline, most of the time
   z.voice = type === 'runner' ? rr(1.0, 1.25) : type === 'brute' ? rr(0.85, 1.1) : rr(0.8, 1.22);
   if (type === 'runner' && rand() < 0.65) soundAt(z.x, z.z, () => SFX.groan(0.9, z.voice, 'runner'), true);
+  if (ek) makeElite(z, ek, ering);
   zAnimInit(z); zombies.push(z);
   if (type === 'spitter') spitterGait(z);   // bent over its belly, and its drool and glow kept going (zombies/spitter.js)
 }

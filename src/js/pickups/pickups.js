@@ -164,7 +164,7 @@ export function updatePickups(dt) {
       let ft = '';
       if (p.kind === 'planks') { const n = addPlanks(1), mw = p.cargo && p.cargo.metal ? 'metal' : 'planks'; feed(mw, n, mw); popEl('planks'); ft = '+' + n + (mw === 'metal' ? ' metal' : ''); SFX.pick(); }   // always the one plank (or bar of metal)
       else if (p.kind === 'med') { const n = Math.min(p.amount, bandMax() - (P.band || 0)); P.band = (P.band || 0) + n; feed('med', n, n > 1 ? 'bandages' : 'bandage'); ft = '+' + n + (n > 1 ? ' bandages' : ' bandage'); popEl('bands'); SFX.pick(); }
-      else if (p.kind === 'supply') { flareDone(); supplyOpen(); ft = 'Supplies'; SFX.crate(); }   // (what's in it: stations/supply-drop.js)
+      else if (p.kind === 'supply') { flareDone(); supplyOpen(p.cargo); ft = 'Supplies'; SFX.crate(); }   // (what's in it: stations/supply-drop.js)
       else {
         // an ammo box holds the one kind it looks like (if you've let go of every gun that takes it since, whichever you
         // carry now; with none at all, a little scrap)

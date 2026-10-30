@@ -95,8 +95,21 @@ the other one, that eye squinting along the gun and your head tipped over the st
    - From wave 4, about one wave in three comes with a **twist**, never two running and never on a fog round or a
      brute wave, its name over the banner in red: a **Stampede** (a quarter more of the wave sprinting, a touch weaker,
      in big rushes), a **Swarm** (half as many again, weaker, in one long stream that never lets up) or a **Siege**
-     (fewer, but over half as tough again, in a trickle that doesn't stop). Clearing one pays a bounty: six scrap plus
-     the wave's number, to everyone.
+     (fewer, but over half as tough again, in a trickle that doesn't stop), and from wave 6 a **Blood moon** (as the
+     night comes on the moonlight, the sky, the haze and the dark all go red, and elites come four times as often).
+     Clearing one pays a bounty: six scrap plus the wave's number, to everyone.
+   - **Elites.** From wave 3, now and then one of the horde is something more (about 1 in 28 at first, climbing to 1
+     in 11; on a blood moon up to 3 in 10), called out as it comes in, its eyes burning its own colour and a ring of it
+     pulsing on the ground under it, seen through cover in that colour too. A **Hulking** one (violet: a walker or a
+     brute) is bigger and over twice as tough and hits harder; a **Frenzied** one (red: a walker or a sprinter) is
+     much faster and claws again sooner; a **Volatile** one (green, from wave 5: a swollen walker covered in glowing
+     sores) bursts a beat after it dies, its bile hurting every zombie within about 3 m (killing walkers outright up
+     close, a third of that at the edge) and you if you're within about 2 m, and leaving a pool of acid: shoot it in
+     the crowd, not at the window. Each one put down stops time for a moment and pays out: scrap (4 to 6, more each
+     wave), an ammo box for sure, and often bandages or planks. In co-op an elite is the same one on every screen.
+   - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper going over drops
+     a crate in the yard for you, mid-wave, with its flare and marker: half a radio crate's ammo, a bandage and a
+     military find, if you can get out to it and back. In co-op each player gets their own.
 
 When the run ends the HUD clears away and the end screen comes up over the farm on its own; **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
 your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call (the lowest your health got that you lived through: a low only counts once you've
@@ -113,7 +126,12 @@ stained timber joists running across the house, the lamps hanging from it on the
 sun off everything under it, the floorboards' seams, the joists and everyone in the room (you, your own forearms from
 your own eyes, and the dead) alike, so the rooms are lit by their lamps and the daylight through the windows, and out
 in the yard you all go into the shade of the house and the trees. The clock runs from afternoon into night, and the dark is where the lamps, your
-flashlight and the muzzle flashes matter.
+flashlight and the muzzle flashes matter. What the lamps don't reach isn't grey: the dark takes the cool of the sky,
+a blue-violet moonlight by night and a cool blue-grey in the shade by day, and the shadows are graded cooler against the
+warm of the light (with the lit colour a little fuller), so the honey daylight, the amber dusk and the lamplight have
+something to stand against; by day the haze out over the woods is a cool blue-grey too, so the warm-lit farm stands
+out from the distance. Each hour has its own grade (a lavender dawn, a violet dusk), eased between like the rest of
+the light.
 
 **Guns.** A 9mm handgun, a .357 revolver, a .50 hand cannon, pump, double-barrel and auto shotguns, a hunting rifle, a
 battle rifle, a machine pistol, a submachine gun, an assault rifle and a light machine gun. Each one has its own
@@ -227,7 +245,11 @@ round in the face, under the brim, goes round it. Armour soaks up part of each h
 of it, and the .50 hand cannon and the battle rifle (not once converted to AK mags) punch through far more of it), thin early on and thicker in later waves and against a better gun, and those hits show in steel with a
 shield. A melee blow depends on what it lands with: a blunt one (the bat, the crowbar, the wrench, the sledge) jars
 through most of it, a spiked one (nails in the bat, spikes on the sledge) catches on it, and an edge (the machete, the
-katana, the axe) mostly glances off. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls.
+katana, the axe) mostly glances off. Enough hits crack a piece, and then it splits and falls off. The dead fall as ragdolls,
+thrown further the harder they were put down (up to 70% further for a big overkill: a heavy round through a walker
+flings it where a light one drops it), and a kill flashes the body brighter than a hit does. A round into the ground
+kicks up a fountain of dirt clods and a puff of dust with no sparks; into a wooden wall it throws splinters and only a
+spark or two; a metal grate still sparks.
 Brutes come in slowly: the first brute wave sends just one, in plain clothes with no armour on it, and each wave after
 lets a few more in.
 

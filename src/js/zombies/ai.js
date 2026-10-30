@@ -211,7 +211,7 @@ export function updateZombies(dt) {
     }
     // knocked off its feet by a brute (zombies/knockdown.js): down, or getting up, and nothing else till it's up
     if (z.knock) { stepKnock(z, dt); zFlash(z, dt); continue; }
-    z.atk -= dt; z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
+    z.atk -= dt * (z.atkK || 1); z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
     // climbing over a fence or in through a window: nothing else till it's done
     if (z.vault) { stepClimb(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }
     if (ai.off && !pup) { z.atkBoard = z.atkDoor = null; z.atkFence = false; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }

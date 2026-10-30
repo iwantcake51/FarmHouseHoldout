@@ -10,6 +10,10 @@ export const LMU = { uLightMap: { value: null }, uLmSize: { value: N }, uLmRes: 
   // night vision (lighting/lightmap.js): how much it lifts the black-and-white dark, and how much of the colour it
   // brings back there (a little through the monocular, more through the goggles, never all of it)
   uNvMono: { value: 0 }, uNvSat: { value: 0 },
+  // the grade (lighting/day-night.js: GRADE): the dark takes the cool of the sky rather than going grey (uGrade: that
+  // tint, its luminance 1, and how much), and the picture's split, cool in its shadows against the warm of its light,
+  // with the lit colour fuller (uGrade2: saturation of the lit, how far the shadows cool, how far down they reach)
+  uGrade: { value: new THREE.Vector4(1, 1, 1, 0) }, uGrade2: { value: new THREE.Vector4(1, 0, 0.3, 0) },
   // cloud shade drifting over the farm (offset x, z and how strong; world/atmosphere.js drives it), the house it
   // doesn't reach into, and where the farm starts to fade into the woods and the haze (from / to, metres out)
   uCloud: { value: new THREE.Vector3() }, uHouse: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uHouseCut: { value: new THREE.Vector4(-1e3, -1e3, -1e3, -1e3) }, uEdge: { value: new THREE.Vector2(HALF + 0.5, HALF + 12) },
@@ -95,7 +99,7 @@ vec4 lmCubic(vec2 uv) {
   return mix(mix(texture2D(uLightMap, c0), texture2D(uLightMap, vec2(c1.x, c0.y)), s1.x), mix(texture2D(uLightMap, vec2(c0.x, c1.y)), texture2D(uLightMap, c1), s1.x), s1.y);
 }
 `;
-const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform sampler2D uFlTex;\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
+const FRAG_DECL = 'varying vec2 vLmUv;\nvarying vec3 vWp;\nvarying vec3 vWn;\nuniform sampler2D uLightMap;\nuniform float uLmRes;\n' + LM_CUBIC + 'uniform float uUnseen;\nuniform sampler2D uBloodNoise;\nuniform vec3 uCloud;\nuniform vec4 uHouse;\nuniform vec4 uHouseCut;\nuniform vec2 uEdge;\nuniform float uFogT;\nuniform float uAdapt;\nuniform float uNvMono;\nuniform float uNvSat;\nuniform vec4 uGrade;\nuniform vec4 uGrade2;\nuniform sampler2D uFlTex;\nuniform vec4 uFlK;\nuniform sampler2D uFlSh;\nuniform sampler2D uFlCookie;\n' + FL_FN;
 // blood and soot on everything that stays put (the ground, floors, walls, fences, trees, crates, furniture), read from
 // the farm's blood map (effects/blood-map.js): red is blood, green how far up walls and trunks a splash reached, blue
 // scorch. Smooth noise in world space breaks its edges up and varies how thick it lies, so it soaks into the ground
@@ -150,7 +154,15 @@ const FRAG_BODY = `
   float lmBL = dot(lmBase, vec3(0.299, 0.587, 0.114));
   float lmG = (dot(lmC, vec3(0.299, 0.587, 0.114)) + lmBL * uNvMono * lmV) * (1.0 + uAdapt) + uAdapt * 0.016;
   vec3 lmD = mix(vec3(lmG), min(lmBase * (lmG / max(lmBL, 0.02)), vec3(1.0)), uNvSat);
-  gl_FragColor.rgb = mix(lmD, lmC, lmL);   // colour only where there's light: the dark goes black and white
+  // colour only where there's light: the dark goes the cool of the sky (moonlight, the shade of a blue sky), not grey
+  lmD = mix(lmD, lmD * uGrade.rgb, uGrade.a * (1.0 - uNvSat));
+  gl_FragColor.rgb = mix(lmD, lmC, lmL);
+  // and graded: the lit colour fuller, the shadows cooled toward the same tint at their own brightness, so the warm
+  // light has something to stand against
+  { vec3 gc = gl_FragColor.rgb; float gY = dot(gc, vec3(0.299, 0.587, 0.114));
+    gc = mix(vec3(gY), gc, mix(1.0, uGrade2.x, lmL));
+    gc += gY * (uGrade.rgb - 1.0) * (1.0 - smoothstep(0.0, uGrade2.z, gY)) * uGrade2.y;
+    gl_FragColor.rgb = max(gc, vec3(0.0)); }
   // clouds passing over: their shade drifts across the farm by day (not indoors)
   if (uCloud.z > 0.001) {
     vec2 cq = vWp.xz * 0.022 + uCloud.xy;
@@ -205,7 +217,7 @@ const TREE_BODY = `
 export function lit(mat, cut) {
   mat.onBeforeCompile = function (sh) {
     const self = this || mat, wb = !self.userData.mobile;
-    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uFlTex: LMU.uFlTex, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
+    Object.assign(sh.uniforms, { uLightMap: LMU.uLightMap, uLmSize: LMU.uLmSize, uLmRes: LMU.uLmRes, uLmHalf: LMU.uLmHalf, uUnseen: LMU.uUnseen, uBloodNoise: BMU.uBloodNoise, uCloud: LMU.uCloud, uHouse: LMU.uHouse, uHouseCut: LMU.uHouseCut, uEdge: LMU.uEdge, uFogT: LMU.uFogT, uAdapt: LMU.uAdapt, uNvMono: LMU.uNvMono, uNvSat: LMU.uNvSat, uGrade: LMU.uGrade, uGrade2: LMU.uGrade2, uFlTex: LMU.uFlTex, uFlK: LMU.uFlK, uFlSh: LMU.uFlSh, uFlCookie: LMU.uFlCookie });
     sh.vertexShader = VERT_DECL + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n' + VERT_BODY);
     // (glow: what it gives off of its own, its emissive, kept out of the light map's shading, so it shows in full colour
     // in the dark instead of going grey with everything else: acid, zombies/spitter.js)

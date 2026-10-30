@@ -32,9 +32,10 @@ import { SFX } from '../audio/sfx.js';
 import { soundAt } from '../audio/spatial.js';
 import { camKick, camPunch, setCamPunch, setShake, setSlowHold, setSlowIn, setSlowTo, shake } from '../game/state.js';
 import { ammoTypes } from '../upgrades/upgrades.js';
-import { runKill } from '../ui/run-stats.js';
-import { feed, floats, floatText, popEl, streakShow } from '../ui/hud-text.js';
+import { runKill, runStat } from '../ui/run-stats.js';
+import { feed, floats, floatText, popEl, streakShow, toast } from '../ui/hud-text.js';
 import { spitterDies } from './spitter.js';
+import { ELITE_KIND, eliteDies } from './elites.js';
 import { hitMark } from '../ui/crosshair.js';
 import { cheatIs } from '../ui/cheats.js';
 import { netAct, netHitRec, netRec, NREC, NREP, NZ, setNREC } from '../net/sync.js';
@@ -513,7 +514,9 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
     const p = pick(opts); if (p === 'head' && shells) { crushHead(z, dx, dz); continue; }   // (blasted to mist, as above)
     if (p === 'head' || wId === 'boom' || (z.cut && z.cut[p]) || rand() < 0.4 || !severLower(z, p, dx, dz)) sever(z, p, dx, dz);   // a blast takes limbs whole; a shotgun often just the end of one
   }
-  const force = wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6;
+  // (and thrown further the harder it was put down: RAG_OVER, the damage past what killed it, so a big round through a
+  // walker flings it where a light one drops it)
+  const force = (wId === 'boom' ? 9 : shells ? 5.5 : D.melee ? 3.5 + (D.kb || 0) * 0.4 : 2.2 + (D.kick || 1) * 0.6) * (1 + RAG_OVER.k * clamp((overkill || 0) / RAG_OVER.per, 0, 1));
   if (z.gib && wId === 'boom') blowApart(z, dx, dz);
   else { makeRagdoll(z, dx, dz, crushed || split ? 'crush' : part, force, wId); netRec('r', crushed || split ? 'crush' : part, Math.round(force * 100) / 100, crushed || split ? 1 : 0); if (crushed || split) ragdolls[ragdolls.length - 1].neck = NECK_PUMP; }
   killEnd(z);
@@ -532,6 +535,13 @@ export function killZombie0(z, dx, dz, wId, part, overkill) {
     else if (r < 0.75) { if (!METAL.on || r < METAL_DROP) dropPickup(z.x, z.z, 'planks', big); }
     else if (r < 0.935) dropPickup(z.x, z.z, 'med', big);
   }
+  // an elite pays out (zombies/elites.js): its scrap, an ammo box for sure, and maybe something more
+  if (z.elite) {
+    const K = ELITE_KIND[z.elite.kind]; killScrap(z, K.scrap); ammoDrop(z.x, z.z, 1);
+    if (rand() < K.more) dropPickup(z.x + rr(-0.4, 0.4), z.z + rr(-0.4, 0.4), rand() < 0.6 ? 'med' : 'planks', 1);
+    hitStop(ELITE_DOWN.stop); setCamPunch(Math.max(camPunch, ELITE_DOWN.punch)); SFX.killTick(true, 9);   // (a beat on it, and a high tick: zombies/elites.js)
+    runStat('elites'); toast(K.name + ' one down', { kind: 'good', icon: 'scrap', sub: '+' + waveScrap(K.scrap) + ' scrap, and its drop' });
+  }
 }
 // an ammo box for your guns: most often for the one in your hands
 export function ammoDrop(x, z, amount) { const opts = ammoTypes(), curA = gunAmmo(); if (opts.length) dropPickup(x, z, 'ammo', amount, curA && rand() < 0.6 ? curA : pick(opts)); }
@@ -546,8 +556,13 @@ function killScrap(z, n, hoard) {
 }
 // the start and the end of a kill, whoever made it: it's marked dead and its outlines go, blood flies off it onto those
 // round it; then, after it's fallen (or come apart), it's off the list
+const RAG_OVER = { k: 0.7, per: 90 }, ELITE_DOWN = { stop: 0.09, punch: 0.06 };
+// (and a kill flashes it brighter than a hit does: KILL_FLASH, carried on by its ragdoll)
+const KILL_FLASH = 0.24;
 function killBegin(z, dx, dz, k) {
   spitterDies(z);   // (a spitter's sac bursts: zombies/spitter.js)
+  eliteDies(z, !NREP);   // (a volatile one bursts: zombies/elites.js)
+  z.flash = Math.max(z.flash || 0, KILL_FLASH);
   z.dead = true; if (z.dn) z.dn.el.classList.add('kill'); if (z.redOl) z.redOl.visible = false; if (z.lightOl) z.lightOl.visible = false; if (z.om) z.om.visible = false; if (z.reachOl) z.reachOl.visible = false; if (z.burnOl) z.burnOl.visible = false; if (z.xr) { z.xr.rim.visible = false; z.xr.fill.visible = false; if (z.xr.sil) z.xr.sil.visible = false; }
   for (const o of zombies) if (o !== z && Math.hypot(o.x - z.x, o.z - z.z) < 1.5) bloodZombie(o, 0.06);   // the spray off a kill
   burst(z.x, 0.9 * z.T.scale, z.z, 16, 'blood', dx, dz, 4); bloodSpurt(z.x, 0.95 * z.T.scale, z.z, dx, dz, 14, 1.25);

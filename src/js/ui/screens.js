@@ -46,6 +46,7 @@ import { feedItems, floats } from './hud-text.js';
 import { titleSky } from '../lighting/day-night.js';
 import { resetDrops } from '../stations/supply-drop.js';
 import { clearSpit } from '../zombies/spitter.js';
+import { clearBursts } from '../zombies/elites.js';
 import { quitPull, wantLock } from '../game/view-cam.js';
 import { resetHeart } from './vitals.js';
 import { ragYou, unragYou } from '../player/player-ragdoll.js';
@@ -88,7 +89,7 @@ function resetRun(keepLook) {
   zombies.forEach(z => { scene.remove(z.m.g); zFree(z.m.g); if (z.blob) scene.remove(z.blob); }); zombies.length = 0;
   ragdolls.forEach(r => { scene.remove(r.g); zFree(r.g); if (r.blob) scene.remove(r.blob); }); ragdolls.length = 0; unragYou(); clearArmorBits();
   gibs.forEach(g => { scene.remove(g.m); zFree(g.m); }); gibs.length = 0;
-  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit();
+  grenades.forEach(g => scene.remove(g.m)); grenades.length = 0; clearSpit(); clearBursts();
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0;
   resetDrops();   // nothing on its way, no flare (stations/supply-drop.js)
   bloodMapClear(); wallBloodClear(); clearBodyBlood(); clearDrops(); parts.forEach(p => { p.m.visible = false; p.life = 0; }); casings.concat(mags, SL_DROPS).forEach(c => { c.g.visible = false; c.life = 0; }); smokes.forEach(p => { p.life = 0; p.m.visible = false; });
