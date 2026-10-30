@@ -324,7 +324,7 @@ export function updateZombies(dt) {
     if (z.blob) { const c = z.crawl ? 0.5 : 0; z.blob.position.set(z.x + Math.sin(z.face) * c, 0.02, z.z + Math.cos(z.face) * c); z.blob.scale.set(1.1 * z.T.scale * (z.type === 'brute' ? 1.25 : 1), 1, 1.1 * z.T.scale * (z.crawl ? 1.8 : 1)); z.blob.rotation.y = z.face; }
     animateZombie(z, dt, dp, relP); zFlash(z, dt);
   }
-  if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c));
+  if (phase === 'wave' && !spawnQ.length && zombies.length && zombies.length <= 3) for (const z of zombies) if (!z.redOl && !z.dead) { z.redOl = outline(z.m.g, 0, 0, 0.04, rimMat(0xe0281c)); z.redOl.userData.olThrough = true; }   // (seen through walls: from above by its see-through rims, from your own eyes by its line, effects/screen-outlines.js)
   stepDashMarks(dt);
   if (zHitMe) zStruckFx();
   playerChecks();

@@ -590,7 +590,7 @@ revolver) comes down off your eye while it's open and being loaded, so its barre
 your face, and goes back up to it once it's shut if you're still holding aim. The flashlight points down the gun's barrel,
 easing after it, its pool brighter and paler the closer what it falls on (a wall right in front of you is lit hot, as a
 real torch's is, while across a room it's as before), and smoke and sparks thin out near the middle of your sights so they don't hide what you're aiming
-at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free.
+at. Coming over a fence or a sill, the view turns smoothly to where you're looking once your hands are free. A zombie caught in your flashlight's beam after dark (or a teammate's) gets its pale outline from your own eyes too, and the last few zombies of a wave get their pulsing red outline, seen through walls: only your own arms and gun stand in front of it.
 Walking bobs the view softly, the way your head really rides on a stride: a small, rounded rise and fall with each
 step, a slight sway and roll toward the foot you're on, all eased in and out with no jolts, and the gun and your arms move on their own soft springs: tilted
 into a sidestep and trailing it a touch, bobbing in a figure of eight as you walk, dipping going forward, rolling into a
