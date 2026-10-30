@@ -682,6 +682,7 @@ export function fpAim(out) {
 }
 // a shot kicks the view up and a touch aside (game/camera.js: fireCam), on a stiff spring home; and the gun in your
 // hands (FP_RECOIL): its kick, the climb of a full auto and the rattle
+const POW_FLIP = 0.4;
 export function viewKick(pw, auto) {
   if (isoOn()) return;
   // (which way this one goes: up and off to a side, FP_RECOIL.dir)
@@ -705,7 +706,10 @@ export function viewKick(pw, auto) {
   // (an impulse for the size it's to reach at its most, on this spring)
   const v = 1 / (Math.exp(-F.z / Math.sqrt(1 - F.z * F.z) * Math.atan(Math.sqrt(1 - F.z * F.z) / F.z)) / w);
   const room = 1 - 0.5 * clamp(C.p / (F.flip + F.flipPw), 0, 1);   // (less room to flip it up the higher it already is)
-  const fl = (F.flip + F.flipPw * q) * a * room * rr(0.85, 1.15) * v; C.vp += fl * ku * upK; C.vy += fl * ks * rr(0.6, 1) * sdK;
+  // (the gun itself flips up with only part of a hotter powder's extra climb, POW_FLIP: the aim takes all of it, and
+  // the whole of it on the gun had a battle rifle on max powder rearing up off the sights)
+  const upG = 1 + (((D && D.kickUp) || 1) - 1) * POW_FLIP, upF = ((D && D.climbK) || 1) * upG;
+  const fl = (F.flip + F.flipPw * q) * a * room * rr(0.85, 1.15) * v; C.vp += fl * ku * upF; C.vy += fl * ks * rr(0.6, 1) * sdK;
   C.vz += (F.back + F.backPw * q) * a * (D && D.ammo === 'shells' ? FP_RECOIL.shellsBack / FP_RECOIL.shells : 1) * rr(0.85, 1.15) * v; C.vh += F.up * (0.5 + q) * a * rr(0.7, 1.2) * v;
   C.vr += F.roll * (0.4 + q) * a * rr(0.5, 1) * (rand() < 0.5 ? -1 : 1) * v; C.vy += F.yaw * (0.4 + q) * a * rr(-1, 1) * v * sdK; C.vx += F.side * (0.5 + q) * a * rr(-1, 1) * v * sdK;
   // held on the trigger: the climb, wandering as it goes (a shot more than a beat after the last starts it afresh)

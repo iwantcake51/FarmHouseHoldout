@@ -47,7 +47,7 @@ export function recomputeEff() {
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
     // a hotter charge kicks harder too, though less again on a gun that already kicks hard (POW_HEAVY: its share of the
     // powder's extra kick, by the gun's own kick, down to POW_HEAVY.min)
-    D.dmg *= AMMO_DMG[ammo]; D.powK = 1 + (POWDER_KICK[ammo] - 1) * clamp(POW_HEAVY.kick / (WEAP[id].kick || 1), POW_HEAVY.min, 1); D.shake *= D.powK;
+    D.dmg *= AMMO_DMG[ammo]; D.powDmg = AMMO_DMG[ammo]; D.powK = 1 + (POWDER_KICK[ammo] - 1) * clamp(POW_HEAVY.kick / (WEAP[id].kick || 1), POW_HEAVY.min, 1); D.shake *= D.powK;
     // which way the kick grows with the gun's tiers (KICK_TIER): a hotter powder mostly up (its POWDER_KICK all into the
     // climb, side of it aside), a lighter trigger mostly aside, the shots coming quicker than the wrists settle (side
     // a step, up a little). On top of the gun's own climbK and sideK (weapons/gun-stats.js: the LMG's)

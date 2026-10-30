@@ -53,7 +53,8 @@ import { shotOut } from '../net/avatars.js';
 
 // how hard a shot hits back, from what it does to a zombie: 9mm about 0.1-0.2, rifle rounds and magnums 0.3-0.8,
 // the hunting rifle and shotguns up to about 1.2 (a double barrel firing both)
-const gunPower = (D, shots) => clamp(D.dmg * Math.pow(D.pellets || 1, 0.85) * Math.pow(shots, 0.6) / 130, 0.08, 1.25);
+// (by the round's own weight, not a hotter powder's extra damage: the powder's kick is its own, D.powK)
+const gunPower = (D, shots) => clamp(D.dmg / (D.powDmg || 1) * Math.pow(D.pellets || 1, 0.85) * Math.pow(shots, 0.6) / 130, 0.08, 1.25);
 // which hand's gun just fired: an akimbo pair's is the side of its last shot (weapons/akimbo.js), anything else's the right
 const fireSide = D => D && D.akimbo && W8.akSide < 0 ? 'L' : 'R';
 // a semi-automatic fires once a pull of the trigger: the handguns in single shots (not fanning, a burst or the auto sear)
