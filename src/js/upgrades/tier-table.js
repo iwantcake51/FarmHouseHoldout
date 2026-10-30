@@ -48,7 +48,7 @@ export const TIERS = {
     // on a sniper it also raises the headshot multiplier, and through a scope its headshots crit (SCOPES)
     { r: 'c', name: 'Red dot', text: D => sightText(1, D) + (D && D.sniper ? ' Headshot multiplier +0.15×.' : ''), vis: 'A red dot sight', ap: () => {} },
     { r: 'u', name: 'Holographic sight', text: D => sightText(2, D) + (D && D.sniper ? ' Headshot multiplier +0.15× more.' : ''), vis: 'A holo sight', ap: () => {} },
-    { r: 'r', name: 'Scope', text: D => 'Zooms in when you aim. ' + sightText(3, D) + ' Dead accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
+    { r: 'r', name: 'Scope', text: D => 'Zooms in when you aim. ' + sightText(3, D) + ' Fully accurate past 10 m.' + (D && D.sniper ? ' Every headshot while aiming is a crit (2× damage).' : ''), vis: 'A scope in rings', ap: () => {} },
     { r: 'e', name: 'ACOG', text: D => 'Zooms in further. ' + sightText(4, D) + (D && D.sniper ? ' Headshot crits do 2.25×.' : ''), vis: 'A 4× ACOG, its fibre optic glowing red on top', ap: () => {} },
     { r: 'l', name: 'High-power scope', text: D => 'Zooms in furthest. ' + sightText(5, D) + ' Headshot crits do 2.5×.', vis: 'A big scope', ap: () => {} }] },
   laser: { tag: 'Attachment', t: [
@@ -63,7 +63,7 @@ export const TIERS = {
   // and pushed in together (game/run-state.js: SOH). (The pump's two or three shells a go come with Quick hands II and
   // III instead: PAIR_LOAD, TRIPLE)
   loader: { tag: 'Attachment', t: [
-    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Load both shells at once instead of one at a time, and close the gun quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Grab three shells at once and feed them into the tube in one go: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
+    { r: 'u', name: 'Speed loader', as: { dbl: 'Sleight of Hand', scar: 'Flared magwell' }, text: (D, id) => id === 'scar' ? `A flared magwell funnels the new mag in: every mag change ${Math.round((1 - MAGWELL) * 100)}% quicker.` : D.breakOpen ? 'Both shells go in at once instead of one at a time, and the gun closes quicker: a reload nearly twice as fast.' : D.ammo === 'shells' ? 'Three shells go into the tube at a time: a reload about twice as fast.' : 'All 6 rounds go in at once.', ap: () => {} }] },
   choke: { tag: 'Attachment', can: () => hasShotgun(), t: [
     { r: 'u', name: 'Modified choke', text: 'Squeezes the pellets (and slugs) into a tighter cone. Takes the muzzle.', ap: () => {} },
     { r: 'r', name: 'Full choke', text: 'Tighter again.', ap: () => {} }] },

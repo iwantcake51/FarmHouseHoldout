@@ -79,10 +79,12 @@ export function gunUnsteady(D, id) {
   return D.slot === 'auto' ? XSTEADY.auto : XSTEADY.long;
 }
 // weight out toward the muzzle makes a gun harder to hold still: each thing hung on the front adds its share to the sway
-// (FRONT: by attachment tier, the AR's bigger mags too; FRONT_MOD: a gun's own mods, a longer barrel by its level). A
+// (FRONT: by attachment tier, the AR's bigger mags too; FRONT_MOD: a gun's own mods, and a longer or heavier barrel more
+// with each level of it: FRONT_LV). A
 // laser or a light is too light to tell (none)
 export const FRONT = { laser: [0, 0, 0], light: [0, 0, 0], supp: [0, 0.14, 0.18, 0.22], choke: [0, 0.06, 0.1], arMag: [0, 0.08, 0.14, 0.2] };
-export const FRONT_MOD = { match: 0.1, longbarrel: 0.1, comp: 0.08, ported: 0.06, heavy: 0.16, gl: 0.2, bipod: 0.12 };
+export const FRONT_MOD = { match: 0.14, longbarrel: 0.18, comp: 0.08, ported: 0.06, heavy: 0.18, gl: 0.2, bipod: 0.12 };
+const FRONT_LV = new Set(['match', 'longbarrel', 'heavy']);
 // how much more a long gun sways for d more weight out front, as a percentage (the attachment cards: upgrades/upgrade-info.js)
 export const frontSwayPct = d => Math.round(d * XSWAY.front / XSWAY.px * 100);
 export function frontHeavy(id) {
@@ -91,7 +93,7 @@ export function frontHeavy(id) {
   for (const a of ['laser', 'light', 'supp', 'choke']) k += FRONT[a][gunTier(id, a)] || 0;
   if (id === 'ar') k += FRONT.arMag[gunTier(id, 'mag')] || 0;
   const off = modsOff(id);
-  for (const m of W8.mods[id] || []) if (FRONT_MOD[m] && !off.includes(m)) k += FRONT_MOD[m] * (m === 'longbarrel' ? modLv(m) : 1);
+  for (const m of W8.mods[id] || []) if (FRONT_MOD[m] && !off.includes(m)) k += FRONT_MOD[m] * (FRONT_LV.has(m) ? modLv(m) : 1);
   return k;
 }
 // and how hard you're breathing: winded (as your stamina runs down), at a sprint and for a while after (fade, s), over

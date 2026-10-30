@@ -48,14 +48,14 @@ export const GUN_MODS = {
   longbarrel: { w: 'revolver', r: 'c', name: '4" barrel', names: ['4" barrel', '6" barrel', '8" barrel'], text: 'Hits harder and keeps its damage much further out.', vis: 'A longer barrel', stat: D => { D.dmg *= 1.25; D.reach = (D.reach || 1) + 0.4; } },
   // no mode to switch: from the hip you fan it (hold the trigger, the shots come almost 3× as fast and far wilder),
   // down the sights it's the careful single shots it always was (weapons/firing.js: fanning)
-  fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, hold the trigger to fan shots 3× as fast, but much wilder. Aim down the sights for precise single shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
+  fan: { w: 'revolver', r: 'r', name: 'Fan the hammer', text: 'From the hip, holding the trigger fans shots 3× as fast, with much more spread. Down the sights it fires single aimed shots.', vis: 'A filed-down hammer', stat: D => { D.fan = { rate: 0.2, spread: 6 }; } },
   // (the shoulder stock, stations/recipes.js, is what tames a sidearm's kick: the compensator only tightens it)
   comp: { w: 'deagle', muzzle: true, r: 'u', name: 'Ported compensator', text: 'Holds the muzzle down: less spread and kick.', vis: 'A slotted compensator', stat: D => { D.spread *= 0.5; D.shake *= 0.5; } },
-  slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires as you pump, so it goes quicker, a touch looser.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
+  slam: { w: 'pump', r: 'u', name: 'Slam fire', text: 'Fires as you pump: faster, slightly less accurate.', vis: 'The disconnector filed away', stat: D => { D.rate *= 0.67; D.spread *= 1.05; } },
   sawn: { conv: true, w: 'dbl', r: 'c', name: 'Sawn-off', text: 'More pellets in a wider spread, and quicker reloads.', vis: 'Barrels and stock cut short', stat: D => { D.pellets += 4; D.spread *= 1.4; D.perShell *= 0.7; } },
   both: { w: 'dbl', r: 'u', fm: 'Both barrels', name: 'Twin trigger', get text() { return `Fire both barrels at once, or one at a time: ${keyOn('fireMode')} switches.`; }, vis: 'A brass twin trigger', stat: D => { D.both = true; } },
   // a single step, no levels (it has no MOD_UP: weapons/mod-levels.js)
-  bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'The bolt slicked with gun grease runs smoother: 22% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.78; } },
+  bolt: { w: 'hunting', r: 'c', name: 'Greased bolt', text: 'A greased bolt that cycles smoother: 22% less time between shots.', vis: 'A polished bolt handle', stat: D => { D.rate *= 0.78; } },
   akimbo2: { conv: true, w: 'smg', r: 'e', name: 'Second machine pistol', text: 'One in each hand: left click fires the left, right click the right. No aiming down the sights, and a little more spread.', vis: 'One in each hand', stat: D => { D.akimbo = true; D.rate *= 0.6; D.mag *= 2; D.spread *= AK_SPREAD; } },
   ported: { w: 'smg', muzzle: true, r: 'c', name: 'Ported barrel', text: 'Keeps the muzzle down, so shots spread less.', vis: 'A ported barrel', stat: D => { D.spread *= 0.6; } },
   // the Navy trigger group: a 3-round burst as well as full auto, B switching (the burst's rounds come 0.06 s apart)
@@ -64,7 +64,7 @@ export const GUN_MODS = {
   navy: { w: 'sub', r: 'u', fm: 'Burst', name: 'Navy trigger group', get text() { return `Adds a 3-round burst (${keyOn('fireMode')} switches), quicker and tighter than full auto.`; }, vis: 'A burst-marked selector', stat: D => { D.burst = 3; D.rate = 0.3; D.spread *= 0.75; } },
   gl: { w: 'ar', r: 'e', name: 'Underbarrel launcher', text: 'G fires a grenade, then it recharges.', vis: 'A launcher tube under the barrel', stat: D => { D.gl = true; D.glRecharge = 6; } },
   // a small edge, not a big one: about 8% off a mag change, a few % more a level (weapons/mod-levels.js)
-  well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well, so mag changes go a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
+  well: { w: 'ar', r: 'u', name: 'Flared mag well', text: 'A funnel round the mag well: mag changes are a little quicker.', vis: 'A funnel round the mag well', stat: D => { D.reload *= 0.92; } },
   heavy: { w: 'ar', r: 'c', name: 'Heavy barrel', text: 'Hits harder and spreads less.', vis: 'A thicker barrel', stat: D => { D.dmg *= 1.25; D.spread *= 0.7; } },
   bipod: { w: 'lmg', r: 'c', name: 'Bipod', text: 'Almost no spread while standing still.', vis: 'Folding bipod legs', stat: D => { D.bipod = true; } },
   akkit: { conv: true, w: 'scar', r: 'l', cost: AKKIT.cost, semi: true, locks: ['mag', 'loader'], name: 'AK conversion kit', text: `A new lower for 30-round AK mags and full auto (B for semi). Lighter rounds that stagger less, but ${AKKIT.mag} in the gun and half the kick. Takes the place of the 20-round mag and the flared magwell.`, vis: 'An AK lower and a curved 30-round mag',

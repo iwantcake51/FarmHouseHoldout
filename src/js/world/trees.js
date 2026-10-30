@@ -17,6 +17,8 @@ import { state } from '../game/state.js';
 import { HELI_PUSH } from '../stations/supply-drop.js';
 
 export const treeCells = [], TREES = [];
+// where the bushes and rocks are, [x, z, how far round it they reach] (a crate dropped clear of them: stations/supply-drop.js)
+export const GROUND_PROPS = [];
 // the yard fence stays in view: no pine stands within FENCE_CLEAR cells outside it (FENCE_CLEAR_CAM on the sides that
 // face the camera, where one would stand in front of the fence and hide it), nor in the way in to one of its gaps
 // (a lane GAP_LANE cells either side of the gap, straight out to the forest)
@@ -220,7 +222,7 @@ function plantTrees(list, into = scene) {
   }
   const place = (vars, mat, tilt) => vars.forEach(v => {
     if (!v.at.length) return; const im = new THREE.InstancedMesh(v.g, mat, v.at.length), c = new THREE.Color();
-    v.at.forEach(([x, z, s], k) => { dm.position.set(x, 0, z); dm.rotation.set(rr(-tilt, tilt), rand() * 6.28, rr(-tilt, tilt)); dm.scale.set(s * rr(0.9, 1.1), s * rr(0.85, 1.1), s * rr(0.9, 1.1)); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix); im.setColorAt(k, c.setRGB(rr(0.88, 1.08), rr(0.9, 1.08), rr(0.86, 1.04))); });
+    v.at.forEach(([x, z, s], k) => { GROUND_PROPS.push([x, z, 0.55 * s]); dm.position.set(x, 0, z); dm.rotation.set(rr(-tilt, tilt), rand() * 6.28, rr(-tilt, tilt)); dm.scale.set(s * rr(0.9, 1.1), s * rr(0.85, 1.1), s * rr(0.9, 1.1)); dm.updateMatrix(); im.setMatrixAt(k, dm.matrix); im.setColorAt(k, c.setRGB(rr(0.88, 1.08), rr(0.9, 1.08), rr(0.86, 1.04))); });
     im.castShadow = true; im.receiveShadow = true; scene.add(im);
   });
   place(BUSH_VAR, M.bush, 0.05); place(ROCK_VAR, M.rock, 0.12);

@@ -288,6 +288,8 @@ const HAND_W = { lead: 30, k: 420, d: 41 };
 const REL_ENV = { in: 11, out: 6.5 };
 // how much of the mag change (rpm) the hand takes to go from its path at the pouch onto the fresh mag's carry (magInHand)
 const MAG_TAKE_BLEND = 0.09, _mtk = new V3();
+// how long the revolver's cylinder stays out after a shove that cut its reload short, for the reload to go on (CYL_HOLD, s)
+const CYL_HOLD = 0.35;
 // and how much of the carry (MAG_CARRY.u) the hand's spring takes to stiffen up for it
 const MAG_STIFF_IN = 0.25;
 // blend a hand between its spot on the gun and a free target; wt is how far off the gun it should be
@@ -844,7 +846,10 @@ function poseGun(D, up, ph, runF, rdt, now, sh) {
   // stop; when it's done it's snapped shut. On a spring, so it swings rather than slides
   if (cr.length) {
     // (after a round at a time it's pushed shut by hand instead, from CYL_GRAB: no flick, the hand drives it, below)
-    const byHand = cyP >= CYL_GRAB, open = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) || (cyP >= 0 && !byHand);
+    // (and a reload cut short by a shove, waiting to go on: it stays out through the shove and the moment after it,
+    // CYL_HOLD seconds, till the reload's back, rather than snapping shut and swinging out again)
+    ANIM.cylHold = W8.relSave[id] && P.shove ? CYL_HOLD : Math.max(0, (ANIM.cylHold || 0) - rdt);
+    const byHand = cyP >= CYL_GRAB, open = rel === 'shell' || (rel === 'mag' && D.speedload && rp < SL_SHUT) || (cyP >= 0 && !byHand) || (ANIM.cylHold > 0 && !!W8.relSave[id]);
     ANIM.craneT = open ? (ANIM.craneT || 0) + rdt : 0; ANIM.crane = ANIM.crane || 0; ANIM.vcrane = ANIM.vcrane || 0;
     const want = open && ANIM.craneT >= REV_OPEN ? 1 : 0;
     if (want) ANIM.latched = false;

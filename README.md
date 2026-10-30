@@ -114,9 +114,16 @@ the other one, that eye squinting along the gun and your head tipped over the st
      gets a card of its own with the skull and what it paid, and a moment's hit-stop. Each pays out double what it used
      to: scrap (9 to 12, more each wave), an ammo box for sure, and most often bandages or planks too. In co-op an elite
      is the same one on every screen.
-   - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper going over drops
-     a crate in the yard for you, mid-wave, with its flare and marker: half a radio crate's ammo, a bandage and a
-     military find, if you can get out to it and back. In co-op each player gets their own.
+   - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper drops a crate
+     outside the fence. Its card comes in (in the supply orange), and the drop marker counts down the 15 seconds till it
+     lands with how far off it is; while it's inbound, more of them come in (4, and one more every 3 waves, a couple of
+     seconds apart, sent by whoever runs the zombies in co-op). It comes down out in the yard between the fence and the
+     tree line, clear of every tree's crown, the bushes and rocks, and anything else stood there (the cars, the hay
+     bales): a radio crate's ammo, 2 bandages, 4 planks, a cache of scrap (8, and 2 more a wave) and a military find.
+     In co-op each player gets their own. The helicopter itself flies over, along its shadow's line at the height the
+     crate falls from: an olive transport with its tail boom, fin and skids, a two-bladed rotor turning so fast it's
+     mostly a blur, coming in over the trees and going, seen from your own eyes as well as from above, for the radio's
+     drops too.
 
 When the run ends the HUD clears away and the end screen comes up over the farm on its own; **Full run stats** folds open under your score: kills by zombie type and by weapon, headshots,
 your longest kill and biggest chain, boards nailed and repaired, damage taken and your closest call (the lowest your health got that you lived through: a low only counts once you've
@@ -132,7 +139,7 @@ you can always see inside; from your own eyes the rooms have a proper ceiling ov
 stained timber joists running across the house, the lamps hanging from it on their cords. Indoors the roof keeps the
 sun off everything under it, the floorboards' seams, the joists and everyone in the room (you, your own forearms from
 your own eyes, and the dead) alike, so the rooms are lit by their lamps and the daylight through the windows, and out
-in the yard you all go into the shade of the house and the trees. The clock runs from afternoon into night, and the dark is where the lamps, your
+in the yard you all go into the shade of the house and the trees. The clock runs from afternoon into night, an hour every 30 seconds of a wave (so the sun and the moon drift across the sky rather than racing), and the dark is where the lamps, your
 flashlight and the muzzle flashes matter. What the lamps don't reach isn't grey: the dark takes the cool of the sky,
 a blue-violet moonlight by night and a cool blue-grey in the shade by day, and the shadows are graded cooler against the
 warm of the light (with the lit colour a little fuller), so the honey daylight, the amber dusk and the lamplight have
@@ -285,6 +292,8 @@ pump, round the barrel and the tube just ahead of the forend's travel), never ou
 loaded in a shotgun shows only in the shells themselves (the side saddle, the ones in your hand): nothing's added to the
 gun for dragon's breath, and no stripe on the auto shotgun's mag.
 
+Every gun's, mod's and attachment's description says plainly what it is and does, with no advice on how to use it.
+
 Buying something you can't afford (or can't have yet) answers with a short dull two-note "no" and the button shaking,
 the quick ammo and bandage buttons included, rather than the click a station makes when it opens. In a short window
 the station's panel comes down over the HUD to give its list room. The big banners ("Night 1", a wave starting) wait
@@ -409,7 +418,7 @@ look round freely while the gun stays where it's aimed: your arms and the gun ho
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride (barely up and down; the gun in your hands swings side to side, nods onto each footfall and rolls with the step a beat behind it, a loose figure of eight rather than a bounce), banks a
 little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently; reloading down the sights,
-the gun and your hands on it still jolt a little as the old mag's shaken out and the new one slapped home. Down the sights the gun isn't nailed to the middle of the view either: it sways a little side to side and dips with each step as you walk, trails a quick turn or look and settles back, and rises and falls with your breath standing still; the view stays where you look, and your shots go where the sights point. The gun's held sway shows too, at the hip and down the sights (a scope's picture wandering with it): a heavy gun, a handgun with nothing to brace it, weight out on the muzzle (a suppressor, a long barrel, a launcher), being winded, just knocked by a hit or badly hurt each make the sights drift about more and more, slow and smooth, settling back as you get your breath and steady up. Aiming also darkens the very edges of the screen faintly, your focus narrowing onto the sights. Sprinting, a rifle or SMG is carried across your body, muzzle down to your left, seen from its side (it used to point straight ahead and down so all you saw was its back end). Swinging a melee weapon tips the view the way its head travels across you, and a blow that lands knocks the view back with a nod. Pausing eases whatever your hands were in the middle of (a reload, working the action, the low ready) back to the plain hold, facing straight ahead, and back into it when you resume (in co-op, where the farm keeps going, it doesn't). Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
+the gun and your hands on it still jolt a little as the old mag's shaken out and the new one slapped home. Down the sights the gun isn't nailed to the middle of the view either: it sways a little side to side and dips with each step as you walk, trails a quick turn or look and settles back, and rises and falls with your breath standing still; the view stays where you look, and your shots go where the sights point. The gun's held sway shows too, at the hip and down the sights (a scope's picture wandering with it): a heavy gun, a handgun with nothing to brace it, weight out on the muzzle (a suppressor, a launcher, and a longer or heavier barrel more with every level of it: the match barrel, the revolver's 6" and 8", the heavy barrel), being winded, just knocked by a hit or badly hurt each make the sights drift about more and more, slow and smooth, settling back as you get your breath and steady up. Aiming also darkens the very edges of the screen faintly, your focus narrowing onto the sights. Sprinting, a rifle or SMG is carried across your body, muzzle down to your left, seen from its side (it used to point straight ahead and down so all you saw was its back end). Swinging a melee weapon tips the view the way its head travels across you, and a blow that lands knocks the view back with a nod. Pausing eases whatever your hands were in the middle of (a reload, working the action, the low ready) back to the plain hold, facing straight ahead, and back into it when you resume (in co-op, where the farm keeps going, it doesn't). Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
 is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. The kick is kept small and settles quickly, so the view doesn't jump about. No two shots kick the view quite the same: each one's a little harder or softer (the first of a string hardest),
 rolls the view a touch to one side on its own springy spring, and sends a short hard shudder through it that dies away
 in about a sixth of a second, and the view comes back with a hair of overshoot rather than gliding home. No shot kicks straight up: each goes up and a little to one side or the other, slightly more often to the right (as a right-handed shooter's gun goes), the view and the gun the same way. Down the sights the gun still kicks in your hands, but it turns about your eye: the rear sight and the front (or an optic's window and its dot) stay lined up on your eye, and the whole sight picture tips up and aside together and settles back, so a heavy kick never swings the rear sight across your view. The kick's shove back toward your eye eases off before
@@ -467,8 +476,10 @@ longer a burst runs, to half as much again by the tenth shot, so it rewards shor
 60% of the rise, at the hip and down the sights alike) and walks side to side more instead, so a long burst swings
 across the target rather than rising off it. A gun's upgrades change which way it kicks: a hotter powder puts its
 extra kick into the climb (+18%, +38% and +60% up by tier, about a third of that sideways too, and a slightly harder
-punch all round), and each lighter trigger step swings the gun aside 15% more and climbs 5% more, the shots coming
-quicker than your wrists settle. The workbench shows it on each card (KICK UP, KICK ASIDE).
+punch all round), less again on a gun that already kicks hard (by its own kick: the battle rifle about 60% of it, the
+hand cannon 40%); and each lighter trigger step swings the gun aside 15% more and climbs 5% more, but only while it
+fires a stream or a burst (full auto, an automatic's own fire, a burst mode), the shots coming quicker than your
+wrists settle: on single shots (the battle rifle, the AR on semi, the handguns) a lighter trigger adds no kick. The workbench shows it on each card (KICK UP, KICK ASIDE).
 From above, a smoke trail lies flat along the round's path rather than standing up off it. Your
 teammates see the same streak, the same hole in the wall and the same dirt kicked up, wherever they're watching from. Up
 against a wall or furniture the gun's slid back a few centimetres along its barrel, then brought down to a low ready, its
@@ -625,7 +636,9 @@ port, carried down onto it in the fingers, laid in on top of the rounds in the w
 thumb, then let go, the magazine's spring lifting it a hair up under the feed lips, the left hand holding the rifle
 up by its fore-end), and the left on the handguard or the pump, fetching mags and feeding shells,
 rounds and the revolver's speed loader. A speed loader dumps every round in the cylinder, spent or not, before the
-fresh six go in. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
+fresh six go in (in 1.75 s, a touch quicker than it was; not said on its card). A shove in the middle of the
+revolver's reload leaves the cylinder swung out through the shove, the reload going on after it, rather than snapping
+it shut and swinging it out again. Between loading shells and working the pump, the bolt or the cylinder, the hands carry on from one
 into the next without a jump: after the last shell the hand comes off the loading port, dips under the gun onto the
 pump and takes hold of it before it's worked, and the hand on the bolt eases back to the grip. A pump or a bolt is
 never yanked out of nowhere: there's a beat first, the grip set and the gun easing a touch the other way from where the

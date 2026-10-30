@@ -328,7 +328,7 @@ export const BRK_SHUT = 0.3, BRK_GRAB = 0.42, SHELL_IN = 0.7, SHUT_FIRE_WAIT = 0
 // the revolver loaded a round at a time (no speed loader) is shut the same way, by hand: CYL_SHUT long, the support
 // hand going to the open cylinder for the first CYL_GRAB of it, pushing it round into the frame till it latches at
 // CYL_LATCH, and back onto the grip after (player/hold.js poses it to the same marks)
-export const CYL_SHUT = 0.46, CYL_GRAB = 0.36, CYL_LATCH = 0.74;
+export const CYL_SHUT = 0.46, CYL_GRAB = 0.36, CYL_LATCH = 0.74, SHUT_HOLD = 0.35;
 export const cylShut = D => !!D && !D.breakOpen && !D.akimbo && !!D.perShell && !D.speedload && (CRANE[W8.cur] || []).length > 0;
 // a pump, once its last shell's in: the support hand comes back from the loading port onto the forend and takes hold of
 // it (PUMP_GRAB seconds) before it's worked (weapons/casings.js: tickCycle; player/hold.js eases the hand on)
@@ -351,6 +351,9 @@ export function tickShut(dt) {
   const D = W(curId());
   if (!D || (!D.breakOpen && !cylShut(D))) { W8.brkOpen = false; W8.shutT = 0; W8.shutQ = false; return; }
   if (W8.reloading === 'shell') { W8.brkOpen = true; return; }
+  // (a revolver's reload cut short by a shove, to go on after it: its cylinder's left out through the shove and a moment
+  // after, SHUT_HOLD seconds, rather than pushed shut and swung out again)
+  if (!D.breakOpen && W8.relSave[curId()] && (P.shove || (W8.shutHold = (W8.shutHold || 0) - dt) > 0)) { if (P.shove) W8.shutHold = SHUT_HOLD; W8.brkOpen = true; return; }
   if (W8.brkOpen) { W8.brkOpen = false; W8.shutT = W8.shutMax = (D.breakOpen ? BRK_SHUT * (D.shutMul || 1) : CYL_SHUT) * S.reloadMul; }
   if (W8.shutT <= 0) return;
   W8.shutT -= dt;

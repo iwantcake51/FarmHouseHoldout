@@ -4,7 +4,7 @@
 
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { cam, scene, V3 } from '../core/renderer.js';
-import { clamp, rand, rr, smooth } from '../core/math.js';
+import { clamp, N, rand, rr, smooth } from '../core/math.js';
 import { lam } from '../core/shaders.js';
 import { ci, cxw } from '../world/grid.js';
 import { HOUSE } from '../world/house.js';
@@ -33,7 +33,10 @@ import { glowGun, phase, setLmT, setShake, shake, state, worldT } from '../game/
 import { bandMax } from '../player/bandages.js';
 import { ammoTypes, giveWeapon, tierFits } from '../upgrades/upgrades.js';
 import { runStat } from '../ui/run-stats.js';
-import { feed, popEl, toast } from '../ui/hud-text.js';
+import { eliteCall, feed, popEl } from '../ui/hud-text.js';
+import { netSpawn } from '../net/sync.js';
+import { netClient } from '../net/net.js';
+import { GROUND_PROPS, TREES } from '../world/trees.js';
 import { curDark } from '../lighting/day-night.js';
 import { gotGear, gunCall } from '../ui/gear-popup.js';
 
@@ -43,10 +46,13 @@ let supplyCargo = null, supplySpot = null;
 const DROP_LEAD = 9, HELI_IN = 5.5, HELI_OUT = 4.5, HELI_SPEED = 14, HELI_PASS = 2.8;
 const HELI_WASH = { t: 1.3, r: 3.6, push: 1, every: 0.05, n: 3 };
 export const HELI_PUSH = new THREE.Vector4(0, 0, 1, 0);   // the downwash's push on the grass (updatePushers, world/trees.js)
-export function callDrop(cargo) {
+export function callDrop(cargo, lead = DROP_LEAD) {
   runStat('drops');
-  setSupplyT(DROP_LEAD); supplyCargo = cargo;
-  let x, z; do { x = cxw((rr(FX0 + 2, FX1 - 2)) | 0); z = cxw((rr(FZ0 + 2, FZ1 - 2)) | 0); } while (hardBlocked(ci(x), ci(z)) || (x > HOUSE.x0 - 1 && x < HOUSE.x1 + 1 && z > HOUSE.z0 - 1 && z < HOUSE.z1 + 1));
+  setSupplyT(lead); supplyCargo = cargo;
+  let x, z;
+  const out = cargo && cargo.stray && strayAt();   // (a stray crate: out past the fence, strayAt)
+  if (out) { x = out.x; z = out.z; }
+  else do { x = cxw((rr(FX0 + 2, FX1 - 2)) | 0); z = cxw((rr(FZ0 + 2, FZ1 - 2)) | 0); } while (hardBlocked(ci(x), ci(z)) || (x > HOUSE.x0 - 1 && x < HOUSE.x1 + 1 && z > HOUSE.z0 - 1 && z < HOUSE.z1 + 1));
   supplySpot = { x, z, a: rand() * Math.PI * 2, heard: false, t: -DROP_LEAD, dustT: 0 };
 }
 // a crate for what's in it: the square supply crate, or a long olive case with its latches and handle for a weapon
@@ -81,6 +87,24 @@ const heliShadow = (() => {
   x.fillRect(116, 60, 96, 8); x.fillRect(204, 50, 9, 28); x.beginPath(); x.arc(208, 64, 11, 0, Math.PI * 2); x.fill();   // the tail boom, its fin and rotor
   const m = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: 0x000000, transparent: true, depthWrite: false, opacity: 0 }));
   m.visible = false; m.renderOrder = 2; scene.add(m); return m;
+})();
+// ---- the helicopter itself, flying over the drop along its shadow's line at the height the crate falls from (HELI_FLY:
+// how high, how long either side of the drop it's in the air for you to see, its rotors' spin): an olive transport, a
+// long cabin with a glazed nose, the tail boom and fin with its tail rotor, skids under it, and a two-bladed rotor over
+// it, turning so fast its blades are mostly a blurred disc. From your own eyes you see it come in over the trees and go
+const HELI_FLY = { y: 18, t: 7, spin: 34, tailSpin: 90, bob: 0.25 };
+const heli = (() => {
+  const g = new THREE.Group(), body = lam(0x48502f), dark = lam(0x23261c), glass = lam(0x1a2a30, { emissive: 0x05090c }), B = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = false; g.add(o); return o; };
+  B(1.9, 1.7, 4.6, body, 0, 0, 0.2); B(1.7, 1.3, 1.3, body, 0, -0.1, 3.0); B(1.5, 0.9, 0.9, glass, 0, 0.05, 3.55);   // the cabin, the nose and its glazing
+  B(1.6, 0.6, 1.8, dark, 0, 1.1, 0.1);   // the engine housing on the roof
+  B(0.45, 0.55, 5.4, body, 0, 0.35, -4.6); B(0.12, 1.4, 0.9, body, 0, 0.95, -7.1); B(1.3, 0.08, 0.5, body, 0, 0.3, -6.6);   // the tail boom, its fin and its stabiliser
+  [-1, 1].forEach(sd => { B(0.08, 0.08, 4.2, dark, sd * 1.05, -1.3, 0.4); B(0.08, 0.5, 0.08, dark, sd * 1.0, -1.05, 1.5); B(0.08, 0.5, 0.08, dark, sd * 1.0, -1.05, -0.8); });   // the skids
+  const rotor = new THREE.Group(); rotor.position.set(0, 1.55, 0.2); g.add(rotor);
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(14, 0.05, 0.42), dark); rotor.add(blade); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 10), dark); rotor.add(hub);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(7, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a1c16, transparent: true, opacity: 0.22, depthWrite: false })); rotor.add(disc);
+  const tail = new THREE.Group(); tail.position.set(0.12, 1.0, -7.1); g.add(tail);
+  tail.add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.0, 0.18), dark)); const td = new THREE.Mesh(new THREE.CircleGeometry(1, 20).rotateY(Math.PI / 2), disc.material); tail.add(td);
+  g.visible = false; scene.add(g); g.userData.rotor = rotor; g.userData.tail = tail; return g;
 })();
 // ---- the flare: a red tube lying in the grass beside the crate, its tip fizzing white-hot, throwing a flickering red
 // light round it and a column of red smoke, the odd spark; it burns on a while after the crate's opened, then dies
@@ -140,13 +164,45 @@ export function deliverWeapon(id, from) {
 // them coming in. Lighter than one off the radio (STRAY.ammo of its ammo, STRAY.band bandages, no health or planks) but
 // with its military find. Rolled as each wave begins (waves/waves.js: waveBegins), each player their own: drops are
 // each player's own in co-op
-const STRAY = { from: 2, chance: 0.22, at: [25, 50], ammo: 0.5, band: 1 };
+const STRAY = { from: 2, chance: 0.22, at: [25, 50], lead: 15, ammo: 1, band: 2, planks: 4, cache: [8, 2], extra: [4, 3], gap: [1.1, 2], yard: 8, tree: 2.4, prop: 1.3, ring: 1.1 };
 export function strayRoll(n) { run.stray = n >= STRAY.from && rand() < STRAY.chance ? { t: rr(STRAY.at[0], STRAY.at[1]) } : null; }
+// where a stray crate comes down: out in the yard past the fence (within STRAY.yard cells of it, short of the solid tree
+// line at the edge), never in a tree's crown (STRAY.tree m off every trunk), on a bush or a rock (STRAY.prop), or on
+// anything else stood there (nothing under it, its middle or a ring STRAY.ring round it, but the ground). Nearest the
+// fence first, so it's a run out and back; null if there's nowhere
+const _sr = new THREE.Raycaster(), _srO = new V3(), _srD = new V3(0, -1, 0);
+function strayAt() {
+  const still = scene.children.filter(o => o.userData.still), spots = [];
+  for (let i = 2; i < N - 2; i++) for (let j = 2; j < N - 2; j++) {
+    const d = Math.max(FX0 - 1 - i, i - FX1 - 1, FZ0 - 1 - j, j - FZ1 - 1); if (d < 1 || d > STRAY.yard) continue;
+    if (hardBlocked(i, j)) continue; spots.push([i, j, d + rand() * 2]);
+  }
+  spots.sort((a, b) => a[2] - b[2]);
+  for (const [i, j] of spots) {
+    const x = cxw(i) + rr(-0.25, 0.25), z = cxw(j) + rr(-0.25, 0.25);
+    if (TREES.some(t => Math.hypot(t.x - x, t.z - z) < STRAY.tree * Math.max(1, t.s))) continue;
+    if (GROUND_PROPS.some(([px, pz, r]) => Math.hypot(px - x, pz - z) < STRAY.prop + r)) continue;
+    let hit = false;
+    for (let k = 0; k < 7 && !hit; k++) {
+      const a = k / 6 * Math.PI * 2, rr0 = k ? STRAY.ring : 0; _srO.set(x + Math.cos(a) * rr0, 6, z + Math.sin(a) * rr0); _sr.set(_srO, _srD); _sr.far = 6;
+      hit = _sr.intersectObjects(still, true).some(h => h.point.y > 0.08);
+    }
+    if (!hit) return { x, z };
+  }
+  return null;
+}
+// what comes in with it: while it's on its way, STRAY.extra more of them (one more every extra[1] waves), a few seconds
+// apart, sent in by whoever runs the zombies (in co-op, the host's, net/sync.js: netSpawn)
+let strayRush = null;
 export function updateSupplyDrop(dt) {
   if (run.stray && phase === 'wave' && !dropBusy() && (run.stray.t -= dt) <= 0) {
-    run.stray = null; callDrop({ kind: 'supply', stray: true });
-    toast('A chopper\'s dropping a crate', { kind: 'info', icon: 'supply', sub: 'In the yard, mid-wave: get to it if you can' });
+    run.stray = null; callDrop({ kind: 'supply', stray: true }, STRAY.lead);
+    eliteCall({ col: '#d8692c', icon: 'supply', eye: 'Supply drop', name: 'Crate inbound', line: 'A chopper\'s dropping a crate outside the fence', tip: 'Lands in ' + STRAY.lead + ' s · more of them come in till it does', t: 3.6 });
+    if (!netClient()) { const n = STRAY.extra[0] + Math.floor(run.wave / STRAY.extra[1]); strayRush = { n, t: 0.6 }; run.waveTotal += n; }
   }
+  if (strayRush && phase === 'wave') {
+    if ((strayRush.t -= dt) <= 0) { netSpawn(run.wave >= 3 && rand() < 0.3 ? 'runner' : 'walker'); strayRush.t = rr(STRAY.gap[0], STRAY.gap[1]); if (--strayRush.n <= 0) strayRush = null; }
+  } else strayRush = null;
   const sp = supplySpot;
   if (supplyT > 0 && sp) {
     setSupplyT(supplyT - dt); sp.t = -supplyT;
@@ -162,6 +218,8 @@ export function updateSupplyDrop(dt) {
     // the helicopter's shadow sweeps over the spot as it drops the crate, and its downwash kicks up the dust there
     if (supplyT <= 0) sp.t += dt;
     const tr = sp.t, on = Math.abs(tr) < HELI_PASS;
+    { const fly = Math.abs(tr) < HELI_FLY.t; heli.visible = fly;   // (the helicopter itself: HELI_FLY)
+      if (fly) { const vx = -Math.cos(sp.a), vz = Math.sin(sp.a), d = tr * HELI_SPEED; heli.position.set(sp.x + vx * d, HELI_FLY.y + Math.sin(tr * 1.7) * HELI_FLY.bob, sp.z + vz * d); heli.rotation.set(0.08, Math.atan2(vx, vz), Math.sin(tr * 0.9) * 0.04); heli.userData.rotor.rotation.y += dt * HELI_FLY.spin; heli.userData.tail.rotation.x += dt * HELI_FLY.tailSpin; } }
     heliShadow.visible = on; if (!on) HELI_PUSH.w = 0;
     if (on) {
       const vx = -Math.cos(sp.a), vz = Math.sin(sp.a), d = tr * HELI_SPEED;
@@ -180,7 +238,7 @@ export function updateSupplyDrop(dt) {
         if (rand() < 0.5 * wk) { const a = rand() * 6.28, r = rr(0.5, 2); fx('debris', hx + Math.sin(a) * r, 0.1, hz + Math.cos(a) * r, Math.sin(a) * rr(1.5, 3), rr(1, 2.2), Math.cos(a) * rr(1.5, 3), 0.06, rr(0.12, 0.2), rr(0.6, 1), 0.8); }
         if (Math.hypot(hx - P.x, hz - P.z) < 9) setShake(Math.max(shake, 0.035 * wk));
       }
-    } else if (tr >= HELI_PASS && !supplyFall && supplyT <= 0) supplySpot = null;
+    } else if (tr >= HELI_FLY.t && !supplyFall && supplyT <= 0) supplySpot = null;
   }
   if (supplyFall) {
     const f = supplyFall; f.m.position.y -= dt * 9; f.m.rotation.y += dt * 0.6;
@@ -192,7 +250,7 @@ export function updateSupplyDrop(dt) {
   stepFlare(dt);
 }
 // a new run: nothing on its way, no flare, no shadow
-export function resetDrops() { HELI_PUSH.w = 0; setSupplyT(0); supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); setSupplyFall(null); } }
+export function resetDrops() { strayRush = null; heli.visible = false; HELI_PUSH.w = 0; setSupplyT(0); supplyCargo = null; supplySpot = null; heliShadow.visible = false; flareGone(); if (supplyFall) { scene.remove(supplyFall.m); setSupplyFall(null); } }
 export const dropBusy = () => supplyT > 0 || !!supplyFall;
 // The supply crate: what the radio sells, once every SUPPLY.every waves (from the wave it was last called on: run.dropAt),
 // for its cost in scrap. What's in it grows with the wave, from a modest top-up on the first wave to a real resupply by
@@ -208,9 +266,11 @@ const supplyAmmo = a => Math.round(AMMO_BATCH[a] * supplyAt('batches'));
 const supplyHp = () => { const f = clamp((Math.max(1, run.wave) - 1) / (SUPPLY.full - 1), 0, 1); return Math.round(SUPPLY.hp[0] + (S.maxHp * SUPPLY.hp[1] - SUPPLY.hp[0]) * f); };
 // the crate opened (pickups/pickups.js): everything in it, each noted in the feed
 export function supplyOpen(cargo) {
-  if (cargo && cargo.stray) {   // (a stray crate: lighter, but with its find, STRAY)
+  if (cargo && cargo.stray) {   // (a stray crate, STRAY: a radio crate's ammo, bandages, planks, a cache of scrap and its find)
     ammoTypes().forEach(a => { const n = Math.max(1, Math.round(supplyAmmo(a) * STRAY.ammo)); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
-    const nb = Math.min(STRAY.band, Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, 'bandage'); popEl('bands'); }
+    const nb = Math.min(STRAY.band, Math.max(0, bandMax() - (P.band || 0))); if (nb) { P.band = (P.band || 0) + nb; feed('med', nb, nb > 1 ? 'bandages' : 'bandage'); popEl('bands'); }
+    const np = addPlanks(STRAY.planks); if (np) { feed(matKind(), np, matWord()); popEl('planks'); }
+    const sc = STRAY.cache[0] + STRAY.cache[1] * Math.max(1, run.wave); S.scrap += sc; popEl('scrap'); feed('scrap', sc, 'scrap');
     crateFind(); feed('supply', 0, 'Stray crate opened'); return;
   }
   ammoTypes().forEach(a => { const n = supplyAmmo(a); W8.reserve[a] += n; feed('ammo', n, AMMO_NAME[a]); });
@@ -282,8 +342,8 @@ export function updateDropMarker() {
     const cx = innerWidth / 2, cy = innerHeight / 2, dx = sx - cx, dy = sy - cy, k = Math.min((cx - DM_EDGE) / (Math.abs(dx) || 1e-6), (cy - DM_EDGE) / (Math.abs(dy) || 1e-6));
     sx = cx + dx * k; sy = cy + dy * k; ang = Math.atan2(dy, dx);
   }
-  const d = Math.round(Math.hypot(at.x - P.x, at.z - P.z)), key = (off ? 1 : 0) + ':' + d + ':' + (crate ? 1 : 0);
+  const d = Math.round(Math.hypot(at.x - P.x, at.z - P.z)), cd = !crate && !f && supplyT > 0 ? Math.ceil(supplyT) : 0, key = (off ? 1 : 0) + ':' + d + ':' + (crate ? 1 : 0) + ':' + cd;   // (while it's on its way, the seconds till it lands too)
   dropMark.style.transform = `translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;
   if (off) dropMark.style.setProperty('--a', ang.toFixed(3) + 'rad');
-  if (dropMark._k !== key) { dropMark._k = key; dropMark.classList.toggle('off', off); dropMark.classList.toggle('falling', !crate); dropMark.querySelector('b').textContent = d + ' m'; }
+  if (dropMark._k !== key) { dropMark._k = key; dropMark.classList.toggle('off', off); dropMark.classList.toggle('falling', !crate); dropMark.querySelector('b').textContent = (cd ? cd + ' s · ' : '') + d + ' m'; }
 }

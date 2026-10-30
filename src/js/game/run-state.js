@@ -45,12 +45,16 @@ export function recomputeEff() {
     // this gun's own upgrade tiers
     const g = (W8.gt && W8.gt[id]) || {};
     const ammo = g.ammo || 0, trig = g.trigger || 0, mag = g.mag || 0, sight = g.sight || 0, laser = g.laser || 0;
-    D.dmg *= AMMO_DMG[ammo]; D.powK = POWDER_KICK[ammo]; D.shake *= POWDER_KICK[ammo];   // a hotter charge kicks harder too
+    // a hotter charge kicks harder too, though less again on a gun that already kicks hard (POW_HEAVY: its share of the
+    // powder's extra kick, by the gun's own kick, down to POW_HEAVY.min)
+    D.dmg *= AMMO_DMG[ammo]; D.powK = 1 + (POWDER_KICK[ammo] - 1) * clamp(POW_HEAVY.kick / (WEAP[id].kick || 1), POW_HEAVY.min, 1); D.shake *= D.powK;
     // which way the kick grows with the gun's tiers (KICK_TIER): a hotter powder mostly up (its POWDER_KICK all into the
     // climb, side of it aside), a lighter trigger mostly aside, the shots coming quicker than the wrists settle (side
     // a step, up a little). On top of the gun's own climbK and sideK (weapons/gun-stats.js: the LMG's)
-    D.kickUp = (1 + (D.powK - 1) * KICK_TIER.powder.up) * (1 + trig * KICK_TIER.trigger.up);
-    D.kickSide = (1 + (D.powK - 1) * KICK_TIER.powder.side) * (1 + trig * KICK_TIER.trigger.side);
+    // (and the trigger's only while it fires a stream or a burst: on single shots the wrists settle between them)
+    const fm = W8.fm[id], streams = !!D.burst || fm === 'auto' || !!D.akKit || (fm !== 'semi' && (WEAP[id].slot === 'auto' || id === 'auto12')), trigK = streams ? trig : 0;
+    D.kickUp = (1 + (D.powK - 1) * KICK_TIER.powder.up) * (1 + trigK * KICK_TIER.trigger.up);
+    D.kickSide = (1 + (D.powK - 1) * KICK_TIER.powder.side) * (1 + trigK * KICK_TIER.trigger.side);
     const loader = g.loader || 0;
     if (loader && id === 'revolver') { D.perShell = 0; D.reload = REV_LOAD; D.speedload = true; }   // six at once
     else if (loader && id === 'scar') D.reload *= MAGWELL;   // a flared magwell: the new mag funnelled in, a quicker change
@@ -114,6 +118,7 @@ export const AMMO_DMG = [1, 1.25, 1.5, 1.875];
 export const POWDER_KICK = [1, 1.18, 1.38, 1.6];
 // (a powder's kick split: up of it into the climb, side of it aside; a trigger step's: up and side a step)
 const KICK_TIER = { powder: { up: 1, side: 0.3 }, trigger: { up: 0.05, side: 0.15 } };
+const POW_HEAVY = { kick: 2.2, min: 0.4 };
 export const SIGHT_AIM = [1, 0.75, 0.6, 0.48, 0.4, 0.34], SIGHT_MOVE = [1, 0.8, 0.64, 0.51, 0.41, 0.33];
 // how much faster the recoil settles back to nothing once you stop firing, with each laser (SETTLE, weapons/firing.js)
 export const LASER_SETTLE = [1, 1.3, 1.6];
@@ -148,7 +153,7 @@ export const SCOPES = { 3: { view: 0.85, zoom: 2.4, mag: 2.5, crit: 2 }, 4: { vi
 // each go TRIPLE.t of the time one shell takes (longer, but each shell is in quicker: nearly twice as fast overall,
 // 6 shells in about 1.4 s against 2.6 s). Each shell of a go is still thumbed in on its own, at least ROW_GAP seconds
 // after the last, so you hear each go in (weapons/reload.js: rowLoad, shellGo)
-export const REV_LOAD = 1.95, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 }, ROW_GAP = 0.075;
+export const REV_LOAD = 1.75, REV_OPEN_T = 0.38, REV_QUICK = 0.75, TRIPLE = { n: 3, t: 1.5 }, PAIR_LOAD = { n: 2, t: 1.3 }, ROW_GAP = 0.075;
 // Sleight of Hand, the double barrel's loader step: both shells go in together in SOH.shell of the time one takes on its
 // own, and the barrels are closed after in SOH.shut of the time (weapons/reload.js: tickShut). From empty that's about
 // 0.7 s against 1.3 s without it
