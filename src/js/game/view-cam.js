@@ -749,13 +749,54 @@ export const onScreen = v => v.z < 1 && v.z > -1;
 // its middle, over its front IRON.front of its length, the rear sight the furthest back of its top that comes up near
 // that height (within IRON.rear), the line over it (IRON.peek) and clear of what's between
 const IRON = { front: 0.42, step: 0.004, rear: 0.016, peek: 0.0022, cheek: 0.05, far: 0.22, pull: 0.26, long: 0.45, peep: 0.07 };
-const SL = { key: null, obj: null, a: new V3(), b: new V3(), kind: 'iron', relief: null, r: 0, hw: 0, hh: 0, hide: [] };
+// and never nearer your eye than IRON_CLEAR.eye to any of the rear sight that reaches back toward it: its ears and
+// the block round an aperture (found within IRON_CLEAR.r of the line, up to IRON_CLEAR.back behind the rear sight).
+// An aperture's held IRON.peep in front of your eye, but the AR's carry handle ears reach 2.5 cm further back than its
+// ring, so they sat 4.7 cm off the eye, and a hard kick turning the gun about your eye swung them out to the side,
+// nearer the camera's flat near plane, and through it
+const IRON_CLEAR = { eye: 0.072, r: 0.03, back: 0.12 }, _scV = new V3(), _scM = new THREE.Matrix4();
+function sightBack(meshes, frame, x, y, z) {
+  frame.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(frame.matrixWorld).invert(); let back = 0;
+  for (const o of meshes) { const p = o.geometry.attributes.position; _scM.multiplyMatrices(inv, o.matrixWorld);
+    for (let i = 0; i < p.count; i++) { _scV.fromBufferAttribute(p, i).applyMatrix4(_scM); const d = z - _scV.z;
+      if (d > back && d < IRON_CLEAR.back && Math.abs(_scV.x - x) < IRON_CLEAR.r && Math.abs(_scV.y - y) < IRON_CLEAR.r) back = d; } }
+  return back;
+}
+// a bolt worked down the sights comes straight back along the line toward your eye (the hunting rifle's 13 cm, from
+// 7.7 cm in front of it to past it, just under the line): your head comes back off the stock with it, the eye eased
+// back off it by however far it would otherwise come inside BOLT_CLEAR.near
+// of it (and only its body near the line, within BOLT_CLEAR.r; softly, over knee, so it starts and stops gently). What
+// slides that carries the sight isn't counted: a handgun's slide, whose sights the eye's kept on (slideBack)
+const BOLT_CLEAR = { near: 0.07, knee: 0.015, r: 0.04, ahead: 0.03, f: 0 }, _bcB = new THREE.Box3(), _bcV = new V3(), _bcR = new V3(), _bcA = new V3();
+function boltClear(L, eye, w) {
+  let need = 0; BOLT_CLEAR.f++;
+  for (const m of L.moving) {
+    let carries = false; for (let p = L.obj; p; p = p.parent) if (p === m) { carries = true; break; }
+    if (carries || !m.visible) continue;
+    // (where it'll be this frame: it's worked after the view's placed, player/hold.js, so it's taken on as far again as
+    // it came last frame; a frame behind, a bolt snapped back 4 cm nearer than it was cleared for)
+    // (only from the frame just gone, and no more than BOLT_CLEAR.ahead: come down the sights mid-stroke, the last it was
+    // seen could be from long before)
+    const r = m.userData.slideRest, dz = m.position.z - r.z0, ud = m.userData, ahead = ud.bcF === BOLT_CLEAR.f - 1 ? clamp(dz - ud.bcLast, -BOLT_CLEAR.ahead, BOLT_CLEAR.ahead) : 0; ud.bcLast = dz; ud.bcF = BOLT_CLEAR.f;
+    m.updateMatrixWorld(true); _bcA.set(0, 0, ahead); if (m.parent) _bcA.transformDirection(m.parent.matrixWorld).multiplyScalar(Math.abs(ahead));
+    m.traverse(o => { if (!o.isMesh || !o.geometry) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _bcB.copy(o.geometry.boundingBox);
+      for (let i = 0; i < 8; i++) { _bcV.set(i & 1 ? _bcB.max.x : _bcB.min.x, i & 2 ? _bcB.max.y : _bcB.min.y, i & 4 ? _bcB.max.z : _bcB.min.z).applyMatrix4(o.matrixWorld).add(_bcA).sub(eye);
+        const along = _bcV.dot(_sd); _bcR.copy(_bcV).addScaledVector(_sd, -along); if (_bcR.length() > BOLT_CLEAR.r) continue;   // (and behind your eye too: the hunting rifle's bolt comes back 13 cm, from 7.7 in front of it)
+        need = Math.max(need, BOLT_CLEAR.near - along); } });
+  }
+  if (need <= -BOLT_CLEAR.knee) return;
+  const K = BOLT_CLEAR.knee, x = need + K, off = x < 2 * K ? x * x / (4 * K) : x - K;
+  eye.addScaledVector(_sd, -off * w);
+}
+const SL = { key: null, obj: null, a: new V3(), b: new V3(), kind: 'iron', relief: null, r: 0, hw: 0, hh: 0, hide: [], back: 0, moving: [] };
 const _ray = new THREE.Raycaster(), _ro = new V3(), _rdn = new V3(), _sb = new THREE.Box3(), _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4();
 function sightLine() {
   const s = W8.cur, h = HOLDS[s] && HOLDS[s].R, id = curId(); if (!h || !id) return null;
   const key = h.uuid + ':' + id;
   if (SL.key === key) return SL.obj ? SL : null;
-  SL.key = key; SL.obj = null; SL.hide = [];
+  SL.key = key; SL.obj = null; SL.hide = []; SL.back = 0;
+  // (what of the gun slides back toward your eye that doesn't carry the sight: a bolt worked down the sights, BOLT_CLEAR)
+  SL.moving = []; h.traverse(o => { if (o.userData.slideRest) SL.moving.push(o); });
   let opt = null, ir = null; h.traverse(o => { if (!opt && o.userData.optic) opt = o; if (!ir && o.userData.irons) ir = o; });
   if (opt) {
     const O = opt.userData.optic; SL.obj = opt; SL.kind = O.kind; SL.a.set(O.x, O.y, O.zr); SL.b.set(O.x, O.y, O.zf); SL.relief = O.relief ?? null; SL.r = O.r; SL.hw = O.hw || 0; SL.hh = O.hh || 0;
@@ -772,6 +813,7 @@ function sightLine() {
     SL.obj = ir; SL.kind = I.kind; SL.r = I.r || 0; SL.hw = SL.hh = 0;
     SL.a.set(X, I.yr, I.rz); SL.b.set(X, I.yf, I.fz);
     SL.relief = I.relief ?? (I.kind === 'ap' ? IRON.peep : long ? clamp(I.rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null);   // (a gun's own, where the irons say)
+    SL.back = sightBack(meshes, ir, X, I.yr, I.rz); if (SL.relief !== null) SL.relief = Math.max(SL.relief, SL.back + IRON_CLEAR.eye);
     return SL;
   }
   // the top along the middle, front to back
@@ -791,6 +833,7 @@ function sightLine() {
     else if (z > rz + 0.06 && z < tz - 0.01) hr = Math.max(hr, y + (yy + 0.0008 - y) * (tz - rz) / (tz - z));   // clear of what's between
   }
   SL.obj = h; SL.kind = 'iron'; SL.a.set(X, hr, rz); SL.b.set(X, y, tz); SL.relief = long ? clamp(rz - (b.min.z + IRON.pull), IRON.cheek, IRON.far) : null; SL.r = SL.hw = SL.hh = 0;
+  SL.back = sightBack(meshes, h, X, hr, rz); if (SL.relief !== null) SL.relief = Math.max(SL.relief, SL.back + IRON_CLEAR.eye);
   return SL;
 }
 // a sight on a handgun's slide (its red dot or holo, or its iron sights) rides back with the slide as it cycles and when
@@ -1121,7 +1164,10 @@ export function viewFrame(rdt, roll, sh, jolt) {
       _vcE.lerp(_vcD, w);
       // (then the shot's kick tips the gun about your eye, its sights kept lined up on it; the sight line's measured
       // again, so the shots go where the sights now point, the post or the dot)
-      if (adsKickTilt(_vcE, w, _vcH.subVectors(_pa, _vcE).dot(_sd))) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); if (slideBack(LH.obj, _slB)) { _pa.sub(_slB); _pb.sub(_slB); } _sd.subVectors(_pb, _pa).normalize(); }
+      if (adsKickTilt(_vcE, w, _vcH.subVectors(_pa, _vcE).dot(_sd) - LH.back)) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); if (slideBack(LH.obj, _slB)) { _pa.sub(_slB); _pb.sub(_slB); } _sd.subVectors(_pb, _pa).normalize(); }
+      // (and off a bolt coming back, with the gun as the kick's left it: eased back first, the kick's shove took the
+      // room that made for itself, measuring its room from the eye)
+      boltClear(LH, _vcE, w);
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)
