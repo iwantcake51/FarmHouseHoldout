@@ -20,9 +20,12 @@ import { BOLT_KNOB } from './gun-models.js';
 // a front sight's post, as thin as the real ones (a couple of millimetres: a wide one blotted out what it was put on), and
 // the AR's rear aperture: the hole's radius and the thin ring's round it
 const POST_W = 0.0019, AP_RING = [0.0042, 0.0052];
-// the battle rifle's rear aperture: the ring (its hole's radius, its own), the stem's half-width, the ears' thickness and
-// how far out either side they stand, and how deep it all is along the gun
-const SCAR_AP = { ring: [0.0036, 0.0046], stem: 0.0015, ear: 0.0022, earX: 0.0088, d: 0.004 };
+// the battle rifle's rear sight, standing: where it is along the gun (z); the aperture's hole and the tab round it (its
+// half-width), the slots either side of it and the ears outside them, how deep the head is and the tab in it; the post,
+// its knurled wheel and its collar (radii); the heights up it (the post's top, the wheel's, the collar's, the slots'
+// bottom, the ears' tops); the cross drum through its base (radius, length, height) and the knobs on its ends
+const SCAR_AP = { z: 0.4852, hole: 0.0034, tab: 0.0052, slot: 0.0011, ear: 0.0019, d: 0.008, tabD: 0.0035, post: 0.0058, wheel: 0.0072, collar: 0.0064,
+  ys: [1.212, 1.2205, 1.2235, 1.2305, 1.2482], drum: [0.0075, 0.03, 1.1955], knob: [0.0095, 0.007] };
 const SCAR = {
   y0: 1.1307, top: 1.1863, rt: 1.1933,
   up: [[0.4477, 1.1132], [0.4475, 1.1863], [1.1505, 1.1863], [1.1525, 1.1813], [1.1545, 1.1769], [1.1577, 1.1672], [1.1631, 1.1541], [1.1632, 1.112], [1.1559, 1.099], [1.1541, 1.0982], [0.9139, 1.0981], [0.7752, 1.0974], [0.7748, 1.1132]],
@@ -270,20 +273,26 @@ export const RIFLE_MODELS = {
     // ---- the flip-up sights: standing, or with an optic on the rail folded down flat on their bases
     [[SCAR.rear, 1.2035], [SCAR.front, 1.1985]].forEach(([S, cut]) => {
       if (!sight && S !== SCAR.rear) { solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2031], [0, 1.2031]]), 0.016, K, X, 0.0012); solid(g, clipTo(S, [[0, 1.2031], [2, 1.2031], [2, 1.3], [0, 1.3]]), POST_W + 0.001, K, X, 0.0004); return; }   // (its base, and the post up off it as thin as a post is)
-      if (!sight) {   // the rear: its base, and standing up off it a slim frame (SCAR_AP): two thin ears either side, and between
-        // them a thin ring round a wide hole on a slim stem, so looking through it the ring frames the front post with the
-        // world round it rather than a block with a pinhole in it
-        const A = SCAR_AP, yh = 1.2414, z0 = 0.4852 - A.d / 2, z1 = 0.4852 + A.d / 2;
+      if (!sight) {   // the rear, standing: its base, the cross drum through it with a ribbed knob each end, and up off it the round
+        // post with its knurled wheel and collar under the head; the head a fork, two ears either side of the aperture's
+        // tab, split off it by a slot each, the tab's top rounded over the hole (SCAR_AP), looked through down the gun
+        const A = SCAR_AP, yh = 1.2414, zc = A.z, hw = A.tab + A.slot + A.ear, [y0, y1, y2, y3, y4] = A.ys;
         solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), 0.022, K, X, 0.0012);
-        [-1, 1].forEach(sd => apPart(solid(g, clipTo(S, [[0, cut], [2, cut], [2, 1.3], [0, 1.3]]), A.ear, K, X + sd * A.earX, 0.0004)));
-        const ring = new THREE.Shape(), hole = new THREE.Path(); ring.absarc(X, yh, A.ring[1], 0, Math.PI * 2, false); hole.absarc(X, yh, A.ring[0], 0, Math.PI * 2, true); ring.holes.push(hole);
-        apPart(xsec(g, ring, z0, z1, K)); apPart(xsec(g, shp([[X - A.stem, cut], [X + A.stem, cut], [X + A.stem, yh - A.ring[1] + 0.0008], [X - A.stem, yh - A.ring[1] + 0.0008]]), z0, z1, K));
-        box(g, A.earX * 2 + A.ear, 0.003, 0.012, K, X, cut + 0.0015, 0.4852); return;   // (the bridge the ears and the stem stand on)
+        cyl(g, A.drum[0], A.drum[1], K, X, A.drum[2], zc, 18).rotation.set(0, 0, Math.PI / 2);
+        [-1, 1].forEach(sd => { ribTube(g, A.knob[0], A.knob[1], K, X + sd * (A.drum[1] + A.knob[1]) / 2, A.drum[2], zc, 8, 0.0012).rotation.set(0, Math.PI / 2, 0); });
+        const up = (r, ya, yb, n) => { const m = cyl(g, r, yb - ya, K, X, (ya + yb) / 2, zc, n || 16); m.rotation.set(0, 0, 0); return m; };
+        up(A.post, cut, y0); apPart(ribTube(g, A.wheel, y1 - y0, K, X, (y0 + y1) / 2, zc, 14, 0.0007)).rotation.set(-Math.PI / 2, 0, 0); apPart(up(A.collar, y1, y2));
+        apPart(up(hw, y2, y3, 20));   // (the head's foot, round like the post it sits on)
+        { const tab = new THREE.Shape(), hole = new THREE.Path(); tab.moveTo(X - A.tab, y3 - 0.0005); tab.lineTo(X + A.tab, y3 - 0.0005); tab.lineTo(X + A.tab, yh); tab.absarc(X, yh, A.tab, 0, Math.PI, false); tab.lineTo(X - A.tab, y3 - 0.0005);
+          hole.absarc(X, yh, A.hole, 0, Math.PI * 2, true); tab.holes.push(hole); apPart(xsec(g, tab, zc - A.tabD / 2, zc + A.tabD / 2, K)); }
+        [-1, 1].forEach(sd => { const xi = X + sd * (A.tab + A.slot), xo = X + sd * hw;
+          apPart(xsec(g, shp([[xi, y3 - 0.0005], [xo, y3 - 0.0005], [xo, y4 - 0.0035], [xo - sd * 0.0006, y4 - 0.0012], [xi + sd * 0.0005, y4], [xi, y4 - 0.0003]]), zc - A.d / 2, zc + A.d / 2, K)); });
+        return;
       }
       const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
     });
-    if (!sight) irons(g, { kind: 'ap', yr: 1.2414, rz: 0.4852, r: SCAR_AP.ring[0], yf: 1.2414, fz: 1.131 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+    if (!sight) irons(g, { kind: 'ap', yr: 1.2414, rz: 0.4852, r: SCAR_AP.hole, yf: 1.2414, fz: 1.131 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
     const big = sight >= 5;
     return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.69 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
       laser: { y: 1.0982, z: 1.112 }, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
