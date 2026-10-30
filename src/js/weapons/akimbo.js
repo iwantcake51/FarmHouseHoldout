@@ -3,7 +3,7 @@
 // W8.mag[id] stays the pair's total, so everything that only asks how much is loaded still works, and W8.akMag[id]
 // splits it between the hands.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { clamp, smooth } from '../core/math.js';
 import { P } from '../player/player.js';
 import { magSize, S, W, W8 } from '../game/run-state.js';
@@ -142,7 +142,7 @@ export function akTriggers(dt, id, D, want) {
 export function akShot(id, D, s) {
   if (akBusy(s)) return false;
   const m = akMags(id);
-  if (m[s] <= 0) { W8.akCd[s] = 0.25; if (semiAuto(id)) W8.akLock[s] = true; SFX.dry(); worryShot(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return false; }
+  if (m[s] <= 0) { W8.akCd[s] = 0.25; if (semiAuto(id)) W8.akLock[s] = true; SFX.dry(); worryShot(); replay($('ammoWarn'), 'kick'); return false; }
   m[s]--; W8.mag[id]--; W8.akSide = s === 'L' ? -1 : 1;
   // each gun at its own pace (two guns together fire as fast as D.rate), and a moment before the other can follow
   W8.akCd[s] = D.rate * 2 / S.rateMul; if (!W8.inBurst) W8.cd = D.rate * 0.6 / S.rateMul;

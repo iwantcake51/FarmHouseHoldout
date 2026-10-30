@@ -1,6 +1,6 @@
 // Spread, muzzle and aim rays, exact part hits under the crosshair, and firing guns.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { cell, ci, idx, inb, OPEN, openAt } from '../world/grid.js';
@@ -323,7 +323,7 @@ export function gunFire(id, D, side) {
   if (W8.reloading === 'shell' && (W8.mag[id] || 0) > 0) W8.reloading = null;
   if (W8.reloading || relHeld(id)) return;   // (a reload left with its mag out, or in but not charged: weapons/reload.js)
   if (needsRack(id) && (W8.mag[id] || 0) > 0) return;   // not racked yet: it fires once the rack drives a round home (weapons/casings.js)
-  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.dry(); worryShot(); const aw = $('ammoWarn'); aw.classList.remove('kick'); void aw.offsetWidth; aw.classList.add('kick'); return; }
+  if ((W8.mag[id] || 0) <= 0) { W8.cd = 0.25; if (semiAuto(id)) W8.trigLock = true; SFX.dry(); worryShot(); replay($('ammoWarn'), 'kick'); return; }
   shots = D.both && W8.mag[id] >= 2 ? 2 : 1;
   W8.mag[id] -= shots; W8.cd = fireRate(D) / S.rateMul; run.shots++; delete W8.relSave[id];
   if (D.burst && W8.burstLeft <= 0 && !W8.inBurst) { W8.burstLeft = D.burst - 1; W8.burstT = 0.06; }   // a burst, then another while it's held

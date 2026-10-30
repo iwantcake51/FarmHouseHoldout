@@ -1,5 +1,6 @@
 // Localized damage, dismemberment, crawlers and kills.
 
+import { replay } from '../core/dom.js';
 import { scene, V3 } from '../core/renderer.js';
 import { clamp, pick, rand, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
@@ -618,7 +619,7 @@ function dmgNumber(z, dmg, head, y, crit, kind) {
     if (crit) z.dn.el.classList.add('crit');
     if (kind === 'armor') z.dn.el.classList.add('armor');
     // the pop scales the inner number only: scaling the positioned element would scale its screen position too
-    z.dn.num.classList.remove('bump'); void z.dn.num.offsetWidth; z.dn.num.classList.add('bump');
+    replay(z.dn.num, 'bump');
     return;
   }
   const el = document.createElement('div'), num = document.createElement('span'); el.className = 'float dmg' + (head ? ' head' : '') + (crit ? ' crit' : '') + (kind ? ' ' + kind : ''); num.textContent = Math.round(dmg); el.appendChild(num);

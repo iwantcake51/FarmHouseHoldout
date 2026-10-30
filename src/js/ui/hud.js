@@ -1,6 +1,6 @@
 // The HUD each frame.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { CURSE_ICON, GI_VB } from './game-icons.js';
 import { cam, cv, V3 } from '../core/renderer.js';
 import { cache, clamp, smooth } from '../core/math.js';
@@ -133,20 +133,20 @@ function renderFireMode(id) {
   const g = el.querySelector('.fmG'), n = m.k === 'burst' ? Math.min(4, m.n) : m.k === 'auto' ? 5 : m.k === 'fan' ? 3 : m.k === 'both' ? 2 : 1;
   g.className = 'fmG ' + m.k + ({ rifle: ' rf', magnum: ' mg', p10: ' t10' }[W(id).ammo] || '') + (sameGun ? ' in' : ''); g.innerHTML = '<i></i>'.repeat(n);   // pointed rifle and magnum rounds
   el.querySelector('.fmT b').textContent = m.t; el.querySelector('.fmT kbd').hidden = !sw;
-  if (sameGun) { el.classList.remove('sw'); void el.offsetWidth; el.classList.add('sw'); }
+  if (sameGun) replay(el, 'sw');
 }
 // switching fire mode (B): the selector clicks over in two steps, the new mode's name comes up beside the crosshair
 // for a moment, and the HUD's rounds roll over to it
 export function fireModeSwitched(id) {
   SFX.click(); tn(0.03, 'square', 900, 700, 0.06); setTimeout(() => tn(0.025, 'square', 1350, 1050, 0.05), 70);
   const m = fireModeOf(id), x = $('xhMode'); if (!m) return;
-  x.textContent = m.t; x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  x.textContent = m.t; replay(x, 'show');
   renderFireMode(id);
 }
 // X loaded another kind of round (weapons/rounds.js): its name by the crosshair, where a new fire mode shows
 export function roundSwitched(id) {
   SFX.click(); setTimeout(() => SFX.click(), 90);
-  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); x.classList.remove('show'); void x.offsetWidth; x.classList.add('show');
+  const x = $('xhMode'); x.textContent = roundName(id, roundOn(id)); replay(x, 'show');
 }
 // getting hit (zombies/ai.js, weapons/explosives.js): red floods in from the side of the screen the blow came from and
 // drains away again; a blow with no side to it (a blast right under you) flashes the whole edge instead (styles/overlays.css)

@@ -1,6 +1,6 @@
 // The crosshair.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { kbd } from '../input/keybinds.js';
 import { cam, FP_CAM, GUN_Y, V3 } from '../core/renderer.js';
 import { angDiff, cache, clamp, smooth } from '../core/math.js';
@@ -33,8 +33,8 @@ export const projV = new V3();
 const xhMark = $('xhHit');
 export function hitMark(kind, head) {
   if (xh.hidden || fpSighted()) return;
-  xhMark.classList.remove('hit', 'head', 'kill'); void xhMark.getBoundingClientRect();
-  xhMark.classList.add(kind === 'kill' ? 'kill' : 'hit'); if (head || kind === 'head') xhMark.classList.add('head');
+  xhMark.classList.remove('hit', 'head', 'kill');
+  replay(xhMark, kind === 'kill' ? 'kill' : 'hit', ...(head || kind === 'head' ? ['head'] : []));
 }
 // and taken off once it's played: left on, it played again every time the crosshair was shown (coming back off the
 // sights), a kill's red marker with nothing hit

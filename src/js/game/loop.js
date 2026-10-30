@@ -92,7 +92,7 @@ function frame(now) {
   netTick(rdt);   // co-op: your pose out, theirs in, the host's farm to the others (net/)
   visuals(state === 'play' || state === 'dead' || coop ? simDt : state === 'title' || state === 'leaving' ? rdt : 0, rdt);
   if (warmQ || (state === 'title' && ++warmN === WARM_AT)) { warmQ = false; warmShaders(); }
-  scopePrep();   // what's down a scope at your eye, for its lens (effects/scope-view.js)
+  scopePrep(rdt);   // what's down a scope at your eye, for its lens (effects/scope-view.js)
   renderFrame();   // the farm, with its ambient occlusion and glow (effects/post.js)
   outlinePass(cam);   // the outlines round whole models, over the frame (effects/outlines.js)
   scopePass();   // a scope's view in its eyepiece, in first person (effects/scope-view.js)

@@ -2,7 +2,7 @@
 // down the doors between rooms, attacks on you and brute concussion. The body's animated in zombies/zombie-anim.js, the climbs are in
 // zombies/climb.js.
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { RIGHT, V3 } from '../core/renderer.js';
 import { angDiff, clamp, HALF, mix, N, rand, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
@@ -355,7 +355,7 @@ export function zStrike(z, armMul) {
   if (z.type === 'brute') {   // concussed: knocked back, ears ringing, the world swims
     P.conc = 1; P.kbx = dxp / (dp || 1) * 7.5; P.kbz = dzp / (dp || 1) * 7.5; P.stun = 0.7; P.slow = Math.min(1, P.slow + 0.4);
     SFX.concuss(); setShake(Math.max(shake, 0.6)); setCamRoll(clamp(camRoll - side * 0.06, -0.14, 0.14));
-    burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
+    burst(P.x, 0.1, P.z, 10, 'dust', dxp, dzp, 2); replay($('conc'), 'on');
   } else if (z.crawl) {   // a crawler grabs at your ankles: you stumble, but it can't bite deep enough to make you bleed
     const k = 1 - S.slowRes; P.slow = Math.min(1, P.slow + 0.85 * k); P.stun = 0.45 * k;
     P.kbx = -dzp / (dp || 1) * side * 2.2 + dxp / (dp || 1) * 1.2; P.kbz = dxp / (dp || 1) * side * 2.2 + dzp / (dp || 1) * 1.2;

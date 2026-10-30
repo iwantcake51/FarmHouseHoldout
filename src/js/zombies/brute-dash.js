@@ -6,7 +6,7 @@
 // A shove or a heavy stagger during the crouch breaks it off. The host's game runs it; joiners see the crouch and the
 // stripe ('zdw') and take the hit if it's at them ('zdh': net/sync.js).
 
-import { $ } from '../core/dom.js';
+import { $, replay } from '../core/dom.js';
 import { scene } from '../core/renderer.js';
 import { angDiff, clamp, rand, rr, smooth } from '../core/math.js';
 import { netSend } from '../net/net.js';
@@ -183,7 +183,7 @@ export function dashHit(z, dx, dz) {
   P.kbx = (dx * 0.85 + dz * side * 0.5) * BDASH.kb; P.kbz = (dz * 0.85 - dx * side * 0.5) * BDASH.kb;
   P.conc = 1; P.stun = BDASH.stun; P.slow = Math.min(1, P.slow + 0.7); P.sprint = false; P.runUp = 0;
   SFX.concuss(); setShake(Math.max(shake, 0.85)); setCamRoll(clamp(camRoll + side * 0.1, -0.16, 0.16));
-  burst(P.x, 0.1, P.z, 14, 'dust', dx, dz, 2.6); $('conc').classList.remove('on'); void $('conc').offsetWidth; $('conc').classList.add('on');
+  burst(P.x, 0.1, P.z, 14, 'dust', dx, dz, 2.6); replay($('conc'), 'on');
 }
 // a zombie's pose while it dashes (zombies/zombie-anim.js): crouched low and leaning in with the arms drawn back, then
 // bent right over into the charge, then pulling up

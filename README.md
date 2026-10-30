@@ -516,7 +516,11 @@ the sight's line. It sits out at infinity, the same size and on the same aim poi
 window, sliding with the sight rather than with your eye, and it turns with the gun as it cants. From the hip, from the
 side or from in front there's nothing to see in the glass, and it never shows through your body, your hands or anything
 else in front of the window. The dot is drawn over what's behind it rather than added to it, so it stays red against
-a bright sky as well as in the dark, with only a faint bloom round it. A handgun's dot is kept tighter still, a small sharp
+a bright sky as well as in the dark, with only a faint bloom round it. As in Counter-Strike, every reticle (a dot, a hologram,
+a scope's cross hairs or the ACOG's chevron) goes a little soft while your shot isn't where it's laid: walking, holding
+the trigger down, or just shaken by a hit, by how far the spread has opened past the gun's own aimed spread. It comes on
+quickly and clears as you settle; standing still on your first shots it's sharp. Only its edges soften (and it fades a
+touch, a dot's bloom growing a little round it), never its size. A handgun's dot is kept tighter still, a small sharp
 point with very little bloom, since its window is small and close to your eye. On a handgun the red dot is a pistol sight cut
 into the slide, one of four dealt to each handgun once a run (and the same one on your teammates' screens): a Trijicon
 RMR (a shield-shaped hood raked in to a flat top, 3.25 MOA dot), an SRO (a big round window, its battery cap on top, 2.5
@@ -865,6 +869,12 @@ overlay passes no longer work out every object's place in the world over again, 
 where the muzzle or your eye is (asked for several times a frame) updates only the chain of parts it hangs from, not your
 whole body; checked the same to the last digit. A piece of you or a teammate under 4 cm across casts no shadow, as the
 sun's shadows are softened over more than that. That's 70 shadow draws of you a frame down to 62.
+A kill used to stall the frame for 12 to 20 ms of the game's own code on its own, and it's what made the later waves,
+with kills coming thick and fast, judder: the HUD replayed its little animations (the kill and scrap counters' pop,
+the crosshair's hit marker, the streak and pickup notes, a damage number's bump on every hit) by asking the page where
+an element was in between, which makes the browser lay the whole page out there and then, several times a kill. They're
+replayed a frame later instead, without asking, and the counters' rolling digits the same way: a kill is now about
+1.3 ms.
 The trees outside the fence now cast shadows too. Those within reach of the sun's shadows cast real ones, and the far
 woods (past about 32 m from the middle, beyond the shadow map) lay a soft shadow on the ground away from the sun,
 as long as the tree's height over the sun's angle, turned with the sun through the day and fading with it. Every tree
