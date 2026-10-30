@@ -20,6 +20,9 @@ import { BOLT_KNOB } from './gun-models.js';
 // a front sight's post, as thin as the real ones (a couple of millimetres: a wide one blotted out what it was put on), and
 // the AR's rear aperture: the hole's radius and the thin ring's round it
 const POST_W = 0.0019, AP_RING = [0.0042, 0.0052];
+// the battle rifle's rear aperture: the ring (its hole's radius, its own), the stem's half-width, the ears' thickness and
+// how far out either side they stand, and how deep it all is along the gun
+const SCAR_AP = { ring: [0.0036, 0.0046], stem: 0.0015, ear: 0.0022, earX: 0.0088, d: 0.004 };
 const SCAR = {
   y0: 1.1307, top: 1.1863, rt: 1.1933,
   up: [[0.4477, 1.1132], [0.4475, 1.1863], [1.1505, 1.1863], [1.1525, 1.1813], [1.1545, 1.1769], [1.1577, 1.1672], [1.1631, 1.1541], [1.1632, 1.112], [1.1559, 1.099], [1.1541, 1.0982], [0.9139, 1.0981], [0.7752, 1.0974], [0.7748, 1.1132]],
@@ -267,14 +270,20 @@ export const RIFLE_MODELS = {
     // ---- the flip-up sights: standing, or with an optic on the rail folded down flat on their bases
     [[SCAR.rear, 1.2035], [SCAR.front, 1.1985]].forEach(([S, cut]) => {
       if (!sight && S !== SCAR.rear) { solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2031], [0, 1.2031]]), 0.016, K, X, 0.0012); solid(g, clipTo(S, [[0, 1.2031], [2, 1.2031], [2, 1.3], [0, 1.3]]), POST_W + 0.001, K, X, 0.0004); return; }   // (its base, and the post up off it as thin as a post is)
-      if (!sight) {   // the rear: its post, and on top the aperture plate with its hole, looked through down the gun
-        apPart(solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, 1.2345], [0, 1.2345]]), 0.022, K, X, 0.0012));
-        apPlate(g, X, 0.011, 1.2345, 1.2475, 0.4791, 0.4913, 1.2414, 0.0026, K); return;
+      if (!sight) {   // the rear: its base, and standing up off it a slim frame (SCAR_AP): two thin ears either side, and between
+        // them a thin ring round a wide hole on a slim stem, so looking through it the ring frames the front post with the
+        // world round it rather than a block with a pinhole in it
+        const A = SCAR_AP, yh = 1.2414, z0 = 0.4852 - A.d / 2, z1 = 0.4852 + A.d / 2;
+        solid(g, clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), 0.022, K, X, 0.0012);
+        [-1, 1].forEach(sd => apPart(solid(g, clipTo(S, [[0, cut], [2, cut], [2, 1.3], [0, 1.3]]), A.ear, K, X + sd * A.earX, 0.0004)));
+        const ring = new THREE.Shape(), hole = new THREE.Path(); ring.absarc(X, yh, A.ring[1], 0, Math.PI * 2, false); hole.absarc(X, yh, A.ring[0], 0, Math.PI * 2, true); ring.holes.push(hole);
+        apPart(xsec(g, ring, z0, z1, K)); apPart(xsec(g, shp([[X - A.stem, cut], [X + A.stem, cut], [X + A.stem, yh - A.ring[1] + 0.0008], [X - A.stem, yh - A.ring[1] + 0.0008]]), z0, z1, K));
+        box(g, A.earX * 2 + A.ear, 0.003, 0.012, K, X, cut + 0.0015, 0.4852); return;   // (the bridge the ears and the stem stand on)
       }
       const base = clipTo(S, [[0, 1.18], [2, 1.18], [2, cut], [0, cut]]), zs = base.map(p => p[0]), z0 = Math.min(...zs), z1 = Math.max(...zs);
       solid(g, base, 0.022, K, X, 0.0012); box(g, 0.018, 0.005, (z1 - z0) * 0.8, K, X, cut + 0.0025, (z0 + z1) / 2);
     });
-    if (!sight) irons(g, { kind: 'ap', yr: 1.2414, rz: 0.4875, r: 0.0026, yf: 1.2414, fz: 1.131 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+    if (!sight) irons(g, { kind: 'ap', yr: 1.2414, rz: 0.4852, r: SCAR_AP.ring[0], yf: 1.2414, fz: 1.131 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
     const big = sight >= 5;
     return { front, y: y0, magZ: 0, magY: 1.035, slide: bc, bolts: [], travel: 0.1, lock: true, mz: ak ? 0.69 : 0.682, top: RT, sz: 0.6, scopeH: big ? 0.085 : 0.075, scopeR: big ? 1.2 : 1, scopeK: big ? 1.15 : 1,
       laser: { y: 1.0982, z: 1.112 }, barrelR: 0.0107, charge: ch, chargeAt: [R - 0.018, 1.1681, 0.811], chargeTravel: 0.12 };
