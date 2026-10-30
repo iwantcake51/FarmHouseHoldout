@@ -443,6 +443,14 @@ or charging handle brought the firing arm up beside your face; now the arms cove
 Taking the fresh mag from the pouch, the support hand goes straight on from where it was: on the SMG it used to jump
 some 45 cm to where the mag thought it should be (its curved mag leans back, so the pouch counted as already under
 the well), and on the rifles a few centimetres; the mag is only lined up with the well once it's actually under it.
+From the pouch up to the well the hand now makes one sweep, with no going over, back and over again on the way: its
+path is laid out by where the fist goes, not by the mag's top (the fist holds the mag well down its length, so as the
+mag tipped up straight the fist used to swing round it), the draw out of the pouch heads toward where the hand's going
+next rather than a fixed step up and forward, each way lines the mag up just below the well's mouth before it goes
+in, and the mag's only pulled onto the well's line over the second half of the carry (it used to be pulled across in
+a frame or two whenever it came close enough). Across all the guns and the three ways a mag goes in, the hand used to
+double back up to 28 cm sideways and 18 cm up and down on its way to the well; now it's 6 cm at most (8 on the
+LMG), and on the SMG the hand no longer leaps 35 cm in two frames as the mag came close to its forward-leaning well.
 The red dot's dot, the AR's own Aimpoint-style dot and the holographic sight's reticle (an EOTech 512's ring with its four
 ticks and centre dot, grainy red light, slim body with its thin hood loop over the window) work like the real things: the
 reticle is light collimated inside the sight's window, so it's only seen looking through that glass from behind, along
@@ -663,7 +671,9 @@ is part of the reload's own length, so the reload ring fills over the whole relo
 miss isn't known ahead: the ring fills as the reload's planned to go, and only stretches out once the hands actually
 slip), and the old mag falling, the new one going home and their sounds all land on the animation's own marks. The
 ring round the crosshair glides after the reload rather than stepping, and when a fumble or a miss sets it back it
-slides back down with a flair: it flares red, the bead on its end swells and the ring gives a short shake.
+slides back down with a flair: it flares red, the bead on its end swells and the ring gives a short shake. The shake
+moves the ring on top of where it's drawn round the crosshair, so it stays in its place (it used to be thrown down
+across the crosshair and stay there).
 
 **A gun in each hand.** With the second pistol or second machine pistol fitted, left click fires the gun on your left and
 right click the one on your right, and each gun kicks on its own shot from

@@ -50,13 +50,15 @@ const RL = { R: { ring: xhRing, track: $('xhRTrack'), head: $('xhRHead'), a0: 42
 // (the fill doesn't jump to where the reload's got to: it glides there (RL_EASE: how quickly a second, up and back), and
 // when a fumble sets it back (by more than knock) it's knocked back with a jolt, the arc and its bead flaring red and
 // shaking, styles/crosshair.css: .knock)
-const RL_EASE = { up: 22, back: 12, knock: 0.015 };
+const RL_EASE = { up: 22, back: 12, knock: 0.015, knockMs: 550 };
 function reloadDraw(side, on, u, rdt = 1 / 60) {
   const r = RL[side], A = ARC(); u = clamp(u, 0, 1);
   if (on && r.on && r.disp !== undefined) {
     if (u < r.disp - RL_EASE.knock && performance.now() - (r.knockAt || 0) > 350) { r.knockAt = performance.now(); [r.ring, r.head, r.track].forEach(el => { el.classList.remove('knock'); void el.getBBox(); el.classList.add('knock'); }); }
     r.disp += (u - r.disp) * (1 - Math.exp(-rdt * (u < r.disp ? RL_EASE.back : RL_EASE.up))); u = r.disp;
   } else r.disp = u;
+  // (the jolt's class taken off once it's played, or it would stand in for the finishing flash and a round's pulse after it)
+  if (r.knockAt && (performance.now() - r.knockAt > RL_EASE.knockMs || !on)) { r.knockAt = 0; [r.ring, r.head, r.track].forEach(el => el.classList.remove('knock')); }
   // a round's pulse is over once the reload is: its class would otherwise outrank the finishing flash and leave the arc lit
   if (!on && r.on) { [r.ring, r.head, r.track].forEach(el => el.classList.remove('tick')); $('xhRPing').classList.remove('tick'); }
   // finished: a flash over the rounds now in it, exactly as the ammo arc shows them (only for a reload that ran its
