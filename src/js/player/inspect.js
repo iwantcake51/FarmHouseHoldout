@@ -19,6 +19,7 @@ import { aiming } from './aiming.js';
 import { mouseDown, mouseDownR } from '../input/keyboard-mouse.js';
 import { ANIM } from './animation.js';
 import { openSt } from '../stations/station-ui.js';
+import { stocked } from '../weapons/firing.js';
 
 // each pose: when (seconds), the gun's turn (p: muzzle down, y: muzzle round, r: rolled over, radians) and its place
 // (x across, h up, z forward, metres), the head (hp: down, hy: round) and the chest (tw: twisted round); fs: from your
@@ -47,13 +48,15 @@ const INSPECT = {
     K(3.9, 0.2, -0.18, 0.18, 0.01, 0.04, -0.07, 0.3, -0.04, -0.02),       // tipped muzzle down: along its back and top
     K(4.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   ],
-  hand: [Z(0)].concat(HAND_KEYS),   // (every handgun's but the revolver's)
-  // the revolver's only twirled (INSPECT_SPIN): held out to the side and a little forward on a loose wrist (from your
-  // own eyes turned most of the way side on, so it's seen wheeling round the finger beside your hand), drifting a
-  // little as it goes round, a glance down at it as it's caught, then back onto the aim
-  revolver: [Z(0), K(0.35, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(1.6, -0.1, 0.06, 0.03, 0.032, 0.036, 0.055, 0.18, 0.02, 0.02, 0.8),
-    K(2.45, -0.04, 0.12, 0.06, 0.028, 0.032, 0.058, 0.22, 0.03, 0.02, 0.8), Z(3.35)]
+  hand: [Z(0)].concat(HAND_KEYS)   // (every handgun's; the revolver's twirled first, REV_SPIN)
 };
+// the revolver's twirled first (INSPECT_SPIN): held out to the side and a little forward on a loose wrist (from your
+// own eyes turned most of the way side on, so it's seen wheeling round the finger beside your hand), drifting a
+// little as it goes round, a glance down at it as it's caught; then looked over just as any handgun is, from REV_LOOK
+// seconds in. With a shoulder stock on it there's no twirling it: it's only looked over (inspectPose)
+const REV_SPIN = [K(0.35, -0.08, 0.1, 0.05, 0.03, 0.03, 0.06, 0.16, 0.02, 0.02, 0.8), K(1.6, -0.1, 0.06, 0.03, 0.032, 0.036, 0.055, 0.18, 0.02, 0.02, 0.8)];
+const REV_LOOK = 1.9, later = (L, dt) => L.slice(1).map(k => Object.assign({}, k, { t: k.t + dt }));
+INSPECT.revolver = [Z(0), ...REV_SPIN, ...later(INSPECT.hand, REV_LOOK)];
 // every gun looked over its own way, so no two read alike (from above and from your own eyes; a long gun's from your
 // own eyes turned a little side on as well, player/hold.js FP_INSPECT_TURN), each after what you'd check on that one
 Object.assign(INSPECT, {
@@ -103,7 +106,7 @@ Object.assign(INSPECT, {
 });
 // the same from your own eyes (a long gun's are its own: turned only a little side on, player/hold.js FP_INSPECT_TURN)
 const INSPECT_FP = {
-  // a handgun (any of them: the revolver's only twirled), as you'd look one over: brought up in the middle of your
+  // a handgun (any of them: the revolver twirled first), as you'd look one over: brought up in the middle of your
   // view, close, turned side on with its muzzle tipped up to the left and its top to the right (its left side to you,
   // your thumb along the frame), held there a moment as the wrist eases round, then rolled right over to its other
   // side, stood muzzle up, and tipped down to look along the slide. (The turns go on in the order roll, turn, then tip
@@ -111,9 +114,9 @@ const INSPECT_FP = {
   // tip and the roll together, not the tip alone)
   hand: [Z(0), K(0.6, -1.45, -0.95, -1.45, 0.1, -0.01, 0, 0.24, -0.04, 0, 0), K(1.4, -1.38, -0.86, -1.33, 0.1, -0.006, -0.004, 0.26, -0.05, 0, 0),
     K(2.15, -1.45, -0.95, 1.5, 0.03, 0, 0, 0.3, 0.02, 0, 0), K(2.85, -1.4, -0.9, 1.62, 0.03, 0.004, -0.004, 0.31, 0.03, 0, 0),
-    K(3.5, -0.9, -0.3, 0.2, 0, 0.012, -0.01, 0.22, 0.08, 0, 0), K(4.1, 0.42, -0.12, 0.05, 0, 0, 0, 0.36, 0, 0, 0), Z(4.85)],
-  revolver: INSPECT.revolver
+    K(3.5, -0.9, -0.3, 0.2, 0, 0.012, -0.01, 0.22, 0.08, 0, 0), K(4.1, 0.42, -0.12, 0.05, 0, 0, 0, 0.36, 0, 0, 0), Z(4.85)]
 };
+INSPECT_FP.revolver = [Z(0), ...REV_SPIN, ...later(INSPECT_FP.hand, REV_LOOK)];
 // a gun in each hand (the second pistol, the second machine pistol): each is turned on its own wrist rather than the
 // pair swung about as one, the right gun's moves below and the left's the same mirrored, a beat behind (lag, seconds),
 // so the two never move as one. Here x is in toward the middle (each gun's own way), h up and z forward (metres), the rest
@@ -135,9 +138,9 @@ const CH_HAND = ['p', 'y', 'r', 'x', 'h', 'z'];
 // windT seconds, easing to a stop), then flicked forward (at: seconds in) for turns full turns, picking up speed in
 // a blink and slowing all the way into the palm (dur), never at a steady rate; caught with a little rock past the grip
 // and back (rock: radians, f: how quickly, d: how soon it dies), held, then flicked back one turn the other way
-// (back: when, how long) into the hand. What's left of a turn when it's cut short is finished quickly (snap) rather
+// (back: when, how long; none when it's looked over after) into the hand. What's left of a turn when it's cut short is finished quickly (snap) rather
 // than unwound
-const INSPECT_SPIN = { revolver: { at: 0.6, windT: 0.24, wind: 0.42, dur: 1.15, turns: 3, rock: 0.16, f: 2.4, d: 7, back: [2.1, 0.6], snap: 18 } };
+const INSPECT_SPIN = { revolver: { at: 0.6, windT: 0.24, wind: 0.42, dur: 1.15, turns: 3, rock: 0.16, f: 2.4, d: 7, back: null, snap: 18 } };
 // the hands never quite still while it's held up (radians: muzzle, turn, roll; f: how quickly)
 const INSP_SHAKE = { p: 0.012, y: 0.01, r: 0.018, f: [1.3, 1.7, 2.1] };
 // how it's chased: a spring per channel, a touch under critical so it carries softly through each move (w: how
@@ -187,11 +190,13 @@ function curve(L, t, c) {
 const spinCurve = u => { u = clamp(u, 0, 1); return 1 - (1 - u) * (1 - u) * (1 - u) * (1 + 3 * u); };
 const rockAt = (S, dt) => dt <= 0 ? 0 : S.rock * Math.sin(2 * Math.PI * S.f * dt) * Math.exp(-S.d * dt) * smooth(Math.min(1, dt / 0.06));
 function spinAt(S, t) {
-  const w0 = S.at - S.windT, end = S.at + S.dur, b0 = S.back[0], b1 = b0 + S.back[1];
+  const w0 = S.at - S.windT, end = S.at + S.dur;
   if (t < w0) return 0;
   if (t < S.at) return -S.wind * smooth((t - w0) / S.windT);
-  const fwd = -S.wind + (S.turns * 2 * Math.PI + S.wind) * spinCurve((t - S.at) / S.dur);
-  return fwd - 2 * Math.PI * spinCurve((t - b0) / S.back[1]) + rockAt(S, t - end) + rockAt(S, t - b1) * 0.6;
+  const fwd = -S.wind + (S.turns * 2 * Math.PI + S.wind) * spinCurve((t - S.at) / S.dur) + rockAt(S, t - end);
+  if (!S.back) return fwd;
+  const b0 = S.back[0], b1 = b0 + S.back[1];
+  return fwd - 2 * Math.PI * spinCurve((t - b0) / S.back[1]) + rockAt(S, t - b1) * 0.6;
 }
 // each frame from player/hold.js: where it's got to (INSP.o, already weighted), the gun's kind deciding its moves
 // (a melee weapon's moves are its own, melee/melee-anim.js: endT is how long they run, and this keeps their time)
@@ -200,8 +205,9 @@ export function inspectPose(rdt, D, id, hand, fp, endT) {
   const pair = !!(D && D.akimbo);
   if (I.t >= 0 && (((mouseDown || (pair && mouseDownR)) && !inMenu()) || W8.reloading || id !== I.id)) inspectCut();   // (a click on a menu over it isn't a shot; with a pair, either button fires)   // (firing, reloading or another gun: back at once)
   if (I.t >= 0 && (!D || busy())) I.t = -1;   // (anything else: eased back onto the aim)
-  const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : pair ? INSPECT_PAIR[fp ? 'fp' : 'iso'] : SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long);
-  const lag = pair ? INSPECT_PAIR.lag : 0, end = L[L.length - 1].t + lag, S = pair ? null : INSPECT_SPIN[id];
+  const stk = !endT && !!INSPECT_SPIN[id] && stocked(id);   // (a revolver with a shoulder stock on it isn't twirled: REV_SPIN)
+  const SET = fp ? INSPECT_FP : INSPECT, L = endT ? meleeTimeline(endT) : pair ? INSPECT_PAIR[fp ? 'fp' : 'iso'] : stk ? SET.hand : SET[id] || INSPECT[id] || (hand ? SET.hand : INSPECT.long);
+  const lag = pair ? INSPECT_PAIR.lag : 0, end = L[L.length - 1].t + lag, S = pair || stk ? null : INSPECT_SPIN[id];
   { const menu = inMenu(); I.rate += ((menu ? 0 : 1) - I.rate) * Math.min(1, rdt * (menu ? INSP_MENU.stop : INSP_MENU.go)); }
   if (I.t >= 0) { I.t += rdt * I.rate; if (I.t >= end) I.t = -1; }
   const on = I.t >= 0; hudOff(on);

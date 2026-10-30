@@ -755,10 +755,10 @@ From your own eyes the gun's held up in front of you and the HUD and the crossha
 above they stay). Every sidearm but the revolver (the handgun and the .50 alike) is looked over the same way: brought
 up close in the middle of your view and turned on its side in the hand, its muzzle tipped up to the left and its top
 to the right, your thumb along the frame, then rolled right over to its other side, stood muzzle up and tipped down to
-look along the slide. The revolver's only twirled: held out to the side on a loose wrist, a little wind back, then
+look along the slide. The revolver's twirled first: held out to the side on a loose wrist, a little wind back, then
 flicked forward round your trigger finger for three turns, quick off the hand and slowing all the way into the palm
-(never at a steady rate), caught with a small rock past the grip, held a beat, flicked one turn back the other way into
-the hand and brought back onto the aim. Every long gun has its own way of being looked over, after what you'd check
+(never at a steady rate), caught with a small rock past the grip, and then looked over just like the handgun. With a
+shoulder stock on it there's no twirling it: it's only looked over. Every long gun has its own way of being looked over, after what you'd check
 on that one: the pump's rolled onto its side to look into the loading port, then
 its ejection port, the bead and the ghost ring; the double's muzzles are tipped right up to look over the rib at both
 bores before each side plate; the auto shotgun shows its left side and its mag from below; the hunting rifle is
