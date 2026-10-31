@@ -57,13 +57,13 @@ put('k', 6, 5, 7, 5); put('k', 10, 9, 10, 10)   # two crate stacks (vaulted): th
 put('b', 16, 5, 17, 5)     # a barrier across the hall's middle by the plaza door
 
 # ---- MIDDLE LANE: the courtyard (cols 8-14) and the plaza (cols 15-20 and its mirror)
-put('C', 11, 15, 13, 17); put('C', 11, 24, 13, 26)
+put('C', 12, 15, 13, 16); put('C', 12, 25, 13, 26)
 put('C', 10, 17, 11, 24)                     # a container out in the courtyard, two metres off the gate and twice as long as it's wide, open all round: what keeps eyes out of the yard
 put('h', 16, 16, 17, 17); put('h', 16, 24, 17, 25)   # wall stubs at the flag ring's corners
 put('s', 19, 17, 20, 17); put('s', 19, 24, 20, 24); put('s', 18, 20, 18, 21)   # the flag's sandbag ring (open at its corners)
 # cover along the ways into the middle, so none of them is a bare run: crates and barriers along the strips under the
 # lane walls, drums and sandbags on the plaza's approaches
-put('b', 9, 13, 10, 13); put('b', 9, 28, 10, 28)   # a barrier in each strip under the lane walls
+
 
 # ---- SOUTH LANE: the rail spur (rows 30-40; the container wall along row 29 between it and the plaza)
 put('C', 10, 29, 15, 30); put('C', 16, 29, 20, 30)   # two rows of containers along the lane's north side (two deep, as they stand)

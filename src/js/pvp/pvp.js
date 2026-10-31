@@ -171,9 +171,9 @@ const PVP_MELEE = { bat: 38, crowbar: 44, wrench: 52, katana: 58, sledge: 92, ma
 // double barrel a fifth by 10 (a slug, with its own drop-off, keeps that)
 const PVP_FALL = { deagle: [14, 32, 0.72], pump: [4, 12, 0.25], auto12: [4, 11, 0.22], dbl: [3, 10, 0.2] };
 export const pvpFalloff = (id, t) => { const F = !(W(id) || {}).fall && PVP_FALL[id]; if (!F) return falloff(id, t); return t <= F[0] ? 1 : t >= F[1] ? F[2] : 1 - (1 - F[2]) * (t - F[0]) / (F[1] - F[0]); };
-// (a head's worth half again a body's, PVP_PART; the marksman's guns, the hunting and battle rifles, still double:
+// (a head's worth half again a body's, PVP_PART; the marksman's guns, the hunting and battle rifles, still more (1.8×):
 // PVP_HEAD_GUN)
-const PVP_HEAD_GUN = { hunting: 2, scar: 2 };
+const PVP_HEAD_GUN = { hunting: 1.8, scar: 1.8 };
 const PVP_PART = { head: 1.5, torso: 1, armL: 0.72, armR: 0.72, legL: 0.78, legR: 0.78 }, PVP_HEAD_SHELL = 1.2;
 // a shotgun pellet in the head: PVP_HEAD_SHELL times a body pellet up close, fading to no more than a body pellet by
 // where its damage bottoms out (PVP_FALL), so a few stray pellets in the head from far off never nearly kill

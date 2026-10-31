@@ -746,7 +746,7 @@ like pea-shooters). To a 100-health body, before range falloff:
 
 - **Where it lands.** A head takes half again a body's damage (1.5×: heads are small, so a headshot is worth more but
   not twice as much), and an arm or leg about three quarters. The marksman's guns, the hunting rifle and the battle
-  rifle, still do double through the head. A shotgun pellet in the head is 1.2× up close, less the further off, down to no more than a body pellet by where its damage bottoms out, so a few
+  rifle, do 1.8× through the head (down from double: still the most of any gun, a hunting rifle still kills with one). A shotgun pellet in the head is 1.2× up close, less the further off, down to no more than a body pellet by where its damage bottoms out, so a few
   stray pellets in the head from far off never nearly kill.
 - **Your head where it is.** A head leaned out round a corner is hit where it is, not over the middle of the body
   behind the cover: with your crosshair on it from your own eyes, it's a headshot.
@@ -906,7 +906,10 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   corridor: out of the gate onto the courtyard, round either end of the container standing out in it, two metres of
   room all the way round. **Less clutter.** The middle was a field of props (three parallel strips of sandbags, a drum
   on every corner): now it's the containers framing it, the wall stubs at the ring's corners and the flag's own
-  sandbag ring, with a barrier in each strip under the lane walls. Each lane keeps its own few props rather than the
+  sandbag ring. **Room outside the yard.** The pocket just outside each yard's side wall, between the lane wall, the
+  yard and the courtyard, used to be a two-metre strip hemmed in by a three-wide container stack, with a jersey
+  barrier against the wall doing nothing: the barriers are gone and each stack is two wide, a cell further out, so
+  it's an open square with room to turn, not a corridor. Each lane keeps its own few props rather than the
   same ones everywhere: crates and a barrier in the warehouse, the platform's barriers, sandbags, a spool and one drum
   on the rail spur.
 - **Containers are whole containers.** Each is built as a true box of cells (up to 12 long), so a stack never comes
