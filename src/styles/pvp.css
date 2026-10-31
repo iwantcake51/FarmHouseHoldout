@@ -93,7 +93,7 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpPick.small .ppCard>small{display:none}
 #pvpPick .ppGuns{display:grid;gap:4px;padding:6px 0;border-top:1px solid rgba(236,230,216,.08);border-bottom:1px solid rgba(236,230,216,.08)}
 #pvpPick .ppGun{display:grid;grid-template-columns:66px 1fr;align-items:center;gap:6px}
-#pvpPick .ppGun img{max-width:66px;max-height:26px;justify-self:start;filter:brightness(1.3)}
+#pvpPick .ppGun img{width:66px;height:26px;object-fit:contain;object-position:center;filter:brightness(1.3)}
 #pvpPick .ppGun em{display:grid;font-style:normal;font-size:11px;color:var(--ink)}
 #pvpPick .ppGun em i{font-style:normal;font-size:9.5px;line-height:1.25;color:var(--dim)}
 #pvpPick .ppPerks{display:flex;flex-wrap:wrap;gap:4px}
@@ -101,7 +101,7 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpPick .ppKit{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
 #pvpPick .ppBand{display:flex;align-items:center;gap:3px;white-space:nowrap}
 #pvpPick .ppMelee{display:flex;align-items:center;gap:6px;min-width:0;color:var(--ink)}
-#pvpPick .ppMelee img{max-width:50px;max-height:20px;filter:brightness(1.3)}
+#pvpPick .ppMelee img{flex:none;width:50px;height:20px;object-fit:contain;object-position:center;filter:brightness(1.3)}
 #pvpPick .ppBand i{width:8px;height:8px;background:#e8e2d4;border-radius:1px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
 body.pvpPicking #xh,body.pvpPicking .xhWorld{opacity:0!important}
 
