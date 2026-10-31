@@ -57,7 +57,7 @@ put('k', 6, 5, 7, 5); put('k', 10, 9, 10, 10)   # two crate stacks (vaulted): th
 put('b', 16, 5, 17, 5)     # a barrier across the hall's middle by the plaza door
 
 # ---- MIDDLE LANE: the courtyard (cols 8-14) and the plaza (cols 15-20 and its mirror)
-put('C', 12, 15, 13, 16); put('C', 12, 25, 13, 26)
+put('C', 12, 15, 13, 17); put('C', 12, 24, 13, 26)
 put('C', 10, 17, 11, 24)                     # a container out in the courtyard, two metres off the gate and twice as long as it's wide, open all round: what keeps eyes out of the yard
 put('h', 16, 16, 17, 17); put('h', 16, 24, 17, 25)   # wall stubs at the flag ring's corners
 put('s', 19, 17, 20, 17); put('s', 19, 24, 20, 24); put('s', 18, 20, 18, 21)   # the flag's sandbag ring (open at its corners)
@@ -154,6 +154,10 @@ lng = sorted(((round(math.hypot(a[0] - b[0], a[1] - b[1]), 1), a, b) for k, a in
 # corridors: open cells walled in on both sides across (east and west, or north and south) by something tall
 narrow = [c for c in floor if (rows[c[1]][c[0] - 1] in TALL and rows[c[1]][c[0] + 1] in TALL) or (rows[c[1] - 1][c[0]] in TALL and rows[c[1] + 1][c[0]] in TALL)]
 print('one-cell-wide spots', len(narrow), narrow[:10], file=sys.stderr)
+# pinches: two tall things touching only at a corner, a hairline slit between them you can see (and shoot) through
+pinch = [(i, j) for j in range(H - 1) for i in range(W - 1) for (a, b, c, d) in [((i, j), (i + 1, j + 1), (i + 1, j), (i, j + 1)), ((i + 1, j), (i, j + 1), (i, j), (i + 1, j + 1))]
+         if rows[a[1]][a[0]] in TALL and rows[b[1]][b[0]] in TALL and rows[c[1]][c[0]] not in TALL and rows[d[1]][d[0]] not in TALL]
+print('corner pinches', len(pinch), pinch[:10], file=sys.stderr)
 print('sightlines over 28 m', len(lng), lng[:6], file=sys.stderr)
 # timings, spawn to the flag by each lane (through a spot in it), at a sprint (5.25 m/s)
 def via(w):

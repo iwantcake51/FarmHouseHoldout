@@ -909,7 +909,12 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   sandbag ring. **Room outside the yard.** The pocket just outside each yard's side wall, between the lane wall, the
   yard and the courtyard, used to be a two-metre strip hemmed in by a three-wide container stack, with a jersey
   barrier against the wall doing nothing: the barriers are gone and each stack is two wide, a cell further out, so
-  it's an open square with room to turn, not a corridor. Each lane keeps its own few props rather than the
+  it's an open square with room to turn, not a corridor. The stack meets the courtyard's container along a whole
+  edge, as one L-shaped wall of them, never corner to corner.
+- **No hairline gaps.** Two tall things never touch at a corner alone, which left a slit of sky between them you could
+  see and shoot through (the plan script checks for it: tools/arena-plan.py, corner pinches), and every container is
+  built the full width of its cells (it used to be 3 cm narrower each side), so two stood side by side, or one against
+  a wall, meet with no seam. Each lane keeps its own few props rather than the
   same ones everywhere: crates and a barrier in the warehouse, the platform's barriers, sandbags, a spool and one drum
   on the rail spur.
 - **Containers are whole containers.** Each is built as a true box of cells (up to 12 long), so a stack never comes

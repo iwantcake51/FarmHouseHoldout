@@ -64,14 +64,14 @@ const AR_PLAN = [
   '#......h.......F..........F.......h......#',
   '#..hhhhh....CC..............CC....hhhhh..#',
   '#.....Ah....CC..hh......hh..CC....hB.....#',
-  '#......h..CC....hh.ssss.hh....CC..h......#',
+  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
   '#AA....h..CC..................CC..h....BB#',
   '#AAA......CC..................CC......BBB#',
   '#AAAA.....CC......s....s......CC.....BBBB#',
   '#AAAA....FCC......s....s......CCF....BBBB#',
   '#AAA......CC..................CC......BBB#',
   '#AA....h..CC..................CC..h....BB#',
-  '#......h..CC....hh.ssss.hh....CC..h......#',
+  '#......h..CCCC..hh.ssss.hh..CCCC..h......#',
   '#.....Ah....CC..hh......hh..CC....hB.....#',
   '#..hhhhh....CC..............CC....hhhhh..#',
   '#......h.......F..........F.......h......#',
@@ -316,9 +316,11 @@ function arContainer(parts, i, j, did) {
   for (let b = j; b <= j1; b++) for (let a = i; a <= i1; a++) did.add(idx(a, b));
   const x0 = cxw(i) - 0.5, x1 = cxw(i1) + 0.5, z0 = cxw(j) - 0.5, z1 = cxw(j1) + 0.5, H = AR_H.C, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   const alongX = x1 - x0 > z1 - z0, L = alongX ? x1 - x0 : z1 - z0, Wd = alongX ? z1 - z0 : x1 - x0, mat = AR_M.cont[arContN++ % AR_M.cont.length];
-  arPush(parts, box2(alongX ? L : Wd - 0.06, H, alongX ? Wd - 0.06 : L, mat, cx, H / 2, cz));
+  // (its body the full width of its cells, so two stood side by side, or one against a wall, meet with no hairline
+  // of sky between them; the ribs stand just proud of it)
+  arPush(parts, box2(alongX ? L : Wd, H, alongX ? Wd : L, mat, cx, H / 2, cz));
   for (let s = -L / 2 + 0.15; s < L / 2 - 0.1; s += 0.3) for (const sd of [-1, 1]) {   // the ribs
-    const off = sd * (Wd / 2 - 0.02);
+    const off = sd * (Wd / 2 + 0.01);
     arPush(parts, box2(alongX ? 0.1 : 0.04, H - 0.2, alongX ? 0.04 : 0.1, mat, alongX ? cx + s : cx + off, H / 2, alongX ? cz + off : cz + s));
   }
   for (const y of [0.06, H - 0.06]) arPush(parts, box2(alongX ? L + 0.02 : Wd, 0.12, alongX ? Wd : L + 0.02, AR_M.contDk, cx, y, cz));   // its rails
