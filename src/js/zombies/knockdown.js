@@ -144,7 +144,7 @@ export function knockDown(z, dx, dz, seed) {
   burst(z.x, 0.9, z.z, 4, 'dust', dx, dz, 1.5);
 }
 // every frame while it's down or getting up (zombies/ai.js leaves the rest of its turn alone meanwhile)
-export function stepKnock(z, dt) {
+export function stepKnockdown(z, dt) {
   const k = z.knock, m = z.m; k.t += dt;
   if (k.ph === 'down') {
     stepRagdoll(k.r, dt); z.x = k.r.x; z.z = k.r.z;

@@ -37,7 +37,7 @@ import { startDeath } from '../ui/screens.js';
 import { feed } from '../ui/hud-text.js';
 import { los } from '../lighting/lightmap.js';
 import { dashGlow, dashMaybe, dashStep, stepDashMarks, waveDmg } from './brute-dash.js';
-import { stepKnock } from './knockdown.js';
+import { stepKnockdown } from './knockdown.js';
 import { spitStep } from './spitter.js';
 import { ANIM } from '../player/animation.js';
 import { hitFromAt } from '../ui/hud.js';
@@ -212,7 +212,7 @@ export function updateZombies(dt) {
       if (rand() < 0.5) { const v = sp.o ? new V3(...sp.p).applyMatrix4(sp.o.matrixWorld) : m.g.localToWorld(new V3(...STUMP[sp.part])); burst(v.x, Math.max(0.15, v.y), v.z, 1, 'blood', rr(-1, 1), rr(-1, 1), 0.8); }
     }
     // knocked off its feet by a brute (zombies/knockdown.js): down, or getting up, and nothing else till it's up
-    if (z.knock) { stepKnock(z, dt); zFlash(z, dt); continue; }
+    if (z.knock) { stepKnockdown(z, dt); zFlash(z, dt); continue; }
     z.atk -= dt * (z.atkK || 1); z.lunge = Math.max(0, z.lunge - dt * 3); z.stagger -= dt; z.squash = Math.max(0, z.squash - dt * 8); z.pushSlow = Math.max(0, (z.pushSlow || 0) - dt); z.shoved = Math.max(0, (z.shoved || 0) - dt * 2.2);
     // climbing over a fence or in through a window: nothing else till it's done
     if (z.vault) { stepClimb(z, dt); z.atkBoard = null; animateZombie(z, dt, dp, relP); zFlash(z, dt); continue; }

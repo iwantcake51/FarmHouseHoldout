@@ -50,6 +50,13 @@ function joinScripts() {
   });
   const errs = checkModules(files);
   if (errs.length) throw new Error(`The game's imports and exports don't add up (${errs.length}):\n  ` + errs.slice(0, 40).join('\n  ') + (errs.length > 40 ? '\n  ...' : ''));
+  // two files' top-level functions of the same name: in the one script the later would quietly replace the earlier for
+  // everyone (a const or a let the same would fail to run, but a function doesn't), so it's stopped here
+  const fnAt = new Map(), dup = [];
+  for (const { file: f, src } of files) for (const m of src.matchAll(/^(?:export )?(?:async )?function\*? ?([A-Za-z0-9_$]+)/gm)) {
+    if (fnAt.has(m[1]) && fnAt.get(m[1]) !== f) dup.push(`${m[1]}: src/js/${fnAt.get(m[1])} and src/js/${f}`); else fnAt.set(m[1], f);
+  }
+  if (dup.length) throw new Error('Two files have a top-level function of the same name (rename one):\n  ' + dup.join('\n  '));
   // (where each file's first line lands in the joined script, for the dev build's source map: stripModule keeps every
   // line where it was)
   let line = 2; const at = [];

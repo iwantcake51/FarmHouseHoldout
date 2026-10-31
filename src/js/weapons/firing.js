@@ -409,8 +409,12 @@ export function gunFire(id, D, side) {
       // a pellet that lands close enough to where you aimed on that zombie hits the part you aimed at; the rest of the
       // pattern scatters over the body as before (PELLET_CORE)
       let part = hits[k].part;
-      if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, pelletOff(sp) * hits[k].t) * patTight(hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
-      if (!part && (m > 0 || fp || (tgt && z !== tgt.z)) && pellets === 1) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
+      // (from your own eyes, by how far off the aim point the pellet's own line really passes, up and down as well as across)
+      if (!part && tgt && k === 0 && z === tgt.z && pellets > 1 && Math.hypot(Math.sin(a - tgtA) * hits[k].t, (fp ? Math.tan(pv) : pelletOff(sp)) * hits[k].t) * patTight(hits[k].t) < (PELLET_CORE[tgt.part] || 0.2)) part = z.limbs[tgt.part] === false ? 'torso' : tgt.part;
+      // and from your own eyes every pellet, like a lone round, hits what's at its height where it meets the zombie (over
+      // its head or between its legs, nothing): not a part picked anywhere on the body, which put the blood and the mist
+      // on a leg when the pellet's streak ended at the chest, as if it had curved down into it
+      if (!part && (m > 0 || fp || (tgt && z !== tgt.z)) && (pellets === 1 || fp)) { part = partAt(z, y0 + slope * hits[k].t, clamp(off / r, -1, 1), side); if (!part) continue; }
       hits[m++] = hits[k];
       part = part || pickPart(z, clamp(off / r, -1, 1), side, D);
       if (P.eye > 0) part = z.limbs.head ? 'head' : 'torso';   // a dead eye: every hit's a headshot (co-op Bullet time, zombies/damage.js)

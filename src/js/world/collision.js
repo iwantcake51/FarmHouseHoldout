@@ -54,8 +54,11 @@ function fenceHit(i, j, x, z, ex, ez) {
   if ((dz >= 0 ? f(i, j + 1) : f(i, j - 1)) && (Math.abs(dx) < FENCE_HALF || dx * (ex - cx) < 0)) return true;   // a rail along z
   return false;
 }
+// a piece of furniture that fills only part of its cell (cellBox: the gun rack against the wall, a cabinet) is bumped
+// into only where it stands, the rest of the cell walked through like the floor round it
+const furnFree = (x, z) => { const i = ci(x), j = ci(z); if (!inb(i, j)) return false; const k = idx(i, j); return cell[k] === OBST && !!cellBox[k] && !inCellBox(k, x, z); };
 export function moveCircle(e, dx, dz, r, isPlayer) {
-  const px = e.x, pz = e.z, B = isPlayer ? (x, z) => { const i = ci(x), j = ci(z); return inb(i, j) && cell[idx(i, j)] === FENCE ? fenceHit(i, j, x, z, e.x, e.z) : playerBlocked(i, j); } : (x, z) => hardBlocked(ci(x), ci(z));
+  const px = e.x, pz = e.z, B = isPlayer ? (x, z) => { const i = ci(x), j = ci(z); return inb(i, j) && cell[idx(i, j)] === FENCE ? fenceHit(i, j, x, z, e.x, e.z) : playerBlocked(i, j) && !furnFree(x, z); } : (x, z) => hardBlocked(ci(x), ci(z)) && !furnFree(x, z);
   if (dx) {
     const nx = e.x + dx, sx = nx + Math.sign(dx) * r, a = B(sx, e.z - r * .75), b = B(sx, e.z + r * .75);
     if (!a && !b) e.x = nx;

@@ -17,7 +17,7 @@ import { W8 } from '../game/run-state.js';
 import { gunMeshes } from '../weapons/gun-materials.js';
 import { worldT } from '../game/state.js';
 
-const BLOOD_HOLD = 15, BLOOD_FADE = 1.5;
+const BLOOD_HOLD = 30, BLOOD_FADE = 3;
 // a splash of blood (amt, 0..1 of soaked) on a list of them; what lands within half a second of the last counts as
 // one splash with it, so a list holds no more than a couple of dozen
 export function splashOn(list, amt) { const l = list[list.length - 1]; if (l && l[1] < 0.5) l[0] += amt; else list.push([amt, 0]); }

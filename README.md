@@ -157,7 +157,8 @@ your own eyes, and the dead) alike, so the rooms are lit by their lamps and the 
 in the yard you all go into the shade of the house and the trees. Furniture blocks sight, light and shots only where it really stands: a piece that
 fills a little of its cell (the gun rack against the wall, a cabinet, a dresser) is measured to its own box, so the
 part of the cell in front of it is open to see, light and shoot through, and the shadow it casts in the lighting is its
-own shape, not the whole cell's. Only a piece filling most of its cell (85% or more each way) blocks the whole of it. The clock runs from afternoon into night, an hour every 30 seconds of a wave (so the sun and the moon drift across the sky rather than racing), and the dark is where the lamps, your
+own shape, not the whole cell's, and you walk right up to it, bumping into the piece itself rather than the edge of its
+cell. Only a piece filling most of its cell (85% or more each way) blocks the whole of it. The clock runs from afternoon into night, an hour every 30 seconds of a wave (so the sun and the moon drift across the sky rather than racing), and the dark is where the lamps, your
 flashlight and the muzzle flashes matter. What the lamps don't reach isn't grey: the dark takes the cool of the sky,
 a blue-violet moonlight by night and a cool blue-grey in the shade by day, and the shadows are graded cooler against the
 warm of the light (with the lit colour a little fuller), so the honey daylight, the amber dusk and the lamplight have
@@ -252,7 +253,7 @@ nearly four metres across and lasts fourteen seconds: a bubbling green pool, bub
 in bright rings under an oily swirl, glowing on its own at night; standing in it burns for 2 every half second, rising
 to 6 after four seconds in it, and drags at your feet), and brutes that
 charge through fences and plough through the crowd: from 4 to 11 m off with a clear line to you, a brute crouches and
-charges more often than not within a second or two (and again 6 to 10 s after), a red lane on the ground showing where. Every zombie it ploughs into is knocked off its feet (one square in its path as the brute reaches it, one it clips thrown off to the side it was on); only a crawler is just shoved along the ground. Their hits are gentle on the first nights: on wave 1 a zombie hits
+charges more often than not within a second or two (and again 6 to 10 s after), a red lane on the ground showing where. Every zombie it ploughs into is knocked off its feet (one square in its path as the brute reaches it, one it clips thrown off to the side it was on), lies there a moment and gets back up; only a crawler is just shoved along the ground. (They used to stay frozen where they fell: two files had a function of the same name, and in the one script the player's gun-kick spring had replaced the zombies' knockdown step. The build now fails on any two top-level functions with the same name.) Their hits are gentle on the first nights: on wave 1 a zombie hits
 for 55% of its full damage (a walker for about 16 out of your 100 health, not 29), rising evenly to full by wave 8,
 and from there each wave hits 3% harder as before. You walk right up to the fence: it stops you at its rails and posts, not a stride short of them. Shots land where they hit: a leg shot slows them, a severed leg
 leaves a crawler (lying low along the ground, its hips and what's left of its legs dragging, its chest propped on its
@@ -267,7 +268,8 @@ your doing or a teammate's, spatters your view with blood, as if on your face, t
 faint red haze from that edge, a spray of fine specks, wobbly-edged drops (deep red, darker where it pools at the rim,
 thinner in the middle, a soft sheen and a small glint) and, from a close one, a splat or two with spikes and beads flung
 out of them, all soft and out of focus. The bigger drops run down leaving a thin trail, and it fades in a couple of
-seconds. It gets on you and what's in your hands as well (the same stain as from fighting): a limb blown to mist
+seconds. It gets on you and what's in your hands as well (the same stain as from fighting; each splash of blood on you
+or a weapon stays 30 seconds and then fades out over 3, and a cleared wave cleans you up anyway): a limb blown to mist
 throws about twice what a clean cut does, and a volatile going off near you more than either. It's the same few a second on any night, so on later nights, with more health, they take
 longer to bleed out. Dragon's breath sets a zombie alight where its pellets hit (not where they hit armour: a helmet with its face shield
 down, a vest, a plate carrier or leg pads stop them catching there, and armour stops more of dragon's breath than of
@@ -503,7 +505,9 @@ muzzle; down the sights it leaves from the middle of the screen, on your line of
 pattern really goes, not at the very edge one pellet in hundreds might reach (the pellets bunch toward the middle), so
 it's about a third smaller than it was; and the pattern's round, spread all round the middle, each pellet thrown up or
 down as far as sideways and never outside that ring (one that would land past it is pulled back in to its edge), rather
-than all of them flying out level in one flat line. The holes in a wall show it: a round cluster in the ring. A lone
+than all of them flying out level in one flat line. Each pellet hits the part of a zombie at the height its own line
+meets it (over the head or between the legs, nothing), so the blood and the mist come out where its streak ends rather
+than on a part picked anywhere on the body, which looked as if the pellet had curved into it. The holes in a wall show it: a round cluster in the ring. A lone
 round's spread is round too: it lands anywhere inside the circle, up and down as much as sideways, so a held LMG burst
 scatters all round the crosshair rather than along a flat line. Down the sights the first two shots of a string (any gun
 but a shotgun; shots more than about half a second apart each start one) go dead on where the sights are standing
