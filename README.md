@@ -118,13 +118,14 @@ the other one, that eye squinting along the gun and your head tipped over the st
 
      A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. A wave's elites
      are settled as it starts, so a moment after the wave's own call (3.4 s in) one card says how many it's bringing,
-     with a row for each kind: its icon in its colour, how many and what it does. The cards are in the game's own
-     notification style: a dark panel with the elite's colour down its edge, its icon in a tinted tile, a soft sweep of
-     light as it slides in and a thin bar running out under it. One put down gets a card of its own on every player's
-     screen (the skull, its line and what it was) and a moment's hit-stop. Each pays scrap (9 to 12, more each wave), in
+     with each kind side by side: its icon in its colour, how many and its name. The cards are kept out of the way: small,
+     in the top right corner, sliding in from the right, in the game's own notification style (a see-through dark panel
+     with the elite's colour down its edge, its icon in a tinted tile, a soft sweep of light as it lands and a thin bar
+     running out under it). One put down gets a card of its own on every player's
+     screen (the skull, its line and what it was) and a moment's hit-stop. Each pays scrap (6 to 8, more each wave), in
      the pickups on the left: the whole of it to anyone who did half its damage or more, and to anyone who did less, that
      much of it as a share of the half (a quarter of the damage, half the scrap), in whole scrap. Whoever killed it also
-     gets an ammo box for sure, and most often bandages or planks too. In co-op an elite is the same one on every screen.
+     gets an ammo box for sure, and about half the time bandages or planks too. In co-op an elite is the same one on every screen.
    - **A stray crate.** From wave 2, about one wave in five, somewhere 25 to 50 seconds in, a chopper drops a crate
      outside the fence. Its card drops in under the top of the screen in the supply orange: a ring round the crate's
      icon running down the 15 seconds till it lands, the seconds big beside it, the side of the farm it's coming down on
@@ -183,9 +184,10 @@ receiver, like the other guns: the red dot, the holo and the ACOG straight on it
 to it, both rings on the front of the receiver ahead of the ejection port, so nothing stands over the bolt (the barrel's
 rear notch comes off for the rail). The hand cannon takes sights up to the ACOG: the red dot and the holo on its slide,
 and a handgun scope or the ACOG on the rail along its barrel (which stays put while the slide works), held out at arm's
-length with a handgun's long eye relief rather than up against your eye. With an optic on the auto shotgun its tall
-folding sights are laid down flat, the rear back along the receiver and the front post along the barrel, so nothing
-stands in front of the optic as you look through it. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
+length with a handgun's long eye relief rather than up against your eye. An optic on the auto shotgun goes up on its rear
+sight, as the real AA-12's does: a short picatinny rail across the top of the tall A-frame rear sight, running on
+forward over the receiver, braced back down to it by a triangular steel plate with a triangle cut out of it. Both iron
+sights stay up under it, so the optic sits high over the gun and the front post shows low in its window. A suppressor heats up the longer you keep firing through it, a little with each round, so it takes a
 good many mags of sustained fire to get it hot (a full mag barely warms it), and it cools off slowly once you stop
 (just for the look). A hotter powder warms it a little quicker: hand-loads about 8% more a round, +P loads 16%,
 match-grade 24%. Warm, the
@@ -223,7 +225,8 @@ holds the world still for a few hundredths of a second, never closer together th
 kills doesn't stutter. Kills in a chain (each within 1.6 seconds of the last) are called out on a small card above the
 middle, Double kill to Unstoppable: a pip for each kill in the chain, the scrap it's paid, and a thin bar draining over
 the time left to keep it going. Each kill pops it in again with its newest pip bursting in, its glow hotter the longer
-the chain runs, and it fades as soon as the chain can't go on. Each kill past the third is worth a scrap more.
+the chain runs, and it fades as soon as the chain can't go on. A long chain pays a little scrap as it grows: one at its 3rd, 5th and 7th kills, then one every 5 kills from the
+10th (a chain of 10 pays 4, of 20 pays 6), not a scrap for every kill in it.
 A kill sounds like what made it: through the head the skull bursting (two recordings), through the body it giving
 way with a deep thud as it drops (four), heavier for a blade or a club, a hiss for a burning one; most of the time
 with the zombie's last breath going out of it. Bullets into flesh have four recordings rather than two. The new

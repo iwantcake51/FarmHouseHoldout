@@ -31,6 +31,10 @@ const DBL_SIGHT = { front: 0.0034, eye: 0.028, relief: 0.34 };
 // the double barrel's top, as you look down it: the top strap's width (and its tang's, on back along the wrist), the walnut cheeks beside it (how thick, how far out
 // their middles stand) and the fences' radius
 const DBL_TOP = { strap: 0.02, tang: 0.012, cheek: 0.014, cheekX: 0.0185, fence: 0.0175 };   // (relief: your eye that far behind the breech, back on the comb behind your hand on the wrist, not over it with your sleeve in your eye)
+// the AA-12's optic rail, on top of its rear sight (from z0 to z1, its foot at y and its top at top), and the
+// triangular brace under its front end back down to the receiver at the rear sight's front foot (foot), t thick, its
+// frame web wide round the triangle cut out of it
+const AA_RAIL = { z0: 0.503, z1: 0.655, y: 1.3032, top: 1.3142, foot: 0.534, t: 0.006, web: 0.011 };
 const PUMP_RAIL = { z0: 0.58, zs: 0.53, z1: 0.712, y: 1.1615, top: 1.1725 };
 export const SHOTGUN_MODELS = {
   // pump shotgun: a Mossberg 500 Field, traced off a side-on photo. The receiver is a slab with its rear top rolled down
@@ -204,15 +208,26 @@ export const SHOTGUN_MODELS = {
     box(g, 0.004, 0.009, 0.04, St, X + 0.0345, 1.1425, 0.822); cyl(g, 0.004, 0.004, St, X + 0.0365, 1.1425, 0.84, 10).rotation.set(0, 0, Math.PI / 2);   // the latch
     // ---- barrel, its bore; the folding front sight, the tall rear sight
     cyl(g, 0.0163, 0.112, St, X, 1.13, 1.247, 18); cyl(g, 0.0095, 0.002, GM.rubber, X, 1.13, 1.3035, 12);
-    // (with an optic on, both sights are folded down flat, as these fold, so nothing stands up in front of it: the
-    // rear's tall plate laid back along the receiver behind the optic, the front post laid forward along the barrel)
-    if (T('sight')) { box(g, 0.02, 0.007, 0.064, St, X, 1.1955, 0.5015); box(g, 0.012, 0.007, 0.088, St, X, 1.1955, 1.152); }
-    else {
-      profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.0055, St, X, 0.0012);
+    // (with an optic on, it goes up on the rear sight, as the real one's is: a short picatinny rail across the top of the
+    // tall rear sight, running on forward over the receiver, braced back down to it by a triangular plate with a
+    // triangle cut out of it (AA_RAIL). Both irons stay up under it, the front post showing low in the optic's window)
+    const opt = T('sight');
+    { profile(g, shp([[1.108, 1.192], [1.1995, 1.192], [1.1995, 1.275], [1.194, 1.29], [1.188, 1.29], [1.181, 1.277], [1.1747, 1.2537], [1.1685, 1.2305], [1.154, 1.2273], [1.1332, 1.2186], [1.1114, 1.2121]], [shp([[1.1785, 1.258], [1.191, 1.258], [1.191, 1.279], [1.1855, 1.279]])]), 0.0055, St, X, 0.0012);
       const RS = [[0.4688, 1.192], [0.534, 1.192], [0.5339, 1.2393], [0.5331, 1.2939], [0.5302, 1.2989], [0.522, 1.3002], [0.5148, 1.3032], [0.5081, 1.2945], [0.4975, 1.2648], [0.4861, 1.2258], [0.4802, 1.206], [0.4688, 1.2051]];
       apPart(profile(g, shp(clipTo(RS, [[0.4, 1.15], [0.6, 1.15], [0.6, 1.284], [0.4, 1.284]]), [shp([[0.497, 1.215], [0.522, 1.215], [0.522, 1.255], [0.505, 1.255]])]), 0.02, St, X, 0.0012));
       apPlate(g, X, 0.01, 1.284, 1.3032, 0.5081, 0.5339, 1.29, 0.0028, St);   // the aperture plate across its top, the hole looked through down the gun
-      irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+      if (!opt) irons(g, { kind: 'ap', yr: 1.29, rz: 0.52, r: 0.0028, yf: 1.29, fz: 1.191 });   // (the rear's aperture level with the front post's tip: game/view-cam.js)
+      else {
+        const R = AA_RAIL, y = R.y;
+        xsec(g, shp([[X - 0.0125, y], [X + 0.0125, y], [X + 0.0168, y + 0.003], [X + 0.0168, y + 0.005], [X + 0.0148, R.top], [X - 0.0148, R.top], [X - 0.0168, y + 0.005], [X - 0.0168, y + 0.003]]), R.z0, R.z1, GM.rail, 0.0006);
+        for (let z = R.z0 + 0.008; z < R.z1 - 0.005; z += 0.0172) box(g, 0.0338, 0.0034, 0.0065, GM.rubber, X, R.top - 0.0015, z);   // its cross slots
+        // the brace, its middle cut out: the triangle shrunk about its incentre by the web's width
+        const tri = [[R.foot, 1.1985], [R.z1 - 0.004, y], [R.foot, y]], sd = tri.map((p, i) => Math.hypot(tri[(i + 1) % 3][0] - tri[(i + 2) % 3][0], tri[(i + 1) % 3][1] - tri[(i + 2) % 3][1])), per = sd[0] + sd[1] + sd[2];
+        const ic = [0, 1].map(c => (sd[0] * tri[0][c] + sd[1] * tri[1][c] + sd[2] * tri[2][c]) / per), inR = Math.sqrt((per / 2 - sd[0]) * (per / 2 - sd[1]) * (per / 2 - sd[2]) / (per / 2)), kk = (inR - R.web) / inR;
+        const cut = tri.map(p => [ic[0] + (p[0] - ic[0]) * kk, ic[1] + (p[1] - ic[1]) * kk]).reverse();
+        profile(g, shp(tri, [shp(cut)]), R.t, St, X, 0.0008);
+        box(g, R.t, y - 1.1985, 0.012, St, X, (y + 1.1985) / 2, R.foot + 0.006);   // (its upright, along the rear sight's front)
+      }
     }
     // ---- the charging handle's fin on top: its own group so the reload can pull it back
     const ch = new THREE.Group(); g.add(ch);
@@ -241,6 +256,6 @@ export const SHOTGUN_MODELS = {
       box(bm, 0.05, 0.215, 0.095, K, 0, -0.1075, 0); box(bm, 0.056, 0.016, 0.103, GM.poly, 0, -0.218, 0.002);
       [-1, 1].forEach(sd => { box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, 0.022); box(bm, 0.003, 0.16, 0.012, GM.metal2, sd * 0.026, -0.105, -0.022); });
     }
-    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: 1.1985, sz: 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
+    return { front: 1.3025, y: 1.13, slide: bc, bolts: [], travel: 0.115, lock: true, mz: dz, magY: 1.05, top: opt ? AA_RAIL.top : 1.1985, sz: opt ? (AA_RAIL.z0 + AA_RAIL.z1) / 2 + 0.01 : 0.62, laser: { y: 1.105, z: 1.1 }, charge: ch, chargeAt: [X, 1.215, 0.85], chargeTravel: 0.1 };
   },
 };

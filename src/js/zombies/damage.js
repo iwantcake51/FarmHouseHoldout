@@ -626,7 +626,9 @@ function killShake(D, wId, part, overkill) {
 // and, playing alone, a hit-stop (game/hit-feedback.js) when it lands hard: through the head with anything but a fast
 // automatic, a heavy round, a shotgun, a heavy blow (HIT_STOP: how long, in seconds of real time; never closer together
 // than HIT_STOP.gap, so a run of kills doesn't stutter)
-const CHAIN_SCRAP = 1;
+// a chain of kills pays CHAIN_SCRAP.n scrap at its 3rd, 5th and 7th kills (at), then every CHAIN_SCRAP.every kills
+// from the 10th: a long chain's worth a little, not a scrap a kill on top of each kill's own
+const CHAIN_SCRAP = { n: 1, at: [3, 5, 7], from: 10, every: 5 };
 const HIT_STOP = { head: 0.045, heavy: 0.065, melee: 0.055, gap: 0.3, fast: 0.12 };   // (fast: a gun firing quicker than this, s a shot, gets none for a headshot)
 let hsLast = 0;
 function killFeel(z, D, wId, part) {
@@ -634,8 +636,8 @@ function killFeel(z, D, wId, part) {
   hitMark('kill', part === 'head');
   const chain = (run.st && run.st.chain) || 1;
   SFX.killTick(part === 'head', chain);
-  // a chain of kills called out (ui/hud-text.js), each past the third worth CHAIN_SCRAP scrap more
-  const paid = chain >= 3 ? CHAIN_SCRAP : 0; if (paid) { S.scrap += paid; popEl('scrap'); }
+  // a chain of kills called out (ui/hud-text.js), now and then paying a little scrap as it grows (CHAIN_SCRAP)
+  const C = CHAIN_SCRAP, paid = C.at.includes(chain) || (chain >= C.from && (chain - C.from) % C.every === 0) ? C.n : 0; if (paid) { S.scrap += paid; popEl('scrap'); }
   streakShow(chain, paid);
   if (netLink() || timeScale < 0.8) return;
   const heavy = (D.dmg || 0) >= 80 || wId === 'boom' || (D.ammo === 'shells' && !D.dart);

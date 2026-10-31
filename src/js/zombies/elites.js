@@ -41,11 +41,11 @@ const BLOOD_ELITE = { k: 4, max: 0.3 };
 const ELITE_TYPES = ['walker', 'runner', 'brute'];
 export const ELITE_BRUTE = { hp: 0.6, burst: 1.3 };
 export const ELITE_KIND = {
-  hulk: { name: 'Hulking', w: 1, types: ELITE_TYPES, hp: 5, scale: 1.18, speed: 0.88, dmg: 1.8, atk: 1, col: 0xa66bff, scrap: 12, more: 0.9,
+  hulk: { name: 'Hulking', w: 1, types: ELITE_TYPES, hp: 5, scale: 1.18, speed: 0.88, dmg: 1.8, atk: 1, col: 0xa66bff, scrap: 8, more: 0.6,
     icon: 'brute', does: 'Bigger and far tougher, and every hit it lands is brutal', stats: '×5 health · ×1.8 damage · 40% damage reduction', down: 'The big one\'s down' },
-  frenzy: { name: 'Frenzied', w: 1, types: ELITE_TYPES, hp: 3, scale: 1.03, speed: 1.5, dmg: 1.4, atk: 1.8, col: 0xff2a24, scrap: 9, more: 0.8,
+  frenzy: { name: 'Frenzied', w: 1, types: ELITE_TYPES, hp: 3, scale: 1.03, speed: 1.5, dmg: 1.4, atk: 1.8, col: 0xff2a24, scrap: 6, more: 0.5,
     icon: 'enrage', does: 'Runs you down far faster than the rest and claws without letting up', stats: '×1.5 speed · ×1.8 attack speed · ×3 health · 40% damage reduction', down: 'The screaming\'s stopped' },
-  volatile: { name: 'Volatile', w: 0.8, from: 5, types: ELITE_TYPES, hp: 3, scale: 1.06, speed: 0.95, dmg: 1.3, atk: 1, col: 0x4dff5a, scrap: 10, more: 0.85,
+  volatile: { name: 'Volatile', w: 0.8, from: 5, types: ELITE_TYPES, hp: 3, scale: 1.06, speed: 0.95, dmg: 1.3, atk: 1, col: 0x4dff5a, scrap: 7, more: 0.55,
     icon: 'gooBurst', does: 'Bursts into a cloud of red mist when it dies or gets close to you: it hurts and dazes you, and staggers the zombies round it', stats: '3.8 m burst · goes off when it reaches you · ×3 health · 40% damage reduction', down: 'Popped' }
 };
 // the burst (VOLATILE: how far it reaches the zombies round it, how long it staggers one at its middle (s, and at its
@@ -105,7 +105,7 @@ export function eliteWave(c) {
   setTimeout(() => {
     SFX.eliteIn(ks[0]);
     eliteCall({ col: hex(K0.col), icon: ks.length === 1 ? K0.icon : 'enrage', eye: 'Elites this wave', name: n === 1 ? '1 elite incoming' : n + ' elites incoming', t: 4.4,
-      list: ks.map(k => ({ col: hex(ELITE_KIND[k].col), icon: ELITE_KIND[k].icon, n: c[k], name: ELITE_KIND[k].name, does: ELITE_KIND[k].does })) });
+      list: ks.map(k => ({ col: hex(ELITE_KIND[k].col), icon: ELITE_KIND[k].icon, n: c[k], name: ELITE_KIND[k].name })) });
   }, ELITE_CALL_AT * 1000);
 }
 // one put down (zombies/damage.js), on every screen: its card, in gold (what it paid you goes in the pickups on the left)

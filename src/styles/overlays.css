@@ -265,6 +265,24 @@ body.menu #streak,body:has(#station:not([hidden])) #streak{opacity:0!important}
 @keyframes ecBar{0%{transform:scaleX(1)}100%{transform:scaleX(0)}}
 @keyframes ecIcon{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){#eliteCall.show,#eliteCall.out,#eliteCall.show *,#eliteCall.show .ecSlab::before,#eliteCall.show .ecSlab::after{animation-duration:.01s!important;animation-delay:0s!important}}
+/* kept out of the way: small, in the top right corner under the edge of the screen, sliding in from the right, its
+   panel see-through enough that what's behind it still shows */
+#eliteCall{left:auto;right:calc(16px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));transform:none}
+#eliteCall.show{animation:ecInR .36s cubic-bezier(.2,.9,.3,1.1) both}
+#eliteCall.out{animation:ecOutR .3s ease-in both}
+#eliteCall .ecSlab{gap:9px;padding:6px 12px 8px 6px;min-width:0;max-width:min(300px,70vw);background:linear-gradient(90deg,color-mix(in srgb,var(--ec) 12%,rgba(14,15,16,.78)),rgba(14,15,16,.66) 55%);box-shadow:0 6px 18px -10px rgba(0,0,0,.8)}
+#eliteCall .ecIc{width:28px;height:28px}
+#eliteCall .ecIc svg{width:17px;height:17px}
+#eliteCall small{font-size:9.5px;letter-spacing:.2em}
+#eliteCall b,#eliteCall.down b{font-size:15px}
+#eliteCall em{font-size:11px;line-height:1.3}
+#eliteCall #ecTip{font-size:9.5px}
+#eliteCall #ecList{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:3px}
+#eliteCall .ecRow{font-size:10.5px;gap:5px}
+#eliteCall .ecRow svg{width:13px;height:13px}
+#eliteCall .ecRow b{font-size:12px;min-width:18px}
+@keyframes ecInR{0%{opacity:0;transform:translateX(24px)}100%{opacity:1;transform:none}}
+@keyframes ecOutR{0%{opacity:1;transform:none}100%{opacity:0;transform:translateX(16px)}}
 /* the stray crate's card (stations/supply-drop.js: dropCall): the game's card style in the drop's orange. A ring round
    the crate's icon runs down with the seconds left (--dc, 1 to 0), the seconds big at its right, the side of the farm
    it's coming down on and the sprinters it brings under the headline. It folds to a slim strip (.mini) after a few

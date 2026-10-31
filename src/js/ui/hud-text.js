@@ -83,14 +83,14 @@ export function eliteCall(o) {
   el.style.setProperty('--ec', o.col); el.style.setProperty('--ecT', t + 's');
   $('ecIc').innerHTML = GI[o.icon] || GI.zombie; $('ecEye').textContent = o.eye || ''; $('ecName').textContent = o.name || '';
   $('ecLine').textContent = o.line || ''; $('ecTip').textContent = o.tip || '';
-  // (a wave's elites: a row for each kind, its icon in its colour, how many and what it does)
-  $('ecList').innerHTML = (o.list || []).map(r => `<span class="ecRow" style="--rc:${r.col}"><svg viewBox="${GI_VB}">${GI[r.icon] || ''}</svg><b>${r.n}×</b><span><u>${r.name}</u> ${r.does}</span></span>`).join('');
+  // (a wave's elites: a row for each kind, its icon in its colour and how many, side by side)
+  $('ecList').innerHTML = (o.list || []).map(r => `<span class="ecRow" style="--rc:${r.col}"><svg viewBox="${GI_VB}">${GI[r.icon] || ''}</svg><b>${r.n}×</b><span><u>${r.name}</u></span></span>`).join('');   // (kept short: only what's coming and how many)
   el.className = 'hud'; replay(el, ...(o.down ? ['show', 'down'] : ['show']));
   ecT1 = setTimeout(() => { el.className = 'hud out' + (o.down ? ' down' : ''); ecT2 = setTimeout(() => { el.className = 'hud'; }, 450); }, t * 1000);
 }
 // the big centre-screen card: a small eyebrow, the headline, a rule that draws out from the middle, and a subtitle ribbon.
 // a chain of kills (each within RUN_CHAIN of the last: ui/run-stats.js) called out from the second on: a small card under
-// the middle with its name (STREAK), a pip for each kill in it, what it's paid past the third (zombies/damage.js), and a
+// the middle with its name (STREAK), a pip for each kill in it, what it's paid as it grows (zombies/damage.js: CHAIN_SCRAP), and a
 // thin bar draining over the time left to keep it going. Each kill pops it in again, its glow hotter the longer it runs;
 // it's there as long as the chain can still go on, and fades once it can't
 const STREAK = [[10, 'Unstoppable'], [7, 'Massacre'], [5, 'Rampage'], [4, 'Quad kill'], [3, 'Triple kill'], [2, 'Double kill']], STREAK_PIPS = 10;
