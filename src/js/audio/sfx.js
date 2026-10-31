@@ -135,6 +135,17 @@ export const SFX = {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.4);
     o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + 3.5);
   },
+  // shell-shocked (a volatile going off on you): the world gone dull and distant, under a high, thin ringing (two tones
+  // a few hertz apart, so it beats) that comes up fast and dies away slowly as the hearing comes back; k 0..1
+  tinnitus(k) {
+    if (!AC) return; const t = AC.currentTime, L = 3 + 2 * k;
+    muff.frequency.cancelScheduledValues(t); muff.frequency.setValueAtTime(260, t); muff.frequency.setValueAtTime(260, t + 0.5 * k); muff.frequency.exponentialRampToValueAtTime(20000, t + L);
+    for (const [f, a] of [[3920, 1], [3927, 0.7], [7840, 0.18]]) {
+      const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = f; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.055 * k * a, t + 0.12); g.gain.setValueAtTime(0.055 * k * a, t + 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + L);
+      o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + L + 0.1);
+    }
+  },
   pant() { nz(0.32, 'bandpass', 900, 500, 0.12, 1.2); setTimeout(() => nz(0.25, 'bandpass', 700, 420, 0.08, 1.2), 300); },
   rip() { if (playS('medkit')) return; nz(0.22, 'highpass', 2600, 1800, 0.22, 1); nz(0.12, 'bandpass', 3400, 2200, 0.14, 2); },
   wrap() { nz(0.16, 'bandpass', 1600, 900, 0.08, 1.4); },

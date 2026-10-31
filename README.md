@@ -110,7 +110,10 @@ the other one, that eye squinting along the gun and your head tipped over the st
        It doesn't wait to be killed, either: one that gets within 1.7 m of whoever it's after swells and shudders with
        a shriek for 0.65 s and goes off on its own (in co-op the host's game decides it). Within 3.8 m it hurts you (up
        to 35, less at the edge), leaves you reeling (the screen swimming, your aim going wide, slowed) and throws its
-       blood over your view and over you and your gun; the zombies within 4.4 m aren't hurt, only thrown back and
+       blood over your view and over you and your gun. It shell-shocks you too: stunned on the spot for a second (no
+       moving, no shooting; a little less at its edge), the world blurred and drained nearly grey and clearing over about
+       three seconds, the blood on your view sharp over it, and your ears ringing, a high, thin, beating tone over the
+       muffled world that fades as your hearing comes back; the zombies within 4.4 m aren't hurt, only thrown back and
        staggered (up to 1.6 s at its middle, a brute barely moved). A volatile brute's burst is a third bigger.
 
      A Hulking walker takes about 27 pistol body shots where a walker takes 4, a Hulking brute about 92. A wave's elites

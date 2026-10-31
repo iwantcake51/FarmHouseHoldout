@@ -70,10 +70,10 @@ export function updateHUD(rdt, D) {
     { const rt = spec ? 0 : Math.round(clamp((0.4 - hpF) / 0.3, 0, 1) * LOW_HP.red * 40) / 40; if (cache.redTint !== rt) { cache.redTint = rt; $('lowTint').style.opacity = rt; } }
     const near = spec || P.dead ? 0 : Math.round(smooth(clamp((NEAR_DEATH.from - hpF) / (NEAR_DEATH.from - NEAR_DEATH.to), 0, 1)) * 40) / 40;
     { const v = near ? near * NEAR_DEATH.vig * (1 - NEAR_DEATH.breath + NEAR_DEATH.breath * Math.sin(performance.now() / 1100)) : 0, vk = Math.round(v * 60) / 60; if (cache.nearVig !== vk) { cache.nearVig = vk; $('nearVig').style.opacity = vk; } }
-    const blur = Math.round((P.conc || 0) * 2.6 * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz;
+    const shk = spec ? 0 : Math.round(smooth(clamp(P.shock || 0, 0, 1)) * 40) / 40, blur = Math.round(Math.max((P.conc || 0) * 2.6, shk * SHOCK_FX.blur) * 10) / 10, slow = Math.round(clamp((1 - timeScale) / 0.75, 0, 1) * 60) / 60, dz = P.dead && !spec ? 1 : 0, fk = grey + ':' + blur + ':' + slow + ':' + near + ':' + dz + ':' + shk;
     if (cache.grey !== fk) {
       cache.grey = fk;
-      cv.style.filter = (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
+      cv.style.filter = (shk ? `saturate(${(1 - shk * SHOCK_FX.grey).toFixed(2)}) ` : '') + (grey ? `grayscale(${grey.toFixed(2)}) brightness(${(1 + grey * LOW_HP.bright).toFixed(2)}) contrast(${(1 + grey * 0.05).toFixed(2)}) ` : '') + (blur ? `blur(${blur}px) brightness(${(1 + blur * 0.06).toFixed(2)}) ` : '') + (slow ? `saturate(${(1 - slow * 0.4).toFixed(2)}) contrast(${(1 + slow * 0.08).toFixed(2)}) hue-rotate(${(-slow * 6).toFixed(1)}deg)` : '');
       $('slowmo').style.opacity = slow;   // (a cool dimming at the edges only: no letterbox bars)
       if (muff && AC && !(P.conc > 0.05)) muff.frequency.setTargetAtTime(Math.min(slow ? 20000 - slow * 18800 : 20000, 20000 * Math.pow(NEAR_DEATH.lp / 20000, near), dz ? DEATH_LP : 20000), AC.currentTime, dz ? 0.9 : near ? 0.4 : 0.12);   // (slow motion's, or close to death's: NEAR_DEATH)
     }
@@ -166,6 +166,8 @@ const LOW_HP = { grey: [0.55, 0.12], bright: 0.24, red: 0.5, pulse: [0.1, 0.04] 
 // off it (down to .lp Hz at worst, through the master lowpass the slow motion uses: whichever's lower), and the edges
 // of the view darken (#nearVig, up to .vig), slowly breathing (.breath of it, at about the rate you breathe)
 const NEAR_DEATH = { from: 0.25, to: 0.04, lp: 4200, vig: 0.75, breath: 0.12 };
+// a volatile's shell-shock (P.shock, 1 fading to none): how hard it blurs the view (px) and drains its colour (of all of it)
+const SHOCK_FX = { blur: 5, grey: 0.85 };
 const DEATH_LP = 650;   // how dull and far off it all sounds while you lie there (ui/screens.js: the death camera)
 const BLEED_PULSE = 1.5;   // seconds per throb of the bleeding edge: slow and heavy, whatever your heart is doing
 // the side a blow came from, for the red flash and the blur on that side

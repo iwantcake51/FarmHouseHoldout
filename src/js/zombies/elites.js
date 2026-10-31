@@ -122,6 +122,9 @@ const BURSTS = [], BURST_DELAY = 0.14;
 // VOL_FUSE.t seconds, shrieking, and goes off (killed by its own blast, so its burst follows: eliteDies). The host's
 // game decides it in co-op (zombies/ai.js: updateZombies); true once it's gone off
 const VOL_FUSE = { r: 1.7, t: 0.65, swell: 0.16 };
+// caught in its burst: stunned for stun seconds at its middle, and how much of it (and of the blur, the grey and the
+// ringing) even its edge leaves you with (k0)
+const VOL_SHOCK = { stun: 1, k0: 0.55 };
 export function volatileFuse(z, dp, dt) {
   if (!z.elite || z.elite.kind !== 'volatile' || z.dead) return false;
   if (!(z.fuse > 0)) {
@@ -150,7 +153,12 @@ export function updateBursts(dt) {
     const dp = Math.hypot(P.x - b.x, P.z - b.z); setShake(Math.max(shake, 0.45 * Math.max(0, 1 - dp / 9)));
     if (!P.dead && dp < V.you.r * K) { const f = 1 - dp / (V.you.r * K);
       P.hp -= V.you.dmg * K * (0.4 + 0.6 * f) * S.dmgTaken; hitFromAt(b.x, b.z, 1.4); interruptBandage();
-      P.conc = Math.max(P.conc || 0, V.you.daze * (0.5 + 0.5 * f)); P.slow = Math.min(1, (P.slow || 0) + V.you.slow * f); }
+      P.conc = Math.max(P.conc || 0, V.you.daze * (0.5 + 0.5 * f)); P.slow = Math.min(1, (P.slow || 0) + V.you.slow * f);
+      // shell-shocked: stood there stunned (no moving, no shooting) for VOL_SHOCK.stun, the world blurred and drained
+      // of colour as it clears (P.shock, ui/hud.js), and your ears ringing
+      const sk = VOL_SHOCK.k0 + (1 - VOL_SHOCK.k0) * f;
+      P.stun = Math.max(P.stun || 0, VOL_SHOCK.stun * sk); P.shockStun = Math.max(P.shockStun || 0, VOL_SHOCK.stun * sk); P.shock = Math.max(P.shock || 0, sk); P.sprint = false;
+      SFX.tinnitus(sk); }
     goreAt(b.x, b.z, 1.0, 1.4 * K, V.you.r * K);   // (its blood all over your view, you and what's in your hands: ui/screen-blood.js)
     // the zombies round it aren't hurt: thrown back off it and staggered, the nearer the longer (a brute barely moved)
     for (const o of zombies) {
