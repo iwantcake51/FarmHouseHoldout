@@ -51,13 +51,14 @@ export function renderSpec() {
   if (el.hidden === on) { el.hidden = !on; document.body.classList.toggle('spectating', on); SPEC.key = ''; }
   if (!on) return;
   const am = f.am || [], hp = Math.max(0, Math.round(f.hp ?? 100)), mx = f.maxHp || 100, st = f.stats || [];
-  let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined) up++;
+  let up = 0; for (const p of NET.peers.values()) if (!p.dead && p.x !== undefined && (!PVP.on || pvpMate(p))) up++;
   const lg = f.lo && f.lo.guns && f.lo.guns[f.wid], key = [f.id, f.name, hp, mx, f.heal || 0, f.wn, f.wid, lg ? JSON.stringify([lg.mods, lg.lv]) : '', JSON.stringify(am), st.join(), up].join('|');
   if (SPEC.key === key) return; SPEC.key = key;
   const q = s => el.querySelector(s);
   el.style.setProperty('--pc', NET_COL[f.idx] || '#888');
   q('.spWho em').textContent = f.name || 'Survivor';
   q('.spHint').hidden = up < 2;
+  q('.spText small:not(.spHint)').textContent = PVP.on ? 'Back next round' : 'Back on your feet when the wave is cleared';
   // their health
   q('.spName b').textContent = f.name || 'Survivor';
   q('.spHp').textContent = hp; q('.spMax').textContent = '/ ' + mx;

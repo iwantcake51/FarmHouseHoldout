@@ -95,18 +95,18 @@ function renderSeats() {
   for (let k = list.length; k < netMax(); k++) { const li = document.createElement('li'); li.className = 'seat empty'; li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName">Open seat</b><em class="sTag">Waiting for someone</em>'; li.querySelector('.sNum').textContent = k + 1; ol.appendChild(li); }
 }
 // the screen opens over the title and closes back to it (Esc, or Back)
-let coopShut = 0;
+// (how long it takes to go, ms: the panel sliding off and fading, the title coming back under it, styles/coop.css)
+let coopShut = 0; const COOP_SHUT = 340;
 export const coopOpen = () => !$('coop').hidden && !$('coop').classList.contains('closing');
 export function toggleCoop(open) {
   const el = $('coop'), show = open ?? !coopOpen();
   $('coopBtn').setAttribute('aria-expanded', String(show));
   clearTimeout(coopShut); el.classList.remove('closing');
-  if (show) { el.hidden = false; document.body.classList.add('coopOn'); $('coopName').value = NET.name; friendsUp(); lobbyRender(); invRender(); }
-  else if (!el.hidden) { el.classList.add('closing'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); document.body.classList.remove('coopOn'); invRender(); }, 220); }
+  if (show) { el.hidden = false; document.body.classList.remove('coopLeaving'); document.body.classList.add('coopOn'); $('coopName').value = NET.name; friendsUp(); lobbyRender(); invRender(); }
+  else if (!el.hidden) { el.classList.add('closing'); document.body.classList.add('coopLeaving'); coopShut = setTimeout(() => { el.hidden = true; el.classList.remove('closing'); document.body.classList.remove('coopOn', 'coopLeaving'); invRender(); }, COOP_SHUT); }   // (the title's menu fading back in under it as it goes: styles/coop.css)
 }
 $('coopBtn').onclick = () => { audioInit(); toggleCoop(); };
 $('coopClose').onclick = () => toggleCoop(false);
-$('coopX').onclick = () => toggleCoop(false);   // (and the cross by its title)
 $('coopName').addEventListener('input', e => {
   NET.name = e.target.value.trim().slice(0, 16);
   try { localStorage.setItem('fhh-name', NET.name); } catch (er) {}

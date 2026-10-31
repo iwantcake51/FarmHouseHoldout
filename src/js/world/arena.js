@@ -1,9 +1,18 @@
 // The arena: the map the player-against-player mode is played on (pvp/pvp.js), built over where the farm stands for as
-// long as a match goes on. An old freight yard in a clearing in the woods: a cast concrete pad with its expansion joints,
-// oil stains and tyre marks, walled round with tall precast panels; four shipping containers down its sides and two
-// across its middle, a roofless block hut in the very middle with a doorway in each wall, jersey barriers and sandbag
-// walls at chest height to fight over, crate stacks and drums. Both halves are the same, so neither side's better off:
-// west against east, a painted pad at each end for each side's spawn. Floodlights stand in its corners.
+// long as a match goes on. An old freight yard in a clearing in the woods, a cast concrete pad walled round with tall
+// precast panels, laid out as three lanes and the same both halves (west against east, so neither side's better off):
+//  - each side's spawn, a walled yard at its end: the wall on its inner side is solid, so nothing in the middle sees
+//    into it, and you leave it north or south round that wall's ends, past sandbags. No spawn cell sees any of the
+//    other side's (tools/arena-plan.py checks)
+//  - the middle, an open plaza round the centre, a ring of sandbags in it, a container stood across the lane at each
+//    end and wall stubs at its corners so it can't be seen across end to end
+//  - the north lane, a roofless warehouse against the north wall (doors on three sides), a loading dock and a pair of
+//    containers the lane bends round, an L of wall to fight round
+//  - the south lane, a container yard staggered so no line runs straight through it, and a guard hut in the corner
+//  - between the lanes, a container and a wall stub each side, three ways through
+// Along every wall something stands out from it (the warehouse, a container on end, crates on the dock), so there's no
+// long straight sightline down the edges: the longest run is 14 m. Floodlights stand in its corners and halfway along
+// each wall.
 //
 // While it's up, the farm's own pieces (the house, the yard, the fence, the stations: world/farm-set.js) are out of the
 // scene and the grid (what's walked through, what stops a round and the eye, the light) is the arena's; when it comes
@@ -17,7 +26,7 @@ import { cell, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
 import { cellBox, syncBlock } from './collision.js';
 import { lowObst, obstTop } from './props.js';
 import { THIN, wX, wZ } from './thin-walls.js';
-import { openings } from './house.js';
+import { openings, WALL_FORMS } from './house.js';
 import { HOUSE_DOORS } from './interior.js';
 import { FARM_ROOTS } from './farm-set.js';
 import { STATIC_LIGHTS } from '../lighting/static-lights.js';
@@ -29,51 +38,51 @@ import { TREE_HIDE } from './tree-cull.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
-// h the hut's walls, b a jersey barrier, s sandbags (vaulted over: VAULT_LOW), k a stack of crates, o a drum, r a cable
+// h block walls (the warehouse, the hut, the spawn yards', the stubs), b a jersey barrier, s sandbags (vaulted over: VAULT_LOW), k a stack of crates, o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
 export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
 const AR_PLAN = [
   '##########################################',
-  '#........................................#',
-  '#.k........CCCCCC..o..o..CCCCCC........k.#',
-  '#...hh.hh..CCCCCC........CCCCCC..hh.hh...#',
-  '#...h...h...F................F...h...h...#',
-  '#.................k....k.................#',
-  '#.F.h...h....sss..........sss....h...h.F.#',
-  '#...hh.hh.........hh..hh.........hh.hh...#',
-  '#..........b..................b..........#',
-  '#.......o..b.....k......k.....b..o.......#',
-  '#..........b..r............r..b..........#',
-  '#........................................#',
-  '#...CCCCCC..kCCCCCC....CCCCCCk..CCCCCC...#',
-  '#...CCCCCC..hCCCCCC....CCCCCCh..CCCCCC...#',
-  '#...hh..............................hh...#',
-  '#.............b...o....o...b.............#',
-  '#.............b............b.............#',
-  '#....s..hh.hh......ssss......hh.hh..s....#',
-  '#.AA.s..h...hF..............Fh...h..s.BB.#',
-  '#.AA....h.h.h..k.s......s.k..h.h.h....BB.#',
-  '#.AA.............s......s.............BB.#',
-  '#.AA.............s......s.............BB.#',
-  '#.AA....h.h.h..k.s......s.k..h.h.h....BB.#',
-  '#.AA.s..h...h................h...h..s.BB.#',
-  '#....s..hh.hh......ssss......hh.hh..s....#',
-  '#.............b............b.............#',
-  '#.............b...o....o...b.............#',
-  '#..............hh........hh..............#',
-  '#...CCCCC..hhCCCCC......CCCCChh..CCCCC...#',
-  '#...CCCCC..k.CCCCC......CCCCC.k..CCCCC...#',
-  '#.F....................................F.#',
-  '#.....CC....bbb....k..k....bbb....CC.....#',
-  '#..h..CC..........................CC..h..#',
-  '#..h..CC..CCCCC............CCCCC..CC..h..#',
-  '#.....CC..CCCCC....F..F....CCCCC..CC.....#',
-  '#.....CC..........................CC.....#',
-  '#............k..CC......CC..k............#',
-  '#..sss....F.....CC......CC.....F....sss..#',
-  '#........o..r...CC......CC...r..o........#',
-  '#.k.............CC......CC.............k.#',
-  '#........................................#',
+  '#..hhhhhhh..ko.....k..k.....ok..hhhhhhh..#',
+  '#..h.....h.........k..k.........h.....h..#',
+  '#..h.k......CCCCCC......CCCCCC......k.h..#',
+  '#........h..CCCCCC......CCCCCC..h........#',
+  '#..h..Fk.h......................h.kF..h..#',
+  '#..h.....h....F............F....h.....h..#',
+  '#..hhh..hh.........k..k.........hh..hhh..#',
+  '#..........b...h..........h...b..........#',
+  '#k.........b..hh....hh....hh..b.........k#',
+  '#.oF...k...b...h..........h...b...k...Fo.#',
+  '#.....k........h..ssssss..h........k.....#',
+  '#........CCCC....k......k....CCCC........#',
+  '#hhhhh...CCCC...h...hh...h...CCCC...hhhhh#',
+  '#...............h.k....k.h...............#',
+  '#....s.h.....b..............b.....h.s....#',
+  '#....s.hk....b..............b....kh.s....#',
+  '#.AAA..h...........ssss...........h..BBB.#',
+  '#.AAA..h.......hh........hh.......h..BBB.#',
+  '#.AAA..h..CC..................CC..h..BBB.#',
+  '#.AAA..h..CCF.o...s....s...o.FCC..h..BBB.#',
+  '#.AAA..h..CC..o...s....s...o..CC..h..BBB.#',
+  '#.AAA..h..CC..................CC..h..BBB.#',
+  '#.AAA..h.......hh........hh.......h..BBB.#',
+  '#.AAA..h...........ssss...........h..BBB.#',
+  '#....s.hk....b..............b....kh.s....#',
+  '#....s.h.....b..............b.....h.s....#',
+  '#..........ss...h........h...ss..........#',
+  '#hhhhh...CCCC...h...hh...h...CCCC...hhhhh#',
+  '#........CCCC....k..kk..k....CCCC........#',
+  '#.oF.k.....CCCCCC.hh..hh.CCCCCC.....k.Fo.#',
+  '#k.........CCCCCC........CCCCCC.........k#',
+  '#.CC...k............hh............k...CC.#',
+  '#.CC.k...........b..hh..b...........k.CC.#',
+  '#.CC..hh.hh......b..hh..b......hh.hh..CC.#',
+  '#.CC..h...h..CC..b......b..CC..h...h..CC.#',
+  '#.CC....F.h..CC............CC..h.F....CC.#',
+  '#.CC..h......CC.F........F.CC......h..CC.#',
+  '#.....h.k.h..CC....kook....CC..h.k.h.....#',
+  '#.....h...h..CC............CC..h...h.....#',
+  '#.....hhhhh..CC............CC..hhhhh.....#',
   '##########################################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
@@ -347,9 +356,11 @@ export function arenaUp() {
   const out = [];
   for (const o of FARM_ROOTS) {
     if (o.parent !== scene) continue;
-    const keep = o.isLight || o.isPoints || o.isSprite || o.type === 'Object3D' || (o.isInstancedMesh && !arGrass(o)) || (o.isMesh && !o.isInstancedMesh && o.geometry && (o.geometry.type === 'PlaneGeometry' || o.geometry.type === 'SphereGeometry') && !o.userData.still) || o.renderOrder < -10 || o.frustumCulled === false && !o.isGroup;
+    const keep = !o.userData.road && (o.isLight || o.isPoints || o.isSprite || o.type === 'Object3D' || (o.isInstancedMesh && !arGrass(o)) || (o.isMesh && !o.isInstancedMesh && o.geometry && (o.geometry.type === 'PlaneGeometry' || o.geometry.type === 'SphereGeometry') && !o.userData.still) || o.renderOrder < -10 || o.frustumCulled === false && !o.isGroup);
     if (!keep) { scene.remove(o); out.push(o); }
   }
+  // and the house's outer wall pieces, built for each run's floor plan after all that (world/house.js WALL_FORMS)
+  for (const g of WALL_FORMS.values()) if (g.parent === scene) { scene.remove(g); out.push(g); }
   // what the farm had in the grid, kept to put back
   arSaved = { out, cell: cell.slice(), open: openAt.slice(), box: cellBox.slice(), low: new Set(lowObst), top: new Map(obstTop), wX: wX.slice(), wZ: wZ.slice(), thinN: THIN.n, thinBox: THIN.box.slice(),
     openings: openings.slice(), doors: HOUSE_DOORS.list.slice(), doorKey: HOUSE_DOORS.key, lights: STATIC_LIGHTS.slice(), house: LMU.uHouse.value.clone() };

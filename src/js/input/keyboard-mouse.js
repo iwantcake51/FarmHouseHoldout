@@ -34,6 +34,7 @@ import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
 import { PVP, pvpChangeClass, pvpPicking } from '../pvp/pvp.js';
+import { leanKey } from '../player/lean.js';
 
 export const keys = new Set();
 // mouseDownR: the right button, which aims, or with a gun in each hand fires the right one (weapons/akimbo.js)
@@ -64,11 +65,12 @@ function keyAct(k, e) {
   if (state !== 'play') return;
   // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
   if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
+  if ((bindIs(k, 'leanL') || bindIs(k, 'leanR')) && !e.repeat && !freeOn()) { leanKey(bindIs(k, 'leanL') ? -1 : 1, true); if (!bindIs(k, 'use')) return; }   // (player/lean.js)
   if (bindIs(k, 'view')) { if (!e.repeat) toggleView(); return; }   // first person and back (ui/settings.js), or out of the free camera
   if (e.repeat && !bindIs(k, 'board') && !bindIs(k, 'tear')) return;
   keys.add(k);
   if (freeOn()) return;   // (flying the free camera, the keys fly it: game/view-cam.js)
-  if (bindIs(k, 'use')) { if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
+  if (bindIs(k, 'use')) { if (e.repeat) return; if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) return;   // (no picking things at a station by number: they're clicked)
   if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
   if (k === 'tab' && openSt && openSt.id === 'rack') { e.preventDefault(); rackTab(GUN_RACK.tab + (e.shiftKey ? -1 : 1)); return; }   // the gun rack's lines (stations/armory.js)
@@ -92,7 +94,7 @@ function keyAct(k, e) {
   if (bindIs(k, 'zoomIn') || (KB.zoomIn === '=' && k === '+')) setZoomT(clamp(zoomT * 1.15, ZOOM_MIN, ZOOM_MAX));
   if (bindIs(k, 'zoomOut') || (KB.zoomOut === '-' && k === '_')) setZoomT(clamp(zoomT / 1.15, ZOOM_MIN, ZOOM_MAX));
 }
-addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); });
+addEventListener('keyup', e => { const k = keyOf(e); if (k === 'alt') e.preventDefault(); keys.delete(k); if (bindIs(k, 'leanL') || bindIs(k, 'leanR')) leanKey(bindIs(k, 'leanL') ? -1 : 1, false); });
 addEventListener('blur', () => { keys.clear(); mouseDown = mouseDownR = false; setAimHeld(false); pauseRun(); });
 // right click aims in play, and does nothing anywhere else: no browser menu over the game, its menus or the HUD (the
 // page has no text to copy or fields to paste into)

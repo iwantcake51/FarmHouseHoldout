@@ -160,6 +160,7 @@
   "ui/melee-art.js",
   "player/player-ragdoll.js",
   "player/anim-graph.js",
+  "player/lean.js",
   "player/animation.js",
   "player/hold.js",
   "player/hold-kick.js",

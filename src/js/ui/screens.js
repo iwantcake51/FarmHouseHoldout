@@ -242,12 +242,13 @@ export function startDeath() {
 // (DEATH_CINE and DC, the death camera's timings and where it's up to, are at the top of the file)
 function deathCineStart() {
   Object.assign(DC, { on: true, t: 0, side: ANIM.deathSign || 1, spec: false, fading: false, z0: zoomT });
-  $('cineBars').classList.add('on'); $('fadeVeil').classList.remove('cine');
+  if (!PVP.on) $('cineBars').classList.add('on');   // (not in the arena: the card and the class picker sit where they'd come in)
+  $('fadeVeil').classList.remove('cine');
 }
 function tickDeathCine(rdt) {
   if (!DC.on) return;
   DC.t += rdt;
-  $('deathVig').style.opacity = DC.spec ? 0 : (DEATH_CINE.vig * smooth(clamp(DC.t / DEATH_CINE.vigT, 0, 1))).toFixed(3);
+  $('deathVig').style.opacity = DC.spec ? 0 : ((PVP.on ? 0.5 : 1) * DEATH_CINE.vig * smooth(clamp(DC.t / DEATH_CINE.vigT, 0, 1))).toFixed(3);
   if (!netLink() || DC.spec || (PVP.on && PVP.mode !== 'rounds')) return;   // (in the arena you're back in soon where you'd watch a teammate: pvp/pvp.js)
   // co-op: to black, then up again on a teammate, the bars gone and the view as it was
   if (!DC.fading && DC.t > DEATH_CINE.spec) { DC.fading = true; veil(true); }

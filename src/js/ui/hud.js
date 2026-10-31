@@ -32,7 +32,7 @@ import { hudMag, renderRounds } from './rounds.js';
 import { renderMeleeArt } from './melee-art.js';
 import { ANIM, hurtFace } from '../player/animation.js';
 import { spectating } from '../net/spectate.js';
-import { PVP, pvpBlur, pvpGrey } from '../pvp/pvp.js';
+import { PVP, pvpBlur, pvpGrey, pvpRegenAhead } from '../pvp/pvp.js';
 
 // health, ECG, ammo, weapon name, moodles, slots, screen tints
 // a fresh run's max health: anything over it on the bar is bonus health, in its own colour
@@ -88,8 +88,9 @@ export function updateHUD(rdt, D) {
       $('vitals').classList.toggle('badBlood', !!S.badBlood); } }
     // health over the base 100 (armour, Tough skin, Stubborn...) shows in its own colour past where 100 would end
     { const b = Math.min(100, BASE_HP / S.maxHp * 100), bk = Math.round(b * 10); if (cache.hpB !== bk) { cache.hpB = bk; $('hpFill').style.setProperty('--b', b.toFixed(1) + '%'); } }
-    // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far
-    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
+    // the blue part: healing still to come, and while a bandage goes on, as much of its healing as is wound so far (in
+    // the arena, all the health coming back on its own once it's started to: pvp/pvp.js)
+    { const inc = Math.max(0, Math.min(capF - barF, ((P.heal || 0) + bandHeal() * healMul() * bandProg() + pvpRegenAhead()) / S.maxHp)), hk = Math.round(barF * 500) + ':' + Math.round(inc * 500);
       if (cache.heal !== hk) { cache.heal = hk; const el = $('hpHeal'); el.style.left = (barF * 100) + '%'; el.style.width = (inc * 100) + '%'; } }
     // the blue edge builds as a bandage goes on (player/hold.js, healFx), not the moment you start, and stays faint while it heals you
     { const hv = Math.round(Math.min(1, Math.max(0.85 * (ANIM.healFx || 0), 0.45 * Math.min(1, (P.heal || 0) / 12))) * 60) / 60; if (cache.hv !== hv) { cache.hv = hv; $('healVig').style.opacity = hv; } }

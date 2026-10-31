@@ -24,7 +24,7 @@ export function update(dt) {
   if (phase === 'wave' && !cheatIs('clock')) setTod((tod + dt / CLOCK_S) % 24);   // the clock stands still between waves
   updatePlayer(dt);
   updateCombat(dt);
-  if (PVP.on) { pvpUpdate(dt); updateGrenades(dt); playerChecks(); return; }   // the arena: no farm to run, but whether you're down (pvp/pvp.js)
+  if (PVP.on) { pvpUpdate(dt); updateGrenades(dt); updateInteractions(dt); playerChecks(); return; }   // the arena: no farm to run, but the prompts (its sandbags' vault) and whether you're down (pvp/pvp.js)
   updateInteractions(dt);
   if (updateWaves(dt)) return;   // wave cleared: the upgrade screen takes over
   updateSupplyDrop(dt);

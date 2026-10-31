@@ -11,6 +11,7 @@ import { HX0, HX1, HZ0, HZ1 } from './ground.js';
 import { lowObst } from './props.js';
 import { blockArr } from './collision.js';
 import { clearBoards } from '../barricades/planks.js';
+import { ARENA } from './arena.js';
 
 // ---- house ----
 const OPEN_HL = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });   // (an opening's outline pane: unseen, but drawn into the outlines' mask)
@@ -369,6 +370,7 @@ export const porchRoof = (() => {
 // under the boards, and you stand on them (player/animation.js)
 export const FLOOR_TILE = new Uint8Array(N * N);   // (the cells with a tiled floor this run: world/interior.js)
 export function surfaceY(x, z) {
+  if (ARENA.on) return 0;   // (the arena's pad is flat: no porch, step or threshold under it, world/arena.js)
   const px = x - cxw(21), pz = z - (cxw(HZ1) + 1.1);
   if (Math.abs(px) < 1.7 && Math.abs(pz) < 0.65) return 0.12;
   if (Math.abs(px) < 0.6 && pz >= 0.65 && pz < 1.05) return 0.06;

@@ -25,6 +25,7 @@ import { touchBoard, touchTear } from '../input/touch.js';
 import { runStat } from '../ui/run-stats.js';
 import { setH } from '../ui/hud-text.js';
 import { netBoardUp, netRepair } from '../net/sync.js';
+import { ARENA } from '../world/arena.js';
 
 // boarding under attack is slow, fumbling work: during a wave it goes at BOARD_WAVE of the speed. The hammer line
 // (upgrades/tier-table.js: S.boardSpeed) speeds it up in full in the break between waves, when there's time to do it
@@ -117,7 +118,7 @@ export function updateInteractions(dt) {
       if (tk.kind === 'gun' && tk.cargo.own && netLink()) rows.push(row(KB.share, tk.cargo.shared ? '<b>Stop sharing</b> it' : '<b>Share</b> it with your team', tk.cargo.shared ? 'your team can take it' : '', NET_COL[NET.idx]));
       else if (tk.kind === 'gun' && tk.cargo.own === false) rows.push(off(`Shared by <b>${tk.cargo.who || 'a teammate'}</b>`, tk.cargo.pc)); }
     else if (st) rows.push(row(KB.use, `Use the <b>${st.name.toLowerCase()}</b>`, '', PROMPT_COL.station));
-    if (fv) rows.push(row(KB.vault, 'Hop the <b>fence</b>', '', PROMPT_COL.move));
+    if (fv) rows.push(row(KB.vault, ARENA.on ? 'Vault the <b>sandbags</b>' : 'Hop the <b>fence</b>', '', PROMPT_COL.move));   // (the arena's sandbag walls vault as the fence does: world/arena.js)
     if (o) {
       const what = o.kind === 'door' ? 'door' : 'window';
       if (vaultTarget(o)) rows.push(row(KB.vault, 'Climb through the <b>window</b>', '', PROMPT_COL.move));

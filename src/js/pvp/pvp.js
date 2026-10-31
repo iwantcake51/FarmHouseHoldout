@@ -11,10 +11,11 @@
 // survivor (where it is on that game's screen) tells them what it did ('ph'); they take it, bleed, and if it's the end
 // of them tell everyone who did it ('pk'). The host keeps the score and the clock ('pm') for everyone.
 
-import { cam, cv, scene, V3 } from '../core/renderer.js';
+import { cam, cv, FP_CAM, scene, V3 } from '../core/renderer.js';
 import { replay } from '../core/dom.js';
 import { angDiff, cache, clamp, rand, rr } from '../core/math.js';
-import { NET, NET_COL, NET_ON, netSend, netTo } from '../net/net.js';
+import { NET, NET_COL, NET_ON, netAs, netSend, netTo } from '../net/net.js';
+import { kbd } from '../input/keybinds.js';
 import { P, PM } from '../player/player.js';
 import { freshStats, magSize, recomputeEff, S, stamMax, W, W8 } from '../game/run-state.js';
 import { TIERS } from '../upgrades/tier-table.js';
@@ -30,7 +31,8 @@ import { lowObst } from '../world/props.js';
 import { hitMark } from '../ui/crosshair.js';
 import { hitFromAt } from '../ui/hud.js';
 import { burst, bloodSpurt, gibs } from '../effects/particles.js';
-import { splat, splatLater } from '../effects/blood-map.js';
+import { splatLater, spray } from '../effects/blood-map.js';
+import { wallSpray } from '../effects/wall-blood.js';
 import { addBlood } from '../effects/body-blood.js';
 import { goreAt } from '../ui/screen-blood.js';
 import { SFX } from '../audio/sfx.js';
@@ -39,21 +41,30 @@ import { unragYou } from '../player/player-ragdoll.js';
 import { deathCineEnd, leaveToMenu } from '../ui/screens.js';
 import { gunArt, meleeArt } from '../ui/melee-art.js';
 import { gorePop } from '../zombies/damage.js';
-import { VCAM, wantLock } from '../game/view-cam.js';
+import { fpOn, VCAM, wantLock } from '../game/view-cam.js';
 import { SPEC } from '../net/spectate.js';
 import { GI, GI_VB } from '../ui/game-icons.js';
 import { los } from '../lighting/lightmap.js';
-import { botHit, botIds, botKilled, botShoved, botsBegin, botsEnd, botsPhase, botsUpdate } from './bots.js';
+import { botHit, botIds, botKilled, botShoved, botStats, botsBegin, botsEnd, botsPhase, botsUpdate } from './bots.js';
 import { curId } from '../game/run-state.js';
+import { MODS } from '../melee/melee-mods.js';
+import { hitMist } from '../effects/puffs.js';
+import { setTimeScale } from '../game/hit-feedback.js';
+import { lookThumb } from '../ui/look-card.js';
 
 // the three ways to play, and what wins each: kills for Deathmatch, a side's kills for Team deathmatch, rounds for
 // Showdown; how long a Showdown round runs before it's called (s), and the cap on a whole Deathmatch (s)
 export const PVP_MODES = { ffa: 'Deathmatch', tdm: 'Team deathmatch', rounds: 'Showdown' };
 const PVP_LIM = { ffa: 15, tdm: 20, rounds: 5 };
-export const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 60, match: 600, roundEnd: 4, over: 9, respawn: 4.5, prot: 2 };
+export const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 60, match: 600, roundEnd: 4, over: 25, respawn: 4.5, prot: 2 };
 // health coming back on its own (no bandages in the arena): once you've gone REGEN.wait seconds unhurt (and not
-// bleeding), slowly at first and faster and faster, all of it back REGEN.full seconds after the last hurt
-const REGEN = { wait: 2, full: 6.75 };
+// bleeding), slowly at first and faster and faster, all of it back REGEN.full seconds after the last hurt. Not in
+// Showdown: what you lose there stays lost till the next round
+const REGEN = { wait: 3.75, full: 8.5 };
+// what's still to come back (the health bar's blue part, ui/hud.js): all of it, once it's begun to
+export const pvpRegenAhead = () => PVP.on && !P.dead && PVP.mode !== 'rounds' && (PVP.calm || 0) > REGEN.wait && !(P.bleed > 0) ? Math.max(0, S.maxHp - P.hp) : 0;
+// tagging: a hit slows you (P.slow, worn off over about a second), the harder the more: base, plus per point of damage, to most
+const PVP_TAG = { base: 0.35, per: 0.006, most: 0.62 };
 // each side's colour (A west, B east), and its name
 const PVP_SIDE = { A: { col: '#5fb4e8', name: 'Blue' }, B: { col: '#e2563f', name: 'Red' } };
 // the classes: two guns (each with its attachment steps: game/run-state.js W8.gt) and a melee weapon, mods where a gun
@@ -69,7 +80,7 @@ export const PVP_CLASSES = [
 ];
 // a perk's skill: a card by its name, or a line up to its step
 const pvpPerkOf = s => { const [k, n] = s.split(':'); return n ? { name: TIERS[k].t[n - 1].name, ap() { for (let i = S.tier[k]; i < +n; i++) { TIERS[k].t[i].ap(); S.tier[k]++; } } } : UPG.find(u => u.name === s); };
-// what's fitted to a gun, by name (the name it goes by on that gun, if it has its own)
+// what's fitted to a gun, by name (its mods, by their names, ahead of these on its card) (the name it goes by on that gun, if it has its own)
 const pvpAtts = (id, gt) => Object.keys(gt).map(k => { const st = TIERS[k].t[gt[k] - 1]; return (st.as && st.as[id]) || st.name; });
 // what a round does to a person (body, before its falloff); a melee blow's; and by where it lands (a shotgun's pellets
 // in the head count for less than a bullet's). A hit can open a bleed (PVP_BLEED: the odds by kind, and how many
@@ -92,11 +103,10 @@ export const pvpFoe = p => PVP.on && (PVP.mode === 'ffa' || pvSideOf(p.id) !== P
 export const pvpMate = p => PVP.on && PVP.mode !== 'ffa' && pvSideOf(p.id) === PVP.side;
 // frozen in place: picking a class, the count in, a round called, the match over
 export const pvpFrozen = () => PVP.on && PVP.ph !== 'live';
-// who killed you, for the death camera to follow (net/spectate.js camFocus, game/view-cam.js): till you're back in, or
-// in Showdown its first few seconds (then a teammate's watched), while they're still up
-const KILLCAM = 3.5;
+// who killed you, for the death camera to follow (net/spectate.js camFocus, game/view-cam.js): till you're back in,
+// while they're still up. Not in Showdown: there you only ever watch your own side
 export function pvpKiller() {
-  if (!PVP.on || !P.dead || !PVP.killer || (PVP.mode === 'rounds' && performance.now() - PVP.killAt > KILLCAM * 1000)) return null;
+  if (!PVP.on || !P.dead || !PVP.killer || PVP.mode === 'rounds') return null;   // (in Showdown you watch only your own side: net/spectate.js)
   const p = NET.peers.get(PVP.killer); return p && !p.dead && p.x !== undefined ? p : null;
 }
 // how grey the screen is (0 none, 1 all): grey while you pick and through the count in, the colour coming back over its
@@ -108,7 +118,7 @@ export const pvpGrey = () => !PVP.on ? 0 : PVP.ph === 'pick' ? 1 : PVP.ph === 'c
 const pvpIn = new Set();
 NET_ON.pl = m => { pvpIn.add(m.f); };
 // the class picker's up (the pointer's freed for it: game/view-cam.js)
-export const pvpPicking = () => PVP.on && document.body.classList.contains('pvpPicking');
+export const pvpPicking = () => PVP.on && (document.body.classList.contains('pvpPicking') || !!(hudEls && hudEls.res.classList.contains('on')));
 const isHost = () => NET.host;
 const roster = () => [{ id: NET.id, name: NET.name || 'Survivor', idx: NET.idx }, ...[...NET.peers.values()].map(p => ({ id: p.id, name: p.name, idx: p.idx }))];
 const nameOf = id => id === NET.id ? (NET.name || 'Survivor') : (NET.peers.get(id) || {}).name || 'Someone';
@@ -121,11 +131,11 @@ export function pvpTeams(list, mode) { const t = {}; list.slice().sort((a, b) =>
 export function pvpBegin() {
   PVP.on = true; PVP.mode = NET.arena || 'ffa'; PVP.teams = NET.teams || pvpTeams(roster(), PVP.mode); PVP.side = PVP.teams[NET.id] || 'A';
   PVP.sc = {}; roster().forEach(r => { PVP.sc[r.id] = [0, 0]; });
-  PVP.ts = [0, 0]; PVP.wins = [0, 0]; PVP.rd = 1; PVP.prot = 0; PVP.respawn = 0; PVP.last = null; PVP.resultKey = '';
+  PVP.ts = [0, 0]; PVP.wins = [0, 0]; PVP.rd = 1; PVP.st = {}; PVP.my = { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }; PVP.life = { taken: {}, given: {} }; PVP.ping = 0; PVP.prot = 0; PVP.respawn = 0; PVP.last = null; PVP.resultKey = '';
   try { PVP.cls = localStorage.getItem('fhh-class') || 'rifle'; } catch (e) {}
   if (!PVP_CLASSES.some(c => c.id === PVP.cls)) PVP.cls = 'rifle';
   arenaUp(); setTod(ARENA.tod);
-  document.body.classList.add('pvp'); document.body.classList.toggle('pvpTeams', PVP.mode !== 'ffa');
+  document.body.classList.add('pvp'); document.body.classList.toggle('pvpTeams', PVP.mode !== 'ffa'); document.body.classList.toggle('pvpRounds', PVP.mode === 'rounds');
   pvpHudBuild();
   pvpSpawnMe(true);
   if (isHost()) { botsBegin(); botIds().forEach(id => pvpIn.add(id)); }   // (the bots, the host's to run: pvp/bots.js)
@@ -136,12 +146,13 @@ export function pvpBegin() {
 export function pvpEnd() {
   if (!PVP.on) return;
   PVP.on = false; PVP.ph = 'idle'; pvpIn.clear(); botsEnd();
-  document.body.classList.remove('pvp', 'pvpTeams', 'pvpPicking');
+  document.body.classList.remove('pvp', 'pvpTeams', 'pvpRounds', 'pvpPicking');
   pvpHudHide();
 }
 // a phase starting, on everyone's screen (the host's call: pm)
 function pvpPhase(ph, t) {
   const was = PVP.ph; PVP.ph = ph; PVP.t = t;
+  if (ph !== 'live') hudEls.card.classList.remove('on');
   if (ph === 'pick') { PVP.picked = false; pvpPickOpen(true); if (was === 'roundEnd' || was === 'idle') pvpSpawnMe(true); }
   else pvpPickOpen(false);
   if (ph === 'count') { pvpLoadout(); PVP.cn = 0; hudEls.count.querySelector('small').textContent = PVP.mode === 'rounds' ? 'Round ' + PVP.rd + ' · ' + pvpRoundSub() : PVP_MODES[PVP.mode]; }
@@ -156,7 +167,7 @@ const pvpRoundSub = () => { const a = PVP.wins[0], b = PVP.wins[1], L = PVP_LIM.
 // ---- your class: the guns and their attachments, the melee weapon, the bandages, full mags and a few more each
 function pvpLoadout() {
   const C = PVP_CLASSES.find(c => c.id === PVP.cls) || PVP_CLASSES[0];
-  Object.assign(S, freshStats()); C.perks.forEach(k => pvpPerkOf(k).ap());   // only this class's perks
+  Object.assign(S, freshStats()); S.planks = 0; C.perks.forEach(k => pvpPerkOf(k).ap());   // only this class's perks (and nothing in your pack to board up with)
   W8.slot = { melee: C.melee, side: null, long: null, auto: null }; W8.owned = [C.melee];
   W8.mods = {}; W8.gt = {}; W8.own = {}; W8.att = {}; W8.rounds = {}; W8.mag = {}; W8.pin = {}; W8.relSave = {};
   ['akMag', 'spent', 'hudSpent', 'open', 'held'].forEach(k => { if (W8[k]) W8[k] = {}; });
@@ -168,6 +179,7 @@ function pvpLoadout() {
   for (const [id] of C.guns) { const D = W(id), n = magSize(id); W8.mag[id] = n; W8.reserve[D.ammo] = (W8.reserve[D.ammo] || 0) + Math.max(n * C.mags, D.ammo === 'shells' ? 14 : 0); }
   P.band = 0; P.bleed = 0; P.heal = 0;   // (no bandages: health comes back on its own, REGEN)
   W8.cur = first || 'melee'; buildGuns(); equip(W8.cur, true);
+  if (hudEls) { hudEls.kit.innerHTML = `<b></b>${C.perks.map(k => `<i>${pvpPerkOf(k).name}</i>`).join('')}`; hudEls.kit.firstChild.textContent = C.name; }   // (your class and its perks, small down the left)
 }
 // at your spawn, whole again: your side's spot (in Showdown everyone in their own place in it) or, in Deathmatch, the
 // one furthest from everyone else
@@ -177,7 +189,8 @@ function pvpSpawnMe(fresh) {
   const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : PVP.side, foes, PVP.mode === 'rounds' || fresh ? mine : undefined);
   if (P.dead) { unragYou(); deathCineEnd(); }
   Object.assign(P, { dead: false, deathT: 0, hp: S.maxHp, bleed: 0, slow: 0, stun: 0, vx: 0, vz: 0, kbx: 0, kbz: 0, conc: 0, shock: 0, shockStun: 0, vault: null, x, z, aim: f });
-  VCAM.yaw = f; PM.head.visible = true; LIMBS.forEach(k => { PM[k].visible = true; });   // (whole again: pvpDismember)
+  VCAM.yaw = f; PM.head.visible = true; LIMBS.forEach(k => { PM[k].visible = true; });
+  PVP.life = { taken: {}, given: {} }; if (hudEls) hudEls.card.classList.remove('on');   // (a fresh life: its damage report cleared)   // (whole again: pvpDismember)
   P.stam = stamMax(); P.exh = false; P.stamT = 9; P.sprint = false; P.runUp = 0;   // (and fresh: a full tank)
   document.body.classList.remove('dying'); cv.style.filter = ''; cache.grey = null;
   if (ANIM.dropped) { scene.remove(ANIM.dropped.g); ANIM.dropped = null; }
@@ -218,7 +231,7 @@ export function pvpPellet(h, fp, y, id, D, pellets, ox, oz, dx, dz) {
   shotOn.set(p, s);
   // on your screen at once: blood off them where it struck, and down on the ground behind
   const g = p.av.g.position, hy = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
-  if (s.n <= 3) { bloodSpurt(g.x, hy, g.z, dx, dz, part === 'head' ? 8 : 5, 1.1); if (rand() < 0.5) splatLater(0.2, g.x + dx * rr(0.4, 1.2), g.z + dz * rr(0.4, 1.2), 'drop', rr(0.2, 0.4)); }
+  if (s.n <= 3) hitBleed(g.x, hy, g.z, dx, dz, d, part === 'head', s.n === 1);
   return true;
 }
 // is someone behind low cover, as seen from (ox, oz): a barrier, sandbags or a drum on the line in the last
@@ -229,7 +242,7 @@ export function pvpCovered(x, z, ox, oz, dx, dz, t) {
 }
 // the shot done: to each one it hit, what it did all told (and whether it went in their head), and a chance of a bleed
 export function pvpShotEnd(id, D) {
-  if (PVP.on && PVP.ph === 'live') PVP.prot = 0;   // (firing gives up your spawn protection)
+  if (PVP.on && PVP.ph === 'live') { PVP.prot = 0; PVP.my.shots++; if (shotOn.size) PVP.my.hits++; }   // (firing gives up your spawn protection)
   if (!shotOn.size) return;
   for (const [p, s] of shotOn) pvpSend(p, Math.round(s.d), s.head ? 'head' : s.part, id, D.ammo === 'shells' ? (s.n >= 3 && rand() < PVP_BLEED.shells) : rand() < PVP_BLEED.gun);
   shotOn.clear();
@@ -284,24 +297,38 @@ function pvpSend(p, d, part, w, bleed) {
   const m = { d, p: part, w, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, b: bleed ? 1 : 0 };
   if (p.bot && isHost()) botHit(p.id, Object.assign({ f: NET.id, to: p.id }, m)); else netTo(p.id, 'ph', m);   // (a bot's in the host's game: pvp/bots.js)
   dmgNum(p, d, part === 'head');
+  PVP.my.dmg += d; if (part === 'head') PVP.my.hs++; ledger(PVP.life.given, p.id, d);
   hitMark('hit', part === 'head'); SFX.killTick(part === 'head', 1); (part === 'head' ? SFX.headHit : SFX.tick)();   // (and the wet sound of it going in)
 }
 // hit: what it does to you, and how it feels. Spawn-protected for a moment after you come in, and nothing between rounds
 NET_ON.ph = m => {
   if (!PVP.on || m.to !== NET.id || P.dead || PVP.ph !== 'live' || PVP.prot > 0 || state === 'title') return;
   const dx = P.x - m.x, dz = P.z - m.z, L = Math.hypot(dx, dz) || 1, head = m.p === 'head';
-  P.hp -= m.d; PVP.calm = 0; PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: m.p };
+  ledger(PVP.life.taken, m.f, m.d); P.hp -= m.d; P.slow = Math.max(P.slow || 0, Math.min(PVP_TAG.most, PVP_TAG.base + m.d * PVP_TAG.per)); P.sprint = false; PVP.calm = 0;   // (tagged: the hit slows you for a moment, as in Counter-Strike: player/movement.js wears P.slow off)
+  PVP.regen0 = null; PVP.last = { id: m.f, w: m.w, head, d: m.d, at: performance.now(), x: m.x, z: m.z, pt: m.p };
   P.hitFrom = Math.atan2(dx, dz); hitFromAt(m.x, m.z, m.d / 22);
   addBlood(Math.min(0.12, 0.02 + m.d / 900)); ANIM.flinch = 1; ANIM.flinchSide = rand() < 0.5 ? -1 : 1; SFX.hurt();
   setShake(Math.max(shake, 0.18 + Math.min(0.4, m.d / 160)));
   goreAt(P.x - dx / L * 0.3, P.z - dz / L * 0.3, head ? 1.6 : 1.2, Math.min(1, (head ? 0.5 : 0.25) + m.d / 120));
-  burst(P.x, head ? 1.6 : 1.15, P.z, 6, 'blood', dx / L, dz / L, 2); if (rand() < 0.6) splat(P.x + dx / L * 0.4, P.z + dz / L * 0.4, 'drop', rr(0.2, 0.35));
-  netSend('pb', { x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, dx: Math.round(dx / L * 100) / 100, dz: Math.round(dz / L * 100) / 100, h: head ? 1 : 0, sh: m.f });
+  hitBleed(P.x, head ? 1.6 : 1.15, P.z, dx / L, dz / L, m.d, head, true);
+  netSend('pb', { x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, dx: Math.round(dx / L * 100) / 100, dz: Math.round(dz / L * 100) / 100, h: head ? 1 : 0, sh: m.f, d: m.d });
 };
+// a round through someone (x, hy, z: where, dx, dz: the way it was going, d: how hard): blood out the far side the way
+// it went, a mist and a spurt, drops close behind and a spray thrown out along the floor further back, a wall behind
+// them spattered if it's near; floor: the floor's share too (once a shot, not for every pellet)
+function hitBleed(x, hy, z, dx, dz, d, head, floor) {
+  const k = clamp(d / 40, 0.4, 1.6);
+  hitMist(x, hy, z, dx, dz, head, d); bloodSpurt(x, hy, z, dx, dz, Math.round((head ? 9 : 6) * k), 1.15);
+  burst(x + dx * 0.15, hy, z + dz * 0.15, Math.round(5 + 6 * k), 'blood', dx, dz, 2.6);
+  if (!floor) return;
+  splatLater(0.12, x + dx * rr(0.25, 0.6), z + dz * rr(0.25, 0.6), 'drop', rr(0.18, 0.3) * k);
+  spray(x + dx * 0.3, z + dz * 0.3, dx, dz, rr(0.7, 1.1) * k, 0);
+  wallSpray(x, hy, z, dx, dz, k);
+}
 // someone else bleeding where they were hit (not on the shooter's screen: they've drawn it already)
 NET_ON.pb = m => {
   if (!PVP.on || m.sh === NET.id || state === 'title') return;
-  bloodSpurt(m.x, m.h ? 1.62 : 1.15, m.z, m.dx, m.dz, 5, 1);
+  hitBleed(m.x, m.h ? 1.62 : 1.15, m.z, m.dx, m.dz, m.d || 25, !!m.h, true);
 };
 // you down (ui/screens.js: startDeath): who did it, with what, and whether it took your head off, to everyone
 export function pvpDied() {
@@ -311,8 +338,7 @@ export function pvpDied() {
   const m = { k: L ? L.id : '', v: NET.id, w: L ? L.w : '', hs: L && L.head ? 1 : 0, hb: hb ? 1 : 0, x: Math.round(P.x * 100) / 100, z: Math.round(P.z * 100) / 100, dm: L ? Math.round(Math.hypot(P.x - L.x, P.z - L.z)) : 0, pt: L ? L.pt : '' };   // (dm: how far off they were, m; pt: where the last one went in)
   netSend('pk', m); pvpKilled(m);
   PVP.killer = L && L.id !== NET.id ? L.id : ''; PVP.killAt = performance.now();   // (the death camera goes to them: pvpKiller)
-  PVP.respawn = PVP.mode === 'rounds' ? 0 : PVP_T.respawn;
-  if (PVP.mode !== 'rounds') setTimeout(() => { if (P.dead && PVP.on && PVP.ph === 'live') pvpPickOpen(true, true); }, 1300);
+  PVP.respawn = PVP.mode === 'rounds' ? 0 : PVP_T.respawn;   // (the class picker only if you ask for it: its key, on the card)
 }
 NET_ON.pk = m => { if (PVP.on) pvpKilled(m); };
 export function pvpKilled(m) {
@@ -320,20 +346,39 @@ export function pvpKilled(m) {
   if (isHost()) {
     const k = PVP.sc[m.k], v = PVP.sc[m.v];
     if (v) v[1]++;
-    if (k && m.k !== m.v) { k[0]++; if (PVP.mode === 'tdm') PVP.ts[pvSideOf(m.k) === 'B' ? 1 : 0]++; botKilled(m.k); }
+    if (k && m.k !== m.v) { k[0]++; if (PVP.mode === 'tdm') PVP.ts[pvSideOf(m.k) === 'B' ? 1 : 0]++; botKilled(m.k, m.dm); }
     pvpCheckEnd(); pvpCast();
   }
   pvpFeed(m);
   if (m.k === NET.id && m.v !== NET.id) { hitMark('kill', !!m.hs); pvpToast(m.hs ? 'Headshot' : 'Eliminated', nameOf(m.v), m.hs ? 'head' : 'kill'); }
-  if (m.v === NET.id && m.k) pvpToast('Killed by', nameOf(m.k), 'dead');
-  // its head gone: a cloud of red where it was
-  if (m.hb) {
+  if (m.v === NET.id && m.k) setTimeout(() => { if (P.dead && PVP.on) pvpDmgCard(m); }, 450);   // (the card says who: no call over it)
+  if (m.k === NET.id && m.v !== NET.id) PVP.my.long = Math.max(PVP.my.long, m.dm || 0);
+  if (PVP.mode !== 'ffa' && m.v !== NET.id && pvSideOf(m.v) === PVP.side) pvpMateDown(m.v);
+  // its head gone: split in two by a blade (as a zombie's is), or a cloud of red where it was
+  const Wk = WEAP[m.w] || {}, split = m.hs && Wk.melee && !Wk.blunt;
+  if (m.hb || split) {
     let at = null; if (m.v === NET.id) { at = PM.head; } else { const p = NET.peers.get(m.v); at = p && p.av && p.av.head; if (at) p.av.headGone = true; }
-    if (at) { const w = new V3(); at.getWorldPosition(w); at.visible = false; SFX.headPop(m.k === NET.id || m.v === NET.id ? 1 : 0.6); const k = NET.peers.get(m.k) || (m.k === NET.id ? P : null), dx = k ? w.x - k.x : 0, dz = k ? w.z - k.z : 1, L = Math.hypot(dx, dz) || 1; gorePop(w.x, w.y, w.z, dx / L, dz / L); }
+    if (at) {
+      const w = new V3(); at.getWorldPosition(w); const k = NET.peers.get(m.k) || (m.k === NET.id ? P : null), dx = k ? w.x - k.x : 0, dz = k ? w.z - k.z : 1, L = Math.hypot(dx, dz) || 1;
+      if (split) headSplit(at, w, dx / L, dz / L); else { gorePop(w.x, w.y, w.z, dx / L, dz / L); SFX.headPop(m.k === NET.id || m.v === NET.id ? 1 : 0.6); }
+      at.visible = false;
+    }
   }
   pvpDismember(m);
   // down where they fell: a pool spreading under them
   splatLater(0.6, m.x, m.z, 'pool', rr(0.7, 1.0), undefined, 0.8);
+}
+// a head split by a blade: two halves of it (copies of the head, each squeezed to half its width) thrown apart either
+// side of the blow, blood out of the cut, and the zombies' sound of it (SFX.split)
+function headSplit(head, w, dx, dz) {
+  const q = new THREE.Quaternion(), sc = new V3(); head.getWorldQuaternion(q); head.getWorldScale(sc);
+  for (const sd of [-1, 1]) {
+    const c = head.clone(true), ax = dz * sd, az = -dx * sd;
+    c.position.set(w.x + ax * 0.06, w.y, w.z + az * 0.06); c.quaternion.copy(q); c.scale.set(sc.x * 0.52, sc.y, sc.z); scene.add(c);
+    gibs.push({ m: c, vx: ax * rr(1.4, 2.2) + dx * rr(0.4, 1), vy: rr(1.6, 2.6), vz: az * rr(1.4, 2.2) + dz * rr(0.4, 1), spin: sd * rr(3, 6), life: 9, landed: false });
+  }
+  burst(w.x, w.y, w.z, 14, 'blood', dx, dz, 3); hitMist(w.x, w.y, w.z, dx, dz, true, 60); splatLater(0.25, w.x + dx * 0.6, w.z + dz * 0.6, 'drop', rr(0.35, 0.55));
+  SFX.split();
 }
 // an arm or a leg taken off by the blow that killed them, as a zombie's is (zombies/damage.js sever): a shotgun's pellets
 // up close blow it to red mist, a blade or a heavy round throws it off whole; blood pumps from where it was for a few
@@ -374,9 +419,22 @@ export function pvpTick(rdt) {
     else if (PVP.ph === 'live' && PVP.mode === 'rounds') pvpCheckRound();
     if ((pvpCastT -= rdt) <= 0) { pvpCastT = 1; pvpCast(); }
   }
+  // everyone's stats and ping for the scoreboard: yours out every second (the host's bots' with them), the host's game
+  // asked how long a word takes there and back every two
+  if ((PVP.stT = (PVP.stT || 0) - rdt) <= 0) {
+    PVP.stT = 1; const me = PVP.my, a = [me.dmg, me.hits, me.shots, me.hs, me.long, isHost() ? 0 : PVP.ping]; PVP.st[NET.id] = a; netSend('pst', { s: a });
+    if (isHost()) botStats().forEach(([id, b]) => { PVP.st[id] = b; netAs(id, 'pst', { s: b }); });
+    if (!isHost() && (PVP.pingN = ((PVP.pingN || 0) + 1) % 2) === 0) netTo(NET.hostId, 'pi', { c: Math.round(performance.now()) });
+    if (hudEls.board.classList.contains('on')) pvpBoard(true);
+  }
+  if (PVP.ph === 'over' && hudEls.res.classList.contains('on')) { const w = hudEls.res.querySelector('.prWait'); if (w) w.textContent = 'Back to the lobby in ' + Math.ceil(PVP.t); }
   dmgNumsStep(rdt);
   pvpHud();
 }
+NET_ON.pst = m => { if (PVP.on && Array.isArray(m.s)) PVP.st[m.f] = m.s; };
+NET_ON.pi = m => { if (isHost()) netTo(m.f, 'po', { c: m.c }); };
+NET_ON.po = m => { PVP.ping = Math.max(0, Math.round(performance.now() - m.c)); };
+const ledger = (o, id, d) => { const e = o[id] || (o[id] = [0, 0]); e[0] += d; e[1]++; };
 // the match won: the game slowing on and on, to a dead stop END_SLOW seconds after (game/loop.js: its time scale)
 const END_SLOW = 2.8;
 export const pvpEndScale = () => Math.pow(1 - clamp((performance.now() - (PVP.overAt || 0)) / (END_SLOW * 1000), 0, 1), 1.7);
@@ -388,9 +446,9 @@ export function pvpUpdate(dt) {
   if (pvpFrozen()) P.stun = Math.max(P.stun || 0, 0.06);
   if (isHost()) botsUpdate(dt);
   // down in Deathmatch: back in after a few seconds
-  if (P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' && PVP.respawn > 0 && (PVP.respawn -= dt) <= 0) { pvpPickOpen(false); pvpSpawnMe(false); PVP.prot = PVP_T.prot; PVP.killer = ''; }
+  if (P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' && PVP.respawn > 0 && (PVP.respawn -= dt) <= 0) { pvpPickOpen(false); pvpSpawnMe(false); PVP.prot = PVP_T.prot; PVP.killer = ''; hudEls.card.classList.remove('on'); }
   // health back on its own, once you've been left alone a moment (REGEN): eased in, all of it by REGEN.full
-  if (!P.dead && PVP.ph === 'live') {
+  if (!P.dead && PVP.ph === 'live' && PVP.mode !== 'rounds') {
     const mx = S.maxHp;
     if (P.bleed > 0 || P.hp >= mx) { PVP.calm = P.bleed > 0 ? 0 : PVP.calm; PVP.regen0 = null; }
     if (!(P.bleed > 0) && P.hp < mx && (PVP.calm = (PVP.calm || 0) + dt) > REGEN.wait) {
@@ -456,7 +514,8 @@ function dmgNumsStep(dt) {
   for (const [id, n] of dmgNums) {
     n.t += dt; const a = n.p.av;
     if (!a || !PVP.on || n.t > DMG_NUM.hold + DMG_NUM.fade) { n.el.remove(); dmgNums.delete(id); continue; }
-    a.head.getWorldPosition(_dnV); _dnV.y += 0.5 + Math.min(0.35, n.t * 0.3); _dnV.project(cam);
+    const c = fpOn() ? FP_CAM : cam; c.updateMatrixWorld(); a.head.updateWorldMatrix(true, false);   // (where they are this frame, from the eyes you're seeing with)
+    a.head.getWorldPosition(_dnV); _dnV.y += 0.38 + Math.min(0.3, n.t * 0.25); _dnV.project(c);
     if (_dnV.z > 1) { n.el.style.opacity = 0; continue; }
     n.el.style.transform = `translate(${((_dnV.x * 0.5 + 0.5) * innerWidth).toFixed(1)}px,${((-_dnV.y * 0.5 + 0.5) * innerHeight).toFixed(1)}px)`;
     n.el.style.opacity = n.t < DMG_NUM.hold ? 1 : (1 - (n.t - DMG_NUM.hold) / DMG_NUM.fade).toFixed(3);
@@ -468,26 +527,33 @@ let hudEls = null;
 function pvpHudBuild() {
   if (!hudEls) {
     const mk = (id, cls) => { const d = document.createElement('div'); d.id = id; d.className = 'hud ' + (cls || ''); document.body.appendChild(d); return d; };
-    hudEls = { top: mk('pvpTop'), feed: mk('pvpFeed'), ban: mk('pvpBan'), pick: mk('pvpPick'), res: mk('pvpRes'), toast: mk('pvpToast'), count: mk('pvpCount'), prot: mk('pvpProt') };
+    hudEls = { top: mk('pvpTop'), feed: mk('pvpFeed'), ban: mk('pvpBan'), pick: mk('pvpPick'), res: mk('pvpRes'), toast: mk('pvpToast'), count: mk('pvpCount'), prot: mk('pvpProt'), board: mk('pvpBoard'), card: mk('pvpDmgCard'), mate: mk('pvpMate'), kit: mk('pvpKit') };
+    hudEls.res.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b || !isHost()) return; SFX.click(); if (b.dataset.act === 'rematch') { netSend('prm', {}); pvpRematch(); } else { netSend('pend', {}); pvpLeave(); } });
+    // the scoreboard, held up with Tab
+    addEventListener('keydown', e => { if (!PVP.on || e.key !== 'Tab' || state === 'title') return; e.preventDefault(); if (!e.repeat) pvpBoard(true); });
+    addEventListener('keyup', e => { if (e.key === 'Tab') pvpBoard(false); });
     hudEls.prot.innerHTML = 'Spawn protection<s><u></u></s>';
     hudEls.count.innerHTML = '<small></small><b></b>';
     hudEls.pick.addEventListener('click', e => { const b = e.target.closest('[data-cls]'); if (b) pvpChoose(b.dataset.cls); });
     addEventListener('keydown', e => { if (!PVP.on || !document.body.classList.contains('pvpPicking')) return; const n = +e.key; if (n >= 1 && n <= PVP_CLASSES.length) { pvpChoose(PVP_CLASSES[n - 1].id); e.preventDefault(); } });
   }
   Object.values(hudEls).forEach(e => { e.hidden = false; });
-  hudEls.feed.innerHTML = ''; hudEls.res.classList.remove('on'); hudEls.ban.className = 'hud'; PVP.key = '';
+  hudEls.feed.innerHTML = ''; hudEls.res.classList.remove('on'); hudEls.ban.className = 'hud'; hudEls.card.classList.remove('on'); hudEls.board.classList.remove('on'); PVP.key = '';
 }
 function pvpHudHide() { if (hudEls) Object.values(hudEls).forEach(e => { e.hidden = true; e.classList.remove('on'); }); }
 const fmtT = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+// how many seconds left the clock starts flashing red
+const CLOCK_LOW = 10;
 function pvpHud() {
   if (!hudEls) return;
   // spawn protection: a strip under the crosshair running down while it lasts (firing ends it)
   const pr = !P.dead && PVP.ph === 'live' && PVP.prot > 0; hudEls.prot.classList.toggle('on', pr); if (pr) hudEls.prot.lastChild.firstChild.style.transform = `scaleX(${(PVP.prot / PVP_T.prot).toFixed(3)})`;
   // the count in: a big number for each second left, popping in and shrinking away as the second runs (a tick with it)
   if (PVP.ph === 'count') { const n = Math.ceil(PVP.t); if (n !== PVP.cn && n > 0) { PVP.cn = n; const b = hudEls.count.querySelector('b'); b.textContent = n; replay(b, 'tick'); SFX.click(); } }
-  const T = Math.ceil(PVP.t), key = [PVP.ph, T, JSON.stringify(PVP.sc), PVP.ts.join(), PVP.wins.join(), PVP.rd, P.dead ? 1 : 0, Math.ceil(PVP.respawn), [...NET.peers.values()].map(p => p.dead ? 1 : 0).join('')].join('|');
+  const T = Math.ceil(PVP.t), key = [PVP.ph, T, JSON.stringify(PVP.sc), PVP.ts.join(), PVP.wins.join(), PVP.rd, P.dead ? 1 : 0, Math.ceil(PVP.respawn), [...NET.peers.values()].map(p => p.dead ? 1 : 0).join(''), PVP.mode === 'rounds' ? sideHp('A').join() + sideHp('B').join() : ''].join('|');
   if (PVP.key === key) return; PVP.key = key;
   const el = hudEls.top, clock = PVP.ph === 'live' || PVP.ph === 'pick' || PVP.ph === 'count' ? fmtT(Math.max(0, PVP.t)) : '';
+  el.classList.toggle('low', PVP.ph === 'live' && PVP.t <= CLOCK_LOW);   // (the last seconds: the clock flashing red)
   if (PVP.mode === 'ffa') {
     const list = roster().map(r => ({ ...r, k: (PVP.sc[r.id] || [0])[0] })).sort((a, b) => b.k - a.k);
     el.innerHTML = `<div class="ptMode">${PVP_MODES.ffa}<small>First to ${PVP_LIM.ffa}</small></div><div class="ptClock">${clock}</div><div class="ptList">` +
@@ -496,13 +562,25 @@ function pvpHud() {
   } else {
     const a = PVP.mode === 'rounds' ? PVP.wins[0] : PVP.ts[0], b = PVP.mode === 'rounds' ? PVP.wins[1] : PVP.ts[1];
     const pips = w => PVP.mode === 'rounds' ? `<span class="ptPips">${Array.from({ length: PVP_LIM.rounds }, (_, k) => `<i class="${k < w ? 'on' : ''}"></i>`).join('')}</span>` : '';
+    // Showdown: each side's health all told, out of all it could have: white over dark grey
+    const hpBar = sd => { if (PVP.mode !== 'rounds') return ''; const [h, m] = sideHp(sd); return `<span class="ptHp"><s><u style="width:${m ? (h / m * 100).toFixed(1) : 0}%"></u></s><em>${h}<i>/ ${m}</i></em></span>`; };
     const alive = s => PVP.mode === 'rounds' ? `<span class="ptAlive">${roster().filter(r => pvSideOf(r.id) === s).map(r => `<svg viewBox="${GI_VB}" class="${(r.id === NET.id ? P.dead : (NET.peers.get(r.id) || {}).dead) ? 'down' : ''}">${GI.person || ''}</svg>`).join('')}</span>` : '';
-    el.innerHTML = `<div class="ptSide A${PVP.side === 'A' ? ' me' : ''}"><b>${a}</b>${pips(a)}${alive('A')}</div>` +
+    el.innerHTML = `<div class="ptSide A${PVP.side === 'A' ? ' me' : ''}"><b>${a}</b>${pips(a)}${alive('A')}${hpBar('A')}</div>` +
       `<div class="ptMid"><div class="ptMode">${PVP.mode === 'rounds' ? 'Round ' + PVP.rd : PVP_MODES.tdm}<small>${PVP.mode === 'rounds' ? 'First to ' + PVP_LIM.rounds : 'First to ' + PVP_LIM.tdm}</small></div><div class="ptClock">${clock}</div></div>` +
-      `<div class="ptSide B${PVP.side === 'B' ? ' me' : ''}"><b>${b}</b>${pips(b)}${alive('B')}</div>`;
+      `<div class="ptSide B${PVP.side === 'B' ? ' me' : ''}"><b>${b}</b>${pips(b)}${alive('B')}${hpBar('B')}</div>`;
   }
-  // down in Deathmatch: when you'll be back
-  hudEls.toast.dataset.respawn = P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' ? Math.ceil(PVP.respawn) : '';
+  // down in Deathmatch: when you'll be back, at the foot of the card
+  const bk = hudEls.card.querySelector('.dcBack b'); if (bk) bk.textContent = P.dead && PVP.mode !== 'rounds' && PVP.ph === 'live' ? Math.max(1, Math.ceil(PVP.respawn)) : '';
+}
+// a side's health now and the most it could be, everyone on it added up (the down count none)
+function sideHp(sd) {
+  let h = 0, m = 0;
+  for (const r of roster()) {
+    if (pvSideOf(r.id) !== sd) continue;
+    if (r.id === NET.id) { m += S.maxHp; if (!P.dead) h += Math.max(0, P.hp); continue; }
+    const p = NET.peers.get(r.id) || {}; m += p.maxHp || 100; if (!p.dead) h += Math.max(0, p.hp ?? 100);
+  }
+  return [Math.round(h), Math.round(m)];
 }
 // a line in the kill feed: who, with what (its picture), a headshot's mark, how far off (m), who
 function pvpFeed(m) {
@@ -511,6 +589,7 @@ function pvpFeed(m) {
   const art = m.w && WEAP[m.w] ? (WEAP[m.w].melee ? meleeArt(m.w, []) : gunArt(m.w)) : null;
   row.innerHTML = `<b style="color:${colOf(m.k)}"></b>${art ? `<img alt="" src="${art.url}">` : '<i></i>'}${m.hs ? `<svg viewBox="${GI_VB}" class="hs" aria-label="Headshot">${GI.headshot || ''}</svg>` : ''}${m.k && m.k !== m.v && m.dm ? `<em class="dm">${m.dm}m</em>` : ''}<b style="color:${colOf(m.v)}"></b>`;
   const bs = row.querySelectorAll('b'); bs[0].textContent = m.k ? nameOf(m.k) : ''; bs[1].textContent = nameOf(m.v);
+  bs[0].classList.toggle('you', m.k === NET.id); bs[1].classList.toggle('you', m.v === NET.id);   // (yours, picked out from everyone's colours)
   hudEls.feed.prepend(row); while (hudEls.feed.children.length > 5) hudEls.feed.lastChild.remove();
   setTimeout(() => { row.classList.add('out'); setTimeout(() => row.remove(), 400); }, 6000);
 }
@@ -520,11 +599,26 @@ function pvpBanner(big, small, kind) {
   const el = hudEls.ban; el.innerHTML = '<b></b><small></small>'; el.firstChild.textContent = big; el.lastChild.textContent = small || '';
   el.className = 'hud on ' + (kind || ''); clearTimeout(banT); banT = setTimeout(() => el.classList.remove('on'), kind === 'count' ? 2600 : 1800);
 }
+// a call under the crosshair: a kill (its mark swelling in out of a flash, a line drawn out either side, the name under
+// it; kills in a row called as such), who got you, or a quieter word (kind 'info')
 let pvToastT = 0;
+const KILL_RUN = { gap: 4.5, call: ['', '', 'Double kill', 'Triple kill', 'Quad kill', 'Rampage'] };
 function pvpToast(a, b, kind) {
   if (!hudEls) return;
-  const el = hudEls.toast; el.innerHTML = '<small></small><b></b>'; el.firstChild.textContent = a; el.lastChild.textContent = b;
-  el.className = 'hud on ' + kind; clearTimeout(pvToastT); pvToastT = setTimeout(() => el.classList.remove('on'), 1800);
+  const el = hudEls.toast, kill = kind === 'kill' || kind === 'head', ic = kind === 'head' ? GI.headshot : kind === 'kill' || kind === 'dead' ? GI.deathSkull : '';
+  if (kill) { const t = performance.now() / 1000; PVP.streak = t - (PVP.streakAt || 0) < KILL_RUN.gap ? (PVP.streak || 1) + 1 : 1; PVP.streakAt = t; }
+  const call = kill ? KILL_RUN.call[Math.min(PVP.streak, KILL_RUN.call.length - 1)] : '';
+  el.innerHTML = (ic ? `<span class="tIc"><svg viewBox="${GI_VB}">${ic}</svg></span>` : '') + `<small></small><b></b><i class="tLine"></i>` + (call ? `<em class="tCall"></em>` : '');
+  el.querySelector('small').textContent = a; el.querySelector('b').textContent = b; if (call) el.querySelector('.tCall').textContent = call;
+  el.className = 'hud ' + kind; void el.offsetWidth; el.classList.add('on'); clearTimeout(pvToastT); pvToastT = setTimeout(() => el.classList.remove('on'), kill ? 2200 : 1800);
+}
+// a teammate down (the team modes): a notice slid in under the score, in red, with how many of you are left
+let mateT = 0;
+function pvpMateDown(id) {
+  const left = roster().filter(r => pvSideOf(r.id) === PVP.side && !(r.id === NET.id ? P.dead : (NET.peers.get(r.id) || {}).dead)).length;
+  const el = hudEls.mate; el.innerHTML = `<svg viewBox="${GI_VB}">${GI.deathSkull || ''}</svg><b></b><span>down</span><em>${left ? left + ' left' : 'Your side is out'}</em>`; el.querySelector('b').textContent = nameOf(id);
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(mateT); mateT = setTimeout(() => el.classList.remove('on'), 3200);
+  SFX.thud();
 }
 // a class's gun as its card pictures it: drawn with the class's own attachments and mods, not whatever's on yours
 function pvpGunArt(id, gt, mods) {
@@ -541,7 +635,7 @@ function pvpPickOpen(on, small) {
   if (!on) { if (was && state === 'play') wantLock(); return; }   // (put away: in first person the mouse taken back for the game, game/view-cam.js)
   el.innerHTML = `<div class="ppHead"><i class="ppWait">Waiting for everyone to load in…</i><small>${PVP.swap ? (P.dead ? 'Back in soon' : PVP.prot > 0 ? 'Changes now' : 'For your next life') : small ? 'Back in soon' : PVP.mode === 'rounds' && PVP.rd > 1 ? 'Round ' + PVP.rd : PVP_MODES[PVP.mode]}</small><b>Choose your class</b><em>1 – ${PVP_CLASSES.length}</em></div><div class="ppRow">` +
     PVP_CLASSES.map((C, k) => `<button type="button" class="ppCard${C.id === PVP.cls ? ' on' : ''}" data-cls="${C.id}"><kbd>${k + 1}</kbd><b>${C.name}</b><small>${C.role}</small><span class="ppGuns">` +
-      C.guns.map(([id, gt, mods]) => { const a = pvpGunArt(id, gt, mods); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}<i>${pvpAtts(id, gt).join(' · ')}</i></em></span>`; }).join('') +
+      C.guns.map(([id, gt, mods]) => { const a = pvpGunArt(id, gt, mods); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}<i>${[...(mods || []).map(m => (MODS[m] || {}).name || m), ...pvpAtts(id, gt)].join(' · ')}</i></em></span>`; }).join('') +
       `</span><span class="ppPerks">${C.perks.map(k => `<i>${pvpPerkOf(k).name}</i>`).join('')}</span><span class="ppKit"><span class="ppMelee"><img alt="" src="${meleeArt(C.melee, []).url}">${WEAP[C.melee] ? WEAP[C.melee].name : C.melee}</span></span></button>`).join('') + '</div>';
 }
 function pvpChoose(id) {
@@ -554,8 +648,8 @@ function pvpChoose(id) {
   if (PVP.swap) {
     PVP.swap = false; pvpPickOpen(false);
     const C = PVP_CLASSES.find(c => c.id === id);
-    if (!P.dead && (PVP.prot > 0 || PVP.ph !== 'live')) { pvpLoadout(); pvpToast('Class', C.name, 'kill'); }
-    else if (!P.dead) pvpToast('Next life', C.name, 'kill');
+    if (!P.dead && (PVP.prot > 0 || PVP.ph !== 'live')) { pvpLoadout(); pvpToast('Class', C.name, 'info'); }
+    else if (!P.dead) pvpToast('Next life', C.name, 'info');
   }
 }
 // the class picker over the match (its key, or the pause screen): picked for your next life, or straight away if you've
@@ -566,18 +660,67 @@ export function pvpChangeClass() {
   if (PVP.swap) { PVP.swap = false; pvpPickOpen(false); return; }
   PVP.swap = true; pvpPickOpen(true, true);
 }
-// the results: who won, and everyone's kills and deaths
+// ---- the scoreboard (held with Tab) and the results: everyone, by side in the team games, with their kills, deaths,
+// K/D, damage done, accuracy, headshots, longest kill and ping (a bot's says so)
+function pvpTable() {
+  const row = r => { const sc = PVP.sc[r.id] || [0, 0], st = PVP.st[r.id] || [0, 0, 0, 0, 0, 0], p = NET.peers.get(r.id), bot = p && p.bot, kd = sc[1] ? (sc[0] / sc[1]).toFixed(2) : sc[0].toFixed(2);
+    return { r, k: sc[0], html: `<tr class="${r.id === NET.id ? 'me' : ''}"><td style="--c:${colOf(r.id)}"><i></i><span></span></td><td class="k">${sc[0]}</td><td>${sc[1]}</td><td>${kd}</td><td>${Math.round(st[0])}</td><td>${st[2] ? Math.min(100, Math.round(st[1] / st[2] * 100)) + '%' : '–'}</td><td>${st[3]}</td><td>${st[4] ? st[4] + 'm' : '–'}</td><td class="ping">${bot ? 'BOT' : r.id === NET.hostId ? 'HOST' : (st[5] || 0) + ' ms'}</td></tr>` }; };
+  const head = '<tr><th></th><th>K</th><th>D</th><th>K/D</th><th>DMG</th><th>ACC</th><th>HS</th><th>LONG</th><th>PING</th></tr>';
+  const all = roster().map(row).sort((x, y) => y.k - x.k), names = [];
+  let body = '';
+  if (PVP.mode === 'ffa') { body = all.map(x => x.html).join(''); all.forEach(x => names.push(x.r.name)); }
+  else for (const sd of ['A', 'B']) {
+    const rs = all.filter(x => pvSideOf(x.r.id) === sd), sc = PVP.mode === 'rounds' ? PVP.wins[sd === 'B' ? 1 : 0] : PVP.ts[sd === 'B' ? 1 : 0];
+    body += `<tr class="side" style="--c:${PVP_SIDE[sd].col}"><td colspan="9"><b>${PVP_SIDE[sd].name}</b><em>${sc}</em></td></tr>` + rs.map(x => x.html).join(''); rs.forEach(x => names.push(x.r.name));
+  }
+  return { html: `<table>${head}${body}</table>`, names };
+}
+const fillNames = (el, names) => el.querySelectorAll('td span').forEach((s, k) => { s.textContent = names[k] || ''; });
+function pvpBoard(on) {
+  if (!hudEls || !PVP.on) return;
+  const el = hudEls.board; el.classList.toggle('on', on); if (!on) return;
+  const t = pvpTable(); el.innerHTML = `<div class="pbBox"><div class="pbHead"><b>${PVP_MODES[PVP.mode]}</b><em>Yard 4</em><span>${PVP.ph === 'live' ? fmtT(Math.max(0, PVP.t)) : ''}</span></div>${t.html}</div>`; fillNames(el, t.names);
+}
+// the results: who won and by how much, the match's best player, the whole table, and (the host's) a rematch, the same
+// mode and sides again straight away, or back to the lobby; otherwise back to the lobby when the clock runs out
 function pvpResults() {
   if (!hudEls) return;
-  const list = roster().map(r => ({ ...r, k: (PVP.sc[r.id] || [0, 0])[0], d: (PVP.sc[r.id] || [0, 0])[1] })).sort((a, b) => b.k - a.k || a.d - b.d);
+  const list = roster().map(r => ({ ...r, k: (PVP.sc[r.id] || [0, 0])[0], d: (PVP.sc[r.id] || [0, 0])[1], dmg: (PVP.st[r.id] || [0])[0] })).sort((a, b) => b.k - a.k || a.d - b.d || b.dmg - a.dmg);
   let win = '', me = false;
   if (PVP.mode === 'ffa') { win = list[0] && list[0].k > (list[1] ? list[1].k : -1) ? list[0].id : ''; me = win === NET.id; }
   else { const a = PVP.mode === 'rounds' ? PVP.wins[0] : PVP.ts[0], b = PVP.mode === 'rounds' ? PVP.wins[1] : PVP.ts[1]; win = a === b ? '' : a > b ? 'A' : 'B'; me = win === PVP.side; }
-  const head = !win ? 'Draw' : me ? 'Victory' : 'Defeat';
-  const el = hudEls.res;
-  el.innerHTML = `<div class="prBox ${!win ? 'draw' : me ? 'win' : 'lose'}"><small>${PVP_MODES[PVP.mode]}</small><b>${head}</b><em></em><table><tr><th></th><th>Kills</th><th>Deaths</th></tr>` +
-    list.map(r => `<tr class="${r.id === NET.id ? 'me' : ''}"><td style="--c:${colOf(r.id)}"><i></i><span></span></td><td>${r.k}</td><td>${r.d}</td></tr>`).join('') + '</table><p>Back to the lobby in a moment</p></div>';
-  el.querySelectorAll('td span').forEach((s, k) => { s.textContent = list[k].name; });
-  el.querySelector('em').textContent = PVP.mode === 'ffa' ? (win ? nameOf(win) + ' wins' : 'Nobody came out on top') : (win ? PVP_SIDE[win].name + ' wins' : 'Even') + (PVP.mode === 'rounds' ? ' · ' + PVP.wins[0] + ' – ' + PVP.wins[1] : ' · ' + PVP.ts[0] + ' – ' + PVP.ts[1]);
-  el.classList.add('on'); (me ? SFX.upgrade : SFX.wave)();
+  const head = !win ? 'Draw' : me ? 'Victory' : 'Defeat', mvp = list[0], t = pvpTable(), el = hudEls.res;
+  el.innerHTML = `<div class="prBox ${!win ? 'draw' : me ? 'win' : 'lose'}"><div class="prHead"><small>${PVP_MODES[PVP.mode]} · Yard 4</small><b>${head}</b><em></em></div>` +
+    (mvp ? `<div class="prMvp" style="--c:${colOf(mvp.id)}"><small>Best in the match</small><b></b><span>${mvp.k} kill${mvp.k === 1 ? '' : 's'} · ${Math.round(mvp.dmg)} damage</span></div>` : '') +
+    t.html + `<div class="prActs">${isHost() ? '<button type="button" class="btn" data-act="rematch">Rematch</button><button type="button" class="btn ghost" data-act="lobby">Back to the lobby</button>' : '<span class="prHost">The host can start a rematch</span>'}<span class="prWait"></span></div></div>`;
+  fillNames(el, t.names); if (mvp) el.querySelector('.prMvp b').textContent = mvp.name;
+  el.querySelector('.prHead em').textContent = PVP.mode === 'ffa' ? (win ? nameOf(win) + ' wins' : 'Nobody came out on top') : (win ? PVP_SIDE[win].name + ' wins' : 'Even') + (PVP.mode === 'rounds' ? ' · ' + PVP.wins[0] + ' – ' + PVP.wins[1] : ' · ' + PVP.ts[0] + ' – ' + PVP.ts[1]);
+  el.classList.add('on'); hudEls.card.classList.remove('on'); (me ? SFX.upgrade : SFX.wave)();
+}
+// a rematch (the host's, 'prm' to everyone): the same mode and the same sides from the top, without the lobby
+function pvpRematch() {
+  if (!PVP.on) return;
+  setTimeScale(1);
+  PVP.sc = {}; roster().forEach(r => { PVP.sc[r.id] = [0, 0]; });
+  PVP.ts = [0, 0]; PVP.wins = [0, 0]; PVP.rd = 1; PVP.rw = ''; PVP.killer = ''; PVP.st = {}; PVP.my = { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }; PVP.key = '';
+  hudEls.res.classList.remove('on'); hudEls.feed.innerHTML = '';
+  if (isHost()) botsBegin();
+  PVP.ph = 'idle'; pvpPhase('pick', PVP_T.pick0);
+}
+NET_ON.prm = () => { if (PVP.on && !isHost()) pvpRematch(); };
+// what did you in: a card like Counter-Strike's, a moment after you go down, till you're back: who and with what, how
+// much they did to you and in how many hits, how much you did to them, and anyone else who hurt you this life
+function pvpDmgCard(m) {
+  if (!hudEls) return;
+  const L = PVP.life, k = m.k, tk = L.taken[k] || [0, 0], gv = L.given[k] || [0, 0], p = NET.peers.get(k), w = m.w && WEAP[m.w];
+  const art = w ? (w.melee ? meleeArt(m.w, []) : gunArt(m.w)) : null, pic = p && p.look ? lookThumb(p.look) : '';
+  const others = Object.entries(L.taken).filter(([id]) => id !== k).sort((a, b) => b[1][0] - a[1][0]).slice(0, 3);
+  const el = hudEls.card;
+  el.innerHTML = `<div class="dcTop" style="--c:${colOf(k)}">${pic ? `<img class="dcPic" alt="" src="${pic}">` : '<span class="dcPic"></span>'}<div class="dcWho"><b></b><em>killed you with their <i>${w ? w.name : 'hands'}</i>${m.hs ? ' · headshot' : ''}${m.dm ? ' · ' + m.dm + 'm' : ''}</em></div>${art ? `<img class="dcGun" alt="" src="${art.url}">` : ''}</div>` +
+    `<div class="dcRow taken"><span>Damage taken: <b>${Math.round(tk[0])}</b> in <b>${tk[1]}</b> hit${tk[1] === 1 ? '' : 's'}</span><s><u style="width:${Math.min(100, tk[0])}%"></u></s></div>` +
+    `<div class="dcRow given"><span>Damage given: <b>${Math.round(gv[0])}</b> in <b>${gv[1]}</b> hit${gv[1] === 1 ? '' : 's'}</span><s><u style="width:${Math.min(100, gv[0])}%"></u></s></div>` +
+    (others.length ? `<div class="dcAlso">Also hurt by ${others.map(([id, e]) => `<b style="color:${colOf(id)}" data-id="${id}"></b> ${Math.round(e[0])}`).join(' · ')}</div>` : '') +
+    (PVP.mode !== 'rounds' ? `<div class="dcBack"><span>Back in <b>${Math.max(1, Math.ceil(PVP.respawn))}</b></span><span>${kbd('cls')} Change class</span></div>` : '');
+  el.querySelector('.dcWho b').textContent = nameOf(k); el.querySelectorAll('.dcAlso b').forEach(b => { b.textContent = nameOf(b.dataset.id); });
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
 }

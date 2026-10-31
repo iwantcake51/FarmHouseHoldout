@@ -4,8 +4,10 @@
    with a hairline border, the condensed numerals, each side's colour (--c) */
 body.pvp #waveBox,body.pvp .benchTip,body.pvp #vitals .res,body.pvp #feed,body.pvp #team .res,body.pvp #spec .res,body.pvp #teamNotes,body.pvp #eliteCall,body.pvp #dropCall{display:none!important}
 #tags .tag.foe s{display:none}
-#pvpTop,#pvpFeed,#pvpBan,#pvpPick,#pvpRes,#pvpToast{pointer-events:none;text-shadow:none}
-#pvpTop[hidden],#pvpFeed[hidden],#pvpBan[hidden],#pvpPick[hidden],#pvpRes[hidden],#pvpToast[hidden]{display:none}
+#pvpTop,#pvpFeed,#pvpBan,#pvpPick,#pvpRes,#pvpToast,#pvpBoard,#pvpDmgCard,#pvpMate,#pvpKit{pointer-events:none;text-shadow:none}
+#pvpTop[hidden],#pvpFeed[hidden],#pvpBan[hidden],#pvpPick[hidden],#pvpRes[hidden],#pvpToast[hidden],#pvpBoard[hidden],#pvpDmgCard[hidden],#pvpMate[hidden],#pvpKit[hidden],#pvpProt[hidden],#pvpCount[hidden]{display:none}
+/* the pause screen over all of it: every piece of the arena's HUD drops under it while it's up */
+body.menu :is(#pvpTop,#pvpFeed,#pvpBan,#pvpPick,#pvpRes,#pvpToast,#pvpCount,#pvpProt,#pvpBoard,#pvpDmgCard,#pvpMate,#pvpKit,.pvpDmg,#adsHit){z-index:4!important}
 
 /* the score and the clock, top middle */
 #pvpTop{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);display:flex;align-items:stretch;gap:0;z-index:6}
@@ -22,6 +24,11 @@ body.pvp #waveBox,body.pvp .benchTip,body.pvp #vitals .res,body.pvp #feed,body.p
 #pvpTop .ptPips i{width:9px;height:9px;transform:rotate(45deg);border:1px solid color-mix(in srgb,var(--c) 70%,#fff);opacity:.55}
 #pvpTop .ptPips i.on{background:var(--c);opacity:1;box-shadow:0 0 6px var(--c)}
 #pvpTop .ptAlive{display:flex;gap:2px}
+#pvpTop .ptHp{display:grid;justify-items:center;gap:2px;width:100%;min-width:92px}
+#pvpTop .ptHp s{display:block;width:100%;height:5px;background:#2a2b2d;box-shadow:inset 0 0 0 1px rgba(0,0,0,.45);text-decoration:none}
+#pvpTop .ptHp u{display:block;height:100%;background:#f4efe4;text-decoration:none;transition:width .25s ease}
+#pvpTop .ptHp em{font:700 10px var(--f-num);letter-spacing:.06em;font-style:normal;color:var(--ink)}
+#pvpTop .ptHp em i{font-style:normal;color:var(--dim);margin-left:2px}
 #pvpTop .ptAlive svg{width:14px;height:14px;fill:var(--ink)}
 #pvpTop .ptAlive svg.down{fill:rgba(236,230,216,.22)}
 /* Deathmatch: the clock, then everyone's kills as chips, the leader first */
@@ -40,6 +47,8 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpFeed .pfRow.me{background:linear-gradient(90deg,rgba(28,24,18,.92),rgba(28,24,18,.7) 70%,rgba(28,24,18,0));border-left-color:var(--orange)}
 #pvpFeed .pfRow.out{opacity:0;transform:translateX(-14px)}
 #pvpFeed .pfRow b{font-weight:700;letter-spacing:.02em;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* your own name: dark on a light chip, so it's never one of the players' colours */
+#pvpFeed .pfRow b.you{color:#141210!important;background:#f4efe4;padding:1px 7px;border-radius:2px;box-shadow:0 0 12px rgba(244,239,228,.25)}
 #pvpFeed .pfRow em.dm{font-style:normal;font-family:var(--f-num);font-weight:700;font-size:12px;color:var(--dim);letter-spacing:.04em}
 #pvpFeed .pfRow img{height:22px;width:auto;opacity:.9;filter:brightness(1.4)}
 #pvpFeed .pfRow svg.hs{width:20px;height:20px;fill:#e2563f}
@@ -55,14 +64,6 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 @keyframes pbIn{0%{opacity:0;transform:scale(1.35);letter-spacing:.3em}100%{opacity:1;transform:none}}
 
 /* a word for you: who you got, who got you; and your time to come back */
-#pvpToast{position:fixed;left:50%;top:62%;transform:translateX(-50%);display:grid;justify-items:center;gap:2px;opacity:0;transition:opacity .25s;z-index:6}
-#pvpToast.on{opacity:1}
-#pvpToast small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim)}
-#pvpToast b{font-family:var(--f-num);font-weight:800;font-size:24px;letter-spacing:.05em;color:var(--ink)}
-#pvpToast.head small,#pvpToast.dead small{color:#e2563f}
-#pvpToast.on b{animation:ecIcon .3s cubic-bezier(.2,1.4,.4,1) both}
-#pvpToast[data-respawn]:not([data-respawn=""])::after{content:"Back in " attr(data-respawn);display:block;margin-top:6px;font-family:var(--f-num);font-weight:700;font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink)}
-#pvpToast[data-respawn]:not([data-respawn=""]){opacity:1}
 
 /* the count in: a big number for each second, popping in large and settling, then shrinking away as its second runs */
 #pvpCount{position:fixed;left:50%;bottom:calc(50% + 44px);transform:translateX(-50%);display:grid;justify-items:center;gap:4px;opacity:0;visibility:hidden;z-index:7;transition:opacity .3s}
@@ -107,20 +108,6 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 body.pvpPicking #xh,body.pvpPicking .xhWorld{opacity:0!important}
 
 /* the results */
-#pvpRes{position:fixed;inset:0;display:grid;place-items:center;opacity:0;visibility:hidden;background:rgba(6,7,8,.72);z-index:9;transition:opacity .4s,visibility .4s}
-#pvpRes.on{opacity:1;visibility:visible}
-#pvpRes .prBox{--c:#f0c24a;display:grid;justify-items:center;gap:6px;min-width:340px;padding:22px 30px 18px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 14%,rgba(18,19,20,.96)),rgba(14,15,16,.96));border:1px solid rgba(236,230,216,.14);border-top:3px solid var(--c)}
-#pvpRes .prBox.win{--c:#8fd49a}#pvpRes .prBox.lose{--c:#e2563f}#pvpRes .prBox.draw{--c:#b8c0c8}
-#pvpRes small{font-family:var(--f-num);font-weight:700;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--dim)}
-#pvpRes .prBox>b{font-family:var(--f-num);font-weight:800;font-size:58px;line-height:.95;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
-#pvpRes em{font-style:normal;font-size:13px;color:var(--ink);margin-bottom:6px}
-#pvpRes table{border-collapse:collapse;min-width:260px;font-size:13px}
-#pvpRes th{font:700 10px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:4px 8px;text-align:right}
-#pvpRes td{padding:5px 8px;text-align:right;font-family:var(--f-num);font-weight:700;font-size:16px;color:var(--ink);border-top:1px solid rgba(236,230,216,.08)}
-#pvpRes td:first-child{text-align:left;font-family:inherit;font-weight:600;font-size:13px}
-#pvpRes td:first-child i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:7px}
-#pvpRes tr.me td{background:rgba(236,230,216,.06)}
-#pvpRes p{margin:10px 0 0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
 @media (prefers-reduced-motion:reduce){#pvpCount b.tick,#pvpBan.on b,#pvpFeed .pfRow,#pvpToast.on b{animation:none}}
 /* damage numbers (pvp/pvp.js dmgNum): over whoever you hit, adding up while you keep hitting them, white, gold once a
    hit's gone in the head; each new hit pops it */
@@ -135,3 +122,111 @@ body.pvp #bandBox{display:none}
 #pvpProt s{display:block;width:120px;height:3px;background:rgba(191,227,255,.18)}
 #pvpProt s u{display:block;height:100%;background:#bfe3ff;transform-origin:left;text-decoration:none}
 @media (prefers-reduced-motion:reduce){.pvpDmg.pop{animation:none}}
+
+/* the last seconds on the clock: flashing red */
+#pvpTop.low .ptClock{animation:ptLow .8s ease-in-out infinite;color:#ff6b55}
+@keyframes ptLow{0%,100%{color:#ff6b55;text-shadow:0 0 10px rgba(255,80,60,.65)}50%{color:var(--ink);text-shadow:none}}
+
+/* a call under the crosshair (pvp/pvp.js pvpToast): a kill's mark swells in out of a flash, a line draws out either
+   side of it, the name settles under it; a run of kills called as such; who got you; a quieter word */
+#pvpToast{position:fixed;left:50%;top:60%;transform:translateX(-50%);display:grid;justify-items:center;gap:3px;opacity:0;z-index:6;transition:opacity .35s ease}
+#pvpToast.on{opacity:1}
+#pvpToast .tIc{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,rgba(226,86,63,.32),rgba(226,86,63,0) 70%)}
+#pvpToast .tIc svg{width:30px;height:30px;fill:#f4efe4;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7))}
+#pvpToast.head .tIc svg{fill:#ffcf4a}#pvpToast.dead .tIc svg{fill:#e2563f}
+#pvpToast small{font-family:var(--f-num);font-weight:800;font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:#f4efe4;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+#pvpToast.head small{color:#ffcf4a}#pvpToast.dead small{color:#e2563f}#pvpToast.info small{color:var(--dim);letter-spacing:.3em;font-size:11px}
+#pvpToast b{font-family:var(--f-num);font-weight:700;font-size:20px;letter-spacing:.04em;color:var(--ink);text-shadow:0 2px 8px rgba(0,0,0,.7)}
+#pvpToast .tLine{display:block;width:180px;height:2px;margin-top:2px;background:linear-gradient(90deg,transparent,rgba(244,239,228,.85),transparent);transform:scaleX(0)}
+#pvpToast.head .tLine{background:linear-gradient(90deg,transparent,#ffcf4a,transparent)}#pvpToast.dead .tLine{background:linear-gradient(90deg,transparent,#e2563f,transparent)}
+#pvpToast .tCall{font-style:normal;font-family:var(--f-num);font-weight:800;font-size:15px;letter-spacing:.2em;text-transform:uppercase;color:#ffcf4a;text-shadow:0 0 12px rgba(255,190,60,.55)}
+#pvpToast.on .tIc{animation:tIcIn .5s cubic-bezier(.2,1.4,.35,1) both}
+#pvpToast.on small{animation:tTxIn .45s cubic-bezier(.2,.9,.3,1) .05s both}
+#pvpToast.on b{animation:tNmIn .4s ease-out .12s both}
+#pvpToast.on .tLine{animation:tLnIn .55s cubic-bezier(.2,.9,.3,1) .08s both}
+#pvpToast.on .tCall{animation:tIcIn .5s cubic-bezier(.2,1.5,.35,1) .2s both}
+@keyframes tIcIn{0%{opacity:0;scale:1.9;filter:blur(4px) brightness(2)}60%{opacity:1;scale:.94;filter:none}100%{scale:1}}
+@keyframes tTxIn{0%{opacity:0;letter-spacing:.9em}100%{opacity:1}}
+@keyframes tNmIn{0%{opacity:0;translate:0 6px}100%{opacity:1;translate:0}}
+@keyframes tLnIn{0%{transform:scaleX(0);opacity:0}100%{transform:scaleX(1);opacity:1}}
+
+/* a teammate down: slid in under the score, in red */
+#pvpMate{position:fixed;left:50%;top:calc(96px + env(safe-area-inset-top,0px));translate:-50% -8px;display:flex;align-items:center;gap:8px;padding:5px 14px 5px 10px;background:linear-gradient(90deg,rgba(120,26,18,.0),rgba(120,26,18,.82) 18%,rgba(120,26,18,.82) 82%,rgba(120,26,18,0));opacity:0;z-index:6;transition:opacity .3s,translate .35s cubic-bezier(.2,.9,.3,1.2)}
+#pvpMate.on{opacity:1;translate:-50% 0}
+#pvpMate svg{width:16px;height:16px;fill:#ffd7cf}
+#pvpMate b{font:700 14px var(--f-ui);color:#fff}
+#pvpMate span{font:800 11px var(--f-num);letter-spacing:.24em;text-transform:uppercase;color:#ffd7cf}
+#pvpMate em{font-style:normal;font:700 11px var(--f-num);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,215,207,.75);padding-left:8px;border-left:1px solid rgba(255,215,207,.35)}
+
+/* your class and its perks, small down the left above your health */
+#pvpKit{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:150px;display:flex;flex-wrap:wrap;align-items:center;gap:5px;max-width:300px;z-index:5;opacity:.82}
+#pvpKit b{font:800 12px var(--f-num);letter-spacing:.18em;text-transform:uppercase;color:var(--ink);margin-right:4px}
+#pvpKit i{font-style:normal;font-size:10px;letter-spacing:.03em;color:var(--orange);border:1px solid color-mix(in srgb,var(--orange) 40%,transparent);padding:1px 5px;background:rgba(14,15,16,.55)}
+
+/* what did you in (a moment after you go down, till you're back): who, with what, the damage both ways */
+#pvpDmgCard{position:fixed;left:50%;bottom:8vh;translate:-50% 12px;width:min(560px,92vw);opacity:0;z-index:7;background:linear-gradient(180deg,rgba(26,24,22,.94),rgba(16,15,14,.94));border:1px solid rgba(236,230,216,.12);box-shadow:0 18px 40px -16px rgba(0,0,0,.85);transition:opacity .35s,translate .45s cubic-bezier(.2,.9,.3,1)}
+#pvpDmgCard.on{opacity:1;translate:-50% 0}
+#pvpDmgCard .dcTop{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid rgba(236,230,216,.08)}
+#pvpDmgCard .dcPic{width:52px;height:52px;object-fit:cover;background:rgba(236,230,216,.06);border:1px solid color-mix(in srgb,var(--c) 60%,transparent)}
+#pvpDmgCard .dcWho{display:grid;gap:3px;flex:1;min-width:0}
+#pvpDmgCard .dcWho b{font:800 22px var(--f-num);letter-spacing:.04em;color:var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pvpDmgCard .dcWho em{font-style:italic;font-size:13px;color:#e2563f}
+#pvpDmgCard .dcWho em i{font-style:italic;color:var(--ink)}
+#pvpDmgCard .dcGun{max-width:140px;max-height:40px;filter:brightness(1.3)}
+#pvpDmgCard .dcRow{display:grid;gap:4px;padding:8px 16px 0}
+#pvpDmgCard .dcRow span{font-size:13px;color:var(--dim)}
+#pvpDmgCard .dcRow span b{font:800 15px var(--f-num);color:var(--ink)}
+#pvpDmgCard .dcRow s{display:block;height:3px;background:rgba(236,230,216,.08);text-decoration:none}
+#pvpDmgCard .dcRow s u{display:block;height:100%;background:#d8392b;text-decoration:none;transition:width .6s ease}
+#pvpDmgCard .dcRow.given s u{background:#4caf50}
+#pvpDmgCard .dcRow.given{padding-bottom:12px}
+#pvpDmgCard .dcAlso{padding:8px 16px 12px;margin-top:-4px;font-size:12px;color:var(--dim);border-top:1px solid rgba(236,230,216,.06)}
+#pvpDmgCard .dcAlso b{font-weight:700}
+#pvpDmgCard .dcBack{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-top:1px solid rgba(236,230,216,.08);background:rgba(0,0,0,.22);font:700 12px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#pvpDmgCard .dcBack b{display:inline-block;min-width:1.2em;font-size:15px;color:var(--ink)}
+#pvpDmgCard .dcBack kbd{margin-right:6px}
+/* the class picker up over it while you're down: the card out of its way */
+body.pvpPicking #pvpDmgCard{opacity:0;translate:-50% 12px}
+
+/* the scoreboard (Tab) and the results: one table, by side in the team games */
+#pvpBoard{position:fixed;inset:0;display:grid;place-items:center;opacity:0;visibility:hidden;z-index:8;background:radial-gradient(ellipse at center,rgba(8,9,10,.45),rgba(8,9,10,.75));transition:opacity .15s,visibility .15s}
+#pvpBoard.on{opacity:1;visibility:visible}
+#pvpBoard .pbBox{min-width:min(720px,94vw);padding:16px 20px 18px;background:linear-gradient(180deg,rgba(24,23,22,.96),rgba(14,15,16,.96));border:1px solid rgba(236,230,216,.12)}
+#pvpBoard .pbHead{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+#pvpBoard .pbHead b{font:800 22px var(--f-num);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+#pvpBoard .pbHead em{font-style:normal;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+#pvpBoard .pbHead span{margin-left:auto;font:700 18px var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+:is(#pvpBoard,#pvpRes) table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+:is(#pvpBoard,#pvpRes) th{font:700 10px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);padding:5px 10px;text-align:right}
+:is(#pvpBoard,#pvpRes) td{padding:7px 10px;text-align:right;font:700 16px var(--f-num);color:var(--ink);border-top:1px solid rgba(236,230,216,.07)}
+:is(#pvpBoard,#pvpRes) td:first-child{text-align:left;font:600 14px var(--f-ui);min-width:150px}
+:is(#pvpBoard,#pvpRes) td:first-child i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:9px;box-shadow:0 0 6px var(--c)}
+:is(#pvpBoard,#pvpRes) td.k{color:#fff;font-size:18px}
+:is(#pvpBoard,#pvpRes) td.ping{font-size:12px;color:var(--dim);letter-spacing:.08em}
+:is(#pvpBoard,#pvpRes) tr.me td{background:rgba(240,191,76,.08)}
+:is(#pvpBoard,#pvpRes) tr.me td:first-child{box-shadow:inset 3px 0 0 var(--orange)}
+:is(#pvpBoard,#pvpRes) tr.side td{padding:10px 10px 6px;border-top:none;text-align:left;font:800 12px var(--f-num);letter-spacing:.24em;text-transform:uppercase;color:var(--c)}
+:is(#pvpBoard,#pvpRes) tr.side td em{float:right;font-style:normal;font-size:16px;letter-spacing:0;color:var(--ink)}
+#pvpRes{position:fixed;inset:0;display:grid;place-items:center;opacity:0;visibility:hidden;background:radial-gradient(ellipse at center,rgba(6,7,8,.55),rgba(6,7,8,.85));z-index:9;transition:opacity .5s,visibility .5s}
+#pvpRes.on{opacity:1;visibility:visible;pointer-events:auto}
+#pvpRes .prBox{--c:#f0c24a;display:grid;gap:14px;width:min(760px,94vw);padding:22px 26px 20px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 12%,rgba(20,20,20,.97)),rgba(14,15,16,.97) 40%);border:1px solid rgba(236,230,216,.14);border-top:3px solid var(--c);box-shadow:0 30px 60px -20px rgba(0,0,0,.9)}
+#pvpRes.on .prBox{animation:prIn .6s cubic-bezier(.2,.9,.3,1) both}
+@keyframes prIn{0%{opacity:0;translate:0 18px;scale:.98}100%{opacity:1;translate:0;scale:1}}
+#pvpRes .prBox.win{--c:#8fd49a}#pvpRes .prBox.lose{--c:#e2563f}#pvpRes .prBox.draw{--c:#b8c0c8}
+#pvpRes .prHead{display:grid;justify-items:center;gap:4px}
+#pvpRes .prHead small{font:700 11px var(--f-num);letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
+#pvpRes .prHead b{font:800 64px var(--f-num);line-height:.92;letter-spacing:.07em;text-transform:uppercase;color:var(--c);text-shadow:0 0 30px color-mix(in srgb,var(--c) 35%,transparent)}
+#pvpRes .prHead em{font-style:normal;font-size:14px;color:var(--ink)}
+#pvpRes .prMvp{display:flex;align-items:baseline;justify-content:center;gap:10px;padding:8px 12px;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--c) 16%,transparent),transparent)}
+#pvpRes .prMvp small{font:700 10px var(--f-num);letter-spacing:.26em;text-transform:uppercase;color:var(--dim)}
+#pvpRes .prMvp b{font:800 20px var(--f-num);color:var(--c)}
+#pvpRes .prMvp span{font-size:12px;color:var(--ink)}
+#pvpRes .prActs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#pvpRes .prActs .btn{pointer-events:auto}
+#pvpRes .prHost{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+#pvpRes .prWait{margin-left:auto;font:700 11px var(--f-num);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+@media (prefers-reduced-motion:reduce){#pvpToast.on *,#pvpRes.on .prBox,#pvpTop.low .ptClock{animation:none!important}}
+/* down in Deathmatch: the killer's view, without the co-op watcher's stamp and their health and ammo over it (the
+   damage card says it); in Showdown the watcher's strip sits under the score */
+body.pvp:not(.pvpRounds) #spec{display:none}
+body.pvp #spec .spTop{top:calc(92px + env(safe-area-inset-top,0px))}

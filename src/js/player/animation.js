@@ -33,6 +33,7 @@ import { ARM_THIN, ARM_X, armRest, poseHands, reach } from './hold.js';
 import { updatePack, updateStow } from './stow.js';
 import { updateBandStow, updateSwap } from './swap.js';
 import { agReset, agState, locoPose, locoWeights } from './anim-graph.js';
+import { leanBody, leanStep } from './lean.js';
 import { ARENA } from '../world/arena.js';
 const _lp = { lx: 0, rx: 0, lz: 0, rz: 0, kl: 0, kr: 0, hx: 0, hz: 0, twist: 1 };
 
@@ -496,6 +497,7 @@ function animatePlayer(dt, rdt) {
   }
   pm.head.rotation.y = hY - wy; pm.head.rotation.z = hZ - hz;
   pm.upper.rotation.set(up.x, up.y, up.z);
+  leanStep(rdt, ANIM.yaw); leanBody(pm);   // leaning round a corner, from the hips (player/lean.js)
   if (P.vault) vaultHands(pm, P.vault);
   introLook(pm);
   // the state the body's in, for the animation graph to hand over from one to the next without a snap (player/anim-graph.js)

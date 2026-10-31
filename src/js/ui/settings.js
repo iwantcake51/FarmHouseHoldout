@@ -23,7 +23,7 @@ const THEMES = { ember: { name: 'Ember', rgb: '216,105,44' }, crimson: { name: '
 // colour blind modes: the whole screen through a colour matrix (an SVG filter on the page), each daltonized: what the
 // eye can't tell apart (CB_SIM, how it sees) shifted into colours it can, I + shift × (I - sim)
 const SET_SHAKE = [50, 100];   // screen shake's slider runs from half the full shake to all of it
-const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off', mode: 'normal' };
+const SET_DEF = { ao: 'on', bloom: 'normal', shadows: 'high', res: 'auto', fps: false, hud: 'normal', theme: 'ember', cb: 'off', vol: 80, music: 60, shake: 75, view: 'iso', fov: 75, sens: 100, smooth: 'off', mode: 'normal', lean: 'toggle' };
 export const SET = Object.assign({}, SET_DEF);
 try { Object.assign(SET, JSON.parse(localStorage.getItem('kessler-settings') || '{}')); } catch (e) {}
 SET.shake = clamp(+SET.shake || SET_DEF.shake, SET_SHAKE[0], SET_SHAKE[1]);   // (a value saved before the range moved)
@@ -48,6 +48,7 @@ const SET_ROWS = [
   { k: 'fov', name: 'Field of view', note: 'How wide you see in first person', min: 60, max: 100, unit: '°' },
   { k: 'sens', name: 'Mouse sensitivity', note: 'How far the view turns for the mouse, in first person', min: 25, max: 200, unit: '%' },
   { k: 'smooth', name: 'Mouse smoothing', note: 'Eases the view after the mouse over a few frames, in first person (off: it turns the moment the mouse does)', opts: [['off', 'Off'], ['on', 'On']] },
+  { k: 'lean', name: 'Lean', note: 'Toggle: a press leans you over and another straightens you up. Hold: you lean only while the key is held', opts: [['toggle', 'Toggle'], ['hold', 'Hold']] },
   { head: 'Sound' },
   { k: 'vol', name: 'Master volume', min: 0, max: 100, unit: '%' },
   { k: 'music', name: 'Music', note: 'The piano on the menus', min: 0, max: 100, unit: '%' },

@@ -45,7 +45,7 @@ import { arsenalFrame, buildArsenal, weaponPose } from './arsenal.js';
 import { teamDown } from './lobby.js';
 import { camFocus, myDrops, updateSpecDrops, updateSpecXh } from './spectate.js';
 import { coverFromCam } from '../zombies/zombie-visuals.js';
-import { PVP, pvpCol, pvpFoe } from '../pvp/pvp.js';
+import { PVP, pvpCol, pvpFoe, pvpMate } from '../pvp/pvp.js';
 import { botsHear } from '../pvp/bots.js';
 import { visAt } from '../lighting/vision.js';
 import { los } from '../lighting/lightmap.js';
@@ -264,7 +264,7 @@ export function updateAvatars(rdt) {
     // in the arena someone on the other side has no outline and never shows through a wall, and from above they're
     // only there while you can see where they stand (the fog of war, lighting/vision.js: pvp/pvp.js)
     const foe = pvpFoe(p); if (foe) { const vis = !isoOn() || p.dead || visAt(a.g.position.x, a.g.position.z) > 0.4; a.seen = vis; a.g.visible = vis; if (a.blob) a.blob.visible = vis && !p.dead; } else a.seen = true;
-    if (a.ol) a.ol.visible = !p.dead && !foe; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (!foe || a.seen) && isoOn() && a.cvK > 0;   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
+    if (a.ol) a.ol.visible = !p.dead && !foe; if (a.xr) { a.cvK = coverFromCam(a.g.position.x, a.g.position.z) ? 1 : Math.max(0, (a.cvK || 0) - rdt * 4); const xo = !p.dead && (pvpMate(p) || ((!foe || a.seen) && isoOn() && a.cvK > 0));   /* (a teammate in the arena: their shape through any wall from either view while they're up, gone the moment they're down) */   /* (someone on the other side only while you can see where they stand: hidden from the camera alone, not from you) */ a.xr.rim.visible = a.xr.fill.visible = xo; if (a.xr.sil) a.xr.sil.visible = xo; }   // (down, no outline round them or through walls; through walls only from above, as zombies are, and only with something in the way: coverFromCam)
     const k = 1 - Math.exp(-rdt * 16), first = !a.cur;
     if (first) a.cur = t.slice();
     const c = a.cur;
@@ -324,12 +324,12 @@ export function updateAvatars(rdt) {
 // ---- their shots: what your own would show, from where they stand
 export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   if (!netLink()) return;
-  botsHear(NET.id, mw.x, mw.z, quiet);   // (the arena's bots hear it: pvp/bots.js)
+  botsHear(NET.id, mw.x, mw.z, quiet, ends);   // (the arena's bots hear it, and feel it go by: pvp/bots.js)
   netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2]), e[3] | 0, r3(e[4] || 0)]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
 NET_ON.shot = m => {
   if (state === 'title') return;
-  if (NET.host && !(NET.peers.get(m.f) || {}).bot) botsHear(m.f, m.x, m.z, m.q);   // (a bot's own it's told of itself)
+  if (NET.host && !(NET.peers.get(m.f) || {}).bot) botsHear(m.f, m.x, m.z, m.q, m.e);   // (a bot's own it's told of itself)
   for (const e of m.e) {
     tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);
     // where it ended, as on their screen: a hole in the wall it hit and its sparks, or dirt kicked up off the ground

@@ -39,6 +39,7 @@ import { camFocus, spectating } from '../net/spectate.js';
 import { CEIL, inHouseRect } from '../world/house.js';
 import { pvpKiller, pvpPicking } from '../pvp/pvp.js';
 import { los } from '../lighting/lightmap.js';
+import { leanEye, leanRoll } from '../player/lean.js';
 
 // mode: the view picked; on: the one in use this frame (the isometric one on the menus and when you're down)
 export const VCAM = { mode: 'iso', on: 'iso', yaw: Math.PI, pitch: 0, aimY: GUN_Y, aimD: 26 };   // (aimD: how far down your line of sight it meets something, metres: ui/crosshair.js)
@@ -151,7 +152,7 @@ const MELEE_CAM = { roll: 0.012, pitch: 0.005, max: 0.07, k: 70, d: 12, hitP: 0.
 const FLINCH = { pitch: 1.2, behind: 0.35, yaw: 0.7, roll: 1.1, back: 0.55, k: 150, d: 17, max: 1.8 };
 // free look (held: input/keybinds.js, freeLook): the view turns on its own while the aim and the gun stay where they
 // are, as far round as yaw and pitch (radians), easing back onto the aim (back) once it's let go or the sights come up
-const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9 };
+const FREE_LOOK = { yaw: 1.9, pitch: 1.1, ease: 16, back: 9, top: Math.PI / 2 - 0.03 };   // (top: the most the view goes up or down all told, aim and free look together: straight up or down, never over onto its back)
 // the view's bob with your stride (P.phase: a footfall every half turn): dipping (up, metres) and nodding (pitch) as
 // each foot lands, swaying across (side, metres) and rocking (roll) a step each way; at full walking pace (speed, metres
 // a second), more running, much less down the sights (ads), eased in and out as you start and stop (ease)
@@ -352,13 +353,13 @@ export function fpLookStep(rdt) {
 // the view and the aim turned by (dx, dy) radians' worth of the mouse
 function lookBy(dx, dy) {
   const ex = -dx, ey = -dy;
-  if (freeLooking()) { V.flyT = clamp(V.flyT + ex, -FREE_LOOK.yaw, FREE_LOOK.yaw); V.flpT = clamp(V.flpT + ey, -FREE_LOOK.pitch, FREE_LOOK.pitch); return; }
+  if (freeLooking()) { V.flyT = clamp(V.flyT + ex, -FREE_LOOK.yaw, FREE_LOOK.yaw); V.flpT = clamp(V.flpT + ey, Math.max(-FREE_LOOK.pitch, -FREE_LOOK.top - V.cp), Math.min(FREE_LOOK.pitch, FREE_LOOK.top - V.cp)); return; }   // (never past straight up or straight down, however far you were already looking: FREE_LOOK.top)
   V.cy += ex * (1 - FA.take); V.cp += ey * (1 - FA.take); V.ftx += ex * FA.take; V.fty += ey * FA.take;
   fpFreeAim(0);
 }
 // the view's own way this frame on top of where it's turned (kick: a shot's, which the aim takes too; tilt, free look,
 // jolts, shake: the view's alone), and its roll
-const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0);
+const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0) + leanRoll();
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
 const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly;
@@ -685,6 +686,9 @@ export function fpAim(out) {
 // a shot kicks the view up and a touch aside (game/camera.js: fireCam), on a stiff spring home; and the gun in your
 // hands (FP_RECOIL): its kick, the climb of a full auto and the rattle
 const POW_FLIP = 0.4;
+// a gun whose kick down the sights is taken off less than most (FPV.adsKick): the double barrel's two barrels of 12 gauge
+// with no stock to speak of throw your eye up hard even aimed
+const ADS_KICK_OF = { dbl: 0.12 };
 export function viewKick(pw, auto) {
   if (isoOn()) return;
   // (which way this one goes: up and off to a side, FP_RECOIL.dir)
@@ -693,7 +697,7 @@ export function viewKick(pw, auto) {
   // (a gun can kick up less and swing aside more than most: its climbK and fpSideK, weapons/gun-stats.js: the LMG)
   const D = W(curId()), upK = ((D && D.climbK) || 1) * ((D && D.kickUp) || 1), sdK = ((D && D.fpSideK) || 1) * ((D && D.kickSide) || 1);   // (and its tiers': game/run-state.js)
   const KF = KICK_FEEL, first = (V.rc.t - (V.rc.last ?? -9)) > 0.3 ? KF.first : 1, vary = rr(KF.vary[0], KF.vary[1]) * first;
-  const aw = 1 - FPV.adsKick * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw * vary; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
+  const aw = 1 - (ADS_KICK_OF[curId()] ?? FPV.adsKick) * adsW(), kv = pw * FPV.kick * 22 * (auto ? 0.6 : 1) * aw * vary; V.vk += kv * ku * upK; V.vky += (kv * ks + pw * FPV.kick * 3 * rr(-0.5, 0.5) * aw) * sdK;   // (less down the sights: adsKick)
   // (the roll to a side, and the shudder: KICK_FEEL)
   V.vkr = (V.vkr || 0) + pw * KF.roll * 22 * aw * vary * (rand() < 0.5 ? -1 : 1) * (auto ? 0.7 : 1);
   if (SHUD.length > 6) SHUD.shift();
@@ -769,41 +773,13 @@ function sightBack(meshes, frame, x, y, z) {
       if (d > back && d < IRON_CLEAR.back && Math.abs(_scV.x - x) < IRON_CLEAR.r && Math.abs(_scV.y - y) < IRON_CLEAR.r) back = d; } }
   return back;
 }
-// a bolt worked down the sights comes straight back along the line toward your eye (the hunting rifle's 13 cm, from
-// 7.7 cm in front of it to past it, just under the line): your head comes back off the stock with it, the eye eased
-// back off it by however far it would otherwise come inside BOLT_CLEAR.near
-// of it (and only its body near the line, within BOLT_CLEAR.r; softly, over knee, so it starts and stops gently). What
-// slides that carries the sight isn't counted: a handgun's slide, whose sights the eye's kept on (slideBack)
-const BOLT_CLEAR = { near: 0.07, knee: 0.015, r: 0.04, ahead: 0.03, f: 0 }, _bcB = new THREE.Box3(), _bcV = new V3(), _bcR = new V3(), _bcA = new V3();
-function boltClear(L, eye, w) {
-  let need = 0; BOLT_CLEAR.f++;
-  for (const m of L.moving) {
-    let carries = false; for (let p = L.obj; p; p = p.parent) if (p === m) { carries = true; break; }
-    if (carries || !m.visible) continue;
-    // (where it'll be this frame: it's worked after the view's placed, player/hold.js, so it's taken on as far again as
-    // it came last frame; a frame behind, a bolt snapped back 4 cm nearer than it was cleared for)
-    // (only from the frame just gone, and no more than BOLT_CLEAR.ahead: come down the sights mid-stroke, the last it was
-    // seen could be from long before)
-    const r = m.userData.slideRest, dz = m.position.z - r.z0, ud = m.userData, ahead = ud.bcF === BOLT_CLEAR.f - 1 ? clamp(dz - ud.bcLast, -BOLT_CLEAR.ahead, BOLT_CLEAR.ahead) : 0; ud.bcLast = dz; ud.bcF = BOLT_CLEAR.f;
-    m.updateMatrixWorld(true); _bcA.set(0, 0, ahead); if (m.parent) _bcA.transformDirection(m.parent.matrixWorld).multiplyScalar(Math.abs(ahead));
-    m.traverse(o => { if (!o.isMesh || !o.geometry) return; if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); _bcB.copy(o.geometry.boundingBox);
-      for (let i = 0; i < 8; i++) { _bcV.set(i & 1 ? _bcB.max.x : _bcB.min.x, i & 2 ? _bcB.max.y : _bcB.min.y, i & 4 ? _bcB.max.z : _bcB.min.z).applyMatrix4(o.matrixWorld).add(_bcA).sub(eye);
-        const along = _bcV.dot(_sd); _bcR.copy(_bcV).addScaledVector(_sd, -along); if (_bcR.length() > BOLT_CLEAR.r) continue;   // (and behind your eye too: the hunting rifle's bolt comes back 13 cm, from 7.7 in front of it)
-        need = Math.max(need, BOLT_CLEAR.near - along); } });
-  }
-  if (need <= -BOLT_CLEAR.knee) return;
-  const K = BOLT_CLEAR.knee, x = need + K, off = x < 2 * K ? x * x / (4 * K) : x - K;
-  eye.addScaledVector(_sd, -off * w);
-}
-const SL = { key: null, obj: null, a: new V3(), b: new V3(), kind: 'iron', relief: null, r: 0, hw: 0, hh: 0, hide: [], back: 0, moving: [] };
+const SL = { key: null, obj: null, a: new V3(), b: new V3(), kind: 'iron', relief: null, r: 0, hw: 0, hh: 0, hide: [], back: 0 };
 const _ray = new THREE.Raycaster(), _ro = new V3(), _rdn = new V3(), _sb = new THREE.Box3(), _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4();
 function sightLine() {
   const s = W8.cur, h = HOLDS[s] && HOLDS[s].R, id = curId(); if (!h || !id) return null;
   const key = h.uuid + ':' + id;
   if (SL.key === key) return SL.obj ? SL : null;
   SL.key = key; SL.obj = null; SL.hide = []; SL.back = 0;
-  // (what of the gun slides back toward your eye that doesn't carry the sight: a bolt worked down the sights, BOLT_CLEAR)
-  SL.moving = []; h.traverse(o => { if (o.userData.slideRest) SL.moving.push(o); });
   let opt = null, ir = null; h.traverse(o => { if (!opt && o.userData.optic) opt = o; if (!ir && o.userData.irons) ir = o; });
   if (opt) {
     const O = opt.userData.optic; SL.obj = opt; SL.kind = O.kind; SL.a.set(O.x, O.y, O.zr); SL.b.set(O.x, O.y, O.zf); SL.relief = O.relief ?? null; SL.r = O.r; SL.hw = O.hw || 0; SL.hh = O.hh || 0;
@@ -1188,7 +1164,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     // over a vault, whose eye goes with the body)
     { V.pin = (V.pin ?? 1) + ((P.vault ? 0 : 1) - (V.pin ?? 1)) * Math.min(1, rdt * EYE_PIN.ease); const o = EYE_R.o, y = VCAM.yaw, c = Math.cos(y), sn = Math.sin(y), k = V.pin * EYE_PIN.k;
       if (EYE_R.on && k > 0.001) { PM.g.position.x -= (o.x * c + o.z * sn) * k; PM.g.position.z -= (-o.x * sn + o.z * c) * k; PM.g.updateMatrixWorld(true); } }
-    rigEye(_vcE);
+    rigEye(_vcE); leanEye(_vcE, VCAM.yaw);   // (leaning: your eyes out to the side, player/lean.js)
     // your arms and what's in your hands carried by the view itself, not by your chest (vmLock); let go over a vault, the
     // arms going over with the body, but not with Vault fire, the gun kept on your aim the whole way over in the view
     // (left to the vaulting body it was swung up and round and left trailing it, a moment behind where you look)
@@ -1210,13 +1186,11 @@ export function viewFrame(rdt, roll, sh, jolt) {
       // (never further from your head than ADS_EYE_MAX: with the gun not yet up, coming back off a vault or being drawn,
       // its sight line can be well away from your face, and the eye isn't taken out of your head to go to it)
       _vcH.subVectors(_vcD, _vcE); const dl = _vcH.length(); if (dl > ADS_EYE_MAX) _vcD.copy(_vcE).addScaledVector(_vcH, ADS_EYE_MAX / dl);
-      _vcE.lerp(_vcD, w);
+      _vcE.lerp(_vcD, LH.kind === 'scope' || LH.kind === 'acog' ? smooth(w) : w);   // (a scope's long way in to its eye relief eased in and out, not started and stopped dead)
       // (then the shot's kick tips the gun about your eye, its sights kept lined up on it; the sight line's measured
       // again, so the shots go where the sights now point, the post or the dot)
       if (adsKickTilt(_vcE, w, _vcH.subVectors(_pa, _vcE).dot(_sd) - LH.back)) { _pa.copy(LH.a).applyMatrix4(LH.obj.matrixWorld); _pb.copy(LH.b).applyMatrix4(LH.obj.matrixWorld); if (slideBack(LH.obj, _slB)) { _pa.sub(_slB); _pb.sub(_slB); } _sd.subVectors(_pb, _pa).normalize(); }
-      // (and off a bolt coming back, with the gun as the kick's left it: eased back first, the kick's shove took the
-      // room that made for itself, measuring its room from the eye)
-      boltClear(LH, _vcE, w);
+      // (a bolt worked down the sights is left to come back past your eye: the view holds still, never following it)
     }
     V.sw = L ? w : 0;
     V.sdW = L ? w : 0; if (L) V.sd.copy(_sd);   // (the sight's own line: where the shots go down the sights, fpAim)

@@ -162,7 +162,8 @@ const XH_SPRINT = 0.45, _xhP = [0, 0];   // how far down the gun's come (ANIM.re
 // it would be at ref metres off, so it grows as you come right up to a wall or a zombie and eases back down further
 // off (between min and max of its size, eased at ease a second); and when the gun's blocked nearer than that (its muzzle
 // up against a wall, a corner between it and what you're looking at), it slides to where the round would really hit,
-// the point it'd stop at, eased at slide
+// the point it'd stop at, eased at slide; it's always on that point (nothing in the way, that's where you're looking),
+// so it never lets go of the barrel and drifts back to the middle while you're still jammed against the wall
 const XH_WORLD = { ref: 2.4, min: 1, max: 1.75, ease: 12, slide: 16 };
 const XHW = { s: 1, k: 0, x: 0, y: 0 }, _xwA = new V3(), _xwB = new V3();
 // where a round from the muzzle toward what you're looking at would stop, on the screen (out: [x, y] pixels), or false
@@ -186,7 +187,7 @@ export function updateCrosshair(rdt, D) {
   if (showXh) {
     xhAt(_xhP);   // on the cursor, or wandering off it at low health (player/shaky-hands.js), and from your own eyes kicked with the gun (game/view-cam.js)
     // (from your own eyes, out in the world: XH_WORLD)
-    { const fp = fpOn() && !D.melee, W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && cache.xhX && shotStop(_xwS);   // (not a melee weapon's: it stays its size, in the middle)
+    { const fp = fpOn() && !D.melee, W_ = XH_WORLD, ts = fp ? clamp(W_.ref / Math.max(0.3, VCAM.aimD), W_.min, W_.max) : 1, stop = fp && shotStop(_xwS);   // (not a melee weapon's: it stays its size, in the middle)
       XHW.s += (ts - XHW.s) * Math.min(1, rdt * W_.ease);
       if (stop) { if (XHW.k < 0.01) { XHW.x = _xwS[0]; XHW.y = _xwS[1]; } else { const k = Math.min(1, rdt * W_.slide); XHW.x += (_xwS[0] - XHW.x) * k; XHW.y += (_xwS[1] - XHW.y) * k; } }
       XHW.k += ((stop ? 1 : 0) - XHW.k) * Math.min(1, rdt * W_.slide);

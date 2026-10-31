@@ -2,7 +2,7 @@
 
 import { box } from '../core/geometry.js';
 import { T, tierCtx } from '../game/run-state.js';
-import { GM, X } from './gun-materials.js';
+import { fitted, GM, X } from './gun-materials.js';
 import {
   apPart, apPlate, checker, clipTo, cyl, inset, irons, portFill, profile, pw, ring, rrect, shp, solid, stipple, taperX, xsec
 } from './gun-parts.js';
@@ -158,10 +158,10 @@ export const SHOTGUN_MODELS = {
       solid(sg, [[0.1639, 1.1033], [0.188, 1.1035], [0.2045, 0.9549], [0.1853, 0.9472], [0.1802, 0.9493], [0.176, 0.9546], [0.1695, 1.0052], [0.1552, 1.0851], [0.1562, 1.0956]], 0.056, GM.pad, X, 0.007);
       checker(sg, clipTo(inset(SO, 0.0125), [[0.452, 1.04], [0.478, 1.032], [0.51, 1.07], [0.538, 1.105], [0.536, 1.13], [0.49, 1.12], [0.46, 1.1]]), 0.027, 0.0034, 0.52);
       taperX(sg, pw([[0.3, 1], [0.44, 0.8], [0.5, 0.8], [0.548, 1.02]]));
-    } else {
+    } else fitted(g, () => {   // (the sawn-off mod's own: drawn in the upgrade gold in its picture, ui/melee-art.js)
       solid(g, [[0.371, 1.04], [0.39, 1.07], [0.41, 1.09], [0.427, 1.101], [0.455, 1.114], [0.474, 1.12], [0.489, 1.13], [0.546, 1.134], [0.546, 1.084], [0.491, 1.066], [0.467, 1.066], [0.457, 1.06], [0.437, 1.044], [0.418, 1.018], [0.403, 1.015], [0.395, 1.018], [0.378, 1.028]], 0.05, W, X, 0.01);
       profile(g, shp([[0.369, 1.042], [0.39, 1.072], [0.402, 1.064], [0.392, 1.04], [0.382, 1.023], [0.375, 1.028]]), 0.05, GM.rubber, X, 0.004);   // tape round its end
-    }
+    });
     // ---- the barrels and everything on them, hung on the hinge pin
     const brk = new THREE.Group(); brk.position.set(X, 1.096, 0.705); g.add(brk);
     const bx = (x, yy, z) => [x, yy - 1.096, z - 0.705];

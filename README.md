@@ -235,7 +235,8 @@ recordings are from the pack already in use (`assets/sounds/Guns and stuffs.zip`
 **Their voices.** Every zombie has a voice of its own, pitched for it when it turns up: a walker anywhere from a low
 moan to a reedy one, a sprinter's a ragged shriek that climbs (and it lets one out as it comes out of the treeline,
 most of the time), a brute's a deep, rasping roar (as it charges, too), a spitter's a wet gurgle. They're heard from
-where they are, quieter and off to the side with distance and muffled through the walls, and it's now one, now
+where they are, quieter and off to the side with distance and muffled through the walls (every wall, tall prop and
+shut door or window between you counts, up to three, each muffling it more), and it's now one, now
 another of the few nearest you, more often the more of them are close by, so a crowd round the house moans over
 itself.
 
@@ -396,8 +397,9 @@ the pickups feed) is put away. The host picks one of three modes:
   point furthest from everyone else, and you can change class while you wait.
 - **Team deathmatch.** Two sides, Blue and Red (players alternate between them in the order they joined). Each side
   starts at its own end and respawns there. The first side to 20 kills wins.
-- **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Go down and the
-  view dips to black and comes up on a teammate still standing. The last side standing takes the round. A round left
+- **Showdown.** Two sides (1v1 up to 3v3), one life a round, first side to 5 rounds. Health doesn't come back:
+  what you lose stays lost till the next round. Go down and the view dips to black and comes up on a teammate still
+  standing; you only ever watch your own side (no death camera on whoever got you), stepping between them with Q and E. The last side standing takes the round. A round left
   at 1:00 goes to the side with more players up, then the one with more health between them, otherwise it's a draw.
   Between rounds everyone is back at their spawn, whole again, with a fresh loadout and the chance to change class.
 
@@ -422,22 +424,50 @@ A bot has no wall hacks:
   cover like sandbags doesn't hide you.
 - It hears gunfire up to 28 m away, or 9 m for a suppressed gun, and someone sprinting within 7 m. It only gets a
   rough idea of where the sound came from, rougher the further off it was.
+- A round that goes by it (within about 2 m) it takes as being shot at, and knows just where it came from.
 - It sees a laser's beam: if any of the beam (up to 24 m, stopping at the first wall) is in front of it and in plain
   sight, it knows roughly where it's coming from.
 - When it's hit, it knows roughly where the shot came from.
-- It remembers where it last saw or heard each foe, and when, for 14 seconds.
+- **Call-outs.** In the team modes a bot that sees you tells its side's other bots where you are. They don't react as
+  if they'd seen you themselves, but they know where to look and where to go.
+- It remembers where it last saw or heard each foe, and when, for 14 seconds. **Someone who's shot at it** (a hit or a
+  near miss) it remembers for 40 seconds, and keeps its gun on that spot.
 
 What it does with that:
 
-- **Fights.** It strafes side to side, holds still behind low cover, backs off if its class wants more range, or
-  pushes in. The Rush sprints at you and fires on the run, as its Run and gun perk allows.
-- **Takes cover** when it's hurt or reloading up close, sprinting to a spot out of sight of whoever's shooting.
-- **Waits it out** in cover when it's hurt, till its health has come back.
+- **Fights.** It strafes side to side (changing direction often), holds still behind low cover, backs off if its class
+  wants more range, or pushes in. The Rush sprints at you and fires on the run, as its Run and gun perk allows.
+- **One at a time.** With two or more of you in sight at once (and none right on top of it), it gets out of sight of
+  all of you, then peeks from a spot that sees only one. If there's no such spot it goes round another way.
+- **Shot at from somewhere it can't see**, standing where that spot can see it, it gets into cover from it first, then
+  peeks at it or flanks it.
+- **Takes cover** when it's hurt or empty with you close, sprinting to a spot out of sight of everyone it knows of.
+- **Falls back to heal.** Under 45 health (40 in Showdown) it breaks off, gets well out of sight and stays there,
+  reloading, its gun on where you were. It doesn't peek or go looking till it's healed (88 or more), and only fires
+  back if you're right on it or you're looking straight at it. In Showdown, where health doesn't come back, it plays
+  safe for the rest of the round unless its side pushes.
 - **Swings back out** from cover to a spot that can see where its target was, and fights again.
 - **Flanks or pushes** when it loses sight of someone. It either heads straight for the last place it saw them, or
-  circles round to a spot off to their side, keeping out of sight of that place on the way.
-- **Hunts** round the map when it knows of nobody. In the team modes it drifts toward the other side's half, stopping
-  now and then to look about.
+  circles round to a spot off to their side, keeping out of sight of that place on the way. The more of you it knows
+  of and the more hurt it is, the likelier it flanks.
+- **Searches.** Getting to where you were and finding nobody, it looks round about that spot, out of its own sight,
+  rather than giving up on you. Someone who's shot at it it searches for twice before it moves on.
+- **Hunts** up its lane when it knows of nobody: north, middle or south, picked each round (each life in the
+  respawn modes), so its route changes. In the team modes it heads toward the other side's half.
+- **Leans** out round its cover to peek or hold an angle, to whichever side sees round it.
+
+**Its side plans together** (the team modes, twice a second):
+
+- **Rushes.** In Showdown, with more of them up than of you and someone known, they sometimes (a bit over half the
+  time, each time the numbers change) all rush that spot together at a run, firing as they go and not stopping for
+  cover unless nearly dead. It lasts up to 12 seconds, or till the numbers even up.
+- **Holds.** Outnumbered, they sit back in cover where they are and wait, peeking now and then.
+- **Plays the clock.** In the last 15 seconds of a Showdown round, the side that would lose on time (fewer up, or less
+  health between them) pushes; the side ahead hides and waits it out.
+
+**It learns** over a Showdown match: the lane it went down in, it takes less often in the next rounds, and going down
+in the first 20 seconds of a round on the attack makes it more careful (less keen to push and to rush), while making
+it through a round makes it a little bolder.
 
 Each class fights its own way: the Marksman hangs back at range and swaps to the revolver up close; the Breacher and
 the Rush press in with the shotgun; the Rifleman and the Gunner hold the middle distances.
@@ -492,13 +522,16 @@ The classes: always two guns and a melee weapon, with their attachments and perk
 
 **Changing class mid-match.** Press **L** to bring the class picker up over the match, and again to put it away. A
 class picked while your spawn protection's still running (you've only just come in and haven't fired) is yours at
-once; otherwise it's yours the next time you come in. While you're down in Deathmatch the picker comes up on its own.
+once; otherwise it's yours the next time you come in. While you're down the picker only comes up if you press L: the
+damage card says so, under when you'll be back.
 
 **No bandages, no bleeding.** Your health comes back on its own:
 
-- It starts once you've gone 2 seconds without being hurt.
+- It starts once you've gone 3.75 seconds without being hurt.
 - It comes back slowly at first, then faster and faster.
-- However low you were, you're full again 6.75 seconds after the last hit.
+- However low you were, you're full again 8.5 seconds after the last hit.
+- Once it's started, the health bar shows all that's coming back as a blue stretch ahead of what you have.
+- Not in Showdown: there nothing comes back.
 
 Getting hurt again starts the wait over. Bots heal the same way.
 
@@ -512,8 +545,9 @@ The perks are the survival game's skills and work the same way:
 - **Vault fire**: quicker vaults, and you can shoot while going over.
 - **Quick draw**: quicker weapon swaps.
 
-Each card pictures its guns with the class's own attachments and mods, whatever's fitted to yours. A can adds its little damage between players too, as it does against zombies. You only ever have your class's perks; picking another class swaps them. Each card in the picker lists the attachments
-under each gun and the perks underneath.
+Each card pictures its guns with the class's own attachments and mods, whatever's fitted to yours. A can adds its little damage between players too, as it does against zombies. You only ever have your class's perks; picking another class swaps them. Each card in the picker lists the mods (the sawn-off's
+Sleight of Hand and the like) and the attachments under each gun, and the perks underneath. A gun's mod parts are drawn
+in gold in its picture, the sawn-off's cut-down grip with them.
 
 Each gun starts with a full mag and three more (the LMG one more box; shotguns at least 14 shells). There are no
 pickups, and coming back in gives you a fresh loadout.
@@ -551,8 +585,10 @@ falloff:
 
 **Hit feedback.**
 
-- **Damage numbers** pop up over whoever you hit and add up while you keep hitting them. They're white, and turn gold
-  once a hit's gone in the head.
+- **Damage numbers** pop up just over the head of whoever you hit, from either view, and add up while you keep hitting
+  them. They're white, and turn gold once a hit's gone in the head.
+- **Tagging.** A hit slows whoever takes it for a moment, as in Counter-Strike (a 22-damage rifle hit about 48%, a
+  heavy one up to 62%), wearing off over a second or two. Bots are slowed the same way.
 - Each hit makes the wet sound of it going in, a duller one to the head, and a burst head pops.
 - Down the sights, where the crosshair's put away, a hit shows its own marker over the sight: four short ticks that
   pop out and fade, gold for the head, red for a kill.
@@ -568,7 +604,8 @@ falloff:
 - Their name shows only while you're aiming at them or looking right at them, in plain sight. From your own eyes
   that means near the middle of the view (more leeway close up); from above, your crosshair on the ground close to
   them. It shows in red, a little see-through, never with their health, and never pinned to the edge of the screen.
-  Your own side keeps its outlines, names and health bars in its colour.
+  Your own side keeps its outlines, names and health bars in its colour, and from either view your teammates are
+  outlined through walls while they're alive, gone the moment they go down.
 - **Spawns** in Deathmatch and when you come back in a team game go to the spot furthest from everyone on the other
   side, and never one any of them can see from where they stand, if there's any other choice.
 
@@ -577,7 +614,10 @@ falloff:
 - Every hit throws blood off where it struck, on everyone's screen, and drips on the ground behind.
 - When you're hit, the screen bloods from that side, your survivor stains, you flinch, and the hit indicator points
   at the shooter.
+- A hit puts a fine red mist in the air where it went in, and blood out of their back the way the round was going:
+  a spray behind them and drops splashing on the floor a metre or two back (more for a heavy round or the head).
 - A kill leaves a pool spreading under the body.
+- A blade to the head on the killing blow splits it in two, as it does a zombie's.
 - A headshot kill that hits hard enough (60 or more) bursts the head in a red mist with chips of skull, on every
   screen, and the head stays gone until that player is back.
 - **Limbs come off** as a zombie's do, on the hit that kills:
@@ -590,39 +630,59 @@ falloff:
 
 - **Up top.** Deathmatch shows the clock and everyone's kills as chips in their colour, the leader first. The team
   modes show each side's score in its colour either side of the clock and the mode. Showdown adds five diamonds for
-  rounds won and a figure for each player, greyed out once they're down.
+  rounds won and a figure for each player, greyed out once they're down, and under each side a bar of its health all
+  told (everyone on it added up), white over dark grey, with the numbers. The clock flashes red in its last seconds.
 - **The kill feed** runs down the middle of the left side of the screen. Each line shows the killer, the weapon they
   used (its picture), a red headshot mark for a headshot, how far off they were in metres, and who went down. Your own
-  kills and deaths are picked out in orange.
+  kills and deaths are picked out in orange, and your name is dark on a light chip so it's never one of the players'
+  colours.
 - **Big calls** come up for the round, **Fight**, and the round won or lost with the score.
-- **The results** come up at the end, even if you're down: Victory, Defeat or Draw, with everyone's kills and deaths,
-  and then everyone's back in the lobby.
+- **The scoreboard.** Hold Tab for everyone in the lobby, by side in the team modes: kills, deaths, K/D, damage done,
+  accuracy, headshots, longest kill and ping (a bot's says BOT, the host's HOST).
+- **The results** come up at the end, even if you're down: Victory, Defeat or Draw, and the same table. **Rematch**
+  (the host's) starts the same mode again with the same sides; **Lobby** goes back to the lobby.
+- **Going down.** Nothing crowds the screen: no black bars, no call over the middle. A moment after you fall a card
+  comes up near the bottom: who got you (their picture), with what (its picture), a headshot and how far off, the
+  damage they did to you and in how many hits, what you did to them, and anyone else who hurt you that life. Along its
+  foot, when you're back in and **L** to change class. The class picker only comes up if you press L, and the card gets
+  out of its way.
+- **A kill** brings up a marker under the crosshair: its mark swelling in out of a flash, a line drawn out either side
+  and the name; kills in quick succession are called (Double kill, Triple kill, Quad kill, Rampage).
+- **A teammate down** (the team modes) slides in under the score in red, with how many of your side are left.
+- **Your perks** show as a strip by your health.
 - **The end of the match** slows the game down more and more as the last kill lands, to a dead stop about three
   seconds later, the results over the frozen moment. The clock and the HUD run on real time, so they carry on.
 - **The death camera** goes to whoever killed you and follows them: from above it keeps them in the middle, and from
   your own eyes it draws out of yours and then follows from behind and above them, from your side. It lasts till
-  you're back in, or in Showdown its first 3.5 seconds before it moves to a teammate.
+  you're back in. Not in Showdown, where you only watch your own side.
 - **Inspecting** your weapon from your own eyes puts the HUD away but leaves the count-in, the score, the kill feed,
   the results and the scoreboard up. You can't inspect while the class picker is up.
 
-**The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm is taken away
-for the match and put back after it.
+**The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm (the house,
+its walls, the road, the doorstep) is taken away for the match and put back after it. It's laid out by design, as
+places rather than props scattered about, and checked by a script (tools/arena-plan.py):
 
-- **The size.** 42 by 42 metres inside the walls, more than three times the old yard and almost the whole of the
-  farm's ground.
-- **Three lanes** run west to east between the two spawns, split by long dividers of containers and walls:
-  - **North:** a block building with a door in each wall, a container, a row of barriers, sandbags and crates.
-  - **Middle:** each side's spawn yard, then a long block building with doors east and west, a door at each end and
-    two pillars inside. The centre is a ring of sandbags round an open patch, the Showdown flag's spot.
-  - **South:** a maze of containers, sandbags and crates.
-  - Each divider has three gaps to cross between lanes: one near each side and a wide one in the middle.
+- **The size.** 40 by 40 metres inside the walls, almost the whole of the farm's ground.
+- **Each side's spawn** is a walled yard at its end. Its inner wall is solid, so nothing in the middle sees into it,
+  and you leave it north or south round that wall's ends, past sandbags. **No spot in one spawn can see any spot in the
+  other.**
+- **The middle** is an open plaza round the centre (the Showdown flag's spot), a ring of sandbags in it, with a
+  container stood across the lane at each end and wall stubs at its corners, so it can't be seen across end to end.
+- **North:** a roofless warehouse against the north wall with doors on three sides and crates inside, a loading dock,
+  a pair of containers the lane bends round, and an L of wall to fight round.
+- **South:** a container yard, its rows staggered so no line runs straight through it, and a guard hut in the corner.
+- **Between the lanes** a container and a wall stub each side, with three ways through: by the spawn, part way, and
+  either side of a stub in the very middle.
+- **No sniper lines down the edges.** Along every wall something stands out from it (the warehouse, a container on
+  end, crates on the dock), so the longest straight run anywhere along an edge is 14 m, and nothing crosses the whole
+  map in a straight line.
 - **Cover everywhere.** Containers, block walls and crate stacks stop you, your rounds and your sight. Jersey
   barriers, sandbag walls, drums and spools only stop you: you see and shoot over them, and they come up to about your
   chest.
 - **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
-  hatched pad painted in its colour. Ten spots spread round all three lanes are Deathmatch's spawns.
-- **Vaulting.** The sandbag walls can be vaulted like the farm's fence: walk up to one and press the vault key, or
-  sprint into it.
+  hatched pad painted in its colour. Fourteen spots spread round all three lanes are Deathmatch's spawns.
+- **Vaulting.** The sandbag walls can be vaulted like the farm's fence: walk up to one (a **Vault the sandbags**
+  prompt shows) and press the vault key, or sprint into it. Nothing else of the farm's is in your bag: no planks.
 - **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening. A floodlight on
   a pole stands in each corner and halfway along each wall.
 - **The walls.** Tall precast panels, with the yard's name, its warnings, an arrow to the west gate and a couple of
@@ -653,15 +713,26 @@ any page (moving round the buttons and pressing them) and the arrows scroll; onl
 | --- | --- | --- | --- | --- | --- |
 | W A S D | Walk | Mouse | Aim and fire | Hold F | Board up a window or door |
 | Shift | Sprint | Right click | Aim down the sights | Hold C | Tear a board down |
-| Space | Vault a window or fence | R | Reload | E | Use a station or pick something up |
-| | | L | Change class (arena) | | |
-| Wheel, + − | Zoom | 1 – 4 | Switch weapon | Q | Bandage |
+| Space | Vault a window or fence | R | Reload | F | Use a station or pick something up |
+| Q, E | Lean left, lean right | L | Change class (arena) | | |
+| Wheel, + − | Zoom | 1 – 4 | Switch weapon | X | Bandage |
 | N | Back out of the free camera (cheat menu only; not listed in Settings without it) | V | Shove | T | Start the next wave early |
 | Hold Alt | Free look (first person) | B | Switch fire mode | H | Share a gun (co-op) |
-| | | X | Load the next kind of round | Esc, P | Pause |
+| | | Z | Load the next kind of round | Esc, P | Pause |
 | | | G | Underbarrel grenade | Enter | Chat to your team (co-op) |
 | | | I | Weapon stats | | |
 | | | Y | Inspect your weapon | | |
+
+F does two things: a press uses whatever's in front of you, a hold boards up a window. Keys you set before leaning came
+in are kept, except that use, the bandage and the next kind of round move off E, Q and X if you'd left them there.
+
+**Leaning.** Q and E lean you out to the left and right from the hips, at the hip or down the sights, round a corner or
+over cover. Your upper body tips over (head, arms and gun with it, and everyone else sees you lean), your eyes go about
+32 cm out to that side, and the view rolls a little with them. It eases in and out over about a quarter of a second.
+By default a press leans you and another press (or the other key) straightens you up; Settings, Camera, Lean switches
+it to Hold, where you lean only while the key is held. You lean only as far as there's room, never through a wall. A
+sprint, a vault or going down straightens you up, and leaning at the hip you walk a fifth slower (down the sights it
+costs nothing more).
 
 The fire mode by your ammo count only shows its B hint on a gun that can actually switch modes (the AR, or one
 with a mod that adds a setting). Its little rounds are the gun's own cartridge: a 9mm's round nose, the 10mm's and a magnum's flat
@@ -712,11 +783,13 @@ makes them jump or stutter. The crosshair is wherever the gun points, and it sit
 line of sight meets (a gun's: a melee weapon's crosshair stays its size, in the middle): it's its usual size at range, grows as you come right up to a wall or a zombie (up to about
 1.75 times its size), and eases back as you step away. When the gun's blocked closer than what you're looking at (its
 muzzle up against a wall, a corner between the barrel and the target), the crosshair slides to where the round would
-really stop and goes red, so you can see the shot's blocked and where it'll land. Hold **Alt** to
-look round freely while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
+really stop and goes red, so you can see the shot's blocked and where it'll land. It always sits where the barrel's
+round would stop, whatever's in the way, so up against a wall it's on the wall where the barrel points. Hold **Alt** to
+look round freely (never past straight up or straight down) while the gun stays where it's aimed: your arms and the gun hold still in the world as the view looks
 away from them, rather than drifting round with it, and the view eases back onto them when you let go. The view
 follows you smoothly up and over a vault, bobs and sways with each stride (barely up and down; the gun in your hands swings side to side, nods onto each footfall and rolls with the step a beat behind it, a loose figure of eight rather than a bounce), banks a
-little into a sidestep, dips a touch going forward and widens a little at a sprint; shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently; reloading down the sights,
+little into a sidestep, dips a touch going forward and widens a little at a sprint (where the gun and your arms tip down too, even with Run
+and gun, if a little less); shots kick it up, and a reload's beats, a pump or bolt being worked and hits rock it gently; reloading down the sights,
 the gun and your hands on it still jolt a little as the old mag's shaken out and the new one slapped home. Down the sights the gun isn't nailed to the middle of the view either: it sways a little side to side and dips with each step as you walk, trails a quick turn or look and settles back, and rises and falls with your breath standing still; the view stays where you look, and your shots go where the sights point. The gun's held sway shows too, at the hip and down the sights (a scope's picture wandering with it): a heavy gun, a handgun with nothing to brace it, weight out on the muzzle (a suppressor, a launcher, and a longer or heavier barrel more with every level of it: the match barrel, the revolver's 6" and 8", the heavy barrel), being winded, just knocked by a hit or badly hurt each make the sights drift about more and more, slow and smooth, settling back as you get your breath and steady up. Aiming also darkens the very edges of the screen faintly, your focus narrowing onto the sights. Down the sights you walk slower by the gun: a handgun or the machine pistol hardly slows you (86%, the revolver 82%, the hand cannon 80%), the SMG a little more (80%), then the AR (70%), the shotguns (64 to 66%) and the battle rifle (62%), with the hunting rifle and the LMG slowest (58%); a magnified scope at your eye slows you to 78% of that again. Sprinting, a rifle or SMG is carried across your body, muzzle down to your left, seen from its side (it used to point straight ahead and down so all you saw was its back end). Swinging a melee weapon tips the view the way its head travels across you, and a blow that lands knocks the view back with a nod. Pausing eases whatever your hands were in the middle of (a reload, working the action, the low ready) back to the plain hold, facing straight ahead, and back into it when you resume (in co-op, where the farm keeps going, it doesn't). Every shot kicks the gun in your hands its own way, worked out shot by shot: a handgun turns about your wrists, its muzzle flipping up hard and snapping back down, a touch past the aim before it settles; a long gun is shoved straight back into your shoulder with less flip, a pump or a bolt gun thumping hardest; every gun
 is pushed back toward you a little with each shot, and swings left or right with the crosshair as it's kicked off to the side. Held on the trigger, a full auto chatters and rattles in your hands, a fast buzz through the gun that dies away when you let go, its muzzle climbing and wandering a little more each shot and settling back down after. The kick is kept small and settles quickly, so the view doesn't jump about. No two shots kick the view quite the same: each one's a little harder or softer (the first of a string hardest),
 rolls the view a touch to one side on its own springy spring, and sends a short hard shudder through it that dies away
@@ -726,9 +799,9 @@ nearest part is measured as what of the rear sight reaches back toward your eye,
 carry handle ears reach 2.5 cm further back than its ring, so a maxed-out kick (the hottest powder and trigger) used to
 shove and swing them through the camera. Your eye's also never nearer than 7.2 cm to any of a rear sight's ears or
 block that reaches back toward it: the AR's now 9.5 cm behind its aperture (from 7), the battle rifle 8.1, the SMG
-18.6, the auto shotgun 9.6. And working the hunting rifle's bolt down the sights, your head comes back off the stock
-with the bolt (it comes 13 cm straight back, from under 8 cm in front of your eye to past it), easing back by just as
-far as keeps it 7 cm off and settling back down onto the stock as the bolt goes home. Shots go where the sights point through it. The LMG's rear aperture is a wider ghost ring (8.4 mm across, from 5.2 mm), so its burst always shows the post through it. A bolt-action rifle's kick settles slowly, over about a quarter of a second, straight into working the bolt, rather than snapping back flat and then lifting again for the bolt. Your eye only goes with part of the gun's shove back into your shoulder, so the gun visibly comes back toward you a little with each shot (straight back along your line of sight, the post still in the middle), with its rattle and a held trigger's climb. At the hip the gun's muzzle follows the crosshair's own kick, up and aside, so the two always move together. Each shot is a quick shove and flip that comes back smoothly, only a hair past home; a shotgun flips hardest of all, its shove back only a little more than a rifle's so it's never shoved into your face, and a full auto's buzz drifts rather than flickering frame to frame. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
+18.6, the auto shotgun 9.6. Working the hunting rifle's bolt down the sights, the view holds still and the bolt comes
+back past your eye; the view never follows it. Coming onto a scope, your eye eases in to its eye relief and out again
+rather than starting and stopping dead. Shots go where the sights point. The LMG's rear aperture is a wider ghost ring (8.4 mm across, from 5.2 mm), so its burst always shows the post through it. A bolt-action rifle's kick settles slowly, over about a quarter of a second, straight into working the bolt, rather than snapping back flat and then lifting again for the bolt. Your eye only goes with part of the gun's shove back into your shoulder, so the gun visibly comes back toward you a little with each shot (straight back along your line of sight, the post still in the middle), with its rattle and a held trigger's climb. At the hip the gun's muzzle follows the crosshair's own kick, up and aside, so the two always move together. Each shot is a quick shove and flip that comes back smoothly, only a hair past home; a shotgun flips hardest of all (the double barrel down the sights harder still), its shove back only a little more than a rifle's so it's never shoved into your face, and a full auto's buzz drifts rather than flickering frame to frame. With iron sights the shot goes where the front post is; with an optic it goes where the reticle is (along the optic's own axis), not straight down the middle of the screen, so wherever sway or a kick has put the reticle is where it lands, and pulling a spray's climb down is up to you. When a wall in front of you has the gun tipped down out of the way, the sights go down with it and only come back up once the gun's level again. Looking up, your
 head goes back so the raised gun stays out in front of your eyes. Raising the sights is a spring onto them, starting
 gently, quick through the middle and settling softly, the gun and your arms dipping and canting over on the way up
 and again on the way down, quicker with a handgun;
@@ -874,7 +947,8 @@ not just in the picture. Everything works from first person: picking cards betwe
 hand the mouse back as they close (the Esc that closes the cheat menu or a station never pauses you too, and nor does putting the cheat menu away any other way: its key, its close button, Esc from its search box). While any menu's up the pointer shows over the game as well, not just over the menu (in first person it used to
 vanish over the view behind it). Every menu has the same X in its top right corner to close it, in first person or from
 above: a station (the workbench, the sawhorse, the cabinet, the radio, the gun rack, the strongbox), the settings, the
-pause menu (it resumes), the co-op screen, the cheat menu and the look menu. A bench outlines when you look at it from
+pause menu (it resumes), the cheat menu and the look menu. The co-op screen has none: Back (or Esc) closes it, sliding
+its panels away and fading it out rather than snapping it shut. A bench outlines when you look at it from
 your own eyes, as from above. There's no
 click to look about: the mouse is taken with the click on Start (or the host's Start in co-op), and any click or key
 takes it back once no menu's open. In co-op your teammates see you as you stand, looking up and down where you look,

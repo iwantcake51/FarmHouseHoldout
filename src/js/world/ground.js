@@ -200,7 +200,7 @@ export const FAR_VIEW = new THREE.Group(); FAR_VIEW.visible = false; scene.add(F
     x.fillStyle = 'rgba(214,170,60,.5)'; [0, 8].forEach(u => x.fillRect(pu(u + 0.5), py(0) - 1.5, pu(3), 3));
     const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(RL / 16, 1); t.anisotropy = aniso;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(RL, W), lam(0xffffff, { map: t, transparent: true, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2; m.position.set(0, -0.006, ROAD.z); m.receiveShadow = true; scene.add(m);
+    m.rotation.x = -Math.PI / 2; m.position.set(0, -0.006, ROAD.z); m.receiveShadow = true; m.userData.road = true; scene.add(m);   // (taken away with the farm for the arena: world/arena.js)
   }
   // a power line along the far side of the road: weathered poles (POLES: every gap metres, z out from the road's middle,
   // height), each with its crossarm and three insulators, the wires sagging between

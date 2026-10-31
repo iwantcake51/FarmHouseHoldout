@@ -7,9 +7,13 @@
   background:var(--tex-specks),var(--tex-grime),radial-gradient(ellipse 110% 90% at 50% 40%,rgba(14,12,10,.72),rgba(8,7,6,.94));background-size:240px,cover,auto}
 .coopScr[hidden]{display:none}
 /* (the title's own words and menu put out of sight under it, the farm still showing) */
-body.coopOn #title .inner{visibility:hidden}
+body.coopOn #title .inner{opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s .2s}
+/* (going back: the title's menu fading back in as the panel slides off, net/lobby.js COOP_SHUT) */
+body.coopOn.coopLeaving #title .inner{opacity:1;visibility:visible;transition:opacity .34s ease .06s}
 .coopScr:not([hidden]){animation:screenFade .25s ease-out reverse both}
-.coopScr.closing{animation:screenFade .2s ease-in both;pointer-events:none}
+.coopScr.closing{animation:screenFade .34s cubic-bezier(.4,0,.6,1) both;pointer-events:none}
+.coopScr.closing .coopFrame{animation:coopOut .3s cubic-bezier(.5,0,.75,0) both}
+@keyframes coopOut{to{opacity:0;translate:-28px 0;scale:.985}}
 .coopFrame{width:min(1180px,100%);display:grid;gap:clamp(12px,2.4vh,22px)}
 .coopScr:not([hidden]) .coopFrame{animation:screenIn .35s cubic-bezier(.2,.9,.3,1) both}
 .coopTop{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 22px}
