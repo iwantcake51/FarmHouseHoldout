@@ -918,11 +918,20 @@ checked by a script (tools/arena-plan.py) for reachability, spawn safety, sightl
   same ones everywhere: crates and a barrier in the warehouse, the platform's barriers, sandbags, a spool and one drum
   on the rail spur.
 - **Containers are whole containers.** Each is built as a true box of cells (up to 12 long), so a stack never comes
-  out as an odd thin slab where two rows met; the rail spur's container wall is two containers deep, as they'd stand.
-- **South, the Rail spur: long range** (most sightlines 20 to 26 m, at most about 28), the one place for a rifle: two
+  out as an odd thin slab where two rows met.
+- **South, the Rail spur: long range** (most sightlines 16 to 23 m, at most about 28), the one place for a rifle: two
   rail sidings sunk in the concrete along it, sleepers and all, each ending at a yellow buffer stop by the signal hut
   in the very middle, the platform's edge of barriers beside them, sandbags, a cable spool, a drum and a container stack part way
-  along. A gap at the west end of the container wall, by the courtyard, is the middle's way south.
+  along. A gap at the west end of the container wall, by the courtyard, is the middle's way south. **More room
+  along it.** The container wall between it and the plaza is one container deep now, not two, so the walk along its
+  south side is a two-metre strip rather than the one-metre alley it was between the wall and the stacks; a
+  container stood out from the wall in the very middle (four wide with its mirror) keeps anyone seeing the length of
+  the lane along it, and the stacks part way along reach a metre further south to cut the long diagonals.
+- **Where the rest of the map stays as it is.** Opening up the warehouse (shorter stubs, a smaller stack), thinning the
+  wall stubs at the flag ring's corners, or moving the stubs inside the spawn yards' side exits all looked better on
+  paper but each one opened a sightline of 30 m or more across a lane, let the warehouse see far more of the plaza,
+  or cut the yard's safe spawn spots from 20 to 12, so those keep their size: the warehouse is the close-quarters
+  lane on purpose, and the plaza's corner walls are what keep the north lane out of the middle.
 - **The lanes stay apart.** No spot in the north lane sees any in the south. Rotating between the outer lanes goes
   back through your spawn (safe, slow) or across the plaza (quick, exposed).
 - **No sniper lines down the edges.** The longest straight run along any wall is 18 m (the rail's south wall).

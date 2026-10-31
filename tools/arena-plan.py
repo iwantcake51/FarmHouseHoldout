@@ -66,12 +66,13 @@ put('s', 19, 17, 20, 17); put('s', 19, 24, 20, 24); put('s', 18, 20, 18, 21)   #
 
 
 # ---- SOUTH LANE: the rail spur (rows 30-40; the container wall along row 29 between it and the plaza)
-put('C', 10, 29, 15, 30); put('C', 16, 29, 20, 30)   # two rows of containers along the lane's north side (two deep, as they stand)
+put('C', 10, 29, 15, 29); put('C', 16, 29, 20, 29)   # a row of containers along the lane's north side, one deep (two deep left a one-metre alley along it)
                                              # (a gap at their west end, cols 8-9, by the courtyard: the middle's way south)
+put('C', 19, 30, 20, 31)                     # a container stood out from the wall in the very middle (four wide with its mirror): nothing sees the length of the lane along the wall
 put('h', 19, 34, 20, 38)                     # the signal hut in the middle (four wide with its mirror)
 put('b', 7, 35, 10, 35)                      # the platform edge: barriers along the sidings (row 37: drawn on the floor, world/arena.js AR_YARD)
 put('s', 15, 33, 15, 35)                     # sandbags at the platform's end
-put('C', 12, 32, 13, 34)                     # a container stack part way along: the lane's long, but nothing sees end to end
+put('C', 12, 32, 13, 35)                     # a container stack part way along: the lane's long, but nothing sees end to end
 put('C', 10, 39, 11, 40)                     # a container stood against the south wall: no run along it
 put('r', 6, 38); put('o', 16, 39)   # a cable spool and a drum: the rail yard's own clutter, once each
 
