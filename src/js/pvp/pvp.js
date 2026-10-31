@@ -16,7 +16,9 @@ import { replay } from '../core/dom.js';
 import { angDiff, cache, clamp, rand, rr } from '../core/math.js';
 import { NET, NET_COL, NET_ON, netSend, netTo } from '../net/net.js';
 import { P, PM } from '../player/player.js';
-import { magSize, recomputeEff, S, W, W8 } from '../game/run-state.js';
+import { freshStats, magSize, recomputeEff, S, W, W8 } from '../game/run-state.js';
+import { TIERS } from '../upgrades/tier-table.js';
+import { UPG } from '../upgrades/upgrades.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { buildGuns } from '../weapons/build-weapons.js';
 import { equip } from '../weapons/reload.js';
@@ -51,13 +53,19 @@ const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 120, match: 6
 const PVP_SIDE = { A: { col: '#5fb4e8', name: 'Blue' }, B: { col: '#e2563f', name: 'Red' } };
 // the classes: two guns (each with its attachment steps: game/run-state.js W8.gt) and a melee weapon, mods where a gun
 // has one, and how many bandages; in the order they're offered
+// (each gun's attachments by their line and step, game/run-state.js W8.gt; perks by a skill card's name or a skill line
+// and its step, 'quick:2' for Quick hands II: upgrades/upgrades.js, upgrades/tier-table.js)
 const PVP_CLASSES = [
-  { id: 'rifle', name: 'Rifleman', role: 'Steady at any range', guns: [['ar', { sight: 1 }], ['pistol', {}]], melee: 'machete', band: 2, mags: 3 },
-  { id: 'mark', name: 'Marksman', role: 'One careful shot down a long lane', guns: [['hunting', { sight: 3 }], ['revolver', {}]], melee: 'crowbar', band: 1, mags: 3 },
-  { id: 'rush', name: 'Rush', role: 'Fast on its feet and brutal up close', guns: [['sub', { sight: 2 }], ['dbl', {}, ['sawn']]], melee: 'katana', band: 1, mags: 3 },
-  { id: 'breach', name: 'Breacher', role: 'Holds a corner, clears a room', guns: [['pump', { laser: 1 }], ['smg', {}]], melee: 'axe', band: 2, mags: 3 },
-  { id: 'gunner', name: 'Gunner', role: 'Pins a lane down, slow to move', guns: [['lmg', { sight: 1 }], ['pistol', {}]], melee: 'wrench', band: 2, mags: 1 }
+  { id: 'rifle', name: 'Rifleman', role: 'Steady at any range', guns: [['ar', { sight: 1, laser: 1 }], ['pistol', { laser: 1 }]], melee: 'machete', band: 2, mags: 3, perks: ['Steady aim', 'quick:1'] },
+  { id: 'mark', name: 'Marksman', role: 'One careful shot down a long lane', guns: [['hunting', { sight: 3, supp: 1 }], ['revolver', { loader: 1 }]], melee: 'crowbar', band: 1, mags: 3, perks: ['Steady aim', 'Iron lungs'] },
+  { id: 'rush', name: 'Rush', role: 'Fast on its feet and brutal up close', guns: [['sub', { sight: 2, supp: 1 }], ['dbl', { loader: 1 }, ['sawn']]], melee: 'katana', band: 1, mags: 3, perks: ['boots:1', 'rungun:2'] },
+  { id: 'breach', name: 'Breacher', role: 'Holds a corner, clears a room', guns: [['pump', { laser: 1, choke: 1 }], ['smg', { sight: 1, supp: 1 }]], melee: 'axe', band: 2, mags: 3, perks: ['quick:2', 'Vault fire'] },
+  { id: 'gunner', name: 'Gunner', role: 'Pins a lane down, slow to move', guns: [['lmg', { laser: 1 }], ['pistol', { supp: 1 }]], melee: 'wrench', band: 2, mags: 1, perks: ['quick:1', 'Quick draw'] }
 ];
+// a perk's skill: a card by its name, or a line up to its step
+const pvpPerkOf = s => { const [k, n] = s.split(':'); return n ? { name: TIERS[k].t[n - 1].name, ap() { for (let i = S.tier[k]; i < +n; i++) { TIERS[k].t[i].ap(); S.tier[k]++; } } } : UPG.find(u => u.name === s); };
+// what's fitted to a gun, by name (the name it goes by on that gun, if it has its own)
+const pvpAtts = (id, gt) => Object.keys(gt).map(k => { const st = TIERS[k].t[gt[k] - 1]; return (st.as && st.as[id]) || st.name; });
 // what a round does to a person (body, before its falloff); a melee blow's; and by where it lands (a shotgun's pellets
 // in the head count for less than a bullet's). A hit can open a bleed (PVP_BLEED: the odds by kind, and how many
 // seconds of bleeding: player/bandages.js stops it)
@@ -130,6 +138,7 @@ const pvpRoundSub = () => { const a = PVP.wins[0], b = PVP.wins[1], L = PVP_LIM.
 // ---- your class: the guns and their attachments, the melee weapon, the bandages, full mags and a few more each
 function pvpLoadout() {
   const C = PVP_CLASSES.find(c => c.id === PVP.cls) || PVP_CLASSES[0];
+  Object.assign(S, freshStats()); C.perks.forEach(k => pvpPerkOf(k).ap());   // only this class's perks
   W8.slot = { melee: C.melee, side: null, long: null, auto: null }; W8.owned = [C.melee];
   W8.mods = {}; W8.gt = {}; W8.own = {}; W8.att = {}; W8.rounds = {}; W8.mag = {}; W8.pin = {}; W8.relSave = {};
   ['akMag', 'spent', 'hudSpent', 'open', 'held'].forEach(k => { if (W8[k]) W8[k] = {}; });
@@ -396,7 +405,8 @@ function pvpToast(a, b, kind) {
   const el = hudEls.toast; el.innerHTML = '<small></small><b></b>'; el.firstChild.textContent = a; el.lastChild.textContent = b;
   el.className = 'hud on ' + kind; clearTimeout(pvToastT); pvToastT = setTimeout(() => el.classList.remove('on'), 1800);
 }
-// the class picker: a card for each class, its guns' pictures, its melee weapon and bandages; 1 to 5 or a click
+// the class picker: a card for each class, its guns' pictures and attachments, its perks, its melee weapon and
+// bandages; 1 to 5 or a click
 function pvpPickOpen(on, small) {
   if (!hudEls) return;
   document.body.classList.toggle('pvpPicking', on);
@@ -404,8 +414,8 @@ function pvpPickOpen(on, small) {
   if (!on) return;
   el.innerHTML = `<div class="ppHead"><i class="ppWait">Waiting for everyone to load in…</i><small>${small ? 'Back in soon' : PVP.mode === 'rounds' && PVP.rd > 1 ? 'Round ' + PVP.rd : PVP_MODES[PVP.mode]}</small><b>Choose your class</b><em>1 – ${PVP_CLASSES.length}</em></div><div class="ppRow">` +
     PVP_CLASSES.map((C, k) => `<button type="button" class="ppCard${C.id === PVP.cls ? ' on' : ''}" data-cls="${C.id}"><kbd>${k + 1}</kbd><b>${C.name}</b><small>${C.role}</small><span class="ppGuns">` +
-      C.guns.map(([id]) => { const a = gunArt(id); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}</em></span>`; }).join('') +
-      `</span><span class="ppKit"><span class="ppMelee"><img alt="" src="${meleeArt(C.melee, []).url}">${WEAP[C.melee] ? WEAP[C.melee].name : C.melee}</span><span class="ppBand">${'<i></i>'.repeat(C.band)}${C.band} bandage${C.band > 1 ? 's' : ''}</span></span></button>`).join('') + '</div>';
+      C.guns.map(([id, gt]) => { const a = gunArt(id); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}<i>${pvpAtts(id, gt).join(' · ')}</i></em></span>`; }).join('') +
+      `</span><span class="ppPerks">${C.perks.map(k => `<i>${pvpPerkOf(k).name}</i>`).join('')}</span><span class="ppKit"><span class="ppMelee"><img alt="" src="${meleeArt(C.melee, []).url}">${WEAP[C.melee] ? WEAP[C.melee].name : C.melee}</span><span class="ppBand">${'<i></i>'.repeat(C.band)}${C.band} bandage${C.band > 1 ? 's' : ''}</span></span></button>`).join('') + '</div>';
 }
 function pvpChoose(id) {
   if (!PVP_CLASSES.some(c => c.id === id)) return;

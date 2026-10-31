@@ -408,21 +408,35 @@ seconds), saying so while it waits.
 
 Then comes the **count-in**, before every match and every Showdown round:
 
-- A big number counts down from 5 in the middle of the screen. Each one pops in large and settles, then shrinks away
-  as its second runs, with a tick.
+- A big number counts down from 5 just above the crosshair, so it never covers what you are aiming at. Each one pops
+  in large and settles, then shrinks away as its second runs, with a tick.
 - The screen is grey through it until 2, then fades back to full colour over the last two seconds.
 - Through the count-in you can't walk or shoot, but you can look around, aim down your sights and inspect your
   weapon.
-- At 0 it calls **Fight**. The classes, always two guns and a melee weapon
-with their attachments set:
+- At 0 it calls **Fight**.
 
-| Class | Guns | Melee | Bandages |
-|---|---|---|---|
-| Rifleman | Assault rifle with a red dot, handgun | Machete | 2 |
-| Marksman | Hunting rifle with a scope, revolver | Crowbar | 1 |
-| Rush | Submachine gun with a holo, sawn-off double barrel | Katana | 1 |
-| Breacher | Pump shotgun with a laser, machine pistol | Fire axe | 2 |
-| Gunner | Light machine gun with a red dot, handgun | Pipe wrench | 2 |
+The classes: always two guns and a melee weapon, with their attachments and perks set.
+
+| Class | Guns and attachments | Perks | Melee | Bandages |
+|---|---|---|---|---|
+| Rifleman | Assault rifle (red dot, laser pointer), handgun (laser pointer) | Steady aim, Quick hands | Machete | 2 |
+| Marksman | Hunting rifle (scope, oil-filter can), revolver (speed loader) | Steady aim, Iron lungs | Crowbar | 1 |
+| Rush | Submachine gun (holo, integral suppressor), sawn-off double barrel (Sleight of Hand) | Good boots, Run and gun II | Katana | 1 |
+| Breacher | Pump shotgun (laser pointer, modified choke), machine pistol (red dot, oil-filter can) | Quick hands II, Vault fire | Fire axe | 2 |
+| Gunner | Light machine gun (laser pointer), handgun (oil-filter can) | Quick hands, Quick draw | Pipe wrench | 2 |
+
+The perks are the survival game's skills and work the same way:
+
+- **Steady aim**: every shot lands closer to the crosshair.
+- **Quick hands**: quicker reloads. **Quick hands II** is quicker again, and the pump takes two shells a go.
+- **Iron lungs**: more stamina, which comes back sooner.
+- **Good boots**: faster walking and sprinting.
+- **Run and gun II**: SMGs, pistols, shotguns and the assault rifle fire while you sprint, with a lot more spread.
+- **Vault fire**: quicker vaults, and you can shoot while going over.
+- **Quick draw**: quicker weapon swaps.
+
+A can adds its little damage between players too, as it does against zombies. You only ever have your class's perks; picking another class swaps them. Each card in the picker lists the attachments
+under each gun and the perks underneath.
 
 Each gun starts with a full mag and three more (the LMG one more box; shotguns at least 14 shells). There are no
 pickups, and coming back in gives you a fresh loadout.

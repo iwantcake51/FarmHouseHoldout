@@ -64,11 +64,11 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpToast[data-respawn]:not([data-respawn=""]){opacity:1}
 
 /* the count in: a big number for each second, popping in large and settling, then shrinking away as its second runs */
-#pvpCount{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:4px;opacity:0;visibility:hidden;z-index:7;transition:opacity .3s}
+#pvpCount{position:fixed;left:50%;bottom:calc(50% + 44px);transform:translateX(-50%);display:grid;justify-items:center;gap:4px;opacity:0;visibility:hidden;z-index:7;transition:opacity .3s}
 #pvpCount.on{opacity:1;visibility:visible}
 #pvpCount small{font-family:var(--f-num);font-weight:700;font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
 #pvpCount b{font-family:var(--f-num);font-weight:800;font-size:150px;line-height:.9;color:var(--ink);text-shadow:0 6px 30px rgba(0,0,0,.6)}
-#pvpCount b.tick{animation:pcTick 1s cubic-bezier(.2,.8,.3,1) both}
+#pvpCount b.tick{animation:pcTick 1s cubic-bezier(.2,.8,.3,1) both;transform-origin:50% 100%}
 @keyframes pcTick{0%{opacity:0;transform:scale(1.5)}14%{opacity:1;transform:scale(1)}78%{opacity:1;transform:scale(.94)}100%{opacity:0;transform:scale(.8)}}
 #pvpPick .ppWait{display:none;font-style:normal;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin-bottom:4px;animation:ppBlink 1.2s ease-in-out infinite alternate}
 #pvpPick.loading .ppWait{display:block}
@@ -83,7 +83,7 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpPick .ppHead em{font-style:normal;font-size:11px;letter-spacing:.16em;color:var(--dim)}
 #pvpPick.small .ppHead b{font-size:22px}
 #pvpPick .ppRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:96vw}
-#pvpPick .ppCard{position:relative;display:grid;align-content:start;gap:6px;width:186px;padding:12px 12px 10px;text-align:left;color:var(--ink);background:linear-gradient(180deg,rgba(28,29,30,.95),rgba(16,17,18,.95));border:1px solid rgba(236,230,216,.14);cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
+#pvpPick .ppCard{position:relative;display:grid;align-content:start;gap:6px;width:198px;padding:12px 12px 10px;text-align:left;color:var(--ink);background:linear-gradient(180deg,rgba(28,29,30,.95),rgba(16,17,18,.95));border:1px solid rgba(236,230,216,.14);cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
 #pvpPick .ppCard:hover{transform:translateY(-3px);border-color:rgba(236,230,216,.35)}
 #pvpPick .ppCard.on{border-color:var(--orange);background:linear-gradient(180deg,color-mix(in srgb,var(--orange) 18%,rgba(28,29,30,.95)),rgba(16,17,18,.95));box-shadow:0 0 0 1px var(--orange),0 10px 26px -12px rgba(0,0,0,.9)}
 #pvpPick.small .ppCard{width:150px;padding:8px 9px}
@@ -92,13 +92,16 @@ body.pvp:not(.pvpTeams) #pvpTop{flex-direction:column;align-items:center;gap:4px
 #pvpPick .ppCard>small{font-size:11.5px;color:var(--dim);line-height:1.3;min-height:30px}
 #pvpPick.small .ppCard>small{display:none}
 #pvpPick .ppGuns{display:grid;gap:4px;padding:6px 0;border-top:1px solid rgba(236,230,216,.08);border-bottom:1px solid rgba(236,230,216,.08)}
-#pvpPick .ppGun{display:grid;grid-template-columns:76px 1fr;align-items:center;gap:6px}
-#pvpPick .ppGun img{max-width:76px;max-height:26px;justify-self:start;filter:brightness(1.3)}
-#pvpPick .ppGun em{font-style:normal;font-size:11px;color:var(--ink)}
-#pvpPick .ppKit{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--dim)}
-#pvpPick .ppBand{display:flex;align-items:center;gap:3px}
-#pvpPick .ppMelee{display:flex;align-items:center;gap:6px;color:var(--ink)}
-#pvpPick .ppMelee img{max-width:58px;max-height:20px;filter:brightness(1.3)}
+#pvpPick .ppGun{display:grid;grid-template-columns:66px 1fr;align-items:center;gap:6px}
+#pvpPick .ppGun img{max-width:66px;max-height:26px;justify-self:start;filter:brightness(1.3)}
+#pvpPick .ppGun em{display:grid;font-style:normal;font-size:11px;color:var(--ink)}
+#pvpPick .ppGun em i{font-style:normal;font-size:9.5px;line-height:1.25;color:var(--dim)}
+#pvpPick .ppPerks{display:flex;flex-wrap:wrap;gap:4px}
+#pvpPick .ppPerks i{font-style:normal;font-size:10px;letter-spacing:.03em;color:var(--orange);border:1px solid color-mix(in srgb,var(--orange) 45%,transparent);padding:1px 5px}
+#pvpPick .ppKit{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
+#pvpPick .ppBand{display:flex;align-items:center;gap:3px;white-space:nowrap}
+#pvpPick .ppMelee{display:flex;align-items:center;gap:6px;min-width:0;color:var(--ink)}
+#pvpPick .ppMelee img{max-width:50px;max-height:20px;filter:brightness(1.3)}
 #pvpPick .ppBand i{width:8px;height:8px;background:#e8e2d4;border-radius:1px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
 body.pvpPicking #xh,body.pvpPicking .xhWorld{opacity:0!important}
 
