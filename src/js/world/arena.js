@@ -28,38 +28,40 @@ import { setLightsDirty } from '../barricades/planks.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
-// h the hut's walls, b a jersey barrier, s sandbags, k a stack of crates, o a drum; A and B each side's spawn, F the
-// spots a free-for-all spawns from (on the floor)
+// h the hut's walls, b a jersey barrier, s sandbags (vaulted over: VAULT_LOW), k a stack of crates, o a drum, r a cable
+// spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
 export const ARENA = { on: false, x0: 10, x1: 33, z0: 11, z1: 33, tod: 15.6 };
 const AR_PLAN = [
   '########################',
   '#...o..............o...#',
   '#.F........F...........#',
-  '#..k.CC..CCCCCC..CC.k..#',
+  '#..k.CC..CCCCCC.rCC.k..#',
   '#....CC..CCCCCC..CC....#',
   '#....CC..........CC....#',
-  '#....CCb...bb...bCC....#',
+  '#....CCb...ss...bCC....#',
   '#....CCb........bCC....#',
   '#.A.s..............s.B.#',
   '#.A.s....hh..hh....s.B.#',
-  '#........h....h........#',
-  '#FAA................BBF#',
-  '#........h....h........#',
+  '#......s.h....h.s......#',
+  '#FAA...s........s...BBF#',
+  '#......s.h....h.s......#',
   '#.A.s....hh..hh....s.B.#',
   '#...s..............s...#',
   '#....CCb........bCC....#',
-  '#....CCb...bb...bCC....#',
+  '#....CCb...ss...bCC....#',
   '#....CC..........CC....#',
   '#....CC..CCCCCC..CC....#',
-  '#..k.CC..CCCCCC..CC.k..#',
+  '#..k.CCr.CCCCCC..CC.k..#',
   '#...........F........F.#',
   '#...o..............o...#',
   '########################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
 // whether you see and shoot over it (low) or not
-const AR_H = { '#': 3.2, C: 2.6, h: 2.7, b: 1.1, s: 1.15, k: 1.9, o: 1.05 };
-const AR_LOW = new Set(['b', 's', 'o']);
+const AR_H = { '#': 3.2, C: 2.6, h: 2.7, b: 1.1, s: 1.15, k: 1.9, o: 1.05, r: 1.1 };
+const AR_LOW = new Set(['b', 's', 'o', 'r']);
+// the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
+export const VAULT_LOW = new Set();
 // spawn spots by side, worked out from the plan: [x, z, facing]
 const AR_SPAWN = { A: [], B: [], F: [] };
 const AR_KIND = (i, j) => { const r = AR_PLAN[j - ARENA.z0]; return r ? r[i - ARENA.x0] || '#' : '#'; };
@@ -87,6 +89,7 @@ function arFloorTex() {
   const rnd = seeded(7331);
   for (let k = 0; k < 2600; k++) { const r = 2 + rnd() * 26; x.fillStyle = `rgba(${rnd() < 0.5 ? '60,58,54' : '150,146,138'},${0.03 + rnd() * 0.06})`; x.beginPath(); x.arc(rnd() * W, rnd() * W, r, 0, 7); x.fill(); }
   for (let k = 0; k < 40; k++) { const r = 10 + rnd() * 60; const g = x.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, 'rgba(30,28,26,0.32)'); g.addColorStop(1, 'rgba(30,28,26,0)'); x.save(); x.translate(rnd() * W, rnd() * W); x.scale(1, 0.5 + rnd()); x.fillStyle = g; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); x.restore(); }   // oil
+  for (let k = 0; k < 9; k++) { const r = 18 + rnd() * 50, g = x.createRadialGradient(0, 0, r * 0.4, 0, 0, r); g.addColorStop(0, 'rgba(52,58,62,0.55)'); g.addColorStop(1, 'rgba(52,58,62,0)'); x.save(); x.translate(rnd() * W, rnd() * W); x.scale(1.6, 0.7 + rnd() * 0.5); x.fillStyle = g; x.beginPath(); x.arc(0, 0, r, 0, 7); x.fill(); x.restore(); }   // wet patches, where the pad dips
   x.strokeStyle = 'rgba(40,38,34,0.16)'; x.lineWidth = 14;   // tyre marks, sweeping across
   for (let k = 0; k < 6; k++) { x.beginPath(); const y0 = rnd() * W; x.moveTo(-20, y0); x.bezierCurveTo(W * 0.3, y0 + (rnd() - 0.5) * 400, W * 0.7, y0 + (rnd() - 0.5) * 400, W + 20, y0 + (rnd() - 0.5) * 200); x.stroke(); }
   x.strokeStyle = 'rgba(48,46,42,0.55)'; x.lineWidth = 2.2;   // the joints
@@ -122,13 +125,16 @@ function arBuild() {
       if (k === '#') arWall(parts, i, j, x, z);
       else if (k === 'h') arHut(parts, i, j, x, z);
       else if (k === 'b') arBarrier(parts, i, j, x, z);
-      else if (k === 's') arBags(parts, x, z, AR_KIND(i, j - 1) === 's' || AR_KIND(i, j + 1) === 's');
+      else if (k === 's') arBags(parts, i, j, x, z, AR_KIND(i, j - 1) === 's' || AR_KIND(i, j + 1) === 's');
+      else if (k === 'r') arSpool(parts, x, z);
       else if (k === 'k') arCrates(parts, x, z);
       else if (k === 'o') arDrums(parts, x, z);
       else if (k === 'C' && !did.has(idx(i, j))) arContainer(parts, i, j, did);
     }
     arFlood(parts, g);
     arFence(parts, g);
+    arSigns(g);
+    arOutside(parts, g);
     mergeInto(g, parts);
     arP = arParts = null;
   });
@@ -173,12 +179,18 @@ function arBarrier(parts, i, j, x, z) {
   cellBox[idx(i, j)] = along === 'z' ? [x - 0.32, z - 0.5, x + 0.32, z + 0.5] : [x - 0.5, z - 0.32, x + 0.5, z + 0.32];
 }
 // a sandbag wall: rows of bags laid like bricks, each a little off, the rows offset
-function arBags(parts, x, z, alongZ) {
+function arBags(parts, i, j, x, z, alongZ) {
+  cellBox[idx(i, j)] = alongZ ? [x - 0.28, z - 0.5, x + 0.28, z + 0.5] : [x - 0.5, z - 0.28, x + 0.5, z + 0.28];
   for (let r = 0; r < 5; r++) for (let n = 0; n < 3; n++) {
     const o = -0.36 + n * 0.36 + (r % 2 ? 0.18 : 0); if (Math.abs(o) > 0.5) continue;
     const m = arPush(parts, box2(alongZ ? 0.5 : 0.36, 0.2, alongZ ? 0.36 : 0.5, rand() < 0.3 ? AR_M.bagDk : AR_M.bag, x + (alongZ ? rr(-0.03, 0.03) : o), 0.1 + r * 0.21, z + (alongZ ? o : rr(-0.03, 0.03))));
     m.rotation.y = rr(-0.08, 0.08);
   }
+}
+// a cable spool on its side: two wooden flanges and the drum of black cable between them
+function arSpool(parts, x, z) {
+  for (const o of [-0.38, 0.38]) { const f = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.07, 16), AR_M.crate)); f.rotation.z = Math.PI / 2; f.position.set(x + o, 0.55, z); f.castShadow = f.receiveShadow = true; }
+  const d = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 14), AR_M.contDk)); d.rotation.z = Math.PI / 2; d.position.set(x, 0.55, z); d.castShadow = d.receiveShadow = true;
 }
 // two crates stacked, the top one turned a little, their slats and corner boards darker
 function arCrates(parts, x, z) {
@@ -226,6 +238,66 @@ function arFence(parts, g) {
     arPush(parts, box2(az === bz ? L : 0.05, 0.05, az === bz ? 0.05 : L, AR_M.pole, (ax + bx) / 2, top, (az + bz) / 2));
   });
 }
+// what's painted and sprayed on it: the yard's name and its warnings stencilled on the walls, a tag or two, arrows to
+// each side's end, a container's number
+function arSigns(g) {
+  const sign = (text, w, h, col, font, x, y, z, ry, bg) => {
+    const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w); const t = c.getContext('2d');
+    if (bg) { t.fillStyle = bg; t.fillRect(0, 0, c.width, c.height); }
+    t.fillStyle = col; t.font = font; t.textAlign = 'center'; t.textBaseline = 'middle'; t.fillText(text, c.width / 2, c.height / 2 + 4);
+    for (let k = 0; k < 260; k++) { t.clearRect(Math.random() * c.width, Math.random() * c.height, 2 + Math.random() * 6, 2 + Math.random() * 4); }   // (worn)
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: new THREE.CanvasTexture(c), transparent: true, alphaTest: 0.2 }));
+    m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; g.add(m);
+  };
+  const xW = cxw(ARENA.x0) + 0.505, zN = cxw(ARENA.z0) + 0.505, mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
+  sign('YARD 4', 3.4, 1.1, 'rgba(222,212,186,0.85)', '700 150px "Saira Extra Condensed", sans-serif', mid, 2.2, zN, 0);
+  sign('NO SMOKING · NO ENTRY', 3.2, 0.5, 'rgba(196,58,40,0.9)', '700 64px "Saira Extra Condensed", sans-serif', mid - 6, 1.3, zN, 0);
+  sign('◄ WEST GATE', 2.4, 0.5, 'rgba(95,180,232,0.85)', '700 70px "Saira Extra Condensed", sans-serif', xW, 1.5, mid - 3, Math.PI / 2);
+  sign('ROT', 1.6, 0.9, 'rgba(160,210,90,0.8)', 'italic 900 170px "Archivo", sans-serif', xW, 1.1, mid + 4.5, Math.PI / 2);
+  sign('KESSLER 77', 2.8, 0.7, 'rgba(240,240,236,0.7)', 'italic 900 120px "Archivo", sans-serif', mid + 5.5, 1.4, zN, 0);
+  sign('HIGH LOAD — KEEP CLEAR', 3, 0.45, 'rgba(20,20,18,0.85)', '700 60px "Saira Extra Condensed", sans-serif', mid - 5.5, 2.6, zN, 0, 'rgba(201,164,58,0.9)');
+}
+// ---- outside the walls: the rest of the terminal. On the two sides away from the camera from above (north and west)
+// the tall things, a warehouse with its roller doors, containers stacked three high under a gantry crane and two high
+// along the west, a light tower; on the camera's sides only what's low, so nothing stands between it and the yard: a
+// rail line with a flatcar on it, pallets, a forklift, a line of barriers. All on a worn asphalt apron, with the woods
+// cleared back from it (arenaUp)
+function arOutside(parts, g) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const t = c.getContext('2d');
+  t.fillStyle = '#4b4a47'; t.fillRect(0, 0, 512, 512);
+  for (let k = 0; k < 3000; k++) { t.fillStyle = `rgba(${Math.random() < 0.5 ? '30,30,28' : '110,108,100'},${0.05 + Math.random() * 0.12})`; t.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1 + Math.random() * 3); }
+  for (let k = 0; k < 14; k++) { t.strokeStyle = 'rgba(25,25,24,0.4)'; t.lineWidth = 1.5; t.beginPath(); let a = Math.random() * 512, b = Math.random() * 512; t.moveTo(a, b); for (let q = 0; q < 8; q++) { a += (Math.random() - 0.5) * 60; b += (Math.random() - 0.5) * 60; t.lineTo(a, b); } t.stroke(); }
+  const tx = new THREE.CanvasTexture(c); tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(7, 7);
+  const ap = new THREE.Mesh(new THREE.PlaneGeometry(AR_OUT * 2, AR_OUT * 2), lam(0xffffff, { map: tx })); ap.rotation.x = -Math.PI / 2; ap.position.set(0, 0.006, 0.5); ap.receiveShadow = true; g.add(ap);
+  const B = (w, h, d, m, x, y, z) => arPush(parts, box2(w, h, d, m, x, y, z));
+  const M = { wh: lam(0x7d8486), whDk: lam(0x5d6466), roof: lam(0x4a4f52), door: lam(0x9a9c94), crane: lam(0xd8a52a), craneDk: lam(0x4a4030), rail: lam(0x5a4e44), tie: lam(0x3c3027), steel: lam(0x6a6e70), yel: lam(0xc79b2b), pal: lam(0x9c8058) };
+  // the warehouse, north
+  { const x0 = -17, x1 = 5, z0 = -21, z1 = -14.5, H = 7;
+    B(x1 - x0, H, z1 - z0, M.wh, (x0 + x1) / 2, H / 2, (z0 + z1) / 2);
+    for (let x = x0 + 0.4; x < x1; x += 0.6) B(0.12, H - 0.3, 0.06, M.whDk, x, H / 2, z1 + 0.02);   // (its cladding's ribs)
+    B(x1 - x0 + 0.6, 0.35, z1 - z0 + 0.6, M.roof, (x0 + x1) / 2, H + 0.17, (z0 + z1) / 2);
+    for (const dx of [-12, -5.5, 1]) { B(4.2, 4.6, 0.12, M.door, dx, 2.3, z1 + 0.1); for (let y = 0.3; y < 4.6; y += 0.25) B(4.2, 0.03, 0.14, M.whDk, dx, y, z1 + 0.11); B(4.6, 0.3, 0.3, M.yel, dx, 4.75, z1 + 0.15); } }
+  // containers three high under the gantry crane, north-east of the yard
+  const col = [AR_M.cont[0], AR_M.cont[1], AR_M.cont[2], AR_M.cont[3], lam(0x6b2f3a), lam(0x2f6060)];
+  let ci2 = 0;
+  for (let r = 0; r < 3; r++) for (let n = 0; n < 3; n++) for (let y = 0; y < 3 - (r === 2 && n === 1 ? 1 : 0); y++) { const m = col[(ci2++ * 5) % col.length]; B(6, 2.55, 2.4, m, 9 + n * 6.2, 1.3 + y * 2.6, -20 + r * 2.5); B(6.02, 0.1, 2.42, AR_M.contDk, 9 + n * 6.2, 0.06 + y * 2.6, -20 + r * 2.5); }
+  { const H = 12.5; for (const x of [5.5, 25]) { for (const z of [-21.5, -12.6]) B(0.6, H, 0.6, M.crane, x, H / 2, z); B(0.6, 0.8, 9.5, M.crane, x, H - 0.4, -17); B(0.4, 0.4, 9.5, M.crane, x, 1.4, -17); }
+    for (const z of [-21.5, -12.6]) B(20.2, 1.1, 0.8, M.crane, 15.25, H + 0.4, z);
+    B(2.6, 1.6, 2.4, M.craneDk, 13, H + 1.2, -17); B(0.06, 5, 0.06, M.steel, 13, H - 2.6, -17); B(2.4, 0.3, 1.2, M.craneDk, 13, H - 5.2, -17); }
+  // containers two high along the west
+  for (let n = 0; n < 4; n++) for (let y = 0; y < (n === 2 ? 1 : 2); y++) { const m = col[(n * 3 + y * 2 + 1) % col.length]; B(2.4, 2.55, 6, m, -17.5, 1.3 + y * 2.6, -9 + n * 6.3); B(2.42, 0.1, 6.02, AR_M.contDk, -17.5, 0.06 + y * 2.6, -9 + n * 6.3); }
+  // a light tower, south-west, its four lamps
+  { const x = -18, z = 15, H = 14; const p = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, H, 10), AR_M.pole)); p.position.set(x, H / 2, z); p.castShadow = true;
+    B(2.2, 0.15, 0.6, AR_M.pole, x, H, z); for (const o of [-0.8, -0.27, 0.27, 0.8]) { B(0.45, 0.35, 0.2, AR_M.pole, x + o, H + 0.3, z + 0.1); box(g, 0.38, 0.28, 0.02, AR_M.lamp, x + o, H + 0.3, z + 0.21); } }
+  // the camera's sides: a rail line south with a flatcar, pallets, a forklift; barriers along the east
+  { const z = 16; for (const o of [-0.72, 0.72]) B(40, 0.14, 0.09, M.rail, 0, 0.07, z + o); for (let x = -20; x <= 20; x += 0.7) B(0.22, 0.08, 2.2, M.tie, x, 0.04, z);
+    B(12, 0.4, 2.6, M.steel, 4, 1.0, z); B(12, 0.15, 2.7, M.craneDk, 4, 1.25, z); for (const x of [-0.5, 8.5]) for (const o of [-0.72, 0.72]) { const w = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.12, 12), AR_M.contDk)); w.rotation.x = Math.PI / 2; w.position.set(x, 0.42, z + o); } }
+  for (const [x, z, n] of [[-8, 19, 3], [-6.4, 19.2, 2], [14, 15, 2], [16, 19, 4]]) for (let y = 0; y < n; y++) { B(1.2, 0.14, 1.0, M.pal, x, 0.07 + y * 0.15, z); }
+  { const x = 16.5, z = 7; B(1.3, 0.9, 2.3, M.yel, x, 0.75, z); B(1.2, 1.3, 1.1, M.craneDk, x, 1.8, z + 0.4); B(0.1, 2.4, 0.1, M.steel, x - 0.45, 1.5, z - 1.25); B(0.1, 2.4, 0.1, M.steel, x + 0.45, 1.5, z - 1.25); B(1.1, 0.06, 1.0, M.steel, x, 0.15, z - 1.75); }
+  for (let z = -8; z <= 10; z += 2.2) { B(0.6, 0.35, 2, AR_M.barrier, 14.2, 0.18, z); B(0.25, 0.6, 2, AR_M.barrier, 14.2, 0.65, z); }
+}
+// how far out the terminal's apron goes from the middle (m), and the woods cleared back to it
+const AR_OUT = 21;
 // a floodlight on its pole in each corner, its head tipped down into the yard
 function arFlood(parts, g) {
   const c = [[ARENA.x0 + 1, ARENA.z0 + 1], [ARENA.x1 - 1, ARENA.z0 + 1], [ARENA.x0 + 1, ARENA.z1 - 1], [ARENA.x1 - 1, ARENA.z1 - 1]];
@@ -260,7 +332,15 @@ export function arenaUp() {
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
     if (k === '#' || k === 'h') cell[c] = WALL;
-    else if (AR_H[k]) { cell[c] = OBST; obstTop.set(c, AR_H[k]); if (AR_LOW.has(k)) lowObst.add(c); }
+    else if (AR_H[k]) { cell[c] = OBST; obstTop.set(c, AR_H[k]); if (AR_LOW.has(k)) lowObst.add(c); if (k === 's') VAULT_LOW.add(c); }
+  }
+  // the woods cleared back from the terminal's apron: the farm's own trees there drawn at nothing, kept to put back
+  arTrees.length = 0;
+  for (const o of FARM_ROOTS) {
+    if (!o.isInstancedMesh || o.parent !== scene) continue;
+    let did = false;
+    for (let k = 0; k < o.count; k++) { o.getMatrixAt(k, _aTM); _aTV.setFromMatrixPosition(_aTM); if (Math.abs(_aTV.x) < AR_OUT + 1.5 && Math.abs(_aTV.z - 0.5) < AR_OUT + 1.5) { arTrees.push([o, k, _aTM.clone()]); o.setMatrixAt(k, _aTZero); did = true; } }
+    if (did) o.instanceMatrix.needsUpdate = true;
   }
   arCellBoxes();
   scene.add(arG);
@@ -269,6 +349,7 @@ export function arenaUp() {
   LMU.uHouse.value.set(-1e3, -1e3, -1e3, -1e3);   // (no roof keeping the clouds' shade off the middle)
   setLightsDirty(true); setVisKey(''); stillShadowsReset();
 }
+const arTrees = [], _aTM = new THREE.Matrix4(), _aTV = new THREE.Vector3(), _aTZero = new THREE.Matrix4().makeScale(0, 0, 0).setPosition(0, -50, 0);
 // (the barriers' footprints, as their meshes stand: they're built once, so put back every match)
 const arBoxes = [];
 function arCellBoxes() {
@@ -279,8 +360,9 @@ function arCellBoxes() {
 function arGrass(o) { const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); return g.boundingBox.max.y - g.boundingBox.min.y < 3; }
 export function arenaDown() {
   if (!ARENA.on) return;
-  ARENA.on = false;
+  ARENA.on = false; VAULT_LOW.clear();
   scene.remove(arG);
+  for (const [o, k, m] of arTrees) { o.setMatrixAt(k, m); o.instanceMatrix.needsUpdate = true; } arTrees.length = 0;
   const s = arSaved; arSaved = null;
   s.out.forEach(o => scene.add(o));
   cell.set(s.cell); for (let k = 0; k < openAt.length; k++) openAt[k] = s.open[k]; for (let k = 0; k < cellBox.length; k++) cellBox[k] = s.box[k];

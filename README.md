@@ -403,7 +403,17 @@ the pickups feed) is put away. The host picks one of three modes:
 
 A match opens on the **class picker**: five cards, each with its two guns and its melee weapon (each pictured) and
 its bandages. Click one or press 1 to 5. Everyone stands frozen at their spawn while picking (10 seconds at the start, 6
-between rounds), then there's a three-second count-in and **Fight**. The classes, always two guns and a melee weapon
+between rounds). At the start, the picker's clock waits until every player has loaded into the arena (up to 15
+seconds), saying so while it waits.
+
+Then comes the **count-in**, before every match and every Showdown round:
+
+- A big number counts down from 5 in the middle of the screen. Each one pops in large and settles, then shrinks away
+  as its second runs, with a tick.
+- The screen is grey through it until 2, then fades back to full colour over the last two seconds.
+- Through the count-in you can't walk or shoot, but you can look around, aim down your sights and inspect your
+  weapon.
+- At 0 it calls **Fight**. The classes, always two guns and a melee weapon
 with their attachments set:
 
 | Class | Guns | Melee | Bandages |
@@ -479,16 +489,26 @@ pickups, and coming back in gives you a fresh loadout.
 **The map** is an old freight yard (Yard 4) in a clearing in the woods, where the farm stands: the farm is taken away
 for the match and put back after it.
 
-- **The layout.** A cast concrete pad (expansion joints, oil stains, tyre marks, cracks) is walled round with tall
-  precast panels. Two shipping containers stand down each side and two across the middle, ribbed, in rust red, faded
+- **The layout.** A cast concrete pad (expansion joints, oil stains, tyre marks, cracks, wet patches) is walled round
+  with tall precast panels. Two shipping containers stand down each side and two across the middle, ribbed, in rust red, faded
   blue, olive and ochre. In the very middle is a roofless block hut with a doorway in each wall. There are jersey
-  barriers with a stripe of warning paint, sandbag walls, two-high crate stacks, drums, and a floodlight on a pole in
-  each corner.
+  barriers with a stripe of warning paint, sandbag walls (across the middle lanes, in front of the hut's side doorways
+  and at each spawn), two-high crate stacks, drums, cable spools, and a floodlight on a pole in each corner. The walls
+  carry their paint: the yard's name, its warnings, an arrow to the west gate, and a couple of tags.
+- **Vaulting.** The sandbag walls can be vaulted like the farm's fence: walk up to one and press the vault key, or
+  sprint into it.
 - **The two halves** mirror each other, so neither side is better off: west against east, each side's spawn a
   hatched pad painted in its colour.
 - **The light.** It's always mid-afternoon there, the sun starting down and the shadows lengthening.
 - **What blocks what.** The walls, containers, hut and crates stop you, your rounds and your sight. The barriers,
-  sandbags and drums only stop you: you see and shoot over them, and they come up to about your chest.
+  sandbags, drums and spools only stop you: you see and shoot over them, and they come up to about your chest.
+- **The south and east walls**, the camera's sides when you play from above, stand only waist high with chain-link
+  over them to full height, so nobody near them is lost behind them.
+- **Outside** is the rest of a freight terminal on a worn asphalt apron, with the woods cleared back from it.
+  - On the far sides from the camera: a long warehouse with its roller doors, containers stacked three high under a
+    yellow gantry crane, two-high stacks along the west, and a light tower.
+  - On the camera's sides, only low things: a rail line with a flatcar, pallets, a forklift and a line of barriers.
+  - From your own eyes the crane and the stacks make a skyline over the walls.
 
 ## Controls
 

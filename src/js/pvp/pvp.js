@@ -12,6 +12,7 @@
 // of them tell everyone who did it ('pk'). The host keeps the score and the clock ('pm') for everyone.
 
 import { cv, scene, V3 } from '../core/renderer.js';
+import { replay } from '../core/dom.js';
 import { angDiff, cache, clamp, rand, rr } from '../core/math.js';
 import { NET, NET_COL, NET_ON, netSend, netTo } from '../net/net.js';
 import { P, PM } from '../player/player.js';
@@ -45,7 +46,7 @@ import { los } from '../lighting/lightmap.js';
 // Showdown; how long a Showdown round runs before it's called (s), and the cap on a whole Deathmatch (s)
 export const PVP_MODES = { ffa: 'Deathmatch', tdm: 'Team deathmatch', rounds: 'Showdown' };
 const PVP_LIM = { ffa: 15, tdm: 20, rounds: 5 };
-const PVP_T = { pick0: 10, pick: 6, count: 3, round: 120, match: 600, roundEnd: 4, over: 9, respawn: 4.5, prot: 1.6 };
+const PVP_T = { pick0: 10, pick: 6, count: 5, loadWait: 15, round: 120, match: 600, roundEnd: 4, over: 9, respawn: 4.5, prot: 1.6 };
 // each side's colour (A west, B east), and its name
 const PVP_SIDE = { A: { col: '#5fb4e8', name: 'Blue' }, B: { col: '#e2563f', name: 'Red' } };
 // the classes: two guns (each with its attachment steps: game/run-state.js W8.gt) and a melee weapon, mods where a gun
@@ -73,6 +74,14 @@ export const pvpFoe = p => PVP.on && (PVP.mode === 'ffa' || pvSideOf(p.id) !== P
 export const pvpMate = p => PVP.on && PVP.mode !== 'ffa' && pvSideOf(p.id) === PVP.side;
 // frozen in place: picking a class, the count in, a round called, the match over
 export const pvpFrozen = () => PVP.on && PVP.ph !== 'live';
+// how grey the screen is (0 none, 1 all): grey while you pick and through the count in, the colour coming back over its
+// last PVP_GREY seconds (ui/hud.js)
+const PVP_GREY = 2;
+export const pvpGrey = () => !PVP.on ? 0 : PVP.ph === 'pick' ? 1 : PVP.ph === 'count' ? clamp(PVP.t / PVP_GREY, 0, 1) : 0;
+// who's in the arena and ready: the class picker's clock waits for everyone (or PVP_T.loadWait at most), so nobody's
+// still on the loading screen when the count starts. Kept across the start, as someone can be in before the host is
+const pvpIn = new Set();
+NET_ON.pl = m => { pvpIn.add(m.f); };
 // the class picker's up (the pointer's freed for it: game/view-cam.js)
 export const pvpPicking = () => PVP.on && document.body.classList.contains('pvpPicking');
 const isHost = () => NET.host;
@@ -94,12 +103,13 @@ export function pvpBegin() {
   document.body.classList.add('pvp'); document.body.classList.toggle('pvpTeams', PVP.mode !== 'ffa');
   pvpHudBuild();
   pvpSpawnMe(true);
+  PVP.waitT = 0; pvpIn.add(NET.id); netSend('pl', {});   // (in: the host's clock starts once everyone is)
   pvpPhase('pick', PVP_T.pick0);
 }
 // the match over and done with (back to the lobby, or the game left): the farm back
 export function pvpEnd() {
   if (!PVP.on) return;
-  PVP.on = false; PVP.ph = 'idle';
+  PVP.on = false; PVP.ph = 'idle'; pvpIn.clear();
   document.body.classList.remove('pvp', 'pvpTeams', 'pvpPicking');
   pvpHudHide();
 }
@@ -108,7 +118,8 @@ function pvpPhase(ph, t) {
   const was = PVP.ph; PVP.ph = ph; PVP.t = t;
   if (ph === 'pick') { PVP.picked = false; pvpPickOpen(true); if (was === 'roundEnd' || was === 'idle') pvpSpawnMe(true); }
   else pvpPickOpen(false);
-  if (ph === 'count') { pvpLoadout(); pvpBanner(PVP.mode === 'rounds' ? 'Round ' + PVP.rd : 'Get ready', PVP.mode === 'rounds' ? pvpRoundSub() : PVP_MODES[PVP.mode], 'count'); SFX.click(); }
+  if (ph === 'count') { pvpLoadout(); PVP.cn = 0; hudEls.count.querySelector('small').textContent = PVP.mode === 'rounds' ? 'Round ' + PVP.rd + ' · ' + pvpRoundSub() : PVP_MODES[PVP.mode]; }
+  hudEls.count.classList.toggle('on', ph === 'count');
   if (ph === 'live') { PVP.prot = PVP_T.prot; pvpBanner('Fight', '', 'go'); SFX.wave(); }
   if (ph === 'roundEnd') pvpRoundBanner();
   if (ph === 'over') pvpResults();
@@ -270,7 +281,9 @@ export function pvpUpdate(dt) {
   PVP.prot = Math.max(0, PVP.prot - dt);
   if (pvpFrozen()) P.stun = Math.max(P.stun || 0, 0.06);
   // the clock: the host's runs it, everyone else's follows it (and is put right by each word from the host)
-  PVP.t = Math.max(0, PVP.t - dt);
+  const loading = isHost() && PVP.rd === 1 && PVP.ph === 'pick' && roster().some(r => !pvpIn.has(r.id)) && (PVP.waitT += dt) < PVP_T.loadWait;
+  if (!loading) PVP.t = Math.max(0, PVP.t - dt);
+  if (hudEls) hudEls.pick.classList.toggle('loading', loading);
   if (isHost()) {
     if (PVP.t <= 0) pvpTimeUp();
     else if (PVP.ph === 'live' && PVP.mode === 'rounds') pvpCheckRound();
@@ -328,7 +341,8 @@ let hudEls = null;
 function pvpHudBuild() {
   if (!hudEls) {
     const mk = (id, cls) => { const d = document.createElement('div'); d.id = id; d.className = 'hud ' + (cls || ''); document.body.appendChild(d); return d; };
-    hudEls = { top: mk('pvpTop'), feed: mk('pvpFeed'), ban: mk('pvpBan'), pick: mk('pvpPick'), res: mk('pvpRes'), toast: mk('pvpToast') };
+    hudEls = { top: mk('pvpTop'), feed: mk('pvpFeed'), ban: mk('pvpBan'), pick: mk('pvpPick'), res: mk('pvpRes'), toast: mk('pvpToast'), count: mk('pvpCount') };
+    hudEls.count.innerHTML = '<small></small><b></b>';
     hudEls.pick.addEventListener('click', e => { const b = e.target.closest('[data-cls]'); if (b) pvpChoose(b.dataset.cls); });
     addEventListener('keydown', e => { if (!PVP.on || !document.body.classList.contains('pvpPicking')) return; const n = +e.key; if (n >= 1 && n <= PVP_CLASSES.length) { pvpChoose(PVP_CLASSES[n - 1].id); e.preventDefault(); } });
   }
@@ -339,6 +353,8 @@ function pvpHudHide() { if (hudEls) Object.values(hudEls).forEach(e => { e.hidde
 const fmtT = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
 function pvpHud() {
   if (!hudEls) return;
+  // the count in: a big number for each second left, popping in and shrinking away as the second runs (a tick with it)
+  if (PVP.ph === 'count') { const n = Math.ceil(PVP.t); if (n !== PVP.cn && n > 0) { PVP.cn = n; const b = hudEls.count.querySelector('b'); b.textContent = n; replay(b, 'tick'); SFX.click(); } }
   const T = Math.ceil(PVP.t), key = [PVP.ph, T, JSON.stringify(PVP.sc), PVP.ts.join(), PVP.wins.join(), PVP.rd, P.dead ? 1 : 0, Math.ceil(PVP.respawn), [...NET.peers.values()].map(p => p.dead ? 1 : 0).join('')].join('|');
   if (PVP.key === key) return; PVP.key = key;
   const el = hudEls.top, clock = PVP.ph === 'live' || PVP.ph === 'pick' || PVP.ph === 'count' ? fmtT(Math.max(0, PVP.t)) : '';
@@ -386,7 +402,7 @@ function pvpPickOpen(on, small) {
   document.body.classList.toggle('pvpPicking', on);
   const el = hudEls.pick; el.classList.toggle('on', on); el.classList.toggle('small', !!small);
   if (!on) return;
-  el.innerHTML = `<div class="ppHead"><small>${small ? 'Back in soon' : PVP.mode === 'rounds' && PVP.rd > 1 ? 'Round ' + PVP.rd : PVP_MODES[PVP.mode]}</small><b>Choose your class</b><em>1 – ${PVP_CLASSES.length}</em></div><div class="ppRow">` +
+  el.innerHTML = `<div class="ppHead"><i class="ppWait">Waiting for everyone to load in…</i><small>${small ? 'Back in soon' : PVP.mode === 'rounds' && PVP.rd > 1 ? 'Round ' + PVP.rd : PVP_MODES[PVP.mode]}</small><b>Choose your class</b><em>1 – ${PVP_CLASSES.length}</em></div><div class="ppRow">` +
     PVP_CLASSES.map((C, k) => `<button type="button" class="ppCard${C.id === PVP.cls ? ' on' : ''}" data-cls="${C.id}"><kbd>${k + 1}</kbd><b>${C.name}</b><small>${C.role}</small><span class="ppGuns">` +
       C.guns.map(([id]) => { const a = gunArt(id); return `<span class="ppGun"><img alt="" src="${a ? a.url : ''}"><em>${WEAP[id].name}</em></span>`; }).join('') +
       `</span><span class="ppKit"><span class="ppMelee"><img alt="" src="${meleeArt(C.melee, []).url}">${WEAP[C.melee] ? WEAP[C.melee].name : C.melee}</span><span class="ppBand">${'<i></i>'.repeat(C.band)}${C.band} bandage${C.band > 1 ? 's' : ''}</span></span></button>`).join('') + '</div>';
