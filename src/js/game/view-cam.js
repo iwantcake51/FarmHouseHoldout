@@ -51,7 +51,7 @@ export const fpOn = () => VCAM.on === 'fp', freeOn = () => VCAM.on === 'free', i
 // little out toward your right, the gun's arm, but not as far as the gun (held X out that side: weapons/gun-materials.js),
 // so the gun sits a little right of the middle of the view, as in any shooter (down the sights it comes onto the gun's
 // sight line: fpSightAlign)
-const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.022, kickK: 150, kickD: 15, ads: 0.24, sprint: 0.085 };
+export const FPV = { eye: [0.04, 0.12], side: 0.05, look: 30, adsKick: 0.55, pitch: 1.45, sens: 0.0022, kick: 0.022, kickK: 150, kickD: 15, ads: 0.24, sprint: 0.085 };
 // and the view's kick isn't the same each shot (KICK_FEEL): how much harder or softer one goes (vary), the first shot of
 // a string harder (first), a roll to one side (roll, radians for a shot of power 1, on its own springier spring: rollK,
 // rollD), and a short hard shudder through the view, its tremble dying away fast (shake: radians, its pitch, yaw and
@@ -362,7 +362,7 @@ function lookBy(dx, dy) {
 const viewP = () => V.cp + V.kick + V.tp + V.flp + V.jp + V.np + V.bp + V.vp + V.lp + (V.mp || 0) + (V.mk || 0) + FL.p + (V.shp || 0), viewY = () => V.cy + V.ky + V.fly + V.jy + V.ny + FL.y + (V.shy || 0), viewR = () => V.roll * 0.6 + V.tr + V.br + V.vr + V.lr + (V.mr || 0) + FL.r + (V.kr || 0) + (V.shr || 0) + leanRoll();
 // and the same without the free look (held: the view turns on its own), for what's placed on the gun in your hands, which
 // stays on the aim as you look round (FREE_LOOK)
-const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly, armsR = () => viewR() + leanCant();   // (leaning, the arms and gun cant over further than the view rolls: player/lean.js)
+const armsP = () => viewP() - V.flp, armsY = () => viewY() - V.fly, armsR = viewR;   // (leaning's further cant of the arms and gun is put on last of all: leanArms)
 const freeLooking = () => fpOn() && keys.has(KB.freeLook) && adsW() < 0.3;
 // the aim set from elsewhere (going into first person, a test): the view onto it, nothing off the middle
 function fpAimSync() {
@@ -854,7 +854,7 @@ function aimDir(out) {
 // front post, the dot or the reticle sits on what you'll hit and wanders and kicks with it; and up toward your eye, as
 // far as SIGHT_RAISE, the eye coming down onto the line the rest of the way (viewFrame). From the hold (player/hold.js,
 // poseGun: gg, the gun in your hands, before your hands are put on it) and again as the view's placed
-const SIGHT_RAISE = 0.12;
+const SIGHT_RAISE = 0.24;   // (enough for a scope up on a tall mount, the AA-12's: the gun comes down till the scope's at your eye, not your eye up off your head to it)
 const _pa = new V3(), _pb = new V3(), _ad = new V3(), _sd = new V3(), _vcH = new V3(), _qa = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _mw = new THREE.Matrix4(), _vcM = new THREE.Matrix4();
 const ADS_KNOCK = 0.4, _knR = new V3(), _knU = new V3(0, 1, 0);
 const _saX = new V3(1, 0, 0);
@@ -882,6 +882,19 @@ export function fpSightAlign(gg, raise = true) {
   _mw.makeTranslation(-_pa.x, -_pa.y, -_pa.z).premultiply(_vcM.makeRotationFromQuaternion(_qi)).premultiply(_vcM.makeTranslation(_pa.x + _vcH.x, _pa.y + _vcH.y, _pa.z + _vcH.z));
   _mw.multiply(gg.matrixWorld).premultiply(_vcM.copy(gg.parent.matrixWorld).invert());
   _mw.decompose(gg.position, gg.quaternion, gg.scale); gg.updateMatrix(); gg.updateMatrixWorld(true);
+}
+// leaning: your arms, hands and gun canted over further than the view rolls (player/lean.js leanCant), the whole upper
+// body turned at once about the line from your eye along the view, put on after everything else has placed them; so
+// down the sights the sight line, which runs along that line, stays on your eye, the reticle only turning with it, and
+// the arms go with the gun at the hip and down the sights alike
+const _lnA = new V3(), _lnM = new THREE.Matrix4(), _lnM2 = new THREE.Matrix4(), _lnQ = new THREE.Quaternion();
+function leanArms(c) {
+  const a = leanCant(); if (Math.abs(a) < 1e-4) return;
+  const up = PM.upper; up.updateMatrixWorld(true);
+  _lnA.set(0, 0, 1).applyQuaternion(c.quaternion); _lnQ.setFromAxisAngle(_lnA, a);
+  _lnM.makeTranslation(-c.position.x, -c.position.y, -c.position.z).premultiply(_lnM2.makeRotationFromQuaternion(_lnQ)).premultiply(_lnM2.makeTranslation(c.position.x, c.position.y, c.position.z));
+  _lnM.multiply(up.matrixWorld).premultiply(_lnM2.copy(up.parent.matrixWorld).invert());
+  _lnM.decompose(up.position, up.quaternion, up.scale); up.updateMatrixWorld(true);
 }
 // your eye where your head sits on your chest (a little out toward the gun arm: FPV.side), as the body's posed: on the
 // head's own place on the upper body, not the head itself, so its nods and turns don't move the view
@@ -1197,6 +1210,7 @@ export function viewFrame(rdt, roll, sh, jolt) {
     c.position.set(_vcE.x - Math.cos(V.cy) * V.bx - Math.sin(V.cy) * ((V.mz || 0) + FL.z), _vcE.y + V.by + V.land, _vcE.z + Math.sin(V.cy) * V.bx - Math.cos(V.cy) * ((V.mz || 0) + FL.z));   // (and jolted back off a blow: V.mz, MELEE_CAM)
     swapCam(rdt);
     c.rotation.set(viewP() + V.hsp + (V.bcp || 0), viewY() + V.hsy + (V.bcy || 0) + Math.PI, viewR() + V.hsr + (V.bcr || 0), 'YXZ'); c.updateMatrixWorld(true);
+    leanArms(c);
     selfClip(fpOn(), c);
     // a scope's own view (effects/scope-view.js), magnified in its eyepiece, seen through whenever its eyepiece is in
     // view (black but for a sliver with your eye well off its axis, as a real one is); the eye's spring off its axis

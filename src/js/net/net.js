@@ -48,7 +48,7 @@ export const NET_COL = ['#e0a050', '#5fb4e8', '#7ad07a', '#d87ad0', '#66d1c1', '
 export const netLink = () => NET.on && NET.inGame;            // in a co-op run
 export const netClient = () => NET.on && NET.inGame && !NET.host;   // in one someone else hosts: their game runs the zombies
 try { NET.name = (localStorage.getItem('fhh-name') || '').slice(0, 16); } catch (e) {}
-try { NET.acfg = JSON.parse(localStorage.getItem('fhh-arena-cfg') || 'null'); } catch (e) {}   // (as saved: put right against the limits when it's first used, pvp/pvp.js pvpCfgFix)
+try { NET.acfg = JSON.parse(localStorage.getItem('fhh-arena-cfg2') || 'null'); if (!NET.acfg) { const o = JSON.parse(localStorage.getItem('fhh-arena-cfg') || 'null'); if (o) { delete o.cap; NET.acfg = o; } } } catch (e) {}   // (cfg2: the flag's capture time went from 15 s to 5 s to start with, so an old save's taken without it)   // (as saved: put right against the limits when it's first used, pvp/pvp.js pvpCfgFix)
 // PeerJS's own free server introduces the players by default; ?peer=host:port in the address uses another (one of
 // your own: npx peerjs --port 9000)
 export const PEER_OPTS = (() => {
@@ -104,7 +104,7 @@ export async function netHost(solo) {
   const code = netCode();
   if (solo) {
     Object.assign(NET, { on: true, host: true, solo: true, code: 'SOLO', id: 'H-SOLO', hostId: 'H-SOLO', idx: 0, view: SET.view, runMode: SET.mode, game: 'arena' });
-    for (let k = 0; k < 3; k++) netBotAdd(true);
+    for (let k = 0; k < 5; k++) netBotAdd(true);   // (a full six, three a side)
     chatSys('Solo arena: you and the bots. Add or remove them, pick the mode, and start.'); lobbyRender(); return;
   }
   try {
@@ -178,7 +178,7 @@ export function netKick(id) {
   netGone(id, 'kicked');
 }
 NET_ON.kick = m => { if (!NET.host && m.f === NET.hostId) netLost('The host removed you from the lobby'); };
-export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready, bot: p.bot ? 1 : 0 })));
+export const netRoster = () => [{ id: NET.id, name: netName(), look: LOOK.cur, idx: 0, fid: PALS.me, ready: true }].concat([...NET.peers.values()].map(p => ({ id: p.id, name: p.name, look: p.look, idx: p.idx, fid: p.fid, ready: !!p.ready, bot: p.bot ? 1 : 0, sk: p.sk })));
 // everyone in the lobby set to go (the host always is): the run starts only then
 export const netAllReady = () => [...NET.peers.values()].every(p => p.ready);
 const rosterOut = () => { sidesFill(); NET.acfg = pvpCfgFix(NET.acfg); netOut({ t: 'roster', f: NET.id, list: netRoster(), view: NET.view, rm: NET.runMode, gm: NET.game, am: NET.arena, bs: NET.botSkill, ac: NET.acfg, sd: NET.sides }, null); frMet(netRoster()); };
@@ -205,7 +205,7 @@ NET_ON.sw = m => { if (NET.host && NET.peers.has(m.f)) netSwitchSide(m.f); };
 // the host's arena settings (pvp/pvp.js: PVP_CFG_DEF), one at a time, told to everyone
 export function netSetCfg(k, v) {
   if (!NET.host || NET.inGame) return;
-  NET.acfg = pvpCfgFix(Object.assign({}, NET.acfg, { [k]: v })); try { localStorage.setItem('fhh-arena-cfg', JSON.stringify(NET.acfg)); } catch (e) {}
+  NET.acfg = pvpCfgFix(Object.assign({}, NET.acfg, { [k]: v })); try { localStorage.setItem('fhh-arena-cfg2', JSON.stringify(NET.acfg)); } catch (e) {}
   netSend('acfg', { c: NET.acfg }); lobbyRender();
 }
 NET_ON.acfg = m => { if (NET.host) return; NET.acfg = pvpCfgFix(m.c); lobbyRender(); };
@@ -215,14 +215,15 @@ export function netBotAdd(quiet) {
   if (!NET.host || NET.inGame || NET.game !== 'arena' || NET.peers.size >= netMax() - 1) return;
   const used = new Set([0, ...[...NET.peers.values()].map(p => p.idx)]); let idx = 1; while (used.has(idx)) idx++;
   const id = 'B-' + Math.random().toString(36).slice(2, 8), name = botName(new Set([...NET.peers.values()].map(p => p.name)));
-  NET.peers.set(id, { id, name, look: dealLook(), idx, bot: true, ready: true, heard: performance.now() });
+  NET.peers.set(id, { id, name, look: dealLook(), idx, bot: true, ready: true, heard: performance.now(), sk: NET.botSkill === 3 ? Math.floor(Math.random() * 3) : undefined });
   rosterOut(); if (!quiet) { chatSys(name + ' (bot) sat down'); SFX.click(); } lobbyRender();
 }
 export function netBotDrop(id, quiet) {
   const p = NET.peers.get(id); if (!NET.host || NET.inGame || !p || !p.bot) return;
   NET.peers.delete(id); netDropAvatar(p); rosterOut(); if (!quiet) chatSys(p.name + ' (bot) left'); lobbyRender();
 }
-export function netSetBotSkill(v) { if (!NET.host || NET.inGame || !(v >= 0 && v <= 2)) return; NET.botSkill = v; rosterOut(); lobbyRender(); }
+// (Random: each bot in the lobby its own skill, drawn now and for each one sat down after)
+export function netSetBotSkill(v) { if (!NET.host || NET.inGame || !(v >= 0 && v <= 3)) return; NET.botSkill = v; for (const p of NET.peers.values()) if (p.bot) p.sk = v === 3 ? Math.floor(Math.random() * 3) : undefined; rosterOut(); lobbyRender(); }
 
 // ---- the handshake: a joiner says hello, the host takes them in (or turns them away) and tells everyone who's in
 NET_ON.hello = m => {
@@ -245,8 +246,8 @@ NET_ON.roster = m => {
     if (r.id === NET.id) { NET.idx = r.idx; NET.ready = !!r.ready; continue; }
     keep.add(r.id);
     const p = NET.peers.get(r.id);
-    if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid, ready: !!r.ready, bot: !!r.bot }, r.look ? { look: r.look } : {});
-    else { NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, ready: !!r.ready, bot: !!r.bot, heard: performance.now() }); if (!first) chatSys(r.name + ' joined'); else if (r.id === NET.hostId) chatSys('You joined ' + r.name + '’s lobby'); }
+    if (p) Object.assign(p, { name: r.name, idx: r.idx, fid: r.fid, ready: !!r.ready, bot: !!r.bot, sk: r.sk }, r.look ? { look: r.look } : {});
+    else { NET.peers.set(r.id, { id: r.id, name: r.name, look: r.look, idx: r.idx, fid: r.fid, ready: !!r.ready, bot: !!r.bot, sk: r.sk, heard: performance.now() }); if (!first) chatSys(r.name + ' joined'); else if (r.id === NET.hostId) chatSys('You joined ' + r.name + '’s lobby'); }
   }
   for (const id of [...NET.peers.keys()]) if (!keep.has(id)) netGone(id, 'left');
   if (m.view) NET.view = m.view;

@@ -85,6 +85,9 @@ const bmMat = () => new THREE.ShaderMaterial({ vertexShader: BM_VERT, fragmentSh
 const bmQuads = [];
 for (let k = 0; k < 160; k++) { const m = new THREE.Mesh(BM_QUAD, bmMat()); m.visible = false; m.frustumCulled = false; bmScene.add(m); bmQuads.push({ m, t: 0, dur: 0, s: 1, busy: false }); }
 let bmQ = 0, bmDirty = true, bmCleared = false, bmDry = 0;
+// held: no soaking away at all (the arena's Showdown keeps a round's blood down till the next round, which clears it
+// at once: pvp/pvp.js)
+export const BLOOD_KEEP = { on: false };
 // what's known of the blood on the ground away from the GPU, for footprints: how wet each half-metre of the farm is.
 // Splashes wet it (a drop only a little), it dries over BW_DRY seconds or so, and a new run dries it out
 const BW_DRY = 20;
@@ -162,6 +165,7 @@ export function stepBloodMap(dt) {
   if (!bmCleared) { R.setClearColor(0x000000, 0); bmTargets.forEach(t => { R.setRenderTarget(t); R.clear(true, false, false); }); bmCleared = true; }
   // every few seconds: age the stains into the other copy and swap (freshness down by the time gone over BM_STAY, and
   // stains with none left faded by it over BM_FADE), and dry the ground underfoot to match
+  if (bmDry > every && BLOOD_KEEP.on) bmDry = 0;
   if (bmDry > every) {
     const dst = bmTarget === bmTargets[0] ? bmTargets[1] : bmTargets[0], u = bmAgeM.material.uniforms, el = Math.min(bmDry, 6) * (wash ? BM_WASH : 1);
     u.uSrc.value = bmTarget.texture; u.uAge.value = el / BM_STAY; u.uFade.value = el / BM_FADE; bmDry = 0;

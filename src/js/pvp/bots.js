@@ -24,52 +24,84 @@
 import { angDiff, clamp, rand, rr } from '../core/math.js';
 import { NET, NET_BOT, NET_ON, netAs, netSend } from '../net/net.js';
 import { P } from '../player/player.js';
+import { SPRINT } from '../player/sprint.js';
+import { ADS_MOVE, ADS_SCOPE } from '../player/movement.js';
 import { WEAP } from '../weapons/gun-stats.js';
 import { curId, W8 } from '../game/run-state.js';
 import { SLOTS } from '../weapons/slots.js';
-import { falloff } from '../weapons/ammo.js';
 import { tracerPower } from '../effects/tracers.js';
 import { ARENA, arenaSpawn } from '../world/arena.js';
 import { ci, cxw, idx, inb } from '../world/grid.js';
 import { bulletBlocked, hardBlocked, moveCircle } from '../world/collision.js';
 import { los } from '../lighting/lightmap.js';
-import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_HEAD_SHELL, PVP_PART, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFlag, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
+import { PVP, PVP_BLEED, PVP_CLASSES, PVP_DMG, PVP_R, PVP_T, PVP_TTK, pvpClassOf, pvpCovered, pvpFalloff, pvpFlag, pvpPartK, pvpKilled, pvpKitOn, pvpSideOf } from './pvp.js';
 import { BOT_CYC, BOT_GUN, BOT_GY, BOT_IDLE, BOT_LEG, BOT_UP } from './bot-poses.js';
 
 // how good they are, by the lobby's pick (NET.botSkill): how long they take to react to someone new (s), how far off
 // their aim starts on them (rad) and how fast it settles, how much their shots spread on top of the gun's own, how fast
-// they turn at most (rad/s: their aim speeds up and slows down onto a target, never snapping), how far they see (m) and how wide (half the angle, rad), and how often a hit is in the head
+// they turn at most (rad/s: their aim speeds up and slows down onto a target, never snapping), how far they see (m) and how wide (half the angle, rad), and how often a hit is in the head;
+// and how they play: iq, how well they keep to what their gun's good at (a shotgun pressing in, a rifle keeping back); team, how
+// much they work as a side (spread over the lanes, going where a teammate fell); sneak, how often they walk rather than
+// run with someone about (no footsteps to hear); flank, how much keener they are to go round than straight at you
 const BOT_SKILL = [
-  { react: [0.5, 0.8], err: 0.3, settle: 2.2, sig: 0.075, turn: 2.6, view: 30, fov: 1.05, head: 0.08 },
-  { react: [0.3, 0.5], err: 0.24, settle: 3, sig: 0.055, turn: 3.4, view: 36, fov: 1.2, head: 0.11 },
-  { react: [0.2, 0.34], err: 0.2, settle: 4, sig: 0.04, turn: 4.4, view: 42, fov: 1.35, head: 0.15 }
+  { react: [0.42, 0.7], err: 0.28, settle: 2.4, sig: 0.07, turn: 2.8, view: 30, fov: 1.05, head: 0.08, iq: 0.3, team: 0.1, sneak: 0, flank: 0 },
+  { react: [0.28, 0.45], err: 0.23, settle: 3, sig: 0.055, turn: 3.4, view: 36, fov: 1.2, head: 0.11, iq: 0.65, team: 0.55, sneak: 0.4, flank: 0.12 },
+  { react: [0.17, 0.3], err: 0.18, settle: 4.2, sig: 0.04, turn: 4.4, view: 42, fov: 1.35, head: 0.15, iq: 1, team: 1, sneak: 0.8, flank: 0.3 }
 ];
-export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran'];
-const botSk = () => BOT_SKILL[NET.botSkill ?? 1] || BOT_SKILL[1];
+export const BOT_SKILLS = ['Recruit', 'Regular', 'Veteran', 'Random'];   // (Random: each bot its own, drawn as it sits down: net/net.js)
+const botSk = b => BOT_SKILL[b && b.sk !== undefined ? b.sk : NET.botSkill ?? 1] || BOT_SKILL[1];   // (each bot's own, or the lobby's)
 // how each class fights: the range it likes (m), how keen it is to push in (0 to 1), which gun it wants out at a range,
-// and whether it fires on the run (Run and gun: the Rush)
+// (none fires on the run: nobody can in the arena, as you can't)
 const BOT_STYLE = {
   rifle: { range: [6, 22], push: 0.45, gun: () => 'auto' },
   mark: { range: [12, 34], push: 0.12, gun: d => d > 7 ? 'long' : 'side' },
-  rush: { range: [0, 8], push: 0.9, gun: d => d < 6 ? 'long' : 'auto', runGun: true },
+  rush: { range: [0, 8], push: 0.9, gun: d => d < 6 ? 'long' : 'auto' },
   breach: { range: [0, 9], push: 0.72, gun: d => d < 9 ? 'long' : 'auto' },
   gunner: { range: [7, 24], push: 0.3, gun: () => 'auto' }
 };
 // how far each gun's worth firing (m), how fast they move (m/s: walking, aimed, and a sprint's multiple, the class's
 // own on top), how long they remember someone (s: someone who's shot at them, far longer), and how fast bleeding hurts
 const BOT_REACH = { pump: 13, dbl: 8, auto12: 12, pistol: 26, revolver: 34, deagle: 34, smg: 20, sub: 24, ar: 40, lmg: 38, scar: 44, hunting: 60 };
-const BOT_MOVE = { base: 3, aimed: 0.72, sprint: 1.75, cls: { rush: 1.06, gunner: 0.9 } };
+const BOT_MOVE = { base: 3, sprint: 1.75 };
+// its pace by the gun in its hands, as yours is (game/run-state.js carryMul): a blade lighter than nothing, sidearms
+// nothing, a primary by its calibre, its magazine and what's bolted on; and down the sights, the share each gun keeps
+// (player/movement.js ADS_MOVE), a magnified scope less again
+function botCarry(b, id) {
+  const D = WEAP[id]; if (!D) return 1;
+  if (D.melee) return D.two ? 1.03 : 1.07;
+  if (D.slot !== 'long' && D.slot !== 'auto') return 1;
+  const gt = (b.gt && b.gt[id]) || {}, att = ['supp', 'choke', 'sight', 'laser', 'light'].reduce((n, k) => n + (gt[k] ? 1 : 0), 0);
+  const cal = D.ammo === 'rifle' ? 0.05 : D.ammo === 'shells' ? 0.04 : 0.025, mag = Math.min(0.07, (D.mag || 1) / 30 * 0.03);
+  return clamp(1 - cal - mag - att * 0.008, 0.7, 1);
+}
+const botAds = (b, id) => (ADS_MOVE[id] ?? 0.58) * ((((b.gt && b.gt[id]) || {}).sight || 0) >= 3 ? ADS_SCOPE : 1);
 // changing class: after this many more deaths than kills with one, and how far off a killer counts as far or near (m)
 const BOT_SWAP = { deaths: 2, far: 16, near: 7 };
 const BOT_MEM = { seen: 14, threat: 40 }, BOT_BLEED = { dps: 1.7, floor: 15 }, BOT_REGEN = { wait: 3.75, full: 8.5 };   // (health back on its own as a player's: pvp/pvp.js REGEN)
 // a shot at someone on the move spreads more, by how fast they're going (rad per m/s), to at most max
 const BOT_LEAD = { k: 0.014, max: 0.05 };
+// how sure of itself it is: how readily it pushes in on someone it's fighting (a share of its class's keenness), how
+// much keener than its class to go at someone it knows of, and much keener still while that's fresh (fresh s)
+const BOT_CONF = { pushFight: 0.85, base: 0.15, fresh: 4, freshPush: 0.35 };
+// how often it locks onto the one it's fighting, ignoring whoever else peeks it or hits it, till that fight's done
+const BOT_TUNNEL = 0.35;
+// how its shots spread on top of its own skill (rad): its moving (per m/s, and more at a sprint); every metre past near;
+// its gun's kick (each one's, and how far a held trigger walks off with it, up to sprayMax)
+const BOT_ACC = { move: 0.009, sprint: 0.05, near: 12, far: 0.0006, kick: 0.004, spray0: 0.003, sprayKick: 0.0035, sprayMax: 0.08 };
+// and its sight: a magnified one steadies it at range (the more, the higher it zooms) and makes it worse close in,
+// where it can hardly find you in the glass; a red dot or a holo helps a little at any range (sight: its step, 3 up a
+// scope; d: how far)
+function botSight(sight, d) {
+  if (sight < 3) return sight ? 0.95 : 1;
+  const z = sight - 2, far = clamp((d - 8) / 12, 0, 1);
+  return (1 + 0.3 * z) * (1 - far) + (1 - 0.1 * z) * far;
+}
 // firing from the hip close in (m: anyone nearer, a shotgun's nearer still), a little looser
 const BOT_HIP = { near: 6, shells: 9, spread: 0.02 };
 // where on someone it aims, each new target and each burst: their head (likelier the better it is), their legs now and
 // then, else their middle; and how high each is (m), its eyes' own height, for how far it looks up or down
 const BOT_PART_Y = { head: 1.6, torso: 1.15, legs: 0.55 }, BOT_EYE = 1.56;
-function botAimPart(b) { const r = rand(), h = botSk().head * 2.5; b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
+function botAimPart(b) { const r = rand(), h = botSk(b).head * 2.5; b.aimPart = r < h ? 'head' : r < h + 0.15 ? 'legs' : 'torso'; }
 const BOT_NAMES = ['Hollis', 'Ruth', 'Marek', 'Juno', 'Dacey', 'Ozzie', 'Teague', 'Wren', 'Abel', 'Noor', 'Sully', 'Kit'];
 export const botName = used => { const free = BOT_NAMES.filter(n => !used.has(n)); return (free.length ? free : BOT_NAMES)[Math.floor(rand() * (free.length || BOT_NAMES.length))]; };
 
@@ -94,7 +126,7 @@ const botGunOf = b => b.slots[b.cur];
 // ---- the match: each bot in the lobby gets a body and a mind
 export function botsBegin() {
   BOTS.clear();
-  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, rec: {}, st: { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0, learn: { bold: 0, lane: [0, 0, 0] } });
+  for (const p of NET.peers.values()) if (p.bot) BOTS.set(p.id, { p, id: p.id, sk: p.sk, rec: {}, st: { dmg: 0, hits: 0, shots: 0, hs: 0, long: 0 }, cls: PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id, x: 0, z: 0, vx: 0, vz: 0, aim: 0, hp: 100, dead: true, seed: rand() * 9, mem: new Map(), path: [], ph: 0, poseT: 0, thinkT: 0, senseT: 0, spray: 0, err: 0, learn: { bold: 0, lane: [0, 0, 0] } });
   botSquadReset();
   for (const b of BOTS.values()) botSpawn(b, true);
 }
@@ -107,8 +139,8 @@ export const botStats = () => [...BOTS.values()].map(b => [b.id, [Math.round(b.s
 // a phase starting (the host's call: pvp/pvp.js): everyone back at their spawn for a new round
 // (Showdown: those still up at a round's end grow a little bolder; botDie makes those who went down early more careful)
 export function botsPhase(ph, was) {
-  if (ph === 'roundEnd') for (const b of BOTS.values()) if (!b.dead) b.learn.bold = Math.min(BOT_LEARN.most, b.learn.bold + BOT_LEARN.win);
-  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) { botSquadReset(); for (const b of BOTS.values()) { if (was === 'idle' && rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); } }
+  if (ph === 'roundEnd') for (const b of BOTS.values()) if (!b.dead) { b.learn.bold = Math.min(BOT_LEARN.most, b.learn.bold + BOT_LEARN.win); b.learn.lane[b.lane ?? 1] = Math.max(0, (b.learn.lane[b.lane ?? 1] || 0) - 0.5); }   // (and the lane it lived through it's a little keener on)
+  if (ph === 'pick' && (was === 'roundEnd' || was === 'idle')) { botSquadReset(); for (const b of BOTS.values()) { if (was === 'idle' && rand() < 0.3) b.cls = PVP_CLASSES[Math.floor(rand() * PVP_CLASSES.length)].id; botSpawn(b, true); } if (PVP.mode !== 'ffa') ['A', 'B'].forEach(sd => botLanesTeam([...BOTS.values()].filter(b => b.side === sd))); }
   if (ph === 'count') for (const b of BOTS.values()) if (!b.dead) botArm(b);
   if (ph === 'live') for (const b of BOTS.values()) b.prot = PVP_T.prot;
 }
@@ -119,14 +151,16 @@ function botArm(b) {
   const gl = (gt, mods) => ({ mods: mods ? mods.slice() : [], lv: {}, gt: Object.assign({}, gt), pin: null, att: {}, rnd: null, ak: false, rd: null });
   guns[C.melee] = gl({});
   b.mag = {}; b.res = {}; b.gt = {};
-  for (const [id, gt, mods] of C.guns) {
-    slots[WEAP[id].slot] = id; guns[id] = gl(gt, mods); b.gt[id] = gt;
+  for (const [id, gt, mods, lv] of C.guns) {
+    slots[WEAP[id].slot] = id; guns[id] = gl(gt, mods); if (lv) guns[id].lv = Object.assign({}, lv); b.gt[id] = gt;
     const n = WEAP[id].mag || 1; b.mag[id] = n; b.res[id] = Math.max(n * C.mags, WEAP[id].ammo === 'shells' ? 14 : 0);
   }
   b.slots = slots; b.cur = WEAP[C.guns[0][0]].slot; b.relT = 0; b.reloading = false; b.swapT = 0; b.cd = 0; b.burst = 0;
   b.quick = C.perks.includes('quick:2') ? 0.6 : C.perks.includes('quick:1') ? 0.8 : 1;
   b.lo = { slots, guns, stow: {}, hol: 0x1d1d1f, gear: null };
-  const key = JSON.stringify(b.lo); let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0; b.lk = h;
+  const key = JSON.stringify(b.lo); let h = 0; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  if (h === b.lk && b.p && b.p.lo) return;   // (the same guns as it has: not drawn again for nothing)
+  b.lk = h;
   const m = { lo: b.lo, lk: b.lk }; NET_ON.lo(Object.assign({ t: 'lo', f: b.id }, m)); netAs(b.id, 'lo', m);
 }
 NET_BOT.loq = m => { const b = BOTS.get(m.to); if (b && b.lo) netAs(b.id, 'lo', { lo: b.lo, lk: b.lk }, m.f); };
@@ -137,7 +171,7 @@ function botSpawn(b, fresh) {
   const foes = botFoes(b).map(f => [f.x, f.z]);
   const list = [{ id: NET.id, idx: NET.idx }, ...[...NET.peers.values()].map(p => ({ id: p.id, idx: p.idx }))].filter(r => pvpSideOf(r.id) === b.side).sort((a, c) => a.idx - c.idx);
   const [x, z, f] = arenaSpawn(PVP.mode === 'ffa' ? 'F' : b.side, foes, PVP.mode === 'rounds' || fresh ? list.findIndex(r => r.id === b.id) : undefined);
-  Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, av: 0, look: f, hp: 100, dead: false, bleed: 0, calm: 0, regen0: null, stun: 0, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0 });
+  Object.assign(b, { x, z, vx: 0, vz: 0, aim: f, av: 0, look: f, hp: 100, dead: false, bleed: 0, calm: 0, regen0: null, stun: 0, prot: PVP_T.prot, state: 'roam', path: [], tgt: '', vis: null, last: null, mv: '', react: 0, err: 0, spray: 0, hurtT: -9, seenT: -9, stopT: 0, glanceT: 0, stuck: 0, lookW: f, alarm: undefined, alarmT: 0, pitch: 0, leanT: 0, lean: 0 });
   b.mem.clear(); b.healing = false; b.noFire = false; b.shotAtT = -9;
   b.lane = botLanePick(b);
   botArm(b);
@@ -160,18 +194,26 @@ function botFoes(b) {
 // to react to, and its aim starts off them. Someone sprinting close by it hears. Whoever it sees it calls out to its
 // side's other bots (botCall)
 function botSense(b, foes, t) {
-  const S = botSk(); let best = 1e9; b.vis = null; b.seeN = 0;
+  const S = botSk(b); let best = 1e9; b.vis = null; b.seeN = 0;
   for (const f of foes) {
     const dx = f.x - b.x, dz = f.z - b.z, d = Math.hypot(dx, dz);
     const seen = d < S.view && (d < 2.2 || Math.abs(angDiff(Math.atan2(dx, dz), b.aim)) < S.fov) && los(b.x, b.z, f.x, f.z);
     const m = b.mem.get(f.id);
     if (seen) {
-      if (!m || !m.seen || t - m.t > 1.5) { b.react = t + rr(...S.react); b.err = S.err * (rand() < 0.5 ? -1 : 1); botAimPart(b); }
+      if (!m || !m.seen || t - m.t > 1.5) {
+        // (a surprise, BOT_REACT: off to the side of where it's looking, or someone it had no idea of, round a corner
+        // close: a beat longer to react and its first aim further off; someone it was waiting on, quicker)
+        const off = Math.abs(angDiff(Math.atan2(dx, dz), b.aim)), expect = m && t - m.t < 4 && Math.hypot(m.x - f.x, m.z - f.z) < 5;
+        const k = 1 + BOT_REACT.side * clamp(off / S.fov, 0, 1.5) + (expect ? -BOT_REACT.expect : BOT_REACT.surprise) + (d < 8 && !expect ? BOT_REACT.close : 0);
+        b.react = t + rr(...S.react) * Math.max(0.6, k); b.err = S.err * (0.8 + 0.6 * clamp(off / S.fov, 0, 1)) * (expect ? 0.6 : 1) * (rand() < 0.5 ? -1 : 1);
+        botAimPart(b); if (f.id !== b.tgt) b.tunnel = rand() < BOT_TUNNEL;
+      }
       b.mem.set(f.id, { id: f.id, x: f.x, z: f.z, t, seen: true, threat: !!(m && m.threat), aim: f.aim });
       botCall(b, f, t);
       b.seeN++;
-      // (who to fight: the one it's on already, then whoever's shot at it, then whoever's nearest)
-      const score = d - (f.id === b.tgt ? 6 : 0) - (m && m.threat && t - m.t < 5 ? 4 : 0); if (score < best) { best = score; b.vis = f; }
+      // (who to fight: the one it's on already, then whoever's shot at it, then whoever's nearest; locked on (b.tunnel),
+      // the one it's on whatever else turns up, even taking hits from someone else for it)
+      const score = d - (f.id === b.tgt ? (b.tunnel ? 60 : 10) : 0) - (m && m.threat && t - m.t < 5 && !b.tunnel ? 4 : 0); if (score < best) { best = score; b.vis = f; }
     } else {
       if (m) m.seen = false;
       if (d < (Math.hypot(f.vx, f.vz) > 4.2 ? 7 : 2.5)) botNote(b, f.id, f.x, f.z, 1.2, t);
@@ -179,6 +221,10 @@ function botSense(b, foes, t) {
     }
   }
 }
+// reacting to someone seen (BOT_SKILL react, times 1 and these): side, more as far off to the side of its look as the
+// edge of what it sees; surprise, someone it had no idea of; close, and that close (under 8 m: round a corner); expect,
+// less for someone it knew was just there
+const BOT_REACT = { side: 0.7, surprise: 0.35, close: 0.25, expect: 0.3 };
 // a laser's beam in sight: anywhere along it (to the first wall, LASER_SEE.reach at most) in front of it, in range and
 // in plain sight, every LASER_SEE.step metres
 const LASER_SEE = { reach: 24, step: 1.6 };
@@ -196,7 +242,9 @@ function botBeam(b, f, S) {
 function botNote(b, id, x, z, noise, t, hurt) {
   const m = b.mem.get(id); if (m && m.seen && t - m.t < 0.3) { if (hurt) m.threat = true; return; }
   b.mem.set(id, { id, x: x + rr(-noise, noise), z: z + rr(-noise, noise), t, seen: false, threat: !!hurt || !!(m && m.threat && t - m.t < BOT_MEM.threat) });
-  if (hurt || !b.vis) b.alarm = Math.atan2(x - b.x, z - b.z);
+  // (turning to look: a hit at once; anything else heard, only once it's looked to the last thing for a moment, so a
+  // fight going on nearby doesn't have it whipping round to every shot)
+  if (hurt || (!b.vis && t > (b.alarmT || 0))) { b.alarm = Math.atan2(x - b.x, z - b.z); b.alarmT = t + BOT_LOOK.alarm; }
   if (hurt) b.shotAtT = t;
 }
 // a foe seen, told to the side's other bots (the team games): where, and when, as a call-out (not as good as their own
@@ -280,6 +328,16 @@ function botPeek(b, L, others) {
   const cs = botCells(b.x, b.z, 3.5).filter(c => los(c[0], c[1], L.x, L.z) && !botSeenBy(c[0], c[1], others)).sort((a, c) => a[2] - c[2]);
   return cs.length ? botPath(b, cs[0][0], cs[0][1]) : null;
 }
+// how long a standoff (only the cover they're behind to shoot at) lasts before it does something about it (s)
+const BOT_STALL = [1.8, 3.4];
+// with the flag up, the other side alone on it (taking it, pvp/pvp.js): everyone else stops what it's doing to stop them
+const botDeny = (b, fl) => !!fl && PVP.mode !== 'ffa' && !!fl.w && fl.w !== b.side;
+// a spot a few steps off, behind low cover from T (pvp/pvp.js pvpCovered: only their head over it) and still in sight
+// of them, got to without going further from cover than it is; the nearest
+function botFightSpot(b, T) {
+  const cs = botCells(b.x, b.z, 3.2).filter(c => c[2] > 0.6 && los(c[0], c[1], T.x, T.z) && (() => { const dx = T.x - c[0], dz = T.z - c[1], L = Math.hypot(dx, dz) || 1; return pvpCovered(c[0], c[1], T.x, T.z, -dx / L, -dz / L, L); })()).sort((a, c) => a[2] - c[2]);
+  return cs.length ? botPath(b, cs[0][0], cs[0][1]) : null;
+}
 // a way round: a spot off to the side of where they were, in sight of it (and of nobody else it knows of), got to
 // keeping out of their sight
 function botFlank(b, L, others) {
@@ -294,14 +352,27 @@ function botFlank(b, L, others) {
 // half in the team games, anywhere far off in a free-for-all
 const BOT_LANES = 3, BOT_LEARN = { win: 0.04, lose: 0.07, most: 0.3, early: 20 };
 // its lane this round: any at random, less likely the ones it's gone down in (Showdown)
-function botLanePick(b) { let best = 1, bs = -1; for (let k = 0; k < BOT_LANES; k++) { const s = rand() / (1 + (b.learn.lane[k] || 0)); if (s > bs) { bs = s; best = k; } } return best; }
+function botLanePick(b) { let best = 1, bs = -1; for (let k = 0; k < BOT_LANES; k++) { const s = rand() / (1 + 1.5 * (b.learn.lane[k] || 0)); if (s > bs) { bs = s; best = k; } } return best; }
+// a side's bots spread over the lanes as a team does (as likely as they're team players, BOT_SKILL team): each its own
+// lane where there are enough of them, the order drawn at random, steering clear of the lanes they've gone down in
+function botLanesTeam(list) {
+  if (!list.length || rand() > list.reduce((a, b) => a + botSk(b).team, 0) / list.length) return;
+  let best = null, bs = 1e9;
+  for (let k = 0; k < 8; k++) {
+    const ks = [0, 1, 2].sort(() => rand() - 0.5), pick = list.map((b, i) => ks[i % BOT_LANES]);
+    const sc = list.reduce((a, b, i) => a + 1.5 * (b.learn.lane[pick[i]] || 0), 0) + rr(0, 1);
+    if (sc < bs) { bs = sc; best = pick; }
+  }
+  list.forEach((b, i) => { b.lane = best[i]; });
+}
 const botLaneZ = k => { const z0 = cxw(ARENA.z0 + 1), z1 = cxw(ARENA.z1 - 1), w = (z1 - z0) / BOT_LANES; return [z0 + w * k, z0 + w * (k + 1)]; };
 function botRoam(b) {
   let best = null, bs = -1e9; const [lz0, lz1] = botLaneZ(b.lane ?? 1), mid = (cxw(ARENA.x0) + cxw(ARENA.x1)) / 2;
-  for (let k = 0; k < 18; k++) {
-    const i = ARENA.x0 + Math.floor(rand() * (ARENA.x1 - ARENA.x0 + 1)), j = ARENA.z0 + Math.floor(rand() * (ARENA.z1 - ARENA.z0 + 1)); if (!botWalk(i, j)) continue;
+  for (let k = 0; k < 24; k++) {
+    // (mostly somewhere in its own lane: it keeps to the way it's chosen rather than drifting into the middle with the rest)
+    const i = ARENA.x0 + Math.floor(rand() * (ARENA.x1 - ARENA.x0 + 1)), j = PVP.mode !== 'ffa' && rand() < 0.8 ? ci(lz0 + rand() * (lz1 - lz0)) : ARENA.z0 + Math.floor(rand() * (ARENA.z1 - ARENA.z0 + 1)); if (!botWalk(i, j)) continue;
     const x = cxw(i), z = cxw(j), inLane = z >= lz0 && z <= lz1;
-    const s = Math.min(16, Math.hypot(x - b.x, z - b.z)) + (PVP.mode !== 'ffa' ? (b.side === 'A' ? x - mid : mid - x) * 0.35 + (inLane ? 8 : 0) : 0) + rr(0, 6);
+    const s = Math.min(16, Math.hypot(x - b.x, z - b.z)) + (PVP.mode !== 'ffa' ? (b.side === 'A' ? x - mid : mid - x) * 0.35 + (inLane ? 20 : 0) : 0) + rr(0, 6);
     if (s > bs) { bs = s; best = [x, z]; }
   }
   return best ? botPath(b, best[0], best[1]) : [];
@@ -361,41 +432,61 @@ function botThink(b, t) {
     b.tgt = T.id; b.seenT = t;
     const d = Math.hypot(T.x - b.x, T.z - b.z), want = st.gun(d);
     if (want !== b.cur && b.slots[want] && !b.reloading && b.mag[b.slots[want]] > 0) { b.cur = want; b.swapT = botCls(b).perks.includes('Quick draw') ? 0.3 : 0.45; b.burst = 0; }
-    const dry = b.reloading || b.mag[botGunOf(b)] <= 0, onTop = d < 7;
+    const dry = b.reloading || b.mag[botGunOf(b)] <= 0, onTop = d < 7, fl = pvpFlag(), deny = botDeny(b, fl), onFlag = fl && Math.hypot(T.x - fl.x, T.z - fl.z) < fl.r + 0.5;
     // out of the fight for now: hurt, empty with them close, or two or more in sight at once (one at a time: it takes
     // cover from all of them and peeks for one) unless it's rushing with its side or they're right on it
-    const outnumbered = b.seeN > 1 && !rushing && !onTop, leave = (b.healing && !onTop) || (dry && d < 20 && !st.runGun) || outnumbered;
-    b.noFire = b.healing && !onTop && !(T.aim !== undefined && Math.abs(angDiff(T.aim, Math.atan2(b.x - T.x, b.z - T.z))) < 0.25);
+    const outnumbered = b.seeN > 1 && !rushing && !onTop && !b.tunnel, leave = !deny && ((b.healing && !onTop) || (dry && d < 20) || outnumbered);
+    // (keeping its head down to heal, it holds fire unless they're on to it: only where health comes back; in Showdown,
+    // where it never does, it fights whoever it can see rather than sitting there being peeked)
+    b.noFire = regen && b.healing && !onTop && !(T.aim !== undefined && Math.abs(angDiff(T.aim, Math.atan2(b.x - T.x, b.z - T.z))) < 0.25);
     if (leave && b.state !== 'cover' && t - (b.coverT || 0) > 0.6) {
       b.coverT = t; const cv = botCover(b, known.length ? known : [T], b.healing);
       if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(1, 2.2); return; }
     }
     if (b.state === 'cover' && b.path.length) return;
-    b.state = 'fight'; b.noFire = false;
+    b.noFire = false;
+    // (a standoff: it can see them but its rounds would only go into the cover they're behind, BOT_STALL s of it, and
+    // it goes round to them or straight in, rather than the two of them sitting there)
+    { const dx = (b.x - T.x) / (d || 1), dz = (b.z - T.z) / (d || 1); b.stall = pvpCovered(T.x, T.z, b.x, b.z, dx, dz, d) ? (b.stall || 0) + 0.2 : 0; }
+    if (b.stall > (b.stallAt || (b.stallAt = rr(...BOT_STALL)))) {
+      b.stall = 0; b.stallAt = rr(...BOT_STALL);
+      const fl = rand() < 0.6 ? botFlank(b, T, known.filter(m => m.id !== T.id)) : null;
+      b.mv = 'push'; b.path = fl || botPath(b, T.x, T.z); b.sprint = false; b.mvT = t + rr(1.5, 3); b.leanT = 0; return;
+    }
+    // (the other side on the flag: straight at them, flat out till it's close, whatever else)
+    if (deny && onFlag) { if (b.mv !== 'push' || t > (b.mvT || 0)) { b.mv = 'push'; b.mvT = t + 0.5; b.path = botPath(b, T.x, T.z); } b.sprint = d > 9; return; }
+    // (out from a peek or from cover onto them: it stays leaned out round it and fights from there a while, not
+    // stepping out into the open)
+    if ((b.state === 'peek' || b.state === 'cover') && b.mv !== 'hold') { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = botLeanSide(b, T); b.leanT = t + rr(1.4, 2.6); b.mvT = t + rr(1, 2); }
+    b.state = 'fight';
     if (t > (b.mvT || 0)) {
-      b.mvT = t + rr(0.35, 0.9); const [lo, hi] = st.range;
+      b.mvT = t + rr(0.7, 1.5); const S = botSk(b), lo = st.range[0] * S.iq, hi = st.range[1] + (1 - S.iq) * 14;   // (a recruit hardly minds what range it's at)
       const covered = pvpCovered(b.x, b.z, T.x, T.z, (b.x - T.x) / (d || 1), (b.z - T.z) / (d || 1), d), bold = st.push + (b.learn.bold || 0);
-      if (rushing || d > hi || (d > lo + 1.5 && rand() < bold * 0.55 && b.hp > 55 && b.seeN < 2)) { b.mv = 'push'; b.path = botPath(b, T.x, T.z); b.sprint = (!!st.runGun || rushing) && d > 4; }
+      const spot = !covered && !rushing && d > 6 ? botFightSpot(b, T) : null;
+      if (rushing || d > hi || (d > lo + 1.5 && rand() < bold * BOT_CONF.pushFight && b.hp > 50 && (b.seeN < 2 || b.tunnel))) { b.mv = 'push'; b.path = botPath(b, T.x, T.z); b.sprint = rushing && d > 12; }
       else if (d < lo - 1) { b.mv = 'back'; b.path = []; b.sprint = false; }
-      else if (covered && rand() < 0.4) { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = botLeanSide(b, T); }
-      else { b.mv = 'strafe'; if (rand() < 0.7) b.strafe = rand() < 0.5 ? 1 : -1; b.path = []; b.sprint = false; }
+      // (in the open with cover a few steps off that still has them in sight: over to it, and fight from behind it)
+      else if (spot) { b.mv = 'tocover'; b.path = spot; b.sprint = false; }
+      else if (covered) { b.mv = 'hold'; b.path = []; b.sprint = false; b.leanSide = botLeanSide(b, T); b.leanT = t + rr(1, 2); }
+      else { b.mv = 'strafe'; if (b.strafe === undefined || rand() < 0.45) b.strafe = rand() < 0.5 ? 1 : -1; b.path = []; b.sprint = false; }
     }
     return;
   }
   b.noFire = false;
   const L = botKnown(b, t);
-  if (b.state === 'fight') { b.state = 'hold'; b.holdT = t + rr(0.4, 1); b.path = []; b.sprint = false; }
+  if (b.state === 'fight') { b.state = 'hold'; b.holdT = t + rr(0.25, 0.6); b.path = []; b.sprint = false; }
   if (b.state === 'hold' && t < b.holdT) { if (b.mag[id] < (WEAP[id].mag || 1) * 0.6) botReload(b); return; }
   if (b.mag[id] < (WEAP[id].mag || 1) * 0.5 && !b.reloading) botReload(b);
-  // shot at by someone it can't see, and standing where they can see it: into cover from them first
-  if (threats.length && t - (b.shotAtT || -9) < 3 && b.state !== 'cover' && botSeenBy(b.x, b.z, threats) && t - (b.coverT || 0) > 0.6) {
+  // shot at by someone it can't see, and standing where they can see it: into cover from them first (not with the
+  // other side taking the flag: it goes for that whatever)
+  if (!botDeny(b, pvpFlag()) && threats.length && t - (b.shotAtT || -9) < 3 && b.state !== 'cover' && botSeenBy(b.x, b.z, threats) && t - (b.coverT || 0) > 0.6) {
     b.coverT = t; const cv = botCover(b, threats, b.healing);
     if (cv) { b.state = 'cover'; b.path = cv.path; b.sprint = true; b.peekAt = t + rr(0.8, 1.8); return; }
   }
   // the flag up: onto it and hold it (looking about it), or back onto it if it's been pulled off
   if (Q.plan === 'flag' && Q.at) {
-    const fl = pvpFlag(), d = Math.hypot(b.x - Q.at.x, b.z - Q.at.z);
-    if (fl && d > fl.r - 0.6) { if (b.state !== 'flag' || !b.path.length) { b.state = 'flag'; b.path = botPath(b, Q.at.x + rr(-1, 1), Q.at.z + rr(-1, 1)); b.sprint = d > 8; } }
+    const fl = pvpFlag(), d = Math.hypot(b.x - Q.at.x, b.z - Q.at.z), deny = botDeny(b, fl);
+    if (fl && d > fl.r - 0.6) { if (b.state !== 'flag' || !b.path.length) { b.state = 'flag'; b.path = botPath(b, Q.at.x + rr(-1, 1), Q.at.z + rr(-1, 1)); } b.sprint = deny || d > 8; }   // (the other side taking it: flat out, all the way)
     else { b.state = 'flag'; b.path = []; b.sprint = false; }
     return;
   }
@@ -413,7 +504,7 @@ function botThink(b, t) {
   // its side holding (outnumbered, or ahead with the clock nearly out): it keeps to cover where it is and waits
   if (Q.plan === 'hold' && L) {
     if (b.state !== 'cover' && b.state !== 'peek') { const cv = botCover(b, known.length ? known : [L]); b.state = 'cover'; b.path = cv ? cv.path : []; b.peekAt = t + rr(2.5, 5); }
-    else if (b.state === 'cover' && !b.path.length && t > b.peekAt && !b.reloading) { const pk = botPeek(b, L, known.filter(m => m !== L)); b.state = 'peek'; b.path = pk || []; b.peekEnd = t + rr(0.7, 1.2); b.leanSide = botLeanSide(b, L); }
+    else if (b.state === 'cover' && !b.path.length && t > b.peekAt && !b.reloading) { const pk = botPeek(b, L, known.filter(m => m !== L)); b.state = 'peek'; b.path = pk || []; b.peekEnd = t + rr(1.1, 1.8); b.leanSide = botLeanSide(b, L); b.leanT = t + rr(1.1, 1.8); }
     else if (b.state === 'peek' && !b.path.length && t > b.peekEnd) { b.state = 'cover'; b.peekAt = t + rr(2, 4); b.path = []; }
     return;
   }
@@ -427,7 +518,7 @@ function botThink(b, t) {
     // out to look again: just beside it at the one it knows of, none of the others in sight of that spot; if there's no
     // such spot, round some other way to them
     const others = known.filter(m => m !== L), pk = botPeek(b, L, others);
-    if (pk) { b.state = 'peek'; b.path = pk; b.sprint = false; b.peekEnd = t + rr(0.9, 1.5); b.leanSide = botLeanSide(b, L); return; }
+    if (pk) { b.state = 'peek'; b.path = pk; b.sprint = false; b.peekEnd = t + rr(1.3, 2.2); b.leanSide = botLeanSide(b, L); b.leanT = t + rr(1.3, 2.2); return; }
     const fl = botFlank(b, L, others); if (fl) { b.state = 'flank'; b.path = fl; b.sprint = false; return; }
     b.state = 'peek'; b.path = []; b.peekEnd = t + rr(0.6, 1);
     return;
@@ -445,10 +536,12 @@ function botThink(b, t) {
   }
   // what now, with someone out there it can't see: straight at where they were, or round to their side (more likely the
   // more careful it is, the more of them there are and the more hurt it is)
-  const bold = st.push + (b.learn.bold || 0) + (b.hp > 80 ? 0.15 : 0) - (b.hp < 60 ? 0.3 : 0) - (known.length > 1 ? 0.25 : 0) + (Q.plan === 'push' ? 0.4 : 0);
-  const fl = rand() < bold ? null : botFlank(b, L, known.filter(m => m !== L)), dL = Math.hypot(L.x - b.x, L.z - b.z);
-  if (fl) { b.state = 'flank'; b.path = fl; b.sprint = dL > 10; }
-  else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > 13 && !L.threat; }
+  // (confident: somewhere it knows someone is, fresh, and healthy enough, it goes straight at them: BOT_CONF)
+  const fresh = t - L.t < BOT_CONF.fresh, bold = st.push + BOT_CONF.base + (b.learn.bold || 0) + (b.hp > 80 ? 0.15 : 0) - (b.hp < 60 ? 0.3 : 0) - (known.length > 1 ? 0.2 : 0) + (Q.plan === 'push' ? 0.4 : 0) + (fresh && b.hp > 60 ? BOT_CONF.freshPush : 0);
+  const S = botSk(b), sneak = rand() < S.sneak;   // (walking in quietly on someone it knows is there: no running footsteps)
+  const fl = rand() < bold - S.flank ? null : botFlank(b, L, known.filter(m => m !== L)), dL = Math.hypot(L.x - b.x, L.z - b.z);
+  if (fl) { b.state = 'flank'; b.path = fl; b.sprint = dL > 10 && !(sneak && dL < 22); }
+  else { b.state = 'hunt'; b.path = botPath(b, L.x, L.z); b.sprint = dL > (fresh ? 6 : 13) && !(sneak && dL < 18); }
 }
 function botReload(b) {
   const id = botGunOf(b), D = WEAP[id], room = (D.mag || 1) - b.mag[id];
@@ -467,7 +560,7 @@ export function botsUpdate(dt) {
       if (live && PVP.mode !== 'rounds' && b.respawn > 0 && (b.respawn -= dt) <= 0) botSpawn(b, false);
       botPose(b, dt, t); continue;
     }
-    if (!live) { b.vx = b.vz = 0; botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
+    if (!live) { b.vx = b.vz = 0; b.av = 0; b.sprint = false; b.runUp = 0; botPose(b, dt, t); continue; }   // (picking and counting in: stood still where it spawned, looking where it faces, as you are)
     b.prot = Math.max(0, (b.prot || 0) - dt);
     // reeling from a shove: carried back on it, no moving or firing of its own
     if (b.stun > 0) { b.stun -= dt; const f = Math.exp(-dt * 6); b.vx *= f; b.vz *= f; moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false); botAimStep(b, dt, t, null); botPose(b, dt, t); continue; }
@@ -489,9 +582,9 @@ export function botsUpdate(dt) {
 function botMove(b, dt, t) {
   let dx = 0, dz = 0;
   const T = b.vis, fighting = b.state === 'fight' && T;
-  if (b.path.length && (!fighting || b.mv === 'push')) {
+  if (b.path.length && (!fighting || b.mv === 'push' || b.mv === 'tocover')) {
     const [px, pz] = b.path[0], ex = px - b.x, ez = pz - b.z, d = Math.hypot(ex, ez);
-    if (d < 0.35) { b.path.shift(); if (b.state === 'roam' && rand() < 0.22) { b.stopT = t + rr(0.3, 0.8); b.glanceT = 0; } }
+    if (d < 0.35) { b.path.shift(); if (!b.path.length && b.mv === 'tocover') { b.mv = 'hold'; b.mvT = t + rr(1.2, 2.2); if (T) b.leanSide = botLeanSide(b, T); b.leanT = t + rr(1, 2); } if (b.state === 'roam' && rand() < 0.22) { b.stopT = t + rr(0.3, 0.8); b.glanceT = 0; } }
     else if (t > b.stopT) { dx = ex / d; dz = ez / d; }
   } else if (fighting) {
     const ex = T.x - b.x, ez = T.z - b.z, d = Math.hypot(ex, ez) || 1;
@@ -506,35 +599,57 @@ function botMove(b, dt, t) {
   const aimed = !b.sprint && (b.vis || b.state !== 'roam');
   if (b.sprint && !(dx || dz)) b.sprint = false;
   b.tag = Math.max(0, (b.tag || 0) - dt * 0.45);   // (slowed by a hit, as a player is: pvp/pvp.js PVP_TAG)
-  const sp = BOT_MOVE.base * (BOT_MOVE.cls[b.cls] || 1) * (b.sprint ? BOT_MOVE.sprint : aimed ? BOT_MOVE.aimed : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag);
-  const L = Math.hypot(dx, dz), k = 1 - Math.exp(-dt * 10), tvx = L > 1e-3 ? dx / Math.max(1, L) * sp : 0, tvz = L > 1e-3 ? dz / Math.max(1, L) * sp : 0;
+  // (its sprint coming up as yours does, player/sprint.js: some of it at once, the rest over a moment)
+  b.runUp = b.sprint ? Math.min(1, (b.runUp || 0) + dt / SPRINT.build) : Math.max(0, (b.runUp || 0) - dt * SPRINT.fade);
+  const runK = SPRINT.kick + (1 - SPRINT.kick) * (1 - (1 - b.runUp) * (1 - b.runUp));
+  const gid = botGunOf(b), sp = BOT_MOVE.base * botCarry(b, gid) * (b.sprint ? 1 + (BOT_MOVE.sprint - 1) * runK : aimed ? botAds(b, gid) : 1) * (b.reloading ? 0.85 : 1) * (1 - 0.72 * b.tag);
+  const L = Math.hypot(dx, dz), k = 1 - Math.exp(-dt * 13), tvx = L > 1e-3 ? dx / Math.max(1, L) * sp : 0, tvz = L > 1e-3 ? dz / Math.max(1, L) * sp : 0;
   b.vx += (tvx - b.vx) * k; b.vz += (tvz - b.vz) * k;
   const x0 = b.x, z0 = b.z;
   moveCircle(b, b.vx * dt, b.vz * dt, 0.3, false);
   // stuck on something: a new way there
   if (L > 0.2 && Math.hypot(b.x - x0, b.z - z0) < sp * dt * 0.2) { if ((b.stuck += dt) > 0.7) { b.stuck = 0; b.path = []; b.mvT = 0; if (b.state === 'roam' || b.state === 'hunt' || b.state === 'flank') b.state = 'roam'; } } else b.stuck = 0;
 }
+// somewhere worth looking, standing about: the way that's most open (furthest to the first wall), off the way it faces
+// by up to about a right angle either side, never at the wall in front of it
+function botOpenLook(b) {
+  let best = b.aim, bd = -1;
+  for (let k = 0; k < 9; k++) {
+    const a = b.aim + (k - 4) * 0.4 + rr(-0.12, 0.12); let d = 0.6;
+    while (d < 22 && !bulletBlocked(b.x + Math.sin(a) * d, b.z + Math.cos(a) * d)) d += 0.6;
+    const s = d - Math.abs(k - 4) * 0.8 + rr(0, 2); if (s > bd) { bd = s; best = a; }
+  }
+  return best;
+}
 // where it looks: at whoever it's fighting (its aim settling onto them), else where it's running, at the last place it
 // knew of someone, toward a noise, or about it botNow and then
 function botAimStep(b, dt, t, T) {
-  const S = botSk(); let want = b.aim;
+  const S = botSk(b); let want = b.aim;
   b.err *= Math.exp(-dt * S.settle); b.spray = Math.max(0, b.spray - dt * 0.08);
-  if (T) want = Math.atan2(T.x - b.x, T.z - b.z) + b.err + Math.sin(t * 2.3 + b.seed) * 0.015;
+  if (T) want = Math.atan2(T.x - b.x, T.z - b.z) + b.err + Math.sin(t * 2.3 + b.seed) * 0.012;
   else if (b.alarm !== undefined) { want = b.alarm; if (Math.abs(angDiff(want, b.aim)) < 0.1) b.alarm = undefined; }
   else {
-    const L = botKnown(b, t), mv = Math.hypot(b.vx, b.vz) > 0.5 ? Math.atan2(b.vx, b.vz) : null;
+    // (where it's going: a little way on along its path, not the way it's moving this instant, which every step round
+    // a corner or off someone else swings about)
+    const L = botKnown(b, t), on = b.path.length ? b.path[Math.min(1, b.path.length - 1)] : null;
+    const mv = on && Math.hypot(on[0] - b.x, on[1] - b.z) > 0.4 ? Math.atan2(on[0] - b.x, on[1] - b.z) : Math.hypot(b.vx, b.vz) > 0.5 ? Math.atan2(b.vx, b.vz) : null;
     if (b.sprint && mv !== null) want = mv;
     else if (L && t - L.t < (L.threat ? 20 : 8) && (b.state === 'hold' || b.state === 'cover' || b.state === 'peek' || b.state === 'search' || Math.hypot(L.x - b.x, L.z - b.z) < (L.threat ? 20 : 14))) want = Math.atan2(L.x - b.x, L.z - b.z);
     else if (mv !== null) want = mv;
-    else { if (t > b.glanceT) { b.glanceT = t + rr(1.2, 2.8); b.look = b.aim + rr(-1.2, 1.2); } want = b.look; }
+    else { if (t > b.glanceT) { b.glanceT = t + rr(...BOT_LOOK.glance); b.look = botOpenLook(b); } want = b.look; }
   }
+  // (what it wants to look at eased onto, off a target: nothing it hears or passes jerks its view across)
+  if (T || b.lookW === undefined) b.lookW = want; else { b.lookW += angDiff(want, b.lookW) * (1 - Math.exp(-dt * BOT_LOOK.ease)); want = b.lookW; }
   // (turning as a hand on a mouse does: speeding up toward it and easing off as it gets there, never a snap)
-  const da = angDiff(want, b.aim), top = S.turn * (T ? 1 : 0.7), wv = clamp(da * 6, -top, top);
-  b.av += (wv - b.av) * (1 - Math.exp(-dt * 7)); b.aim += b.av * dt;
+  const da = angDiff(want, b.aim), top = S.turn * (T ? 1 : BOT_LOOK.idle), wv = clamp(da * (T ? 6 : 4), -top, top);
+  b.av += (wv - b.av) * (1 - Math.exp(-dt * (T ? 7 : 5))); b.aim += b.av * dt;
   // and up or down: onto the part of them it's aiming at, else a little down ahead of it as it goes, eased the same way
-  const wp = T ? Math.atan2(BOT_PART_Y[b.aimPart || 'torso'] - BOT_EYE, Math.max(1, Math.hypot(T.x - b.x, T.z - b.z))) : b.sprint ? -0.12 : -0.05 + Math.sin(t * 0.7 + b.seed) * 0.04;
-  b.pitch = (b.pitch || 0) + (wp - (b.pitch || 0)) * (1 - Math.exp(-dt * 6));
+  const wp = T ? Math.atan2(BOT_PART_Y[b.aimPart || 'torso'] - BOT_EYE, Math.max(1, Math.hypot(T.x - b.x, T.z - b.z))) : b.sprint ? -0.12 : -0.05 + Math.sin(t * 0.5 + b.seed) * 0.03;
+  b.pitch = (b.pitch || 0) + (wp - (b.pitch || 0)) * (1 - Math.exp(-dt * 5));
 }
+// how it looks about off a fight: a noise turned to only BOT_LOOK.alarm s after the last, a new way to look idle every
+// glance s, what it wants eased onto (ease, per s), and turning no faster than idle of its top speed
+const BOT_LOOK = { alarm: 1.2, glance: [2, 4], ease: 3.5, idle: 0.5 };
 // its gun: switching, reloading, and firing while someone's in its sights (after a moment to react, once its aim's
 // on them, in the gun's reach): short bursts at range, longer ones close in, single aimed shots from the rest
 function botGun(b, dt, t, foes) {
@@ -542,7 +657,7 @@ function botGun(b, dt, t, foes) {
   const id = botGunOf(b), D = WEAP[id];
   if (b.reloading) { if ((b.relT -= dt) <= 0) { const n = Math.min((D.mag || 1) - b.mag[id], b.res[id]); b.mag[id] += n; b.res[id] -= n; b.reloading = false; } return; }
   b.cd -= dt;
-  const T = b.vis; if (!T || t < b.react || b.noFire || (b.sprint && !botStyle(b).runGun)) return;
+  const T = b.vis; if (!T || t < b.react || b.noFire || b.sprint) return;
   const d = Math.hypot(T.x - b.x, T.z - b.z);
   if (d > (BOT_REACH[id] || 25)) return;
   b.hipT = d < BOT_HIP.near || (D.ammo === 'shells' && d < BOT_HIP.shells) ? t + 0.6 : b.hipT;   // (close in, from the hip: botPose)
@@ -560,11 +675,12 @@ function botGun(b, dt, t, foes) {
 // on that line takes it as a player's would (pvp/pvp.js: by where it lands, a head double, low cover keeping most of a
 // body out of it), and everyone sees and hears it
 function botShoot(b, id, D, foes, d) {
-  const S = botSk(), pel = D.pellets || 1, shells = D.ammo === 'shells', gt = b.gt[id] || {};
+  const S = botSk(b), pel = D.pellets || 1, shells = D.ammo === 'shells', gt = b.gt[id] || {};
   b.mag[id]--; b.st.shots++;
   const moving = Math.hypot(b.vx, b.vz), T = b.vis, tv = T ? Math.hypot(T.vx, T.vz) : 0;
-  const sig = S.sig + (pel > 1 ? 0 : (D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) + (moving > 0.5 ? (b.sprint ? 0.08 : 0.025) : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k);
-  const common = botGauss() * sig; b.spray = Math.min(0.07, b.spray + (D.rate < 0.12 ? 0.006 : 0.012));
+  const sig = (S.sig + (pel > 1 ? 0 : (D.spread || 0.03) * 0.5 + (botNow() < (b.hipT || 0) ? BOT_HIP.spread : 0)) + moving * BOT_ACC.move + (b.sprint ? BOT_ACC.sprint : 0) + b.spray + Math.min(BOT_LEAD.max, tv * BOT_LEAD.k)
+    + Math.max(0, d - BOT_ACC.near) * BOT_ACC.far + (D.kick || 1) * BOT_ACC.kick) * botSight(gt.sight || 0, d);
+  const common = botGauss() * sig; b.spray = Math.min(BOT_ACC.sprayMax, b.spray + BOT_ACC.spray0 + (D.kick || 1) * BOT_ACC.sprayKick);   // (a kicking gun's held trigger walking off further)
   const ox = b.x + Math.sin(b.aim) * 0.55, oz = b.z + Math.cos(b.aim) * 0.55, oy = 1.36, on = new Map(), ends = [];
   for (let k = 0; k < pel; k++) {
     const a = b.aim + common + (pel > 1 ? (rand() * 2 - 1) * D.spread * (gt.choke ? 0.8 : 1) * 0.85 : 0), dx = Math.sin(a), dz = Math.cos(a);
@@ -577,7 +693,7 @@ function botShoot(b, id, D, foes, d) {
       const part = r < head ? 'head' : r < head + legs ? (rel > 0 ? 'legR' : 'legL') : r < head + legs + 0.18 ? (rel > 0 ? 'armR' : 'armL') : 'torso';   // (where it's aiming: botAimPart)
       if (pvpCovered(hit.x, hit.z, ox, oz, dx, dz, ht) && part !== 'head' && !part.startsWith('arm')) { ht = Math.max(0.3, ht - 0.9); endK = 1; }   // into the cover in front of them
       else {
-        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = (PVP_DMG[id] || 20) * PVP_TTK * falloff(id, ht) * (part === 'head' && shells ? PVP_HEAD_SHELL : PVP_PART[part]);
+        const s = on.get(hit) || { d: 0, n: 0, head: false, part, top: 0 }, dm = (PVP_DMG[id] || 20) * PVP_TTK * pvpFalloff(id, ht) * pvpPartK(id, part, ht);
         s.d += dm; s.n++; if (part === 'head') s.head = true; if (dm > s.top) { s.top = dm; s.part = part; } on.set(hit, s);
         endK = 0; ey = part === 'head' ? 1.62 : part.startsWith('leg') ? 0.5 : 1.15;
       }
@@ -623,6 +739,8 @@ function botDie(b, t) {
   b.p.dead = true; botPose(b, 0, t, true);
   netSend('pk', m); pvpKilled(m);
   b.respawn = PVP_T.respawn;
+  // its side's other bots hear it go down (as team players, BOT_SKILL team): they know roughly where the shot came from
+  if (L && PVP.mode !== 'ffa') for (const o of BOTS.values()) if (o !== b && !o.dead && o.side === b.side && rand() < botSk(o).team) o.mem.set(L.id, { id: L.id, x: L.x + rr(-2, 2), z: L.z + rr(-2, 2), t, seen: false, call: true, threat: true });
   // Showdown: it learns. The lane it went down in it's less keen on next round, and going down early on the attack makes
   // it more careful (BOT_LEARN)
   if (PVP.mode === 'rounds') { b.learn.lane[b.lane ?? 1]++; if (PVP_T.round - PVP.t < BOT_LEARN.early && /hunt|rush|flank|fight/.test(b.state)) b.learn.bold = Math.max(-BOT_LEARN.most, b.learn.bold - BOT_LEARN.lose); }
@@ -641,7 +759,7 @@ function botDie(b, t) {
 // (the guns it has no recorded pose for, held as the nearest it has: the battle rifle as the assault rifle, the auto
 // shotgun as the pump, the hand cannon as the revolver)
 const BOT_POSE_AS = { scar: 'ar', auto12: 'pump', deagle: 'revolver' };
-const BOT_PITCH_BODY = 0.5;   // (how much of its look up or down its upper body takes)
+const BOT_PITCH_BODY = 0.85;   // (how much of its look up or down its upper body takes)
 const BOT_HZ = 15, BOT_TAU = Math.PI * 2, BOT_LEAN = { tilt: 0.3, hip: 0.62, off: 0.5 };
 // which way to lean to see T round what it's behind: the side that sees them and the other doesn't, else neither
 function botLeanSide(b, T) {
@@ -652,8 +770,10 @@ function botLeanSide(b, T) {
 function botPose(b, dt, t, now_) {
   const id = botGunOf(b) || 'pistol', G = BOT_GUN[id] || BOT_GUN[BOT_POSE_AS[id]] || BOT_GUN.pistol, sp = Math.hypot(b.vx, b.vz);
   const run = b.sprint && sp > 3.2, fighting = !!b.vis || b.state !== 'roam';
-  const upK = run && !(botStyle(b).runGun && b.vis) ? 'run' : fighting && !b.reloading && t >= (b.hipT || 0) ? 'aim' : 'hip';
-  const up = G[upK], w = G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
+  // (in cover with nobody in sight, its gun's tucked in to it, low, nothing of it out past what it's behind)
+  const tuck = !b.vis && (b.state === 'cover' || b.state === 'hold') && !b.path.length;
+  const upK = run ? 'run' : fighting && !b.reloading && !tuck && t >= (b.hipT || 0) ? 'aim' : 'hip';
+  const up = G[upK]; let w = G[upK === 'run' ? 'rw' : upK === 'aim' ? 'aw' : 'hw'];
   const mvA = Math.atan2(b.vx, b.vz), face = run && upK === 'run' ? mvA : b.aim;
   // the legs
   let legs = BOT_IDLE;
@@ -670,9 +790,18 @@ function botPose(b, dt, t, now_) {
     BOT_LEG.forEach((k, i) => { j[k] = legs[i]; }); BOT_UP.forEach((k, i) => { j[k] = up[i]; }); b.jSet = true;
     // leaning out round its cover to peek or hold an angle, as a player leans (player/lean.js): the upper body (j 6-11,
     // its place and turn) tipped over at the hips
-    const lw = !b.dead && !b.sprint && (b.state === 'peek' || (b.state === 'fight' && b.mv === 'hold')) ? b.leanSide || 0 : 0;
-    b.lean = (b.lean || 0) + (lw - (b.lean || 0)) * (1 - Math.exp(-dt * 8));
-    const la = b.lean * BOT_LEAN.tilt; j[11] = bR2(j[11] + la); j[9] = bR2(j[9] - (b.pitch || 0) * BOT_PITCH_BODY);   // (and tipped up or down with its look) j[6] = bR3(j[6] + BOT_LEAN.hip * Math.sin(la)); j[7] = bR2(j[7] + BOT_LEAN.hip * (1 - Math.cos(la)));
+    // (out round it for a while once it's leaned, eased out and back, not snapped: leanT)
+    const lw = !b.dead && !b.sprint && Math.hypot(b.vx, b.vz) < 1.6 && (b.state === 'peek' || (b.state === 'fight' && b.mv === 'hold') || t < (b.leanT || 0)) ? b.leanSide || 0 : 0;
+    b.lean = (b.lean || 0) + (lw - (b.lean || 0)) * (1 - Math.exp(-dt * 5));
+    const la = b.lean * BOT_LEAN.tilt; j[11] = bR2(j[11] + la); j[9] = bR2(j[9] - (b.pitch || 0) * BOT_PITCH_BODY);
+    // (and the gun in its hands with it, tipped over and up or down just as the upper body's been from its pose: so it
+    // points where it looks, from its own eyes as from anyone else's)
+    if (w && w.length === 7) {
+      _bgA.compose(_bvP.set(up[0], up[1], up[2]), _bvQ.setFromEuler(_bvE.set(up[3], up[4], up[5], 'XYZ')), _bvS.set(1, 1, 1)).invert();
+      _bgB.compose(_bvP.set(j[6], j[7], j[8]), _bvQ.setFromEuler(_bvE.set(j[9], j[10], j[11], 'XYZ')), _bvS).multiply(_bgA);
+      _bgA.compose(_bvP.set(w[0], w[1], w[2]), _bvQ.set(w[3], w[4], w[5], w[6]), _bvS).premultiply(_bgB).decompose(_bvP, _bvQ, _bvS);
+      w = [bR3(_bvP.x), bR3(_bvP.y), bR3(_bvP.z), bR3(_bvQ.x), bR3(_bvQ.y), bR3(_bvQ.z), bR3(_bvQ.w)];
+    }   // (and tipped up or down with its look) j[6] = bR3(j[6] + BOT_LEAN.hip * Math.sin(la)); j[7] = bR2(j[7] + BOT_LEAN.hip * (1 - Math.cos(la)));
   }
   if (!now_ && (b.poseT -= dt) > 0 && b.sentLocal) { NET_ON.p(Object.assign({ t: 'p', f: b.id }, botMsg(b, j, id, w, upK, false))); return; }
   b.poseT = 1 / BOT_HZ; b.sentLocal = true;
@@ -694,6 +823,7 @@ function botMsg(b, j, id, w, upK, full) {
 // eyes (on its head, out to the side as it leans) and where it looks, in its body's frame; its arms and gun as its pose
 // has them. Only while someone who could be watching is down
 const botFvWanted = () => P.dead || [...NET.peers.values()].some(p => p.dead && !p.bot);
+const _bgA = new THREE.Matrix4(), _bgB = new THREE.Matrix4();
 const _bvB = new THREE.Matrix4(), _bvC = new THREE.Matrix4(), _bvP = new THREE.Vector3(), _bvQ = new THREE.Quaternion(), _bvS = new THREE.Vector3(1, 1, 1), _bvE = new THREE.Euler();
 function botFv(b, j) {
   _bvB.compose(_bvP.set(j[0], j[1], j[2]), _bvQ.setFromEuler(_bvE.set(j[3], j[4], j[5], 'YXZ')), _bvS.set(1, 1, 1)).invert();

@@ -1,18 +1,21 @@
 // The arena: the map the player-against-player mode is played on (pvp/pvp.js), built over where the farm stands for as
-// long as a match goes on. An old freight yard in a clearing in the woods, a cast concrete pad walled round with tall
-// precast panels, laid out as three lanes and the same both halves (west against east, so neither side's better off):
-//  - each side's spawn, a walled yard at its end: the wall on its inner side is solid, so nothing in the middle sees
-//    into it, and you leave it north or south round that wall's ends, past sandbags. No spawn cell sees any of the
-//    other side's (tools/arena-plan.py checks)
-//  - the middle, an open plaza round the centre, a ring of sandbags in it, a container stood across the lane at each
-//    end and wall stubs at its corners so it can't be seen across end to end
-//  - the north lane, a roofless warehouse against the north wall (doors on three sides), a loading dock and a pair of
-//    containers the lane bends round, an L of wall to fight round
-//  - the south lane, a container yard staggered so no line runs straight through it, and a guard hut in the corner
-//  - between the lanes, a container and a wall stub each side, three ways through
-// Along every wall something stands out from it (the warehouse, a container on end, crates on the dock), so there's no
-// long straight sightline down the edges: the longest run is 14 m. Floodlights stand in its corners and halfway along
-// each wall.
+// long as a match goes on. "Yard 4", an old freight terminal yard in a clearing in the woods: a cast concrete pad
+// walled round with tall precast panels, laid out as three lanes, the west half (Blue's) mirrored for the east (Red's),
+// so neither side's better off. Designed and checked in tools/arena-plan.py (reachability, spawn sightlines, lane
+// sightlines, edge runs, timings):
+//  - each spawn, a walled yard at its end with three exits: north into the warehouse office, south onto the rail spur
+//    (each round a baffle inside it), east through a gate into the courtyard (behind a long baffle). Nothing outside a
+//    spawn sees into it, and no spawn sees the other's
+//  - NORTH, the Warehouse: close quarters (4-12 m). Three roofless rooms in a zig-zag (the office, the storage hall,
+//    the central hall), their doorways offset so nothing sees down the lane; crate racking, barriers, drums. A door
+//    into the plaza (round a baffle just inside it) is the flag's north approach
+//  - MIDDLE, the Plaza: medium range (8-20 m) and the contest. The courtyard out of each spawn's gate, between two
+//    container stacks, onto the plaza and the flag in its sandbag ring, with wall stubs at the ring's corners
+//  - SOUTH, the Rail spur: long range (15-28 m), the one place for a rifle. An open yard with low cover (the platform's
+//    barriers, sandbags, drums), a container stack part way along and a signal hut in the very middle so it's never
+//    seen end to end; a gap in the container wall either side of the hut (round a baffle) is the flag's south approach
+// No line runs from the north lane into the south; the longest straight run along any wall is 18 m. Floodlights stand
+// in its corners and halfway along each wall.
 //
 // While it's up, the farm's own pieces (the house, the yard, the fence, the stations: world/farm-set.js) are out of the
 // scene and the grid (what's walked through, what stops a round and the eye, the light) is the arena's; when it comes
@@ -22,7 +25,7 @@ import { scene } from '../core/renderer.js';
 import { rand, rr, seeded, withSeed } from '../core/math.js';
 import { lam, LMU } from '../core/shaders.js';
 import { box, mergeInto } from '../core/geometry.js';
-import { cell, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
+import { cell, ci, cxw, EMPTY, idx, OBST, openAt, WALL } from './grid.js';
 import { cellBox, syncBlock } from './collision.js';
 import { lowObst, obstTop } from './props.js';
 import { THIN, wX, wZ } from './thin-walls.js';
@@ -38,59 +41,67 @@ import { TREE_HIDE } from './tree-cull.js';
 
 // its bounds (cells, the walls round it included), the time of day it's always fought at (mid afternoon, the sun
 // starting down and the shadows lengthening), and its plan, a row a line from north (j = z0) to south: # the outer wall, C a container,
-// h block walls (the warehouse, the hut, the spawn yards', the stubs), b a jersey barrier, s sandbags (vaulted over: VAULT_LOW), k a stack of crates, o a drum, r a cable
+// h block walls (the warehouse, the hut, the spawn yards', the baffles, the stubs), b a jersey barrier, s sandbags and k crate stacks (both vaulted over: VAULT_LOW), o a drum, r a cable
 // spool; A and B each side's spawn, F the spots a free-for-all spawns from (on the floor)
 export const ARENA = { on: false, x0: 1, x1: 42, z0: 1, z1: 42, tod: 15.6 };
 const AR_PLAN = [
   '##########################################',
-  '#..hhhhhhh..ko.....k..k.....ok..hhhhhhh..#',
-  '#..h.....h.........k..k.........h.....h..#',
-  '#..h.k......CCCCCC......CCCCCC......k.h..#',
-  '#........h..CCCCCC......CCCCCC..h........#',
-  '#..h..Fk.h......................h.kF..h..#',
-  '#..h.....h....F............F....h.....h..#',
-  '#..hhh..hh.........k..k.........hh..hhh..#',
-  '#..........b...h..........h...b..........#',
-  '#k.........b..hh....hh....hh..b.........k#',
-  '#.oF...k...b...h..........h...b...k...Fo.#',
-  '#.....k........h..ssssss..h........k.....#',
-  '#........CCCC....k......k....CCCC........#',
-  '#hhhhh...CCCC...h...hh...h...CCCC...hhhhh#',
-  '#...............h.k....k.h...............#',
-  '#....s.h.....b..............b.....h.s....#',
-  '#....s.hk....b..............b....kh.s....#',
-  '#.AAA..h...........ssss...........h..BBB.#',
-  '#.AAA..h.......hh........hh.......h..BBB.#',
-  '#.AAA..h..CC..................CC..h..BBB.#',
-  '#.AAA..h..CCF.o...s....s...o.FCC..h..BBB.#',
-  '#.AAA..h..CC..o...s....s...o..CC..h..BBB.#',
-  '#.AAA..h..CC..................CC..h..BBB.#',
-  '#.AAA..h.......hh........hh.......h..BBB.#',
-  '#.AAA..h...........ssss...........h..BBB.#',
-  '#....s.hk....b..............b....kh.s....#',
-  '#....s.h.....b..............b.....h.s....#',
-  '#..........ss...h........h...ss..........#',
-  '#hhhhh...CCCC...h...hh...h...CCCC...hhhhh#',
-  '#........CCCC....k..kk..k....CCCC........#',
-  '#.oF.k.....CCCCCC.hh..hh.CCCCCC.....k.Fo.#',
-  '#k.........CCCCCC........CCCCCC.........k#',
-  '#.CC...k............hh............k...CC.#',
-  '#.CC.k...........b..hh..b...........k.CC.#',
-  '#.CC..hh.hh......b..hh..b......hh.hh..CC.#',
-  '#.CC..h...h..CC..b......b..CC..h...h..CC.#',
-  '#.CC....F.h..CC............CC..h.F....CC.#',
-  '#.CC..h......CC.F........F.CC......h..CC.#',
-  '#.....h.k.h..CC....kook....CC..h.k.h.....#',
-  '#.....h...h..CC............CC..h...h.....#',
-  '#.....hhhhh..CC............CC..hhhhh.....#',
+  '#.......h.....h............h.....h.......#',
+  '#.o........F..h............h..F........o.#',
+  '#.............h...k....k...h.............#',
+  '#..F..........h...k....k...h..........F..#',
+  '#.......h..k..h............h..k..h.......#',
+  '#...kk..h..k..h.F........F.h..k..h..kk...#',
+  '#...kk..h..k..h.....oo.....h..k..h..kk...#',
+  '#.......h........................h.......#',
+  '#.......h.......bb......bb.......h.......#',
+  '#.....o.h.bbb................bbb.h.o.....#',
+  '#.......h.....h............h.....h.......#',
+  '#h...hhhhhhhhhhhh..hhhh..hhhhhhhhhhhh...h#',
+  '#......h..........................h......#',
+  '#hhhhh.h...CCC.FhhhhhhhhhhF.CCC...h.hhhhh#',
+  '#......h...CCC..............CCC...h......#',
+  '#.AAAA.h.h.CCC..h........h..CCC.h.h.BBBB.#',
+  '#.AAAA.h.h......h..ssss..h......h.h.BBBB.#',
+  '#.AAAA.h.h......................h.h.BBBB.#',
+  '#.AAAA...h......................h...BBBB.#',
+  '#.AAAA...h..s.b...s....s...b.s..h...BBBB.#',
+  '#.AAAA...hF.s.b...s....s...b.s.Fh...BBBB.#',
+  '#.AAAA...h......................h...BBBB.#',
+  '#.AAAA.h.h......................h.h.BBBB.#',
+  '#.AAAA.h.h......h..ssss..h......h.h.BBBB.#',
+  '#.AAAA.h.h.CCC..h........h..CCC.h.h.BBBB.#',
+  '#......h...CCC..............CCC...h......#',
+  '#hhhhh.h...CCC.FhhhhhhhhhhF.CCC...h.hhhhh#',
+  '#......h..........................h......#',
+  '#h...hhhCCCCCCCC..CCCCCC..CCCCCCCChhh...h#',
+  '#.......CCCCCCCC..CCCCCC..CCCCCCCC.......#',
+  '#...........CC..............CC...........#',
+  '#..o........FC..............CF........o..#',
+  '#...........CCs............sCC...........#',
+  '#.....bbbbbbb.s....hhhh....s.bbbbbbb.....#',
+  '#...F.........s....hhhh....s.........F...#',
+  '#..................hhhh..................#',
+  '#.k................hhhh................k.#',
+  '#.k...r...CC.....F......F.....CC...r...k.#',
+  '#.........CC....o........o....CC.........#',
+  '#.........CC..................CC.........#',
   '##########################################'
 ];
 // how tall each kind stands (m): what a round fired below it from your own eyes stops on (world/props.js: obstTop), and
 // whether you see and shoot over it (low) or not
-const AR_H = { '#': 3.2, C: 2.6, h: 2.7, b: 1.1, s: 1.15, k: 1.9, o: 1.05, r: 1.1 };
-const AR_LOW = new Set(['b', 's', 'o', 'r']);
+const AR_H = { '#': 3.2, C: 2.6, h: 2.7, b: 1.1, s: 1.15, k: 1.4, o: 1.05, r: 1.1 };
+const AR_LOW = new Set(['b', 's', 'o', 'r', 'k']);
+// (and what's vaulted: the sandbags and the crate stacks, chest high, a head showing over them)
+const AR_VAULT = new Set(['s', 'k']);
 // the sandbag walls' cells, while the arena's up: hopped over like the farm's fence (player/vaulting.js)
 export const VAULT_LOW = new Set();
+// what's vaulted where you stand (the vault prompt: barricades/interactions.js): the nearest within reach, crates or sandbags
+export function arVaultWhat(x, z) {
+  let best = 9, k = 's';
+  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const i = ci(x) + di, j = ci(z) + dj, c = AR_KIND(i, j); if (!AR_VAULT.has(c)) continue; const d = Math.hypot(cxw(i) - x, cxw(j) - z); if (d < best) { best = d; k = c; } }
+  return k === 'k' ? 'crates' : 'sandbags';
+}
 // spawn spots by side, worked out from the plan: [x, z, facing]
 const AR_SPAWN = { A: [], B: [], F: [] };
 const AR_KIND = (i, j) => { const r = AR_PLAN[j - ARENA.z0]; return r ? r[i - ARENA.x0] || '#' : '#'; };
@@ -231,13 +242,19 @@ function arBags(parts, i, j, x, z, alongZ) {
 function arSpool(parts, x, z) {
   for (const o of [-0.38, 0.38]) { const f = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.07, 16), AR_M.crate)); f.rotation.z = Math.PI / 2; f.position.set(x + o, 0.55, z); f.castShadow = f.receiveShadow = true; }
   const d = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 14), AR_M.contDk)); d.rotation.z = Math.PI / 2; d.position.set(x, 0.55, z); d.castShadow = d.receiveShadow = true;
+  arFoot(x, z, 0.42, 0.55, 0.42, 0.55);
 }
+// (a prop's footprint, as its model stands, for what walks into it and what a round hits: world/collision.js cellBox,
+// not the whole cell; out from its middle, -x, -z, +x, +z)
+const arFoot = (x, z, a, b, c, d) => { cellBox[idx(ci(x), ci(z))] = [x - a, z - b, x + c, z + d]; };
 // two crates stacked, the top one turned a little, their slats and corner boards darker
 function arCrates(parts, x, z) {
-  [[0.95, 0, 0], [0.82, 0.95, rr(-0.3, 0.3)]].forEach(([s, y, a]) => {
-    const c = arPush(parts, box2(s, s, s, AR_M.crate, x, y + s / 2, z)); c.rotation.y = a;
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = arPush(parts, box2(0.06, s + 0.005, 0.06, AR_M.crateDk, x + sx * (s / 2 - 0.02), y + s / 2, z + sz * (s / 2 - 0.02))); p.rotation.y = a; }
+  // (chest high, AR_H.k: a big crate and a flat one on it, to vault over and see over; the flat one turned a little)
+  [[0.95, 0.95, 0, 0], [0.8, 0.45, 0.95, rr(-0.3, 0.3)]].forEach(([s, h, y, a]) => {
+    const c = arPush(parts, box2(s, h, s, AR_M.crate, x, y + h / 2, z)); c.rotation.y = a;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const p = arPush(parts, box2(0.06, h + 0.005, 0.06, AR_M.crateDk, x + sx * (s / 2 - 0.02), y + h / 2, z + sz * (s / 2 - 0.02))); p.rotation.y = a; }
   });
+  arFoot(x, z, 0.48, 0.48, 0.48, 0.48);
 }
 // a pair of drums, one blue, one rusted, with their rims
 function arDrums(parts, x, z) {
@@ -245,6 +262,7 @@ function arDrums(parts, x, z) {
     const d = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.9, 14), mat)); d.position.set(x + ox, 0.45, z + oz); d.castShadow = d.receiveShadow = true;
     for (const y of [0.3, 0.6, 0.9]) { const r = arPush(parts, new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 14), AR_M.drumRim)); r.position.set(x + ox, y, z + oz); r.castShadow = true; }
   });
+  arFoot(x, z, 0.5, 0.45, 0.54, 0.5);
 }
 // a container: its run of C cells (along x or z) as one box, ribbed down its long sides, its doors at one end with
 // their locking bars, a coat of colour each
@@ -381,7 +399,7 @@ export function arenaUp() {
   for (let j = ARENA.z0; j <= ARENA.z1; j++) for (let i = ARENA.x0; i <= ARENA.x1; i++) {
     const k = AR_KIND(i, j), c = idx(i, j);
     if (k === '#' || k === 'h') cell[c] = WALL;
-    else if (AR_H[k]) { cell[c] = OBST; obstTop.set(c, AR_H[k]); if (AR_LOW.has(k)) lowObst.add(c); if (k === 's') VAULT_LOW.add(c); }
+    else if (AR_H[k]) { cell[c] = OBST; obstTop.set(c, AR_H[k]); if (AR_LOW.has(k)) lowObst.add(c); if (AR_VAULT.has(k)) VAULT_LOW.add(c); }
   }
   // the woods cleared back from the terminal's apron: the farm's own trees there drawn at nothing, kept to put back
   arTrees.length = 0;

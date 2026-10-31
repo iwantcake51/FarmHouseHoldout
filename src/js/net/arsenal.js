@@ -204,6 +204,8 @@ export function buildArsenal(a, lo, lk) {
   // the speed loader and the shells in their hand
   if (!a.slm) { a.slm = SLM.clone(true); a.slm.visible = false; a.upper.add(a.slm); a.hsh = HSH.clone(true); a.hsh.visible = false; a.upper.add(a.hsh); }
 }
+// a shot's kick on their gun (m: back along it, up)
+const ARS_KICK = { back: 0.045, up: 0.012 };
 // every frame: their weapons out where they hold them (eased), the moving parts as they last said, what's stowed
 const _aQ = new THREE.Quaternion();
 export function arsenalFrame(p, a, rdt) {
@@ -212,10 +214,19 @@ export function arsenalFrame(p, a, rdt) {
   for (const e of p.wp || []) {
     const s = SLOTS[e[0]], h = a.held[s]; if (!h) continue; out.add(s);
     if (e[8] && e[8].length === h.moving.length * 8) h.parts = e[8];
-    const g = h.g, first = !g.visible; g.visible = !p.dead;
+    const g = h.g, first = !g.visible || !h.bp; g.visible = !p.dead;
     _arP.set(e[1], e[2], e[3]); _aQ.set(e[4], e[5], e[6], e[7]);
-    if (first) { g.position.copy(_arP); g.quaternion.copy(_aQ); } else { g.position.lerp(_arP, k); g.quaternion.slerp(_aQ, k); }
+    if (first) { h.bp = _arP.clone(); h.bq = _aQ.clone(); } else { h.bp.lerp(_arP, k); h.bq.slerp(_aQ, k); }   // (eased on its own, so a shot's kick put on it below never carries over)
+    g.position.copy(h.bp); g.quaternion.copy(h.bq);
     if (h.parts) h.moving.forEach((o, i) => { const b = i * 8, v = h.parts; o.position.set(v[b], v[b + 1], v[b + 2]); o.rotation.set(v[b + 3], v[b + 4], v[b + 5]); o.scale.z = v[b + 6] || 1; o.visible = !!v[b + 7]; });
+    // their shot (net/avatars.js avShot, a.fire): the gun kicked back into them and its muzzle up, easing home, and a
+    // slide or bolt that cycles on its own slammed back and run home, as yours does (player/hold.js)
+    const F = a.fire; if (F && F.s === s && F.t < 0.3) {
+      F.t += rdt; const st = F.t, kk = F.k * Math.min(1, st / 0.012) * Math.exp(-st * 16);
+      g.translateZ(-ARS_KICK.back * kk); g.position.y += ARS_KICK.up * kk;
+      const off = st < 0.02 ? st / 0.02 : st < 0.032 ? 1 : Math.max(0, 1 - (st - 0.032) / 0.06);
+      for (const q of h.rec.slides) if (!q.cyc && q.m.userData.clip === undefined) q.m.position.z = q.z0 - q.travel * off;
+    }
   }
   for (const s in a.held) if (!out.has(s)) a.held[s].g.visible = false;
   SLOTS.forEach((s, i) => {

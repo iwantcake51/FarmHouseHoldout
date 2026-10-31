@@ -188,6 +188,25 @@ export function ejectCasing(ammo, n, mode, sideSign, now) {
     c.age = 0; c.hot = right || mode === 'breach' ? 1 : 0.4;   // freshly fired brass: a glowing trail and a thread of smoke for a moment
   }
 }
+// someone else's shot (net/avatars.js: a teammate's, another player's or a bot's): the case out of the port of the gun
+// in their hands (h: its hold, as built on them), the gas and smoke with it, flicked out to their right; vx, vz: how
+// they're moving. Which side is their right is read off the gun itself (the port's side of it), however it's mirrored
+const _ceC = new V3();
+export function ejectFrom(id, h, vx, vz, yaw) {
+  const D = W(id); if (!D || D.melee || !h) return;
+  const K = CASE_KIND[D.ammo === 'shells' ? 'shells' : D.ammo === 'magnum' && id === 'revolver' ? 'rimmed' : D.ammo] || CASE_KIND.p9, pt = EJECT_PORT[id];
+  h.updateWorldMatrix(true, false);
+  if (pt) _cv.set(pt[0], pt[1], pt[2]); else _cv.set(X - 0.04, GUN_Y + 0.05, (MUZ.long || 0.9) * 0.38);
+  _ceC.set(X, _cv.y, _cv.z); h.localToWorld(_cv); h.localToWorld(_ceC);
+  _cR.copy(_cv).sub(_ceC).normalize(); _cU.set(0, 1, 0).transformDirection(h.matrixWorld); _cF.set(0, 0, 1).transformDirection(h.matrixWorld);
+  portFx(_cv, _cR, true, D.ammo === 'shells');
+  const c = casings[cIdx = (cIdx + 1) % casings.length], racked = EJECT[id] === 'pump' || EJECT[id] === 'bolt';
+  c.kind = D.ammo; c.r = K.r; c.len = K.len; c.bounces = 0; c.life = rr(7, 10); c.body.geometry = K.geo;
+  c.g.position.copy(_cv); c.g.visible = true; c.g.scale.setScalar(1); c.g.rotation.set(rr(0, 3), (yaw || 0) + rr(-0.5, 0.5), rr(0, 3));
+  const side = racked ? rr(2.3, 3.3) : rr(1.8, 2.8), up = racked ? rr(2.2, 3.2) : rr(1.6, 2.5), back = rr(0.2, 0.8);
+  c.vx = _cR.x * side + _cU.x * up * 0.15 - _cF.x * back + (vx || 0) * 0.8 + rr(-0.3, 0.3); c.vz = _cR.z * side + _cU.z * up * 0.15 - _cF.z * back + (vz || 0) * 0.8 + rr(-0.3, 0.3); c.vy = up;
+  c.spin = rr(9, 17) * (rand() < 0.5 ? -1 : 1); c.roll = rr(-6, 6); c.age = 0; c.hot = 1;
+}
 // a hot casing leaves a short glowing streak drawn out along its flight (one of the trace sprites, turned to its
 // motion on screen) and a thread of smoke for its first moments in the air
 // (made on first use: the sprites are loaded in effects/textures.js, which loads after this file)

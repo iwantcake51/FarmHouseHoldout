@@ -4,7 +4,7 @@
 // and heard here too: the tracer, the flash and the bang, quieter the further off they are.
 
 import { $ } from '../core/dom.js';
-import { cam, FP_CAM, scene, V3 } from '../core/renderer.js';
+import { cam, FP_CAM, GUN_Y, scene, V3 } from '../core/renderer.js';
 import { angDiff, clamp, rr, smooth } from '../core/math.js';
 import { outline } from '../effects/screen-outlines.js';
 import { NET, NET_COL, NET_ON, netLink, netSend, netTo } from './net.js';
@@ -25,9 +25,11 @@ import { bulletHole } from '../effects/bullet-holes.js';
 import { groundHit } from '../weapons/firing.js';
 import { stepRagdoll } from '../zombies/deaths.js';
 import { xray } from '../effects/outlines.js';
-import { fpOn, isoOn, specFpOn } from '../game/view-cam.js';
+import { fpOn, FPV, isoOn, specFpOn } from '../game/view-cam.js';
+import { SET } from '../ui/settings.js';
 import { FP_PIV, lookTurn } from '../player/hold.js';
-import { gunMeshes } from '../weapons/gun-materials.js';
+import { flipOf, gunMeshes, X } from '../weapons/gun-materials.js';
+import { EJECT, ejectFrom } from '../weapons/casings.js';
 import { flashes } from '../weapons/explosives.js';
 import { indoors, playS, SUPP_SFX } from '../audio/samples.js';
 import { footstep } from '../audio/footsteps.js';
@@ -133,6 +135,20 @@ function fpView() {
 // watching a teammate from their own eyes (game/view-cam.js: specFpOn): their survivor's upper body, arms and gun put
 // as their view had them, eased on as their pose is, the head (and what's on it) out of the way of the lens, and the
 // camera at their eye, looking where they look, as wide as they see
+// the view from someone's eyes jolting as theirs does (SPEC_JOLT): kicked up by each of their shots, flinching from
+// each hit they take, and (a bot's, which sends only where it looks) bobbing with its stride; on a spring (k, d) back
+// to where they look. kick, flinch: rad per unit; roll, the flinch's tip; bob: the stride's nod and rock (rad), its
+// dip (m)
+const SPEC_JOLT = { kick: 0.024, flinch: 0.11, roll: 0.07, k: 150, d: 15, bob: [0.005, 0.006, 0.012] };
+function specJolt(a, kind, amt) {
+  const J = a.sj || (a.sj = { p: 0, r: 0, y: 0, vp: 0, vr: 0, vy: 0, ph: 0 });
+  if (kind === 'kick') { J.vp += SPEC_JOLT.kick * 30 * amt; J.vy += (Math.random() - 0.5) * SPEC_JOLT.kick * 12 * amt; }
+  else { const sd = Math.random() < 0.5 ? -1 : 1; J.vp += SPEC_JOLT.flinch * 22 * amt; J.vr += sd * SPEC_JOLT.roll * 22 * amt; J.vy += sd * SPEC_JOLT.flinch * 8 * amt; }
+}
+function specJoltStep(a, rdt) {
+  const J = a.sj; if (!J) return;
+  for (let n = Math.ceil(rdt / (1 / 120)), h = rdt / Math.max(1, n), i = 0; i < n; i++) for (const k of ['p', 'r', 'y']) { const v = 'v' + k; J[v] += (-SPEC_JOLT.k * J[k] - SPEC_JOLT.d * J[v]) * h; J[k] += J[v] * h; }
+}
 const _sfpA = new THREE.Matrix4(), _sfpB = new THREE.Matrix4(), _sfpP = new V3(), _sfpQ = new THREE.Quaternion(), _sfpS = new V3(1, 1, 1);
 function specFp(p, a, rdt) {
   const f = p.fv, on = !!f && !p.dead && specFpOn() && camFocus() === p;
@@ -153,7 +169,15 @@ function specFp(p, a, rdt) {
   if (held && c.length >= 8 + FV_K.length * 7 + 7) place(held.g, 8 + FV_K.length * 7);
   _sfpQ.set(c[3], c[4], c[5], c[6]).normalize(); _sfpP.set(c[0], c[1], c[2]);
   _sfpA.compose(_sfpP, _sfpQ, _sfpS.set(1, 1, 1)).premultiply(a.g.matrixWorld).decompose(FP_CAM.position, FP_CAM.quaternion, _sfpS);
-  if (Math.abs(FP_CAM.fov - c[7]) > 0.01) { FP_CAM.fov = c[7]; FP_CAM.updateProjectionMatrix(); }
+  // (a bot's eyes, pvp/bots.js botFv, which sends only where it looks: put where your own first-person eye sits on a
+  // body, game/view-cam.js FPV, on its head as it's posed, and as wide as you see yourself)
+  const bot = f.length <= 8; if (bot) { a.head.parent.updateWorldMatrix(true, false); FP_CAM.position.set(FPV.side, FPV.eye[0], FPV.eye[1]).add(a.head.position).applyMatrix4(a.head.parent.matrixWorld); }
+  // (the jolts: a bot's own view has none in it, so its kick, flinch and stride go on here; a player's has their own
+  // already, so only the hits they take, which their sent view eases over)
+  specJoltStep(a, rdt); const J = a.sj;
+  if (J) { FP_CAM.rotateY(J.y * (bot ? 1 : 0.5)); FP_CAM.rotateX(J.p * (bot ? 1 : 0.5)); FP_CAM.rotateZ(J.r * (bot ? 1 : 0.5)); }
+  if (bot) { const sp = Math.hypot(p.vx || 0, p.vz || 0), k = clamp(sp / 3, 0, 1.4), B = SPEC_JOLT.bob; a.bobPh = ((a.bobPh || 0) + rdt * sp * 2.1) % (Math.PI * 4); FP_CAM.rotateX(Math.sin(a.bobPh * 2) * B[0] * k); FP_CAM.rotateZ(Math.sin(a.bobPh) * B[1] * k); FP_CAM.position.y -= Math.abs(Math.sin(a.bobPh)) * B[2] * k; }
+  const fov = bot ? SET.fov : c[7]; if (Math.abs(FP_CAM.fov - fov) > 0.01) { FP_CAM.fov = fov; FP_CAM.updateProjectionMatrix(); }
   FP_CAM.updateMatrixWorld(true);
 }
 
@@ -274,6 +298,9 @@ export function updateAvatars(rdt) {
     // only there while you can see where they stand (the fog of war, lighting/vision.js: pvp/pvp.js)
     const foe = pvpFoe(p); if (foe) { const vis = !isoOn() || p.dead || visAt(a.g.position.x, a.g.position.z) > 0.4; a.seen = vis; a.g.visible = vis; if (a.blob) a.blob.visible = vis && !p.dead; } else a.seen = true;
     a.hitF = Math.max(0, (a.hitF || 0) - rdt); const hf = a.hitF > 0 && !p.dead;
+    // (hurt by anyone: from their eyes, the view flinches: specJolt; a pump's or a bolt gun's case out as it's worked)
+    if (a.hp0 !== undefined && (p.hp ?? 100) < a.hp0 && !p.dead) specJolt(a, 'flinch', clamp((a.hp0 - p.hp) / 30, 0.4, 1.4)); a.hp0 = p.hp ?? 100;
+    if (a.ejT && (a.ejT.t -= rdt) <= 0) { const e = p.wp && p.wp[0], h = a.held && e && a.held[SLOTS[e[0]]], hold = h && h.holds && h.holds.R; if (hold && h.g.visible) ejectFrom(a.ejT.id, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); a.ejT = null; }
     if (a.ol) {
       a.ol.visible = !p.dead && (!foe || hf);
       // (a teammate in the arena, from your own eyes: their outline's line seen through walls, as the last few zombies of
@@ -353,8 +380,23 @@ export function shotOut(id, D, mw, ends, trSt, trPw, quiet) {
   botsHear(NET.id, mw.x, mw.z, quiet, ends);   // (the arena's bots hear it, and feel it go by: pvp/bots.js)
   netSend('shot', { w: id, q: quiet ? 1 : 0, x: r3(mw.x), y: r3(mw.y), z: r3(mw.z), e: ends.map(e => [r3(e[0]), r3(e[1]), r3(e[2]), e[3] | 0, r3(e[4] || 0)]), st: trSt, pw: r3(trPw), sh: D.ammo === 'shells' ? 1 : 0, dr: D.dragon ? 1 : 0 });
 }
+// their shot on the gun in their hands, as yours shows on yours: its slide or bolt slammed back and the gun kicked
+// back into them (net/arsenal.js arsenalFrame, a.fire), the spent case out of its port (a pump's or a bolt gun's as
+// it's worked, a beat after), the flash from its muzzle as it is on your screen; and from their eyes, if you're
+// watching through them, the view kicked up (SPEC_JOLT)
+const _avM = new V3();
+function avShot(m) {
+  const p = NET.peers.get(m.f), a = p && p.av, e = p && p.wp && p.wp[0], h = a && a.held && e && a.held[SLOTS[e[0]]];
+  if (!h || !h.g.visible || !h.holds || !h.holds.R || p.dead) return;
+  const D = WEAP[m.w] || {}; a.fire = { t: 0, s: SLOTS[e[0]], k: Math.min(2, (D.kick || 3) / 3) };
+  const hold = h.holds.R; hold.updateWorldMatrix(true, false);
+  if (p.bot) { _avM.set(X, GUN_Y + 0.03, (h.muz || 0.9) + 0.02); hold.localToWorld(_avM); m.x = _avM.x; m.y = _avM.y; m.z = _avM.z; }   // (a bot's said only roughly where: from its gun's muzzle)
+  const ej = EJECT[m.w]; if (ej === 'fire') ejectFrom(m.w, flipOf(hold) || hold, p.vx, p.vz, p.vw ? p.vw[0] : 0); else if (ej === 'pump' || ej === 'bolt') a.ejT = { t: ej === 'pump' ? 0.32 : 0.55, id: m.w };
+  if (a.fvc) specJolt(a, 'kick', a.fire.k);
+}
 NET_ON.shot = m => {
   if (state === 'title') return;
+  avShot(m);
   if (NET.host && !(NET.peers.get(m.f) || {}).bot) botsHear(m.f, m.x, m.z, m.q, m.e);   // (a bot's own it's told of itself)
   for (const e of m.e) {
     tracer(m.x, m.y, m.z, e[0], e[1], e[2], m.pw, m.st, e[3] === 3);

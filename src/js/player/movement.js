@@ -40,7 +40,8 @@ const HURT_SLOW = { from: 0.35, min: 0.85, floor: 0.72 };
 // down the sights you walk slower, by the gun (ADS_MOVE: the share of your pace you keep): a handgun or a machine pistol
 // hardly slows you, the SMG a little more, then the AR, the shotguns and the battle rifle, and the hunting rifle and the
 // LMG most of all; and with a magnified scope at your eye, ADS_SCOPE of that again
-const ADS_MOVE = { pistol: 0.86, revolver: 0.82, deagle: 0.8, smg: 0.86, sub: 0.8, ar: 0.7, pump: 0.66, dbl: 0.66, auto12: 0.64, scar: 0.62, hunting: 0.58, lmg: 0.58, dblSawn: 0.76 }, ADS_SCOPE = 0.78;
+export const ADS_MOVE = { pistol: 0.86, revolver: 0.82, deagle: 0.8, smg: 0.86, sub: 0.8, ar: 0.7, pump: 0.66, dbl: 0.66, auto12: 0.64, scar: 0.62, hunting: 0.58, lmg: 0.58, dblSawn: 0.76 };
+export const ADS_SCOPE = 0.78;
 const adsMove = (id, scope) => (ADS_MOVE[id === 'dbl' && hasMod('sawn') ? 'dblSawn' : id] ?? 0.58) * (scope ? ADS_SCOPE : 1);   // (the sawn-off, short and light, nearer a handgun's)
 
 // status effects, walking, vaulting and aiming

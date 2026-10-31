@@ -33,7 +33,7 @@ import { specStep, spectating } from '../net/spectate.js';
 import { giftSend, gunShare } from '../net/teamwork.js';
 import { closeSettings, setOpen, toggleView } from '../ui/settings.js';
 import { startInspect } from '../player/inspect.js';
-import { PVP, pvpChangeClass, pvpPicking } from '../pvp/pvp.js';
+import { PVP, pvpChangeClass, pvpFrozen, pvpPicking } from '../pvp/pvp.js';
 import { leanKey } from '../player/lean.js';
 
 export const keys = new Set();
@@ -65,11 +65,15 @@ function keyAct(k, e) {
   if (state !== 'play') return;
   // down in co-op: Q and E step through the teammates still standing (net/spectate.js)
   if ((k === 'q' || k === 'e') && spectating()) { if (!e.repeat) specStep(k === 'e' ? 1 : -1); return; }
-  if ((bindIs(k, 'leanL') || bindIs(k, 'leanR')) && !e.repeat && !freeOn()) { leanKey(bindIs(k, 'leanL') ? -1 : 1, true); if (!bindIs(k, 'use')) return; }   // (player/lean.js)
+  // (the arena between rounds, picking and counting in: your hands are still till it's live, pvp/pvp.js; no swapping,
+  // reloading, leaning or anything else, as the bots don't either; only the class picker and the stats sheet)
+  const still = pvpFrozen() && !bindIs(k, 'cls') && !bindIs(k, 'stats') && !bindIs(k, 'view');
+  if ((bindIs(k, 'leanL') || bindIs(k, 'leanR')) && !e.repeat && !freeOn() && !still) { leanKey(bindIs(k, 'leanL') ? -1 : 1, true); if (!bindIs(k, 'use')) return; }   // (player/lean.js)
   if (bindIs(k, 'view')) { if (!e.repeat) toggleView(); return; }   // first person and back (ui/settings.js), or out of the free camera
   if (e.repeat && !bindIs(k, 'board') && !bindIs(k, 'tear')) return;
   keys.add(k);
   if (freeOn()) return;   // (flying the free camera, the keys fly it: game/view-cam.js)
+  if (still) return;
   if (bindIs(k, 'use')) { if (e.repeat) return; if (openSt) closeStation(); else { const t = nearestTake(); if (t) takeIt(t); else { const s = nearestStation(); if (s) openStation(s); } } return; }   // a weapon lying here first
   if (openSt && /^[0-9]$/.test(k)) return;   // (no picking things at a station by number: they're clicked)
   if (k === 'tab' && openSt && openSt.id === 'bench') { e.preventDefault(); benchGunStep(e.shiftKey ? -1 : 1); return; }   // the workbench's weapon tabs (stations/station-ui.js)
@@ -120,7 +124,7 @@ cv.addEventListener('mousedown', e => { audioInit();
   if (!isoOn() && state === 'play' && openSt && !locked()) { closeStation(); return; }
   if (!isoOn() && state === 'play' && (!locked() || freeOn())) { if (!locked() && !lookMenu()) wantLock(); return; } if (state === 'play' && (e.button === 0 || e.button === 2) && spectating()) { specStep(e.button === 2 ? 1 : -1); return; }   // down in co-op: a left click watches the teammate before, a right click the next (net/spectate.js)
   if (state === 'play' && P.bandT > 0 && (e.button === 0 || e.button === 2)) cancelBandage();   // a click stops a bandage
-  if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; setAimHeld(true); if (state === 'play') startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
+  if (e.button === 0) mouseDown = true; if (e.button === 2) { mouseDownR = true; setAimHeld(true); if (state === 'play' && !pvpFrozen()) startAim(); } });   // scoped rifles aim down the sights too, just zoomed further (scopeAim)
 // the middle and side buttons: whatever's bound to them (as mouse3 to mouse5), anywhere on the page; and the side
 // buttons never take the browser back or forward a page, out of the game
 const MOUSE_KEY = { 1: 'mouse3', 3: 'mouse4', 4: 'mouse5' };

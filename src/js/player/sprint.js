@@ -44,14 +44,15 @@ import { ANIM } from './animation.js';
 import { fpOn } from '../game/view-cam.js';
 
 export const WALK_SPEED = 3.0;
-export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 1.4, fade: 2.5, acc: 9, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
+export const SPRINT = { mul: 1.75, drain: 0.14, unlock: 0.5, vault: 0.72, skid: 0.42, skidFric: 4.2, build: 0.55, kick: 0.4, fade: 2.5, acc: 14, carve: 5.5, carveK: 7, carveIn: 14, bendCost: 0.3, bank: 0.055, autoVault: 0.5 };
 // what a sprint burnt starts coming back only once you've stopped sprinting for wait seconds (Iron lungs shortens it),
 // then at rate a second standing still (exh: while you're blown), and a quarter slower while you walk: about 9 s
 // standing, 12 s walking, to win back a whole tank you ran off, against the 7 s it took to run it off
 export const RUN_REST = { wait: 1.5, rate: 0.11, exh: 0.09 };
 // how far into your full pace your momentum has you (eased: the first of it comes quickest), and how much of the quick
 // vault you've earned (none till you've built up half your momentum, all of it near flat out)
-export const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return 1 - (1 - u) * (1 - u); };
+// (a sprint kicks in at once with SPRINT.kick of its extra pace, the rest coming up over SPRINT.build, easing in)
+export const sprintPace = () => { const u = clamp(P.runUp || 0, 0, 1); return SPRINT.kick + (1 - SPRINT.kick) * (1 - (1 - u) * (1 - u)); };
 export const vaultRush = () => P.sprint ? smooth(clamp(((P.runUp || 0) - 0.45) / 0.45, 0, 1)) : 0;
 export const RG_ARC = 1.3, RG_SPREAD = 3;
 // the turn: how far round counts, how fast you must be going (of walking speed: well into a sprint), the plant (brake:

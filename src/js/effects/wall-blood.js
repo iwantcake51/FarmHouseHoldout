@@ -20,6 +20,7 @@ import { THIN, wallBetween } from '../world/thin-walls.js';
 import { WALL_AT } from '../world/house.js';
 import { IW_LINES } from '../world/interior.js';
 import { phase } from '../game/state.js';
+import { BLOOD_KEEP } from './blood-map.js';
 
 // how far blood flies to a wall (reach, m; times reachK for a heavy hit), the step it's traced in, how far off the face a
 // splash sits (off: clear of the siding and the plaster), the most splashes and runs at once, its size range (m), the
@@ -174,7 +175,7 @@ export function stepWallBlood(dt) {
   if (!splashes.length && !runs.length) return;
   const wash = phase === 'cleared' || phase === 'break' ? WB.wash : 1;
   const age = (e, list) => {
-    e.t += dt * wash;
+    if (!BLOOD_KEEP.on) e.t += dt * wash;   // (kept in Showdown till the round's over: effects/blood-map.js BLOOD_KEEP)
     const m = e.o.material, op = 1 - clamp((e.t - WB.stay) / WB.fade, 0, 1);
     if (op <= 0) { drop(list, e.o); return; }
     m.opacity = op; m.color.setRGB(1, 1, 1).lerp(DRIED, clamp(e.t / WB.dry, 0, 1));

@@ -397,6 +397,8 @@ body:not(.playing) #specXh{display:none}
 .coopSeats.teams .seat{box-shadow:inset 0 4px 0 var(--sc)}
 .coopSeats.teams .seat.sideB:first-of-type,.coopSeats.teams .seat.sideA+.seat.sideB{margin-left:8px}
 .seat .sSide{position:absolute;top:10px;right:10px;padding:1px 6px;font:700 10px var(--f-num);letter-spacing:.14em;text-transform:uppercase;color:#fff;background:var(--sc);border-radius:2px}
+/* (the host's × to send someone away sits in the corner: the badge moves over beside it) */
+.coopSeats.teams .seat:has(.sKick) .sSide{right:36px}
 .seat .sSide.sw{border:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:filter .15s,transform .15s}
 .seat .sSide.sw:hover{filter:brightness(1.15);transform:scale(1.08)}
 .seat .sSide.sw:focus-visible{outline:2px solid #2b241c;outline-offset:2px}

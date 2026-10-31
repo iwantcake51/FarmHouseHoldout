@@ -53,7 +53,7 @@ export function lobbyRender() {
   // the arena's bots: how good they are, and one more in an open seat (the host's; solo, nobody else's to pick)
   $('coopBots').hidden = NET.game !== 'arena';
   for (const b of $('coopBots').querySelectorAll('[data-s]')) { b.setAttribute('aria-checked', String(+b.dataset.s === NET.botSkill)); b.disabled = !host || NET.inGame; }
-  $('coopBotsNote').textContent = (BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
+  $('coopBotsNote').textContent = (NET.botSkill === 3 ? 'Each bot its own' : BOT_SKILLS[NET.botSkill] || '') + (host ? '' : ' · the host picks');
   $('coopBotAdd').hidden = !host; $('coopBotAdd').disabled = NET.inGame || NET.peers.size >= netMax() - 1;
   $('coopCodeRow').hidden = NET.solo;
   cfgRender(host);
@@ -80,7 +80,7 @@ function renderSeats() {
   const teams = on && NET.game === 'arena' && NET.arena !== 'ffa', sideOf = id => teams ? netSideOf(id) : '';
   list.sort((a, b) => (sideOf(a.id) > sideOf(b.id) ? 1 : sideOf(a.id) < sideOf(b.id) ? -1 : 0) || a.idx - b.idx);
   const ol = $('coopList'); ol.classList.toggle('six', netMax() > 4); ol.classList.toggle('teams', teams);
-  const key = JSON.stringify([NET.host, NET.botSkill, netMax(), teams, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid), sideOf(p.id)])]);
+  const key = JSON.stringify([NET.host, NET.botSkill, netMax(), teams, list.map(p => [p.id, p.name, p.idx, !!p.ready, !!p.bot, p.sk, JSON.stringify(p.look || null), p.fid && !!frOf(p.fid), sideOf(p.id)])]);
   if (ol.dataset.key === key) return; ol.dataset.key = key;
   ol.textContent = '';
   for (const p of list) {
@@ -91,7 +91,7 @@ function renderSeats() {
     li.innerHTML = '<span class="sPic"></span><span class="sNum"></span><b class="sName"></b><em class="sTag"></em><span class="sStamp">Ready</span>';
     if (pic) { const im = document.createElement('img'); im.alt = ''; im.src = pic; li.querySelector('.sPic').appendChild(im); }
     li.querySelector('.sNum').textContent = p.idx + 1; li.querySelector('.sName').textContent = p.name || 'Survivor';
-    li.querySelector('.sTag').textContent = p.bot ? 'Bot · ' + (BOT_SKILLS[NET.botSkill] || '') : [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
+    li.querySelector('.sTag').textContent = p.bot ? 'Bot · ' + (BOT_SKILLS[p.sk ?? NET.botSkill] || '') : [isHost ? 'Host' : p.ready ? '' : 'Not ready yet', me ? 'You' : ''].filter(Boolean).join(', ');
     if (p.bot) li.classList.add('bot');
     if (teams) {
       const sd = sideOf(p.id); li.classList.add('side' + sd); li.style.setProperty('--sc', sd === 'B' ? '#e2563f' : '#5fb4e8');
@@ -150,7 +150,7 @@ $('coopArena').onclick = e => { const b = e.target.closest('button'); if (b && !
 const CFG_ROWS = {
   ffa: [['ffa', 'Kills to win', ''], ['match', 'Match length', ' min']],
   tdm: [['tdm', 'Kills to win', ''], ['match', 'Match length', ' min']],
-  rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', '']]
+  rounds: [['rounds', 'Rounds to win', ''], ['round', 'Round time', ' s'], ['cap', 'Flag capture', ' s'], ['kit', 'Loadouts', ''], ['kitRd', 'New loadout every', ' rounds']]
 };
 let mapDrawn = false;
 function cfgRender(host) {
@@ -159,8 +159,8 @@ function cfgRender(host) {
   const C = NET.acfg = pvpCfgFix(NET.acfg), rows = CFG_ROWS[NET.arena] || [], el = $('coopCfgRows'), key = JSON.stringify([NET.arena, C, host, NET.inGame]);
   $('coopCfgNote').textContent = host ? 'Yours to set' : 'The host sets it';
   if (el.dataset.key === key) return; el.dataset.key = key;
-  el.innerHTML = rows.map(([k, name, unit]) => {
-    const v = k === 'kit' ? (C.kit === 'class' ? 'Classes' : 'Random') : C[k] + unit, L = PVP_CFG_LIM[k], dis = !host || NET.inGame;
+  el.innerHTML = rows.filter(([k]) => k !== 'kitRd' || C.kit !== 'class').map(([k, name, unit]) => {   // (how long a random loadout lasts: only while they're random)
+    const v = k === 'kit' ? (C.kit === 'class' ? 'Classes' : 'Random') : k === 'kitRd' && C[k] === 1 ? '1 round' : C[k] + unit, L = PVP_CFG_LIM[k], dis = !host || NET.inGame;
     const ctl = k === 'kit' ? `<button type="button" class="cfgBtn wide" data-k="kit" ${dis ? 'disabled' : ''}>${v}</button>` :
       `<button type="button" class="cfgBtn" data-k="${k}" data-d="-1" aria-label="Less" ${dis || C[k] <= L[0] ? 'disabled' : ''}>−</button><b>${v}</b><button type="button" class="cfgBtn" data-k="${k}" data-d="1" aria-label="More" ${dis || C[k] >= L[1] ? 'disabled' : ''}>+</button>`;
     return `<div class="cfgRow"><span>${name}</span><span class="cfgCtl">${ctl}</span></div>`;

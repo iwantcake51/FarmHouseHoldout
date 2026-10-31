@@ -529,7 +529,9 @@ export function updatePlayerVisuals(dt, rdt) {
   // a soft, pale yellow pulse on that gun's own materials only (its stain copies, effects/body-blood.js), so the rack's
   // models and the other guns you carry, which share the plain gun materials, stay as they are
   const GS = gunGlowId && WSTAIN[gunGlowId];
-  if (GS) { for (const [o, m] of GS.list) if (m.emissive && GLOW_SET.has(o)) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) setGunGlowId(null); }
+  // (every part of it that has no glow of its own: the listed gun materials and anything else plain on it, the rubber of
+  // a compensator's ports or a magwell's grip, so a new attachment glows with the rest)
+  if (GS) { for (const [o, m] of GS.list) if (m.emissive && (GLOW_SET.has(o) || (o.emissive && o.emissive.getHex() === 0))) m.emissive.setRGB(gl * 0.34, gl * 0.31, gl * 0.2); if (!gl) setGunGlowId(null); }
   if (rdt > 0) updateMuzzleWisp(rdt);   // the smoke still curling off the muzzle after a heavy shot (effects/muzzle-flash.js)
   if (worldK > 0 && dt > 0 && !ARENA.on) barrelFire(dt);   // (none in the arena: world/arena.js)   // (effects/puffs.js; the fire freezes with the world)
 }
